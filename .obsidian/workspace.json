@@ -1,0 +1,469 @@
+{
+  "main": {
+    "id": "50642b19cee708aa",
+    "type": "split",
+    "children": [
+      {
+        "id": "2a5fd7454a3822dd",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "e67e223e9e8db633",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "05_Workflows/Sales/Arena outreach workflow.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Arena outreach workflow"
+            }
+          },
+          {
+            "id": "18769de2502caef4",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "05_Workflows/Sales/DM diagnosis workflow.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "DM diagnosis workflow"
+            }
+          },
+          {
+            "id": "ab35c21019969754",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "05_Workflows/Sales/sales call workflow.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "sales call workflow"
+            }
+          },
+          {
+            "id": "5d4ffa6d51413465",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "05_Workflows/Sales/client onboarding workflow.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "client onboarding workflow"
+            }
+          },
+          {
+            "id": "67b1564b6faa9a2a",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "05_Workflows/Delivery/weekly War Room workflow.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "weekly War Room workflow"
+            }
+          },
+          {
+            "id": "9d5674488a27ee7a",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "05_Workflows/Ops/testimonial collection workflow.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "testimonial collection workflow"
+            }
+          },
+          {
+            "id": "78b465c7aa2aa964",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "05_Workflows/Sales/client onboarding workflow.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "client onboarding workflow"
+            }
+          },
+          {
+            "id": "d8ad3055141ba26d",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "05_Workflows/Delivery/weekly War Room workflow.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "weekly War Room workflow"
+            }
+          },
+          {
+            "id": "755160eb895d1f5e",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "06_Skills/Sales/Generate Follow-Up Message.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Generate Follow-Up Message"
+            }
+          },
+          {
+            "id": "5d746ed20b3a0fb1",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "06_Skills/Sales/Extract ICP Insight.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Extract ICP Insight"
+            }
+          },
+          {
+            "id": "34e83dfa747fadf9",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "06_Skills/Content/Draft Arena Content Post.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Draft Arena Content Post"
+            }
+          },
+          {
+            "id": "d2ac0f5085717799",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "ICP note.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "ICP note"
+            }
+          },
+          {
+            "id": "610b0b440d638752",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "objections notes.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "objections notes"
+            }
+          },
+          {
+            "id": "c05b5a81caf0870e",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "workflow notes.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "workflow notes"
+            }
+          },
+          {
+            "id": "a9c16a44e85ec202",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "06_Skills/Sales/Generate Follow-Up Message.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Generate Follow-Up Message"
+            }
+          },
+          {
+            "id": "e5fe78b9eb509791",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "06_Skills/Content/Draft Arena Content Post.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Draft Arena Content Post"
+            }
+          },
+          {
+            "id": "ac4378aa7c015b04",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "01_Inbox/Raw Notes.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Raw Notes"
+            }
+          },
+          {
+            "id": "93b1036834cbc228",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "00_Dashboard/Clients.md.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Clients.md"
+            }
+          }
+        ],
+        "currentTab": 17
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "421a8906f0ca0898",
+    "type": "split",
+    "children": [
+      {
+        "id": "e1290c7105f129c4",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "7141a340e5459afe",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "ddd5a25becefb3c0",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "c9db4aa4047c10d5",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "d1d855c4d44c790a",
+    "type": "split",
+    "children": [
+      {
+        "id": "54922ac8a8dc8d6f",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "189857f60df52552",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "02_Daily/Tuesday March 10th 2026.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for Tuesday March 10th 2026"
+            }
+          },
+          {
+            "id": "925ee0aa9a050b5f",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "02_Daily/Tuesday March 10th 2026.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from Tuesday March 10th 2026"
+            }
+          },
+          {
+            "id": "18e0d9b0a61d018e",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "746cb5c35894069e",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "00_Dashboard/Clients.md.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of Clients.md"
+            }
+          },
+          {
+            "id": "62d880af538bc158",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          }
+        ],
+        "currentTab": 3
+      }
+    ],
+    "direction": "horizontal",
+    "width": 200,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false,
+      "audio-recorder:Start/stop recording": false,
+      "githobs:Manage a github issue": false,
+      "obsidian-kanban:Create new board": false,
+      "templater-obsidian:Templater": false
+    }
+  },
+  "active": "93b1036834cbc228",
+  "lastOpenFiles": [
+    "01_Inbox/Raw Notes.md",
+    "02_Daily/Tuesday March 10th 2026.md",
+    "04_Offers/Initiate Arena.md.md",
+    "workflow notes.md",
+    "objections notes.md",
+    "ICP note.md",
+    "offer notes.md",
+    "06_Skills/Ops/Prepare War Room Agenda.md",
+    "06_Skills/Content/Draft Arena Content Post.md",
+    "06_Skills/Sales/Extract ICP Insight.md",
+    "06_Skills/Sales/Summarize Sales Call.md",
+    "06_Skills/Sales/Generate Follow-Up Message.md",
+    "06_Skills/Sales/Qualify Lead.md",
+    "06_Skills/Sales/Analyze DM Conversation.md",
+    "05_Workflows/Delivery/weekly War Room workflow.md",
+    "05_Workflows/Ops/testimonial collection workflow.md",
+    "05_Workflows/Sales/sales call workflow.md",
+    "05_Workflows/Sales/client onboarding workflow.md",
+    "05_Workflows/Content/content creation workflow.md",
+    "05_Workflows/Sales/DM diagnosis workflow.md",
+    "05_Workflows/Sales/Arena outreach workflow.md",
+    "CRM workflow.md",
+    "00_Dashboard/Product.md.md",
+    "00_Dashboard/Content.md.md",
+    "00_Dashboard/Clients.md.md",
+    "00_Dashboard/Home.md.md",
+    "10_Metrics/Weekly_Reviews",
+    "10_Metrics/Content",
+    "10_Metrics/Delivery",
+    "10_Metrics/Sales",
+    "09_Content/Content_Log",
+    "09_Content/Scripts",
+    "09_Content/Post_Ideas",
+    "09_Content/Hooks",
+    "08_Clients/Churned",
+    "08_Clients/Completed"
+  ]
+}

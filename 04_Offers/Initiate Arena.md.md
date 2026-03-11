@@ -1,0 +1,4 @@
+- future upsells
+- positioning docs
+- guarantee/pricing ideas
+- ICP notes
