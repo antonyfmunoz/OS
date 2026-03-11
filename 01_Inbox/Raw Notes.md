@@ -40,7 +40,7 @@ Use these link patterns:
 
 Example:
 Related:  
-- [[Initiate Arena.md]]  
+- [[Initiate Arena]]  
 - [[Frustrated Drifter]]  
 - [[Ownership]]  
 - [[Arena Outreach Workflow]]  

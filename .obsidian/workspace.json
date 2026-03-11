@@ -251,12 +251,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "00_Dashboard/Clients.md.md",
+                "file": "04_Offers/Initiate Arena.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Clients.md"
+              "title": "Initiate Arena"
             }
           }
         ],
@@ -381,13 +381,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "00_Dashboard/Clients.md.md",
+                "file": "04_Offers/Initiate Arena.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Outline of Clients.md"
+              "title": "Outline of Initiate Arena"
             }
           },
           {
@@ -424,14 +424,20 @@
       "audio-recorder:Start/stop recording": false,
       "githobs:Manage a github issue": false,
       "obsidian-kanban:Create new board": false,
-      "templater-obsidian:Templater": false
+      "templater-obsidian:Templater": false,
+      "obsidian-git:Open Git source control": false
     }
   },
   "active": "93b1036834cbc228",
   "lastOpenFiles": [
+    "00_Dashboard/Sales.md",
+    "00_Dashboard/Product.md",
+    "00_Dashboard/Home.md",
+    "00_Dashboard/Content.md",
+    "00_Dashboard/Clients.md",
     "01_Inbox/Raw Notes.md",
     "02_Daily/Tuesday March 10th 2026.md",
-    "04_Offers/Initiate Arena.md.md",
+    "04_Offers/Initiate Arena.md",
     "workflow notes.md",
     "objections notes.md",
     "ICP note.md",
@@ -450,11 +456,6 @@
     "05_Workflows/Content/content creation workflow.md",
     "05_Workflows/Sales/DM diagnosis workflow.md",
     "05_Workflows/Sales/Arena outreach workflow.md",
-    "CRM workflow.md",
-    "00_Dashboard/Product.md.md",
-    "00_Dashboard/Content.md.md",
-    "00_Dashboard/Clients.md.md",
-    "00_Dashboard/Home.md.md",
     "10_Metrics/Weekly_Reviews",
     "10_Metrics/Content",
     "10_Metrics/Delivery",
