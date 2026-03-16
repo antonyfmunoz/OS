@@ -3,3 +3,4 @@
 .obsidian/workspace.env
 13_Scripts/.env
 *.env
+tmux-*.log
