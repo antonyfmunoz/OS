@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo ""
-echo "EntrepreneurOS Agent Orchestrator"
+echo "OS Agent Orchestrator"
 echo "---------------------------------"
 
 echo ""

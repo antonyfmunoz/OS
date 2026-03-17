@@ -1,16 +1,36 @@
-TABLE platform, source, pain_level, next_action
+# Sales Dashboard
+
+## Active Pipeline
+
+```dataview
+TABLE icp_score AS "Score", archetype AS "Archetype", kanban_stage AS "Stage", next_action AS "Next Action", next_action_date AS "Due"
+FROM "03_CRM/Leads"
+WHERE type = "lead" AND kanban_stage != "Won" AND kanban_stage != "Lost"
+SORT next_action_date ASC
+```
+
+## Leads by Stage
+
+```dataview
+TABLE length(rows) AS "Count"
 FROM "03_CRM/Leads"
 WHERE type = "lead"
-SORT file.ctime DESC
+GROUP BY kanban_stage
+```
 
-TABLE pain_level, ownership_level, next_action_date
-FROM "03_CRM/Qualified"
-WHERE type = "lead"
-SORT next_action_date ASC
+## Active Clients
 
-# Lost Reason:
+```dataview
+TABLE offer, cohort, discipline_score, execution_blocks_weekly
+FROM "08_Clients/Active"
+WHERE type = "client"
+SORT discipline_score DESC
+```
 
-TABLE loss_reason, pain_level, ownership_level
-FROM "03_CRM/Lost"
-WHERE type = "lead"
-SORT file.mtime DESC
+## Open Tasks
+
+```tasks
+not done
+path includes 02_Daily
+sort by due
+```

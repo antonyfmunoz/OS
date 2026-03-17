@@ -5,7 +5,7 @@ founder_briefing.sh
 Paste this in the file:
 #!/bin/bash
 echo “”
-echo “EntrepreneurOS Founder Briefing”
+echo “OS Founder Briefing”
 echo “––––––––––––––––”
 echo “”
 echo “Latest Market Intelligence Report:”
@@ -146,7 +146,7 @@ Write:
 - biggest friction
 - product insight
 
-That last part is how EntrepreneurOS gets discovered from operations instead of imagined.
+That last part is how OS gets discovered from operations instead of imagined.
 
 # Git and backup
 Use GitHub as the external backup/versioning layer.
@@ -165,7 +165,7 @@ Example:
 
 # My blunt recommendation for your use case
 
-Because you’re testing **Initiate Arena** while simultaneously discovering **EntrepreneurOS**, build the vault around this sequence:
+Because you’re testing **Initiate Arena** while simultaneously discovering **OS**, build the vault around this sequence:
 
 **Daily execution → lead pipeline → client delivery → product insight**
 
