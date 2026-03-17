@@ -71,6 +71,13 @@ def build_briefing_text():
     qualified = scraper.get("haiku_calls", 0)
     scraper_cost = scraper.get("total", 0.0)
 
+    trend = kpi_tracker.get_reply_rate_trend(days=7)
+    if len(trend) >= 3:
+        trend_str = " → ".join(f"{r}%" for r in trend)
+        trend_block = f"TREND (7 days)\n  Reply rate: {trend_str}\n\n"
+    else:
+        trend_block = "TREND: Building data...\n\n"
+
     return (
         "OS Morning Briefing\n\n"
         "Pipeline:\n"
@@ -78,6 +85,7 @@ def build_briefing_text():
         f"  Contacted:  {counts['Contacted']} leads\n"
         f"  Replied:    {counts['Replied']} leads\n"
         f"  Booked:     {counts['Booked']} calls\n\n"
+        f"{trend_block}"
         "Top new leads:\n"
         f"{top_leads_block}\n\n"
         "LAST NIGHT\n"

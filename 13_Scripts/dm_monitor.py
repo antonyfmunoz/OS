@@ -132,8 +132,8 @@ def move_card_to_stage(username, from_stage, to_stage):
     return True
 
 
-def update_lead_stage(username, new_stage):
-    """Update kanban_stage and status in the lead's frontmatter."""
+def update_lead_stage(username, new_stage, conversation_stage=None):
+    """Update kanban_stage, status, conversation_stage, and last_stage_update in the lead's frontmatter."""
     pattern = os.path.join(get_vault_path(), f"03_CRM/Leads/lead_{username}_*.md")
     lead_files = glob.glob(pattern)
     if not lead_files:
@@ -141,11 +141,43 @@ def update_lead_stage(username, new_stage):
     filepath = sorted(lead_files)[-1]  # most recent
     with open(filepath, encoding="utf-8") as f:
         lines = f.read().splitlines()
+
+    today = datetime.date.today().isoformat()
+    fields_written = {"kanban_stage": False, "status": False,
+                      "conversation_stage": False, "last_stage_update": False}
+
     for i, line in enumerate(lines):
         if line.startswith("kanban_stage:"):
             lines[i] = f"kanban_stage: {new_stage}"
+            fields_written["kanban_stage"] = True
         elif line.startswith("status:"):
             lines[i] = f"status: {new_stage.lower()}"
+            fields_written["status"] = True
+        elif line.startswith("conversation_stage:"):
+            if conversation_stage:
+                lines[i] = f"conversation_stage: {conversation_stage}"
+            fields_written["conversation_stage"] = True
+        elif line.startswith("last_stage_update:"):
+            lines[i] = f"last_stage_update: {today}"
+            fields_written["last_stage_update"] = True
+
+    # Append any fields that weren't already in the frontmatter
+    # Find the closing --- of the frontmatter block
+    fm_end = None
+    for i, line in enumerate(lines[1:], 1):
+        if line.strip() == "---":
+            fm_end = i
+            break
+
+    if fm_end is not None:
+        inserts = []
+        if not fields_written["conversation_stage"] and conversation_stage:
+            inserts.append(f"conversation_stage: {conversation_stage}")
+        if not fields_written["last_stage_update"]:
+            inserts.append(f"last_stage_update: {today}")
+        for field in reversed(inserts):
+            lines.insert(fm_end, field)
+
     with open(filepath, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
 
@@ -159,10 +191,11 @@ def _advance_pipeline(username, stage):
     if stage in ("Engaged", "Diagnosing", "Qualifying", "Ready", "Booked"):
         moved = move_card_to_stage(username, "Contacted", "Replied")
         if moved:
-            update_lead_stage(username, "Replied")
+            update_lead_stage(username, "Replied", conversation_stage=stage)
             pipeline_status = "Contacted → Replied"
             print(f"  [PIPELINE] @{username} Contacted → Replied")
         else:
+            update_lead_stage(username, "Replied", conversation_stage=stage)
             print(f"  [PIPELINE] @{username} not in Contacted — skipping Replied move")
 
     if stage in ("Qualifying", "Ready", "Booked"):
@@ -170,14 +203,14 @@ def _advance_pipeline(username, stage):
         if not moved:
             moved = move_card_to_stage(username, "Contacted", "Qualifying")
         if moved:
-            update_lead_stage(username, "Qualifying")
+            update_lead_stage(username, "Qualifying", conversation_stage=stage)
             pipeline_status = (pipeline_status + " → Qualifying") if pipeline_status else "→ Qualifying"
             print(f"  [PIPELINE] @{username} → Qualifying")
 
     if stage == "Booked":
         moved = move_card_to_stage(username, "Qualifying", "Booked")
         if moved:
-            update_lead_stage(username, "Booked")
+            update_lead_stage(username, "Booked", conversation_stage=stage)
             pipeline_status = (pipeline_status + " → Booked") if pipeline_status else "→ Booked"
             print(f"  [PIPELINE] @{username} → Booked")
 
@@ -195,6 +228,8 @@ def _advance_pipeline(username, stage):
         )
 
     if not pipeline_status:
+        # Still update conversation_stage even when no card move
+        update_lead_stage(username, "Contacted", conversation_stage=stage)
         pipeline_status = f"Stage: {stage} (no move)"
 
     return pipeline_status, ready_alert

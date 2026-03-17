@@ -196,10 +196,10 @@ def _extract_openers(outreach_text, archetype):
 
 
 def pick_opener(outreach_text, archetype, pain_signals, comment_text):
-    """Score all openers in the matching segment and return the best fit."""
+    """Score all openers in the matching segment and return (opener_text, opener_index)."""
     openers = _extract_openers(outreach_text, archetype)
     if not openers:
-        return FALLBACK_OPENER
+        return FALLBACK_OPENER, 0
 
     comment_lower = comment_text.lower()
     comment_words = set(comment_lower.split())
@@ -213,7 +213,7 @@ def pick_opener(outreach_text, archetype, pain_signals, comment_text):
                 active_keywords.extend(keywords)
 
     scored = []
-    for opener in openers:
+    for idx, opener in enumerate(openers):
         opener_lower = opener.lower()
         score = 0
 
@@ -236,11 +236,12 @@ def pick_opener(outreach_text, archetype, pain_signals, comment_text):
         if opener.rstrip().endswith("?"):
             score += 1
 
-        scored.append((score, len(opener), opener))
+        scored.append((score, len(opener), idx + 1, opener))
 
     # Sort by score desc, then length asc (shorter wins ties)
     scored.sort(key=lambda x: (-x[0], x[1]))
-    return scored[0][2]
+    best = scored[0]
+    return best[3], best[2]
 
 
 def score_comment(client, comment_text, api_call_counter):
@@ -274,7 +275,7 @@ def score_comment(client, comment_text, api_call_counter):
             time.sleep(wait)
 
 
-def create_lead_file(username, comment_text, source, post_url, timestamp, result, opener):
+def create_lead_file(username, comment_text, source, post_url, timestamp, result, opener, opener_index=0):
     """Write lead markdown file and return filepath."""
     os.makedirs(LEADS_DIR, exist_ok=True)
     today = datetime.date.today().isoformat()
@@ -297,6 +298,8 @@ pain_signals:
 {pain_signals_yaml}
 post_url: {post_url}
 comment: "{comment_text}"
+opener_sent: "{opener[:50]}"
+opener_index: {opener_index}
 last_contact:
 next_action: send_opener
 next_action_date: {today}
@@ -422,8 +425,8 @@ def main():
                 total += 1
                 continue
 
-            opener = pick_opener(outreach_text, archetype, result["pain_signals"], comment_text)
-            lead_filepath = create_lead_file(username, comment_text, source, post_url, timestamp, result, opener)
+            opener, opener_index = pick_opener(outreach_text, archetype, result["pain_signals"], comment_text)
+            lead_filepath = create_lead_file(username, comment_text, source, post_url, timestamp, result, opener, opener_index)
             add_to_kanban(username, score, archetype, comment_text, os.path.basename(lead_filepath).replace(".md", ""))
             qualified += 1
             print(f"@{username} — score: {score}/10 — {archetype} — QUALIFIED")

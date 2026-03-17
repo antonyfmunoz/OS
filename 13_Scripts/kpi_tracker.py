@@ -91,6 +91,116 @@ def get_conversation_stats():
     return {"active_today": active_today}
 
 
+LEADS_DIR = os.path.join(VAULT, "03_CRM/Leads")
+KPI_HISTORY = os.path.join(VAULT, "13_Scripts/kpi_history.json")
+REPLIED_STATUSES = {"replied", "qualifying", "booked", "won"}
+
+
+def _parse_lead_frontmatter(filepath):
+    """Return frontmatter dict from a lead .md file."""
+    try:
+        with open(filepath, encoding="utf-8") as f:
+            content = f.read()
+        if not content.startswith("---"):
+            return {}
+        end = content.find("---", 3)
+        if end == -1:
+            return {}
+        fm = {}
+        for line in content[3:end].strip().splitlines():
+            if ":" in line:
+                k, _, v = line.partition(":")
+                fm[k.strip()] = v.strip().strip('"')
+        return fm
+    except Exception:
+        return {}
+
+
+def get_opener_stats():
+    """Scan lead files and return openers sorted by reply rate descending."""
+    stats = {}  # opener_preview -> {"sent": 0, "replied": 0}
+    for filepath in glob.glob(os.path.join(LEADS_DIR, "lead_*.md")):
+        fm = _parse_lead_frontmatter(filepath)
+        opener = fm.get("opener_sent", "").strip()
+        if not opener:
+            continue
+        status = fm.get("status", "new").lower()
+        if opener not in stats:
+            stats[opener] = {"sent": 0, "replied": 0}
+        stats[opener]["sent"] += 1
+        if status in REPLIED_STATUSES:
+            stats[opener]["replied"] += 1
+
+    results = []
+    for opener, data in stats.items():
+        rate = round(data["replied"] / data["sent"] * 100) if data["sent"] > 0 else 0
+        results.append({"opener": opener, "sent": data["sent"],
+                        "replied": data["replied"], "reply_rate": rate})
+    results.sort(key=lambda x: (-x["reply_rate"], -x["sent"]))
+    return results
+
+
+def get_hashtag_stats():
+    """Scan lead files and return sources sorted by reply rate descending."""
+    stats = {}  # source -> {"sent": 0, "replied": 0}
+    for filepath in glob.glob(os.path.join(LEADS_DIR, "lead_*.md")):
+        fm = _parse_lead_frontmatter(filepath)
+        source = fm.get("source", "").strip()
+        if not source:
+            continue
+        status = fm.get("status", "new").lower()
+        if source not in stats:
+            stats[source] = {"sent": 0, "replied": 0}
+        stats[source]["sent"] += 1
+        if status in REPLIED_STATUSES:
+            stats[source]["replied"] += 1
+
+    results = []
+    for source, data in stats.items():
+        rate = round(data["replied"] / data["sent"] * 100) if data["sent"] > 0 else 0
+        results.append({"source": source, "sent": data["sent"],
+                        "replied": data["replied"], "reply_rate": rate})
+    results.sort(key=lambda x: (-x["reply_rate"], -x["sent"]))
+    return results
+
+
+def append_kpi_history(dms_sent, replied_count):
+    """Append today's reply rate to kpi_history.json."""
+    today = datetime.date.today().isoformat()
+    rate = round(replied_count / dms_sent * 100) if dms_sent > 0 else 0
+    history = []
+    if os.path.exists(KPI_HISTORY):
+        try:
+            with open(KPI_HISTORY, encoding="utf-8") as f:
+                history = json.load(f)
+        except Exception:
+            history = []
+    # Update or append today's entry
+    for entry in history:
+        if entry.get("date") == today:
+            entry["reply_rate"] = rate
+            entry["dms_sent"] = dms_sent
+            break
+    else:
+        history.append({"date": today, "reply_rate": rate, "dms_sent": dms_sent})
+    # Keep last 90 days
+    history = history[-90:]
+    with open(KPI_HISTORY, "w", encoding="utf-8") as f:
+        json.dump(history, f, indent=2)
+
+
+def get_reply_rate_trend(days=7):
+    """Return list of reply rates for the last N days (oldest first). Empty list if no data."""
+    if not os.path.exists(KPI_HISTORY):
+        return []
+    try:
+        with open(KPI_HISTORY, encoding="utf-8") as f:
+            history = json.load(f)
+        return [e["reply_rate"] for e in history[-days:]]
+    except Exception:
+        return []
+
+
 def build_eod_report(pipeline_counts, scraper_stats, conversation_stats, daily_log):
     """Build the EOD report string."""
     date = datetime.date.today().strftime("%Y-%m-%d")
@@ -117,6 +227,25 @@ def build_eod_report(pipeline_counts, scraper_stats, conversation_stats, daily_l
     else:
         performance_line = "Full send. Good work."
 
+    # Opener stats
+    opener_stats = get_opener_stats()
+    opener_block = ""
+    if opener_stats:
+        lines = []
+        for i, row in enumerate(opener_stats[:3], 1):
+            lines.append(f"  {i}. '{row['opener'][:40]}' — {row['reply_rate']}% ({row['sent']} sent)")
+        opener_block = "TOP OPENERS\n" + "\n".join(lines) + "\n\n"
+
+    # Hashtag / source stats (only if 5+ total leads)
+    hashtag_stats = get_hashtag_stats()
+    total_leads = sum(r["sent"] for r in hashtag_stats)
+    source_block = ""
+    if total_leads >= 5 and hashtag_stats:
+        lines = []
+        for i, row in enumerate(hashtag_stats[:3], 1):
+            lines.append(f"  {i}. {row['source']} — {row['reply_rate']}% reply rate ({row['sent']} leads)")
+        source_block = "TOP SOURCES\n" + "\n".join(lines) + "\n\n"
+
     cost_report = cost_tracker.format_cost_report()
     cost_summary = cost_tracker.get_cost_summary()
     today_scraper = cost_summary["today_scraper"]
@@ -124,6 +253,8 @@ def build_eod_report(pipeline_counts, scraper_stats, conversation_stats, daily_l
     today_total = cost_summary["today_total"]
     month_total = cost_summary["month_total"]
     all_time = cost_summary["all_time_total"]
+
+    append_kpi_history(dms_sent, replied_count)
 
     return (
         f"OS — Daily Outreach Report\n"
@@ -143,6 +274,8 @@ def build_eod_report(pipeline_counts, scraper_stats, conversation_stats, daily_l
         f"  New:         {new_count}\n"
         f"  Contacted:   {contacted_count}\n"
         f"  Replied:     {replied_count}\n\n"
+        f"{opener_block}"
+        f"{source_block}"
         f"COSTS\n"
         f"  Scraper:     ${today_scraper:.4f}\n"
         f"  Co-pilot:    ${today_copilot:.4f}\n"
