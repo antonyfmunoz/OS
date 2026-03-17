@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import glob
 import time
 import random
@@ -198,6 +199,76 @@ def update_lead_stage(username, new_stage, conversation_stage=None):
         f.write("\n".join(lines) + "\n")
 
 
+def update_source_reply(username):
+    """Update source hashtag reply count and opener reply count when a lead replies."""
+    vault = get_vault_path()
+
+    pattern = os.path.join(vault, f"03_CRM/Leads/lead_{username}_*.md")
+    lead_files = glob.glob(pattern)
+    if not lead_files:
+        return
+    filepath = sorted(lead_files)[-1]
+
+    try:
+        with open(filepath, encoding="utf-8") as f:
+            content = f.read()
+        if not content.startswith("---"):
+            return
+        end = content.find("---", 3)
+        if end == -1:
+            return
+        fm = {}
+        for line in content[3:end].strip().splitlines():
+            if ":" in line:
+                k, _, v = line.partition(":")
+                fm[k.strip()] = v.strip().strip('"')
+    except Exception:
+        return
+
+    source = fm.get("source", "").strip()
+    opener_sent = fm.get("opener_sent", "").strip()
+
+    # Update hashtag_config.json reply count
+    if source:
+        config_path = os.path.join(vault, "13_Scripts/hashtag_config.json")
+        try:
+            with open(config_path, encoding="utf-8") as f:
+                config = json.load(f)
+            perf = config.get("performance", {})
+            if source in perf:
+                perf[source].setdefault("reply_count", 0)
+                perf[source]["reply_count"] += 1
+                total_qualified = perf[source].get("total_qualified", 0)
+                reply_count = perf[source]["reply_count"]
+                if total_qualified > 0:
+                    perf[source]["reply_rate"] = round(reply_count / total_qualified, 4)
+            with open(config_path, "w", encoding="utf-8") as f:
+                json.dump(config, f, indent=2)
+        except Exception as e:
+            print(f"  [REPLY TRACK] Source update failed: {e}")
+
+    # Update opener_stats.json reply count
+    if opener_sent:
+        opener_stats_path = os.path.join(vault, "13_Scripts/opener_stats.json")
+        try:
+            if os.path.exists(opener_stats_path):
+                with open(opener_stats_path, encoding="utf-8") as f:
+                    stats = json.load(f)
+            else:
+                stats = {"openers": {}}
+            openers = stats.setdefault("openers", {})
+            openers.setdefault(opener_sent, {"sent": 0, "replies": 0, "reply_rate": 0.0})
+            openers[opener_sent]["replies"] += 1
+            sent = openers[opener_sent]["sent"]
+            replies = openers[opener_sent]["replies"]
+            if sent > 0:
+                openers[opener_sent]["reply_rate"] = round(replies / sent, 4)
+            with open(opener_stats_path, "w", encoding="utf-8") as f:
+                json.dump(stats, f, indent=2)
+        except Exception as e:
+            print(f"  [REPLY TRACK] Opener update failed: {e}")
+
+
 def _advance_pipeline(username, stage):
     """Move the pipeline card based on conversation stage.
     Returns (pipeline_status_str, ready_alert_str|None)."""
@@ -209,6 +280,7 @@ def _advance_pipeline(username, stage):
         if moved:
             update_lead_stage(username, "Replied", conversation_stage=stage)
             pipeline_status = "Contacted → Replied"
+            update_source_reply(username)
             print(f"  [PIPELINE] @{username} Contacted → Replied")
         else:
             update_lead_stage(username, "Replied", conversation_stage=stage)

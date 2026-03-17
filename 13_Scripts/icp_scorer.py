@@ -275,6 +275,25 @@ def score_comment(client, comment_text, api_call_counter):
             time.sleep(wait)
 
 
+def update_opener_stats_sent(opener_text):
+    """Increment sent count for an opener in opener_stats.json."""
+    opener_stats_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "opener_stats.json")
+    try:
+        if os.path.exists(opener_stats_path):
+            with open(opener_stats_path, encoding="utf-8") as f:
+                stats = json.load(f)
+        else:
+            stats = {"openers": {}}
+        key = opener_text[:50]
+        openers = stats.setdefault("openers", {})
+        openers.setdefault(key, {"sent": 0, "replies": 0, "reply_rate": 0.0})
+        openers[key]["sent"] += 1
+        with open(opener_stats_path, "w", encoding="utf-8") as f:
+            json.dump(stats, f, indent=2)
+    except Exception as e:
+        print(f"  [OPENER STATS] Failed to update: {e}")
+
+
 def create_lead_file(username, comment_text, source, post_url, timestamp, result, opener, opener_index=0):
     """Write lead markdown file and return filepath."""
     os.makedirs(LEADS_DIR, exist_ok=True)
@@ -332,6 +351,7 @@ kanban_stage: New
 
     with open(filename, "w", encoding="utf-8") as f:
         f.write(content)
+    update_opener_stats_sent(opener[:50])
     return filename
 
 

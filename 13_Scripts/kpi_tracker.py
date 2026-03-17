@@ -93,6 +93,7 @@ def get_conversation_stats():
 
 LEADS_DIR = os.path.join(VAULT, "03_CRM/Leads")
 KPI_HISTORY = os.path.join(VAULT, "13_Scripts/kpi_history.json")
+OPENER_STATS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "opener_stats.json")
 REPLIED_STATUSES = {"replied", "qualifying", "booked", "won"}
 
 
@@ -117,16 +118,33 @@ def _parse_lead_frontmatter(filepath):
 
 
 def get_opener_stats():
-    """Scan lead files and return openers sorted by reply rate descending."""
-    stats = {}  # opener_preview -> {"sent": 0, "replied": 0}
+    """Return openers sorted by reply rate. Reads opener_stats.json if present,
+    falls back to scanning lead file frontmatter."""
+    if os.path.exists(OPENER_STATS_FILE):
+        try:
+            with open(OPENER_STATS_FILE, encoding="utf-8") as f:
+                data = json.load(f)
+            results = []
+            for opener_text, s in data.get("openers", {}).items():
+                sent = s.get("sent", 0)
+                replies = s.get("replies", 0)
+                rate = round(replies / sent * 100) if sent > 0 else 0
+                results.append({"opener": opener_text, "sent": sent,
+                                 "replied": replies, "reply_rate": rate})
+            results.sort(key=lambda x: (-x["reply_rate"], -x["sent"]))
+            return results
+        except Exception:
+            pass
+
+    # Fallback: scan lead files
+    stats = {}
     for filepath in glob.glob(os.path.join(LEADS_DIR, "lead_*.md")):
         fm = _parse_lead_frontmatter(filepath)
         opener = fm.get("opener_sent", "").strip()
         if not opener:
             continue
         status = fm.get("status", "new").lower()
-        if opener not in stats:
-            stats[opener] = {"sent": 0, "replied": 0}
+        stats.setdefault(opener, {"sent": 0, "replied": 0})
         stats[opener]["sent"] += 1
         if status in REPLIED_STATUSES:
             stats[opener]["replied"] += 1
@@ -274,6 +292,15 @@ def build_eod_report(pipeline_counts, scraper_stats, conversation_stats, daily_l
     sunday_block = ""
     if datetime.date.today().weekday() == 6:
         sunday_block = f"\n\n{get_hashtag_report()}"
+        opener_stats = get_opener_stats()
+        if opener_stats:
+            lines = []
+            for i, row in enumerate(opener_stats[:3], 1):
+                lines.append(
+                    f"  {i}. '{row['opener'][:40]}' — {row['reply_rate']}% "
+                    f"({row['replied']}/{row['sent']} replies)"
+                )
+            sunday_block += "\n\nTOP OPENERS (by reply rate)\n" + "\n".join(lines)
 
     return (
         f"OS — Daily Outreach Report\n"

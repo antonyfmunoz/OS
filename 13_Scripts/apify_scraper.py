@@ -2,6 +2,7 @@ import os
 import re
 import sys
 import json
+import glob
 import time
 import requests
 import datetime
@@ -81,6 +82,38 @@ def save_hashtag_config(config):
         json.dump(config, f, indent=2)
 
 
+def send_telegram_notification(text):
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID")
+    if not token or not chat_id:
+        return
+    try:
+        import requests as req
+        req.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat_id, "text": text},
+            timeout=10
+        )
+    except Exception:
+        pass
+
+
+def should_blacklist(perf_data):
+    if perf_data["runs"] < 3:
+        return False
+    if perf_data["avg_qualified_rate"] < 0.005:
+        return True
+    return False
+
+
+def should_promote(perf_data):
+    if perf_data["runs"] < 2:
+        return False
+    if perf_data["avg_qualified_rate"] > 0.05:
+        return True
+    return False
+
+
 def get_todays_hashtags():
     config = load_hashtag_config()
     group = config["current_group"]
@@ -113,6 +146,33 @@ def update_hashtag_performance(counters):
             p["avg_qualified_rate"] = round(
                 p["total_qualified"] / p["total_scanned"], 4)
         p["last_run"] = today
+
+        tag = source.lstrip("#").lstrip("@")
+        if should_blacklist(p):
+            if tag not in config["blacklist"]:
+                config["blacklist"].append(tag)
+                for group in config["groups"].values():
+                    if tag in group:
+                        group.remove(tag)
+                print(f"  [AUTO-BLACKLIST] {source} — qualified rate too low after {p['runs']} runs")
+                send_telegram_notification(
+                    f"AUTO-BLACKLIST\n\n"
+                    f"{source} removed from rotation.\n"
+                    f"Qualified rate: {p['avg_qualified_rate']*100:.1f}%\n"
+                    f"Runs: {p['runs']}"
+                )
+        elif should_promote(p):
+            tag_clean = source.lstrip("#")
+            if tag_clean not in config["groups"]["A"]:
+                config["groups"]["A"].append(tag_clean)
+                print(f"  [AUTO-PROMOTE] {source} — high performer added to Group A")
+                send_telegram_notification(
+                    f"AUTO-PROMOTE\n\n"
+                    f"{source} promoted to Group A.\n"
+                    f"Qualified rate: {p['avg_qualified_rate']*100:.1f}%\n"
+                    f"Runs: {p['runs']}"
+                )
+
     save_hashtag_config(config)
 
 
@@ -509,6 +569,109 @@ def scrape_competitor(account, seen_usernames, seen_comment_texts, counters):
 
 
 # ---------------------------------------------------------------------------
+# Weekly hashtag suggestion (Sundays)
+# ---------------------------------------------------------------------------
+
+def auto_suggest_hashtags():
+    """Use Claude Haiku to suggest new hashtags based on what's working."""
+    import anthropic as _anthropic
+
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        print("  [SUGGEST] ANTHROPIC_API_KEY not set — skipping")
+        return
+
+    config = load_hashtag_config()
+    perf = config.get("performance", {})
+
+    # Top performers: prefer reply_rate, fall back to qualified_rate
+    all_sources = sorted(
+        ((src, data) for src, data in perf.items() if src.startswith("#")),
+        key=lambda x: (-x[1].get("reply_rate", 0), -x[1].get("avg_qualified_rate", 0))
+    )
+    top_hashtags = ", ".join(src for src, _ in all_sources[:3]) or "(none yet)"
+
+    all_current = [t for group in config["groups"].values() for t in group]
+    all_current += config.get("blacklist", [])
+    current_str = ", ".join(f"#{t}" for t in all_current)
+
+    # Last 20 qualified lead files for sample comments
+    vault = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    leads_dir = os.path.join(vault, "03_CRM/Leads")
+    lead_files = sorted(glob.glob(os.path.join(leads_dir, "lead_*.md")), reverse=True)[:20]
+    sample_comments = []
+    for lf in lead_files:
+        try:
+            with open(lf, encoding="utf-8") as f:
+                content = f.read()
+            if content.startswith("---"):
+                end = content.find("---", 3)
+                if end != -1:
+                    for line in content[3:end].splitlines():
+                        if line.startswith("comment:"):
+                            c = line.partition(":")[2].strip().strip('"')
+                            if c:
+                                sample_comments.append(c[:100])
+                            break
+        except Exception:
+            continue
+
+    if not sample_comments:
+        print("  [SUGGEST] No lead comments found — skipping suggestion")
+        return
+
+    comments_str = "\n".join(f"- {c}" for c in sample_comments)
+    prompt = (
+        f"You analyze Instagram hashtags for a discipline and execution program "
+        f"for ambitious men 18-25.\n\n"
+        f"These hashtags are currently working well:\n{top_hashtags}\n\n"
+        f"Sample comments from our best leads:\n{comments_str}\n\n"
+        f"Suggest 5 NEW Instagram hashtags not in this list:\n{current_str}\n\n"
+        f"Rules:\n"
+        f"- Must be hashtags where young men express frustration, struggle, wasted potential\n"
+        f"- Not generic wellness or motivation hashtags\n"
+        f"- Specific enough that comments show real pain\n"
+        f"- Popular enough to have active posts\n\n"
+        f"Return ONLY a JSON array of 5 hashtag strings without the # symbol. No other text."
+    )
+
+    try:
+        client = _anthropic.Anthropic(api_key=api_key)
+        message = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=200,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = message.content[0].text.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+            raw = raw.strip()
+        suggestions = json.loads(raw)
+        if not isinstance(suggestions, list):
+            raise ValueError("Response is not a list")
+    except Exception as e:
+        print(f"  [SUGGEST] Claude API error: {e}")
+        return
+
+    existing = set(config.get("suggested", []))
+    new_suggestions = [s for s in suggestions if s not in existing and s not in all_current]
+    config.setdefault("suggested", []).extend(new_suggestions)
+    save_hashtag_config(config)
+
+    print(f"  [SUGGEST] {len(new_suggestions)} new hashtag suggestion(s) saved")
+    if new_suggestions:
+        lines = "\n".join(f"  #{s}" for s in new_suggestions)
+        send_telegram_notification(
+            f"WEEKLY HASHTAG SUGGESTIONS\n\n"
+            f"Based on what's working, test these:\n"
+            f"{lines}\n\n"
+            f"Use /addhashtag to add any to rotation."
+        )
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
@@ -555,6 +718,10 @@ Total saved:               {total_saved}
     print("---------------------")
 
     update_hashtag_performance(counters)
+
+    if datetime.datetime.now().weekday() == 6:
+        print("\n[SUNDAY] Running weekly hashtag suggestion...")
+        auto_suggest_hashtags()
 
     import cost_tracker as ct
     today = datetime.datetime.now().strftime("%Y-%m-%d")
