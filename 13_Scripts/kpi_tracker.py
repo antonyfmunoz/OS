@@ -201,6 +201,21 @@ def get_reply_rate_trend(days=7):
         return []
 
 
+def get_hashtag_report():
+    """Return a formatted weekly hashtag performance report."""
+    hashtag_stats = get_hashtag_stats()
+    if not hashtag_stats:
+        return "HASHTAG REPORT\n  No data yet."
+
+    lines = ["HASHTAG REPORT (all time)"]
+    for row in hashtag_stats:
+        lines.append(
+            f"  #{row['source']} — {row['reply_rate']}% reply rate "
+            f"({row['replied']}/{row['sent']} leads)"
+        )
+    return "\n".join(lines)
+
+
 def build_eod_report(pipeline_counts, scraper_stats, conversation_stats, daily_log):
     """Build the EOD report string."""
     date = datetime.date.today().strftime("%Y-%m-%d")
@@ -256,6 +271,10 @@ def build_eod_report(pipeline_counts, scraper_stats, conversation_stats, daily_l
 
     append_kpi_history(dms_sent, replied_count)
 
+    sunday_block = ""
+    if datetime.date.today().weekday() == 6:
+        sunday_block = f"\n\n{get_hashtag_report()}"
+
     return (
         f"OS — Daily Outreach Report\n"
         f"{date}\n\n"
@@ -284,6 +303,7 @@ def build_eod_report(pipeline_counts, scraper_stats, conversation_stats, daily_l
         f"  All time:    ${all_time:.2f}\n\n"
         f"{performance_line}\n\n"
         f"Outreach earns everything."
+        f"{sunday_block}"
     )
 
 

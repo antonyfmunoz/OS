@@ -12,6 +12,7 @@ services:
       - 13_Scripts/.env
     environment:
       - PYTHONPATH=/app/13_Scripts
+      - TZ=America/Los_Angeles
   os-monitor:
     build: .
     container_name: os-monitor
@@ -25,6 +26,7 @@ services:
     shm_size: '2gb'
     environment:
       - PYTHONPATH=/app/13_Scripts
+      - TZ=America/Los_Angeles
   os-scraper:
     build: .
     container_name: os-scraper
@@ -37,6 +39,7 @@ services:
       - 13_Scripts/.env
     environment:
       - PYTHONPATH=/app/13_Scripts
+      - TZ=America/Los_Angeles
   os-webhook:
     build: .
     container_name: os-webhook
@@ -49,5 +52,6 @@ services:
       - 13_Scripts/.env
     environment:
       - PYTHONPATH=/app/13_Scripts
+      - TZ=America/Los_Angeles
     ports:
       - "8080:8080"

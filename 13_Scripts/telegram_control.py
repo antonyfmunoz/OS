@@ -115,13 +115,13 @@ def schedule_morning_briefing(app):
         return
     app.job_queue.run_daily(
         scheduled_morning_briefing,
-        time=datetime.time(hour=7, minute=0),
+        time=datetime.time(hour=6, minute=0),
         chat_id=CHAT_ID,
         name="morning_briefing",
     )
     app.job_queue.run_daily(
         scheduled_eod_report,
-        time=datetime.time(hour=20, minute=0),
+        time=datetime.time(hour=18, minute=0),
         chat_id=CHAT_ID,
         name="eod_report",
     )
@@ -189,6 +189,124 @@ async def sent(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"Logged: {data['dms_sent']} DMs sent today.")
 
 
+async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show pipeline counts, cost totals, and KPI history summary."""
+    counts, _ = parse_pipeline()
+    total_leads = sum(counts.values())
+
+    cost_summary = cost_tracker.get_cost_summary()
+    month_total = cost_summary["month_total"]
+    all_time = cost_summary["all_time_total"]
+
+    history = []
+    history_path = os.path.join(VAULT, "13_Scripts/kpi_history.json")
+    if os.path.exists(history_path):
+        try:
+            with open(history_path, encoding="utf-8") as f:
+                history = json.load(f)
+        except Exception:
+            pass
+
+    total_dms = sum(e.get("dms_sent", 0) for e in history)
+    avg_reply = 0
+    if history:
+        rates = [e.get("reply_rate", 0) for e in history if e.get("dms_sent", 0) > 0]
+        avg_reply = round(sum(rates) / len(rates)) if rates else 0
+
+    text = (
+        "OS — Stats\n\n"
+        "PIPELINE\n"
+        f"  New:         {counts['New']}\n"
+        f"  Contacted:   {counts['Contacted']}\n"
+        f"  Replied:     {counts['Replied']}\n"
+        f"  Qualifying:  {counts['Qualifying']}\n"
+        f"  Booked:      {counts['Booked']}\n"
+        f"  Won:         {counts['Won']}\n"
+        f"  Total:       {total_leads}\n\n"
+        "KPI HISTORY\n"
+        f"  Days logged:  {len(history)}\n"
+        f"  Total DMs:    {total_dms}\n"
+        f"  Avg reply %:  {avg_reply}%\n\n"
+        "COSTS\n"
+        f"  This month:  ${month_total:.2f}\n"
+        f"  All time:    ${all_time:.2f}"
+    )
+    await update.message.reply_text(text)
+
+
+async def hashtags(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show hashtag performance report."""
+    text = kpi_tracker.get_hashtag_report()
+    await update.message.reply_text(text)
+
+
+async def blacklist_tag(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Remove a hashtag from all groups and add to blacklist. Usage: /blacklist <tag>"""
+    args = context.args
+    if not args:
+        await update.message.reply_text("Usage: /blacklist <tag>  e.g. /blacklist discipline")
+        return
+
+    tag = args[0].lstrip("#").lower()
+    config_path = os.path.join(VAULT, "13_Scripts/hashtag_config.json")
+    try:
+        with open(config_path, encoding="utf-8") as f:
+            config = json.load(f)
+    except Exception:
+        await update.message.reply_text("Could not read hashtag_config.json")
+        return
+
+    removed_from = []
+    for group, tags in config.get("groups", {}).items():
+        if tag in tags:
+            config["groups"][group] = [t for t in tags if t != tag]
+            removed_from.append(group)
+
+    if tag not in config.get("blacklist", []):
+        config.setdefault("blacklist", []).append(tag)
+
+    with open(config_path, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2)
+
+    if removed_from:
+        await update.message.reply_text(f"#{tag} removed from group(s) {', '.join(removed_from)} and blacklisted.")
+    else:
+        await update.message.reply_text(f"#{tag} added to blacklist (was not in any group).")
+
+
+async def add_hashtag(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Add a hashtag to group A or B. Usage: /addhashtag <tag> <A|B>"""
+    args = context.args
+    if len(args) < 2 or args[1].upper() not in ("A", "B"):
+        await update.message.reply_text("Usage: /addhashtag <tag> <A|B>  e.g. /addhashtag hustle A")
+        return
+
+    tag = args[0].lstrip("#").lower()
+    group = args[1].upper()
+    config_path = os.path.join(VAULT, "13_Scripts/hashtag_config.json")
+    try:
+        with open(config_path, encoding="utf-8") as f:
+            config = json.load(f)
+    except Exception:
+        await update.message.reply_text("Could not read hashtag_config.json")
+        return
+
+    if tag in config.get("blacklist", []):
+        await update.message.reply_text(f"#{tag} is blacklisted. Remove from blacklist first.")
+        return
+
+    group_tags = config.get("groups", {}).get(group, [])
+    if tag in group_tags:
+        await update.message.reply_text(f"#{tag} is already in group {group}.")
+        return
+
+    config["groups"][group] = group_tags + [tag]
+    with open(config_path, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2)
+
+    await update.message.reply_text(f"#{tag} added to group {group}.")
+
+
 async def costs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show current cost breakdown."""
     text = cost_tracker.format_cost_report()
@@ -227,6 +345,10 @@ app.add_handler(CommandHandler("briefing", send_morning_briefing))
 app.add_handler(CommandHandler("sent", sent))
 app.add_handler(CommandHandler("report", report))
 app.add_handler(CommandHandler("costs", costs))
+app.add_handler(CommandHandler("stats", stats))
+app.add_handler(CommandHandler("hashtags", hashtags))
+app.add_handler(CommandHandler("blacklist", blacklist_tag))
+app.add_handler(CommandHandler("addhashtag", add_hashtag))
 
 schedule_morning_briefing(app)
 

@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 import json
 import time
 import requests
@@ -8,16 +9,16 @@ from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 APIFY_API_TOKEN = os.getenv("APIFY_API_TOKEN")
 
 # --- Edit these ---
-# TEST MODE - restore full list after confirming
-HASHTAGS = ["discipline"]
+HASHTAGS = []  # populated at runtime by get_todays_hashtags()
 COMPETITOR_ACCOUNTS = []  # add Instagram usernames here e.g. ["username1", "username2"]
 # ------------------
 
 OUTPUT_DIR = "01_Inbox/raw_signals"
-POSTS_PER_HASHTAG = 5  # TEST MODE - restore full list after confirming
 
 CONTENT_KEYWORDS = [
     "discipline",
@@ -63,6 +64,86 @@ class RateLimiter:
 # Apify free tier: ~100 requests/minute but we stay conservative
 apify_limiter = RateLimiter(calls_per_minute=10)
 
+
+# ---------------------------------------------------------------------------
+# Hashtag config helpers
+# ---------------------------------------------------------------------------
+
+def load_hashtag_config():
+    path = os.path.join(os.path.dirname(__file__), "hashtag_config.json")
+    with open(path) as f:
+        return json.load(f)
+
+
+def save_hashtag_config(config):
+    path = os.path.join(os.path.dirname(__file__), "hashtag_config.json")
+    with open(path, "w") as f:
+        json.dump(config, f, indent=2)
+
+
+def get_todays_hashtags():
+    config = load_hashtag_config()
+    group = config["current_group"]
+    hashtags = config["groups"][group]
+    config["current_group"] = "B" if group == "A" else "A"
+    save_hashtag_config(config)
+    print(f"Today's group: {group} — {hashtags}")
+    return hashtags
+
+
+def update_hashtag_performance(counters):
+    config = load_hashtag_config()
+    today = datetime.datetime.now().strftime("%Y-%m-%d")
+    for source, stats in counters.get("sources", {}).items():
+        if source not in config["performance"]:
+            config["performance"][source] = {
+                "runs": 0,
+                "total_scanned": 0,
+                "total_qualified": 0,
+                "total_priority": 0,
+                "avg_qualified_rate": 0.0,
+                "last_run": today,
+            }
+        p = config["performance"][source]
+        p["runs"] += 1
+        p["total_scanned"] += stats.get("scanned", 0)
+        p["total_qualified"] += stats.get("qualified", 0)
+        p["total_priority"] += stats.get("priority", 0)
+        if p["total_scanned"] > 0:
+            p["avg_qualified_rate"] = round(
+                p["total_qualified"] / p["total_scanned"], 4)
+        p["last_run"] = today
+    save_hashtag_config(config)
+
+
+# ---------------------------------------------------------------------------
+# Scraped posts tracker
+# ---------------------------------------------------------------------------
+
+def load_scraped_posts():
+    path = os.path.join(os.path.dirname(__file__), "scraped_posts.json")
+    if not os.path.exists(path):
+        return {}
+    with open(path) as f:
+        return json.load(f)
+
+
+def save_scraped_posts(data):
+    path = os.path.join(os.path.dirname(__file__), "scraped_posts.json")
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2)
+
+
+def get_post_url(post):
+    short_code = post.get("shortCode")
+    return post.get("url") or (
+        f"https://www.instagram.com/p/{short_code}/" if short_code else None
+    )
+
+
+# ---------------------------------------------------------------------------
+# Apify API helpers
+# ---------------------------------------------------------------------------
 
 def run_actor(actor_id, input_data, retries=MAX_RETRIES):
     """Start an Apify actor run and return the run ID."""
@@ -127,6 +208,10 @@ def get_run_results(run_id, retries=MAX_RETRIES):
     raise RuntimeError(f"get_run_results failed after {retries} retries") from last_exc
 
 
+# ---------------------------------------------------------------------------
+# Comment filtering
+# ---------------------------------------------------------------------------
+
 BOT_USERNAME_SUBSTRINGS = [
     "._.", "community", "official", "coach", "motivat", "fitness",
     "health", "store", "shop", "business", "marketing", "growth", "agency",
@@ -153,7 +238,6 @@ def is_human_comment(username, text, seen_comment_texts):
     t = text.strip()
     t_lower = t.lower()
 
-    # --- Account signals ---
     for substr in BOT_USERNAME_SUBSTRINGS:
         if substr in u:
             return False, "bot account pattern"
@@ -164,7 +248,6 @@ def is_human_comment(username, text, seen_comment_texts):
     if re.search(r'_{3,}|\.{3,}', u):
         return False, "bot account pattern"
 
-    # --- Comment signals ---
     if len(t) < 20:
         return False, "spam comment"
 
@@ -285,14 +368,23 @@ def _process_comment(comment, source, post_url, seen_usernames, seen_comment_tex
     time.sleep(API_DELAY)
 
 
+# ---------------------------------------------------------------------------
+# Scrapers
+# ---------------------------------------------------------------------------
+
 def scrape_hashtag(hashtag, seen_usernames, seen_comment_texts, counters):
-    """Scrape posts for a hashtag, then scrape comments for each post."""
+    """Scrape posts for a hashtag with smart first-run vs incremental logic."""
     print(f"\nScraping hashtag: #{hashtag}")
+    scraped_posts = load_scraped_posts()
+    key = f"#{hashtag}"
+    known_urls = set(scraped_posts.get(key, {}).get("scraped_urls", []))
+    is_first_run = len(known_urls) == 0
+    results_limit = 50 if is_first_run else 10
 
     try:
         run_id = run_actor("reGe1ST3OBgYZSsZJ", {
             "hashtags": [hashtag],
-            "resultsLimit": POSTS_PER_HASHTAG,
+            "resultsLimit": results_limit,
         })
         status = poll_run(run_id)
         if status != "SUCCEEDED":
@@ -304,64 +396,126 @@ def scrape_hashtag(hashtag, seen_usernames, seen_comment_texts, counters):
         print(f"  Error scraping #{hashtag}: {e}")
         return
 
-    for post in posts:
-        short_code = post.get("shortCode")
-        post_url = post.get("url") or (f"https://www.instagram.com/p/{short_code}/" if short_code else None)
-        if not post_url:
+    new_posts = [p for p in posts if get_post_url(p) and get_post_url(p) not in known_urls]
+
+    if not new_posts:
+        print(f"  [SKIP] #{hashtag} — no new posts")
+        return
+
+    if is_first_run:
+        new_posts.sort(
+            key=lambda p: p.get("commentsCount") or p.get("comments") or 0,
+            reverse=True,
+        )
+        new_posts = new_posts[:5]
+        print(f"  [FIRST RUN] #{hashtag} — top 5 posts by engagement")
+    else:
+        print(f"  [UPDATE] #{hashtag} — {len(new_posts)} new posts")
+
+    new_urls = []
+    source = f"#{hashtag}"
+    for post in new_posts:
+        url = get_post_url(post)
+        if not url:
             continue
-
-        source = f"#{hashtag}"
-        comments = scrape_comments_for_post(post_url, source, limit=100)
-        print(f"  Found {len(comments)} comments on {post_url}")
-
+        comments = scrape_comments_for_post(url, source, limit=100)
+        print(f"  Found {len(comments)} comments on {url}")
         for comment in comments:
-            _process_comment(comment, source, post_url, seen_usernames, seen_comment_texts, counters)
+            _process_comment(comment, source, url, seen_usernames, seen_comment_texts, counters)
+        new_urls.append(url)
+
+    if key not in scraped_posts:
+        scraped_posts[key] = {"scraped_urls": []}
+    scraped_posts[key]["scraped_urls"].extend(new_urls)
+    scraped_posts[key]["scraped_urls"] = scraped_posts[key]["scraped_urls"][-100:]
+    scraped_posts[key]["last_scraped"] = datetime.datetime.now().strftime("%Y-%m-%d")
+    save_scraped_posts(scraped_posts)
 
 
 def scrape_competitor(account, seen_usernames, seen_comment_texts, counters):
-    """Scrape high-engagement ICP-relevant posts from a competitor account, then scrape comments."""
+    """Scrape high-engagement ICP-relevant posts from a competitor account."""
     print(f"\nScraping competitor: @{account}")
+    scraped_posts = load_scraped_posts()
+    known_urls = set(scraped_posts.get(account, {}).get("scraped_urls", []))
+    is_first_run = len(known_urls) == 0
+    results_limit = 50 if is_first_run else 10
 
     try:
         run_id = run_actor("shu8hvrXbJbY3Eb9W", {
             "usernames": [account],
-            "resultsLimit": 10,
+            "resultsLimit": results_limit,
             "resultsType": "posts",
-            "scrapePostsUntilDate": "",
         })
         status = poll_run(run_id)
         if status != "SUCCEEDED":
             print(f"  Actor run failed for @{account} (status: {status})")
-            return
+            return 0
         time.sleep(API_DELAY)
         posts = get_run_results(run_id)
     except Exception as e:
         print(f"  Error scraping @{account}: {e}")
-        return
+        return 0
 
-    source = f"@{account}"
+    matched_posts = []
     for post in posts:
-        short_code = post.get("shortCode")
-        post_url = post.get("url") or (f"https://www.instagram.com/p/{short_code}/" if short_code else None)
-        if not post_url:
-            continue
-
         caption = (post.get("caption") or post.get("text") or "").lower()
-        matched_keyword = next((kw for kw in CONTENT_KEYWORDS if kw in caption), None)
-
-        if not matched_keyword:
-            print(f"  [POST SKIP] @{account} — no ICP keywords in caption — skipping")
+        url = get_post_url(post)
+        if not url or url in known_urls:
+            counters["skipped_competitor_posts"] += 1
             continue
+        for kw in CONTENT_KEYWORDS:
+            if kw in caption:
+                matched_posts.append(post)
+                break
 
-        print(f"  [POST MATCH] @{account} — caption contains: '{matched_keyword}' — scraping comments")
-        comments = scrape_comments_for_post(post_url, source, limit=200)
-        print(f"  Found {len(comments)} comments on {post_url}")
+    if not matched_posts:
+        print(f"  [SKIP] @{account} — no new keyword-matched posts")
+        return 0
 
+    if is_first_run:
+        matched_posts.sort(
+            key=lambda p: p.get("commentsCount") or p.get("comments") or 0,
+            reverse=True,
+        )
+        matched_posts = matched_posts[:3]
+        print(f"  [FIRST RUN] @{account} — top 3 posts:")
+        for p in matched_posts:
+            count = p.get("commentsCount") or 0
+            preview = (p.get("caption") or "")[:60]
+            print(f"    {count} comments — {preview}...")
+    else:
+        print(f"  [UPDATE] @{account} — {len(matched_posts)} new posts")
+
+    counters["new_competitor_posts"] += len(matched_posts)
+    new_urls = []
+    source = f"@{account}"
+    for post in matched_posts:
+        url = get_post_url(post)
+        if not url:
+            continue
+        comments = scrape_comments_for_post(url, source, limit=200)
+        print(f"  Found {len(comments)} comments on {url}")
         for comment in comments:
-            _process_comment(comment, source, post_url, seen_usernames, seen_comment_texts, counters)
+            _process_comment(comment, source, url, seen_usernames, seen_comment_texts, counters)
+        new_urls.append(url)
 
+    if account not in scraped_posts:
+        scraped_posts[account] = {"scraped_urls": []}
+    scraped_posts[account]["scraped_urls"].extend(new_urls)
+    scraped_posts[account]["scraped_urls"] = scraped_posts[account]["scraped_urls"][-100:]
+    scraped_posts[account]["last_scraped"] = datetime.datetime.now().strftime("%Y-%m-%d")
+    save_scraped_posts(scraped_posts)
+    return len(new_urls)
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
 
 def main():
+    global HASHTAGS
+    HASHTAGS = get_todays_hashtags()
+
     seen_usernames = set()
     seen_comment_texts = set()
     counters = {
@@ -372,6 +526,8 @@ def main():
         "priority_saved": 0,
         "regular_saved": 0,
         "sources": {},
+        "new_competitor_posts": 0,
+        "skipped_competitor_posts": 0,
     }
 
     for hashtag in HASHTAGS:
@@ -389,6 +545,8 @@ Spam comments filtered:    {counters["spam_filtered"]}
 Duplicate users filtered:  {counters["duplicate_filtered"]}
 Priority signals saved:    {counters["priority_saved"]}
 Regular signals saved:     {counters["regular_saved"]}
+New competitor posts:       {counters["new_competitor_posts"]}
+Skipped (already scraped): {counters["skipped_competitor_posts"]}
 Total saved:               {total_saved}
 """)
     print("--- Per Source Breakdown ---")
@@ -396,28 +554,22 @@ Total saved:               {total_saved}
         print(f"  {src:<20} scanned: {data['scanned']} | qualified: {data['qualified']} | priority: {data['priority']}")
     print("---------------------")
 
-    import sys
-    sys.path.insert(0, os.path.dirname(__file__))
-    import cost_tracker
+    update_hashtag_performance(counters)
 
-    total_results = counters["scanned"]
-    haiku_calls = counters["priority_saved"] + counters["regular_saved"]
-    haiku_input = haiku_calls * 500
-    haiku_output = haiku_calls * 150
-
-    scraper_cost = cost_tracker.log_scraper_costs(
-        apify_results=total_results,
-        haiku_calls=haiku_calls,
-        haiku_input_tokens=haiku_input,
-        haiku_output_tokens=haiku_output,
-    )
-    print(f"Scraper cost logged: ${scraper_cost:.4f}")
-    counters["scraper_cost"] = scraper_cost
-
+    import cost_tracker as ct
     today = datetime.datetime.now().strftime("%Y-%m-%d")
     summary_path = os.path.join(OUTPUT_DIR, f"scrape_summary_{today}.json")
+    haiku_calls = counters["priority_saved"] + counters["regular_saved"]
+    counters["scraper_cost"] = ct.log_scraper_costs(
+        apify_results=counters["scanned"],
+        haiku_calls=haiku_calls,
+        haiku_input_tokens=haiku_calls * 500,
+        haiku_output_tokens=haiku_calls * 150,
+    )
+    print(f"Scraper cost logged: ${counters['scraper_cost']:.4f}")
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
     with open(summary_path, "w", encoding="utf-8") as f:
-        json.dump(counters, f)
+        json.dump(counters, f, indent=2)
     print(f"Summary saved: {summary_path}")
 
 

@@ -1,0 +1,22 @@
+{
+  "groups": {
+    "A": [
+      "discipline",
+      "stopwastingyour20s",
+      "morningroutine",
+      "20s",
+      "selfmastery"
+    ],
+    "B": [
+      "highperformance",
+      "youngentrepreneur",
+      "levelup",
+      "accountability",
+      "dailydiscipline"
+    ]
+  },
+  "current_group": "A",
+  "performance": {},
+  "suggested": [],
+  "blacklist": []
+}
