@@ -3,3 +3,4 @@ python-dotenv
 playwright
 python-telegram-bot
 anthropic
+google-generativeai

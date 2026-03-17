@@ -4,6 +4,7 @@ import glob
 import time
 import random
 import datetime
+import base64
 import requests
 from dotenv import load_dotenv
 from playwright.sync_api import sync_playwright
@@ -12,7 +13,22 @@ import anthropic
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cost_tracker
 
+try:
+    import google.generativeai as genai
+    _GENAI_AVAILABLE = True
+except ImportError:
+    _GENAI_AVAILABLE = False
+
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+
+# GEMINI_API_KEY is optional — used as Vision fallback for DOM extraction failures
+# Get from: console.cloud.google.com → APIs → Gemini API
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if _GENAI_AVAILABLE and GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    gemini_model = genai.GenerativeModel("gemini-2.0-flash")
+else:
+    gemini_model = None
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
@@ -235,6 +251,58 @@ def _advance_pipeline(username, stage):
     return pipeline_status, ready_alert
 
 
+def extract_messages_from_screenshot(screenshot_path):
+    """Use Gemini Vision to extract conversation from screenshot.
+    Returns list of message dicts: [{"sender": "me"|"them", "text": "..."}]
+    Falls back gracefully if Gemini unavailable."""
+    if not gemini_model:
+        return []
+    if not os.path.exists(screenshot_path):
+        return []
+    try:
+        with open(screenshot_path, "rb") as f:
+            image_data = base64.b64encode(f.read()).decode()
+
+        prompt = """This is a screenshot of an Instagram DM conversation.
+
+Extract all visible messages in order.
+For each message identify:
+- sender: "me" if it appears on the right side (sent), "them" if on left side (received)
+- text: the exact message text
+
+Return ONLY valid JSON, no other text:
+{
+  "messages": [
+    {"sender": "me", "text": "message text"},
+    {"sender": "them", "text": "their reply"}
+  ],
+  "last_sender": "them",
+  "message_count": 2
+}
+
+If you cannot read the messages clearly return:
+{"messages": [], "last_sender": null, "message_count": 0}"""
+
+        response = gemini_model.generate_content([
+            {"mime_type": "image/png", "data": image_data},
+            prompt,
+        ])
+
+        raw = response.text.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+            raw = raw.strip()
+
+        data = json.loads(raw)
+        return data.get("messages", [])
+
+    except Exception as e:
+        print(f"  [GEMINI] Vision extraction failed: {e}")
+        return []
+
+
 def detect_stage(conversation_text):
     text_lower = conversation_text.lower()
     if any(w in text_lower for w in ["let's hop on", "book a call", "schedule", "zoom", "calendly"]):
@@ -425,25 +493,26 @@ def check_inbox(page):
             except Exception:
                 pass
 
-            # Extract last 10 messages
-            messages = []
+            # --- DOM extraction ---
+            dom_messages = []
             try:
                 msg_elements = page.query_selector_all('div[dir="auto"]')
                 for el in msg_elements[-20:]:
                     text = el.inner_text().strip()
                     if text and len(text) > 1:
-                        messages.append(text)
-                messages = messages[-10:]
+                        dom_messages.append(text)
+                dom_messages = dom_messages[-10:]
+                if dom_messages:
+                    print(f"  [DOM] Extracted {len(dom_messages)} messages via DOM")
             except Exception as e:
-                print(f"  Message extraction failed: {e}")
+                print(f"  [DOM] Extraction failed: {e}")
 
-            conversation_text = "\n".join(messages)
-            last_message = messages[-1] if messages else "(no message)"
+            last_message_dom = dom_messages[-1] if dom_messages else "(no message)"
 
             # TASK 5 — skip if no new activity since last check
             prior = conversation_states.get(username, {})
-            if (prior.get("last_message") == last_message
-                    and prior.get("last_message_count") == len(messages)):
+            if (prior.get("last_message") == last_message_dom
+                    and prior.get("last_message_count") == len(dom_messages)):
                 print(f"  @{username} — no new messages since last check — skipping")
                 page.goto("https://www.instagram.com/direct/inbox/", wait_until="domcontentloaded")
                 time.sleep(random.uniform(2.0, 3.0))
@@ -451,12 +520,36 @@ def check_inbox(page):
 
             # Take screenshot (only for threads with new activity)
             os.makedirs(SCREENSHOTS_DIR, exist_ok=True)
-            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            screenshot_path = os.path.join(SCREENSHOTS_DIR, f"dm_{username}_{timestamp}.png")
+            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            screenshot_path = os.path.join(SCREENSHOTS_DIR, f"dm_{username}_{ts}.png")
             try:
                 page.screenshot(path=screenshot_path)
             except Exception as e:
                 print(f"  Screenshot failed: {e}")
+                screenshot_path = None
+
+            # --- Gemini Vision fallback if DOM extraction is weak ---
+            extraction_method = "DOM"
+            if len(dom_messages) < 2 and screenshot_path:
+                print(f"  [GEMINI] DOM extraction weak ({len(dom_messages)} msgs), trying Vision...")
+                vision_msgs = extract_messages_from_screenshot(screenshot_path)
+                if vision_msgs:
+                    print(f"  [GEMINI] Extracted {len(vision_msgs)} messages via Vision")
+                    extraction_method = "GEMINI"
+                    conversation_text = "\n".join(
+                        f"{'Me' if m['sender'] == 'me' else 'Them'}: {m['text']}"
+                        for m in vision_msgs
+                    )
+                    messages = [m["text"] for m in vision_msgs]
+                else:
+                    print(f"  [WARN] Both extraction methods failed for @{username}")
+                    conversation_text = "\n".join(dom_messages)
+                    messages = dom_messages
+            else:
+                conversation_text = "\n".join(dom_messages)
+                messages = dom_messages
+
+            last_message = messages[-1] if messages else "(no message)"
 
             # Detect stage and generate reply
             stage = detect_stage(conversation_text)
@@ -467,6 +560,7 @@ def check_inbox(page):
                 "last_message": last_message,
                 "last_message_count": len(messages),
                 "last_stage": stage,
+                "extraction_method": extraction_method,
             }
 
             # TASK 2 + 4 — advance pipeline card based on stage
@@ -498,7 +592,7 @@ def check_inbox(page):
             if ready_alert:
                 send_telegram(ready_alert)
 
-            print(f"  @{username} — {stage} — {pipeline_status} — notified.")
+            print(f"  @{username} — {stage} — {pipeline_status} — [{extraction_method}] — notified.")
 
             # Return to inbox
             time.sleep(random.uniform(1.5, 3.5))
