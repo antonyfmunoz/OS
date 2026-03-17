@@ -1,0 +1,39 @@
+version: '3.8'
+services:
+  os-bot:
+    build: .
+    container_name: os-bot
+    restart: always
+    working_dir: /app
+    command: python3 13_Scripts/telegram_control.py
+    volumes:
+      - /opt/OS:/app
+    env_file:
+      - 13_Scripts/.env
+    environment:
+      - PYTHONPATH=/app/13_Scripts
+  os-monitor:
+    build: .
+    container_name: os-monitor
+    restart: always
+    working_dir: /app
+    command: python3 13_Scripts/dm_monitor.py
+    volumes:
+      - /opt/OS:/app
+    env_file:
+      - 13_Scripts/.env
+    shm_size: '2gb'
+    environment:
+      - PYTHONPATH=/app/13_Scripts
+  os-scraper:
+    build: .
+    container_name: os-scraper
+    restart: "no"
+    working_dir: /app
+    command: python3 13_Scripts/overnight_scrape.py
+    volumes:
+      - /opt/OS:/app
+    env_file:
+      - 13_Scripts/.env
+    environment:
+      - PYTHONPATH=/app/13_Scripts
