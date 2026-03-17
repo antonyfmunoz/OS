@@ -119,6 +119,25 @@ def get_processed_filenames():
     return {os.path.basename(f) for f in glob.glob(f"{PROCESSED_SIGNALS_DIR}/*.md")}
 
 
+def lead_exists(username):
+    """Return True if a lead file for this username already exists."""
+    lead_files = glob.glob(os.path.join(LEADS_DIR, f"lead_{username}_*.md"))
+    return len(lead_files) > 0
+
+
+def in_pipeline(username):
+    """Return True if username appears anywhere in Pipeline.md."""
+    pipeline_file = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "03_CRM/Pipeline.md"
+    )
+    if not os.path.exists(pipeline_file):
+        return False
+    with open(pipeline_file, encoding="utf-8") as f:
+        content = f.read()
+    return username.lower() in content.lower()
+
+
 def load_outreach_messages():
     """Load the latest outreach_messages file. Returns raw text."""
     files = sorted(glob.glob(f"{OUTREACH_DIR}/outreach_messages_*.md"), reverse=True)
@@ -128,33 +147,100 @@ def load_outreach_messages():
         return f.read()
 
 
-def pick_opener(outreach_text, archetype):
-    """Pick opener #1 from the matching segment."""
+PAIN_SIGNAL_KEYWORDS = {
+    "wast":       ["wasting", "disappears", "wasted"],
+    "stuck":      ["stuck", "capable", "potential"],
+    "finish":     ["finish", "start", "complete"],
+    "lazy":       ["discipline", "structure", "lazy"],
+    "consistent": ["consistent", "routine", "system"],
+    "lost":       ["direction", "lost", "drift"],
+    "potential":  ["potential", "capable", "more"],
+}
+
+FALLBACK_OPENER = "Saw your comment — want to connect?"
+
+
+def _extract_openers(outreach_text, archetype):
+    """Return list of opener strings from the matching archetype segment."""
     archetype_lower = archetype.lower()
     if "frustrated drifter" in archetype_lower:
         segment_marker = "## Segment 2 — Frustrated Drifter"
     else:
-        # Default to Ambitious but Stuck for Other / unknown archetypes
         segment_marker = "## Segment 1 — Ambitious but Stuck"
 
     idx = outreach_text.find(segment_marker)
     if idx == -1:
-        # Fallback to first segment
         idx = outreach_text.find("## Segment 1")
     if idx == -1:
-        return "Saw your comment — want to connect?"
+        return []
 
+    # Isolate this segment (stop at the next ## heading)
     segment = outreach_text[idx:]
+    next_section = segment.find("\n## ", 1)
+    if next_section != -1:
+        segment = segment[:next_section]
+
     openers_idx = segment.find("### Openers")
     if openers_idx == -1:
-        return "Saw your comment — want to connect?"
+        return []
 
     openers_block = segment[openers_idx:]
+    openers = []
     for line in openers_block.splitlines():
-        line = line.strip()
-        if line.startswith("1. "):
-            return line[3:].strip('"')
-    return "Saw your comment — want to connect?"
+        stripped = line.strip()
+        # Match numbered list items: "1. ...", "2. ...", etc.
+        if stripped and stripped[0].isdigit() and ". " in stripped:
+            _, _, text = stripped.partition(". ")
+            openers.append(text.strip().strip('"'))
+    return openers
+
+
+def pick_opener(outreach_text, archetype, pain_signals, comment_text):
+    """Score all openers in the matching segment and return the best fit."""
+    openers = _extract_openers(outreach_text, archetype)
+    if not openers:
+        return FALLBACK_OPENER
+
+    comment_lower = comment_text.lower()
+    comment_words = set(comment_lower.split())
+
+    # Build set of active pain signal keyword lists
+    active_keywords = []
+    for signal in pain_signals:
+        signal_lower = signal.lower()
+        for trigger, keywords in PAIN_SIGNAL_KEYWORDS.items():
+            if trigger in signal_lower:
+                active_keywords.extend(keywords)
+
+    scored = []
+    for opener in openers:
+        opener_lower = opener.lower()
+        score = 0
+
+        # +3 if opener shares a word with the comment (min 4 chars to avoid noise)
+        opener_words = set(w for w in opener_lower.split() if len(w) >= 4)
+        if opener_words & comment_words:
+            score += 3
+
+        # +2 for each matched pain signal keyword found in opener
+        for kw in active_keywords:
+            if kw in opener_lower:
+                score += 2
+                break  # one pain bonus per opener
+
+        # +1 if opener is short (under 100 chars)
+        if len(opener) < 100:
+            score += 1
+
+        # +1 if opener ends with a question mark
+        if opener.rstrip().endswith("?"):
+            score += 1
+
+        scored.append((score, len(opener), opener))
+
+    # Sort by score desc, then length asc (shorter wins ties)
+    scored.sort(key=lambda x: (-x[0], x[1]))
+    return scored[0][2]
 
 
 def score_comment(client, comment_text, api_call_counter):
@@ -289,6 +375,7 @@ def main():
 
     qualified = 0
     disqualified = 0
+    duplicate_count = 0
     total = 0
     api_call_counter = [0]  # mutable so score_comment can increment it
     total_input_tokens = 0
@@ -328,7 +415,14 @@ def main():
         disqualify = result.get("disqualify", True)
 
         if score >= 7 and not disqualify:
-            opener = pick_opener(outreach_text, archetype)
+            if lead_exists(username) or in_pipeline(username):
+                print(f"@{username} — DUPLICATE — already in CRM, skipping")
+                shutil.move(filepath, os.path.join(PROCESSED_SIGNALS_DIR, os.path.basename(filepath)))
+                duplicate_count += 1
+                total += 1
+                continue
+
+            opener = pick_opener(outreach_text, archetype, result["pain_signals"], comment_text)
             lead_filepath = create_lead_file(username, comment_text, source, post_url, timestamp, result, opener)
             add_to_kanban(username, score, archetype, comment_text, os.path.basename(lead_filepath).replace(".md", ""))
             qualified += 1
@@ -354,6 +448,7 @@ def main():
     print("ICP scoring complete.")
     print(f"Qualified: {qualified} leads added to {LEADS_DIR}/")
     print(f"Disqualified: {disqualified} comments filtered out")
+    print(f"Duplicates skipped: {duplicate_count}")
     print(f"Total processed: {total}")
     print(f"Total API calls: {api_call_counter[0]}")
     print(f"Scorer cost logged: ${scorer_cost:.4f}")
