@@ -4,3 +4,4 @@ playwright
 python-telegram-bot
 anthropic
 google-generativeai
+flask

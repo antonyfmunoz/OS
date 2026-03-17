@@ -37,3 +37,17 @@ services:
       - 13_Scripts/.env
     environment:
       - PYTHONPATH=/app/13_Scripts
+  os-webhook:
+    build: .
+    container_name: os-webhook
+    restart: always
+    working_dir: /app
+    command: python3 13_Scripts/calendly_webhook.py
+    volumes:
+      - /opt/OS:/app
+    env_file:
+      - 13_Scripts/.env
+    environment:
+      - PYTHONPATH=/app/13_Scripts
+    ports:
+      - "8080:8080"
