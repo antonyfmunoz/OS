@@ -5,3 +5,5 @@ python-telegram-bot
 anthropic
 google-generativeai
 flask
+openai-whisper
+yt-dlp

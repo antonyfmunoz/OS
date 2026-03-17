@@ -6,6 +6,7 @@ import glob
 import time
 import requests
 import datetime
+import anthropic
 from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
@@ -429,10 +430,102 @@ def _process_comment(comment, source, post_url, seen_usernames, seen_comment_tex
 
 
 # ---------------------------------------------------------------------------
+# Post relevance filtering (Whisper + Claude + keyword fallback)
+# ---------------------------------------------------------------------------
+
+def transcribe_video(video_url):
+    """Download audio and transcribe with Whisper. Returns transcript text or None."""
+    if not video_url:
+        return None
+    try:
+        import whisper
+        import tempfile
+        import subprocess as _sp
+
+        tmp_dir = tempfile.mkdtemp()
+        audio_path = os.path.join(tmp_dir, "audio.mp3")
+
+        result = _sp.run([
+            "yt-dlp",
+            "--quiet",
+            "--extract-audio",
+            "--audio-format", "mp3",
+            "--audio-quality", "0",
+            "--max-filesize", "10m",
+            "-o", audio_path,
+            video_url,
+        ], capture_output=True, timeout=60)
+
+        if not os.path.exists(audio_path):
+            return None
+
+        model = whisper.load_model("small")
+        result = model.transcribe(audio_path)
+        transcript = result.get("text", "").strip()
+
+        try:
+            os.remove(audio_path)
+            os.rmdir(tmp_dir)
+        except Exception:
+            pass
+
+        return transcript if len(transcript) > 20 else None
+
+    except Exception as e:
+        print(f"  [WHISPER] Transcription failed: {e}")
+        return None
+
+
+def is_icp_relevant_post(post, client):
+    """Return True if the post is relevant to young men struggling with discipline/potential."""
+    caption = (post.get("caption") or post.get("text") or "")
+    video_url = (post.get("videoUrl") or post.get("video_url") or "")
+
+    # METHOD 1: Whisper transcription (free, local)
+    if video_url:
+        transcript = transcribe_video(video_url)
+        if transcript:
+            print(f"  [WHISPER] Transcript: {transcript[:80]}...")
+            try:
+                message = client.messages.create(
+                    model="claude-haiku-4-5-20251001",
+                    max_tokens=10,
+                    messages=[{"role": "user", "content": (
+                        f"Video transcript: {transcript[:500]}\n\n"
+                        f"Does this video speak to young men struggling with discipline, "
+                        f"wasted potential, or lack of execution? YES or NO only."
+                    )}],
+                )
+                return message.content[0].text.strip().upper().startswith("YES")
+            except Exception:
+                pass
+
+    # METHOD 2: Claude caption analysis
+    if caption and client:
+        try:
+            message = client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=10,
+                messages=[{"role": "user", "content": (
+                    f"Caption: {caption[:300]}\n\n"
+                    f"Does this attract young men struggling with discipline or wasted potential? "
+                    f"YES or NO only."
+                )}],
+            )
+            return message.content[0].text.strip().upper().startswith("YES")
+        except Exception:
+            pass
+
+    # METHOD 3: Keyword fallback
+    combined = caption.lower()
+    return any(kw in combined for kw in CONTENT_KEYWORDS)
+
+
+# ---------------------------------------------------------------------------
 # Scrapers
 # ---------------------------------------------------------------------------
 
-def scrape_hashtag(hashtag, seen_usernames, seen_comment_texts, counters):
+def scrape_hashtag(hashtag, seen_usernames, seen_comment_texts, counters, client=None):
     """Scrape posts for a hashtag with smart first-run vs incremental logic."""
     print(f"\nScraping hashtag: #{hashtag}")
     scraped_posts = load_scraped_posts()
@@ -478,6 +571,9 @@ def scrape_hashtag(hashtag, seen_usernames, seen_comment_texts, counters):
         url = get_post_url(post)
         if not url:
             continue
+        if client and not is_icp_relevant_post(post, client):
+            print(f"  [SKIP] Post not ICP relevant — skipping")
+            continue
         comments = scrape_comments_for_post(url, source, limit=100)
         print(f"  Found {len(comments)} comments on {url}")
         for comment in comments:
@@ -492,7 +588,7 @@ def scrape_hashtag(hashtag, seen_usernames, seen_comment_texts, counters):
     save_scraped_posts(scraped_posts)
 
 
-def scrape_competitor(account, seen_usernames, seen_comment_texts, counters):
+def scrape_competitor(account, seen_usernames, seen_comment_texts, counters, client=None):
     """Scrape high-engagement ICP-relevant posts from a competitor account."""
     print(f"\nScraping competitor: @{account}")
     scraped_posts = load_scraped_posts()
@@ -518,15 +614,12 @@ def scrape_competitor(account, seen_usernames, seen_comment_texts, counters):
 
     matched_posts = []
     for post in posts:
-        caption = (post.get("caption") or post.get("text") or "").lower()
         url = get_post_url(post)
         if not url or url in known_urls:
             counters["skipped_competitor_posts"] += 1
             continue
-        for kw in CONTENT_KEYWORDS:
-            if kw in caption:
-                matched_posts.append(post)
-                break
+        if is_icp_relevant_post(post, client):
+            matched_posts.append(post)
 
     if not matched_posts:
         print(f"  [SKIP] @{account} — no new keyword-matched posts")
@@ -679,6 +772,8 @@ def main():
     global HASHTAGS
     HASHTAGS = get_todays_hashtags()
 
+    client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+
     seen_usernames = set()
     seen_comment_texts = set()
     counters = {
@@ -694,10 +789,10 @@ def main():
     }
 
     for hashtag in HASHTAGS:
-        scrape_hashtag(hashtag, seen_usernames, seen_comment_texts, counters)
+        scrape_hashtag(hashtag, seen_usernames, seen_comment_texts, counters, client=client)
 
     for account in COMPETITOR_ACCOUNTS:
-        scrape_competitor(account, seen_usernames, seen_comment_texts, counters)
+        scrape_competitor(account, seen_usernames, seen_comment_texts, counters, client=client)
 
     total_saved = counters["priority_saved"] + counters["regular_saved"]
     print(f"""

@@ -302,7 +302,7 @@ def build_eod_report(pipeline_counts, scraper_stats, conversation_stats, daily_l
                 )
             sunday_block += "\n\nTOP OPENERS (by reply rate)\n" + "\n".join(lines)
 
-    return (
+    report = (
         f"OS — Daily Outreach Report\n"
         f"{date}\n\n"
         f"SCRAPER\n"
@@ -332,6 +332,17 @@ def build_eod_report(pipeline_counts, scraper_stats, conversation_stats, daily_l
         f"Outreach earns everything."
         f"{sunday_block}"
     )
+
+    if datetime.date.today().weekday() == 4:  # Friday
+        try:
+            import kpi_history as kh
+            weekly = kh.get_weekly_summary()
+            if weekly:
+                report += f"\n\n{weekly}"
+        except Exception:
+            pass
+
+    return report
 
 
 def send_telegram(text):

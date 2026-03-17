@@ -199,6 +199,49 @@ def update_lead_stage(username, new_stage, conversation_stage=None):
         f.write("\n".join(lines) + "\n")
 
 
+def parse_frontmatter_dm(content):
+    """Parse YAML frontmatter from a lead file. Returns (meta dict, body str)."""
+    if not content.startswith("---"):
+        return {}, content
+    end = content.find("---", 3)
+    if end == -1:
+        return {}, content
+    meta = {}
+    for line in content[3:end].strip().splitlines():
+        if ":" in line:
+            k, _, v = line.partition(":")
+            meta[k.strip()] = v.strip().strip('"')
+    return meta, content[end + 3:].strip()
+
+
+def update_source_booked(username):
+    vault = get_vault_path()
+    lead_files = glob.glob(os.path.join(vault, f"03_CRM/Leads/lead_{username}_*.md"))
+    if not lead_files:
+        return
+    with open(sorted(lead_files)[-1], encoding="utf-8") as f:
+        content = f.read()
+    meta, _ = parse_frontmatter_dm(content)
+    source = meta.get("source", "")
+    if not source:
+        return
+    config_path = os.path.join(vault, "13_Scripts/hashtag_config.json")
+    if not os.path.exists(config_path):
+        return
+    try:
+        with open(config_path, encoding="utf-8") as f:
+            config = json.load(f)
+        perf = config.get("performance", {})
+        if source in perf:
+            perf[source]["booked_count"] = perf[source].get("booked_count", 0) + 1
+            total = perf[source].get("total_qualified", 1)
+            perf[source]["booking_rate"] = round(perf[source]["booked_count"] / total, 4)
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=2)
+    except Exception as e:
+        print(f"  [BOOKING TRACK] Failed: {e}")
+
+
 def update_source_reply(username):
     """Update source hashtag reply count and opener reply count when a lead replies."""
     vault = get_vault_path()
@@ -300,6 +343,7 @@ def _advance_pipeline(username, stage):
         if moved:
             update_lead_stage(username, "Booked", conversation_stage=stage)
             pipeline_status = (pipeline_status + " → Booked") if pipeline_status else "→ Booked"
+            update_source_booked(username)
             print(f"  [PIPELINE] @{username} → Booked")
 
     if stage == "Ready":

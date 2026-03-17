@@ -125,6 +125,12 @@ def schedule_morning_briefing(app):
         chat_id=CHAT_ID,
         name="eod_report",
     )
+    app.job_queue.run_daily(
+        midnight_snapshot,
+        time=datetime.time(hour=23, minute=59),
+        chat_id=CHAT_ID,
+        name="midnight_snapshot",
+    )
 
 
 async def run_command(command, update: Update):
@@ -307,6 +313,50 @@ async def add_hashtag(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"#{tag} added to group {group}.")
 
 
+async def approve_cost(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    approval_file = os.path.join(VAULT, "13_Scripts/approval_response.txt")
+    with open(approval_file, "w") as f:
+        f.write("approve")
+    await update.message.reply_text("Approved. Scraper continuing to next tier.")
+
+
+async def stop_scraper(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    approval_file = os.path.join(VAULT, "13_Scripts/approval_response.txt")
+    with open(approval_file, "w") as f:
+        f.write("stop")
+    await update.message.reply_text("Stopping scraper after current batch.")
+
+
+async def midnight_snapshot(context: ContextTypes.DEFAULT_TYPE):
+    import kpi_history as kh
+
+    counts = parse_pipeline()[0]
+    scraper_stats = kpi_tracker.get_scraper_stats()
+    daily_log = kpi_tracker.get_daily_log()
+    cost_summary = cost_tracker.get_cost_summary()
+    today = datetime.date.today().isoformat()
+
+    dms = daily_log.get("dms_sent", 0)
+    replies = counts.get("Replied", 0)
+    rate = round(replies / max(dms, 1) * 100, 1)
+
+    data = {
+        "leads_scraped": scraper_stats.get("comments_scanned", 0),
+        "leads_qualified": scraper_stats.get("qualified", 0),
+        "priority_signals": scraper_stats.get("priority_signals", 0),
+        "bots_filtered": scraper_stats.get("bot_filtered", 0),
+        "dms_sent": dms,
+        "replies_received": replies,
+        "reply_rate": rate,
+        "active_conversations": counts.get("Replied", 0),
+        "api_cost": cost_summary.get("today_total", 0.0),
+    }
+    kh.update_daily(today, data)
+
+    if datetime.date.today().weekday() == 4:  # Friday
+        kh.store_weekly_rollup()
+
+
 async def costs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show current cost breakdown."""
     text = cost_tracker.format_cost_report()
@@ -349,6 +399,8 @@ app.add_handler(CommandHandler("stats", stats))
 app.add_handler(CommandHandler("hashtags", hashtags))
 app.add_handler(CommandHandler("blacklist", blacklist_tag))
 app.add_handler(CommandHandler("addhashtag", add_hashtag))
+app.add_handler(CommandHandler("approve", approve_cost))
+app.add_handler(CommandHandler("stop", stop_scraper))
 
 schedule_morning_briefing(app)
 
