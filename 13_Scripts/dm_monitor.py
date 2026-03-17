@@ -494,8 +494,12 @@ def main():
     with sync_playwright() as p:
         browser = p.chromium.launch_persistent_context(
             SESSION_DIR,
-            headless=False,
-            args=["--disable-blink-features=AutomationControlled"],
+            headless=True,
+            args=[
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-blink-features=AutomationControlled",
+            ],
             user_agent=(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) "
