@@ -55,14 +55,17 @@ def get_today_cost():
         return 0.0
 
 
-def switch_hashtag_group():
+def force_group_a():
     config_path = os.path.join(VAULT, "13_Scripts/hashtag_config.json")
-    with open(config_path) as f:
-        config = json.load(f)
-    config["current_group"] = "B" if config["current_group"] == "A" else "A"
-    with open(config_path, "w") as f:
-        json.dump(config, f, indent=2)
-    print(f"Switched to group {config['current_group']}")
+    try:
+        with open(config_path) as f:
+            config = json.load(f)
+        config["current_group"] = "A"
+        with open(config_path, "w") as f:
+            json.dump(config, f, indent=2)
+        print("Switched to Group A for retry.")
+    except Exception as e:
+        print(f"Could not switch group: {e}")
 
 
 def get_scrape_stats():
@@ -132,10 +135,13 @@ def check_cost_approval(current_cost, leads_so_far, approved_limit):
     return False, approved_limit
 
 
-def run_scraper():
+def run_scraper(ignore_cache=False):
+    env = os.environ.copy()
+    if ignore_cache:
+        env["SCRAPER_IGNORE_CACHE"] = "1"
     result = subprocess.run(
         [sys.executable, os.path.join(VAULT, "13_Scripts/apify_scraper.py")],
-        cwd=VAULT, capture_output=False
+        cwd=VAULT, capture_output=False, env=env
     )
     return result.returncode == 0
 
@@ -176,7 +182,7 @@ def main():
                 break
 
         print("Running Apify scraper...")
-        run_scraper()
+        run_scraper(ignore_cache=(attempt > 1))
 
         print("Running ICP scorer...")
         run_scorer()
@@ -187,10 +193,12 @@ def main():
         if total_leads >= TARGET_LEADS:
             break
 
-        if attempt < MAX_ATTEMPTS:
+        if attempt < MAX_ATTEMPTS and total_leads < TARGET_LEADS:
             remaining = TARGET_LEADS - total_leads
-            print(f"Need {remaining} more. Switching group...")
-            switch_hashtag_group()
+            print(f"Need {remaining} more leads.")
+            print("Retrying with competitor accounts...")
+            if total_leads == 0:
+                force_group_a()
 
     stats = get_scrape_stats()
     learning = get_hashtag_learning()

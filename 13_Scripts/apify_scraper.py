@@ -17,7 +17,13 @@ APIFY_API_TOKEN = os.getenv("APIFY_API_TOKEN")
 
 # --- Edit these ---
 HASHTAGS = []  # populated at runtime by get_todays_hashtags()
-COMPETITOR_ACCOUNTS = []  # add Instagram usernames here e.g. ["username1", "username2"]
+COMPETITOR_ACCOUNTS = [
+    "robthebank",
+    "imangadzhi",
+    "hormozi",
+    "noah.rolette",
+    "zackkravits",
+]
 # ------------------
 
 OUTPUT_DIR = "01_Inbox/raw_signals"
@@ -430,6 +436,25 @@ def _process_comment(comment, source, post_url, seen_usernames, seen_comment_tex
 
 
 # ---------------------------------------------------------------------------
+# Comment-based post pre-filter
+# ---------------------------------------------------------------------------
+
+def is_post_icp_relevant_by_comments(comments, sample_size=20):
+    """Check if a post's comment section contains ICP signals.
+    Returns True (relevant), False (not relevant), or None (can't tell — pass through)."""
+    if not comments or len(comments) < 3:
+        print(f"  [FILTER] Too few comments to judge — passing through")
+        return None  # None = proceed without filtering
+
+    sample = comments[:sample_size]
+    for c in sample:
+        text = (c.get("text") or c.get("commentText") or "").lower()
+        if any(signal in text for signal in PRIORITY_SIGNALS):
+            return True
+    return False
+
+
+# ---------------------------------------------------------------------------
 # Post relevance filtering (Whisper + Claude + keyword fallback)
 # ---------------------------------------------------------------------------
 
@@ -525,13 +550,17 @@ def is_icp_relevant_post(post, client):
 # Scrapers
 # ---------------------------------------------------------------------------
 
-def scrape_hashtag(hashtag, seen_usernames, seen_comment_texts, counters, client=None):
+def scrape_hashtag(hashtag, seen_usernames, seen_comment_texts, counters, client=None, ignore_cache=False):
     """Scrape posts for a hashtag with smart first-run vs incremental logic."""
     print(f"\nScraping hashtag: #{hashtag}")
     scraped_posts = load_scraped_posts()
     key = f"#{hashtag}"
-    known_urls = set(scraped_posts.get(key, {}).get("scraped_urls", []))
-    is_first_run = len(known_urls) == 0
+    if ignore_cache:
+        known_urls = set()
+        is_first_run = True
+    else:
+        known_urls = set(scraped_posts.get(key, {}).get("scraped_urls", []))
+        is_first_run = len(known_urls) == 0
     results_limit = 50 if is_first_run else 10
 
     try:
@@ -576,6 +605,10 @@ def scrape_hashtag(hashtag, seen_usernames, seen_comment_texts, counters, client
             continue
         comments = scrape_comments_for_post(url, source, limit=100)
         print(f"  Found {len(comments)} comments on {url}")
+        relevance = is_post_icp_relevant_by_comments(comments)
+        if relevance is False:
+            print(f"  [SKIP] No ICP signals in comments — skipping post")
+            continue
         for comment in comments:
             _process_comment(comment, source, url, seen_usernames, seen_comment_texts, counters)
         new_urls.append(url)
@@ -588,12 +621,16 @@ def scrape_hashtag(hashtag, seen_usernames, seen_comment_texts, counters, client
     save_scraped_posts(scraped_posts)
 
 
-def scrape_competitor(account, seen_usernames, seen_comment_texts, counters, client=None):
+def scrape_competitor(account, seen_usernames, seen_comment_texts, counters, client=None, ignore_cache=False):
     """Scrape high-engagement ICP-relevant posts from a competitor account."""
     print(f"\nScraping competitor: @{account}")
     scraped_posts = load_scraped_posts()
-    known_urls = set(scraped_posts.get(account, {}).get("scraped_urls", []))
-    is_first_run = len(known_urls) == 0
+    if ignore_cache:
+        known_urls = set()
+        is_first_run = True
+    else:
+        known_urls = set(scraped_posts.get(account, {}).get("scraped_urls", []))
+        is_first_run = len(known_urls) == 0
     results_limit = 50 if is_first_run else 10
 
     try:
@@ -648,6 +685,10 @@ def scrape_competitor(account, seen_usernames, seen_comment_texts, counters, cli
             continue
         comments = scrape_comments_for_post(url, source, limit=200)
         print(f"  Found {len(comments)} comments on {url}")
+        relevance = is_post_icp_relevant_by_comments(comments)
+        if relevance is False:
+            print(f"  [SKIP] No ICP signals in comments — skipping post")
+            continue
         for comment in comments:
             _process_comment(comment, source, url, seen_usernames, seen_comment_texts, counters)
         new_urls.append(url)
@@ -772,6 +813,12 @@ def main():
     global HASHTAGS
     HASHTAGS = get_todays_hashtags()
 
+    ignore_cache = os.getenv("SCRAPER_IGNORE_CACHE") == "1"
+    if ignore_cache:
+        print("  [CACHE] ignore_cache=True — re-scraping all posts")
+
+    print(f"Competitor accounts to scrape: {COMPETITOR_ACCOUNTS}")
+
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
     seen_usernames = set()
@@ -789,10 +836,12 @@ def main():
     }
 
     for hashtag in HASHTAGS:
-        scrape_hashtag(hashtag, seen_usernames, seen_comment_texts, counters, client=client)
+        scrape_hashtag(hashtag, seen_usernames, seen_comment_texts, counters,
+                       client=client, ignore_cache=ignore_cache)
 
     for account in COMPETITOR_ACCOUNTS:
-        scrape_competitor(account, seen_usernames, seen_comment_texts, counters, client=client)
+        scrape_competitor(account, seen_usernames, seen_comment_texts, counters,
+                          client=client, ignore_cache=ignore_cache)
 
     total_saved = counters["priority_saved"] + counters["regular_saved"]
     print(f"""
