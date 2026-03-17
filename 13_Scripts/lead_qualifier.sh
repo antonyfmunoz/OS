@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo ""
-echo "EntrepreneurOS Lead Qualification"
+echo "OS Lead Qualification"
 echo "---------------------------------"
 echo ""
 

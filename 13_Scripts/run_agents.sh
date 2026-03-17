@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Running EntrepreneurOS Agents"
+echo "Running OS Agents"
 
 ./13_Scripts/agent_router.sh discover
 ./13_Scripts/agent_router.sh scan

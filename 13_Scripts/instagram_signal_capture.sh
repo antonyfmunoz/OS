@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo ""
-echo "EntrepreneurOS Instagram Signal Capture"
+echo "OS Instagram Signal Capture"
 echo "---------------------------------------"
 echo ""
 

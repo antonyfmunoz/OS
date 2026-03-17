@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo ""
-echo "EntrepreneurOS Founder Briefing"
+echo "OS Founder Briefing"
 echo "--------------------------------"
 echo ""
 

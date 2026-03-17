@@ -4,3 +4,5 @@
 13_Scripts/.env
 *.env
 tmux-*.log
+__pycache__/
+13_Scripts/instagram_session/

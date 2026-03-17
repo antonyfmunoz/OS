@@ -1,10 +1,18 @@
 #!/bin/bash
 
 echo " "
-echo "EntrepreneurOS Daily Agent Cycle"
+echo "OS Daily Agent Cycle"
 echo "————————————————"
 echo " "
 
+echo "Step A: Scraping Instagram Signals"
+python 13_Scripts/apify_scraper.py
+
+echo ""
+echo "Step B: ICP Scoring and Lead Qualification"
+python 13_Scripts/icp_scorer.py
+
+echo ""
 echo "Step 0: Harvesting Signals"
 ./13_Scripts/signal_harvester.sh
 

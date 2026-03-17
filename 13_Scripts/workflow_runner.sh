@@ -3,12 +3,20 @@
 WORKFLOW=$1
 
 echo ""
-echo "EntrepreneurOS Workflow Runner"
+echo "OS Workflow Runner"
 echo "--------------------------------"
 echo "Running workflow: $WORKFLOW"
 echo ""
 
 case $WORKFLOW in
+
+apify_scrape)
+python 13_Scripts/apify_scraper.py
+;;
+
+icp_score)
+python 13_Scripts/icp_scorer.py
+;;
 
 signal_intelligence)
 claude --dangerously-skip-permissions "Execute the signal intelligence workflow located in 05_Workflows/research/signal_intelligence. Process signals in 01_Inbox/raw_signals and store insights in 07_Knowledge/ICP."

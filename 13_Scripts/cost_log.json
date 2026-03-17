@@ -1,0 +1,27 @@
+{
+  "daily": {
+    "2026-03-16": {
+      "scraper": {
+        "apify_results": 500,
+        "apify_cost": 0.0013,
+        "haiku_calls": 10,
+        "haiku_input_tokens": 5000,
+        "haiku_output_tokens": 1500,
+        "haiku_cost": 0.0125,
+        "total": 0.0138
+      },
+      "copilot": {
+        "sonnet_calls": 2,
+        "sonnet_input_tokens": 800,
+        "sonnet_output_tokens": 200,
+        "sonnet_cost": 0.0054,
+        "total": 0.0054
+      },
+      "total_day": 0.019200000000000002
+    }
+  },
+  "monthly": {
+    "2026-03": 0.019200000000000002
+  },
+  "all_time_total": 0.019200000000000002
+}

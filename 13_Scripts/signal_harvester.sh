@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo ""
-echo "EntrepreneurOS Signal Harvester"
+echo "OS Signal Harvester"
 echo "--------------------------------"
 echo ""
 

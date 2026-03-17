@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo ""
-echo "EntrepreneurOS Memory Logger"
+echo "OS Memory Logger"
 echo "-----------------------------"
 echo ""
 

@@ -3,12 +3,20 @@
 COMMAND=$1
 
 echo ""
-echo "EntrepreneurOS Command Interface"
+echo "OS Command Interface"
 echo "---------------------------------"
 echo "Command: $COMMAND"
 echo ""
 
 case $COMMAND in
+
+scrape)
+./13_Scripts/workflow_runner.sh apify_scrape
+;;
+
+score)
+./13_Scripts/workflow_runner.sh icp_score
+;;
 
 research)
 ./13_Scripts/workflow_runner.sh signal_intelligence
@@ -35,6 +43,8 @@ echo "Unknown command."
 echo ""
 echo "Available commands:"
 echo ""
+echo "os scrape      → scrape Instagram signals via Apify"
+echo "os score       → run ICP scorer on raw signals"
 echo "os research    → analyze signals"
 echo "os patterns    → detect ICP patterns"
 echo "os report    → generate ICP report"
