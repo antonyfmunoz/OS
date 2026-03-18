@@ -640,18 +640,8 @@ def do_login(page, context):
                 timeout=60000)
             time.sleep(5)
 
-        # Wait for username field with longer timeout
-        try:
-            page.wait_for_selector(
-                'input[name="username"]',
-                timeout=45000)
-        except Exception:
-            # Try alternative selector
-            page.wait_for_selector(
-                'input[name="username"]',
-                timeout=45000)
-
-        time.sleep(2)
+        # Wait for page to fully render
+        time.sleep(20)
         page.fill('input[name="username"]', username)
         time.sleep(1)
         page.fill('input[name="password"]', password)
