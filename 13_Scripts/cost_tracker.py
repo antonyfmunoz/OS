@@ -108,7 +108,7 @@ def _month_key():
 
 
 def sync_apify_balance():
-    """Fetch actual Apify account usage via REST API."""
+    """Fetch actual Apify account usage via monthly endpoint."""
     token = os.getenv("APIFY_API_TOKEN")
     if not token:
         return None
@@ -116,15 +116,34 @@ def sync_apify_balance():
         import requests as req
         resp = req.get(
             f"https://api.apify.com/v2/users/me"
-            f"?token={token}",
+            f"/usage/monthly?token={token}",
             timeout=10
         )
-        data = resp.json()
-        usage = data.get("data", {}).get(
-            "monthlyUsage", {})
-        total_spend = usage.get(
-            "totalCostUsd", None)
-        return total_spend
+        data = resp.json().get("data", {})
+
+        # Real total spend this billing cycle
+        total_spend = data.get(
+            "totalUsageCreditsUsdAfterVolumeDiscount",
+            None)
+
+        if total_spend is None:
+            return None
+
+        # Also extract daily breakdown for logging
+        daily = data.get("dailyServiceUsages", [])
+        daily_breakdown = {
+            d["date"][:10]: d["totalUsageCreditsUsd"]
+            for d in daily
+        }
+
+        return {
+            "total_spend": total_spend,
+            "daily": daily_breakdown,
+            "cycle_start": data.get(
+                "usageCycle", {}).get("startAt", ""),
+            "cycle_end": data.get(
+                "usageCycle", {}).get("endAt", "")
+        }
     except Exception as e:
         print(f"Could not sync Apify balance: {e}")
         return None
@@ -132,7 +151,8 @@ def sync_apify_balance():
 
 def log_apify_runs(hashtag_runs, comment_runs,
                    profile_runs):
-    """Track actual Apify actor runs with free tier calculation."""
+    """Track actual Apify actor runs with free tier calculation.
+    Syncs from Apify API every call for real billing data."""
     gross_cost = (
         hashtag_runs * PRICING["apify_hashtag_run"] +
         comment_runs * PRICING["apify_comment_run"] +
@@ -141,7 +161,7 @@ def log_apify_runs(hashtag_runs, comment_runs,
 
     log = load_log()
 
-    if "apify" not in log:
+    if "apify" not in log or not log["apify"]:
         log["apify"] = {
             "total_hashtag_runs": 0,
             "total_comment_runs": 0,
@@ -151,16 +171,38 @@ def log_apify_runs(hashtag_runs, comment_runs,
             "free_tier_limit": 5.00,
             "free_tier_consumed": 0.0
         }
-        # Try to sync actual usage from Apify
-        actual_spend = sync_apify_balance()
-        if actual_spend is not None:
-            consumed = min(actual_spend, 5.00)
+        # Seed from real Apify data on first init
+        sync = sync_apify_balance()
+        if sync is not None:
+            total_spend = sync["total_spend"]
+            consumed = min(total_spend, 5.00)
+            billed = max(0, total_spend - 5.00)
             log["apify"]["free_tier_consumed"] = consumed
-            log["apify"]["total_gross_cost"] = actual_spend
-            billed = max(0, actual_spend - 5.00)
+            log["apify"]["total_gross_cost"] = total_spend
             log["apify"]["total_billable_cost"] = billed
-            print(f"Synced Apify balance: "
-                  f"${actual_spend:.4f} total spend")
+            log["apify"]["cycle_start"] = sync["cycle_start"]
+            log["apify"]["cycle_end"] = sync["cycle_end"]
+            log["apify"]["last_synced"] = (
+                datetime.date.today().isoformat())
+            print(f"Apify sync: ${total_spend:.4f} total "
+                  f"spend this cycle")
+            print(f"Free tier consumed: ${consumed:.4f}"
+                  f" / $5.00")
+            print(f"Billed to card: ${billed:.4f}")
+
+    # Sync live values from Apify API every run
+    sync = sync_apify_balance()
+    if sync and "apify" in log:
+        total_spend = sync["total_spend"]
+        log["apify"]["free_tier_consumed"] = min(
+            total_spend, 5.00)
+        log["apify"]["total_gross_cost"] = total_spend
+        log["apify"]["total_billable_cost"] = max(
+            0, total_spend - 5.00)
+        log["apify"]["last_synced"] = (
+            datetime.date.today().isoformat())
+        log["apify"]["cycle_start"] = sync["cycle_start"]
+        log["apify"]["cycle_end"] = sync["cycle_end"]
 
     apify = log["apify"]
 
@@ -168,22 +210,9 @@ def log_apify_runs(hashtag_runs, comment_runs,
     apify["total_hashtag_runs"] += hashtag_runs
     apify["total_comment_runs"] += comment_runs
     apify["total_profile_runs"] += profile_runs
-    apify["total_gross_cost"] += gross_cost
 
-    # Calculate how much free tier remains
-    free_remaining = max(0,
-        apify["free_tier_limit"] -
-        apify["free_tier_consumed"])
-
-    # Billable is only what exceeds free tier
-    if gross_cost <= free_remaining:
-        billable = 0.0
-        apify["free_tier_consumed"] += gross_cost
-    else:
-        billable = gross_cost - free_remaining
-        apify["free_tier_consumed"] = apify["free_tier_limit"]
-
-    apify["total_billable_cost"] += billable
+    # Billable from API-synced data (already set above)
+    billable = apify["total_billable_cost"]
 
     # Update daily/monthly totals with billable only
     today = _today_key()
@@ -198,7 +227,7 @@ def log_apify_runs(hashtag_runs, comment_runs,
     s["apify_runs"]["hashtag"] += hashtag_runs
     s["apify_runs"]["comment"] += comment_runs
     s["apify_runs"]["profile"] += profile_runs
-    s["apify_cost"] += billable
+    s["apify_cost"] = apify["total_billable_cost"]
     s["total"] = s["apify_cost"] + s.get("haiku_cost", 0.0)
     log["daily"][today]["total_day"] = (
         s["total"] +
@@ -207,20 +236,27 @@ def log_apify_runs(hashtag_runs, comment_runs,
 
     if month not in log["monthly"]:
         log["monthly"][month] = 0.0
-    log["monthly"][month] += billable
-    log["all_time_total"] = (
-        log.get("all_time_total", 0.0) + billable)
+    log["monthly"][month] = (
+        log["monthly"].get(month, 0.0) -
+        log["daily"][today].get("_prev_apify_billable", 0.0) +
+        apify["total_billable_cost"])
+    log["daily"][today]["_prev_apify_billable"] = (
+        apify["total_billable_cost"])
 
     save_log(log)
+
+    free_remaining = max(0,
+        apify["free_tier_limit"] -
+        apify["free_tier_consumed"])
 
     print(f"Apify runs this session: "
           f"hashtag={hashtag_runs} "
           f"comment={comment_runs} "
           f"profile={profile_runs}")
     print(f"Gross cost: ${gross_cost:.4f}")
-    print(f"Free tier remaining before: "
+    print(f"Free tier remaining: "
           f"${free_remaining:.4f}")
-    print(f"Billable: ${billable:.4f}")
+    print(f"Billable (from API): ${billable:.4f}")
     print(f"Free tier consumed: "
           f"${apify['free_tier_consumed']:.4f}"
           f" / ${apify['free_tier_limit']:.2f}")
@@ -367,11 +403,13 @@ def format_cost_report():
         f"${costs['total_day']:.4f}\n"
         f"  This month:      ${month:.2f}\n"
         f"  All time:        ${all_time:.2f}\n\n"
-        f"APIFY\n"
+        f"APIFY (cycle: {apify.get('cycle_start','')[:10]}"
+        f" → {apify.get('cycle_end','')[:10]})\n"
         f"  Total runs:      {total_runs}\n"
         f"  Gross spend:     ${total_gross:.4f}\n"
         f"  Free tier:       "
-        f"${free_consumed:.4f} / ${free_limit:.2f} "
-        f"({free_pct}%)\n"
-        f"  Billed to card:  ${total_billable:.4f}"
+        f"${free_consumed:.4f} / $5.00 ({free_pct}%)\n"
+        f"  Billed to card:  ${total_billable:.4f}\n"
+        f"  Last synced:     "
+        f"{apify.get('last_synced', 'never')}"
     )
