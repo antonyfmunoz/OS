@@ -965,7 +965,7 @@ def is_login_page(page):
 
 def main():
     with sync_playwright() as p:
-            browser = p.chromium.launch(
+        browser = p.chromium.launch(
             headless=True,
             args=['--no-sandbox'],
             proxy={
