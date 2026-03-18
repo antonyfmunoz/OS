@@ -593,7 +593,7 @@ def session_is_valid(page):
         page.goto(
             "https://www.instagram.com/direct/inbox/",
             wait_until="domcontentloaded",
-            timeout=30000)
+            timeout=60000)
         time.sleep(3)
         if "login" in page.url:
             return False
@@ -637,7 +637,7 @@ def do_login(page, context):
             page.goto(
                 "https://www.instagram.com/accounts/login/",
                 wait_until="domcontentloaded",
-                timeout=30000)
+                timeout=60000)
             time.sleep(5)
 
         # Wait for username field with longer timeout
