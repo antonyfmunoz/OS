@@ -642,9 +642,9 @@ def do_login(page, context):
 
         # Wait for page to fully render
         time.sleep(20)
-        page.fill('input[name="username"]', username)
-        time.sleep(1)
-        page.fill('input[name="password"]', password)
+        page.locator('input[name="username"]').fill(username, timeout=30000)
+        time.sleep(2)
+        page.locator('input[name="password"]').fill(password, timeout=30000)
         time.sleep(1)
         page.click('button[type="submit"]')
         time.sleep(8)
