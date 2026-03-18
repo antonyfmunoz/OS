@@ -78,13 +78,29 @@ def build_briefing_text():
     else:
         trend_block = "TREND: Building data...\n\n"
 
+    revenue_path = os.path.join(VAULT,
+        "13_Scripts/revenue_log.json")
+    try:
+        with open(revenue_path) as f:
+            rev = json.load(f)
+        month = datetime.date.today().isoformat()[:7]
+        month_rev = rev["monthly"].get(month, 0.0)
+        clients = len([c for c in rev["clients"]
+                       if c["date"].startswith(month)])
+        rev_line = (f"Revenue this month: "
+                    f"${month_rev:.0f} "
+                    f"({clients} clients)")
+    except Exception:
+        rev_line = "Revenue: $0 (no closes yet)"
+
     return (
         "OS Morning Briefing\n\n"
         "Pipeline:\n"
         f"  New:        {counts['New']} leads\n"
         f"  Contacted:  {counts['Contacted']} leads\n"
         f"  Replied:    {counts['Replied']} leads\n"
-        f"  Booked:     {counts['Booked']} calls\n\n"
+        f"  Booked:     {counts['Booked']} calls\n"
+        f"  {rev_line}\n\n"
         f"{trend_block}"
         "Top new leads:\n"
         f"{top_leads_block}\n\n"
@@ -219,6 +235,22 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         rates = [e.get("reply_rate", 0) for e in history if e.get("dms_sent", 0) > 0]
         avg_reply = round(sum(rates) / len(rates)) if rates else 0
 
+    revenue_path = os.path.join(VAULT,
+        "13_Scripts/revenue_log.json")
+    try:
+        with open(revenue_path) as f:
+            rev = json.load(f)
+        month = datetime.date.today().isoformat()[:7]
+        month_rev = rev["monthly"].get(month, 0.0)
+        total_rev = rev["total"]
+        rev_text = (
+            f"REVENUE\n"
+            f"  This month: ${month_rev:.0f}\n"
+            f"  All time:   ${total_rev:.0f}\n"
+        )
+    except Exception:
+        rev_text = "REVENUE\n  No closes yet.\n"
+
     text = (
         "OS — Stats\n\n"
         "PIPELINE\n"
@@ -229,6 +261,7 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"  Booked:      {counts['Booked']}\n"
         f"  Won:         {counts['Won']}\n"
         f"  Total:       {total_leads}\n\n"
+        f"{rev_text}\n"
         "KPI HISTORY\n"
         f"  Days logged:  {len(history)}\n"
         f"  Total DMs:    {total_dms}\n"
@@ -311,6 +344,187 @@ async def add_hashtag(update: Update, context: ContextTypes.DEFAULT_TYPE):
         json.dump(config, f, indent=2)
 
     await update.message.reply_text(f"#{tag} added to group {group}.")
+
+
+def move_pipeline_card_by_username(
+        username, from_stage, to_stage):
+    pipeline_path = os.path.join(
+        VAULT, "03_CRM/Pipeline.md")
+    if not os.path.exists(pipeline_path):
+        return
+    with open(pipeline_path, encoding="utf-8") as f:
+        content = f.read()
+    lines = content.split("\n")
+    card_line = None
+    card_idx = None
+    current_section = None
+    for i, line in enumerate(lines):
+        if line.startswith("## "):
+            current_section = line[3:].strip()
+        elif (current_section == from_stage and
+              username.lower() in line.lower()):
+            card_line = line
+            card_idx = i
+            break
+    if card_line is None:
+        return
+    lines.pop(card_idx)
+    for i, line in enumerate(lines):
+        if line.startswith(f"## {to_stage}"):
+            lines.insert(i + 3, card_line)
+            break
+    with open(pipeline_path, "w",
+              encoding="utf-8") as f:
+        f.write("\n".join(lines))
+
+
+def log_call_outcome(username, outcome):
+    calls_path = os.path.join(VAULT,
+        "13_Scripts/calls_log.json")
+    try:
+        with open(calls_path) as f:
+            data = json.load(f)
+    except Exception:
+        data = {"calls": [], "showed": 0,
+                "noshow": 0, "show_rate": 0.0}
+
+    data["calls"].append({
+        "username": username,
+        "outcome": outcome,
+        "date": datetime.date.today().isoformat()
+    })
+    data["showed"] = sum(
+        1 for c in data["calls"]
+        if c["outcome"] == "showed")
+    data["noshow"] = sum(
+        1 for c in data["calls"]
+        if c["outcome"] == "noshow")
+    total = data["showed"] + data["noshow"]
+    if total > 0:
+        data["show_rate"] = round(
+            data["showed"] / total * 100, 1)
+
+    with open(calls_path, "w") as f:
+        json.dump(data, f, indent=2)
+
+
+async def closed(update: Update,
+                 context: ContextTypes.DEFAULT_TYPE):
+    """Log a closed client. Usage: /closed username 750"""
+    args = context.args
+    if len(args) < 1:
+        await update.message.reply_text(
+            "Usage: /closed username 750\n"
+            "Amount defaults to 750 if not specified.")
+        return
+
+    username = args[0].lstrip("@")
+    amount = float(args[1]) if len(args) > 1 else 750.0
+    today = datetime.date.today().isoformat()
+
+    revenue_path = os.path.join(VAULT,
+        "13_Scripts/revenue_log.json")
+
+    try:
+        with open(revenue_path) as f:
+            revenue = json.load(f)
+    except Exception:
+        revenue = {"clients": [], "total": 0.0,
+                   "monthly": {}}
+
+    revenue["clients"].append({
+        "username": username,
+        "amount": amount,
+        "date": today,
+        "offer": "Initiate Arena"
+    })
+    revenue["total"] = sum(
+        c["amount"] for c in revenue["clients"])
+
+    month = today[:7]
+    if month not in revenue["monthly"]:
+        revenue["monthly"][month] = 0.0
+    revenue["monthly"][month] += amount
+
+    with open(revenue_path, "w") as f:
+        json.dump(revenue, f, indent=2)
+
+    move_pipeline_card_by_username(username,
+        "Booked", "Won")
+
+    await update.message.reply_text(
+        f"CLOSED\n\n"
+        f"@{username} — ${amount:.0f}\n"
+        f"Added to Won column.\n\n"
+        f"Month total: "
+        f"${revenue['monthly'][month]:.0f}\n"
+        f"All time: ${revenue['total']:.0f}"
+    )
+
+
+async def revenue(update: Update,
+                  context: ContextTypes.DEFAULT_TYPE):
+    revenue_path = os.path.join(VAULT,
+        "13_Scripts/revenue_log.json")
+    try:
+        with open(revenue_path) as f:
+            data = json.load(f)
+    except Exception:
+        await update.message.reply_text(
+            "No revenue logged yet.\n"
+            "Use /closed username to log a close.")
+        return
+
+    month = datetime.date.today().isoformat()[:7]
+    month_rev = data["monthly"].get(month, 0.0)
+    total = data["total"]
+    clients = len(data["clients"])
+    recent = data["clients"][-3:]
+
+    recent_text = "\n".join([
+        f"  @{c['username']} — ${c['amount']:.0f} "
+        f"({c['date']})"
+        for c in reversed(recent)
+    ])
+
+    await update.message.reply_text(
+        f"OS — Revenue\n\n"
+        f"This month: ${month_rev:.0f}\n"
+        f"All time:   ${total:.0f}\n"
+        f"Clients:    {clients}\n\n"
+        f"Recent closes:\n{recent_text}"
+    )
+
+
+async def showed(update: Update,
+                 context: ContextTypes.DEFAULT_TYPE):
+    args = context.args
+    if not args:
+        await update.message.reply_text(
+            "Usage: /showed username")
+        return
+    username = args[0].lstrip("@")
+    log_call_outcome(username, "showed")
+    await update.message.reply_text(
+        f"@{username} marked as showed.\n"
+        f"Move to Won with /closed {username} "
+        f"if they close.")
+
+
+async def noshow(update: Update,
+                 context: ContextTypes.DEFAULT_TYPE):
+    args = context.args
+    if not args:
+        await update.message.reply_text(
+            "Usage: /noshow username")
+        return
+    username = args[0].lstrip("@")
+    log_call_outcome(username, "noshow")
+    move_pipeline_card_by_username(
+        username, "Booked", "Lost")
+    await update.message.reply_text(
+        f"@{username} marked as no-show.\n"
+        f"Card moved to Lost.")
 
 
 async def approve_cost(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -401,6 +615,10 @@ app.add_handler(CommandHandler("blacklist", blacklist_tag))
 app.add_handler(CommandHandler("addhashtag", add_hashtag))
 app.add_handler(CommandHandler("approve", approve_cost))
 app.add_handler(CommandHandler("stop", stop_scraper))
+app.add_handler(CommandHandler("closed", closed))
+app.add_handler(CommandHandler("revenue", revenue))
+app.add_handler(CommandHandler("showed", showed))
+app.add_handler(CommandHandler("noshow", noshow))
 
 schedule_morning_briefing(app)
 

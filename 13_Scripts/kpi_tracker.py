@@ -302,6 +302,44 @@ def build_eod_report(pipeline_counts, scraper_stats, conversation_stats, daily_l
                 )
             sunday_block += "\n\nTOP OPENERS (by reply rate)\n" + "\n".join(lines)
 
+    import json as json_mod
+    revenue_path = os.path.join(
+        os.path.dirname(__file__), "revenue_log.json")
+    calls_path = os.path.join(
+        os.path.dirname(__file__), "calls_log.json")
+
+    revenue_text = ""
+    try:
+        with open(revenue_path) as f:
+            rev = json_mod.load(f)
+        month = datetime.date.today().isoformat()[:7]
+        month_rev = rev["monthly"].get(month, 0.0)
+        total_rev = rev["total"]
+        clients = len(rev["clients"])
+        revenue_text = (
+            f"REVENUE\n"
+            f"  This month: ${month_rev:.0f}\n"
+            f"  All time:   ${total_rev:.0f}\n"
+            f"  Clients:    {clients}\n\n"
+        )
+    except Exception:
+        revenue_text = "REVENUE\n  No closes logged yet.\n\n"
+
+    try:
+        with open(calls_path) as f:
+            calls = json_mod.load(f)
+        show_rate = calls.get("show_rate", 0)
+        showed = calls.get("showed", 0)
+        noshow = calls.get("noshow", 0)
+        calls_text = (
+            f"CALLS\n"
+            f"  Showed:    {showed}\n"
+            f"  No-show:   {noshow}\n"
+            f"  Show rate: {show_rate}%\n\n"
+        )
+    except Exception:
+        calls_text = ""
+
     report = (
         f"OS — Daily Outreach Report\n"
         f"{date}\n\n"
@@ -320,6 +358,8 @@ def build_eod_report(pipeline_counts, scraper_stats, conversation_stats, daily_l
         f"  New:         {new_count}\n"
         f"  Contacted:   {contacted_count}\n"
         f"  Replied:     {replied_count}\n\n"
+        f"{revenue_text}"
+        f"{calls_text}"
         f"{opener_block}"
         f"{source_block}"
         f"COSTS\n"

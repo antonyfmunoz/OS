@@ -514,7 +514,99 @@ stage: {stage}
     return filepath
 
 
+def cleanup_old_screenshots():
+    screenshots_dir = os.path.join(
+        get_vault_path(),
+        "03_CRM/Conversations/screenshots"
+    )
+    if not os.path.exists(screenshots_dir):
+        return
+    cutoff = datetime.datetime.now() - \
+             datetime.timedelta(days=30)
+    removed = 0
+    for filepath in glob.glob(
+            os.path.join(screenshots_dir, "*.png")):
+        try:
+            mtime = datetime.datetime.fromtimestamp(
+                os.path.getmtime(filepath))
+            if mtime < cutoff:
+                os.remove(filepath)
+                removed += 1
+        except Exception:
+            pass
+    if removed > 0:
+        print(f"[CLEANUP] Removed {removed} "
+              f"screenshots older than 30 days")
+
+
+def is_logged_in(page):
+    """Check if Instagram session is still valid."""
+    try:
+        page.goto(
+            "https://www.instagram.com/",
+            wait_until="domcontentloaded",
+            timeout=30000
+        )
+        url = page.url
+        if "instagram.com/accounts/login" in url:
+            return False
+        try:
+            page.wait_for_selector(
+                'svg[aria-label="Search"]',
+                timeout=10000
+            )
+            return True
+        except Exception:
+            return False
+    except Exception:
+        return False
+
+
+def handle_relogin(page):
+    """Handle session expiry."""
+    print("[SESSION] Instagram session expired.")
+    print("[SESSION] Waiting for manual relogin...")
+    send_telegram_alert(
+        "INSTAGRAM SESSION EXPIRED\n\n"
+        "DM monitor needs relogin.\n"
+        "Open the monitor browser and log in.\n"
+        "Monitor will resume automatically."
+    )
+    page.goto("https://www.instagram.com/accounts/login/")
+    for _ in range(120):
+        time.sleep(5)
+        if is_logged_in(page):
+            print("[SESSION] Relogin detected. Resuming.")
+            send_telegram_alert(
+                "Instagram relogin successful.\n"
+                "DM monitor resumed.")
+            return True
+    return False
+
+
+def send_telegram_alert(text):
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID")
+    if not token or not chat_id:
+        return
+    try:
+        requests.post(
+            f"https://api.telegram.org/"
+            f"bot{token}/sendMessage",
+            json={"chat_id": chat_id, "text": text},
+            timeout=10
+        )
+    except Exception:
+        pass
+
+
 def check_inbox(page):
+    if not is_logged_in(page):
+        success = handle_relogin(page)
+        if not success:
+            print("[SESSION] Could not relogin. Skipping check.")
+            return
+
     print("  Navigating to inbox...")
     page.goto("https://www.instagram.com/direct/inbox/", wait_until="domcontentloaded")
     time.sleep(random.uniform(2.0, 3.0))
@@ -777,6 +869,8 @@ def main():
 
         print("Session ready. Starting inbox monitor.")
         print("Checking every ~5 minutes. Press Ctrl+C to stop.\n")
+
+        cleanup_old_screenshots()
 
         while True:
             now = datetime.datetime.now().strftime("%I:%M %p")

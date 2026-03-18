@@ -125,6 +125,30 @@ def lead_exists(username):
     return len(lead_files) > 0
 
 
+def already_contacted(username):
+    """Check if we already sent a DM to this person."""
+    leads_dir = os.path.join(
+        os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__))),
+        "03_CRM/Leads"
+    )
+    for filepath in glob.glob(
+            os.path.join(leads_dir, "lead_*.md")):
+        with open(filepath, encoding="utf-8") as f:
+            content = f.read()
+        meta, _ = parse_frontmatter(content)
+        file_username = meta.get("name", "")
+        file_status = meta.get("status", "new")
+        if file_username.lower() == username.lower():
+            if file_status != "new":
+                return True
+            created = meta.get("next_action_date", "")
+            today = datetime.date.today().isoformat()
+            if created and created != today:
+                return True
+    return False
+
+
 def in_pipeline(username):
     """Return True if username appears anywhere in Pipeline.md."""
     pipeline_file = os.path.join(
@@ -438,9 +462,13 @@ def main():
         disqualify = result.get("disqualify", True)
 
         if score >= 7 and not disqualify:
-            if lead_exists(username) or in_pipeline(username):
-                print(f"@{username} — DUPLICATE — already in CRM, skipping")
-                shutil.move(filepath, os.path.join(PROCESSED_SIGNALS_DIR, os.path.basename(filepath)))
+            if lead_exists(username) or in_pipeline(username) \
+                    or already_contacted(username):
+                print(f"@{username} — DUPLICATE — "
+                      f"already in system, skipping")
+                shutil.move(filepath, os.path.join(
+                    PROCESSED_SIGNALS_DIR,
+                    os.path.basename(filepath)))
                 duplicate_count += 1
                 total += 1
                 continue
