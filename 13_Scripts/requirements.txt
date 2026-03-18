@@ -3,7 +3,7 @@ python-dotenv
 playwright
 python-telegram-bot
 anthropic
-google-generativeai
+google-genai
 flask
 openai-whisper
 yt-dlp

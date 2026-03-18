@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cost_tracker
 
 try:
-    import google.generativeai as genai
+    from google import genai
     _GENAI_AVAILABLE = True
 except ImportError:
     _GENAI_AVAILABLE = False
@@ -26,10 +26,9 @@ load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 # Get from: console.cloud.google.com → APIs → Gemini API
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if _GENAI_AVAILABLE and GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-    gemini_model = genai.GenerativeModel("gemini-2.0-flash")
+    gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 else:
-    gemini_model = None
+    gemini_client = None
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
@@ -371,7 +370,7 @@ def extract_messages_from_screenshot(screenshot_path):
     """Use Gemini Vision to extract conversation from screenshot.
     Returns list of message dicts: [{"sender": "me"|"them", "text": "..."}]
     Falls back gracefully if Gemini unavailable."""
-    if not gemini_model:
+    if not gemini_client:
         return []
     if not os.path.exists(screenshot_path):
         return []
@@ -399,10 +398,13 @@ Return ONLY valid JSON, no other text:
 If you cannot read the messages clearly return:
 {"messages": [], "last_sender": null, "message_count": 0}"""
 
-        response = gemini_model.generate_content([
-            {"mime_type": "image/png", "data": image_data},
-            prompt,
-        ])
+        response = gemini_client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=[
+                {"mime_type": "image/png", "data": image_data},
+                prompt,
+            ],
+        )
 
         raw = response.text.strip()
         if raw.startswith("```"):
@@ -603,56 +605,107 @@ def session_is_valid(page):
 def do_login(page, context):
     username = os.getenv("INSTAGRAM_USERNAME")
     password = os.getenv("INSTAGRAM_PASSWORD")
-
     if not username or not password:
-        print("[SESSION] No credentials in .env")
         send_telegram_alert(
             "INSTAGRAM LOGIN FAILED\n\n"
-            "Add INSTAGRAM_USERNAME and\n"
-            "INSTAGRAM_PASSWORD to .env file.")
+            "Missing credentials in .env")
         return False
-
     try:
+        # Go to Instagram home first
         page.goto(
-            "https://www.instagram.com/accounts/login/",
+            "https://www.instagram.com/",
             wait_until="domcontentloaded",
             timeout=30000)
-        time.sleep(3)
+        time.sleep(5)
 
+        # Dismiss cookie consent if present
+        try:
+            for text in ["Allow all cookies",
+                         "Accept All",
+                         "Allow essential and optional cookies"]:
+                btn = page.locator(
+                    f'button:has-text("{text}")')
+                if btn.is_visible(timeout=3000):
+                    btn.click()
+                    time.sleep(2)
+                    break
+        except Exception:
+            pass
+
+        # If not on login page navigate there
+        if "login" not in page.url:
+            page.goto(
+                "https://www.instagram.com/accounts/login/",
+                wait_until="domcontentloaded",
+                timeout=30000)
+            time.sleep(5)
+
+        # Wait for username field with longer timeout
+        try:
+            page.wait_for_selector(
+                'input[name="username"]',
+                timeout=20000)
+        except Exception:
+            # Try alternative selector
+            page.wait_for_selector(
+                'input[aria-label="Phone number, username, or email"]',
+                timeout=20000)
+
+        time.sleep(2)
         page.fill('input[name="username"]', username)
         time.sleep(1)
         page.fill('input[name="password"]', password)
         time.sleep(1)
         page.click('button[type="submit"]')
-        time.sleep(5)
+        time.sleep(8)
+
+        # Check for suspicious login alert
+        try:
+            suspicious = page.locator(
+                'button:has-text("This Was Me")')
+            if suspicious.is_visible(timeout=5000):
+                suspicious.click()
+                time.sleep(3)
+        except Exception:
+            pass
+
+        # Check for 2FA
+        try:
+            twofa = page.locator(
+                'input[name="verificationCode"]')
+            if twofa.is_visible(timeout=5000):
+                send_telegram_alert(
+                    "INSTAGRAM 2FA REQUIRED\n\n"
+                    "Check your email or phone\n"
+                    "for verification code.\n"
+                    "2FA must be disabled for\n"
+                    "auto-login to work.")
+                # Wait up to 5 min for manual entry
+                for _ in range(60):
+                    time.sleep(5)
+                    if "login" not in page.url:
+                        break
+        except Exception:
+            pass
 
         if "login" in page.url:
             send_telegram_alert(
                 "INSTAGRAM LOGIN FAILED\n\n"
-                "Wrong credentials?\n"
-                "Check INSTAGRAM_USERNAME and\n"
-                "INSTAGRAM_PASSWORD in .env")
+                "Wrong credentials or blocked.\n"
+                "Check .env credentials.")
             return False
 
-        # Dismiss Save Info prompt
-        try:
-            btn = page.locator(
-                'button:has-text("Save Info")')
-            if btn.is_visible(timeout=5000):
-                btn.click()
-                time.sleep(2)
-        except Exception:
-            pass
-
-        # Dismiss Not Now prompt
-        try:
-            btn = page.locator(
-                'button:has-text("Not Now")')
-            if btn.is_visible(timeout=5000):
-                btn.click()
-                time.sleep(2)
-        except Exception:
-            pass
+        # Dismiss prompts
+        for text in ["Save Info", "Not Now",
+                     "Skip", "Cancel"]:
+            try:
+                btn = page.locator(
+                    f'button:has-text("{text}")')
+                if btn.is_visible(timeout=3000):
+                    btn.click()
+                    time.sleep(2)
+            except Exception:
+                pass
 
         save_session(context)
         print("[SESSION] Login successful.")
@@ -664,7 +717,8 @@ def do_login(page, context):
     except Exception as e:
         print(f"[SESSION] Login error: {e}")
         send_telegram_alert(
-            f"INSTAGRAM LOGIN ERROR\n\n{str(e)[:200]}")
+            f"INSTAGRAM LOGIN ERROR\n\n"
+            f"{str(e)[:300]}")
         return False
 
 
