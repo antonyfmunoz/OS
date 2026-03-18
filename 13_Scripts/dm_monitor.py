@@ -615,7 +615,7 @@ def do_login(page, context):
         page.goto(
             "https://www.instagram.com/",
             wait_until="domcontentloaded",
-            timeout=30000)
+            timeout=60000)
         time.sleep(5)
 
         # Dismiss cookie consent if present
