@@ -648,7 +648,7 @@ def do_login(page, context):
         except Exception:
             # Try alternative selector
             page.wait_for_selector(
-                'input[aria-label="Phone number, username, or email"]',
+                'input[name="username"]',
                 timeout=20000)
 
         time.sleep(2)
