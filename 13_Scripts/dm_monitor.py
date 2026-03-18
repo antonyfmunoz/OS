@@ -965,21 +965,21 @@ def is_login_page(page):
 
 def main():
     with sync_playwright() as p:
-       browser = p.chromium.launch(
-       headless=True,
-       args=['--no-sandbox'],
-       proxy={
-           'server': 'http://proxy.apify.com:8000',
-           'username': 'groups-RESIDENTIAL',
-           'password': os.getenv('APIFY_PROXY_PASSWORD')
-       }
-    )
-       context = browser.new_context(
-       user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-       viewport={'width': 1920, 'height': 1080},
-       locale='en-US',
-       timezone_id='America/Los_Angeles',
-    )
+            browser = p.chromium.launch(
+            headless=True,
+            args=['--no-sandbox'],
+            proxy={
+                'server': 'http://proxy.apify.com:8000',
+                'username': 'groups-RESIDENTIAL',
+                'password': os.getenv('APIFY_PROXY_PASSWORD')
+            }
+        )
+        context = browser.new_context(
+            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            viewport={'width': 1920, 'height': 1080},
+            locale='en-US',
+            timezone_id='America/Los_Angeles',
+        )
         page = context.new_page()
 
         # Try restoring saved session first
