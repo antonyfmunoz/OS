@@ -539,51 +539,6 @@ def cleanup_old_screenshots():
               f"screenshots older than 30 days")
 
 
-def is_logged_in(page):
-    """Check if Instagram session is still valid."""
-    try:
-        page.goto(
-            "https://www.instagram.com/",
-            wait_until="domcontentloaded",
-            timeout=30000
-        )
-        url = page.url
-        if "instagram.com/accounts/login" in url:
-            return False
-        try:
-            page.wait_for_selector(
-                'svg[aria-label="Search"]',
-                timeout=10000
-            )
-            return True
-        except Exception:
-            return False
-    except Exception:
-        return False
-
-
-def handle_relogin(page):
-    """Handle session expiry."""
-    print("[SESSION] Instagram session expired.")
-    print("[SESSION] Waiting for manual relogin...")
-    send_telegram_alert(
-        "INSTAGRAM SESSION EXPIRED\n\n"
-        "DM monitor needs relogin.\n"
-        "Open the monitor browser and log in.\n"
-        "Monitor will resume automatically."
-    )
-    page.goto("https://www.instagram.com/accounts/login/")
-    for _ in range(120):
-        time.sleep(5)
-        if is_logged_in(page):
-            print("[SESSION] Relogin detected. Resuming.")
-            send_telegram_alert(
-                "Instagram relogin successful.\n"
-                "DM monitor resumed.")
-            return True
-    return False
-
-
 def send_telegram_alert(text):
     token = os.getenv("TELEGRAM_BOT_TOKEN")
     chat_id = os.getenv("TELEGRAM_CHAT_ID")
@@ -600,9 +555,136 @@ def send_telegram_alert(text):
         pass
 
 
-def check_inbox(page):
-    if not is_logged_in(page):
-        success = handle_relogin(page)
+def get_session_path():
+    return os.path.join(
+        get_vault_path(),
+        "13_Scripts/instagram_session.json")
+
+
+def save_session(context):
+    try:
+        cookies = context.cookies()
+        with open(get_session_path(), "w") as f:
+            json.dump(cookies, f)
+        print("[SESSION] Cookies saved.")
+    except Exception as e:
+        print(f"[SESSION] Could not save cookies: {e}")
+
+
+def load_session(context):
+    path = get_session_path()
+    if not os.path.exists(path):
+        return False
+    try:
+        with open(path) as f:
+            cookies = json.load(f)
+        context.add_cookies(cookies)
+        print("[SESSION] Cookies loaded.")
+        return True
+    except Exception as e:
+        print(f"[SESSION] Could not load cookies: {e}")
+        return False
+
+
+def session_is_valid(page):
+    try:
+        page.goto(
+            "https://www.instagram.com/direct/inbox/",
+            wait_until="domcontentloaded",
+            timeout=30000)
+        time.sleep(3)
+        if "login" in page.url:
+            return False
+        return True
+    except Exception:
+        return False
+
+
+def do_login(page, context):
+    username = os.getenv("INSTAGRAM_USERNAME")
+    password = os.getenv("INSTAGRAM_PASSWORD")
+
+    if not username or not password:
+        print("[SESSION] No credentials in .env")
+        send_telegram_alert(
+            "INSTAGRAM LOGIN FAILED\n\n"
+            "Add INSTAGRAM_USERNAME and\n"
+            "INSTAGRAM_PASSWORD to .env file.")
+        return False
+
+    try:
+        page.goto(
+            "https://www.instagram.com/accounts/login/",
+            wait_until="domcontentloaded",
+            timeout=30000)
+        time.sleep(3)
+
+        page.fill('input[name="username"]', username)
+        time.sleep(1)
+        page.fill('input[name="password"]', password)
+        time.sleep(1)
+        page.click('button[type="submit"]')
+        time.sleep(5)
+
+        if "login" in page.url:
+            send_telegram_alert(
+                "INSTAGRAM LOGIN FAILED\n\n"
+                "Wrong credentials?\n"
+                "Check INSTAGRAM_USERNAME and\n"
+                "INSTAGRAM_PASSWORD in .env")
+            return False
+
+        # Dismiss Save Info prompt
+        try:
+            btn = page.locator(
+                'button:has-text("Save Info")')
+            if btn.is_visible(timeout=5000):
+                btn.click()
+                time.sleep(2)
+        except Exception:
+            pass
+
+        # Dismiss Not Now prompt
+        try:
+            btn = page.locator(
+                'button:has-text("Not Now")')
+            if btn.is_visible(timeout=5000):
+                btn.click()
+                time.sleep(2)
+        except Exception:
+            pass
+
+        save_session(context)
+        print("[SESSION] Login successful.")
+        send_telegram_alert(
+            "Instagram login successful.\n"
+            "DM monitor is running.")
+        return True
+
+    except Exception as e:
+        print(f"[SESSION] Login error: {e}")
+        send_telegram_alert(
+            f"INSTAGRAM LOGIN ERROR\n\n{str(e)[:200]}")
+        return False
+
+
+def handle_relogin(page, context):
+    print("[SESSION] Session expired. Relogging...")
+    send_telegram_alert(
+        "Instagram session expired.\n"
+        "Attempting automatic relogin...")
+    success = do_login(page, context)
+    if not success:
+        send_telegram_alert(
+            "AUTO RELOGIN FAILED\n\n"
+            "Check credentials in .env file.\n"
+            "SSH: /opt/OS/13_Scripts/.env")
+    return success
+
+
+def check_inbox(page, context):
+    if not session_is_valid(page):
+        success = handle_relogin(page, context)
         if not success:
             print("[SESSION] Could not relogin. Skipping check.")
             return
@@ -816,6 +898,9 @@ def check_inbox(page):
                 pass
             continue
 
+    # Save cookies after successful inbox read
+    save_session(context)
+
 
 def is_login_page(page):
     try:
@@ -825,47 +910,30 @@ def is_login_page(page):
 
 
 def main():
-    os.makedirs(SESSION_DIR, exist_ok=True)
-    session_exists = os.path.exists(os.path.join(SESSION_DIR, "Default"))
-
     with sync_playwright() as p:
-        browser = p.chromium.launch_persistent_context(
-            SESSION_DIR,
-            headless=True,
-            args=[
-                "--no-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-blink-features=AutomationControlled",
-            ],
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(
             user_agent=(
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/122.0.0.0 Safari/537.36"
-            ),
+                "Mozilla/5.0 (Windows NT 10.0; Win64; "
+                "x64) AppleWebKit/537.36 (KHTML, like "
+                "Gecko) Chrome/120.0.0.0 Safari/537.36"
+            )
         )
+        page = context.new_page()
 
-        page = browser.pages[0] if browser.pages else browser.new_page()
-
-        # Navigate to inbox
-        page.goto("https://www.instagram.com/direct/inbox/", wait_until="domcontentloaded")
-        time.sleep(3)
-
-        # Handle login if needed
-        if is_login_page(page):
-            print("LOGIN REQUIRED: Please log in to Instagram in the browser window")
-            print("Waiting 120 seconds for manual login...")
-            for i in range(120, 0, -10):
-                print(f"  {i}s remaining...")
-                time.sleep(10)
-                if not is_login_page(page):
-                    print("Login detected — continuing.")
-                    break
+        # Try restoring saved session first
+        session_loaded = load_session(context)
+        if session_loaded and session_is_valid(page):
+            print("[SESSION] Session restored.")
+        else:
+            if session_loaded:
+                print("[SESSION] Saved session expired.")
             else:
-                print("Login timeout. Exiting.")
+                print("[SESSION] No saved session.")
+            if not do_login(page, context):
+                print("[SESSION] Cannot login. Exiting.")
                 browser.close()
                 return
-            # Save session by letting persistent context handle it
-            time.sleep(3)
 
         print("Session ready. Starting inbox monitor.")
         print("Checking every ~5 minutes. Press Ctrl+C to stop.\n")
@@ -876,7 +944,7 @@ def main():
             now = datetime.datetime.now().strftime("%I:%M %p")
             print(f"[{now}] Checking inbox...")
             try:
-                check_inbox(page)
+                check_inbox(page, context)
             except Exception as e:
                 print(f"  Error during inbox check: {e}")
 

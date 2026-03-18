@@ -572,7 +572,11 @@ async def midnight_snapshot(context: ContextTypes.DEFAULT_TYPE):
 
 
 async def costs(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show current cost breakdown."""
+    """Show current cost breakdown with live Apify sync."""
+    try:
+        cost_tracker.sync_and_update_apify_log()
+    except Exception as e:
+        print(f"Apify sync failed: {e}")
     text = cost_tracker.format_cost_report()
     await update.message.reply_text("OS — Cost Tracker\n\n" + text)
 

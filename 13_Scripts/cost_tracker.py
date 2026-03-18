@@ -149,6 +149,43 @@ def sync_apify_balance():
         return None
 
 
+def sync_and_update_apify_log():
+    """Sync real Apify usage from API and update log.
+    Call anytime — not just during scraper runs."""
+    sync = sync_apify_balance()
+    if not sync:
+        return
+
+    log = load_log()
+    if "apify" not in log:
+        log["apify"] = {
+            "total_hashtag_runs": 0,
+            "total_comment_runs": 0,
+            "total_profile_runs": 0,
+            "total_gross_cost": 0.0,
+            "total_billable_cost": 0.0,
+            "free_tier_limit": 5.00,
+            "free_tier_consumed": 0.0,
+            "last_synced": ""
+        }
+
+    total_spend = sync["total_spend"]
+    log["apify"]["free_tier_consumed"] = min(
+        total_spend, 5.00)
+    log["apify"]["total_gross_cost"] = total_spend
+    log["apify"]["total_billable_cost"] = max(
+        0, total_spend - 5.00)
+    log["apify"]["cycle_start"] = sync.get(
+        "cycle_start", "")
+    log["apify"]["cycle_end"] = sync.get(
+        "cycle_end", "")
+    log["apify"]["last_synced"] = (
+        datetime.date.today().isoformat())
+
+    save_log(log)
+    print(f"Apify synced: ${total_spend:.4f} total")
+
+
 def log_apify_runs(hashtag_runs, comment_runs,
                    profile_runs):
     """Track actual Apify actor runs with free tier calculation.

@@ -6,3 +6,5 @@
 tmux-*.log
 __pycache__/
 13_Scripts/instagram_session/
+13_Scripts/instagram_session.json
+13_Scripts/approval_response.txt
