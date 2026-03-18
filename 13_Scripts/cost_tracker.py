@@ -15,6 +15,9 @@ PRICING = {
     "claude_sonnet_input":  0.000003,    # $3 per 1M tokens
     "claude_sonnet_output": 0.000015,    # $15 per 1M tokens
     "apify_per_result":     0.0000026,   # $2.60 per 1K results
+    "apify_hashtag_run":    0.015,       # ~$0.015 per hashtag scrape run
+    "apify_comment_run":    0.025,       # ~$0.025 per comment scrape run
+    "apify_profile_run":    0.005,       # ~$0.005 per profile scrape run
     "gemini_flash_input":   0.0000003,   # $0.30 per 1M tokens
     "gemini_flash_output":  0.0000025,   # $2.50 per 1M tokens
 }
@@ -23,11 +26,25 @@ _EMPTY_LOG = {
     "daily": {},
     "monthly": {},
     "all_time_total": 0.0,
+    "apify": {
+        "total_hashtag_runs": 0,
+        "total_comment_runs": 0,
+        "total_profile_runs": 0,
+        "total_gross_cost": 0.0,
+        "total_billable_cost": 0.0,
+        "free_tier_limit": 5.00,
+        "free_tier_consumed": 0.0
+    }
 }
 
 _EMPTY_DAY = {
     "scraper": {
         "apify_results": 0,
+        "apify_runs": {
+            "hashtag": 0,
+            "comment": 0,
+            "profile": 0
+        },
         "apify_cost": 0.0,
         "haiku_calls": 0,
         "haiku_input_tokens": 0,
@@ -47,8 +64,10 @@ _EMPTY_DAY = {
 
 
 def _deep_copy_empty_day():
+    scraper = dict(_EMPTY_DAY["scraper"])
+    scraper["apify_runs"] = dict(_EMPTY_DAY["scraper"]["apify_runs"])
     return {
-        "scraper": dict(_EMPTY_DAY["scraper"]),
+        "scraper": scraper,
         "copilot": dict(_EMPTY_DAY["copilot"]),
         "total_day": 0.0,
     }
@@ -86,6 +105,127 @@ def _today_key():
 
 def _month_key():
     return datetime.date.today().strftime("%Y-%m")
+
+
+def sync_apify_balance():
+    """Fetch actual Apify account usage via REST API."""
+    token = os.getenv("APIFY_API_TOKEN")
+    if not token:
+        return None
+    try:
+        import requests as req
+        resp = req.get(
+            f"https://api.apify.com/v2/users/me"
+            f"?token={token}",
+            timeout=10
+        )
+        data = resp.json()
+        usage = data.get("data", {}).get(
+            "monthlyUsage", {})
+        total_spend = usage.get(
+            "totalCostUsd", None)
+        return total_spend
+    except Exception as e:
+        print(f"Could not sync Apify balance: {e}")
+        return None
+
+
+def log_apify_runs(hashtag_runs, comment_runs,
+                   profile_runs):
+    """Track actual Apify actor runs with free tier calculation."""
+    gross_cost = (
+        hashtag_runs * PRICING["apify_hashtag_run"] +
+        comment_runs * PRICING["apify_comment_run"] +
+        profile_runs * PRICING["apify_profile_run"]
+    )
+
+    log = load_log()
+
+    if "apify" not in log:
+        log["apify"] = {
+            "total_hashtag_runs": 0,
+            "total_comment_runs": 0,
+            "total_profile_runs": 0,
+            "total_gross_cost": 0.0,
+            "total_billable_cost": 0.0,
+            "free_tier_limit": 5.00,
+            "free_tier_consumed": 0.0
+        }
+        # Try to sync actual usage from Apify
+        actual_spend = sync_apify_balance()
+        if actual_spend is not None:
+            consumed = min(actual_spend, 5.00)
+            log["apify"]["free_tier_consumed"] = consumed
+            log["apify"]["total_gross_cost"] = actual_spend
+            billed = max(0, actual_spend - 5.00)
+            log["apify"]["total_billable_cost"] = billed
+            print(f"Synced Apify balance: "
+                  f"${actual_spend:.4f} total spend")
+
+    apify = log["apify"]
+
+    # Accumulate run counts
+    apify["total_hashtag_runs"] += hashtag_runs
+    apify["total_comment_runs"] += comment_runs
+    apify["total_profile_runs"] += profile_runs
+    apify["total_gross_cost"] += gross_cost
+
+    # Calculate how much free tier remains
+    free_remaining = max(0,
+        apify["free_tier_limit"] -
+        apify["free_tier_consumed"])
+
+    # Billable is only what exceeds free tier
+    if gross_cost <= free_remaining:
+        billable = 0.0
+        apify["free_tier_consumed"] += gross_cost
+    else:
+        billable = gross_cost - free_remaining
+        apify["free_tier_consumed"] = apify["free_tier_limit"]
+
+    apify["total_billable_cost"] += billable
+
+    # Update daily/monthly totals with billable only
+    today = _today_key()
+    month = _month_key()
+
+    if today not in log["daily"]:
+        log["daily"][today] = _deep_copy_empty_day()
+
+    s = log["daily"][today]["scraper"]
+    if "apify_runs" not in s:
+        s["apify_runs"] = {"hashtag": 0, "comment": 0, "profile": 0}
+    s["apify_runs"]["hashtag"] += hashtag_runs
+    s["apify_runs"]["comment"] += comment_runs
+    s["apify_runs"]["profile"] += profile_runs
+    s["apify_cost"] += billable
+    s["total"] = s["apify_cost"] + s.get("haiku_cost", 0.0)
+    log["daily"][today]["total_day"] = (
+        s["total"] +
+        log["daily"][today]["copilot"].get("total", 0.0)
+    )
+
+    if month not in log["monthly"]:
+        log["monthly"][month] = 0.0
+    log["monthly"][month] += billable
+    log["all_time_total"] = (
+        log.get("all_time_total", 0.0) + billable)
+
+    save_log(log)
+
+    print(f"Apify runs this session: "
+          f"hashtag={hashtag_runs} "
+          f"comment={comment_runs} "
+          f"profile={profile_runs}")
+    print(f"Gross cost: ${gross_cost:.4f}")
+    print(f"Free tier remaining before: "
+          f"${free_remaining:.4f}")
+    print(f"Billable: ${billable:.4f}")
+    print(f"Free tier consumed: "
+          f"${apify['free_tier_consumed']:.4f}"
+          f" / ${apify['free_tier_limit']:.2f}")
+
+    return billable
 
 
 def log_scraper_costs(apify_results, haiku_calls,
@@ -196,13 +336,42 @@ def get_cost_summary():
 
 
 def format_cost_report():
-    """Return formatted cost report string."""
-    s = get_cost_summary()
+    """Return formatted cost report string with Apify details."""
+    costs = get_today_costs()
+    month = get_monthly_costs()
+    all_time = get_all_time_total()
+
+    log = load_log()
+    apify = log.get("apify", {})
+
+    free_limit = apify.get("free_tier_limit", 5.00)
+    free_consumed = apify.get("free_tier_consumed", 0.0)
+    total_gross = apify.get("total_gross_cost", 0.0)
+    total_billable = apify.get("total_billable_cost", 0.0)
+    total_runs = (
+        apify.get("total_hashtag_runs", 0) +
+        apify.get("total_comment_runs", 0) +
+        apify.get("total_profile_runs", 0)
+    )
+
+    free_pct = min(100,
+        int(free_consumed / free_limit * 100)) if free_limit > 0 else 0
+
     return (
         f"COSTS\n"
-        f"  Today scraper:   ${s['today_scraper']:.4f}\n"
-        f"  Today co-pilot:  ${s['today_copilot']:.4f}\n"
-        f"  Today total:     ${s['today_total']:.4f}\n"
-        f"  This month:      ${s['month_total']:.2f}\n"
-        f"  All time:        ${s['all_time_total']:.2f}"
+        f"  Today scraper:   "
+        f"${costs['scraper']['total']:.4f}\n"
+        f"  Today co-pilot:  "
+        f"${costs['copilot']['total']:.4f}\n"
+        f"  Today total:     "
+        f"${costs['total_day']:.4f}\n"
+        f"  This month:      ${month:.2f}\n"
+        f"  All time:        ${all_time:.2f}\n\n"
+        f"APIFY\n"
+        f"  Total runs:      {total_runs}\n"
+        f"  Gross spend:     ${total_gross:.4f}\n"
+        f"  Free tier:       "
+        f"${free_consumed:.4f} / ${free_limit:.2f} "
+        f"({free_pct}%)\n"
+        f"  Billed to card:  ${total_billable:.4f}"
     )
