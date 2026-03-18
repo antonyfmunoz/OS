@@ -611,12 +611,12 @@ def do_login(page, context):
             "Missing credentials in .env")
         return False
     try:
-        # Go to Instagram home first
+        # Go directly to login page
         page.goto(
-            "https://www.instagram.com/",
+            "https://www.instagram.com/accounts/login/",
             wait_until="domcontentloaded",
             timeout=60000)
-        time.sleep(5)
+        time.sleep(8)
 
         # Dismiss cookie consent if present
         try:
