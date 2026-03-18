@@ -644,12 +644,12 @@ def do_login(page, context):
         try:
             page.wait_for_selector(
                 'input[name="username"]',
-                timeout=20000)
+                timeout=45000)
         except Exception:
             # Try alternative selector
             page.wait_for_selector(
                 'input[name="username"]',
-                timeout=20000)
+                timeout=45000)
 
         time.sleep(2)
         page.fill('input[name="username"]', username)
