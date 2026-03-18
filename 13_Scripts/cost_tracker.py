@@ -33,7 +33,6 @@ _EMPTY_LOG = {
         "total_gross_cost": 0.0,
         "total_billable_cost": 0.0,
         "free_tier_limit": 5.00,
-        "free_tier_consumed": 0.0
     }
 }
 
@@ -165,16 +164,13 @@ def sync_and_update_apify_log():
             "total_gross_cost": 0.0,
             "total_billable_cost": 0.0,
             "free_tier_limit": 5.00,
-            "free_tier_consumed": 0.0,
             "last_synced": ""
         }
 
     total_spend = sync["total_spend"]
-    log["apify"]["free_tier_consumed"] = min(
-        total_spend, 5.00)
     log["apify"]["total_gross_cost"] = total_spend
-    log["apify"]["total_billable_cost"] = max(
-        0, total_spend - 5.00)
+    log["apify"]["total_billable_cost"] = total_spend
+    log["apify"]["is_paid"] = True
     log["apify"]["cycle_start"] = sync.get(
         "cycle_start", "")
     log["apify"]["cycle_end"] = sync.get(
@@ -206,36 +202,25 @@ def log_apify_runs(hashtag_runs, comment_runs,
             "total_gross_cost": 0.0,
             "total_billable_cost": 0.0,
             "free_tier_limit": 5.00,
-            "free_tier_consumed": 0.0
         }
         # Seed from real Apify data on first init
         sync = sync_apify_balance()
         if sync is not None:
             total_spend = sync["total_spend"]
-            consumed = min(total_spend, 5.00)
-            billed = max(0, total_spend - 5.00)
-            log["apify"]["free_tier_consumed"] = consumed
             log["apify"]["total_gross_cost"] = total_spend
-            log["apify"]["total_billable_cost"] = billed
+            log["apify"]["total_billable_cost"] = total_spend
             log["apify"]["cycle_start"] = sync["cycle_start"]
             log["apify"]["cycle_end"] = sync["cycle_end"]
             log["apify"]["last_synced"] = (
                 datetime.date.today().isoformat())
-            print(f"Apify sync: ${total_spend:.4f} total "
-                  f"spend this cycle")
-            print(f"Free tier consumed: ${consumed:.4f}"
-                  f" / $5.00")
-            print(f"Billed to card: ${billed:.4f}")
+            print(f"Apify sync: ${total_spend:.4f} total spend this cycle")
 
     # Sync live values from Apify API every run
     sync = sync_apify_balance()
     if sync and "apify" in log:
         total_spend = sync["total_spend"]
-        log["apify"]["free_tier_consumed"] = min(
-            total_spend, 5.00)
         log["apify"]["total_gross_cost"] = total_spend
-        log["apify"]["total_billable_cost"] = max(
-            0, total_spend - 5.00)
+        log["apify"]["total_billable_cost"] = total_spend
         log["apify"]["last_synced"] = (
             datetime.date.today().isoformat())
         log["apify"]["cycle_start"] = sync["cycle_start"]
@@ -282,21 +267,9 @@ def log_apify_runs(hashtag_runs, comment_runs,
 
     save_log(log)
 
-    free_remaining = max(0,
-        apify["free_tier_limit"] -
-        apify["free_tier_consumed"])
-
-    print(f"Apify runs this session: "
-          f"hashtag={hashtag_runs} "
-          f"comment={comment_runs} "
-          f"profile={profile_runs}")
+    print(f"Apify runs: hashtag={hashtag_runs} comment={comment_runs} profile={profile_runs}")
     print(f"Gross cost: ${gross_cost:.4f}")
-    print(f"Free tier remaining: "
-          f"${free_remaining:.4f}")
     print(f"Billable (from API): ${billable:.4f}")
-    print(f"Free tier consumed: "
-          f"${apify['free_tier_consumed']:.4f}"
-          f" / ${apify['free_tier_limit']:.2f}")
 
     return billable
 
@@ -417,8 +390,6 @@ def format_cost_report():
     log = load_log()
     apify = log.get("apify", {})
 
-    free_limit = apify.get("free_tier_limit", 5.00)
-    free_consumed = apify.get("free_tier_consumed", 0.0)
     total_gross = apify.get("total_gross_cost", 0.0)
     total_billable = apify.get("total_billable_cost", 0.0)
     total_runs = (
@@ -427,26 +398,17 @@ def format_cost_report():
         apify.get("total_profile_runs", 0)
     )
 
-    free_pct = min(100,
-        int(free_consumed / free_limit * 100)) if free_limit > 0 else 0
-
     return (
         f"COSTS\n"
-        f"  Today scraper:   "
-        f"${costs['scraper']['total']:.4f}\n"
-        f"  Today co-pilot:  "
-        f"${costs['copilot']['total']:.4f}\n"
-        f"  Today total:     "
-        f"${costs['total_day']:.4f}\n"
+        f"  Today scraper:   ${costs['scraper']['total']:.4f}\n"
+        f"  Today co-pilot:  ${costs['copilot']['total']:.4f}\n"
+        f"  Today total:     ${costs['total_day']:.4f}\n"
         f"  This month:      ${month:.2f}\n"
         f"  All time:        ${all_time:.2f}\n\n"
         f"APIFY (cycle: {apify.get('cycle_start','')[:10]}"
-        f" → {apify.get('cycle_end','')[:10]})\n"
+        f" -> {apify.get('cycle_end','')[:10]})\n"
         f"  Total runs:      {total_runs}\n"
-        f"  Gross spend:     ${total_gross:.4f}\n"
-        f"  Free tier:       "
-        f"${free_consumed:.4f} / $5.00 ({free_pct}%)\n"
+        f"  This cycle:      ${total_gross:.4f}\n"
         f"  Billed to card:  ${total_billable:.4f}\n"
-        f"  Last synced:     "
-        f"{apify.get('last_synced', 'never')}"
+        f"  Last synced:     {apify.get('last_synced', 'never')}"
     )
