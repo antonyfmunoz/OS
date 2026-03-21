@@ -1,13 +1,23 @@
 import os
+import sys
 import json
 import time
 import shutil
 import datetime
 import glob
-import anthropic
 from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+
+# Add repo root to path so eos_ai is importable regardless of working directory
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+from eos_ai.agent_runtime import AgentRuntime
+from eos_ai.memory import AgentMemory
+
+_mem = AgentMemory()
 
 MAX_LEADS_PER_RUN = 200
 MAX_RETRIES = 3
@@ -37,48 +47,6 @@ class RateLimiter:
 # Claude Haiku rate limit is 1000 RPM but stay conservative to avoid costs spiraling
 claude_limiter = RateLimiter(calls_per_minute=40)
 
-
-SYSTEM_PROMPT = """You are an ICP qualification agent for Initiate Arena — a 90-day discipline and execution program for ambitious men aged 18-25.
-
-Your job is to score Instagram comments against our ICP.
-
-ICP PROFILE:
-- Ambitious young men (18-25) frustrated with themselves
-- Know they are capable of more but lack discipline to execute
-- Core emotions: frustration, self-disappointment, stagnation, fear of drifting
-- These are NOW buyers
-
-SCORE 8-10 (HIGH — add to CRM):
-- Expresses specific pain: "I feel like I'm wasting my potential"
-- Shows urgency: "I need this", "I've been struggling with this for months"
-- Self-ownership language (not blaming others)
-- Comments like: "This is me", "I needed this", "I keep starting things and never finishing"
-- Vulnerable and honest about their situation
-
-SCORE 5-7 (MEDIUM — skip for now):
-- Mild interest but no urgency
-- Vague positivity without personal pain expressed
-
-SCORE 1-4 (LOW — disqualify):
-- Emoji only responses
-- Generic praise: "great post", "love this", "fire"
-- Ego defender language: "I'm already doing this", "I'm optimized"
-- Spam or promotional content
-- No personal pain signal present
-
-ARCHETYPES:
-- Frustrated Drifter: "I keep starting things and never finishing", "wasting my life"
-- Ambitious but Stuck: "capable of more but weeks just disappear", "scrolling instead of building"
-- Ego Defender: "I'm already doing this" — DISQUALIFY IMMEDIATELY
-
-Respond ONLY with valid JSON, no other text:
-{
-  "score": <number 1-10>,
-  "archetype": "<Frustrated Drifter|Ambitious but Stuck|Ego Defender|Other>",
-  "pain_signals": ["<signal1>", "<signal2>"],
-  "disqualify": <true|false>,
-  "reason": "<one sentence explanation>"
-}"""
 
 
 def parse_frontmatter(content):
@@ -268,35 +236,62 @@ def pick_opener(outreach_text, archetype, pain_signals, comment_text):
     return best[3], best[2]
 
 
-def score_comment(client, comment_text, api_call_counter):
-    """Call Claude Haiku to score a comment. Returns (result dict or None, input_tokens, output_tokens)."""
-    for attempt in range(MAX_RETRIES):
-        claude_limiter.wait()
-        try:
-            message = client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=300,
-                system=SYSTEM_PROMPT,
-                messages=[
-                    {"role": "user", "content": f"Score this Instagram comment: {comment_text}"}
-                ],
-            )
-            api_call_counter[0] += 1
-            input_tokens = message.usage.input_tokens
-            output_tokens = message.usage.output_tokens
-            raw = message.content[0].text.strip()
-            if raw.startswith("```"):
-                raw = raw.split("```")[1]
-                if raw.startswith("json"):
-                    raw = raw[4:]
-                raw = raw.strip()
-            return json.loads(raw), input_tokens, output_tokens
-        except Exception as e:
-            if attempt == MAX_RETRIES - 1:
-                return None, 0, 0
-            wait = BASE_BACKOFF ** attempt
-            print(f"  [RETRY] API error — waiting {wait}s...")
-            time.sleep(wait)
+_ICP_SCORE_PROMPT = """\
+Score this Instagram comment against the Initiate Arena ICP. \
+Respond ONLY with valid JSON, no other text.
+
+SCORING RUBRIC:
+8-10 (HIGH): Specific pain expressed, urgency present, self-ownership language, \
+"This is me" / "I needed this" / "I keep starting and never finishing" energy. Vulnerable and honest.
+5-7  (MEDIUM): Mild interest, no urgency, vague positivity without personal pain.
+1-4  (LOW): Emoji-only, generic praise, ego-defender language ("I'm already doing this"), spam.
+
+ARCHETYPES:
+- Frustrated Drifter: "wasting my life", "start everything, finish nothing"
+- Ambitious but Stuck: "capable of more but weeks just disappear", "scrolling instead of building"
+- Ego Defender: "I'm already doing this" — disqualify immediately
+
+OUTPUT FORMAT (JSON only):
+{
+  "score": <number 1-10>,
+  "archetype": "<Frustrated Drifter|Ambitious but Stuck|Ego Defender|Other>",
+  "pain_signals": ["<signal1>", "<signal2>"],
+  "disqualify": <true|false>,
+  "reason": "<one sentence explanation>"
+}
+
+Comment to score: %s"""
+
+
+def score_comment(runtime, comment_text, api_call_counter):
+    """
+    Score a comment using the sales.icp_qualifier sub-agent.
+    Returns (result dict or None, input_tokens, output_tokens).
+    """
+    claude_limiter.wait()
+    try:
+        prompt = _ICP_SCORE_PROMPT % comment_text
+        result = runtime.run_team_task(
+            team="sales",
+            sub_agent="icp_qualifier",
+            prompt=prompt,
+            venture_id="lyfe_institute",
+        )
+        api_call_counter[0] += 1
+        raw = result.output.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+            raw = raw.strip()
+        return (
+            json.loads(raw),
+            result.tokens_used["input"],
+            result.tokens_used["output"],
+        )
+    except Exception as e:
+        print(f"  [score_comment] Error: {e}")
+        return None, 0, 0
 
 
 def update_opener_stats_sent(opener_text):
@@ -376,6 +371,20 @@ kanban_stage: New
     with open(filename, "w", encoding="utf-8") as f:
         f.write(content)
     update_opener_stats_sent(opener[:50])
+
+    # Log to memory.db so reply outcomes can be linked back to this lead
+    try:
+        _mem.log_lead_scored(
+            username=username,
+            venture_id="lyfe_institute",
+            comment_text=comment_text,
+            score=result["score"],
+            archetype=result["archetype"],
+            model_used="claude-haiku-4-5-20251001",
+        )
+    except Exception as e:
+        print(f"  [MEMORY] log_lead_scored failed for @{username}: {e}")
+
     return filename
 
 
@@ -405,7 +414,7 @@ def add_to_kanban(username, score, archetype, comment_text, lead_filename):
 
 
 def main():
-    client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    runtime = AgentRuntime()
 
     os.makedirs(PROCESSED_SIGNALS_DIR, exist_ok=True)
     os.makedirs(LEADS_DIR, exist_ok=True)
@@ -449,7 +458,7 @@ def main():
             total += 1
             continue
 
-        result, input_toks, output_toks = score_comment(client, comment_text, api_call_counter)
+        result, input_toks, output_toks = score_comment(runtime, comment_text, api_call_counter)
         total_input_tokens += input_toks
         total_output_tokens += output_toks
         if result is None:
