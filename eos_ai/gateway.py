@@ -1,0 +1,1080 @@
+"""
+EOSGateway — single control plane for all AI operations.
+
+Every AI request enters here. Nothing calls agent_runtime, event_bus,
+orchestrator, or agent_teams directly from outside eos_ai.
+
+Request schema:
+    {
+        "type":       "agent_task" | "event" | "status" | "brief",
+        "team":       "sales" | "research" | "content" | None,
+        "sub_agent":  str | None,
+        "prompt":     str,
+        "venture_id": str | None,
+        "username":   str | None,
+        "task_type":  str | None,
+        # for type=event
+        "event_type": str | None,
+        "payload":    dict | None,
+        # optional override — force approval gate
+        "action":     "send" | "delete" | "payment" | None,
+    }
+
+Usage:
+    from eos_ai.gateway import EOSGateway
+    gw = EOSGateway()
+    result = gw.handle({"type": "brief", "prompt": "", "venture_id": "lyfe_institute"})
+"""
+
+import json
+import os
+import re as _re
+import sys
+import threading
+import uuid as _uuid_mod
+from datetime import datetime, timezone
+from pathlib import Path
+
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+from eos_ai.db import get_conn, ORG_ID
+
+# ─── Constants ────────────────────────────────────────────────────────────────
+
+APPROVALS_DIR = Path(_REPO_ROOT) / "15_Orchestrator" / "approvals"
+PENDING_DIR   = APPROVALS_DIR / "pending"
+APPROVED_DIR  = APPROVALS_DIR / "approved"
+
+# Sub-agents that require approval regardless of prompt — only agents that
+# exclusively execute external sends with zero internal-only use cases.
+# Intentionally empty: action flags and prompt patterns handle this more
+# precisely. Listing a sub-agent here blocks ALL requests to that agent,
+# including analysis, logging, and status checks — which is too broad.
+_APPROVAL_REQUIRED_AGENTS: frozenset[str] = frozenset()
+
+# Explicit action flags that always require approval
+# "publish" removed — Discord and Notion are internal systems
+_APPROVAL_REQUIRED_ACTIONS = frozenset({"send", "delete", "payment"})
+
+# Prompt patterns that signal external sends on behalf of the founder
+_EXTERNAL_SEND_PATTERNS = (
+    "send dm", "send message", "send outreach", "send email",
+    "message them", "reply to them", "dm them", "dm him", "dm her",
+    "send it to", "send this to", "send this message", "post on instagram", "post on tiktok",
+    "send to prospect", "outreach to",
+)
+
+# Prompt patterns for clearly internal operations — short-circuit to auto-execute
+_AUTO_EXECUTE_PATTERNS = (
+    # Lead / pipeline writes
+    "log lead", "log this lead", "add this lead", "save this lead",
+    "log to pipeline", "update pipeline", "add to pipeline", "add to crm",
+    # Notion writes
+    "log to notion", "update notion", "add to notion", "save to notion",
+    "write to notion", "create notion",
+    # Task operations (internal)
+    "create task", "add task", "new task",
+    # Activity / memory writes
+    "log activity", "log this", "save this", "store this",
+    "note this", "remember this", "record this",
+    # BIS / system updates
+    "update bis", "update my bis",
+    # Briefs (system-generated, not founder sends)
+    "morning brief",
+    # Internal Discord / Telegram posts
+    "post to discord", "post in discord",
+    # General read/query patterns — reads never need approval
+    "what is", "what are", "show me", "tell me", "give me", "how is",
+    "status of", "check ", "list ", "get ", "fetch ", "summarize ",
+    "how many", "how much",
+)
+
+# Signals that indicate a purely informational message (no action requested)
+_INFORMATIONAL_SIGNALS: tuple[str, ...] = (
+    "here is", "here's", "fyi", "context:", "note:", "for context",
+    "just so you know", "updating you", "for your reference",
+    "heads up", "background:", "to update you", "letting you know",
+    "i wanted to let you know", "adding context", "some context",
+    "log this", "logging", "recording",
+)
+
+# Signals that indicate an external action is being requested
+_ACTION_SIGNALS: tuple[str, ...] = (
+    "send dm", "send message", "send email", "send outreach",
+    "message him", "message her", "message them",
+    "dm him", "dm her", "dm them",
+    "reach out", "post on instagram", "post on tiktok",
+    "outreach to", "publish to", "email him", "email her",
+    "buy ", "pay ", "delete ", "remove all",
+)
+
+# Required fields in every request
+_REQUIRED_FIELDS = {"type"}
+
+# Valid request types
+_VALID_TYPES = {"agent_task", "event", "status", "brief"}
+
+# Automation triggers — handled before the AI routing layer
+AUTOMATION_TRIGGERS: dict[str, list[str]] = {
+    'rename_ai': [
+        'call you', 'name you', 'rename you',
+        'your name is', 'call my ai',
+        'name my ai', 'rename to',
+        'i want to call you',
+    ],
+}
+
+
+def _utcnow() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _timestamp_id() -> str:
+    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
+
+
+# ─── EOSGateway (singleton) ───────────────────────────────────────────────────
+
+class EOSGateway:
+    """
+    Singleton gateway. EOSGateway() always returns the same instance.
+    Thread-safe.
+    """
+
+    _instance: "EOSGateway | None" = None
+    _class_lock: threading.Lock = threading.Lock()
+
+    def __new__(cls) -> "EOSGateway":
+        with cls._class_lock:
+            if cls._instance is None:
+                instance = super().__new__(cls)
+                instance._init_dirs()
+                cls._instance = instance
+        return cls._instance
+
+    def _init_dirs(self) -> None:
+        PENDING_DIR.mkdir(parents=True, exist_ok=True)
+        APPROVED_DIR.mkdir(parents=True, exist_ok=True)
+
+    # ─── Conversation memory helpers ─────────────────────────────────────────
+
+    _MEMORY_SIGNALS = (
+        'what did i say', 'what did we discuss', 'what was i saying',
+        'messages ago', 'last message', 'earlier i said',
+        'find everything', 'search for', 'pull everything',
+        'word for word', 'what have we talked about',
+        'give me everything', 'list everything',
+    )
+
+    def _is_memory_query(self, text: str) -> bool:
+        t = text.lower()
+        return any(s in t for s in self._MEMORY_SIGNALS)
+
+    def _handle_memory_query(self, text: str, session_id: str, cm: object) -> str:
+        """Return memory response string, or '' if query not matched."""
+        t = text.lower()
+
+        # "X messages ago"
+        ago = _re.search(r'(\d+)\s*messages?\s*ago', t)
+        if ago:
+            n = int(ago.group(1))
+            msgs = cm.get_session(session_id)
+            user_msgs = [m for m in msgs if m.role == 'user']
+            if len(user_msgs) >= n:
+                target = user_msgs[-n]
+                ts = target.created_at.strftime('%H:%M') if target.created_at else ''
+                return f'You said:\n\n"{target.content}"\n\n({ts})'
+            return 'Could not find that message in this session.'
+
+        # session dump — "today" / "this session" / "give me everything"
+        if any(s in t for s in [
+            'today', 'this session', 'give me everything',
+            'list everything', 'what have we talked about',
+        ]):
+            msgs = cm.get_session(session_id)
+            if not msgs:
+                return 'No messages recorded in this session yet.'
+            lines = ['Here is everything from this session:\n']
+            for msg in msgs:
+                prefix = 'You' if msg.role == 'user' else 'AI'
+                ts = msg.created_at.strftime('%H:%M') if msg.created_at else ''
+                lines.append(f'[{ts}] {prefix}: {msg.content}')
+            return '\n'.join(lines)
+
+        # full-text search — "find X" / "search for X"
+        srch = _re.search(r'(?:find|search for|pull)\s+(.+)', t)
+        if srch:
+            query = srch.group(1).strip()
+            results = cm.search(query, limit=5)
+            if not results:
+                return f'Nothing found for "{query}".'
+            lines = [f'Found {len(results)} messages matching "{query}":\n']
+            for msg in results:
+                prefix = 'You' if msg.role == 'user' else 'AI'
+                ts = msg.created_at.strftime('%Y-%m-%d %H:%M') if msg.created_at else ''
+                lines.append(f'[{ts}] {prefix}: {msg.content}')
+            return '\n'.join(lines)
+
+        return ''
+
+    def _init_conversation_memory(
+        self, request: dict
+    ) -> tuple[object | None, str, str]:
+        """
+        Set up ConversationMemory for this request.
+        Returns (cm, session_id, channel). cm is None on failure.
+        """
+        session_id = request.get('session_id') or str(_uuid_mod.uuid4())
+        channel    = request.get('channel', 'unknown')
+        prompt     = request.get('prompt', '')
+        rtype      = request.get('type', '')
+        if not prompt or rtype not in ('agent_task', 'brief'):
+            return None, session_id, channel
+        try:
+            from eos_ai.memory import ConversationMemory
+            from eos_ai.context import load_context_from_env
+            ctx = load_context_from_env()
+            cm  = ConversationMemory(ctx)
+            return cm, session_id, channel
+        except Exception as e:
+            print(f'[Gateway] ConversationMemory init failed (non-blocking): {e}')
+            return None, session_id, channel
+
+    # ─── Automation handler ───────────────────────────────────────────────────
+
+    def _handle_automation(self, request: dict) -> dict | None:
+        """
+        Check request prompt against AUTOMATION_TRIGGERS.
+        Returns a result dict if an automation fired, else None.
+        Automations bypass the AI routing layer — handled directly.
+        """
+        import re
+        text = request.get('prompt', '')
+        if not text:
+            return None
+
+        # rename_ai — user wants to rename their AI instance
+        rename_keywords = AUTOMATION_TRIGGERS.get('rename_ai', [])
+        if any(kw in text.lower() for kw in rename_keywords):
+            match = re.search(
+                r'(?:call you|name you|rename to|'
+                r'your name is|call my ai|'
+                r'name my ai|i want to call you)\s+'
+                r'([A-Za-z][a-zA-Z0-9]{1,20})',
+                text,
+                re.IGNORECASE,
+            )
+            if match:
+                new_name = match.group(1).upper()
+                try:
+                    from eos_ai.context import load_context_from_env
+                    from eos_ai.business_instance import BusinessInstanceManager
+                    ctx = load_context_from_env()
+                    bim = BusinessInstanceManager(ctx)
+                    venture_id = request.get('venture_id', 'lyfe_institute')
+                    bis = bim.get_bis(venture_id)
+                    if bis:
+                        old_name = bis.ai_name
+                        bis.ai_name = new_name
+                        bim.save_bis(bis)
+                        return {
+                            'status': 'ok',
+                            'output': (
+                                f"Done. I'm {new_name} now. "
+                                f"Was {old_name}."
+                            ),
+                            'action': 'rename_ai',
+                            'new_name': new_name,
+                        }
+                except Exception as e:
+                    print(f'[Gateway] rename_ai failed: {e}')
+
+        return None
+
+    # ─── Schema validation ────────────────────────────────────────────────────
+
+    def _validate(self, request: dict) -> str | None:
+        """Return an error string if the request is invalid, else None."""
+        missing = _REQUIRED_FIELDS - request.keys()
+        if missing:
+            return f"Missing required field(s): {missing}"
+        rtype = request.get("type")
+        if rtype not in _VALID_TYPES:
+            return f"Invalid type '{rtype}'. Must be one of: {_VALID_TYPES}"
+        if rtype == "agent_task" and not request.get("prompt"):
+            return "agent_task requires a non-empty 'prompt' field"
+        if rtype == "event" and not request.get("event_type"):
+            return "event requires a non-empty 'event_type' field"
+        return None
+
+    # ─── Approval detection ───────────────────────────────────────────────────
+
+    def _is_informational(self, prompt: str) -> bool:
+        """
+        True if the message is purely informational — context, FYI, logging,
+        or a multi-part continuation. These NEVER need approval.
+
+        Checks:
+          1. Part X/Y or continuation marker → always informational
+          2. Has an informational signal AND no external action signal
+        """
+        # Part indicators — always a context accumulation, never an action
+        if _re.search(r'(?i)\bpart\s+\d+/\d+\b|\b\d+\s*/\s*\d+\b', prompt):
+            return True
+        if any(s in prompt for s in ("continued", "cont'd", "cont.")):
+            return True
+
+        # Has informational signal AND no external action signal
+        has_info   = any(s in prompt for s in _INFORMATIONAL_SIGNALS)
+        has_action = any(s in prompt for s in _ACTION_SIGNALS)
+        return has_info and not has_action
+
+    def _requires_approval(self, request: dict) -> bool:
+        """
+        Tiered approval gate.
+
+        NEVER approve:
+          - Purely informational messages (FYI, context, logging, Part X/Y)
+          - Reading any data
+          - Writing to Notion / pipeline DB / activity log / BIS
+          - Storing context or memory
+          - Morning brief
+
+        ALWAYS approve:
+          - Sending DM as founder (Instagram, email, any external channel)
+          - Making any payment
+          - Deleting any data
+          - Any irreversible external action on founder's behalf
+
+        Rule: internal reads/writes = auto
+              external actions in the world as the founder = approve
+        """
+        action = request.get("action", "")
+        prompt = request.get("prompt", "").lower()
+
+        # 0. Purely informational — never queue for approval
+        if self._is_informational(prompt):
+            return False
+
+        # 1. Internal operations short-circuit — never need approval
+        if any(pat in prompt for pat in _AUTO_EXECUTE_PATTERNS):
+            return False
+
+        # 2. Explicit action flag set by caller
+        if action in _APPROVAL_REQUIRED_ACTIONS:
+            return True
+
+        # 3. Prompt signals external send on behalf of the founder
+        if any(pat in prompt for pat in _EXTERNAL_SEND_PATTERNS):
+            return True
+
+        # 4. Irreversible or financial keywords in prompt
+        _irreversible = ("delete ", "remove all ", "drop table",
+                         "charge ", "pay ", "make payment")
+        if any(kw in prompt for kw in _irreversible):
+            return True
+
+        return False
+
+    # ─── Event logging ────────────────────────────────────────────────────────
+
+    def _log_gateway_event(
+        self,
+        request: dict,
+        outcome: str,
+        result_summary: str = "",
+    ) -> str:
+        """Log every gateway request to Neon events table."""
+        payload = {
+            "request_type": request.get("type"),
+            "team":         request.get("team"),
+            "sub_agent":    request.get("sub_agent"),
+            "venture_id":   request.get("venture_id"),
+            "username":     request.get("username"),
+            "outcome":      outcome,
+            "summary":      result_summary[:300],
+        }
+        try:
+            with get_conn(ORG_ID) as cur:
+                cur.execute(
+                    """
+                    INSERT INTO events (org_id, event_type, payload_json, handled_by)
+                    VALUES (%s, %s, %s, %s)
+                    RETURNING id
+                    """,
+                    (
+                        ORG_ID,
+                        f"gateway:{request.get('type', 'unknown')}",
+                        json.dumps(payload),
+                        json.dumps(["EOSGateway"]),
+                    ),
+                )
+                return str(cur.fetchone()["id"])
+        except Exception as e:
+            print(f"[Gateway] _log_gateway_event failed: {e}")
+            return ""
+
+    # ─── Routing ──────────────────────────────────────────────────────────────
+
+    def handle(self, request: dict) -> dict:
+        """
+        Validate, optionally gate for approval, then route and return result.
+
+        Returns a dict with at minimum:
+            {"status": "ok"|"error"|"pending", ...result fields}
+        """
+        # 0. Automation check — handles before AI routing
+        automation_result = self._handle_automation(request)
+        if automation_result is not None:
+            return automation_result
+
+        # 1. Validate
+        err = self._validate(request)
+        if err:
+            self._log_gateway_event(request, "error", err)
+            return {"status": "error", "error": err}
+
+        # 2. Approval gate
+        if self._requires_approval(request):
+            approval_id = self.queue_for_approval(request)
+            self._log_gateway_event(request, "pending", f"approval_id={approval_id}")
+            return {
+                "status": "pending",
+                "approval_id": approval_id,
+                "message": (
+                    f"Request queued for approval. "
+                    f"Use /approve {approval_id} to execute."
+                ),
+            }
+
+        # 2b. Conversation memory — store user message, check memory query
+        cm, session_id, channel = self._init_conversation_memory(request)
+        prompt = request.get('prompt', '')
+        if cm and prompt:
+            try:
+                cm.store(
+                    session_id=session_id,
+                    role='user',
+                    content=prompt,
+                    channel=channel,
+                )
+                # Memory query — answer from stored messages without calling AI
+                if self._is_memory_query(prompt):
+                    mem_resp = self._handle_memory_query(prompt, session_id, cm)
+                    if mem_resp:
+                        cm.store(
+                            session_id=session_id,
+                            role='assistant',
+                            content=mem_resp,
+                            channel=channel,
+                            agent='memory',
+                        )
+                        self._log_gateway_event(request, 'ok', 'memory_query')
+                        return {
+                            'status':     'ok',
+                            'output':     mem_resp,
+                            'session_id': session_id,
+                            'source':     'memory',
+                        }
+            except Exception as _mem_err:
+                print(f'[Gateway] Memory store failed (non-blocking): {_mem_err}')
+
+        # 2c. Stage transition detection — fires before AI routing
+        stage_context = ''
+        if prompt and request.get('type') in ('agent_task', 'brief'):
+            try:
+                from eos_ai.stage_manager import detect_stage_transition, StageManager
+                from eos_ai.context import load_context_from_env as _load_ctx
+                transition = detect_stage_transition(prompt)
+                if transition.get('detected'):
+                    ctx_eos = _load_ctx()
+                    sm = StageManager(ctx_eos)
+
+                    # Venture from request first, then text signals, then default
+                    venture_id = request.get('venture_id') or 'lyfe_institute'
+                    text_lower = prompt.lower()
+                    if 'empyrean' in text_lower:
+                        venture_id = 'empyrean_creative'
+                    elif 'personal brand' in text_lower:
+                        venture_id = 'personal_brand'
+
+                    tr = sm.advance_stage(
+                        venture_id=venture_id,
+                        new_stage=transition['new_stage'],
+                    )
+                    stage_context = tr.message
+                    print(
+                        f'[Gateway] Stage transition: '
+                        f'{tr.previous_stage} → {tr.new_stage}'
+                    )
+            except Exception as _st_err:
+                print(f'[Gateway] Stage transition failed: {_st_err}')
+
+        # 2d. Self-awareness — detect any non-stage business change and process it
+        if prompt and request.get('type') in ('agent_task', 'brief'):
+            try:
+                from eos_ai.self_awareness import SelfAwarenessEngine, ChangeType
+                from eos_ai.context import load_context_from_env as _load_ctx_sa
+                ctx_sa  = _load_ctx_sa()
+                sae     = SelfAwarenessEngine(ctx_sa)
+                venture_id_sa = request.get('venture_id') or 'lyfe_institute'
+                change  = sae.detect_change_from_text(prompt, venture_id_sa)
+                if change and change.change_type not in (
+                    # Skip FIRST_SALE — stage_manager already handles the transition
+                    ChangeType.FIRST_SALE,
+                ):
+                    import asyncio as _asyncio
+                    try:
+                        loop_sa = _asyncio.get_event_loop()
+                        if loop_sa.is_running():
+                            # Already in an async context — schedule as a task
+                            _asyncio.ensure_future(sae.process_change(change))
+                        else:
+                            loop_sa.run_until_complete(sae.process_change(change))
+                    except RuntimeError:
+                        new_loop = _asyncio.new_event_loop()
+                        new_loop.run_until_complete(sae.process_change(change))
+                        new_loop.close()
+                    print(f'[SelfAwareness] Processed: {change.change_type.value}')
+            except Exception as _sa_err:
+                print(f'[SelfAwareness] {_sa_err}')
+
+        # 3. Route
+        rtype = request["type"]
+        try:
+            if rtype == "event":
+                result = self._route_event(request)
+            elif rtype == "agent_task":
+                result = self._route_agent_task(request)
+            elif rtype == "status":
+                result = self._route_status(request)
+            elif rtype == "brief":
+                result = self._route_brief(request)
+            else:
+                result = {"status": "error", "error": f"Unhandled type: {rtype}"}
+        except Exception as exc:
+            self._log_gateway_event(request, "error", str(exc))
+            return {"status": "error", "error": str(exc)}
+
+        # 3b. Prepend stage transition message if one fired
+        if stage_context and result.get('output'):
+            result['output'] = stage_context + '\n\n---\n\n' + result['output']
+        elif stage_context:
+            result['output'] = stage_context
+
+        # 3c. Store assistant response and tag result with session_id
+        if cm and result.get('output'):
+            try:
+                cm.store(
+                    session_id=session_id,
+                    role='assistant',
+                    content=result['output'],
+                    channel=channel,
+                    agent='system',
+                )
+            except Exception:
+                pass
+        if session_id:
+            result['session_id'] = session_id
+
+        summary = json.dumps(result)[:300]
+        self._log_gateway_event(request, "ok", summary)
+        return result
+
+    # ─── Route: event ─────────────────────────────────────────────────────────
+
+    def _route_event(self, request: dict) -> dict:
+        from eos_ai.event_bus import EventBus
+        event_type = request["event_type"]
+        payload    = request.get("payload") or {}
+        bus        = EventBus()
+        results    = bus.publish(event_type, payload)
+        return {
+            "status":     "ok",
+            "event_type": event_type,
+            "handlers":   len(results),
+        }
+
+    # ─── Web search ───────────────────────────────────────────────────────────
+
+    _WEB_SEARCH_SIGNALS: tuple[str, ...] = (
+        'what is the current', 'latest news', 'right now', "today's",
+        'this week', 'how much does', "what's the price", 'look up',
+        'search for', 'find me', 'what are people saying', 'trending', 'recent',
+    )
+
+    def _needs_web_search(self, text: str) -> bool:
+        t = text.lower()
+        return any(s in t for s in self._WEB_SEARCH_SIGNALS)
+
+    def _web_search(self, query: str) -> str:
+        try:
+            from eos_ai.model_router import get_router, TaskType as RouterTaskType
+            router = get_router()
+            model  = router.route(RouterTaskType.WEB_SEARCH)
+            if not model:
+                return ''
+            result = router.call(
+                model,
+                prompt=(
+                    f'Search query: {query}\n\n'
+                    f'Provide a concise, factual answer with current information. '
+                    f'2-3 sentences maximum.'
+                ),
+                max_tokens=200,
+            )
+            return result or ''
+        except Exception as e:
+            print(f'[WebSearch] {e}')
+            return ''
+
+    # ─── EA routing ───────────────────────────────────────────────────────────
+
+    def _route_to_agent(self, text: str, comm_type: str = 'text') -> str:
+        """
+        Determine which agent should handle this request.
+        EA handles 90% of cases. Only escalates to CEOs or Portfolio Advisor
+        for genuinely company-specific or portfolio-level decisions.
+
+        Returns agent_id string.
+        """
+        try:
+            from eos_ai.agent_hierarchy import AgentHierarchy
+            return AgentHierarchy().route_request(text)
+        except Exception:
+            return 'executive_assistant'
+
+    # ─── Route: agent_task ────────────────────────────────────────────────────
+
+    def _route_agent_task(self, request: dict) -> dict:
+        from eos_ai.agent_runtime import AgentRuntime, TaskType
+        from eos_ai.cognitive_loop import CognitiveLoop
+        from eos_ai.context import load_context_from_env
+
+        prompt     = request["prompt"]
+        venture_id = request.get("venture_id")
+        username   = request.get("username")
+        team       = request.get("team")
+        sub_agent  = request.get("sub_agent")
+
+        ctx  = load_context_from_env()
+        loop = CognitiveLoop(ctx)
+
+        # Real-time web search — prepend result to prompt if signal detected
+        if self._needs_web_search(prompt):
+            _web_result = self._web_search(prompt)
+            if _web_result:
+                prompt = f'REAL-TIME SEARCH RESULT:\n{_web_result}\n\n{prompt}'
+                print('[Gateway] Web search used')
+
+        if team:
+            # Team task — resolve via agent_teams then run through cognitive loop
+            from eos_ai.agent_teams import route as team_route
+            config = team_route(team, sub_agent)
+            result = loop.run(
+                input=prompt,
+                agent=f"{team}.{sub_agent}",
+                task_type=config.task_type,
+                venture_id=venture_id,
+                skill_name=config.skill_name,
+            )
+        else:
+            # Direct task — route to correct agent via hierarchy, then run
+            task_type_str = request.get("task_type", "analyze").upper()
+            try:
+                task_type = TaskType[task_type_str]
+            except KeyError:
+                task_type = TaskType.ANALYZE
+
+            # Sub_agent override → use it; else EA hierarchy routing
+            agent_to_use = sub_agent or self._route_to_agent(prompt)
+
+            result = loop.run(
+                input=prompt,
+                agent=agent_to_use,
+                task_type=task_type,
+                venture_id=venture_id,
+            )
+
+        if result.status == 'pending_approval':
+            return {
+                "status":      "pending",
+                "approval_id": result.approval_id,
+                "message": (
+                    f"Request queued for approval. "
+                    f"Use /approve {result.approval_id} to execute."
+                ),
+            }
+
+        # Permanently integrate this exchange into the knowledge base
+        try:
+            from eos_ai.knowledge_integrator import KnowledgeIntegrator
+            _ki = KnowledgeIntegrator(ctx)
+            if prompt and result.output:
+                _ki.integrate(
+                    content=f'Q: {prompt[:500]}\nA: {(result.output or "")[:500]}',
+                    source='gateway_conversation',
+                    category='conversation',
+                    metadata={
+                        'team':       team,
+                        'sub_agent':  sub_agent,
+                        'venture_id': venture_id,
+                    },
+                )
+        except Exception:
+            pass  # knowledge integration is enhancement — never block result
+
+        # Feedback loop — log advice as recommendation; detect outcome reports
+        try:
+            from eos_ai.feedback_loop import FeedbackLoop
+            fl = FeedbackLoop(ctx)
+            if any(signal in (result.output or '').lower() for signal in [
+                'send', 'do this', 'focus on',
+                'action:', 'next step', 'today:',
+                'one thing:', 'start with',
+            ]):
+                fl.log_recommendation(
+                    content=(result.output or '')[:500],
+                    venture_id=venture_id or '',
+                    context=prompt[:200],
+                )
+            fl.log_outcome(prompt, venture_id or '')
+        except Exception as e:
+            print(f'[FeedbackLoop] {e}')
+
+        # Accountability — detect and log commitments in founder's message
+        try:
+            from eos_ai.accountability import AccountabilityEngine
+            ae = AccountabilityEngine(ctx)
+            commitment = ae.detect_commitment(prompt, venture_id or '')
+            if commitment:
+                print(f'[Accountability] Logged: {commitment.text[:50]}')
+        except Exception as e:
+            print(f'[Accountability] {e}')
+
+        # Decision log — detect and permanently record decisions
+        try:
+            from eos_ai.decision_log import DecisionLog
+            _dl = DecisionLog(ctx)
+            if _dl.detect_decision(prompt):
+                _dl.log_from_message(prompt, venture_id=venture_id or '')
+        except Exception as e:
+            print(f'[DecisionLog] {e}')
+
+        return {
+            "status":         "ok",
+            "interaction_id": result.interaction_id,
+            "model":          result.model_used,
+            "skill":          result.skill_used,
+            "output":         result.output,
+            "tokens":         result.tokens_used,
+            "iterations":     result.iterations,
+            "was_enhanced":   result.was_enhanced,
+        }
+
+    # ─── Route: status ────────────────────────────────────────────────────────
+
+    def _route_status(self, request: dict) -> dict:
+        from eos_ai.status import (
+            _fetch_7d_raw,
+            _fetch_total_interactions,
+            _fetch_last_orchestrator_run,
+            _cost_est,
+        )
+        from eos_ai.venture_knowledge import VentureKnowledgeBase
+
+        rows_7d            = _fetch_7d_raw()
+        total_interactions = _fetch_total_interactions()
+        last_orch          = _fetch_last_orchestrator_run()
+
+        # Venture north star
+        ventures = []
+        for vid in VentureKnowledgeBase.list_ventures():
+            v   = VentureKnowledgeBase.get(vid)
+            pct = round(v.monthly_revenue / v.monthly_target * 100, 1) if v.monthly_target > 0 else 0.0
+            ventures.append({
+                "venture_id": vid,
+                "revenue":    v.monthly_revenue,
+                "target":     v.monthly_target,
+                "pct":        pct,
+                "stage":      v.stage,
+            })
+
+        # Events table count
+        try:
+            with get_conn(ORG_ID) as cur:
+                cur.execute("SELECT COUNT(*) AS cnt FROM events WHERE org_id = %s", (ORG_ID,))
+                events_count = cur.fetchone()["cnt"]
+        except Exception:
+            events_count = 0
+
+        # Format readable output for Discord display
+        venture_lines = []
+        for v in ventures:
+            bar = "█" * int(v["pct"] / 10) + "░" * (10 - int(v["pct"] / 10))
+            venture_lines.append(
+                f"  {v['venture_id']}: ${v['revenue']:,.0f} / ${v['target']:,.0f} "
+                f"[{bar}] {v['pct']}% — Stage {v['stage']}"
+            )
+
+        last_orch_str = last_orch["timestamp"][:19] if last_orch else "never"
+        neon_status = "✅ connected" if events_count > 0 else "⚠️ no events"
+        output_lines = [
+            "**EOS SYSTEM STATUS**",
+            "",
+            "**NORTH STAR**",
+        ] + venture_lines + [
+            "",
+            "**ACTIVITY**",
+            f"  Interactions (total)  : {total_interactions:,}",
+            f"  Interactions (7d)     : {len(rows_7d)}",
+            f"  Cost (7d)             : ${round(_cost_est(rows_7d), 4):.4f}",
+            f"  Events logged         : {events_count:,}",
+            f"  Last orchestrator run : {last_orch_str}",
+            "",
+            "**INFRASTRUCTURE**",
+            f"  Neon database         : {neon_status}",
+        ]
+
+        return {
+            "status":             "ok",
+            "interactions_total": total_interactions,
+            "interactions_7d":    len(rows_7d),
+            "cost_7d_usd":        round(_cost_est(rows_7d), 4),
+            "events_logged":      events_count,
+            "last_orchestrator":  last_orch_str,
+            "ventures":           ventures,
+            "output":             "\n".join(output_lines),
+        }
+
+    # ─── Route: brief ─────────────────────────────────────────────────────────
+
+    def _route_brief(self, request: dict) -> dict:
+        from eos_ai.orchestrator import EOSOrchestrator
+        orch  = EOSOrchestrator()
+        brief = orch.morning_brief()
+        return {
+            "status": "ok",
+            "brief":  brief,
+        }
+
+    # ─── Approval queue ───────────────────────────────────────────────────────
+
+    def queue_for_approval(self, request: dict) -> str:
+        """
+        Write request to pending/ directory.
+        Returns approval_id (timestamp-based, human-readable).
+        """
+        approval_id   = f"{_timestamp_id()}_{request.get('type', 'req')}"
+        pending_file  = PENDING_DIR / f"{approval_id}.json"
+        record        = {
+            "approval_id": approval_id,
+            "queued_at":   _utcnow(),
+            "request":     request,
+            "status":      "pending",
+        }
+        pending_file.write_text(json.dumps(record, indent=2), encoding="utf-8")
+        print(f"[Gateway] Approval queued: {approval_id}")
+        return approval_id
+
+    def approve(self, approval_id: str) -> dict:
+        """
+        Move pending → approved, then execute the original request.
+        Returns the execution result.
+        """
+        pending_file  = PENDING_DIR / f"{approval_id}.json"
+        approved_file = APPROVED_DIR / f"{approval_id}.json"
+
+        if not pending_file.exists():
+            # Check if already approved
+            if approved_file.exists():
+                return {"status": "error", "error": f"{approval_id} already approved"}
+            return {"status": "error", "error": f"Approval {approval_id} not found"}
+
+        record              = json.loads(pending_file.read_text(encoding="utf-8"))
+        record["status"]    = "approved"
+        record["approved_at"] = _utcnow()
+
+        # Move to approved/
+        approved_file.write_text(json.dumps(record, indent=2), encoding="utf-8")
+        pending_file.unlink()
+        print(f"[Gateway] Approved: {approval_id}")
+
+        # Execute bypassing the approval gate (approved request runs directly)
+        original_request = record["request"]
+        rtype            = original_request.get("type")
+        try:
+            if rtype == "event":
+                result = self._route_event(original_request)
+            elif rtype == "agent_task":
+                result = self._route_agent_task(original_request)
+            elif rtype == "status":
+                result = self._route_status(original_request)
+            elif rtype == "brief":
+                result = self._route_brief(original_request)
+            else:
+                result = {"status": "error", "error": f"Unknown type: {rtype}"}
+        except Exception as exc:
+            result = {"status": "error", "error": str(exc)}
+
+        self._log_gateway_event(original_request, "approved_executed",
+                                json.dumps(result)[:300])
+        return result
+
+    # ─── Multi-part ordering ──────────────────────────────────────────────────
+
+    def split_and_order_prompt(self, text: str) -> list[str]:
+        """
+        Detect whether a prompt contains multiple distinct instructions and
+        return them as an ordered list.  Single-part prompts return [text].
+
+        Detection priority:
+          1. Numbered list  — "1. ...\n2. ..."
+          2. Connector split — lines starting with "also", "another", etc.
+        """
+        import re
+
+        # Numbered list: two or more "N. ..." items
+        numbered = re.findall(r'^\d+\.\s+.+$', text, re.MULTILINE)
+        if len(numbered) >= 2:
+            return [re.sub(r'^\d+\.\s+', '', n).strip() for n in numbered]
+
+        # Connector split on newlines before transition words
+        parts = re.split(
+            r'\n+(?=(?:also|another|additionally|and also|one more|finally)\b)',
+            text,
+            flags=re.IGNORECASE,
+        )
+        if len(parts) >= 2:
+            return [p.strip() for p in parts if p.strip()]
+
+        return [text]
+
+    def handle_ordered(self, request: dict) -> list[dict]:
+        """
+        Split the prompt into ordered parts and process each sequentially.
+        Returns a list of result dicts in order.  Single-part prompts return
+        a one-element list so callers can always iterate uniformly.
+        """
+        text  = request.get('prompt', '')
+        parts = self.split_and_order_prompt(text)
+
+        if len(parts) == 1:
+            return [self.handle(request)]
+
+        results = []
+        for i, part in enumerate(parts):
+            part_request = {**request, 'prompt': part}
+            result       = self.handle(part_request)
+            result['part']        = i + 1
+            result['total_parts'] = len(parts)
+            results.append(result)
+        return results
+
+    def classify_intent(self, text: str) -> str:
+        """
+        Classify a natural language message into one of the known intents.
+        Single Haiku call. Returns the intent word in uppercase.
+        Falls back to 'UNKNOWN' on any failure.
+        """
+        _SYSTEM = (
+            "You are an intent router for an AI business operating system. "
+            "Classify the message into exactly one intent. "
+            "Reply with ONLY the intent word, nothing else.\n\n"
+            "INTENTS:\n"
+            "BRIEF — status updates, what's happening, morning brief, how are things, summary\n"
+            "STRATEGY — strategic advice, priorities, what should I focus on, what matters most\n"
+            "OUTREACH — DMs, leads, pipeline, prospects, reply rates, who replied, follow up\n"
+            "RESEARCH — market, competitors, industry, ICP, what's working in the market\n"
+            "CONTENT — content ideas, hooks, posts, captions, what to post\n"
+            "DECISION — should I do X, evaluating options, is this a good idea, advice on a choice\n"
+            "TASK — do this, run this, handle this, delegate, make this happen\n"
+            "INTEL — signals, market moves, alerts, what's happening out there\n"
+            "PORTFOLIO — all companies, overall status, capital allocation, big picture\n"
+            "JOURNAL — logging an update, here's what happened, reporting back, FYI\n"
+            "MODEL — model preferences, switching models, cost mode, which AI are you using\n"
+            "UNKNOWN — cannot determine intent clearly"
+        )
+        _VALID = {
+            'BRIEF', 'STRATEGY', 'OUTREACH', 'RESEARCH', 'CONTENT',
+            'DECISION', 'TASK', 'INTEL', 'PORTFOLIO', 'JOURNAL', 'MODEL', 'UNKNOWN',
+        }
+        try:
+            import anthropic as _anthropic
+            client = _anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+            msg = client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=10,
+                system=_SYSTEM,
+                messages=[{"role": "user", "content": text}],
+            )
+            intent = msg.content[0].text.strip().upper().split()[0]
+            return intent if intent in _VALID else 'UNKNOWN'
+        except Exception as e:
+            print(f"[Gateway] classify_intent failed: {e}")
+            return 'UNKNOWN'
+
+    def get_pending_approvals(self) -> list[dict]:
+        """Return all requests waiting for approval."""
+        pending = []
+        for f in sorted(PENDING_DIR.glob("*.json")):
+            try:
+                record = json.loads(f.read_text(encoding="utf-8"))
+                pending.append({
+                    "approval_id": record.get("approval_id"),
+                    "queued_at":   record.get("queued_at"),
+                    "type":        record.get("request", {}).get("type"),
+                    "sub_agent":   record.get("request", {}).get("sub_agent"),
+                    "action":      record.get("request", {}).get("action"),
+                    "prompt":      record.get("request", {}).get("prompt", "")[:80],
+                })
+            except Exception as exc:
+                pending.append({"file": f.name, "error": str(exc)})
+        return pending
+
+
+# ─── Module-level helper ──────────────────────────────────────────────────────
+
+def get_gateway() -> EOSGateway:
+    """Return the singleton EOSGateway instance."""
+    return EOSGateway()
+
+
+def ingest_external_context(
+    source: str,
+    content: str,
+    context_type: str = 'design_decision',
+    venture_id: str | None = None,
+) -> str:
+    """
+    Capture context from any external source into Neon + embed immediately.
+
+    source:       'telegram_manual' | 'claude_ai' | 'voice_note' | 'document' | 'manual'
+    context_type: 'design_decision' | 'architectural_spec' | 'user_feedback'
+                  | 'strategic_insight' | 'correction' | 'user_note'
+
+    Stores as an interaction in Neon and triggers async embedding so the
+    note is immediately retrievable by any agent via semantic search.
+
+    Returns the interaction_id (UUID).
+    """
+    from eos_ai.memory import AgentMemory
+    from eos_ai.agent_runtime import AgentResult
+
+    result = AgentResult(
+        output=content[:500],
+        model_used='external',
+        tokens_used={'total': 0},
+        skill_used=None,
+    )
+    mem = AgentMemory()
+    interaction_id = mem.log(
+        agent_result=result,
+        venture_id=venture_id,
+        input_summary=f'[{source}] {context_type}',
+        agent=f'external_{source}',
+        task_type=context_type,
+    )
+    return interaction_id

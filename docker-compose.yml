@@ -1,4 +1,12 @@
 version: '3.8'
+
+# NOTE: top-level env_file is not valid in compose v3.8.
+# Each service declares its own env_file below.
+
+networks:
+  eos_network:
+    driver: bridge
+
 services:
   os-bot:
     build: .
@@ -6,6 +14,8 @@ services:
     restart: always
     working_dir: /app
     command: python3 13_Scripts/telegram_control.py
+    networks:
+      - eos_network
     volumes:
       - /opt/OS:/app
     env_file:
@@ -13,39 +23,57 @@ services:
     environment:
       - PYTHONPATH=/app/13_Scripts
       - TZ=America/Los_Angeles
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+
   os-monitor:
     build: .
     container_name: os-monitor
     restart: always
     working_dir: /app
-    command: python3 13_Scripts/dm_monitor.py
+    command: python3 -u 13_Scripts/dm_monitor.py
+    # network_mode: host was removed — Playwright does not require host networking.
+    # Bridge provides outbound internet access for Instagram/Apify calls.
+    networks:
+      - eos_network
     volumes:
       - /opt/OS:/app
+      - /opt/OS/logs:/opt/OS/logs
     env_file:
       - 13_Scripts/.env
+      - eos_ai/.env
     shm_size: '2gb'
     environment:
       - PYTHONPATH=/app/13_Scripts
       - TZ=America/Los_Angeles
+      - PYTHONUNBUFFERED=1
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+
   os-scraper:
     build: .
     container_name: os-scraper
     restart: "no"
     working_dir: /app
     command: python3 13_Scripts/overnight_scrape.py
+    networks:
+      - eos_network
     volumes:
       - /opt/OS:/app
     env_file:
       - 13_Scripts/.env
+      - eos_ai/.env
     environment:
       - PYTHONPATH=/app/13_Scripts
       - TZ=America/Los_Angeles
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+
   os-webhook:
     build: .
     container_name: os-webhook
     restart: always
     working_dir: /app
     command: python3 13_Scripts/calendly_webhook.py
+    networks:
+      - eos_network
     volumes:
       - /opt/OS:/app
     env_file:
@@ -53,5 +81,32 @@ services:
     environment:
       - PYTHONPATH=/app/13_Scripts
       - TZ=America/Los_Angeles
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
     ports:
       - "8080:8080"
+
+  os-discord:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: os-discord
+    restart: on-failure
+    working_dir: /app
+    # network_mode: host was removed — Discord bot only makes outbound HTTPS
+    # calls to discord.com. Bridge networking provides full internet access.
+    networks:
+      - eos_network
+    volumes:
+      - /opt/OS:/app
+      - /opt/OS/logs:/opt/OS/logs
+      - /root/.config/gws:/root/.config/gws:ro
+      - /root/.config/@googleworkspace:/root/.config/@googleworkspace:ro
+    env_file:
+      - 13_Scripts/.env
+      - eos_ai/.env
+    environment:
+      - PYTHONPATH=/app
+      - TZ=America/Los_Angeles
+      - PYTHONUNBUFFERED=1
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    command: python3 13_Scripts/discord_bot.py

@@ -1,0 +1,29 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|Create",
+        "hooks": [{
+          "type": "command",
+          "command": "python3 -c \"import sys; sys.path.insert(0, '/opt/OS'); import eos_ai\" 2>&1 | grep -E 'Error|error' | head -3 || echo '[Hook] imports: clean'"
+        }]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [{
+          "type": "command",
+          "command": "python3 -c \"import sys; sys.path.insert(0, '/opt/OS'); from eos_ai.session_state import SessionState; SessionState.update_progress(last_completed='pre-compact save', in_progress='active session')\" 2>/dev/null && echo '[Hook] State saved before compact'"
+        }]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [{
+          "type": "command",
+          "command": "echo '[Session] Done. Run /status to verify.'"
+        }]
+      }
+    ]
+  }
+}
