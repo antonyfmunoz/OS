@@ -190,3 +190,74 @@ as Antony would, without asking questions."""
     except Exception as e:
         logger.warning(f'[PerfectWeek] Camcorder failed: {e}')
         return ''
+
+
+def save_preloaded_year(year_plan: dict, ctx=None) -> bool:
+    """
+    Save the annual plan to Neon. Structure:
+    {
+      'q1': {'rocks': [], 'revenue_target': 0, 'key_dates': []},
+      'q2': {...}, 'q3': {...}, 'q4': {...},
+      'vacation_blocks': ['2026-07-01 to 2026-07-14'],
+      'major_milestones': [],
+      'annual_revenue_target': 0,
+    }
+    """
+    try:
+        from eos_ai.context import load_context_from_env
+        from eos_ai.db import get_conn
+        ctx = ctx or load_context_from_env()
+        with get_conn(ctx.org_id) as cur:
+            cur.execute('''
+                INSERT INTO events
+                (org_id, event_type, payload_json, handled_by)
+                VALUES (%s, %s, %s, %s)
+            ''', (
+                str(ctx.org_id),
+                'preloaded_year',
+                json.dumps({
+                    'plan': year_plan,
+                    'saved_at': datetime.now(PDT).isoformat(),
+                }),
+                'dex_annual_plan',
+            ))
+        return True
+    except Exception as e:
+        logger.warning(f'[PerfectWeek] save_preloaded_year failed: {e}')
+        return False
+
+
+def get_preloaded_year(ctx=None) -> dict:
+    """Get the most recently saved annual plan."""
+    try:
+        from eos_ai.context import load_context_from_env
+        from eos_ai.db import get_conn
+        ctx = ctx or load_context_from_env()
+        with get_conn(ctx.org_id) as cur:
+            cur.execute('''
+                SELECT payload_json FROM events
+                WHERE org_id = %s
+                AND event_type = 'preloaded_year'
+                ORDER BY created_at DESC
+                LIMIT 1
+            ''', (str(ctx.org_id),))
+            row = cur.fetchone()
+        if row:
+            p = row['payload_json']
+            if isinstance(p, str):
+                p = json.loads(p)
+            return p.get('plan', {})
+        return {}
+    except Exception as e:
+        logger.warning(f'[PerfectWeek] get_preloaded_year failed: {e}')
+        return {}
+
+
+def get_current_quarter_rocks(ctx=None) -> list[str]:
+    """Get this quarter's rocks from the annual plan."""
+    plan = get_preloaded_year(ctx)
+    if not plan:
+        return []
+    month = datetime.now().month
+    quarter = f'q{(month - 1) // 3 + 1}'
+    return plan.get(quarter, {}).get('rocks', [])
