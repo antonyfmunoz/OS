@@ -120,3 +120,29 @@ class TestMartellPatterns:
     def test_131_clean_message(self):
         from eos_ai.martell_patterns import check_131_rule
         assert check_131_rule("Schedule a call with Jacob for Thursday") is False
+
+
+class TestPerfectWeek:
+
+    def test_import(self):
+        from eos_ai.perfect_week import (
+            DEFAULT_PERFECT_WEEK, get_perfect_week,
+            save_perfect_week, create_camcorder_playbook,
+        )
+
+    def test_default_perfect_week_structure(self):
+        from eos_ai.perfect_week import DEFAULT_PERFECT_WEEK
+        for day in ('monday', 'tuesday', 'wednesday', 'thursday', 'friday'):
+            assert day in DEFAULT_PERFECT_WEEK
+            d = DEFAULT_PERFECT_WEEK[day]
+            assert 'theme' in d
+            assert 'morning' in d
+            assert 'afternoon' in d
+            assert 'protected' in d
+
+    def test_get_perfect_week_returns_dict(self):
+        from eos_ai.perfect_week import get_perfect_week
+        # Falls back to default if no DB record — must not raise
+        week = get_perfect_week()
+        assert isinstance(week, dict)
+        assert 'monday' in week
