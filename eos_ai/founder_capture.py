@@ -209,15 +209,15 @@ def capture(text: str, ctx=None, venture_id: str = None) -> dict:
 
     # BBR check — should DEX handle this without flagging Antony?
     try:
-        from eos_ai.buyback_rate import get_current_buyback_rate
-        from eos_ai.drip_matrix import classify_task_drip
-        rate = get_current_buyback_rate()
+        from eos_ai.founder_rate import get_current_founder_rate
+        from eos_ai.task_yield_matrix import classify_task_yield
+        rate = get_current_founder_rate()
         if rate:
-            drip = classify_task_drip(text)
+            drip = classify_task_yield(text)
             if drip.get('quadrant') == 'delegate':
                 result['below_bbr'] = True
                 result['bbr_message'] = (
-                    f'🤖 This is a DEX task (below ${rate["buyback_rate"]}/hr). '
+                    f'🤖 This is a DEX task (below ${rate["founder_rate"]}/hr). '
                     f'Adding to DEX queue — not flagging to you.'
                 )
     except Exception:

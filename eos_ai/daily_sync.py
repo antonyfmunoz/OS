@@ -258,7 +258,7 @@ class DailySync:
 
         # ── Quarterly rocks from preloaded year ─────────────────────────
         try:
-            from eos_ai.perfect_week import get_current_quarter_rocks
+            from eos_ai.ideal_week import get_current_quarter_rocks
             agenda.quarterly_rocks = get_current_quarter_rocks(self.ctx)
         except Exception:
             agenda.quarterly_rocks = []
@@ -301,11 +301,11 @@ Return JSON only:
 
         # ── DRIP split — filter delegate tasks to dex_items ─────────────
         try:
-            from eos_ai.drip_matrix import classify_task_drip
+            from eos_ai.task_yield_matrix import classify_task_yield
             antony_items = []
             dex_items = []
             for item in agenda.action_items[:10]:
-                drip = classify_task_drip(item)
+                drip = classify_task_yield(item)
                 if drip.get('quadrant') in ('produce', 'invest'):
                     antony_items.append(item)
                 else:

@@ -20,15 +20,15 @@ def architect_week(ctx=None) -> str:
     Returns a formatted week plan string for Discord or file output.
     """
     try:
-        from eos_ai.perfect_week import get_perfect_week
+        from eos_ai.ideal_week import get_ideal_week
         from eos_ai.model_router import get_router, TaskType
 
-        perfect_week = get_perfect_week(ctx)
+        ideal_week = get_ideal_week(ctx)
 
-        # Format perfect week for LLM context (Mon-Fri only)
+        # Format ideal week for LLM context (Mon-Fri only)
         pw_text = '\n'.join(
             f'{day.capitalize()}: {data["theme"]} — {data["morning"]}'
-            for day, data in perfect_week.items()
+            for day, data in ideal_week.items()
             if day not in ('saturday', 'sunday')
         )
 
@@ -52,7 +52,7 @@ def architect_week(ctx=None) -> str:
 
         prompt = f"""Design the upcoming work week for Antony Munoz.
 
-Antony's perfect week template:
+Antony's ideal week template:
 {pw_text}
 
 Align the week design to this template.
@@ -64,22 +64,22 @@ Current date: {datetime.now(PDT).strftime('%A, %B %d, %Y')}
 Produce a concrete weekly plan:
 - Day-by-day blocks (Monday through Friday)
 - Protect deep work and revenue blocks
-- Flag any conflicts with the perfect week template
+- Flag any conflicts with the ideal week template
 - Include a single weekly focus (the one thing that moves the needle most)
 
 Format clearly for Discord with bold day headers."""
 
         result = router.call(model, prompt, max_tokens=1200)
-        return result.strip() if result else _fallback_week(perfect_week)
+        return result.strip() if result else _fallback_week(ideal_week)
     except Exception as e:
         logger.warning(f'[WeekArchitect] architect_week failed: {e}')
         return _fallback_week({})
 
 
-def _fallback_week(perfect_week: dict) -> str:
-    """Return a simple Perfect Week display when LLM is unavailable."""
-    lines = ['**📅 Week Plan (Perfect Week template):**', '']
-    for day, data in perfect_week.items():
+def _fallback_week(ideal_week: dict) -> str:
+    """Return a simple Ideal Week display when LLM is unavailable."""
+    lines = ['**📅 Week Plan (Ideal Week template):**', '']
+    for day, data in ideal_week.items():
         if day in ('saturday', 'sunday'):
             continue
         lines.append(f'**{day.capitalize()} — {data.get("theme", "")}**')

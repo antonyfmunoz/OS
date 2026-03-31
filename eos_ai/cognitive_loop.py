@@ -698,14 +698,14 @@ class CognitiveLoop:
 
         # Martell pattern detection — behavioral alerts injected into system context
         try:
-            from eos_ai.martell_patterns import detect_time_assassin, check_131_rule
-            _assassin = detect_time_assassin(text)
+            from eos_ai.martell_patterns import detect_leverage_killer, check_solution_standard
+            _assassin = detect_leverage_killer(text)
             if _assassin and _assassin.get('intervention'):
                 _system_parts.append(
                     f'## Behavioral Alert\n{_assassin["intervention"]}\n'
                     f'Note: Surface this observation to the founder in your response.'
                 )
-            if check_131_rule(text):
+            if check_solution_standard(text):
                 _system_parts.append(
                     '## 1:3:1 Rule Alert\n'
                     'The founder is presenting a problem without options. '
@@ -717,7 +717,7 @@ class CognitiveLoop:
 
         # No List enforcement — flag anything Antony has committed to never doing
         try:
-            from eos_ai.buyback_rate import check_against_no_list
+            from eos_ai.founder_rate import check_against_no_list
             _no_list_violations = check_against_no_list(text)
             if _no_list_violations:
                 _system_parts.append(

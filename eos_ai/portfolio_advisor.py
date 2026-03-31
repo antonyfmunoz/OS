@@ -353,7 +353,7 @@ trajectory of the next 90 days.]"""
         # Append DRIP scan and Drive health to weekly output
         _extra: list[str] = []
         try:
-            from eos_ai.drip_matrix import run_drip_audit
+            from eos_ai.task_yield_matrix import run_yield_audit
             import json as _json
             from eos_ai.db import get_conn as _get_conn
             with _get_conn(self.ctx.org_id) as _cur:
@@ -376,11 +376,11 @@ trajectory of the next 90 days.]"""
                 if _t:
                     _tasks.append(_t)
             if _tasks:
-                _drip = run_drip_audit(_tasks, self.ctx)
+                _drip = run_yield_audit(_tasks, self.ctx)
                 _delegate_count = len(_drip.get('delegate', []))
                 _produce_count = len(_drip.get('produce', []))
                 _drip_lines = [
-                    "**🔍 DRIP Scan — this week's tasks:**",
+                    "**🔍 Task Yield Scan — this week's tasks:**",
                     f'• ⚡ Produce (genius zone): {_produce_count}',
                     f'• 🤖 Delegate to DEX: {_delegate_count}',
                 ]
