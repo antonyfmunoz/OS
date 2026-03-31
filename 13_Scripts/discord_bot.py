@@ -1347,6 +1347,102 @@ async def on_message(message: discord.Message):
             await message.channel.send(f'❌ Error: {e}')
         return
 
+    # ── !travel — manually block travel time around a calendar event ─────────
+    if text.startswith('!travel'):
+        parts = text[7:].strip().split('|')
+        if len(parts) < 2:
+            await message.channel.send(
+                'Usage: `!travel [event_id] | [location] | [minutes optional]`'
+            )
+            return
+        try:
+            from eos_ai.gws_connector import GWSConnector
+            _travel_event_id = parts[0].strip()
+            _travel_location = parts[1].strip()
+            _travel_minutes = int(parts[2].strip()) if len(parts) > 2 else 30
+            _travel_gws = GWSConnector()
+            _travel_result = _travel_gws.block_travel_time(
+                _travel_event_id, _travel_location, _travel_minutes
+            )
+            if _travel_result:
+                await message.channel.send(
+                    f'🚗 Travel blocks created ({_travel_minutes} min each side).'
+                )
+            else:
+                await message.channel.send('❌ Failed to create travel blocks.')
+        except Exception as e:
+            await message.channel.send(f'❌ Error: {e}')
+        return
+
+    # ── !nomeetings — block an entire day as no-meetings / deep work ──────────
+    if text.startswith('!nomeetings'):
+        _nm_parts = text.split()
+        try:
+            from datetime import datetime, timedelta, timezone
+            from zoneinfo import ZoneInfo
+            from eos_ai.gws_connector import GWSConnector
+
+            _nm_PDT = ZoneInfo('America/Los_Angeles')
+            _nm_gws = GWSConnector()
+
+            if len(_nm_parts) > 1:
+                from eos_ai.model_router import get_router, TaskType as _NMTaskType
+                _nm_router = get_router()
+                _nm_model = _nm_router.route(_NMTaskType.FAST_RESPONSE)
+                _nm_date_str = _nm_router.call(_nm_model,
+                    f'Convert "{_nm_parts[1]}" to a date in YYYY-MM-DD format. '
+                    f'Today is {datetime.now(_nm_PDT).strftime("%Y-%m-%d")}. '
+                    f'Return only the date string.'
+                ).strip()
+                try:
+                    _nm_block_date = datetime.fromisoformat(_nm_date_str).replace(tzinfo=_nm_PDT)
+                except Exception:
+                    _nm_block_date = datetime.now(_nm_PDT) + timedelta(days=1)
+            else:
+                _nm_block_date = datetime.now(_nm_PDT) + timedelta(days=1)
+
+            _nm_block_start = _nm_block_date.replace(
+                hour=9, minute=0, second=0, microsecond=0
+            )
+            _nm_event = _nm_gws.create_calendar_event(
+                title='🚫 No Meetings Day — Deep Work',
+                start_iso=_nm_block_start.isoformat(),
+                duration_minutes=9 * 60,
+                description='Focus day. No meetings. DEX will decline all invites.',
+            )
+
+            from eos_ai.context import load_context_from_env
+            from eos_ai.db import get_conn
+            import json as _nmjson
+            _nm_ctx = load_context_from_env()
+            with get_conn(_nm_ctx.org_id) as _nm_cur:
+                _nm_cur.execute(
+                    '''
+                    INSERT INTO events
+                    (org_id, event_type, payload_json, handled_by)
+                    VALUES (%s, %s, %s, %s)
+                    ''',
+                    (
+                        str(_nm_ctx.org_id),
+                        'protected_day',
+                        _nmjson.dumps({
+                            'date': _nm_block_date.strftime('%Y-%m-%d'),
+                            'type': 'no_meetings',
+                        }),
+                        'dex_calendar',
+                    ),
+                )
+
+            _nm_date_display = _nm_block_date.strftime('%A, %B %d')
+            await message.channel.send(
+                f'🚫 **{_nm_date_display} blocked as a no-meetings day.**\n'
+                f'Calendar blocked 9am–6pm. '
+                f'Any invites for that day will be auto-declined.'
+            )
+        except Exception as e:
+            await message.channel.send(f'❌ Error: {e}')
+        return
+
     # ── !confirm_event — create a calendar event after conflict warning ───────
     if text.lower() == '!confirm_event':
         _ch_id = str(message.channel.id)
@@ -1374,6 +1470,91 @@ async def on_message(message: discord.Message):
                 await message.channel.send(f'❌ Error: {e}')
         else:
             await message.channel.send('No pending event to confirm.')
+        return
+
+    # ── !meetingroi — show meeting ROI for the last 30 days ──────────────────
+    if text.startswith('!meetingroi'):
+        _roi_parts = text.split()
+        _roi_venture = _roi_parts[1] if len(_roi_parts) > 1 else None
+        try:
+            from eos_ai.meetings import calculate_meeting_roi
+            _roi = calculate_meeting_roi(venture=_roi_venture, days=30)
+            if not _roi or not _roi.get('total'):
+                await message.channel.send(
+                    '📊 No meeting data for the last 30 days.'
+                )
+                return
+            _roi_lines = [
+                f'📊 **Meeting ROI — last 30 days'
+                f'{"  (" + _roi_venture + ")" if _roi_venture else ""}:**',
+                f'Total: {_roi["total"]} | Completed: {_roi["completed"]} | '
+                f'No-show: {_roi["no_show"]} | Cancelled: {_roi["cancelled"]}',
+                f'Completion rate: {_roi["conversion_rate"]:.0%}',
+            ]
+            if _roi['top_converting_type']:
+                _roi_lines.append(f'Best converting type: {_roi["top_converting_type"]}')
+            if _roi.get('by_type'):
+                _roi_lines.append('\n**By type:**')
+                for _mtype, _mdata in _roi['by_type'].items():
+                    _mrate = _mdata['advanced'] / _mdata['total'] if _mdata['total'] > 0 else 0
+                    _roi_lines.append(
+                        f'• {_mtype}: {_mdata["total"]} meetings, '
+                        f'{_mdata["advanced"]} advanced ({_mrate:.0%})'
+                    )
+            await message.channel.send('\n'.join(_roi_lines))
+        except Exception as e:
+            await message.channel.send(f'❌ Error: {e}')
+        return
+
+    # ── !competitive — synthesize competitive landscape for a venture ─────────
+    if text.startswith('!competitive'):
+        _comp_parts = text.split()
+        _comp_venture = _comp_parts[1] if len(_comp_parts) > 1 else 'empyrean_creative'
+        try:
+            from eos_ai.competitive_intel import synthesize_competitive_landscape
+            _comp_analysis = synthesize_competitive_landscape(_comp_venture)
+            await message.channel.send(
+                f'🎯 **Competitive landscape — {_comp_venture}:**\n{_comp_analysis}'
+            )
+        except Exception as e:
+            await message.channel.send(f'❌ Error: {e}')
+        return
+
+    # ── !documents — show recently filed documents ───────────────────────────
+    if text.lower() == '!documents':
+        try:
+            from eos_ai.context import load_context_from_env
+            from eos_ai.db import get_conn
+            import json as _djson
+            _dctx = load_context_from_env()
+            with get_conn(_dctx.org_id) as _dcur:
+                _dcur.execute('''
+                    SELECT payload_json, created_at FROM events
+                    WHERE org_id = %s
+                    AND event_type = 'document_filed'
+                    AND created_at >= NOW() - INTERVAL '30 days'
+                    ORDER BY created_at DESC
+                    LIMIT 10
+                ''', (str(_dctx.org_id),))
+                _drows = _dcur.fetchall()
+
+            if not _drows:
+                await message.channel.send('📁 No documents filed in the last 30 days.')
+                return
+
+            _dlines = ['📁 **Recently filed documents:**']
+            for _dr in _drows:
+                _dpayload = _dr['payload_json']
+                if isinstance(_dpayload, str):
+                    _dpayload = _djson.loads(_dpayload)
+                _dfilename = _dpayload.get('filename', 'Unknown')
+                _dfolder = _dpayload.get('folder', 'Unknown')
+                _dreview = ' ⚠️' if _dpayload.get('requires_review') else ''
+                _dlines.append(f'• {_dfilename} → {_dfolder}{_dreview}')
+
+            await message.channel.send('\n'.join(_dlines))
+        except Exception as e:
+            await message.channel.send(f'❌ Error: {e}')
         return
 
     # ── !audit — show DEX action trail ───────────────────────────────────────
@@ -1439,6 +1620,71 @@ async def on_message(message: discord.Message):
             await message.channel.send(f'❌ Audit failed: {e}')
         return
 
+    # ── !stakeholders — show stakeholder map ─────────────────────────────────
+    if text.lower().startswith('!stakeholders'):
+        _sk_parts = text.split()
+        _sk_venture = _sk_parts[1] if len(_sk_parts) > 1 else None
+        try:
+            from eos_ai.stakeholder_map import get_stakeholders, generate_stakeholder_brief
+            if _sk_venture:
+                _sk_brief = generate_stakeholder_brief(_sk_venture)
+                _sk_list = get_stakeholders(venture=_sk_venture)
+                _sk_lines = [f'**Stakeholder map — {_sk_venture}:**\n{_sk_brief}\n']
+                _sk_lines.append('**Contacts:**')
+                for _s in _sk_list[:8]:
+                    _sk_lines.append(
+                        f'• {_s["name"]} — {_s["role"]} '
+                        f'({_s["influence"]} influence, {_s["status"]})'
+                    )
+            else:
+                _sk_all = get_stakeholders()
+                if not _sk_all:
+                    await message.channel.send(
+                        'No stakeholders mapped yet.\n'
+                        'Add with: `!add_stakeholder [name] | [venture] | [role] | [high/medium/low]`'
+                    )
+                    return
+                _sk_lines = [f'**All stakeholders ({len(_sk_all)}):**']
+                for _s in _sk_all[:10]:
+                    _sk_lines.append(
+                        f'• {_s["name"]} — {_s["venture"]} — '
+                        f'{_s["role"]} ({_s["influence"]})'
+                    )
+            await message.channel.send('\n'.join(_sk_lines))
+        except Exception as e:
+            await message.channel.send(f'❌ Error: {e}')
+        return
+
+    # ── !add_stakeholder — add a stakeholder to the map ──────────────────────
+    if text.lower().startswith('!add_stakeholder'):
+        _ask_parts = text[16:].strip().split('|')
+        if len(_ask_parts) < 3:
+            await message.channel.send(
+                'Usage: `!add_stakeholder [name] | [venture] | [role] | [high/medium/low]`'
+            )
+            return
+        try:
+            from eos_ai.stakeholder_map import add_stakeholder
+            _ask_name = _ask_parts[0].strip()
+            _ask_venture = _ask_parts[1].strip()
+            _ask_role = _ask_parts[2].strip()
+            _ask_influence = _ask_parts[3].strip() if len(_ask_parts) > 3 else 'medium'
+            _ask_ok = add_stakeholder(
+                name=_ask_name,
+                venture=_ask_venture,
+                role=_ask_role,
+                influence=_ask_influence,
+            )
+            if _ask_ok:
+                await message.channel.send(
+                    f'✅ Stakeholder added: {_ask_name} — {_ask_venture} — {_ask_role}'
+                )
+            else:
+                await message.channel.send('❌ Failed to add stakeholder.')
+        except Exception as e:
+            await message.channel.send(f'❌ Error: {e}')
+        return
+
     # ── Calendar write — detect scheduling intent and handle directly ─────────
     _cal_keywords = [
         'schedule', 'book', 'set up a call', 'set up a meeting',
@@ -1500,12 +1746,16 @@ async def on_message(message: discord.Message):
                     description=_parsed.get('description', ''),
                 )
                 if _event:
-                    _cal_reply = (
+                    _attendee = _parsed.get('attendee_email', '')
+                    _time_str = _gws.format_time_for_attendee(
+                        _parsed.get('start_iso', ''),
+                        _attendee,
+                    ) if _attendee else str(_event.get('start', ''))[:16]
+                    await message.channel.send(
                         f"📅 Scheduled: **{_event['title']}**\n"
-                        f"🕐 {_event.get('start', '')}\n"
+                        f"🕐 {_time_str}\n"
                         f"🔗 {_event.get('meet_link', 'No Meet link')}"
                     )
-                    await message.channel.send(_cal_reply)
                     return
             elif _action == 'list':
                 _events = _gws.list_calendar_events(days=14, query=_parsed.get('title'))
@@ -2030,6 +2280,39 @@ async def cmd_approve_followup(ctx: commands.Context):
             )
         else:
             await ctx.reply('No pending follow-up email found.')
+    except Exception as e:
+        await ctx.reply(f'❌ Error: {e}')
+
+
+@bot.command(name='relationship')
+async def cmd_relationship(ctx: commands.Context, *, name: str = ''):
+    """Show relationship health for a contact. Usage: !relationship [name]"""
+    if not name:
+        await ctx.reply('Usage: `!relationship [contact name]`')
+        return
+    try:
+        from eos_ai.person_recognition import (
+            score_relationship_health,
+            build_intelligence_profile,
+        )
+        _health = score_relationship_health(name=name)
+        _profile = build_intelligence_profile(name=name)
+
+        _bar = '█' * int(_health['score'] * 10) + '░' * (10 - int(_health['score'] * 10))
+        _rel_lines = [
+            f'**Relationship: {name}**',
+            f'Health: [{_bar}] {_health["score"]:.0%} — {_health["status"]}',
+            f'Last contact: {_health["last_contact"]}',
+            f'Meetings: {_health["total_meetings"]} total, {_health["completed_meetings"]} completed',
+        ]
+        if _health.get('no_shows'):
+            _rel_lines.append(f'⚠️ {_health["no_shows"]} no-show(s)')
+        if _health.get('factors'):
+            _rel_lines.append(f'Factors: {", ".join(_health["factors"])}')
+        if _profile.notes:
+            _rel_lines.append(f'\n💡 {_profile.notes}')
+
+        await ctx.reply('\n'.join(_rel_lines))
     except Exception as e:
         await ctx.reply(f'❌ Error: {e}')
 
@@ -2576,6 +2859,286 @@ async def post_outreach_alert(alert: str) -> None:
 
 async def post_win(win: str) -> None:
     await post_to_channel('wins', f'🏆 {win}')
+
+
+@bot.command(name='drip')
+async def cmd_drip(ctx: commands.Context, *, args: str = ''):
+    """DRIP Matrix audit. Usage: !drip task1, task2, task3"""
+    if not args.strip():
+        await ctx.reply(
+            '**DRIP Matrix Audit**\n'
+            'List your tasks separated by commas.\n'
+            'Usage: `!drip [task1], [task2], [task3]`'
+        )
+        return
+
+    def _run():
+        try:
+            from eos_ai.drip_matrix import run_drip_audit, format_drip_report
+            tasks = [t.strip() for t in args.replace('\n', ',').split(',') if t.strip()]
+            if not tasks:
+                return 'No tasks found. Separate with commas.'
+            results = run_drip_audit(tasks)
+            return format_drip_report(results)
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    await ctx.reply(f'🔍 Running DRIP audit on {len(args.split(","))} tasks...')
+    loop = asyncio.get_event_loop()
+    report = await loop.run_in_executor(None, _run)
+    for i in range(0, len(report), 1900):
+        await ctx.send(report[i:i + 1900])
+
+
+@bot.command(name='buyback')
+async def cmd_buyback(ctx: commands.Context, income: str = ''):
+    """Set or view Buyback Rate. Usage: !buyback [annual income] or !buyback"""
+    if income.strip():
+        def _run():
+            try:
+                from eos_ai.buyback_rate import calculate_buyback_rate, store_buyback_rate
+                amount = float(income.replace('$', '').replace(',', ''))
+                rate = calculate_buyback_rate(amount)
+                store_buyback_rate(amount)
+                return (
+                    f'💰 **Buyback Rate set:**\n'
+                    f'Annual income: ${amount:,.0f}\n'
+                    f'Hourly rate: ${rate["hourly_rate"]}/hr\n'
+                    f'**Buyback Rate: ${rate["buyback_rate"]}/hr**\n\n'
+                    f'{rate["interpretation"]}'
+                )
+            except Exception as e:
+                return f'❌ Error: {e}'
+        loop = asyncio.get_event_loop()
+        output = await loop.run_in_executor(None, _run)
+    else:
+        def _get():
+            try:
+                from eos_ai.buyback_rate import get_current_buyback_rate
+                rate = get_current_buyback_rate()
+                if rate:
+                    return (
+                        f'💰 **Current Buyback Rate: ${rate["buyback_rate"]}/hr**\n'
+                        f'{rate["interpretation"]}'
+                    )
+                return (
+                    'No Buyback Rate set yet.\n'
+                    'Usage: `!buyback [annual income]`\n'
+                    'Example: `!buyback 120000`'
+                )
+            except Exception as e:
+                return f'❌ Error: {e}'
+        loop = asyncio.get_event_loop()
+        output = await loop.run_in_executor(None, _get)
+    await ctx.reply(output)
+
+
+@bot.command(name='logtime')
+async def cmd_logtime(ctx: commands.Context, *, args: str = ''):
+    """Log a time block. Usage: !logtime [activity] | [minutes] | [energy -2 to 2] | [$ value optional]"""
+    if not args or args.count('|') < 2:
+        await ctx.reply(
+            'Usage: `!logtime [activity] | [minutes] | [energy -2 to 2] | [$ value optional]`\n'
+            'Energy: -2=major drain, -1=drain, 0=neutral, 1=energizing, 2=major energy'
+        )
+        return
+
+    def _run():
+        try:
+            from eos_ai.buyback_rate import log_time_block
+            parts = args.split('|')
+            activity = parts[0].strip()
+            minutes = int(parts[1].strip())
+            energy = int(parts[2].strip())
+            value = float(parts[3].strip().replace('$', '')) if len(parts) > 3 else 0
+            ok = log_time_block(activity, minutes, energy, value)
+            energy_label = {
+                -2: 'Major drain 🔴',
+                -1: 'Drain 🟠',
+                0: 'Neutral ⚪',
+                1: 'Energizing 🟢',
+                2: 'Major energy ⚡',
+            }.get(energy, str(energy))
+            if ok:
+                return f'⏱️ Logged: {activity} — {minutes}min — {energy_label}'
+            return '❌ Failed to log.'
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    loop = asyncio.get_event_loop()
+    output = await loop.run_in_executor(None, _run)
+    await ctx.reply(output)
+
+
+@bot.command(name='timeaudit')
+async def cmd_timeaudit(ctx: commands.Context):
+    """View 7-day time and energy audit summary."""
+    def _run():
+        try:
+            from eos_ai.buyback_rate import get_time_audit_summary
+            summary = get_time_audit_summary(days=7)
+            if not summary.get('total_hours'):
+                return (
+                    '📊 No time logged this week.\n'
+                    'Use `!logtime [activity] | [minutes] | [energy]` to track.'
+                )
+            energy_label = '🟢 Positive' if summary['avg_energy'] > 0 else '🔴 Negative'
+            return (
+                f'📊 **Time Audit — last 7 days:**\n'
+                f'Total tracked: {summary["total_hours"]}h\n'
+                f'Average energy: {energy_label} ({summary["avg_energy"]:+.1f})\n'
+                f'High value work: {summary["high_value_pct"]}%\n'
+                f'Low value work: {summary["low_value_pct"]}%'
+            )
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    loop = asyncio.get_event_loop()
+    output = await loop.run_in_executor(None, _run)
+    await ctx.reply(output)
+
+
+@bot.command(name='perfectweek')
+async def cmd_perfectweek(ctx: commands.Context):
+    """View your perfect week template."""
+    def _run():
+        try:
+            from eos_ai.perfect_week import get_perfect_week
+            week = get_perfect_week()
+            lines = ['**📅 Your Perfect Week:**', '']
+            for day, data in week.items():
+                lines.append(f'**{day.capitalize()} — {data["theme"]}**')
+                lines.append(f'AM: {data["morning"]}')
+                lines.append(f'PM: {data["afternoon"]}')
+                protected = data.get('protected', [])
+                if protected:
+                    lines.append(f'🔒 Protected: {" | ".join(protected)}')
+                lines.append('')
+            return '\n'.join(lines)
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    loop = asyncio.get_event_loop()
+    msg = await loop.run_in_executor(None, _run)
+    for i in range(0, len(msg), 1900):
+        await ctx.send(msg[i:i + 1900])
+
+
+@bot.command(name='camcorder')
+async def cmd_camcorder(ctx: commands.Context, *, args: str = ''):
+    """Create a playbook from how you do a task. Usage: !camcorder [task name] | [describe how you do it]"""
+    if '|' not in args:
+        await ctx.reply(
+            '**Camcorder Method — create a playbook from how you do a task**\n'
+            'Usage: `!camcorder [task name] | [describe how you do it step by step]`\n'
+            'Example: `!camcorder Send proposal | I open the template, fill client name, add pricing, send with note`'
+        )
+        return
+
+    parts = args.split('|', 1)
+    task_name = parts[0].strip()
+    description = parts[1].strip()
+
+    await ctx.reply(f'🎥 Creating playbook for: {task_name}...')
+
+    def _run():
+        try:
+            from eos_ai.perfect_week import create_camcorder_playbook
+            playbook = create_camcorder_playbook(task_name, description)
+            if playbook:
+                preview = playbook[:800]
+                return (
+                    f'✅ **Playbook created:** {task_name}\n'
+                    f'Saved to 06_Skills/Ops/ and registered.\n'
+                    f'```\n{preview}\n```'
+                )
+            return '❌ Playbook creation failed.'
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    loop = asyncio.get_event_loop()
+    output = await loop.run_in_executor(None, _run)
+    await ctx.send(output)
+
+
+@bot.command(name='drive')
+async def cmd_drive(ctx: commands.Context):
+    """View top-level Google Drive folder structure."""
+    def _run():
+        try:
+            from eos_ai.gws_connector import GWSConnector
+            gws = GWSConnector()
+            structure = gws.get_drive_structure()
+            if not structure:
+                return '📁 Could not retrieve Drive structure (check GWS auth).'
+            lines = [f'📁 **Drive structure ({len(structure)} folders):**']
+            for f in structure[:15]:
+                lines.append(f'• {f.get("name", "Unknown")} ({f.get("id", "")})')
+            return '\n'.join(lines)
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    loop = asyncio.get_event_loop()
+    output = await loop.run_in_executor(None, _run)
+    await ctx.reply(output)
+
+
+@bot.command(name='driveaudit')
+async def cmd_driveaudit(ctx: commands.Context):
+    """Audit Google Drive for organization issues."""
+    await ctx.reply('🔍 Auditing Drive...')
+
+    def _run():
+        try:
+            from eos_ai.gws_connector import GWSConnector
+            gws = GWSConnector()
+            issues = gws.audit_drive()
+            lines = ['📁 **Drive Audit:**']
+            root_files = issues.get('root_files', [])
+            untitled = issues.get('untitled', [])
+            if root_files:
+                lines.append(f'\n⚠️ **{len(root_files)} files in root (should be in folders):**')
+                for f in root_files[:5]:
+                    lines.append(f'• {f.get("name", "Unknown")}')
+            if untitled:
+                lines.append(f'\n⚠️ **{len(untitled)} untitled documents:**')
+                for f in untitled[:5]:
+                    lines.append(f'• {f.get("name", "Unknown")}')
+            if not root_files and not untitled:
+                lines.append('✅ Drive looks clean.')
+            return '\n'.join(lines)
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    loop = asyncio.get_event_loop()
+    output = await loop.run_in_executor(None, _run)
+    await ctx.send(output)
+
+
+@bot.command(name='createfolder')
+async def cmd_createfolder(ctx: commands.Context, *, name: str = ''):
+    """Create a folder in Google Drive. Usage: !createfolder [folder name]"""
+    if not name.strip():
+        await ctx.reply('Usage: `!createfolder [folder name]`')
+        return
+
+    def _run():
+        try:
+            from eos_ai.gws_connector import GWSConnector
+            gws = GWSConnector()
+            result = gws.create_folder(name.strip())
+            if result.get('id'):
+                return (
+                    f'📁 Folder created: **{name}**\n'
+                    f'ID: {result["id"]}'
+                )
+            return '❌ Failed to create folder.'
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    loop = asyncio.get_event_loop()
+    output = await loop.run_in_executor(None, _run)
+    await ctx.reply(output)
 
 
 # ─── Entry point ──────────────────────────────────────────────────────────────
