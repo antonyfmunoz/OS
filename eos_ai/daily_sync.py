@@ -1,167 +1,386 @@
 """
-DailySyncEngine — Dan Martell's Daily Sync Meeting format.
+DailySync — Dan Martell's Daily Sync Meeting format.
 
 DEX drives the meeting. Antony just responds.
 Posted at 6am in #morning-brief via Discord.
 
-7-section agenda (exact Martell system):
-  1. Calendar review
-  2. Purchases / expenses
-  3. Past meeting action items
-  4. Antony's action items
-  5. Pipeline feedback loop
-  6. Emails for review (REVIEW folder only)
-  7. Questions for Antony (shrinks as DEX clones)
+7-section agenda (soul doc exact order):
+  1. Your list      — Antony's ideas/requests for DEX captured from Discord
+  2. Calendar       — 6 weeks on Mondays, 2 weeks other days.
+  3. Past meetings  — open loops from Notion Meetings DB
+  4. Action items   — dex_task events, deduplicated
+  5. Projects       — active work + blockers
+  6. Emails         — TO_RESPOND + REVIEW from GPS
+  7. Questions      — unanswered dex_question events (omitted if none)
 
-The cloning goal: Section 7 starts long.
-Over time it shrinks to zero.
-DEX learns Antony's decisions.
-DEX responds without asking.
-This is the goal: DEX = Antony's clone.
+The cloning goal: every question answered trains DEX not to ask it again.
+DEX responds without asking. This is the goal: DEX = Antony's clone.
 """
 
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
 
 
 @dataclass
 class SyncAgenda:
     date: str
-    calendar_review: list[str]       = field(default_factory=list)
-    purchases_expenses: list[str]    = field(default_factory=list)
-    past_meeting_actions: list[str]  = field(default_factory=list)
-    antony_action_items: list[str]   = field(default_factory=list)
-    pipeline_feedback: list[str]     = field(default_factory=list)
-    emails_for_review: list[str]     = field(default_factory=list)
-    questions_for_antony: list[str]  = field(default_factory=list)
+    your_list: list[str]             = field(default_factory=list)  # S1
+    calendar_review: list[str]       = field(default_factory=list)  # S2
+    past_meeting_actions: list[str]  = field(default_factory=list)  # S3
+    action_items: list[str]          = field(default_factory=list)  # S4
+    project_updates: list[str]       = field(default_factory=list)  # S5
+    emails: list[str]                = field(default_factory=list)  # S6
+    questions: list[str]             = field(default_factory=list)  # S7 (omitted if empty)
+    is_monday: bool                  = False
+    top_item_reason: str             = ''                            # S4 priority reason
+    goal_alignment: str              = ''                            # goal-to-action check
+    subscription_alerts: list        = field(default_factory=list)  # renewal warnings
 
 
-class DailySyncEngine:
+def _normalize_task(text: str) -> str:
+    """Strip 'TASK:' prefix and normalize for dedup comparison."""
+    t = text.strip()
+    if t.upper().startswith('TASK:'):
+        t = t[5:].strip()
+    return t.lower()
+
+
+class DailySync:
 
     def __init__(self, ctx):
         self.ctx = ctx
 
     def build_agenda(self) -> SyncAgenda:
-        """Pull live data for each of the 7 agenda sections."""
-        agenda = SyncAgenda(date=date.today().strftime('%A, %B %d'))
+        today     = date.today()
+        is_monday = today.weekday() == 0  # Monday = 0
+        agenda    = SyncAgenda(
+            date=today.strftime('%A, %B %d'),
+            is_monday=is_monday,
+        )
 
-        # ── Section 1: Calendar ──────────────────────────────────────────
+        # ── Section 1: Your list (Antony's requests for DEX) ─────────────
+        # Items Antony dropped in Discord for DEX to handle.
+        # dex_task events only — questions go to S7.
+        try:
+            import json
+            from eos_ai.db import get_conn
+            with get_conn(self.ctx.org_id) as cur:
+                cur.execute('''
+                    SELECT payload_json
+                    FROM events
+                    WHERE org_id = %s
+                      AND event_type = 'dex_task'
+                      AND (
+                        payload_json->>'status' IS NULL
+                        OR payload_json->>'completed' = 'false'
+                      )
+                    ORDER BY created_at DESC
+                    LIMIT 5
+                ''', (self.ctx.org_id,))
+                for row in cur.fetchall():
+                    data = row[0]
+                    if isinstance(data, str):
+                        data = json.loads(data)
+                    text = data.get('task', '')
+                    if text:
+                        agenda.your_list.append(text[:80])
+        except Exception as e:
+            print(f'[DailySync] Your list: {e}')
+
+        # ── Section 2: Calendar review ────────────────────────────────────
+        # Mondays: 6 weeks out. Other days: 2 weeks out.
         try:
             from eos_ai.gws_connector import GWSConnector
-            gws    = GWSConnector()
-            events = gws.get_today_events()
-            for e in events[:5]:
-                title = e.get('title', '') or e.get('summary', '')
-                start = e.get('start', '')
+            gws  = GWSConnector()
+            days = 42 if is_monday else 14
+            events = gws.get_upcoming_events(days=days)
+            if is_monday:
+                agenda.calendar_review.append('📅 Monday — 6-week calendar review')
+            for e in events[:10]:
+                title    = e.get('title', 'Untitled')
+                start    = e.get('start', '')
+                location = e.get('location', '')
+                desc     = e.get('description', '')
+                meet     = e.get('meet_link', '')
+
                 if start and 'T' in str(start):
-                    start = str(start).split('T')[1][:5]
-                elif isinstance(start, dict):
-                    dt = start.get('dateTime', '') or start.get('date', '')
-                    if dt and 'T' in dt:
-                        start = dt.split('T')[1][:5]
-                    else:
-                        start = dt
-                agenda.calendar_review.append(f'{start} — {title}')
+                    try:
+                        dt    = datetime.fromisoformat(str(start).replace('Z', '+00:00'))
+                        label = dt.strftime('%a %b %d %I:%M%p').lstrip('0')
+                    except Exception:
+                        label = str(start)[:16]
+                else:
+                    label = str(start)[:10] if start else '?'
+
+                missing = []
+                if not location and not meet:
+                    missing.append('no location/link')
+                if not desc:
+                    missing.append('no description')
+
+                line = f'{label} — {title}'
+                if missing:
+                    line += f' ⚠️ {", ".join(missing)}'
+                agenda.calendar_review.append(line)
+
         except Exception as e:
             print(f'[DailySync] Calendar: {e}')
 
-        # ── Section 2: Receipts / purchases ─────────────────────────────
+        # ── Section 3: Past meetings — open loops ────────────────────────
+        # Completed calls with unresolved follow-ups from Notion Meetings DB.
         try:
-            from eos_ai.gws_connector import GWSConnector
-            gws       = GWSConnector()
-            # Look specifically for financial emails
-            financials = gws.get_recent_emails(
-                max_results=20,
-                query='receipt OR invoice OR payment OR order',
-            )
-            for email in financials[:5]:
-                subject = email.get('subject', '')
-                if subject:
-                    agenda.purchases_expenses.append(subject[:60])
+            from eos_ai.meetings import get_open_loop_meetings
+            _open_loops = get_open_loop_meetings(days_back=7)
+            if _open_loops:
+                for m in _open_loops:
+                    person       = m.get('person', '')
+                    meeting_date = m.get('date', '')[:10]
+                    loops        = m.get('open_loops', '')
+                    if person and loops:
+                        agenda.past_meeting_actions.append(
+                            f"{person} ({meeting_date}): {loops[:80]}"
+                        )
+            if not agenda.past_meeting_actions:
+                agenda.past_meeting_actions.append('No open loops from past 7 days.')
         except Exception as e:
-            print(f'[DailySync] Purchases: {e}')
+            print(f'[DailySync] Past meetings: {e}')
 
-        # ── Section 3 & 4: Action items ──────────────────────────────────
-        try:
-            from eos_ai.accountability import AccountabilityEngine
-            ae      = AccountabilityEngine(self.ctx)
-            pending = ae.get_pending_follow_ups()
-            for item in pending[:5]:
-                text = item.get('text', '') or item.get('description', '')
-                if text:
-                    agenda.antony_action_items.append(text[:80])
-        except Exception as e:
-            print(f'[DailySync] Action items: {e}')
-
-        # ── Section 5: Pipeline feedback ─────────────────────────────────
+        # ── Section 4: Action items (deduplicated) ───────────────────────
+        # dex_task events from the last 7 days, not completed.
+        # Normalized dedup: strip "TASK:" prefix, case-insensitive.
         try:
             import json
             from eos_ai.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute('''
-                    SELECT payload_json
-                    FROM events
+                    SELECT payload_json FROM events
                     WHERE org_id = %s
-                    AND event_type = 'pipeline_entry'
+                    AND event_type = 'dex_task'
+                    AND (payload_json->>\'status\' IS NULL
+                         OR payload_json->>\'status\' != \'completed\')
+                    AND created_at >= NOW() - INTERVAL \'7 days\'
                     ORDER BY created_at DESC
-                    LIMIT 5
-                ''', (self.ctx.org_id,))
+                    LIMIT 20
+                ''', (str(self.ctx.org_id),))
                 rows = cur.fetchall()
-                for row in rows:
-                    data = row[0]
-                    if isinstance(data, str):
-                        data = json.loads(data)
-                    name  = data.get('name', '')
-                    stage = data.get('stage', '')
-                    if name:
-                        agenda.pipeline_feedback.append(f'{name} → {stage}')
-        except Exception as e:
-            print(f'[DailySync] Pipeline: {e}')
 
-        # ── Section 6: REVIEW folder emails ──────────────────────────────
-        try:
-            from eos_ai.email_gps import EmailGPS, EmailFolder
-            gps       = EmailGPS(self.ctx)
-            processed = gps.process_inbox(limit=20)
-            review    = processed.get(EmailFolder.REVIEW, [])
-            for e in review[:5]:
-                sender = e.from_name or e.from_address
-                agenda.emails_for_review.append(
-                    f'{sender}: {e.subject[:50]}'
+            seen_normalized: set[str] = set()
+            for r in rows:
+                payload = r['payload_json'] if isinstance(r['payload_json'], dict) else json.loads(r['payload_json'])
+                task = payload.get('task', payload.get('description', ''))
+                if not task:
+                    continue
+                norm = _normalize_task(task)
+                if norm in seen_normalized:
+                    continue
+                seen_normalized.add(norm)
+                # Store clean version (strip TASK: prefix)
+                clean = task.strip()
+                if clean.upper().startswith('TASK:'):
+                    clean = clean[5:].strip()
+                agenda.action_items.append(clean[:100])
+
+            if not agenda.action_items:
+                agenda.action_items = ['No open action items.']
+        except Exception as e:
+            agenda.action_items = [f'Action items unavailable: {e}']
+
+        # ── Section 4b: Prioritize action items ─────────────────────────
+        if len(agenda.action_items) > 1:
+            try:
+                from eos_ai.model_router import get_router, TaskType
+                from eos_ai.portfolio_agent import PortfolioAgent
+                import json as _pjson
+                router = get_router()
+                model = router.route(TaskType.FAST_RESPONSE)
+
+                pa = PortfolioAgent(self.ctx)
+                ventures = pa.scan_all_ventures()
+                binding = pa.identify_binding_constraint(ventures)
+                constraint = binding.recommendation if binding else ''
+
+                items_text = '\n'.join(
+                    f'{i+1}. {item}'
+                    for i, item in enumerate(agenda.action_items)
                 )
-        except Exception as e:
-            print(f'[DailySync] Emails: {e}')
+                prompt = (
+                    'You are DEX, EA to Antony Munoz.\n'
+                    f'Portfolio binding constraint: {constraint}\n\n'
+                    'Rank these action items by priority (highest leverage first).\n'
+                    'Consider: revenue impact, binding constraint alignment, '
+                    'time sensitivity, dependencies.\n\n'
+                    f'Items:\n{items_text}\n\n'
+                    'Return JSON only:\n'
+                    '{"ranked": ["item text in priority order"], '
+                    '"top_item_reason": "one sentence why #1 is first"}'
+                )
+                result = router.call(model, prompt).strip()
+                if '```' in result:
+                    result = result.split('```')[1].replace('json', '').strip()
+                ranked = _pjson.loads(result)
+                agenda.action_items = ranked.get('ranked', agenda.action_items)
+                agenda.top_item_reason = ranked.get('top_item_reason', '')
+            except Exception as e:
+                print(f'[DailySync] Prioritization failed: {e}')
+                agenda.top_item_reason = ''
 
-        # ── Section 7: Questions for Antony (DEX uncertainty log) ────────
-        # Shrinks over time as DEX learns Antony's decision patterns.
-        # Goal: reaches zero — DEX is a full clone.
+        # ── Section 4c: Goal alignment — does today's top item move the needle?
         try:
-            import json
+            from eos_ai.model_router import get_router, TaskType
+            from eos_ai.portfolio_agent import PortfolioAgent
+            _router = get_router()
+            _model = _router.route(TaskType.FAST_RESPONSE)
+
+            _pa = PortfolioAgent(self.ctx)
+            _ventures = _pa.scan_all_ventures()
+            _binding = _pa.identify_binding_constraint(_ventures)
+            _constraint = _binding.recommendation if _binding else 'Close the first Initiate Arena client'
+
+            _top_item = agenda.action_items[0] if agenda.action_items else ''
+            if _top_item and _top_item != 'No open action items.':
+                _align_prompt = (
+                    'You are DEX, EA to Antony Munoz.\n\n'
+                    f'Binding constraint: {_constraint}\n'
+                    f'Top action item today: {_top_item}\n\n'
+                    'In one sentence: does this action item move the needle on the binding '
+                    'constraint? If yes, say why briefly. If no, say what should replace it.\n'
+                    'Be direct. No hedging.'
+                )
+                agenda.goal_alignment = _router.call(_model, _align_prompt).strip()
+        except Exception:
+            agenda.goal_alignment = ''
+
+        # ── Section 5: Projects ──────────────────────────────────────────
+        # In-progress items from all three Notion Tasks databases.
+        try:
+            import requests as _req
+            import os as _os
+            _token = _os.getenv('NOTION_API_KEY')
+            _headers = {
+                'Authorization': f'Bearer {_token}',
+                'Notion-Version': '2022-06-28',
+                'Content-Type': 'application/json',
+            }
+            _dbs = {
+                'Lyfe Institute':    _os.getenv('NOTION_YOUR_LIST_LYFE'),
+                'Empyrean Creative': _os.getenv('NOTION_YOUR_LIST_EMPYREAN'),
+                'Personal Brand':    _os.getenv('NOTION_YOUR_LIST_BRAND'),
+            }
+            agenda.project_updates = []
+            for _venture, _db_id in _dbs.items():
+                if not _db_id:
+                    continue
+                _resp = _req.post(
+                    f'https://api.notion.com/v1/databases/{_db_id}/query',
+                    headers=_headers,
+                    json={
+                        'filter': {'property': 'Status', 'select': {'equals': 'In progress'}},
+                        'page_size': 5,
+                    },
+                    timeout=10,
+                )
+                _results = _resp.json().get('results', [])
+                for _r in _results:
+                    _props = _r.get('properties', {})
+                    _name = _props.get('Name', {}).get('title', [{}])[0].get('plain_text', '')
+                    _priority = _props.get('Priority', {}).get('select', {}).get('name', '')
+                    if _name:
+                        _line = f'[{_venture}] {_name}'
+                        if _priority:
+                            _line += f' ({_priority})'
+                        agenda.project_updates.append(_line)
+            if not agenda.project_updates:
+                agenda.project_updates = ['No active projects in progress.']
+        except Exception as e:
+            agenda.project_updates = [f'Projects unavailable: {e}']
+
+        # ── Section 6: Emails ────────────────────────────────────────────
+        # TO_RESPOND + REVIEW from GPS labels.
+        try:
+            from eos_ai.email_gps import EmailGPS
+            gps            = EmailGPS(self.ctx)
+            review_emails  = gps.get_emails_for_review(limit=5)
+            respond_emails = gps.get_emails_to_respond(limit=5)
+            agenda.emails  = []
+            seen_emails: set[tuple[str, str]] = set()
+
+            def _dedup_email(e: dict) -> str | None:
+                key = (e.get('from', '').strip().lower(), e.get('subject', '').strip().lower())
+                if key in seen_emails:
+                    return None
+                seen_emails.add(key)
+                return f'\u2022 {e.get("from", "")} \u2014 {e.get("subject", "")[:80]}'
+
+            if respond_emails:
+                respond_lines = [l for e in respond_emails if (l := _dedup_email(e))]
+                if respond_lines:
+                    agenda.emails.append(f'**To Respond ({len(respond_lines)}):**')
+                    agenda.emails.extend(respond_lines)
+            if review_emails:
+                review_lines = [l for e in review_emails if (l := _dedup_email(e))]
+                if review_lines:
+                    agenda.emails.append(f'**To Review ({len(review_lines)}):**')
+                    agenda.emails.extend(review_lines)
+            if not agenda.emails:
+                agenda.emails = ['Inbox clear.']
+        except Exception as e:
+            agenda.emails = [f'Email unavailable: {e}']
+
+        # ── Section 7: Questions (unanswered dex_question events) ────────
+        # Only populated if there are real questions DEX cannot resolve alone.
+        try:
+            import json as _json
             from eos_ai.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute('''
-                    SELECT payload_json
-                    FROM events
+                    SELECT payload_json FROM events
                     WHERE org_id = %s
                     AND event_type = 'dex_question'
-                    AND payload_json->>'answered' = 'false'
+                    AND (payload_json->>\'answered\' IS NULL
+                         OR payload_json->>\'answered\' != \'true\')
+                    AND created_at >= NOW() - INTERVAL \'48 hours\'
                     ORDER BY created_at DESC
                     LIMIT 5
-                ''', (self.ctx.org_id,))
+                ''', (str(self.ctx.org_id),))
                 rows = cur.fetchall()
-                for row in rows:
-                    data = row[0]
-                    if isinstance(data, str):
-                        data = json.loads(data)
-                    q = data.get('question', '')
-                    if q:
-                        agenda.questions_for_antony.append(q[:80])
-        except Exception as e:
-            print(f'[DailySync] Questions: {e}')
+            for r in rows:
+                payload = r['payload_json'] if isinstance(r['payload_json'], dict) else _json.loads(r['payload_json'])
+                q = payload.get('question', '')
+                if q:
+                    agenda.questions.append(q[:150])
+        except Exception:
+            pass  # Questions section simply omitted on error
+
+        # Subscription renewal alerts
+        try:
+            from eos_ai.subscription_tracker import get_upcoming_renewals
+            renewals = get_upcoming_renewals(days=7)
+            if renewals:
+                agenda.subscription_alerts = [
+                    f'• {r["vendor"]} renews in {r["days_until"]}d — ${r["amount"]}'
+                    for r in renewals
+                ]
+        except Exception:
+            pass
 
         return agenda
 
-    def format_sync_message(self, agenda: SyncAgenda) -> str:
+    def _get_closing_line(self) -> str:
+        """Return the binding constraint recommendation for the lowest health venture."""
+        try:
+            from eos_ai.portfolio_agent import PortfolioAgent
+            pa       = PortfolioAgent(self.ctx)
+            ventures = pa.scan_all_ventures()
+            binding  = pa.identify_binding_constraint(ventures)
+            if binding and binding.recommendation:
+                return binding.recommendation
+            if binding and binding.binding_constraint:
+                return binding.binding_constraint
+        except Exception:
+            pass
+        return 'Close the first Initiate Arena client.'
+
+    def format_sync_message(self, agenda: SyncAgenda, closing_line: str = '') -> str:
         """Format agenda into Discord-ready message. DEX drives."""
         lines = [
             '━━━━━━━━━━━━━━━━━━━━━━━━',
@@ -170,76 +389,88 @@ class DailySyncEngine:
             '',
         ]
 
-        # 1. Calendar
-        lines.append('**1. 📅 Calendar Today**')
+        # 1. Your list
+        lines.append('**1. 📝 Your List**')
+        if agenda.your_list:
+            for item in agenda.your_list:
+                lines.append(f'  • {item}')
+        else:
+            lines.append('  No pending requests')
+        lines.append('')
+
+        # 2. Calendar
+        week_range = '6-week view' if agenda.is_monday else '2-week view'
+        lines.append(f'**2. 📅 Calendar ({week_range})**')
         if agenda.calendar_review:
             for item in agenda.calendar_review:
                 lines.append(f'  • {item}')
         else:
-            lines.append('  Clear — no meetings')
+            lines.append('  Clear — no upcoming meetings')
         lines.append('')
 
-        # 2. Purchases
-        if agenda.purchases_expenses:
-            lines.append('**2. 💳 Purchases/Expenses**')
-            for item in agenda.purchases_expenses:
-                lines.append(f'  • {item}')
-            lines.append('')
+        # 3. Past meetings
+        lines.append('**3. 🔄 Past Meetings — Open Loops**')
+        for item in agenda.past_meeting_actions:
+            lines.append(f'  • {item}')
+        lines.append('')
 
-        # 3. Past meeting actions
-        if agenda.past_meeting_actions:
-            lines.append('**3. 🔄 Past Meeting Actions**')
-            for item in agenda.past_meeting_actions:
+        # 4. Action items (prioritized)
+        lines.append('**4. ✅ Action Items**')
+        for i, item in enumerate(agenda.action_items):
+            if i == 0 and len(agenda.action_items) > 1:
+                lines.append(f'  • **{item}**')
+                if agenda.top_item_reason:
+                    lines.append(f'    ↳ _{agenda.top_item_reason}_')
+            else:
                 lines.append(f'  • {item}')
-            lines.append('')
+        lines.append('')
 
-        # 4. Antony's action items
-        if agenda.antony_action_items:
-            lines.append('**4. ✅ Your Action Items**')
-            for item in agenda.antony_action_items:
+        # 5. Projects
+        lines.append('**5. 🎯 Projects**')
+        if agenda.project_updates:
+            for item in agenda.project_updates:
                 lines.append(f'  • {item}')
-            lines.append('')
         else:
-            lines.append('**4. ✅ Action Items:** None pending')
-            lines.append('')
+            lines.append('  No new activity')
+        lines.append('')
 
-        # 5. Pipeline
-        if agenda.pipeline_feedback:
-            lines.append('**5. 🎯 Pipeline Updates**')
-            for item in agenda.pipeline_feedback:
-                lines.append(f'  • {item}')
-            lines.append('')
+        # 6. Emails
+        lines.append('**6. 📧 Emails**')
+        for item in agenda.emails:
+            lines.append(f'  {item}')
+        lines.append('')
 
-        # 6. Emails for review
-        if agenda.emails_for_review:
-            lines.append('**6. 📬 Emails — Review Folder**')
-            for item in agenda.emails_for_review:
-                lines.append(f'  • {item}')
-            lines.append('')
-        else:
-            lines.append('**6. 📬 Emails:** Nothing needs you')
-            lines.append('')
-
-        # 7. Questions (shrinks over time as DEX clones Antony)
-        if agenda.questions_for_antony:
+        # 7. Questions (only if any)
+        if agenda.questions:
             lines.append('**7. ❓ Questions for You**')
-            for item in agenda.questions_for_antony:
+            for item in agenda.questions:
                 lines.append(f'  • {item}')
             lines.append('')
 
-        # Closing — the only thing that matters
+        # Subscription renewal alerts
+        if agenda.subscription_alerts:
+            lines.append('**💳 Renewals this week:**')
+            for alert in agenda.subscription_alerts:
+                lines.append(f'  {alert}')
+            lines.append('')
+
+        # Closing
         lines.extend([
             '━━━━━━━━━━━━━━━━━━━━━━━━',
-            '**The only thing that matters today:**',
-            'Send 20 DMs for Lyfe Institute.',
-            'I handle everything else.',
-            '',
-            '— DEX',
+            f'**The one thing that matters today:** {closing_line}',
         ])
+        if agenda.goal_alignment:
+            lines.append(f'_💡 {agenda.goal_alignment}_')
+        lines.extend(['', '— DEX'])
 
         return '\n'.join(lines)
 
     def run_sync(self) -> str:
         """Build agenda and return formatted sync message."""
-        agenda = self.build_agenda()
-        return self.format_sync_message(agenda)
+        agenda       = self.build_agenda()
+        closing_line = self._get_closing_line()
+        return self.format_sync_message(agenda, closing_line)
+
+
+# Alias for backwards compatibility
+DailySyncEngine = DailySync
