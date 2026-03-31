@@ -86,7 +86,7 @@ Return JSON only:
         data['quadrant_info'] = DRIP_QUADRANTS.get(quadrant_key, DRIP_QUADRANTS['delegate'])
         return data
     except Exception as e:
-        logger.warning(f'[DRIP] classify failed: {e}')
+        logger.warning(f'[TaskYield] classify failed: {e}')
         return {
             'quadrant': 'delegate',
             'quadrant_info': DRIP_QUADRANTS['delegate'],
@@ -142,7 +142,7 @@ def run_yield_audit(tasks: list[str], ctx=None) -> dict:
                 ),
             )
     except Exception as e:
-        logger.warning(f'[DRIP] audit persist failed: {e}')
+        logger.warning(f'[TaskYield] audit persist failed: {e}')
 
     return results
 
