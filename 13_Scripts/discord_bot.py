@@ -3952,6 +3952,124 @@ async def cmd_okr(ctx: commands.Context, subcommand: str = 'report', *, args: st
         await ctx.reply('Usage: `!okr report` or `!okr set [venture] | [objective] | [KRs...]`')
 
 
+@bot.command(name='event')
+async def cmd_event(ctx: commands.Context, *, args: str = ''):
+    """Manage events. Usage: !event list | !event [name] | [type] | [date] | [location] | [budget]"""
+    if not args or args.strip() == 'list':
+        try:
+            from eos_ai.event_manager import get_events
+            events = get_events()
+            if not events:
+                await ctx.reply(
+                    '📅 No upcoming events.\n'
+                    'Create: `!event [name] | [type] | [date] | [location] | [budget]`\n'
+                    'Types: conference, offsite, client_dinner, team_event, speaking, podcast'
+                )
+                return
+            lines = [f'📅 **Upcoming events ({len(events)}):**']
+            for e in events[:6]:
+                lines.append(
+                    f'• {e["name"]} — {e["type"]} — '
+                    f'{e["date"]} — {e.get("location", "TBD")}'
+                )
+                incomplete = sum(1 for c in e.get('checklist', []) if not c.get('done'))
+                if incomplete:
+                    lines.append(f'  ⚠️ {incomplete} checklist items open')
+            await ctx.reply('\n'.join(lines))
+        except Exception as e:
+            await ctx.reply(f'❌ Error: {e}')
+        return
+
+    if '|' in args:
+        parts = [p.strip() for p in args.split('|')]
+        try:
+            from eos_ai.event_manager import create_event
+            budget = 0.0
+            if len(parts) > 4:
+                try:
+                    budget = float(parts[4].replace('$', '').replace(',', ''))
+                except ValueError:
+                    budget = 0.0
+            event = create_event(
+                name=parts[0],
+                event_type=parts[1] if len(parts) > 1 else 'other',
+                date=parts[2] if len(parts) > 2 else '',
+                location=parts[3] if len(parts) > 3 else '',
+                budget=budget,
+            )
+            if event.get('name'):
+                checklist_count = len(event.get('checklist', []))
+                await ctx.reply(
+                    f'📅 **Event created: {event["name"]}**\n'
+                    f'Type: {event["type"]} | Date: {event["date"]}\n'
+                    f'✅ {checklist_count} checklist items generated'
+                )
+            else:
+                await ctx.reply('❌ Failed to create event.')
+        except Exception as e:
+            await ctx.reply(f'❌ Error: {e}')
+    else:
+        await ctx.reply(
+            'Usage:\n'
+            '`!event list` — view upcoming events\n'
+            '`!event [name] | [type] | [date] | [location] | [budget]` — create event'
+        )
+
+
+@bot.command(name='talkingpoints')
+async def cmd_talkingpoints(ctx: commands.Context, *, args: str = ''):
+    """Draft talking points. Usage: !talkingpoints [topic] | [audience] | [duration min] | [format]"""
+    parts = [p.strip() for p in args.split('|')]
+    if len(parts) < 2:
+        await ctx.reply(
+            'Usage: `!talkingpoints [topic] | [audience] | [duration min] | [format]`\n'
+            'Formats: talk, panel, podcast, interview, workshop, webinar'
+        )
+        return
+    try:
+        from eos_ai.event_manager import draft_talking_points
+        await ctx.reply('📝 Drafting talking points...')
+        topic = parts[0]
+        audience = parts[1]
+        duration = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 30
+        fmt = parts[3] if len(parts) > 3 else 'talk'
+        points = draft_talking_points(topic, audience, duration, fmt)
+        for i in range(0, len(points), 1900):
+            await ctx.reply(points[i:i + 1900])
+    except Exception as e:
+        await ctx.reply(f'❌ Error: {e}')
+
+
+@bot.command(name='pr')
+async def cmd_pr(ctx: commands.Context, *, args: str = ''):
+    """Log PR inquiry. Usage: !pr [outlet] | [contact] | [email] | [topic] | [deadline]"""
+    if '|' not in args:
+        await ctx.reply(
+            'Usage: `!pr [outlet] | [contact name] | [email] | [topic] | [deadline]`\n'
+            'Example: `!pr TechCrunch | Jane Smith | jane@tc.com | AI in business | March 15`'
+        )
+        return
+    try:
+        from eos_ai.event_manager import log_pr_media_inquiry
+        parts = [p.strip() for p in args.split('|')]
+        ok = log_pr_media_inquiry(
+            outlet=parts[0],
+            contact_name=parts[1] if len(parts) > 1 else '',
+            contact_email=parts[2] if len(parts) > 2 else '',
+            topic=parts[3] if len(parts) > 3 else '',
+            deadline=parts[4] if len(parts) > 4 else '',
+        )
+        if ok:
+            await ctx.reply(
+                f'📰 PR inquiry logged: {parts[0]}\n'
+                f'Contact: {parts[1] if len(parts) > 1 else "Unknown"}'
+            )
+        else:
+            await ctx.reply('❌ Failed to log PR inquiry.')
+    except Exception as e:
+        await ctx.reply(f'❌ Error: {e}')
+
+
 # ─── Entry point ──────────────────────────────────────────────────────────────
 
 if __name__ == '__main__':
