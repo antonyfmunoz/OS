@@ -40,6 +40,7 @@ class SyncAgenda:
     recurring_3: list = field(default_factory=list)  # DEX owns daily
     dex_items: list = field(default_factory=list)        # S4 tasks below BBR
     quarterly_rocks: list = field(default_factory=list)  # from preloaded year
+    important_dates: list = field(default_factory=list)  # upcoming personal dates
 
 
 def _normalize_task(text: str) -> str:
@@ -442,6 +443,20 @@ Return JSON only:
         except Exception:
             pass
 
+        # ── Upcoming important dates (next 14 days) ──────────────────────
+        try:
+            from eos_ai.personal_admin import get_upcoming_dates
+            upcoming = get_upcoming_dates(days=14, ctx=self.ctx)
+            if upcoming:
+                agenda.important_dates = [
+                    f'{d["person"]} — {d["type"]} in {d["days_until"]} days'
+                    for d in upcoming[:3]
+                ]
+            else:
+                agenda.important_dates = []
+        except Exception:
+            agenda.important_dates = []
+
         return agenda
 
     def _get_closing_line(self) -> str:
@@ -548,6 +563,13 @@ Return JSON only:
             lines.append('**💳 Renewals this week:**')
             for alert in agenda.subscription_alerts:
                 lines.append(f'  {alert}')
+            lines.append('')
+
+        # Important dates
+        if agenda.important_dates:
+            lines.append('**🗓️ Coming up:**')
+            for d in agenda.important_dates:
+                lines.append(f'  • {d}')
             lines.append('')
 
         # Closing
