@@ -38,6 +38,8 @@ class SyncAgenda:
     first_3: list = field(default_factory=list)   # DEX handles in first hour
     last_3: list = field(default_factory=list)    # Antony must complete today
     recurring_3: list = field(default_factory=list)  # DEX owns daily
+    dex_items: list = field(default_factory=list)        # S4 tasks below BBR
+    quarterly_rocks: list = field(default_factory=list)  # from preloaded year
 
 
 def _normalize_task(text: str) -> str:
@@ -253,6 +255,13 @@ class DailySync:
         except Exception:
             agenda.goal_alignment = ''
 
+        # ── Quarterly rocks from preloaded year ─────────────────────────
+        try:
+            from eos_ai.perfect_week import get_current_quarter_rocks
+            agenda.quarterly_rocks = get_current_quarter_rocks(self.ctx)
+        except Exception:
+            agenda.quarterly_rocks = []
+
         # ── 3-3-3 Framework (Dan Martell) ────────────────────────────────────
         try:
             from eos_ai.model_router import get_router, TaskType
@@ -288,6 +297,23 @@ Return JSON only:
             agenda.recurring_3 = _333_data.get('recurring_3', [])
         except Exception as _e333:
             print(f'[DailySync] 3-3-3 generation failed: {_e333}')
+
+        # ── DRIP split — filter delegate tasks to dex_items ─────────────
+        try:
+            from eos_ai.drip_matrix import classify_task_drip
+            antony_items = []
+            dex_items = []
+            for item in agenda.action_items[:10]:
+                drip = classify_task_drip(item)
+                if drip.get('quadrant') in ('produce', 'invest'):
+                    antony_items.append(item)
+                else:
+                    dex_items.append(item)
+            if antony_items or dex_items:
+                agenda.action_items = antony_items
+                agenda.dex_items = dex_items
+        except Exception:
+            agenda.dex_items = []
 
         # ── Section 5: Projects ──────────────────────────────────────────
         # In-progress items from all three Notion Tasks databases.
@@ -531,6 +557,18 @@ Return JSON only:
         ])
         if agenda.goal_alignment:
             lines.append(f'_💡 {agenda.goal_alignment}_')
+        if agenda.quarterly_rocks:
+            from datetime import datetime as _dt
+            _q = f'Q{(_dt.now().month - 1) // 3 + 1}'
+            lines.append(
+                f'_🪨 {_q} Rocks: {" | ".join(agenda.quarterly_rocks[:3])}_'
+            )
+        if agenda.dex_items:
+            lines.append(
+                f'_🤖 DEX handling ({len(agenda.dex_items)} below BBR):_'
+            )
+            for item in agenda.dex_items[:3]:
+                lines.append(f'  • {item[:60]}')
         lines.extend(['', '— DEX'])
 
         return '\n'.join(lines)
