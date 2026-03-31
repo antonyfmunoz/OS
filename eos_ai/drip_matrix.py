@@ -81,8 +81,7 @@ Return JSON only:
 
         if '```' in result:
             result = result.split('```')[1].replace('json', '').strip()
-        import json as _json
-        data = _json.loads(result)
+        data = json.loads(result)
         quadrant_key = data.get('quadrant', 'delegate')
         data['quadrant_info'] = DRIP_QUADRANTS.get(quadrant_key, DRIP_QUADRANTS['delegate'])
         return data
@@ -117,6 +116,16 @@ def run_drip_audit(tasks: list[str], ctx=None) -> dict:
         from eos_ai.context import load_context_from_env
         from eos_ai.db import get_conn
         ctx = ctx or load_context_from_env()
+        # Strip derived quadrant_info before persisting to Neon
+        clean_results = {}
+        for quadrant, items in results.items():
+            if quadrant == 'summary':
+                clean_results[quadrant] = items
+                continue
+            clean_results[quadrant] = [
+                {k: v for k, v in item.items() if k != 'quadrant_info'}
+                for item in items
+            ]
         with get_conn(ctx.org_id) as cur:
             cur.execute(
                 '''INSERT INTO events (org_id, event_type, payload_json, handled_by)
@@ -125,15 +134,15 @@ def run_drip_audit(tasks: list[str], ctx=None) -> dict:
                     str(ctx.org_id),
                     'drip_audit',
                     json.dumps({
-                        'results': results,
+                        'results': clean_results,
                         'task_count': len(tasks),
                         'audited_at': datetime.now(PDT).isoformat(),
                     }),
                     'dex_drip',
                 ),
             )
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f'[DRIP] audit persist failed: {e}')
 
     return results
 
