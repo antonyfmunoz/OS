@@ -2424,6 +2424,78 @@ async def cmd_delegated(ctx: commands.Context):
     await ctx.reply(output)
 
 
+@bot.command(name='subscriptions')
+async def cmd_subscriptions(ctx: commands.Context):
+    """Show subscription registry and upcoming renewals."""
+    def _run():
+        try:
+            from eos_ai.subscription_tracker import (
+                get_subscriptions,
+                get_upcoming_renewals,
+                get_monthly_subscription_total,
+            )
+            subs = get_subscriptions()
+            renewals = get_upcoming_renewals(days=14)
+            monthly = get_monthly_subscription_total()
+
+            if not subs:
+                return (
+                    '📋 No subscriptions tracked yet.\n'
+                    'Add one: `!add_sub [vendor] [amount] [monthly/annual] [YYYY-MM-DD]`'
+                )
+
+            lines = [f'📋 **Subscriptions — ${monthly:,.2f}/month**']
+            for s in subs[:10]:
+                lines.append(
+                    f'• {s["vendor"]} — ${s["amount"]} '
+                    f'({s.get("billing_cycle","monthly")}) — '
+                    f'renews {s.get("next_renewal","?")[:10]}'
+                )
+            if renewals:
+                lines.append('\n⚠️ **Renewing soon:**')
+                for r in renewals[:3]:
+                    lines.append(
+                        f'• {r["vendor"]} in {r["days_until"]}d — ${r["amount"]}'
+                    )
+            return '\n'.join(lines)
+        except Exception as e:
+            return f'❌ Error: {e}'
+    loop = asyncio.get_event_loop()
+    output = await loop.run_in_executor(None, _run)
+    await ctx.reply(output)
+
+
+@bot.command(name='add_sub')
+async def cmd_add_sub(ctx: commands.Context, *, args: str = ''):
+    """Add a subscription. Usage: !add_sub [vendor] [amount] [monthly/annual] [YYYY-MM-DD]"""
+    parts = args.strip().split()
+    if len(parts) < 4:
+        await ctx.reply('Usage: `!add_sub [vendor] [amount] [monthly/annual] [YYYY-MM-DD]`')
+        return
+
+    def _run():
+        try:
+            from eos_ai.subscription_tracker import add_subscription
+            vendor = parts[0]
+            amount = float(parts[1])
+            cycle = parts[2]
+            renewal = parts[3]
+            ok = add_subscription(
+                vendor=vendor,
+                amount=amount,
+                billing_cycle=cycle,
+                next_renewal=renewal,
+            )
+            if ok:
+                return f'✅ Added: {vendor} — ${amount}/{cycle} — renews {renewal}'
+            return '❌ Failed to add subscription.'
+        except Exception as e:
+            return f'❌ Error: {e}'
+    loop = asyncio.get_event_loop()
+    output = await loop.run_in_executor(None, _run)
+    await ctx.reply(output)
+
+
 @bot.command(name='help')
 async def cmd_help(ctx: commands.Context):
     """Show available commands."""
@@ -2442,6 +2514,8 @@ async def cmd_help(ctx: commands.Context):
         '`!block <time> <label>` — block focus time',
         '`!waiting` — what\'s in Waiting On folder',
         '`!delegated` — overdue delegations',
+        '`!subscriptions` — subscription registry + upcoming renewals',
+        '`!add_sub [vendor] [amount] [cycle] [date]` — track a subscription',
         '`!verify-inbox` — spot-check GPS label accuracy',
         '`!folder-update <folder> <instruction>` — update GPS folder rule',
         '',
