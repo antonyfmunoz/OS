@@ -4088,6 +4088,56 @@ async def cmd_board_update(ctx: commands.Context, venture_id: str = ''):
         await ctx.reply(f'❌ Error: {e}')
 
 
+@bot.command(name='announce')
+async def cmd_announce(ctx: commands.Context, *, args: str = ''):
+    """Draft announcement. Usage: !announce [topic] | [audience] | [key message] | [type: internal/public/press_release]"""
+    parts = [p.strip() for p in args.split('|')]
+    if len(parts) < 3:
+        await ctx.reply(
+            'Usage: `!announce [topic] | [audience] | [key message] | [type]`\n'
+            'Types: internal, team, public, press_release\n'
+            'Example: `!announce New program launch | Existing clients | Game of Lyfe is live | public`'
+        )
+        return
+    try:
+        from eos_ai.doc_creator import draft_announcement
+        draft = draft_announcement(
+            topic=parts[0],
+            audience=parts[1],
+            key_message=parts[2],
+            announcement_type=parts[3] if len(parts) > 3 else 'internal',
+        )
+        await ctx.reply(
+            f'📢 **Announcement draft:**\n```\n{draft[:1500]}\n```'
+        )
+    except Exception as e:
+        await ctx.reply(f'❌ Error: {e}')
+
+
+@bot.command(name='crisis')
+async def cmd_crisis(ctx: commands.Context, *, args: str = ''):
+    """Draft crisis communication. Usage: !crisis [situation] | [affected parties] | [what happened] | [what we are doing]"""
+    parts = [p.strip() for p in args.split('|')]
+    if len(parts) < 3:
+        await ctx.reply(
+            'Usage: `!crisis [situation] | [affected parties] | [what happened] | [what we are doing]`'
+        )
+        return
+    try:
+        from eos_ai.doc_creator import draft_crisis_communication
+        draft = draft_crisis_communication(
+            situation=parts[0],
+            affected_parties=parts[1] if len(parts) > 1 else 'Stakeholders',
+            what_happened=parts[2] if len(parts) > 2 else '',
+            what_we_are_doing=parts[3] if len(parts) > 3 else '',
+        )
+        await ctx.reply(
+            f'🚨 **Crisis communication draft:**\n```\n{draft[:1500]}\n```'
+        )
+    except Exception as e:
+        await ctx.reply(f'❌ Error: {e}')
+
+
 # ─── Entry point ──────────────────────────────────────────────────────────────
 
 if __name__ == '__main__':

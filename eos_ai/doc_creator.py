@@ -296,3 +296,80 @@ Return JSON only:
         return _json.loads(raw)
     except Exception as e:
         return {'verdict': 'UNVERIFIABLE', 'explanation': str(e), 'confidence': 'low', 'verify': []}
+
+
+def draft_announcement(
+    topic: str,
+    audience: str,
+    key_message: str,
+    context: str = '',
+    announcement_type: str = 'internal',
+    ctx=None,
+) -> str:
+    """
+    Draft an announcement or memo.
+    announcement_type: internal|team|public|press_release
+    """
+    try:
+        from eos_ai.model_router import get_router, TaskType
+        router = get_router()
+        model = router.route(TaskType.FAST_RESPONSE)
+
+        templates = {
+            'internal': 'internal team announcement',
+            'team': 'team memo',
+            'public': 'public announcement',
+            'press_release': 'press release',
+        }
+
+        return router.call(model, f"""Draft a {templates.get(announcement_type, 'announcement')}.
+
+Topic: {topic}
+Audience: {audience}
+Key message: {key_message}
+Context: {context}
+Author: Antony Munoz
+
+Voice: direct, warm, clear. No corporate speak.
+Include: what's happening, why it matters, what people need to do or know.
+Keep it concise and actionable. Format appropriately for the type.""").strip()
+    except Exception as e:
+        return f'Announcement draft unavailable: {e}'
+
+
+def draft_crisis_communication(
+    situation: str,
+    affected_parties: str,
+    what_happened: str,
+    what_we_are_doing: str,
+    ctx=None,
+) -> str:
+    """Draft crisis communication following acknowledge-factual-action structure."""
+    try:
+        from eos_ai.model_router import get_router, TaskType
+        router = get_router()
+        model = router.route(TaskType.FAST_RESPONSE)
+
+        return router.call(model, f"""Draft a crisis communication.
+
+Situation: {situation}
+Affected parties: {affected_parties}
+What happened: {what_happened}
+What we are doing: {what_we_are_doing}
+
+Guidelines:
+1. Acknowledge first — no deflection
+2. Be factual — no speculation
+3. State what you know and what you don't know
+4. State concrete next steps with timeline
+5. Provide contact for questions
+6. Antony's voice — direct, accountable, calm
+
+Format:
+Subject: [clear subject line]
+
+[Body — structured, under 200 words]
+
+[Antony Munoz]""").strip()
+    except Exception as e:
+        return f'Crisis communication unavailable: {e}'
