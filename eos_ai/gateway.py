@@ -116,6 +116,22 @@ _REQUIRED_FIELDS = {"type"}
 # Valid request types
 _VALID_TYPES = {"agent_task", "event", "status", "brief"}
 
+# Email instruction signals — founder correcting GPS folder classification
+EMAIL_INSTRUCTION_SIGNALS: tuple[str, ...] = (
+    'move this email',
+    'that email should',
+    'put emails from',
+    'emails like this',
+    'this label should',
+    'never put',
+    'always put',
+    'delete this label',
+    'should go to',
+    'belongs in',
+    'wrong folder',
+    'misclassified',
+)
+
 # Automation triggers — handled before the AI routing layer
 AUTOMATION_TRIGGERS: dict[str, list[str]] = {
     'rename_ai': [
@@ -293,6 +309,78 @@ class EOSGateway:
 
         return None
 
+    # ─── Email instruction handler ────────────────────────────────────────────
+
+    def _detect_email_instruction(self, text: str) -> bool:
+        t = text.lower()
+        return any(s in t for s in EMAIL_INSTRUCTION_SIGNALS)
+
+    def _handle_email_instruction(self, request: dict) -> dict | None:
+        """
+        Detect and process founder email folder correction instructions.
+        Updates the folder definition in Neon so all future classifications
+        use the new rule.
+        Returns a result dict if fired, else None.
+        """
+        text = request.get('prompt', '')
+        if not text or not self._detect_email_instruction(text):
+            return None
+
+        try:
+            from eos_ai.context import load_context_from_env
+            from eos_ai.email_gps import EmailGPS
+            from eos_ai.model_router import get_router, TaskType
+
+            ctx_eos = load_context_from_env()
+            gps     = EmailGPS(ctx_eos)
+            router  = get_router(ctx_eos)
+            model   = router.route(TaskType.ANALYSIS)
+
+            extraction = router.call(
+                model,
+                prompt=(
+                    f'Extract the email folder instruction '
+                    f'from this message.\n\n'
+                    f'Message: {text}\n\n'
+                    f'Available folders: Antony, To Respond, Review, '
+                    f'Responded, Waiting On, Receipts-Financials, Newsletters\n\n'
+                    f'Return JSON only:\n'
+                    f'{{"folder_name": "exact folder name", '
+                    f'"instruction": "what should change"}}'
+                ),
+                max_tokens=120,
+            )
+
+            import json, re as _json_re
+            match = _json_re.search(r'\{.*\}', extraction, _json_re.DOTALL)
+            if not match:
+                return None
+
+            data        = json.loads(match.group())
+            folder      = data.get('folder_name', '')
+            instruction = data.get('instruction', text)
+
+            if not folder:
+                return None
+
+            new_purpose = gps.update_folder_purpose(folder, instruction)
+            if new_purpose:
+                return {
+                    'status': 'ok',
+                    'output': (
+                        f'✅ Updated "{folder}" definition.\n\n'
+                        f'New rule: {new_purpose}\n\n'
+                        f'All future emails will use this definition. '
+                        f'Run `!inbox` to apply to new emails.'
+                    ),
+                    'action': 'email_folder_update',
+                }
+
+        except Exception as e:
+            print(f'[Gateway] Email instruction handler: {e}')
+
+        return None
+
     # ─── Schema validation ────────────────────────────────────────────────────
 
     def _validate(self, request: dict) -> str | None:
@@ -430,6 +518,11 @@ class EOSGateway:
         if automation_result is not None:
             return automation_result
 
+        # 0b. Email instruction — founder correcting GPS folder definitions
+        email_instr_result = self._handle_email_instruction(request)
+        if email_instr_result is not None:
+            return email_instr_result
+
         # 1. Validate
         err = self._validate(request)
         if err:
@@ -547,7 +640,29 @@ class EOSGateway:
             if rtype == "event":
                 result = self._route_event(request)
             elif rtype == "agent_task":
-                result = self._route_agent_task(request)
+                # Input Intelligence Layer — elevate underpowered inputs
+                # before they reach the cognitive loop
+                try:
+                    from eos_ai.input_intelligence import InputIntelligence
+                    from eos_ai.context import load_context_from_env as _load_ii_ctx
+                    _prompt = request.get("prompt", "")
+                    _venture_id = request.get("venture_id")
+                    _ii = InputIntelligence(ctx=_load_ii_ctx(), venture_id=_venture_id)
+                    _ii_result = _ii.process(_prompt, venture_id=_venture_id)
+                    if _ii_result.was_enhanced:
+                        request = {
+                            **request,
+                            "prompt": _ii_result.enhanced,
+                            "_original_prompt": _ii_result.original,
+                            "_enhancement_reason": _ii_result.enhancement_reason,
+                            "_signal_type": _ii_result.signal_type,
+                        }
+                except Exception as _ii_err:
+                    import logging
+                    logging.getLogger(__name__).warning(
+                        f"InputIntelligence failed, passing original: {_ii_err}"
+                    )
+                result = self._route_agent_task(request, session_id=session_id, cm=cm)
             elif rtype == "status":
                 result = self._route_status(request)
             elif rtype == "brief":
@@ -648,7 +763,7 @@ class EOSGateway:
 
     # ─── Route: agent_task ────────────────────────────────────────────────────
 
-    def _route_agent_task(self, request: dict) -> dict:
+    def _route_agent_task(self, request: dict, session_id: str = None, cm=None) -> dict:
         from eos_ai.agent_runtime import AgentRuntime, TaskType
         from eos_ai.cognitive_loop import CognitiveLoop
         from eos_ai.context import load_context_from_env
@@ -675,10 +790,13 @@ class EOSGateway:
             config = team_route(team, sub_agent)
             result = loop.run(
                 input=prompt,
+                session_id=session_id,
+                cm=cm,
                 agent=f"{team}.{sub_agent}",
                 task_type=config.task_type,
                 venture_id=venture_id,
                 skill_name=config.skill_name,
+                channel=request.get('channel', ''),
             )
         else:
             # Direct task — route to correct agent via hierarchy, then run
@@ -688,14 +806,77 @@ class EOSGateway:
             except KeyError:
                 task_type = TaskType.ANALYZE
 
-            # Sub_agent override → use it; else EA hierarchy routing
-            agent_to_use = sub_agent or self._route_to_agent(prompt)
+            # Sub_agent override → use it; else intent routing → hierarchy fallback
+            agent_to_use = sub_agent
+
+            if not agent_to_use:
+                try:
+                    from eos_ai.intent_router import IntentRouter, IntentDomain
+                    ir     = IntentRouter(ctx)
+                    domain = ir.route(prompt)
+                    agent_to_use = ir.get_agent(domain)
+                    print(
+                        f'[Gateway] Intent: {domain.value} → {agent_to_use}'
+                    )
+
+                    # Portfolio domain — inject live portfolio data into prompt
+                    if domain == IntentDomain.PORTFOLIO:
+                        try:
+                            from eos_ai.portfolio_agent import PortfolioAgent
+                            pa          = PortfolioAgent(ctx)
+                            ventures    = pa.scan_all_ventures()
+                            port_brief  = pa.generate_portfolio_brief(ventures)
+                            prompt      = (
+                                f'PORTFOLIO DATA:\n{port_brief}\n\n'
+                                f'{prompt}'
+                            )
+                        except Exception as _pe:
+                            print(f'[Gateway] Portfolio inject: {_pe}')
+
+                    # CEO domain — inject company primitives into prompt
+                    elif domain == IntentDomain.CEO:
+                        try:
+                            from eos_ai.ceo_agent import CEOAgent
+                            _ceo   = CEOAgent(ctx)
+                            _prims = _ceo.detect_primitives()
+                            prompt = (
+                                f'CEO CONTEXT:\n'
+                                f'Stage: {_prims.get("stage", 1)}\n'
+                                f'Revenue: ${_prims.get("current_revenue", 0)}\n'
+                                f'Clients: {_prims.get("client_count", 0)}\n'
+                                f'Channel: {_prims.get("primary_channel", "")}\n\n'
+                                f'{prompt}'
+                            )
+                        except Exception as _ce:
+                            print(f'[Gateway] CEO inject: {_ce}')
+
+                except Exception as _ir_err:
+                    print(f'[Gateway] Intent routing: {_ir_err}')
+
+            if not agent_to_use:
+                agent_to_use = self._route_to_agent(prompt)
+
+            # Log delegation if routing to a CEO agent
+            _CEO_AGENTS = frozenset({'lyfe_ceo', 'empyrean_ceo', 'brand_ceo'})
+            if agent_to_use in _CEO_AGENTS:
+                try:
+                    from eos_ai.delegation_tracker import log_delegation
+                    log_delegation(
+                        task=prompt[:200],
+                        delegated_to=agent_to_use,
+                        due_hours=24,
+                    )
+                except Exception:
+                    pass
 
             result = loop.run(
                 input=prompt,
+                session_id=session_id,
+                cm=cm,
                 agent=agent_to_use,
                 task_type=task_type,
                 venture_id=venture_id,
+                channel=request.get('channel', ''),
             )
 
         if result.status == 'pending_approval':
@@ -763,6 +944,26 @@ class EOSGateway:
         except Exception as e:
             print(f'[DecisionLog] {e}')
 
+        # Store conversation turn in session memory
+        try:
+            if cm and session_id and result.output:
+                cm.store(
+                    session_id=session_id,
+                    role='user',
+                    content=request.get('prompt', ''),
+                    channel=request.get('channel', 'discord'),
+                    agent='executive_assistant',
+                )
+                cm.store(
+                    session_id=session_id,
+                    role='assistant',
+                    content=result.output,
+                    channel=request.get('channel', 'discord'),
+                    agent='executive_assistant',
+                )
+        except Exception as e:
+            print(f'[Gateway] cm.store failed: {e}')
+
         return {
             "status":         "ok",
             "interaction_id": result.interaction_id,
@@ -772,6 +973,9 @@ class EOSGateway:
             "tokens":         result.tokens_used,
             "iterations":     result.iterations,
             "was_enhanced":   result.was_enhanced,
+            "original_prompt": request.get("_original_prompt", request.get("prompt", "")),
+            "enhanced_prompt": request.get("prompt", "") if request.get("_original_prompt") else "",
+            "enhancement_reason": request.get("_enhancement_reason", ""),
         }
 
     # ─── Route: status ────────────────────────────────────────────────────────

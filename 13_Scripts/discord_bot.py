@@ -6,13 +6,23 @@ Smart routing: simple → local Qwen (free) → Claude via EOS.
 AI name is user-configurable via BIS or AI_NAME env var.
 
 Channel map (create these in your server):
-  #general        — freeform conversation
-  #morning-brief  — auto-posted morning brief
-  #strategy       — strategic decisions
-  #outreach       — DM alerts and outreach ops
-  #content        — content creation
-  #decisions      — decisions queue
-  #wins           — win announcements
+  🧠 EOS:
+    #general           — freeform conversation with DEX
+    #morning-brief     — daily brief (auto-posted at 6am)
+    #decisions         — decisions queue
+    #wins              — closed deals and wins
+    #agent-activity    — EOS agent log
+  ⚡ Empyrean Creative:
+    #empyrean-strategy — strategy
+    #empyrean-pipeline — sales pipeline
+    #empyrean-outreach — outreach tracking
+  🏢 Lyfe Institute:
+    #lyfe-strategy     — strategy
+    #lyfe-pipeline     — Initiate Arena pipeline
+    #lyfe-outreach     — Instagram DM tracking
+  👤 Personal Brand:
+    #brand-strategy    — brand strategy
+    #content-ideas     — content ideas and calendar
 
 Setup:
   1. discord.com/developers/applications → New Application
@@ -35,6 +45,7 @@ import tempfile
 import traceback
 from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 
 # ─── Asyncio-level voice task exception suppressor ────────────────────────────
@@ -101,6 +112,16 @@ _channel_sessions: dict[str, str] = {}
 _multipart_buffers: dict[str, dict] = {}
 # channel -> {'parts': {1: text, 2: text, ...}, 'total': N, 'username': str}
 _multipart_flush_tasks: dict[str, 'asyncio.Task'] = {}
+
+# ─── Pending captures (venture disambiguation) ───────────────────────────────
+# When a task/idea is ambiguous, we store it here and ask the founder which venture.
+# channel_id -> {'text': str, 'type': str}
+_pending_captures: dict[str, dict] = {}
+
+# ─── Pending events (calendar conflict confirmation) ─────────────────────────
+# When a conflict is detected, we store the parsed event here for confirmation.
+# channel_id -> parsed event dict
+_pending_events: dict[str, dict] = {}
 
 _PART_RE_WORD  = re.compile(r'(?i)\bpart\s+(\d+)\s*/\s*(\d+)\b')   # "Part 1/2"
 _PART_RE_START = re.compile(r'(?im)^(\d+)\s*/\s*(\d+)\s*[:\-\s]')  # "1/2:" at line start
@@ -188,33 +209,37 @@ def transcribe_with_groq(audio_path: str) -> str:
         return ''
 
 # ─── Channel IDs ──────────────────────────────────────────────────────────────
-# Filled with real IDs from server — env vars allow override
-CHANNEL_IDS: dict[str, int | None] = {
-    'morning-brief': int(os.getenv('DISCORD_CHANNEL_MORNING_BRIEF',
-                                    '1485765524766982234')),
-    'outreach':      int(os.getenv('DISCORD_CHANNEL_OUTREACH',
-                                    '1485765641821487166')),
-    'wins':          int(os.getenv('DISCORD_CHANNEL_WINS',
-                                    '1485765745312010260')),
-    'general':       int(os.getenv('DISCORD_CHANNEL_GENERAL',
-                                    '1485765456739696713')),
-    'strategy':      int(os.getenv('DISCORD_CHANNEL_STRATEGY',
-                                    '1485765556635304016')),
-    'content':       int(os.getenv('DISCORD_CHANNEL_CONTENT',
-                                    '1485765687531278516')),
-    'decisions':     int(os.getenv('DISCORD_CHANNEL_DECISIONS',
-                                    '1485765720775200808')),
+CHANNEL_IDS: dict[str, int] = {
+    'morning-brief':      1485765524766982234,
+    'general':            1486289444830056540,
+    'decisions':          1485765720775200808,
+    'wins':               1485765745312010260,
+    'agent-activity':     1486267275857235999,
+    'empyrean-strategy':  1486267278239731823,
+    'empyrean-pipeline':  1486267279028129863,
+    'empyrean-outreach':  1486267280311586896,
+    'lyfe-strategy':      1486267281901092976,
+    'lyfe-pipeline':      1486267283373293568,
+    'lyfe-outreach':      1486267284681920546,
+    'brand-strategy':     1486267286309441566,
+    'content-ideas':      1486267286913417278,
 }
 
 # Channel name → intent routing hint
-CHANNEL_MAP = {
-    'general':       None,
-    'morning-brief': 'BRIEF',
-    'strategy':      'STRATEGY',
-    'outreach':      'OUTREACH',
-    'content':       'CONTENT',
-    'decisions':     'DECISION',
-    'wins':          None,
+CHANNEL_MAP: dict[str, str | None] = {
+    'morning-brief':      'BRIEF',
+    'general':            None,
+    'decisions':          'DECISION',
+    'wins':               None,
+    'agent-activity':     None,
+    'empyrean-strategy':  'STRATEGY',
+    'empyrean-pipeline':  'OUTREACH',
+    'empyrean-outreach':  'OUTREACH',
+    'lyfe-strategy':      'STRATEGY',
+    'lyfe-pipeline':      'OUTREACH',
+    'lyfe-outreach':      'OUTREACH',
+    'brand-strategy':     'STRATEGY',
+    'content-ideas':      'CONTENT',
 }
 
 # ─── Active meeting state ─────────────────────────────────────────────────────
@@ -281,7 +306,23 @@ async def on_error(event, *args, **kwargs):
 def _build_request(text: str, intent: str, channel_name: str, username: str) -> dict:
     """Build a valid EOSGateway request dict from classified intent."""
     if intent == 'BRIEF':
-        return {'type': 'brief', 'prompt': text, 'username': username}
+        # Only trigger the full brief dump if explicitly requested
+        # Otherwise route through cognitive loop — soul doc governs response
+        explicit_brief_triggers = [
+            'morning brief', 'give me the brief', 'brief me',
+            'run the brief', 'daily brief', 'show brief',
+            'what\'s the brief', 'pull the brief',
+        ]
+        if any(trigger in text.lower() for trigger in explicit_brief_triggers):
+            return {'type': 'brief', 'prompt': text, 'username': username}
+        # Casual or ambiguous — let the cognitive loop handle it
+        return {
+            'type': 'agent_task',
+            'prompt': text,
+            'username': username,
+            'venture_id': 'lyfe_institute',
+            'task_type': 'ANALYZE',
+        }
 
     if intent == 'PORTFOLIO':
         return {'type': 'status', 'prompt': text, 'username': username}
@@ -309,6 +350,73 @@ def _build_request(text: str, intent: str, channel_name: str, username: str) -> 
     return req
 
 
+def _detect_pipeline_update(text: str) -> tuple[str, str] | None:
+    """
+    Detect natural language pipeline stage updates.
+    Returns (stage, lead_hint) or None if not a pipeline update.
+
+    Examples:
+      "just closed that lead" → ("Won", "")
+      "he ghosted" → ("Lost", "")
+      "closed alex" → ("Won", "alex")
+      "that lead booked a call" → ("Booked", "")
+    """
+    text_lower = text.lower()
+
+    won_signals = [
+        "just closed", "closed the deal", "closed them", "they signed",
+        "they paid", "just won", "deal closed", "sale closed", "they bought",
+        "just sold", "sold them", "closed a deal", "closed a sale",
+    ]
+    lost_signals = [
+        "ghosted", "not interested", "lost that", "dead lead", "he left",
+        "she left", "they left", "no response", "went cold", "lost them",
+        "fell off", "dropped off", "unqualified",
+    ]
+    booked_signals = [
+        "booked a call", "scheduled a call", "just booked", "call booked",
+        "set a call", "locked in a call",
+    ]
+
+    stage = None
+    for s in won_signals:
+        if s in text_lower:
+            stage = "Won"
+            break
+    # Bare "closed <Name>" pattern — word boundary check
+    if not stage:
+        import re as _re
+        if _re.search(r'\bclosed\s+[A-Z][a-z]+', text):
+            stage = "Won"
+
+    if not stage:
+        for s in lost_signals:
+            if s in text_lower:
+                stage = "Lost"
+                break
+    if not stage:
+        for s in booked_signals:
+            if s in text_lower:
+                stage = "Booked"
+                break
+
+    if not stage:
+        return None
+
+    # Try to extract a lead name hint — @username or capitalized word after keyword
+    import re
+    username_match = re.search(r'@(\w+)', text)
+    lead_hint = username_match.group(1) if username_match else ""
+
+    if not lead_hint:
+        name_match = re.search(
+            r'(?:closed|lost|booked|sold|won)\s+([A-Z][a-z]+)', text
+        )
+        lead_hint = name_match.group(1) if name_match else ""
+
+    return (stage, lead_hint)
+
+
 def _run_gateway(text: str, channel_name: str, username: str) -> str:
     """
     Classify intent, build request, call gateway, return output text.
@@ -334,6 +442,96 @@ def _run_gateway(text: str, channel_name: str, username: str) -> str:
     req = _build_request(text, intent, channel_name, username)
     req['session_id'] = session_id
     req['channel']    = f'discord_{channel_name}'
+
+    # Person recognition — inject context if a known person is mentioned
+    try:
+        import re as _re
+        _names = _re.findall(r'\b[A-Z][a-z]+ [A-Z][a-z]+\b', text)
+        if _names:
+            from eos_ai.person_recognition import recognize_person
+            for _name in _names[:2]:
+                _rec = recognize_person(name=_name)
+                if _rec.get('known') and _rec.get('confidence') == 'high':
+                    print(f'[Discord] Known person mentioned: {_name}')
+                    req['known_person'] = _name
+                    req['person_context'] = _rec.get('context', '')
+                    break
+    except Exception:
+        pass  # non-blocking
+
+    # Cloning loop — detect when text answers an open DEX question
+    try:
+        from eos_ai.context import load_context_from_env
+        from eos_ai.db import get_conn
+        import json as _cljson
+        _cl_ctx = load_context_from_env()
+
+        with get_conn(_cl_ctx.org_id) as _cl_cur:
+            _cl_cur.execute("""
+                SELECT id, payload_json FROM events
+                WHERE org_id = %s
+                AND event_type = 'dex_question'
+                AND (payload_json->>'answered' IS NULL
+                     OR payload_json->>'answered' != 'true')
+                AND created_at >= NOW() - INTERVAL '48 hours'
+                ORDER BY created_at DESC
+                LIMIT 1
+            """, (str(_cl_ctx.org_id),))
+            _open_q = _cl_cur.fetchone()
+
+        if _open_q:
+            _q_payload = _open_q['payload_json']
+            if isinstance(_q_payload, str):
+                _q_payload = _cljson.loads(_q_payload)
+            _question = _q_payload.get('question', '')
+
+            from eos_ai.model_router import get_router as _cl_get_router, TaskType as _cl_TT
+            _cl_router = _cl_get_router()
+            _cl_model = _cl_router.route(_cl_TT.FAST_RESPONSE)
+            _cl_check = _cl_router.call(_cl_model, f"""Does this message answer this question?
+Question: {_question}
+Message: {text}
+Return JSON: {{"answers": true, "answer_summary": "brief summary"}}""").strip()
+
+            if '```' in _cl_check:
+                _cl_check = _cl_check.split('```')[1].replace('json', '').strip()
+            _cl_data = _cljson.loads(_cl_check)
+
+            if _cl_data.get('answers'):
+                _cl_now = datetime.now(ZoneInfo('America/Los_Angeles')).isoformat()
+                with get_conn(_cl_ctx.org_id) as _cl_cur2:
+                    _cl_cur2.execute("""
+                        UPDATE events
+                        SET payload_json = payload_json || %s::jsonb
+                        WHERE id = %s
+                    """, (
+                        _cljson.dumps({
+                            'answered': 'true',
+                            'answer': _cl_data.get('answer_summary', ''),
+                            'answered_at': _cl_now,
+                        }),
+                        _open_q['id'],
+                    ))
+
+                with get_conn(_cl_ctx.org_id) as _cl_cur3:
+                    _cl_cur3.execute('''
+                        INSERT INTO events
+                        (org_id, event_type, payload_json, handled_by)
+                        VALUES (%s, %s, %s, %s)
+                    ''', (
+                        str(_cl_ctx.org_id),
+                        'dex_learning',
+                        _cljson.dumps({
+                            'question': _question,
+                            'answer': _cl_data.get('answer_summary', ''),
+                            'raw_answer': text,
+                            'learned_at': _cl_now,
+                        }),
+                        'dex_cloning_loop',
+                    ))
+    except Exception:
+        pass  # Non-blocking
+
     result = _gateway.handle(req)
 
     if result.get('status') == 'error':
@@ -998,6 +1196,75 @@ async def on_message(message: discord.Message):
         await end_active_meeting(message.channel)
         return
 
+    # ── Pending capture resolution (1/2/3 venture reply) ────────────────────
+    _channel_id = str(message.channel.id)
+    if _channel_id in _pending_captures and text.strip() in ('1', '2', '3', '1️⃣', '2️⃣', '3️⃣'):
+        _pending = _pending_captures.pop(_channel_id)
+        _venture_map = {'1': 'lyfe_institute', '2': 'empyrean_creative', '3': 'personal_brand'}
+        _venture_id = _venture_map.get(text.strip().replace('\ufe0f\u20e3', ''), 'lyfe_institute')
+        try:
+            from eos_ai.founder_capture import capture
+            capture(_pending['text'], venture_id=_venture_id)
+            _icon = '💡' if _pending['type'] == 'idea' else '✅'
+            await message.channel.send(f"{_icon} Added to your list.")
+        except Exception:
+            pass
+        return
+
+    # ── Pipeline update detection ─────────────────────────────────────────────
+    pipeline_update = _detect_pipeline_update(text)
+    if pipeline_update:
+        stage, lead_hint = pipeline_update
+        try:
+            import sys as _sys; _sys.path.insert(0, '/opt/OS/13_Scripts')
+            from calendly_webhook import update_notion_lead_stage
+            success = update_notion_lead_stage(
+                name=lead_hint,
+                email='',
+                new_stage=stage,
+            )
+            if success:
+                await message.channel.send(
+                    f"Pipeline updated — {lead_hint or 'lead'} moved to **{stage}**."
+                )
+            else:
+                await message.channel.send(
+                    f"Couldn't find that lead in Notion. "
+                    f"Try mentioning their @username."
+                )
+        except Exception as e:
+            await message.channel.send(f"Pipeline update failed: {e}")
+        return
+
+    # ── Founder capture — detect tasks/ideas, write to Your list + Notion ────
+    try:
+        from eos_ai.founder_capture import should_capture, capture
+        _should, _ctype = should_capture(text)
+        if _should:
+            _text_lower = text.lower()
+            if any(w in _text_lower for w in ['empyrean', 'b2b', 'ai infrastructure', 'entrepreneuros', 'saas']):
+                _venture_id = 'empyrean_creative'
+            elif any(w in _text_lower for w in ['brand', 'twitch', 'content', 'vigilante', 'personal brand']):
+                _venture_id = 'personal_brand'
+            elif any(w in _text_lower for w in ['lyfe', 'initiate', 'arena', 'coaching', 'instagram dm', 'men 18']):
+                _venture_id = 'lyfe_institute'
+            else:
+                # Ambiguous — ask before capturing
+                _channel_id = str(message.channel.id)
+                await message.channel.send(
+                    f"{'💡' if _ctype == 'idea' else '✅'} Got it. Which venture is this for?\n"
+                    f"1️⃣ Lyfe Institute  2️⃣ Empyrean Creative  3️⃣ Personal Brand"
+                )
+                _pending_captures[_channel_id] = {'text': text, 'type': _ctype}
+                return
+
+            _capture_result = capture(text, venture_id=_venture_id)
+            if _capture_result.get('captured'):
+                _icon = '💡' if _ctype == 'idea' else '✅'
+                await message.channel.send(f"{_icon} Added to your list.")
+    except Exception:
+        pass  # Never let capture break the main flow
+
     # ── Multi-part accumulation ───────────────────────────────────────────────
     part_info = _detect_part(text)
     if part_info:
@@ -1056,6 +1323,205 @@ async def on_message(message: discord.Message):
             buf = _multipart_buffers.pop(ch_key, None)
             if buf:
                 text = _assemble_parts(buf)
+
+    # ── !followup — draft a follow-up for a WAITING_ON email ────────────────
+    if text.startswith('!followup'):
+        email_id = text[9:].strip()
+        try:
+            from eos_ai.model_router import get_router, TaskType
+            router = get_router()
+            model = router.route(TaskType.FAST_RESPONSE)
+            draft = router.call(
+                model,
+                f'Draft a brief, professional follow-up email '
+                f'for email ID {email_id}. '
+                f'Use Antony Munoz voice — direct, warm, short. '
+                f'Subject: Following up. '
+                f'Body: one sentence checking in on the status.',
+            )
+            await message.channel.send(
+                f'📧 Follow-up draft:\n```\n{draft[:500]}\n```\n'
+                f'Use `!approve` to send.'
+            )
+        except Exception as e:
+            await message.channel.send(f'❌ Error: {e}')
+        return
+
+    # ── !confirm_event — create a calendar event after conflict warning ───────
+    if text.lower() == '!confirm_event':
+        _ch_id = str(message.channel.id)
+        if _ch_id in _pending_events:
+            _ev_data = _pending_events.pop(_ch_id)
+            try:
+                from eos_ai.gws_connector import GWSConnector
+                _gws_conf = GWSConnector()
+                _event = _gws_conf.create_calendar_event(
+                    title=_ev_data.get('title', 'Meeting'),
+                    start_iso=_ev_data.get('start_iso'),
+                    duration_minutes=_ev_data.get('duration_minutes', 60),
+                    attendee_email=_ev_data.get('attendee_email'),
+                    description=_ev_data.get('description', ''),
+                )
+                if _event:
+                    await message.channel.send(
+                        f"✅ Created: **{_event['title']}**\n"
+                        f"🕐 {_event.get('start', '')}\n"
+                        f"🔗 {_event.get('meet_link', '')}"
+                    )
+                else:
+                    await message.channel.send('❌ Failed to create event.')
+            except Exception as e:
+                await message.channel.send(f'❌ Error: {e}')
+        else:
+            await message.channel.send('No pending event to confirm.')
+        return
+
+    # ── !audit — show DEX action trail ───────────────────────────────────────
+    if text.startswith('!audit'):
+        _parts = text.split()
+        _days = int(_parts[1]) if len(_parts) > 1 and _parts[1].isdigit() else 1
+        try:
+            from eos_ai.context import load_context_from_env
+            from eos_ai.db import get_conn
+            import json as _ajson
+            _actx = load_context_from_env()
+            with get_conn(_actx.org_id) as cur:
+                cur.execute(
+                    '''
+                    SELECT event_type, payload_json, created_at
+                    FROM events
+                    WHERE org_id = %s
+                    AND created_at >= NOW() - INTERVAL '%s days'
+                    AND event_type IN (
+                        'decision', 'dex_task', 'meeting_scheduled',
+                        'pipeline_entry', 'email_classified',
+                        'approval_requested', 'approval_granted'
+                    )
+                    ORDER BY created_at DESC
+                    LIMIT 20
+                    ''',
+                    (str(_actx.org_id), _days),
+                )
+                _rows = cur.fetchall()
+
+            if not _rows:
+                await message.channel.send(
+                    f'📋 No audit events in the last {_days} day(s).'
+                )
+                return
+
+            _alines = [f'📋 **DEX Audit Log — last {_days} day(s):**']
+            for _r in _rows:
+                _payload = _r['payload_json']
+                if isinstance(_payload, str):
+                    _payload = _ajson.loads(_payload)
+                _etype = _r['event_type']
+                _created = str(_r['created_at'])[:16]
+                if _etype == 'decision':
+                    _desc = _payload.get('description', 'Decision')[:60]
+                    _alines.append(f'🎯 [{_created}] Decision: {_desc}')
+                elif _etype == 'dex_task':
+                    _task = _payload.get('task', 'Task')[:60]
+                    _alines.append(f'✅ [{_created}] Task captured: {_task}')
+                elif _etype == 'meeting_scheduled':
+                    _person = _payload.get('person', 'Unknown')
+                    _alines.append(f'📅 [{_created}] Meeting: {_person}')
+                elif _etype == 'pipeline_entry':
+                    _name = _payload.get('name', 'Lead')[:40]
+                    _alines.append(f'📊 [{_created}] Pipeline: {_name}')
+                else:
+                    _alines.append(f'📝 [{_created}] {_etype}')
+
+            _full_audit = '\n'.join(_alines)
+            for i in range(0, len(_full_audit), 1900):
+                await message.channel.send(_full_audit[i:i+1900])
+        except Exception as e:
+            await message.channel.send(f'❌ Audit failed: {e}')
+        return
+
+    # ── Calendar write — detect scheduling intent and handle directly ─────────
+    _cal_keywords = [
+        'schedule', 'book', 'set up a call', 'set up a meeting',
+        'reschedule', 'cancel the', 'move the', 'block time',
+        'add to calendar', 'create an event',
+    ]
+    if any(kw in text.lower() for kw in _cal_keywords):
+        try:
+            from eos_ai.gws_connector import GWSConnector
+            _gws = GWSConnector()
+            import anthropic as _ant
+            _client = _ant.Anthropic()
+            _parse_resp = _client.messages.create(
+                model='claude-haiku-4-5-20251001',
+                max_tokens=200,
+                messages=[{
+                    'role': 'user',
+                    'content': (
+                        'Extract calendar event details from this message. '
+                        f'Today is {datetime.now(ZoneInfo("America/Los_Angeles")).strftime("%A %B %d %Y")}. '
+                        'Return JSON only: {"action": "create|update|delete|list", "title": "", '
+                        '"start_iso": "ISO datetime in UTC", "duration_minutes": 60, '
+                        '"attendee_email": null, "description": "", "event_id": null}\n'
+                        f'Message: "{text}"'
+                    ),
+                }],
+            )
+            import json as _json
+            _parsed = _json.loads(_parse_resp.content[0].text.strip())
+            _action = _parsed.get('action', 'create')
+
+            if _action == 'create':
+                # Check for conflicts before creating
+                if _parsed.get('start_iso'):
+                    try:
+                        _conflicts = _gws.check_conflicts(
+                            start_iso=_parsed['start_iso'],
+                            duration_minutes=_parsed.get('duration_minutes', 60),
+                        )
+                        if _conflicts:
+                            _conflict_names = ', '.join(
+                                c['title'] for c in _conflicts[:2]
+                            )
+                            await message.channel.send(
+                                f'⚠️ **Conflict detected:** {_conflict_names}\n'
+                                f'Still create the event? Reply `!confirm_event` '
+                                f'or adjust the time.'
+                            )
+                            _pending_events[str(message.channel.id)] = _parsed
+                            return
+                    except Exception:
+                        pass  # Non-blocking
+
+                _event = _gws.create_calendar_event(
+                    title=_parsed.get('title', text[:50]),
+                    start_iso=_parsed.get('start_iso'),
+                    duration_minutes=_parsed.get('duration_minutes', 60),
+                    attendee_email=_parsed.get('attendee_email'),
+                    description=_parsed.get('description', ''),
+                )
+                if _event:
+                    _cal_reply = (
+                        f"📅 Scheduled: **{_event['title']}**\n"
+                        f"🕐 {_event.get('start', '')}\n"
+                        f"🔗 {_event.get('meet_link', 'No Meet link')}"
+                    )
+                    await message.channel.send(_cal_reply)
+                    return
+            elif _action == 'list':
+                _events = _gws.list_calendar_events(days=14, query=_parsed.get('title'))
+                if _events:
+                    _lines = ['📅 **Upcoming events:**']
+                    for _e in _events[:5]:
+                        _start = _e.get('start', {})
+                        _dt = _start.get('dateTime', _start.get('date', ''))
+                        _lines.append(f"• {_e.get('summary', 'Untitled')} — {_dt}")
+                    await message.channel.send('\n'.join(_lines))
+                else:
+                    await message.channel.send('📅 No upcoming events found.')
+                return
+        except Exception as _cal_err:
+            print(f'[Discord] Calendar handler failed: {_cal_err}')
+            # Fall through to gateway
 
     # Smart routing: simple → local Qwen (free) → Claude via EOS gateway
     async with message.channel.typing():
@@ -1128,10 +1594,20 @@ async def on_message(message: discord.Message):
 
 
 async def _send_response(message: discord.Message, output: str) -> None:
-    """Split long responses at paragraph boundaries."""
-    output = output.rstrip() + f'\n\n— {AI_NAME}'
-    for chunk in chunk_message(output):
-        await message.reply(chunk)
+    """Send main response, then footer as a separate follow-up if present."""
+    divider = '─' * 33  # thin dash divider used by cognitive loop footer
+    if divider in output:
+        parts = output.split(divider, 1)
+        main   = parts[0].rstrip() + f'\n\n— {AI_NAME}'
+        footer = divider + parts[1].strip()
+        for chunk in chunk_message(main):
+            await message.reply(chunk)
+        for chunk in chunk_message(footer):
+            await message.channel.send(chunk)
+    else:
+        output = output.rstrip() + f'\n\n— {AI_NAME}'
+        for chunk in chunk_message(output):
+            await message.reply(chunk)
 
 
 # ─── Discord Server Manager ───────────────────────────────────────────────────
@@ -1360,14 +1836,31 @@ async def cmd_brief(ctx: commands.Context):
 
 @bot.command(name='status')
 async def cmd_status(ctx: commands.Context):
-    """System health check."""
+    """Portfolio health check — scans all ventures and shows binding constraint."""
     async with ctx.typing():
-        loop   = asyncio.get_event_loop()
-        output = await loop.run_in_executor(
-            None,
-            lambda: _run_gateway('system status', ctx.channel.name, str(ctx.author)),
-        )
-    await ctx.reply(output or 'Status retrieved.')
+        loop = asyncio.get_event_loop()
+
+        def _portfolio_scan():
+            try:
+                from eos_ai.portfolio_agent import PortfolioAgent
+                pa       = PortfolioAgent(_ctx_eos)
+                ventures = pa.scan_all_ventures()
+                return pa.generate_portfolio_brief(ventures)
+            except Exception as e:
+                return f'Portfolio scan failed: {e}'
+
+        output = await loop.run_in_executor(None, _portfolio_scan)
+
+    for chunk in chunk_message(output or 'Status retrieved.'):
+        await ctx.reply(chunk)
+
+
+@bot.command(name='portfolio')
+async def cmd_portfolio(ctx: commands.Context):
+    """Trigger the weekly portfolio brief on demand."""
+    import subprocess
+    subprocess.Popen(['python3', '/opt/OS/scripts/portfolio_brief.py'])
+    await ctx.reply('📊 Portfolio brief generating...')
 
 
 @bot.command(name='join')
@@ -1422,6 +1915,70 @@ async def cmd_say(ctx: commands.Context, *, text: str):
         await ctx.reply('TTS failed — check that espeak is installed.')
 
 
+@bot.command(name='outcome')
+async def cmd_outcome(ctx: commands.Context, *, args: str = ''):
+    """Capture post-meeting outcome. Usage: !outcome <event_id> [what decided] | [open loops]"""
+    if not args:
+        await ctx.reply('Usage: `!outcome <event_id> [outcomes] | [open loops]`')
+        return
+    try:
+        parts = args.strip().split('|')
+        left_tokens = parts[0].strip().split()
+        event_id = left_tokens[0] if left_tokens else ''
+        outcomes_text = ' '.join(left_tokens[1:]) if len(left_tokens) > 1 else ''
+        open_loops_text = parts[1].strip() if len(parts) > 1 else ''
+
+        from eos_ai.meetings import update_meeting_outcome
+        ok = update_meeting_outcome(
+            calendly_event_id=event_id,
+            status='Completed',
+            outcomes=outcomes_text,
+            open_loops=open_loops_text,
+        )
+        if ok:
+            await ctx.reply('✅ Outcome captured and synced to Notion.')
+        else:
+            await ctx.reply('⚠️ Captured locally but Notion sync failed — check NOTION_MEETINGS_ID.')
+    except Exception as e:
+        await ctx.reply(f'❌ Failed: {e}')
+
+
+@bot.command(name='eod')
+async def cmd_eod(ctx: commands.Context):
+    """Trigger EOD sync manually."""
+    import subprocess
+    subprocess.Popen(['python3', '/opt/OS/scripts/eod_sync.py'])
+    await ctx.reply('📊 EOD sync running...')
+
+
+@bot.command(name='accept')
+async def cmd_accept(ctx: commands.Context, event_id: str = ''):
+    """Accept a pending calendar invite. Usage: !accept <event_id>"""
+    if not event_id:
+        await ctx.reply('Usage: `!accept <event_id>`')
+        return
+    try:
+        from scripts.calendar_invite_handler import respond_to_invite
+        ok = respond_to_invite(event_id, 'accepted')
+        await ctx.reply('✅ Accepted.' if ok else '❌ Failed to accept.')
+    except Exception as e:
+        await ctx.reply(f'❌ Error: {e}')
+
+
+@bot.command(name='decline')
+async def cmd_decline(ctx: commands.Context, event_id: str = ''):
+    """Decline a pending calendar invite. Usage: !decline <event_id>"""
+    if not event_id:
+        await ctx.reply('Usage: `!decline <event_id>`')
+        return
+    try:
+        from scripts.calendar_invite_handler import respond_to_invite
+        ok = respond_to_invite(event_id, 'declined')
+        await ctx.reply('❌ Declined.' if ok else '❌ Failed to decline.')
+    except Exception as e:
+        await ctx.reply(f'❌ Error: {e}')
+
+
 @bot.command(name='approve')
 async def cmd_approve(ctx: commands.Context, approval_id: str = ''):
     """Approve a pending gateway action."""
@@ -1435,6 +1992,100 @@ async def cmd_approve(ctx: commands.Context, approval_id: str = ''):
             await ctx.reply(chunk)
     else:
         await ctx.reply(f'Error: {result.get("error", "unknown")}')
+
+
+@bot.command(name='approve_followup')
+async def cmd_approve_followup(ctx: commands.Context):
+    """Approve the most recent pending follow-up email draft."""
+    try:
+        from eos_ai.context import load_context_from_env
+        from eos_ai.db import get_conn
+        import json as _json
+        _ctx = load_context_from_env()
+        with get_conn(_ctx.org_id) as cur:
+            cur.execute('''
+                SELECT id, payload_json FROM events
+                WHERE org_id = %s
+                AND event_type = 'email_draft_pending'
+                AND payload_json->>\'status\' = \'pending_approval\'
+                ORDER BY created_at DESC
+                LIMIT 1
+            ''', (str(_ctx.org_id),))
+            row = cur.fetchone()
+        if row:
+            payload = row['payload_json']
+            if isinstance(payload, str):
+                payload = _json.loads(payload)
+            draft = payload.get('draft', '')
+            with get_conn(_ctx.org_id) as cur:
+                cur.execute("""
+                    UPDATE events
+                    SET payload_json = payload_json || '{"status": "approved"}'::jsonb
+                    WHERE id = %s
+                """, (row['id'],))
+            draft_type = payload.get('type', 'email')
+            await ctx.reply(
+                f'✅ {draft_type} email approved and queued for sending.\n'
+                f'Preview:\n```\n{draft[:400]}\n```'
+            )
+        else:
+            await ctx.reply('No pending follow-up email found.')
+    except Exception as e:
+        await ctx.reply(f'❌ Error: {e}')
+
+
+@bot.command(name='nurture')
+async def cmd_nurture(ctx: commands.Context, *, name: str = ''):
+    """Draft a warm check-in message for a contact. Usage: !nurture [name]"""
+    if not name:
+        await ctx.reply('Usage: `!nurture [contact name]`')
+        return
+    try:
+        from eos_ai.model_router import get_router, TaskType
+        from eos_ai.person_recognition import build_intelligence_profile
+        _router = get_router()
+        _model = _router.route(TaskType.FAST_RESPONSE)
+        profile = build_intelligence_profile(name=name)
+        notes = getattr(profile, 'notes', None) or 'No prior context available'
+        last_contact = getattr(profile, 'last_contact', None) or 'unknown'
+        draft = _router.call(_model, f"""Draft a warm check-in message for {name}.
+
+Context: {notes}
+Last contact: {last_contact}
+
+Antony's voice — casual, genuine, no agenda.
+2-3 sentences max. Not salesy.
+
+Subject: [subject]
+[body]
+[Antony]""").strip()
+        await ctx.reply(
+            f'📧 Check-in draft for {name}:\n```\n{draft[:500]}\n```\n'
+            f'`!approve_followup` to send.'
+        )
+    except Exception as e:
+        await ctx.reply(f'❌ Error: {e}')
+
+
+@bot.command(name='expenses')
+async def cmd_expenses(ctx: commands.Context):
+    """Show month-to-date expenses. Usage: !expenses"""
+    try:
+        from eos_ai.expense_tracker import get_monthly_summary
+        summary = get_monthly_summary()
+        if not summary.get('total'):
+            await ctx.reply('💳 No expenses logged this month.')
+            return
+        lines = [f'💳 **Expenses — Month to date: ${summary["total"]:,.2f}**']
+        for cat, amt in sorted(
+            summary['by_category'].items(),
+            key=lambda x: x[1], reverse=True
+        ):
+            lines.append(f'• {cat}: ${amt:,.2f}')
+        lines.append(f'\n_{summary["count"]} transactions_')
+        await ctx.reply('\n'.join(lines))
+    except Exception as e:
+        await ctx.reply(f'❌ Error: {e}')
 
 
 @bot.command(name='setup')
@@ -1559,23 +2210,41 @@ async def cmd_draft(ctx: commands.Context):
     """Show email drafts awaiting approval."""
     async with ctx.typing():
         def _run():
-            try:
-                from eos_ai.email_gps import EmailGPS
-                gps       = EmailGPS(_ctx_eos)
-                processed = gps.process_inbox(limit=20)
-                drafts    = gps.get_drafts_pending(processed)
-                if not drafts:
-                    return '📬 No drafts pending approval.'
-                lines = [f'📝 **{len(drafts)} Draft(s) Ready for Approval**\n']
-                for i, e in enumerate(drafts[:5], 1):
-                    lines.append(
-                        f'**{i}. To:** {e.from_name or e.from_address}\n'
-                        f'**Subject:** {e.subject}\n'
-                        f'**Draft:**\n{e.draft_response[:400]}\n'
-                    )
-                return '\n'.join(lines)
-            except Exception as e:
-                return f'Draft error: {e}'
+            import json
+            from pathlib import Path
+
+            PENDING_DIR = Path('/opt/OS/15_Orchestrator/approvals/pending')
+
+            drafts = []
+            for f in sorted(PENDING_DIR.glob('*.json')):
+                try:
+                    data = json.loads(f.read_text())
+                    req  = data.get('request', {})
+                    if req.get('type') == 'email_draft':
+                        drafts.append({
+                            'approval_id': data.get('approval_id'),
+                            'to':          req.get('to', ''),
+                            'subject':     req.get('subject', ''),
+                            'body':        req.get('body', ''),
+                            'queued_at':   data.get('queued_at', ''),
+                        })
+                except Exception:
+                    continue
+
+            if not drafts:
+                return '📬 No email drafts pending approval.'
+
+            lines = [f'📝 **{len(drafts)} Email Draft(s) Pending Approval**\n']
+            for d in drafts[:5]:
+                lines.append(
+                    f'**ID:** `{d["approval_id"]}`\n'
+                    f'**To:** {d["to"]}\n'
+                    f'**Subject:** {d["subject"]}\n'
+                    f'**Body:**\n{d["body"][:400]}\n'
+                    f'→ `!approve {d["approval_id"]}` to send\n'
+                )
+            return '\n'.join(lines)
+
         loop   = asyncio.get_event_loop()
         output = await loop.run_in_executor(None, _run)
     for chunk in chunk_message(output):
@@ -1628,6 +2297,37 @@ async def cmd_block(ctx: commands.Context, *, time_range: str = ''):
     )
 
 
+@bot.command(name='focus')
+async def cmd_focus(ctx: commands.Context, hours: str = '2'):
+    """Block focus time on calendar now. Usage: !focus [hours]"""
+    async with ctx.typing():
+        def _run():
+            try:
+                h = int(hours) if hours.isdigit() else 2
+                from eos_ai.gws_connector import GWSConnector
+                from datetime import datetime, timezone, timedelta
+                gws = GWSConnector()
+                now = datetime.now(timezone.utc)
+                event = gws.create_calendar_event(
+                    title='🔒 Deep Work — Do Not Disturb',
+                    start_iso=now.isoformat(),
+                    duration_minutes=h * 60,
+                    description='Focus block created by DEX. No meetings.',
+                )
+                if event:
+                    end_time = (now + timedelta(hours=h)).strftime('%I:%M %p')
+                    return (
+                        f'🔒 Focus block set for **{h}h**. '
+                        f'Calendar blocked until **{end_time} UTC**.'
+                    )
+                return '❌ Failed to create focus block — GWS calendar error.'
+            except Exception as e:
+                return f'❌ Error: {e}'
+        loop   = asyncio.get_event_loop()
+        output = await loop.run_in_executor(None, _run)
+    await ctx.reply(output)
+
+
 @bot.command(name='waiting')
 async def cmd_waiting(ctx: commands.Context):
     """Show what\'s in the Waiting On folder."""
@@ -1653,6 +2353,77 @@ async def cmd_waiting(ctx: commands.Context):
     await ctx.reply(output)
 
 
+@bot.command(name='verify-inbox')
+async def cmd_verify_inbox(ctx: commands.Context):
+    """Spot-check Gmail GPS labels — sample 5 emails per folder."""
+    async with ctx.typing():
+        def _run():
+            try:
+                from eos_ai.email_gps import EmailGPS
+                gps = EmailGPS(_ctx_eos)
+                return gps.verify_existing_labels(sample=5)
+            except Exception as e:
+                return f'Verify inbox error: {e}'
+        loop   = asyncio.get_event_loop()
+        output = await loop.run_in_executor(None, _run)
+    for chunk in chunk_message(output):
+        await ctx.reply(chunk)
+
+
+@bot.command(name='folder-update')
+async def cmd_folder_update(ctx: commands.Context, folder: str = '', *, instruction: str = ''):
+    """Update a GPS folder definition. Usage: !folder-update <folder> <instruction>"""
+    if not folder or not instruction:
+        await ctx.reply(
+            'Usage: `!folder-update <folder> <instruction>`\n'
+            'Example: `!folder-update Receipts-Financials Apple marketing emails should never go here`\n'
+            'Folders: Antony, To Respond, Review, Responded, Waiting On, Receipts-Financials, Newsletters'
+        )
+        return
+
+    async with ctx.typing():
+        def _run():
+            try:
+                from eos_ai.email_gps import EmailGPS
+                gps = EmailGPS(_ctx_eos)
+                new_purpose = gps.update_folder_purpose(folder, instruction)
+                if new_purpose:
+                    return (
+                        f'✅ **Updated "{folder}"**\n\n'
+                        f'New rule: {new_purpose}\n\n'
+                        f'All future classifications use this definition.'
+                    )
+                return f'❌ Could not update "{folder}". Check the folder name and try again.'
+            except Exception as e:
+                return f'Folder update error: {e}'
+        loop   = asyncio.get_event_loop()
+        output = await loop.run_in_executor(None, _run)
+    await ctx.reply(output)
+
+
+@bot.command(name='delegated')
+async def cmd_delegated(ctx: commands.Context):
+    """Show overdue delegations."""
+    def _run():
+        try:
+            from eos_ai.delegation_tracker import get_overdue_delegations
+            overdue = get_overdue_delegations()
+            if not overdue:
+                return '✅ No overdue delegations.'
+            lines = [f'📋 **Overdue delegations ({len(overdue)}):**']
+            for d in overdue[:8]:
+                task = d.get('task', '')[:60]
+                to = d.get('delegated_to', 'Unknown')
+                due = d.get('due_at', '')[:10]
+                lines.append(f'• {task} → {to} (due {due})')
+            return '\n'.join(lines)
+        except Exception as e:
+            return f'❌ Error: {e}'
+    loop = asyncio.get_event_loop()
+    output = await loop.run_in_executor(None, _run)
+    await ctx.reply(output)
+
+
 @bot.command(name='help')
 async def cmd_help(ctx: commands.Context):
     """Show available commands."""
@@ -1667,8 +2438,12 @@ async def cmd_help(ctx: commands.Context):
         '`!draft` — drafts awaiting your approval',
         '`!cal` — today\'s calendar',
         '`!cal week` — this week\'s calendar',
+        '`!focus [hours]` — block calendar now for deep work (default 2h)',
         '`!block <time> <label>` — block focus time',
         '`!waiting` — what\'s in Waiting On folder',
+        '`!delegated` — overdue delegations',
+        '`!verify-inbox` — spot-check GPS label accuracy',
+        '`!folder-update <folder> <instruction>` — update GPS folder rule',
         '',
         '**EOS Commands**',
         '`!brief` — morning brief',
@@ -1676,6 +2451,9 @@ async def cmd_help(ctx: commands.Context):
         '`!report pulse` — run world pulse scan',
         '`!status` — system health check',
         '`!approve <id>` — approve a pending action',
+        '`!approve_followup` — approve most recent follow-up email draft',
+        '`!nurture [name]` — draft a warm check-in for a contact',
+        '`!expenses` — month-to-date expense summary',
         '`!join` — connect to your voice channel',
         '`!leave` — disconnect from voice',
         '`!say <text>` — speak text aloud in voice channel',
@@ -1685,13 +2463,14 @@ async def cmd_help(ctx: commands.Context):
         '→ Whisper transcribes → smart routing (Qwen local or Claude) → speaks back',
         '',
         '**Channels**',
-        '`#general` — freeform conversation',
+        '`#general` — freeform conversation with DEX',
         '`#morning-brief` — daily brief (auto-posted at 6am)',
-        '`#strategy` — strategic questions',
-        '`#outreach` — DM alerts and pipeline',
-        '`#content` — content creation',
         '`#decisions` — decision evaluation',
         '`#wins` — win announcements',
+        '`#agent-activity` — EOS agent log',
+        '`#empyrean-strategy/pipeline/outreach` — Empyrean Creative',
+        '`#lyfe-strategy/pipeline/outreach` — Lyfe Institute',
+        '`#brand-strategy` / `#content-ideas` — Personal Brand',
     ]
     await ctx.reply('\n'.join(lines))
 
