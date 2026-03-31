@@ -146,3 +146,37 @@ class TestPerfectWeek:
         week = get_perfect_week()
         assert isinstance(week, dict)
         assert 'monday' in week
+
+
+class TestGWSConnectorDrive:
+
+    def test_new_methods_exist(self):
+        from eos_ai.gws_connector import GWSConnector
+        gws = GWSConnector()
+        for method in (
+            'create_folder', 'move_file', 'list_files',
+            'rename_file', 'create_document',
+            'get_drive_structure', 'audit_drive',
+        ):
+            assert hasattr(gws, method), f'Missing method: {method}'
+
+    def test_list_files_returns_list(self):
+        from eos_ai.gws_connector import GWSConnector
+        gws = GWSConnector()
+        # GWS CLI may not be authed — must return [] not raise
+        result = gws.list_files()
+        assert isinstance(result, list)
+
+    def test_get_drive_structure_returns_list(self):
+        from eos_ai.gws_connector import GWSConnector
+        gws = GWSConnector()
+        result = gws.get_drive_structure()
+        assert isinstance(result, list)
+
+    def test_audit_drive_returns_dict(self):
+        from eos_ai.gws_connector import GWSConnector
+        gws = GWSConnector()
+        result = gws.audit_drive()
+        assert isinstance(result, dict)
+        assert 'root_files' in result
+        assert 'untitled' in result
