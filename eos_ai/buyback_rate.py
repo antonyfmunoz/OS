@@ -184,3 +184,115 @@ def get_time_audit_summary(days: int = 7, ctx=None) -> dict:
     except Exception as e:
         logger.warning(f'[BuybackRate] audit summary failed: {e}')
         return {}
+
+
+def add_to_no_list(item: str, reason: str = '', ctx=None) -> bool:
+    """Add something to Antony's No List."""
+    try:
+        from eos_ai.context import load_context_from_env
+        from eos_ai.db import get_conn
+        ctx = ctx or load_context_from_env()
+        with get_conn(ctx.org_id) as cur:
+            cur.execute('''
+                INSERT INTO events
+                (org_id, event_type, payload_json, handled_by)
+                VALUES (%s, %s, %s, %s)
+            ''', (
+                str(ctx.org_id),
+                'no_list',
+                json.dumps({
+                    'item': item,
+                    'reason': reason,
+                    'added_at': datetime.now(PDT).isoformat(),
+                }),
+                'dex_no_list',
+            ))
+        return True
+    except Exception as e:
+        logger.warning(f'[NoList] add failed: {e}')
+        return False
+
+
+def get_no_list(ctx=None) -> list[dict]:
+    """Get Antony's No List (deduplicated, newest-first)."""
+    try:
+        from eos_ai.context import load_context_from_env
+        from eos_ai.db import get_conn
+        ctx = ctx or load_context_from_env()
+        with get_conn(ctx.org_id) as cur:
+            cur.execute('''
+                SELECT payload_json FROM events
+                WHERE org_id = %s
+                AND event_type = 'no_list'
+                ORDER BY created_at DESC
+            ''', (str(ctx.org_id),))
+            rows = cur.fetchall()
+        results = []
+        seen: set[str] = set()
+        for r in rows:
+            p = r['payload_json']
+            if isinstance(p, str):
+                p = json.loads(p)
+            item = p.get('item', '')
+            if item and item not in seen:
+                seen.add(item)
+                results.append(p)
+        return results
+    except Exception as e:
+        logger.warning(f'[NoList] get failed: {e}')
+        return []
+
+
+def check_against_no_list(text: str, ctx=None) -> list[str]:
+    """Return any No List items found in text."""
+    no_list = get_no_list(ctx)
+    text_lower = text.lower()
+    return [
+        item['item']
+        for item in no_list
+        if item.get('item', '').lower() in text_lower
+    ]
+
+
+def detect_pain_line(ctx=None) -> list[dict]:
+    """
+    Detect tasks Antony is repeatedly handling himself
+    that should be delegated. Returns list of violations.
+    Looks for dex_task events appearing 3+ times in 30 days.
+    """
+    try:
+        from eos_ai.context import load_context_from_env
+        from eos_ai.db import get_conn
+        ctx = ctx or load_context_from_env()
+
+        with get_conn(ctx.org_id) as cur:
+            cur.execute("""
+                SELECT
+                    payload_json->>'task' as task_text,
+                    COUNT(*) as occurrence_count
+                FROM events
+                WHERE org_id = %s
+                AND event_type = 'dex_task'
+                AND created_at >= NOW() - INTERVAL '30 days'
+                GROUP BY payload_json->>'task'
+                HAVING COUNT(*) >= 3
+                ORDER BY COUNT(*) DESC
+                LIMIT 10
+            """, (str(ctx.org_id),))
+            rows = cur.fetchall()
+
+        return [
+            {
+                'task': r['task_text'] or '',
+                'occurrences': r['occurrence_count'],
+                'recommendation': (
+                    f'This has appeared {r["occurrence_count"]}x. '
+                    'Build a playbook or delegate permanently.'
+                ),
+            }
+            for r in rows
+            if r['task_text'] and len(r['task_text']) > 10
+        ]
+    except Exception as e:
+        logger.warning(f'[BuybackRate] detect_pain_line failed: {e}')
+        return []
