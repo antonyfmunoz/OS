@@ -79,3 +79,44 @@ class TestBuybackRate:
         from eos_ai.buyback_rate import calculate_buyback_rate
         rate = calculate_buyback_rate(0)
         assert rate['buyback_rate'] == 0.0
+
+
+class TestMartellPatterns:
+
+    def test_import(self):
+        from eos_ai.martell_patterns import (
+            TIME_ASSASSIN_SIGNALS, detect_time_assassin, check_131_rule,
+        )
+
+    def test_detect_staller(self):
+        from eos_ai.martell_patterns import detect_time_assassin
+        result = detect_time_assassin("I need more information before I decide")
+        assert result.get('assassin') == 'staller'
+        assert 'intervention' in result
+        assert len(result['intervention']) > 10
+
+    def test_detect_saver(self):
+        from eos_ai.martell_patterns import detect_time_assassin
+        result = detect_time_assassin("I'll do it myself, it's easier if I handle this")
+        assert result.get('assassin') == 'saver'
+
+    def test_no_assassin_clean_text(self):
+        from eos_ai.martell_patterns import detect_time_assassin
+        result = detect_time_assassin("Let's review the Q1 revenue numbers")
+        assert result == {}
+
+    def test_131_violation_detected(self):
+        from eos_ai.martell_patterns import check_131_rule
+        # Problem statement with no options
+        assert check_131_rule("The problem is we have no leads. What should I do?") is True
+
+    def test_131_compliant_with_options(self):
+        from eos_ai.martell_patterns import check_131_rule
+        # Problem with options present
+        assert check_131_rule(
+            "The problem is low leads. Option 1 is ads. Option 2 is outreach. I recommend outreach."
+        ) is False
+
+    def test_131_clean_message(self):
+        from eos_ai.martell_patterns import check_131_rule
+        assert check_131_rule("Schedule a call with Jacob for Thursday") is False
