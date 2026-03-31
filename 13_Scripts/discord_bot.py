@@ -2276,6 +2276,23 @@ async def cmd_approve_followup(ctx: commands.Context):
             if isinstance(payload, str):
                 payload = _json.loads(payload)
             draft = payload.get('draft', '')
+            # Quality gate before approval
+            try:
+                from eos_ai.quality_gate import gate_outgoing_email
+                qr = gate_outgoing_email(
+                    subject='Follow-up',
+                    body=draft,
+                    to_email=payload.get('to_email', ''),
+                )
+                if not qr.get('approved') and qr.get('revised_version'):
+                    await ctx.reply(
+                        f'⚠️ Quality score: {qr["score"]}/10\n'
+                        f'Issues: {", ".join(qr["issues"][:2])}\n'
+                        f'Auto-revised version in use.'
+                    )
+                    draft = qr['revised_version']
+            except Exception:
+                pass
             with get_conn(_ctx.org_id) as cur:
                 cur.execute("""
                     UPDATE events
@@ -3819,6 +3836,42 @@ async def cmd_restaurants(ctx: commands.Context, *, args: str = ''):
     output = await loop.run_in_executor(None, _run)
     for chunk in [output[i:i+1900] for i in range(0, len(output), 1900)]:
         await ctx.channel.send(chunk)
+
+
+@bot.command(name='proofread')
+async def cmd_proofread(ctx: commands.Context, *, content: str = ''):
+    """Proofread outgoing communications. Usage: !proofread [paste your text here]"""
+    if not content:
+        await ctx.reply(
+            'Usage: `!proofread [paste your email or message here]`'
+        )
+        return
+    try:
+        from eos_ai.quality_gate import quality_check
+        await ctx.reply('🔍 Running quality check...')
+        result = quality_check(content)
+        score = result.get('score', 0)
+        approved = result.get('approved', False)
+        issues = result.get('issues', [])
+        suggestions = result.get('suggestions', [])
+        revised = result.get('revised_version', '')
+
+        emoji = '✅' if approved else '⚠️'
+        lines = [f'{emoji} **Quality Score: {score}/10**']
+        if issues:
+            lines.append('\n**Issues:**')
+            for i in issues:
+                lines.append(f'• {i}')
+        if suggestions:
+            lines.append('\n**Suggestions:**')
+            for s in suggestions:
+                lines.append(f'• {s}')
+        if revised:
+            lines.append(f'\n**Revised version:**\n```\n{revised[:600]}\n```')
+
+        await ctx.reply('\n'.join(lines)[:1900])
+    except Exception as e:
+        await ctx.reply(f'❌ Error: {e}')
 
 
 # ─── Entry point ──────────────────────────────────────────────────────────────
