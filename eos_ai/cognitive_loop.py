@@ -696,6 +696,25 @@ class CognitiveLoop:
         except Exception as _hist_err:
             pass  # Never let history injection break execution
 
+        # Martell pattern detection — behavioral alerts injected into system context
+        try:
+            from eos_ai.martell_patterns import detect_time_assassin, check_131_rule
+            _assassin = detect_time_assassin(text)
+            if _assassin and _assassin.get('intervention'):
+                _system_parts.append(
+                    f'## Behavioral Alert\n{_assassin["intervention"]}\n'
+                    f'Note: Surface this observation to the founder in your response.'
+                )
+            if check_131_rule(text):
+                _system_parts.append(
+                    '## 1:3:1 Rule Alert\n'
+                    'The founder is presenting a problem without options. '
+                    'Apply the 1:3:1 Rule: acknowledge the problem, then ask '
+                    'for or present 3 options with a clear recommendation.'
+                )
+        except Exception:
+            pass
+
         original_prompt = text
         enhanced = self._enhance_prompt(text)
         enhanced_prompt = enhanced
