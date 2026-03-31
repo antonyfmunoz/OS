@@ -134,3 +134,100 @@ def log_trip(
     except Exception as e:
         logger.warning(f'[TravelManager] log_trip failed: {e}')
         return False
+
+
+def research_flights(
+    origin: str,
+    destination: str,
+    date: str,
+    return_date: str = '',
+) -> str:
+    """Research flight options (informational — no booking)."""
+    try:
+        from eos_ai.model_router import get_router, TaskType
+        router = get_router()
+        model = router.route(TaskType.FAST_RESPONSE)
+
+        return router.call(model, f"""Research flight options.
+
+From: {origin}
+To: {destination}
+Date: {date}
+Return: {return_date or 'One way'}
+
+Provide:
+1. Typical airlines serving this route
+2. Estimated flight duration
+3. Typical price range
+4. Best booking sites (Google Flights, Kayak, etc.)
+5. Tips for this specific route
+6. Recommended booking timeline
+
+Note: This is research to help Antony make the booking.
+Be specific and practical.""").strip()
+    except Exception as e:
+        return f'Flight research unavailable: {e}'
+
+
+def research_hotels(
+    city: str,
+    check_in: str,
+    check_out: str,
+    budget_per_night: float = 200,
+    preferences: str = '',
+) -> str:
+    """Research hotel options (informational — no booking)."""
+    try:
+        from eos_ai.model_router import get_router, TaskType
+        router = get_router()
+        model = router.route(TaskType.FAST_RESPONSE)
+
+        return router.call(model, f"""Research hotel options.
+
+City: {city}
+Check-in: {check_in}
+Check-out: {check_out}
+Budget: ${budget_per_night}/night
+Preferences: {preferences or 'Business travel, good location, reliable WiFi'}
+
+Provide:
+1. 3-4 specific hotel recommendations with names
+2. Neighborhood recommendations
+3. What to avoid
+4. Booking tips for this city
+5. Price range to expect
+
+Note: Research only — Antony makes the final booking.""").strip()
+    except Exception as e:
+        return f'Hotel research unavailable: {e}'
+
+
+def research_restaurants(
+    city: str,
+    occasion: str = 'business dinner',
+    budget: str = 'moderate',
+    dietary: str = '',
+) -> str:
+    """Research restaurant options for a city and occasion."""
+    try:
+        from eos_ai.model_router import get_router, TaskType
+        router = get_router()
+        model = router.route(TaskType.FAST_RESPONSE)
+
+        return router.call(model, f"""Research restaurant options.
+
+City: {city}
+Occasion: {occasion}
+Budget: {budget}
+Dietary needs: {dietary or 'None specified'}
+
+Recommend 4-5 specific restaurants with:
+- Name and neighborhood
+- Why it fits this occasion
+- Price range
+- Must-order dishes
+- Reservation tips
+
+Be specific with real restaurant names.""").strip()
+    except Exception as e:
+        return f'Restaurant research unavailable: {e}'
