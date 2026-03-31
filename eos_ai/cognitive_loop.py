@@ -715,6 +715,20 @@ class CognitiveLoop:
         except Exception:
             pass
 
+        # No List enforcement — flag anything Antony has committed to never doing
+        try:
+            from eos_ai.buyback_rate import check_against_no_list
+            _no_list_violations = check_against_no_list(text)
+            if _no_list_violations:
+                _system_parts.append(
+                    f'## No List Alert\n'
+                    f'The following items are on Antony\'s No List and appear '
+                    f'in this message: {", ".join(_no_list_violations)}\n'
+                    f'Flag this to Antony — he has committed to never doing these.'
+                )
+        except Exception:
+            pass
+
         original_prompt = text
         enhanced = self._enhance_prompt(text)
         enhanced_prompt = enhanced
