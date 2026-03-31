@@ -231,3 +231,123 @@ Recommend 4-5 specific restaurants with:
 Be specific with real restaurant names.""").strip()
     except Exception as e:
         return f'Restaurant research unavailable: {e}'
+
+
+def generate_trip_itinerary(
+    trip_name: str,
+    destination: str,
+    start_date: str,
+    end_date: str,
+    meetings: list = None,
+    hotel: str = '',
+    ctx=None,
+) -> str:
+    """Generate a day-by-day trip itinerary document and save to Drive."""
+    try:
+        from eos_ai.model_router import get_router, TaskType
+        from eos_ai.gws_connector import GWSConnector
+        router = get_router()
+        model = router.route(TaskType.ANALYSIS)
+
+        meetings_text = '\n'.join(f'- {m}' for m in (meetings or [])) if meetings else 'No meetings confirmed yet'
+
+        itinerary = router.call(model, f"""Generate a detailed trip itinerary.
+
+Trip: {trip_name}
+Destination: {destination}
+Dates: {start_date} to {end_date}
+Hotel/Base: {hotel or 'TBD'}
+Confirmed meetings:
+{meetings_text}
+
+Create:
+# Trip Itinerary: {trip_name}
+
+## Overview
+## Pre-departure checklist
+## Day-by-day schedule (each day from {start_date} to {end_date})
+## Logistics (transport, addresses, timezone)
+## Meeting prep notes
+## Post-trip checklist (receipts, follow-ups, CRM updates)
+
+Keep it practical and specific.""").strip()
+
+        gws = GWSConnector()
+        try:
+            gws.create_document(
+                title=f'Itinerary — {trip_name} — {start_date}',
+                content=itinerary,
+            )
+        except Exception:
+            pass
+
+        return itinerary
+    except Exception as e:
+        logger.warning(f'[Travel] generate_trip_itinerary failed: {e}')
+        return f'Itinerary unavailable: {e}'
+
+
+def log_loyalty_program(
+    program: str,
+    provider: str,
+    account_number: str = '',
+    points_balance: int = 0,
+    tier: str = '',
+    ctx=None,
+) -> bool:
+    """Track a travel loyalty program membership."""
+    try:
+        from eos_ai.context import load_context_from_env
+        from eos_ai.db import get_conn
+        ctx = ctx or load_context_from_env()
+
+        with get_conn(ctx.org_id) as cur:
+            cur.execute('''
+                INSERT INTO events
+                (org_id, event_type, payload_json, handled_by)
+                VALUES (%s, %s, %s, %s)
+            ''', (
+                str(ctx.org_id),
+                'loyalty_program',
+                json.dumps({
+                    'program': program,
+                    'provider': provider,
+                    'account_number': account_number,
+                    'points_balance': points_balance,
+                    'tier': tier,
+                    'updated_at': datetime.now(PDT).isoformat(),
+                }),
+                'dex_travel',
+            ))
+        return True
+    except Exception as e:
+        logger.warning(f'[Travel] log_loyalty failed: {e}')
+        return False
+
+
+def reconcile_trip_expenses(
+    trip_name: str,
+    expenses: list,
+    ctx=None,
+) -> dict:
+    """
+    Post-trip expense reconciliation.
+    expenses: [{"description": str, "amount": float, "category": str}]
+    """
+    try:
+        from eos_ai.expense_tracker import store_expense
+        total = 0.0
+        stored = 0
+        for exp in expenses:
+            exp_copy = {**exp, 'trip': trip_name, 'source': 'trip_reconciliation'}
+            if store_expense(exp_copy, ctx):
+                total += float(exp.get('amount', 0))
+                stored += 1
+
+        return {
+            'trip': trip_name,
+            'expenses_logged': stored,
+            'total': total,
+        }
+    except Exception as e:
+        return {'error': str(e)}

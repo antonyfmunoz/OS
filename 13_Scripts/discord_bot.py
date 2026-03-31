@@ -4138,6 +4138,34 @@ async def cmd_crisis(ctx: commands.Context, *, args: str = ''):
         await ctx.reply(f'❌ Error: {e}')
 
 
+@bot.command(name='itinerary')
+async def cmd_itinerary(ctx: commands.Context, *, args: str = ''):
+    """Generate trip itinerary. Usage: !itinerary [trip name] | [destination] | [start date] | [end date] | [hotel]"""
+    parts = [p.strip() for p in args.split('|')]
+    if len(parts) < 3:
+        await ctx.reply(
+            'Usage: `!itinerary [trip name] | [destination] | [start date] | [end date] | [hotel]`\n'
+            'Example: `!itinerary NYC Trip | New York | 2026-04-10 | 2026-04-13 | The Beekman Hotel`'
+        )
+        return
+    try:
+        from eos_ai.travel_manager import generate_trip_itinerary
+        await ctx.reply('✈️ Generating itinerary...')
+        itinerary = generate_trip_itinerary(
+            trip_name=parts[0],
+            destination=parts[1],
+            start_date=parts[2],
+            end_date=parts[3] if len(parts) > 3 else parts[2],
+            hotel=parts[4] if len(parts) > 4 else '',
+        )
+        await ctx.reply(
+            f'✈️ **Itinerary: {parts[0]}**\n'
+            f'```\n{itinerary[:1500]}\n```\nSaved to Drive.'
+        )
+    except Exception as e:
+        await ctx.reply(f'❌ Error: {e}')
+
+
 # ─── Entry point ──────────────────────────────────────────────────────────────
 
 if __name__ == '__main__':
