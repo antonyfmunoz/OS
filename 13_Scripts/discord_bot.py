@@ -532,6 +532,15 @@ Return JSON: {{"answers": true, "answer_summary": "brief summary"}}""").strip()
     except Exception:
         pass  # Non-blocking
 
+    # No List enforcement — add violations to req so cognitive_loop can surface them
+    try:
+        from eos_ai.buyback_rate import check_against_no_list
+        _nl_violations = check_against_no_list(text)
+        if _nl_violations:
+            req['no_list_violations'] = _nl_violations
+    except Exception:
+        pass  # Non-blocking
+
     result = _gateway.handle(req)
 
     if result.get('status') == 'error':
@@ -3133,6 +3142,218 @@ async def cmd_createfolder(ctx: commands.Context, *, name: str = ''):
                     f'ID: {result["id"]}'
                 )
             return '❌ Failed to create folder.'
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    loop = asyncio.get_event_loop()
+    output = await loop.run_in_executor(None, _run)
+    await ctx.reply(output)
+
+
+@bot.command(name='trip')
+async def cmd_trip(ctx: commands.Context, *, args: str = ''):
+    """Build a travel brief. Usage: !trip [event] | [destination] | [start] | [end]"""
+    if '|' not in args:
+        await ctx.reply(
+            '**Trip Brief**\n'
+            'Usage: `!trip [event name] | [destination] | [start date] | [end date]`\n'
+            'Example: `!trip SaaS Conference | San Francisco, CA | 2026-04-15 | 2026-04-17`'
+        )
+        return
+
+    def _run():
+        try:
+            from eos_ai.travel_manager import build_travel_brief, log_trip
+            parts = [p.strip() for p in args.split('|')]
+            title = parts[0]
+            destination = parts[1] if len(parts) > 1 else 'Unknown'
+            start = parts[2] if len(parts) > 2 else ''
+            end = parts[3] if len(parts) > 3 else start
+            brief = build_travel_brief(title, destination, start, end)
+            log_trip(title, destination, start, end)
+            return f'✈️ **Travel Brief: {title}**\n\n{brief}'
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    await ctx.reply('✈️ Building travel brief...')
+    loop = asyncio.get_event_loop()
+    output = await loop.run_in_executor(None, _run)
+    for i in range(0, len(output), 1900):
+        await ctx.send(output[i:i+1900])
+
+
+@bot.command(name='nolist')
+async def cmd_nolist(ctx: commands.Context):
+    """View Antony's No List."""
+    def _run():
+        try:
+            from eos_ai.buyback_rate import get_no_list
+            items = get_no_list()
+            if not items:
+                return (
+                    '📋 No List is empty.\n'
+                    'Add with: `!noadd [thing you will never do again] | [reason]`'
+                )
+            lines = [f'🚫 **No List ({len(items)} items):**']
+            for item in items:
+                reason = item.get('reason', '')
+                lines.append(
+                    f'• {item["item"]}'
+                    + (f' — {reason}' if reason else '')
+                )
+            return '\n'.join(lines)
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    loop = asyncio.get_event_loop()
+    output = await loop.run_in_executor(None, _run)
+    await ctx.reply(output)
+
+
+@bot.command(name='noadd')
+async def cmd_noadd(ctx: commands.Context, *, args: str = ''):
+    """Add to No List. Usage: !noadd [thing] | [reason optional]"""
+    if not args.strip():
+        await ctx.reply('Usage: `!noadd [thing] | [reason optional]`')
+        return
+
+    def _run():
+        try:
+            from eos_ai.buyback_rate import add_to_no_list
+            parts = args.split('|', 1)
+            item = parts[0].strip()
+            reason = parts[1].strip() if len(parts) > 1 else ''
+            ok = add_to_no_list(item, reason)
+            if ok:
+                return (
+                    f'🚫 Added to No List: **{item}**\n'
+                    f'DEX will flag this if it appears in your tasks or calendar.'
+                )
+            return '❌ Failed to add.'
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    loop = asyncio.get_event_loop()
+    output = await loop.run_in_executor(None, _run)
+    await ctx.reply(output)
+
+
+@bot.command(name='energy')
+async def cmd_energy(ctx: commands.Context, *, args: str = ''):
+    """Log daily energy. Usage: !energy [1-10] | [what drained you] | [what energized you]"""
+    if not args.strip():
+        await ctx.reply(
+            'Usage: `!energy [1-10] | [what drained you] | [what energized you]`'
+        )
+        return
+
+    def _run():
+        try:
+            import json as _ej
+            from eos_ai.context import load_context_from_env
+            from eos_ai.db import get_conn
+            from zoneinfo import ZoneInfo as _ZI
+            from datetime import datetime as _dt
+
+            _PDT = _ZI('America/Los_Angeles')
+            parts = [p.strip() for p in args.split('|')]
+            score_str = parts[0]
+            score = int(score_str) if score_str.isdigit() else 5
+            score = max(1, min(10, score))
+            drained = parts[1] if len(parts) > 1 else ''
+            energized = parts[2] if len(parts) > 2 else ''
+
+            _ctx = load_context_from_env()
+            with get_conn(_ctx.org_id) as cur:
+                cur.execute('''
+                    INSERT INTO events
+                    (org_id, event_type, payload_json, handled_by)
+                    VALUES (%s, %s, %s, %s)
+                ''', (
+                    str(_ctx.org_id),
+                    'energy_checkin',
+                    _ej.dumps({
+                        'score': score,
+                        'drained': drained,
+                        'energized': energized,
+                        'date': _dt.now(_PDT).strftime('%Y-%m-%d'),
+                    }),
+                    'dex_energy',
+                ))
+
+            emoji = '🔴' if score <= 3 else '🟡' if score <= 6 else '🟢'
+            lines = [f'{emoji} Energy logged: {score}/10']
+            if drained:
+                lines.append(f'Drained by: {drained}')
+            if energized:
+                lines.append(f'Energized by: {energized}')
+            if score <= 4:
+                lines.append(
+                    '\n⚠️ Low energy day. Run `!drip` on your task list '
+                    'tomorrow to find what to remove.'
+                )
+            return '\n'.join(lines)
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    loop = asyncio.get_event_loop()
+    output = await loop.run_in_executor(None, _run)
+    await ctx.reply(output)
+
+
+@bot.command(name='year')
+async def cmd_year(ctx: commands.Context):
+    """View annual plan (Preloaded Year)."""
+    def _run():
+        try:
+            from eos_ai.perfect_week import get_preloaded_year
+            plan = get_preloaded_year()
+            if not plan:
+                return (
+                    '📅 No annual plan set yet.\n'
+                    'Build one with Claude Code using the preloaded year format:\n'
+                    '`save_preloaded_year({q1: {rocks: [], revenue_target: 0}, ...})`'
+                )
+            lines = ['📅 **Preloaded Year:**']
+            for q in ['q1', 'q2', 'q3', 'q4']:
+                qdata = plan.get(q, {})
+                if qdata:
+                    lines.append(f'\n**{q.upper()}:**')
+                    for r in qdata.get('rocks', []):
+                        lines.append(f'• {r}')
+                    target = qdata.get('revenue_target', 0)
+                    if target:
+                        lines.append(f'Revenue target: ${target:,.0f}/mo')
+            vacation = plan.get('vacation_blocks', [])
+            if vacation:
+                lines.append('\n**Vacation blocks:**')
+                for v in vacation:
+                    lines.append(f'• {v}')
+            return '\n'.join(lines)
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    loop = asyncio.get_event_loop()
+    output = await loop.run_in_executor(None, _run)
+    await ctx.reply(output)
+
+
+@bot.command(name='rocks')
+async def cmd_rocks(ctx: commands.Context):
+    """View this quarter's rocks."""
+    def _run():
+        try:
+            from eos_ai.perfect_week import get_current_quarter_rocks
+            from datetime import datetime as _rdt
+            rocks = get_current_quarter_rocks()
+            if not rocks:
+                return '🪨 No quarterly rocks set. Use Claude Code to call `save_preloaded_year()` with your plan.'
+            month = _rdt.now().month
+            quarter = f'Q{(month - 1) // 3 + 1}'
+            lines = [f'🪨 **{quarter} Rocks:**']
+            for i, rock in enumerate(rocks, 1):
+                lines.append(f'{i}. {rock}')
+            return '\n'.join(lines)
         except Exception as e:
             return f'❌ Error: {e}'
 
