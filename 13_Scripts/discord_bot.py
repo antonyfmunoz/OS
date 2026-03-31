@@ -3904,6 +3904,54 @@ async def cmd_minutes(ctx: commands.Context, *, args: str = ''):
         await ctx.reply(f'❌ Error: {e}')
 
 
+@bot.command(name='okr')
+async def cmd_okr(ctx: commands.Context, subcommand: str = 'report', *, args: str = ''):
+    """OKR tracking. Usage: !okr report | !okr set [venture] | [objective] | [KR, target, unit]"""
+    if subcommand == 'report':
+        try:
+            from eos_ai.okr_tracker import generate_okr_report
+            report = generate_okr_report()
+            await ctx.reply(report[:1900])
+        except Exception as e:
+            await ctx.reply(f'❌ Error: {e}')
+
+    elif subcommand == 'set':
+        if not args or '|' not in args:
+            await ctx.reply(
+                'Usage: `!okr set [venture_id] | [objective] | [KR description], [target], [unit]`\n'
+                'Example: `!okr set lyfe_institute | Hit first sale | Revenue, 750, $`'
+            )
+            return
+        try:
+            from eos_ai.okr_tracker import set_okr
+            parts = [p.strip() for p in args.split('|')]
+            venture_id = parts[0]
+            objective = parts[1] if len(parts) > 1 else ''
+            key_results = []
+            for kr_str in parts[2:]:
+                kr_parts = [p.strip() for p in kr_str.split(',')]
+                if kr_parts:
+                    key_results.append({
+                        'kr': kr_parts[0],
+                        'target': float(kr_parts[1]) if len(kr_parts) > 1 else 100,
+                        'unit': kr_parts[2] if len(kr_parts) > 2 else '',
+                        'current': 0,
+                    })
+            ok = set_okr(objective=objective, key_results=key_results, venture_id=venture_id)
+            if ok:
+                await ctx.reply(
+                    f'🎯 **OKR set for {venture_id}:**\n'
+                    f'Objective: {objective}\n'
+                    f'{len(key_results)} key result(s) added.'
+                )
+            else:
+                await ctx.reply('❌ Failed to set OKR.')
+        except Exception as e:
+            await ctx.reply(f'❌ Error: {e}')
+    else:
+        await ctx.reply('Usage: `!okr report` or `!okr set [venture] | [objective] | [KRs...]`')
+
+
 # ─── Entry point ──────────────────────────────────────────────────────────────
 
 if __name__ == '__main__':
