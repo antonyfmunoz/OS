@@ -2,83 +2,67 @@
 
 ## Purpose
 
-Turn market intelligence insights into high-converting DM outreach messages.
-
-The goal is to mirror ICP language and trigger honest conversations.
+Turn market intelligence insights into high-converting DM outreach messages that mirror ICP language and trigger honest conversations.
 
 ---
 
-## Inputs
+## Outcome
 
-Market intelligence reports located in:
-
-07_Knowledge/Reports/Market_Reports
-
-ICP language patterns located in:
-
-07_Knowledge/ICP
+A ready-to-use set of DM openers, follow-up questions, reframes, and call invitations — grounded in real ICP language, saved to the CRM.
 
 ---
 
-## Analysis
+## Best-Practice Benchmark
 
-Extract:
-
-• frustrations  
-• identity conflicts  
-• emotional triggers  
-• common language patterns
+Outreach that converts opens pain discovery first, not the offer. The message should feel like the sender understands the prospect's private experience — not like a template.
 
 ---
 
-## Generate Outreach
+## Decision Criteria
 
-### Opening Messages
-
-Generate 10 DM openers designed to start conversations.
-
-Example style:
-
-"Random question — do you ever feel like you're capable of more but your weeks just disappear?"
+- Use opener if: no prior contact with this lead
+- Use follow-up question if: conversation is active but stalled on discovery
+- Use reframe if: prospect is deflecting or blaming externals
+- Use call invitation if: pain is confirmed, ownership language present, momentum is positive
 
 ---
 
-### Follow-Up Questions
+## Execution Steps
 
-Generate 10 follow-up questions designed to uncover pain.
-
-Example:
-
-"What usually pulls you away when you try to focus?"
-
----
-
-### Reframes
-
-Generate 5 reframes that connect their struggle to structure.
-
-Example:
-
-"It sounds like the real issue isn't motivation — it's that your week doesn't have structure protecting your time."
+1. Load market intelligence reports from: `07_Knowledge/Reports/Market_Reports`
+2. Load ICP language patterns from: `07_Knowledge/ICP`
+3. Extract from reports: frustrations, identity conflicts, emotional triggers, common language patterns
+4. Generate 10 DM openers designed to start conversations
+   - Example: "Random question — do you ever feel like you're capable of more but your weeks just disappear?"
+5. Generate 10 follow-up questions designed to uncover pain
+   - Example: "What usually pulls you away when you try to focus?"
+6. Generate 5 reframes that connect their struggle to structure
+   - Example: "It sounds like the real issue isn't motivation — it's that your week doesn't have structure protecting your time."
+7. Generate 5 natural call invitations
+   - Example: "If you're open to it, I'm building something for guys dealing with exactly this. Want to see if it's a fit?"
+8. Save output to: `03_CRM/Outreach_Messages/outreach_messages_YYYY-MM-DD.md`
 
 ---
 
-### Call Invitations
+## Failure Modes
 
-Generate 5 natural ways to invite someone to a call.
-
-Example:
-
-"If you're open to it, I'm building something for guys dealing with exactly this. Want to see if it's a fit?"
+- Generic language that could apply to any audience → reject; must use exact ICP phrases from the intelligence
+- Pitching the offer in the opener → reject; openers open conversations, not sales
+- Invented frustrations not backed by signal data → reject; all output must trace to a real insight
+- Follow-up questions with yes/no answers → reject; must require a real answer
 
 ---
 
-## Output Location
+## Measurement
 
-Save outreach ideas to:
+- Reply rate per opener batch (track in `13_Scripts/opener_stats.json`)
+- Conversation advancement rate: what % of opener replies reach pain discovery stage
+- Call booking rate from batches using this output
 
-03_CRM/Outreach_Messages
+---
 
-File format:
+## Improvement Opportunities
 
-outreach_messages_YYYY_MM_DD.md
+- A/B test openers across different frustration categories
+- Tag each message with the ICP insight that inspired it to close the feedback loop
+- Retire openers with <10% reply rate after 20 sends

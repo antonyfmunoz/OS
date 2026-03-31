@@ -313,6 +313,71 @@ def update_opener_stats_sent(opener_text):
         print(f"  [OPENER STATS] Failed to update: {e}")
 
 
+def push_lead_to_notion(username: str, score: int, archetype: str, pain_signals: list, channel: str = "Instagram DM") -> bool:
+    """Push a scored lead into the Notion Pipeline database."""
+    import requests
+    from datetime import date
+
+    api_key = os.getenv("NOTION_API_KEY")
+    database_id = os.getenv("NOTION_LYFE_PIPELINE_ID")
+
+    if not api_key or not database_id:
+        return False
+
+    notes = f"Score: {score}/100 | Archetype: {archetype}"
+    if pain_signals:
+        notes += f" | Pain: {', '.join(pain_signals[:3])}"
+
+    payload = {
+        "parent": {"database_id": database_id},
+        "properties": {
+            "Name": {
+                "title": [{"text": {"content": f"@{username}"}}]
+            },
+            "Stage": {
+                "select": {"name": "New Lead"}
+            },
+            "Channel": {
+                "select": {"name": channel}
+            },
+            "Value": {
+                "number": 750
+            },
+            "Last Contact": {
+                "date": {"start": date.today().isoformat()}
+            },
+            "Notes": {
+                "rich_text": [{"text": {"content": notes}}]
+            },
+            "Archetype": {
+                "rich_text": [{"text": {"content": archetype}}]
+            },
+            "Score": {
+                "number": score
+            },
+            "AI Qualified": {
+                "checkbox": True
+            },
+        }
+    }
+
+    try:
+        response = requests.post(
+            "https://api.notion.com/v1/pages",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Notion-Version": "2022-06-28",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=10,
+        )
+        return response.status_code == 200
+    except Exception as e:
+        print(f"[Notion] Push failed for @{username}: {e}")
+        return False
+
+
 def create_lead_file(username, comment_text, source, post_url, timestamp, result, opener, opener_index=0):
     """Write lead markdown file and return filepath."""
     os.makedirs(LEADS_DIR, exist_ok=True)
@@ -384,6 +449,26 @@ kanban_stage: New
         )
     except Exception as e:
         print(f"  [MEMORY] log_lead_scored failed for @{username}: {e}")
+
+    # Push to Notion Pipeline
+    push_lead_to_notion(
+        username=username,
+        score=result.get("score", 0),
+        archetype=result.get("archetype", "Unknown"),
+        pain_signals=result.get("pain_signals", []),
+    )
+
+    # Publish new_lead event — triggers icp_qualifier handler async (non-blocking)
+    try:
+        from eos_ai.event_bus import EventBus
+        EventBus().publish_async("new_lead", {
+            "username":   username,
+            "score":      result["score"],
+            "state":      result["archetype"],
+            "venture_id": "lyfe_institute",
+        })
+    except Exception as e:
+        print(f"  [EVENT BUS] new_lead publish failed for @{username}: {e}")
 
     return filename
 

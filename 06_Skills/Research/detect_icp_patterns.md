@@ -2,80 +2,65 @@
 
 ## Purpose
 
-Analyze all ICP insights to identify recurring patterns in the audience's psychology, language, and frustrations.
-
-This skill converts individual insights into strategic market intelligence.
+Analyze all ICP insights to identify recurring patterns in the audience's psychology, language, and frustrations. Converts individual insights into strategic market intelligence.
 
 ---
 
-## Input
+## Outcome
 
-Knowledge stored in:
-
-07_Knowledge/ICP
-
-Each file represents a previously analyzed signal.
+A structured pattern report covering: top frustrations, top desires, language patterns, psychological states, messaging opportunities, and offer opportunities — backed by frequency counts.
 
 ---
 
-## Analysis Process
+## Best-Practice Benchmark
 
-1. Scan all ICP insight files.
-    
-2. Identify recurring:
-    
-
-- frustrations
-    
-- desires
-    
-- language patterns
-    
-- psychological states
-    
-- obstacles
-    
-
-3. Count frequency of patterns.
-    
-4. Identify the most dominant signals.
-    
+Pattern frequency is signal strength. A pattern reported without frequency data is an opinion, not intelligence. Every pattern must include how many insights support it.
 
 ---
 
-## Output
+## Decision Criteria
 
-Generate the following report.
+- Report a pattern if: it appears in 3+ independent insights
+- Elevate to "dominant signal" if: it appears in 5+ insights
+- Tag as emerging if: it appears in 2 insights but the recency is within 7 days
+- Skip individual observations that don't generalize — those stay in the individual insight files
 
-### Top Frustrations
+---
 
-The most common problems experienced by the ICP.
+## Execution Steps
 
-### Top Desires
+1. Scan all ICP insight files in: `07_Knowledge/ICP`
+2. Load each file and extract: frustrations, desires, language patterns, psychological states, obstacles
+3. Group by category and count frequency
+4. Identify dominant signals (5+ occurrences) and emerging signals (2 recent)
+5. Generate pattern report with sections:
+   - **Top Frustrations** — most common problems with frequency count
+   - **Top Desires** — what outcomes the ICP most wants, with frequency count
+   - **Language Patterns** — exact phrases worth using in messaging (direct quotes only)
+   - **Psychological States** — most common states (e.g., Frustrated Drifter, Ambitious but Stuck)
+   - **Messaging Opportunities** — new angles for marketing and content based on patterns
+   - **Offer Opportunities** — insights for improving or positioning offers
 
-What outcomes the ICP most wants.
+---
 
-### Language Patterns
+## Failure Modes
 
-Exact phrases worth using in messaging.
+- Reporting a pattern without citing frequency (opinion, not data)
+- Merging distinct frustrations into vague categories to hit the 3+ threshold
+- Including individual insights that don't meet the pattern threshold in the pattern report
+- Paraphrasing exact language patterns instead of quoting them directly
 
-### Psychological States
+---
 
-Most common states.
+## Measurement
 
-Examples:
+- Pattern-to-content use rate: % of detected patterns that appear in content or outreach within 30 days
+- Pattern accuracy: how well patterns predicted ICP response in live outreach
 
-- Frustrated Drifter
-    
-- Ambitious but Stuck
-    
-- Curious Observer
-    
+---
 
-### Messaging Opportunities
+## Improvement Opportunities
 
-New angles for marketing and content.
-
-### Offer Opportunities
-
-Insights for improving or positioning offers.
+- Build a pattern trend tracker — which patterns are growing in frequency vs. declining
+- Add timestamp tracking to insights so recency weighting can be applied
+- Cross-reference patterns with successful outreach to validate predictive accuracy

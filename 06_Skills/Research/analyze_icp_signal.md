@@ -2,133 +2,78 @@
 
 ## Purpose
 
-Extract meaningful customer intelligence from raw signals such as comments, forum posts, or conversations. The goal is to identify pain points, motivations, language patterns, and psychological signals that reveal how the ideal customer thinks and speaks.
+Extract meaningful customer intelligence from raw signals such as comments, forum posts, or conversations. Convert unstructured signals into structured market intelligence for messaging, outreach, content, and offer development.
 
-This skill converts unstructured signals into structured market intelligence that can be used for messaging, outreach, content creation, and offer development.
+---
 
-## Inputs
+## Outcome
 
-The skill accepts one or more raw signals such as:
+A structured analysis with: signal summary, pain pattern, desired transformation, language patterns, psychological state, ICP match score, content opportunities, and outreach opportunities. High-value signals saved to `07_Knowledge/ICP/`.
 
-- Reddit posts or comments
-    
-- Instagram comments
-    
-- Quora questions
-    
-- YouTube comments
-    
-- Twitter/X posts
-    
-- Forum discussions
-    
-- DM conversations
-    
-- Sales call transcripts
-    
+---
 
-## Analysis Process
+## Best-Practice Benchmark
 
-1. Identify the **core frustration or pain signal** being expressed.
-    
-2. Extract the **exact language used by the person** (important for copywriting and messaging).
-    
-3. Identify the **underlying desire or transformation** the person wants.
-    
-4. Detect the **psychological state** of the speaker.
-    
+Exact language from real people always beats AI-generated paraphrases. If you reword what they said, you lose the intelligence. Quote directly. Interpret separately.
 
-Possible states include:
+---
 
-- Frustrated Drifter
-    
-- Ambitious but Stuck
-    
-- Curious Observer
-    
-- Ego Defender
-    
-- Early Adopter
-    
+## Decision Criteria
 
-5. Identify **obstacles or constraints** they believe are blocking them.
-    
+- Save as ICP insight if: ICP match is HIGH or MEDIUM and at least one reusable pattern exists
+- Tag as strong ICP if: clear pain, self-awareness, and ownership language are all present
+- Tag as weak ICP if: pain present but ownership language absent or external blame dominant
+- Tag as not ICP if: no real pain, wrong demographic, or engagement farming signals
 
-Examples:
+---
 
-- lack of discipline
-    
-- lack of structure
-    
-- overwhelm
-    
-- fear of failure
-    
-- lack of direction
-    
+## Execution Steps
 
-6. Extract **content opportunities** based on the signal.
-    
+1. Accept raw signal: Reddit post/comment, Instagram comment, Quora question, YouTube comment, Twitter/X post, forum discussion, DM conversation, or sales call transcript
+2. Identify the core frustration or pain signal being expressed
+3. Extract the exact language used by the person — do not paraphrase
+4. Identify the underlying desire or transformation they want
+5. Detect the psychological state of the speaker:
+   - Frustrated Drifter
+   - Ambitious but Stuck
+   - Curious Observer
+   - Ego Defender
+   - Early Adopter
+6. Identify obstacles or constraints they believe are blocking them
+7. Extract content opportunities: hooks, discussion topics, myth-busting angles, controversial takes
+8. Determine ICP match: High / Medium / Low
+9. Output structured analysis:
+   - **Signal Summary** — short description of the signal
+   - **Pain Pattern** — what problem the person is experiencing
+   - **Desired Transformation** — what they actually want
+   - **Language Patterns** — exact phrases worth saving for marketing
+   - **Psychological State** — classification of the speaker
+   - **ICP Match** — High / Medium / Low
+   - **Content Opportunities** — list of potential hooks or angles
+   - **Outreach Opportunities** — ideas for direct conversation or outreach angles
+10. If ICP match is HIGH or MEDIUM: generate knowledge entry and save to `07_Knowledge/ICP/`
 
-Examples:
+---
 
-- hooks
-    
-- discussion topics
-    
-- myth-busting angles
-    
-- controversial takes
-    
+## Failure Modes
 
-7. Determine whether this signal represents:
-    
+- Paraphrasing their words — always use direct quotes for language patterns
+- Projecting pain that wasn't explicitly expressed
+- Missing weak ICP signals because they don't match the "ideal" profile exactly
+- Classifying without evidence — every classification needs a specific quote supporting it
 
-- a strong ICP match
-    
-- a weak ICP match
-    
-- not ICP
-    
+---
 
-## Output Format
+## Measurement
 
-Return results in the following structure:
+- Signal-to-insight conversion rate: % of signals that produce a saved ICP insight
+- Insight utility rate: % of saved insights referenced in content or outreach within 30 days
+- ICP match accuracy: % of HIGH matches that qualify positively in outreach
 
-### Signal Summary
+---
 
-Short description of the signal.
+## Improvement Opportunities
 
-### Pain Pattern
-
-What problem the person is experiencing.
-
-### Desired Transformation
-
-What they actually want.
-
-### Language Patterns
-
-Exact phrases worth saving for marketing.
-
-### Psychological State
-
-Classification of the speaker.
-
-### ICP Match
-
-High / Medium / Low
-
-### Content Opportunities
-
-List of potential hooks or angles.
-
-### Outreach Opportunities
-
-Ideas for direct conversation or outreach angles.
-
-## Storage Instruction
-
-If the signal contains valuable ICP intelligence, generate a knowledge entry that can be saved in:
-
-07_Knowledge/ICP/
+- Build a psychological state taxonomy with distinguishing markers for each state
+- Track which signal sources produce the highest-quality insights
+- Add recency weighting — recent signals should carry more weight in pattern detection

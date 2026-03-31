@@ -2,83 +2,63 @@
 
 ## Purpose
 
-Process raw signals stored in the inbox and convert them into structured ICP intelligence.
-
-This skill scans the raw signal inbox and runs the signal intelligence workflow on each signal.
+Process raw signals stored in the inbox and convert them into structured ICP intelligence. Scans the raw signal inbox, runs signal analysis on each signal, and archives processed signals.
 
 ---
 
-## Input
+## Outcome
 
-Source folder:
-
-01_Inbox/raw_signals
-
-Signals may include:
-
-- Reddit posts
-    
-- Instagram comments
-    
-- Quora questions
-    
-- YouTube comments
-    
-- DM conversations
-    
-- forum discussions
-    
+All raw signals in `01_Inbox/raw_signals` analyzed, converted to ICP insights in `07_Knowledge/ICP`, and moved to `01_Inbox/processed_signals`. Zero unprocessed signals remain.
 
 ---
 
-## Process
+## Best-Practice Benchmark
 
-1. Scan the folder:
-    
-
-01_Inbox/raw_signals
-
-2. For each signal file:
-    
-
-- Load the signal text
-    
-- Run the skill:
-    
-
-06_Skills/research/analyze_icp_signal.md
-
-3. Generate an ICP insight entry.
-    
-4. Save the insight to:
-    
-
-07_Knowledge/ICP
-
-5. Move the processed signal to:
-    
-
-01_Inbox/processed_signals
-
-## Result
-
-Signals are analyzed once, converted into intelligence, and archived.
-    
+Every signal that enters the inbox must be processed before the next outreach cycle runs. Unprocessed signals are lost intelligence. The queue should be at zero before any outreach is generated.
 
 ---
 
-## Output
+## Decision Criteria
 
-Save the insight to:
-
-07_Knowledge/ICP
-
-Naming format:
-
-insight_.md
+- Process all signals in queue regardless of apparent quality — let the analysis determine ICP match
+- Archive immediately after processing — do not leave signals in raw_signals after analysis
+- If a signal file is malformed or empty: log the error, archive it, continue
+- Stop and flag if: more than 50 signals are queued (signals a scraper issue, not normal volume)
 
 ---
 
-## Result
+## Execution Steps
 
-Raw signals are converted into permanent ICP intelligence stored in the knowledge base.
+1. Scan folder: `01_Inbox/raw_signals`
+2. List all signal files
+3. For each signal file:
+   a. Load the signal text
+   b. Run skill: `06_Skills/Research/analyze_icp_signal.md`
+   c. If ICP match is HIGH or MEDIUM: generate ICP insight and save to `07_Knowledge/ICP/insight_[slug].md`
+   d. Move the processed signal to: `01_Inbox/processed_signals`
+4. Report: total processed, total insights saved, total skipped (low/no ICP match)
+
+---
+
+## Failure Modes
+
+- Leaving signals in raw_signals after processing (creates duplicate processing risk)
+- Skipping signals that seem low quality — analysis determines quality, not appearance
+- Processing without archiving (queue never clears)
+- Running outreach generation before the signal queue is cleared
+
+---
+
+## Measurement
+
+- Queue clearance rate: % of signals processed per cycle (target: 100%)
+- Insight yield rate: % of processed signals that produce a saved insight
+- Processing latency: time from signal arrival to processing (target: within 24 hours)
+
+---
+
+## Improvement Opportunities
+
+- Add signal source tagging at ingestion (Reddit vs. Instagram vs. YouTube) to enable source quality tracking
+- Build a duplicate detection check before processing to avoid redundant insights
+- Automate queue size alerting if volume exceeds 50 (indicates scraper issue)

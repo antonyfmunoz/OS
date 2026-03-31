@@ -80,8 +80,8 @@ class RateLimiter:
     _counts: dict[str, dict[str, int]] = {}
 
     LIMITS = {
-        'per_minute': 10,
-        'per_hour':   200,
+        'per_minute': 30,
+        'per_hour':   500,
     }
 
     @classmethod

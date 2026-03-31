@@ -5,18 +5,84 @@
       "stopwastingyour20s",
       "morningroutine",
       "20s",
-      "selfmastery"
+      "selfmastery",
+      "highperformance",
+      "dailydiscipline"
     ],
     "B": [
       "highperformance",
       "youngentrepreneur",
-      "levelup",
       "accountability",
       "dailydiscipline"
     ]
   },
   "current_group": "A",
-  "performance": {},
-  "suggested": [],
-  "blacklist": []
+  "performance": {
+    "#discipline": {
+      "runs": 8,
+      "total_scanned": 55,
+      "total_qualified": 18,
+      "total_priority": 5,
+      "avg_qualified_rate": 0.3273,
+      "last_run": "2026-03-20"
+    },
+    "#20s": {
+      "runs": 9,
+      "total_scanned": 167,
+      "total_qualified": 34,
+      "total_priority": 13,
+      "avg_qualified_rate": 0.2036,
+      "last_run": "2026-03-25"
+    },
+    "#selfmastery": {
+      "runs": 15,
+      "total_scanned": 195,
+      "total_qualified": 38,
+      "total_priority": 17,
+      "avg_qualified_rate": 0.1949,
+      "last_run": "2026-03-23"
+    },
+    "#highperformance": {
+      "runs": 4,
+      "total_scanned": 52,
+      "total_qualified": 8,
+      "total_priority": 8,
+      "avg_qualified_rate": 0.1538,
+      "last_run": "2026-03-19"
+    },
+    "#levelup": {
+      "runs": 3,
+      "total_scanned": 21,
+      "total_qualified": 0,
+      "total_priority": 0,
+      "avg_qualified_rate": 0.0,
+      "last_run": "2026-03-19"
+    },
+    "#dailydiscipline": {
+      "runs": 11,
+      "total_scanned": 195,
+      "total_qualified": 31,
+      "total_priority": 17,
+      "avg_qualified_rate": 0.159,
+      "last_run": "2026-03-25"
+    },
+    "#accountability": {
+      "runs": 1,
+      "total_scanned": 9,
+      "total_qualified": 4,
+      "total_priority": 0,
+      "avg_qualified_rate": 0.4444,
+      "last_run": "2026-03-25"
+    }
+  },
+  "suggested": [
+    "wasted potential",
+    "broken promises to myself",
+    "procrastination kills dreams",
+    "unfulfilled potential",
+    "self sabotage"
+  ],
+  "blacklist": [
+    "levelup"
+  ]
 }

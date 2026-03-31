@@ -2,92 +2,65 @@
 
 ## Purpose
 
-Synthesize all ICP insights and detected patterns into a clear strategic report.
-
-The goal is to convert raw research into founder-level insights.
+Synthesize all ICP insights and detected patterns into a clear strategic report. Convert raw research into founder-level intelligence for content, outreach, and offer positioning.
 
 ---
 
-## Inputs
+## Outcome
 
-Knowledge stored in:
-
-07_Knowledge/ICP
-
-Pattern insights produced by:
-
-detect_icp_patterns
+A dated market report saved to `07_Knowledge/Reports/Market_Reports/market_report_YYYY-MM-DD.md` — covering frustrations, desires, language, psychological profile, content angles, outreach angles, and offer insights.
 
 ---
 
-## Analysis
+## Best-Practice Benchmark
 
-Review all ICP insights and summarize:
-
-• recurring frustrations  
-• recurring desires  
-• recurring objections  
-• language patterns  
-• psychological states
+A market report that can't be immediately acted on — that doesn't produce at least one changed message, one new hook, or one repositioned offer element — has failed its purpose.
 
 ---
 
-## Generate Report Sections
+## Decision Criteria
 
-### Top Frustrations
-
-List the most common frustrations in the market.
-
----
-
-### Top Desires
-
-What the ICP most wants to achieve.
+- Run this report if: 5+ new insights have been added since the last report
+- Or run on weekly cadence regardless of insight count
+- Elevate to "strategic priority" if: a new dominant pattern emerges that contradicts current messaging
 
 ---
 
-### Language to Mirror
+## Execution Steps
 
-Exact phrases used by the ICP that should appear in messaging.
-
----
-
-### Psychological Profile
-
-Describe the current mental state of the ICP.
-
-Example states:
-
-Ambitious but Stuck  
-Frustrated Drifter  
-Self-Aware but Undisciplined
-
----
-
-### Content Angles
-
-Generate content ideas based on detected patterns.
+1. Load all ICP insights from: `07_Knowledge/ICP`
+2. Load pattern report from: `detect_icp_patterns` output
+3. Synthesize: recurring frustrations, desires, objections, language patterns, psychological states
+4. Generate report sections:
+   - **Top Frustrations** — most common problems in the market with frequency
+   - **Top Desires** — what the ICP most wants to achieve
+   - **Language to Mirror** — exact phrases used by the ICP (direct quotes only)
+   - **Psychological Profile** — dominant mental state description (e.g., Ambitious but Stuck)
+   - **Content Angles** — content ideas based on detected patterns
+   - **Outreach Angles** — outreach openings that mirror ICP language
+   - **Offer Insights** — how the offer should be positioned based on this data
+5. Save to: `07_Knowledge/Reports/Market_Reports/market_report_YYYY-MM-DD.md`
 
 ---
 
-### Outreach Angles
+## Failure Modes
 
-Generate outreach openings that mirror ICP language.
-
----
-
-### Offer Insights
-
-Insights about how the offer should be positioned.
+- Generating a report without running `detect_icp_patterns` first (repeating the analysis work)
+- Softening ICP language in the "Language to Mirror" section — use their words, not clean versions
+- Generating "offer insights" that are speculative rather than grounded in signal data
+- Saving without a date — makes historical comparison impossible
 
 ---
 
-## Output Location
+## Measurement
 
-Save report to:
+- Report-to-action rate: how many content, outreach, or offer changes trace back to this report within 14 days
+- Outreach angle conversion rate: reply rate on DMs using angles from this report
 
-07_Knowledge/Reports/Market_Reports
+---
 
-Use format:
+## Improvement Opportunities
 
-market_report_YYYY_MM_DD.md
+- Add a diff section: what changed from last report? (new patterns, disappeared patterns)
+- Track which report sections are most frequently acted on — double down on those
+- Build a report confidence score based on sample size of underlying insights

@@ -99,8 +99,8 @@ services:
     volumes:
       - /opt/OS:/app
       - /opt/OS/logs:/opt/OS/logs
-      - /root/.config/gws:/root/.config/gws:ro
-      - /root/.config/@googleworkspace:/root/.config/@googleworkspace:ro
+      - /root/.config/gws:/root/.config/gws
+      - /root/.config/@googleworkspace:/root/.config/@googleworkspace
     env_file:
       - 13_Scripts/.env
       - eos_ai/.env

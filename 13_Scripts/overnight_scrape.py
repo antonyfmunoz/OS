@@ -187,6 +187,23 @@ def main():
         print("Running ICP scorer...")
         run_scorer()
 
+        # Notify gateway that a scoring batch completed
+        batch_size = count_new_leads_today() - total_leads
+        try:
+            sys.path.insert(0, VAULT)
+            from eos_ai.gateway import EOSGateway
+            EOSGateway().handle({
+                "type":       "event",
+                "event_type": "signal_captured",
+                "payload": {
+                    "batch_size": max(batch_size, 0),
+                    "attempt":    attempt,
+                    "venture_id": "lyfe_institute",
+                },
+            })
+        except Exception as _gw_err:
+            print(f"[Gateway] signal_captured event failed: {_gw_err}")
+
         total_leads = count_new_leads_today()
         print(f"Total leads: {total_leads}/{TARGET_LEADS}")
 

@@ -18,11 +18,163 @@
         "total": 0.0054
       },
       "total_day": 0.019200000000000002
+    },
+    "2026-03-18": {
+      "scraper": {
+        "apify_results": 165,
+        "apify_runs": {
+          "hashtag": 0,
+          "comment": 0,
+          "profile": 0
+        },
+        "apify_cost": 0.000429,
+        "haiku_calls": 95,
+        "haiku_input_tokens": 47965,
+        "haiku_output_tokens": 10913,
+        "haiku_cost": 0.10253000000000001,
+        "total": 0.10295900000000002
+      },
+      "copilot": {
+        "sonnet_calls": 0,
+        "sonnet_input_tokens": 0,
+        "sonnet_output_tokens": 0,
+        "sonnet_cost": 0.0,
+        "total": 0.0
+      },
+      "total_day": 0.10295900000000002
+    },
+    "2026-03-19": {
+      "scraper": {
+        "apify_results": 192,
+        "apify_runs": {
+          "hashtag": 0,
+          "comment": 0,
+          "profile": 0
+        },
+        "apify_cost": 0.0004992,
+        "haiku_calls": 45,
+        "haiku_input_tokens": 22658,
+        "haiku_output_tokens": 5435,
+        "haiku_cost": 0.04983300000000001,
+        "total": 0.0503322
+      },
+      "copilot": {
+        "sonnet_calls": 0,
+        "sonnet_input_tokens": 0,
+        "sonnet_output_tokens": 0,
+        "sonnet_cost": 0.0,
+        "total": 0.0
+      },
+      "total_day": 0.0503322
+    },
+    "2026-03-20": {
+      "scraper": {
+        "apify_results": 68,
+        "apify_runs": {
+          "hashtag": 0,
+          "comment": 0,
+          "profile": 0
+        },
+        "apify_cost": 0.0001768,
+        "haiku_calls": 21,
+        "haiku_input_tokens": 10543,
+        "haiku_output_tokens": 2581,
+        "haiku_cost": 0.023447999999999997,
+        "total": 0.0236248
+      },
+      "copilot": {
+        "sonnet_calls": 0,
+        "sonnet_input_tokens": 0,
+        "sonnet_output_tokens": 0,
+        "sonnet_cost": 0.0,
+        "total": 0.0
+      },
+      "total_day": 0.0236248
+    },
+    "2026-03-23": {
+      "scraper": {
+        "apify_results": 140,
+        "apify_runs": {
+          "hashtag": 0,
+          "comment": 0,
+          "profile": 0
+        },
+        "apify_cost": 0.000364,
+        "haiku_calls": 13,
+        "haiku_input_tokens": 17222,
+        "haiku_output_tokens": 1631,
+        "haiku_cost": 0.025376999999999997,
+        "total": 0.025741
+      },
+      "copilot": {
+        "sonnet_calls": 0,
+        "sonnet_input_tokens": 0,
+        "sonnet_output_tokens": 0,
+        "sonnet_cost": 0.0,
+        "total": 0.0
+      },
+      "total_day": 0.025741
+    },
+    "2026-03-25": {
+      "scraper": {
+        "apify_results": 129,
+        "apify_runs": {
+          "hashtag": 0,
+          "comment": 0,
+          "profile": 0
+        },
+        "apify_cost": 0.0003354,
+        "haiku_calls": 60,
+        "haiku_input_tokens": 85618,
+        "haiku_output_tokens": 7087,
+        "haiku_cost": 0.121053,
+        "total": 0.12138840000000001
+      },
+      "copilot": {
+        "sonnet_calls": 0,
+        "sonnet_input_tokens": 0,
+        "sonnet_output_tokens": 0,
+        "sonnet_cost": 0.0,
+        "total": 0.0
+      },
+      "total_day": 0.12138840000000001
+    },
+    "2026-03-29": {
+      "scraper": {
+        "apify_results": 0,
+        "apify_runs": {
+          "hashtag": 0,
+          "comment": 0,
+          "profile": 0
+        },
+        "apify_cost": 0.0,
+        "haiku_calls": 0,
+        "haiku_input_tokens": 0,
+        "haiku_output_tokens": 0,
+        "haiku_cost": 0.0,
+        "total": 0.0
+      },
+      "copilot": {
+        "sonnet_calls": 0,
+        "sonnet_input_tokens": 0,
+        "sonnet_output_tokens": 0,
+        "sonnet_cost": 0.0,
+        "total": 0.0
+      },
+      "total_day": 0.0
     }
   },
   "monthly": {
-    "2026-03": 0.019200000000000002
+    "2026-03": 0.3432454000000001
   },
-  "all_time_total": 0.019200000000000002,
-  "apify": {}
+  "all_time_total": 0.3432454000000001,
+  "apify": {
+    "free_tier_consumed": 2.211697842719714,
+    "total_gross_cost": 2.453564389216463,
+    "total_billable_cost": 2.453564389216463,
+    "cycle_start": "2026-03-18T00:00:00.000Z",
+    "cycle_end": "2026-04-17T23:59:59.999Z",
+    "last_synced": "2026-03-18",
+    "is_paid": true
+  }
 }

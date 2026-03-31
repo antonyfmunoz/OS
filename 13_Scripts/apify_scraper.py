@@ -6,12 +6,18 @@ import glob
 import time
 import requests
 import datetime
-import anthropic
 from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+from eos_ai.agent_runtime import AgentRuntime
+from eos_ai.context import load_context_from_env
 
 APIFY_API_TOKEN = os.getenv("APIFY_API_TOKEN")
 
@@ -706,13 +712,10 @@ def scrape_competitor(account, seen_usernames, seen_comment_texts, counters, cli
 # Weekly hashtag suggestion (Sundays)
 # ---------------------------------------------------------------------------
 
-def auto_suggest_hashtags():
+def auto_suggest_hashtags(client=None):
     """Use Claude Haiku to suggest new hashtags based on what's working."""
-    import anthropic as _anthropic
-
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-    if not api_key:
-        print("  [SUGGEST] ANTHROPIC_API_KEY not set — skipping")
+    if client is None:
+        print("  [SUGGEST] No Claude client available — skipping")
         return
 
     config = load_hashtag_config()
@@ -770,7 +773,6 @@ def auto_suggest_hashtags():
     )
 
     try:
-        client = _anthropic.Anthropic(api_key=api_key)
         message = client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=200,
@@ -819,7 +821,9 @@ def main():
 
     print(f"Competitor accounts to scrape: {COMPETITOR_ACCOUNTS}")
 
-    client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    ctx = load_context_from_env()
+    runtime = AgentRuntime(ctx)
+    client = runtime.client
 
     seen_usernames = set()
     seen_comment_texts = set()
@@ -865,7 +869,7 @@ Total saved:               {total_saved}
 
     if datetime.datetime.now().weekday() == 6:
         print("\n[SUNDAY] Running weekly hashtag suggestion...")
-        auto_suggest_hashtags()
+        auto_suggest_hashtags(client=client)
 
     import cost_tracker as ct
     today = datetime.datetime.now().strftime("%Y-%m-%d")

@@ -6,13 +6,28 @@ import time
 import random
 import datetime
 import base64
+import uuid
 import requests
 from dotenv import load_dotenv
 from playwright.sync_api import sync_playwright
-import anthropic
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cost_tracker
+
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+from eos_ai.agent_runtime import AgentRuntime
+from eos_ai.context import load_context_from_env
+from eos_ai.memory import AgentMemory
+from eos_ai.error_handler import ErrorHandler
+
+_ctx = load_context_from_env()
+_runtime = AgentRuntime(_ctx)
+_claude_client = _runtime.client
+_mem = AgentMemory()
+_err = ErrorHandler('dm_monitor', _ctx)
 
 try:
     from google import genai
@@ -32,7 +47,6 @@ else:
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
 VAULT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SESSION_DIR = os.path.join(VAULT, "13_Scripts", "instagram_session")
@@ -311,6 +325,25 @@ def update_source_reply(username):
             print(f"  [REPLY TRACK] Opener update failed: {e}")
 
 
+def _log_rlhf_outcome(username, outcome_type, score, notes=None):
+    """
+    Look up interaction_id for username in memory.db and log an outcome.
+    If no interaction found, logs to orphaned_replies for manual reconciliation.
+    Silent on all errors — never crashes the monitor.
+    """
+    try:
+        row = _mem.get_interaction_for_lead(username, venture_id="lyfe_institute")
+        if row:
+            _mem.log_outcome(row["id"], outcome_type, score=score, notes=notes)
+            print(f"  [RLHF] @{username} → {outcome_type} (score={score}) — interaction_id={row['id']}")
+        else:
+            _mem.log_orphaned_reply(username, outcome_type=outcome_type, score=score,
+                                    notes=notes or "no matching interaction in memory.db")
+            print(f"  [RLHF] @{username} → orphaned {outcome_type} (no interaction found)")
+    except Exception as e:
+        print(f"  [RLHF] outcome logging failed for @{username}: {e}")
+
+
 def _advance_pipeline(username, stage):
     """Move the pipeline card based on conversation stage.
     Returns (pipeline_status_str, ready_alert_str|None)."""
@@ -323,6 +356,7 @@ def _advance_pipeline(username, stage):
             update_lead_stage(username, "Replied", conversation_stage=stage)
             pipeline_status = "Contacted → Replied"
             update_source_reply(username)
+            _log_rlhf_outcome(username, "reply", 1.0)
             print(f"  [PIPELINE] @{username} Contacted → Replied")
         else:
             update_lead_stage(username, "Replied", conversation_stage=stage)
@@ -343,6 +377,7 @@ def _advance_pipeline(username, stage):
             update_lead_stage(username, "Booked", conversation_stage=stage)
             pipeline_status = (pipeline_status + " → Booked") if pipeline_status else "→ Booked"
             update_source_booked(username)
+            _log_rlhf_outcome(username, "booked", 1.0)
             print(f"  [PIPELINE] @{username} → Booked")
 
     if stage == "Ready":
@@ -440,7 +475,7 @@ def detect_stage(conversation_text):
 
 
 def generate_reply(conversation_text):
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = _claude_client
 
     extra_context = load_workflow_prompt("2_analyze_conversation.md")
     extra_context += "\n\n" + load_workflow_prompt("3_generate_response.md")
@@ -557,6 +592,21 @@ def send_telegram_alert(text):
         pass
 
 
+def send_discord_webhook(env_var: str, content: str) -> None:
+    """Post to a Discord channel via incoming webhook URL stored in env."""
+    webhook_url = os.getenv(env_var)
+    if not webhook_url:
+        return
+    try:
+        requests.post(
+            webhook_url,
+            json={"content": content[:1900]},
+            timeout=10,
+        )
+    except Exception:
+        pass
+
+
 def get_session_path():
     return os.path.join(
         get_vault_path(),
@@ -564,28 +614,17 @@ def get_session_path():
 
 
 def save_session(context):
+    """Save full browser auth state (cookies + localStorage) via storage_state."""
     try:
-        cookies = context.cookies()
-        with open(get_session_path(), "w") as f:
-            json.dump(cookies, f)
-        print("[SESSION] Cookies saved.")
+        context.storage_state(path=get_session_path())
+        print("[SESSION] Storage state saved.")
     except Exception as e:
-        print(f"[SESSION] Could not save cookies: {e}")
+        print(f"[SESSION] Could not save storage state: {e}")
 
 
-def load_session(context):
-    path = get_session_path()
-    if not os.path.exists(path):
-        return False
-    try:
-        with open(path) as f:
-            cookies = json.load(f)
-        context.add_cookies(cookies)
-        print("[SESSION] Cookies loaded.")
-        return True
-    except Exception as e:
-        print(f"[SESSION] Could not load cookies: {e}")
-        return False
+def load_session_exists() -> bool:
+    """Return True if a saved storage state file exists."""
+    return os.path.exists(get_session_path())
 
 
 def session_is_valid(page):
@@ -594,12 +633,107 @@ def session_is_valid(page):
             "https://www.instagram.com/direct/inbox/",
             wait_until="domcontentloaded",
             timeout=60000)
-        time.sleep(3)
+        time.sleep(random.uniform(3, 5))
         if "login" in page.url:
             return False
         return True
     except Exception:
         return False
+
+
+def _screenshot_login_state(page, label="login"):
+    """Save a screenshot to logs/ for diagnosing what Instagram is showing."""
+    try:
+        os.makedirs('/opt/OS/logs', exist_ok=True)
+        path = f'/opt/OS/logs/instagram_{label}.png'
+        page.screenshot(path=path)
+        print(f'[dm_monitor] Screenshot saved: {path}')
+    except Exception as _se:
+        print(f'[dm_monitor] Screenshot failed: {_se}')
+
+
+_CODE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "instagram_code.txt")
+
+
+def _wait_for_telegram_code(timeout: int = 600) -> str | None:
+    """
+    Watch /opt/OS/13_Scripts/instagram_code.txt for a 6-digit code.
+
+    os-bot and dm_monitor share the same bot token — getUpdates is a single
+    stream and os-bot consumes messages first. File-based relay sidesteps
+    the race: the user (or os-bot) writes the code to the file, dm_monitor
+    reads and deletes it.
+
+    To send the code:
+        echo "847291" > /opt/OS/13_Scripts/instagram_code.txt
+    """
+    import re
+    # Clean up any stale code file from a previous attempt
+    try:
+        os.remove(_CODE_FILE)
+    except FileNotFoundError:
+        pass
+
+    print(f"[SESSION] Waiting for 6-digit code in {_CODE_FILE} (up to 10min)...")
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if os.path.exists(_CODE_FILE):
+            try:
+                with open(_CODE_FILE) as f:
+                    text = f.read().strip()
+                os.remove(_CODE_FILE)
+                if re.match(r'^\d{6}$', text):
+                    print(f"[SESSION] Code read from file: {text}")
+                    return text
+                else:
+                    print(f"[SESSION] File contained non-code value: {repr(text)}")
+            except Exception as e:
+                print(f"[SESSION] Error reading code file: {e}")
+        time.sleep(3)
+    return None
+
+
+def _wait_for_telegram_code_UNUSED(timeout: int = 600) -> str | None:
+    """Kept for reference — broken because os-bot consumes getUpdates first."""
+    import re
+    if not TELEGRAM_BOT_TOKEN:
+        return None
+    deadline = time.time() + timeout
+    offset = None
+    try:
+        resp = requests.get(
+            f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates",
+            params={"offset": -1, "limit": 1},
+            timeout=10,
+        )
+        if resp.ok:
+            updates = resp.json().get("result", [])
+            if updates:
+                offset = updates[-1]["update_id"] + 1
+    except Exception:
+        pass
+
+    while time.time() < deadline:
+        try:
+            params: dict = {"timeout": 30}
+            if offset is not None:
+                params["offset"] = offset
+            resp = requests.get(
+                f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates",
+                params=params,
+                timeout=35,
+            )
+            if resp.ok:
+                for update in resp.json().get("result", []):
+                    offset = update["update_id"] + 1
+                    text = update.get("message", {}).get("text", "").strip()
+                    if re.match(r'^\d{6}$', text):
+                        print(f"[SESSION] Code received from Telegram: {text}")
+                        return text
+        except Exception as e:
+            print(f"[SESSION] Telegram poll error: {e}")
+            time.sleep(5)
+    return None
 
 
 def do_login(page, context):
@@ -640,14 +774,95 @@ def do_login(page, context):
                 timeout=60000)
             time.sleep(5)
 
+        # Log exactly where we are before trying to fill
+        print(f"[SESSION] Pre-fill URL: {page.url}")
+        try:
+            print(f"[SESSION] Page title: {page.title()}")
+        except Exception:
+            pass
+
         # Wait for page to fully render
         time.sleep(20)
-        page.locator('input[name="username"]').fill(username, timeout=30000)
+
+        # Screenshot before attempting fill — captures what Instagram is showing
+        _screenshot_login_state(page, "pre_fill")
+
+        # Dump all input fields in the DOM for diagnosis
+        try:
+            inputs = page.evaluate("""() => {
+                return Array.from(document.querySelectorAll('input')).map(i => ({
+                    name: i.name, type: i.type, autocomplete: i.autocomplete,
+                    ariaLabel: i.getAttribute('aria-label'),
+                    placeholder: i.placeholder, id: i.id
+                }));
+            }""")
+            print(f"[SESSION] Input fields found in DOM: {inputs}")
+        except Exception as _dom_err:
+            print(f"[SESSION] DOM dump failed: {_dom_err}")
+
+        # Try multiple selectors in case Instagram changed the login DOM
+        # DOM confirmed: name="email", autocomplete="username webauthn", no aria-label
+        _username_selectors = [
+            'input[name="email"]',
+            'input[autocomplete*="username"]',
+            'input[name="username"]',
+            'input[aria-label="Mobile number, username or email"]',
+            'input[aria-label="Phone number, username, or email"]',
+            'input[aria-label*="username"]',
+            '#loginForm input[type="text"]',
+            'form input[type="text"]',
+        ]
+        username_input = None
+        for sel in _username_selectors:
+            try:
+                el = page.locator(sel)
+                el.wait_for(timeout=5000)
+                username_input = el
+                print(f"[SESSION] Username input found via: {sel}")
+                break
+            except Exception as _sel_err:
+                print(f"[SESSION] Selector failed '{sel}': {_sel_err}")
+                continue
+
+        if not username_input:
+            _screenshot_login_state(page, "no_username_input")
+            raise Exception(
+                f"No username input found (URL: {page.url}) — "
+                "Instagram may be showing a challenge or changed login page. "
+                "See /opt/OS/logs/instagram_no_username_input.png"
+            )
+
+        # React-controlled inputs reject synthetic fill — click then type char by char
+        print("[SESSION] Typing username...")
+        username_input.click()
+        time.sleep(0.5)
+        username_input.type(username, delay=80)
         time.sleep(2)
-        page.locator('input[name="password"]').fill(password, timeout=30000)
+        print("[SESSION] Typing password...")
+        # DOM confirmed: password field is name="pass" not name="password"
+        password_input = page.locator('input[name="pass"], input[type="password"]').first
+        password_input.wait_for(timeout=10000)
+        password_input.click()
+        time.sleep(0.5)
+        password_input.type(password, delay=80)
         time.sleep(1)
-        page.click('button[type="submit"]')
-        time.sleep(8)
+        print("[SESSION] Submitting login...")
+        # Try Enter first, then fall back to clicking the submit button.
+        # Mobile web Instagram layout does not always honour keyboard Enter.
+        page.keyboard.press("Enter")
+        time.sleep(random.uniform(3, 5))
+        if "login" in page.url:
+            print("[SESSION] Enter didn't submit — trying Log in button click...")
+            for btn_text in ["Log in", "Log In", "Login"]:
+                try:
+                    btn = page.locator(f'button:has-text("{btn_text}")')
+                    if btn.is_visible(timeout=3000):
+                        btn.click()
+                        print(f"[SESSION] Clicked '{btn_text}' button.")
+                        break
+                except Exception:
+                    pass
+            time.sleep(random.uniform(5, 8))
 
         # Check for suspicious login alert
         try:
@@ -659,31 +874,83 @@ def do_login(page, context):
         except Exception:
             pass
 
-        # Check for 2FA
-        try:
-            twofa = page.locator(
-                'input[name="verificationCode"]')
-            if twofa.is_visible(timeout=5000):
-                send_telegram_alert(
-                    "INSTAGRAM 2FA REQUIRED\n\n"
-                    "Check your email or phone\n"
-                    "for verification code.\n"
-                    "2FA must be disabled for\n"
-                    "auto-login to work.")
-                # Wait up to 5 min for manual entry
-                for _ in range(60):
-                    time.sleep(5)
-                    if "login" not in page.url:
-                        break
-        except Exception:
-            pass
+        print(f"[SESSION] Post-submit URL: {page.url}")
 
         if "login" in page.url:
+            _screenshot_login_state(page, "login_failed")
             send_telegram_alert(
                 "INSTAGRAM LOGIN FAILED\n\n"
                 "Wrong credentials or blocked.\n"
                 "Check .env credentials.")
             return False
+
+        # ── Code entry / verification challenge ───────────────────────────────
+        # Instagram sends bots to /auth_platform/codeentry/ or /challenge/
+        # after login. We relay the code through Telegram so it can be entered
+        # without manual browser access.
+        _CODE_URLS = ["codeentry", "auth_platform", "challenge",
+                      "checkpoint", "verify", "suspicious"]
+        if any(kw in page.url for kw in _CODE_URLS):
+            _screenshot_login_state(page, "code_challenge")
+            print(f"[SESSION] Code challenge detected: {page.url}")
+            send_telegram_alert(
+                "INSTAGRAM VERIFICATION CODE REQUIRED\n\n"
+                "Instagram sent a code to the email or phone\n"
+                "linked to afm_bot.\n\n"
+                "Reply to this bot with JUST the 6-digit code\n"
+                "(e.g. 123456) within 10 minutes.")
+            code = _wait_for_telegram_code(timeout=600)
+            if not code:
+                send_telegram_alert(
+                    "INSTAGRAM: No code received (10min timeout).\n"
+                    "Monitor will pause and retry in 30 minutes.")
+                return False
+            # Find and fill the code input
+            _code_selectors = [
+                'input[name="verificationCode"]',
+                'input[name="code"]',
+                'input[autocomplete="one-time-code"]',
+                'input[type="text"]',
+                'input[type="number"]',
+            ]
+            code_input = None
+            for sel in _code_selectors:
+                try:
+                    el = page.locator(sel).first
+                    el.wait_for(timeout=5000)
+                    code_input = el
+                    print(f"[SESSION] Code input found via: {sel}")
+                    break
+                except Exception:
+                    continue
+            if not code_input:
+                send_telegram_alert(
+                    "INSTAGRAM: Could not find code input on challenge page.\n"
+                    "Monitor will pause and retry in 30 minutes.")
+                return False
+            code_input.click()
+            time.sleep(0.5)
+            code_input.type(code, delay=120)
+            time.sleep(1)
+            page.keyboard.press("Enter")
+            time.sleep(random.uniform(4, 6))
+            # Try submit button if still on challenge
+            if any(kw in page.url for kw in _CODE_URLS):
+                for btn_text in ["Confirm", "Submit", "Continue", "Next", "Verify"]:
+                    try:
+                        btn = page.locator(f'button:has-text("{btn_text}")')
+                        if btn.is_visible(timeout=3000):
+                            btn.click()
+                            time.sleep(random.uniform(4, 6))
+                            break
+                    except Exception:
+                        pass
+            if "login" in page.url or any(kw in page.url for kw in _CODE_URLS):
+                send_telegram_alert(
+                    "INSTAGRAM: Code entry failed or another challenge appeared.\n"
+                    "Monitor will pause and retry in 30 minutes.")
+                return False
+            send_telegram_alert("Instagram code verified. Monitor is running.")
 
         # Dismiss prompts
         for text in ["Save Info", "Not Now",
@@ -693,10 +960,11 @@ def do_login(page, context):
                     f'button:has-text("{text}")')
                 if btn.is_visible(timeout=3000):
                     btn.click()
-                    time.sleep(2)
+                    time.sleep(random.uniform(1.5, 3))
             except Exception:
                 pass
 
+        print(f"[SESSION] Saving session at URL: {page.url}")
         save_session(context)
         print("[SESSION] Login successful.")
         send_telegram_alert(
@@ -706,6 +974,11 @@ def do_login(page, context):
 
     except Exception as e:
         print(f"[SESSION] Login error: {e}")
+        # Screenshot the failure state so we know what Instagram showed
+        try:
+            _screenshot_login_state(page, "login_error")
+        except Exception:
+            pass
         send_telegram_alert(
             f"INSTAGRAM LOGIN ERROR\n\n"
             f"{str(e)[:300]}")
@@ -900,6 +1173,21 @@ def check_inbox(page, context):
             # TASK 2 + 4 — advance pipeline card based on stage
             pipeline_status, ready_alert = _advance_pipeline(username, stage)
 
+            # Publish lead_replied event — triggers objection_handler async
+            try:
+                from eos_ai.event_bus import EventBus
+                interaction_row = _mem.get_interaction_for_lead(
+                    username, venture_id="lyfe_institute"
+                )
+                EventBus().publish_async("lead_replied", {
+                    "username":       username,
+                    "message":        last_message,
+                    "interaction_id": interaction_row["id"] if interaction_row else None,
+                    "venture_id":     "lyfe_institute",
+                })
+            except Exception as _eb_err:
+                print(f"  [EVENT BUS] lead_replied publish failed for @{username}: {_eb_err}")
+
             # Build analysis block
             analysis = (
                 f"**Stage:** {stage}\n\n"
@@ -922,9 +1210,13 @@ def check_inbox(page, context):
             )
             send_telegram(notification)
 
+            # Also alert Discord #outreach channel
+            send_discord_webhook("DISCORD_OUTREACH_WEBHOOK", notification)
+
             # TASK 4 — fire call-invite alert if stage is Ready
             if ready_alert:
                 send_telegram(ready_alert)
+                send_discord_webhook("DISCORD_OUTREACH_WEBHOOK", ready_alert)
 
             print(f"  @{username} — {stage} — {pipeline_status} — [{extraction_method}] — notified.")
 
@@ -953,51 +1245,130 @@ def is_login_page(page):
         return False
 
 
+def _clear_stale_chromium_session():
+    """Clear the Chromium user-data dir if older than 7 days to prevent stale profile issues."""
+    import shutil
+    session_dir = os.path.join(get_vault_path(), "13_Scripts", "instagram_session")
+    if os.path.exists(session_dir):
+        age_days = (datetime.datetime.now().timestamp() - os.path.getmtime(session_dir)) / 86400
+        if age_days > 7:
+            try:
+                shutil.rmtree(session_dir)
+                os.makedirs(session_dir, exist_ok=True)
+                print(f"[SESSION] Cleared {age_days:.1f}d old Chromium session dir")
+            except Exception as e:
+                print(f"[SESSION] Could not clear session dir: {e}")
+
+
 def main():
+    # Startup backoff: prevents tight Docker restart loops from piling up
+    # Chromium instances (each ~700MB). OOM kill was caused by rapid restarts,
+    # not Whisper. This 90s delay ensures each cycle has a clean slate.
+    _clear_stale_chromium_session()
+
+    startup_delay = int(os.getenv("MONITOR_STARTUP_DELAY", "90"))
+    if startup_delay > 0:
+        print(f"[STARTUP] Waiting {startup_delay}s before browser launch...")
+        time.sleep(startup_delay)
+
     with sync_playwright() as p:
+
+        # CAUSE 1 FIX: sticky session ID pins one residential IP for the entire
+        # browser lifecycle. Login and all subsequent checks use the same IP.
+        sticky_id = uuid.uuid4().hex[:8]
+        print(f"[SESSION] Proxy sticky session: {sticky_id}")
+
         browser = p.chromium.launch(
             headless=True,
-            args=['--no-sandbox'],
+            args=['--no-sandbox', '--disable-dev-shm-usage'],
             proxy={
                 'server': 'http://proxy.apify.com:8000',
-                'username': 'groups-RESIDENTIAL',
-                'password': os.getenv('APIFY_PROXY_PASSWORD')
+                'username': f'groups-RESIDENTIAL,session-{sticky_id},country-US',
+                'password': os.getenv('APIFY_PROXY_PASSWORD'),
             }
         )
-        context = browser.new_context(
-            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            viewport={'width': 1920, 'height': 1080},
+
+        # Desktop Chrome UA — mobile Safari UA causes Instagram to serve a blank
+        # page in headless Chromium (app-redirect / deep-link path). Desktop is
+        # confirmed to render the login form correctly.
+        _ctx_kwargs = dict(
+            user_agent=(
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+                'AppleWebKit/537.36 (KHTML, like Gecko) '
+                'Chrome/122.0.0.0 Safari/537.36'
+            ),
+            viewport={'width': 1280, 'height': 800},
             locale='en-US',
             timezone_id='America/Los_Angeles',
         )
-        page = context.new_page()
 
-        # Try restoring saved session first
-        session_loaded = load_session(context)
-        if session_loaded and session_is_valid(page):
-            print("[SESSION] Session restored.")
-        else:
-            if session_loaded:
-                print("[SESSION] Saved session expired.")
-            else:
-                print("[SESSION] No saved session.")
+        # CAUSE 3 FIX: storage_state saves cookies + localStorage together.
+        # Instagram auth lives in both — cookie-only restore leaves sessions
+        # incomplete, triggering bot detection on the first real request.
+        session_path = get_session_path()
+        context = None
+        page = None
+
+        if load_session_exists():
+            try:
+                context = browser.new_context(
+                    storage_state=session_path, **_ctx_kwargs)
+                page = context.new_page()
+                if session_is_valid(page):
+                    print("[SESSION] Session restored from storage state.")
+                else:
+                    print("[SESSION] Storage state expired — logging in fresh.")
+                    context.close()
+                    os.remove(session_path)
+                    context = None
+            except Exception as e:
+                print(f"[SESSION] Could not restore storage state: {e}")
+                if context:
+                    context.close()
+                    context = None
+                try:
+                    os.remove(session_path)
+                except Exception:
+                    pass
+
+        if context is None:
+            context = browser.new_context(**_ctx_kwargs)
+            page = context.new_page()
             if not do_login(page, context):
-                print("[SESSION] Cannot login. Exiting.")
-                browser.close()
-                return
+                print("[SESSION] Cannot login. Pausing 30min then exiting for Docker restart.")
+                _err.handle(
+                    Exception('Instagram login failed at startup'),
+                    context='instagram_login',
+                    error_type='instagram_login',
+                )
+                time.sleep(1800)
+                import sys
+                sys.exit(1)
 
         print("Session ready. Starting inbox monitor.")
         print("Checking every ~5 minutes. Press Ctrl+C to stop.\n")
 
         cleanup_old_screenshots()
 
+        consecutive_failures = 0
+        PAUSE_AFTER_FAILURES = 3
+        PAUSE_DURATION = 600  # 10 min pause before Docker restart
+
         while True:
             now = datetime.datetime.now().strftime("%I:%M %p")
             print(f"[{now}] Checking inbox...")
             try:
                 check_inbox(page, context)
+                consecutive_failures = 0  # reset on success
             except Exception as e:
-                print(f"  Error during inbox check: {e}")
+                consecutive_failures += 1
+                print(f"  Error during inbox check ({consecutive_failures}/{PAUSE_AFTER_FAILURES}): {e}")
+                _err.handle(e, context='check_inbox loop')
+                if consecutive_failures >= PAUSE_AFTER_FAILURES:
+                    print(f"  [{PAUSE_AFTER_FAILURES} consecutive failures] Pausing {PAUSE_DURATION}s then exiting for Docker restart.")
+                    time.sleep(PAUSE_DURATION)
+                    import sys
+                    sys.exit(1)
 
             interval = random.uniform(270, 330)
             next_check = (datetime.datetime.now() + datetime.timedelta(seconds=interval)).strftime("%I:%M %p")

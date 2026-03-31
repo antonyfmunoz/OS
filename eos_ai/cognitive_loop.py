@@ -212,7 +212,8 @@ def format_response_footer(
         and enhanced_prompt.strip() != original_prompt.strip()
     ):
         lines.append(f'✨  Optimized prompt:')
-        lines.append(f'    {enhanced_prompt[:200]}')
+        lines.append(f'    Original: {original_prompt}')
+        lines.append(f'    Enhanced: {enhanced_prompt}')
 
     # Show running spend totals for paid models only
     if cost > 0.0 and org_id:
@@ -260,11 +261,14 @@ class CognitiveLoop:
     def run(
         self,
         input: str | MultimodalInput,
-        agent: str,
-        task_type: TaskType,
+        session_id: str = None,
+        cm=None,
+        agent: str = 'executive_assistant',
+        task_type: TaskType = None,
         venture_id: str | None = None,
         skill_name: str | None = None,
         workflow_id: str | None = None,
+        channel: str = '',
         max_iterations: int = 3,
     ) -> CognitiveResult:
 
@@ -361,6 +365,14 @@ class CognitiveLoop:
             _system_parts.append(AIIdentityEngine().get_foundation_prompt())
         except Exception as _e:
             print(f'[AIIdentity] Load failed: {_e}')
+
+        # Layer 0a: EA best practices — DEX operating standards
+        try:
+            from eos_ai.ea_best_practices import get_all_standards
+            _standards = get_all_standards()
+            _system_parts.append(f'## Operating Standards\n{_standards}')
+        except Exception:
+            pass
 
         # Layer 0b: Signal classification — higher signal gates lower signal
         try:
@@ -513,6 +525,37 @@ class CognitiveLoop:
         except Exception:
             pass
 
+        # Layer 1e-vii-b: DEX learnings — what Antony has taught DEX (cloning loop)
+        try:
+            from eos_ai.db import get_conn
+            import json as _lrn_json
+            with get_conn(ctx.org_id) as _lrn_cur:
+                _lrn_cur.execute('''
+                    SELECT payload_json FROM events
+                    WHERE org_id = %s
+                    AND event_type = 'dex_learning'
+                    ORDER BY created_at DESC
+                    LIMIT 10
+                ''', (str(ctx.org_id),))
+                _learnings = _lrn_cur.fetchall()
+            if _learnings:
+                _learning_lines = []
+                for _lr in _learnings:
+                    _lp = _lr['payload_json']
+                    if isinstance(_lp, str):
+                        _lp = _lrn_json.loads(_lp)
+                    _lq = _lp.get('question', '')
+                    _la = _lp.get('answer', '')
+                    if _lq and _la:
+                        _learning_lines.append(f'Q: {_lq} → A: {_la}')
+                if _learning_lines:
+                    _system_parts.append(
+                        '## What Antony Has Taught DEX\n' +
+                        '\n'.join(_learning_lines[:10])
+                    )
+        except Exception:
+            pass
+
         # Layer 1e-viii: Recent NotebookLM insights — grounded research context
         try:
             from eos_ai.notebooklm_sync import NotebookLMSync
@@ -534,17 +577,27 @@ class CognitiveLoop:
         except Exception:
             pass
 
-        # Layer 1f: Active primitive names only — no descriptions (~30 tokens)
+        # Layer 1f: Full stage primitives — rules, focus, not_yet (~300 tokens)
         try:
             from eos_ai.primitives import PrimitiveRegistry
             _pr = PrimitiveRegistry(self.ctx)
             _prim_ctx = _pr.compose_business_context(venture_id or 'lyfe_institute')
-            if _prim_ctx:
-                _prim_first = next(
-                    (l for l in _prim_ctx.splitlines() if l.strip()), ''
-                )
-                if _prim_first:
-                    _system_parts.append(_prim_first[:150])
+            _prim_block = _prim_ctx.strip()[:800] if _prim_ctx else ''
+            if _prim_block:
+                _system_parts.append(_prim_block)
+        except Exception:
+            pass
+
+        # Layer 1d: North star + stage from BIS
+        try:
+            from eos_ai.business_instance import BusinessInstanceManager
+            _bim = BusinessInstanceManager(self.ctx)
+            _bis = _bim.get_bis(venture_id or 'lyfe_institute')
+            if _bis and _bis.north_star:
+                _bis_block = f'North star: {_bis.north_star}'
+                if _bis.stage_name:
+                    _bis_block += f' | Stage: {_bis.current_stage} ({_bis.stage_name})'
+                _system_parts.append(_bis_block)
         except Exception:
             pass
 
@@ -578,6 +631,70 @@ class CognitiveLoop:
                 _system_parts.append(cal_text)
         except Exception:
             pass
+
+        # Layer 1i: Human intelligence — relationship brief for any known person
+        # mentioned in this message. Injected last so it's highest recency.
+        try:
+            from eos_ai.human_intelligence import HumanIntelligenceEngine
+            _hi = HumanIntelligenceEngine(self.ctx)
+            _text_lower = (text or '').lower()
+            # Pull all usernames from human_profiles for this org
+            from eos_ai.db import get_conn as _get_conn
+            with _get_conn(self.ctx.org_id) as _hi_cur:
+                _hi_cur.execute(
+                    'SELECT username FROM human_profiles WHERE org_id = %s',
+                    (self.ctx.org_id,),
+                )
+                _known = [r['username'] for r in _hi_cur.fetchall()]
+            for _uname in _known:
+                if _uname and _uname.lower() in _text_lower:
+                    _rel_brief = _hi.get_relationship_context(_uname)
+                    if _rel_brief:
+                        _system_parts.append(_rel_brief)
+                    break  # one person per message is enough
+        except Exception:
+            pass
+
+        # Cross-session semantic memory — surface relevant past context
+        try:
+            _semantic_query = text or input or ''
+            if _semantic_query and len(_semantic_query.split()) >= 3:
+                _semantic_hits = self.memory.semantic_search(
+                    query=_semantic_query,
+                    limit=3,
+                    min_similarity=0.60,
+                    venture_id=venture_id,
+                )
+                if _semantic_hits:
+                    _sem_block = "## Relevant Past Context (semantic memory)\n"
+                    for _hit in _semantic_hits:
+                        _sim = _hit.get('similarity', 0)
+                        _date = (_hit.get('created_at') or '')[:10]
+                        _input = str(_hit.get('input_summary') or '')[:150]
+                        _output = str(_hit.get('output_summary') or '')[:200]
+                        _sem_block += f"\n[{_date} | similarity: {_sim}]\n"
+                        if _input:
+                            _sem_block += f"Input: {_input}\n"
+                        if _output:
+                            _sem_block += f"Output: {_output}\n"
+                    _system_parts.append(_sem_block)
+        except Exception as _sem_err:
+            pass  # Never let semantic memory break execution
+
+        # Conversation history injection — what was said earlier this session
+        try:
+            if session_id and cm:
+                _input_text = text if isinstance(text, str) else (input if isinstance(input, str) else '')
+                _history = (
+                        cm.format_channel_history_for_prompt(channel, query=_input_text)
+                        if channel else cm.format_session_for_prompt(session_id)
+                    )
+                if _history and _history.strip():
+                    _system_parts.append(
+                        f"## Conversation History (this session)\n{_history}"
+                    )
+        except Exception as _hist_err:
+            pass  # Never let history injection break execution
 
         original_prompt = text
         enhanced = self._enhance_prompt(text)
@@ -800,6 +917,18 @@ class CognitiveLoop:
           2. Generic Haiku enhancement — fires when user model can't expand
              or trust_level is too low.
         """
+        # Greeting guard — never enhance casual greetings or status checks
+        # Must be first — before threshold check and before any expansion path
+        _greeting_signals = [
+            'hey', 'hi', 'hello', 'morning', 'good morning', 'gm',
+            'what\'s up', 'whats up', 'sup', 'yo', 'how are',
+            'how\'s it', 'hows it', 'what\'s going on', 'wassup',
+            'good evening', 'good afternoon', 'evening', 'night',
+        ]
+        _p = prompt.lower().strip().rstrip('?!.')
+        if any(_p == g or _p.startswith(g + ' ') or _p.startswith(g + ',') for g in _greeting_signals):
+            return prompt  # Never enhance greetings
+
         try:
             from eos_ai.user_model import UserModel
             _um = UserModel(self.ctx)
@@ -811,6 +940,19 @@ class CognitiveLoop:
 
         if len(prompt.split()) >= threshold:
             return prompt
+
+        # Guard: never enhance greetings or casual messages
+        _greeting_signals = [
+            'hey', 'hi', 'hello', 'morning', 'good morning',
+            'what\'s up', 'whats up', 'sup', 'yo', 'how are',
+            'how\'s it', 'hows it', 'what\'s going on',
+        ]
+        _prompt_lower = prompt.lower().strip()
+        if any(
+            _prompt_lower.startswith(g) or _prompt_lower == g
+            for g in _greeting_signals
+        ):
+            return prompt  # Never enhance greetings
 
         # 1. User model expansion (profile-aware, higher fidelity)
         try:
@@ -824,12 +966,43 @@ class CognitiveLoop:
 
         # 2. Generic Haiku enhancement fallback
         try:
+            # Build context-aware enhancement prompt
+            _ctx_hint = ""
+            try:
+                _ctx_hint = (
+                    f"Business context: Lyfe Institute (Initiate Arena, $750, "
+                    f"90-day program, men 18-25). "
+                    f"Empyrean Creative (AI infrastructure, creative studio). "
+                    f"DEX is the name of the AI Executive Assistant — "
+                    f"never expand DEX as decentralized exchange. "
+                    f"Founder: Antony Munoz. North star: $10K/month. Stage 1 validation.\n\n"
+                )
+            except Exception:
+                pass
+
+            # Detect greetings and casual messages — never enhance these
+            _greeting_signals = [
+                'hey', 'hi', 'hello', 'morning', 'good morning',
+                'what\'s up', 'whats up', 'sup', 'yo', 'how are',
+                'how\'s it', 'hows it', 'what\'s going on',
+            ]
+            _prompt_lower = prompt.lower().strip()
+            _is_greeting = any(
+                _prompt_lower.startswith(g) or _prompt_lower == g
+                for g in _greeting_signals
+            )
+            if _is_greeting:
+                return prompt  # Never enhance greetings
+
             enhancement = self.runtime.run(
                 task_type=TaskType.CLASSIFY,
                 prompt=(
-                    "Expand this vague instruction into a precise, "
-                    "expert-grade execution prompt. Return ONLY the "
-                    "expanded prompt, nothing else:\n\n" + prompt
+                    _ctx_hint +
+                    "You are expanding a founder's shorthand message into a "
+                    "precise, actionable execution prompt for their AI EA. "
+                    "Preserve the original intent exactly. Do not add unrelated "
+                    "context. Return ONLY the expanded prompt, nothing else:\n\n"
+                    + prompt
                 ),
                 agent='prompt_engine',
             )
