@@ -7,10 +7,11 @@ Buyback Rate = Annual income / 2000 hours / 4
 import json
 import logging
 from datetime import datetime
+from pathlib import Path as _Path
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
-load_dotenv('/opt/OS/eos_ai/.env')
+load_dotenv(_Path(__file__).parent / '.env')
 logger = logging.getLogger(__name__)
 PDT = ZoneInfo('America/Los_Angeles')
 
@@ -133,16 +134,15 @@ def get_time_audit_summary(days: int = 7, ctx=None) -> dict:
     try:
         from eos_ai.context import load_context_from_env
         from eos_ai.db import get_conn
-        import json as _json
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
             cur.execute(
-                f'''SELECT payload_json FROM events
-                    WHERE org_id = %s AND event_type = 'time_audit_block'
-                    AND created_at >= NOW() - INTERVAL '{int(days)} days'
-                    ORDER BY created_at DESC''',
-                (str(ctx.org_id),),
+                '''SELECT payload_json FROM events
+                   WHERE org_id = %s AND event_type = 'time_audit_block'
+                   AND created_at >= NOW() - INTERVAL '1 day' * %s
+                   ORDER BY created_at DESC''',
+                (str(ctx.org_id), int(days)),
             )
             rows = cur.fetchall()
 
@@ -155,7 +155,7 @@ def get_time_audit_summary(days: int = 7, ctx=None) -> dict:
         for r in rows:
             payload = r['payload_json']
             if isinstance(payload, str):
-                payload = _json.loads(payload)
+                payload = json.loads(payload)
             mins = payload.get('duration_minutes', 0)
             energy = payload.get('energy', 0)
             value = payload.get('estimated_value', 0)
