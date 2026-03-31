@@ -35,6 +35,9 @@ class SyncAgenda:
     top_item_reason: str             = ''                            # S4 priority reason
     goal_alignment: str              = ''                            # goal-to-action check
     subscription_alerts: list        = field(default_factory=list)  # renewal warnings
+    first_3: list = field(default_factory=list)   # DEX handles in first hour
+    last_3: list = field(default_factory=list)    # Antony must complete today
+    recurring_3: list = field(default_factory=list)  # DEX owns daily
 
 
 def _normalize_task(text: str) -> str:
@@ -250,6 +253,42 @@ class DailySync:
         except Exception:
             agenda.goal_alignment = ''
 
+        # ── 3-3-3 Framework (Dan Martell) ────────────────────────────────────
+        try:
+            from eos_ai.model_router import get_router, TaskType
+            import json as _pjson333
+            _router333 = get_router()
+            _model333 = _router333.route(TaskType.FAST_RESPONSE)
+
+            _emails_ctx = '\n'.join(agenda.emails[:5]) if agenda.emails else 'None'
+            _tasks_ctx = '\n'.join(agenda.action_items[:5]) if agenda.action_items else 'None'
+            _cal_ctx = '\n'.join(agenda.calendar_review[:3]) if agenda.calendar_review else 'None'
+
+            _333_prompt = f"""You are DEX, EA to Antony Munoz.
+Apply Dan Martell's 3-3-3 EA framework to today.
+
+Emails to handle: {_emails_ctx}
+Tasks pending: {_tasks_ctx}
+Calendar today: {_cal_ctx}
+Binding constraint: focus on first sale
+
+Return JSON only:
+{{
+  "first_3": ["Thing DEX handles in first hour so Antony doesn't have to", "Thing 2", "Thing 3"],
+  "last_3": ["Most important thing Antony must personally complete today", "Thing 2", "Thing 3"],
+  "recurring_3": ["Task DEX owns completely every day", "Task 2", "Task 3"]
+}}"""
+
+            _333_result = _router333.call(_model333, _333_prompt).strip()
+            if '```' in _333_result:
+                _333_result = _333_result.split('```')[1].replace('json', '').strip()
+            _333_data = _pjson333.loads(_333_result)
+            agenda.first_3 = _333_data.get('first_3', [])
+            agenda.last_3 = _333_data.get('last_3', [])
+            agenda.recurring_3 = _333_data.get('recurring_3', [])
+        except Exception as _e333:
+            print(f'[DailySync] 3-3-3 generation failed: {_e333}')
+
         # ── Section 5: Projects ──────────────────────────────────────────
         # In-progress items from all three Notion Tasks databases.
         try:
@@ -323,6 +362,20 @@ class DailySync:
                     agenda.emails.extend(review_lines)
             if not agenda.emails:
                 agenda.emails = ['Inbox clear.']
+            # SLA check — flag TO_RESPOND emails over 24h
+            try:
+                sla_breaches = gps.sla_check()
+                if sla_breaches:
+                    agenda.emails.insert(0,
+                        f'⚠️ **SLA breach — {len(sla_breaches)} emails over 24h:**'
+                    )
+                    for _b in sla_breaches[:3]:
+                        agenda.emails.insert(1,
+                            f'  🔴 {_b.get("from","")[:30]} — '
+                            f'{_b.get("subject","")[:40]} ({_b.get("age_hours","?")}h old)'
+                        )
+            except Exception:
+                pass
         except Exception as e:
             agenda.emails = [f'Email unavailable: {e}']
 
@@ -424,6 +477,23 @@ class DailySync:
             else:
                 lines.append(f'  • {item}')
         lines.append('')
+
+        # 3-3-3 block
+        if agenda.first_3 or agenda.last_3:
+            lines.append('**⚡ 3-3-3 Today:**')
+            if agenda.first_3:
+                lines.append('_DEX handles (first hour):_')
+                for item in agenda.first_3:
+                    lines.append(f'  • {item}')
+            if agenda.last_3:
+                lines.append('_You must complete:_')
+                for item in agenda.last_3:
+                    lines.append(f'  • {item}')
+            if agenda.recurring_3:
+                lines.append('_DEX owns daily:_')
+                for item in agenda.recurring_3:
+                    lines.append(f'  • {item}')
+            lines.append('')
 
         # 5. Projects
         lines.append('**5. 🎯 Projects**')
