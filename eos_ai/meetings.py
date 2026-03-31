@@ -297,6 +297,34 @@ Return JSON only:
                 except Exception as e:
                     logger.warning(f'[Meetings] Deal stage detection failed: {e}')
 
+            # Part 3 — Auto-draft meeting minutes after completion
+            if status in ('Completed', 'completed') and outcomes:
+                try:
+                    _meeting_title = (
+                        f'Meeting ({calendly_event_id})' if calendly_event_id else 'Meeting'
+                    )
+                    mins_result = draft_meeting_minutes(
+                        title=_meeting_title,
+                        person='',
+                        outcomes=outcomes,
+                        open_loops=open_loops,
+                        attendee_emails=[],
+                        ctx=ctx,
+                    )
+                    if mins_result.get('minutes'):
+                        try:
+                            import requests as _req
+                            import os as _os
+                            _webhook = _os.getenv('DISCORD_BRIEF_WEBHOOK')
+                            if _webhook:
+                                _req.post(_webhook, json={
+                                    'content': '📋 **Meeting minutes drafted** — saved to Drive.'
+                                }, timeout=5)
+                        except Exception:
+                            pass
+                except Exception as e:
+                    logger.warning(f'[Meetings] Minutes auto-draft failed: {e}')
+
             return True
     except Exception as e:
         logger.warning(f'[Meetings] update_meeting_outcome failed: {e}')
@@ -536,6 +564,26 @@ def build_prep_brief(
             lines.append('• End with a defined next step')
 
         lines.append('')
+
+        # Add timezone context if attendee email is known
+        if email:
+            try:
+                from eos_ai.gws_connector import GWSConnector
+                _tz_gws = GWSConnector()
+                _tz = _tz_gws.detect_timezone_from_email(email)
+                from zoneinfo import ZoneInfo
+                if _tz != 'America/Los_Angeles':
+                    _tz_obj = ZoneInfo(_tz)
+                    from datetime import datetime as _dt
+                    _now_there = _dt.now(_tz_obj)
+                    lines.append(
+                        f'🌍 Their timezone: {_tz} '
+                        f'(currently {_now_there.strftime("%-I:%M %p %Z")})'
+                    )
+                    lines.append('')
+            except Exception:
+                pass
+
         lines.append('**After this call, use !outcome to capture results.**')
 
         return '\n'.join(lines)
@@ -602,3 +650,204 @@ Keep it under 150 words. No corporate speak."""
     except Exception as e:
         logger.warning(f'[Meetings] draft_meeting_agenda failed: {e}')
         return ''
+
+
+def draft_meeting_minutes(
+    title: str,
+    person: str,
+    outcomes: str,
+    open_loops: str,
+    duration_minutes: int = 60,
+    attendee_emails: list = None,
+    ctx=None,
+) -> dict:
+    """
+    Draft formal meeting minutes and save to Drive.
+    Returns dict with 'minutes' (str) and 'drive_file' (dict).
+    """
+    import json as _j
+    try:
+        from eos_ai.model_router import get_router, TaskType
+        from eos_ai.gws_connector import GWSConnector
+        from eos_ai.context import load_context_from_env
+        from eos_ai.db import get_conn
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        router = get_router()
+        model = router.route(TaskType.FAST_RESPONSE)
+        _PDT = ZoneInfo('America/Los_Angeles')
+        now = datetime.now(_PDT)
+
+        minutes = router.call(model, f"""Draft formal meeting minutes.
+
+Meeting: {title}
+Attendees: Antony Munoz, {person}
+Date: {now.strftime('%B %d, %Y')}
+Duration: {duration_minutes} minutes
+
+Outcomes/decisions: {outcomes}
+Open loops/action items: {open_loops}
+
+Format:
+# Meeting Minutes — {title}
+**Date:** {now.strftime('%B %d, %Y')}
+**Attendees:** Antony Munoz, {person}
+**Duration:** {duration_minutes} min
+
+## Summary
+[2 sentence summary]
+
+## Decisions Made
+[bullet list of decisions]
+
+## Action Items
+[bullet list with owner and timeline]
+
+## Next Steps
+[what happens next and when]
+
+Keep it professional and concise.""").strip()
+
+        gws = GWSConnector()
+        drive_file = {}
+        try:
+            drive_file = gws.create_document(
+                title=f'Minutes — {title} — {now.strftime("%Y-%m-%d")}',
+                content=minutes,
+            )
+        except Exception:
+            pass
+
+        ctx = ctx or load_context_from_env()
+        try:
+            with get_conn(ctx.org_id) as cur:
+                cur.execute('''
+                    INSERT INTO events
+                    (org_id, event_type, payload_json, handled_by)
+                    VALUES (%s, %s, %s, %s)
+                ''', (
+                    str(ctx.org_id),
+                    'meeting_minutes',
+                    _j.dumps({
+                        'title': title,
+                        'person': person,
+                        'minutes': minutes,
+                        'drive_id': drive_file.get('id', ''),
+                        'attendee_emails': attendee_emails or [],
+                        'created_at': now.isoformat(),
+                    }),
+                    'dex_meetings',
+                ))
+        except Exception:
+            pass
+
+        return {
+            'minutes': minutes,
+            'drive_file': drive_file,
+            'attendee_emails': attendee_emails or [],
+        }
+    except Exception as e:
+        logger.warning(f'[Meetings] draft_meeting_minutes failed: {e}')
+        return {}
+
+
+def calculate_meeting_roi(
+    venture: str = None,
+    days: int = 30,
+    ctx=None,
+) -> dict:
+    """
+    Calculate meeting ROI — which meeting types are
+    converting, which are time sinks.
+    """
+    try:
+        import requests as _req
+        from dotenv import load_dotenv
+        load_dotenv('/opt/OS/eos_ai/.env')
+        token = os.getenv('NOTION_API_KEY')
+        db_id = os.getenv('NOTION_MEETINGS_ID')
+        if not token or not db_id:
+            return {}
+
+        headers = {
+            'Authorization': f'Bearer {token}',
+            'Notion-Version': '2022-06-28',
+            'Content-Type': 'application/json',
+        }
+
+        cutoff = (datetime.now(PDT) - timedelta(days=days)).date().isoformat()
+        filter_clause: dict = {
+            'and': [
+                {'property': 'Date', 'date': {'on_or_after': cutoff}},
+            ]
+        }
+        if venture:
+            filter_clause['and'].append(
+                {'property': 'Venture', 'select': {'equals': venture}}
+            )
+
+        resp = _req.post(
+            f'https://api.notion.com/v1/databases/{db_id}/query',
+            headers=headers,
+            json={'filter': filter_clause, 'page_size': 50},
+            timeout=10,
+        )
+        meetings = resp.json().get('results', [])
+
+        stats: dict = {
+            'total': len(meetings),
+            'completed': 0,
+            'no_show': 0,
+            'cancelled': 0,
+            'by_type': {},
+            'conversion_rate': 0.0,
+            'top_converting_type': '',
+        }
+
+        for m in meetings:
+            props = m.get('properties', {})
+            status = props.get('Status', {}).get('select', {}).get('name', '')
+            meeting_type = props.get('Type', {}).get('select', {}).get('name', 'Other')
+            outcomes = (
+                props.get('Outcomes', {})
+                     .get('rich_text', [{}])[0]
+                     .get('plain_text', '')
+            )
+
+            if status == 'Completed':
+                stats['completed'] += 1
+            elif status == 'No-show':
+                stats['no_show'] += 1
+            elif status == 'Cancelled':
+                stats['cancelled'] += 1
+
+            if meeting_type not in stats['by_type']:
+                stats['by_type'][meeting_type] = {
+                    'total': 0, 'completed': 0, 'advanced': 0
+                }
+            stats['by_type'][meeting_type]['total'] += 1
+            if status == 'Completed':
+                stats['by_type'][meeting_type]['completed'] += 1
+                if any(kw in outcomes.lower() for kw in [
+                    'closed', 'proposal', 'next step', 'moving forward',
+                    'agreed', 'yes', 'signed'
+                ]):
+                    stats['by_type'][meeting_type]['advanced'] += 1
+
+        if stats['total'] > 0:
+            stats['conversion_rate'] = round(
+                stats['completed'] / stats['total'], 2
+            )
+
+        best_rate = 0.0
+        for mtype, data in stats['by_type'].items():
+            if data['total'] > 0:
+                rate = data['advanced'] / data['total']
+                if rate > best_rate:
+                    best_rate = rate
+                    stats['top_converting_type'] = mtype
+
+        return stats
+    except Exception as e:
+        logger.warning(f'[Meetings] calculate_meeting_roi failed: {e}')
+        return {}

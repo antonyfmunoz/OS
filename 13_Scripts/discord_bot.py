@@ -3874,6 +3874,36 @@ async def cmd_proofread(ctx: commands.Context, *, content: str = ''):
         await ctx.reply(f'❌ Error: {e}')
 
 
+@bot.command(name='minutes')
+async def cmd_minutes(ctx: commands.Context, *, args: str = ''):
+    """Draft meeting minutes. Usage: !minutes [title] | [person] | [outcomes] | [action items]"""
+    if '|' not in args:
+        await ctx.reply(
+            'Usage: `!minutes [meeting title] | [person] | [outcomes] | [action items]`\n'
+            'Example: `!minutes Sales call | John Smith | Agreed on pricing | Send contract by Friday`'
+        )
+        return
+    try:
+        from eos_ai.meetings import draft_meeting_minutes
+        parts = [p.strip() for p in args.split('|')]
+        result = draft_meeting_minutes(
+            title=parts[0],
+            person=parts[1] if len(parts) > 1 else 'Attendee',
+            outcomes=parts[2] if len(parts) > 2 else '',
+            open_loops=parts[3] if len(parts) > 3 else '',
+        )
+        if result.get('minutes'):
+            await ctx.reply(
+                f'📋 **Minutes drafted:**\n'
+                f'```\n{result["minutes"][:800]}\n```\n'
+                f'Saved to Drive.'
+            )
+        else:
+            await ctx.reply('❌ Failed to draft minutes.')
+    except Exception as e:
+        await ctx.reply(f'❌ Error: {e}')
+
+
 # ─── Entry point ──────────────────────────────────────────────────────────────
 
 if __name__ == '__main__':
