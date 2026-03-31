@@ -50,3 +50,32 @@ class TestDripMatrix:
         assert 'Check email' in report
         assert 'Record content' in report
         assert 'DELEGATE' in report or '🤖' in report
+
+
+class TestBuybackRate:
+
+    def test_import(self):
+        from eos_ai.buyback_rate import (
+            calculate_buyback_rate, store_buyback_rate,
+            get_current_buyback_rate, log_time_block,
+            get_time_audit_summary,
+        )
+
+    def test_calculate_120k(self):
+        from eos_ai.buyback_rate import calculate_buyback_rate
+        rate = calculate_buyback_rate(120000)
+        assert rate['annual_income'] == 120000
+        assert rate['hourly_rate'] == 60.0
+        assert rate['buyback_rate'] == 15.0
+        assert '$15.0' in rate['interpretation']
+
+    def test_calculate_custom_hours(self):
+        from eos_ai.buyback_rate import calculate_buyback_rate
+        rate = calculate_buyback_rate(80000, working_hours_per_year=1600)
+        assert rate['hourly_rate'] == 50.0
+        assert rate['buyback_rate'] == 12.5
+
+    def test_calculate_zero_income(self):
+        from eos_ai.buyback_rate import calculate_buyback_rate
+        rate = calculate_buyback_rate(0)
+        assert rate['buyback_rate'] == 0.0
