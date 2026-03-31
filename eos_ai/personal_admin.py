@@ -5,7 +5,7 @@ and personal appointment management.
 
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
