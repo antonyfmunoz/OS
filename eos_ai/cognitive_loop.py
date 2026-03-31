@@ -707,9 +707,9 @@ class CognitiveLoop:
                 )
             if check_solution_standard(text):
                 _system_parts.append(
-                    '## 1:3:1 Rule Alert\n'
+                    '## Solution Standard Alert\n'
                     'The founder is presenting a problem without options. '
-                    'Apply the 1:3:1 Rule: acknowledge the problem, then ask '
+                    'Apply the Solution Standard: acknowledge the problem, then ask '
                     'for or present 3 options with a clear recommendation.'
                 )
         except Exception:

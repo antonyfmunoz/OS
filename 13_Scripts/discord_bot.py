@@ -534,7 +534,7 @@ Return JSON: {{"answers": true, "answer_summary": "brief summary"}}""").strip()
 
     # No List enforcement — add violations to req so cognitive_loop can surface them
     try:
-        from eos_ai.buyback_rate import check_against_no_list
+        from eos_ai.founder_rate import check_against_no_list
         _nl_violations = check_against_no_list(text)
         if _nl_violations:
             req['no_list_violations'] = _nl_violations
@@ -2870,20 +2870,20 @@ async def post_win(win: str) -> None:
     await post_to_channel('wins', f'🏆 {win}')
 
 
-@bot.command(name='drip')
+@bot.command(name='yield')
 async def cmd_drip(ctx: commands.Context, *, args: str = ''):
-    """DRIP Matrix audit. Usage: !drip task1, task2, task3"""
+    """Task Yield Matrix audit. Usage: !yield task1, task2, task3"""
     if not args.strip():
         await ctx.reply(
-            '**DRIP Matrix Audit**\n'
+            '**Task Yield Matrix Audit**\n'
             'List your tasks separated by commas.\n'
-            'Usage: `!drip [task1], [task2], [task3]`'
+            'Usage: `!yield [task1], [task2], [task3]`'
         )
         return
 
     def _run():
         try:
-            from eos_ai.drip_matrix import run_drip_audit, format_drip_report
+            from eos_ai.task_yield_matrix import run_drip_audit, format_drip_report
             tasks = [t.strip() for t in args.replace('\n', ',').split(',') if t.strip()]
             if not tasks:
                 return 'No tasks found. Separate with commas.'
@@ -2892,28 +2892,28 @@ async def cmd_drip(ctx: commands.Context, *, args: str = ''):
         except Exception as e:
             return f'❌ Error: {e}'
 
-    await ctx.reply(f'🔍 Running DRIP audit on {len(args.split(","))} tasks...')
+    await ctx.reply(f'🔍 Running Task Yield audit on {len(args.split(","))} tasks...')
     loop = asyncio.get_event_loop()
     report = await loop.run_in_executor(None, _run)
     for i in range(0, len(report), 1900):
         await ctx.send(report[i:i + 1900])
 
 
-@bot.command(name='buyback')
+@bot.command(name='founderrate')
 async def cmd_buyback(ctx: commands.Context, income: str = ''):
-    """Set or view Buyback Rate. Usage: !buyback [annual income] or !buyback"""
+    """Set or view Founder Rate. Usage: !founderrate [annual income] or !founderrate"""
     if income.strip():
         def _run():
             try:
-                from eos_ai.buyback_rate import calculate_buyback_rate, store_buyback_rate
+                from eos_ai.founder_rate import calculate_buyback_rate, store_buyback_rate
                 amount = float(income.replace('$', '').replace(',', ''))
                 rate = calculate_buyback_rate(amount)
                 store_buyback_rate(amount)
                 return (
-                    f'💰 **Buyback Rate set:**\n'
+                    f'💰 **Founder Rate set:**\n'
                     f'Annual income: ${amount:,.0f}\n'
                     f'Hourly rate: ${rate["hourly_rate"]}/hr\n'
-                    f'**Buyback Rate: ${rate["buyback_rate"]}/hr**\n\n'
+                    f'**Founder Rate: ${rate["founder_rate"]}/hr**\n\n'
                     f'{rate["interpretation"]}'
                 )
             except Exception as e:
@@ -2923,17 +2923,17 @@ async def cmd_buyback(ctx: commands.Context, income: str = ''):
     else:
         def _get():
             try:
-                from eos_ai.buyback_rate import get_current_buyback_rate
+                from eos_ai.founder_rate import get_current_buyback_rate
                 rate = get_current_buyback_rate()
                 if rate:
                     return (
-                        f'💰 **Current Buyback Rate: ${rate["buyback_rate"]}/hr**\n'
+                        f'💰 **Current Founder Rate: ${rate["founder_rate"]}/hr**\n'
                         f'{rate["interpretation"]}'
                     )
                 return (
-                    'No Buyback Rate set yet.\n'
-                    'Usage: `!buyback [annual income]`\n'
-                    'Example: `!buyback 120000`'
+                    'No Founder Rate set yet.\n'
+                    'Usage: `!founderrate [annual income]`\n'
+                    'Example: `!founderrate 120000`'
                 )
             except Exception as e:
                 return f'❌ Error: {e}'
@@ -2954,7 +2954,7 @@ async def cmd_logtime(ctx: commands.Context, *, args: str = ''):
 
     def _run():
         try:
-            from eos_ai.buyback_rate import log_time_block
+            from eos_ai.founder_rate import log_time_block
             parts = args.split('|')
             activity = parts[0].strip()
             minutes = int(parts[1].strip())
@@ -2984,7 +2984,7 @@ async def cmd_timeaudit(ctx: commands.Context):
     """View 7-day time and energy audit summary."""
     def _run():
         try:
-            from eos_ai.buyback_rate import get_time_audit_summary
+            from eos_ai.founder_rate import get_time_audit_summary
             summary = get_time_audit_summary(days=7)
             if not summary.get('total_hours'):
                 return (
@@ -3007,12 +3007,12 @@ async def cmd_timeaudit(ctx: commands.Context):
     await ctx.reply(output)
 
 
-@bot.command(name='perfectweek')
+@bot.command(name='idealweek')
 async def cmd_perfectweek(ctx: commands.Context):
-    """View your perfect week template."""
+    """View your ideal week template."""
     def _run():
         try:
-            from eos_ai.perfect_week import get_perfect_week
+            from eos_ai.ideal_week import get_perfect_week
             week = get_perfect_week()
             lines = ['**📅 Your Perfect Week:**', '']
             for day, data in week.items():
@@ -3033,14 +3033,14 @@ async def cmd_perfectweek(ctx: commands.Context):
         await ctx.send(msg[i:i + 1900])
 
 
-@bot.command(name='camcorder')
+@bot.command(name='processcapture')
 async def cmd_camcorder(ctx: commands.Context, *, args: str = ''):
-    """Create a playbook from how you do a task. Usage: !camcorder [task name] | [describe how you do it]"""
+    """Create a process capture playbook. Usage: !processcapture [task name] | [describe how you do it]"""
     if '|' not in args:
         await ctx.reply(
-            '**Camcorder Method — create a playbook from how you do a task**\n'
-            'Usage: `!camcorder [task name] | [describe how you do it step by step]`\n'
-            'Example: `!camcorder Send proposal | I open the template, fill client name, add pricing, send with note`'
+            '**Process Capture — create a playbook from how you do a task**\n'
+            'Usage: `!processcapture [task name] | [describe how you do it step by step]`\n'
+            'Example: `!processcapture Send proposal | I open the template, fill client name, add pricing, send with note`'
         )
         return
 
@@ -3052,7 +3052,7 @@ async def cmd_camcorder(ctx: commands.Context, *, args: str = ''):
 
     def _run():
         try:
-            from eos_ai.perfect_week import create_camcorder_playbook
+            from eos_ai.ideal_week import create_camcorder_playbook
             playbook = create_camcorder_playbook(task_name, description)
             if playbook:
                 preview = playbook[:800]
@@ -3187,7 +3187,7 @@ async def cmd_nolist(ctx: commands.Context):
     """View Antony's No List."""
     def _run():
         try:
-            from eos_ai.buyback_rate import get_no_list
+            from eos_ai.founder_rate import get_no_list
             items = get_no_list()
             if not items:
                 return (
@@ -3219,7 +3219,7 @@ async def cmd_noadd(ctx: commands.Context, *, args: str = ''):
 
     def _run():
         try:
-            from eos_ai.buyback_rate import add_to_no_list
+            from eos_ai.founder_rate import add_to_no_list
             parts = args.split('|', 1)
             item = parts[0].strip()
             reason = parts[1].strip() if len(parts) > 1 else ''
@@ -3289,7 +3289,7 @@ async def cmd_energy(ctx: commands.Context, *, args: str = ''):
                 lines.append(f'Energized by: {energized}')
             if score <= 4:
                 lines.append(
-                    '\n⚠️ Low energy day. Run `!drip` on your task list '
+                    '\n⚠️ Low energy day. Run `!yield` on your task list '
                     'tomorrow to find what to remove.'
                 )
             return '\n'.join(lines)
@@ -3303,18 +3303,18 @@ async def cmd_energy(ctx: commands.Context, *, args: str = ''):
 
 @bot.command(name='year')
 async def cmd_year(ctx: commands.Context):
-    """View annual plan (Preloaded Year)."""
+    """View annual plan (Annual Architecture)."""
     def _run():
         try:
-            from eos_ai.perfect_week import get_preloaded_year
+            from eos_ai.ideal_week import get_preloaded_year
             plan = get_preloaded_year()
             if not plan:
                 return (
                     '📅 No annual plan set yet.\n'
-                    'Build one with Claude Code using the preloaded year format:\n'
+                    'Build one with Claude Code using the annual architecture format:\n'
                     '`save_preloaded_year({q1: {rocks: [], revenue_target: 0}, ...})`'
                 )
-            lines = ['📅 **Preloaded Year:**']
+            lines = ['📅 **Annual Architecture:**']
             for q in ['q1', 'q2', 'q3', 'q4']:
                 qdata = plan.get(q, {})
                 if qdata:
@@ -3343,7 +3343,7 @@ async def cmd_rocks(ctx: commands.Context):
     """View this quarter's rocks."""
     def _run():
         try:
-            from eos_ai.perfect_week import get_current_quarter_rocks
+            from eos_ai.ideal_week import get_current_quarter_rocks
             from datetime import datetime as _rdt
             rocks = get_current_quarter_rocks()
             if not rocks:
