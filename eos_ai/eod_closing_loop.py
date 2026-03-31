@@ -90,6 +90,36 @@ class EODClosingLoop:
                 section.append(f'  • {d}')
             sections.append('\n'.join(section))
 
+        # Next day preview
+        try:
+            from eos_ai.gws_connector import GWSConnector
+            from datetime import timedelta
+            from zoneinfo import ZoneInfo
+            from dateutil.parser import parse as _parse
+            PDT = ZoneInfo('America/Los_Angeles')
+            gws_nd = GWSConnector()
+            tomorrow_str = (datetime.now(PDT) + timedelta(days=1)).strftime('%Y-%m-%d')
+            tomorrow_events = []
+            for e in gws_nd.get_upcoming_events(days=2):
+                start = e.get('start', '')
+                if isinstance(start, dict):
+                    start = start.get('dateTime', '')
+                try:
+                    dt = _parse(str(start)).astimezone(PDT)
+                    if dt.date().isoformat() == tomorrow_str:
+                        tomorrow_events.append(
+                            f'• {dt.strftime("%-I:%M %p")} — '
+                            f'{e.get("title", e.get("summary", "Event"))}'
+                        )
+                except Exception:
+                    pass
+            if tomorrow_events:
+                sections.append('**📅 Tomorrow:**')
+                sections.extend(tomorrow_events[:4])
+                sections.append('')
+        except Exception:
+            pass
+
         if not sections:
             body = 'No activity logged today.'
         else:
