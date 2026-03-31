@@ -120,14 +120,14 @@ def create_camcorder_playbook(task_name: str, description: str, ctx=None) -> str
     User describes how they do a task, DEX turns it into a reusable SOP.
     """
     try:
-        from eos_ai.agent_runtime import AgentRuntime, TaskType
+        from eos_ai.model_router import get_router, TaskType
         from eos_ai.context import load_context_from_env
         ctx = ctx or load_context_from_env()
 
-        runtime = AgentRuntime(ctx)
-        result = runtime.run(
-            task_type=TaskType.GENERATE,
-            prompt=f"""Apply Dan Martell's Camcorder Method.
+        router = get_router()
+        model = router.route(TaskType.ANALYSIS)
+
+        prompt = f"""Apply Dan Martell's Camcorder Method.
 Convert this task description into a reusable SOP playbook.
 
 Task: {task_name}
@@ -158,12 +158,9 @@ Create a structured playbook with:
 [OBSERVE/ASSIST/EXECUTE/AUTONOMOUS]
 
 Make it specific enough that DEX can execute it exactly
-as Antony would, without asking questions.""",
-            max_tokens=1500,
-            agent='dex',
-        )
+as Antony would, without asking questions."""
 
-        playbook = result.output.strip()
+        playbook = router.call(model, prompt, max_tokens=1500).strip()
 
         safe_name = re.sub(r'[^a-z0-9_]', '_', task_name.lower().replace(' ', '_'))
         filepath = f'/opt/OS/06_Skills/Ops/camcorder_{safe_name}.md'
