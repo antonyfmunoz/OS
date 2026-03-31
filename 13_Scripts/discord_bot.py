@@ -3362,6 +3362,465 @@ async def cmd_rocks(ctx: commands.Context):
     await ctx.reply(output)
 
 
+# ─── Invoice commands ─────────────────────────────────────────────────────────
+
+@bot.command(name='invoices')
+async def cmd_invoices(ctx: commands.Context):
+    """List all invoices. Usage: !invoices"""
+    def _run():
+        try:
+            from eos_ai.expense_tracker import get_invoices, get_overdue_invoices
+            all_inv = get_invoices()
+            overdue = get_overdue_invoices()
+            if not all_inv:
+                return (
+                    '📄 No invoices yet.\n'
+                    'Create one: `!invoice [client] | [email] | [description] | [amount]`'
+                )
+            overdue_ids = {i.get('invoice_id') for i in overdue}
+            lines = [f'📄 **Invoices ({len(all_inv)}):**']
+            for inv in all_inv[:8]:
+                if inv.get('invoice_id') in overdue_ids:
+                    status_emoji = '🔴'
+                elif inv.get('status') == 'unpaid':
+                    status_emoji = '🟡'
+                else:
+                    status_emoji = '✅'
+                lines.append(
+                    f'{status_emoji} {inv["invoice_id"]} — '
+                    f'{inv["client_name"]} — '
+                    f'${inv["total"]:,.2f} — '
+                    f'due {inv["due_date"]}'
+                )
+            if overdue:
+                lines.append(f'\n🔴 {len(overdue)} overdue')
+            return '\n'.join(lines)
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    loop = asyncio.get_event_loop()
+    output = await loop.run_in_executor(None, _run)
+    await ctx.reply(output)
+
+
+@bot.command(name='invoice')
+async def cmd_invoice(ctx: commands.Context, *, args: str = ''):
+    """Create an invoice. Usage: !invoice [client] | [email] | [description] | [amount]"""
+    if '|' not in args:
+        await ctx.reply(
+            'Usage: `!invoice [client name] | [email] | [description] | [amount]`\n'
+            'Example: `!invoice Acme Corp | billing@acme.com | AI Setup | 5000`'
+        )
+        return
+
+    def _run():
+        try:
+            from eos_ai.expense_tracker import create_invoice, generate_invoice_text
+            parts = [p.strip() for p in args.split('|')]
+            inv = create_invoice(
+                client_name=parts[0],
+                client_email=parts[1],
+                items=[{
+                    'description': parts[2],
+                    'amount': float(parts[3]),
+                    'quantity': 1,
+                }],
+            )
+            if inv:
+                text = generate_invoice_text(inv)
+                return (
+                    f'📄 **Invoice created: {inv["invoice_id"]}**\n'
+                    f'```\n{text[:800]}\n```\n'
+                    f'Total: ${inv["total"]:,.2f} — Due: {inv["due_date"]}'
+                )
+            return '❌ Failed to create invoice.'
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    await ctx.reply('📄 Creating invoice...')
+    loop = asyncio.get_event_loop()
+    output = await loop.run_in_executor(None, _run)
+    await ctx.channel.send(output)
+
+
+@bot.command(name='expensereport')
+async def cmd_expensereport(ctx: commands.Context, month: str = ''):
+    """Monthly expense report. Usage: !expensereport [YYYY-MM optional]"""
+    def _run():
+        try:
+            from eos_ai.expense_tracker import generate_expense_report
+            return generate_expense_report(month or None)
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    loop = asyncio.get_event_loop()
+    report = await loop.run_in_executor(None, _run)
+    await ctx.reply(f'📊 **Expense Report:**\n```\n{report[:1800]}\n```')
+
+
+@bot.command(name='budget')
+async def cmd_budget(ctx: commands.Context, target: str = '10000'):
+    """Budget vs actual. Usage: !budget [revenue target optional]"""
+    def _run():
+        try:
+            from eos_ai.expense_tracker import generate_budget_vs_actual
+            t = float(target.replace('$', '').replace(',', ''))
+            return generate_budget_vs_actual(revenue_target=t)
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    loop = asyncio.get_event_loop()
+    report = await loop.run_in_executor(None, _run)
+    await ctx.reply(f'📊 **Budget vs Actual:**\n```\n{report}\n```')
+
+
+# ─── Doc / brief / slides / factcheck commands ────────────────────────────────
+
+@bot.command(name='briefdoc')
+async def cmd_briefdoc(ctx: commands.Context, *, args: str = ''):
+    """Create a briefing doc. Usage: !briefdoc [title] | [topic] | [context optional]"""
+    if not args:
+        await ctx.reply(
+            'Usage: `!briefdoc [title] | [topic] | [context optional]`'
+        )
+        return
+
+    def _run():
+        try:
+            from eos_ai.doc_creator import create_briefing_doc
+            parts = [p.strip() for p in args.split('|')]
+            title = parts[0]
+            topic = parts[1] if len(parts) > 1 else title
+            context = parts[2] if len(parts) > 2 else ''
+            result = create_briefing_doc(title, topic, context)
+            if result.get('content'):
+                preview = result['content'][:800]
+                drive_id = result.get('drive_file', {}).get('id', '')
+                out = f'📝 **Briefing: {title}**\n```\n{preview}\n```'
+                if drive_id:
+                    out += f'\n📁 Drive: `{drive_id}`'
+                return out
+            return f'❌ Failed: {result.get("error")}'
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    await ctx.reply('📝 Creating briefing doc...')
+    loop = asyncio.get_event_loop()
+    output = await loop.run_in_executor(None, _run)
+    for chunk in [output[i:i+1900] for i in range(0, len(output), 1900)]:
+        await ctx.channel.send(chunk)
+
+
+@bot.command(name='board')
+async def cmd_board(ctx: commands.Context, *, args: str = ''):
+    """Generate board update doc. Usage: !board [context optional]"""
+    def _run():
+        try:
+            from eos_ai.doc_creator import create_briefing_doc
+            from eos_ai.portfolio_agent import PortfolioAgent
+            from eos_ai.context import load_context_from_env
+            ctx_eos = load_context_from_env()
+            pa = PortfolioAgent(ctx_eos)
+            ventures = pa.scan_all_ventures()
+            portfolio_context = pa.generate_portfolio_brief(ventures)
+            result = create_briefing_doc(
+                title='Board Update',
+                topic='Monthly portfolio review',
+                context=portfolio_context + ('\n' + args if args else ''),
+                doc_type='board_update',
+            )
+            if result.get('content'):
+                return f'📋 **Board Update:**\n```\n{result["content"][:1200]}\n```'
+            return '❌ Failed to generate.'
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    await ctx.reply('📋 Generating board update...')
+    loop = asyncio.get_event_loop()
+    output = await loop.run_in_executor(None, _run)
+    for chunk in [output[i:i+1900] for i in range(0, len(output), 1900)]:
+        await ctx.channel.send(chunk)
+
+
+@bot.command(name='investor')
+async def cmd_investor(ctx: commands.Context, *, args: str = ''):
+    """Generate investor update. Usage: !investor [context optional]"""
+    def _run():
+        try:
+            from eos_ai.doc_creator import create_briefing_doc
+            result = create_briefing_doc(
+                title='Investor Update',
+                topic='Monthly progress update',
+                context=args,
+                doc_type='investor_update',
+            )
+            if result.get('content'):
+                return f'📊 **Investor Update:**\n```\n{result["content"][:1200]}\n```'
+            return '❌ Failed to generate.'
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    await ctx.reply('📊 Generating investor update...')
+    loop = asyncio.get_event_loop()
+    output = await loop.run_in_executor(None, _run)
+    for chunk in [output[i:i+1900] for i in range(0, len(output), 1900)]:
+        await ctx.channel.send(chunk)
+
+
+@bot.command(name='slides')
+async def cmd_slides(ctx: commands.Context, *, args: str = ''):
+    """Generate presentation outline. Usage: !slides [title] | [topic] | [count optional]"""
+    if not args:
+        await ctx.reply(
+            'Usage: `!slides [title] | [topic] | [slide count optional]`'
+        )
+        return
+
+    def _run():
+        try:
+            from eos_ai.doc_creator import create_presentation_outline
+            parts = [p.strip() for p in args.split('|')]
+            title = parts[0]
+            topic = parts[1] if len(parts) > 1 else title
+            count = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 10
+            result = create_presentation_outline(title, topic, count)
+            slide_list = result.get('slides', {}).get('slides', [])
+            if slide_list:
+                lines = [f'📊 **{title} — {len(slide_list)} slides:**']
+                for s in slide_list[:5]:
+                    lines.append(f'{s["number"]}. **{s["title"]}** — {s["key_message"]}')
+                if len(slide_list) > 5:
+                    lines.append(f'... and {len(slide_list)-5} more slides')
+                drive_id = result.get('drive_file', {}).get('id', '')
+                if drive_id:
+                    lines.append(f'\n📁 Full outline saved to Drive: `{drive_id}`')
+                return '\n'.join(lines)
+            return f'❌ Failed: {result.get("error")}'
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    await ctx.reply('📊 Creating presentation outline...')
+    loop = asyncio.get_event_loop()
+    output = await loop.run_in_executor(None, _run)
+    await ctx.channel.send(output)
+
+
+@bot.command(name='factcheck')
+async def cmd_factcheck(ctx: commands.Context, *, claim: str = ''):
+    """Fact-check a claim. Usage: !factcheck [claim]"""
+    if not claim:
+        await ctx.reply('Usage: `!factcheck [claim to verify]`')
+        return
+
+    def _run():
+        try:
+            from eos_ai.doc_creator import fact_check
+            result = fact_check(claim)
+            verdict_emoji = {
+                'TRUE': '✅',
+                'FALSE': '❌',
+                'PARTIALLY TRUE': '⚠️',
+                'UNVERIFIABLE': '❓',
+            }.get(result.get('verdict', ''), '❓')
+            return (
+                f'{verdict_emoji} **{result["verdict"]}** '
+                f'(confidence: {result["confidence"]})\n'
+                f'{result["explanation"]}'
+            )
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    loop = asyncio.get_event_loop()
+    output = await loop.run_in_executor(None, _run)
+    await ctx.reply(output)
+
+
+# ─── Personal admin commands ──────────────────────────────────────────────────
+
+@bot.command(name='dates')
+async def cmd_dates(ctx: commands.Context):
+    """List upcoming important dates (60 days). Usage: !dates"""
+    def _run():
+        try:
+            from eos_ai.personal_admin import get_upcoming_dates
+            dates = get_upcoming_dates(days=60)
+            if not dates:
+                return (
+                    '📅 No important dates tracked yet.\n'
+                    'Add with: `!adddate [person] | [MM-DD or YYYY-MM-DD] | [type]`\n'
+                    'Types: birthday, anniversary, work_anniversary, other'
+                )
+            lines = ['📅 **Upcoming important dates (60 days):**']
+            for d in dates:
+                days_until = d.get('days_until', '?')
+                if isinstance(days_until, int):
+                    urgency = '🔴' if days_until <= 7 else '🟡' if days_until <= 14 else '🔵'
+                else:
+                    urgency = '🔵'
+                lines.append(
+                    f'{urgency} {d["person"]} — {d["type"]} — '
+                    f'in {days_until} days ({d["date"]})'
+                )
+                if d.get('notes'):
+                    lines.append(f'   _{d["notes"]}_')
+            return '\n'.join(lines)
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    loop = asyncio.get_event_loop()
+    output = await loop.run_in_executor(None, _run)
+    await ctx.reply(output)
+
+
+@bot.command(name='adddate')
+async def cmd_adddate(ctx: commands.Context, *, args: str = ''):
+    """Add an important date. Usage: !adddate [person] | [MM-DD] | [type] | [notes optional]"""
+    if '|' not in args:
+        await ctx.reply(
+            'Usage: `!adddate [person] | [MM-DD or YYYY-MM-DD] | [type] | [notes optional]`\n'
+            'Types: birthday, anniversary, work_anniversary, other'
+        )
+        return
+
+    def _run():
+        try:
+            from eos_ai.personal_admin import add_important_date
+            parts = [p.strip() for p in args.split('|')]
+            ok = add_important_date(
+                person=parts[0],
+                date=parts[1],
+                date_type=parts[2],
+                notes=parts[3] if len(parts) > 3 else '',
+            )
+            if ok:
+                return f'📅 Date added: **{parts[0]}** — {parts[2]} on {parts[1]}'
+            return '❌ Failed to add date.'
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    loop = asyncio.get_event_loop()
+    output = await loop.run_in_executor(None, _run)
+    await ctx.reply(output)
+
+
+@bot.command(name='gift')
+async def cmd_gift(ctx: commands.Context, *, args: str = ''):
+    """Research gift ideas. Usage: !gift [person] | [occasion] | [budget optional]"""
+    if '|' not in args:
+        await ctx.reply(
+            'Usage: `!gift [person] | [occasion] | [budget optional]`\n'
+            'Example: `!gift Mom | birthday | 150`'
+        )
+        return
+
+    def _run():
+        try:
+            from eos_ai.personal_admin import research_gift
+            parts = [p.strip() for p in args.split('|')]
+            person = parts[0]
+            occasion = parts[1] if len(parts) > 1 else 'birthday'
+            budget = float(parts[2].replace('$', '')) if len(parts) > 2 else 100
+            ideas = research_gift(person, occasion, budget)
+            return f'🎁 **Gift ideas for {person} — {occasion}:**\n{ideas[:1500]}'
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    await ctx.reply('🎁 Researching gifts...')
+    loop = asyncio.get_event_loop()
+    output = await loop.run_in_executor(None, _run)
+    for chunk in [output[i:i+1900] for i in range(0, len(output), 1900)]:
+        await ctx.channel.send(chunk)
+
+
+# ─── Travel research commands ─────────────────────────────────────────────────
+
+@bot.command(name='flights')
+async def cmd_flights(ctx: commands.Context, *, args: str = ''):
+    """Research flights. Usage: !flights [from] | [to] | [date] | [return optional]"""
+    if '|' not in args:
+        await ctx.reply(
+            'Usage: `!flights [from] | [to] | [date] | [return date optional]`'
+        )
+        return
+
+    def _run():
+        try:
+            from eos_ai.travel_manager import research_flights
+            parts = [p.strip() for p in args.split('|')]
+            result = research_flights(
+                origin=parts[0],
+                destination=parts[1],
+                date=parts[2] if len(parts) > 2 else '',
+                return_date=parts[3] if len(parts) > 3 else '',
+            )
+            return f'✈️ **Flight research — {parts[0]} → {parts[1]}:**\n{result}'
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    await ctx.reply('✈️ Researching flights...')
+    loop = asyncio.get_event_loop()
+    output = await loop.run_in_executor(None, _run)
+    for chunk in [output[i:i+1900] for i in range(0, len(output), 1900)]:
+        await ctx.channel.send(chunk)
+
+
+@bot.command(name='hotels')
+async def cmd_hotels(ctx: commands.Context, *, args: str = ''):
+    """Research hotels. Usage: !hotels [city] | [check-in] | [check-out] | [budget optional]"""
+    if '|' not in args:
+        await ctx.reply(
+            'Usage: `!hotels [city] | [check-in] | [check-out] | [budget/night optional]`'
+        )
+        return
+
+    def _run():
+        try:
+            from eos_ai.travel_manager import research_hotels
+            parts = [p.strip() for p in args.split('|')]
+            city = parts[0]
+            check_in = parts[1] if len(parts) > 1 else ''
+            check_out = parts[2] if len(parts) > 2 else ''
+            budget = float(parts[3].replace('$', '')) if len(parts) > 3 else 200
+            result = research_hotels(city, check_in, check_out, budget)
+            return f'🏨 **Hotels — {city}:**\n{result}'
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    await ctx.reply('🏨 Researching hotels...')
+    loop = asyncio.get_event_loop()
+    output = await loop.run_in_executor(None, _run)
+    for chunk in [output[i:i+1900] for i in range(0, len(output), 1900)]:
+        await ctx.channel.send(chunk)
+
+
+@bot.command(name='restaurants')
+async def cmd_restaurants(ctx: commands.Context, *, args: str = ''):
+    """Research restaurants. Usage: !restaurants [city] | [occasion] | [budget]"""
+    if not args:
+        await ctx.reply(
+            'Usage: `!restaurants [city] | [occasion] | [budget]`'
+        )
+        return
+
+    def _run():
+        try:
+            from eos_ai.travel_manager import research_restaurants
+            parts = [p.strip() for p in args.split('|')]
+            city = parts[0]
+            occasion = parts[1] if len(parts) > 1 else 'business dinner'
+            budget = parts[2] if len(parts) > 2 else 'moderate'
+            result = research_restaurants(city, occasion, budget)
+            return f'🍽️ **Restaurants — {city}:**\n{result}'
+        except Exception as e:
+            return f'❌ Error: {e}'
+
+    await ctx.reply('🍽️ Researching restaurants...')
+    loop = asyncio.get_event_loop()
+    output = await loop.run_in_executor(None, _run)
+    for chunk in [output[i:i+1900] for i in range(0, len(output), 1900)]:
+        await ctx.channel.send(chunk)
+
+
 # ─── Entry point ──────────────────────────────────────────────────────────────
 
 if __name__ == '__main__':
