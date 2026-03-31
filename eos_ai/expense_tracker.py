@@ -280,10 +280,14 @@ def get_invoices(status: str = None, ctx=None) -> list[dict]:
 
 def get_overdue_invoices(ctx=None) -> list[dict]:
     """Get unpaid invoices past due date."""
-    from datetime import datetime
-    invoices = get_invoices(status='unpaid', ctx=ctx)
-    today = datetime.now().strftime('%Y-%m-%d')
-    return [i for i in invoices if i.get('due_date', '9999') < today]
+    try:
+        from datetime import datetime
+        invoices = get_invoices(status='unpaid', ctx=ctx)
+        today = datetime.now(PDT).strftime('%Y-%m-%d')
+        return [i for i in invoices if i.get('due_date', '9999') < today]
+    except Exception as e:
+        logger.warning(f'[ExpenseTracker] get_overdue_invoices failed: {e}')
+        return []
 
 
 def generate_invoice_text(invoice: dict) -> str:
@@ -443,4 +447,5 @@ def generate_budget_vs_actual(
 
         return '\n'.join(lines)
     except Exception as e:
+        logger.warning(f'[ExpenseTracker] generate_budget_vs_actual failed: {e}')
         return f'Budget report unavailable: {e}'
