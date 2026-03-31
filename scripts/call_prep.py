@@ -165,6 +165,81 @@ def main():
             continue
 
         brief = build_prep_brief(event, ctx)
+
+        # Detect if this is a recurring meeting and append standing agenda
+        is_recurring = bool(event.get('recurrence') or event.get('recurringEventId'))
+        if is_recurring:
+            try:
+                from eos_ai.model_router import get_router, TaskType as _CPTaskType
+                import json as _cpjson
+
+                _cp_router = get_router()
+                _cp_model = _cp_router.route(_CPTaskType.FAST_RESPONSE)
+
+                _cp_title = event.get('title', event.get('summary', ''))
+                _cp_open_loops = ''
+                try:
+                    import requests as _cpreq
+                    _cp_token = os.getenv('NOTION_API_KEY')
+                    _cp_db_id = os.getenv('NOTION_MEETINGS_ID')
+                    if _cp_token and _cp_db_id:
+                        _cp_headers = {
+                            'Authorization': f'Bearer {_cp_token}',
+                            'Notion-Version': '2022-06-28',
+                            'Content-Type': 'application/json',
+                        }
+                        _cp_resp = _cpreq.post(
+                            f'https://api.notion.com/v1/databases/{_cp_db_id}/query',
+                            headers=_cp_headers,
+                            json={
+                                'filter': {
+                                    'property': 'Name',
+                                    'rich_text': {'contains': _cp_title[:30]},
+                                },
+                                'sorts': [{'property': 'Date', 'direction': 'descending'}],
+                                'page_size': 1,
+                            },
+                            timeout=10,
+                        )
+                        _cp_results = _cp_resp.json().get('results', [])
+                        if _cp_results:
+                            _cp_props = _cp_results[0].get('properties', {})
+                            _cp_open_loops = _cp_props.get('Open Loops', {}).get(
+                                'rich_text', [{}]
+                            )[0].get('plain_text', '')
+                except Exception:
+                    pass
+
+                _cp_agenda = _cp_router.call(_cp_model, f"""This is a recurring meeting.
+Title: {_cp_title}
+Open loops from last session: {_cp_open_loops or 'None captured'}
+
+Draft a concise standing agenda for this recurring meeting.
+Include:
+- Quick wins/updates since last session
+- Open loops to close
+- Main agenda items
+- Decisions needed
+
+Under 100 words. Direct format.""").strip()
+
+                brief += f'\n\n**🔄 Recurring meeting agenda:**\n{_cp_agenda}'
+
+                try:
+                    import requests as _cpreq2
+                    _cp_webhook = os.getenv('DISCORD_BRIEF_WEBHOOK')
+                    if _cp_webhook and _cp_agenda:
+                        _cpreq2.post(
+                            _cp_webhook,
+                            json={'content': f'📋 **Standing agenda for {_cp_title}:**\n{_cp_agenda}'},
+                            timeout=5,
+                        )
+                except Exception:
+                    pass
+
+            except Exception as e:
+                print(f'[CallPrep] Recurring agenda failed: {e}')
+
         success = post_to_discord(brief)
 
         if success:
@@ -276,6 +351,83 @@ def main():
 
     except Exception as _e:
         print(f'[CallPrep] Agenda window check failed: {_e}')
+
+    # 48h travel brief window — fire brief day-before for travel events
+    try:
+        import json as _tj
+        from datetime import timezone as _tz
+        from dateutil.parser import parse as _tparse
+        from eos_ai.gws_connector import GWSConnector as _TGWS
+        from eos_ai.context import load_context_from_env as _tctx
+        from eos_ai.travel_manager import detect_travel_event, build_travel_brief, log_trip
+
+        _t_ctx = _tctx()
+        _t_gws = _TGWS(_t_ctx)
+        _t_all = _t_gws.get_upcoming_events(days=3)
+
+        _travel_state_file = '/tmp/travel_brief_state.json'
+        try:
+            with open(_travel_state_file) as _tf:
+                _travel_state = _tj.load(_tf)
+        except Exception:
+            _travel_state = {}
+
+        _t_now = datetime.now(timezone.utc)
+        _t_win_start = _t_now + timedelta(hours=47)
+        _t_win_end = _t_now + timedelta(hours=49)
+
+        for _t_event in (_t_all or []):
+            _t_id = _t_event.get('id', '')
+            if not _t_id or f'travel_{_t_id}' in _travel_state:
+                continue
+            if not detect_travel_event(_t_event):
+                continue
+
+            _t_start_str = _t_event.get('start', '')
+            if not _t_start_str or 'T' not in str(_t_start_str):
+                continue
+
+            try:
+                _t_start_dt = _tparse(str(_t_start_str))
+                if _t_start_dt.tzinfo is None:
+                    _t_start_dt = _t_start_dt.replace(tzinfo=_tz.utc)
+
+                if not (_t_win_start <= _t_start_dt <= _t_win_end):
+                    continue
+
+                _t_location = _t_event.get('location', 'Unknown destination')
+                _t_title = _t_event.get('title', _t_event.get('summary', 'Trip'))
+                _t_attendees = [
+                    a.get('email', '') for a in _t_event.get('attendees', [])
+                    if not a.get('self')
+                ]
+                _t_brief = build_travel_brief(
+                    event_title=_t_title,
+                    destination=_t_location,
+                    start_date=str(_t_start_dt.date()),
+                    end_date=str(_t_start_dt.date()),
+                    attendees=_t_attendees,
+                )
+                log_trip(_t_title, _t_location, str(_t_start_dt.date()), '')
+
+                _t_webhook = os.getenv('DISCORD_BRIEF_WEBHOOK')
+                if _t_webhook and _t_brief:
+                    import requests as _treq
+                    _t_msg = f'✈️ **48h Travel Brief: {_t_title}**\n\n{_t_brief}'
+                    for _ti in range(0, len(_t_msg), 1900):
+                        _treq.post(_t_webhook, json={'content': _t_msg[_ti:_ti+1900]}, timeout=5)
+
+                _travel_state[f'travel_{_t_id}'] = _t_now.isoformat()
+                print(f'[CallPrep] Travel brief fired for: {_t_title}')
+
+            except Exception as _te:
+                print(f'[CallPrep] Travel brief for {_t_id} failed: {_te}')
+
+        with open(_travel_state_file, 'w') as _tf:
+            _tj.dump(_travel_state, _tf)
+
+    except Exception as _te2:
+        print(f'[CallPrep] Travel window check failed: {_te2}')
 
 
 if __name__ == '__main__':
