@@ -4070,6 +4070,24 @@ async def cmd_pr(ctx: commands.Context, *, args: str = ''):
         await ctx.reply(f'❌ Error: {e}')
 
 
+@bot.command(name='board_update')
+async def cmd_board_update(ctx: commands.Context, venture_id: str = ''):
+    """Generate board update brief. Usage: !board_update [venture_id]"""
+    if not venture_id:
+        await ctx.reply(
+            'Usage: `!board_update [venture_id]`\n'
+            'Example: `!board_update lyfe_institute`'
+        )
+        return
+    try:
+        from eos_ai.stakeholder_map import generate_board_update_brief
+        await ctx.reply('📋 Generating board update...')
+        brief = generate_board_update_brief(venture_id)
+        await ctx.reply(f'📋 **Board Update — {venture_id}:**\n{brief[:1900]}')
+    except Exception as e:
+        await ctx.reply(f'❌ Error: {e}')
+
+
 # ─── Entry point ──────────────────────────────────────────────────────────────
 
 if __name__ == '__main__':
