@@ -59,6 +59,9 @@ async def check_deadlines():
                 ]}},
                 timeout=10,
             )
+            if resp.status_code != 200:
+                print(f'[Deadlines] {venture} API error: {resp.status_code}')
+                continue
             for r in resp.json().get('results', []):
                 props = r.get('properties', {})
                 name = props.get('Name', {}).get('title', [{}])[0].get('plain_text', '')
@@ -66,7 +69,11 @@ async def check_deadlines():
                 if not due or not name:
                     continue
                 try:
-                    due_dt = datetime.fromisoformat(due).replace(tzinfo=PDT)
+                    due_dt = datetime.fromisoformat(due)
+                    if due_dt.tzinfo is None:
+                        due_dt = due_dt.replace(tzinfo=PDT)
+                    else:
+                        due_dt = due_dt.astimezone(PDT)
                     item = {'name': name, 'due': due[:10], 'venture': venture}
                     if due_dt.date() < now.date():
                         overdue.append(item)
@@ -155,12 +162,14 @@ async def check_stale_tasks():
     @client.event
     async def on_ready():
         channel = client.get_channel(GENERAL_CHANNEL_ID)
-        if channel:
-            lines = [f'🚧 **Stale tasks ({len(stale)}) — no progress in 5+ days:**']
-            for t in stale[:5]:
-                lines.append(f'• {t["task"][:70]} ({t["age_days"]}d old)')
-            lines.append('\nAre these still relevant? Reply to dismiss or delegate.')
-            await channel.send('\n'.join(lines))
+        if not channel:
+            await client.close()
+            return
+        lines = [f'🚧 **Stale tasks ({len(stale)}) — no progress in 5+ days:**']
+        for t in stale[:5]:
+            lines.append(f'• {t["task"][:70]} ({t["age_days"]}d old)')
+        lines.append('\nAre these still relevant? Reply to dismiss or delegate.')
+        await channel.send('\n'.join(lines))
         await client.close()
 
     await client.start(os.getenv('DISCORD_BOT_TOKEN'))
