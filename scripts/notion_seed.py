@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 load_dotenv('/opt/OS/eos_ai/.env')
 
 from eos_ai.notion_sync import (
-    get_db_id, write_decision,
+    get_db_id,
     HEADERS, _title, _select, _text, _number,
     _date, _checkbox, _create_page,
 )
