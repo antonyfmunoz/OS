@@ -95,8 +95,11 @@ def _create_db(parent_page_id: str, title: str,
         db_id = resp.json().get('id', '')
         print(f'  ✅ {title} ({db_id[:8]})')
         return db_id
-    print(f'  ❌ {title}: '
-          f'{resp.json().get("message", "")}')
+    try:
+        msg = resp.json().get('message', '')
+    except Exception:
+        msg = resp.text[:120]
+    print(f'  ❌ {title}: {msg}')
     return ''
 
 
@@ -113,8 +116,11 @@ def _get_all_dbs() -> dict:
         timeout=15,
     )
     if resp.status_code != 200:
-        print(f'❌ Notion API error ({resp.status_code}): '
-              f'{resp.json().get("message", "unknown")}')
+        try:
+            msg = resp.json().get('message', 'unknown')
+        except Exception:
+            msg = resp.text[:120] or f'HTTP {resp.status_code}'
+        print(f'❌ Notion API error ({resp.status_code}): {msg}')
         raise SystemExit(1)
     existing = {}
     for db in resp.json().get('results', []):
@@ -239,8 +245,11 @@ def _create_role_dashboard_page(
     if resp.status_code == 200:
         print(f'  ✅ Dashboard: {role_name}')
         return resp.json().get('id', '')
-    print(f'  ❌ Dashboard {role_name}: '
-          f'{resp.json().get("message", "")}')
+    try:
+        msg = resp.json().get('message', '')
+    except Exception:
+        msg = resp.text[:120]
+    print(f'  ❌ Dashboard {role_name}: {msg}')
     return ''
 
 
