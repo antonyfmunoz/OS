@@ -8,6 +8,8 @@ Failures are logged but never raise — EOS continues without Notion.
 """
 
 import os
+import json as _json
+import logging
 import requests
 from datetime import datetime
 from dotenv import load_dotenv
@@ -361,3 +363,107 @@ def write_document(
     if linked_entity:
         props['Linked Entity'] = _text(linked_entity)
     return _create_page(db_id, props)
+
+
+logger = logging.getLogger(__name__)
+
+
+def push_pending_tasks_to_notion(venture_id: str, ctx=None) -> int:
+    """
+    Push tasks from Neon to Notion that don't have a notion_page_id yet.
+    Returns count of tasks pushed.
+    """
+    db_id = get_db_id(venture_id, 'tasks')
+    if not db_id:
+        return 0
+
+    try:
+        from eos_ai.context import load_context_from_env
+        from eos_ai.db import get_conn
+
+        ctx = ctx or load_context_from_env()
+
+        with get_conn(ctx.org_id) as cur:
+            cur.execute(
+                '''
+                SELECT id, description,
+                       assignee_id, assignee_type,
+                       priority, status,
+                       venture_id, created_at
+                FROM tasks
+                WHERE org_id = %s
+                  AND (notion_page_id IS NULL
+                       OR notion_page_id = '')
+                  AND status != 'cancelled'
+                  AND created_at >= NOW() - INTERVAL '7 days'
+                ORDER BY created_at DESC
+                LIMIT 20
+                ''',
+                (str(ctx.org_id),),
+            )
+            rows = cur.fetchall()
+
+        status_map = {
+            'pending': 'Not started',
+            'in_progress': 'In progress',
+            'completed': 'Done',
+            'blocked': 'Blocked',
+        }
+        priority_map = {
+            'critical': 'Critical',
+            'high': 'High',
+            'normal': 'Normal',
+            'low': 'Low',
+        }
+
+        pushed = 0
+        for row in rows:
+            task_id = str(row['id'])
+            description = row.get('description', '') or ''
+            assignee = row.get('assignee_id', '') or ''
+            priority = row.get('priority', 'normal') or 'normal'
+            status = row.get('status', 'pending') or 'pending'
+            assignee_type_raw = row.get('assignee_type', '') or ''
+
+            notion_status = status_map.get(status, 'Not started')
+            notion_priority = priority_map.get(priority.lower(), 'Normal')
+            assignee_type = 'Agent' if assignee_type_raw == 'agent' else 'Human'
+
+            notion_page_id = write_task(
+                venture_id=venture_id,
+                name=description[:200],
+                status=notion_status,
+                priority=notion_priority,
+                assignee_type=assignee_type,
+                assigned_to=assignee[:100] if assignee else 'Founder',
+                source='Neon Sync',
+                task_type='Task',
+                neon_id=task_id,
+            )
+
+            if notion_page_id:
+                with get_conn(ctx.org_id) as cur:
+                    cur.execute(
+                        'UPDATE tasks SET notion_page_id = %s '
+                        'WHERE id::text = %s AND org_id = %s',
+                        (notion_page_id, task_id, str(ctx.org_id)),
+                    )
+                pushed += 1
+
+        return pushed
+    except Exception as e:
+        logger.warning(f'[Notion] push_tasks failed for {venture_id}: {e}')
+        return 0
+
+
+def push_all_ventures(ctx=None) -> dict:
+    """Push pending tasks to Notion for all ventures in VENTURES_JSON."""
+    ventures = _json.loads(os.getenv('VENTURES_JSON', '[]'))
+    results = {}
+    for v in ventures:
+        vid = v.get('id', '')
+        if not vid:
+            continue
+        pushed = push_pending_tasks_to_notion(vid, ctx)
+        results[vid] = {'pushed': pushed}
+    return results
