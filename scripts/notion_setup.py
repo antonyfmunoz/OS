@@ -112,6 +112,10 @@ def _get_all_dbs() -> dict:
         },
         timeout=15,
     )
+    if resp.status_code != 200:
+        print(f'❌ Notion API error ({resp.status_code}): '
+              f'{resp.json().get("message", "unknown")}')
+        raise SystemExit(1)
     existing = {}
     for db in resp.json().get('results', []):
         tl = db.get('title', [])
@@ -130,6 +134,31 @@ def _ensure_db(parent_id: str, title: str,
         print(f'  ⏭️  {title} (exists)')
         return existing[key]
     return _create_db(parent_id, title, schema)
+
+
+def _get_existing_page_titles(parent_id: str) -> set:
+    """Return a set of title strings for all sub-pages under parent_id."""
+    resp = requests.post(
+        'https://api.notion.com/v1/search',
+        headers=HEADERS,
+        json={'page_size': 100},
+        timeout=15,
+    )
+    titles: set = set()
+    if resp.status_code != 200:
+        return titles
+    for r in resp.json().get('results', []):
+        if r.get('object') != 'page':
+            continue
+        if r.get('parent', {}).get('page_id') != parent_id:
+            continue
+        props = r.get('properties', {})
+        tp = props.get('title', {})
+        rt = tp.get('title', []) if isinstance(tp, dict) else []
+        title = rt[0].get('plain_text', '') if rt else ''
+        if title:
+            titles.add(title)
+    return titles
 
 
 def _ensure_dashboards_page(venture_page_id: str) -> str:
@@ -290,7 +319,7 @@ GOALS_SCHEMA = {
 
 TASKS_SCHEMA = {
     'Name': {'title': {}},
-    'Status': {'status': {'options': STATUS_OPTIONS}},
+    'Status': {'select': {'options': STATUS_OPTIONS}},
     'Priority': {'select': {'options': PRIORITY_OPTIONS}},
     'Department': {'select': {'options': DEPT_OPTIONS}},
     'Assignee Type': {'select': {'options': [
@@ -929,7 +958,12 @@ def main() -> None:
             venture['page_id']
         )
         if dashboards_page:
+            # Fetch existing dashboard sub-pages to skip duplicates
+            existing_dash = _get_existing_page_titles(dashboards_page)
             for role in ROLE_DASHBOARDS:
+                if role['name'] in existing_dash:
+                    print(f'  ⏭️  Dashboard: {role["name"]} (exists)')
+                    continue
                 _create_role_dashboard_page(
                     dashboards_page,
                     role['name'],
@@ -968,7 +1002,7 @@ def main() -> None:
 
     # Update VENTURES_JSON
     print('\n── Updating VENTURES_JSON ──')
-    ventures_raw = os.getenv('VENTURES_JSON', '[]')
+    ventures_raw = os.getenv('VENTURES_JSON', '[]').strip("'\"")
     try:
         ventures_list = json.loads(ventures_raw)
     except json.JSONDecodeError:
@@ -1000,8 +1034,9 @@ def main() -> None:
                 **notion_fields,
             })
 
+    ventures_json_str = json.dumps(ventures_list)
     set_key(ENV_FILE, 'VENTURES_JSON',
-            json.dumps(ventures_list))
+            f"'{ventures_json_str}'")
     print('  VENTURES_JSON updated')
     print('\n✅ Setup complete')
 
