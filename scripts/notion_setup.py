@@ -177,7 +177,11 @@ def _ensure_dashboards_page(venture_page_id: str) -> str:
     )
     if resp.status_code != 200:
         return ''
-    for r in resp.json().get('results', []):
+    try:
+        results = resp.json().get('results', [])
+    except Exception:
+        return ''
+    for r in results:
         if r.get('object') != 'page':
             continue
         parent = r.get('parent', {})
@@ -203,9 +207,15 @@ def _ensure_dashboards_page(venture_page_id: str) -> str:
     )
     if resp.status_code == 200:
         print('  ✅ Role Dashboards page')
-        return resp.json().get('id', '')
-    print(f'  ❌ Role Dashboards: '
-          f'{resp.json().get("message", "")}')
+        try:
+            return resp.json().get('id', '')
+        except Exception:
+            return ''
+    try:
+        msg = resp.json().get("message", "")
+    except Exception:
+        msg = ""
+    print(f'  ❌ Role Dashboards: {msg}')
     return ''
 
 
