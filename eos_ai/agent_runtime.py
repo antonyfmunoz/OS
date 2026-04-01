@@ -61,11 +61,12 @@ def calculate_cost(model: str, tokens_used: dict[str, int]) -> float:
 
 
 class TaskType(Enum):
-    SCORE       = "score"       # → Haiku: ICP scoring, lead qualification
-    CLASSIFY    = "classify"    # → Haiku: archetype detection, intent classification
-    ANALYZE     = "analyze"     # → Sonnet: deep signal analysis, conversation analysis
-    GENERATE    = "generate"    # → Sonnet: outreach copy, content, market reports
-    SUMMARIZE   = "summarize"   # → Haiku: quick summaries, call digests
+    SCORE         = "score"         # → Haiku: ICP scoring, lead qualification
+    CLASSIFY      = "classify"      # → Haiku: archetype detection, intent classification
+    ANALYZE       = "analyze"       # → Sonnet: deep signal analysis, conversation analysis
+    GENERATE      = "generate"      # → Sonnet: outreach copy, content, market reports
+    SUMMARIZE     = "summarize"     # → Haiku: quick summaries, call digests
+    FAST_RESPONSE = "fast_response" # → Haiku: low-latency single-turn responses
 
 
 # ─── Rate limiter ─────────────────────────────────────────────────────────────
@@ -238,6 +239,12 @@ class AgentRuntime:
         max_tokens: int = 1000,
     ) -> str:
         import requests
+        # Fast pre-flight: skip 60s timeout if Ollama isn't running
+        try:
+            requests.get('http://localhost:11434/api/tags', timeout=2)
+        except Exception:
+            print('[AgentRuntime] Ollama not reachable — skipping local model')
+            return ''
         try:
             payload: dict = {
                 'model': model,
@@ -254,10 +261,9 @@ class AgentRuntime:
             )
             resp.raise_for_status()
             return resp.json()['response']
-        except requests.ConnectionError:
-            raise RuntimeError(
-                'Ollama not running. Start with: ollama serve'
-            )
+        except Exception as e:
+            print(f'[AgentRuntime] Ollama call failed: {e}')
+            return ''
 
     def _call_perplexity(self, model: str, prompt: str, system: str | None) -> str:
         from openai import OpenAI
