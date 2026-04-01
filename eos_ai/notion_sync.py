@@ -169,9 +169,7 @@ def write_task(
 
 def update_task_status(page_id: str, status: str) -> bool:
     """Update task status by Notion page ID."""
-    return _update_page(
-        page_id, {'Status': {'status': {'name': status}}}
-    )
+    return _update_page(page_id, {'Status': _select(status)})
 
 
 def write_pipeline_entry(
@@ -209,7 +207,7 @@ def write_pipeline_entry(
         props['Next Action'] = _text(next_action)
     if source:
         props['Source'] = _text(source)
-    if value:
+    if value is not None:
         props['Value'] = _number(value)
     return _create_page(db_id, props)
 
