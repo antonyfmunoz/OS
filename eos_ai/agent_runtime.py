@@ -480,13 +480,37 @@ class AgentRuntime:
             tokens_used = {"input": 0, "output": 0, "total": 0}
             model = 'qwen2.5:3b'
         elif provider == 'anthropic' and not AgentRuntime._claude_available:
-            # Credits depleted in a previous call — skip Claude entirely, zero wait
-            output = self._call_ollama(
-                model='qwen2.5:3b', prompt=prompt, system=system_prompt,
-                max_tokens=max_tokens,
-            )
-            tokens_used = {"input": 0, "output": 0, "total": 0}
-            model = 'qwen2.5:3b'
+            # Credits depleted in a previous call — try Gemini before Ollama
+            gemini_key = os.getenv('GEMINI_API_KEY')
+            if gemini_key:
+                try:
+                    output = self._call_gemini(
+                        model='gemini-2.5-flash',
+                        prompt=prompt,
+                        system=system_prompt,
+                    )
+                    model = 'gemini-2.5-flash'
+                    tokens_used = {"input": 0, "output": 0, "total": 0}
+                    print('[AgentRuntime] Gemini fallback active')
+                except Exception as _ge:
+                    print(f'[AgentRuntime] Gemini failed: {_ge} — falling to Ollama')
+                    output = self._call_ollama(
+                        model='qwen2.5:3b',
+                        prompt=prompt,
+                        system=system_prompt,
+                        max_tokens=max_tokens,
+                    )
+                    model = 'qwen2.5:3b'
+                    tokens_used = {"input": 0, "output": 0, "total": 0}
+            else:
+                output = self._call_ollama(
+                    model='qwen2.5:3b',
+                    prompt=prompt,
+                    system=system_prompt,
+                    max_tokens=max_tokens,
+                )
+                model = 'qwen2.5:3b'
+                tokens_used = {"input": 0, "output": 0, "total": 0}
         elif provider == 'anthropic':
             kwargs: dict = {
                 "model": model,
@@ -506,13 +530,36 @@ class AgentRuntime:
             except Exception as exc:
                 if 'credit balance is too low' in str(exc).lower():
                     AgentRuntime._claude_available = False
-                    print("[AgentRuntime] Credits depleted — switching to Ollama permanently")
-                    output = self._call_ollama(
-                        model='qwen2.5:3b', prompt=prompt, system=system_prompt,
-                        max_tokens=max_tokens,
-                    )
-                    tokens_used = {"input": 0, "output": 0, "total": 0}
-                    model = 'qwen2.5:3b'
+                    print("[AgentRuntime] Credits depleted — switching to Gemini/Ollama")
+                    gemini_key = os.getenv('GEMINI_API_KEY')
+                    if gemini_key:
+                        try:
+                            output = self._call_gemini(
+                                model='gemini-2.5-flash',
+                                prompt=prompt,
+                                system=system_prompt,
+                            )
+                            model = 'gemini-2.5-flash'
+                            tokens_used = {"input": 0, "output": 0, "total": 0}
+                        except Exception as _ge:
+                            print(f'[AgentRuntime] Gemini failed: {_ge}')
+                            output = self._call_ollama(
+                                model='qwen2.5:3b',
+                                prompt=prompt,
+                                system=system_prompt,
+                                max_tokens=max_tokens,
+                            )
+                            model = 'qwen2.5:3b'
+                            tokens_used = {"input": 0, "output": 0, "total": 0}
+                    else:
+                        output = self._call_ollama(
+                            model='qwen2.5:3b',
+                            prompt=prompt,
+                            system=system_prompt,
+                            max_tokens=max_tokens,
+                        )
+                        model = 'qwen2.5:3b'
+                        tokens_used = {"input": 0, "output": 0, "total": 0}
                 else:
                     raise
         elif provider == 'ollama':
