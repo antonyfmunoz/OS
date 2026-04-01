@@ -452,7 +452,7 @@ def push_pending_tasks_to_notion(venture_id: str, ctx=None) -> int:
 
         return pushed
     except Exception as e:
-        logger.warning(f'[Notion] push_tasks failed for {venture_id}: {e}')
+        print(f'[NotionSync] push_tasks failed for {venture_id}: {e}')
         return 0
 
 
