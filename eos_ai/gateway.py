@@ -334,10 +334,9 @@ class EOSGateway:
             ctx_eos = load_context_from_env()
             gps     = EmailGPS(ctx_eos)
             router  = get_router(ctx_eos)
-            model   = router.route(TaskType.ANALYSIS)
 
-            extraction = router.call(
-                model,
+            extraction = router.call_with_fallback(
+                TaskType.ANALYSIS,
                 prompt=(
                     f'Extract the email folder instruction '
                     f'from this message.\n\n'
@@ -728,11 +727,8 @@ class EOSGateway:
         try:
             from eos_ai.model_router import get_router, TaskType as RouterTaskType
             router = get_router()
-            model  = router.route(RouterTaskType.WEB_SEARCH)
-            if not model:
-                return ''
-            result = router.call(
-                model,
+            result = router.call_with_fallback(
+                RouterTaskType.WEB_SEARCH,
                 prompt=(
                     f'Search query: {query}\n\n'
                     f'Provide a concise, factual answer with current information. '
@@ -784,7 +780,68 @@ class EOSGateway:
                 prompt = f'REAL-TIME SEARCH RESULT:\n{_web_result}\n\n{prompt}'
                 print('[Gateway] Web search used')
 
-        if team:
+        # Named agent teams — direct agent routing with context injection
+        _NAMED_AGENT_TEAMS = frozenset({
+            'dex', 'lyfe_ceo', 'brand_ceo', 'portfolio_advisor',
+        })
+
+        if team and team in _NAMED_AGENT_TEAMS:
+            agent_id = {
+                'dex':                'executive_assistant',
+                'lyfe_ceo':           'lyfe_ceo',
+                'brand_ceo':          'brand_ceo',
+                'portfolio_advisor':  'portfolio_advisor',
+            }[team]
+
+            if agent_id == 'executive_assistant':
+                # DEX — inject EA operational standards + Martell leverage detection
+                try:
+                    from eos_ai.ea_best_practices import get_all_standards
+                    from eos_ai.martell_patterns import detect_leverage_killer
+                    leverage = detect_leverage_killer(prompt)
+                    if leverage:
+                        prompt = leverage['intervention'] + '\n\n' + prompt
+                    ea_standards = get_all_standards()
+                    prompt = (
+                        f'OPERATIONAL STANDARDS:\n{ea_standards}\n\n'
+                        f'---\n\n{prompt}'
+                    )
+                except Exception as _dex_err:
+                    print(f'[Gateway] DEX context inject: {_dex_err}')
+
+            elif agent_id == 'portfolio_advisor':
+                # Portfolio Advisor — inject live portfolio data
+                try:
+                    from eos_ai.portfolio_agent import PortfolioAgent
+                    _pa         = PortfolioAgent(ctx)
+                    _ventures   = _pa.scan_all_ventures()
+                    _port_brief = _pa.generate_portfolio_brief(_ventures)
+                    prompt = f'PORTFOLIO DATA:\n{_port_brief}\n\n{prompt}'
+                except Exception as _pa_err:
+                    print(f'[Gateway] Portfolio Advisor inject: {_pa_err}')
+
+            # Universal agent standards injection — all named agents
+            try:
+                from eos_ai.principle_engine import PrincipleEngine
+                _pe_named = PrincipleEngine(ctx)
+                _standards_named = _pe_named.format_agent_standards(agent_id)
+                if _standards_named:
+                    prompt = f'{_standards_named}\n\n{prompt}'
+                    print(f'[Gateway] Agent standards injected: {agent_id}')
+            except Exception as _se_named:
+                print(f'[Gateway] Standards inject: {_se_named}')
+
+            result = loop.run(
+                input=prompt,
+                session_id=session_id,
+                cm=cm,
+                agent=agent_id,
+                task_type=TaskType.ANALYZE,
+                venture_id=venture_id,
+                channel=request.get('channel', ''),
+            )
+
+        elif team:
             # Team task — resolve via agent_teams then run through cognitive loop
             from eos_ai.agent_teams import route as team_route
             config = team_route(team, sub_agent)
@@ -868,6 +925,17 @@ class EOSGateway:
                     )
                 except Exception:
                     pass
+
+            # Universal agent standards injection — direct tasks
+            try:
+                from eos_ai.principle_engine import PrincipleEngine
+                _pe_direct = PrincipleEngine(ctx)
+                _standards_direct = _pe_direct.format_agent_standards(agent_to_use)
+                if _standards_direct:
+                    prompt = f'{_standards_direct}\n\n{prompt}'
+                    print(f'[Gateway] Agent standards injected: {agent_to_use}')
+            except Exception as _se_direct:
+                print(f'[Gateway] Standards inject: {_se_direct}')
 
             result = loop.run(
                 input=prompt,
