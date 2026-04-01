@@ -169,6 +169,8 @@ def _ensure_dashboards_page(venture_page_id: str) -> str:
         json={'query': 'Role Dashboards', 'page_size': 20},
         timeout=15,
     )
+    if resp.status_code != 200:
+        return ''
     for r in resp.json().get('results', []):
         if r.get('object') != 'page':
             continue
