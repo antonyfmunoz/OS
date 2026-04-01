@@ -92,7 +92,10 @@ def _create_db(parent_page_id: str, title: str,
         timeout=15,
     )
     if resp.status_code == 200:
-        db_id = resp.json().get('id', '')
+        try:
+            db_id = resp.json().get('id', '')
+        except Exception:
+            db_id = ''
         print(f'  ✅ {title} ({db_id[:8]})')
         return db_id
     try:
@@ -123,7 +126,11 @@ def _get_all_dbs() -> dict:
         print(f'❌ Notion API error ({resp.status_code}): {msg}')
         raise SystemExit(1)
     existing = {}
-    for db in resp.json().get('results', []):
+    try:
+        results = resp.json().get('results', [])
+    except Exception:
+        results = []
+    for db in results:
         tl = db.get('title', [])
         title = tl[0].get('plain_text', '') if tl else ''
         parent_id = db.get('parent', {}).get('page_id', '')
@@ -153,7 +160,11 @@ def _get_existing_page_titles(parent_id: str) -> set:
     titles: set = set()
     if resp.status_code != 200:
         return titles
-    for r in resp.json().get('results', []):
+    try:
+        results = resp.json().get('results', [])
+    except Exception:
+        results = []
+    for r in results:
         if r.get('object') != 'page':
             continue
         if r.get('parent', {}).get('page_id') != parent_id:
@@ -254,7 +265,10 @@ def _create_role_dashboard_page(
     )
     if resp.status_code == 200:
         print(f'  ✅ Dashboard: {role_name}')
-        return resp.json().get('id', '')
+        try:
+            return resp.json().get('id', '')
+        except Exception:
+            return ''
     try:
         msg = resp.json().get('message', '')
     except Exception:
