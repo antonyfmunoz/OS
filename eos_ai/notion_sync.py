@@ -458,7 +458,7 @@ def push_pending_tasks_to_notion(venture_id: str, ctx=None) -> int:
 
 def push_all_ventures(ctx=None) -> dict:
     """Push pending tasks to Notion for all ventures in VENTURES_JSON."""
-    ventures = _json.loads(os.getenv('VENTURES_JSON', '[]'))
+    ventures = _json.loads(os.getenv('VENTURES_JSON', '[]').strip("'\""))
     results = {}
     for v in ventures:
         vid = v.get('id', '')
