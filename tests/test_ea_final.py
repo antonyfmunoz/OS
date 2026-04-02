@@ -8,7 +8,7 @@ sys.path.insert(0, '/opt/OS')
 
 from dotenv import load_dotenv
 load_dotenv('/opt/OS/eos_ai/.env')
-load_dotenv('/opt/OS/13_Scripts/.env')
+load_dotenv('/opt/OS/services/.env')
 
 import pytest
 

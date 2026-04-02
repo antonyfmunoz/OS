@@ -163,7 +163,7 @@ as Antony would, without asking questions."""
         playbook = router.call(model, prompt, max_tokens=1500).strip()
 
         safe_name = re.sub(r'[^a-z0-9_]', '_', task_name.lower().replace(' ', '_'))
-        filepath = f'/opt/OS/06_Skills/Ops/process_capture_{safe_name}.md'
+        filepath = f'/opt/OS/skills/Ops/process_capture_{safe_name}.md'
         with open(filepath, 'w') as f:
             f.write(playbook)
 

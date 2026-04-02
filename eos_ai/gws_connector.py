@@ -17,7 +17,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path as _Path
 from dotenv import load_dotenv as _load_dotenv
 _ROOT = _Path(__file__).parent.parent
-_load_dotenv(_ROOT / '13_Scripts' / '.env')
+_load_dotenv(_ROOT / 'services' / '.env')
 _load_dotenv(_ROOT / 'eos_ai' / '.env', override=True)
 
 

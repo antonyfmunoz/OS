@@ -12,7 +12,7 @@ Protocol:
 2. READ the relevant existing modules before touching anything
 
 3. VALIDATE — does this feature fit the architecture?
-   - Does it belong in eos_ai/ (intelligence layer) or 13_Scripts/ (automation)?
+   - Does it belong in eos_ai/ (intelligence layer) or services/ (automation)?
    - Does it need a new module or does it extend an existing one?
    - What are the risk classes for any files being modified?
 
@@ -29,7 +29,7 @@ Protocol:
 
 6. WIRE — connect to gateway and Telegram if applicable:
    - Gateway: check /opt/OS/eos_ai/gateway.py for routing pattern
-   - Telegram: check /opt/OS/13_Scripts/telegram_control.py for command registration
+   - Telegram: check /opt/OS/services/telegram_control.py for command registration
 
 7. TEST — import check + functional test:
    ```python

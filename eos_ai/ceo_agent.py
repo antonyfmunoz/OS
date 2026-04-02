@@ -180,7 +180,7 @@ class CEOAgent:
             from eos_ai.model_router import get_router, TaskType
 
             # Discover available agent templates from soul docs on disk
-            template_dir = '/opt/OS/12_Agents'
+            template_dir = '/opt/OS/agents'
             excluded = {'ceo_agent.md', 'portfolio_advisor.md', 'CLAUDE.md'}
             available = [
                 f.replace('.md', '')

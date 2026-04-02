@@ -22,7 +22,7 @@ Step 0 — GWS auth check:
     python3 -c \"
 import os, sys; sys.path.insert(0, '/opt/OS')
 from dotenv import load_dotenv
-load_dotenv('/opt/OS/13_Scripts/.env')
+load_dotenv('/opt/OS/services/.env')
 from eos_ai.discord_utils import post_to_webhook
 webhook = os.getenv('DISCORD_BRIEF_WEBHOOK', '')
 if webhook:

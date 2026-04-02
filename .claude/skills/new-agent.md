@@ -11,12 +11,12 @@
     'owns': ['what_it_owns'],
     'handle_directly': ['task_types'],
     'escalate_to': {'task': 'target'},
-    'soul_doc': '/opt/OS/12_Agents/id.md',
+    'soul_doc': '/opt/OS/agents/id.md',
     'emoji': '🎯',
   }
 
 ### 2. Create soul doc
-/opt/OS/12_Agents/agent_id.md
+/opt/OS/agents/agent_id.md
 Must have: Identity, Role, Tone,
   What you never do, Example responses
 
@@ -37,7 +37,7 @@ with get_conn(ctx.org_id) as cur:
     DO UPDATE SET soul_doc_path=EXCLUDED.soul_doc_path
   ''', (str(uuid.uuid4()), ctx.org_id,
     'agent_id', 'Title', 'dept',
-    '/opt/OS/12_Agents/agent_id.md'))
+    '/opt/OS/agents/agent_id.md'))
   print('Registered')
 "
 

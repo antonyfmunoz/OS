@@ -1,0 +1,18 @@
+{
+  "scanned": 5,
+  "bot_filtered": 1,
+  "spam_filtered": 2,
+  "duplicate_filtered": 0,
+  "priority_saved": 1,
+  "regular_saved": 1,
+  "sources": {
+    "#selfmastery": {
+      "scanned": 5,
+      "qualified": 2,
+      "priority": 1
+    }
+  },
+  "new_competitor_posts": 0,
+  "skipped_competitor_posts": 5,
+  "scraper_cost": 0.002513
+}

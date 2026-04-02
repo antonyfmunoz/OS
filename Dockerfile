@@ -2,7 +2,7 @@ FROM python:3.11-slim
 WORKDIR /app
 RUN apt-get update && apt-get install -y git curl gcc python3-dev ffmpeg espeak && rm -rf /var/lib/apt/lists/*
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs && rm -rf /var/lib/apt/lists/*
-COPY 13_Scripts/requirements.txt .
+COPY services/requirements.txt .
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install openai-whisper yt-dlp

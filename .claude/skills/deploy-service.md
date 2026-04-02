@@ -21,9 +21,9 @@ print('imports: clean')
 " 2>&1
 
 ## Services → files
-os-discord  → 13_Scripts/discord_bot.py
-os-bot      → 13_Scripts/telegram_control.py
-os-monitor  → 13_Scripts/dm_monitor.py
+os-discord  → services/discord_bot.py
+os-bot      → services/telegram_control.py
+os-monitor  → services/dm_monitor.py
 
 ## After deploy — verify
 docker logs [service] --tail 10

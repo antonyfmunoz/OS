@@ -757,7 +757,7 @@ Return JSON only:
                 if email.folder == EmailFolder.TO_RESPOND:
                     email.draft_response = self.draft_response(email)
 
-                    # Queue draft for approval — writes to 15_Orchestrator/approvals/pending/
+                    # Queue draft for approval — writes to orchestrator/approvals/pending/
                     if email.draft_response:
                         try:
                             from eos_ai.gateway import EOSGateway

@@ -195,7 +195,7 @@ class DailySync:
         if len(agenda.action_items) > 1:
             try:
                 from eos_ai.model_router import get_router, TaskType
-                from eos_ai.portfolio_agent import PortfolioAgent
+                from eos_ai.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
                 import json as _pjson
                 router = get_router()
                 model = router.route(TaskType.FAST_RESPONSE)
@@ -233,7 +233,7 @@ class DailySync:
         # ── Section 4c: Goal alignment — does today's top item move the needle?
         try:
             from eos_ai.model_router import get_router, TaskType
-            from eos_ai.portfolio_agent import PortfolioAgent
+            from eos_ai.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
             _router = get_router()
             _model = _router.route(TaskType.FAST_RESPONSE)
 
@@ -462,7 +462,7 @@ Return JSON only:
     def _get_closing_line(self) -> str:
         """Return the binding constraint recommendation for the lowest health venture."""
         try:
-            from eos_ai.portfolio_agent import PortfolioAgent
+            from eos_ai.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
             pa       = PortfolioAgent(self.ctx)
             ventures = pa.scan_all_ventures()
             binding  = pa.identify_binding_constraint(ventures)

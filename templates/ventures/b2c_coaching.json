@@ -1,0 +1,59 @@
+{
+  "_meta": {
+    "template_version": "1.0",
+    "business_model": "coaching_program",
+    "source": "template_library.py",
+    "maintained_by": "Empyrean Creative"
+  },
+  "id": "venture-coaching",
+  "name": "[Coaching Program Name]",
+  "stage": 1,
+  "business_model": "b2c_coaching",
+  "north_star": "[e.g., $10K/month net profit]",
+  "current_offer": "Coaching / Group Program",
+  "offer_price": 0,
+  "offer_description": "Sell transformation to a specific ICP. One core offer, one channel, one repeating transaction.",
+  "icp": "Specific person with specific pain who has money and motivation to change",
+  "primary_channel": "Direct outreach (Instagram/LinkedIn)",
+  "proof_to_advance": "First paying client",
+  "binding_constraint": "leads",
+  "monthly_revenue": 0,
+  "monthly_target": 10000,
+  "benchmarks": {
+    "dms_per_week": 50,
+    "reply_rate_pct": 15,
+    "call_rate_pct": 50,
+    "close_rate_pct": 25,
+    "cac_payback_days": 0,
+    "ltv_cac_ratio": 10.0
+  },
+  "stage_1_focus": "One offer. One channel. One ICP. First sale as fast as possible.",
+  "stage_1_workflows": [
+    "ICP identification",
+    "Direct outreach (DMs)",
+    "Sales conversation",
+    "Onboarding",
+    "Delivery",
+    "Testimonial collection"
+  ],
+  "stage_1_metrics": [
+    "DMs sent per day",
+    "Response rate",
+    "Sales calls booked",
+    "Conversion rate",
+    "Revenue"
+  ],
+  "key_primitives": [
+    "conversation_first",
+    "outreach_before_content",
+    "offer_optimization"
+  ],
+  "notion_page_id": "",
+  "notion_tasks_db": "",
+  "notion_pipeline_crm_db": "",
+  "notion_goals_okrs_db": "",
+  "notion_metrics_kpis_db": "",
+  "notion_roles_db": "",
+  "notion_documents_db": "",
+  "notion_workflows_db": ""
+}

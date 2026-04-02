@@ -1,0 +1,61 @@
+{
+  "_meta": {
+    "template_version": "1.0",
+    "business_model": "saas",
+    "source": "template_library.py",
+    "maintained_by": "Empyrean Creative"
+  },
+  "id": "venture-saas",
+  "name": "[SaaS Product Name]",
+  "stage": 1,
+  "business_model": "b2b_saas",
+  "north_star": "[e.g., $10K/month net profit]",
+  "current_offer": "SaaS / Software Product",
+  "offer_price": 0,
+  "offer_description": "Build software, sell subscriptions. Revenue compounds with retention.",
+  "icp": "Professional or business with recurring pain you can automate",
+  "primary_channel": "Direct outreach + product-led growth",
+  "proof_to_advance": "First 3 paying customers retained for 60+ days",
+  "binding_constraint": "leads",
+  "monthly_revenue": 0,
+  "monthly_target": 10000,
+  "benchmarks": {
+    "dms_per_week": 30,
+    "reply_rate_pct": 10,
+    "call_rate_pct": 30,
+    "close_rate_pct": 20,
+    "cac_payback_days": 90,
+    "ltv_cac_ratio": 3.0
+  },
+  "stage_1_focus": "Find 10 people with the problem. Build the minimum that solves it. Charge before it is perfect.",
+  "stage_1_workflows": [
+    "Customer discovery",
+    "MVP build",
+    "Beta user acquisition",
+    "Feedback loop",
+    "Iteration",
+    "First paid conversion"
+  ],
+  "stage_1_metrics": [
+    "Weekly active users",
+    "Activation rate",
+    "Day 30 retention",
+    "MRR",
+    "Churn rate",
+    "NPS"
+  ],
+  "key_primitives": [
+    "conversation_first",
+    "retention_over_acquisition",
+    "unit_economics",
+    "hire_bottom_up"
+  ],
+  "notion_page_id": "",
+  "notion_tasks_db": "",
+  "notion_pipeline_crm_db": "",
+  "notion_goals_okrs_db": "",
+  "notion_metrics_kpis_db": "",
+  "notion_roles_db": "",
+  "notion_documents_db": "",
+  "notion_workflows_db": ""
+}

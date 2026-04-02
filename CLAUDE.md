@@ -98,7 +98,7 @@ eos_ai/agent_hierarchy.py — org chart
 eos_ai/ai_identity.py     — step 0 principles
 eos_ai/primitives.py      — 13 primitives
 eos_ai/agent_runtime.py   — LLM dispatch
-13_Scripts/discord_bot.py — primary interface
+services/discord_bot.py — primary interface
 
 ## EOS conventions
 - AI name from get_ai_name() never hardcoded

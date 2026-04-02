@@ -1,0 +1,11 @@
+{
+  "processed": {
+    "332da8b9-6e4f-8158-aae2-ded99354c9d7": {
+      "stage": "Booked",
+      "outcome": "booked",
+      "fired_at": "2026-03-29T02:29:19.915659+00:00",
+      "lead_name": "@test_lead_audit"
+    }
+  },
+  "last_sync": "2026-04-01T09:01:07.754617+00:00"
+}

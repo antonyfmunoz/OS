@@ -93,7 +93,7 @@ Required channels (always create if missing):
 ```
 
 ## Channel IDs
-Channel IDs are stored in `13_Scripts/.env` as `DISCORD_CHANNEL_*` vars.
+Channel IDs are stored in `services/.env` as `DISCORD_CHANNEL_*` vars.
 `CHANNEL_IDS` dict in `discord_bot.py` loads them at startup.
 When new channels are created, save their IDs to `.env`.
 

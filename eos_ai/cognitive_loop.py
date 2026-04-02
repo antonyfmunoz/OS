@@ -368,7 +368,7 @@ class CognitiveLoop:
 
         # Layer 0a: EA best practices — DEX operating standards
         try:
-            from eos_ai.ea_best_practices import get_all_standards
+            from eos_ai.ea_operational_standards import get_all_standards
             _standards = get_all_standards()
             _system_parts.append(f'## Operating Standards\n{_standards}')
         except Exception:

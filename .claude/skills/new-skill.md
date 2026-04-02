@@ -3,7 +3,7 @@
 ## Steps
 
 ### 1. Create skill file
-/opt/OS/06_Skills/{Department}/{name}.md
+/opt/OS/skills/{Department}/{name}.md
 
 8-component structure required:
 Purpose, Outcome, Best-Practice Benchmark,
@@ -19,7 +19,7 @@ from eos_ai.db import get_conn
 from eos_ai.context import load_context_from_env
 from pathlib import Path
 ctx = load_context_from_env()
-path = '/opt/OS/06_Skills/Dept/name.md'
+path = '/opt/OS/skills/Dept/name.md'
 with get_conn(ctx.org_id) as cur:
   cur.execute('''
     INSERT INTO skills

@@ -121,7 +121,7 @@ ROLES = [
             'Calendar, email, task routing, meeting prep, '
             'cross-venture coordination, daily brief.'
         ),
-        'soul_doc': '/opt/OS/12_Agents/executive_assistant.md',
+        'soul_doc': '/opt/OS/agents/executive_assistant.md',
     },
     {
         'name': 'CEO Agent',
@@ -137,7 +137,7 @@ ROLES = [
             'Strategic oversight, delegation to dept agents, '
             'goal setting, org health monitoring.'
         ),
-        'soul_doc': '/opt/OS/12_Agents/ceo_agent.md',
+        'soul_doc': '/opt/OS/agents/ceo_agent.md',
     },
     {
         'name': 'Sales Agent',

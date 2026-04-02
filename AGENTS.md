@@ -15,6 +15,6 @@ VPS: 100.77.233.50 | Dir: /opt/OS
 
 ## Structure
 eos_ai/      — AI brain
-13_Scripts/  — bots and services
-12_Agents/   — agent soul docs
-06_Skills/   — agent runtime skills
+services/  — bots and services
+agents/   — agent soul docs
+skills/   — agent runtime skills

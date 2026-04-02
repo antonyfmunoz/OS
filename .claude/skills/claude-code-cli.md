@@ -88,10 +88,10 @@ requirements.txt changed:
 
 ## Services
 ```
-os-discord  → 13_Scripts/discord_bot.py
-os-bot      → 13_Scripts/telegram_control.py
-os-monitor  → 13_Scripts/dm_monitor.py
-os-webhook  → 13_Scripts/calendly_webhook.py
+os-discord  → services/discord_bot.py
+os-bot      → services/telegram_control.py
+os-monitor  → services/dm_monitor.py
+os-webhook  → services/calendly_webhook.py
 ```
 
 ## Confirmed working — do not break

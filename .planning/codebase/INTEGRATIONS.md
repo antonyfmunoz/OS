@@ -5,7 +5,7 @@
 
 ## Summary
 
-EOS integrates across messaging platforms (Telegram, Discord), Google Workspace, scraping infrastructure (Apify, Playwright), AI APIs (Anthropic, Google Gemini, OpenAI), and sales tooling (Calendly). All secrets are in `13_Scripts/.env` and `eos_ai/.env`. Auth is currently founder-only — Firebase and Stripe are planned but not implemented.
+EOS integrates across messaging platforms (Telegram, Discord), Google Workspace, scraping infrastructure (Apify, Playwright), AI APIs (Anthropic, Google Gemini, OpenAI), and sales tooling (Calendly). All secrets are in `services/.env` and `eos_ai/.env`. Auth is currently founder-only — Firebase and Stripe are planned but not implemented.
 
 ---
 
@@ -16,7 +16,7 @@ EOS integrates across messaging platforms (Telegram, Discord), Google Workspace,
 - Auth env var: `ANTHROPIC_API_KEY` (in `eos_ai/.env` and passed to all containers)
 - Models: `claude-haiku-4-5-20251001` (fast/cheap), `claude-sonnet-4-6` (primary generation)
 - Routing module: `eos_ai/agent_runtime.py`
-- Cost tracking: tracked per-call, stored in `interactions` table and `13_Scripts/cost_log.json`
+- Cost tracking: tracked per-call, stored in `interactions` table and `services/cost_log.json`
 
 **Google Gemini**
 - SDK: `google-genai` Python package (`google.genai` new SDK, falls back to `google.generativeai`)
@@ -40,14 +40,14 @@ EOS integrates across messaging platforms (Telegram, Discord), Google Workspace,
 **Telegram Bot API**
 - Library: `python-telegram-bot`
 - Auth env vars: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
-- Service: `os-bot` → `13_Scripts/telegram_control.py`
+- Service: `os-bot` → `services/telegram_control.py`
 - Purpose: primary founder control interface — 40+ commands, NLP routing, voice messages, media, morning brief, approval queue
 - AI name resolved from BIS at runtime via `get_ai_name()` — never hardcoded
 
 **Discord Bot**
 - Library: `py-cord[voice]==2.6.1` (patched at Docker build via `patch_pycord.py`)
 - Auth env vars: `DISCORD_BOT_TOKEN`, `FOUNDER_DISCORD_ID`, channel IDs (multiple)
-- Service: `os-discord` → `13_Scripts/discord_bot.py`
+- Service: `os-discord` → `services/discord_bot.py`
 - Purpose: DEX conversational bot, auto-joins founder voice channel, routes text through EOS gateway
 - Voice pipeline: SilenceDetectingSink → Groq STT → speech classification → Ollama (simple) or Claude (complex) → Coqui TTS
 - Known issue: 4006 connection bug in voice unresolved (patched at build time to prevent crash)
@@ -88,14 +88,14 @@ EOS integrates across messaging platforms (Telegram, Discord), Google Workspace,
 **Apify**
 - Auth env var: `APIFY_API_TOKEN`
 - Purpose: Instagram comment scraping for ICP signal harvesting
-- Used in: `13_Scripts/apify_scraper.py`
+- Used in: `services/apify_scraper.py`
 - Target accounts: competitor Instagram accounts (`hormozi`, `imangadzhi`, etc.)
 - Output: `01_Inbox/raw_signals/` directory (JSON files)
 
 **Playwright (browser automation)**
 - Installed: Chromium at Docker build time
 - Purpose: Instagram DM inbox monitoring, browser agent (built, not yet wired to agents)
-- Service: `os-monitor` → `13_Scripts/dm_monitor.py`
+- Service: `os-monitor` → `services/dm_monitor.py`
 - Advanced use: `eos_ai/browser_agent.py` — full web operator for agent execution layer (built, not wired)
 
 ---
@@ -104,7 +104,7 @@ EOS integrates across messaging platforms (Telegram, Discord), Google Workspace,
 
 **Calendly**
 - Auth env var: `CALENDLY_SIGNING_KEY` (HMAC signature verification)
-- Service: `os-webhook` → `13_Scripts/calendly_webhook.py` (Flask, port 8080)
+- Service: `os-webhook` → `services/calendly_webhook.py` (Flask, port 8080)
 - Inbound webhook: `invitee.created` and `invitee.canceled` events → trigger sales call brief → Telegram alert
 - RLHF integration: Calendly bookings logged to `interactions` table as outcome signals
 
@@ -123,7 +123,7 @@ EOS integrates across messaging platforms (Telegram, Discord), Google Workspace,
 **Neon (serverless PostgreSQL)**
 - Auth env var: `DATABASE_URL` (in `eos_ai/.env`)
 - Python client: `psycopg2-binary` via `eos_ai/db.py`
-- TypeScript client: `@neondatabase/serverless` + `drizzle-orm` via `eos_saas/db/`
+- TypeScript client: `@neondatabase/serverless` + `drizzle-orm` via `saas/db/`
 - RLS: row-level security enforced via `SET LOCAL app.current_org_id`
 - Extensions: pgvector (768-dim embeddings)
 
@@ -151,7 +151,7 @@ EOS integrates across messaging platforms (Telegram, Discord), Google Workspace,
 
 **Incoming:**
 - `POST /` (port 8080) — Calendly booking events, HMAC-verified with `CALENDLY_SIGNING_KEY`
-  - Service: `os-webhook` → `13_Scripts/calendly_webhook.py`
+  - Service: `os-webhook` → `services/calendly_webhook.py`
 
 **Outgoing:**
 - Telegram Bot API — alerts, morning briefs, approval notifications from all services
@@ -180,16 +180,16 @@ EOS integrates across messaging platforms (Telegram, Discord), Google Workspace,
 |---|---|---|
 | `ANTHROPIC_API_KEY` | `eos_ai/.env` | all containers (passed via docker-compose env) |
 | `GEMINI_API_KEY` | `eos_ai/.env` | `media_processor.py`, `embedding_engine.py` |
-| `DATABASE_URL` | `eos_ai/.env` | `db.py`, `eos_saas/` |
+| `DATABASE_URL` | `eos_ai/.env` | `db.py`, `saas/` |
 | `EOS_ORG_ID` | `eos_ai/.env` | `db.py`, all agent context |
 | `EOS_USER_ID` | `eos_ai/.env` | `db.py`, all agent context |
 | `AI_NAME` | `eos_ai/.env` | `business_instance.py` (fallback if BIS unavailable) |
-| `TELEGRAM_BOT_TOKEN` | `13_Scripts/.env` | `telegram_control.py`, `calendly_webhook.py` |
-| `TELEGRAM_CHAT_ID` | `13_Scripts/.env` | `telegram_control.py`, all alert senders |
-| `DISCORD_BOT_TOKEN` | `13_Scripts/.env` | `discord_bot.py` |
-| `FOUNDER_DISCORD_ID` | `13_Scripts/.env` | `discord_bot.py` (auto-join voice trigger) |
-| `APIFY_API_TOKEN` | `13_Scripts/.env` | `apify_scraper.py` |
-| `CALENDLY_SIGNING_KEY` | `13_Scripts/.env` | `calendly_webhook.py` |
+| `TELEGRAM_BOT_TOKEN` | `services/.env` | `telegram_control.py`, `calendly_webhook.py` |
+| `TELEGRAM_CHAT_ID` | `services/.env` | `telegram_control.py`, all alert senders |
+| `DISCORD_BOT_TOKEN` | `services/.env` | `discord_bot.py` |
+| `FOUNDER_DISCORD_ID` | `services/.env` | `discord_bot.py` (auto-join voice trigger) |
+| `APIFY_API_TOKEN` | `services/.env` | `apify_scraper.py` |
+| `CALENDLY_SIGNING_KEY` | `services/.env` | `calendly_webhook.py` |
 
 ---
 
@@ -201,10 +201,10 @@ EOS integrates across messaging platforms (Telegram, Discord), Google Workspace,
 - `/opt/OS/eos_ai/gws_scanner.py` — GWS document ingestion
 - `/opt/OS/eos_ai/voice_engine.py` — Discord voice pipeline (Silero → Whisper → Ollama/Claude → Coqui)
 - `/opt/OS/eos_ai/browser_agent.py` — Playwright web operator (built, not wired to agents)
-- `/opt/OS/13_Scripts/telegram_control.py` — Telegram bot, primary founder interface
-- `/opt/OS/13_Scripts/discord_bot.py` — Discord bot, voice + text
-- `/opt/OS/13_Scripts/dm_monitor.py` — Playwright Instagram DM monitor
-- `/opt/OS/13_Scripts/apify_scraper.py` — Apify Instagram comment scraper
-- `/opt/OS/13_Scripts/calendly_webhook.py` — Flask Calendly webhook receiver
+- `/opt/OS/services/telegram_control.py` — Telegram bot, primary founder interface
+- `/opt/OS/services/discord_bot.py` — Discord bot, voice + text
+- `/opt/OS/services/dm_monitor.py` — Playwright Instagram DM monitor
+- `/opt/OS/services/apify_scraper.py` — Apify Instagram comment scraper
+- `/opt/OS/services/calendly_webhook.py` — Flask Calendly webhook receiver
 - `/opt/OS/eos_ai/db.py` — Neon connection, RLS, venture/skill ID resolution
-- `/opt/OS/eos_saas/db/schema.ts` — full Drizzle schema, pgvector, all enums
+- `/opt/OS/saas/db/schema.ts` — full Drizzle schema, pgvector, all enums

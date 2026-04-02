@@ -1,0 +1,58 @@
+{
+  "_meta": {
+    "template_version": "1.0",
+    "business_model": "digital_product",
+    "source": "template_library.py",
+    "maintained_by": "Empyrean Creative"
+  },
+  "id": "venture-content",
+  "name": "[Content Creator Name]",
+  "stage": 1,
+  "business_model": "content",
+  "north_star": "[e.g., $10K/month net profit]",
+  "current_offer": "Digital Product / Course",
+  "offer_price": 0,
+  "offer_description": "Create once, sell many times. Leveraged income model.",
+  "icp": "Person who wants to learn a specific skill or achieve specific result",
+  "primary_channel": "short-form video",
+  "proof_to_advance": "First cohort completes and gets result",
+  "binding_constraint": "audience",
+  "monthly_revenue": 0,
+  "monthly_target": 10000,
+  "benchmarks": {
+    "dms_per_week": 0,
+    "reply_rate_pct": 0,
+    "call_rate_pct": 0,
+    "close_rate_pct": 0,
+    "cac_payback_days": 0,
+    "ltv_cac_ratio": 0
+  },
+  "stage_1_focus": "Validate with a small cohort first. Teach it live before recording it.",
+  "stage_1_workflows": [
+    "Audience building",
+    "Content creation",
+    "Launch",
+    "Fulfillment",
+    "Testimonials"
+  ],
+  "stage_1_metrics": [
+    "Audience size",
+    "Email list",
+    "Conversion rate",
+    "Revenue per launch"
+  ],
+  "key_primitives": [
+    "conversation_first",
+    "offer_optimization",
+    "paid_advertising"
+  ],
+  "note": "Content businesses differ from outreach-based models. Binding constraint is audience size, not direct sales volume.",
+  "notion_page_id": "",
+  "notion_tasks_db": "",
+  "notion_pipeline_crm_db": "",
+  "notion_goals_okrs_db": "",
+  "notion_metrics_kpis_db": "",
+  "notion_roles_db": "",
+  "notion_documents_db": "",
+  "notion_workflows_db": ""
+}

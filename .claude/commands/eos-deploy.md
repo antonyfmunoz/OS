@@ -47,7 +47,7 @@ Protocol:
 7. RESTART Telegram bot if needed (runs outside Docker):
    ```bash
    pkill -f telegram_control; sleep 2
-   nohup python3 /opt/OS/13_Scripts/telegram_control.py >> /opt/OS/logs/telegram.log 2>&1 &
+   nohup python3 /opt/OS/services/telegram_control.py >> /opt/OS/logs/telegram.log 2>&1 &
    sleep 3 && pgrep -f telegram_control && echo "Telegram: running" || echo "Telegram: FAILED"
    ```
 

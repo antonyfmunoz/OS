@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 
 sys.path.insert(0, '/opt/OS')
 load_dotenv('/opt/OS/eos_ai/.env')
-load_dotenv('/opt/OS/13_Scripts/.env')
+load_dotenv('/opt/OS/services/.env')
 
 PDT = ZoneInfo('America/Los_Angeles')
 GENERAL_CHANNEL_ID = int(os.getenv('DISCORD_GENERAL_CHANNEL_ID', '0'))

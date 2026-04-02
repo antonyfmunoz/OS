@@ -43,7 +43,7 @@ from eos_ai.db import get_conn, ORG_ID
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 
-APPROVALS_DIR = Path(_REPO_ROOT) / "15_Orchestrator" / "approvals"
+APPROVALS_DIR = Path(_REPO_ROOT) / "orchestrator" / "approvals"
 PENDING_DIR   = APPROVALS_DIR / "pending"
 APPROVED_DIR  = APPROVALS_DIR / "approved"
 
@@ -796,7 +796,7 @@ class EOSGateway:
             if agent_id == 'executive_assistant':
                 # DEX — inject EA operational standards + Martell leverage detection
                 try:
-                    from eos_ai.ea_best_practices import get_all_standards
+                    from eos_ai.ea_operational_standards import get_all_standards
                     from eos_ai.martell_patterns import detect_leverage_killer
                     leverage = detect_leverage_killer(prompt)
                     if leverage:
@@ -812,7 +812,7 @@ class EOSGateway:
             elif agent_id == 'portfolio_advisor':
                 # Portfolio Advisor — inject live portfolio data
                 try:
-                    from eos_ai.portfolio_agent import PortfolioAgent
+                    from eos_ai.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
                     _pa         = PortfolioAgent(ctx)
                     _ventures   = _pa.scan_all_ventures()
                     _port_brief = _pa.generate_portfolio_brief(_ventures)
@@ -879,7 +879,7 @@ class EOSGateway:
                     # Portfolio domain — inject live portfolio data into prompt
                     if domain == IntentDomain.PORTFOLIO:
                         try:
-                            from eos_ai.portfolio_agent import PortfolioAgent
+                            from eos_ai.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
                             pa          = PortfolioAgent(ctx)
                             ventures    = pa.scan_all_ventures()
                             port_brief  = pa.generate_portfolio_brief(ventures)

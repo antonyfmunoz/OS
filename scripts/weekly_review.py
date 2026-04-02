@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 
 sys.path.insert(0, '/opt/OS')
 load_dotenv('/opt/OS/eos_ai/.env')
-load_dotenv('/opt/OS/13_Scripts/.env')
+load_dotenv('/opt/OS/services/.env')
 
 PDT = ZoneInfo('America/Los_Angeles')
 GENERAL_CHANNEL_ID = 1486289444830056540
@@ -23,7 +23,7 @@ GENERAL_CHANNEL_ID = 1486289444830056540
 async def run_weekly_review():
     from eos_ai.context import load_context_from_env
     from eos_ai.db import get_conn
-    from eos_ai.portfolio_agent import PortfolioAgent
+    from eos_ai.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
     from eos_ai.model_router import get_router, TaskType
     import json as _json
 

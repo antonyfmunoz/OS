@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": {
+    "humanizer": {
+      "source": "blader/humanizer",
+      "sourceType": "github",
+      "computedHash": "67bd72223e92b4f520a1abbc9ff9db50641ed84128ba9521028d9b151dbd2429"
+    },
+    "last30days": {
+      "source": "charlesdove977/goviralbitch",
+      "sourceType": "github",
+      "computedHash": "f893bf08933b433959b977c4f803cec6bbcd7f18e740015a4dfe91d90c9eeda0"
+    }
+  }
+}

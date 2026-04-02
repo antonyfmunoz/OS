@@ -13,15 +13,15 @@ services:
     container_name: os-bot
     restart: always
     working_dir: /app
-    command: python3 13_Scripts/telegram_control.py
+    command: python3 services/telegram_control.py
     networks:
       - eos_network
     volumes:
       - /opt/OS:/app
     env_file:
-      - 13_Scripts/.env
+      - services/.env
     environment:
-      - PYTHONPATH=/app/13_Scripts
+      - PYTHONPATH=/app
       - TZ=America/Los_Angeles
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
 
@@ -30,7 +30,7 @@ services:
     container_name: os-monitor
     restart: always
     working_dir: /app
-    command: python3 -u 13_Scripts/dm_monitor.py
+    command: python3 -u services/dm_monitor.py
     # network_mode: host was removed — Playwright does not require host networking.
     # Bridge provides outbound internet access for Instagram/Apify calls.
     networks:
@@ -39,11 +39,11 @@ services:
       - /opt/OS:/app
       - /opt/OS/logs:/opt/OS/logs
     env_file:
-      - 13_Scripts/.env
+      - services/.env
       - eos_ai/.env
     shm_size: '2gb'
     environment:
-      - PYTHONPATH=/app/13_Scripts
+      - PYTHONPATH=/app
       - TZ=America/Los_Angeles
       - PYTHONUNBUFFERED=1
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
@@ -53,16 +53,16 @@ services:
     container_name: os-scraper
     restart: "no"
     working_dir: /app
-    command: python3 13_Scripts/overnight_scrape.py
+    command: python3 services/overnight_scrape.py
     networks:
       - eos_network
     volumes:
       - /opt/OS:/app
     env_file:
-      - 13_Scripts/.env
+      - services/.env
       - eos_ai/.env
     environment:
-      - PYTHONPATH=/app/13_Scripts
+      - PYTHONPATH=/app
       - TZ=America/Los_Angeles
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
 
@@ -71,15 +71,15 @@ services:
     container_name: os-webhook
     restart: always
     working_dir: /app
-    command: python3 13_Scripts/calendly_webhook.py
+    command: python3 services/calendly_webhook.py
     networks:
       - eos_network
     volumes:
       - /opt/OS:/app
     env_file:
-      - 13_Scripts/.env
+      - services/.env
     environment:
-      - PYTHONPATH=/app/13_Scripts
+      - PYTHONPATH=/app
       - TZ=America/Los_Angeles
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
     ports:
@@ -102,11 +102,11 @@ services:
       - /root/.config/gws:/root/.config/gws
       - /root/.config/@googleworkspace:/root/.config/@googleworkspace
     env_file:
-      - 13_Scripts/.env
+      - services/.env
       - eos_ai/.env
     environment:
       - PYTHONPATH=/app
       - TZ=America/Los_Angeles
       - PYTHONUNBUFFERED=1
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-    command: python3 13_Scripts/discord_bot.py
+    command: python3 services/discord_bot.py

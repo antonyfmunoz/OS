@@ -1,0 +1,61 @@
+{
+  "_meta": {
+    "template_version": "1.0",
+    "business_model": "ecommerce",
+    "source": "template_library.py",
+    "maintained_by": "Empyrean Creative"
+  },
+  "id": "venture-ecommerce",
+  "name": "[Ecommerce Brand Name]",
+  "stage": 1,
+  "business_model": "ecommerce",
+  "north_star": "[e.g., $10K/month net profit]",
+  "current_offer": "Ecommerce / Physical Products",
+  "offer_price": 0,
+  "offer_description": "Sell physical or digital products online. Revenue from transactions.",
+  "icp": "Person with specific problem your product solves better than alternatives",
+  "primary_channel": "paid social + organic",
+  "proof_to_advance": "First 10 profitable orders with positive unit economics",
+  "binding_constraint": "traffic",
+  "monthly_revenue": 0,
+  "monthly_target": 10000,
+  "benchmarks": {
+    "dms_per_week": 0,
+    "reply_rate_pct": 0,
+    "call_rate_pct": 0,
+    "close_rate_pct": 3,
+    "cac_payback_days": 60,
+    "ltv_cac_ratio": 3.0
+  },
+  "stage_1_focus": "Prove one product sells profitably through one channel before scaling.",
+  "stage_1_workflows": [
+    "Product sourcing or creation",
+    "Store setup",
+    "Organic marketing",
+    "Order fulfillment",
+    "Customer service",
+    "Review collection"
+  ],
+  "stage_1_metrics": [
+    "Daily visitors",
+    "Conversion rate",
+    "Average order value",
+    "Cost per acquisition",
+    "Return rate",
+    "Repeat purchase rate"
+  ],
+  "key_primitives": [
+    "conversation_first",
+    "outreach_before_content",
+    "unit_economics",
+    "paid_advertising"
+  ],
+  "notion_page_id": "",
+  "notion_tasks_db": "",
+  "notion_pipeline_crm_db": "",
+  "notion_goals_okrs_db": "",
+  "notion_metrics_kpis_db": "",
+  "notion_roles_db": "",
+  "notion_documents_db": "",
+  "notion_workflows_db": ""
+}

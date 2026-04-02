@@ -21,7 +21,7 @@ import requests
 from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
-load_dotenv(os.path.join(os.path.dirname(__file__), "..", "13_Scripts", ".env"))
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", "services", ".env"))
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
@@ -37,8 +37,8 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID")
 
 VAULT          = Path(_REPO_ROOT)
-DAILY_DIR      = VAULT / "15_Orchestrator" / "daily"
-POSTMORTEM_DIR = VAULT / "15_Orchestrator" / "postmortems"
+DAILY_DIR      = VAULT / "orchestrator" / "daily"
+POSTMORTEM_DIR = VAULT / "orchestrator" / "postmortems"
 
 
 # ─── Telegram ─────────────────────────────────────────────────────────────────
@@ -409,11 +409,11 @@ def run_full_morning_cycle(ctx: EOSContext) -> None:
     # 2c. Portfolio Agent — venture health scan
     portfolio_brief = ""
     try:
-        from eos_ai.portfolio_agent import PortfolioAgent
-        pa_agent   = PortfolioAgent(ctx)
+        from eos_ai.portfolio_advisor import PortfolioAdvisor
+        pa_agent   = PortfolioAdvisor(ctx)
         _ventures  = pa_agent.scan_all_ventures()
         portfolio_brief = pa_agent.generate_portfolio_brief(_ventures)
-        print(f"[Orchestrator] Portfolio Agent scan done: {len(_ventures)} ventures.")
+        print(f"[Orchestrator] Portfolio scan done: {len(_ventures)} ventures.")
     except Exception as e:
         portfolio_brief = f"Portfolio scan failed: {e}"
         print(f"[Orchestrator] Portfolio Agent: {e}")
@@ -606,7 +606,7 @@ def run_ceo_morning_delegation(
 
     from eos_ai.ceo_agent import CEOAgent as _EvoCEO
     from eos_ai.coordination_engine import CoordinationEngine as _CE
-    from eos_ai.portfolio_agent import PortfolioAgent as _PA
+    from eos_ai.portfolio_advisor import PortfolioAdvisor as _PA
 
     # Get binding constraint from portfolio
     binding_constraint = 'Grow revenue'
@@ -1234,7 +1234,7 @@ class EOSOrchestrator:
 
     def morning_brief(self) -> str:
         """
-        Generate a structured AI brief, write it to 15_Orchestrator/daily/,
+        Generate a structured AI brief, write it to orchestrator/daily/,
         and return the full text.
         """
         venture_ids = VentureKnowledgeBase.list_ventures()
@@ -1340,7 +1340,7 @@ class EOSOrchestrator:
     ) -> str:
         """
         Generate an AI-written postmortem for a system failure.
-        Writes to 15_Orchestrator/postmortems/YYYY-MM-DD_component.md.
+        Writes to orchestrator/postmortems/YYYY-MM-DD_component.md.
         Logs to memory.db via AgentRuntime.
         Returns the postmortem file path.
         """

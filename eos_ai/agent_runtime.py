@@ -355,7 +355,7 @@ class AgentRuntime:
         system_parts: list[str] = []
         skill_used: str | None = None
 
-        # 0a. Load agent soul doc if present (12_Agents/{agent}.md)
+        # 0a. Load agent soul doc if present (agents/{agent}.md)
         # Agent identity is the outermost layer — injected first so it
         # shapes how all downstream context (venture, skills, memory) is used.
         # When no agent specified, default to executive_assistant.
@@ -387,10 +387,10 @@ class AgentRuntime:
             except Exception:
                 pass  # fall through to hierarchy soul doc
 
-        # Fall back to hierarchy soul doc (12_Agents/{agent}.md)
+        # Fall back to hierarchy soul doc (agents/{agent}.md)
         if not soul_doc_loaded:
             _soul_path = (
-                Path(__file__).parent.parent / '12_Agents' / f'{agent}.md'
+                Path(__file__).parent.parent / 'agents' / f'{agent}.md'
             )
             if agent not in ('gateway.direct',) and _soul_path.exists():
                 try:

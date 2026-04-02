@@ -5,14 +5,14 @@ Steps:
    docker exec os-discord python3 -c "import discord; print(discord.__version__)"
 
 2. Check Groq key configured:
-   grep GROQ_API_KEY /opt/OS/13_Scripts/.env | cut -c1-20
+   grep GROQ_API_KEY /opt/OS/services/.env | cut -c1-20
 
 3. Test Groq transcription:
    docker exec os-discord python3 -c "
 import os, sys
 sys.path.insert(0, '/opt/OS')
 from dotenv import load_dotenv
-load_dotenv('/opt/OS/13_Scripts/.env')
+load_dotenv('/opt/OS/services/.env')
 from groq import Groq
 client = Groq(api_key=os.getenv('GROQ_API_KEY'))
 print('Groq: OK')

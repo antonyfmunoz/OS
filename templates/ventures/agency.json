@@ -1,0 +1,60 @@
+{
+  "_meta": {
+    "template_version": "1.0",
+    "business_model": "agency",
+    "source": "template_library.py",
+    "maintained_by": "Empyrean Creative"
+  },
+  "id": "venture-agency",
+  "name": "[Agency Name]",
+  "stage": 1,
+  "business_model": "agency",
+  "north_star": "[e.g., $10K/month net profit]",
+  "current_offer": "Service Agency",
+  "offer_price": 0,
+  "offer_description": "Sell done-for-you services to businesses. Revenue from retainers or projects.",
+  "icp": "Business owner with specific problem you can solve",
+  "primary_channel": "Cold outreach + referrals",
+  "proof_to_advance": "First retainer signed",
+  "binding_constraint": "leads",
+  "monthly_revenue": 0,
+  "monthly_target": 10000,
+  "benchmarks": {
+    "dms_per_week": 30,
+    "reply_rate_pct": 10,
+    "call_rate_pct": 40,
+    "close_rate_pct": 30,
+    "cac_payback_days": 30,
+    "ltv_cac_ratio": 5.0
+  },
+  "stage_1_focus": "Land first retainer client. Deliver exceptional result. Get case study.",
+  "stage_1_workflows": [
+    "Lead generation",
+    "Discovery call",
+    "Proposal",
+    "Onboarding",
+    "Delivery",
+    "Reporting",
+    "Renewal / upsell"
+  ],
+  "stage_1_metrics": [
+    "Leads in pipeline",
+    "Proposals sent",
+    "Close rate",
+    "MRR",
+    "Client retention rate"
+  ],
+  "key_primitives": [
+    "conversation_first",
+    "hire_bottom_up",
+    "outreach_before_content"
+  ],
+  "notion_page_id": "",
+  "notion_tasks_db": "",
+  "notion_pipeline_crm_db": "",
+  "notion_goals_okrs_db": "",
+  "notion_metrics_kpis_db": "",
+  "notion_roles_db": "",
+  "notion_documents_db": "",
+  "notion_workflows_db": ""
+}

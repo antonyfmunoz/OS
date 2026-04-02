@@ -68,7 +68,7 @@ CRITICAL: Schema migrations, removing working features, changing
   what was completed
 - Telegram bot restarts require:
   pkill -f telegram_control &&
-  python3 /opt/OS/13_Scripts/telegram_control.py
+  python3 /opt/OS/services/telegram_control.py
 
 ## Known issues (do not attempt to fix without reading first)
 - None currently. (gateway.py raw_prompt → input was confirmed fixed:
@@ -85,7 +85,7 @@ CRITICAL: Schema migrations, removing working features, changing
 - eos_ai/orchestrator.py       — 6am cron + morning cycle
 - eos_ai/model_preferences.py  — business context routing
 - eos_ai/media_processor.py    — voice synthesis 303KB confirmed
-- 13_Scripts/telegram_control.py — natural language + media routing
+- services/telegram_control.py — natural language + media routing
 
 ## Current build phase
 Single-user validation phase — one org, multiple ventures.
@@ -95,10 +95,10 @@ Focus: proving the system works before UI layer.
 ## Project structure
 /opt/OS/
   eos_ai/          — AI intelligence layer (Python)
-  eos_saas/        — SaaS product (TypeScript/React)
-  13_Scripts/      — automation scripts
+  saas/        — SaaS product (TypeScript/React)
+  services/      — automation scripts
   03_CRM/          — pipeline and lead management
-  15_Orchestrator/ — scheduled tasks and approvals
+  orchestrator/ — scheduled tasks and approvals
   .claude/         — Claude Code project config (this file)
 
 ## Docker restart: use `docker restart`, not `docker compose restart`
