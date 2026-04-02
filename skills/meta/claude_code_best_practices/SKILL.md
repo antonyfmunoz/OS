@@ -246,7 +246,7 @@ memory: user   # for skills that accumulate
 
 ### Still Needed
 
-- ✅ PermissionRequest → Telegram (notify + log)
+- ✅ PermissionRequest → channel-agnostic (ChannelRouter)
 - ✅ /loop skills: /start-loops + /babysit
 - ✅ Remote Control: SessionStart auto-starts
 - ✅ !command: research skills have dynamic context
@@ -254,8 +254,8 @@ memory: user   # for skills that accumulate
 - ✅ SubagentStart: agent-type context injected
 - ✅ PostCompact: skill reminders on compact
 - ✅ opusplan: documented in CLAUDE.md
+- ✅ Channels: eos_ai/channel.py — Discord + Telegram + Webhook + Console
 - GitHub Code Review action
-- Channels (Telegram) configured
 
 ## Self-Update Protocol
 

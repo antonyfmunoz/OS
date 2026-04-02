@@ -129,7 +129,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 /opt/OS/scripts/permission_to_telegram.py"
+            "command": "python3 /opt/OS/scripts/permission_notify.py"
           }
         ]
       }

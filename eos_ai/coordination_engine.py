@@ -12,11 +12,9 @@ Table: tasks
 """
 
 import json
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 
-import requests
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / ".env")
@@ -27,31 +25,25 @@ from eos_ai.db import get_conn, resolve_venture
 from eos_ai.event_bus import EventBus
 from eos_ai.authority_engine import AuthorityEngine
 
-_TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-_TELEGRAM_CHAT_ID   = os.environ.get("TELEGRAM_CHAT_ID")
-
 
 def _utcnow() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _send_telegram(text: str) -> None:
-    if not _TELEGRAM_BOT_TOKEN or not _TELEGRAM_CHAT_ID:
-        return
+def _notify(text: str) -> None:
+    """Send notification via channel router."""
     try:
-        requests.post(
-            f"https://api.telegram.org/bot{_TELEGRAM_BOT_TOKEN}/sendMessage",
-            json={"chat_id": _TELEGRAM_CHAT_ID, "text": text[:4096]},
-            timeout=10,
-        )
+        from eos_ai.channel import get_channel_router
+
+        router = get_channel_router()
+        router.notify(text)
     except Exception:
-        pass
+        print(f"[Coordination] Notify failed: {text[:100]}")
 
 
 class CoordinationEngine:
-
     def __init__(self, ctx: EOSContext):
-        self.ctx       = ctx
+        self.ctx = ctx
         self.event_bus = EventBus()
         self.authority = AuthorityEngine(ctx)
         self._ensure_table()
@@ -133,21 +125,27 @@ class CoordinationEngine:
             task_id = str(cur.fetchone()["id"])
 
         if assignee_type == "agent":
-            self.event_bus.publish_async("agent_task_assigned", {
-                "task_id":     task_id,
-                "assignee_id": assignee_id,
-                "description": task_description,
-                "priority":    priority,
-                "venture_id":  venture_id,
-            })
+            self.event_bus.publish_async(
+                "agent_task_assigned",
+                {
+                    "task_id": task_id,
+                    "assignee_id": assignee_id,
+                    "description": task_description,
+                    "priority": priority,
+                    "venture_id": venture_id,
+                },
+            )
             # Lifecycle tracking: mark in_progress immediately for agent tasks
             try:
                 from eos_ai.execution_engine import ExecutionEngine
+
                 ExecutionEngine(self.ctx).start_execution(task_id, assignee_id)
             except Exception as _ee_err:
-                print(f"[CoordEngine] ExecutionEngine.start_execution failed: {_ee_err}")
+                print(
+                    f"[CoordEngine] ExecutionEngine.start_execution failed: {_ee_err}"
+                )
         else:
-            _send_telegram(
+            _notify(
                 f"TASK ASSIGNED ({priority.upper()})\n\n"
                 f"{task_description}\n\n"
                 f"Due: {due_by or 'no deadline'}\n"
@@ -156,6 +154,7 @@ class CoordinationEngine:
             )
             try:
                 from eos_ai.gws_connector import GWSConnector
+
                 gws = GWSConnector()
                 gws.create_task(
                     title=task_description[:100],
@@ -222,16 +221,16 @@ class CoordinationEngine:
 
         return [
             {
-                "id":            str(r["id"]),
-                "description":   r["description"],
+                "id": str(r["id"]),
+                "description": r["description"],
                 "assignee_type": r["assignee_type"],
-                "assignee_id":   r["assignee_id"],
-                "priority":      r["priority"],
-                "status":        r["status"],
-                "due_by":        _ts(r["due_by"]),
-                "assigned_by":   r["assigned_by"],
-                "result":        r["result"],
-                "created_at":    _ts(r["created_at"]),
+                "assignee_id": r["assignee_id"],
+                "priority": r["priority"],
+                "status": r["status"],
+                "due_by": _ts(r["due_by"]),
+                "assigned_by": r["assigned_by"],
+                "result": r["result"],
+                "created_at": _ts(r["created_at"]),
             }
             for r in rows
         ]
@@ -279,23 +278,24 @@ class CoordinationEngine:
 
         try:
             from eos_ai.memory import AgentMemory
+
             AgentMemory().log_event(
                 org_id=self.ctx.org_id,
                 event_type="task_completed",
                 payload={
-                    "task_id":     task_id,
+                    "task_id": task_id,
                     "description": (row["description"] or "")[:200],
-                    "assignee":    row["assignee_id"],
-                    "priority":    row["priority"],
-                    "result":      (result or "")[:200],
+                    "assignee": row["assignee_id"],
+                    "priority": row["priority"],
+                    "result": (result or "")[:200],
                 },
             )
         except Exception:
             pass
 
         return {
-            "status":      "completed",
-            "task_id":     task_id,
+            "status": "completed",
+            "task_id": task_id,
             "description": row["description"],
         }
 
@@ -313,7 +313,7 @@ class CoordinationEngine:
         from eos_ai.cognitive_loop import CognitiveLoop
         from eos_ai.agent_runtime import TaskType
 
-        loop   = CognitiveLoop(self.ctx)
+        loop = CognitiveLoop(self.ctx)
         result = loop.run(
             input=(
                 f"Break this objective into specific, executable tasks:\n\n"
@@ -340,7 +340,7 @@ class CoordinationEngine:
                 raw = result.output.strip()
                 if raw.startswith("```"):
                     parts = raw.split("```")
-                    raw   = parts[1] if len(parts) > 1 else raw
+                    raw = parts[1] if len(parts) > 1 else raw
                     if raw.startswith("json"):
                         raw = raw[4:]
                 parsed = json.loads(raw.strip(), strict=False)
@@ -349,13 +349,13 @@ class CoordinationEngine:
                 tasks_raw = []
 
         tasks_created: list[dict] = []
-        ai_tasks:      int = 0
-        human_tasks:   int = 0
+        ai_tasks: int = 0
+        human_tasks: int = 0
 
         for t in tasks_raw:
             if not isinstance(t, dict):
                 continue
-            desc     = (t.get("description") or "").strip()
+            desc = (t.get("description") or "").strip()
             executor = (t.get("executor") or "ai").strip().lower()
             priority = (t.get("priority") or "normal").lower()
             if priority not in ("critical", "high", "normal", "low"):
@@ -365,12 +365,12 @@ class CoordinationEngine:
 
             if executor == "human":
                 assignee_type = "human"
-                assignee_id   = self.ctx.user_id
-                human_tasks  += 1
+                assignee_id = self.ctx.user_id
+                human_tasks += 1
             else:
                 assignee_type = "agent"
-                assignee_id   = executor if executor != "ai" else "default_agent"
-                ai_tasks     += 1
+                assignee_id = executor if executor != "ai" else "default_agent"
+                ai_tasks += 1
 
             task_id = self.assign_task(
                 task_description=desc,
@@ -380,18 +380,20 @@ class CoordinationEngine:
                 priority=priority,
                 assigned_by="ceo_agent",
             )
-            tasks_created.append({
-                "task_id":        task_id,
-                "description":    desc,
-                "executor":       executor,
-                "priority":       priority,
-                "estimated_time": t.get("estimated_time", ""),
-            })
+            tasks_created.append(
+                {
+                    "task_id": task_id,
+                    "description": desc,
+                    "executor": executor,
+                    "priority": priority,
+                    "estimated_time": t.get("estimated_time", ""),
+                }
+            )
 
         return {
-            "objective":     company_objective,
+            "objective": company_objective,
             "tasks_created": tasks_created,
-            "total":         len(tasks_created),
-            "ai_tasks":      ai_tasks,
-            "human_tasks":   human_tasks,
+            "total": len(tasks_created),
+            "ai_tasks": ai_tasks,
+            "human_tasks": human_tasks,
         }
