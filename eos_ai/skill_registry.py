@@ -68,9 +68,10 @@ class SkillRegistry:
                 print(f"  ⚠  {entry}")
 
     def _to_skill_id(self, path: Path) -> str:
-        stem = path.stem.lower()
-        stem = re.sub(r"[^a-z0-9]+", "_", stem).strip("_")
-        return stem
+        # Use parent directory name as skill ID (files are all named SKILL.md)
+        name = path.parent.name.lower()
+        name = re.sub(r"[^a-z0-9]+", "_", name).strip("_")
+        return name
 
     def load_from_db(self, org_id: str) -> None:
         """

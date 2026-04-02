@@ -512,56 +512,21 @@ class AgentRuntime:
                 model = 'qwen2.5:3b'
                 tokens_used = {"input": 0, "output": 0, "total": 0}
         elif provider == 'anthropic':
-            kwargs: dict = {
-                "model": model,
-                "max_tokens": max_tokens,
-                "messages": [{"role": "user", "content": prompt}],
-            }
-            if system_prompt:
-                kwargs["system"] = system_prompt
-            try:
-                response = self._call_with_retry(**kwargs)
-                output = response.content[0].text
-                tokens_used = {
-                    "input":  response.usage.input_tokens,
-                    "output": response.usage.output_tokens,
-                    "total":  response.usage.input_tokens + response.usage.output_tokens,
-                }
-            except Exception as exc:
-                if 'credit balance is too low' in str(exc).lower():
-                    AgentRuntime._claude_available = False
-                    print("[AgentRuntime] Credits depleted — switching to Gemini/Ollama")
-                    gemini_key = os.getenv('GEMINI_API_KEY')
-                    if gemini_key:
-                        try:
-                            output = self._call_gemini(
-                                model='gemini-2.5-flash',
-                                prompt=prompt,
-                                system=system_prompt,
-                            )
-                            model = 'gemini-2.5-flash'
-                            tokens_used = {"input": 0, "output": 0, "total": 0}
-                        except Exception as _ge:
-                            print(f'[AgentRuntime] Gemini failed: {_ge}')
-                            output = self._call_ollama(
-                                model='qwen2.5:3b',
-                                prompt=prompt,
-                                system=system_prompt,
-                                max_tokens=max_tokens,
-                            )
-                            model = 'qwen2.5:3b'
-                            tokens_used = {"input": 0, "output": 0, "total": 0}
-                    else:
-                        output = self._call_ollama(
-                            model='qwen2.5:3b',
-                            prompt=prompt,
-                            system=system_prompt,
-                            max_tokens=max_tokens,
-                        )
-                        model = 'qwen2.5:3b'
-                        tokens_used = {"input": 0, "output": 0, "total": 0}
-                else:
-                    raise
+            # Route through model_router's full fallback chain
+            # (Anthropic → Gemini → Ollama) instead of retrying Anthropic only
+            from eos_ai.model_router import (
+                call_with_fallback as _router_call,
+                TaskType as _RouterTaskType,
+            )
+            routing_result = _router_call(
+                prompt=prompt,
+                system=system_prompt,
+                task_type=task_type.value,
+                agent_type=agent,
+            )
+            output = routing_result.output
+            model = f"{routing_result.provider}/{routing_result.model}"
+            tokens_used = {"input": 0, "output": 0, "total": 0}
         elif provider == 'ollama':
             output = self._call_ollama(
                 model=model, prompt=prompt, system=system_prompt,
