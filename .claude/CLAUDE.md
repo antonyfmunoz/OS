@@ -101,5 +101,17 @@ Focus: proving the system works before UI layer.
   15_Orchestrator/ — scheduled tasks and approvals
   .claude/         — Claude Code project config (this file)
 
+## Docker restart: use `docker restart`, not `docker compose restart`
+Use `docker restart [container_name]` for individual container restarts.
+`docker compose restart [service]` uses the service alias from compose.yml
+but `docker restart` uses the actual container name (set via `container_name:`).
+Both exist — `os-monitor` is the container name. Use `docker restart os-monitor`.
+
+## Instagram monitor notes
+- Direct `/accounts/login/` URL returns blank page from VPS IPs (bot detection).
+  Use root `https://www.instagram.com/` — login form renders correctly there.
+- Apify proxy uses `INSTAGRAM_USE_PROXY=true` flag. Default is direct (no proxy).
+  Proxy returns 403 when RESIDENTIAL group credits are depleted.
+
 ## Master Specification
 Read /opt/OS/ARCHITECTURE.md before any significant build decision.

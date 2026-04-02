@@ -541,6 +541,65 @@ Return JSON: {{"answers": true, "answer_summary": "brief summary"}}""").strip()
     except Exception:
         pass  # Non-blocking
 
+    # Gatekeeper — assess inbound before routing
+    try:
+        from eos_ai.model_router import get_router, TaskType
+        _router = get_router()
+        _model = _router.route(TaskType.FAST_RESPONSE)
+
+        _gate_result = _router.call(_model, f"""You are DEX,
+EA gatekeeper for Antony Munoz.
+
+Assess this inbound message and decide how to handle it.
+
+Message: {text}
+Channel: {channel_name}
+
+Gatekeeper options:
+1. HANDLE — DEX handles this fully without surfacing to founder
+2. ROUTE — This belongs to a CEO agent or specific system
+3. SURFACE — Founder judgment required
+
+Consider:
+- Is this below the Founder Rate threshold?
+- Is this a known recurring task DEX owns?
+- Is this strategic and requires founder judgment?
+
+Return JSON:
+{{"action": "HANDLE|ROUTE|SURFACE",
+  "reason": "one sentence",
+  "dex_can_handle": true/false,
+  "urgency": "high|medium|low",
+  "suggested_route": "ceo_agent_lyfe|ceo_agent_empyrean|portfolio|none"
+}}""").strip()
+
+        if '```' in _gate_result:
+            _gate_result = _gate_result.split('```')[1].replace('json', '').strip()
+        import json as _j
+        _gate = _j.loads(_gate_result)
+
+        # If DEX can handle fully — note it, let gateway proceed
+        if _gate.get('action') == 'HANDLE' and \
+           _gate.get('dex_can_handle') and \
+           _gate.get('urgency') != 'high':
+            req['gatekeeper_action'] = 'HANDLE'
+            req['gatekeeper_reason'] = _gate.get('reason', '')
+
+        # If should route to CEO agent
+        elif _gate.get('action') == 'ROUTE' and \
+             _gate.get('suggested_route') not in (None, 'none'):
+            req['suggested_route'] = _gate.get('suggested_route')
+
+        # Inject gatekeeper context into req for cognitive_loop
+        if _gate.get('reason'):
+            req['gatekeeper_context'] = (
+                f'Gatekeeper assessment: {_gate.get("action")} — '
+                f'{_gate.get("reason")}'
+            )
+
+    except Exception:
+        pass  # Non-blocking — never break the main flow
+
     result = _gateway.handle(req)
 
     if result.get('status') == 'error':
@@ -2255,12 +2314,15 @@ async def cmd_approve(ctx: commands.Context, approval_id: str = ''):
 
 @bot.command(name='approve_followup')
 async def cmd_approve_followup(ctx: commands.Context):
-    """Approve the most recent pending follow-up email draft."""
+    """Approve and send the most recent pending follow-up email draft."""
     try:
         from eos_ai.context import load_context_from_env
         from eos_ai.db import get_conn
+        from eos_ai.gws_connector import GWSConnector
+        from eos_ai.quality_gate import gate_outgoing_email
         import json as _json
         _ctx = load_context_from_env()
+
         with get_conn(_ctx.org_id) as cur:
             cur.execute('''
                 SELECT id, payload_json FROM events
@@ -2271,41 +2333,230 @@ async def cmd_approve_followup(ctx: commands.Context):
                 LIMIT 1
             ''', (str(_ctx.org_id),))
             row = cur.fetchone()
-        if row:
-            payload = row['payload_json']
-            if isinstance(payload, str):
-                payload = _json.loads(payload)
-            draft = payload.get('draft', '')
-            # Quality gate before approval
+
+        if not row:
+            await ctx.reply('No pending emails to approve.')
+            return
+
+        payload = row['payload_json']
+        if isinstance(payload, str):
+            payload = _json.loads(payload)
+
+        draft = payload.get('draft', '')
+        to_email = payload.get('to_email', '')
+        email_type = payload.get('type', 'unknown')
+
+        # Parse subject and body from draft
+        lines = draft.strip().split('\n')
+        subject = ''
+        body_lines = []
+        in_body = False
+        for line in lines:
+            if line.lower().startswith('subject:'):
+                subject = line[8:].strip()
+            elif subject and not in_body and line.strip() == '':
+                in_body = True
+            elif in_body:
+                body_lines.append(line)
+        body = '\n'.join(body_lines).strip()
+
+        if not subject:
+            subject = f'Follow-up — {email_type}'
+        if not body:
+            body = draft
+
+        # Run quality gate before sending
+        if to_email:
             try:
-                from eos_ai.quality_gate import gate_outgoing_email
                 qr = gate_outgoing_email(
-                    subject='Follow-up',
-                    body=draft,
-                    to_email=payload.get('to_email', ''),
+                    subject=subject,
+                    body=body,
+                    to_email=to_email,
                 )
-                if not qr.get('approved') and qr.get('revised_version'):
+                if qr.get('score', 10) < 6:
                     await ctx.reply(
                         f'⚠️ Quality score: {qr["score"]}/10\n'
-                        f'Issues: {", ".join(qr["issues"][:2])}\n'
-                        f'Auto-revised version in use.'
+                        f'Issues: {", ".join(qr.get("issues", [])[:2])}\n'
+                        f'Run `!proofread` to review before sending, '
+                        f'or `!force_send` to send anyway.'
                     )
-                    draft = qr['revised_version']
+                    with get_conn(_ctx.org_id) as cur:
+                        cur.execute('''
+                            UPDATE events
+                            SET payload_json = payload_json ||
+                                \'{"awaiting_force_send": true}\'::jsonb
+                            WHERE id = %s
+                        ''', (row['id'],))
+                    return
             except Exception:
                 pass
-            with get_conn(_ctx.org_id) as cur:
-                cur.execute("""
-                    UPDATE events
-                    SET payload_json = payload_json || '{"status": "approved"}'::jsonb
-                    WHERE id = %s
-                """, (row['id'],))
-            draft_type = payload.get('type', 'email')
-            await ctx.reply(
-                f'✅ {draft_type} email approved and queued for sending.\n'
-                f'Preview:\n```\n{draft[:400]}\n```'
+
+        # Send the email
+        if to_email:
+            gws = GWSConnector()
+            result = gws.send_email(
+                to_email=to_email,
+                subject=subject,
+                body=body,
             )
+            if result.get('id'):
+                with get_conn(_ctx.org_id) as cur:
+                    cur.execute('''
+                        UPDATE events
+                        SET payload_json = payload_json ||
+                            \'{"status": "sent"}\'::jsonb
+                        WHERE id = %s
+                    ''', (row['id'],))
+                await ctx.reply(
+                    f'✅ **Email sent to {to_email}**\n'
+                    f'Subject: {subject}\n'
+                    f'Preview: {body[:200]}...'
+                )
+            else:
+                await ctx.reply(
+                    f'❌ Send failed. Check GWS token.\n'
+                    f'Draft preserved — try again after '
+                    f'`gws auth login`'
+                )
         else:
-            await ctx.reply('No pending follow-up email found.')
+            # No recipient — mark approved, no send
+            with get_conn(_ctx.org_id) as cur:
+                cur.execute('''
+                    UPDATE events
+                    SET payload_json = payload_json ||
+                        \'{"status": "approved"}\'::jsonb
+                    WHERE id = %s
+                ''', (row['id'],))
+            await ctx.reply(
+                f'✅ Approved (no recipient email on file).\n'
+                f'Draft:\n```\n{draft[:400]}\n```'
+            )
+    except Exception as e:
+        await ctx.reply(f'❌ Error: {e}')
+
+
+@bot.command(name='force_send')
+async def cmd_force_send(ctx: commands.Context):
+    """Force-send an email that failed the quality gate."""
+    try:
+        from eos_ai.context import load_context_from_env
+        from eos_ai.db import get_conn
+        from eos_ai.gws_connector import GWSConnector
+        import json as _json
+        _ctx = load_context_from_env()
+
+        with get_conn(_ctx.org_id) as cur:
+            cur.execute('''
+                SELECT id, payload_json FROM events
+                WHERE org_id = %s
+                AND event_type = 'email_draft_pending'
+                AND payload_json->>\'awaiting_force_send\' = \'true\'
+                ORDER BY created_at DESC
+                LIMIT 1
+            ''', (str(_ctx.org_id),))
+            row = cur.fetchone()
+
+        if not row:
+            await ctx.reply('No email awaiting force send.')
+            return
+
+        payload = row['payload_json']
+        if isinstance(payload, str):
+            payload = _json.loads(payload)
+
+        draft = payload.get('draft', '')
+        to_email = payload.get('to_email', '')
+        lines = draft.strip().split('\n')
+        subject = next(
+            (l[8:].strip() for l in lines
+             if l.lower().startswith('subject:')),
+            'Follow-up'
+        )
+        body = draft
+
+        gws = GWSConnector()
+        result = gws.send_email(to_email, subject, body)
+        if result.get('id'):
+            with get_conn(_ctx.org_id) as cur:
+                cur.execute('''
+                    UPDATE events
+                    SET payload_json = payload_json ||
+                        \'{"status": "sent", "force_sent": true}\'::jsonb
+                    WHERE id = %s
+                ''', (row['id'],))
+            await ctx.reply(f'✅ Force sent to {to_email}')
+        else:
+            await ctx.reply('❌ Send failed. Check GWS token.')
+    except Exception as e:
+        await ctx.reply(f'❌ Error: {e}')
+
+
+@bot.command(name='confidential')
+async def cmd_confidential(ctx: commands.Context, *, args: str = ''):
+    """Start a confidential session. Usage: !confidential [topic] | [parties] | [level]"""
+    parts = [p.strip() for p in args.split('|')] if args else []
+    if not parts or not parts[0]:
+        await ctx.reply(
+            '🔒 Confidential session modes:\n'
+            '`!confidential [topic] | [parties] | [level]`\n'
+            'Levels: restricted, private, sealed\n\n'
+            '• **restricted** — metadata logged, no content\n'
+            '• **private** — memory only, not logged\n'
+            '• **sealed** — nothing retained'
+        )
+        return
+    try:
+        from eos_ai.confidentiality import create_confidential_session
+        topic = parts[0]
+        parties = [p.strip() for p in parts[1].split(',')] \
+            if len(parts) > 1 else ['Antony']
+        level = parts[2] if len(parts) > 2 else 'restricted'
+        create_confidential_session(topic, parties, level)
+        await ctx.reply(
+            f'🔒 **Confidential session started**\n'
+            f'Topic: {topic}\n'
+            f'Level: {level}\n'
+            f'Handling: '
+            f'{"Metadata only" if level == "restricted" else "Memory only — not logged"}'
+        )
+    except Exception as e:
+        await ctx.reply(f'❌ Error: {e}')
+
+
+@bot.command(name='pending')
+async def cmd_pending(ctx: commands.Context):
+    """Show all pending approval emails."""
+    try:
+        from eos_ai.context import load_context_from_env
+        from eos_ai.db import get_conn
+        import json as _json
+        _ctx = load_context_from_env()
+        with get_conn(_ctx.org_id) as cur:
+            cur.execute('''
+                SELECT id, payload_json, created_at
+                FROM events
+                WHERE org_id = %s
+                AND event_type = 'email_draft_pending'
+                AND payload_json->>\'status\' = \'pending_approval\'
+                ORDER BY created_at DESC
+                LIMIT 10
+            ''', (str(_ctx.org_id),))
+            rows = cur.fetchall()
+        if not rows:
+            await ctx.reply('✅ No pending emails.')
+            return
+        lines = [f'📧 **Pending emails ({len(rows)}):**']
+        for i, r in enumerate(rows, 1):
+            p = r['payload_json']
+            if isinstance(p, str):
+                p = _json.loads(p)
+            lines.append(
+                f'{i}. {p.get("type","unknown")} → '
+                f'{p.get("to_email","no recipient")} — '
+                f'{str(r["created_at"])[:16]}'
+            )
+        lines.append('\n`!approve_followup` sends the most recent one.')
+        await ctx.reply('\n'.join(lines))
     except Exception as e:
         await ctx.reply(f'❌ Error: {e}')
 
@@ -2834,7 +3085,10 @@ async def cmd_help(ctx: commands.Context):
         '`!report pulse` — run world pulse scan',
         '`!status` — system health check',
         '`!approve <id>` — approve a pending action',
-        '`!approve_followup` — approve most recent follow-up email draft',
+        '`!approve_followup` — approve and send most recent pending email',
+        '`!force_send` — bypass quality gate and send flagged email',
+        '`!pending` — list all emails awaiting approval',
+        '`!confidential [topic] | [parties] | [level]` — start confidential session',
         '`!nurture [name]` — draft a warm check-in for a contact',
         '`!expenses` — month-to-date expense summary',
         '`!join` — connect to your voice channel',
@@ -4162,6 +4416,137 @@ async def cmd_itinerary(ctx: commands.Context, *, args: str = ''):
             f'✈️ **Itinerary: {parts[0]}**\n'
             f'```\n{itinerary[:1500]}\n```\nSaved to Drive.'
         )
+    except Exception as e:
+        await ctx.reply(f'❌ Error: {e}')
+
+
+@bot.command(name='approve_task')
+async def cmd_approve_task(ctx: commands.Context, task_id: str = ''):
+    """Approve a pending agent task result. Usage: !approve_task [task_id]"""
+    if not task_id:
+        await ctx.reply('Usage: `!approve_task [task_id]`')
+        return
+    try:
+        import json as _json
+        from eos_ai.context import load_context_from_env
+        from eos_ai.db import get_conn
+        _ctx = load_context_from_env()
+
+        with get_conn(_ctx.org_id) as cur:
+            cur.execute('''
+                SELECT id, payload_json
+                FROM events
+                WHERE org_id = %s
+                AND event_type = 'agent_task_result'
+                AND payload_json->>'task_id' LIKE %s
+                ORDER BY created_at DESC
+                LIMIT 1
+            ''', (str(_ctx.org_id), f'{task_id}%'))
+            row = cur.fetchone()
+
+        if not row:
+            await ctx.reply(f'Task `{task_id}` not found.')
+            return
+
+        payload = row['payload_json']
+        if isinstance(payload, str):
+            payload = _json.loads(payload)
+
+        with get_conn(_ctx.org_id) as cur:
+            cur.execute('''
+                UPDATE events
+                SET payload_json = payload_json ||
+                    '{"approved": true}'::jsonb
+                WHERE id = %s
+            ''', (row['id'],))
+
+        result_preview = payload.get('result', '')[:300]
+        await ctx.reply(
+            f'✅ Task approved: '
+            f'{payload.get("description", "")[:60]}\n'
+            f'Agent: {payload.get("agent_id", "")}\n'
+            f'Result: {result_preview}'
+        )
+    except Exception as e:
+        await ctx.reply(f'❌ Error: {e}')
+
+
+@bot.command(name='tasks')
+async def cmd_tasks(ctx: commands.Context):
+    """Show pending task queue split by human vs AI."""
+    try:
+        from eos_ai.context import load_context_from_env
+        from eos_ai.coordination_engine import CoordinationEngine
+        _ctx = load_context_from_env()
+        coordination = CoordinationEngine(_ctx)
+
+        all_pending = coordination.get_task_queue(status='pending')
+        ai_tasks = [t for t in all_pending if t.get('assignee_type') == 'agent']
+        human_tasks = [t for t in all_pending if t.get('assignee_type') == 'human']
+
+        lines = [f'📋 **Task Queue — {len(all_pending)} pending:**']
+
+        if human_tasks:
+            lines.append(f'\n👤 **You need to handle ({len(human_tasks)}):**')
+            for t in human_tasks[:5]:
+                lines.append(f'• [{t["priority"]}] {t["description"][:60]}')
+
+        if ai_tasks:
+            lines.append(f'\n🤖 **Agents handling ({len(ai_tasks)}):**')
+            for t in ai_tasks[:5]:
+                lines.append(
+                    f'• [{t["priority"]}] {t["assignee_id"]} — '
+                    f'{t["description"][:50]}'
+                )
+
+        if not all_pending:
+            lines.append('✅ Queue is empty.')
+
+        await ctx.reply('\n'.join(lines)[:1900])
+    except Exception as e:
+        await ctx.reply(f'❌ Error: {e}')
+
+
+@bot.command(name='agent_results')
+async def cmd_agent_results(ctx: commands.Context):
+    """Show last 24h agent task results."""
+    try:
+        import json as _json
+        from eos_ai.context import load_context_from_env
+        from eos_ai.db import get_conn
+        _ctx = load_context_from_env()
+
+        with get_conn(_ctx.org_id) as cur:
+            cur.execute('''
+                SELECT payload_json, created_at
+                FROM events
+                WHERE org_id = %s
+                AND event_type = 'agent_task_result'
+                AND created_at >= NOW() - INTERVAL '24 hours'
+                ORDER BY created_at DESC
+                LIMIT 10
+            ''', (str(_ctx.org_id),))
+            rows = cur.fetchall()
+
+        if not rows:
+            await ctx.reply('📋 No agent results in last 24h.')
+            return
+
+        lines = [f'📋 **Agent results ({len(rows)} last 24h):**']
+        for r in rows:
+            p = r['payload_json']
+            if isinstance(p, str):
+                p = _json.loads(p)
+            approved = (
+                '✅' if p.get('approved')
+                else ('⚠️' if p.get('requires_approval') else '🔵')
+            )
+            lines.append(
+                f'{approved} {p.get("agent_id", "")} '
+                f'— {p.get("description", "")[:50]}'
+            )
+
+        await ctx.reply('\n'.join(lines)[:1900])
     except Exception as e:
         await ctx.reply(f'❌ Error: {e}')
 

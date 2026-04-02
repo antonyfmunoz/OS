@@ -50,7 +50,6 @@ def build_travel_brief(
     try:
         from eos_ai.model_router import get_router, TaskType
         router = get_router()
-        model = router.route(TaskType.ANALYSIS)
 
         prompt = f"""You are DEX, EA to Antony Munoz.
 Build a complete pre-trip brief for this travel event.
@@ -94,7 +93,7 @@ Create a comprehensive travel brief covering:
 Keep it practical and specific to this trip.
 Under 400 words."""
 
-        return router.call(model, prompt).strip()
+        return router.call_with_fallback(TaskType.ANALYSIS, prompt).strip()
     except Exception as e:
         logger.warning(f'[TravelManager] build_travel_brief failed: {e}')
         return f'Travel brief unavailable: {e}'
@@ -146,9 +145,8 @@ def research_flights(
     try:
         from eos_ai.model_router import get_router, TaskType
         router = get_router()
-        model = router.route(TaskType.FAST_RESPONSE)
 
-        return router.call(model, f"""Research flight options.
+        return router.call_with_fallback(TaskType.FAST_RESPONSE, f"""Research flight options.
 
 From: {origin}
 To: {destination}
@@ -180,9 +178,8 @@ def research_hotels(
     try:
         from eos_ai.model_router import get_router, TaskType
         router = get_router()
-        model = router.route(TaskType.FAST_RESPONSE)
 
-        return router.call(model, f"""Research hotel options.
+        return router.call_with_fallback(TaskType.FAST_RESPONSE, f"""Research hotel options.
 
 City: {city}
 Check-in: {check_in}
@@ -212,9 +209,8 @@ def research_restaurants(
     try:
         from eos_ai.model_router import get_router, TaskType
         router = get_router()
-        model = router.route(TaskType.FAST_RESPONSE)
 
-        return router.call(model, f"""Research restaurant options.
+        return router.call_with_fallback(TaskType.FAST_RESPONSE, f"""Research restaurant options.
 
 City: {city}
 Occasion: {occasion}
@@ -247,11 +243,10 @@ def generate_trip_itinerary(
         from eos_ai.model_router import get_router, TaskType
         from eos_ai.gws_connector import GWSConnector
         router = get_router()
-        model = router.route(TaskType.ANALYSIS)
 
         meetings_text = '\n'.join(f'- {m}' for m in (meetings or [])) if meetings else 'No meetings confirmed yet'
 
-        itinerary = router.call(model, f"""Generate a detailed trip itinerary.
+        itinerary = router.call_with_fallback(TaskType.ANALYSIS, f"""Generate a detailed trip itinerary.
 
 Trip: {trip_name}
 Destination: {destination}

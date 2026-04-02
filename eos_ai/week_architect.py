@@ -48,7 +48,6 @@ def architect_week(ctx=None) -> str:
             pass
 
         router = get_router()
-        model = router.route(TaskType.ANALYSIS)
 
         prompt = f"""Design the upcoming work week for Antony Munoz.
 
@@ -69,7 +68,7 @@ Produce a concrete weekly plan:
 
 Format clearly for Discord with bold day headers."""
 
-        result = router.call(model, prompt, max_tokens=1200)
+        result = router.call_with_fallback(TaskType.ANALYSIS, prompt, max_tokens=1200)
         return result.strip() if result else _fallback_week(ideal_week)
     except Exception as e:
         logger.warning(f'[WeekArchitect] architect_week failed: {e}')

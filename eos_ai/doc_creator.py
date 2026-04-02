@@ -32,7 +32,6 @@ def create_briefing_doc(
         from eos_ai.model_router import get_router, TaskType
         from eos_ai.gws_connector import GWSConnector
         router = get_router()
-        model = router.route(TaskType.ANALYSIS)
 
         templates = {
             'briefing': f"""Create a concise executive briefing document.
@@ -151,7 +150,7 @@ Keep it under 500 words. Client-facing quality.""",
         }
 
         prompt = templates.get(doc_type, templates['briefing'])
-        content = router.call(model, prompt).strip()
+        content = router.call_with_fallback(TaskType.ANALYSIS, prompt).strip()
 
         # Save to Google Drive
         gws = GWSConnector()
@@ -211,9 +210,8 @@ def create_presentation_outline(
         from eos_ai.gws_connector import GWSConnector
         import json as _json
         router = get_router()
-        model = router.route(TaskType.ANALYSIS)
 
-        raw = router.call(model, f"""Create a {slides}-slide presentation outline.
+        raw = router.call_with_fallback(TaskType.ANALYSIS, f"""Create a {slides}-slide presentation outline.
 
 Title: {title}
 Topic: {topic}
@@ -279,9 +277,8 @@ def fact_check(claim: str, ctx=None) -> dict:
         from eos_ai.model_router import get_router, TaskType
         import json as _json
         router = get_router()
-        model = router.route(TaskType.ANALYSIS)
 
-        raw = router.call(model, f"""Fact-check this claim.
+        raw = router.call_with_fallback(TaskType.ANALYSIS, f"""Fact-check this claim.
 
 Claim: {claim}
 
@@ -313,7 +310,6 @@ def draft_announcement(
     try:
         from eos_ai.model_router import get_router, TaskType
         router = get_router()
-        model = router.route(TaskType.FAST_RESPONSE)
 
         templates = {
             'internal': 'internal team announcement',
@@ -322,7 +318,7 @@ def draft_announcement(
             'press_release': 'press release',
         }
 
-        return router.call(model, f"""Draft a {templates.get(announcement_type, 'announcement')}.
+        return router.call_with_fallback(TaskType.FAST_RESPONSE, f"""Draft a {templates.get(announcement_type, 'announcement')}.
 
 Topic: {topic}
 Audience: {audience}
@@ -348,9 +344,8 @@ def draft_crisis_communication(
     try:
         from eos_ai.model_router import get_router, TaskType
         router = get_router()
-        model = router.route(TaskType.FAST_RESPONSE)
 
-        return router.call(model, f"""Draft a crisis communication.
+        return router.call_with_fallback(TaskType.FAST_RESPONSE, f"""Draft a crisis communication.
 
 Situation: {situation}
 Affected parties: {affected_parties}

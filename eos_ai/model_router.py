@@ -61,6 +61,16 @@ class ModelConfig:
     base_url:     str = ''
 
 
+# Provider priority for fallback ordering (lower = preferred)
+PROVIDER_PRIORITY: dict = {
+    ModelProvider.ANTHROPIC:  0,
+    ModelProvider.GEMINI:     1,
+    ModelProvider.GROQ:       2,
+    ModelProvider.PERPLEXITY: 3,
+    ModelProvider.OLLAMA:     4,
+    ModelProvider.MANUS:      5,
+}
+
 MODEL_REGISTRY: dict[str, ModelConfig] = {
 
     # PRIMARY: Claude for reasoning
@@ -131,14 +141,16 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
     # GEMINI: Multimodal
     'gemini-pro': ModelConfig(
         provider=ModelProvider.GEMINI,
-        model_id='gemini-1.5-pro',
+        model_id='gemini-2.5-flash',
         api_key_env='GEMINI_API_KEY',
         strengths=[
             TaskType.MULTIMODAL,
             TaskType.LONG_CONTEXT,
             TaskType.ANALYSIS,
+            TaskType.FAST_RESPONSE,
+            TaskType.CONVERSATION,
         ],
-        cost_per_1k=0.00125,
+        cost_per_1k=0.000075,
     ),
 
     # MANUS: Fully autonomous agent — acquired by Meta Dec 2025 for $2B+
@@ -222,10 +234,8 @@ class ModelRouter:
         if prefer_fast or prefer_cheap:
             candidates.sort(key=lambda x: x.cost_per_1k)
         else:
-            # Default: Claude first, then by cost
-            candidates.sort(key=lambda x: (
-                0 if x.provider == ModelProvider.ANTHROPIC else 1
-            ))
+            # Default: provider priority (Anthropic → Gemini → Groq → Perplexity → Ollama)
+            candidates.sort(key=lambda x: PROVIDER_PRIORITY.get(x.provider, 99))
 
         return candidates[0]
 
@@ -253,6 +263,42 @@ class ModelRouter:
             print(f'[ModelRouter] Unknown provider: {provider}')
             return ''
 
+    def call_with_fallback(
+        self,
+        task_type: TaskType,
+        prompt: str,
+        system: str = '',
+        max_tokens: int = 1000,
+    ) -> str:
+        """
+        Try models in priority order until one returns a non-empty response.
+
+        Use this instead of route() + call() when you need automatic fallback.
+        Marks models unavailable after confirmed failures so routing improves
+        over the session.
+        """
+        # Build candidate list for this task type
+        candidates = [
+            c for c in MODEL_REGISTRY.values()
+            if task_type in c.strengths and c.available
+        ]
+        if not candidates:
+            candidates = [c for c in MODEL_REGISTRY.values() if c.available]
+
+        candidates.sort(key=lambda x: PROVIDER_PRIORITY.get(x.provider, 99))
+
+        for config in candidates:
+            if not config.available:
+                continue
+            result = self.call(config, prompt, system, max_tokens)
+            if result:
+                return result
+            # Call returned '' — provider may have just marked itself unavailable
+            # Loop continues to next candidate automatically
+
+        print(f'[ModelRouter] All candidates exhausted for {task_type.name}')
+        return ''
+
     def _call_anthropic(
         self, config: ModelConfig, prompt: str, system: str, max_tokens: int,
     ) -> str:
@@ -269,7 +315,15 @@ class ModelRouter:
             response = client.messages.create(**kwargs)
             return response.content[0].text
         except Exception as e:
-            print(f'[ModelRouter] Anthropic error: {e}')
+            err_str = str(e)
+            if 'credit balance is too low' in err_str or 'Your credit balance' in err_str:
+                # All Anthropic models share the same account — mark them all unavailable
+                print('[ModelRouter] Anthropic credits depleted — marking all Anthropic models unavailable')
+                for cfg in MODEL_REGISTRY.values():
+                    if cfg.provider == ModelProvider.ANTHROPIC:
+                        cfg.available = False
+            else:
+                print(f'[ModelRouter] Anthropic error: {e}')
             return ''
 
     def _call_openai_compatible(
@@ -327,15 +381,18 @@ class ModelRouter:
         self, config: ModelConfig, prompt: str, system: str, max_tokens: int,
     ) -> str:
         try:
-            import google.generativeai as genai  # type: ignore
-            genai.configure(api_key=os.getenv(config.api_key_env))
-            model = genai.GenerativeModel(
-                config.model_id,
+            from google import genai  # type: ignore
+            from google.genai import types as genai_types  # type: ignore
+            client = genai.Client(api_key=os.getenv(config.api_key_env))
+            contents = prompt
+            cfg = genai_types.GenerateContentConfig(
+                max_output_tokens=max_tokens,
                 system_instruction=system or None,
             )
-            response = model.generate_content(
-                prompt,
-                generation_config={'max_output_tokens': max_tokens},
+            response = client.models.generate_content(
+                model=config.model_id,
+                contents=contents,
+                config=cfg,
             )
             return response.text or ''
         except Exception as e:

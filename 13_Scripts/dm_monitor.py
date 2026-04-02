@@ -745,9 +745,10 @@ def do_login(page, context):
             "Missing credentials in .env")
         return False
     try:
-        # Go directly to login page
+        # Navigate to root — Instagram serves login form here without bot
+        # challenge. Direct /accounts/login/ returns a blank page from VPS IPs.
         page.goto(
-            "https://www.instagram.com/accounts/login/",
+            "https://www.instagram.com/",
             wait_until="domcontentloaded",
             timeout=60000)
         time.sleep(8)
@@ -766,13 +767,7 @@ def do_login(page, context):
         except Exception:
             pass
 
-        # If not on login page navigate there
-        if "login" not in page.url:
-            page.goto(
-                "https://www.instagram.com/accounts/login/",
-                wait_until="domcontentloaded",
-                timeout=60000)
-            time.sleep(5)
+        print(f"[SESSION] Post-cookie URL: {page.url}")
 
         # Log exactly where we are before trying to fill
         print(f"[SESSION] Pre-fill URL: {page.url}")
@@ -1273,20 +1268,27 @@ def main():
 
     with sync_playwright() as p:
 
-        # CAUSE 1 FIX: sticky session ID pins one residential IP for the entire
-        # browser lifecycle. Login and all subsequent checks use the same IP.
-        sticky_id = uuid.uuid4().hex[:8]
-        print(f"[SESSION] Proxy sticky session: {sticky_id}")
-
-        browser = p.chromium.launch(
+        # Proxy is opt-in via INSTAGRAM_USE_PROXY=true.
+        # Apify RESIDENTIAL proxy returns 403 when credits/plan are depleted —
+        # VPS has direct Instagram access so proxy is not required.
+        use_proxy = os.getenv('INSTAGRAM_USE_PROXY', 'false').lower() == 'true'
+        apify_pass = os.getenv('APIFY_PROXY_PASSWORD')
+        launch_kwargs: dict = dict(
             headless=True,
             args=['--no-sandbox', '--disable-dev-shm-usage'],
-            proxy={
+        )
+        if use_proxy and apify_pass:
+            sticky_id = uuid.uuid4().hex[:8]
+            print(f"[SESSION] Proxy sticky session: {sticky_id}")
+            launch_kwargs['proxy'] = {
                 'server': 'http://proxy.apify.com:8000',
                 'username': f'groups-RESIDENTIAL,session-{sticky_id},country-US',
-                'password': os.getenv('APIFY_PROXY_PASSWORD'),
+                'password': apify_pass,
             }
-        )
+        else:
+            print("[SESSION] Direct connection (set INSTAGRAM_USE_PROXY=true to enable Apify proxy).")
+
+        browser = p.chromium.launch(**launch_kwargs)
 
         # Desktop Chrome UA — mobile Safari UA causes Instagram to serve a blank
         # page in headless Chromium (app-redirect / deep-link path). Desktop is

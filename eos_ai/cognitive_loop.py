@@ -696,6 +696,25 @@ class CognitiveLoop:
         except Exception as _hist_err:
             pass  # Never let history injection break execution
 
+        # Confidentiality detection
+        try:
+            from eos_ai.confidentiality import detect_confidential_context
+            _conf = detect_confidential_context(text)
+            if _conf.get('is_confidential'):
+                level = _conf.get('level', 'restricted')
+                _system_parts.append(
+                    f'## Confidentiality Alert\n'
+                    f'Level: {level}\n'
+                    f'{_conf.get("recommendation", "")}\n'
+                    f'Do not log sensitive details. '
+                    f'Acknowledge confidentiality in response.'
+                )
+                # Suppress detailed logging for private/sealed
+                if level in ('private', 'sealed'):
+                    req['suppress_content_logging'] = True
+        except Exception:
+            pass
+
         # Martell pattern detection — behavioral alerts injected into system context
         try:
             from eos_ai.martell_patterns import detect_leverage_killer, check_solution_standard
@@ -725,6 +744,21 @@ class CognitiveLoop:
                     f'The following items are on Antony\'s No List and appear '
                     f'in this message: {", ".join(_no_list_violations)}\n'
                     f'Flag this to Antony — he has committed to never doing these.'
+                )
+        except Exception:
+            pass
+
+        # Natural language intent detection
+        try:
+            _intent_data = detect_intent_and_inject(
+                text=text,
+                req={},
+                ctx=self.ctx,
+            )
+            if _intent_data and _intent_data.get('intent'):
+                _system_parts.append(
+                    f'## Intent Detected: {_intent_data.get("intent", "")}\n'
+                    + _format_intent_context(_intent_data)
                 )
         except Exception:
             pass
@@ -1186,3 +1220,251 @@ class CognitiveLoop:
             return 'human_psychology'
 
         return None
+
+
+# ─── Natural language intent detection ────────────────────────────────────────
+
+def _format_intent_context(intent_data: dict) -> str:
+    """Format intent data for system prompt injection."""
+    parts = []
+    intent = intent_data.get('intent', '')
+
+    if intent == 'okr_check' and intent_data.get('okr_data'):
+        parts.append(f'OKR data:\n{intent_data["okr_data"]}')
+
+    if intent == 'send_email' and intent_data.get('pending_email'):
+        pe = intent_data['pending_email']
+        parts.append(
+            f'Pending email to {pe["to"]}:\n'
+            f'{pe["preview"]}'
+        )
+
+    if intent == 'calendar' and intent_data.get('upcoming_events'):
+        events = intent_data['upcoming_events']
+        parts.append(
+            'Upcoming events:\n' +
+            '\n'.join(f'- {e["start"]}: {e["title"]}' for e in events)
+        )
+
+    if intent == 'financial' and intent_data.get('expense_summary'):
+        s = intent_data['expense_summary']
+        parts.append(
+            f'Monthly expenses: ${s.get("total", 0):,.2f}\n'
+            f'Transactions: {s.get("count", 0)}'
+        )
+
+    if intent == 'relationship_lookup' and intent_data.get('person_profile'):
+        parts.append(f'Profile:\n{intent_data["person_profile"]}')
+
+    if intent == 'tasks' and intent_data.get('pending_tasks'):
+        tasks = intent_data['pending_tasks']
+        parts.append(
+            'Pending tasks:\n' +
+            '\n'.join(f'- {t}' for t in tasks[:5])
+        )
+
+    if intent_data.get('hint'):
+        parts.append(f'Hint: {intent_data["hint"]}')
+
+    return '\n'.join(parts)
+
+
+def detect_intent_and_inject(
+    text: str,
+    req: dict,
+    ctx,
+) -> dict:
+    """
+    Detect founder intent from natural language and inject
+    the right capability context into the system prompt.
+
+    This is what makes DEX conversational — no commands needed.
+    """
+    text_lower = text.lower()
+    injections: dict = {}
+
+    # Meeting minutes intent
+    if any(p in text_lower for p in [
+        'meeting minutes', 'minutes from', 'minutes for',
+        'draft minutes', 'write up the meeting',
+        'document what we discussed',
+    ]):
+        injections['intent'] = 'meeting_minutes'
+        injections['capability'] = 'draft_meeting_minutes'
+        try:
+            from eos_ai.meetings import draft_meeting_minutes  # noqa: F401
+            injections['capability_available'] = True
+        except Exception:
+            pass
+
+    # OKR intent
+    elif any(p in text_lower for p in [
+        'okr', 'key result', 'objective', 'quarterly goal',
+        'how are we tracking', 'progress this quarter',
+        'are we on track',
+    ]):
+        injections['intent'] = 'okr_check'
+        try:
+            from eos_ai.okr_tracker import generate_okr_report
+            report = generate_okr_report(ctx)
+            injections['okr_data'] = report
+        except Exception:
+            pass
+
+    # Email send intent
+    elif any(p in text_lower for p in [
+        'send that email', 'send the email', 'send it',
+        'approve that', 'go ahead and send',
+        'send the follow up', 'send the follow-up',
+        'send that follow up', 'send that followup',
+    ]):
+        injections['intent'] = 'send_email'
+        try:
+            from eos_ai.db import get_conn
+            import json as _j
+            with get_conn(ctx.org_id) as cur:
+                cur.execute('''
+                    SELECT id, payload_json FROM events
+                    WHERE org_id = %s
+                    AND event_type = \'email_draft_pending\'
+                    AND payload_json->>\'status\' = \'pending_approval\'
+                    ORDER BY created_at DESC LIMIT 1
+                ''', (str(ctx.org_id),))
+                row = cur.fetchone()
+            if row:
+                p = row['payload_json']
+                if isinstance(p, str):
+                    p = _j.loads(p)
+                injections['pending_email'] = {
+                    'to': p.get('to_email', ''),
+                    'preview': p.get('draft', '')[:200],
+                    'event_id': str(row['id']),
+                }
+                injections['hint'] = (
+                    'There is a pending email. '
+                    'Confirm with founder then send via '
+                    'gws_connector.send_email()'
+                )
+        except Exception:
+            pass
+
+    # Calendar/scheduling intent
+    elif any(p in text_lower for p in [
+        'schedule', 'book a call', 'set up a meeting',
+        'find a time', 'block', 'add to calendar',
+        "what's on my calendar", 'what do i have',
+        'any meetings', 'free thursday', 'conflicts',
+    ]):
+        injections['intent'] = 'calendar'
+        try:
+            from eos_ai.gws_connector import GWSConnector
+            gws = GWSConnector()
+            events = gws.get_upcoming_events(days=7)
+            injections['upcoming_events'] = [
+                {
+                    'title': e.get('title', e.get('summary', '')),
+                    'start': str(e.get('start', ''))[:16],
+                }
+                for e in events[:10]
+            ]
+        except Exception:
+            pass
+
+    # Travel intent
+    elif any(p in text_lower for p in [
+        'trip to', 'flying to', 'traveling to',
+        'travel to', 'going to', 'conference in',
+        'book flights', 'find hotels', 'itinerary',
+    ]):
+        injections['intent'] = 'travel'
+
+    # Expense/financial intent
+    elif any(p in text_lower for p in [
+        'expenses', 'how much did i spend', 'spending',
+        'invoice', 'invoices', 'subscriptions',
+        'what do i owe', 'budget',
+    ]):
+        injections['intent'] = 'financial'
+        try:
+            from eos_ai.expense_tracker import get_monthly_summary
+            summary = get_monthly_summary(ctx)
+            injections['expense_summary'] = summary
+        except Exception:
+            pass
+
+    # People/relationship intent
+    elif any(p in text_lower for p in [
+        'what do i know about', 'tell me about',
+        'who is', 'relationship with', 'last time i talked',
+        'when did i last', 'contact',
+    ]):
+        injections['intent'] = 'relationship_lookup'
+        for trigger in [
+            'what do i know about', 'tell me about',
+            'who is', 'relationship with',
+        ]:
+            if trigger in text_lower:
+                name_part = text_lower.split(trigger)[-1].strip()
+                name = name_part.split('?')[0].strip().title()
+                if name:
+                    try:
+                        from eos_ai.person_recognition import (
+                            build_intelligence_profile,
+                            format_intelligence_profile,
+                        )
+                        profile = build_intelligence_profile(name=name)
+                        if profile:
+                            injections['person_profile'] = \
+                                format_intelligence_profile(profile)
+                    except Exception:
+                        pass
+                break
+
+    # Task/action items intent
+    elif any(p in text_lower for p in [
+        'what do i need to do', 'my tasks', 'action items',
+        "what's on my plate", 'what should i focus on',
+        'priorities', 'to do',
+    ]):
+        injections['intent'] = 'tasks'
+        try:
+            from eos_ai.db import get_conn
+            import json as _j
+            with get_conn(ctx.org_id) as cur:
+                cur.execute('''
+                    SELECT payload_json FROM events
+                    WHERE org_id = %s
+                    AND event_type = \'dex_task\'
+                    AND (payload_json->>\'status\' IS NULL
+                         OR payload_json->>\'status\' = \'pending\')
+                    ORDER BY created_at DESC LIMIT 10
+                ''', (str(ctx.org_id),))
+                rows = cur.fetchall()
+            tasks = []
+            for r in rows:
+                p = r['payload_json']
+                if isinstance(p, str):
+                    p = _j.loads(p)
+                if p.get('task'):
+                    tasks.append(p['task'])
+            injections['pending_tasks'] = tasks
+        except Exception:
+            pass
+
+    # Drive/document intent
+    elif any(p in text_lower for p in [
+        'create a doc', 'write a document', 'draft a',
+        'create a folder', 'find in drive', 'organize drive',
+        'drive audit',
+    ]):
+        injections['intent'] = 'document'
+
+    # Event/speaking intent
+    elif any(p in text_lower for p in [
+        'speaking engagement', 'podcast', 'interview',
+        'conference', 'offsite', 'client dinner',
+        'talking points', 'event planning',
+    ]):
+        injections['intent'] = 'event_speaking'
+
+    return injections

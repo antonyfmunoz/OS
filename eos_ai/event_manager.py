@@ -36,9 +36,8 @@ def create_event(
         from eos_ai.model_router import get_router, TaskType
         ctx = ctx or load_context_from_env()
         router = get_router()
-        model = router.route(TaskType.FAST_RESPONSE)
 
-        checklist_raw = router.call(model, f"""Generate a logistics checklist for this event.
+        checklist_raw = router.call_with_fallback(TaskType.FAST_RESPONSE, f"""Generate a logistics checklist for this event.
 
 Event: {name}
 Type: {event_type}
@@ -181,14 +180,13 @@ def draft_talking_points(
         from eos_ai.model_router import get_router, TaskType
         ctx = ctx or load_context_from_env()
         router = get_router()
-        model = router.route(TaskType.ANALYSIS)
 
         ventures = getattr(ctx, 'ventures', [])
         venture_context = '\n'.join(
             f'- {v.get("name")}: {v.get("offer", "")}' for v in ventures
         ) if ventures else 'Entrepreneur and founder'
 
-        return router.call(model, f"""Draft talking points for a speaking engagement.
+        return router.call_with_fallback(TaskType.ANALYSIS, f"""Draft talking points for a speaking engagement.
 
 Speaker: Antony Munoz
 Ventures: {venture_context}

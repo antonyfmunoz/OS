@@ -934,3 +934,45 @@ class GWSConnector:
             {"id": l["id"], "name": l["name"], "type": l.get("type", "")}
             for l in data.get("labels", [])
         ]
+
+    def send_email(
+        self,
+        to_email: str,
+        subject: str,
+        body: str,
+        cc: list = None,
+        reply_to: str = None,
+    ) -> dict:
+        """
+        Send an email via Gmail API.
+        Returns sent message dict or empty dict on failure.
+        """
+        try:
+            import base64
+            from email.mime.text import MIMEText
+            from email.mime.multipart import MIMEMultipart
+
+            msg = MIMEMultipart('alternative')
+            msg['To'] = to_email
+            msg['Subject'] = subject
+            if cc:
+                msg['Cc'] = ', '.join(cc)
+            if reply_to:
+                msg['Reply-To'] = reply_to
+
+            # Plain text part
+            msg.attach(MIMEText(body, 'plain'))
+
+            raw = base64.urlsafe_b64encode(
+                msg.as_bytes()
+            ).decode('utf-8')
+
+            result = self._run('gmail', 'users.messages', 'send',
+                params={
+                    'userId': 'me',
+                    'raw': raw,
+                })
+            return result or {}
+        except Exception as e:
+            print(f'[GWS] send_email failed: {e}')
+            return {}

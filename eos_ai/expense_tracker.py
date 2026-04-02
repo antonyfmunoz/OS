@@ -37,7 +37,6 @@ def extract_expense_from_email(
     try:
         from eos_ai.model_router import get_router, TaskType
         router = get_router()
-        model = router.route(TaskType.FAST_RESPONSE)
 
         prompt = f"""Extract expense details from this receipt email.
 
@@ -59,7 +58,7 @@ Return JSON only:
   "confidence": "high|medium|low"
 }}"""
 
-        result = router.call(model, prompt).strip()
+        result = router.call_with_fallback(TaskType.FAST_RESPONSE, prompt).strip()
         if '```' in result:
             result = result.split('```')[1].replace('json', '').strip()
         expense = json.loads(result)

@@ -292,10 +292,9 @@ class EmailGPS:
             # Use AI to update purpose
             from eos_ai.model_router import get_router, TaskType
             router = get_router(self.ctx)
-            model  = router.route(TaskType.ANALYSIS)
 
-            new_purpose = router.call(
-                model,
+            new_purpose = router.call_with_fallback(
+                TaskType.ANALYSIS,
                 prompt=(
                     f'Current folder "{folder_name}" purpose:\n'
                     f'{current_purpose}\n\n'
@@ -514,10 +513,6 @@ class EmailGPS:
         try:
             from eos_ai.model_router import get_router, TaskType
             router = get_router(self.ctx)
-            model  = router.route(TaskType.FAST_RESPONSE, prefer_fast=True)
-
-            if not model:
-                return EmailFolder.NEWSLETTERS
 
             definitions = self._load_folder_definitions()
             folder_context = (
@@ -531,8 +526,8 @@ class EmailGPS:
 
             founder_context = self._load_founder_context()
 
-            result = router.call(
-                model,
+            result = router.call_with_fallback(
+                TaskType.FAST_RESPONSE,
                 prompt=(
                     f'You are DEX, world class EA to Antony Munoz.\n\n'
                     f'ABOUT ANTONY:\n'
@@ -598,13 +593,9 @@ class EmailGPS:
         try:
             from eos_ai.model_router import get_router, TaskType
             router = get_router(self.ctx)
-            model  = router.route(TaskType.CONVERSATION)
 
-            if not model:
-                return ''
-
-            body = router.call(
-                model,
+            body = router.call_with_fallback(
+                TaskType.CONVERSATION,
                 prompt=(
                     f'Draft a brief response to this '
                     f'email for DEX to send on behalf '
@@ -638,9 +629,8 @@ class EmailGPS:
             from eos_ai.model_router import get_router, TaskType
             import json as _json
             router = get_router(self.ctx)
-            model = router.route(TaskType.FAST_RESPONSE)
 
-            result = router.call(model, f"""Extract action items and commitments from this email.
+            result = router.call_with_fallback(TaskType.FAST_RESPONSE, f"""Extract action items and commitments from this email.
 Only extract REAL tasks — things that require action.
 Ignore pleasantries and FYI content.
 
@@ -808,6 +798,37 @@ Return JSON only:
                         email.id, email.folder,
                         method=getattr(email, '_method', 'rules'),
                     )
+
+                # Process attachments if present
+                try:
+                    _df_parts = raw.get('payload', {}).get('parts', [])
+                    _df_attachments = [
+                        p.get('filename') for p in _df_parts
+                        if p.get('filename') and '.' in p.get('filename', '')
+                    ]
+                    if _df_attachments:
+                        from eos_ai.document_filer import process_email_attachments
+                        _df_results = process_email_attachments(
+                            subject=email.subject,
+                            sender=email.from_address,
+                            attachment_names=_df_attachments,
+                        )
+                        _df_review = [r for r in _df_results if r.get('requires_review')]
+                        if _df_review:
+                            import requests as _df_req
+                            import os as _df_os
+                            _df_webhook = _df_os.getenv('DISCORD_BRIEF_WEBHOOK')
+                            if _df_webhook:
+                                _df_filenames = ', '.join(r['filename'] for r in _df_review)
+                                _df_req.post(_df_webhook, json={
+                                    'content': (
+                                        f'📄 **Document review needed:**\n'
+                                        f'{_df_filenames}\n'
+                                        f'From: {email.from_address}'
+                                    )
+                                }, timeout=5)
+                except Exception:
+                    pass
 
             if show_progress:
                 print()  # newline after progress bar
