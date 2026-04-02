@@ -520,46 +520,65 @@ def run_full_morning_cycle(ctx: EOSContext) -> None:
     except Exception as e:
         print(f"[Orchestrator] GWS error: {e}")
 
-    # Format unified Telegram message
+    # ── Notion-first: write structured content, send URL to Discord ──
+    brief_content = {
+        "binding_constraint": binding[:500],
+        "company_reports": _fmt_company_reports(company_reports),
+        "portfolio_brief": portfolio_brief[:600],
+        "calendar_today": calendar_section,
+        "tasks_today": tasks_section,
+        "critical_signals": _fmt_signals(critical_signals),
+        "pending_approvals": _fmt_pending(pending),
+        "patterns": _fmt_patterns(patterns[:2]),
+    }
+
+    # Write to Notion
+    notion_url = ""
+    try:
+        from eos_ai.notion_publisher import get_publisher
+
+        publisher = get_publisher(ctx)
+        notion_url = publisher.publish_morning_brief(content=brief_content)
+        if notion_url:
+            print(f"[Orchestrator] Morning brief → Notion: {notion_url}")
+    except Exception as e:
+        print(f"[Orchestrator] Notion publish failed: {e}")
+
+    # Build Telegram summary (always send — primary mobile channel)
     message = (
-        f"🏛 PORTFOLIO ADVISOR\n"
-        f"{board_view[:400]}\n\n"
+        f"☀️ MORNING BRIEF\n"
         f"{'━' * 18}\n"
-        f"📊 COMPANY BRIEFS\n"
-        f"{_fmt_company_reports(company_reports)}\n\n"
-        f"{'━' * 18}\n"
-        f"{portfolio_brief[:600]}\n\n"
-        f"{'━' * 18}\n"
-        f"⚡ BINDING CONSTRAINT\n"
-        f"{binding[:200]}\n\n"
-        f"{'━' * 18}\n"
-        f"🚨 CRITICAL SIGNALS ({len(critical_signals)})\n"
-        f"{_fmt_signals(critical_signals)}\n\n"
-        f"{'━' * 18}\n"
-        f"✅ PENDING APPROVALS ({len(pending)})\n"
-        f"{_fmt_pending(pending)}\n\n"
-        f"{'━' * 18}\n"
-        f"🔗 PATTERNS DETECTED\n"
-        f"{_fmt_patterns(patterns[:2])}\n\n"
-        f"{'━' * 18}\n"
-        f"{calendar_section}\n\n"
-        f"{'━' * 18}\n"
-        f"{tasks_section}"
+        f"⚡ {binding[:200]}\n\n"
+        f"📊 {_fmt_company_reports(company_reports)[:600]}\n\n"
+        f"📅 {calendar_section}\n"
+        f"🚨 Critical: {len(critical_signals)} | "
+        f"✅ Approvals: {len(pending)}"
     )
+    if notion_url:
+        message += f"\n\n📋 Full brief → {notion_url}"
 
     if len(message) > 4000:
         message = message[:3990] + "\n...[truncated]"
 
     _notify(message)
-    print("[Orchestrator] Full morning cycle message sent to Telegram.")
+    print("[Orchestrator] Morning brief summary sent to Telegram.")
 
-    # Also post to Discord #morning-brief via webhook
-    _send_discord_webhook(
-        env_var="DISCORD_BRIEF_WEBHOOK",
-        content=message,
-        title="☀️ MORNING BRIEF",
-        username="DEX",
-    )
+    # Discord gets link, not full content
+    if notion_url:
+        _send_discord_webhook(
+            env_var="DISCORD_BRIEF_WEBHOOK",
+            content=f"☀️ **Morning Brief ready**\n{notion_url}",
+            title="Morning Brief",
+            username="DEX",
+        )
+    else:
+        # Fallback: send summary if Notion failed
+        _send_discord_webhook(
+            env_var="DISCORD_BRIEF_WEBHOOK",
+            content=message[:1800],
+            title="☀️ MORNING BRIEF",
+            username="DEX",
+        )
 
     # 8b. Proactive intelligence — send unsolicited alerts if conditions are met
     try:
@@ -793,21 +812,41 @@ def run_ceo_morning_delegation(
             print(f"[CEOMorning] {venture_id} failed: {e}")
             results.append(f"⚠️ {venture_name}: delegation failed — {e}")
 
-    # Surface to Discord via existing _send_discord_webhook helper
+    # Write delegation report to Notion, send link to Discord
     if results:
+        notion_url = ""
         try:
-            msg = (
-                "## 🏢 CEO Agent Morning Delegation\n\n"
-                + "\n\n".join(results)
-                + "\n\nSpecialist agents executing. "
-                "Results surface as tasks complete."
-            )
-            _send_discord_webhook(
-                env_var="DISCORD_BRIEF_WEBHOOK",
-                content=msg[:1900],
-                title="CEO Delegation",
-                username="DEX",
-            )
+            from eos_ai.notion_publisher import get_publisher
+
+            publisher = get_publisher(ctx)
+            notion_url = publisher.publish_ceo_delegation(content={"results": results})
+            if notion_url:
+                print(f"[CEOMorning] Delegation → Notion: {notion_url}")
+        except Exception as e:
+            print(f"[CEOMorning] Notion publish failed: {e}")
+
+        try:
+            if notion_url:
+                _send_discord_webhook(
+                    env_var="DISCORD_BRIEF_WEBHOOK",
+                    content=f"🏢 **CEO Delegation ready**\n{notion_url}",
+                    title="CEO Delegation",
+                    username="DEX",
+                )
+            else:
+                # Fallback: send summary if Notion failed
+                msg = (
+                    "## 🏢 CEO Agent Morning Delegation\n\n"
+                    + "\n\n".join(results)
+                    + "\n\nSpecialist agents executing. "
+                    "Results surface as tasks complete."
+                )
+                _send_discord_webhook(
+                    env_var="DISCORD_BRIEF_WEBHOOK",
+                    content=msg[:1900],
+                    title="CEO Delegation",
+                    username="DEX",
+                )
         except Exception as e:
             print(f"[CEOMorning] Discord alert failed: {e}")
 
@@ -905,11 +944,18 @@ def check_outcome_milestone(ctx: EOSContext, new_outcome_count: int) -> None:
         )
 
 
-# ─── Data-first Morning Brief ─────────────────────────────────────────────────
+# ─── Data-first Morning Brief (DEPRECATED) ──────────────────────────────────
+# DEPRECATED: Use run_full_morning_cycle() instead.
+# This was a partial reimplementation. The canonical system is
+# run_full_morning_cycle() which writes to Notion via NotionPublisher
+# and sends the URL to Discord. Kept for backward compatibility with
+# discord_bot.py callers — will be removed in next cleanup pass.
 
 
 async def generate_morning_brief(ctx: EOSContext) -> str:
     """
+    DEPRECATED: Use run_full_morning_cycle() instead.
+
     Data-first morning brief. Pulls real venture data, primitives, and reality
     signals first, then asks AI to add one insight on top.
 
@@ -1065,78 +1111,16 @@ async def generate_morning_brief(ctx: EOSContext) -> str:
 
 def write_to_notion_dashboard(ctx: EOSContext, morning_data: dict) -> None:
     """
-    Write the morning brief to the EOS Dashboard in Notion via REST API.
-
-    Requires:
-      - NOTION_API_KEY in environment (internal integration secret from
-        https://www.notion.so/my-integrations)
-      - The "OS Dashboard" database must be shared with that integration
-        (open the database in Notion → Share → Invite → select integration)
-
-    morning_data keys:
-      telegram_message  — the full formatted brief text
-      ventures          — list of company report dicts
-      critical_signals  — count of critical signals
-      pending_approvals — count of pending approvals
-      patterns          — count of knowledge graph patterns
+    DEPRECATED: Use NotionPublisher.publish_morning_brief() instead.
+    This function is kept for backward compatibility only.
+    The morning brief is now written to Notion by run_full_morning_cycle()
+    via NotionPublisher before this function is called.
     """
-    import re
-    from datetime import date
-
-    token = os.getenv("NOTION_API_KEY")
-    if not token:
-        print("[Orchestrator] NOTION_API_KEY not set — skipping Notion update.")
-        return
-
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-        "Notion-Version": "2022-06-28",
-    }
-
-    brief_content = morning_data.get("telegram_message", "No brief content.")
-    page_title = f"Daily Brief — {date.today()}"
-
-    # ── 1. Resolve database ID from env ───────────────────────────────────────
-    database_id = os.getenv("NOTION_MORNING_BRIEF_ID")
-    if not database_id:
-        raise RuntimeError("NOTION_MORNING_BRIEF_ID not set in environment.")
-
-    # ── 2. Split brief into paragraph blocks (≤2000 chars each) ───────────────
-    def _chunk(text: str, size: int = 1900) -> list[str]:
-        lines, chunk, chunks = text.splitlines(keepends=True), [], []
-        for line in lines:
-            if sum(len(l) for l in chunk) + len(line) > size:
-                chunks.append("".join(chunk))
-                chunk = []
-            chunk.append(line)
-        if chunk:
-            chunks.append("".join(chunk))
-        return chunks or [""]
-
-    blocks = [
-        {
-            "object": "block",
-            "type": "paragraph",
-            "paragraph": {"rich_text": [{"type": "text", "text": {"content": part}}]},
-        }
-        for part in _chunk(brief_content)
-    ]
-
-    # ── 3. Create the page in the database ────────────────────────────────────
-    create_resp = requests.post(
-        "https://api.notion.com/v1/pages",
-        headers=headers,
-        json={
-            "parent": {"page_id": database_id},
-            "properties": {"title": [{"text": {"content": page_title}}]},
-            "children": blocks,
-        },
-        timeout=15,
+    # The brief is already written to Notion by run_full_morning_cycle().
+    # This is a no-op now — the Notion write happens earlier in the cycle.
+    print(
+        "[Orchestrator] write_to_notion_dashboard: skipped (handled by NotionPublisher)"
     )
-    create_resp.raise_for_status()
-    page_url = create_resp.json().get("url", "")
-    print(f"[Orchestrator] Notion page created: {page_url}")
 
 
 # ─── Orchestrator ─────────────────────────────────────────────────────────────
@@ -1238,10 +1222,15 @@ class EOSOrchestrator:
             )
         return results
 
-    # ─── Public: morning brief ───────────────────────────────────────────────
+    # ─── Public: morning brief (DEPRECATED) ────────────────────────────────
+    # DEPRECATED: Use run_full_morning_cycle() instead.
+    # The canonical brief system writes to Notion via NotionPublisher.
+    # This class method is kept for backward compatibility only.
 
     def morning_brief(self) -> str:
         """
+        DEPRECATED: Use run_full_morning_cycle() instead.
+
         Generate a structured AI brief, write it to orchestrator/daily/,
         and return the full text.
         """

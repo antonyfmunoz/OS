@@ -1,8 +1,8 @@
 ---
-description: "End of day sync. Captures what happened today, closes open loops, sets tomorrow's one objective. Run at end of every working day."
+description: "End of day sync. Write to Notion, return the link. Captures what happened, closes open loops, sets tomorrow's objective."
 ---
 
-Run end of day sync for Antony.
+Run end of day sync for Antony. Write to Notion and return the link.
 
 Pull today's activity:
 !`python3 -c "
@@ -31,11 +31,30 @@ except Exception as e:
     print(f'DB unavailable: {e}')
 "`
 
-Format the EOD sync:
-**EOD SYNC — [today's date]**
-Completed Today: [what got done]
-Open Loops: [what's still pending]
-Wins: [what moved the needle]
-Misses: [what didn't happen and why]
-Tomorrow's One Objective: [single focus]
-Tomorrow's First Action: [exactly what to do]
+Based on the data and today's conversation context, build an EOD sync and publish to Notion:
+
+```python
+from eos_ai.notion_publisher import get_publisher
+publisher = get_publisher()
+url = publisher.publish_eod_sync(content={
+    'completed': '[what got done today]',
+    'open_loops': '[what is still pending]',
+    'wins': '[what moved the needle]',
+    'misses': '[what did not happen and why]',
+    'tomorrow_objective': '[single focus for tomorrow]',
+})
+```
+
+Output format:
+**EOD Sync written to Notion: {url}**
+
+Then post the URL to Discord:
+```python
+from eos_ai.discord_utils import post_to_webhook
+import os
+webhook = os.getenv('DISCORD_BRIEF_WEBHOOK', '')
+if webhook and url:
+    post_to_webhook(f'📋 **EOD Sync ready**\n{url}', webhook_url=webhook)
+```
+
+Then output the EOD sync content inline for this conversation.

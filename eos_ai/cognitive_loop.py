@@ -958,6 +958,19 @@ class CognitiveLoop:
         except Exception:
             pass  # knowledge integration is enhancement — never block result
 
+        # 7c. FEEDBACK — auto-check if user message closes pending recommendations
+        try:
+            if text and modality == "text":
+                from eos_ai.feedback_loop import FeedbackLoop
+
+                _fl = FeedbackLoop(self.ctx)
+                _fl.log_outcome(
+                    text=text,
+                    venture_id=venture_id or "",
+                )
+        except Exception:
+            pass  # feedback loop is enhancement — never block result
+
         # 8. STORE — handled by memory.log() inside runtime.run()
 
         was_enhanced = enhanced != text
