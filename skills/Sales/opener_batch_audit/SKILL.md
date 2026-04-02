@@ -3,7 +3,23 @@ name: opener-batch-audit
 description: "Review opener_stats.json after sufficient volume to identify what's working, what's dying, and what to test next — run weekly when volume exceeds 30 DMs/week or after any opener reaches 50 sends."
 allowed-tools: "Read, Bash"
 version: 1.0
+effort: high
 ---
+
+!`python3 -c "
+import sys; sys.path.insert(0,'/opt/OS')
+from dotenv import load_dotenv
+load_dotenv('/opt/OS/eos_ai/.env')
+try:
+    from eos_ai.context import load_context_from_env
+    ctx = load_context_from_env()
+    print(f'Stage: {getattr(ctx,\"stage\",\"?\")}')
+    print(f'ICP: {getattr(ctx,\"icp\",\"Men 18-25\")}')
+    print(f'Constraint: {getattr(ctx,\"binding_constraint\",\"leads\")}')
+except Exception as e:
+    print(f'Context: {e}')
+"`
+
 
 # Skill: Opener Batch Audit
 

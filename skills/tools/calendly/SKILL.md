@@ -5,6 +5,7 @@ allowed-tools: "Read, Bash"
 version: 1.0
 source_url: "https://developer.calendly.com/api-docs"
 last_researched: "2026-04-01"
+effort: low
 ---
 
 # Tool: Calendly

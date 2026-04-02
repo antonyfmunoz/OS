@@ -3,6 +3,7 @@ name: playbook-speaking-podcast-request
 description: "Handle inbound speaking or podcast requests by qualifying the opportunity before escalating — triggered when any message invites Antony to speak, appear on a podcast, join a panel, or be interviewed."
 allowed-tools: "Read, Bash"
 version: 1.0
+effort: medium
 ---
 
 # Skill: Playbook — Speaking or Podcast Request

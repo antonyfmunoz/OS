@@ -3,6 +3,7 @@ name: playbook-vendor-contract
 description: "Handle inbound contracts, NDAs, service agreements, and vendor documents with appropriate caution — triggered when any email contains an attached contract, NDA, service agreement, invoice, or legal document."
 allowed-tools: "Read, Bash"
 version: 1.0
+effort: low
 ---
 
 # Skill: Playbook — Vendor or Contract Received

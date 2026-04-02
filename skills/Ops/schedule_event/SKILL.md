@@ -3,6 +3,7 @@ name: schedule-event
 description: "Create a Google Calendar event from natural language input — triggered when the founder mentions scheduling, booking, setting up a call, meeting, or appointment."
 allowed-tools: "Read, Bash"
 version: 1.0
+effort: low
 ---
 
 # Schedule Event

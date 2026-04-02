@@ -3,6 +3,7 @@ name: playbook-no-show-recovery
 description: "Recover no-show meetings professionally and re-engage the prospect without burning the relationship — triggered when a Calendly or calendar meeting is marked as no-show."
 allowed-tools: "Read, Bash"
 version: 1.0
+effort: medium
 ---
 
 # Skill: Playbook — No-Show Recovery

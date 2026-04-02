@@ -3,6 +3,7 @@ name: playbook-job-inquiry
 description: "Handle inbound job applications or hiring inquiries efficiently — triggered when any message is about working for, joining, or collaborating with any Munoz Conglomerate venture."
 allowed-tools: "Read, Bash"
 version: 1.0
+effort: low
 ---
 
 # Skill: Playbook — Job Inquiry

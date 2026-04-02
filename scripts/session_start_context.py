@@ -130,6 +130,22 @@ def main():
     except Exception:
         pass
 
+    # Start Remote Control for phone access
+    # Boris: "Enable Remote Control for all sessions"
+    try:
+        rc_result = subprocess.run(
+            ['claude', 'remote-control',
+             '--background'],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if rc_result.returncode == 0:
+            print('[Remote] Control active — '
+                  'access from iPhone at claude.ai')
+    except Exception:
+        pass  # Remote Control unavailable
+
 
 if __name__ == '__main__':
     main()

@@ -3,6 +3,7 @@ name: playbook-deal-closed
 description: "Execute the full deal-closed workflow — celebrate, onboard, document, and set the relationship up for success — triggered when a lead confirms payment or Antony marks a deal closed."
 allowed-tools: "Read, Bash"
 version: 1.0
+effort: medium
 ---
 
 # Skill: Playbook — Deal Closed

@@ -5,6 +5,7 @@ allowed-tools: "Read, Bash"
 version: 1.0
 source_url: "https://developers.notion.com/"
 last_researched: "2026-04-01"
+effort: low
 ---
 
 # Tool: Notion

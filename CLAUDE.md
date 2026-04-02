@@ -159,6 +159,15 @@ Git: feature branches → dev → main. Never commit directly to main.
 - Format: "Never [the mistake]"
 - These rules compound. Don't skip them.
 
+## Model Strategy
+- Default: opus (settings.json)
+- For long multi-step tasks: use opusplan
+  (/model opusplan) — Opus reasons the plan,
+  Sonnet executes. More cost-efficient.
+- CEO/strategic agents: always Opus via
+  agent_type='ceo' in call_with_fallback()
+- Fast checks: Haiku via TaskType.FAST_RESPONSE
+
 ## Current Known Gotchas (2026-04-02)
 - Anthropic credits depleted → claude -p and Anthropic SDK both return 400 credit error
 - google.generativeai (old SDK) deprecated → always use google.genai (new SDK)

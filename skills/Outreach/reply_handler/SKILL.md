@@ -4,7 +4,23 @@ description: "Handle an incoming DM reply from a prospect and determine the next
 allowed-tools: "Read"
 trigger: conversational
 version: 1.0
+effort: medium
 ---
+
+!`python3 -c "
+import sys; sys.path.insert(0,'/opt/OS')
+from dotenv import load_dotenv
+load_dotenv('/opt/OS/eos_ai/.env')
+try:
+    from eos_ai.context import load_context_from_env
+    ctx = load_context_from_env()
+    print(f'Stage: {getattr(ctx,\"stage\",\"?\")}')
+    print(f'ICP: {getattr(ctx,\"icp\",\"Men 18-25\")}')
+    print(f'Constraint: {getattr(ctx,\"binding_constraint\",\"leads\")}')
+except Exception as e:
+    print(f'Context: {e}')
+"`
+
 
 # Skill: Reply Handler
 

@@ -3,7 +3,23 @@ name: stage-transition-assessment
 description: "Evaluate whether the current stage proof gate has been genuinely met — run when revenue crosses a stage threshold or before activating any Stage 2 agents."
 allowed-tools: "Read, Bash"
 version: 1.0
+effort: high
 ---
+
+!`python3 -c "
+import sys; sys.path.insert(0,'/opt/OS')
+from dotenv import load_dotenv
+load_dotenv('/opt/OS/eos_ai/.env')
+try:
+    from eos_ai.context import load_context_from_env
+    ctx = load_context_from_env()
+    print(f'Stage: {getattr(ctx,\"stage\",\"?\")}')
+    print(f'ICP: {getattr(ctx,\"icp\",\"Men 18-25\")}')
+    print(f'Constraint: {getattr(ctx,\"binding_constraint\",\"leads\")}')
+except Exception as e:
+    print(f'Context: {e}')
+"`
+
 
 # Skill: Stage Transition Assessment
 

@@ -5,6 +5,7 @@ allowed-tools: "Read, Bash"
 version: 1.0
 source_url: "https://docs.anthropic.com/en/docs/claude-code"
 last_researched: "2026-04-01"
+effort: low
 ---
 
 # Tool: Claude Code

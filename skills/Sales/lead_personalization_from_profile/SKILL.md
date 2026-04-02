@@ -3,7 +3,23 @@ name: lead-personalization-from-profile
 description: "Extract one specific signal from a single lead's profile to anchor the outreach message in their reality — run for high-ICP-score leads where a personalized approach is warranted."
 allowed-tools: "Read, Bash"
 version: 1.0
+effort: high
 ---
+
+!`python3 -c "
+import sys; sys.path.insert(0,'/opt/OS')
+from dotenv import load_dotenv
+load_dotenv('/opt/OS/eos_ai/.env')
+try:
+    from eos_ai.context import load_context_from_env
+    ctx = load_context_from_env()
+    print(f'Stage: {getattr(ctx,\"stage\",\"?\")}')
+    print(f'ICP: {getattr(ctx,\"icp\",\"Men 18-25\")}')
+    print(f'Constraint: {getattr(ctx,\"binding_constraint\",\"leads\")}')
+except Exception as e:
+    print(f'Context: {e}')
+"`
+
 
 # Skill: Lead Personalization From Profile
 

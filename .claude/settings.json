@@ -123,6 +123,36 @@
           }
         ]
       }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /opt/OS/scripts/permission_to_telegram.py"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /opt/OS/scripts/subagent_start_context.py"
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[PostCompact] Context compacted. Critical skills: /best-practices-principle /operationalization-principle /claude-code-best-practices. Run /start-loops to restore autonomous operation.'"
+          }
+        ]
+      }
     ]
   }
 }

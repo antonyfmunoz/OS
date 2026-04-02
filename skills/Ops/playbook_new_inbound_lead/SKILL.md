@@ -3,6 +3,7 @@ name: playbook-new-inbound-lead
 description: "Handle every new inbound lead from any channel with a consistent, world-class response that qualifies, captures, and advances the relationship — triggered on any first expression of interest in any Munoz Conglomerate venture."
 allowed-tools: "Read, Bash"
 version: 1.0
+effort: medium
 ---
 
 # Skill: Playbook — New Inbound Lead

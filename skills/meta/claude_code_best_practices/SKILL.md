@@ -238,7 +238,7 @@ memory: user   # for skills that accumulate
 - PostToolUse: ruff formatter
 - Stop hook: conditional exit 2
 - SessionStart: dynamic context injection
-- .claude/commands/ slash commands (21 total)
+- .claude/commands/ slash commands (23 total)
 - context: fork on research-heavy skills
 - .claude/rules/ directory (python, skills, agents)
 - $schema in settings.json
@@ -246,16 +246,16 @@ memory: user   # for skills that accumulate
 
 ### Still Needed
 
-- PermissionRequest — Telegram routing
-- /loop skills configured
-- Remote Control always-on
-- !command in skills (partially done)
-- effort frontmatter in all skills (partially done)
-- SubagentStart context injection
-- PostCompact hook
+- ✅ PermissionRequest → Telegram (notify + log)
+- ✅ /loop skills: /start-loops + /babysit
+- ✅ Remote Control: SessionStart auto-starts
+- ✅ !command: research skills have dynamic context
+- ✅ effort frontmatter: all skills covered
+- ✅ SubagentStart: agent-type context injected
+- ✅ PostCompact: skill reminders on compact
+- ✅ opusplan: documented in CLAUDE.md
 - GitHub Code Review action
 - Channels (Telegram) configured
-- opusplan alias
 
 ## Self-Update Protocol
 

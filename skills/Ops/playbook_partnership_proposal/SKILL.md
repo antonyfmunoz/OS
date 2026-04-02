@@ -3,6 +3,7 @@ name: playbook-partnership-proposal
 description: "Handle inbound partnership proposals consistently — triggered when any message proposes collaboration, joint venture, affiliate arrangement, co-marketing, referral partnership, white-label, or integration."
 allowed-tools: "Read, Bash"
 version: 1.0
+effort: medium
 ---
 
 # Skill: Playbook — Partnership Proposal

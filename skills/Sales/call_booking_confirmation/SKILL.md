@@ -3,6 +3,7 @@ name: call-booking-confirmation
 description: "Send a confirmation and reminder sequence after a call is booked to maximize show rate — run immediately when a Calendly or manual booking is confirmed."
 allowed-tools: "Read, Bash"
 version: 1.0
+effort: medium
 ---
 
 # Skill: Call Booking Confirmation

@@ -3,6 +3,7 @@ name: playbook-client-issue
 description: "Handle client complaints or issues with urgency, empathy, and professionalism — triggered when any existing client message expresses dissatisfaction, reports a problem, requests a refund, or signals churn risk."
 allowed-tools: "Read, Bash"
 version: 1.0
+effort: medium
 ---
 
 # Skill: Playbook — Client Issue or Complaint

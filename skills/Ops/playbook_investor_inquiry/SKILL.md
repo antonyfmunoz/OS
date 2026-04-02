@@ -3,6 +3,7 @@ name: playbook-investor-inquiry
 description: "Handle inbound investor interest with appropriate gravity — triggered when any message signals investor intent with keywords like 'investing', 'fund', 'portfolio', 'term sheet', or 'cap table'."
 allowed-tools: "Read, Bash"
 version: 1.0
+effort: low
 ---
 
 # Skill: Playbook — Investor Inquiry

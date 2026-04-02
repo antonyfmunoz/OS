@@ -3,7 +3,23 @@ name: content-calendar
 description: "Plan a 7-day content schedule grounded in real ICP signals — run at the start of each content planning cycle when signal queue has been processed."
 allowed-tools: "Read, Bash"
 version: 1.0
+effort: high
 ---
+
+!`python3 -c "
+import sys; sys.path.insert(0,'/opt/OS')
+from dotenv import load_dotenv
+load_dotenv('/opt/OS/eos_ai/.env')
+try:
+    from eos_ai.context import load_context_from_env
+    ctx = load_context_from_env()
+    print(f'Stage: {getattr(ctx,\"stage\",\"?\")}')
+    print(f'ICP: {getattr(ctx,\"icp\",\"Men 18-25\")}')
+    print(f'Constraint: {getattr(ctx,\"binding_constraint\",\"leads\")}')
+except Exception as e:
+    print(f'Context: {e}')
+"`
+
 
 # content_calendar
 

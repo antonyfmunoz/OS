@@ -3,6 +3,7 @@ name: crm-stage-update
 description: "Standardize how every agent updates the pipeline stage in Notion — run whenever any agent touches a lead or customer record or any stage change occurs in the relationship."
 allowed-tools: "Read, Bash"
 version: 1.0
+effort: low
 ---
 
 # Skill: CRM Stage Update

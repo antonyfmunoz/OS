@@ -3,7 +3,23 @@ name: generate-content-from-intel
 description: "Turn market intelligence reports into high-performing content ideas that mirror the language and psychology of the ICP — run after a new market intelligence report is generated or when content planning begins."
 allowed-tools: "Read, Bash"
 version: 1.0
+effort: high
 ---
+
+!`python3 -c "
+import sys; sys.path.insert(0,'/opt/OS')
+from dotenv import load_dotenv
+load_dotenv('/opt/OS/eos_ai/.env')
+try:
+    from eos_ai.context import load_context_from_env
+    ctx = load_context_from_env()
+    print(f'Stage: {getattr(ctx,\"stage\",\"?\")}')
+    print(f'ICP: {getattr(ctx,\"icp\",\"Men 18-25\")}')
+    print(f'Constraint: {getattr(ctx,\"binding_constraint\",\"leads\")}')
+except Exception as e:
+    print(f'Context: {e}')
+"`
+
 
 # Skill: Generate Content From Market Intelligence
 
