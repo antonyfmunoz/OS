@@ -6,6 +6,8 @@ version: 1.0
 source_url: "https://docs.apify.com/api/v2"
 last_researched: "2026-04-01"
 effort: low
+trigger: both
+context: fork
 ---
 
 # Tool: Apify
@@ -36,3 +38,8 @@ results = client.dataset(run["defaultDatasetId"]).iterate_items()
 ```
 
 See references/best_practices.md for rate limits and credit management.
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

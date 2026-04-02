@@ -278,15 +278,8 @@ class ErrorHandler:
         )
 
         try:
-            import requests
-            token   = os.getenv('TELEGRAM_BOT_TOKEN', '')
-            chat_id = os.getenv('TELEGRAM_CHAT_ID', '')
-            if token and chat_id:
-                requests.post(
-                    f'https://api.telegram.org/bot{token}/sendMessage',
-                    json={'chat_id': chat_id, 'text': full_msg},
-                    timeout=10,
-                )
+            from eos_ai.channel import get_channel_router
+            get_channel_router().notify(full_msg)
         except Exception:
             pass  # never let alerting crash the service
 

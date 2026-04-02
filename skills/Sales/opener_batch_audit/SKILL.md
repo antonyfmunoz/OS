@@ -4,6 +4,8 @@ description: "Review opener_stats.json after sufficient volume to identify what'
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: high
+trigger: both
+context: fork
 ---
 
 !`python3 -c "
@@ -56,3 +58,8 @@ Outreach Agent retires underperforming openers and builds next iteration from pa
 ## Measurement
 - Week-over-week reply rate trend
 - Time to identify a winning opener from first test
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

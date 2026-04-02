@@ -4,6 +4,8 @@ description: "Generate a complete director's brief for any content piece Antony 
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: medium
+trigger: both
+context: fork
 ---
 
 !`python3 -c "
@@ -52,3 +54,8 @@ Antony can film immediately from this brief without needing to write, plan, or t
 ## Measurement
 - Percentage of briefs that require no revision before filming
 - Time from brief to filmed content
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

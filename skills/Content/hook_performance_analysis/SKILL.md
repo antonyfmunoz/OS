@@ -4,6 +4,8 @@ description: "Analyze which hook structures are stopping the scroll — run week
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: high
+trigger: both
+context: fork
 ---
 
 !`python3 -c "
@@ -54,3 +56,8 @@ Content Agent knows exactly which hook patterns to prioritize and which to retir
 ## Measurement
 - Week-over-week 3-second retention rate
 - Percentage of pieces that outperform the account average
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

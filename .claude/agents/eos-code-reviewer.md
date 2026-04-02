@@ -3,6 +3,9 @@ name: eos-code-reviewer
 description: "Adversarial code review agent. Use after any code change in EOS. Reviews for security issues, anti-patterns, edge cases, and regressions. Runs in isolated context."
 model: opus
 tools: Read, Grep, Glob, Bash
+context: fork
+memory: user
+effort: high
 ---
 
 You are a senior staff engineer doing adversarial code review on the EOS codebase.

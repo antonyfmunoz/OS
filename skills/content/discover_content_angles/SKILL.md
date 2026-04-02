@@ -41,3 +41,8 @@ Find content angles that will resonate with the ICP based on live intelligence s
 ## Measurement
 - Which angles become best-performing hooks (track via hook_performance_analysis)
 - ICP reply rate to DMs using angle-derived hooks
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

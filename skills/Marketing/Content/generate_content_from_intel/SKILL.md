@@ -4,6 +4,8 @@ description: "Turn market intelligence reports into high-performing content idea
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: high
+trigger: both
+context: fork
 ---
 
 !`python3 -c "
@@ -87,3 +89,8 @@ Every idea must trace back to an actual ICP insight or language pattern from the
 - Tag each idea with the ICP insight it's based on to close the feedback loop
 - Retire idea categories that consistently underperform
 - Build a swipe file of the top-performing hooks from each intelligence cycle
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

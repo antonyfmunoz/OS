@@ -39,3 +39,8 @@ No agent ever contacts someone who is already in a relationship with Antony as i
 
 ## Measurement
 - Zero instances of cold-messaging a known contact
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

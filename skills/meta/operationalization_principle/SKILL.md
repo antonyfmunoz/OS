@@ -6,6 +6,7 @@ effort: medium
 trigger: both
 version: "1.0"
 last_updated: "2026-04-02"
+context: fork
 ---
 
 # The Operationalization Principle

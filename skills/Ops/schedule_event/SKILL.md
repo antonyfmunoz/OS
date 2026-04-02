@@ -4,6 +4,7 @@ description: "Create a Google Calendar event from natural language input — tri
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: low
+trigger: both
 ---
 
 # Schedule Event
@@ -31,3 +32,8 @@ EXECUTE — creates event immediately, confirms in Discord
 
 ## Outputs
 - Event title, date/time, Meet link, attendee if set
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

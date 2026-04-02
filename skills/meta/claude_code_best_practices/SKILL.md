@@ -10,7 +10,10 @@ last_researched: "2026-04-02"
 boris_threads_captured: "Jan 2 – Mar 30 2026"
 source_boris: "https://howborisusesclaudecode.com"
 source_docs: "https://code.claude.com/docs/en"
+context: fork
 ---
+<!-- claude-doc: auto-maintain -->
+
 
 # Claude Code Best Practices for EOS
 
@@ -154,10 +157,11 @@ claude --bare -p "prompt" \
 
 ### Required Hooks
 
+- PreToolUse: log every bash command (Boris: "Log every bash command")
 - PostToolUse(Edit|Write): ruff format
 - PostToolUse(Edit|Write): audit log append
 - SessionStart: inject venture context + version check
-- PermissionRequest: route to Telegram
+- PermissionRequest: route to ChannelRouter (Discord → Telegram → Console cascade)
 - Stop: exit 2 for long-running tasks
 - TaskCompleted: verify before marking done
 - SubagentStart: inject agent-type context
@@ -238,13 +242,13 @@ memory: user   # for skills that accumulate
 - PostToolUse: ruff formatter
 - Stop hook: conditional exit 2
 - SessionStart: dynamic context injection
-- .claude/commands/ slash commands (23 total)
+- .claude/commands/ slash commands (24 total)
 - context: fork on research-heavy skills
 - .claude/rules/ directory (python, skills, agents)
 - $schema in settings.json
 - Adversarial review wired to Developer Agent
 
-### Still Needed
+### Gap Status
 
 - ✅ PermissionRequest → channel-agnostic (ChannelRouter)
 - ✅ /loop skills: /start-loops + /babysit

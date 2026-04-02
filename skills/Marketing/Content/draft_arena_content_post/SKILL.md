@@ -4,6 +4,8 @@ description: "Write a single short-form content post for Initiate Arena that att
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: medium
+trigger: both
+context: fork
 ---
 
 !`python3 -c "
@@ -90,3 +92,8 @@ The opening line must stop the scroll when read alone. If it doesn't create curi
 - Tag each post with the ICP insight or content idea that inspired it
 - Track which opening line formats (identity challenge, statistics, direct provocation) convert best
 - Build a hook swipe file from posts that outperform in the first 24 hours
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

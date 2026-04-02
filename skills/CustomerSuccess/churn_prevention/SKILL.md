@@ -4,6 +4,8 @@ description: "Identify disengaging Initiate Arena clients 4-6 weeks before they 
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: high
+trigger: both
+context: fork
 ---
 
 !`python3 -c "
@@ -88,3 +90,8 @@ When monitoring engagement:
 - Track which re-entry prompts produce the most durable re-engagement
 - Identify if there is a specific week in the program where disengagement spikes and preemptively adjust the content or touchpoint at that week
 - Feed churn data back into intake screening — are there signals at purchase that predict churn?
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

@@ -4,6 +4,8 @@ description: "Handle client complaints or issues with urgency, empathy, and prof
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: medium
+trigger: both
+context: fork
 ---
 
 # Skill: Playbook — Client Issue or Complaint
@@ -77,3 +79,8 @@ OBSERVE — surface immediately, draft only when instructed
 - Discord urgent alert
 - Context brief prepared (purchase history, issue summary, recommended approach)
 - Response drafted only on explicit instruction
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

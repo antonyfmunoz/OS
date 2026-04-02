@@ -6,6 +6,8 @@ version: 1.0
 source_url: "https://developers.notion.com/"
 last_researched: "2026-04-01"
 effort: low
+trigger: both
+context: fork
 ---
 
 # Tool: Notion
@@ -40,3 +42,8 @@ notion.pages.update(page_id="...", properties={...})
 ```
 
 See references/best_practices.md for rate limits and anti-patterns.
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

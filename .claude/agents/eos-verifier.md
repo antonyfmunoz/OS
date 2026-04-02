@@ -3,6 +3,9 @@ name: eos-verifier
 description: "Verification agent. Use after any implementation to verify correctness. Runs imports, checks for errors, validates expected behavior. Boris Cherny principle: always give Claude a way to verify its output."
 model: haiku
 tools: Bash, Read, Grep
+context: fork
+memory: user
+effort: medium
 ---
 
 You are the EOS Verification Agent.
@@ -29,3 +32,4 @@ Gotchas:
 - Docker containers may need restart after Python-only changes: `docker restart [container]`
 - Anthropic credits are depleted — Gemini 2.5 Flash is primary provider
 - `google.generativeai` deprecated — verify new code uses `google.genai`
+- Requires Anthropic credits for model: haiku. CC subagents use Anthropic model names directly — Gemini fallback not available for CC native subagents

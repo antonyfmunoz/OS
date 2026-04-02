@@ -72,3 +72,8 @@ Every signal that enters the inbox must be processed before the next outreach cy
 - Add signal source tagging at ingestion (Reddit vs. Instagram vs. YouTube) to enable source quality tracking
 - Build a duplicate detection check before processing to avoid redundant insights
 - Automate queue size alerting if volume exceeds 50 (indicates scraper issue)
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

@@ -4,6 +4,7 @@ description: "Handle inbound contracts, NDAs, service agreements, and vendor doc
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: low
+trigger: both
 ---
 
 # Skill: Playbook — Vendor or Contract Received
@@ -67,3 +68,8 @@ OBSERVE — surface and brief only, no action
 - Discord alert with document type, sender, key terms summary, and any deadline
 - Attachment saved to Drive: /Legal/Pending_Review/
 - No response sent without explicit instruction
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

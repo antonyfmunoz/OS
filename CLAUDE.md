@@ -1,3 +1,4 @@
+<!-- claude-doc: auto-maintain -->
 ## The Two Operating Principles
 
 These govern every build, configuration,
@@ -93,8 +94,8 @@ Before any deploy:
 
 ## System
 VPS: 100.77.233.50 | Dir: /opt/OS
-Services: os-discord, os-bot, os-monitor, os-scraper, os-webhook
-LLM: qwen2.5:3b (Anthropic credits depleted)
+Services: os-discord, os-bot, os-monitor, os-webhook
+LLM: Gemini 2.5 Flash (primary), Ollama qwen2.5:3b (fallback)
 Stage: loaded from BIS at runtime
 
 ## Key files
@@ -123,7 +124,8 @@ services/discord_bot.py — primary interface
 
 ## Protocol layers
 See PROTOCOLS.md for full 4-layer documentation (L0-L3).
-Git: feature branches → dev → main. Never commit directly to main.
+Git: commit directly to main (solo founder phase).
+Use feature branches for experimental or risky changes.
 
 ## Skills that define your workflows
 @.claude/skills/deploy-service.md

@@ -4,6 +4,8 @@ description: "Write a follow-up DM for a lead who has gone quiet after initial c
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: medium
+trigger: both
+context: fork
 ---
 
 !`python3 -c "
@@ -85,3 +87,8 @@ The best follow-up feels like the sender remembered something interesting and th
 - Track which follow-up angles (value add vs. pattern interrupt vs. re-engagement) convert best by time bracket
 - Build a library of high-performing follow-up templates per time bracket
 - A/B test question types: curiosity questions vs. pain-focused questions vs. observation-based questions
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

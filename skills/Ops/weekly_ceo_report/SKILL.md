@@ -5,6 +5,7 @@ allowed-tools: "Read, Bash"
 trigger: scheduled
 version: 1.0
 effort: high
+context: fork
 ---
 
 !`python3 -c "

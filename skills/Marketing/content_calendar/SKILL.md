@@ -4,6 +4,8 @@ description: "Plan a 7-day content schedule grounded in real ICP signals — run
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: high
+trigger: both
+context: fork
 ---
 
 !`python3 -c "
@@ -68,3 +70,8 @@ Alex Hormozi model: publish content that attracts the exact person you want and 
 - Feed top-performing post angles back into outreach openers
 - Identify which formats produce the most qualified DMs, not just the most likes
 - Build a running library of signal → hook pairings that can be reused in future cycles
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

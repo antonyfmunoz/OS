@@ -4,6 +4,8 @@ description: "Analyze a DM conversation and determine the best next response to 
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: medium
+trigger: both
+context: fork
 ---
 
 !`python3 -c "
@@ -93,3 +95,8 @@ The recommended response should feel like it came from a person who genuinely un
 - Build a library of high-converting message examples per stage
 - Track which question types accelerate stage advancement most reliably
 - Identify patterns in conversations that stall after each specific stage
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

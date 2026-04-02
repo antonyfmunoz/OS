@@ -4,6 +4,8 @@ description: "Recover no-show meetings professionally and re-engage the prospect
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: medium
+trigger: both
+context: fork
 ---
 
 # Skill: Playbook — No-Show Recovery
@@ -74,3 +76,8 @@ ASSIST — draft and queue, Antony approves
 - Meeting status updated to No-show in Notion
 - Recovery email queued for approval
 - Follow-up task created (48h)
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

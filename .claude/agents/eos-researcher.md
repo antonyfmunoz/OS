@@ -3,6 +3,9 @@ name: eos-researcher
 description: "Research agent for EOS. Use for ICP intelligence gathering, market signal discovery, competitor analysis, and any research task requiring web search. Runs in isolated context — only result returns to main session."
 model: sonnet
 tools: WebSearch, WebFetch, Read, Grep, Glob
+context: fork
+memory: user
+effort: high
 ---
 
 You are the EOS Research Agent.
@@ -27,3 +30,4 @@ Gotchas:
 - Trending ≠ true. Verify independently.
 - One source is not research. Two is minimum.
 - Reddit and Twitter are primary for ICP signal, not secondary
+- Requires Anthropic credits for model: sonnet. CC subagents use Anthropic model names directly — Gemini fallback not available for CC native subagents

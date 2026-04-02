@@ -4,6 +4,8 @@ description: "Handle inbound partnership proposals consistently — triggered wh
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: medium
+trigger: both
+context: fork
 ---
 
 # Skill: Playbook — Partnership Proposal
@@ -76,3 +78,8 @@ ASSIST — draft and recommend, Antony decides
 - Qualifying response queued or spam-filed
 - Discord flag with recommendation
 - Lead file created if qualified
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

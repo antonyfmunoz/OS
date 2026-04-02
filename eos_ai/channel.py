@@ -332,20 +332,32 @@ class ChannelRouter:
 
         channels: list[Channel] = []
 
-        # Discord (bot token from services/.env)
-        discord_token = os.getenv('DISCORD_BOT_TOKEN', '')
-        discord_channel = os.getenv(
-            'DISCORD_NOTIFICATION_CHANNEL_ID',
-            os.getenv('DISCORD_CHANNEL_GENERAL', '')
+        # Discord — prefer webhook (no gateway needed), fall back to bot API
+        discord_webhook = os.getenv(
+            'DISCORD_NOTIFICATION_WEBHOOK',
+            os.getenv('DISCORD_BRIEF_WEBHOOK', '')
         )
-        if discord_token and discord_channel:
-            channels.append(DiscordChannel(
+        if discord_webhook:
+            channels.append(WebhookChannel(
                 ChannelConfig(
                     channel_type=ChannelType.DISCORD,
-                    token=discord_token,
-                    channel_id=discord_channel,
+                    webhook_url=discord_webhook,
                 )
             ))
+        else:
+            discord_token = os.getenv('DISCORD_BOT_TOKEN', '')
+            discord_channel = os.getenv(
+                'DISCORD_NOTIFICATION_CHANNEL_ID',
+                os.getenv('DISCORD_CHANNEL_GENERAL', '')
+            )
+            if discord_token and discord_channel:
+                channels.append(DiscordChannel(
+                    ChannelConfig(
+                        channel_type=ChannelType.DISCORD,
+                        token=discord_token,
+                        channel_id=discord_channel,
+                    )
+                ))
 
         # Telegram
         telegram_token = os.getenv('TELEGRAM_BOT_TOKEN', '')
@@ -379,7 +391,7 @@ class ChannelRouter:
         message: str,
         all_channels: bool = False,
     ) -> bool:
-        """Send notification to primary channel."""
+        """Send notification. Cascades through channels on failure."""
         if all_channels:
             results = [
                 ch.send_safe(message)
@@ -387,7 +399,20 @@ class ChannelRouter:
                 if ch.is_available()
             ]
             return any(results)
-        return self._primary.send_safe(message)
+        # Cascade: try each channel until one succeeds
+        for ch in self.channels:
+            if ch.is_available():
+                try:
+                    if ch.send(message):
+                        return True
+                except Exception as e:
+                    logger.error(
+                        f"[ChannelRouter] {ch.__class__.__name__} "
+                        f"failed: {e}"
+                    )
+        # Final fallback
+        print(f"[Channel:console] {message}")
+        return False
 
     def request_approval(
         self,
@@ -396,14 +421,23 @@ class ChannelRouter:
         request_id: str,
         is_safe: bool = False,
     ) -> bool:
-        """Send permission approval request."""
+        """Send permission approval request. Cascades on failure."""
         if is_safe:
             return self.notify(f"Auto-approved: {title}")
-        return self._primary.send_approval_request(
-            title=title,
-            body=body,
-            request_id=request_id,
-        )
+        for ch in self.channels:
+            if ch.is_available():
+                try:
+                    if ch.send_approval_request(
+                        title=title, body=body,
+                        request_id=request_id,
+                    ):
+                        return True
+                except Exception as e:
+                    logger.error(
+                        f"[ChannelRouter] {ch.__class__.__name__} "
+                        f"approval failed: {e}"
+                    )
+        return False
 
     def get_status(self) -> dict:
         """Return status of all channels."""

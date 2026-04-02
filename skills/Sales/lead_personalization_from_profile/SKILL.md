@@ -4,6 +4,8 @@ description: "Extract one specific signal from a single lead's profile to anchor
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: high
+trigger: both
+context: fork
 ---
 
 !`python3 -c "
@@ -54,3 +56,8 @@ The opener reads like it was written specifically for this person, not from a te
 
 ## Measurement
 - Reply rate of personalized vs batch openers for the same ICP segment
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

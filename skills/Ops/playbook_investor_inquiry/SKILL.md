@@ -4,6 +4,8 @@ description: "Handle inbound investor interest with appropriate gravity — trig
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: low
+trigger: both
+context: fork
 ---
 
 # Skill: Playbook — Investor Inquiry
@@ -63,3 +65,8 @@ OBSERVE — surface immediately, take no action without approval
 - Research brief on sender
 - Holding response drafted and queued, not sent
 - High-priority event logged to Neon
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

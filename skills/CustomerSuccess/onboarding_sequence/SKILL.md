@@ -4,6 +4,8 @@ description: "Move a new Initiate Arena client from payment confirmation to thei
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: medium
+trigger: both
+context: fork
 ---
 
 !`python3 -c "
@@ -93,3 +95,8 @@ The critical insight: most churn starts at onboarding. Clients who feel welcomed
 - Track which Day 2 tasks have highest completion rates and make those the standard
 - Feed Day 7 feedback into course content updates — clients reveal real friction
 - Identify the single onboarding moment most correlated with 90-day completion
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

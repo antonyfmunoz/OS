@@ -4,6 +4,8 @@ description: "Handle inbound job applications or hiring inquiries efficiently �
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: low
+trigger: both
+context: fork
 ---
 
 # Skill: Playbook — Job Inquiry
@@ -60,3 +62,8 @@ ASSIST — filter, brief, and recommend
 - Routed appropriately (filed or escalated)
 - Discord flag with sender brief if interesting
 - Holding response queued if relevant
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

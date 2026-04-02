@@ -132,8 +132,9 @@ class SkillRegistry:
 
     def get_skill(self, name: str) -> Skill | None:
         """
-        Fuzzy name matching: tries exact skill_id, then partial substring
-        match on skill_id and skill name, case-insensitive.
+        Fuzzy name matching: tries exact skill_id, then normalized
+        (- and _ equivalent), then partial substring match on
+        skill_id and skill name, case-insensitive.
         Returns the best single match or None.
         """
         query = name.lower().strip()
@@ -142,9 +143,19 @@ class SkillRegistry:
         if query in self._skills:
             return self._skills[query]
 
-        # 2. skill_id starts with query
+        # 2. Normalize: treat - and _ as equivalent
+        normalized = re.sub(r"[-_]+", "_", query)
+        if normalized in self._skills:
+            return self._skills[normalized]
+        # Also try hyphenated form
+        hyphenated = re.sub(r"[-_]+", "-", query)
+        for skill_id in self._skills:
+            if re.sub(r"[-_]+", "-", skill_id) == hyphenated:
+                return self._skills[skill_id]
+
+        # 3. skill_id starts with query or normalized form
         for skill_id, skill in self._skills.items():
-            if skill_id.startswith(query):
+            if skill_id.startswith(query) or skill_id.startswith(normalized):
                 return skill
 
         # 3. query is a substring of skill_id or name

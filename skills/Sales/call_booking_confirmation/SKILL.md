@@ -4,6 +4,8 @@ description: "Send a confirmation and reminder sequence after a call is booked t
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: medium
+trigger: both
+context: fork
 ---
 
 # Skill: Call Booking Confirmation
@@ -40,3 +42,8 @@ Prospect shows up prepared and committed. No-show rate minimized.
 ## Measurement
 - Show rate before and after implementation
 - Reply rate to confirmation messages
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

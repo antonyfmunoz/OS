@@ -440,9 +440,10 @@ class PrincipleEngine:
 
     def get_universal_standards(self) -> str:
         """
-        Return the full universal standards block including root rule,
-        universal principles, and the two execution mechanisms.
-        Used by CLAUDE.md verification and injected into platform prompts.
+        Return the full EOS operating framework:
+        root rule + universal principles + two execution mechanisms
+        (best practices principle + operationalization principle).
+        Injected into platform prompts and used by CLAUDE.md verification.
         """
         lines = [
             "UNIVERSAL STANDARDS",
@@ -495,7 +496,7 @@ class PrincipleEngine:
         if normalized in AGENT_STANDARDS:
             return AGENT_STANDARDS[normalized]
         for key in AGENT_STANDARDS:
-            if key in normalized:
+            if key in normalized or normalized in key:
                 return AGENT_STANDARDS[key]
         return []
 

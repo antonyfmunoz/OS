@@ -4,6 +4,8 @@ description: "Pre-approved voice-matched response templates for DEX. Use when dr
 allowed-tools: "Read"
 version: 1.0
 effort: medium
+trigger: both
+context: fork
 ---
 
 !`python3 -c "
@@ -193,3 +195,8 @@ ASSIST — templates are drafts, not sends. All require approval unless previous
 - DEX signature when DEX handled the thread
 - Antony signature when Antony approves and wants his name on it
 - When in doubt — DEX signature with "On behalf of Antony Munoz"
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

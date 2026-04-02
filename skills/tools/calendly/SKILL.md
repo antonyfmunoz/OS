@@ -6,6 +6,8 @@ version: 1.0
 source_url: "https://developer.calendly.com/api-docs"
 last_researched: "2026-04-01"
 effort: low
+trigger: both
+context: fork
 ---
 
 # Tool: Calendly
@@ -35,3 +37,8 @@ def verify_signature(payload: bytes, signature: str, key: str) -> bool:
 ```
 
 See references/best_practices.md for event schema and retry behavior.
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

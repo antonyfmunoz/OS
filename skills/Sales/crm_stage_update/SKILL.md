@@ -4,6 +4,7 @@ description: "Standardize how every agent updates the pipeline stage in Notion â
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: low
+trigger: both
 ---
 
 # Skill: CRM Stage Update
@@ -37,3 +38,8 @@ Notion pipeline reflects exact real-time stage of every lead and customer.
 ## Measurement
 - CRM data accuracy audit weekly
 - Percentage of records with all required fields complete
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

@@ -6,6 +6,7 @@ effort: high
 trigger: scheduled
 version: "1.0"
 last_updated: "2026-04-02"
+context: fork
 ---
 
 # Check Claude Code Updates

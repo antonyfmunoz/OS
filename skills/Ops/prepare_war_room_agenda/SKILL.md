@@ -4,6 +4,8 @@ description: "Build the weekly War Room meeting agenda by pulling live pipeline 
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: high
+trigger: both
+context: fork
 ---
 
 !`python3 -c "
@@ -90,3 +92,8 @@ An agenda that requires more than 30 minutes to complete or has more than 3 open
 - Track which blocker types recur and build playbooks for the common ones
 - Preload hot leads section automatically from CRM pipeline data
 - Add a one-line KPI dashboard at the top: revenue this week vs. target
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

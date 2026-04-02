@@ -6,6 +6,8 @@ version: 1.0
 source_url: "https://docs.anthropic.com/en/docs/claude-code"
 last_researched: "2026-04-01"
 effort: low
+trigger: both
+context: fork
 ---
 
 # Tool: Claude Code
@@ -38,3 +40,8 @@ The Developer Agent runs inside Claude Code. Claude Code IS the developer agent 
 - skills in .claude/skills/ define repeatable workflows
 
 See references/best_practices.md for skill patterns and session management.
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

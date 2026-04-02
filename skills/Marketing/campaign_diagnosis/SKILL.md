@@ -4,6 +4,8 @@ description: "Identify the single constraint limiting marketing performance — 
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: high
+trigger: both
+context: fork
 ---
 
 !`python3 -c "
@@ -69,3 +71,8 @@ Diagnose in this order:
 - After each 7-day fix cycle, record which constraint was most common that month
 - Identify leading indicators that predict which constraint will emerge next week
 - Track whether content performance variance correlates with signal quality in the queue
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

@@ -4,6 +4,8 @@ description: "Identify the one active business constraint from the four Hormozi 
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: high
+trigger: both
+context: fork
 ---
 
 !`python3 -c "
@@ -84,3 +86,8 @@ More → Better → New logic applied in order:
   on the same constraint)
 - Alert when constraint hasn't shifted after
   4 weeks — signals a deeper structural problem
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

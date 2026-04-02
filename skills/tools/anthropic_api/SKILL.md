@@ -6,6 +6,8 @@ version: 1.0
 source_url: "https://docs.anthropic.com/en/api/getting-started"
 last_researched: "2026-04-01"
 effort: low
+trigger: both
+context: fork
 ---
 
 # Tool: Anthropic API
@@ -42,3 +44,8 @@ print(message.content[0].text)
 ```
 
 See references/best_practices.md for tool use, rate limits, and cost management.
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

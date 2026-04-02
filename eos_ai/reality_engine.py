@@ -28,7 +28,6 @@ import os
 import sys
 from pathlib import Path
 
-import requests
 from dotenv import load_dotenv
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -46,8 +45,6 @@ from eos_ai.venture_knowledge import VentureKnowledgeBase
 from eos_ai.strategy_engine import StrategyEngine, _parse_labeled_sections
 from eos_ai.memory import AgentMemory
 
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID")
 
 SIGNAL_TIERS = ("CRITICAL", "HIGH", "NORMAL", "BACKGROUND")
 
@@ -67,18 +64,15 @@ _HIGH_KEYWORDS = [
 ]
 
 
-def _send_telegram(text: str) -> None:
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        print("[RealityEngine] Telegram not configured — skipping alert.")
-        return
+def _notify(text: str) -> None:
+    """Send notification via channel router."""
     try:
-        requests.post(
-            f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
-            json={"chat_id": TELEGRAM_CHAT_ID, "text": text},
-            timeout=10,
-        )
+        from eos_ai.channel import get_channel_router
+
+        router = get_channel_router()
+        router.notify(text)
     except Exception as e:
-        print(f"[RealityEngine] Telegram send failed: {e}")
+        print(f"[RealityEngine] Notify failed: {e}")
 
 
 class RealityIntelligenceEngine:
@@ -333,10 +327,10 @@ class RealityIntelligenceEngine:
 
                 # BACKGROUND: signal is captured in scan record — nothing more
 
-            # Immediate Telegram alert for CRITICAL signals
+            # Immediate alert for CRITICAL signals
             if critical_alerts:
                 alert_lines = "\n".join(f"• {a}" for a in critical_alerts)
-                _send_telegram(
+                _notify(
                     f"REALITY ENGINE — CRITICAL\n"
                     f"Venture: {vid}\n\n"
                     f"{alert_lines}"

@@ -401,28 +401,31 @@ class ProactiveIntelligenceEngine:
 
     def scan_and_deliver(
         self,
-        send_telegram_fn=None,
+        send_fn=None,
         min_urgency: int = 3,
+        # Backwards compat — callers using keyword arg
+        send_telegram_fn=None,
     ) -> int:
         """
         Scan for signals and deliver those above min_urgency.
-        send_telegram_fn: callable(str) — synchronous send function.
+        send_fn: callable(str) — synchronous send function.
         Returns count of signals delivered.
         """
-        signals   = self.scan()
+        _send = send_fn or send_telegram_fn
+        signals = self.scan()
         delivered = 0
 
         for signal in signals:
             if signal.urgency < min_urgency:
                 continue
 
-            if send_telegram_fn:
+            if _send:
                 try:
                     msg = self.format_signal_for_telegram(signal)
-                    send_telegram_fn(msg)
+                    _send(msg)
                     signal.delivered = True
                     delivered += 1
                 except Exception as e:
-                    print(f'[Proactive] Telegram deliver failed: {e}')
+                    print(f'[Proactive] Signal deliver failed: {e}')
 
         return delivered

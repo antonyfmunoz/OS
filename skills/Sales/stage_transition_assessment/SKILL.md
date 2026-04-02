@@ -4,6 +4,8 @@ description: "Evaluate whether the current stage proof gate has been genuinely m
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: high
+trigger: both
+context: fork
 ---
 
 !`python3 -c "
@@ -86,3 +88,8 @@ Stage 5 → 6: $10K/month sustained 3 months
 - Track channel consistency across all closes
 - Flag if ICP shifted between sales (may
   signal accidental market pivot)
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

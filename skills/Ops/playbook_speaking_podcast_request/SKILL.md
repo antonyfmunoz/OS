@@ -4,6 +4,8 @@ description: "Handle inbound speaking or podcast requests by qualifying the oppo
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: medium
+trigger: both
+context: fork
 ---
 
 # Skill: Playbook — Speaking or Podcast Request
@@ -90,3 +92,8 @@ ASSIST — qualify, draft, and recommend. Antony decides on qualified opportunit
 - Qualification assessment (qualified/not qualified + rationale)
 - Discord flag with research brief if qualified
 - Holding response or decline queued for approval
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

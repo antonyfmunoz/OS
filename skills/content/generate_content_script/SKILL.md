@@ -4,6 +4,8 @@ description: "Turn a content angle into a complete filming brief and caption. Us
 allowed-tools: "Read"
 version: 1.0
 effort: medium
+trigger: both
+context: fork
 ---
 
 !`python3 -c "
@@ -62,3 +64,8 @@ Complete package: hook (exact words), filming brief (sequence), caption (ready t
 - Filming time from brief (target: under 1 hour)
 - Hook performance in first 3 seconds
 - CTA conversion rate (DMs received)
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

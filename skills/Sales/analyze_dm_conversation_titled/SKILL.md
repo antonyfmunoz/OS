@@ -4,6 +4,8 @@ description: "Read a DM conversation thread and extract the current stage, emoti
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: medium
+trigger: both
+context: fork
 ---
 
 !`python3 -c "
@@ -93,3 +95,8 @@ Analysis must be grounded in exact quotes from the conversation, not assumptions
 - Build a pattern library of high-converting conversation transitions
 - Track which types of pain statements most reliably advance to booked calls
 - Add time-since-last-message as a weighting factor for urgency of response
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

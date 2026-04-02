@@ -14,5 +14,5 @@ globs: ["eos_ai/**", "services/**", "scripts/**", "orchestrator/**"]
 - After editing: python3 -m py_compile $file
 - Run ruff format after every Python file edit
 - Never hardcode API keys — always os.getenv()
-- All new modules: add to eos_ai/__init__.py
-  if they expose a public interface
+- eos_ai uses implicit namespace packages (no __init__.py).
+  Import directly: from eos_ai.module import Class

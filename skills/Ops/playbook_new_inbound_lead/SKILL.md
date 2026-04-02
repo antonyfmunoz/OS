@@ -4,6 +4,8 @@ description: "Handle every new inbound lead from any channel with a consistent, 
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: medium
+trigger: both
+context: fork
 ---
 
 # Skill: Playbook — New Inbound Lead
@@ -102,3 +104,8 @@ ASSIST — draft and queue, never send without approval
 - Follow-up task created (48h)
 - Notion pipeline updated — stage: New Lead
 - Interaction logged to Neon
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

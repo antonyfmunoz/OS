@@ -6,6 +6,8 @@ version: 1.0
 source_url: "https://developers.facebook.com/docs/instagram-api/"
 last_researched: "2026-04-01"
 effort: low
+trigger: both
+context: fork
 ---
 
 # Tool: Instagram
@@ -34,3 +36,8 @@ EOS currently uses Playwright path for DM monitoring (bot detection constraints 
 - Proxy (Apify RESIDENTIAL group) returns 403 when credits depleted
 
 See references/best_practices.md for session management and detection avoidance.
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

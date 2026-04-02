@@ -6,6 +6,8 @@ version: 1.0
 source_url: "https://developers.google.com/gmail/api/guides"
 last_researched: "2026-04-01"
 effort: low
+trigger: both
+context: fork
 ---
 
 # Tool: Gmail
@@ -42,3 +44,8 @@ service.users().drafts().send(userId='me', body={'id': draft_id}).execute()
 ```
 
 See references/best_practices.md for quotas and pagination.
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

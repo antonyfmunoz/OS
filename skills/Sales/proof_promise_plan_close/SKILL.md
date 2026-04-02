@@ -5,6 +5,7 @@ allowed-tools: "Read"
 trigger: conversational
 version: 1.0
 effort: medium
+context: fork
 ---
 
 !`python3 -c "

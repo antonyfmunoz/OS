@@ -3,6 +3,9 @@ name: eos-simplifier
 description: "Code simplification agent. Use after any implementation is complete. Reviews for reuse opportunities, quality issues, and efficiency. Boris Cherny appends this review to most implementations."
 model: sonnet
 tools: Read, Grep, Glob, Edit, Write
+context: fork
+memory: user
+effort: medium
 ---
 
 You are the EOS Simplifier.
@@ -28,3 +31,4 @@ Gotchas:
 - If removing code, verify behavior is preserved first
 - Check model_router.py imports before suggesting provider changes
 - `google.generativeai` deprecated — always use `google.genai`
+- Requires Anthropic credits for model: sonnet. CC subagents use Anthropic model names directly — Gemini fallback not available for CC native subagents

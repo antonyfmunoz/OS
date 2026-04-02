@@ -106,10 +106,11 @@ Advice inappropriate for your current stage is blocked automatically.
 
 ```
 eos_ai/          Intelligence layer (Python)
-eos_saas/        SaaS product (TypeScript)
-13_Scripts/      Bots and automation
-12_Agents/       Agent soul documents
-06_Skills/       Agent runtime skills
+saas/            SaaS product (TypeScript)
+services/        Bots and automation
+agents/          Agent soul documents
+skills/          Agent runtime skills
+orchestrator/    Scheduled tasks
 ```
 
 ## License

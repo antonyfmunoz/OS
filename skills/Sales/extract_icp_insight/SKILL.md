@@ -79,3 +79,8 @@ One sharp specific insight beats five vague ones. If the insight could apply to 
 - Cross-reference new insights against existing ones to detect emerging patterns
 - Build frequency tracking: tag each insight with recurrence count as more signals are processed
 - Promote high-frequency insights to `detect_icp_patterns` for pattern-level reporting
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

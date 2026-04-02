@@ -4,6 +4,7 @@ description: "Execute the full deal-closed workflow — celebrate, onboard, docu
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: medium
+trigger: both
 ---
 
 # Skill: Playbook — Deal Closed
@@ -87,3 +88,8 @@ EXECUTE with oversight — post to #wins immediately, queue everything else for 
 - Welcome email queued for approval
 - Onboarding tasks created in Notion
 - Revenue event logged to Neon
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.

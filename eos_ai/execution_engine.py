@@ -33,21 +33,15 @@ from eos_ai.db import get_conn
 
 # ─── Telegram alert helper ────────────────────────────────────────────────────
 
-def _send_telegram(text: str) -> None:
-    """Send a Telegram alert without importing the full control script."""
-    import requests
-    token   = os.getenv("TELEGRAM_BOT_TOKEN")
-    chat_id = os.getenv("TELEGRAM_CHAT_ID")
-    if not token or not chat_id:
-        return
+def _notify(text: str) -> None:
+    """Send notification via channel router."""
     try:
-        requests.post(
-            f"https://api.telegram.org/bot{token}/sendMessage",
-            json={"chat_id": chat_id, "text": text},
-            timeout=8,
-        )
-    except Exception:
-        pass
+        from eos_ai.channel import get_channel_router
+
+        router = get_channel_router()
+        router.notify(text)
+    except Exception as e:
+        print(f"[ExecutionEngine] Notify failed: {e}")
 
 
 # ─── ExecutionEngine ──────────────────────────────────────────────────────────
@@ -146,7 +140,7 @@ class ExecutionEngine:
             self._log_event(task_id, "blocked", {"reason": reason})
 
             if assignee_type == "human":
-                _send_telegram(
+                _notify(
                     f"⚠️ TASK BLOCKED\n\n"
                     f"Task: {description[:100] if row else task_id[:8]}\n"
                     f"Reason: {reason}\n"

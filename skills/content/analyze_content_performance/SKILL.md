@@ -4,6 +4,8 @@ description: "Determine what worked, what didn't, and what one thing changes nex
 allowed-tools: "Read"
 version: 1.0
 effort: high
+trigger: both
+context: fork
 ---
 
 !`python3 -c "
@@ -56,3 +58,8 @@ One clear directive: what to do more of, what to retire, what single variable to
 ## Measurement
 - Direction improves performance next batch
 - Content DM rate week-over-week
+
+
+## Gotchas
+- Add failures here as they occur.
+- This section compounds over time.
