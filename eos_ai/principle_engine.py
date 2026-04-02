@@ -436,6 +436,52 @@ class PrincipleEngine:
         """Return all available principle domains."""
         return list(REALITY_PRINCIPLES.keys())
 
+    # ─── get_universal_standards ────────────────────────────────────────────
+
+    def get_universal_standards(self) -> str:
+        """
+        Return the full universal standards block including root rule,
+        universal principles, and the two execution mechanisms.
+        Used by CLAUDE.md verification and injected into platform prompts.
+        """
+        lines = [
+            "UNIVERSAL STANDARDS",
+            "",
+            f"ROOT RULE: {ROOT_RULE}",
+            "",
+            "UNIVERSAL PRINCIPLES:",
+        ]
+        for i, p in enumerate(REALITY_PRINCIPLES["universal"], 1):
+            lines.append(f"  {i}. {p}")
+
+        lines.append("")
+        lines.append("EXECUTION MECHANISMS FOR WORLD-CLASS STANDARD:")
+        lines.append("")
+        lines.append(
+            "BEST PRACTICES PRINCIPLE: "
+            "Before building anything — research the authoritative source. "
+            "Document it. Templatize it. Instantiate from template. "
+            "Improve from real outcomes. "
+            "EOS never starts from scratch. EOS never builds from assumptions. "
+            "Skill: /best-practices-principle"
+        )
+        lines.append("")
+        lines.append(
+            "OPERATIONALIZATION PRINCIPLE: "
+            "After anything works — document it. "
+            "Turn it into a skill, command, template, or rule. "
+            "Never rebuild from scratch. Always improvable from real outcomes. "
+            "EOS compounds with every execution. "
+            "Skill: /operationalization-principle"
+        )
+        lines.append("")
+        lines.append(
+            "These two principles are the engine that keeps EOS "
+            "at world-class standard permanently."
+        )
+
+        return "\n".join(lines)
+
     # ─── get_agent_standards ─────────────────────────────────────────────────
 
     def get_agent_standards(self, agent_id: str) -> list[str]:
