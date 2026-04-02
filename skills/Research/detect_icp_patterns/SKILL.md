@@ -2,6 +2,7 @@
 name: detect-icp-patterns
 description: "Analyze all ICP insights to identify recurring patterns in the audience's psychology, language, and frustrations — run when 5+ new insights have been added or weekly as part of the intelligence cycle."
 allowed-tools: "Read, Bash"
+trigger: scheduled
 version: 1.0
 ---
 
@@ -71,3 +72,14 @@ Pattern frequency is signal strength. A pattern reported without frequency data 
 - Build a pattern trend tracker — which patterns are growing in frequency vs. declining
 - Add timestamp tracking to insights so recency weighting can be applied
 - Cross-reference patterns with successful outreach to validate predictive accuracy
+
+---
+
+## Gotchas
+
+- Running this skill on fewer than 5 insights produces noise. Wait for the threshold — patterns detected from 3 signals are opinions, not intelligence.
+- Merging distinct frustrations to hit the frequency threshold is a data corruption error. "Can't focus" and "no discipline" are related but not the same. Keep them separate.
+- The pattern report should not contain interpretation — it should contain patterns with frequency counts. The Intelligence Agent interprets. This skill surfaces.
+- Patterns older than 90 days without corroboration from recent signals should be flagged as potentially stale. Market language shifts.
+- The language patterns section must use exact quoted phrases. If you're generating plausible ICP language from memory, stop. Every pattern must be traced to a saved insight file.
+- This skill should run on all ICP files in 07_Knowledge/ICP — not a subset. Running on a subset introduces selection bias that compounds across future cycles.

@@ -2,6 +2,7 @@
 name: weekly-ceo-report
 description: "Generate the CEO's weekly report to the Portfolio Agent — run every Sunday evening or on demand when Portfolio Agent requests."
 allowed-tools: "Read, Bash"
+trigger: scheduled
 version: 1.0
 ---
 
@@ -85,3 +86,13 @@ resource allocation — it needs the truth.
   more than 3 weeks
 - Surface the one highest-leverage action
   for the founder specifically (not agents)
+
+---
+
+## Gotchas
+
+- Reporting activity (DMs sent, calls booked) without outcome data (reply rate, close rate) is an activity log, not a CEO report. Outcomes only.
+- If the constraint hasn't changed from last week and you're not explaining why, that's a failure. The constraint either moved or it didn't. If it didn't, name why.
+- "What changes" must be a single variable. If you list two things, you've lost the experimental integrity. Pick the one most likely to move the constraint.
+- Reporting the same "what changes" for a second week means execution failed last week. Name that first before stating this week's change.
+- This report lands with the Portfolio Advisor to inform capital and attention allocation. Softening bad news here is a direct cost to the portfolio — the data that comes in determines the direction that goes out.

@@ -2,6 +2,7 @@
 name: call-to-close
 description: "Guide a sales conversation from the discovery phase through to a closed sale for Initiate Arena at $750 — run on every qualified sales call."
 allowed-tools: "Read, Bash"
+trigger: conversational
 version: 1.0
 ---
 
@@ -72,3 +73,16 @@ Alex Hormozi $100M Offers close framework:
 ## Improvement Opportunities
 
 Record close rate by opener type. Track which discovery questions predict closes.
+
+---
+
+## Gotchas
+
+- The most common failure: presenting before the prospect has fully articulated their own pain. If they can't say the problem in their own words, the solution won't land.
+- Never skip the cost-of-inaction step. Without it, $750 feels like a cost. With it, $750 feels like relief.
+- Silence after "Are you ready to start?" is the close working. The first person to speak loses this moment. Hold it.
+- Don't handle more than one objection per call. If they raise a second after the first is answered, the problem is the diagnosis, not the objections.
+- Price should be revealed after the value frame is set, never before. Sequence: pain → cost of staying stuck → solution → price.
+- "Are you ready to start?" is the ask. Not "Does that sound good?" Not "What do you think?" The specific language matters.
+- If a call goes over 45 minutes without a decision, something went wrong in the diagnosis phase. Length is not persuasion.
+- Never book a follow-up call without a specific decision point attached to it — "Let's talk again" without "and at that point you'll decide yes or no" is not a next step, it's a delay.

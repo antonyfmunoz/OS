@@ -2,6 +2,7 @@
 name: analyze-icp-signal
 description: "Extract meaningful customer intelligence from raw signals such as comments, forum posts, or conversations — run on any raw signal from Reddit, Instagram, YouTube, or DM conversations."
 allowed-tools: "Read, Bash"
+trigger: both
 version: 1.0
 ---
 
@@ -84,3 +85,14 @@ Exact language from real people always beats AI-generated paraphrases. If you re
 - Build a psychological state taxonomy with distinguishing markers for each state
 - Track which signal sources produce the highest-quality insights
 - Add recency weighting — recent signals should carry more weight in pattern detection
+
+---
+
+## Gotchas
+
+- The most common error: paraphrasing what someone said because you "got the gist." The actual language is the intelligence. Paraphrase = intelligence destroyed.
+- "Ambitious but Stuck" and "Frustrated Drifter" look similar on the surface. The distinction: Ambitious but Stuck has tried things and failed. Frustrated Drifter hasn't started. The outreach angle is different for each.
+- Ego Defenders are high risk. They express pain but blame everything external. Low ICP match regardless of pain level because they won't take ownership.
+- Reddit signals skew older than Instagram. A Reddit pattern may not reflect current Instagram ICP behavior. Note the source and don't conflate platforms.
+- A signal with no ownership language is not a match even if the pain language is perfect. The offer requires self-awareness as a prerequisite.
+- Don't save LOW ICP signals to 07_Knowledge/ICP. The intelligence folder should only contain actionable patterns. Low-quality signal stored = diluted pattern analysis later.

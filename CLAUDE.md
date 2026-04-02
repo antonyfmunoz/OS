@@ -149,3 +149,41 @@ Workflow:
 @.claude/skills/new-skill.md
 @.claude/skills/new-primitive.md
 @.claude/skills/debug-agent.md
+
+## Intelligence Routing
+- All agent calls route through eos_ai/model_router.py
+- call_with_fallback() is the single module-level entry point
+- CEO/strategic agents always use best available (pass agent_type='ceo' or force_opus=True)
+- Current routing chain: Gemini 2.5 Flash → Ollama (Anthropic credits depleted)
+- When credits restored: Anthropic (CC_MODEL_MAP) → Gemini → Ollama
+- agent_runtime.py has its own fallback via _claude_available flag — do not break
+- MCP_CONNECTION_NONBLOCKING=true always
+
+## Boris Cherny Principles (Applied to EOS)
+- MOST IMPORTANT: give Claude a way to verify its output. Every agent task needs a verification step before marking complete.
+- Plan first: read everything, plan completely, then execute. Never write code against summaries.
+- After any mistake: add a rule to this file immediately.
+- Use best available model for strategic tasks — don't downgrade for speed.
+- /btw for side questions without polluting context.
+
+## Verification Rules
+- Every skill MUST have a Gotchas section
+- Developer Agent: run eos-code-reviewer and eos-verifier subagents after every change
+- Never mark a task complete without verification
+
+## Self-Improvement Loop
+- Any agent mistake → add rule to this file
+- Format: "After [trigger]: always [correct behavior]"
+- Format: "Never [the mistake]"
+- These rules compound. Don't skip them.
+
+## Current Known Gotchas (2026-04-02)
+- Anthropic credits depleted → claude -p and Anthropic SDK both return 400 credit error
+- google.generativeai (old SDK) deprecated → always use google.genai (new SDK)
+- gemini-2.0-flash deprecated for new users → use gemini-2.5-flash
+- Codex exec requires stdin pipe and has reconnect issues → not in fallback chain
+- Business stage pre_revenue → economy mode → forces Haiku. Override: pass agent_type='ceo' to call_with_fallback
+- No GROQ or PERPLEXITY keys in .env — not in fallback chain
+- gemini binary not installed — Gemini via Python SDK only
+- .claude/agents/ subagents require CC auth to run (blocked until Anthropic credits restored)
+- CC_MODEL_MAP exists in model_router.py — used when Anthropic comes back online

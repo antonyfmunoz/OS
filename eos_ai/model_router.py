@@ -21,9 +21,38 @@ Usage:
 """
 
 import os
+import time
+import logging
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 
+# Load .env so GEMINI_API_KEY is available when model_router is used standalone
+# (agent_runtime does this too — safe to call twice, dotenv is idempotent)
+try:
+    from dotenv import load_dotenv as _load_dotenv
+    _load_dotenv(Path(__file__).parent / '.env')
+except Exception:
+    pass
+
+logger = logging.getLogger(__name__)
+
+
+# ─── RoutingResult ────────────────────────────────────────────────────────────
+
+@dataclass
+class RoutingResult:
+    """Return type for module-level call_with_fallback()."""
+    output: str
+    provider: str
+    model: str
+    task_type: str
+    tokens_used: int = 0
+    cost_usd: float = 0.0
+    latency_ms: int = 0
+
+
+# ─── Providers ────────────────────────────────────────────────────────────────
 
 class ModelProvider(Enum):
     ANTHROPIC  = 'anthropic'
@@ -39,6 +68,7 @@ class ModelProvider(Enum):
 
 
 class TaskType(Enum):
+    # Original types
     CONVERSATION    = 'conversation'
     ANALYSIS        = 'analysis'
     WEB_SEARCH      = 'web_search'
@@ -48,6 +78,46 @@ class TaskType(Enum):
     AUTONOMOUS      = 'autonomous'
     MULTIMODAL      = 'multimodal'
     BROWSER_CONTROL = 'browser_control'
+    # Agent execution types (aligned with agent_runtime.TaskType)
+    SCORE           = 'score'
+    CLASSIFY        = 'classify'
+    ANALYZE         = 'analyze'
+    GENERATE        = 'generate'
+    SUMMARIZE       = 'summarize'
+    # Strategic / CEO types
+    STRATEGIC       = 'strategic'
+    CODE            = 'code'
+    RESEARCH        = 'research'
+    SELF_IMPROVE    = 'self_improve'
+    PLAN            = 'plan'
+    COORDINATE      = 'coordinate'
+
+
+# ─── CC model map ─────────────────────────────────────────────────────────────
+# Maps task type → best Claude model when Anthropic credits are available.
+# Boris Cherny: use Opus with thinking for strategic tasks.
+# Less steering + better tool use = faster overall.
+
+CC_MODEL_MAP: dict[str, str] = {
+    TaskType.STRATEGIC.value:    'claude-opus-4-6',
+    TaskType.CODE.value:         'claude-opus-4-6',
+    TaskType.SELF_IMPROVE.value: 'claude-opus-4-6',
+    TaskType.PLAN.value:         'claude-opus-4-6',
+    TaskType.ANALYZE.value:      'claude-sonnet-4-6',
+    TaskType.ANALYSIS.value:     'claude-sonnet-4-6',
+    TaskType.GENERATE.value:     'claude-sonnet-4-6',
+    TaskType.RESEARCH.value:     'claude-sonnet-4-6',
+    TaskType.COORDINATE.value:   'claude-sonnet-4-6',
+    TaskType.LONG_CONTEXT.value: 'claude-sonnet-4-6',
+    TaskType.CONVERSATION.value: 'claude-sonnet-4-6',
+    TaskType.SCORE.value:        'claude-haiku-4-5-20251001',
+    TaskType.CLASSIFY.value:     'claude-haiku-4-5-20251001',
+    TaskType.SUMMARIZE.value:    'claude-haiku-4-5-20251001',
+    TaskType.FAST_RESPONSE.value: 'claude-haiku-4-5-20251001',
+    TaskType.MARKET_INTEL.value: 'claude-sonnet-4-6',
+    TaskType.WEB_SEARCH.value:   'claude-sonnet-4-6',
+    TaskType.AUTONOMOUS.value:   'claude-opus-4-6',
+}
 
 
 @dataclass
@@ -420,3 +490,136 @@ def get_router(ctx=None) -> ModelRouter:
     if _router is None:
         _router = ModelRouter(ctx)
     return _router
+
+
+# ─── Module-level API ─────────────────────────────────────────────────────────
+# call_with_fallback() is the single entry point for all EOS agent calls.
+# Returns RoutingResult with provider, model, latency, and output.
+#
+# CEO/strategic agents pass agent_type='ceo' or force_opus=True to ensure
+# they always use the best available model regardless of economy mode.
+
+_CEO_AGENT_TYPES = frozenset({
+    'ceo', 'lyfe_institute_ceo', 'empyrean_ceo',
+    'personal_brand_ceo', 'portfolio_advisor',
+})
+
+
+def call_with_fallback(
+    prompt: str,
+    system: str | None = None,
+    task_type: 'TaskType | str' = 'fast_response',
+    trigger_source: str = 'conversational',
+    agent_type: str | None = None,
+    force_opus: bool = False,
+) -> RoutingResult:
+    """
+    Main routing entry point for all EOS agent calls.
+
+    Quality-ranked fallback chain (current — Anthropic credits depleted):
+    1. Gemini 2.5 Flash  (gemini-pro in registry)
+    2. Ollama qwen2.5:3b (local, always available)
+
+    When Anthropic credits are restored, priority becomes:
+    1. Anthropic (model per CC_MODEL_MAP)
+    2. Gemini 2.5 Flash
+    3. Ollama
+
+    CEO/strategic agents always use best available model.
+    """
+    if isinstance(task_type, TaskType):
+        task_type_str = task_type.value
+    else:
+        task_type_str = task_type
+
+    # CEO/strategic agents override economy mode
+    if agent_type in _CEO_AGENT_TYPES or force_opus:
+        task_type_str = TaskType.STRATEGIC.value
+
+    logger.info(
+        '[Router] task=%s agent=%s trigger=%s',
+        task_type_str, agent_type, trigger_source,
+    )
+
+    router = get_router()
+    # Re-check availability on each call (handles credit restoration)
+    router._check_availability()
+
+    # Map extended task types to router's strength categories
+    _TASK_MAP: dict[str, str] = {
+        'strategic':    'analysis',
+        'code':         'analysis',
+        'research':     'web_search',
+        'self_improve': 'analysis',
+        'plan':         'analysis',
+        'coordinate':   'conversation',
+        'score':        'fast_response',
+        'classify':     'fast_response',
+        'analyze':      'analysis',
+        'generate':     'conversation',
+        'summarize':    'fast_response',
+    }
+    router_task_str = _TASK_MAP.get(task_type_str, task_type_str)
+    try:
+        router_task = TaskType(router_task_str)
+    except ValueError:
+        router_task = TaskType.FAST_RESPONSE
+
+    # Build ordered candidate list
+    candidates = [
+        c for c in MODEL_REGISTRY.values()
+        if router_task in c.strengths and c.available
+    ]
+    if not candidates:
+        candidates = [c for c in MODEL_REGISTRY.values() if c.available]
+    candidates.sort(key=lambda x: PROVIDER_PRIORITY.get(x.provider, 99))
+
+    start = time.time()
+
+    for config in candidates:
+        if not config.available:
+            continue
+        output = router.call(config, prompt, system or '', 2000)
+        if output:
+            latency_ms = int((time.time() - start) * 1000)
+            logger.info(
+                '[Router] %s/%s responded (%dms)',
+                config.provider.value, config.model_id, latency_ms,
+            )
+            return RoutingResult(
+                output=output,
+                provider=config.provider.value,
+                model=config.model_id,
+                task_type=task_type_str,
+                latency_ms=latency_ms,
+            )
+
+    latency_ms = int((time.time() - start) * 1000)
+    logger.error('[Router] ALL PROVIDERS FAILED')
+    return RoutingResult(
+        output=(
+            '[EOS] All intelligence providers unavailable. '
+            'Check API keys and network connectivity.'
+        ),
+        provider='none',
+        model='none',
+        task_type=task_type_str,
+        latency_ms=latency_ms,
+    )
+
+
+def adversarial_code_review(
+    code_or_plan: str,
+    context: str | None = None,
+) -> str:
+    """
+    Adversarial review stub.
+
+    Full pattern (when Codex is available):
+      CC writes → Codex reviews adversarially → CC synthesizes
+
+    Currently: Codex subprocess is unstable. Returns input unchanged.
+    Restore when Codex exec is stable or Anthropic credits available.
+    """
+    logger.info('[Router] adversarial_code_review: Codex unavailable, returning input')
+    return code_or_plan

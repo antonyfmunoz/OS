@@ -2,6 +2,7 @@
 name: generate-market-report
 description: "Synthesize all ICP insights and detected patterns into a clear strategic report — run when 5+ new insights have been added since the last report, or on weekly cadence."
 allowed-tools: "Read, Bash"
+trigger: scheduled
 version: 1.0
 ---
 
@@ -71,3 +72,13 @@ A market report that can't be immediately acted on — that doesn't produce at l
 - Add a diff section: what changed from last report? (new patterns, disappeared patterns)
 - Track which report sections are most frequently acted on — double down on those
 - Build a report confidence score based on sample size of underlying insights
+
+---
+
+## Gotchas
+
+- Running this without `detect_icp_patterns` first means you're re-doing pattern analysis inside this skill. Run that skill first, then synthesize here.
+- The "Language to Mirror" section must use exact quotes. The moment you clean up their language to sound better, you've destroyed the intelligence. ICP copywriting uses their actual words, not professional paraphrases.
+- A report older than 14 days should not drive current outreach. Flag when the last report is getting stale so the cycle triggers.
+- "Offer Insights" must be grounded in what the data says the ICP wants — not what you think the offer should be. If the data doesn't support a specific offer insight, leave it blank rather than speculate.
+- This report should be read by: the CEO Agent (strategic decisions), the Content Agent (content angles), and the Outreach Agent (outreach angles). Different sections serve different agents — don't let this become a document that gets generated and not read.

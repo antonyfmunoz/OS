@@ -2,6 +2,7 @@
 name: summarize-sales-call
 description: "Convert a sales call transcript or notes into a structured CRM summary that informs next steps — run immediately after every sales call."
 allowed-tools: "Read, Bash"
+trigger: conversational
 version: 1.0
 ---
 
@@ -78,3 +79,14 @@ The pain field must use their exact words. Their language, not your interpretati
 - Build an objection library from recurring patterns across summaries
 - Track which objections are most commonly overcome vs. most commonly terminal
 - Use pain field data to refine ICP targeting and content strategy
+
+---
+
+## Gotchas
+
+- "Maybe" and "Let me think about it" are NOT `booked`. They are `follow-up needed`. Over-classifying inflates the pipeline and creates false confidence.
+- If the call was under 15 minutes, something went wrong in the structure. Flag this in the summary — short calls almost always mean diagnosis was skipped.
+- Objections that came up softly ("I mean, money's kind of tight right now") are still objections. Soft framing doesn't reduce their significance.
+- The next_action field is not optional. A summary without a next action is a log, not an intelligence asset. Every call ends with a clear owner and clear next step.
+- Run this skill within 30 minutes of ending the call. The longer you wait, the more the summary will reflect your interpretation of the call rather than what actually happened.
+- When in doubt about the outcome classification: if they didn't give an explicit yes to a specific next step, they are `follow-up needed`, not `booked`.

@@ -2,6 +2,7 @@
 name: qualify-lead
 description: "Evaluate a prospect against the Initiate Arena ICP to determine if they are worth pursuing for a sales conversation — run on every new lead signal before outreach is drafted."
 allowed-tools: "Read, Bash"
+trigger: both
 version: 1.0
 ---
 
@@ -74,3 +75,14 @@ Do not mark HIGH without explicit ownership language. Ever.
 - Build a calibration log of edge cases — leads that were borderline and what happened
 - Refine ownership language dictionary as new ICP phrases are collected
 - Add Instagram engagement pattern scoring to catch bots earlier
+
+---
+
+## Gotchas
+
+- The most common error: marking HIGH because the account looks promising aesthetically. Follower count, good photos, and inspirational captions are not qualification criteria.
+- Absence of external blame is not the same as presence of ownership language. "I want to improve" is not ownership language. "I keep quitting on myself" is.
+- Engagement farming accounts have high activity but zero ownership signal. Look for comments that are self-referential, not accounts that comment frequently on other people's content.
+- MEDIUM does not mean pursue immediately. MEDIUM means build a small watch list — see if another signal arrives before sending outreach.
+- If you're reading a signal and interpreting their words as ownership language rather than quoting the actual words — that's a red flag. Quote directly or don't qualify at that level.
+- A private account with no visible signal is LOW by default — not DISQUALIFIED. Reach decision is different from disqualify decision.

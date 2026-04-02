@@ -2,6 +2,7 @@
 name: analyze-dm-conversation
 description: "Read a DM conversation thread, determine the current stage and emotional state, and generate a recommended next message to advance toward booking a call — run on any active DM conversation."
 allowed-tools: "Read, Bash"
+trigger: conversational
 version: 1.0
 ---
 
@@ -93,3 +94,14 @@ Analysis must be grounded in exact quotes from the conversation, not assumptions
 - Track which question types and pain statements accelerate stage advancement most reliably
 - Identify patterns in conversations that stall after each specific stage
 - Add time-since-last-message as a weighting factor for urgency of response
+
+---
+
+## Gotchas
+
+- Stage misclassification is the most common error. If you're unsure between two stages, classify lower and advance from there. The cost of moving too slow is a few extra messages. The cost of moving too fast (offer introduction before pain is confirmed) is losing the prospect.
+- Buying signals (asking about cost, timeline, what's included) should NOT automatically trigger an offer introduction. They should trigger a qualifying question first. Curiosity about the program is not the same as fit confirmed.
+- "Stalled" is not the same as "lost." A conversation that went quiet for 4+ days needs a pattern interrupt — a new angle, not a repeat of the last message.
+- The recommended next message must be draftable, not directional. "Ask about their situation" is not a recommended message. The draft itself should be included.
+- Resistance signals and skepticism are valuable — they surface what needs to be addressed. Don't skip past them. Resistance addressed directly converts better than resistance ignored.
+- If a conversation is in the Call Invitation stage and the prospect hasn't booked after two invitations, this is a signal the invitation is wrong, not that they need more nurture. Analyze the invitation language.

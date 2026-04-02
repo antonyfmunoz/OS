@@ -1,28 +1,118 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "autoMemoryEnabled": true,
+  "autoDreamEnabled": true,
+  "showThinkingSummaries": false,
+  "alwaysThinkingEnabled": false,
+  "model": "opus",
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
+    "OTEL_METRICS_EXPORTER": "console",
+    "OTEL_LOGS_EXPORTER": "console",
+    "MCP_CONNECTION_NONBLOCKING": "true",
+    "ANTHROPIC_MODEL": "claude-opus-4-6"
+  },
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Bash(python3 *)",
+      "Bash(git *)",
+      "Bash(grep *)",
+      "Bash(find *)",
+      "Bash(cat *)",
+      "Bash(ls *)",
+      "Bash(docker *)",
+      "Bash(crontab *)",
+      "Read(/opt/OS/**)",
+      "Write(/opt/OS/**)",
+      "Edit(/opt/OS/**)"
+    ],
+    "deny": [
+      "Bash(rm -rf /)",
+      "Bash(dd *)",
+      "Read(/opt/OS/eos_ai/.env)"
+    ]
+  },
   "hooks": {
     "PostToolUse": [
       {
         "matcher": "Edit|Write|Create",
-        "hooks": [{
-          "type": "command",
-          "command": "python3 -c \"import sys; sys.path.insert(0, '/opt/OS'); import eos_ai\" 2>&1 | grep -E 'Error|error' | head -3 || echo '[Hook] imports: clean'"
-        }]
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import eos_ai\" 2>/dev/null && echo '[Hook] imports: clean' || echo '[Hook] imports: CHECK FAILED'"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[Audit] Tool:PostToolUse File:'$CLAUDE_TOOL_INPUT_FILE_PATH' Time:'$(date -Iseconds) >> /opt/OS/logs/audit.log 2>/dev/null; true"
+          }
+        ]
       }
     ],
     "PreCompact": [
       {
-        "hooks": [{
-          "type": "command",
-          "command": "python3 -c \"import sys; sys.path.insert(0, '/opt/OS'); from eos_ai.session_state import SessionState; SessionState.update_progress(last_completed='pre-compact save', in_progress='active session')\" 2>/dev/null && echo '[Hook] State saved before compact'"
-        }]
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import sys; sys.path.insert(0,'/opt/OS'); from eos_ai.context import load_context_from_env; ctx=load_context_from_env()\" 2>/dev/null && echo '[PreCompact] context saved' || true"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[Session] Started at '$(date) >> /opt/OS/logs/sessions.log 2>/dev/null; true"
+          }
+        ]
       }
     ],
     "Stop": [
       {
-        "hooks": [{
-          "type": "command",
-          "command": "echo '[Session] Done. Run /status to verify.'"
-        }]
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[Session] Done. Run /status to verify.'"
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[Failure] Tool:'$CLAUDE_TOOL_NAME' Time:'$(date -Iseconds) >> /opt/OS/logs/audit.log 2>/dev/null; true"
+          }
+        ]
+      }
+    ],
+    "TaskCreated": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[Task] Created: '$(echo $CLAUDE_TASK_TITLE | head -c 80)' Time:'$(date -Iseconds) >> /opt/OS/logs/audit.log 2>/dev/null; true"
+          }
+        ]
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[Task] Completed: '$(echo $CLAUDE_TASK_TITLE | head -c 80)' Time:'$(date -Iseconds) >> /opt/OS/logs/audit.log 2>/dev/null; true"
+          }
+        ]
       }
     ]
   }

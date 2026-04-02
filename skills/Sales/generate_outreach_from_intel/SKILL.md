@@ -2,6 +2,7 @@
 name: generate-outreach-from-intel
 description: "Turn market intelligence insights into high-converting DM outreach messages that mirror ICP language — run after a market intelligence report is generated to create the outreach batch for the next cycle."
 allowed-tools: "Read, Bash"
+trigger: scheduled
 version: 1.0
 ---
 
@@ -73,3 +74,14 @@ Outreach that converts opens pain discovery first, not the offer. The message sh
 - A/B test openers across different frustration categories
 - Tag each message with the ICP insight that inspired it to close the feedback loop
 - Retire openers with <10% reply rate after 20 sends
+
+---
+
+## Gotchas
+
+- Generic openers that don't trace to a specific ICP insight will sound like templates. If the opener could apply to any 22-year-old, it's not specific enough.
+- "Are you interested in…" and "I help people like you…" are disqualifying phrases. If they appear in any generated output, reject the batch.
+- Call invitations must only appear after pain is confirmed and ownership language is present. Generating call invitations as openers is a mistake — they will not convert at this stage of the conversation.
+- The intelligence driving this skill must be from the current cycle (< 30 days). If the most recent market report is older than 30 days, flag that before generating. Stale intelligence produces stale outreach.
+- Follow-up questions must require a real answer — not yes/no. "Do you struggle with discipline?" is a yes/no question and it's useless for discovery.
+- Don't generate all 10 openers from the same frustration category. Spread across the top 3-4 patterns to maximize the batting average across diverse segments of the ICP.

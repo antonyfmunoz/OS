@@ -2,6 +2,7 @@
 name: follow-up-sequence
 description: "Generate a multi-touch follow-up sequence for leads who have been contacted but not yet responded or booked — run when a lead requires a structured multi-touch outreach plan."
 allowed-tools: "Read, Bash"
+trigger: conversational
 version: 1.0
 ---
 
@@ -64,3 +65,14 @@ Charlie Morgan follow-up methodology: each touch changes the angle, not just rep
 ## Improvement Opportunities
 
 Track which touch number produces most bookings. Optimize angle order based on reply patterns. Test timing intervals.
+
+---
+
+## Gotchas
+
+- Never repeat the same angle. If Touch 1 was a question, Touch 2 must be value, not another question. Repetition kills conversations faster than silence.
+- The breakup message is not a threat — it is a genuine close of the loop. It must feel real. "I'll remove you from my list" only works if it's true.
+- Following up in under 24 hours signals desperation. The minimum gap between touches is 24 hours. Day 1, 3, 7, 14, 21 is the default timing framework.
+- If the lead went silent after a positive reply, do not treat them the same as a lead who never replied. A positive-then-silent lead gets a softer pattern-interrupt, not a standard touch sequence.
+- Touch 4 is a direct close attempt. If it doesn't feel like a close, it isn't working. Be explicit about the decision being invited.
+- Running this skill on a lead who already said a clear no is a mistake. This skill is for non-responses and ambiguous responses, not for re-engaging someone who opted out.
