@@ -3,6 +3,8 @@ name: pre-call-research-brief
 description: "Generate a complete brief on a prospect before every sales call — run after a call is booked and before the call begins."
 allowed-tools: "Read, Bash"
 trigger: conversational
+effort: high
+context: fork
 version: 1.0
 ---
 

@@ -3,6 +3,8 @@ name: analyze-icp-signal
 description: "Extract meaningful customer intelligence from raw signals such as comments, forum posts, or conversations — run on any raw signal from Reddit, Instagram, YouTube, or DM conversations."
 allowed-tools: "Read, Bash"
 trigger: both
+effort: high
+context: fork
 version: 1.0
 ---
 

@@ -3,6 +3,8 @@ name: generate-market-report
 description: "Synthesize all ICP insights and detected patterns into a clear strategic report — run when 5+ new insights have been added since the last report, or on weekly cadence."
 allowed-tools: "Read, Bash"
 trigger: scheduled
+effort: high
+context: fork
 version: 1.0
 ---
 

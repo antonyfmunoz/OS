@@ -2,6 +2,9 @@
 name: extract-icp-insight
 description: "Pull a reusable psychological insight from a single lead interaction that can improve targeting, messaging, and content strategy — run after any lead interaction containing a belief, desire, fear, language pattern, or objection."
 allowed-tools: "Read, Bash"
+trigger: both
+effort: high
+context: fork
 version: 1.0
 ---
 

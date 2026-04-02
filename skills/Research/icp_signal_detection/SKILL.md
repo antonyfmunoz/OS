@@ -3,6 +3,8 @@ name: icp-signal-detection
 description: "Identify high-probability Initiate Arena leads from Instagram content, profiles, and engagement — run during prospecting scans to build the qualified lead list."
 allowed-tools: "Read"
 trigger: scheduled
+effort: high
+context: fork
 version: 1.0
 ---
 

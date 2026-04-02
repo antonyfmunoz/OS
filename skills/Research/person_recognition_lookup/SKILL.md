@@ -2,6 +2,9 @@
 name: person-recognition-lookup
 description: "Check if a person is known to the system and what the relationship context is — run before any first contact, outreach generation, or sales call."
 allowed-tools: "Read, Bash"
+trigger: both
+effort: high
+context: fork
 version: 1.0
 ---
 

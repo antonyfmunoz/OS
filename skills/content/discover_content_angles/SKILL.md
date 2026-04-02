@@ -2,6 +2,9 @@
 name: discover-content-angles
 description: "Find highest-leverage content angles for the ICP before any script is written. Use when starting a new content batch or when hook performance is declining."
 allowed-tools: "Read"
+trigger: both
+effort: high
+context: fork
 version: 1.0
 ---
 

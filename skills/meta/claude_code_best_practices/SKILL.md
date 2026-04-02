@@ -232,25 +232,25 @@ memory: user   # for skills that accumulate
 - TaskCreated/TaskCompleted hooks
 - 4 CC native subagents
 - --bare flag
-- 60+ skills loaded
+- 70+ skills loaded
 - gateway fallback working
 - 3 agents returning output
+- PostToolUse: ruff formatter
+- Stop hook: conditional exit 2
+- SessionStart: dynamic context injection
+- .claude/commands/ slash commands (21 total)
+- context: fork on research-heavy skills
+- .claude/rules/ directory (python, skills, agents)
+- $schema in settings.json
+- Adversarial review wired to Developer Agent
 
 ### Still Needed
 
-- PostToolUse: ruff formatter
-- Stop hook: exit 2 (not just echo)
 - PermissionRequest — Telegram routing
-- SessionStart: inject venture context
 - /loop skills configured
 - Remote Control always-on
-- .claude/commands/ slash commands
-- context: fork on EOS research skills
-- !command in skills
-- .claude/rules/ directory
-- $schema in settings.json
-- effort frontmatter in all skills
-- Adversarial review wired to Developer Agent
+- !command in skills (partially done)
+- effort frontmatter in all skills (partially done)
 - SubagentStart context injection
 - PostCompact hook
 - GitHub Code Review action

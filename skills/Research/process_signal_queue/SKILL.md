@@ -2,6 +2,9 @@
 name: process-signal-queue
 description: "Process raw signals stored in the inbox and convert them into structured ICP intelligence — run before every outreach cycle to ensure the signal queue is at zero."
 allowed-tools: "Read, Bash"
+trigger: both
+effort: high
+context: fork
 version: 1.0
 ---
 

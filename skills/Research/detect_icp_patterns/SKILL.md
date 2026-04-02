@@ -3,6 +3,8 @@ name: detect-icp-patterns
 description: "Analyze all ICP insights to identify recurring patterns in the audience's psychology, language, and frustrations — run when 5+ new insights have been added or weekly as part of the intelligence cycle."
 allowed-tools: "Read, Bash"
 trigger: scheduled
+effort: high
+context: fork
 version: 1.0
 ---
 

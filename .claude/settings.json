@@ -53,6 +53,15 @@
             "command": "echo '[Audit] Tool:PostToolUse File:'$CLAUDE_TOOL_INPUT_FILE_PATH' Time:'$(date -Iseconds) >> /opt/OS/logs/audit.log 2>/dev/null; true"
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"$CLAUDE_TOOL_INPUT_FILE_PATH\"; if [[ \"$f\" == *.py ]] && command -v ruff &>/dev/null; then ruff format \"$f\" --quiet 2>/dev/null && echo \"[Format] $f\" || true; fi"
+          }
+        ]
       }
     ],
     "PreCompact": [
@@ -70,7 +79,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '[Session] Started at '$(date) >> /opt/OS/logs/sessions.log 2>/dev/null; true"
+            "command": "python3 /opt/OS/scripts/session_start_context.py"
           }
         ]
       }
@@ -80,7 +89,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '[Session] Done. Run /status to verify.'"
+            "command": "python3 /opt/OS/scripts/check_stop_condition.py"
           }
         ]
       }
