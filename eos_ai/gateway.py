@@ -44,8 +44,8 @@ from eos_ai.db import get_conn, ORG_ID
 # ─── Constants ────────────────────────────────────────────────────────────────
 
 APPROVALS_DIR = Path(_REPO_ROOT) / "orchestrator" / "approvals"
-PENDING_DIR   = APPROVALS_DIR / "pending"
-APPROVED_DIR  = APPROVALS_DIR / "approved"
+PENDING_DIR = APPROVALS_DIR / "pending"
+APPROVED_DIR = APPROVALS_DIR / "approved"
 
 # Sub-agents that require approval regardless of prompt — only agents that
 # exclusively execute external sends with zero internal-only use cases.
@@ -60,54 +60,125 @@ _APPROVAL_REQUIRED_ACTIONS = frozenset({"send", "delete", "payment"})
 
 # Prompt patterns that signal external sends on behalf of the founder
 _EXTERNAL_SEND_PATTERNS = (
-    "send dm", "send message", "send outreach", "send email",
-    "message them", "reply to them", "dm them", "dm him", "dm her",
-    "send it to", "send this to", "send this message", "post on instagram", "post on tiktok",
-    "send to prospect", "outreach to",
+    "send dm",
+    "send message",
+    "send outreach",
+    "send email",
+    "message them",
+    "reply to them",
+    "dm them",
+    "dm him",
+    "dm her",
+    "send it to",
+    "send this to",
+    "send this message",
+    "post on instagram",
+    "post on tiktok",
+    "send to prospect",
+    "outreach to",
 )
 
 # Prompt patterns for clearly internal operations — short-circuit to auto-execute
 _AUTO_EXECUTE_PATTERNS = (
     # Lead / pipeline writes
-    "log lead", "log this lead", "add this lead", "save this lead",
-    "log to pipeline", "update pipeline", "add to pipeline", "add to crm",
+    "log lead",
+    "log this lead",
+    "add this lead",
+    "save this lead",
+    "log to pipeline",
+    "update pipeline",
+    "add to pipeline",
+    "add to crm",
     # Notion writes
-    "log to notion", "update notion", "add to notion", "save to notion",
-    "write to notion", "create notion",
+    "log to notion",
+    "update notion",
+    "add to notion",
+    "save to notion",
+    "write to notion",
+    "create notion",
     # Task operations (internal)
-    "create task", "add task", "new task",
+    "create task",
+    "add task",
+    "new task",
     # Activity / memory writes
-    "log activity", "log this", "save this", "store this",
-    "note this", "remember this", "record this",
+    "log activity",
+    "log this",
+    "save this",
+    "store this",
+    "note this",
+    "remember this",
+    "record this",
     # BIS / system updates
-    "update bis", "update my bis",
+    "update bis",
+    "update my bis",
     # Briefs (system-generated, not founder sends)
     "morning brief",
     # Internal Discord / Telegram posts
-    "post to discord", "post in discord",
+    "post to discord",
+    "post in discord",
     # General read/query patterns — reads never need approval
-    "what is", "what are", "show me", "tell me", "give me", "how is",
-    "status of", "check ", "list ", "get ", "fetch ", "summarize ",
-    "how many", "how much",
+    "what is",
+    "what are",
+    "show me",
+    "tell me",
+    "give me",
+    "how is",
+    "status of",
+    "check ",
+    "list ",
+    "get ",
+    "fetch ",
+    "summarize ",
+    "how many",
+    "how much",
 )
 
 # Signals that indicate a purely informational message (no action requested)
 _INFORMATIONAL_SIGNALS: tuple[str, ...] = (
-    "here is", "here's", "fyi", "context:", "note:", "for context",
-    "just so you know", "updating you", "for your reference",
-    "heads up", "background:", "to update you", "letting you know",
-    "i wanted to let you know", "adding context", "some context",
-    "log this", "logging", "recording",
+    "here is",
+    "here's",
+    "fyi",
+    "context:",
+    "note:",
+    "for context",
+    "just so you know",
+    "updating you",
+    "for your reference",
+    "heads up",
+    "background:",
+    "to update you",
+    "letting you know",
+    "i wanted to let you know",
+    "adding context",
+    "some context",
+    "log this",
+    "logging",
+    "recording",
 )
 
 # Signals that indicate an external action is being requested
 _ACTION_SIGNALS: tuple[str, ...] = (
-    "send dm", "send message", "send email", "send outreach",
-    "message him", "message her", "message them",
-    "dm him", "dm her", "dm them",
-    "reach out", "post on instagram", "post on tiktok",
-    "outreach to", "publish to", "email him", "email her",
-    "buy ", "pay ", "delete ", "remove all",
+    "send dm",
+    "send message",
+    "send email",
+    "send outreach",
+    "message him",
+    "message her",
+    "message them",
+    "dm him",
+    "dm her",
+    "dm them",
+    "reach out",
+    "post on instagram",
+    "post on tiktok",
+    "outreach to",
+    "publish to",
+    "email him",
+    "email her",
+    "buy ",
+    "pay ",
+    "delete ",
+    "remove all",
 )
 
 # Required fields in every request
@@ -118,27 +189,31 @@ _VALID_TYPES = {"agent_task", "event", "status", "brief"}
 
 # Email instruction signals — founder correcting GPS folder classification
 EMAIL_INSTRUCTION_SIGNALS: tuple[str, ...] = (
-    'move this email',
-    'that email should',
-    'put emails from',
-    'emails like this',
-    'this label should',
-    'never put',
-    'always put',
-    'delete this label',
-    'should go to',
-    'belongs in',
-    'wrong folder',
-    'misclassified',
+    "move this email",
+    "that email should",
+    "put emails from",
+    "emails like this",
+    "this label should",
+    "never put",
+    "always put",
+    "delete this label",
+    "should go to",
+    "belongs in",
+    "wrong folder",
+    "misclassified",
 )
 
 # Automation triggers — handled before the AI routing layer
 AUTOMATION_TRIGGERS: dict[str, list[str]] = {
-    'rename_ai': [
-        'call you', 'name you', 'rename you',
-        'your name is', 'call my ai',
-        'name my ai', 'rename to',
-        'i want to call you',
+    "rename_ai": [
+        "call you",
+        "name you",
+        "rename you",
+        "your name is",
+        "call my ai",
+        "name my ai",
+        "rename to",
+        "i want to call you",
     ],
 }
 
@@ -152,6 +227,7 @@ def _timestamp_id() -> str:
 
 
 # ─── EOSGateway (singleton) ───────────────────────────────────────────────────
+
 
 class EOSGateway:
     """
@@ -177,11 +253,19 @@ class EOSGateway:
     # ─── Conversation memory helpers ─────────────────────────────────────────
 
     _MEMORY_SIGNALS = (
-        'what did i say', 'what did we discuss', 'what was i saying',
-        'messages ago', 'last message', 'earlier i said',
-        'find everything', 'search for', 'pull everything',
-        'word for word', 'what have we talked about',
-        'give me everything', 'list everything',
+        "what did i say",
+        "what did we discuss",
+        "what was i saying",
+        "messages ago",
+        "last message",
+        "earlier i said",
+        "find everything",
+        "search for",
+        "pull everything",
+        "word for word",
+        "what have we talked about",
+        "give me everything",
+        "list everything",
     )
 
     def _is_memory_query(self, text: str) -> bool:
@@ -193,34 +277,40 @@ class EOSGateway:
         t = text.lower()
 
         # "X messages ago"
-        ago = _re.search(r'(\d+)\s*messages?\s*ago', t)
+        ago = _re.search(r"(\d+)\s*messages?\s*ago", t)
         if ago:
             n = int(ago.group(1))
             msgs = cm.get_session(session_id)
-            user_msgs = [m for m in msgs if m.role == 'user']
+            user_msgs = [m for m in msgs if m.role == "user"]
             if len(user_msgs) >= n:
                 target = user_msgs[-n]
-                ts = target.created_at.strftime('%H:%M') if target.created_at else ''
+                ts = target.created_at.strftime("%H:%M") if target.created_at else ""
                 return f'You said:\n\n"{target.content}"\n\n({ts})'
-            return 'Could not find that message in this session.'
+            return "Could not find that message in this session."
 
         # session dump — "today" / "this session" / "give me everything"
-        if any(s in t for s in [
-            'today', 'this session', 'give me everything',
-            'list everything', 'what have we talked about',
-        ]):
+        if any(
+            s in t
+            for s in [
+                "today",
+                "this session",
+                "give me everything",
+                "list everything",
+                "what have we talked about",
+            ]
+        ):
             msgs = cm.get_session(session_id)
             if not msgs:
-                return 'No messages recorded in this session yet.'
-            lines = ['Here is everything from this session:\n']
+                return "No messages recorded in this session yet."
+            lines = ["Here is everything from this session:\n"]
             for msg in msgs:
-                prefix = 'You' if msg.role == 'user' else 'AI'
-                ts = msg.created_at.strftime('%H:%M') if msg.created_at else ''
-                lines.append(f'[{ts}] {prefix}: {msg.content}')
-            return '\n'.join(lines)
+                prefix = "You" if msg.role == "user" else "AI"
+                ts = msg.created_at.strftime("%H:%M") if msg.created_at else ""
+                lines.append(f"[{ts}] {prefix}: {msg.content}")
+            return "\n".join(lines)
 
         # full-text search — "find X" / "search for X"
-        srch = _re.search(r'(?:find|search for|pull)\s+(.+)', t)
+        srch = _re.search(r"(?:find|search for|pull)\s+(.+)", t)
         if srch:
             query = srch.group(1).strip()
             results = cm.search(query, limit=5)
@@ -228,12 +318,12 @@ class EOSGateway:
                 return f'Nothing found for "{query}".'
             lines = [f'Found {len(results)} messages matching "{query}":\n']
             for msg in results:
-                prefix = 'You' if msg.role == 'user' else 'AI'
-                ts = msg.created_at.strftime('%Y-%m-%d %H:%M') if msg.created_at else ''
-                lines.append(f'[{ts}] {prefix}: {msg.content}')
-            return '\n'.join(lines)
+                prefix = "You" if msg.role == "user" else "AI"
+                ts = msg.created_at.strftime("%Y-%m-%d %H:%M") if msg.created_at else ""
+                lines.append(f"[{ts}] {prefix}: {msg.content}")
+            return "\n".join(lines)
 
-        return ''
+        return ""
 
     def _init_conversation_memory(
         self, request: dict
@@ -242,20 +332,21 @@ class EOSGateway:
         Set up ConversationMemory for this request.
         Returns (cm, session_id, channel). cm is None on failure.
         """
-        session_id = request.get('session_id') or str(_uuid_mod.uuid4())
-        channel    = request.get('channel', 'unknown')
-        prompt     = request.get('prompt', '')
-        rtype      = request.get('type', '')
-        if not prompt or rtype not in ('agent_task', 'brief'):
+        session_id = request.get("session_id") or str(_uuid_mod.uuid4())
+        channel = request.get("channel", "unknown")
+        prompt = request.get("prompt", "")
+        rtype = request.get("type", "")
+        if not prompt or rtype not in ("agent_task", "brief"):
             return None, session_id, channel
         try:
             from eos_ai.memory import ConversationMemory
             from eos_ai.context import load_context_from_env
+
             ctx = load_context_from_env()
-            cm  = ConversationMemory(ctx)
+            cm = ConversationMemory(ctx)
             return cm, session_id, channel
         except Exception as e:
-            print(f'[Gateway] ConversationMemory init failed (non-blocking): {e}')
+            print(f"[Gateway] ConversationMemory init failed (non-blocking): {e}")
             return None, session_id, channel
 
     # ─── Automation handler ───────────────────────────────────────────────────
@@ -267,18 +358,19 @@ class EOSGateway:
         Automations bypass the AI routing layer — handled directly.
         """
         import re
-        text = request.get('prompt', '')
+
+        text = request.get("prompt", "")
         if not text:
             return None
 
         # rename_ai — user wants to rename their AI instance
-        rename_keywords = AUTOMATION_TRIGGERS.get('rename_ai', [])
+        rename_keywords = AUTOMATION_TRIGGERS.get("rename_ai", [])
         if any(kw in text.lower() for kw in rename_keywords):
             match = re.search(
-                r'(?:call you|name you|rename to|'
-                r'your name is|call my ai|'
-                r'name my ai|i want to call you)\s+'
-                r'([A-Za-z][a-zA-Z0-9]{1,20})',
+                r"(?:call you|name you|rename to|"
+                r"your name is|call my ai|"
+                r"name my ai|i want to call you)\s+"
+                r"([A-Za-z][a-zA-Z0-9]{1,20})",
                 text,
                 re.IGNORECASE,
             )
@@ -287,25 +379,23 @@ class EOSGateway:
                 try:
                     from eos_ai.context import load_context_from_env
                     from eos_ai.business_instance import BusinessInstanceManager
+
                     ctx = load_context_from_env()
                     bim = BusinessInstanceManager(ctx)
-                    venture_id = request.get('venture_id', 'lyfe_institute')
+                    venture_id = request.get("venture_id", "lyfe_institute")
                     bis = bim.get_bis(venture_id)
                     if bis:
                         old_name = bis.ai_name
                         bis.ai_name = new_name
                         bim.save_bis(bis)
                         return {
-                            'status': 'ok',
-                            'output': (
-                                f"Done. I'm {new_name} now. "
-                                f"Was {old_name}."
-                            ),
-                            'action': 'rename_ai',
-                            'new_name': new_name,
+                            "status": "ok",
+                            "output": (f"Done. I'm {new_name} now. Was {old_name}."),
+                            "action": "rename_ai",
+                            "new_name": new_name,
                         }
                 except Exception as e:
-                    print(f'[Gateway] rename_ai failed: {e}')
+                    print(f"[Gateway] rename_ai failed: {e}")
 
         return None
 
@@ -322,7 +412,7 @@ class EOSGateway:
         use the new rule.
         Returns a result dict if fired, else None.
         """
-        text = request.get('prompt', '')
+        text = request.get("prompt", "")
         if not text or not self._detect_email_instruction(text):
             return None
 
@@ -332,18 +422,18 @@ class EOSGateway:
             from eos_ai.model_router import get_router, TaskType
 
             ctx_eos = load_context_from_env()
-            gps     = EmailGPS(ctx_eos)
-            router  = get_router(ctx_eos)
+            gps = EmailGPS(ctx_eos)
+            router = get_router(ctx_eos)
 
             extraction = router.call_with_fallback(
                 TaskType.ANALYSIS,
                 prompt=(
-                    f'Extract the email folder instruction '
-                    f'from this message.\n\n'
-                    f'Message: {text}\n\n'
-                    f'Available folders: Antony, To Respond, Review, '
-                    f'Responded, Waiting On, Receipts-Financials, Newsletters\n\n'
-                    f'Return JSON only:\n'
+                    f"Extract the email folder instruction "
+                    f"from this message.\n\n"
+                    f"Message: {text}\n\n"
+                    f"Available folders: Antony, To Respond, Review, "
+                    f"Responded, Waiting On, Receipts-Financials, Newsletters\n\n"
+                    f"Return JSON only:\n"
                     f'{{"folder_name": "exact folder name", '
                     f'"instruction": "what should change"}}'
                 ),
@@ -351,13 +441,14 @@ class EOSGateway:
             )
 
             import json, re as _json_re
-            match = _json_re.search(r'\{.*\}', extraction, _json_re.DOTALL)
+
+            match = _json_re.search(r"\{.*\}", extraction, _json_re.DOTALL)
             if not match:
                 return None
 
-            data        = json.loads(match.group())
-            folder      = data.get('folder_name', '')
-            instruction = data.get('instruction', text)
+            data = json.loads(match.group())
+            folder = data.get("folder_name", "")
+            instruction = data.get("instruction", text)
 
             if not folder:
                 return None
@@ -365,18 +456,18 @@ class EOSGateway:
             new_purpose = gps.update_folder_purpose(folder, instruction)
             if new_purpose:
                 return {
-                    'status': 'ok',
-                    'output': (
+                    "status": "ok",
+                    "output": (
                         f'✅ Updated "{folder}" definition.\n\n'
-                        f'New rule: {new_purpose}\n\n'
-                        f'All future emails will use this definition. '
-                        f'Run `!inbox` to apply to new emails.'
+                        f"New rule: {new_purpose}\n\n"
+                        f"All future emails will use this definition. "
+                        f"Run `!inbox` to apply to new emails."
                     ),
-                    'action': 'email_folder_update',
+                    "action": "email_folder_update",
                 }
 
         except Exception as e:
-            print(f'[Gateway] Email instruction handler: {e}')
+            print(f"[Gateway] Email instruction handler: {e}")
 
         return None
 
@@ -408,13 +499,13 @@ class EOSGateway:
           2. Has an informational signal AND no external action signal
         """
         # Part indicators — always a context accumulation, never an action
-        if _re.search(r'(?i)\bpart\s+\d+/\d+\b|\b\d+\s*/\s*\d+\b', prompt):
+        if _re.search(r"(?i)\bpart\s+\d+/\d+\b|\b\d+\s*/\s*\d+\b", prompt):
             return True
         if any(s in prompt for s in ("continued", "cont'd", "cont.")):
             return True
 
         # Has informational signal AND no external action signal
-        has_info   = any(s in prompt for s in _INFORMATIONAL_SIGNALS)
+        has_info = any(s in prompt for s in _INFORMATIONAL_SIGNALS)
         has_action = any(s in prompt for s in _ACTION_SIGNALS)
         return has_info and not has_action
 
@@ -458,8 +549,14 @@ class EOSGateway:
             return True
 
         # 4. Irreversible or financial keywords in prompt
-        _irreversible = ("delete ", "remove all ", "drop table",
-                         "charge ", "pay ", "make payment")
+        _irreversible = (
+            "delete ",
+            "remove all ",
+            "drop table",
+            "charge ",
+            "pay ",
+            "make payment",
+        )
         if any(kw in prompt for kw in _irreversible):
             return True
 
@@ -476,12 +573,12 @@ class EOSGateway:
         """Log every gateway request to Neon events table."""
         payload = {
             "request_type": request.get("type"),
-            "team":         request.get("team"),
-            "sub_agent":    request.get("sub_agent"),
-            "venture_id":   request.get("venture_id"),
-            "username":     request.get("username"),
-            "outcome":      outcome,
-            "summary":      result_summary[:300],
+            "team": request.get("team"),
+            "sub_agent": request.get("sub_agent"),
+            "venture_id": request.get("venture_id"),
+            "username": request.get("username"),
+            "outcome": outcome,
+            "summary": result_summary[:300],
         }
         try:
             with get_conn(ORG_ID) as cur:
@@ -543,12 +640,12 @@ class EOSGateway:
 
         # 2b. Conversation memory — store user message, check memory query
         cm, session_id, channel = self._init_conversation_memory(request)
-        prompt = request.get('prompt', '')
+        prompt = request.get("prompt", "")
         if cm and prompt:
             try:
                 cm.store(
                     session_id=session_id,
-                    role='user',
+                    role="user",
                     content=prompt,
                     channel=channel,
                 )
@@ -558,66 +655,69 @@ class EOSGateway:
                     if mem_resp:
                         cm.store(
                             session_id=session_id,
-                            role='assistant',
+                            role="assistant",
                             content=mem_resp,
                             channel=channel,
-                            agent='memory',
+                            agent="memory",
                         )
-                        self._log_gateway_event(request, 'ok', 'memory_query')
+                        self._log_gateway_event(request, "ok", "memory_query")
                         return {
-                            'status':     'ok',
-                            'output':     mem_resp,
-                            'session_id': session_id,
-                            'source':     'memory',
+                            "status": "ok",
+                            "output": mem_resp,
+                            "session_id": session_id,
+                            "source": "memory",
                         }
             except Exception as _mem_err:
-                print(f'[Gateway] Memory store failed (non-blocking): {_mem_err}')
+                print(f"[Gateway] Memory store failed (non-blocking): {_mem_err}")
 
         # 2c. Stage transition detection — fires before AI routing
-        stage_context = ''
-        if prompt and request.get('type') in ('agent_task', 'brief'):
+        stage_context = ""
+        if prompt and request.get("type") in ("agent_task", "brief"):
             try:
                 from eos_ai.stage_manager import detect_stage_transition, StageManager
                 from eos_ai.context import load_context_from_env as _load_ctx
+
                 transition = detect_stage_transition(prompt)
-                if transition.get('detected'):
+                if transition.get("detected"):
                     ctx_eos = _load_ctx()
                     sm = StageManager(ctx_eos)
 
                     # Venture from request first, then text signals, then default
-                    venture_id = request.get('venture_id') or 'lyfe_institute'
+                    venture_id = request.get("venture_id") or "lyfe_institute"
                     text_lower = prompt.lower()
-                    if 'empyrean' in text_lower:
-                        venture_id = 'empyrean_creative'
-                    elif 'personal brand' in text_lower:
-                        venture_id = 'personal_brand'
+                    if "empyrean" in text_lower:
+                        venture_id = "empyrean_creative"
+                    elif "personal brand" in text_lower:
+                        venture_id = "personal_brand"
 
                     tr = sm.advance_stage(
                         venture_id=venture_id,
-                        new_stage=transition['new_stage'],
+                        new_stage=transition["new_stage"],
                     )
                     stage_context = tr.message
                     print(
-                        f'[Gateway] Stage transition: '
-                        f'{tr.previous_stage} → {tr.new_stage}'
+                        f"[Gateway] Stage transition: "
+                        f"{tr.previous_stage} → {tr.new_stage}"
                     )
             except Exception as _st_err:
-                print(f'[Gateway] Stage transition failed: {_st_err}')
+                print(f"[Gateway] Stage transition failed: {_st_err}")
 
         # 2d. Self-awareness — detect any non-stage business change and process it
-        if prompt and request.get('type') in ('agent_task', 'brief'):
+        if prompt and request.get("type") in ("agent_task", "brief"):
             try:
                 from eos_ai.self_awareness import SelfAwarenessEngine, ChangeType
                 from eos_ai.context import load_context_from_env as _load_ctx_sa
-                ctx_sa  = _load_ctx_sa()
-                sae     = SelfAwarenessEngine(ctx_sa)
-                venture_id_sa = request.get('venture_id') or 'lyfe_institute'
-                change  = sae.detect_change_from_text(prompt, venture_id_sa)
+
+                ctx_sa = _load_ctx_sa()
+                sae = SelfAwarenessEngine(ctx_sa)
+                venture_id_sa = request.get("venture_id") or "lyfe_institute"
+                change = sae.detect_change_from_text(prompt, venture_id_sa)
                 if change and change.change_type not in (
                     # Skip FIRST_SALE — stage_manager already handles the transition
                     ChangeType.FIRST_SALE,
                 ):
                     import asyncio as _asyncio
+
                     try:
                         loop_sa = _asyncio.get_event_loop()
                         if loop_sa.is_running():
@@ -629,9 +729,9 @@ class EOSGateway:
                         new_loop = _asyncio.new_event_loop()
                         new_loop.run_until_complete(sae.process_change(change))
                         new_loop.close()
-                    print(f'[SelfAwareness] Processed: {change.change_type.value}')
+                    print(f"[SelfAwareness] Processed: {change.change_type.value}")
             except Exception as _sa_err:
-                print(f'[SelfAwareness] {_sa_err}')
+                print(f"[SelfAwareness] {_sa_err}")
 
         # 3. Route
         rtype = request["type"]
@@ -644,6 +744,7 @@ class EOSGateway:
                 try:
                     from eos_ai.input_intelligence import InputIntelligence
                     from eos_ai.context import load_context_from_env as _load_ii_ctx
+
                     _prompt = request.get("prompt", "")
                     _venture_id = request.get("venture_id")
                     _ii = InputIntelligence(ctx=_load_ii_ctx(), venture_id=_venture_id)
@@ -658,6 +759,7 @@ class EOSGateway:
                         }
                 except Exception as _ii_err:
                     import logging
+
                     logging.getLogger(__name__).warning(
                         f"InputIntelligence failed, passing original: {_ii_err}"
                     )
@@ -673,25 +775,25 @@ class EOSGateway:
             return {"status": "error", "error": str(exc)}
 
         # 3b. Prepend stage transition message if one fired
-        if stage_context and result.get('output'):
-            result['output'] = stage_context + '\n\n---\n\n' + result['output']
+        if stage_context and result.get("output"):
+            result["output"] = stage_context + "\n\n---\n\n" + result["output"]
         elif stage_context:
-            result['output'] = stage_context
+            result["output"] = stage_context
 
         # 3c. Store assistant response and tag result with session_id
-        if cm and result.get('output'):
+        if cm and result.get("output"):
             try:
                 cm.store(
                     session_id=session_id,
-                    role='assistant',
-                    content=result['output'],
+                    role="assistant",
+                    content=result["output"],
                     channel=channel,
-                    agent='system',
+                    agent="system",
                 )
             except Exception:
                 pass
         if session_id:
-            result['session_id'] = session_id
+            result["session_id"] = session_id
 
         summary = json.dumps(result)[:300]
         self._log_gateway_event(request, "ok", summary)
@@ -701,22 +803,33 @@ class EOSGateway:
 
     def _route_event(self, request: dict) -> dict:
         from eos_ai.event_bus import EventBus
+
         event_type = request["event_type"]
-        payload    = request.get("payload") or {}
-        bus        = EventBus()
-        results    = bus.publish(event_type, payload)
+        payload = request.get("payload") or {}
+        bus = EventBus()
+        results = bus.publish(event_type, payload)
         return {
-            "status":     "ok",
+            "status": "ok",
             "event_type": event_type,
-            "handlers":   len(results),
+            "handlers": len(results),
         }
 
     # ─── Web search ───────────────────────────────────────────────────────────
 
     _WEB_SEARCH_SIGNALS: tuple[str, ...] = (
-        'what is the current', 'latest news', 'right now', "today's",
-        'this week', 'how much does', "what's the price", 'look up',
-        'search for', 'find me', 'what are people saying', 'trending', 'recent',
+        "what is the current",
+        "latest news",
+        "right now",
+        "today's",
+        "this week",
+        "how much does",
+        "what's the price",
+        "look up",
+        "search for",
+        "find me",
+        "what are people saying",
+        "trending",
+        "recent",
     )
 
     def _needs_web_search(self, text: str) -> bool:
@@ -726,24 +839,25 @@ class EOSGateway:
     def _web_search(self, query: str) -> str:
         try:
             from eos_ai.model_router import get_router, TaskType as RouterTaskType
+
             router = get_router()
             result = router.call_with_fallback(
                 RouterTaskType.WEB_SEARCH,
                 prompt=(
-                    f'Search query: {query}\n\n'
-                    f'Provide a concise, factual answer with current information. '
-                    f'2-3 sentences maximum.'
+                    f"Search query: {query}\n\n"
+                    f"Provide a concise, factual answer with current information. "
+                    f"2-3 sentences maximum."
                 ),
                 max_tokens=200,
             )
-            return result or ''
+            return result or ""
         except Exception as e:
-            print(f'[WebSearch] {e}')
-            return ''
+            print(f"[WebSearch] {e}")
+            return ""
 
     # ─── EA routing ───────────────────────────────────────────────────────────
 
-    def _route_to_agent(self, text: str, comm_type: str = 'text') -> str:
+    def _route_to_agent(self, text: str, comm_type: str = "text") -> str:
         """
         Determine which agent should handle this request.
         EA handles 90% of cases. Only escalates to CEOs or Portfolio Advisor
@@ -753,9 +867,10 @@ class EOSGateway:
         """
         try:
             from eos_ai.agent_hierarchy import AgentHierarchy
+
             return AgentHierarchy().route_request(text)
         except Exception:
-            return 'executive_assistant'
+            return "executive_assistant"
 
     # ─── Route: agent_task ────────────────────────────────────────────────────
 
@@ -764,72 +879,267 @@ class EOSGateway:
         from eos_ai.cognitive_loop import CognitiveLoop
         from eos_ai.context import load_context_from_env
 
-        prompt     = request["prompt"]
+        prompt = request["prompt"]
         venture_id = request.get("venture_id")
-        username   = request.get("username")
-        team       = request.get("team")
-        sub_agent  = request.get("sub_agent")
+        username = request.get("username")
+        team = request.get("team")
+        sub_agent = request.get("sub_agent")
 
-        ctx  = load_context_from_env()
+        ctx = load_context_from_env()
         loop = CognitiveLoop(ctx)
 
         # Real-time web search — prepend result to prompt if signal detected
         if self._needs_web_search(prompt):
             _web_result = self._web_search(prompt)
             if _web_result:
-                prompt = f'REAL-TIME SEARCH RESULT:\n{_web_result}\n\n{prompt}'
-                print('[Gateway] Web search used')
+                prompt = f"REAL-TIME SEARCH RESULT:\n{_web_result}\n\n{prompt}"
+                print("[Gateway] Web search used")
 
         # Named agent teams — direct agent routing with context injection
-        _NAMED_AGENT_TEAMS = frozenset({
-            'dex', 'lyfe_ceo', 'brand_ceo', 'portfolio_advisor',
-        })
+        _NAMED_AGENT_TEAMS = frozenset(
+            {
+                "dex",
+                "lyfe_ceo",
+                "brand_ceo",
+                "portfolio_advisor",
+            }
+        )
+
+        # ── Agent → principle domain mapping ─────────────────────────────
+        _AGENT_DOMAIN_MAP = {
+            "executive_assistant": "ops",
+            "sales_agent": "sales",
+            "outreach_agent": "sales",
+            "content_agent": "content",
+            "research_agent": "research",
+            "intelligence_agent": "research",
+            "operations_agent": "ops",
+            "finance_agent": "analyze",
+            "marketing_agent": "content",
+            "customer_success_agent": "ops",
+            "lyfe_ceo": "strategy",
+            "lyfe_institute_ceo": "strategy",
+            "empyrean_ceo": "strategy",
+            "brand_ceo": "content",
+            "personal_brand_ceo": "content",
+            "ceo_agent": "strategy",
+            "portfolio_agent": "analyze",
+            "portfolio_advisor": "analyze",
+        }
+
+        # ── CEO task classifier — selects relevant deep standards section ─
+        _CEO_AGENTS = frozenset(
+            {
+                "lyfe_ceo",
+                "lyfe_institute_ceo",
+                "empyrean_ceo",
+                "brand_ceo",
+                "personal_brand_ceo",
+                "ceo_agent",
+            }
+        )
+
+        def _classify_ceo_task(prompt_text: str) -> str:
+            p = prompt_text.lower()
+            if any(
+                x in p
+                for x in [
+                    "constraint",
+                    "bottleneck",
+                    "blocking",
+                    "slow",
+                    "stuck",
+                    "not working",
+                    "stalled",
+                    "what to focus",
+                ]
+            ):
+                return "constraint"
+            if any(
+                x in p
+                for x in [
+                    "offer",
+                    "price",
+                    "product",
+                    "deliver",
+                    "promise",
+                    "guarantee",
+                    "value",
+                ]
+            ):
+                return "offer"
+            if any(
+                x in p
+                for x in [
+                    "hire",
+                    "team",
+                    "delegate",
+                    "who should",
+                    "role",
+                    "barrel",
+                    "ammunition",
+                ]
+            ):
+                return "hiring"
+            if any(
+                x in p
+                for x in [
+                    "metric",
+                    "kpi",
+                    "number",
+                    "measure",
+                    "track",
+                    "reply rate",
+                    "close rate",
+                    "dm",
+                ]
+            ):
+                return "metrics"
+            if any(
+                x in p
+                for x in [
+                    "decide",
+                    "should i",
+                    "choice",
+                    "option",
+                    "which",
+                    "reversible",
+                    "irreversible",
+                ]
+            ):
+                return "decisions"
+            if any(
+                x in p
+                for x in [
+                    "stage",
+                    "next level",
+                    "advance",
+                    "grow",
+                    "scale",
+                    "validation",
+                    "acquisition",
+                ]
+            ):
+                return "stage"
+            return "constraint"  # default — most common at Stage 1
 
         if team and team in _NAMED_AGENT_TEAMS:
             agent_id = {
-                'dex':                'executive_assistant',
-                'lyfe_ceo':           'lyfe_ceo',
-                'brand_ceo':          'brand_ceo',
-                'portfolio_advisor':  'portfolio_advisor',
+                "dex": "executive_assistant",
+                "lyfe_ceo": "lyfe_ceo",
+                "brand_ceo": "brand_ceo",
+                "portfolio_advisor": "portfolio_advisor",
             }[team]
 
-            if agent_id == 'executive_assistant':
+            if agent_id == "executive_assistant":
                 # DEX — inject EA operational standards + Martell leverage detection
                 try:
                     from eos_ai.ea_operational_standards import get_all_standards
                     from eos_ai.martell_patterns import detect_leverage_killer
+
                     leverage = detect_leverage_killer(prompt)
                     if leverage:
-                        prompt = leverage['intervention'] + '\n\n' + prompt
+                        prompt = leverage["intervention"] + "\n\n" + prompt
                     ea_standards = get_all_standards()
                     prompt = (
-                        f'OPERATIONAL STANDARDS:\n{ea_standards}\n\n'
-                        f'---\n\n{prompt}'
+                        f"OPERATIONAL STANDARDS:\n{ea_standards}\n\n---\n\n{prompt}"
                     )
                 except Exception as _dex_err:
-                    print(f'[Gateway] DEX context inject: {_dex_err}')
+                    print(f"[Gateway] DEX context inject: {_dex_err}")
 
-            elif agent_id == 'portfolio_advisor':
-                # Portfolio Advisor — inject live portfolio data
+            elif agent_id == "portfolio_advisor":
+                # Portfolio Advisor — inject live portfolio data + deep standards
                 try:
-                    from eos_ai.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
-                    _pa         = PortfolioAgent(ctx)
-                    _ventures   = _pa.scan_all_ventures()
+                    from eos_ai.portfolio_advisor import (
+                        PortfolioAdvisor as PortfolioAgent,
+                    )
+
+                    _pa = PortfolioAgent(ctx)
+                    _ventures = _pa.scan_all_ventures()
                     _port_brief = _pa.generate_portfolio_brief(_ventures)
-                    prompt = f'PORTFOLIO DATA:\n{_port_brief}\n\n{prompt}'
+                    prompt = f"PORTFOLIO DATA:\n{_port_brief}\n\n{prompt}"
                 except Exception as _pa_err:
-                    print(f'[Gateway] Portfolio Advisor inject: {_pa_err}')
+                    print(f"[Gateway] Portfolio Advisor inject: {_pa_err}")
+
+                # FIX 3: Wire portfolio advisor deep standards
+                try:
+                    from eos_ai.portfolio_advisor_standards import (
+                        get_all_standards as get_pa_standards,
+                    )
+
+                    _pa_deep = get_pa_standards()
+                    if _pa_deep:
+                        prompt = (
+                            f"PORTFOLIO ADVISOR OPERATING STANDARDS "
+                            f"(Munger/Dalio framework):\n{_pa_deep}\n\n"
+                            f"{prompt}"
+                        )
+                        print("[Gateway] Portfolio advisor deep standards injected")
+                except Exception as _pa_std_err:
+                    print(f"[Gateway] Portfolio advisor standards: {_pa_std_err}")
+
+            # FIX 1: Wire CEO deep standards for named CEO agent teams
+            if agent_id in _CEO_AGENTS:
+                try:
+                    from eos_ai.ceo_operational_standards import (
+                        get_constraint_rules,
+                        get_offer_rules,
+                        get_delegation_rules,
+                        get_hiring_rules,
+                        get_metric_rules,
+                        get_decision_rules,
+                        get_stage_rules,
+                        get_hormozi_rules,
+                    )
+
+                    _ceo_section_map = {
+                        "constraint": get_constraint_rules,
+                        "offer": get_offer_rules,
+                        "hiring": get_hiring_rules,
+                        "metrics": get_metric_rules,
+                        "decisions": get_decision_rules,
+                        "stage": get_stage_rules,
+                    }
+                    _task_class = _classify_ceo_task(prompt)
+                    _getter = _ceo_section_map.get(_task_class, get_constraint_rules)
+                    _ceo_deep = _getter()
+                    # Always include Hormozi operating philosophy + delegation rules
+                    _ceo_deep += "\n" + get_hormozi_rules()
+                    if _task_class != "constraint":
+                        _ceo_deep += "\n" + get_delegation_rules()
+                    prompt = (
+                        f"CEO OPERATING STANDARDS "
+                        f"(task: {_task_class}):\n{_ceo_deep}\n\n"
+                        f"{prompt}"
+                    )
+                    print(f"[Gateway] CEO deep standards injected: {_task_class}")
+                except Exception as _ceo_std_err:
+                    print(f"[Gateway] CEO standards: {_ceo_std_err}")
 
             # Universal agent standards injection — all named agents
             try:
                 from eos_ai.principle_engine import PrincipleEngine
+
                 _pe_named = PrincipleEngine(ctx)
                 _standards_named = _pe_named.format_agent_standards(agent_id)
                 if _standards_named:
-                    prompt = f'{_standards_named}\n\n{prompt}'
-                    print(f'[Gateway] Agent standards injected: {agent_id}')
+                    prompt = f"{_standards_named}\n\n{prompt}"
+                    print(f"[Gateway] Agent standards injected: {agent_id}")
             except Exception as _se_named:
-                print(f'[Gateway] Standards inject: {_se_named}')
+                print(f"[Gateway] Standards inject: {_se_named}")
+
+            # FIX 2: Wire REALITY_PRINCIPLES — domain-specific principles
+            try:
+                from eos_ai.principle_engine import PrincipleEngine
+
+                _pe_domain = PrincipleEngine(ctx)
+                _domain = _AGENT_DOMAIN_MAP.get(agent_id, "ops")
+                _domain_principles = _pe_domain.format_for_prompt(_domain)
+                if _domain_principles:
+                    prompt = f"{_domain_principles}\n\n{prompt}"
+                    print(f"[Gateway] Domain principles injected: {_domain}")
+            except Exception as _dp_err:
+                print(f"[Gateway] Domain principles: {_dp_err}")
 
             result = loop.run(
                 input=prompt,
@@ -838,12 +1148,13 @@ class EOSGateway:
                 agent=agent_id,
                 task_type=TaskType.ANALYZE,
                 venture_id=venture_id,
-                channel=request.get('channel', ''),
+                channel=request.get("channel", ""),
             )
 
         elif team:
             # Team task — resolve via agent_teams then run through cognitive loop
             from eos_ai.agent_teams import route as team_route
+
             config = team_route(team, sub_agent)
             result = loop.run(
                 input=prompt,
@@ -853,7 +1164,7 @@ class EOSGateway:
                 task_type=config.task_type,
                 venture_id=venture_id,
                 skill_name=config.skill_name,
-                channel=request.get('channel', ''),
+                channel=request.get("channel", ""),
             )
         else:
             # Direct task — route to correct agent via hierarchy, then run
@@ -869,55 +1180,55 @@ class EOSGateway:
             if not agent_to_use:
                 try:
                     from eos_ai.intent_router import IntentRouter, IntentDomain
-                    ir     = IntentRouter(ctx)
+
+                    ir = IntentRouter(ctx)
                     domain = ir.route(prompt)
                     agent_to_use = ir.get_agent(domain)
-                    print(
-                        f'[Gateway] Intent: {domain.value} → {agent_to_use}'
-                    )
+                    print(f"[Gateway] Intent: {domain.value} → {agent_to_use}")
 
                     # Portfolio domain — inject live portfolio data into prompt
                     if domain == IntentDomain.PORTFOLIO:
                         try:
-                            from eos_ai.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
-                            pa          = PortfolioAgent(ctx)
-                            ventures    = pa.scan_all_ventures()
-                            port_brief  = pa.generate_portfolio_brief(ventures)
-                            prompt      = (
-                                f'PORTFOLIO DATA:\n{port_brief}\n\n'
-                                f'{prompt}'
+                            from eos_ai.portfolio_advisor import (
+                                PortfolioAdvisor as PortfolioAgent,
                             )
+
+                            pa = PortfolioAgent(ctx)
+                            ventures = pa.scan_all_ventures()
+                            port_brief = pa.generate_portfolio_brief(ventures)
+                            prompt = f"PORTFOLIO DATA:\n{port_brief}\n\n{prompt}"
                         except Exception as _pe:
-                            print(f'[Gateway] Portfolio inject: {_pe}')
+                            print(f"[Gateway] Portfolio inject: {_pe}")
 
                     # CEO domain — inject company primitives into prompt
                     elif domain == IntentDomain.CEO:
                         try:
                             from eos_ai.ceo_agent import CEOAgent
-                            _ceo   = CEOAgent(ctx)
+
+                            _ceo = CEOAgent(ctx)
                             _prims = _ceo.detect_primitives()
                             prompt = (
-                                f'CEO CONTEXT:\n'
-                                f'Stage: {_prims.get("stage", 1)}\n'
-                                f'Revenue: ${_prims.get("current_revenue", 0)}\n'
-                                f'Clients: {_prims.get("client_count", 0)}\n'
-                                f'Channel: {_prims.get("primary_channel", "")}\n\n'
-                                f'{prompt}'
+                                f"CEO CONTEXT:\n"
+                                f"Stage: {_prims.get('stage', 1)}\n"
+                                f"Revenue: ${_prims.get('current_revenue', 0)}\n"
+                                f"Clients: {_prims.get('client_count', 0)}\n"
+                                f"Channel: {_prims.get('primary_channel', '')}\n\n"
+                                f"{prompt}"
                             )
                         except Exception as _ce:
-                            print(f'[Gateway] CEO inject: {_ce}')
+                            print(f"[Gateway] CEO inject: {_ce}")
 
                 except Exception as _ir_err:
-                    print(f'[Gateway] Intent routing: {_ir_err}')
+                    print(f"[Gateway] Intent routing: {_ir_err}")
 
             if not agent_to_use:
                 agent_to_use = self._route_to_agent(prompt)
 
             # Log delegation if routing to a CEO agent
-            _CEO_AGENTS = frozenset({'lyfe_ceo', 'empyrean_ceo', 'brand_ceo'})
             if agent_to_use in _CEO_AGENTS:
                 try:
                     from eos_ai.delegation_tracker import log_delegation
+
                     log_delegation(
                         task=prompt[:200],
                         delegated_to=agent_to_use,
@@ -926,16 +1237,92 @@ class EOSGateway:
                 except Exception:
                     pass
 
+            # FIX 1: Wire CEO deep standards for direct-routed CEO agents
+            if agent_to_use in _CEO_AGENTS:
+                try:
+                    from eos_ai.ceo_operational_standards import (
+                        get_constraint_rules,
+                        get_offer_rules,
+                        get_delegation_rules,
+                        get_hiring_rules,
+                        get_metric_rules,
+                        get_decision_rules,
+                        get_stage_rules,
+                        get_hormozi_rules,
+                    )
+
+                    _ceo_section_map_d = {
+                        "constraint": get_constraint_rules,
+                        "offer": get_offer_rules,
+                        "hiring": get_hiring_rules,
+                        "metrics": get_metric_rules,
+                        "decisions": get_decision_rules,
+                        "stage": get_stage_rules,
+                    }
+                    _task_class_d = _classify_ceo_task(prompt)
+                    _getter_d = _ceo_section_map_d.get(
+                        _task_class_d,
+                        get_constraint_rules,
+                    )
+                    _ceo_deep_d = _getter_d()
+                    _ceo_deep_d += "\n" + get_hormozi_rules()
+                    if _task_class_d != "constraint":
+                        _ceo_deep_d += "\n" + get_delegation_rules()
+                    prompt = (
+                        f"CEO OPERATING STANDARDS "
+                        f"(task: {_task_class_d}):\n{_ceo_deep_d}\n\n"
+                        f"{prompt}"
+                    )
+                    print(
+                        f"[Gateway] CEO deep standards injected (direct): {_task_class_d}"
+                    )
+                except Exception as _ceo_d_err:
+                    print(f"[Gateway] CEO standards (direct): {_ceo_d_err}")
+
+            # FIX 3: Wire portfolio advisor deep standards for direct-routed
+            if agent_to_use == "portfolio_advisor":
+                try:
+                    from eos_ai.portfolio_advisor_standards import (
+                        get_all_standards as get_pa_standards_d,
+                    )
+
+                    _pa_deep_d = get_pa_standards_d()
+                    if _pa_deep_d:
+                        prompt = (
+                            f"PORTFOLIO ADVISOR OPERATING STANDARDS "
+                            f"(Munger/Dalio framework):\n{_pa_deep_d}\n\n"
+                            f"{prompt}"
+                        )
+                        print(
+                            "[Gateway] Portfolio advisor deep standards injected (direct)"
+                        )
+                except Exception as _pa_d_err:
+                    print(f"[Gateway] Portfolio standards (direct): {_pa_d_err}")
+
             # Universal agent standards injection — direct tasks
             try:
                 from eos_ai.principle_engine import PrincipleEngine
+
                 _pe_direct = PrincipleEngine(ctx)
                 _standards_direct = _pe_direct.format_agent_standards(agent_to_use)
                 if _standards_direct:
-                    prompt = f'{_standards_direct}\n\n{prompt}'
-                    print(f'[Gateway] Agent standards injected: {agent_to_use}')
+                    prompt = f"{_standards_direct}\n\n{prompt}"
+                    print(f"[Gateway] Agent standards injected: {agent_to_use}")
             except Exception as _se_direct:
-                print(f'[Gateway] Standards inject: {_se_direct}')
+                print(f"[Gateway] Standards inject: {_se_direct}")
+
+            # FIX 2: Wire REALITY_PRINCIPLES — domain principles for direct tasks
+            try:
+                from eos_ai.principle_engine import PrincipleEngine
+
+                _pe_domain_d = PrincipleEngine(ctx)
+                _domain_d = _AGENT_DOMAIN_MAP.get(agent_to_use, "ops")
+                _domain_principles_d = _pe_domain_d.format_for_prompt(_domain_d)
+                if _domain_principles_d:
+                    prompt = f"{_domain_principles_d}\n\n{prompt}"
+                    print(f"[Gateway] Domain principles injected (direct): {_domain_d}")
+            except Exception as _dp_d_err:
+                print(f"[Gateway] Domain principles (direct): {_dp_d_err}")
 
             result = loop.run(
                 input=prompt,
@@ -944,12 +1331,12 @@ class EOSGateway:
                 agent=agent_to_use,
                 task_type=task_type,
                 venture_id=venture_id,
-                channel=request.get('channel', ''),
+                channel=request.get("channel", ""),
             )
 
-        if result.status == 'pending_approval':
+        if result.status == "pending_approval":
             return {
-                "status":      "pending",
+                "status": "pending",
                 "approval_id": result.approval_id,
                 "message": (
                     f"Request queued for approval. "
@@ -960,16 +1347,17 @@ class EOSGateway:
         # Permanently integrate this exchange into the knowledge base
         try:
             from eos_ai.knowledge_integrator import KnowledgeIntegrator
+
             _ki = KnowledgeIntegrator(ctx)
             if prompt and result.output:
                 _ki.integrate(
-                    content=f'Q: {prompt[:500]}\nA: {(result.output or "")[:500]}',
-                    source='gateway_conversation',
-                    category='conversation',
+                    content=f"Q: {prompt[:500]}\nA: {(result.output or '')[:500]}",
+                    source="gateway_conversation",
+                    category="conversation",
                     metadata={
-                        'team':       team,
-                        'sub_agent':  sub_agent,
-                        'venture_id': venture_id,
+                        "team": team,
+                        "sub_agent": sub_agent,
+                        "venture_id": venture_id,
                     },
                 )
         except Exception:
@@ -978,71 +1366,86 @@ class EOSGateway:
         # Feedback loop — log advice as recommendation; detect outcome reports
         try:
             from eos_ai.feedback_loop import FeedbackLoop
+
             fl = FeedbackLoop(ctx)
-            if any(signal in (result.output or '').lower() for signal in [
-                'send', 'do this', 'focus on',
-                'action:', 'next step', 'today:',
-                'one thing:', 'start with',
-            ]):
+            if any(
+                signal in (result.output or "").lower()
+                for signal in [
+                    "send",
+                    "do this",
+                    "focus on",
+                    "action:",
+                    "next step",
+                    "today:",
+                    "one thing:",
+                    "start with",
+                ]
+            ):
                 fl.log_recommendation(
-                    content=(result.output or '')[:500],
-                    venture_id=venture_id or '',
+                    content=(result.output or "")[:500],
+                    venture_id=venture_id or "",
                     context=prompt[:200],
                 )
-            fl.log_outcome(prompt, venture_id or '')
+            fl.log_outcome(prompt, venture_id or "")
         except Exception as e:
-            print(f'[FeedbackLoop] {e}')
+            print(f"[FeedbackLoop] {e}")
 
         # Accountability — detect and log commitments in founder's message
         try:
             from eos_ai.accountability import AccountabilityEngine
+
             ae = AccountabilityEngine(ctx)
-            commitment = ae.detect_commitment(prompt, venture_id or '')
+            commitment = ae.detect_commitment(prompt, venture_id or "")
             if commitment:
-                print(f'[Accountability] Logged: {commitment.text[:50]}')
+                print(f"[Accountability] Logged: {commitment.text[:50]}")
         except Exception as e:
-            print(f'[Accountability] {e}')
+            print(f"[Accountability] {e}")
 
         # Decision log — detect and permanently record decisions
         try:
             from eos_ai.decision_log import DecisionLog
+
             _dl = DecisionLog(ctx)
             if _dl.detect_decision(prompt):
-                _dl.log_from_message(prompt, venture_id=venture_id or '')
+                _dl.log_from_message(prompt, venture_id=venture_id or "")
         except Exception as e:
-            print(f'[DecisionLog] {e}')
+            print(f"[DecisionLog] {e}")
 
         # Store conversation turn in session memory
         try:
             if cm and session_id and result.output:
                 cm.store(
                     session_id=session_id,
-                    role='user',
-                    content=request.get('prompt', ''),
-                    channel=request.get('channel', 'discord'),
-                    agent='executive_assistant',
+                    role="user",
+                    content=request.get("prompt", ""),
+                    channel=request.get("channel", "discord"),
+                    agent="executive_assistant",
                 )
                 cm.store(
                     session_id=session_id,
-                    role='assistant',
+                    role="assistant",
                     content=result.output,
-                    channel=request.get('channel', 'discord'),
-                    agent='executive_assistant',
+                    channel=request.get("channel", "discord"),
+                    agent="executive_assistant",
                 )
         except Exception as e:
-            print(f'[Gateway] cm.store failed: {e}')
+            print(f"[Gateway] cm.store failed: {e}")
 
         return {
-            "status":         "ok",
+            "status": "ok",
             "interaction_id": result.interaction_id,
-            "model":          result.model_used,
-            "skill":          result.skill_used,
-            "output":         result.output,
-            "tokens":         result.tokens_used,
-            "iterations":     result.iterations,
-            "was_enhanced":   result.was_enhanced,
-            "original_prompt": request.get("_original_prompt", request.get("prompt", "")),
-            "enhanced_prompt": request.get("prompt", "") if request.get("_original_prompt") else "",
+            "model": result.model_used,
+            "skill": result.skill_used,
+            "output": result.output,
+            "tokens": result.tokens_used,
+            "iterations": result.iterations,
+            "was_enhanced": result.was_enhanced,
+            "original_prompt": request.get(
+                "_original_prompt", request.get("prompt", "")
+            ),
+            "enhanced_prompt": request.get("prompt", "")
+            if request.get("_original_prompt")
+            else "",
             "enhancement_reason": request.get("_enhancement_reason", ""),
         }
 
@@ -1057,27 +1460,35 @@ class EOSGateway:
         )
         from eos_ai.venture_knowledge import VentureKnowledgeBase
 
-        rows_7d            = _fetch_7d_raw()
+        rows_7d = _fetch_7d_raw()
         total_interactions = _fetch_total_interactions()
-        last_orch          = _fetch_last_orchestrator_run()
+        last_orch = _fetch_last_orchestrator_run()
 
         # Venture north star
         ventures = []
         for vid in VentureKnowledgeBase.list_ventures():
-            v   = VentureKnowledgeBase.get(vid)
-            pct = round(v.monthly_revenue / v.monthly_target * 100, 1) if v.monthly_target > 0 else 0.0
-            ventures.append({
-                "venture_id": vid,
-                "revenue":    v.monthly_revenue,
-                "target":     v.monthly_target,
-                "pct":        pct,
-                "stage":      v.stage,
-            })
+            v = VentureKnowledgeBase.get(vid)
+            pct = (
+                round(v.monthly_revenue / v.monthly_target * 100, 1)
+                if v.monthly_target > 0
+                else 0.0
+            )
+            ventures.append(
+                {
+                    "venture_id": vid,
+                    "revenue": v.monthly_revenue,
+                    "target": v.monthly_target,
+                    "pct": pct,
+                    "stage": v.stage,
+                }
+            )
 
         # Events table count
         try:
             with get_conn(ORG_ID) as cur:
-                cur.execute("SELECT COUNT(*) AS cnt FROM events WHERE org_id = %s", (ORG_ID,))
+                cur.execute(
+                    "SELECT COUNT(*) AS cnt FROM events WHERE org_id = %s", (ORG_ID,)
+                )
                 events_count = cur.fetchone()["cnt"]
         except Exception:
             events_count = 0
@@ -1093,43 +1504,48 @@ class EOSGateway:
 
         last_orch_str = last_orch["timestamp"][:19] if last_orch else "never"
         neon_status = "✅ connected" if events_count > 0 else "⚠️ no events"
-        output_lines = [
-            "**EOS SYSTEM STATUS**",
-            "",
-            "**NORTH STAR**",
-        ] + venture_lines + [
-            "",
-            "**ACTIVITY**",
-            f"  Interactions (total)  : {total_interactions:,}",
-            f"  Interactions (7d)     : {len(rows_7d)}",
-            f"  Cost (7d)             : ${round(_cost_est(rows_7d), 4):.4f}",
-            f"  Events logged         : {events_count:,}",
-            f"  Last orchestrator run : {last_orch_str}",
-            "",
-            "**INFRASTRUCTURE**",
-            f"  Neon database         : {neon_status}",
-        ]
+        output_lines = (
+            [
+                "**EOS SYSTEM STATUS**",
+                "",
+                "**NORTH STAR**",
+            ]
+            + venture_lines
+            + [
+                "",
+                "**ACTIVITY**",
+                f"  Interactions (total)  : {total_interactions:,}",
+                f"  Interactions (7d)     : {len(rows_7d)}",
+                f"  Cost (7d)             : ${round(_cost_est(rows_7d), 4):.4f}",
+                f"  Events logged         : {events_count:,}",
+                f"  Last orchestrator run : {last_orch_str}",
+                "",
+                "**INFRASTRUCTURE**",
+                f"  Neon database         : {neon_status}",
+            ]
+        )
 
         return {
-            "status":             "ok",
+            "status": "ok",
             "interactions_total": total_interactions,
-            "interactions_7d":    len(rows_7d),
-            "cost_7d_usd":        round(_cost_est(rows_7d), 4),
-            "events_logged":      events_count,
-            "last_orchestrator":  last_orch_str,
-            "ventures":           ventures,
-            "output":             "\n".join(output_lines),
+            "interactions_7d": len(rows_7d),
+            "cost_7d_usd": round(_cost_est(rows_7d), 4),
+            "events_logged": events_count,
+            "last_orchestrator": last_orch_str,
+            "ventures": ventures,
+            "output": "\n".join(output_lines),
         }
 
     # ─── Route: brief ─────────────────────────────────────────────────────────
 
     def _route_brief(self, request: dict) -> dict:
         from eos_ai.orchestrator import EOSOrchestrator
-        orch  = EOSOrchestrator()
+
+        orch = EOSOrchestrator()
         brief = orch.morning_brief()
         return {
             "status": "ok",
-            "brief":  brief,
+            "brief": brief,
         }
 
     # ─── Approval queue ───────────────────────────────────────────────────────
@@ -1139,13 +1555,13 @@ class EOSGateway:
         Write request to pending/ directory.
         Returns approval_id (timestamp-based, human-readable).
         """
-        approval_id   = f"{_timestamp_id()}_{request.get('type', 'req')}"
-        pending_file  = PENDING_DIR / f"{approval_id}.json"
-        record        = {
+        approval_id = f"{_timestamp_id()}_{request.get('type', 'req')}"
+        pending_file = PENDING_DIR / f"{approval_id}.json"
+        record = {
             "approval_id": approval_id,
-            "queued_at":   _utcnow(),
-            "request":     request,
-            "status":      "pending",
+            "queued_at": _utcnow(),
+            "request": request,
+            "status": "pending",
         }
         pending_file.write_text(json.dumps(record, indent=2), encoding="utf-8")
         print(f"[Gateway] Approval queued: {approval_id}")
@@ -1156,7 +1572,7 @@ class EOSGateway:
         Move pending → approved, then execute the original request.
         Returns the execution result.
         """
-        pending_file  = PENDING_DIR / f"{approval_id}.json"
+        pending_file = PENDING_DIR / f"{approval_id}.json"
         approved_file = APPROVED_DIR / f"{approval_id}.json"
 
         if not pending_file.exists():
@@ -1165,8 +1581,8 @@ class EOSGateway:
                 return {"status": "error", "error": f"{approval_id} already approved"}
             return {"status": "error", "error": f"Approval {approval_id} not found"}
 
-        record              = json.loads(pending_file.read_text(encoding="utf-8"))
-        record["status"]    = "approved"
+        record = json.loads(pending_file.read_text(encoding="utf-8"))
+        record["status"] = "approved"
         record["approved_at"] = _utcnow()
 
         # Move to approved/
@@ -1176,7 +1592,7 @@ class EOSGateway:
 
         # Execute bypassing the approval gate (approved request runs directly)
         original_request = record["request"]
-        rtype            = original_request.get("type")
+        rtype = original_request.get("type")
         try:
             if rtype == "event":
                 result = self._route_event(original_request)
@@ -1191,8 +1607,9 @@ class EOSGateway:
         except Exception as exc:
             result = {"status": "error", "error": str(exc)}
 
-        self._log_gateway_event(original_request, "approved_executed",
-                                json.dumps(result)[:300])
+        self._log_gateway_event(
+            original_request, "approved_executed", json.dumps(result)[:300]
+        )
         return result
 
     # ─── Multi-part ordering ──────────────────────────────────────────────────
@@ -1209,13 +1626,13 @@ class EOSGateway:
         import re
 
         # Numbered list: two or more "N. ..." items
-        numbered = re.findall(r'^\d+\.\s+.+$', text, re.MULTILINE)
+        numbered = re.findall(r"^\d+\.\s+.+$", text, re.MULTILINE)
         if len(numbered) >= 2:
-            return [re.sub(r'^\d+\.\s+', '', n).strip() for n in numbered]
+            return [re.sub(r"^\d+\.\s+", "", n).strip() for n in numbered]
 
         # Connector split on newlines before transition words
         parts = re.split(
-            r'\n+(?=(?:also|another|additionally|and also|one more|finally)\b)',
+            r"\n+(?=(?:also|another|additionally|and also|one more|finally)\b)",
             text,
             flags=re.IGNORECASE,
         )
@@ -1230,7 +1647,7 @@ class EOSGateway:
         Returns a list of result dicts in order.  Single-part prompts return
         a one-element list so callers can always iterate uniformly.
         """
-        text  = request.get('prompt', '')
+        text = request.get("prompt", "")
         parts = self.split_and_order_prompt(text)
 
         if len(parts) == 1:
@@ -1238,10 +1655,10 @@ class EOSGateway:
 
         results = []
         for i, part in enumerate(parts):
-            part_request = {**request, 'prompt': part}
-            result       = self.handle(part_request)
-            result['part']        = i + 1
-            result['total_parts'] = len(parts)
+            part_request = {**request, "prompt": part}
+            result = self.handle(part_request)
+            result["part"] = i + 1
+            result["total_parts"] = len(parts)
             results.append(result)
         return results
 
@@ -1270,11 +1687,22 @@ class EOSGateway:
             "UNKNOWN — cannot determine intent clearly"
         )
         _VALID = {
-            'BRIEF', 'STRATEGY', 'OUTREACH', 'RESEARCH', 'CONTENT',
-            'DECISION', 'TASK', 'INTEL', 'PORTFOLIO', 'JOURNAL', 'MODEL', 'UNKNOWN',
+            "BRIEF",
+            "STRATEGY",
+            "OUTREACH",
+            "RESEARCH",
+            "CONTENT",
+            "DECISION",
+            "TASK",
+            "INTEL",
+            "PORTFOLIO",
+            "JOURNAL",
+            "MODEL",
+            "UNKNOWN",
         }
         try:
             import anthropic as _anthropic
+
             client = _anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
             msg = client.messages.create(
                 model="claude-haiku-4-5-20251001",
@@ -1283,10 +1711,10 @@ class EOSGateway:
                 messages=[{"role": "user", "content": text}],
             )
             intent = msg.content[0].text.strip().upper().split()[0]
-            return intent if intent in _VALID else 'UNKNOWN'
+            return intent if intent in _VALID else "UNKNOWN"
         except Exception as e:
             print(f"[Gateway] classify_intent failed: {e}")
-            return 'UNKNOWN'
+            return "UNKNOWN"
 
     def get_pending_approvals(self) -> list[dict]:
         """Return all requests waiting for approval."""
@@ -1294,20 +1722,23 @@ class EOSGateway:
         for f in sorted(PENDING_DIR.glob("*.json")):
             try:
                 record = json.loads(f.read_text(encoding="utf-8"))
-                pending.append({
-                    "approval_id": record.get("approval_id"),
-                    "queued_at":   record.get("queued_at"),
-                    "type":        record.get("request", {}).get("type"),
-                    "sub_agent":   record.get("request", {}).get("sub_agent"),
-                    "action":      record.get("request", {}).get("action"),
-                    "prompt":      record.get("request", {}).get("prompt", "")[:80],
-                })
+                pending.append(
+                    {
+                        "approval_id": record.get("approval_id"),
+                        "queued_at": record.get("queued_at"),
+                        "type": record.get("request", {}).get("type"),
+                        "sub_agent": record.get("request", {}).get("sub_agent"),
+                        "action": record.get("request", {}).get("action"),
+                        "prompt": record.get("request", {}).get("prompt", "")[:80],
+                    }
+                )
             except Exception as exc:
                 pending.append({"file": f.name, "error": str(exc)})
         return pending
 
 
 # ─── Module-level helper ──────────────────────────────────────────────────────
+
 
 def get_gateway() -> EOSGateway:
     """Return the singleton EOSGateway instance."""
@@ -1317,7 +1748,7 @@ def get_gateway() -> EOSGateway:
 def ingest_external_context(
     source: str,
     content: str,
-    context_type: str = 'design_decision',
+    context_type: str = "design_decision",
     venture_id: str | None = None,
 ) -> str:
     """
@@ -1337,16 +1768,16 @@ def ingest_external_context(
 
     result = AgentResult(
         output=content[:500],
-        model_used='external',
-        tokens_used={'total': 0},
+        model_used="external",
+        tokens_used={"total": 0},
         skill_used=None,
     )
     mem = AgentMemory()
     interaction_id = mem.log(
         agent_result=result,
         venture_id=venture_id,
-        input_summary=f'[{source}] {context_type}',
-        agent=f'external_{source}',
+        input_summary=f"[{source}] {context_type}",
+        agent=f"external_{source}",
         task_type=context_type,
     )
     return interaction_id
