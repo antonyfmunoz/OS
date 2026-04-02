@@ -590,6 +590,213 @@ def run_full_morning_cycle(ctx: EOSContext) -> None:
     print("[Orchestrator] ── Full morning cycle complete ──")
 
 
+def run_ceo_morning_delegation(
+    ctx: EOSContext,
+    ventures: list = None,
+) -> None:
+    """
+    CEO agent morning delegation cycle.
+    For each venture, identifies today's key objective
+    and delegates to specialist agents via CoordinationEngine.
+    Runs after the morning brief.
+    """
+    import json as _json
+    from zoneinfo import ZoneInfo as _ZI
+    _PDT = _ZI('America/Los_Angeles')
+
+    from eos_ai.ceo_agent import CEOAgent as _EvoCEO
+    from eos_ai.coordination_engine import CoordinationEngine as _CE
+    from eos_ai.portfolio_agent import PortfolioAgent as _PA
+
+    # Get binding constraint from portfolio
+    binding_constraint = 'Grow revenue'
+    binding_venture = None
+    try:
+        pa = _PA(ctx)
+        all_ventures = pa.scan_all_ventures()
+        binding = pa.identify_binding_constraint(all_ventures)
+        if binding:
+            binding_constraint = binding.binding_constraint
+            binding_venture = binding.venture_id
+    except Exception as e:
+        print(f'[CEOMorning] Portfolio scan failed: {e}')
+
+    # Get ventures — from arg, then ctx.ventures, then default
+    venture_list = (
+        ventures or
+        getattr(ctx, 'ventures', []) or
+        [{'id': 'lyfe_institute', 'name': 'Lyfe Institute'}]
+    )
+
+    results = []
+
+    for venture_config in venture_list[:3]:
+        venture_id = venture_config.get('id', '')
+        venture_name = venture_config.get('name', venture_id)
+
+        try:
+            # Scope context to this venture
+            from eos_ai.context import EOSContext as _EC
+            venture_ctx = _EC(
+                org_id=ctx.org_id,
+                user_id=ctx.user_id,
+                portfolio_id=getattr(ctx, 'portfolio_id', ctx.org_id),
+                active_venture_id=venture_id,
+            )
+
+            # Check evolution
+            evo_ceo = _EvoCEO(venture_ctx)
+            changes = evo_ceo.check_and_evolve()
+            if changes.get('stage_transition'):
+                results.append(
+                    f'🚀 **{venture_name}:** {changes["message"]}'
+                )
+
+            # Determine today's objective for this venture
+            from eos_ai.cognitive_loop import CognitiveLoop as _CL
+            from eos_ai.agent_runtime import TaskType as _TT
+
+            loop = _CL(venture_ctx)
+
+            primitives = evo_ceo.detect_primitives()
+            stage = primitives.get('stage', 1)
+            north_star = venture_config.get('north_star', '')
+            constraint = venture_config.get(
+                'binding_constraint',
+                binding_constraint
+                if venture_id == binding_venture else ''
+            )
+
+            # Diagnose active constraint from live data
+            constraint_data = {}
+            active_agents = None
+            offer_data = {}
+            constraint_context = ''
+            try:
+                from eos_ai.ceo_intelligence import (
+                    diagnose_constraint as _dc,
+                    get_offer_stage as _gos,
+                )
+                constraint_data = _dc(
+                    venture_id, venture_ctx
+                )
+                offer_data = _gos(
+                    venture_id, venture_ctx
+                )
+                active_agents = constraint_data.get(
+                    'active_agents', []
+                )
+                constraint_context = (
+                    f'ACTIVE CONSTRAINT: '
+                    f'{constraint_data["constraint"].upper()}'
+                    f'\nDiagnosis: '
+                    f'{constraint_data["diagnosis"]}'
+                    f'\nRecommendation: '
+                    f'{constraint_data["recommendation"]}'
+                    f'\nOffer stage: '
+                    f'{offer_data["stage"]} — '
+                    f'{offer_data["label"]}'
+                    f'\nOffer objective: '
+                    f'{offer_data["objective"]}'
+                )
+                print(
+                    f'[CEOMorning] Constraint: '
+                    f'{constraint_data["constraint"]} '
+                    f'| Active agents: {active_agents}'
+                )
+            except Exception as _ce:
+                print(f'[CEOMorning] Intel: {_ce}')
+
+            today = datetime.datetime.now(_PDT).strftime('%A %B %d')
+            objective_result = loop.run(
+                input=(
+                    f'You are the CEO of {venture_name}.\n\n'
+                    f'Stage: {stage}\n'
+                    f'North star: {north_star}\n'
+                    f'Binding constraint: {constraint}\n'
+                    + (f'{constraint_context}\n\n'
+                       if constraint_context else '\n')
+                    + f'Today is {today}.\n\n'
+                    f'What is the single most important objective '
+                    f'for your specialist agents to work on today '
+                    f'to move the needle on the binding constraint?\n\n'
+                    f'State it in one clear sentence.'
+                ),
+                agent='ceo_agent',
+                task_type=_TT.FAST_RESPONSE,
+                venture_id=venture_id,
+            )
+
+            today_objective = (
+                objective_result.output or
+                f'Advance {binding_constraint}'
+            ).strip()
+
+            # Delegate to specialist agents
+            coordination = _CE(venture_ctx)
+            delegation = coordination.ceo_delegate(
+                company_objective=today_objective,
+                venture_id=venture_id,
+            )
+
+            # Filter to constraint-active agents only
+            if active_agents:
+                all_tasks = delegation.get(
+                    'tasks_created', []
+                )
+                filtered = [
+                    t for t in all_tasks
+                    if (
+                        t.get('executor') in active_agents
+                        or t.get('executor') == 'human'
+                        or t.get('executor', '').startswith(
+                            'operations'
+                        )
+                    )
+                ]
+                if len(filtered) < len(all_tasks):
+                    skipped = len(all_tasks) - len(filtered)
+                    print(
+                        f'[CEOMorning] Constraint filter: '
+                        f'{len(all_tasks)} → {len(filtered)} '
+                        f'tasks ({skipped} idle agents skipped)'
+                    )
+
+            total = delegation.get('total', 0)
+            ai_tasks = delegation.get('ai_tasks', 0)
+            human_tasks = delegation.get('human_tasks', 0)
+
+            results.append(
+                f'🏢 **{venture_name}**\n'
+                f'Objective: _{today_objective}_\n'
+                f'{total} tasks delegated ({ai_tasks} AI, {human_tasks} founder)'
+            )
+
+        except Exception as e:
+            print(f'[CEOMorning] {venture_id} failed: {e}')
+            results.append(
+                f'⚠️ {venture_name}: delegation failed — {e}'
+            )
+
+    # Surface to Discord via existing _send_discord_webhook helper
+    if results:
+        try:
+            msg = (
+                '## 🏢 CEO Agent Morning Delegation\n\n'
+                + '\n\n'.join(results)
+                + '\n\nSpecialist agents executing. '
+                'Results surface as tasks complete.'
+            )
+            _send_discord_webhook(
+                env_var='DISCORD_BRIEF_WEBHOOK',
+                content=msg[:1900],
+                title='CEO Delegation',
+                username='DEX',
+            )
+        except Exception as e:
+            print(f'[CEOMorning] Discord alert failed: {e}')
+
+
 # ─── Proactive Intelligence ───────────────────────────────────────────────────
 
 def check_proactive_triggers(ctx: EOSContext) -> list[str]:
@@ -1572,4 +1779,10 @@ if __name__ == "__main__":
         print(f"[Orchestrator] First-start AI scan failed: {_e}")
 
     run_full_morning_cycle(_ctx)
+    try:
+        from eos_ai.context import load_ventures_from_env
+        _ventures = load_ventures_from_env()
+        run_ceo_morning_delegation(_ctx, _ventures)
+    except Exception as e:
+        print(f'[Morning] CEO delegation failed: {e}')
     start_ambient_refresh_loop(_ctx)
