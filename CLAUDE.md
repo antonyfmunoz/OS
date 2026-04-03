@@ -171,7 +171,8 @@ Use feature branches for experimental or risky changes.
 - Fast checks: Haiku via TaskType.FAST_RESPONSE
 
 ## Current Known Gotchas (2026-04-02)
-- Anthropic credits depleted → claude -p and Anthropic SDK both return 400 credit error
+- Anthropic key invalid (401 auth error) → SDK returns authentication_error not credit error
+- Gemini spending cap exceeded (429) → all Gemini calls fail until cap raised
 - google.generativeai (old SDK) deprecated → always use google.genai (new SDK)
 - gemini-2.0-flash deprecated for new users → use gemini-2.5-flash
 - Codex exec requires stdin pipe and has reconnect issues → not in fallback chain
@@ -180,3 +181,8 @@ Use feature branches for experimental or risky changes.
 - gemini binary not installed — Gemini via Python SDK only
 - .claude/agents/ subagents require CC auth to run (blocked until Anthropic credits restored)
 - CC_MODEL_MAP exists in model_router.py — used when Anthropic comes back online
+- Ollama qwen2.5:3b OOM (needs 1.9 GiB, Docker uses 4+ GiB) → switched to qwen2.5:0.5b
+- Ollama system prompt must be truncated to ~1500 chars for 0.5b model — times out otherwise
+- NOTION_MORNING_BRIEF_ID points to dead DB → publisher falls back to Documents DB
+- After Ollama model change: `docker restart` services to pick up new code (Python files are bind-mounted)
+- Never hardcode `anthropic.Anthropic()` in services — always use model_router.call_with_fallback

@@ -40,36 +40,37 @@ from eos_ai.model_preferences import ModelPreferences
 
 # ─── Models ──────────────────────────────────────────────────────────────────
 
-HAIKU  = "claude-haiku-4-5-20251001"   # scoring, classification
-SONNET = "claude-sonnet-4-6"            # generation, analysis
+HAIKU = "claude-haiku-4-5-20251001"  # scoring, classification
+SONNET = "claude-sonnet-4-6"  # generation, analysis
 
 # ─── Cost table (USD per million tokens) ─────────────────────────────────────
 
 COST_PER_MILLION_TOKENS: dict[str, dict[str, float]] = {
-    "claude-haiku-4-5-20251001": {"input": 0.80,  "output": 4.00},
-    "claude-sonnet-4-6":         {"input": 3.00,  "output": 15.00},
-    "claude-opus-4-6":           {"input": 15.00, "output": 75.00},
+    "claude-haiku-4-5-20251001": {"input": 0.80, "output": 4.00},
+    "claude-sonnet-4-6": {"input": 3.00, "output": 15.00},
+    "claude-opus-4-6": {"input": 15.00, "output": 75.00},
 }
 
 
 def calculate_cost(model: str, tokens_used: dict[str, int]) -> float:
     """Return USD cost for a completed API call."""
     rates = COST_PER_MILLION_TOKENS.get(model, {"input": 3.00, "output": 15.00})
-    input_cost  = tokens_used.get("input",  0) / 1_000_000 * rates["input"]
+    input_cost = tokens_used.get("input", 0) / 1_000_000 * rates["input"]
     output_cost = tokens_used.get("output", 0) / 1_000_000 * rates["output"]
     return round(input_cost + output_cost, 8)
 
 
 class TaskType(Enum):
-    SCORE         = "score"         # → Haiku: ICP scoring, lead qualification
-    CLASSIFY      = "classify"      # → Haiku: archetype detection, intent classification
-    ANALYZE       = "analyze"       # → Sonnet: deep signal analysis, conversation analysis
-    GENERATE      = "generate"      # → Sonnet: outreach copy, content, market reports
-    SUMMARIZE     = "summarize"     # → Haiku: quick summaries, call digests
-    FAST_RESPONSE = "fast_response" # → Haiku: low-latency single-turn responses
+    SCORE = "score"  # → Haiku: ICP scoring, lead qualification
+    CLASSIFY = "classify"  # → Haiku: archetype detection, intent classification
+    ANALYZE = "analyze"  # → Sonnet: deep signal analysis, conversation analysis
+    GENERATE = "generate"  # → Sonnet: outreach copy, content, market reports
+    SUMMARIZE = "summarize"  # → Haiku: quick summaries, call digests
+    FAST_RESPONSE = "fast_response"  # → Haiku: low-latency single-turn responses
 
 
 # ─── Rate limiter ─────────────────────────────────────────────────────────────
+
 
 class RateLimiter:
     """
@@ -81,17 +82,18 @@ class RateLimiter:
     _counts: dict[str, dict[str, int]] = {}
 
     LIMITS = {
-        'per_minute': 30,
-        'per_hour':   500,
+        "per_minute": 30,
+        "per_hour": 500,
     }
 
     @classmethod
     def check(cls, org_id: str) -> bool:
         """Return True if call is allowed. Return False if rate limited."""
         from datetime import datetime as _dt
-        now        = _dt.now()
-        minute_key = now.strftime('%Y%m%d%H%M')
-        hour_key   = now.strftime('%Y%m%d%H')
+
+        now = _dt.now()
+        minute_key = now.strftime("%Y%m%d%H%M")
+        hour_key = now.strftime("%Y%m%d%H")
 
         if org_id not in cls._counts:
             cls._counts[org_id] = {}
@@ -99,50 +101,50 @@ class RateLimiter:
         counts = cls._counts[org_id]
 
         minute_count = counts.get(minute_key, 0)
-        if minute_count >= cls.LIMITS['per_minute']:
-            print(f'[RateLimiter] Minute limit hit: {org_id} — {minute_count}/min')
+        if minute_count >= cls.LIMITS["per_minute"]:
+            print(f"[RateLimiter] Minute limit hit: {org_id} — {minute_count}/min")
             return False
 
         hour_count = counts.get(hour_key, 0)
-        if hour_count >= cls.LIMITS['per_hour']:
-            print(f'[RateLimiter] Hour limit hit: {org_id} — {hour_count}/hour')
+        if hour_count >= cls.LIMITS["per_hour"]:
+            print(f"[RateLimiter] Hour limit hit: {org_id} — {hour_count}/hour")
             return False
 
         counts[minute_key] = minute_count + 1
-        counts[hour_key]   = hour_count + 1
+        counts[hour_key] = hour_count + 1
 
         # Purge keys not in current window to prevent unbounded growth
         cls._counts[org_id] = {
-            k: v for k, v in counts.items()
-            if k in (minute_key, hour_key)
+            k: v for k, v in counts.items() if k in (minute_key, hour_key)
         }
         return True
 
 
 # ─── Retry config ─────────────────────────────────────────────────────────────
 
-_MAX_RETRIES   = 4
-_BACKOFF_BASE  = 2   # seconds — delays: 2 → 4 → 8 → 16
+_MAX_RETRIES = 4
+_BACKOFF_BASE = 2  # seconds — delays: 2 → 4 → 8 → 16
 
 
 # ─── Result ───────────────────────────────────────────────────────────────────
+
 
 @dataclass
 class AgentResult:
     output: str
     model_used: str
-    tokens_used: dict[str, int]   # {"input": N, "output": N, "total": N}
-    skill_used: str | None        # skill_id or None
+    tokens_used: dict[str, int]  # {"input": N, "output": N, "total": N}
+    skill_used: str | None  # skill_id or None
     interaction_id: int | None = None  # set by memory.log() after persistence
-    authority: dict | None = None      # set by AuthorityEngine.check_can_execute()
-    cost_usd: float = 0.0              # USD cost for this call
-    duration_ms: int = 0               # wall-clock time for API call in ms
+    authority: dict | None = None  # set by AuthorityEngine.check_can_execute()
+    cost_usd: float = 0.0  # USD cost for this call
+    duration_ms: int = 0  # wall-clock time for API call in ms
 
 
 # ─── Runtime ─────────────────────────────────────────────────────────────────
 
-class AgentRuntime:
 
+class AgentRuntime:
     # Class-level flag — once credits are depleted, all instances skip Claude
     _claude_available: bool = True
 
@@ -152,12 +154,15 @@ class AgentRuntime:
             self._client = anthropic.Anthropic(api_key=api_key)
         else:
             self._client = None
-            print("[AgentRuntime] ANTHROPIC_API_KEY not set — routing all calls to Ollama (qwen2.5:3b)")
+            print(
+                "[AgentRuntime] ANTHROPIC_API_KEY not set — routing all calls to Ollama (qwen2.5:0.5b)"
+            )
         self._skills = get_skill_registry()
         self._prefs = ModelPreferences(ctx or load_context_from_env())
 
         # Import here to avoid circular imports if memory imports runtime
         from eos_ai.memory import AgentMemory
+
         self._memory = AgentMemory()
 
     @property
@@ -188,12 +193,12 @@ class AgentRuntime:
                 anthropic.APIStatusError,
             ) as exc:
                 # Credit-depleted: no point retrying
-                if 'credit balance is too low' in str(exc).lower():
+                if "credit balance is too low" in str(exc).lower():
                     raise
                 last_exc = exc
                 if attempt == _MAX_RETRIES:
                     break
-                delay = _BACKOFF_BASE ** (attempt + 1)   # 2, 4, 8, 16
+                delay = _BACKOFF_BASE ** (attempt + 1)  # 2, 4, 8, 16
                 reason = type(exc).__name__
                 print(
                     f"[AgentRuntime] API error on attempt {attempt + 1}/{_MAX_RETRIES} "
@@ -223,6 +228,7 @@ class AgentRuntime:
         # Auto-postmortem on exhausted retries — lazy import avoids circular dep
         try:
             from eos_ai.orchestrator import EOSOrchestrator
+
             EOSOrchestrator().write_postmortem(
                 failure_description=f"API call exhausted all {_MAX_RETRIES} retries",
                 error_log=str(last_exc),
@@ -235,60 +241,70 @@ class AgentRuntime:
     # ─── Provider methods ────────────────────────────────────────────────────
 
     def _call_ollama(
-        self, model: str, prompt: str, system: str | None,
+        self,
+        model: str,
+        prompt: str,
+        system: str | None,
         max_tokens: int = 1000,
     ) -> str:
         import requests
+
         # Fast pre-flight: skip 60s timeout if Ollama isn't running
         try:
-            requests.get('http://localhost:11434/api/tags', timeout=2)
+            requests.get("http://localhost:11434/api/tags", timeout=2)
         except Exception:
-            print('[AgentRuntime] Ollama not reachable — skipping local model')
-            return ''
+            print("[AgentRuntime] Ollama not reachable — skipping local model")
+            return ""
         try:
+            # Small local models can't handle huge system prompts — truncate
+            # to keep total context manageable and avoid timeouts.
+            _sys = system[:1500] if system else None
             payload: dict = {
-                'model': model,
-                'prompt': prompt,
-                'stream': False,
-                'options': {'num_predict': max_tokens},
+                "model": model,
+                "prompt": prompt[:2000],
+                "stream": False,
+                "options": {"num_predict": max_tokens},
             }
-            if system:
-                payload['system'] = system
+            if _sys:
+                payload["system"] = _sys
             resp = requests.post(
-                'http://localhost:11434/api/generate',
+                "http://localhost:11434/api/generate",
                 json=payload,
-                timeout=60,
+                timeout=120,
             )
             resp.raise_for_status()
-            return resp.json()['response']
+            return resp.json()["response"]
         except Exception as e:
-            print(f'[AgentRuntime] Ollama call failed: {e}')
-            return ''
+            print(f"[AgentRuntime] Ollama call failed: {e}")
+            return ""
 
     def _call_perplexity(self, model: str, prompt: str, system: str | None) -> str:
         from openai import OpenAI
-        key = os.getenv('PERPLEXITY_API_KEY')
+
+        key = os.getenv("PERPLEXITY_API_KEY")
         if not key:
-            raise EnvironmentError('PERPLEXITY_API_KEY not set')
-        client = OpenAI(api_key=key, base_url='https://api.perplexity.ai')
+            raise EnvironmentError("PERPLEXITY_API_KEY not set")
+        client = OpenAI(api_key=key, base_url="https://api.perplexity.ai")
         messages = []
         if system:
-            messages.append({'role': 'system', 'content': system})
-        messages.append({'role': 'user', 'content': prompt})
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
         resp = client.chat.completions.create(model=model, messages=messages)
         return resp.choices[0].message.content
 
     def _call_gemini(self, model: str, prompt: str, system: str | None) -> str:
-        key = os.getenv('GEMINI_API_KEY')
+        key = os.getenv("GEMINI_API_KEY")
         if not key:
-            raise EnvironmentError('GEMINI_API_KEY not set')
+            raise EnvironmentError("GEMINI_API_KEY not set")
         full_prompt = f"{system}\n\n{prompt}" if system else prompt
         try:
             import google.genai as genai
+
             client = genai.Client(api_key=key)
             resp = client.models.generate_content(model=model, contents=full_prompt)
         except ImportError:
             import google.generativeai as genai  # type: ignore[no-redef]
+
             genai.configure(api_key=key)
             resp = genai.GenerativeModel(model).generate_content(full_prompt)
         return resp.text
@@ -305,11 +321,11 @@ class AgentRuntime:
         agent: str = "default",
         system_extra: str | None = None,
         ctx: EOSContext | None = None,
-        modality: str = 'text',
-        data_tier: str = 'internal',
+        modality: str = "text",
+        data_tier: str = "internal",
         require_realtime: bool = False,
         forced_model: str | None = None,
-        task_criticality: str = 'normal',
+        task_criticality: str = "normal",
     ) -> AgentResult:
         """
         Execute a task with the appropriate model.
@@ -334,12 +350,12 @@ class AgentRuntime:
             ctx = load_context_from_env()
 
         # Rate limit check — hard block before any model call
-        _org_id = ctx.org_id if ctx else 'default'
+        _org_id = ctx.org_id if ctx else "default"
         if not RateLimiter.check(_org_id):
             return AgentResult(
-                output='Rate limit reached. Please wait a moment.',
-                model_used='rate_limiter',
-                tokens_used={'input': 0, 'output': 0, 'total': 0},
+                output="Rate limit reached. Please wait a moment.",
+                model_used="rate_limiter",
+                tokens_used={"input": 0, "output": 0, "total": 0},
                 skill_used=None,
             )
 
@@ -351,7 +367,7 @@ class AgentRuntime:
             forced_model=forced_model,
             task_criticality=task_criticality,
         )
-        model = model_config['model']
+        model = model_config["model"]
         system_parts: list[str] = []
         skill_used: str | None = None
 
@@ -359,42 +375,42 @@ class AgentRuntime:
         # Agent identity is the outermost layer — injected first so it
         # shapes how all downstream context (venture, skills, memory) is used.
         # When no agent specified, default to executive_assistant.
-        if agent == 'default':
+        if agent == "default":
             try:
                 from eos_ai.agent_hierarchy import AgentHierarchy
+
                 agent = AgentHierarchy().get_primary_interface()
             except Exception:
-                agent = 'executive_assistant'
+                agent = "executive_assistant"
 
         soul_doc_loaded = False
 
         # For EA: check BIS for user-generated soul doc first.
         # Every user gets their own AI name and identity — loaded from BIS.
-        if agent == 'executive_assistant':
+        if agent == "executive_assistant":
             try:
                 from eos_ai.business_instance import BusinessInstanceManager
+
                 _bim = BusinessInstanceManager(ctx)
                 # Try primary venture — EA soul doc is stored on the first venture
-                _primary_vid = venture_id or 'lyfe_institute'
+                _primary_vid = venture_id or "lyfe_institute"
                 _bis = _bim.get_bis(_primary_vid)
-                _user_soul_doc = getattr(_bis, 'ai_soul_doc_path', '') if _bis else ''
+                _user_soul_doc = getattr(_bis, "ai_soul_doc_path", "") if _bis else ""
                 if _user_soul_doc and Path(_user_soul_doc).exists():
                     system_parts.append(
-                        Path(_user_soul_doc).read_text(encoding='utf-8')
+                        Path(_user_soul_doc).read_text(encoding="utf-8")
                     )
-                    print(f'[AgentRuntime] User soul doc: {_user_soul_doc}')
+                    print(f"[AgentRuntime] User soul doc: {_user_soul_doc}")
                     soul_doc_loaded = True
             except Exception:
                 pass  # fall through to hierarchy soul doc
 
         # Fall back to hierarchy soul doc (agents/{agent}.md)
         if not soul_doc_loaded:
-            _soul_path = (
-                Path(__file__).parent.parent / 'agents' / f'{agent}.md'
-            )
-            if agent not in ('gateway.direct',) and _soul_path.exists():
+            _soul_path = Path(__file__).parent.parent / "agents" / f"{agent}.md"
+            if agent not in ("gateway.direct",) and _soul_path.exists():
                 try:
-                    system_parts.append(_soul_path.read_text(encoding='utf-8'))
+                    system_parts.append(_soul_path.read_text(encoding="utf-8"))
                 except Exception:
                     pass
 
@@ -448,11 +464,12 @@ class AgentRuntime:
                 system_parts.append(
                     "## SKILL INSTRUCTIONS\n\n"
                     "Follow the skill instructions below exactly. "
-                    "Use the specified output format.\n\n"
-                    + skill.content
+                    "Use the specified output format.\n\n" + skill.content
                 )
             else:
-                print(f"[AgentRuntime] Warning: skill '{skill_name}' not found — running without skill")
+                print(
+                    f"[AgentRuntime] Warning: skill '{skill_name}' not found — running without skill"
+                )
         elif venture_id:
             # Auto-select relevant skills from the prompt
             relevant = self._skills.get_relevant_skills(prompt, top_n=1)
@@ -460,64 +477,68 @@ class AgentRuntime:
                 skill = relevant[0]
                 skill_used = skill.skill_id
                 system_parts.append(
-                    "## SKILL INSTRUCTIONS (auto-selected)\n\n"
-                    + skill.content
+                    "## SKILL INSTRUCTIONS (auto-selected)\n\n" + skill.content
                 )
 
         system_prompt = "\n\n---\n\n".join(system_parts) if system_parts else None
 
         # 3. Call the API — dispatch by provider
-        provider = model_config.get('provider', 'anthropic')
+        provider = model_config.get("provider", "anthropic")
 
         _start = time.time()
 
-        if provider == 'anthropic' and self._client is None:
-            print("[AgentRuntime] anthropic provider selected but no key — using qwen-local")
+        if provider == "anthropic" and self._client is None:
+            print(
+                "[AgentRuntime] anthropic provider selected but no key — using qwen-local"
+            )
             output = self._call_ollama(
-                model='qwen2.5:3b', prompt=prompt, system=system_prompt,
+                model="qwen2.5:0.5b",
+                prompt=prompt,
+                system=system_prompt,
                 max_tokens=max_tokens,
             )
             tokens_used = {"input": 0, "output": 0, "total": 0}
-            model = 'qwen2.5:3b'
-        elif provider == 'anthropic' and not AgentRuntime._claude_available:
+            model = "qwen2.5:0.5b"
+        elif provider == "anthropic" and not AgentRuntime._claude_available:
             # Credits depleted in a previous call — try Gemini before Ollama
-            gemini_key = os.getenv('GEMINI_API_KEY')
+            gemini_key = os.getenv("GEMINI_API_KEY")
             if gemini_key:
                 try:
                     output = self._call_gemini(
-                        model='gemini-2.5-flash',
+                        model="gemini-2.5-flash",
                         prompt=prompt,
                         system=system_prompt,
                     )
-                    model = 'gemini-2.5-flash'
+                    model = "gemini-2.5-flash"
                     tokens_used = {"input": 0, "output": 0, "total": 0}
-                    print('[AgentRuntime] Gemini fallback active')
+                    print("[AgentRuntime] Gemini fallback active")
                 except Exception as _ge:
-                    print(f'[AgentRuntime] Gemini failed: {_ge} — falling to Ollama')
+                    print(f"[AgentRuntime] Gemini failed: {_ge} — falling to Ollama")
                     output = self._call_ollama(
-                        model='qwen2.5:3b',
+                        model="qwen2.5:0.5b",
                         prompt=prompt,
                         system=system_prompt,
                         max_tokens=max_tokens,
                     )
-                    model = 'qwen2.5:3b'
+                    model = "qwen2.5:0.5b"
                     tokens_used = {"input": 0, "output": 0, "total": 0}
             else:
                 output = self._call_ollama(
-                    model='qwen2.5:3b',
+                    model="qwen2.5:0.5b",
                     prompt=prompt,
                     system=system_prompt,
                     max_tokens=max_tokens,
                 )
-                model = 'qwen2.5:3b'
+                model = "qwen2.5:0.5b"
                 tokens_used = {"input": 0, "output": 0, "total": 0}
-        elif provider == 'anthropic':
+        elif provider == "anthropic":
             # Route through model_router's full fallback chain
             # (Anthropic → Gemini → Ollama) instead of retrying Anthropic only
             from eos_ai.model_router import (
                 call_with_fallback as _router_call,
                 TaskType as _RouterTaskType,
             )
+
             routing_result = _router_call(
                 prompt=prompt,
                 system=system_prompt,
@@ -527,29 +548,37 @@ class AgentRuntime:
             output = routing_result.output
             model = f"{routing_result.provider}/{routing_result.model}"
             tokens_used = {"input": 0, "output": 0, "total": 0}
-        elif provider == 'ollama':
+        elif provider == "ollama":
             output = self._call_ollama(
-                model=model, prompt=prompt, system=system_prompt,
+                model=model,
+                prompt=prompt,
+                system=system_prompt,
                 max_tokens=max_tokens,
             )
             tokens_used = {"input": 0, "output": 0, "total": 0}
-        elif provider == 'perplexity':
-            output = self._call_perplexity(model=model, prompt=prompt, system=system_prompt)
+        elif provider == "perplexity":
+            output = self._call_perplexity(
+                model=model, prompt=prompt, system=system_prompt
+            )
             tokens_used = {"input": 0, "output": 0, "total": 0}
-        elif provider == 'gemini':
+        elif provider == "gemini":
             output = self._call_gemini(model=model, prompt=prompt, system=system_prompt)
             tokens_used = {"input": 0, "output": 0, "total": 0}
         else:
             # Unknown provider — fall back to qwen-local
-            print(f"[AgentRuntime] Unknown provider '{provider}' — falling back to qwen-local")
+            print(
+                f"[AgentRuntime] Unknown provider '{provider}' — falling back to qwen-local"
+            )
             output = self._call_ollama(
-                model='qwen2.5:3b', prompt=prompt, system=system_prompt,
+                model="qwen2.5:0.5b",
+                prompt=prompt,
+                system=system_prompt,
                 max_tokens=max_tokens,
             )
             tokens_used = {"input": 0, "output": 0, "total": 0}
 
         _duration_ms = int((time.time() - _start) * 1000)
-        _cost_usd    = calculate_cost(model, tokens_used)
+        _cost_usd = calculate_cost(model, tokens_used)
 
         result = AgentResult(
             output=output,
@@ -574,15 +603,14 @@ class AgentRuntime:
 
         # 5. Authority check — classify action and attach to result
         action_tasks = {
-            'score': 'analyze',
-            'classify': 'classify',
-            'generate': 'draft_message',
-            'analyze': 'analyze',
+            "score": "analyze",
+            "classify": "classify",
+            "generate": "draft_message",
+            "analyze": "analyze",
         }
         action_type = action_tasks.get(
-            task_type.value if hasattr(task_type, 'value')
-            else str(task_type),
-            'analyze'
+            task_type.value if hasattr(task_type, "value") else str(task_type),
+            "analyze",
         )
         ae = AuthorityEngine(ctx or load_context_from_env())
         result.authority = ae.check_can_execute(action_type)
@@ -625,7 +653,8 @@ class AgentRuntime:
         if username and config.task_type in (TaskType.GENERATE, TaskType.ANALYZE):
             try:
                 from eos_ai.human_intelligence import HumanIntelligenceEngine
-                engine  = HumanIntelligenceEngine()
+
+                engine = HumanIntelligenceEngine()
                 profile = engine.get_profile(username)
                 if profile:
                     system_extra = (
@@ -673,7 +702,7 @@ class AgentRuntime:
         if ctx is None:
             ctx = load_context_from_env()
 
-        relevant   = self._skills.get_relevant_skills(prompt, top_n=1)
+        relevant = self._skills.get_relevant_skills(prompt, top_n=1)
         skill_name = relevant[0].skill_id if relevant else None
 
         # Inject human profile for outreach tasks when username is provided
@@ -681,7 +710,8 @@ class AgentRuntime:
         if username and task_type in (TaskType.GENERATE, TaskType.ANALYZE):
             try:
                 from eos_ai.human_intelligence import HumanIntelligenceEngine
-                engine  = HumanIntelligenceEngine()
+
+                engine = HumanIntelligenceEngine()
                 profile = engine.get_profile(username)
                 if profile:
                     system_extra = (

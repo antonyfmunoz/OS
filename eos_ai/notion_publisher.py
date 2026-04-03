@@ -162,6 +162,11 @@ def _create_page(
         url = _page_url(page_id)
         logger.info(f"[NotionPublisher] Page created: {url}")
         return url
+
+    # If page creation failed, the DB ID may be dead — log for diagnosis
+    logger.warning(
+        f"[NotionPublisher] Page creation failed for DB {parent_db_id[:12]}..."
+    )
     return ""
 
 
@@ -280,7 +285,9 @@ class NotionPublisher:
 
         db_id = os.getenv("NOTION_MORNING_BRIEF_ID", "")
         if not db_id:
-            logger.warning("[NotionPublisher] NOTION_MORNING_BRIEF_ID not set")
+            db_id = _get_db_id("lyfe_institute", "DOCUMENTS")
+        if not db_id:
+            logger.warning("[NotionPublisher] No brief DB found")
             return ""
 
         # Check for existing brief today
@@ -292,7 +299,15 @@ class NotionPublisher:
         blocks = _brief_blocks(
             content, f"Morning Brief — {today.strftime('%B %d, %Y')}"
         )
-        return _create_page(db_id, title, blocks)
+        url = _create_page(db_id, title, blocks)
+
+        # If primary DB failed, try Documents DB as fallback
+        if not url and db_id != _get_db_id("lyfe_institute", "DOCUMENTS"):
+            fallback_db = _get_db_id("lyfe_institute", "DOCUMENTS")
+            if fallback_db:
+                logger.info("[NotionPublisher] Primary DB failed, trying Documents DB")
+                url = _create_page(fallback_db, title, blocks)
+        return url
 
     def publish_intel_brief(
         self,
@@ -301,13 +316,15 @@ class NotionPublisher:
     ) -> str:
         """
         Write intelligence brief to Notion.
-        Uses NOTION_MORNING_BRIEF_ID (same DB, different title prefix).
+        Uses NOTION_MORNING_BRIEF_ID or Documents DB fallback.
         Returns page URL or ''.
         """
         today = brief_date or date.today()
         title = f"Intel Brief — {today}"
 
         db_id = os.getenv("NOTION_MORNING_BRIEF_ID", "")
+        if not db_id:
+            db_id = _get_db_id("lyfe_institute", "DOCUMENTS")
         if not db_id:
             return ""
 
@@ -417,6 +434,8 @@ class NotionPublisher:
 
         db_id = os.getenv("NOTION_MORNING_BRIEF_ID", "")
         if not db_id:
+            db_id = _get_db_id("lyfe_institute", "DOCUMENTS")
+        if not db_id:
             return ""
 
         existing = _find_page_by_title(db_id, title)
@@ -449,6 +468,8 @@ class NotionPublisher:
         title = f"CEO Delegation — {today}"
 
         db_id = os.getenv("NOTION_MORNING_BRIEF_ID", "")
+        if not db_id:
+            db_id = _get_db_id("lyfe_institute", "DOCUMENTS")
         if not db_id:
             return ""
 
