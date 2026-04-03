@@ -891,29 +891,9 @@ class CognitiveLoop:
         except Exception:
             pass  # stage filter is enhancement — never block result
 
-        # 5c. QUALITY GATE — score output through the four values and log
-        try:
-            from eos_ai.quality_gate import QualityTransformationGate
-
-            _qtg_post = QualityTransformationGate(self.ctx)
-            _transformation = _qtg_post.transform(
-                output=_output_str,
-                input_text=text,
-                classified_signal=_classified_signal,
-                bis_context={"current_stage": 1},
-            )
-            _output_str = _transformation.transformed
-            print(
-                f"[QualityGate] "
-                f"R:{_transformation.reality_score:.2f} "
-                f"I:{_transformation.intelligence_score:.2f} "
-                f"P:{_transformation.personalization_score:.2f} "
-                f"E:{_transformation.execution_score:.2f} "
-                f"→ {_transformation.overall_score:.2f} "
-                f"| WC:{_transformation.is_world_class}"
-            )
-        except Exception as _qg_post_err:
-            pass  # quality gate is enhancement — never block result
+        # 5c. QUALITY GATE — moved to gateway boundary (gateway._validate_output)
+        # Pre-flight quality enhancement (Layer 0c above) still active here.
+        # Post-flight scoring now happens at gateway output, not inside the loop.
 
         # 6. REFLECT — extract learnings from iteration count
         reflection = self._reflect(text, result.output, iteration)

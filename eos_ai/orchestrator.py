@@ -94,27 +94,35 @@ class CEOAgent:
         human_tasks counts.
         """
         import json
-        from eos_ai.cognitive_loop import CognitiveLoop
         from eos_ai.coordination_engine import CoordinationEngine
+        from eos_ai.gateway import get_gateway as _get_gw
 
-        loop = CognitiveLoop(self.ctx)
-
-        # Step 1: break objective into department-level sub-objectives
-        decomp = loop.run(
-            input=(
-                "Break this company objective into department-level sub-objectives.\n\n"
-                f"OBJECTIVE: {objective}\n\n"
-                "Departments available: sales, research, content, ops, finance\n\n"
-                "For each relevant department, specify the sub-objective that department owns.\n"
-                "Return a JSON array:\n"
-                '[{"department": "sales", "sub_objective": "..."}]\n\n'
-                "Only include departments that have actual work to do. "
-                "Return ONLY the JSON array. No markdown."
-            ),
-            agent="ceo_agent.decompose",
-            task_type=TaskType.ANALYZE,
-            venture_id=venture_id,
+        # Step 1: break objective into department-level sub-objectives via gateway
+        _gw = _get_gw()
+        _gw_result = _gw.handle(
+            {
+                "type": "agent_task",
+                "prompt": (
+                    "Break this company objective into department-level sub-objectives.\n\n"
+                    f"OBJECTIVE: {objective}\n\n"
+                    "Departments available: sales, research, content, ops, finance\n\n"
+                    "For each relevant department, specify the sub-objective that department owns.\n"
+                    "Return a JSON array:\n"
+                    '[{"department": "sales", "sub_objective": "..."}]\n\n'
+                    "Only include departments that have actual work to do. "
+                    "Return ONLY the JSON array. No markdown."
+                ),
+                "sub_agent": "ceo_agent",
+                "task_type": "ANALYZE",
+                "venture_id": venture_id,
+                "username": "system",
+            }
         )
+
+        class _DecompResult:
+            output = _gw_result.get("output", "")
+
+        decomp = _DecompResult()
 
         dept_tasks_raw: list[dict] = []
         if decomp.output:
@@ -343,7 +351,7 @@ def _fmt_patterns(patterns: list[dict]) -> str:
 # ─── Full morning cycle ───────────────────────────────────────────────────────
 
 
-def run_full_morning_cycle(ctx: EOSContext) -> None:
+def run_full_morning_cycle(ctx: EOSContext, return_content: bool = False):
     """
     Unified morning cycle producing one coherent Telegram message:
       1. Portfolio Advisor board view
@@ -636,6 +644,13 @@ def run_full_morning_cycle(ctx: EOSContext) -> None:
 
     print("[Orchestrator] ── Full morning cycle complete ──")
 
+    if return_content:
+        return {
+            "brief_content": brief_content,
+            "notion_url": notion_url,
+            "message": message,
+        }
+
 
 def run_ceo_morning_delegation(
     ctx: EOSContext,
@@ -700,10 +715,7 @@ def run_ceo_morning_delegation(
                 results.append(f"🚀 **{venture_name}:** {changes['message']}")
 
             # Determine today's objective for this venture
-            from eos_ai.cognitive_loop import CognitiveLoop as _CL
-            from eos_ai.agent_runtime import TaskType as _TT
-
-            loop = _CL(venture_ctx)
+            from eos_ai.gateway import get_gateway as _get_gw
 
             primitives = evo_ceo.detect_primitives()
             stage = primitives.get("stage", 1)
@@ -749,23 +761,33 @@ def run_ceo_morning_delegation(
                 print(f"[CEOMorning] Intel: {_ce}")
 
             today = datetime.datetime.now(_PDT).strftime("%A %B %d")
-            objective_result = loop.run(
-                input=(
-                    f"You are the CEO of {venture_name}.\n\n"
-                    f"Stage: {stage}\n"
-                    f"North star: {north_star}\n"
-                    f"Binding constraint: {constraint}\n"
-                    + (f"{constraint_context}\n\n" if constraint_context else "\n")
-                    + f"Today is {today}.\n\n"
-                    f"What is the single most important objective "
-                    f"for your specialist agents to work on today "
-                    f"to move the needle on the binding constraint?\n\n"
-                    f"State it in one clear sentence."
-                ),
-                agent="ceo_agent",
-                task_type=_TT.FAST_RESPONSE,
-                venture_id=venture_id,
+            _gw = _get_gw()
+            _gw_result = _gw.handle(
+                {
+                    "type": "agent_task",
+                    "prompt": (
+                        f"You are the CEO of {venture_name}.\n\n"
+                        f"Stage: {stage}\n"
+                        f"North star: {north_star}\n"
+                        f"Binding constraint: {constraint}\n"
+                        + (f"{constraint_context}\n\n" if constraint_context else "\n")
+                        + f"Today is {today}.\n\n"
+                        f"What is the single most important objective "
+                        f"for your specialist agents to work on today "
+                        f"to move the needle on the binding constraint?\n\n"
+                        f"State it in one clear sentence."
+                    ),
+                    "sub_agent": "ceo_agent",
+                    "task_type": "FAST_RESPONSE",
+                    "venture_id": venture_id,
+                    "username": "system",
+                }
             )
+
+            class _ObjResult:
+                output = _gw_result.get("output", "")
+
+            objective_result = _ObjResult()
 
             today_objective = (
                 objective_result.output or f"Advance {binding_constraint}"
@@ -1078,23 +1100,27 @@ async def generate_morning_brief(ctx: EOSContext) -> str:
     if calendar_section:
         brief += calendar_section
 
-    # Add AI insight on top of data (works even with Qwen at 100 tokens)
+    # Add AI insight on top of data — route through gateway
     try:
-        from eos_ai.agent_runtime import AgentRuntime, TaskType
+        from eos_ai.gateway import get_gateway as _get_gw_brief
 
-        rt = AgentRuntime(ctx)
-        insight = rt.run(
-            task_type=TaskType.GENERATE,
-            prompt=(
-                f"Based on this morning brief data:\n{brief[:500]}\n\n"
-                f"What is the single most important action for today? "
-                f"One sentence only."
-            ),
-            agent="executive_assistant",
-            max_tokens=100,
+        _gw_brief = _get_gw_brief()
+        _insight_result = _gw_brief.handle(
+            {
+                "type": "agent_task",
+                "prompt": (
+                    f"Based on this morning brief data:\n{brief[:500]}\n\n"
+                    f"What is the single most important action for today? "
+                    f"One sentence only."
+                ),
+                "sub_agent": "executive_assistant",
+                "task_type": "FAST_RESPONSE",
+                "username": "system",
+            }
         )
-        if insight.output:
-            brief += f"\n━━━━━━━━━━━━━━━━━━━━━━\n💡 **DEX says:**\n{insight.output}"
+        _insight_text = _insight_result.get("output", "")
+        if _insight_text:
+            brief += f"\n━━━━━━━━━━━━━━━━━━━━━━\n💡 **DEX says:**\n{_insight_text}"
     except Exception:
         brief += (
             f"\n━━━━━━━━━━━━━━━━━━━━━━\n"

@@ -616,73 +616,7 @@ Return JSON: {{"answers": true, "answer_summary": "brief summary"}}""",
     except Exception:
         pass  # Non-blocking
 
-    # Gatekeeper — assess inbound before routing
-    try:
-        from eos_ai.model_router import get_router, TaskType
-
-        _router = get_router()
-        _model = _router.route(TaskType.FAST_RESPONSE)
-
-        _gate_result = _router.call(
-            _model,
-            f"""You are DEX,
-EA gatekeeper for Antony Munoz.
-
-Assess this inbound message and decide how to handle it.
-
-Message: {text}
-Channel: {channel_name}
-
-Gatekeeper options:
-1. HANDLE — DEX handles this fully without surfacing to founder
-2. ROUTE — This belongs to a CEO agent or specific system
-3. SURFACE — Founder judgment required
-
-Consider:
-- Is this below the Founder Rate threshold?
-- Is this a known recurring task DEX owns?
-- Is this strategic and requires founder judgment?
-
-Return JSON:
-{{"action": "HANDLE|ROUTE|SURFACE",
-  "reason": "one sentence",
-  "dex_can_handle": true/false,
-  "urgency": "high|medium|low",
-  "suggested_route": "ceo_agent_lyfe|ceo_agent_empyrean|portfolio|none"
-}}""",
-        ).strip()
-
-        if "```" in _gate_result:
-            _gate_result = _gate_result.split("```")[1].replace("json", "").strip()
-        import json as _j
-
-        _gate = _j.loads(_gate_result)
-
-        # If DEX can handle fully — note it, let gateway proceed
-        if (
-            _gate.get("action") == "HANDLE"
-            and _gate.get("dex_can_handle")
-            and _gate.get("urgency") != "high"
-        ):
-            req["gatekeeper_action"] = "HANDLE"
-            req["gatekeeper_reason"] = _gate.get("reason", "")
-
-        # If should route to CEO agent
-        elif _gate.get("action") == "ROUTE" and _gate.get("suggested_route") not in (
-            None,
-            "none",
-        ):
-            req["suggested_route"] = _gate.get("suggested_route")
-
-        # Inject gatekeeper context into req for cognitive_loop
-        if _gate.get("reason"):
-            req["gatekeeper_context"] = (
-                f"Gatekeeper assessment: {_gate.get('action')} — {_gate.get('reason')}"
-            )
-
-    except Exception:
-        pass  # Non-blocking — never break the main flow
-
+    # Gateway handles all classification and routing — single LLM call
     result = _gateway.handle(req)
 
     if result.get("status") == "error":

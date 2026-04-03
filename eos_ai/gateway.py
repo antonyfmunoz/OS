@@ -857,6 +857,62 @@ class EOSGateway:
 
     # ─── EA routing ───────────────────────────────────────────────────────────
 
+    def _validate_output(
+        self, output: str, agent_type: str, provider: str
+    ) -> tuple[str, float, bool]:
+        """
+        Validate agent output quality at gateway boundary.
+        Returns: (output, score, passed)
+        Provider-aware thresholds — lower for weaker models.
+        """
+        if not output:
+            return output, 0.0, False
+
+        thresholds = {
+            "claude": 0.75,
+            "anthropic": 0.75,
+            "gemini": 0.60,
+            "ollama": 0.40,
+            "qwen": 0.35,
+        }
+        threshold = 0.50
+        for key, val in thresholds.items():
+            if key in provider.lower():
+                threshold = val
+                break
+
+        try:
+            from eos_ai.quality_gate import QualityTransformationGate
+
+            from eos_ai.context import load_context_from_env
+
+            ctx = load_context_from_env()
+            gate = QualityTransformationGate(ctx)
+            # Use transform() with minimal signal for scoring
+            result = gate.transform(
+                output=output,
+                input_text="",
+                classified_signal={},
+            )
+            score = result.overall_score
+            passed = score >= threshold
+
+            if not passed:
+                import logging
+
+                logging.getLogger(__name__).warning(
+                    f"[Quality] {agent_type} scored {score:.2f} "
+                    f"(threshold {threshold}) via {provider}"
+                )
+
+            return output, score, passed
+
+        except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).warning(f"[Quality] Gate failed: {e}")
+            return output, 0.5, True
+
     def _route_to_agent(self, text: str, comm_type: str = "text") -> str:
         """
         Determine which agent should handle this request.
@@ -1354,6 +1410,16 @@ class EOSGateway:
         except Exception as e:
             print(f"[Gateway] cm.store failed: {e}")
 
+        # Quality gate — score output at gateway boundary
+        _quality_score = 0.5
+        _quality_passed = True
+        if result.output:
+            _, _quality_score, _quality_passed = self._validate_output(
+                result.output,
+                agent_type=sub_agent or team or "unknown",
+                provider=result.model_used or "",
+            )
+
         return {
             "status": "ok",
             "interaction_id": result.interaction_id,
@@ -1363,6 +1429,8 @@ class EOSGateway:
             "tokens": result.tokens_used,
             "iterations": result.iterations,
             "was_enhanced": result.was_enhanced,
+            "quality_score": round(_quality_score, 3),
+            "quality_passed": _quality_passed,
             "original_prompt": request.get(
                 "_original_prompt", request.get("prompt", "")
             ),
@@ -1462,14 +1530,40 @@ class EOSGateway:
     # ─── Route: brief ─────────────────────────────────────────────────────────
 
     def _route_brief(self, request: dict) -> dict:
-        from eos_ai.orchestrator import EOSOrchestrator
+        """Notion-first brief: run morning cycle, write to Notion, return URL."""
+        try:
+            from eos_ai.orchestrator import run_full_morning_cycle
+            from eos_ai.context import load_context_from_env
 
-        orch = EOSOrchestrator()
-        brief = orch.morning_brief()
-        return {
-            "status": "ok",
-            "brief": brief,
-        }
+            ctx = load_context_from_env()
+            result = run_full_morning_cycle(ctx, return_content=True)
+
+            notion_url = (result or {}).get("notion_url", "")
+            message = (result or {}).get("message", "")
+
+            if notion_url:
+                return {
+                    "status": "ok",
+                    "output": f"📋 Morning Brief ready\n{notion_url}",
+                    "notion_url": notion_url,
+                }
+            else:
+                # Fallback: return summary if Notion failed
+                summary = message[:500] if message else "Brief generated. Check Notion."
+                return {
+                    "status": "ok",
+                    "output": summary,
+                }
+
+        except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).error(f"[Brief] Route failed: {e}")
+            return {
+                "status": "ok",
+                "output": "Brief unavailable.",
+                "error": str(e),
+            }
 
     # ─── Approval queue ───────────────────────────────────────────────────────
 
