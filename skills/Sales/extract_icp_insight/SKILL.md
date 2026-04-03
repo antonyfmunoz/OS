@@ -8,6 +8,9 @@ context: fork
 version: 1.0
 ---
 
+!`python3 /opt/OS/scripts/bis_context.py --fields name,icp,offer,stage,primary_channel,binding_constraint,north_star`
+
+
 # Skill: Extract ICP Insight
 
 ## Purpose
@@ -24,7 +27,7 @@ One precisely scoped ICP insight saved to the knowledge base — tagged, evidenc
 
 ## Best-Practice Benchmark
 
-One sharp specific insight beats five vague ones. If the insight could apply to any human being in any market, it is not specific enough. It must reveal something true about men 18-25 who are capable but stuck.
+One sharp specific insight beats five vague ones. If the insight could apply to any human being in any market, it is not specific enough. It must reveal something true about the venture ICP who are capable but stuck.
 
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: draft-arena-content-post
-description: "Write a single short-form content post for Initiate Arena that attracts the ICP and drives engagement or DM replies — run when a content idea or ICP insight is ready to be turned into a post."
+description: "Write a single short-form content post for the active offer that attracts the ICP and drives engagement or DM replies — run when a content idea or ICP insight is ready to be turned into a post."
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: medium
@@ -8,26 +8,14 @@ trigger: both
 context: fork
 ---
 
-!`python3 -c "
-import sys; sys.path.insert(0,'/opt/OS')
-from dotenv import load_dotenv
-load_dotenv('/opt/OS/eos_ai/.env')
-try:
-    from eos_ai.context import load_context_from_env
-    ctx = load_context_from_env()
-    print(f'Stage: {getattr(ctx,\"stage\",\"?\")}')
-    print(f'ICP: {getattr(ctx,\"icp\",\"Men 18-25\")}')
-    print(f'Constraint: {getattr(ctx,\"binding_constraint\",\"leads\")}')
-except Exception as e:
-    print(f'Context: {e}')
-"`
+!`python3 /opt/OS/scripts/bis_context.py --fields name,icp,offer,stage,primary_channel,binding_constraint,north_star`
 
 
 # Skill: Draft Arena Content Post
 
 ## Purpose
 
-Write a single short-form content post for Initiate Arena that attracts the ICP and drives engagement or DM replies.
+Write a single short-form content post for the active offer that attracts the ICP and drives engagement or DM replies.
 
 ---
 

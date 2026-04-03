@@ -1,6 +1,6 @@
 ---
 name: churn-prevention
-description: "Identify disengaging Initiate Arena clients 4-6 weeks before they churn and intervene with a specific, personalized action — triggered when a client goes 7+ days without interaction or misses 2+ consecutive check-ins."
+description: "Identify disengaging the active offer clients 4-6 weeks before they churn and intervene with a specific, personalized action — triggered when a client goes 7+ days without interaction or misses 2+ consecutive check-ins."
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: high
@@ -8,25 +8,13 @@ trigger: both
 context: fork
 ---
 
-!`python3 -c "
-import sys; sys.path.insert(0,'/opt/OS')
-from dotenv import load_dotenv
-load_dotenv('/opt/OS/eos_ai/.env')
-try:
-    from eos_ai.context import load_context_from_env
-    ctx = load_context_from_env()
-    print(f'Stage: {getattr(ctx,\"stage\",\"?\")}')
-    print(f'ICP: {getattr(ctx,\"icp\",\"Men 18-25\")}')
-    print(f'Constraint: {getattr(ctx,\"binding_constraint\",\"leads\")}')
-except Exception as e:
-    print(f'Context: {e}')
-"`
+!`python3 /opt/OS/scripts/bis_context.py --fields name,icp,offer,stage,primary_channel,binding_constraint,north_star`
 
 
 # churn_prevention
 
 ## Purpose
-Identify disengaging Initiate Arena clients 4-6 weeks before they churn and intervene with a specific, personalized action — not a generic check-in. 70% of churn is predictable. The signals are behavioral, not stated. Clients do not say "I'm about to quit." They go quiet. Silence is the loudest signal.
+Identify disengaging the active offer clients 4-6 weeks before they churn and intervene with a specific, personalized action — not a generic check-in. 70% of churn is predictable. The signals are behavioral, not stated. Clients do not say "I'm about to quit." They go quiet. Silence is the loudest signal.
 
 ## Outcome
 An engagement monitoring protocol that flags at-risk clients by behavior, plus a tiered intervention playbook matched to disengagement severity. The output is a prioritized intervention list with specific actions, not a blanket "check-in with everyone."
@@ -82,7 +70,7 @@ When monitoring engagement:
 - At-risk detection rate: % of eventual churners who were flagged before leaving
 - Intervention recovery rate: % of Tier 1/2 interventions that re-engage the client
 - Churn prediction window: average days before churn that disengagement was first detected
-- 90-day completion rate: % of clients who complete the full Initiate Arena program
+- 90-day completion rate: % of clients who complete the full the active offer program
 - Silence-to-intervention time: average hours between 7-day gap detected and outreach sent
 
 ## Improvement Opportunities

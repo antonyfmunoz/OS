@@ -1,6 +1,6 @@
 ---
 name: onboarding-sequence
-description: "Move a new Initiate Arena client from payment confirmation to their first visible win within 7 days — triggered immediately when payment is confirmed."
+description: "Move a new the active offer client from payment confirmation to their first visible win within 7 days — triggered immediately when payment is confirmed."
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: medium
@@ -8,25 +8,13 @@ trigger: both
 context: fork
 ---
 
-!`python3 -c "
-import sys; sys.path.insert(0,'/opt/OS')
-from dotenv import load_dotenv
-load_dotenv('/opt/OS/eos_ai/.env')
-try:
-    from eos_ai.context import load_context_from_env
-    ctx = load_context_from_env()
-    print(f'Stage: {getattr(ctx,\"stage\",\"?\")}')
-    print(f'ICP: {getattr(ctx,\"icp\",\"Men 18-25\")}')
-    print(f'Constraint: {getattr(ctx,\"binding_constraint\",\"leads\")}')
-except Exception as e:
-    print(f'Context: {e}')
-"`
+!`python3 /opt/OS/scripts/bis_context.py --fields name,icp,offer,stage,primary_channel,binding_constraint,north_star`
 
 
 # onboarding_sequence
 
 ## Purpose
-Move a new Initiate Arena client from payment confirmation to their first visible win within 7 days — without overwhelming them. One action at a time. Personal contact within 1 hour of payment. The moment someone pays is the moment their buyer's remorse clock starts. Speed and specificity at that moment converts payment into commitment.
+Move a new the active offer client from payment confirmation to their first visible win within 7 days — without overwhelming them. One action at a time. Personal contact within 1 hour of payment. The moment someone pays is the moment their buyer's remorse clock starts. Speed and specificity at that moment converts payment into commitment.
 
 ## Outcome
 A step-by-step 7-day onboarding flow: who does what, when, and what the client should experience at each stage. Day 1 action is personal, not automated. Day 3 is a real check-in. Day 7 is a milestone moment that makes them feel the decision was right.

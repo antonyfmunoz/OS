@@ -1,6 +1,6 @@
 ---
 name: dm-opener
-description: "Write a cold DM opener for an Initiate Arena prospect — run when a qualified lead has been identified and first contact message needs to be drafted."
+description: "Write a cold DM opener for an the active offer prospect — run when a qualified lead has been identified and first contact message needs to be drafted."
 allowed-tools: "Read"
 trigger: both
 version: 1.0
@@ -8,26 +8,14 @@ effort: medium
 context: fork
 ---
 
-!`python3 -c "
-import sys; sys.path.insert(0,'/opt/OS')
-from dotenv import load_dotenv
-load_dotenv('/opt/OS/eos_ai/.env')
-try:
-    from eos_ai.context import load_context_from_env
-    ctx = load_context_from_env()
-    print(f'Stage: {getattr(ctx,\"stage\",\"?\")}')
-    print(f'ICP: {getattr(ctx,\"icp\",\"Men 18-25\")}')
-    print(f'Constraint: {getattr(ctx,\"binding_constraint\",\"leads\")}')
-except Exception as e:
-    print(f'Context: {e}')
-"`
+!`python3 /opt/OS/scripts/bis_context.py --fields name,icp,offer,stage,primary_channel,binding_constraint,north_star`
 
 
 # Skill: DM Opener Framework
 
 ## Purpose
 
-Write a cold DM that starts a real conversation with a qualified Initiate Arena prospect. Not a pitch — a conversation starter that makes them feel specifically seen.
+Write a cold DM that starts a real conversation with a qualified the active offer prospect. Not a pitch — a conversation starter that makes them feel specifically seen.
 
 ---
 

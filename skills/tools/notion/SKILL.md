@@ -10,11 +10,14 @@ trigger: both
 context: fork
 ---
 
+!`python3 /opt/OS/scripts/bis_context.py --fields name,icp,offer,stage,primary_channel,binding_constraint,north_star`
+
+
 # Tool: Notion
 
 ## What This Tool Does
 Notion API provides read/write access to pages, databases, blocks, and users.
-EOS uses it as the external delivery layer for Lyfe Institute — tasks, CRM, and course content live in Notion.
+EOS uses it as the external delivery layer for the active venture — tasks, CRM, and course content live in Notion.
 
 ## EOS Integration
 - DEX reads task databases to populate daily briefs

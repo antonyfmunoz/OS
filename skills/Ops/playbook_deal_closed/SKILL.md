@@ -7,6 +7,9 @@ effort: medium
 trigger: both
 ---
 
+!`python3 /opt/OS/scripts/bis_context.py --fields name,icp,offer,stage,primary_channel,binding_constraint,north_star`
+
+
 # Skill: Playbook — Deal Closed
 
 ## Name
@@ -28,7 +31,7 @@ When a lead confirms they're in, payment is received, or Antony marks a deal as 
 ## Inputs
 - client_name
 - client_email
-- venture (lyfe_institute/empyrean_creative/personal_brand)
+- venture (the active venture/the active venture/the active venture)
 - amount
 - payment_confirmed (yes/no)
 - onboarding_steps (venture-specific)

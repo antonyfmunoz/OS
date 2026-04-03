@@ -8,19 +8,7 @@ effort: medium
 context: fork
 ---
 
-!`python3 -c "
-import sys; sys.path.insert(0,'/opt/OS')
-from dotenv import load_dotenv
-load_dotenv('/opt/OS/eos_ai/.env')
-try:
-    from eos_ai.context import load_context_from_env
-    ctx = load_context_from_env()
-    print(f'Stage: {getattr(ctx,\"stage\",\"?\")}')
-    print(f'ICP: {getattr(ctx,\"icp\",\"Men 18-25\")}')
-    print(f'Constraint: {getattr(ctx,\"binding_constraint\",\"leads\")}')
-except Exception as e:
-    print(f'Context: {e}')
-"`
+!`python3 /opt/OS/scripts/bis_context.py --fields name,icp,offer,stage,primary_channel,binding_constraint,north_star`
 
 
 # Skill: Proof-Promise-Plan Close
@@ -66,7 +54,7 @@ Share a concrete result that demonstrates the program works for someone in their
 **Step 2 — PROMISE**
 State a specific outcome for THIS person based on their situation as they described it.
 - Not a generic program promise. Their specific transformation based on what they told you.
-- Example: "Based on what you've described — the pattern of starting and stopping, the weeks disappearing — what Initiate Arena is specifically built to break is that cycle. By day 30 you'll have more consistent execution than you've had in the last year."
+- Example: "Based on what you've described — the pattern of starting and stopping, the weeks disappearing — what the active offer is specifically built to break is that cycle. By day 30 you'll have more consistent execution than you've had in the last year."
 - Be specific. Be direct. Don't hedge.
 
 **Step 3 — PLAN**

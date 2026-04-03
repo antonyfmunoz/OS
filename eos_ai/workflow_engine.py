@@ -28,81 +28,88 @@ from eos_ai.context import EOSContext
 
 # ─── Agent-workflow enums and dataclasses ─────────────────────────────────────
 
+
 class WorkflowStatus(Enum):
-    DRAFT      = 'draft'
-    ACTIVE     = 'active'
-    RUNNING    = 'running'
-    PAUSED     = 'paused'     # waiting for human step or approval
-    COMPLETED  = 'completed'
-    FAILED     = 'failed'
-    DEPRECATED = 'deprecated'
+    DRAFT = "draft"
+    ACTIVE = "active"
+    RUNNING = "running"
+    PAUSED = "paused"  # waiting for human step or approval
+    COMPLETED = "completed"
+    FAILED = "failed"
+    DEPRECATED = "deprecated"
 
 
 class StepOwner(Enum):
-    HUMAN = 'human'
-    AGENT = 'agent'
-    TOOL  = 'tool'
+    HUMAN = "human"
+    AGENT = "agent"
+    TOOL = "tool"
 
 
 @dataclass
 class AgentWorkflowStep:
     """A single step in an agent-task workflow."""
-    id:                str
-    name:              str
-    description:       str
-    owner:             StepOwner
-    agent_id:          str = ''
-    task_type:         str = ''
-    inputs:            dict = field(default_factory=dict)
+
+    id: str
+    name: str
+    description: str
+    owner: StepOwner
+    agent_id: str = ""
+    task_type: str = ""
+    inputs: dict = field(default_factory=dict)
     requires_approval: bool = False
-    on_failure:        str = 'stop'   # 'stop' | 'continue'
-    timeout_seconds:   int = 300
+    on_failure: str = "stop"  # 'stop' | 'continue'
+    timeout_seconds: int = 300
 
 
 @dataclass
 class AgentWorkflow:
     """A dynamic workflow created at runtime."""
-    id:         str
-    name:       str
+
+    id: str
+    name: str
     venture_id: str
-    trigger:    str
-    steps:      list[AgentWorkflowStep]
-    status:     WorkflowStatus = WorkflowStatus.DRAFT
-    version:    int = 1
+    trigger: str
+    steps: list[AgentWorkflowStep]
+    status: WorkflowStatus = WorkflowStatus.DRAFT
+    version: int = 1
     created_at: datetime = field(default_factory=datetime.now)
 
 
 @dataclass
 class WorkflowRun:
     """Runtime state of an agent-task workflow execution."""
-    id:           str
-    workflow_id:  str
-    venture_id:   str
-    status:       WorkflowStatus
+
+    id: str
+    workflow_id: str
+    venture_id: str
+    status: WorkflowStatus
     current_step: int = 0
     step_results: dict = field(default_factory=dict)
-    started_at:   datetime = field(default_factory=datetime.now)
+    started_at: datetime = field(default_factory=datetime.now)
     completed_at: Optional[datetime] = None
-    error:        str = ''
+    error: str = ""
 
 
 # ─── Workflow Step ────────────────────────────────────────────────────────────
 
+
 @dataclass
 class WorkflowStep:
     """A single step in a workflow."""
+
     name: str
     description: str
-    skill_ref: str | None = None       # skill file path this step maps to
+    skill_ref: str | None = None  # skill file path this step maps to
     required_inputs: list[str] = field(default_factory=list)
     outputs: list[str] = field(default_factory=list)
-    failure_action: str = "halt"       # 'halt' | 'skip' | 'retry'
+    failure_action: str = "halt"  # 'halt' | 'skip' | 'retry'
     max_retries: int = 1
 
 
 @dataclass
 class WorkflowState:
     """Runtime state of an in-progress workflow execution."""
+
     workflow_id: str
     workflow_name: str
     started_at: str
@@ -115,15 +122,15 @@ class WorkflowState:
 
     def to_dict(self) -> dict:
         return {
-            "workflow_id":     self.workflow_id,
-            "workflow_name":   self.workflow_name,
-            "started_at":      self.started_at,
-            "current_step":    self.current_step,
+            "workflow_id": self.workflow_id,
+            "workflow_name": self.workflow_name,
+            "started_at": self.started_at,
+            "current_step": self.current_step,
             "completed_steps": self.completed_steps,
-            "failed_steps":    self.failed_steps,
-            "outputs":         self.outputs,
-            "status":          self.status,
-            "error":           self.error,
+            "failed_steps": self.failed_steps,
+            "outputs": self.outputs,
+            "status": self.status,
+            "error": self.error,
         }
 
     @classmethod
@@ -249,7 +256,11 @@ WORKFLOWS: dict[str, list[WorkflowStep]] = {
             name="update_lead_file",
             description="Append qualification score and insight to lead file",
             skill_ref=None,
-            required_inputs=["lead_data", "qualification_score", "qualification_reason"],
+            required_inputs=[
+                "lead_data",
+                "qualification_score",
+                "qualification_reason",
+            ],
             outputs=["updated_lead_path"],
             failure_action="halt",
         ),
@@ -330,13 +341,33 @@ WORKFLOWS: dict[str, list[WorkflowStep]] = {
             failure_action="halt",
         ),
     ],
+}
 
-    # ── Stage 1 workflows ─────────────────────────────────────────────────────
 
-    "lyfe_dm_to_close": [
+# ─── Workflow Templates ──────────────────────────────────────────────────────
+# Templates generate workflow steps from venture data (VENTURES_JSON).
+# Called by register_venture_workflows() to populate WORKFLOWS dynamically.
+
+
+def _get_venture(venture_id: str) -> dict:
+    """Load a venture dict from VENTURES_JSON by ID."""
+    import os as _os
+
+    ventures = json.loads(_os.getenv("VENTURES_JSON", "[]"))
+    v = next((x for x in ventures if x.get("id") == venture_id), {})
+    return v
+
+
+def dm_to_close_template(venture_id: str) -> tuple[str, list[WorkflowStep]]:
+    """DM-to-close sales workflow for any venture."""
+    v = _get_venture(venture_id)
+    name = v.get("name", venture_id)
+    icp = v.get("icp", "the venture ICP")
+    channel = v.get("primary_channel", "DM")
+    return f"{venture_id}_dm_to_close", [
         WorkflowStep(
             name="qualify_lead",
-            description="Score lead against Initiate Arena ICP — men 18-25, Instagram",
+            description=f"Score lead against {name} ICP — {icp}, {channel}",
             skill_ref="skills/Sales/Qualify Lead.md",
             required_inputs=["lead_data"],
             outputs=["qualification_score", "icp_fit"],
@@ -382,9 +413,12 @@ WORKFLOWS: dict[str, list[WorkflowStep]] = {
             outputs=["call_summary", "next_action"],
             failure_action="skip",
         ),
-    ],
+    ]
 
-    "lyfe_weekly_rhythm": [
+
+def weekly_rhythm_template(venture_id: str) -> tuple[str, list[WorkflowStep]]:
+    """Weekly operating rhythm workflow for any venture."""
+    return f"{venture_id}_weekly_rhythm", [
         WorkflowStep(
             name="pipeline_review",
             description="Pull all active leads from CRM — stage, score, last contact",
@@ -425,12 +459,18 @@ WORKFLOWS: dict[str, list[WorkflowStep]] = {
             outputs=["outreach_queue"],
             failure_action="skip",
         ),
-    ],
+    ]
 
-    "empyrean_b2b_to_retainer": [
+
+def b2b_to_retainer_template(venture_id: str) -> tuple[str, list[WorkflowStep]]:
+    """B2B outreach-to-retainer workflow for any venture."""
+    v = _get_venture(venture_id)
+    name = v.get("name", venture_id)
+    icp = v.get("icp", "the venture ICP")
+    return f"{venture_id}_b2b_to_retainer", [
         WorkflowStep(
             name="qualify_prospect",
-            description="Score B2B prospect against Empyrean ICP — founders needing AI/automation",
+            description=f"Score B2B prospect against {name} ICP — {icp}",
             skill_ref="skills/Sales/Qualify Lead.md",
             required_inputs=["prospect_data"],
             outputs=["qualification_score", "icp_fit"],
@@ -468,9 +508,14 @@ WORKFLOWS: dict[str, list[WorkflowStep]] = {
             outputs=["nurture_plan"],
             failure_action="skip",
         ),
-    ],
+    ]
 
-    "personal_brand_content_system": [
+
+def content_system_template(venture_id: str) -> tuple[str, list[WorkflowStep]]:
+    """Content creation workflow for any venture."""
+    v = _get_venture(venture_id)
+    offer = v.get("offer", "the active offer")
+    return f"{venture_id}_content_system", [
         WorkflowStep(
             name="market_scan",
             description="Scan market signals and ICP patterns for content angles",
@@ -488,8 +533,8 @@ WORKFLOWS: dict[str, list[WorkflowStep]] = {
             failure_action="halt",
         ),
         WorkflowStep(
-            name="draft_arena_post",
-            description="Draft Initiate Arena-specific content post with hook + body + CTA",
+            name="draft_offer_post",
+            description=f"Draft {offer} content post with hook + body + CTA",
             skill_ref="skills/Marketing/Content/Draft Arena Content Post.md",
             required_inputs=["content_ideas"],
             outputs=["draft_post"],
@@ -511,8 +556,57 @@ WORKFLOWS: dict[str, list[WorkflowStep]] = {
             outputs=["calendar_updated"],
             failure_action="skip",
         ),
-    ],
+    ]
+
+
+# ─── Workflow template registry ──────────────────────────────────────────────
+
+WORKFLOW_TEMPLATES = {
+    "dm_to_close": dm_to_close_template,
+    "weekly_rhythm": weekly_rhythm_template,
+    "b2b_to_retainer": b2b_to_retainer_template,
+    "content_system": content_system_template,
 }
+
+
+def register_venture_workflows(venture_id: str) -> list[str]:
+    """
+    Generate and register all workflow templates for a venture.
+    Returns list of registered workflow names.
+    """
+    registered = []
+    for template_name, template_fn in WORKFLOW_TEMPLATES.items():
+        wf_name, steps = template_fn(venture_id)
+        WORKFLOWS[wf_name] = steps
+        registered.append(wf_name)
+    return registered
+
+
+def register_all_venture_workflows() -> list[str]:
+    """
+    Register workflows for all ventures in VENTURES_JSON.
+    Called at module load or engine init.
+    """
+    import os as _os
+
+    ventures = json.loads(_os.getenv("VENTURES_JSON", "[]"))
+    all_registered = []
+    for v in ventures:
+        vid = v.get("id", "")
+        if vid:
+            all_registered.extend(register_venture_workflows(vid))
+    return all_registered
+
+
+# Auto-register venture workflows on module load
+try:
+    _registered = register_all_venture_workflows()
+    if _registered:
+        print(
+            f"[WorkflowEngine] Registered {len(_registered)} venture workflows: {_registered}"
+        )
+except Exception as _e:
+    print(f"[WorkflowEngine] Venture workflow registration skipped: {_e}")
 
 
 # ─── WorkflowEngine ───────────────────────────────────────────────────────────
@@ -550,6 +644,7 @@ class WorkflowEngine:
                 f"Available: {list(WORKFLOWS.keys())}"
             )
         import uuid
+
         state = WorkflowState(
             workflow_id=str(uuid.uuid4())[:8],
             workflow_name=workflow_name,
@@ -703,10 +798,10 @@ class AgentWorkflowEngine:
 
     def create_workflow(
         self,
-        name:       str,
+        name: str,
         venture_id: str,
-        trigger:    str,
-        steps:      list[dict],
+        trigger: str,
+        steps: list[dict],
     ) -> AgentWorkflow:
         workflow = AgentWorkflow(
             id=str(_uuid_mod.uuid4())[:8],
@@ -716,20 +811,20 @@ class AgentWorkflowEngine:
             steps=[
                 AgentWorkflowStep(
                     id=str(_uuid_mod.uuid4())[:8],
-                    name=s.get('name', ''),
-                    description=s.get('description', ''),
-                    owner=StepOwner(s.get('owner', 'agent')),
-                    agent_id=s.get('agent_id', ''),
-                    task_type=s.get('task_type', ''),
-                    inputs=s.get('inputs', {}),
-                    requires_approval=s.get('requires_approval', False),
-                    on_failure=s.get('on_failure', 'stop'),
+                    name=s.get("name", ""),
+                    description=s.get("description", ""),
+                    owner=StepOwner(s.get("owner", "agent")),
+                    agent_id=s.get("agent_id", ""),
+                    task_type=s.get("task_type", ""),
+                    inputs=s.get("inputs", {}),
+                    requires_approval=s.get("requires_approval", False),
+                    on_failure=s.get("on_failure", "stop"),
                 )
                 for s in steps
             ],
         )
         self._save_workflow(workflow)
-        print(f'[AgentWorkflowEngine] Created: {workflow.name} ({workflow.id})')
+        print(f"[AgentWorkflowEngine] Created: {workflow.name} ({workflow.id})")
         return workflow
 
     # ─── run ──────────────────────────────────────────────────────────────────
@@ -737,7 +832,7 @@ class AgentWorkflowEngine:
     def run(
         self,
         workflow: AgentWorkflow,
-        context:  Optional[dict] = None,
+        context: Optional[dict] = None,
     ) -> WorkflowRun:
         from eos_ai.task_executor import TaskExecutor, AgentTask, TaskStatus
 
@@ -754,22 +849,18 @@ class AgentWorkflowEngine:
         for i, step in enumerate(workflow.steps):
             run.current_step = i
             print(
-                f'[AgentWorkflowEngine] Step {i + 1}/{len(workflow.steps)}: '
-                f'{step.name}'
+                f"[AgentWorkflowEngine] Step {i + 1}/{len(workflow.steps)}: {step.name}"
             )
 
             # Human step — pause and wait for founder action
             if step.owner == StepOwner.HUMAN:
                 run.status = WorkflowStatus.PAUSED
                 run.step_results[step.id] = {
-                    'status': 'waiting_human',
-                    'step':   step.name,
+                    "status": "waiting_human",
+                    "step": step.name,
                 }
                 self._save_run(run)
-                print(
-                    f'[AgentWorkflowEngine] Paused — '
-                    f'waiting for human: {step.name}'
-                )
+                print(f"[AgentWorkflowEngine] Paused — waiting for human: {step.name}")
                 return run
 
             # Agent step — build task and execute
@@ -785,19 +876,19 @@ class AgentWorkflowEngine:
             completed = executor.execute(task)
 
             run.step_results[step.id] = {
-                'status':  completed.status.value,
-                'outputs': completed.outputs,
-                'error':   completed.error,
+                "status": completed.status.value,
+                "outputs": completed.outputs,
+                "error": completed.error,
             }
 
             if completed.status == TaskStatus.FAILED:
-                if step.on_failure == 'stop':
+                if step.on_failure == "stop":
                     run.status = WorkflowStatus.FAILED
-                    run.error  = completed.error
+                    run.error = completed.error
                     self._save_run(run)
                     print(
-                        f'[AgentWorkflowEngine] Failed at step: '
-                        f'{step.name} — {completed.error}'
+                        f"[AgentWorkflowEngine] Failed at step: "
+                        f"{step.name} — {completed.error}"
                     )
                     return run
                 # on_failure='continue' — log and proceed
@@ -806,27 +897,28 @@ class AgentWorkflowEngine:
                 run.status = WorkflowStatus.PAUSED
                 self._save_run(run)
                 print(
-                    f'[AgentWorkflowEngine] Blocked at step: '
-                    f'{step.name} (approval required)'
+                    f"[AgentWorkflowEngine] Blocked at step: "
+                    f"{step.name} (approval required)"
                 )
                 return run
 
-        run.status       = WorkflowStatus.COMPLETED
+        run.status = WorkflowStatus.COMPLETED
         run.completed_at = datetime.now()
         self._save_run(run)
-        print(f'[AgentWorkflowEngine] Completed: {workflow.name}')
+        print(f"[AgentWorkflowEngine] Completed: {workflow.name}")
         return run
 
     # ─── get_workflow_for_trigger ─────────────────────────────────────────────
 
     def get_workflow_for_trigger(
         self,
-        trigger:    str,
+        trigger: str,
         venture_id: str,
     ) -> Optional[dict]:
         """Return the most recent active workflow matching this trigger."""
         try:
             from eos_ai.db import get_conn
+
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     """
@@ -844,7 +936,7 @@ class AgentWorkflowEngine:
                 )
                 row = cur.fetchone()
                 if row:
-                    data = row['payload_json'] if isinstance(row, dict) else row[0]
+                    data = row["payload_json"] if isinstance(row, dict) else row[0]
                     if isinstance(data, str):
                         try:
                             return json.loads(data)
@@ -852,7 +944,7 @@ class AgentWorkflowEngine:
                             return None
                     return data
         except Exception as e:
-            print(f'[AgentWorkflowEngine] Find: {e}')
+            print(f"[AgentWorkflowEngine] Find: {e}")
         return None
 
     # ─── Persistence ──────────────────────────────────────────────────────────
@@ -860,6 +952,7 @@ class AgentWorkflowEngine:
     def _save_workflow(self, workflow: AgentWorkflow) -> None:
         try:
             from eos_ai.db import get_conn
+
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     """
@@ -871,23 +964,26 @@ class AgentWorkflowEngine:
                     (
                         str(_uuid_mod.uuid4()),
                         self.ctx.org_id,
-                        'workflow_created',
-                        json.dumps({
-                            'workflow_id': workflow.id,
-                            'name':        workflow.name,
-                            'venture_id':  workflow.venture_id,
-                            'trigger':     workflow.trigger,
-                            'steps':       len(workflow.steps),
-                            'status':      workflow.status.value,
-                        }),
+                        "workflow_created",
+                        json.dumps(
+                            {
+                                "workflow_id": workflow.id,
+                                "name": workflow.name,
+                                "venture_id": workflow.venture_id,
+                                "trigger": workflow.trigger,
+                                "steps": len(workflow.steps),
+                                "status": workflow.status.value,
+                            }
+                        ),
                     ),
                 )
         except Exception as e:
-            print(f'[AgentWorkflowEngine] Save: {e}')
+            print(f"[AgentWorkflowEngine] Save: {e}")
 
     def _save_run(self, run: WorkflowRun) -> None:
         try:
             from eos_ai.db import get_conn
+
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     """
@@ -899,16 +995,18 @@ class AgentWorkflowEngine:
                     (
                         str(_uuid_mod.uuid4()),
                         self.ctx.org_id,
-                        'workflow_run',
-                        json.dumps({
-                            'run_id':       run.id,
-                            'workflow_id':  run.workflow_id,
-                            'status':       run.status.value,
-                            'current_step': run.current_step,
-                            'step_results': run.step_results,
-                            'error':        run.error,
-                        }),
+                        "workflow_run",
+                        json.dumps(
+                            {
+                                "run_id": run.id,
+                                "workflow_id": run.workflow_id,
+                                "status": run.status.value,
+                                "current_step": run.current_step,
+                                "step_results": run.step_results,
+                                "error": run.error,
+                            }
+                        ),
                     ),
                 )
         except Exception as e:
-            print(f'[AgentWorkflowEngine] Run save: {e}')
+            print(f"[AgentWorkflowEngine] Run save: {e}")

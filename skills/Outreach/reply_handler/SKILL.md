@@ -8,19 +8,7 @@ effort: medium
 context: fork
 ---
 
-!`python3 -c "
-import sys; sys.path.insert(0,'/opt/OS')
-from dotenv import load_dotenv
-load_dotenv('/opt/OS/eos_ai/.env')
-try:
-    from eos_ai.context import load_context_from_env
-    ctx = load_context_from_env()
-    print(f'Stage: {getattr(ctx,\"stage\",\"?\")}')
-    print(f'ICP: {getattr(ctx,\"icp\",\"Men 18-25\")}')
-    print(f'Constraint: {getattr(ctx,\"binding_constraint\",\"leads\")}')
-except Exception as e:
-    print(f'Context: {e}')
-"`
+!`python3 /opt/OS/scripts/bis_context.py --fields name,icp,offer,stage,primary_channel,binding_constraint,north_star`
 
 
 # Skill: Reply Handler
@@ -59,7 +47,7 @@ Speed and precision. Reply within 2 hours during work hours. The response qualit
 **Positive Reply:**
 1. Validate what they shared with one sentence that uses their exact language back
 2. Ask one deepening question that gets closer to the root pain
-3. If pain is clearly established: move to call invitation ("Want to see if Initiate Arena is a fit for where you're at?")
+3. If pain is clearly established: move to call invitation ("Want to see if the active offer is a fit for where you're at?")
 4. Never provide a link before qualifying. Curiosity is not qualification.
 
 **Example:**

@@ -1,6 +1,6 @@
 ---
 name: icp-signal-detection
-description: "Identify high-probability Initiate Arena leads from Instagram content, profiles, and engagement — run during prospecting scans to build the qualified lead list."
+description: "Identify high-probability the active offer leads from Instagram content, profiles, and engagement — run during prospecting scans to build the qualified lead list."
 allowed-tools: "Read"
 trigger: scheduled
 effort: high
@@ -8,11 +8,14 @@ context: fork
 version: 1.0
 ---
 
+!`python3 /opt/OS/scripts/bis_context.py --fields name,icp,offer,stage,primary_channel,binding_constraint,north_star`
+
+
 # Skill: ICP Signal Detection
 
 ## Purpose
 
-Identify accounts that are high-probability Initiate Arena leads based on content they post, comments they leave, and signals visible in their profile. Outputs a qualified prospect list ready for dm_opener.
+Identify accounts that are high-probability the active offer leads based on content they post, comments they leave, and signals visible in their profile. Outputs a qualified prospect list ready for dm_opener.
 
 ---
 
@@ -33,7 +36,7 @@ The best lead sourcing is pain-first, not demographic-first. An account that loo
 **ICP Profile:**
 - Male, 18-25, English-speaking
 - Posting about: discipline, self-improvement, fitness, business ideation, personal development
-- Not already coaching, not already successful at the thing Initiate Arena solves
+- Not already coaching, not already successful at the thing the active offer solves
 - Not a pure entertainment or humor account
 
 **Signal Strength Classification:**
@@ -127,6 +130,6 @@ X/Twitter (secondary): Reply to threads where ICP is expressing pain publicly. L
 - An account that posts a lot is not a signal. The content of what they post is the signal. High-frequency posting of generic content is a NEGATIVE signal for engagement quality, not a POSITIVE one.
 - Ownership language is only valid when it's about themselves, not advice they're giving others. "You need to hold yourself accountable" is advice content. "I need to hold myself accountable" is ownership language.
 - Gym content alone is MEDIUM at best. Gym content plus frustration language is HIGH. Gym content plus success framing is LOW.
-- The "getting serious" signal is real but fleeting. Accounts that post "new me starting today" without follow-through over weeks are HIGH signal — that's exactly the start-stop pattern Initiate Arena solves.
+- The "getting serious" signal is real but fleeting. Accounts that post "new me starting today" without follow-through over weeks are HIGH signal — that's exactly the start-stop pattern the active offer solves.
 - Accounts with 10K+ followers who are posting about struggling with discipline may already have an audience who sees them as the authority. Approach carefully — the pain may be performative rather than genuine.
 - Never infer pain that isn't explicitly expressed. If you're guessing they're struggling based on the type of content they post — that's not a signal, that's a projection.

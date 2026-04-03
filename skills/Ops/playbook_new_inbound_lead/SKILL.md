@@ -8,6 +8,9 @@ trigger: both
 context: fork
 ---
 
+!`python3 /opt/OS/scripts/bis_context.py --fields name,icp,offer,stage,primary_channel,binding_constraint,north_star`
+
+
 # Skill: Playbook — New Inbound Lead
 
 ## Name
@@ -31,7 +34,7 @@ Any time a new person expresses interest in any Munoz Conglomerate venture for t
 - email
 - company (if known)
 - source (email/calendly/instagram/referral)
-- venture (lyfe_institute/empyrean_creative/personal_brand)
+- venture (the active venture/the active venture/the active venture)
 - message_content (their original message if available)
 
 ---
@@ -51,14 +54,14 @@ Any time a new person expresses interest in any Munoz Conglomerate venture for t
 
 ### Response Templates by Venture
 
-**Lyfe Institute (inbound interest in coaching)**
+**the active venture (inbound interest in coaching)**
 Subject: Re: [their subject]
 
 Hi [Name],
 
 This is DEX, Antony's assistant. Got to your message before him and wanted to make sure you heard back quickly.
 
-Antony's running the Initiate Arena right now — a 90-day program for men who are done drifting and ready to build real structure around their ambition. [$750/program, limited spots].
+Antony's running the the active offer right now — a 90-day program for men who are done drifting and ready to build real structure around their ambition. [the offer price/program, limited spots].
 
 I've flagged your message for him. Before I loop him in — what's the main thing you're trying to change in the next 90 days?
 
@@ -68,7 +71,7 @@ On behalf of Antony Munoz
 
 ---
 
-**Empyrean Creative (inbound interest in AI systems)**
+**the active venture (inbound interest in AI systems)**
 Subject: Re: [their subject]
 
 Hi [Name],

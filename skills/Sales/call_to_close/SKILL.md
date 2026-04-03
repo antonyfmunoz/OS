@@ -1,6 +1,6 @@
 ---
 name: call-to-close
-description: "Guide a sales conversation from the discovery phase through to a closed sale for Initiate Arena at $750 — run on every qualified sales call."
+description: "Guide a sales conversation from the discovery phase through to a closed sale for the active offer at its price point — run on every qualified sales call."
 allowed-tools: "Read, Bash"
 trigger: conversational
 version: 1.0
@@ -8,26 +8,14 @@ effort: medium
 context: fork
 ---
 
-!`python3 -c "
-import sys; sys.path.insert(0,'/opt/OS')
-from dotenv import load_dotenv
-load_dotenv('/opt/OS/eos_ai/.env')
-try:
-    from eos_ai.context import load_context_from_env
-    ctx = load_context_from_env()
-    print(f'Stage: {getattr(ctx,\"stage\",\"?\")}')
-    print(f'ICP: {getattr(ctx,\"icp\",\"Men 18-25\")}')
-    print(f'Constraint: {getattr(ctx,\"binding_constraint\",\"leads\")}')
-except Exception as e:
-    print(f'Context: {e}')
-"`
+!`python3 /opt/OS/scripts/bis_context.py --fields name,icp,offer,stage,primary_channel,binding_constraint,north_star`
 
 
 # Skill: Call to Close
 
 ## Purpose
 
-Guide a sales conversation from the discovery phase through to a closed sale for Initiate Arena at $750.
+Guide a sales conversation from the discovery phase through to a closed sale for the active offer at its price point.
 
 ---
 
@@ -62,7 +50,7 @@ Alex Hormozi $100M Offers close framework:
 1. Open with their specific situation
 2. Diagnose: what have they tried, what failed
 3. Agitate: what does staying stuck cost them
-4. Present Initiate Arena as the specific fix
+4. Present the active offer as the specific fix
 5. Price anchor: what would it cost not to fix it
 6. Ask directly: "Are you ready to start?"
 7. Handle one objection maximum
@@ -96,7 +84,7 @@ Record close rate by opener type. Track which discovery questions predict closes
 ## Gotchas
 
 - The most common failure: presenting before the prospect has fully articulated their own pain. If they can't say the problem in their own words, the solution won't land.
-- Never skip the cost-of-inaction step. Without it, $750 feels like a cost. With it, $750 feels like relief.
+- Never skip the cost-of-inaction step. Without it, the offer price feels like a cost. With it, the offer price feels like relief.
 - Silence after "Are you ready to start?" is the close working. The first person to speak loses this moment. Hold it.
 - Don't handle more than one objection per call. If they raise a second after the first is answered, the problem is the diagnosis, not the objections.
 - Price should be revealed after the value frame is set, never before. Sequence: pain → cost of staying stuck → solution → price.

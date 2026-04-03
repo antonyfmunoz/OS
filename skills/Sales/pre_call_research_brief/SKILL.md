@@ -8,6 +8,9 @@ context: fork
 version: 1.0
 ---
 
+!`python3 /opt/OS/scripts/bis_context.py --fields name,icp,offer,stage,primary_channel,binding_constraint,north_star`
+
+
 # Skill: Pre-Call Research Brief
 
 ## Purpose
@@ -27,7 +30,7 @@ Sales Agent walks into every call with full context. Never cold. Never generic.
 4. Identify their stage of awareness:
    - Problem aware — knows something is wrong, doesn't know the solution
    - Solution aware — knows solutions exist, hasn't chosen one
-   - Offer aware — knows about Initiate Arena specifically
+   - Offer aware — knows about the active offer specifically
 5. Predict top 2 objections based on their language and profile
 6. Generate one-page brief:
    - Who they are (name, context, how they found us)

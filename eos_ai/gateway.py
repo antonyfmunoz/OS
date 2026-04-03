@@ -1081,60 +1081,94 @@ class EOSGateway:
 
         def _inject_agent_context(prompt_text: str, agent_id: str) -> str:
             """Single injection point for CEO, portfolio, agent, and domain standards."""
-            # CEO deep standards
+            # CEO deep standards — try skill first, fall back to Python module
             if agent_id in _CEO_AGENTS:
                 try:
-                    from eos_ai.ceo_operational_standards import (
-                        get_constraint_rules,
-                        get_offer_rules,
-                        get_delegation_rules,
-                        get_hiring_rules,
-                        get_metric_rules,
-                        get_decision_rules,
-                        get_stage_rules,
-                        get_hormozi_rules,
-                    )
+                    from eos_ai.skill_registry import get_skill_registry
 
-                    _ceo_section_map = {
-                        "constraint": get_constraint_rules,
-                        "offer": get_offer_rules,
-                        "hiring": get_hiring_rules,
-                        "metrics": get_metric_rules,
-                        "decisions": get_decision_rules,
-                        "stage": get_stage_rules,
-                    }
-                    _task_class = _classify_ceo_task(prompt_text)
-                    _getter = _ceo_section_map.get(_task_class, get_constraint_rules)
-                    _ceo_deep = _getter()
-                    _ceo_deep += "\n" + get_hormozi_rules()
-                    if _task_class != "constraint":
-                        _ceo_deep += "\n" + get_delegation_rules()
-                    prompt_text = (
-                        f"CEO OPERATING STANDARDS "
-                        f"(task: {_task_class}):\n{_ceo_deep}\n\n"
-                        f"{prompt_text}"
-                    )
-                    print(f"[Gateway] CEO deep standards injected: {_task_class}")
-                except Exception as _ceo_err:
-                    print(f"[Gateway] CEO standards: {_ceo_err}")
-
-            # Portfolio advisor deep standards
-            if agent_id == "portfolio_advisor":
-                try:
-                    from eos_ai.portfolio_advisor_standards import (
-                        get_all_standards as get_pa_standards,
-                    )
-
-                    _pa_deep = get_pa_standards()
-                    if _pa_deep:
+                    _sr = get_skill_registry()
+                    _ceo_skill = _sr.get_skill("ceo_framework")
+                    if _ceo_skill and _ceo_skill.content:
+                        _task_class = _classify_ceo_task(prompt_text)
                         prompt_text = (
-                            f"PORTFOLIO ADVISOR OPERATING STANDARDS "
-                            f"(Munger/Dalio framework):\n{_pa_deep}\n\n"
+                            f"CEO OPERATING STANDARDS "
+                            f"(task: {_task_class}):\n{_ceo_skill.content}\n\n"
                             f"{prompt_text}"
                         )
-                        print("[Gateway] Portfolio advisor deep standards injected")
-                except Exception as _pa_err:
-                    print(f"[Gateway] Portfolio advisor standards: {_pa_err}")
+                        print(f"[Gateway] CEO standards from skill: {_task_class}")
+                    else:
+                        raise ValueError("ceo_framework skill not found")
+                except Exception:
+                    # Fallback to Python module
+                    try:
+                        from eos_ai.ceo_operational_standards import (
+                            get_constraint_rules,
+                            get_offer_rules,
+                            get_delegation_rules,
+                            get_hiring_rules,
+                            get_metric_rules,
+                            get_decision_rules,
+                            get_stage_rules,
+                            get_hormozi_rules,
+                        )
+
+                        _ceo_section_map = {
+                            "constraint": get_constraint_rules,
+                            "offer": get_offer_rules,
+                            "hiring": get_hiring_rules,
+                            "metrics": get_metric_rules,
+                            "decisions": get_decision_rules,
+                            "stage": get_stage_rules,
+                        }
+                        _task_class = _classify_ceo_task(prompt_text)
+                        _getter = _ceo_section_map.get(
+                            _task_class, get_constraint_rules
+                        )
+                        _ceo_deep = _getter()
+                        _ceo_deep += "\n" + get_hormozi_rules()
+                        if _task_class != "constraint":
+                            _ceo_deep += "\n" + get_delegation_rules()
+                        prompt_text = (
+                            f"CEO OPERATING STANDARDS "
+                            f"(task: {_task_class}):\n{_ceo_deep}\n\n"
+                            f"{prompt_text}"
+                        )
+                        print(f"[Gateway] CEO standards from Python: {_task_class}")
+                    except Exception as _ceo_err:
+                        print(f"[Gateway] CEO standards: {_ceo_err}")
+
+            # Portfolio advisor deep standards — try skill first, fall back to Python module
+            if agent_id == "portfolio_advisor":
+                try:
+                    from eos_ai.skill_registry import get_skill_registry
+
+                    _sr_pa = get_skill_registry()
+                    _pa_skill = _sr_pa.get_skill("portfolio_framework")
+                    if _pa_skill and _pa_skill.content:
+                        prompt_text = (
+                            f"PORTFOLIO ADVISOR OPERATING STANDARDS "
+                            f"(Munger/Dalio framework):\n{_pa_skill.content}\n\n"
+                            f"{prompt_text}"
+                        )
+                        print("[Gateway] Portfolio advisor standards from skill")
+                    else:
+                        raise ValueError("portfolio_framework skill not found")
+                except Exception:
+                    try:
+                        from eos_ai.portfolio_advisor_standards import (
+                            get_all_standards as get_pa_standards,
+                        )
+
+                        _pa_deep = get_pa_standards()
+                        if _pa_deep:
+                            prompt_text = (
+                                f"PORTFOLIO ADVISOR OPERATING STANDARDS "
+                                f"(Munger/Dalio framework):\n{_pa_deep}\n\n"
+                                f"{prompt_text}"
+                            )
+                            print("[Gateway] Portfolio advisor standards from Python")
+                    except Exception as _pa_err:
+                        print(f"[Gateway] Portfolio advisor standards: {_pa_err}")
 
             # Universal agent standards
             try:
@@ -1174,18 +1208,35 @@ class EOSGateway:
             if agent_id == "executive_assistant":
                 # DEX — inject EA operational standards + Martell leverage detection
                 try:
-                    from eos_ai.ea_operational_standards import get_all_standards
                     from eos_ai.martell_patterns import detect_leverage_killer
 
                     leverage = detect_leverage_killer(prompt)
                     if leverage:
                         prompt = leverage["intervention"] + "\n\n" + prompt
-                    ea_standards = get_all_standards()
-                    prompt = (
-                        f"OPERATIONAL STANDARDS:\n{ea_standards}\n\n---\n\n{prompt}"
-                    )
-                except Exception as _dex_err:
-                    print(f"[Gateway] DEX context inject: {_dex_err}")
+                except Exception:
+                    pass
+
+                try:
+                    from eos_ai.skill_registry import get_skill_registry
+
+                    _sr_ea = get_skill_registry()
+                    _ea_skill = _sr_ea.get_skill("ea_framework")
+                    if _ea_skill and _ea_skill.content:
+                        prompt = f"OPERATIONAL STANDARDS:\n{_ea_skill.content}\n\n---\n\n{prompt}"
+                        print("[Gateway] EA standards from skill")
+                    else:
+                        raise ValueError("ea_framework skill not found")
+                except Exception:
+                    try:
+                        from eos_ai.ea_operational_standards import get_all_standards
+
+                        ea_standards = get_all_standards()
+                        prompt = (
+                            f"OPERATIONAL STANDARDS:\n{ea_standards}\n\n---\n\n{prompt}"
+                        )
+                        print("[Gateway] EA standards from Python")
+                    except Exception as _dex_err:
+                        print(f"[Gateway] DEX context inject: {_dex_err}")
 
             elif agent_id == "portfolio_advisor":
                 # Portfolio Advisor — inject live portfolio data
