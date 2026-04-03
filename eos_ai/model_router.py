@@ -156,7 +156,7 @@ PROVIDER_QUALITY: dict = {
     "gemini": 0.65,  # Gemini 2.5 Flash
     "groq": 0.55,  # Llama 3.3 70B
     "perplexity": 0.60,  # Sonar (search-augmented)
-    "ollama": 0.35,  # Local qwen2.5:7b
+    "ollama": 0.35,  # Local qwen2.5:0.5b
 }
 
 MODEL_REGISTRY: dict[str, ModelConfig] = {
@@ -210,12 +210,12 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
         base_url="https://api.groq.com/openai/v1",
     ),
     # OLLAMA: Local fallback
-    # qwen2.5:7b needs ~4.7 GiB — fits with os-bot stopped (5.2 GiB available).
+    # qwen2.5:0.5b needs ~4.7 GiB — fits with os-bot stopped (5.2 GiB available).
     # Significant quality upgrade over 0.5b. os-bot removed to free RAM.
     # base_url from env so Docker containers can reach host Ollama via gateway IP.
     "ollama-qwen": ModelConfig(
         provider=ModelProvider.OLLAMA,
-        model_id="qwen2.5:7b",
+        model_id="qwen2.5:0.5b",
         api_key_env="",
         strengths=[
             TaskType.FAST_RESPONSE,
@@ -584,7 +584,7 @@ def call_with_fallback(
     1. cc_sdk         (Opus 4.6 via Claude Agent SDK — highest quality)
     2. Anthropic SDK  (model per CC_MODEL_MAP)
     3. Gemini 2.5 Flash
-    4. Ollama qwen2.5:7b (local)
+    4. Ollama qwen2.5:0.5b (local)
     5. Ollama qwen2.5:0.5b (local, minimal)
 
     CEO/strategic agents always use best available model.

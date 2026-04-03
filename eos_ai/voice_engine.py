@@ -409,7 +409,7 @@ class VoiceEngine:
     def __init__(self) -> None:
         self._whisper_model = None
         self._tts_model     = None
-        self.ollama_model   = 'qwen2.5:7b'
+        self.ollama_model   = 'qwen2.5:0.5b'
         self._ollama_url    = 'http://localhost:11434/api/generate'
         self.intelligent    = IntelligentVoiceProcessor(voice_engine=self)
         self.vad            = VADProcessor()

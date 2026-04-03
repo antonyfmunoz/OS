@@ -115,6 +115,8 @@ services:
       - /opt/OS/logs:/opt/OS/logs
       - /root/.config/gws:/root/.config/gws
       - /root/.config/@googleworkspace:/root/.config/@googleworkspace
+      - /root/.claude:/root/.claude:ro
+      - /root/.claude.json:/root/.claude.json:ro
     env_file:
       - services/.env
       - eos_ai/.env
@@ -124,4 +126,8 @@ services:
       - PYTHONUNBUFFERED=1
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - OTEL_TRACES_EXPORTER=none
+      - OTEL_METRICS_EXPORTER=none
+      - OTEL_LOGS_EXPORTER=none
+      - ANTHROPIC_DISABLE_TELEMETRY=1
     command: python3 services/discord_bot.py

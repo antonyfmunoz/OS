@@ -24,7 +24,6 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-import anthropic
 from dotenv import load_dotenv
 
 # Load eos_ai/.env so DATABASE_URL, EOS_ORG_ID, EOS_USER_ID are available
@@ -145,18 +144,8 @@ class AgentResult:
 
 
 class AgentRuntime:
-    # Class-level flag — once credits are depleted, all instances skip Claude
-    _claude_available: bool = True
 
     def __init__(self, ctx: EOSContext | None = None) -> None:
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
-        if api_key:
-            self._client = anthropic.Anthropic(api_key=api_key)
-        else:
-            self._client = None
-            print(
-                "[AgentRuntime] ANTHROPIC_API_KEY not set — routing all calls to Ollama (qwen2.5:7b)"
-            )
         self._skills = get_skill_registry()
         self._prefs = ModelPreferences(ctx or load_context_from_env())
 
@@ -166,149 +155,13 @@ class AgentRuntime:
         self._memory = AgentMemory()
 
     @property
-    def client(self) -> anthropic.Anthropic | None:
-        """Expose the configured Anthropic client for scripts that manage
-        their own prompts (e.g. icp_scorer). None when key is absent."""
-        return self._client
+    def client(self):
+        """Legacy: exposes an Anthropic client for services that manage their
+        own prompts (apify_scraper, dm_monitor). Returns None when key absent."""
+        import anthropic
 
-    # ─── Internal: resilient API call ────────────────────────────────────────
-
-    def _call_with_retry(self, **kwargs) -> anthropic.types.Message:
-        """
-        Call the Anthropic API with exponential backoff.
-        Delays: 2s → 4s → 8s → 16s across 4 retries before raising.
-        Credit-depleted errors are raised immediately (no retry).
-        """
-        last_exc: Exception | None = None
-
-        for attempt in range(_MAX_RETRIES + 1):
-            try:
-                return self._client.messages.create(**kwargs)
-
-            except (
-                anthropic.RateLimitError,
-                anthropic.InternalServerError,
-                anthropic.APIConnectionError,
-                anthropic.APITimeoutError,
-                anthropic.APIStatusError,
-            ) as exc:
-                # Credit-depleted: no point retrying
-                if "credit balance is too low" in str(exc).lower():
-                    raise
-                last_exc = exc
-                if attempt == _MAX_RETRIES:
-                    break
-                delay = _BACKOFF_BASE ** (attempt + 1)  # 2, 4, 8, 16
-                reason = type(exc).__name__
-                print(
-                    f"[AgentRuntime] API error on attempt {attempt + 1}/{_MAX_RETRIES} "
-                    f"({reason}: {exc}) — retrying in {delay}s..."
-                )
-                time.sleep(delay)
-
-            except anthropic.APIStatusError as exc:
-                # 4xx errors other than 429 won't recover on retry
-                last_exc = exc
-                if exc.status_code == 429:
-                    if attempt == _MAX_RETRIES:
-                        break
-                    delay = _BACKOFF_BASE ** (attempt + 1)
-                    print(
-                        f"[AgentRuntime] 429 rate limit on attempt {attempt + 1}/{_MAX_RETRIES} "
-                        f"— retrying in {delay}s..."
-                    )
-                    time.sleep(delay)
-                else:
-                    raise  # non-recoverable, surface immediately
-
-        error_msg = (
-            f"[AgentRuntime] API call failed after {_MAX_RETRIES} retries. "
-            f"Last error: {last_exc}"
-        )
-        # Auto-postmortem on exhausted retries — lazy import avoids circular dep
-        try:
-            from eos_ai.orchestrator import EOSOrchestrator
-
-            EOSOrchestrator().write_postmortem(
-                failure_description=f"API call exhausted all {_MAX_RETRIES} retries",
-                error_log=str(last_exc),
-                affected_component="agent_runtime._call_with_retry",
-            )
-        except Exception:
-            pass  # never block the raise
-        raise RuntimeError(error_msg) from last_exc
-
-    # ─── Provider methods ────────────────────────────────────────────────────
-
-    def _call_ollama(
-        self,
-        model: str,
-        prompt: str,
-        system: str | None,
-        max_tokens: int = 1000,
-    ) -> str:
-        import requests
-
-        base = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-        # Fast pre-flight: skip 60s timeout if Ollama isn't running
-        try:
-            requests.get(f"{base}/api/tags", timeout=2)
-        except Exception:
-            print("[AgentRuntime] Ollama not reachable — skipping local model")
-            return ""
-        try:
-            # Small local models can't handle huge system prompts — truncate
-            # to keep total context manageable and avoid timeouts.
-            _sys = system[:1500] if system else None
-            payload: dict = {
-                "model": model,
-                "prompt": prompt[:2000],
-                "stream": False,
-                "options": {"num_predict": max_tokens},
-            }
-            if _sys:
-                payload["system"] = _sys
-            resp = requests.post(
-                f"{base}/api/generate",
-                json=payload,
-                timeout=120,
-            )
-            resp.raise_for_status()
-            return resp.json()["response"]
-        except Exception as e:
-            print(f"[AgentRuntime] Ollama call failed: {e}")
-            return ""
-
-    def _call_perplexity(self, model: str, prompt: str, system: str | None) -> str:
-        from openai import OpenAI
-
-        key = os.getenv("PERPLEXITY_API_KEY")
-        if not key:
-            raise EnvironmentError("PERPLEXITY_API_KEY not set")
-        client = OpenAI(api_key=key, base_url="https://api.perplexity.ai")
-        messages = []
-        if system:
-            messages.append({"role": "system", "content": system})
-        messages.append({"role": "user", "content": prompt})
-        resp = client.chat.completions.create(model=model, messages=messages)
-        return resp.choices[0].message.content
-
-    def _call_gemini(self, model: str, prompt: str, system: str | None) -> str:
-        key = os.getenv("GEMINI_API_KEY")
-        if not key:
-            raise EnvironmentError("GEMINI_API_KEY not set")
-        full_prompt = f"{system}\n\n{prompt}" if system else prompt
-        try:
-            import google.genai as genai
-
-            client = genai.Client(api_key=key)
-            resp = client.models.generate_content(model=model, contents=full_prompt)
-        except ImportError:
-            import google.generativeai as genai  # type: ignore[no-redef]
-
-            genai.configure(api_key=key)
-            resp = genai.GenerativeModel(model).generate_content(full_prompt)
-        return resp.text
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        return anthropic.Anthropic(api_key=api_key) if api_key else None
 
     # ─── Public: run task ────────────────────────────────────────────────────
 
@@ -483,100 +336,21 @@ class AgentRuntime:
 
         system_prompt = "\n\n---\n\n".join(system_parts) if system_parts else None
 
-        # 3. Call the API — dispatch by provider
-        provider = model_config.get("provider", "anthropic")
+        # 3. Call the API — single path through model_router fallback chain:
+        #    cc_sdk → Anthropic → Gemini → Ollama
+        from eos_ai.model_router import call_with_fallback as _router_call
 
         _start = time.time()
 
-        if provider == "anthropic" and self._client is None:
-            print(
-                "[AgentRuntime] anthropic provider selected but no key — using qwen-local"
-            )
-            output = self._call_ollama(
-                model="qwen2.5:7b",
-                prompt=prompt,
-                system=system_prompt,
-                max_tokens=max_tokens,
-            )
-            tokens_used = {"input": 0, "output": 0, "total": 0}
-            model = "qwen2.5:7b"
-        elif provider == "anthropic" and not AgentRuntime._claude_available:
-            # Credits depleted in a previous call — try Gemini before Ollama
-            gemini_key = os.getenv("GEMINI_API_KEY")
-            if gemini_key:
-                try:
-                    output = self._call_gemini(
-                        model="gemini-2.5-flash",
-                        prompt=prompt,
-                        system=system_prompt,
-                    )
-                    model = "gemini-2.5-flash"
-                    tokens_used = {"input": 0, "output": 0, "total": 0}
-                    print("[AgentRuntime] Gemini fallback active")
-                except Exception as _ge:
-                    print(f"[AgentRuntime] Gemini failed: {_ge} — falling to Ollama")
-                    output = self._call_ollama(
-                        model="qwen2.5:7b",
-                        prompt=prompt,
-                        system=system_prompt,
-                        max_tokens=max_tokens,
-                    )
-                    model = "qwen2.5:7b"
-                    tokens_used = {"input": 0, "output": 0, "total": 0}
-            else:
-                output = self._call_ollama(
-                    model="qwen2.5:7b",
-                    prompt=prompt,
-                    system=system_prompt,
-                    max_tokens=max_tokens,
-                )
-                model = "qwen2.5:7b"
-                tokens_used = {"input": 0, "output": 0, "total": 0}
-        elif provider == "anthropic":
-            # Route through model_router's full fallback chain
-            # (Anthropic → Gemini → Ollama) instead of retrying Anthropic only
-            from eos_ai.model_router import (
-                call_with_fallback as _router_call,
-                TaskType as _RouterTaskType,
-            )
-
-            routing_result = _router_call(
-                prompt=prompt,
-                system=system_prompt,
-                task_type=task_type.value,
-                agent_type=agent,
-            )
-            output = routing_result.output
-            model = f"{routing_result.provider}/{routing_result.model}"
-            tokens_used = {"input": 0, "output": 0, "total": 0}
-        elif provider == "ollama":
-            output = self._call_ollama(
-                model=model,
-                prompt=prompt,
-                system=system_prompt,
-                max_tokens=max_tokens,
-            )
-            tokens_used = {"input": 0, "output": 0, "total": 0}
-        elif provider == "perplexity":
-            output = self._call_perplexity(
-                model=model, prompt=prompt, system=system_prompt
-            )
-            tokens_used = {"input": 0, "output": 0, "total": 0}
-        elif provider == "gemini":
-            output = self._call_gemini(model=model, prompt=prompt, system=system_prompt)
-            tokens_used = {"input": 0, "output": 0, "total": 0}
-        else:
-            # Unknown provider — fall back to qwen-local
-            print(
-                f"[AgentRuntime] Unknown provider '{provider}' — falling back to qwen-local"
-            )
-            output = self._call_ollama(
-                model="qwen2.5:7b",
-                prompt=prompt,
-                system=system_prompt,
-                max_tokens=max_tokens,
-            )
-            tokens_used = {"input": 0, "output": 0, "total": 0}
+        routing_result = _router_call(
+            prompt=prompt,
+            system=system_prompt,
+            task_type=task_type.value,
+            agent_type=agent,
+        )
+        output = routing_result.output
+        model = f"{routing_result.provider}/{routing_result.model}"
+        tokens_used = {"input": 0, "output": 0, "total": 0}
 
         _duration_ms = int((time.time() - _start) * 1000)
         _cost_usd = calculate_cost(model, tokens_used)

@@ -6,6 +6,7 @@ COPY services/requirements.txt .
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install openai-whisper yt-dlp
+RUN npm install -g @anthropic-ai/claude-code
 RUN playwright install chromium --with-deps
 
 # Patch py-cord voice_client.py to guard poll_voice_ws against _MissingSentinel.

@@ -118,8 +118,8 @@ async def query_cc(
     options = ClaudeAgentOptions(
         system_prompt=system or None,
         max_budget_usd=max_budget_usd,
-        permission_mode="plan",
-        max_turns=3,
+        permission_mode="auto",
+        max_turns=1,
         cli_path="/usr/bin/claude",
         setting_sources=[],
     )
