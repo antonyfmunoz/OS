@@ -104,6 +104,11 @@ _onboarding = _OnboardingEngine(_ctx_eos)
 # Resolve AI name — refreshed on_ready so renames take effect on reconnect
 AI_NAME = get_ai_name(_ctx_eos)
 
+# Default venture for requests that don't specify one
+_DEFAULT_VENTURE_ID = _ctx_eos.active_venture_id or os.getenv(
+    "DEFAULT_VENTURE_ID", "lyfe_institute"
+)
+
 # Founder Discord user ID — bot auto-joins founder's voice channel
 FOUNDER_ID = int(os.getenv("FOUNDER_DISCORD_ID", "0"))
 
@@ -336,7 +341,7 @@ def _build_request(text: str, intent: str, channel_name: str, username: str) -> 
             "type": "agent_task",
             "prompt": text,
             "username": username,
-            "venture_id": "lyfe_institute",
+            "venture_id": _DEFAULT_VENTURE_ID,
             "task_type": "ANALYZE",
         }
 
@@ -348,7 +353,7 @@ def _build_request(text: str, intent: str, channel_name: str, username: str) -> 
         "type": "agent_task",
         "prompt": text,
         "username": username,
-        "venture_id": "lyfe_institute",
+        "venture_id": _DEFAULT_VENTURE_ID,
     }
     if team:
         req["team"] = team
@@ -738,7 +743,7 @@ async def handle_meeting_voice(
                 team="sales",
                 sub_agent="objection_handler",
                 prompt=f"Objection on call: {text}",
-                venture_id="lyfe_institute",
+                venture_id=_DEFAULT_VENTURE_ID,
                 ctx=_ctx_eos,
             ),
         )
@@ -798,7 +803,7 @@ async def handle_meeting_voice(
                 {
                     "type": "agent_task",
                     "prompt": text,
-                    "venture_id": "lyfe_institute",
+                    "venture_id": _DEFAULT_VENTURE_ID,
                 }
             ),
         )
@@ -831,7 +836,7 @@ async def start_meeting_mode(
                 f"Pre-meeting brief for {meeting_type} with "
                 f"{lead_name or 'lead'}. What do I need to know?"
             ),
-            venture_id="lyfe_institute",
+            venture_id=_DEFAULT_VENTURE_ID,
             ctx=_ctx_eos,
         ),
     )
@@ -871,7 +876,7 @@ async def end_active_meeting(channel=None) -> None:
                     f"Summarize this {meeting_type} with {lead_name}. "
                     f"Key points, outcome, next steps:\n\n{notes}"
                 ),
-                "venture_id": "lyfe_institute",
+                "venture_id": _DEFAULT_VENTURE_ID,
             }
         ),
     )
@@ -1159,7 +1164,7 @@ async def _listen_loop(
                                 "type": "agent_task",
                                 "prompt": prompt,
                                 "sub_agent": "executive_assistant",
-                                "venture_id": "lyfe_institute",
+                                "venture_id": _DEFAULT_VENTURE_ID,
                             }
                         ),
                     )
@@ -1174,7 +1179,7 @@ async def _listen_loop(
                                 "type": "agent_task",
                                 "prompt": prompt,
                                 "sub_agent": "executive_assistant",
-                                "venture_id": "lyfe_institute",
+                                "venture_id": _DEFAULT_VENTURE_ID,
                             }
                         ),
                     )
@@ -1187,7 +1192,7 @@ async def _listen_loop(
                             "type": "agent_task",
                             "prompt": prompt,
                             "sub_agent": "executive_assistant",
-                            "venture_id": "lyfe_institute",
+                            "venture_id": _DEFAULT_VENTURE_ID,
                         }
                     ),
                 )
@@ -1410,13 +1415,12 @@ async def on_message(message: discord.Message):
         "3️⃣",
     ):
         _pending = _pending_captures.pop(_channel_id)
-        _venture_map = {
-            "1": "lyfe_institute",
-            "2": "empyrean_creative",
-            "3": "personal_brand",
-        }
+        import json as _json
+
+        _ventures_list = _json.loads(os.getenv("VENTURES_JSON", "[]"))
+        _venture_map = {str(i + 1): v["id"] for i, v in enumerate(_ventures_list)}
         _venture_id = _venture_map.get(
-            text.strip().replace("\ufe0f\u20e3", ""), "lyfe_institute"
+            text.strip().replace("\ufe0f\u20e3", ""), _DEFAULT_VENTURE_ID
         )
         try:
             from eos_ai.founder_capture import capture
@@ -1493,10 +1497,19 @@ async def on_message(message: discord.Message):
                 _venture_id = "lyfe_institute"
             else:
                 # Ambiguous — ask before capturing
+                import json as _json
+
                 _channel_id = str(message.channel.id)
+                _ventures_list = _json.loads(os.getenv("VENTURES_JSON", "[]"))
+                _num_emojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"]
+                _choices = "  ".join(
+                    f"{_num_emojis[i]} {v['name']}"
+                    for i, v in enumerate(_ventures_list)
+                    if i < len(_num_emojis)
+                )
                 await message.channel.send(
                     f"{'💡' if _ctype == 'idea' else '✅'} Got it. Which venture is this for?\n"
-                    f"1️⃣ Lyfe Institute  2️⃣ Empyrean Creative  3️⃣ Personal Brand"
+                    f"{_choices}"
                 )
                 _pending_captures[_channel_id] = {"text": text, "type": _ctype}
                 return

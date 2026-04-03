@@ -790,8 +790,8 @@ class EOSGateway:
                     channel=channel,
                     agent="system",
                 )
-            except Exception:
-                pass
+            except Exception as _cm_status_err:
+                print(f"[Gateway] Status memory store failed: {_cm_status_err}")
         if session_id:
             result["session_id"] = session_id
 
@@ -1023,6 +1023,90 @@ class EOSGateway:
                 return "stage"
             return "constraint"  # default — most common at Stage 1
 
+        def _inject_agent_context(prompt_text: str, agent_id: str) -> str:
+            """Single injection point for CEO, portfolio, agent, and domain standards."""
+            # CEO deep standards
+            if agent_id in _CEO_AGENTS:
+                try:
+                    from eos_ai.ceo_operational_standards import (
+                        get_constraint_rules,
+                        get_offer_rules,
+                        get_delegation_rules,
+                        get_hiring_rules,
+                        get_metric_rules,
+                        get_decision_rules,
+                        get_stage_rules,
+                        get_hormozi_rules,
+                    )
+
+                    _ceo_section_map = {
+                        "constraint": get_constraint_rules,
+                        "offer": get_offer_rules,
+                        "hiring": get_hiring_rules,
+                        "metrics": get_metric_rules,
+                        "decisions": get_decision_rules,
+                        "stage": get_stage_rules,
+                    }
+                    _task_class = _classify_ceo_task(prompt_text)
+                    _getter = _ceo_section_map.get(_task_class, get_constraint_rules)
+                    _ceo_deep = _getter()
+                    _ceo_deep += "\n" + get_hormozi_rules()
+                    if _task_class != "constraint":
+                        _ceo_deep += "\n" + get_delegation_rules()
+                    prompt_text = (
+                        f"CEO OPERATING STANDARDS "
+                        f"(task: {_task_class}):\n{_ceo_deep}\n\n"
+                        f"{prompt_text}"
+                    )
+                    print(f"[Gateway] CEO deep standards injected: {_task_class}")
+                except Exception as _ceo_err:
+                    print(f"[Gateway] CEO standards: {_ceo_err}")
+
+            # Portfolio advisor deep standards
+            if agent_id == "portfolio_advisor":
+                try:
+                    from eos_ai.portfolio_advisor_standards import (
+                        get_all_standards as get_pa_standards,
+                    )
+
+                    _pa_deep = get_pa_standards()
+                    if _pa_deep:
+                        prompt_text = (
+                            f"PORTFOLIO ADVISOR OPERATING STANDARDS "
+                            f"(Munger/Dalio framework):\n{_pa_deep}\n\n"
+                            f"{prompt_text}"
+                        )
+                        print("[Gateway] Portfolio advisor deep standards injected")
+                except Exception as _pa_err:
+                    print(f"[Gateway] Portfolio advisor standards: {_pa_err}")
+
+            # Universal agent standards
+            try:
+                from eos_ai.principle_engine import PrincipleEngine
+
+                _pe = PrincipleEngine(ctx)
+                _standards = _pe.format_agent_standards(agent_id)
+                if _standards:
+                    prompt_text = f"{_standards}\n\n{prompt_text}"
+                    print(f"[Gateway] Agent standards injected: {agent_id}")
+            except Exception as _se_err:
+                print(f"[Gateway] Standards inject: {_se_err}")
+
+            # Domain-specific principles
+            try:
+                from eos_ai.principle_engine import PrincipleEngine
+
+                _pe_d = PrincipleEngine(ctx)
+                _domain = _AGENT_DOMAIN_MAP.get(agent_id, "ops")
+                _domain_principles = _pe_d.format_for_prompt(_domain)
+                if _domain_principles:
+                    prompt_text = f"{_domain_principles}\n\n{prompt_text}"
+                    print(f"[Gateway] Domain principles injected: {_domain}")
+            except Exception as _dp_err:
+                print(f"[Gateway] Domain principles: {_dp_err}")
+
+            return prompt_text
+
         if team and team in _NAMED_AGENT_TEAMS:
             agent_id = {
                 "dex": "executive_assistant",
@@ -1048,7 +1132,7 @@ class EOSGateway:
                     print(f"[Gateway] DEX context inject: {_dex_err}")
 
             elif agent_id == "portfolio_advisor":
-                # Portfolio Advisor — inject live portfolio data + deep standards
+                # Portfolio Advisor — inject live portfolio data
                 try:
                     from eos_ai.portfolio_advisor import (
                         PortfolioAdvisor as PortfolioAgent,
@@ -1061,85 +1145,8 @@ class EOSGateway:
                 except Exception as _pa_err:
                     print(f"[Gateway] Portfolio Advisor inject: {_pa_err}")
 
-                # FIX 3: Wire portfolio advisor deep standards
-                try:
-                    from eos_ai.portfolio_advisor_standards import (
-                        get_all_standards as get_pa_standards,
-                    )
-
-                    _pa_deep = get_pa_standards()
-                    if _pa_deep:
-                        prompt = (
-                            f"PORTFOLIO ADVISOR OPERATING STANDARDS "
-                            f"(Munger/Dalio framework):\n{_pa_deep}\n\n"
-                            f"{prompt}"
-                        )
-                        print("[Gateway] Portfolio advisor deep standards injected")
-                except Exception as _pa_std_err:
-                    print(f"[Gateway] Portfolio advisor standards: {_pa_std_err}")
-
-            # FIX 1: Wire CEO deep standards for named CEO agent teams
-            if agent_id in _CEO_AGENTS:
-                try:
-                    from eos_ai.ceo_operational_standards import (
-                        get_constraint_rules,
-                        get_offer_rules,
-                        get_delegation_rules,
-                        get_hiring_rules,
-                        get_metric_rules,
-                        get_decision_rules,
-                        get_stage_rules,
-                        get_hormozi_rules,
-                    )
-
-                    _ceo_section_map = {
-                        "constraint": get_constraint_rules,
-                        "offer": get_offer_rules,
-                        "hiring": get_hiring_rules,
-                        "metrics": get_metric_rules,
-                        "decisions": get_decision_rules,
-                        "stage": get_stage_rules,
-                    }
-                    _task_class = _classify_ceo_task(prompt)
-                    _getter = _ceo_section_map.get(_task_class, get_constraint_rules)
-                    _ceo_deep = _getter()
-                    # Always include Hormozi operating philosophy + delegation rules
-                    _ceo_deep += "\n" + get_hormozi_rules()
-                    if _task_class != "constraint":
-                        _ceo_deep += "\n" + get_delegation_rules()
-                    prompt = (
-                        f"CEO OPERATING STANDARDS "
-                        f"(task: {_task_class}):\n{_ceo_deep}\n\n"
-                        f"{prompt}"
-                    )
-                    print(f"[Gateway] CEO deep standards injected: {_task_class}")
-                except Exception as _ceo_std_err:
-                    print(f"[Gateway] CEO standards: {_ceo_std_err}")
-
-            # Universal agent standards injection — all named agents
-            try:
-                from eos_ai.principle_engine import PrincipleEngine
-
-                _pe_named = PrincipleEngine(ctx)
-                _standards_named = _pe_named.format_agent_standards(agent_id)
-                if _standards_named:
-                    prompt = f"{_standards_named}\n\n{prompt}"
-                    print(f"[Gateway] Agent standards injected: {agent_id}")
-            except Exception as _se_named:
-                print(f"[Gateway] Standards inject: {_se_named}")
-
-            # FIX 2: Wire REALITY_PRINCIPLES — domain-specific principles
-            try:
-                from eos_ai.principle_engine import PrincipleEngine
-
-                _pe_domain = PrincipleEngine(ctx)
-                _domain = _AGENT_DOMAIN_MAP.get(agent_id, "ops")
-                _domain_principles = _pe_domain.format_for_prompt(_domain)
-                if _domain_principles:
-                    prompt = f"{_domain_principles}\n\n{prompt}"
-                    print(f"[Gateway] Domain principles injected: {_domain}")
-            except Exception as _dp_err:
-                print(f"[Gateway] Domain principles: {_dp_err}")
+            # Unified standards injection — CEO, portfolio, agent, domain
+            prompt = _inject_agent_context(prompt, agent_id)
 
             result = loop.run(
                 input=prompt,
@@ -1234,95 +1241,11 @@ class EOSGateway:
                         delegated_to=agent_to_use,
                         due_hours=24,
                     )
-                except Exception:
-                    pass
+                except Exception as _del_err:
+                    print(f"[Gateway] Delegation log failed: {_del_err}")
 
-            # FIX 1: Wire CEO deep standards for direct-routed CEO agents
-            if agent_to_use in _CEO_AGENTS:
-                try:
-                    from eos_ai.ceo_operational_standards import (
-                        get_constraint_rules,
-                        get_offer_rules,
-                        get_delegation_rules,
-                        get_hiring_rules,
-                        get_metric_rules,
-                        get_decision_rules,
-                        get_stage_rules,
-                        get_hormozi_rules,
-                    )
-
-                    _ceo_section_map_d = {
-                        "constraint": get_constraint_rules,
-                        "offer": get_offer_rules,
-                        "hiring": get_hiring_rules,
-                        "metrics": get_metric_rules,
-                        "decisions": get_decision_rules,
-                        "stage": get_stage_rules,
-                    }
-                    _task_class_d = _classify_ceo_task(prompt)
-                    _getter_d = _ceo_section_map_d.get(
-                        _task_class_d,
-                        get_constraint_rules,
-                    )
-                    _ceo_deep_d = _getter_d()
-                    _ceo_deep_d += "\n" + get_hormozi_rules()
-                    if _task_class_d != "constraint":
-                        _ceo_deep_d += "\n" + get_delegation_rules()
-                    prompt = (
-                        f"CEO OPERATING STANDARDS "
-                        f"(task: {_task_class_d}):\n{_ceo_deep_d}\n\n"
-                        f"{prompt}"
-                    )
-                    print(
-                        f"[Gateway] CEO deep standards injected (direct): {_task_class_d}"
-                    )
-                except Exception as _ceo_d_err:
-                    print(f"[Gateway] CEO standards (direct): {_ceo_d_err}")
-
-            # FIX 3: Wire portfolio advisor deep standards for direct-routed
-            if agent_to_use == "portfolio_advisor":
-                try:
-                    from eos_ai.portfolio_advisor_standards import (
-                        get_all_standards as get_pa_standards_d,
-                    )
-
-                    _pa_deep_d = get_pa_standards_d()
-                    if _pa_deep_d:
-                        prompt = (
-                            f"PORTFOLIO ADVISOR OPERATING STANDARDS "
-                            f"(Munger/Dalio framework):\n{_pa_deep_d}\n\n"
-                            f"{prompt}"
-                        )
-                        print(
-                            "[Gateway] Portfolio advisor deep standards injected (direct)"
-                        )
-                except Exception as _pa_d_err:
-                    print(f"[Gateway] Portfolio standards (direct): {_pa_d_err}")
-
-            # Universal agent standards injection — direct tasks
-            try:
-                from eos_ai.principle_engine import PrincipleEngine
-
-                _pe_direct = PrincipleEngine(ctx)
-                _standards_direct = _pe_direct.format_agent_standards(agent_to_use)
-                if _standards_direct:
-                    prompt = f"{_standards_direct}\n\n{prompt}"
-                    print(f"[Gateway] Agent standards injected: {agent_to_use}")
-            except Exception as _se_direct:
-                print(f"[Gateway] Standards inject: {_se_direct}")
-
-            # FIX 2: Wire REALITY_PRINCIPLES — domain principles for direct tasks
-            try:
-                from eos_ai.principle_engine import PrincipleEngine
-
-                _pe_domain_d = PrincipleEngine(ctx)
-                _domain_d = _AGENT_DOMAIN_MAP.get(agent_to_use, "ops")
-                _domain_principles_d = _pe_domain_d.format_for_prompt(_domain_d)
-                if _domain_principles_d:
-                    prompt = f"{_domain_principles_d}\n\n{prompt}"
-                    print(f"[Gateway] Domain principles injected (direct): {_domain_d}")
-            except Exception as _dp_d_err:
-                print(f"[Gateway] Domain principles (direct): {_dp_d_err}")
+            # Unified standards injection — CEO, portfolio, agent, domain
+            prompt = _inject_agent_context(prompt, agent_to_use)
 
             result = loop.run(
                 input=prompt,
@@ -1360,8 +1283,8 @@ class EOSGateway:
                         "venture_id": venture_id,
                     },
                 )
-        except Exception:
-            pass  # knowledge integration is enhancement — never block result
+        except Exception as _ki_err:
+            print(f"[Gateway] Knowledge integration failed: {_ki_err}")
 
         # Feedback loop — log advice as recommendation; detect outcome reports
         try:
@@ -1701,16 +1624,14 @@ class EOSGateway:
             "UNKNOWN",
         }
         try:
-            import anthropic as _anthropic
+            from eos_ai.model_router import call_with_fallback, TaskType
 
-            client = _anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-            msg = client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=10,
+            result = call_with_fallback(
+                prompt=text,
                 system=_SYSTEM,
-                messages=[{"role": "user", "content": text}],
+                task_type=TaskType.CLASSIFY,
             )
-            intent = msg.content[0].text.strip().upper().split()[0]
+            intent = result.output.strip().upper().split()[0]
             return intent if intent in _VALID else "UNKNOWN"
         except Exception as e:
             print(f"[Gateway] classify_intent failed: {e}")

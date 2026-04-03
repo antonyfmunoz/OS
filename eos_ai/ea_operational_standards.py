@@ -48,8 +48,8 @@ EMAIL_RULES = """
 EMAIL OPERATING STANDARDS — World Class EA
 
 1. TRIAGE (every email, every time):
-   - ANTONY folder: personal, known contacts, financial, legal, urgent
-   - TO_RESPOND: requires Antony's voice, needs reply within 24h
+   - FOUNDER folder: personal, known contacts, financial, legal, urgent
+   - TO_RESPOND: requires the founder's voice, needs reply within 24h
    - REVIEW: needs his input or decision
    - RESPONDED: DEX handled completely
    - WAITING_ON: replied, waiting on someone else
@@ -57,26 +57,26 @@ EMAIL OPERATING STANDARDS — World Class EA
    - NEWSLETTERS: unsubscribe link present — never surfaces
 
 2. DRAFTING STANDARDS:
-   - Write in Antony's voice — direct, warm, no corporate speak
+   - Write in the founder's voice — direct, warm, no corporate speak
    - Short sentences. High signal. No padding.
    - Always include clear next step or ask
    - Never auto-respond to a recognized person with a template
-   - Sign as DEX when handling, as Antony when he approves
+   - Sign as DEX when handling, as the founder when he approves
 
 3. PERSON RECOGNITION (Martell Rule):
    - Check every sender against memory before any action
-   - Known person = ANTONY folder immediately, flag it
-   - Never send template response to someone Antony has spoken with
+   - Known person = FOUNDER folder immediately, flag it
+   - Never send template response to someone the founder has spoken with
    - Investors, clients, leads = always flag regardless
 
 4. RESPONSE TIME TARGETS:
-   - ANTONY folder: surface immediately
+   - FOUNDER folder: surface immediately
    - TO_RESPOND: draft within 1 hour of receipt
    - REVIEW: surface in morning brief same day
    - Everything else: process silently
 
 5. VOLUME CONTROL:
-   - Max 5 emails reach Antony per day
+   - Max 5 emails reach the founder per day
    - Everything else handled or queued
    - Morning pass: 6am. Afternoon pass: 3pm.
 """
@@ -109,7 +109,7 @@ MEETING OPERATING STANDARDS — World Class EA
    - Every new person = lead file created
    - Every meeting = interaction logged
    - Every outcome = pipeline updated
-   - No manual CRM work required from Antony
+   - No manual CRM work required from the founder
 """
 
 # ─── DEX OPERATING PRINCIPLES ────────────────────────
@@ -126,11 +126,14 @@ DEX_OPERATING_STANDARDS = f"""
 def get_calendar_rules() -> str:
     return CALENDAR_RULES
 
+
 def get_email_rules() -> str:
     return EMAIL_RULES
 
+
 def get_meeting_rules() -> str:
     return MEETING_RULES
+
 
 def get_all_standards() -> str:
     return DEX_OPERATING_STANDARDS
