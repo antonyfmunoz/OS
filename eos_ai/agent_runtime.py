@@ -155,7 +155,7 @@ class AgentRuntime:
         else:
             self._client = None
             print(
-                "[AgentRuntime] ANTHROPIC_API_KEY not set — routing all calls to Ollama (qwen2.5:0.5b)"
+                "[AgentRuntime] ANTHROPIC_API_KEY not set — routing all calls to Ollama (qwen2.5:7b)"
             )
         self._skills = get_skill_registry()
         self._prefs = ModelPreferences(ctx or load_context_from_env())
@@ -249,9 +249,10 @@ class AgentRuntime:
     ) -> str:
         import requests
 
+        base = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
         # Fast pre-flight: skip 60s timeout if Ollama isn't running
         try:
-            requests.get("http://localhost:11434/api/tags", timeout=2)
+            requests.get(f"{base}/api/tags", timeout=2)
         except Exception:
             print("[AgentRuntime] Ollama not reachable — skipping local model")
             return ""
@@ -268,7 +269,7 @@ class AgentRuntime:
             if _sys:
                 payload["system"] = _sys
             resp = requests.post(
-                "http://localhost:11434/api/generate",
+                f"{base}/api/generate",
                 json=payload,
                 timeout=120,
             )
@@ -492,13 +493,13 @@ class AgentRuntime:
                 "[AgentRuntime] anthropic provider selected but no key — using qwen-local"
             )
             output = self._call_ollama(
-                model="qwen2.5:0.5b",
+                model="qwen2.5:7b",
                 prompt=prompt,
                 system=system_prompt,
                 max_tokens=max_tokens,
             )
             tokens_used = {"input": 0, "output": 0, "total": 0}
-            model = "qwen2.5:0.5b"
+            model = "qwen2.5:7b"
         elif provider == "anthropic" and not AgentRuntime._claude_available:
             # Credits depleted in a previous call — try Gemini before Ollama
             gemini_key = os.getenv("GEMINI_API_KEY")
@@ -515,21 +516,21 @@ class AgentRuntime:
                 except Exception as _ge:
                     print(f"[AgentRuntime] Gemini failed: {_ge} — falling to Ollama")
                     output = self._call_ollama(
-                        model="qwen2.5:0.5b",
+                        model="qwen2.5:7b",
                         prompt=prompt,
                         system=system_prompt,
                         max_tokens=max_tokens,
                     )
-                    model = "qwen2.5:0.5b"
+                    model = "qwen2.5:7b"
                     tokens_used = {"input": 0, "output": 0, "total": 0}
             else:
                 output = self._call_ollama(
-                    model="qwen2.5:0.5b",
+                    model="qwen2.5:7b",
                     prompt=prompt,
                     system=system_prompt,
                     max_tokens=max_tokens,
                 )
-                model = "qwen2.5:0.5b"
+                model = "qwen2.5:7b"
                 tokens_used = {"input": 0, "output": 0, "total": 0}
         elif provider == "anthropic":
             # Route through model_router's full fallback chain
@@ -570,7 +571,7 @@ class AgentRuntime:
                 f"[AgentRuntime] Unknown provider '{provider}' — falling back to qwen-local"
             )
             output = self._call_ollama(
-                model="qwen2.5:0.5b",
+                model="qwen2.5:7b",
                 prompt=prompt,
                 system=system_prompt,
                 max_tokens=max_tokens,

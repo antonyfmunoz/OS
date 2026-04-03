@@ -872,8 +872,8 @@ class EOSGateway:
             "claude": 0.75,
             "anthropic": 0.75,
             "gemini": 0.60,
-            "ollama": 0.40,
-            "qwen": 0.35,
+            "ollama": 0.55,
+            "qwen": 0.50,
         }
         threshold = 0.50
         for key, val in thresholds.items():

@@ -16,6 +16,8 @@ services:
     command: python3 services/telegram_control.py
     networks:
       - eos_network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - /opt/OS:/app
     env_file:
@@ -24,6 +26,7 @@ services:
       - PYTHONPATH=/app
       - TZ=America/Los_Angeles
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
 
   os-monitor:
     build: .
@@ -35,6 +38,8 @@ services:
     # Bridge provides outbound internet access for Instagram/Apify calls.
     networks:
       - eos_network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - /opt/OS:/app
       - /opt/OS/logs:/opt/OS/logs
@@ -47,6 +52,7 @@ services:
       - TZ=America/Los_Angeles
       - PYTHONUNBUFFERED=1
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
 
   os-scraper:
     build: .
@@ -56,6 +62,8 @@ services:
     command: python3 services/overnight_scrape.py
     networks:
       - eos_network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - /opt/OS:/app
     env_file:
@@ -65,6 +73,7 @@ services:
       - PYTHONPATH=/app
       - TZ=America/Los_Angeles
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
 
   os-webhook:
     build: .
@@ -74,6 +83,8 @@ services:
     command: python3 services/calendly_webhook.py
     networks:
       - eos_network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - /opt/OS:/app
     env_file:
@@ -82,6 +93,7 @@ services:
       - PYTHONPATH=/app
       - TZ=America/Los_Angeles
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
     ports:
       - "8080:8080"
 
@@ -96,6 +108,8 @@ services:
     # calls to discord.com. Bridge networking provides full internet access.
     networks:
       - eos_network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - /opt/OS:/app
       - /opt/OS/logs:/opt/OS/logs
@@ -109,4 +123,5 @@ services:
       - TZ=America/Los_Angeles
       - PYTHONUNBUFFERED=1
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
     command: python3 services/discord_bot.py

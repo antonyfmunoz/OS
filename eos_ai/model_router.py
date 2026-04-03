@@ -27,6 +27,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
+from eos_ai.cc_sdk import query_cc_sync, CCResult
+
 # Load .env so GEMINI_API_KEY is available when model_router is used standalone
 # (agent_runtime does this too — safe to call twice, dotenv is idempotent)
 try:
@@ -59,6 +61,7 @@ class RoutingResult:
 
 
 class ModelProvider(Enum):
+    CC_SDK = "cc_sdk"
     ANTHROPIC = "anthropic"
     PERPLEXITY = "perplexity"
     OPENAI = "openai"
@@ -137,12 +140,23 @@ class ModelConfig:
 
 # Provider priority for fallback ordering (lower = preferred)
 PROVIDER_PRIORITY: dict = {
-    ModelProvider.ANTHROPIC: 0,
-    ModelProvider.GEMINI: 1,
-    ModelProvider.GROQ: 2,
-    ModelProvider.PERPLEXITY: 3,
-    ModelProvider.OLLAMA: 4,
-    ModelProvider.MANUS: 5,
+    ModelProvider.CC_SDK: 0,
+    ModelProvider.ANTHROPIC: 1,
+    ModelProvider.GEMINI: 2,
+    ModelProvider.GROQ: 3,
+    ModelProvider.PERPLEXITY: 4,
+    ModelProvider.OLLAMA: 5,
+    ModelProvider.MANUS: 6,
+}
+
+# Quality thresholds per provider (0.0–1.0, for model_preferences gating)
+PROVIDER_QUALITY: dict = {
+    "cc_sdk": 0.85,  # Opus 4.6 via Agent SDK — highest quality
+    "anthropic": 0.80,  # Direct Anthropic SDK
+    "gemini": 0.65,  # Gemini 2.5 Flash
+    "groq": 0.55,  # Llama 3.3 70B
+    "perplexity": 0.60,  # Sonar (search-augmented)
+    "ollama": 0.35,  # Local qwen2.5:7b
 }
 
 MODEL_REGISTRY: dict[str, ModelConfig] = {
@@ -196,11 +210,12 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
         base_url="https://api.groq.com/openai/v1",
     ),
     # OLLAMA: Local fallback
-    # qwen2.5:3b needs 1.9 GiB — exceeds available RAM when Docker is running.
-    # qwen2.5:0.5b fits in ~400 MiB and generates output reliably.
+    # qwen2.5:7b needs ~4.7 GiB — fits with os-bot stopped (5.2 GiB available).
+    # Significant quality upgrade over 0.5b. os-bot removed to free RAM.
+    # base_url from env so Docker containers can reach host Ollama via gateway IP.
     "ollama-qwen": ModelConfig(
         provider=ModelProvider.OLLAMA,
-        model_id="qwen2.5:0.5b",
+        model_id="qwen2.5:7b",
         api_key_env="",
         strengths=[
             TaskType.FAST_RESPONSE,
@@ -208,7 +223,7 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
             TaskType.ANALYSIS,
         ],
         cost_per_1k=0.0,
-        base_url="http://localhost:11434",
+        base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
     ),
     # GEMINI: Multimodal
     "gemini-pro": ModelConfig(
@@ -247,8 +262,9 @@ def _ollama_available() -> bool:
     try:
         import requests as _req
 
+        base = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
         resp = _req.get(
-            "http://localhost:11434/api/tags",
+            f"{base}/api/tags",
             timeout=2,
         )
         return resp.status_code == 200
@@ -262,6 +278,8 @@ class ModelRouter:
         self._check_availability()
 
     def _check_availability(self) -> None:
+        # cc_sdk available if claude CLI is installed (import succeeded at module level)
+        self._cc_sdk_available = query_cc_sync is not None
         for config in MODEL_REGISTRY.values():
             if not config.api_key_env:
                 # Local model (Ollama) — check if actually running
@@ -453,21 +471,30 @@ class ModelRouter:
         try:
             import requests
 
-            # Truncate context for small local models to avoid timeouts
-            _sys = system[:1500] if system else ""
+            # Truncate context for local models — 7b can handle more than 0.5b
+            _sys = system[:3000] if system else ""
             payload: dict = {
                 "model": config.model_id,
-                "prompt": prompt[:2000],
+                "prompt": prompt[:4000],
                 "stream": False,
                 "options": {"num_predict": max_tokens},
             }
             if _sys:
                 payload["system"] = _sys
+            start = time.time()
             resp = requests.post(
                 f"{config.base_url}/api/generate",
                 json=payload,
-                timeout=120,
+                timeout=300,
             )
+            elapsed = time.time() - start
+            if elapsed > 60:
+                logger.warning(
+                    "[Ollama] Slow response: %.0fs for %s (%d chars)",
+                    elapsed,
+                    config.model_id,
+                    len(resp.text) if resp.status_code == 200 else 0,
+                )
             if resp.status_code == 200:
                 return resp.json().get("response", "")
         except Exception as e:
@@ -553,14 +580,12 @@ def call_with_fallback(
     """
     Main routing entry point for all EOS agent calls.
 
-    Quality-ranked fallback chain (current — Anthropic credits depleted):
-    1. Gemini 2.5 Flash  (gemini-pro in registry)
-    2. Ollama qwen2.5:3b (local, always available)
-
-    When Anthropic credits are restored, priority becomes:
-    1. Anthropic (model per CC_MODEL_MAP)
-    2. Gemini 2.5 Flash
-    3. Ollama
+    Quality-ranked fallback chain:
+    1. cc_sdk         (Opus 4.6 via Claude Agent SDK — highest quality)
+    2. Anthropic SDK  (model per CC_MODEL_MAP)
+    3. Gemini 2.5 Flash
+    4. Ollama qwen2.5:7b (local)
+    5. Ollama qwen2.5:0.5b (local, minimal)
 
     CEO/strategic agents always use best available model.
     """
@@ -584,6 +609,33 @@ def call_with_fallback(
     # Re-check availability on each call (handles credit restoration)
     router._check_availability()
 
+    # ── 1. Try cc_sdk first (Opus 4.6 via Agent SDK) ──
+    if router._cc_sdk_available:
+        start = time.time()
+        cc_result = query_cc_sync(
+            prompt=prompt,
+            system=system or "",
+            task_type=task_type_str,
+            agent_id=agent_type or "eos_default",
+            max_budget_usd=0.10,
+        )
+        if cc_result and cc_result.output:
+            latency_ms = int((time.time() - start) * 1000)
+            logger.info(
+                "[Router] cc_sdk/%s responded (%dms)",
+                cc_result.model,
+                latency_ms,
+            )
+            return RoutingResult(
+                output=cc_result.output,
+                provider="cc_sdk",
+                model=cc_result.model,
+                task_type=task_type_str,
+                latency_ms=latency_ms,
+            )
+        logger.info("[Router] cc_sdk failed, falling back to registry providers")
+
+    # ── 2. Registry-based fallback chain ──
     # Map extended task types to router's strength categories
     _TASK_MAP: dict[str, str] = {
         "strategic": "analysis",

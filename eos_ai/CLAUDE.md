@@ -21,7 +21,7 @@ voice_engine.py     — STT + TTS
 - Context: load_context_from_env()
 - DB: from eos_ai.db import get_conn
 - Test: python3 -c "from eos_ai.X import Y"
-- LLM: qwen2.5:3b fallback (Anthropic depleted)
+- LLM: qwen2.5:7b fallback (Anthropic depleted)
 
 ## Cognitive loop injection order
 1a. principle_engine

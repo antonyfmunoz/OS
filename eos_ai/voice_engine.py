@@ -6,7 +6,7 @@ Handles:
   - Speech detection: Silero VAD (neural) → webrtcvad fallback
   - Speech classify : command / question / conversation / thinking_aloud / singing
   - Text-to-speech  : Coqui TTS → espeak fallback
-  - Local LLM       : Qwen2.5:3b via Ollama (free, fast)
+  - Local LLM       : Qwen2.5:7b via Ollama (free, fast)
   - Query routing   : simple → Ollama | complex → Claude via EOS gateway
   - Meeting context : auto-detects meeting type from natural language cues
   - Context window  : rolling 10-utterance conversation memory
@@ -409,7 +409,7 @@ class VoiceEngine:
     def __init__(self) -> None:
         self._whisper_model = None
         self._tts_model     = None
-        self.ollama_model   = 'qwen2.5:3b'
+        self.ollama_model   = 'qwen2.5:7b'
         self._ollama_url    = 'http://localhost:11434/api/generate'
         self.intelligent    = IntelligentVoiceProcessor(voice_engine=self)
         self.vad            = VADProcessor()
@@ -543,7 +543,7 @@ class VoiceEngine:
 
     def query_local(self, prompt: str, system: str | None = None) -> str:
         """
-        Query Qwen2.5:3b locally via Ollama.
+        Query Qwen2.5:7b locally via Ollama.
 
         Free and fast — no Anthropic API cost. Use for simple/quick queries.
         Returns empty string if Ollama is not running.

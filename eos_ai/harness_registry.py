@@ -63,7 +63,7 @@ HARNESS_REGISTRY: dict[str, HarnessEntry] = {
 
     'qwen_local': HarnessEntry(
         id='qwen_local',
-        name='Qwen2.5:3b (Ollama)',
+        name='Qwen2.5:7b (Ollama)',
         harness_type=HarnessType.MODEL,
         description='Free local last-resort fallback model',
         status='active',

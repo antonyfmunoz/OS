@@ -53,7 +53,7 @@ class EOSSystemHealth:
         OPTIMAL — CC subprocess (Opus)
         STANDARD — Anthropic SDK (Sonnet)
         DEGRADED — Gemini Flash
-        COMPROMISED — Ollama/qwen0.5b
+        COMPROMISED — Ollama/qwen7b
         OFFLINE — all providers down
         """
         try:

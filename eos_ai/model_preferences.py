@@ -65,7 +65,7 @@ PROVIDER_CONFIGS: dict[str, dict] = {
     },
     'qwen-local': {
         'provider': 'ollama',
-        'model': 'qwen2.5:3b',
+        'model': 'qwen2.5:7b',
         'best_for': ['voice_transcription', 'background_tasks', 'confidential_data',
                      'simple_classification'],
         'cost_tier': 0,

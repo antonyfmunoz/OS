@@ -1,31 +1,12 @@
 {
-  "timestamp": "2026-04-02T14:59:35.272569+00:00",
-  "phase": "intelligence_routing_and_skills_rebuild",
-  "last_completed": "Workstream A (routing+settings+subagents) + Workstream B (soul docs audit + 17 skills updated + 5 critical skills built)",
+  "timestamp": "2026-04-03T09:01:59.240604+00:00",
+  "phase": "Nightly maintenance",
+  "last_completed": "Nightly cycle completed: 2026-04-03",
   "in_progress": null,
-  "files_modified": [
-    "eos_ai/model_router.py",
-    "eos_ai/agent_runtime.py",
-    ".claude/settings.json",
-    ".claude/agents/eos-researcher.md",
-    ".claude/agents/eos-code-reviewer.md",
-    ".claude/agents/eos-verifier.md",
-    ".claude/agents/eos-simplifier.md",
-    "CLAUDE.md",
-    "logs/audit.log",
-    "logs/sessions.log",
-    "skills/Sales/proof_promise_plan_close/SKILL.md",
-    "skills/Sales/objection_handling/SKILL.md",
-    "skills/Outreach/dm_opener/SKILL.md",
-    "skills/Outreach/reply_handler/SKILL.md",
-    "skills/Research/icp_signal_detection/SKILL.md"
-  ],
+  "files_modified": [],
   "next_steps": [
-    "Top up Anthropic API credits to re-enable CC subprocess + Anthropic SDK",
-    "Update remaining skills with trigger+Gotchas: Content, CustomerSuccess, Marketing, Ops playbooks, tools",
-    "Move/reference opener_batch_audit from Sales to Outreach Agent",
-    "Wire heartbeat.py to crontab (condition-based cron replacement)",
-    "Fix Notion pipeline DB 404 (needs re-share)"
+    "Re-auth GWS token",
+    "Fix Gemini spending cap or Anthropic key"
   ],
   "context": {}
 }
