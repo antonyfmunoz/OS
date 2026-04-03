@@ -41,7 +41,7 @@ Any time a new person expresses interest in any Munoz Conglomerate venture for t
 
 ## Process
 1. Run person recognition — check memory, CRM, meetings DB
-2. If known person → route to ANTONY folder immediately, flag, stop
+2. If known person → route to FOUNDER folder immediately, flag, stop
 3. If new person:
    a. Create lead file in 03_CRM/Leads/
    b. Research person and company (web search if available)
@@ -59,15 +59,15 @@ Subject: Re: [their subject]
 
 Hi [Name],
 
-This is DEX, Antony's assistant. Got to your message before him and wanted to make sure you heard back quickly.
+This is DEX, the founder's assistant. Got to your message before him and wanted to make sure you heard back quickly.
 
-Antony's running the the active offer right now — a 90-day program for men who are done drifting and ready to build real structure around their ambition. [the offer price/program, limited spots].
+the founder's running the the active offer right now — a 90-day program for men who are done drifting and ready to build real structure around their ambition. [the offer price/program, limited spots].
 
 I've flagged your message for him. Before I loop him in — what's the main thing you're trying to change in the next 90 days?
 
 Best,
 DEX
-On behalf of Antony Munoz
+On behalf of the founder
 
 ---
 
@@ -76,22 +76,22 @@ Subject: Re: [their subject]
 
 Hi [Name],
 
-DEX here — Antony's assistant. Caught your message first.
+DEX here — the founder's assistant. Caught your message first.
 
 Empyrean builds AI infrastructure for founders and operators who need systems that actually run their business, not just assist it.
 
-I'll flag this for Antony directly. To make sure he has context when he reviews — what's the main operational bottleneck you're trying to solve?
+I'll flag this for the founder directly. To make sure he has context when he reviews — what's the main operational bottleneck you're trying to solve?
 
 Best,
 DEX
-On behalf of Antony Munoz
+On behalf of the founder
 
 ---
 
 ## Failure Modes
 - Never send template to a recognized person
 - Never mention pricing before qualifying intent
-- Never promise Antony's direct involvement without his approval
+- Never promise the founder's direct involvement without his approval
 - Never advance past draft stage without approval
 
 ---

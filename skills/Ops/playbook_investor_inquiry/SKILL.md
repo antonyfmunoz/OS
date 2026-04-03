@@ -8,6 +8,9 @@ trigger: both
 context: fork
 ---
 
+!`python3 /opt/OS/scripts/bis_context.py --founder`
+
+
 # Skill: Playbook — Investor Inquiry
 
 ## Name
@@ -17,7 +20,7 @@ playbook_investor_inquiry
 Operations / Executive
 
 ## Purpose
-Handle inbound investor interest or outreach with appropriate gravity — never auto-respond, always escalate to Antony.
+Handle inbound investor interest or outreach with appropriate gravity — never auto-respond, always escalate to the founder.
 
 ---
 
@@ -36,12 +39,12 @@ Any email or message that signals investor intent: "interested in investing," "l
 
 ## Process
 1. Run person recognition immediately
-2. Route to ANTONY folder regardless of recognition status
+2. Route to FOUNDER folder regardless of recognition status
 3. Flag in Discord: "⚠️ Investor inquiry from [Name] — [Company]. Your eyes only. Do not auto-respond."
 4. Research person and fund if not known
-5. Draft a holding response for Antony's review:
-   "Hi [Name], Thank you for reaching out. Antony will review this personally and be in touch shortly."
-6. Do NOT send until Antony explicitly approves
+5. Draft a holding response for the founder's review:
+   "Hi [Name], Thank you for reaching out. the founder will review this personally and be in touch shortly."
+6. Do NOT send until the founder explicitly approves
 7. Log to Neon as high-priority event
 
 ---
@@ -50,7 +53,7 @@ Any email or message that signals investor intent: "interested in investing," "l
 - Never auto-respond to investor inquiries
 - Never reveal financial details
 - Never confirm or deny fundraising status
-- Never schedule a call without Antony's explicit instruction
+- Never schedule a call without the founder's explicit instruction
 
 ---
 
@@ -60,7 +63,7 @@ OBSERVE — surface immediately, take no action without approval
 ---
 
 ## Outputs
-- ANTONY folder routing
+- FOUNDER folder routing
 - Discord alert with full context
 - Research brief on sender
 - Holding response drafted and queued, not sent

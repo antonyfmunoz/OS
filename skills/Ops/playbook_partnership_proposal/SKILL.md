@@ -8,6 +8,9 @@ trigger: both
 context: fork
 ---
 
+!`python3 /opt/OS/scripts/bis_context.py --founder`
+
+
 # Skill: Playbook — Partnership Proposal
 
 ## Name
@@ -47,18 +50,18 @@ Any message proposing collaboration, joint venture, affiliate arrangement, co-ma
    a. Draft qualifying response asking for specifics
    b. Queue for approval
    c. Flag in Discord with context and recommendation
-7. If high-signal → ANTONY folder with full research brief
+7. If high-signal → FOUNDER folder with full research brief
 
 ### Qualifying Response Template
 Hi [Name],
 
-DEX here, Antony's assistant.
+DEX here, the founder's assistant.
 
 Thanks for reaching out about a potential partnership. To make sure I route this to the right place — can you share a bit more about what you have in mind and what you're looking for from our side?
 
 Best,
 DEX
-On behalf of Antony Munoz
+On behalf of the founder
 
 ---
 
@@ -70,7 +73,7 @@ On behalf of Antony Munoz
 ---
 
 ## Trust Level
-ASSIST — draft and recommend, Antony decides
+ASSIST — draft and recommend, the founder decides
 
 ---
 

@@ -1,12 +1,15 @@
 ---
 name: playbook-speaking-podcast-request
-description: "Handle inbound speaking or podcast requests by qualifying the opportunity before escalating — triggered when any message invites Antony to speak, appear on a podcast, join a panel, or be interviewed."
+description: "Handle inbound speaking or podcast requests by qualifying the opportunity before escalating — triggered when any message invites the founder to speak, appear on a podcast, join a panel, or be interviewed."
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: medium
 trigger: both
 context: fork
 ---
+
+!`python3 /opt/OS/scripts/bis_context.py --founder`
+
 
 # Skill: Playbook — Speaking or Podcast Request
 
@@ -37,7 +40,7 @@ Any invitation to speak at an event, appear on a podcast, join a panel, contribu
 ---
 
 ## Qualification Criteria
-Route to Antony if ANY of:
+Route to the founder if ANY of:
 - Audience > 10K or highly targeted to ICP
 - Direct alignment with Vigilante Architect brand
 - Known/respected host or organizer
@@ -55,8 +58,8 @@ Decline gracefully if ALL of:
 2. Estimate audience size and alignment
 3. Apply qualification criteria
 4. If qualified:
-   a. Flag to Antony with research brief
-   b. Draft holding response: "Thank you for the invitation. I've flagged this for Antony and will follow up within 48h."
+   a. Flag to the founder with research brief
+   b. Draft holding response: "Thank you for the invitation. I've flagged this for the founder and will follow up within 48h."
 5. If not qualified:
    a. Draft polite decline
    b. Queue for approval before sending
@@ -64,27 +67,27 @@ Decline gracefully if ALL of:
 ### Decline Template
 Hi [Name],
 
-DEX here, on behalf of Antony Munoz.
+DEX here, on behalf of the founder.
 
-Thank you for the invitation — we appreciate you thinking of Antony. His calendar is fully committed through [timeframe] and he won't be able to participate in this one.
+Thank you for the invitation — we appreciate you thinking of the founder. His calendar is fully committed through [timeframe] and he won't be able to participate in this one.
 
 We'll keep your show/event in mind for the future.
 
 Best,
 DEX
-On behalf of Antony Munoz
+On behalf of the founder
 
 ---
 
 ## Failure Modes
-- Never confirm participation without Antony's approval
+- Never confirm participation without the founder's approval
 - Never decline a high-signal opportunity without flagging first
-- Never send a decline for a paid opportunity without Antony's review
+- Never send a decline for a paid opportunity without the founder's review
 
 ---
 
 ## Trust Level
-ASSIST — qualify, draft, and recommend. Antony decides on qualified opportunities.
+ASSIST — qualify, draft, and recommend. the founder decides on qualified opportunities.
 
 ---
 

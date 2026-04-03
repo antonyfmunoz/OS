@@ -35,7 +35,7 @@ Any time DEX needs to draft a response and a standard scenario applies. Always p
 
 ---
 
-## Antony's Voice Principles
+## The Founder's Voice Principles
 - Direct. Warm. No corporate speak.
 - Short sentences. High signal.
 - Always a clear next step.
@@ -49,7 +49,7 @@ Any time DEX needs to draft a response and a standard scenario applies. Always p
 1. Identify scenario from list below
 2. Select matching template
 3. Personalize all [bracketed] fields
-4. Review for voice — should feel like Antony wrote it
+4. Review for voice — should feel like the founder wrote it
 5. Queue for approval unless trust level is EXECUTE
 
 ---
@@ -61,7 +61,7 @@ Hi [Name],
 
 Got your message. I'll review and get back to you within [24h/48h].
 
-[Antony/DEX]
+[the founder/DEX]
 
 ---
 
@@ -74,7 +74,7 @@ Confirmed for [Day, Date] at [Time] [Timezone].
 
 Looking forward to it.
 
-[Antony/DEX]
+[the founder/DEX]
 
 ---
 
@@ -85,7 +85,7 @@ Something came up on my end — need to move our [Day] call. Are you available [
 
 Sorry for the change.
 
-[Antony/DEX]
+[the founder/DEX]
 
 ---
 
@@ -94,7 +94,7 @@ Hi [Name],
 
 Thanks for reaching out. Not the right fit for where we are right now, but appreciate you thinking of us.
 
-[Antony/DEX]
+[the founder/DEX]
 
 ---
 
@@ -103,7 +103,7 @@ Hi [Name],
 
 Just circling back on my message from [X days ago]. Still relevant on your end?
 
-[Antony/DEX]
+[the founder/DEX]
 
 ---
 
@@ -112,7 +112,7 @@ Hi [Name],
 
 Last follow-up on this — if the timing's not right, no problem at all. Just let me know either way.
 
-[Antony/DEX]
+[the founder/DEX]
 
 ---
 
@@ -125,7 +125,7 @@ What we covered: [summary]
 Next steps: [what you're doing / what they're doing]
 Next conversation: [date if set]
 
-[Antony/DEX]
+[the founder/DEX]
 
 ---
 
@@ -136,7 +136,7 @@ Thanks for the intro to [person] — I'll reach out to them directly.
 
 Appreciate it.
 
-[Antony/DEX]
+[the founder/DEX]
 
 ---
 
@@ -147,7 +147,7 @@ Payment received — thank you.
 
 [Next steps / what to expect]
 
-[Antony/DEX]
+[the founder/DEX]
 
 ---
 
@@ -156,7 +156,7 @@ Hi [Name],
 
 Following up on [specific thing] from [date]. Where does this stand?
 
-[Antony/DEX]
+[the founder/DEX]
 
 ---
 
@@ -164,7 +164,7 @@ Following up on [specific thing] from [date]. Where does this stand?
 - Never send a template verbatim without personalizing all fields
 - Never use a template for a recognized person — write fresh
 - Never use corporate language ("I hope this finds you well", "per my last email")
-- Never sign as Antony unless he has approved the message
+- Never sign as the founder unless he has approved the message
 
 ---
 
@@ -181,8 +181,8 @@ ASSIST — templates are drafts, not sends. All require approval unless previous
 
 ## Usage Rules
 - DEX signature when DEX handled the thread
-- Antony signature when Antony approves and wants his name on it
-- When in doubt — DEX signature with "On behalf of Antony Munoz"
+- the founder signature when the founder approves and wants his name on it
+- When in doubt — DEX signature with "On behalf of the founder"
 
 
 ## Gotchas

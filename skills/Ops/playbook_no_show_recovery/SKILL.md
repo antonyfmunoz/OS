@@ -8,6 +8,9 @@ trigger: both
 context: fork
 ---
 
+!`python3 /opt/OS/scripts/bis_context.py --founder`
+
+
 # Skill: Playbook — No-Show Recovery
 
 ## Name
@@ -45,17 +48,17 @@ Subject: Missed you — [original meeting title]
 
 Hi [Name],
 
-DEX here, Antony's assistant. Looks like we missed each other for [meeting title] today.
+DEX here, the founder's assistant. Looks like we missed each other for [meeting title] today.
 
 No worries at all — things come up. Here's a link to reschedule when you're ready: [Calendly link]
 
 Best,
 DEX
-On behalf of Antony Munoz
+On behalf of the founder
 
 4. Queue for approval before sending
 5. Create follow-up task: "Follow up with [Name] if no response in 48h"
-6. If second no-show → flag to Antony, do not auto-reschedule
+6. If second no-show → flag to the founder, do not auto-reschedule
 
 ---
 
@@ -63,12 +66,12 @@ On behalf of Antony Munoz
 - Never send recovery email immediately — wait 30 minutes
 - Never assume they're disinterested after one no-show
 - Never auto-reschedule twice without approval
-- Never send second no-show recovery without Antony's review
+- Never send second no-show recovery without the founder's review
 
 ---
 
 ## Trust Level
-ASSIST — draft and queue, Antony approves
+ASSIST — draft and queue, the founder approves
 
 ---
 

@@ -7,6 +7,9 @@ effort: low
 trigger: both
 ---
 
+!`python3 /opt/OS/scripts/bis_context.py --founder`
+
+
 # Skill: Playbook — Vendor or Contract Received
 
 ## Name
@@ -36,7 +39,7 @@ Any email containing an attached contract, NDA, service agreement, invoice, or l
 
 ## Process
 1. Identify document type (contract/NDA/invoice/agreement)
-2. Route to ANTONY folder immediately
+2. Route to FOUNDER folder immediately
 3. Alert Discord: "📄 [Document type] received from [Sender]. Your review required."
 4. Save attachment to Drive: /Legal/Pending_Review/
 5. Extract key terms if possible:
@@ -46,7 +49,7 @@ Any email containing an attached contract, NDA, service agreement, invoice, or l
    - Termination clauses
    - Deadlines
 6. Include key terms summary in Discord alert
-7. NEVER sign, agree, or acknowledge receipt of legal documents without Antony's explicit instruction
+7. NEVER sign, agree, or acknowledge receipt of legal documents without the founder's explicit instruction
 
 ---
 
@@ -64,7 +67,7 @@ OBSERVE — surface and brief only, no action
 ---
 
 ## Outputs
-- ANTONY folder routing
+- FOUNDER folder routing
 - Discord alert with document type, sender, key terms summary, and any deadline
 - Attachment saved to Drive: /Legal/Pending_Review/
 - No response sent without explicit instruction

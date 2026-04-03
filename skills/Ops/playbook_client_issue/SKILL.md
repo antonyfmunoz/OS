@@ -8,6 +8,9 @@ trigger: both
 context: fork
 ---
 
+!`python3 /opt/OS/scripts/bis_context.py --founder`
+
+
 # Skill: Playbook — Client Issue or Complaint
 
 ## Name
@@ -17,7 +20,7 @@ playbook_client_issue
 Operations / Customer Success
 
 ## Purpose
-Handle client complaints or issues with urgency, empathy, and professionalism — protect the relationship while keeping Antony informed.
+Handle client complaints or issues with urgency, empathy, and professionalism — protect the relationship while keeping the founder informed.
 
 ---
 
@@ -38,16 +41,16 @@ Any message from an existing client expressing dissatisfaction, reporting a prob
 1. Run person recognition — confirm they are an existing client
 2. If not recognized as client → treat as unknown, standard flow
 3. If confirmed client:
-   a. Route to ANTONY folder immediately
+   a. Route to FOUNDER folder immediately
    b. Alert Discord: "🔴 Client issue — [Name]. Needs attention today."
-   c. Do NOT draft response yet — Antony must read first
+   c. Do NOT draft response yet — the founder must read first
    d. Research: what's their history, what did they purchase, any prior issues?
-   e. Prepare context brief for Antony:
+   e. Prepare context brief for the founder:
       - Who they are
       - What they purchased and when
       - What they're reporting
       - Recommended response approach
-4. If Antony instructs DEX to handle:
+4. If the founder instructs DEX to handle:
    a. Draft empathetic, non-defensive response
    b. Never admit liability without legal review
    c. Offer specific resolution, not vague promises
@@ -57,7 +60,7 @@ Any message from an existing client expressing dissatisfaction, reporting a prob
 - Acknowledge first, solve second
 - Never be defensive
 - Never promise what can't be delivered
-- Never offer refund without Antony's approval
+- Never offer refund without the founder's approval
 
 ---
 
@@ -65,7 +68,7 @@ Any message from an existing client expressing dissatisfaction, reporting a prob
 - Never auto-respond to a client complaint
 - Never admit liability in writing
 - Never offer refund without explicit approval
-- Never send response without Antony reviewing first
+- Never send response without the founder reviewing first
 
 ---
 
@@ -75,7 +78,7 @@ OBSERVE — surface immediately, draft only when instructed
 ---
 
 ## Outputs
-- ANTONY folder routing
+- FOUNDER folder routing
 - Discord urgent alert
 - Context brief prepared (purchase history, issue summary, recommended approach)
 - Response drafted only on explicit instruction

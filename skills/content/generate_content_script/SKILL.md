@@ -14,7 +14,7 @@ context: fork
 # Skill: Generate Content Script
 
 ## Purpose
-Turn an approved angle into a complete filming brief Antony can film from immediately.
+Turn an approved angle into a complete filming brief The founder can film from immediately.
 
 ## Outcome
 Complete package: hook (exact words), filming brief (sequence), caption (ready to post), CTA (exact words), platform format, mood direction.
@@ -44,7 +44,7 @@ Complete package: hook (exact words), filming brief (sequence), caption (ready t
 
 ## Failure Modes
 - Vague hook that could be anyone's content
-- Brief that requires Antony to think while filming
+- Brief that requires the founder to think while filming
 - Caption without a specific CTA
 - Missing the Vigilante Architect tone check
 

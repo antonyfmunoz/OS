@@ -8,6 +8,9 @@ trigger: both
 context: fork
 ---
 
+!`python3 /opt/OS/scripts/bis_context.py --founder`
+
+
 # Skill: Playbook — Job Inquiry
 
 ## Name
@@ -39,16 +42,16 @@ Any email or message about working for, joining, or collaborating with any Munoz
 2. Research sender quickly — what's their background?
 3. If clearly unqualified or spam → file, no response
 4. If potentially interesting:
-   a. Flag to Antony with brief on sender
+   a. Flag to the founder with brief on sender
    b. Draft holding response:
-      "Thanks for reaching out. We don't have open positions right now but I've flagged your message for Antony."
-5. If Antony wants to proceed → schedule intro call
+      "Thanks for reaching out. We don't have open positions right now but I've flagged your message for the founder."
+5. If the founder wants to proceed → schedule intro call
 
 ---
 
 ## Failure Modes
 - Never promise a role or opportunity that doesn't exist
-- Never dismiss a strong candidate without flagging to Antony
+- Never dismiss a strong candidate without flagging to the founder
 - Never reveal org structure or headcount details
 
 ---

@@ -1,6 +1,6 @@
 ---
 name: playbook-deal-closed
-description: "Execute the full deal-closed workflow — celebrate, onboard, document, and set the relationship up for success — triggered when a lead confirms payment or Antony marks a deal closed."
+description: "Execute the full deal-closed workflow — celebrate, onboard, document, and set the relationship up for success — triggered when a lead confirms payment or the founder marks a deal closed."
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: medium
@@ -24,7 +24,7 @@ Execute the full deal-closed workflow — celebrate, onboard, document, and set 
 ---
 
 ## When to Use
-When a lead confirms they're in, payment is received, or Antony marks a deal as closed in Discord or Notion.
+When a lead confirms they're in, payment is received, or the founder marks a deal as closed in Discord or Notion.
 
 ---
 
@@ -48,7 +48,7 @@ When a lead confirms they're in, payment is received, or Antony marks a deal as 
    - What happens next (onboarding steps)
    - Who to contact with questions
    - Sets expectations for the engagement
-5. Queue welcome email for Antony's approval
+5. Queue welcome email for the founder's approval
 6. Create onboarding tasks in Notion
 7. Schedule kickoff call (if applicable)
 8. Update Neon — log as revenue event
@@ -58,7 +58,7 @@ Subject: Welcome — let's get started
 
 Hi [Name],
 
-This is [Antony/DEX on behalf of Antony] — and I'm genuinely excited to work with you.
+This is [the founder/DEX on behalf of the founder] — and I'm genuinely excited to work with you.
 
 Here's what happens next:
 [onboarding steps specific to venture]
@@ -67,13 +67,13 @@ If you have any questions before we start, reply here or reach out directly.
 
 Let's build something.
 
-[Antony/DEX]
+[the founder/DEX]
 
 ---
 
 ## Failure Modes
 - Never skip the #wins post — every closed deal gets acknowledged
-- Never send welcome email without Antony's approval
+- Never send welcome email without the founder's approval
 - Never promise onboarding timeline without confirming capacity
 - Never log as revenue event until payment is confirmed
 
