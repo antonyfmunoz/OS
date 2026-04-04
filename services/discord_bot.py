@@ -678,6 +678,30 @@ async def end_active_meeting(channel=None) -> None:
 # ─── Startup ──────────────────────────────────────────────────────────────────
 
 
+async def _warmup_cc_sdk():
+    """Pre-load cc_sdk session on startup to reduce cold start latency."""
+    await asyncio.sleep(5)  # let bot fully settle
+    try:
+        from eos_ai.cc_sdk import query_cc_sync
+
+        result = query_cc_sync(
+            prompt="Ready.",
+            task_type="fast_response",
+            agent_id="dex",
+            max_budget_usd=0.01,
+        )
+        if result:
+            logger.info(
+                "[Startup] cc_sdk warm — session %s... %dms",
+                result.session_id[:8],
+                result.latency_ms,
+            )
+        else:
+            logger.warning("[Startup] cc_sdk warm failed")
+    except Exception as e:
+        logger.warning("[Startup] cc_sdk warm error: %s", e)
+
+
 @bot.event
 async def on_ready():
     global AI_NAME, _bot_ready
@@ -731,6 +755,9 @@ async def on_ready():
     # Set up EOS Discord structure (idempotent — only creates missing channels)
     for guild in bot.guilds:
         bot.loop.create_task(_setup_server_structure(guild))
+
+    # Warm up cc_sdk session (pre-load DEX agent, reduce cold start)
+    asyncio.create_task(_warmup_cc_sdk())
 
 
 # ─── Auto-join voice ──────────────────────────────────────────────────────────

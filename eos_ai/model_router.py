@@ -139,6 +139,7 @@ class ModelConfig:
 
 
 # Provider priority for fallback ordering (lower = preferred)
+# Default priority — used for analyze/generate/code/strategic tasks
 PROVIDER_PRIORITY: dict = {
     ModelProvider.CC_SDK: 0,
     ModelProvider.ANTHROPIC: 1,
@@ -148,6 +149,35 @@ PROVIDER_PRIORITY: dict = {
     ModelProvider.OLLAMA: 5,
     ModelProvider.MANUS: 6,
 }
+
+# Fast-path priority — used for fast_response/conversation tasks
+# Haiku first (fast, cheap), cc_sdk as escalation target
+PROVIDER_PRIORITY_FAST: dict = {
+    ModelProvider.ANTHROPIC: 0,
+    ModelProvider.CC_SDK: 1,
+    ModelProvider.GEMINI: 2,
+    ModelProvider.GROQ: 3,
+    ModelProvider.PERPLEXITY: 4,
+    ModelProvider.OLLAMA: 5,
+    ModelProvider.MANUS: 6,
+}
+
+# Task types that use the fast-path priority
+_FAST_TASK_TYPES = frozenset(
+    {"fast_response", "conversation", "score", "classify", "summarize"}
+)
+
+# Token caps for Haiku on cheap tasks (protect $5 budget)
+_HAIKU_TOKEN_CAPS: dict[str, int] = {
+    "fast_response": 500,
+    "conversation": 800,
+    "score": 500,
+    "classify": 500,
+    "summarize": 800,
+}
+
+# Escalation threshold — if quality_score below this, retry with cc_sdk
+_ESCALATION_QUALITY_THRESHOLD = 0.65
 
 # Quality thresholds per provider (0.0–1.0, for model_preferences gating)
 PROVIDER_QUALITY: dict = {
@@ -255,6 +285,50 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
         base_url="https://manus.im",
     ),
 }
+
+
+def _estimate_quality_score(output: str, provider: str) -> float:
+    """
+    Heuristic quality score for a model response.
+
+    Uses response length, structure, and provider baseline to estimate
+    whether the output is worth returning or should escalate.
+    """
+    if not output or not output.strip():
+        return 0.0
+
+    base = PROVIDER_QUALITY.get(provider, 0.5)
+    length = len(output.strip())
+
+    # Very short responses from weak providers are suspect
+    if length < 20:
+        return min(base, 0.3)
+    if length < 50:
+        return min(base, 0.5)
+
+    # Refusal / error patterns
+    _refusal = any(
+        p in output.lower()
+        for p in ["i cannot", "i can't", "i'm sorry", "as an ai", "i don't have"]
+    )
+    if _refusal:
+        return min(base, 0.4)
+
+    return base
+
+
+def _should_escalate(output: str, provider: str) -> bool:
+    """Return True if the response quality is below escalation threshold."""
+    score = _estimate_quality_score(output, provider)
+    if score < _ESCALATION_QUALITY_THRESHOLD:
+        logger.warning(
+            "[Router] Quality %.2f < %.2f from %s — escalating to cc_sdk",
+            score,
+            _ESCALATION_QUALITY_THRESHOLD,
+            provider,
+        )
+        return True
+    return False
 
 
 def _ollama_available() -> bool:
@@ -580,12 +654,11 @@ def call_with_fallback(
     """
     Main routing entry point for all EOS agent calls.
 
-    Quality-ranked fallback chain:
-    1. cc_sdk         (Opus 4.6 via Claude Agent SDK — highest quality)
-    2. Anthropic SDK  (model per CC_MODEL_MAP)
-    3. Gemini 2.5 Flash
-    4. Ollama qwen2.5:0.5b (local)
-    5. Ollama qwen2.5:0.5b (local, minimal)
+    Task-aware routing:
+      fast_response/conversation → Haiku first (fast, cheap)
+        escalates to Opus if quality_score < 0.65
+      analyze/generate/code/strategic → Opus first (free via Max)
+        falls back to Haiku if cc_sdk fails
 
     CEO/strategic agents always use best available model.
     """
@@ -595,48 +668,26 @@ def call_with_fallback(
         task_type_str = task_type
 
     # CEO/strategic agents override economy mode
-    if agent_type in _CEO_AGENT_TYPES or force_opus:
+    is_ceo = agent_type in _CEO_AGENT_TYPES or force_opus
+    if is_ceo:
         task_type_str = TaskType.STRATEGIC.value
 
+    # Determine if this is a fast-path task
+    is_fast = task_type_str in _FAST_TASK_TYPES and not is_ceo
+
     logger.info(
-        "[Router] task=%s agent=%s trigger=%s",
+        "[Router] task=%s agent=%s trigger=%s fast=%s",
         task_type_str,
         agent_type,
         trigger_source,
+        is_fast,
     )
 
     router = get_router()
     # Re-check availability on each call (handles credit restoration)
     router._check_availability()
 
-    # ── 1. Try cc_sdk first (Opus 4.6 via Agent SDK) ──
-    if router._cc_sdk_available:
-        start = time.time()
-        cc_result = query_cc_sync(
-            prompt=prompt,
-            system=system or "",
-            task_type=task_type_str,
-            agent_id=agent_type or "eos_default",
-            max_budget_usd=0.10,
-        )
-        if cc_result and cc_result.output:
-            latency_ms = int((time.time() - start) * 1000)
-            logger.info(
-                "[Router] cc_sdk/%s responded (%dms)",
-                cc_result.model,
-                latency_ms,
-            )
-            return RoutingResult(
-                output=cc_result.output,
-                provider="cc_sdk",
-                model=cc_result.model,
-                task_type=task_type_str,
-                latency_ms=latency_ms,
-            )
-        logger.info("[Router] cc_sdk failed, falling back to registry providers")
-
-    # ── 2. Registry-based fallback chain ──
-    # Map extended task types to router's strength categories
+    # ── Map extended task types to router's strength categories ──
     _TASK_MAP: dict[str, str] = {
         "strategic": "analysis",
         "code": "analysis",
@@ -656,35 +707,153 @@ def call_with_fallback(
     except ValueError:
         router_task = TaskType.FAST_RESPONSE
 
-    # Build ordered candidate list
-    candidates = [
-        c for c in MODEL_REGISTRY.values() if router_task in c.strengths and c.available
-    ]
-    if not candidates:
-        candidates = [c for c in MODEL_REGISTRY.values() if c.available]
-    candidates.sort(key=lambda x: PROVIDER_PRIORITY.get(x.provider, 99))
+    # ── Select priority table based on task type ──
+    priority = PROVIDER_PRIORITY_FAST if is_fast else PROVIDER_PRIORITY
 
     start = time.time()
 
-    for config in candidates:
-        if not config.available:
-            continue
-        output = router.call(config, prompt, system or "", 2000)
-        if output:
-            latency_ms = int((time.time() - start) * 1000)
-            logger.info(
-                "[Router] %s/%s responded (%dms)",
-                config.provider.value,
-                config.model_id,
-                latency_ms,
-            )
-            return RoutingResult(
-                output=output,
-                provider=config.provider.value,
-                model=config.model_id,
+    if is_fast:
+        # ── FAST PATH: Haiku first, escalate to cc_sdk if quality low ──
+
+        # 1. Try Anthropic (Haiku) first
+        haiku_cap = _HAIKU_TOKEN_CAPS.get(task_type_str, 800)
+        candidates = [
+            c
+            for c in MODEL_REGISTRY.values()
+            if c.provider == ModelProvider.ANTHROPIC and c.available
+        ]
+        # Prefer Haiku (cheapest Anthropic model)
+        candidates.sort(key=lambda x: x.cost_per_1k)
+
+        for config in candidates:
+            output = router.call(config, prompt, system or "", haiku_cap)
+            if output:
+                # Check quality — escalate if too low
+                if _should_escalate(output, config.provider.value):
+                    break  # fall through to cc_sdk escalation
+                latency_ms = int((time.time() - start) * 1000)
+                logger.info(
+                    "[Router] %s/%s responded (%dms, fast path)",
+                    config.provider.value,
+                    config.model_id,
+                    latency_ms,
+                )
+                return RoutingResult(
+                    output=output,
+                    provider=config.provider.value,
+                    model=config.model_id,
+                    task_type=task_type_str,
+                    latency_ms=latency_ms,
+                )
+
+        # 2. Escalate to cc_sdk (Opus — no token cap on escalation)
+        if router._cc_sdk_available:
+            cc_result = query_cc_sync(
+                prompt=prompt,
+                system=system or "",
                 task_type=task_type_str,
-                latency_ms=latency_ms,
+                agent_id=agent_type or "eos_default",
+                max_budget_usd=0.10,
             )
+            if cc_result and cc_result.output:
+                latency_ms = int((time.time() - start) * 1000)
+                logger.info(
+                    "[Router] cc_sdk/%s responded (%dms, escalated)",
+                    cc_result.model,
+                    latency_ms,
+                )
+                return RoutingResult(
+                    output=cc_result.output,
+                    provider="cc_sdk",
+                    model=cc_result.model,
+                    task_type=task_type_str,
+                    latency_ms=latency_ms,
+                )
+
+        # 3. Fall through to remaining providers (gemini, ollama)
+        remaining = [
+            c
+            for c in MODEL_REGISTRY.values()
+            if c.available
+            and c.provider not in (ModelProvider.ANTHROPIC, ModelProvider.CC_SDK)
+        ]
+        remaining.sort(key=lambda x: priority.get(x.provider, 99))
+
+        for config in remaining:
+            output = router.call(config, prompt, system or "", 2000)
+            if output:
+                latency_ms = int((time.time() - start) * 1000)
+                logger.info(
+                    "[Router] %s/%s responded (%dms, fast fallback)",
+                    config.provider.value,
+                    config.model_id,
+                    latency_ms,
+                )
+                return RoutingResult(
+                    output=output,
+                    provider=config.provider.value,
+                    model=config.model_id,
+                    task_type=task_type_str,
+                    latency_ms=latency_ms,
+                )
+
+    else:
+        # ── HEAVY PATH: cc_sdk (Opus) first, then registry fallback ──
+
+        # 1. Try cc_sdk first (Opus 4.6 via Agent SDK — free via Max)
+        if router._cc_sdk_available:
+            cc_result = query_cc_sync(
+                prompt=prompt,
+                system=system or "",
+                task_type=task_type_str,
+                agent_id=agent_type or "eos_default",
+                max_budget_usd=0.10,
+            )
+            if cc_result and cc_result.output:
+                latency_ms = int((time.time() - start) * 1000)
+                logger.info(
+                    "[Router] cc_sdk/%s responded (%dms)",
+                    cc_result.model,
+                    latency_ms,
+                )
+                return RoutingResult(
+                    output=cc_result.output,
+                    provider="cc_sdk",
+                    model=cc_result.model,
+                    task_type=task_type_str,
+                    latency_ms=latency_ms,
+                )
+            logger.info("[Router] cc_sdk failed, falling back to registry providers")
+
+        # 2. Registry-based fallback (Haiku → Gemini → Ollama)
+        candidates = [
+            c
+            for c in MODEL_REGISTRY.values()
+            if router_task in c.strengths and c.available
+        ]
+        if not candidates:
+            candidates = [c for c in MODEL_REGISTRY.values() if c.available]
+        candidates.sort(key=lambda x: priority.get(x.provider, 99))
+
+        for config in candidates:
+            if not config.available:
+                continue
+            output = router.call(config, prompt, system or "", 2000)
+            if output:
+                latency_ms = int((time.time() - start) * 1000)
+                logger.info(
+                    "[Router] %s/%s responded (%dms)",
+                    config.provider.value,
+                    config.model_id,
+                    latency_ms,
+                )
+                return RoutingResult(
+                    output=output,
+                    provider=config.provider.value,
+                    model=config.model_id,
+                    task_type=task_type_str,
+                    latency_ms=latency_ms,
+                )
 
     latency_ms = int((time.time() - start) * 1000)
     logger.error("[Router] ALL PROVIDERS FAILED")
