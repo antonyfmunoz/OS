@@ -4,15 +4,14 @@
 These govern every build, configuration,
 and execution in EOS. Apply them always.
 
-### Best Practices Principle
-Before building anything:
-Research the authoritative source →
-Document → Templatize → Instantiate →
-Improve from outcomes.
-EOS never starts from scratch.
-EOS never builds from assumptions.
-Load /best-practices-principle before
-any new domain build.
+### Tool Mastery Engine (formerly Best Practices Principle)
+When utilizing any external tool in any way:
+Check /opt/OS/skills/tools/{toolname}/ →
+  Exists + current → load and apply creator-level expertise.
+  Missing → research official docs exhaustively, create skill.
+  Needs update → re-research (version change, staleness, or failure).
+Load /tool-mastery-engine before any tool work.
+Created tool skills trigger independently in future sessions.
 
 ### Operationalization Principle
 After anything works:
@@ -128,11 +127,9 @@ Git: commit directly to main (solo founder phase).
 Use feature branches for experimental or risky changes.
 
 ## Skills that define your workflows
-@.claude/skills/deploy-service.md
-@.claude/skills/new-agent.md
-@.claude/skills/new-skill.md
-@.claude/skills/new-primitive.md
-@.claude/skills/debug-agent.md
+Load on demand from .claude/skills/:
+deploy-service, new-agent, new-skill,
+new-primitive, debug-agent
 
 ## Intelligence Routing
 - All agent calls route through eos_ai/model_router.py
