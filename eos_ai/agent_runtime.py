@@ -279,11 +279,13 @@ class AgentRuntime:
                 past_lines = []
                 for p in past:
                     outcome_str = ""
-                    outcomes = self._memory.get_outcomes_for(p["id"])
+                    _iid = p.get("interaction_id") or p.get("id", "")
+                    outcomes = self._memory.get_outcomes_for(_iid)
                     if outcomes:
                         outcome_str = f" → outcome: {outcomes[-1]['outcome_type']}"
+                    _agent_label = p.get("agent_label") or p.get("agent", "unknown")
                     past_lines.append(
-                        f"  [{p['similarity']:.2f}] {p['agent']} | {p['input_summary'][:120]}"
+                        f"  [{p.get('similarity', 0):.2f}] {_agent_label} | {p.get('input_summary', '')[:120]}"
                         f"{outcome_str}"
                     )
                 system_parts.append(
@@ -350,7 +352,11 @@ class AgentRuntime:
         )
         output = routing_result.output
         model = f"{routing_result.provider}/{routing_result.model}"
-        tokens_used = {"input": 0, "output": 0, "total": 0}
+        tokens_used = {
+            "input": routing_result.input_tokens,
+            "output": routing_result.output_tokens,
+            "total": routing_result.tokens_used,
+        }
 
         _duration_ms = int((time.time() - _start) * 1000)
         _cost_usd = calculate_cost(model, tokens_used)

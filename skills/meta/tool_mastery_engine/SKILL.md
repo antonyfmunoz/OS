@@ -15,8 +15,8 @@ description: >
 allowed-tools: "Read, Write, Edit, Bash, WebFetch, WebSearch"
 effort: high
 trigger: both
-version: "2.0"
-last_updated: "2026-04-03"
+version: "3.0"
+last_updated: "2026-04-04"
 context: fork
 ---
 <!-- claude-doc: auto-maintain -->
@@ -85,7 +85,19 @@ monitor — or intent to do any of these.
 
 ### Step 2 — Normalize the name
 
-Convert to snake_case for the directory name:
+**Alias resolution** — check this map BEFORE converting to snake_case.
+If the user's term matches an alias, use the canonical name.
+
+| User says | Canonical tool name |
+|-----------|-------------------|
+| postgres, postgresql, pg | neon_postgres |
+| neon | neon_postgres |
+| google sheets, gsheets | google_sheets |
+| gcp, google cloud | google_cloud |
+| meta, facebook (for DM/ads) | instagram |
+| drizzle | drizzle_orm |
+
+If no alias match, convert to snake_case for the directory name:
 - Google Sheets → google_sheets
 - ManyChat → manychat
 - Claude Code → claude_code
@@ -95,11 +107,32 @@ Convert to snake_case for the directory name:
 
 Does `/opt/OS/skills/tools/{toolname}/SKILL.md` exist?
 
+**IF `.creating` lock file exists** (`/opt/OS/skills/tools/{toolname}/.creating`):
+  Skill creation is already in progress from another context.
+  Do NOT attempt a second creation.
+  Log: "Skill creation in progress for {tool}. Using best available
+  context for now. Will apply full expertise when ready."
+  Proceed with the task using general knowledge. Done.
+
 **IF YES** → go to Step 4 (Load and Check Freshness)
 **IF NO** → go to Step 5 (Create New Tool Skill)
 
 ### Step 4 — Load and check freshness
 
+**Integrity check** (before loading):
+1. Does `SKILL.md` exist AND contain >500 chars?
+2. Does `references/best_practices.md` exist AND contain all 19 section headers?
+   (Authentication, Core Operations, Pagination, Rate Limits, Error Codes,
+   SDK Idioms, Anti-Patterns, Data Model, Webhooks, Limits, Cost Model,
+   Version Pinning, Design Intent, Problem-Solution Map, Operational Behavior,
+   Ecosystem Position, Trajectory, Conceptual Model, Industry Expert)
+
+**Both YES** → proceed to freshness check below.
+**Either NO** → skill is CORRUPT. Log: "Skill for {tool} is corrupt
+(missing or incomplete files). Routing to Re-Research."
+→ Re-Research Flow (below). Do NOT apply a corrupt skill.
+
+**Freshness check** (if integrity passed):
 Read the tool skill:
 1. Read `/opt/OS/skills/tools/{toolname}/SKILL.md`
 2. Read `/opt/OS/skills/tools/{toolname}/references/best_practices.md`
@@ -121,6 +154,12 @@ now — this ensures creator-level usage in all future sessions."
 
 **Create Flow:**
 
+0. Create lock file:
+   ```bash
+   touch /opt/OS/skills/tools/{toolname}/.creating
+   ```
+   This prevents concurrent creation attempts (see Step 3 check).
+
 1. Run the scaffold script:
    ```
    python3 /opt/OS/skills/meta/tool_mastery_engine/scripts/scaffold_tool_skill.py {toolname}
@@ -130,31 +169,86 @@ now — this ensures creator-level usage in all future sessions."
    If not listed, WebSearch:
    `{tool} official documentation site:docs.{tool}.com OR site:developer.{tool}.com`
 
-3. **Research Phase — Official Sources:**
-   - WebFetch the official docs landing page
-   - WebFetch the API reference page
-   - WebFetch the authentication/getting-started guide
-   - WebFetch the rate limits/quotas page (if separate)
+3. **Research Phase 0 — Context7 Fast Pass (SDK surface):**
+   Use Context7 MCP to pull authoritative SDK documentation first.
+   This is the fastest path to exact method signatures, parameter
+   types, return shapes, and code examples.
 
-4. **Research Phase — Creator Intelligence:**
+   a. Resolve the library ID:
+      `mcp__plugin_context7_context7__resolve-library-id`
+      with libraryName="{tool}" or the SDK package name.
+
+   b. Query docs with up to 3 targeted calls:
+      `mcp__plugin_context7_context7__query-docs`
+      - Query 1: "Schema/setup, configuration, authentication, getting started"
+      - Query 2: "Core operations, CRUD, API methods, parameters, return types"
+      - Query 3: "Advanced patterns, transactions, error handling, edge cases"
+
+   c. Extract from results: exact method signatures, parameter types,
+      return shapes, code examples, and configuration patterns.
+      This populates Tier 1 sections 1-3, 6, 8, and 10.
+
+   d. Note gaps — anything Context7 returned "not covered" or shallow
+      results on. These gaps drive the parallel research agents below.
+
+   **If Context7 has no results for this tool** (not in their corpus),
+   skip to Phase 1 and run all research via WebSearch/WebFetch.
+
+4. **Research Phases 1-3 — Parallel Subagents:**
+   Launch 2 subagents in parallel (single message, both Agent calls).
+   Each subagent writes its findings to a temp file, then the main
+   thread synthesizes into the final SKILL.md and best_practices.md.
+
+   **Subagent A — Operational Knowledge (Tier 1 gaps + sections 4-5, 7, 9-12):**
+   Fills gaps Context7 missed plus sections requiring community sources.
+   - WebSearch: `{tool} rate limits quotas throttling`
+   - WebSearch: `{tool} error codes error handling recovery`
+   - WebSearch: `{tool} common mistakes anti-patterns gotchas`
+   - WebSearch: `{tool} webhooks events real-time`
+   - WebSearch: `{tool} pricing cost model billing API`
+   - WebSearch: `{tool} changelog breaking changes deprecations {current_year}`
+   - WebFetch official docs pages for: rate limits, errors, webhooks, pricing
+   - WebFetch any Context7 gaps identified in Phase 0 step (d)
+   Writes to: `/tmp/{toolname}_operational.md`
+
+   **Subagent B — Creator Intelligence (Tier 2, sections 13-19):**
+   Insights that don't exist in API documentation.
    - WebSearch: `{tool} founder philosophy design decisions`
    - WebSearch: `{tool} architecture blog engineering`
    - WebSearch: `{tool} hidden features power user tips`
-   - WebSearch: `{tool} common mistakes anti-patterns`
    - WebSearch: `{tool} vs alternatives tradeoffs`
-   - WebSearch: `{tool} roadmap deprecations changelog {current_year}`
-
-5. **Research Phase — Industry Expert and Cutting-Edge:**
    - WebSearch: `{tool} advanced workflows expert tips {current_year}`
    - WebSearch: `{tool} case study automation {current_year}`
    - WebSearch: `how top companies use {tool}` OR `{tool} best implementations`
    - WebSearch: `{tool} AI integration automation patterns {current_year}`
+   - WebSearch: `{tool} roadmap deprecations {current_year}`
    - Look for novel applications, frontier patterns, unconventional uses
+   Writes to: `/tmp/{toolname}_creator_intel.md`
 
-6. **Read references/research_protocol.md NOW.**
+5. **Handle subagent failures before synthesizing.**
+
+   Check `/tmp/{toolname}_operational.md`:
+   - If missing or empty after Subagent A completes:
+     Log: "Subagent A failed — falling back to sequential
+     WebSearch for operational sections."
+     Run Subagent A's WebSearch queries sequentially in the
+     main thread. Write results to `/tmp/{toolname}_operational.md`.
+
+   Check `/tmp/{toolname}_creator_intel.md`:
+   - If missing or empty after Subagent B completes:
+     Log: "Subagent B failed — sections 13-19 will be incomplete."
+     Proceed with available content.
+     Mark best_practices.md with at the top:
+     `<!-- INCOMPLETE: creator_intel subagent failed — sections 13-19 need manual research -->`
+
+6. **Synthesize all research.**
+   Read `/tmp/{toolname}_operational.md` and `/tmp/{toolname}_creator_intel.md`.
+   Combine with Context7 results from Phase 0.
+
+   **Read references/research_protocol.md NOW.**
    Follow ALL 19 sections. No shortcuts. This is the quality bar.
 
-7. Fill the SKILL.md with:
+6. Fill the SKILL.md with:
    - Tool identity and design philosophy summary
    - EOS integration points (which agents, which workflows)
    - Authentication setup with exact details
@@ -162,11 +256,11 @@ now — this ensures creator-level usage in all future sessions."
    - Conceptual model (how to think about this tool)
    - Gotchas section (seed with at least 1 from research)
 
-8. Fill references/best_practices.md with all 19 sections:
-   - Tier 1 (1-12): Technical Mastery — exact data from official docs
-   - Tier 2 (13-19): Creator Intelligence — insights from research phases 4-5
+7. Fill references/best_practices.md with all 19 sections:
+   - Tier 1 (1-12): Technical Mastery — Context7 output + Subagent A
+   - Tier 2 (13-19): Creator Intelligence — Subagent B output
 
-9. Write an action-verb trigger description for the created SKILL.md.
+8. Write an action-verb trigger description for the created SKILL.md.
    Make it specific to this tool's operations so it fires independently
    in future sessions without needing the engine.
 
@@ -175,7 +269,7 @@ now — this ensures creator-level usage in all future sessions."
    or blocks via the Notion API. Also use when syncing data to/from
    Notion or debugging Notion integration issues."
 
-10. Sync to Neon:
+9. Sync to Neon:
     ```python
     python3 -c "
     import sys, uuid; sys.path.insert(0, '/opt/OS')
@@ -195,6 +289,11 @@ now — this ensures creator-level usage in all future sessions."
     "
     ```
 
+10. Clean up temp files:
+    ```bash
+    rm -f /tmp/{toolname}_operational.md /tmp/{toolname}_creator_intel.md
+    ```
+
 11. Run verification (below).
 
 After creation, apply the new expertise to the current task.
@@ -206,20 +305,36 @@ When an existing tool skill needs updating:
 
 1. Read the existing SKILL.md and references/best_practices.md
 2. Identify what triggered the update (staleness, version, failure, manual)
-3. WebSearch: `{tool} API changelog {current_year}` +
-   `{tool} release notes {current_year}` +
-   `{tool} breaking changes`
-4. WebFetch the source_url from the skill's frontmatter
-5. If version changed: WebSearch
-   `{tool} migration guide {old_version} to {new_version}`
-6. Check for new hidden capabilities or deprecated features
-7. Check for new industry expert patterns and cutting-edge usage
-8. Update changed sections in best_practices.md
+3. **Context7 version check:** Query Context7 for the tool to compare
+   current SDK signatures against what's documented. Note any new
+   methods, changed parameters, or deprecated patterns.
+4. **Launch 2 parallel subagents:**
+
+   **Subagent A — Technical Updates:**
+   - WebSearch: `{tool} API changelog {current_year}` +
+     `{tool} release notes {current_year}` +
+     `{tool} breaking changes`
+   - WebFetch the source_url from the skill's frontmatter
+   - If version changed: WebSearch
+     `{tool} migration guide {old_version} to {new_version}`
+   - Check for new hidden capabilities or deprecated features
+   - WebFetch any Context7 gaps from step 3
+   Writes to: `/tmp/{toolname}_update_technical.md`
+
+   **Subagent B — Intelligence Updates:**
+   - Check for new industry expert patterns and cutting-edge usage
+   - WebSearch: `{tool} advanced workflows {current_year}`
+   - WebSearch: `{tool} roadmap deprecations {current_year}`
+   Writes to: `/tmp/{toolname}_update_intel.md`
+
+5. Synthesize updates from both subagents + Context7 diff
+6. Update changed sections in best_practices.md
    **Preserve:** EOS Usage Patterns, Gotchas, Composition Patterns
    **Update:** technical sections, trajectory, industry expert
-9. Update frontmatter: last_researched, api_version, sdk_version
-10. If failure-triggered: add the failure and fix to Gotchas
-    and Operational Behavior sections
+7. Update frontmatter: last_researched, api_version, sdk_version
+8. If failure-triggered: add the failure and fix to Gotchas
+   and Operational Behavior sections
+9. Clean up: `rm -f /tmp/{toolname}_update_technical.md /tmp/{toolname}_update_intel.md`
 
 
 ## Research Quality Standard
@@ -303,6 +418,15 @@ else:
   that docs cannot provide.
 - AI tools (Claude Code, Anthropic API, OpenAI, etc.) change
   almost daily. Use 30-day threshold, not 90.
+- Context7 only covers tools in its corpus (major open-source libs).
+  SaaS APIs (Calendly, ManyChat, Typeform) may not be indexed.
+  If `resolve-library-id` returns no results, skip Phase 0 entirely.
+- Context7 is strong on SDK surface (methods, params, examples) but
+  weak on operational knowledge (rate limits, error codes, edge cases)
+  and absent on creator intelligence (design philosophy, trajectory).
+  Never rely on Context7 alone for a complete tool skill.
+- Parallel subagents must write to /tmp/ files, not directly to the
+  skill directory. The main thread synthesizes to avoid write conflicts.
 - Created tool skill trigger descriptions must use action verbs
   specific to that tool's operations, so they fire independently
   in future sessions without needing this engine.

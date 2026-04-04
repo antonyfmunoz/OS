@@ -459,12 +459,12 @@ class PrincipleEngine:
         lines.append("EXECUTION MECHANISMS FOR WORLD-CLASS STANDARD:")
         lines.append("")
         lines.append(
-            "BEST PRACTICES PRINCIPLE: "
-            "Before building anything — research the authoritative source. "
-            "Document it. Templatize it. Instantiate from template. "
-            "Improve from real outcomes. "
-            "EOS never starts from scratch. EOS never builds from assumptions. "
-            "Skill: /best-practices-principle"
+            "TOOL MASTERY ENGINE: "
+            "When utilizing any external tool — check for tool skill at "
+            "/opt/OS/skills/tools/{toolname}/. Load if present and current. "
+            "Research official docs and create if absent. "
+            "EOS operates at creator-level expertise with every tool. "
+            "Skill: /tool-mastery-engine"
         )
         lines.append("")
         lines.append(

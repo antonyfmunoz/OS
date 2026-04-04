@@ -53,6 +53,8 @@ class RoutingResult:
     model: str
     task_type: str
     tokens_used: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
     cost_usd: float = 0.0
     latency_ms: int = 0
 
@@ -177,7 +179,10 @@ _HAIKU_TOKEN_CAPS: dict[str, int] = {
 }
 
 # Escalation threshold — if quality_score below this, retry with cc_sdk
-_ESCALATION_QUALITY_THRESHOLD = 0.65
+# Lowered from 0.65: Haiku is a fast/cheap model, not a reasoning model.
+# Only escalate on actual failures (empty, refusals, ultra-short), not
+# on Haiku being Haiku.
+_ESCALATION_QUALITY_THRESHOLD = 0.40
 
 # Quality thresholds per provider (0.0–1.0, for model_preferences gating)
 PROVIDER_QUALITY: dict = {
@@ -349,6 +354,8 @@ def _ollama_available() -> bool:
 class ModelRouter:
     def __init__(self, ctx=None) -> None:
         self.ctx = ctx
+        self._last_input_tokens: int = 0
+        self._last_output_tokens: int = 0
         self._check_availability()
 
     def _check_availability(self) -> None:
@@ -410,6 +417,8 @@ class ModelRouter:
         max_tokens: int = 1000,
     ) -> str:
         """Universal model call — routes to correct API by provider."""
+        self._last_input_tokens = 0
+        self._last_output_tokens = 0
         provider = model_config.provider
 
         if provider == ModelProvider.ANTHROPIC:
@@ -486,6 +495,9 @@ class ModelRouter:
             if system:
                 kwargs["system"] = system
             response = client.messages.create(**kwargs)
+            if hasattr(response, "usage") and response.usage:
+                self._last_input_tokens = getattr(response.usage, "input_tokens", 0)
+                self._last_output_tokens = getattr(response.usage, "output_tokens", 0)
             return response.content[0].text
         except Exception as e:
             err_str = str(e)
@@ -530,6 +542,9 @@ class ModelRouter:
                 messages=messages,
                 max_tokens=max_tokens,
             )
+            if hasattr(response, "usage") and response.usage:
+                self._last_input_tokens = getattr(response.usage, "prompt_tokens", 0) or 0
+                self._last_output_tokens = getattr(response.usage, "completion_tokens", 0) or 0
             return response.choices[0].message.content or ""
         except Exception as e:
             print(f"[ModelRouter] {config.provider.value} error: {e}")
@@ -570,7 +585,10 @@ class ModelRouter:
                     len(resp.text) if resp.status_code == 200 else 0,
                 )
             if resp.status_code == 200:
-                return resp.json().get("response", "")
+                data = resp.json()
+                self._last_input_tokens = data.get("prompt_eval_count", 0) or 0
+                self._last_output_tokens = data.get("eval_count", 0) or 0
+                return data.get("response", "")
         except Exception as e:
             print(f"[ModelRouter] Ollama error: {e}")
         return ""
@@ -597,6 +615,9 @@ class ModelRouter:
                 contents=contents,
                 config=cfg,
             )
+            if hasattr(response, "usage_metadata") and response.usage_metadata:
+                self._last_input_tokens = getattr(response.usage_metadata, "prompt_token_count", 0) or 0
+                self._last_output_tokens = getattr(response.usage_metadata, "candidates_token_count", 0) or 0
             return response.text or ""
         except Exception as e:
             print(f"[ModelRouter] Gemini error: {e}")
@@ -743,6 +764,9 @@ def call_with_fallback(
                     provider=config.provider.value,
                     model=config.model_id,
                     task_type=task_type_str,
+                    input_tokens=router._last_input_tokens,
+                    output_tokens=router._last_output_tokens,
+                    tokens_used=router._last_input_tokens + router._last_output_tokens,
                     latency_ms=latency_ms,
                 )
 
@@ -794,6 +818,9 @@ def call_with_fallback(
                     provider=config.provider.value,
                     model=config.model_id,
                     task_type=task_type_str,
+                    input_tokens=router._last_input_tokens,
+                    output_tokens=router._last_output_tokens,
+                    tokens_used=router._last_input_tokens + router._last_output_tokens,
                     latency_ms=latency_ms,
                 )
 
@@ -852,6 +879,9 @@ def call_with_fallback(
                     provider=config.provider.value,
                     model=config.model_id,
                     task_type=task_type_str,
+                    input_tokens=router._last_input_tokens,
+                    output_tokens=router._last_output_tokens,
+                    tokens_used=router._last_input_tokens + router._last_output_tokens,
                     latency_ms=latency_ms,
                 )
 
