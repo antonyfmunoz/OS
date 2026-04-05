@@ -18,6 +18,8 @@ Usage:
 import asyncio
 import logging
 import os
+import signal
+import subprocess
 import time
 from dataclasses import dataclass
 
@@ -154,14 +156,18 @@ async def query_cc(
             # output_parts will normally contain the real response.  Catch
             # here so the outer code sees collected output instead of an
             # empty failure.
-            logger.debug("cc_sdk _stream: caught %s (output_parts=%d)", e, len(output_parts))
+            logger.debug(
+                "cc_sdk _stream: caught %s (output_parts=%d)", e, len(output_parts)
+            )
 
     try:
         await asyncio.wait_for(_stream(), timeout=timeout)
 
     except asyncio.TimeoutError:
         if output_parts:
-            logger.warning("cc_sdk: timed out after %ss but partial output available", timeout)
+            logger.warning(
+                "cc_sdk: timed out after %ss but partial output available", timeout
+            )
         else:
             logger.warning("cc_sdk: timed out after %ss with no output", timeout)
             return None
@@ -189,11 +195,15 @@ async def query_cc(
     if agent_id and result_session_id:
         _agent_sessions[agent_id] = result_session_id
 
+    logger.warning("[cc_sdk] output_parts=%d", len(output_parts))
+
     output = "\n".join(output_parts).strip()
     if not output:
         logger.warning("cc_sdk: empty response")
+        logger.warning("[cc_sdk] returning None (empty output)")
         return None
 
+    logger.warning("[cc_sdk] returning output (%d chars)", len(output))
     return CCResult(
         output=output,
         session_id=result_session_id,
@@ -204,6 +214,46 @@ async def query_cc(
 
 
 # ─── Sync wrapper for model_router compatibility ────────────────────────────
+
+
+def _kill_orphaned_claude_procs(before_pids: set[int]) -> None:
+    """Kill any claude CLI subprocesses that weren't running before our call."""
+    try:
+        result = subprocess.run(
+            ["pgrep", "-f", "claude.*--print-messages"],
+            capture_output=True,
+            text=True,
+            timeout=3,
+        )
+        if result.returncode == 0:
+            current_pids = {
+                int(p) for p in result.stdout.strip().split("\n") if p.strip()
+            }
+            orphans = current_pids - before_pids
+            for pid in orphans:
+                try:
+                    os.kill(pid, signal.SIGKILL)
+                    logger.warning("[cc_sdk] killed orphaned claude process %d", pid)
+                except OSError:
+                    pass
+    except Exception:
+        pass
+
+
+def _get_claude_pids() -> set[int]:
+    """Snapshot current claude CLI process PIDs."""
+    try:
+        result = subprocess.run(
+            ["pgrep", "-f", "claude.*--print-messages"],
+            capture_output=True,
+            text=True,
+            timeout=3,
+        )
+        if result.returncode == 0:
+            return {int(p) for p in result.stdout.strip().split("\n") if p.strip()}
+    except Exception:
+        pass
+    return set()
 
 
 def query_cc_sync(
@@ -221,9 +271,20 @@ def query_cc_sync(
     Safe to call from model_router and other sync code.
     Creates a new event loop if none is running.
     """
-    if _is_nested_cc_session():
+    nested = _is_nested_cc_session()
+    logger.warning(
+        "[cc_sdk] called with task_type=%s agent_id=%s nested=%s",
+        task_type,
+        agent_id,
+        nested,
+    )
+    if nested:
         logger.info("[CC SDK] Nested session detected, skipping")
         return None
+
+    # Cap analyze budget — heavy analysis should fall through to Gemini
+    if task_type == "analyze":
+        max_budget_usd = min(max_budget_usd, 0.05)
 
     try:
         loop = asyncio.get_running_loop()
@@ -243,8 +304,18 @@ def query_cc_sync(
     if loop and loop.is_running():
         import concurrent.futures
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        before_pids = _get_claude_pids()
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
             future = pool.submit(asyncio.run, coro)
-            return future.result(timeout=timeout + 5)
+            try:
+                return future.result(timeout=timeout + 5)
+            except (concurrent.futures.TimeoutError, TimeoutError):
+                logger.warning(
+                    "[cc_sdk] thread pool future timed out — killing orphans"
+                )
+                _kill_orphaned_claude_procs(before_pids)
+                future.cancel()
+                return None
     else:
         return asyncio.run(coro)
