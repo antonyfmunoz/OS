@@ -135,17 +135,26 @@ async def query_cc(
 
     async def _stream() -> None:
         nonlocal model_used, result_session_id
-        async for message in query(prompt=prompt, options=options):
-            if isinstance(message, AssistantMessage):
-                model_used = getattr(message, "model", "")
-                for block in message.content:
-                    if isinstance(block, TextBlock):
-                        output_parts.append(block.text)
-            elif isinstance(message, ResultMessage):
-                if message.session_id:
-                    result_session_id = message.session_id
-                if message.result:
-                    output_parts.append(message.result)
+        try:
+            async for message in query(prompt=prompt, options=options):
+                if isinstance(message, AssistantMessage):
+                    model_used = getattr(message, "model", "")
+                    for block in message.content:
+                        if isinstance(block, TextBlock):
+                            output_parts.append(block.text)
+                elif isinstance(message, ResultMessage):
+                    if message.session_id:
+                        result_session_id = message.session_id
+                    if message.result:
+                        output_parts.append(message.result)
+        except Exception as e:
+            # The SDK raises when CLI exits with non-zero code (e.g., exit
+            # code 1 from MCP server shutdown).  The error arrives via the
+            # stream *after* valid messages have already been yielded, so
+            # output_parts will normally contain the real response.  Catch
+            # here so the outer code sees collected output instead of an
+            # empty failure.
+            logger.debug("cc_sdk _stream: caught %s (output_parts=%d)", e, len(output_parts))
 
     try:
         await asyncio.wait_for(_stream(), timeout=timeout)
@@ -158,11 +167,9 @@ async def query_cc(
             return None
 
     except Exception as e:
-        # CLI may exit with code 1 after delivering a valid response
-        # (e.g., MCP server failures on shutdown). If we already have
-        # output, treat it as success with a warning.
+        # Fallback: if something outside _stream raises, still check output.
         if output_parts:
-            logger.debug("cc_sdk: CLI exited with error after response — %s", e)
+            logger.debug("cc_sdk: outer error after response — %s", e)
         else:
             err_str = str(e).lower()
             stderr_detail = getattr(e, "stderr", None) or ""
