@@ -181,7 +181,7 @@ def format_response_footer(
         "claude-opus-4-6": "Opus",
         "sonar-pro": "Perplexity",
         "gemini-2.0-flash": "Gemini Flash",
-        "qwen2.5:14b": "Qwen 14B (local)",
+        "gemma3:4b": "Gemma3 4B (local)",
     }.get(model, model)
 
     if cost == 0.0:
@@ -420,40 +420,27 @@ class CognitiveLoop:
         except Exception as _qg_pre_err:
             print(f"[CognitiveLoop] Quality gate pre-flight skipped: {_qg_pre_err}")
 
-        # Layer 1d: Instance context — tight founder summary (~50 tokens)
-        # Stage, offer, channel, north star. Nothing else.
+        # Layer 1d: Instance context from TenantManager (BIS)
+        # Dynamic — loads AI name, founder, stage, north star, offer, channel
+        # from the Business Instance State. No hardcoded company names.
         try:
-            from eos_ai.business_instance import get_ai_name
             from eos_ai.tenant import TenantManager
 
-            _ai_name_ctx = get_ai_name(self.ctx)
             _tm = TenantManager(self.ctx)
-            _bis_raw = _tm.format_for_prompt()
-            _stage_line = next(
-                (
-                    l.strip()
-                    for l in (_bis_raw or "").splitlines()
-                    if "stage" in l.lower()
-                ),
-                "STAGE: 1 — zero sales, zero revenue",
-            )
-            _bis_tight = (
-                f"FOUNDER: Antony  AI: {_ai_name_ctx}\n"
-                f"COMPANIES: Lyfe Institute (coaching $750, Instagram DMs), "
-                f"Empyrean Creative (AI services), Personal Brand\n"
-                f"{_stage_line}\n"
-                f"FOCUS: First sale, Lyfe Institute, Initiate Arena, Instagram DMs\n"
-                f"NORTH STAR: $100K/month"
-            )
-            _system_parts.append(_bis_tight)
+            _bis_prompt = _tm.format_for_prompt()
+            if _bis_prompt and _bis_prompt.strip():
+                _system_parts.append(_bis_prompt)
+            else:
+                _system_parts.append(
+                    "INSTANCE CONTEXT:\n"
+                    "Stage: pre-revenue\n"
+                    "Load BIS for full context."
+                )
         except Exception:
             _system_parts.append(
-                "FOUNDER: Antony  AI: DEX\n"
-                "COMPANIES: Lyfe Institute (coaching $750, Instagram DMs), "
-                "Empyrean Creative (AI services), Personal Brand\n"
-                "STAGE: 1 — zero sales, zero revenue\n"
-                "FOCUS: First sale, Lyfe Institute, Initiate Arena, Instagram DMs\n"
-                "NORTH STAR: $10K/month net profit from Initiate Arena"
+                "INSTANCE CONTEXT:\n"
+                "Stage: pre-revenue\n"
+                "BIS unavailable — operating with minimal context."
             )
 
         # Layer 1e: GWS document context — founder's own written business docs
@@ -601,7 +588,7 @@ class CognitiveLoop:
             from eos_ai.primitives import PrimitiveRegistry
 
             _pr = PrimitiveRegistry(self.ctx)
-            _prim_ctx = _pr.compose_business_context(venture_id or "lyfe_institute")
+            _prim_ctx = _pr.compose_business_context(venture_id or self.ctx.active_venture_id or "")
             _prim_block = _prim_ctx.strip()[:800] if _prim_ctx else ""
             if _prim_block:
                 _system_parts.append(_prim_block)
@@ -613,7 +600,7 @@ class CognitiveLoop:
             from eos_ai.business_instance import BusinessInstanceManager
 
             _bim = BusinessInstanceManager(self.ctx)
-            _bis = _bim.get_bis(venture_id or "lyfe_institute")
+            _bis = _bim.get_bis(venture_id or self.ctx.active_venture_id or "")
             if _bis and _bis.north_star:
                 _bis_block = f"North star: {_bis.north_star}"
                 if _bis.stage_name:
@@ -835,8 +822,25 @@ class CognitiveLoop:
         )
 
         # 5. VERIFY — quality loop
+        # Skip verify for lightweight and structured task types.
+        # Only GENERATE benefits from quality checking — it produces
+        # unstructured content where a second pass catches real issues.
+        # SCORE/CLASSIFY/SUMMARIZE/ANALYZE are structured by design.
+        # FAST_RESPONSE/CONVERSATION are latency-sensitive.
+        _tt_val = getattr(task_type, "value", None)
+        _skip_verify = _tt_val in (
+            "fast_response",
+            "conversation",
+            "score",
+            "classify",
+            "summarize",
+            "analyze",
+        )
+        if _skip_verify:
+            print(f"[CognitiveLoop] Skipping verify — task_type: {task_type}")
+
         iteration = 0
-        while iteration < max_iterations:
+        while iteration < max_iterations and not _skip_verify:
             quality = self._verify_output(result.output, text, task_type)
             if quality["passes"]:
                 break
@@ -861,7 +865,7 @@ class CognitiveLoop:
             from eos_ai.primitives import ContextualReasoningEngine
 
             _cre = ContextualReasoningEngine(self.ctx)
-            _stage_ctx = _cre.get_current_context(venture_id or "lyfe_institute")
+            _stage_ctx = _cre.get_current_context(venture_id or self.ctx.active_venture_id or "")
             _advice_triggers = [
                 "hire",
                 "build a team",
@@ -948,8 +952,9 @@ class CognitiveLoop:
                     text=text,
                     venture_id=venture_id or "",
                 )
-        except Exception:
-            pass  # feedback loop is enhancement — never block result
+        except Exception as _fb_err:
+            print(f"[CognitiveLoop] Feedback loop error: {_fb_err}")
+            # Never block result — feedback is enhancement
 
         # 8. STORE — handled by memory.log() inside runtime.run()
 

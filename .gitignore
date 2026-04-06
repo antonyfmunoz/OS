@@ -30,8 +30,10 @@ tmux-*.log
 
 # Session data
 instagram_session/
+instagram_session.json
 13_Scripts/instagram_session/
 13_Scripts/instagram_session.json
+services/instagram_session.json
 13_Scripts/approval_response.txt
 *.session
 

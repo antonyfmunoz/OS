@@ -39,6 +39,8 @@ Setup:
 import asyncio
 import logging
 import os
+
+logger = logging.getLogger(__name__)
 import re
 import sys
 import tempfile

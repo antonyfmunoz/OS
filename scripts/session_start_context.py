@@ -7,16 +7,47 @@ you start Claude (SessionStart)"
 
 Outputs to stdout — CC adds it to context.
 Detects CC version change — triggers update alert.
+
+Singleton: only one instance runs at a time via lockfile.
+Hard timeout: exits after 15s to prevent zombie accumulation.
 """
 
 import sys
 import os
+import signal
 import subprocess
+import fcntl
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 sys.path.insert(0, "/opt/OS")
 PDT = ZoneInfo("America/Los_Angeles")
+
+# ─── Singleton + timeout guard ───────────────────────────────────────────────
+_LOCKFILE = "/tmp/eos_session_start.lock"
+_HARD_TIMEOUT = 15  # seconds — kill self if stuck
+
+
+def _timeout_handler(signum, frame):
+    """Hard kill on timeout — prevents zombie accumulation."""
+    print("[EOS Session Context — timed out]")
+    sys.exit(0)
+
+
+signal.signal(signal.SIGALRM, _timeout_handler)
+signal.alarm(_HARD_TIMEOUT)
+
+
+def _acquire_lock():
+    """Non-blocking lockfile. Returns file handle or None if another instance running."""
+    try:
+        fh = open(_LOCKFILE, "w")
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        fh.write(str(os.getpid()))
+        fh.flush()
+        return fh
+    except (OSError, IOError):
+        return None
 
 
 def get_cc_version() -> str:
@@ -152,4 +183,16 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    lock = _acquire_lock()
+    if lock is None:
+        # Another instance already running — exit silently
+        sys.exit(0)
+    try:
+        main()
+    finally:
+        try:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+            lock.close()
+            os.unlink(_LOCKFILE)
+        except Exception:
+            pass

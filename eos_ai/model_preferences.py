@@ -63,9 +63,9 @@ PROVIDER_CONFIGS: dict[str, dict] = {
         'api_key_env': 'GEMINI_API_KEY',
         'min_revenue_usd': 0,
     },
-    'qwen-local': {
+    'gemma-local': {
         'provider': 'ollama',
-        'model': 'qwen2.5:0.5b',
+        'model': 'gemma3:4b',
         'best_for': ['voice_transcription', 'background_tasks', 'confidential_data',
                      'simple_classification'],
         'cost_tier': 0,
@@ -266,11 +266,11 @@ class ModelPreferences:
 
         # 4a. No Anthropic key — everything goes local
         if not self._key_available('ANTHROPIC_API_KEY'):
-            return PROVIDER_CONFIGS['qwen-local']
+            return PROVIDER_CONFIGS['gemma-local']
 
         # 4. Confidential data — always local
         if data_tier == 'confidential':
-            return PROVIDER_CONFIGS['qwen-local']
+            return PROVIDER_CONFIGS['gemma-local']
 
         # 5. Determine effective cost mode
         cost_mode = self._prefs.get('cost_mode', 'auto')
@@ -285,7 +285,7 @@ class ModelPreferences:
 
         # 6. free / prefer_local — local only
         if cost_mode == 'free' or self._prefs.get('prefer_local'):
-            return PROVIDER_CONFIGS['qwen-local']
+            return PROVIDER_CONFIGS['gemma-local']
 
         # 7. economy — Haiku or Gemini for vision
         if cost_mode == 'economy':
@@ -303,7 +303,7 @@ class ModelPreferences:
             return PROVIDER_CONFIGS['claude-sonnet']
 
         if modality == 'voice':
-            return PROVIDER_CONFIGS['qwen-local']
+            return PROVIDER_CONFIGS['gemma-local']
 
         # Real-time research
         if require_realtime or task_type in (
@@ -339,21 +339,21 @@ class ModelPreferences:
         return bool(os.getenv(env_key))
 
     def _check_availability(self, config: dict) -> dict:
-        """If provider needs an API key and it's missing, fall back to qwen-local."""
+        """If provider needs an API key and it's missing, fall back to gemma-local."""
         api_key_env = config.get('api_key_env')
         if api_key_env and not self._key_available(api_key_env):
             print(
                 f"[ModelRouter] {config['model']} requires {api_key_env} "
-                f"— falling back to qwen-local"
+                f"— falling back to gemma-local"
             )
-            return PROVIDER_CONFIGS['qwen-local']
+            return PROVIDER_CONFIGS['gemma-local']
         # Anthropic models require ANTHROPIC_API_KEY
         if config.get('provider') == 'anthropic' and not self._key_available('ANTHROPIC_API_KEY'):
             print(
                 f"[ModelRouter] {config['model']} requires ANTHROPIC_API_KEY "
-                f"— falling back to qwen-local"
+                f"— falling back to gemma-local"
             )
-            return PROVIDER_CONFIGS['qwen-local']
+            return PROVIDER_CONFIGS['gemma-local']
         return config
 
     # ─── Setters ─────────────────────────────────────────────────────────────

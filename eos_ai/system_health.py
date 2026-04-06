@@ -48,33 +48,47 @@ class EOSSystemHealth:
 
     def quality_level(self) -> str:
         """
-        Current output quality based on active intelligence provider.
+        Current output quality based on provider availability flags.
 
-        OPTIMAL — CC subprocess (Opus)
-        STANDARD — Anthropic SDK (Sonnet)
-        DEGRADED — Gemini Flash
-        COMPROMISED — Ollama/qwen7b
+        OPTIMAL — CC subprocess (Opus) available
+        STANDARD — Anthropic SDK available
+        DEGRADED — Gemini Flash available
+        COMPROMISED — Ollama/gemma3:4b available
         OFFLINE — all providers down
+
+        Does NOT make a live LLM call — checks availability only.
+        Previous implementation called call_with_fallback("Say OK") which
+        caused zombie processes when providers were down.
         """
         try:
-            from eos_ai.model_router import call_with_fallback, TaskType
-
-            result = call_with_fallback(
-                prompt="Say OK",
-                task_type=TaskType.FAST_RESPONSE,
+            from eos_ai.model_router import (
+                get_router,
+                MODEL_REGISTRY,
+                ModelProvider,
             )
-            provider = result.provider.lower()
+            from eos_ai.cc_sdk import query_cc_sync
 
-            if "claude" in provider or "anthropic" in provider:
-                if "opus" in result.model.lower():
-                    return "OPTIMAL"
-                return "STANDARD"
-            elif "gemini" in provider:
-                return "DEGRADED"
-            elif "ollama" in provider or "qwen" in provider:
-                return "COMPROMISED"
-            else:
-                return "DEGRADED"
+            # Check cc_sdk availability (cheapest check — just import)
+            if query_cc_sync is not None:
+                return "OPTIMAL"
+
+            router = get_router()
+            router._check_availability()
+
+            # Check in priority order
+            for cfg in MODEL_REGISTRY.values():
+                if not cfg.available:
+                    continue
+                if cfg.provider == ModelProvider.ANTHROPIC:
+                    return "STANDARD"
+                if cfg.provider == ModelProvider.GEMINI:
+                    return "DEGRADED"
+                if cfg.provider in (ModelProvider.GROQ, ModelProvider.PERPLEXITY):
+                    return "DEGRADED"
+                if cfg.provider == ModelProvider.OLLAMA:
+                    return "COMPROMISED"
+
+            return "OFFLINE"
 
         except Exception:
             return "OFFLINE"
@@ -83,19 +97,20 @@ class EOSSystemHealth:
         """Which intelligence providers are currently available."""
         import shutil
 
-        status: dict = {}
+        infrastructure: dict = {}
+        intelligence: dict = {}
 
         # CC subprocess
-        status["cc_subprocess"] = bool(shutil.which("claude"))
+        infrastructure["cc_subprocess"] = bool(shutil.which("claude"))
 
         # Anthropic SDK
         api_key = os.getenv("ANTHROPIC_API_KEY", "")
-        status["anthropic_sdk"] = bool(
+        intelligence["anthropic_sdk"] = bool(
             api_key and not api_key.startswith("sk-ant-INVALID")
         )
 
         # Gemini
-        status["gemini"] = bool(os.getenv("GEMINI_API_KEY", ""))
+        intelligence["gemini"] = bool(os.getenv("GEMINI_API_KEY", ""))
 
         # Ollama
         try:
@@ -105,13 +120,16 @@ class EOSSystemHealth:
             with urllib.request.urlopen(req, timeout=2) as r:
                 data = json.loads(r.read())
             models = [m["name"] for m in data.get("models", [])]
-            status["ollama"] = bool(models)
-            status["ollama_models"] = models
+            intelligence["ollama"] = bool(models)
+            intelligence["ollama_models"] = models
         except Exception:
-            status["ollama"] = False
-            status["ollama_models"] = []
+            intelligence["ollama"] = False
+            intelligence["ollama_models"] = []
 
-        return status
+        return {
+            "infrastructure": infrastructure,
+            "intelligence": intelligence,
+        }
 
     def chain_health(self) -> dict:
         """Verify every layer of the chain is connected and responding."""
@@ -327,8 +345,9 @@ class EOSSystemHealth:
             return False
 
         providers = self.provider_status()
-        working = [k for k, v in providers.items() if v and k != "ollama_models"]
-        broken = [k for k, v in providers.items() if not v and k != "ollama_models"]
+        intel = providers["intelligence"]
+        working = [k for k, v in intel.items() if v and k != "ollama_models"]
+        broken = [k for k, v in intel.items() if not v and k != "ollama_models"]
 
         message = (
             f"EOS Intelligence Degraded\n"
@@ -336,7 +355,7 @@ class EOSSystemHealth:
             f"Working: {working}\n"
             f"Down: {broken}\n"
             f"Action: Fix API keys\n"
-            f"Running on: {providers.get('ollama_models', ['?'])}"
+            f"Running on: {intel.get('ollama_models', ['?'])}"
         )
 
         try:
@@ -403,6 +422,13 @@ if __name__ == "__main__":
     print("=== EOS SYSTEM CHECK ===")
     print()
     print(sh.system_check())
+    print()
+    providers = sh.provider_status()
+    print("=== Infrastructure ===")
+    print(json.dumps(providers["infrastructure"], indent=2, default=str))
+    print()
+    print("=== Intelligence ===")
+    print(json.dumps(providers["intelligence"], indent=2, default=str))
     print()
     report = sh.full_report()
     print("=== FULL REPORT ===")

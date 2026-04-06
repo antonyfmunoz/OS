@@ -61,9 +61,9 @@ HARNESS_REGISTRY: dict[str, HarnessEntry] = {
         config_key='GOOGLE_API_KEY',
     ),
 
-    'qwen_local': HarnessEntry(
-        id='qwen_local',
-        name='Qwen2.5:7b (Ollama)',
+    'gemma_local': HarnessEntry(
+        id='gemma_local',
+        name='Gemma3:4b (Ollama)',
         harness_type=HarnessType.MODEL,
         description='Free local last-resort fallback model',
         status='active',

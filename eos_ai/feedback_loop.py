@@ -96,35 +96,52 @@ class FeedbackLoop:
         """
         Returns True only if this is specific actionable advice to the founder.
         Filters out agent data dumps, stage checks, research outputs.
+        Uses keyword heuristics only — no LLM call. The cost of one
+        false positive (logging a non-actionable rec) is negligible;
+        the cost of an LLM call per response is high.
         """
-        # Fast keyword filter — skip obvious non-advice
+        content_lower = content[:300].lower().strip()
+
+        # Skip obvious non-advice
         skip_prefixes = [
             "acknowledged",
             "⚠️ stage check",
             "## research agent",
             "## confidentiality",
+            "here is",
+            "here's the",
+            "i found",
+            "status:",
+            "summary:",
         ]
-        content_lower = content[:200].lower().strip()
         for prefix in skip_prefixes:
             if content_lower.startswith(prefix):
                 return False
 
-        # LLM classification for ambiguous cases
-        try:
-            from eos_ai.model_router import call_with_fallback, TaskType
-
-            result = call_with_fallback(
-                prompt=(
-                    "Is this specific actionable advice to a founder? "
-                    "Answer only YES or NO.\n\n"
-                    f"Content: {content[:300]}"
-                ),
-                task_type=TaskType.CLASSIFY,
-            )
-            return "YES" in result.output.upper()
-        except Exception:
-            # Default to True if classifier fails
-            return True
+        # Actionable advice signals — imperative verbs and recommendations
+        action_signals = [
+            "send ",
+            "try ",
+            "start ",
+            "stop ",
+            "focus on",
+            "prioritize",
+            "you should",
+            "i recommend",
+            "i suggest",
+            "consider ",
+            "next step",
+            "action item",
+            "do this",
+            "reach out",
+            "follow up",
+            "schedule ",
+            "book ",
+            "post ",
+            "create ",
+            "write ",
+        ]
+        return any(sig in content_lower for sig in action_signals)
 
     def log_outcome(
         self,
@@ -134,27 +151,30 @@ class FeedbackLoop:
         """
         Detect outcome signals in founder's text and update
         the most recent pending recommendation.
-        Uses LLM classifier first, falls back to keywords.
+        Keywords first (fast, free), LLM only if ambiguous.
         """
         pending = self._get_pending_recs()
         if not pending:
             return False
 
-        # Try semantic classification first
-        outcome = self._classify_outcome_semantic(text)
+        # Keywords first — free, instant, works when providers are down
+        outcome = self._classify_outcome_keywords(text)
 
-        # Fall back to keyword matching
+        # LLM classifier only if keywords didn't match
         if outcome == "unknown":
-            outcome = self._classify_outcome_keywords(text)
+            outcome = self._classify_outcome_semantic(text)
 
         if outcome == "unknown":
             return False
 
-        return self._update_recommendation(
+        success = self._update_recommendation(
             pending[0]["id"],
             outcome,
             text[:200],
         )
+        if not success:
+            print(f"[FeedbackLoop] FAILED to write outcome to Neon: {outcome}")
+        return success
 
     def _classify_outcome_semantic(self, text: str) -> str:
         """

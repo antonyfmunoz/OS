@@ -92,6 +92,15 @@
             "command": "python3 /opt/OS/scripts/session_start_context.py"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /opt/OS/scripts/wiki_session_start_hook.py",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "Stop": [
@@ -100,6 +109,15 @@
           {
             "type": "command",
             "command": "python3 /opt/OS/scripts/check_stop_condition.py"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /opt/OS/scripts/wiki_stop_hook.py",
+            "timeout": 5
           }
         ]
       }
@@ -150,6 +168,17 @@
           {
             "type": "command",
             "command": "python3 /opt/OS/scripts/subagent_start_context.py"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /opt/OS/scripts/user_prompt_capture.py",
+            "timeout": 3
           }
         ]
       }

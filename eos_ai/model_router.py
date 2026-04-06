@@ -142,23 +142,27 @@ class ModelConfig:
 
 # Provider priority for fallback ordering (lower = preferred)
 # Default priority — used for analyze/generate/code/strategic tasks
+# CC SDK (Opus) for quality → Gemini (cheap, fast) → Groq (fast inference)
+# → Anthropic (401 until credits restored) → Perplexity (search tasks)
+# → Ollama (free local catch-all)
 PROVIDER_PRIORITY: dict = {
     ModelProvider.CC_SDK: 0,
-    ModelProvider.ANTHROPIC: 1,
-    ModelProvider.GEMINI: 2,
-    ModelProvider.GROQ: 3,
+    ModelProvider.GEMINI: 1,
+    ModelProvider.GROQ: 2,
+    ModelProvider.ANTHROPIC: 3,
     ModelProvider.PERPLEXITY: 4,
     ModelProvider.OLLAMA: 5,
     ModelProvider.MANUS: 6,
 }
 
 # Fast-path priority — used for fast_response/conversation tasks
-# Haiku first (fast, cheap), cc_sdk as escalation target
+# Gemini Flash first (fast + cheap) → Groq (ultra-fast) → Anthropic (Haiku)
+# → CC SDK reserved for escalation only → Ollama local catch-all
 PROVIDER_PRIORITY_FAST: dict = {
-    ModelProvider.ANTHROPIC: 0,
-    ModelProvider.CC_SDK: 1,
-    ModelProvider.GEMINI: 2,
-    ModelProvider.GROQ: 3,
+    ModelProvider.GEMINI: 0,
+    ModelProvider.GROQ: 1,
+    ModelProvider.ANTHROPIC: 2,
+    ModelProvider.CC_SDK: 3,
     ModelProvider.PERPLEXITY: 4,
     ModelProvider.OLLAMA: 5,
     ModelProvider.MANUS: 6,
@@ -191,7 +195,7 @@ PROVIDER_QUALITY: dict = {
     "gemini": 0.65,  # Gemini 2.5 Flash
     "groq": 0.55,  # Llama 3.3 70B
     "perplexity": 0.60,  # Sonar (search-augmented)
-    "ollama": 0.35,  # Local qwen2.5:0.5b
+    "ollama": 0.45,  # Local gemma3:4b — significant upgrade from qwen2.5:0.5b
 }
 
 MODEL_REGISTRY: dict[str, ModelConfig] = {
@@ -222,7 +226,7 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
     # Best for world pulse, market intel
     "perplexity-sonar": ModelConfig(
         provider=ModelProvider.PERPLEXITY,
-        model_id="llama-3.1-sonar-large-128k-online",
+        model_id="sonar-pro",
         api_key_env="PERPLEXITY_API_KEY",
         strengths=[
             TaskType.WEB_SEARCH,
@@ -245,12 +249,11 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
         base_url="https://api.groq.com/openai/v1",
     ),
     # OLLAMA: Local fallback
-    # qwen2.5:0.5b needs ~4.7 GiB — fits with os-bot stopped (5.2 GiB available).
-    # Significant quality upgrade over 0.5b. os-bot removed to free RAM.
+    # gemma3:4b — 3.3 GiB. Fits with os-bot stopped (5.2 GiB available).
     # base_url from env so Docker containers can reach host Ollama via gateway IP.
-    "ollama-qwen": ModelConfig(
+    "ollama-gemma": ModelConfig(
         provider=ModelProvider.OLLAMA,
-        model_id="qwen2.5:0.5b",
+        model_id="gemma3:4b",
         api_key_env="",
         strengths=[
             TaskType.FAST_RESPONSE,
@@ -560,11 +563,11 @@ class ModelRouter:
         try:
             import requests
 
-            # Truncate context for local models — 7b can handle more than 0.5b
-            _sys = system[:3000] if system else ""
+            # gemma3:4b handles ~8k context comfortably
+            _sys = system[:6000] if system else ""
             payload: dict = {
                 "model": config.model_id,
-                "prompt": prompt[:4000],
+                "prompt": prompt[:8000],
                 "stream": False,
                 "options": {"num_predict": max_tokens},
             }
@@ -653,15 +656,18 @@ def get_router(ctx=None) -> ModelRouter:
 # CEO/strategic agents pass agent_type='ceo' or force_opus=True to ensure
 # they always use the best available model regardless of economy mode.
 
-_CEO_AGENT_TYPES = frozenset(
-    {
-        "ceo",
-        "lyfe_institute_ceo",
-        "empyrean_ceo",
-        "personal_brand_ceo",
-        "portfolio_advisor",
-    }
-)
+# CEO/strategic agents — pattern-based, not name-based.
+# Any agent ending in "_ceo" or explicitly strategic gets best-available model.
+# No venture-specific names in the substrate.
+_CEO_AGENT_KEYWORDS = ("_ceo", "portfolio_advisor", "strategic")
+
+
+def _is_ceo_agent(agent_type: str | None) -> bool:
+    """Return True if agent_type matches a CEO/strategic pattern."""
+    if not agent_type:
+        return False
+    agent_lower = agent_type.lower()
+    return any(kw in agent_lower for kw in _CEO_AGENT_KEYWORDS)
 
 
 def call_with_fallback(
@@ -689,7 +695,7 @@ def call_with_fallback(
         task_type_str = task_type
 
     # CEO/strategic agents override economy mode
-    is_ceo = agent_type in _CEO_AGENT_TYPES or force_opus
+    is_ceo = _is_ceo_agent(agent_type) or force_opus
     if is_ceo:
         task_type_str = TaskType.STRATEGIC.value
 

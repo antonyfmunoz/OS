@@ -24,6 +24,12 @@ after any successful execution to capture.
 
 ---
 
+## Wiki System
+Read /opt/OS/10_Wiki/WIKI_RULES.md before any knowledge work.
+Wiki index: /opt/OS/10_Wiki/index.md
+
+---
+
 # Developer Agent — Soul Document
 
 ## Identity
@@ -94,7 +100,7 @@ Before any deploy:
 ## System
 VPS: 100.77.233.50 | Dir: /opt/OS
 Services: os-discord, os-bot, os-monitor, os-webhook
-LLM: Gemini 2.5 Flash (primary), Ollama qwen2.5:3b (fallback)
+LLM: Gemini 2.5 Flash (primary), Ollama gemma3:4b (fallback)
 Stage: loaded from BIS at runtime
 
 ## Key files
@@ -174,12 +180,11 @@ new-primitive, debug-agent
 - gemini-2.0-flash deprecated for new users → use gemini-2.5-flash
 - Codex exec requires stdin pipe and has reconnect issues → not in fallback chain
 - Business stage pre_revenue → economy mode → forces Haiku. Override: pass agent_type='ceo' to call_with_fallback
-- No GROQ or PERPLEXITY keys in .env — not in fallback chain
+- GROQ + PERPLEXITY keys in eos_ai/.env and services/.env — both in fallback chain
 - gemini binary not installed — Gemini via Python SDK only
 - .claude/agents/ subagents require CC auth to run (blocked until Anthropic credits restored)
 - CC_MODEL_MAP exists in model_router.py — used when Anthropic comes back online
-- Ollama qwen2.5:3b OOM (needs 1.9 GiB, Docker uses 4+ GiB) → switched to qwen2.5:0.5b
-- Ollama system prompt must be truncated to ~1500 chars for 0.5b model — times out otherwise
+- Ollama gemma3:4b needs ~3.3 GiB RAM — fits with os-bot stopped
 - NOTION_MORNING_BRIEF_ID points to dead DB → publisher falls back to Documents DB
 - After Ollama model change: `docker restart` services to pick up new code (Python files are bind-mounted)
 - Never hardcode `anthropic.Anthropic()` in services — always use model_router.call_with_fallback
