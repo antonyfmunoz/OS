@@ -5,7 +5,7 @@ playwright
 python-telegram-bot
 anthropic
 google-genai
-flask
+flask>=3.1,<4.0
 psycopg2-binary
 openai-whisper
 yt-dlp
@@ -17,3 +17,4 @@ librosa
 silero-vad
 fastembed
 claude-agent-sdk>=0.1.55
+groq==1.1.1
