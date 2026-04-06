@@ -4,9 +4,27 @@ import sys
 import json
 import glob
 import time
+import threading
 import requests
 import datetime
 from dotenv import load_dotenv
+
+# Whisper model singleton — loaded once per process, not per video.
+# Prior behavior loaded the "small" model (~500MB) on every transcribe_video()
+# call, causing memory spikes and 2-4s latency per video.
+_WHISPER_MODEL = None
+_WHISPER_LOCK = threading.Lock()
+
+
+def _get_whisper_model():
+    """Lazy-load the Whisper model once and reuse across calls."""
+    global _WHISPER_MODEL
+    if _WHISPER_MODEL is None:
+        with _WHISPER_LOCK:
+            if _WHISPER_MODEL is None:
+                import whisper as _whisper
+                _WHISPER_MODEL = _whisper.load_model("small")
+    return _WHISPER_MODEL
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
@@ -469,7 +487,6 @@ def transcribe_video(video_url):
     if not video_url:
         return None
     try:
-        import whisper
         import tempfile
         import subprocess as _sp
 
@@ -490,7 +507,7 @@ def transcribe_video(video_url):
         if not os.path.exists(audio_path):
             return None
 
-        model = whisper.load_model("small")
+        model = _get_whisper_model()
         result = model.transcribe(audio_path)
         transcript = result.get("text", "").strip()
 
