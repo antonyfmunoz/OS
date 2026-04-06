@@ -37,9 +37,18 @@ services/instagram_session.json
 13_Scripts/approval_response.txt
 *.session
 
+# Memory conversation logs (may contain raw prompts/keys)
+vault/memory/conversations/
+vault/memory/summaries/
+
 # Local overrides
 .claude/settings.local.json
 *.local
+
+# Auto-generated state (timestamp noise)
+eos_ai/session_state.json
+scripts/notion_sync_state.json
+scripts/notion_tasks_sync_state.json
 
 # OS
 .DS_Store

@@ -2,7 +2,7 @@
 Source: https://neon.tech/docs
 API Version: PostgreSQL 16 (Neon supports 14-17)
 SDK Version: psycopg2 2.9.11
-Last Researched: 2026-04-03
+Last Researched: 2026-04-06
 
 ---
 
@@ -95,6 +95,54 @@ batch = cur.fetchmany(50)  # list[dict], up to 50
 ```python
 cur.execute("INSERT INTO t (name) VALUES (%s) RETURNING id, created_at", ('foo',))
 result = cur.fetchone()  # {'id': uuid, 'created_at': datetime}
+```
+
+**cursor.copy_expert() — fastest bulk load (COPY protocol):**
+```python
+import io
+buf = io.StringIO()
+for row in data:
+    buf.write('\t'.join(str(v) for v in row) + '\n')
+buf.seek(0)
+cur.copy_expert("COPY t (a, b, c) FROM STDIN WITH (FORMAT text)", buf)
+# 10-100x faster than execute_values for >10K rows. Uses Postgres COPY protocol.
+```
+
+**cursor.mogrify() — debug parameterized queries:**
+```python
+query = cur.mogrify("SELECT * FROM t WHERE id = %s AND name = %s", (uuid_val, name_val))
+print(query.decode())  # Shows the actual SQL that would be sent (with values interpolated)
+# Use for debugging — never execute mogrified strings directly
+```
+
+**Named cursor (server-side cursor for large result sets):**
+```python
+# Standard cursor loads entire result into Python memory
+# Named cursor keeps results on the server and fetches in chunks
+cur = conn.cursor('my_cursor', cursor_factory=psycopg2.extras.RealDictCursor)
+cur.execute("SELECT * FROM large_table")
+while True:
+    batch = cur.fetchmany(500)
+    if not batch:
+        break
+    process(batch)
+# Named cursors require a non-pooled (direct) connection on Neon
+```
+
+**IN clause with tuple:**
+```python
+ids = ('uuid1', 'uuid2', 'uuid3')
+cur.execute("SELECT * FROM t WHERE id IN %s", (ids,))
+# psycopg2 adapts Python tuple → SQL (val1, val2, val3)
+# For empty tuples: guard with `if ids:` before executing
+```
+
+**NULL handling:**
+```python
+# Python None → SQL NULL automatically
+cur.execute("INSERT INTO t (name, notes) VALUES (%s, %s)", ('foo', None))
+# For IS NULL queries:
+cur.execute("SELECT * FROM t WHERE notes IS NULL")  # Don't use %s for NULL checks
 ```
 
 ## Pagination Patterns
@@ -248,6 +296,69 @@ conn = psycopg2.connect(
 )
 ```
 
+**Autocommit mode (for DDL or LISTEN/NOTIFY):**
+```python
+conn = psycopg2.connect(DATABASE_URL)
+conn.autocommit = True  # Each statement is its own transaction
+cur = conn.cursor()
+cur.execute("CREATE INDEX CONCURRENTLY idx_name ON t (col)")  # Requires autocommit
+cur.execute("LISTEN my_channel")  # LISTEN requires autocommit
+# WARNING: Never set autocommit inside get_conn() — it breaks the with conn: context manager
+```
+
+**Connection pooling — psycopg2 built-in (not used by EOS):**
+```python
+from psycopg2 import pool
+
+# SimpleConnectionPool (single-threaded)
+db_pool = pool.SimpleConnectionPool(minconn=1, maxconn=5, dsn=DATABASE_URL)
+conn = db_pool.getconn()
+try:
+    # use connection
+    pass
+finally:
+    db_pool.putconn(conn)
+
+# ThreadedConnectionPool (multi-threaded)
+db_pool = pool.ThreadedConnectionPool(minconn=1, maxconn=10, dsn=DATABASE_URL)
+
+# EOS does NOT use psycopg2 pooling — Neon's PgBouncer handles server-side pooling.
+# The get_conn() open-use-close pattern is correct for Neon's architecture.
+# Client-side pooling would hold connections open, keeping Neon compute alive and billing.
+```
+
+**Isolation levels:**
+```python
+from psycopg2.extensions import (
+    ISOLATION_LEVEL_AUTOCOMMIT,        # 0 — each statement auto-commits
+    ISOLATION_LEVEL_READ_COMMITTED,    # 1 — psycopg2 default
+    ISOLATION_LEVEL_REPEATABLE_READ,   # 2
+    ISOLATION_LEVEL_SERIALIZABLE,      # 3
+)
+conn.set_isolation_level(ISOLATION_LEVEL_SERIALIZABLE)
+# EOS uses the default (READ COMMITTED). Change only for specific consistency requirements.
+```
+
+**Register custom type adapters:**
+```python
+from psycopg2.extras import Json
+from psycopg2.extensions import register_adapter
+
+# Auto-adapt dicts to JSON (avoids manual json.dumps + ::jsonb)
+register_adapter(dict, Json)
+cur.execute("INSERT INTO t (data) VALUES (%s)", ({"key": "value"},))
+# Caution: this is process-global. EOS uses explicit json.dumps() + ::jsonb cast instead.
+```
+
+**Connection status checking:**
+```python
+conn.closed    # 0 = open, non-zero = closed
+conn.status    # STATUS_READY (0), STATUS_BEGIN (1), STATUS_IN_TRANSACTION (2)
+conn.info.server_version  # e.g. 160004 for Postgres 16.4
+conn.encoding  # e.g. 'UTF8'
+conn.info.ssl_in_use  # True for Neon (sslmode=require)
+```
+
 ## Anti-Patterns
 
 1. **Holding connections open** — Neon bills for compute time. Open-use-close is the correct pattern. Never keep a global connection alive.
@@ -260,6 +371,13 @@ conn = psycopg2.connect(
 8. **Catching bare Exception** — hides psycopg2 error classes. Catch specific errors.
 9. **Manual conn.commit()** — breaks the `with conn:` context manager contract.
 10. **SET without LOCAL** — persists beyond the transaction in direct connections; leaks state in pooled connections.
+11. **Using `%` operator for query formatting** — `cur.execute("SELECT * FROM t WHERE id = %s" % value)` is SQL injection. The `%s` in psycopg2 is NOT Python string formatting — it's a parameter placeholder processed by the driver.
+12. **Importing psycopg2.errors without the import** — `psycopg2.errors` is a submodule that must be explicitly imported. `import psycopg2` alone does not load it. Use `import psycopg2.errors` or catch parent classes like `psycopg2.IntegrityError`.
+13. **Reusing a connection after an error without rollback** — after an exception, the connection is in an error state. All subsequent queries fail with `InFailedSqlTransaction`. The `with conn:` context manager handles this automatically (rollback on exception), but raw connections require explicit `conn.rollback()`.
+14. **Passing a list where a tuple is expected for IN clause** — `cur.execute("SELECT * FROM t WHERE id IN %s", ([1,2,3],))` fails. Use a tuple: `(1,2,3)` or `tuple(list_val)`.
+15. **Storing cursor results after connection closes** — `cur.fetchall()` returns plain dicts/tuples that persist, but `cur.fetchone()` on a closed cursor raises `InterfaceError`. Always fetch all needed data inside the `with` block.
+16. **json.dumps on Decimal values** — psycopg2 returns Postgres `numeric` as Python `Decimal`. `json.dumps()` raises `TypeError: Object of type Decimal is not JSON serializable`. Convert with `float()` or use a custom encoder.
+17. **Assuming fetchone() returns a dict when not using RealDictCursor** — default cursor returns tuples. `row[0]` works but `row['id']` does not. EOS's `get_conn()` always uses `RealDictCursor`, but raw `psycopg2.connect()` callers (system_health.py, check_stop_condition.py) get tuples.
 
 ## Data Model
 
@@ -572,6 +690,63 @@ cur.execute("SELECT column_name, data_type FROM information_schema.columns WHERE
 cur.execute("SELECT relname, relrowsecurity FROM pg_class WHERE relname = %s", ('interactions',))
 ```
 
+**7. psycopg2 connection lifecycle management:**
+```python
+# Full lifecycle with proper cleanup (what get_conn does internally)
+conn = psycopg2.connect(dsn, connect_timeout=10)
+try:
+    with conn:  # BEGIN TRANSACTION (implicit)
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("...")
+            # COMMIT happens here on clean exit from `with conn:`
+    # Connection is still open — can start another transaction
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute("...")  # New transaction
+finally:
+    conn.close()  # Release connection back to Neon/PgBouncer
+```
+
+**8. Proper exception handling hierarchy:**
+```python
+import psycopg2
+import psycopg2.errors
+
+try:
+    with get_conn() as cur:
+        cur.execute("INSERT INTO ...")
+except psycopg2.errors.UniqueViolation:
+    # Most specific — handle duplicate key
+    pass
+except psycopg2.IntegrityError:
+    # Catches UniqueViolation, ForeignKeyViolation, NotNullViolation, CheckViolation
+    pass
+except psycopg2.ProgrammingError:
+    # Bad SQL syntax, undefined table/column
+    pass
+except psycopg2.OperationalError:
+    # Connection issues, timeouts, too many connections
+    pass
+except psycopg2.DatabaseError:
+    # Parent of all server-side errors
+    pass
+except psycopg2.InterfaceError:
+    # Client-side errors (cursor closed, connection closed)
+    pass
+except psycopg2.Error:
+    # Top-level psycopg2 error — catch-all
+    pass
+# NEVER catch bare Exception for DB operations — it hides real errors
+```
+
+**9. Thread safety patterns:**
+```python
+# psycopg2 connections: NOT thread-safe (one connection per thread)
+# psycopg2 module: thread-safe (can call connect() from any thread)
+# For multi-threaded services, use ThreadedConnectionPool or one get_conn() per thread
+# EOS services are single-threaded — not currently a concern
+```
+
 **Expert-level Neon awareness:**
 - Neon proxy uses SNI (Server Name Indication) to route connections. If your client strips SNI (some corporate proxies do), connections fail silently.
 - `pg_stat_statements` on Neon tracks query patterns across compute restarts — the stats persist in storage, not compute memory.
@@ -621,3 +796,10 @@ with get_conn() as cur:
 - Free tier storage quota (0.5 GB) causes hard failure on insert when exceeded.
 - `conn.autocommit = True` breaks the `with conn:` transaction context manager — never set it inside `get_conn()`.
 - Neon proxy requires SNI — connections from clients that strip TLS SNI will fail.
+- `psycopg2.connect()` blocks until connection is established — no async support. For async, you'd need `asyncpg` or `psycopg` (v3). EOS uses synchronous psycopg2 everywhere.
+- `cur.execute()` returns `None`, not the cursor. You cannot chain: `row = cur.execute("...").fetchone()`. Always call fetchone/fetchall as a separate statement.
+- `cur.fetchone()` after an INSERT/UPDATE/DELETE without RETURNING returns `None`. Only use fetch methods when the query has a SELECT or RETURNING clause.
+- `psycopg2.extras.DictCursor` vs `RealDictCursor`: DictCursor returns `DictRow` objects that support both index and key access. RealDictCursor returns actual `dict` objects. EOS uses RealDictCursor. The difference matters when serializing — `dict(row)` is a no-op with RealDictCursor but required with DictCursor.
+- After `conn.rollback()` or `conn.commit()`, the connection returns to "idle" state and can execute new queries. But inside `with conn:` the context manager handles this — don't call rollback/commit manually.
+- `psycopg2` version 2.9+ requires Python 3.7+. Version 2.9.11 (EOS version) supports Python 3.7-3.12.
+- The `psycopg2-binary` package bundles its own `libpq`. If the system has a different `libpq` version, SSL certificate verification can behave differently. EOS uses `psycopg2-binary` in Docker and it works correctly with Neon's SSL.

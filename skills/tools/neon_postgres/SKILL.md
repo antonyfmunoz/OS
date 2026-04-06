@@ -4,7 +4,7 @@ description: "Use when any agent reads or writes persistent data, registers agen
 allowed-tools: "Read, Bash"
 version: 1.0
 source_url: "https://neon.tech/docs"
-last_researched: "2026-04-03"
+last_researched: "2026-04-06"
 instantiated_from: templates/tools/_template/
 api_version: "PostgreSQL 16"
 sdk_version: "psycopg2 2.9.11"
@@ -58,6 +58,83 @@ with get_conn() as cur:
     rows = cur.fetchall()
     # rows is list[dict] due to RealDictCursor
 ```
+
+### psycopg2 Patterns in EOS
+
+**How `get_conn()` works internally:**
+`get_conn()` is a `@contextmanager` that does five things in order:
+1. `psycopg2.connect(_DATABASE_URL)` — opens a new connection (credentials from .env)
+2. `with conn:` — enters transaction block (auto-commit on clean exit, rollback on exception)
+3. `conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)` — all rows are dicts
+4. `SET LOCAL app.current_org_id = %s` — enables RLS for the tenant
+5. `conn.close()` in `finally` — always releases the connection
+
+This means: one connection per `with get_conn()` block. No pooling in Python — Neon's PgBouncer handles that server-side.
+
+**Cursor lifecycle:**
+The cursor yielded by `get_conn()` is managed by two nested context managers. You never need to close it manually. The cursor is valid only inside the `with` block — accessing it after the block raises `InterfaceError`.
+
+**Multiple queries in one transaction:**
+```python
+with get_conn() as cur:
+    cur.execute("INSERT INTO events (...) VALUES (%s, %s) RETURNING id", (ORG_ID, etype))
+    event_id = cur.fetchone()['id']
+    cur.execute("INSERT INTO event_links (...) VALUES (%s, %s)", (event_id, target_id))
+    # Both inserts commit together or roll back together
+```
+
+**Raw psycopg2 (bypassing get_conn):**
+Three EOS modules bypass `get_conn()` for specific reasons:
+- `system_health.py` — health checks use `connect_timeout=3` and plain cursor (no RLS needed for `SELECT COUNT(*)`)
+- `portfolio_advisor.py` — cross-org portfolio queries that intentionally skip RLS
+- `session_start_context.py`, `check_stop_condition.py` — lightweight scripts that import psycopg2 directly to avoid loading the full eos_ai module tree
+
+When bypassing `get_conn()`, always:
+```python
+conn = psycopg2.connect(db_url, connect_timeout=5)
+try:
+    cur = conn.cursor()
+    cur.execute("SELECT ...")
+    result = cur.fetchone()
+finally:
+    conn.close()  # ALWAYS in finally block
+```
+
+**Parameterized queries — the only safe pattern:**
+```python
+# psycopg2 uses %s for ALL types — never %d, %f, or ?
+cur.execute("SELECT * FROM t WHERE id = %s", (uuid_val,))           # UUID
+cur.execute("SELECT * FROM t WHERE name = %s", (string_val,))       # text
+cur.execute("SELECT * FROM t WHERE count > %s", (42,))              # integer
+cur.execute("SELECT * FROM t WHERE active = %s", (True,))           # boolean
+cur.execute("SELECT * FROM t WHERE data @> %s::jsonb", (json.dumps({"k": "v"}),))  # JSONB
+```
+
+**Bulk operations — execute_values vs executemany:**
+```python
+from psycopg2.extras import execute_values
+
+# FAST — single multi-row INSERT (use this)
+execute_values(cur, "INSERT INTO t (a, b) VALUES %s", [(1, 'x'), (2, 'y')], page_size=100)
+
+# SLOW — sends N separate INSERTs (avoid for >10 rows)
+cur.executemany("INSERT INTO t (a, b) VALUES (%s, %s)", [(1, 'x'), (2, 'y')])
+```
+
+**Error handling pattern used in EOS:**
+```python
+try:
+    with get_conn() as cur:
+        cur.execute("INSERT INTO ...")
+except psycopg2.errors.UniqueViolation:
+    print("Duplicate key — use ON CONFLICT instead")
+except psycopg2.OperationalError as e:
+    print(f"Connection failed: {e}")
+    # Retry logic if needed
+```
+
+**Credential sanitization:**
+`get_conn()` catches connection errors and strips credentials from the error message using `re.sub(r'://[^@]+@', '://***:***@', str(e))` before re-raising. This prevents database passwords from leaking into logs or tracebacks.
 
 ## Authentication
 
@@ -139,6 +216,48 @@ cur.execute("""
 """, (ORG_ID, agent_id, json.dumps(task_dict)))
 ```
 
+### psycopg2 cursor attributes (after execute)
+```python
+cur.rowcount    # rows affected by INSERT/UPDATE/DELETE (-1 for SELECT on some configs)
+cur.statusmessage  # e.g. 'INSERT 0 1', 'UPDATE 5', 'DELETE 3'
+cur.description    # column metadata tuple — None for non-SELECT
+cur.query          # the last executed query as bytes (useful for debugging)
+```
+
+### Conditional insert (check-then-insert)
+```python
+with get_conn() as cur:
+    cur.execute("SELECT 1 FROM agents WHERE name = %s", (name,))
+    if cur.fetchone():
+        print("Already exists")
+    else:
+        cur.execute("INSERT INTO agents (...) VALUES (%s, ...)", (name, ...))
+```
+
+### JSONB query patterns
+```python
+# Extract field from JSONB column
+cur.execute("SELECT payload_json->>'status' FROM events WHERE id = %s", (event_id,))
+
+# Filter by JSONB key value
+cur.execute("SELECT * FROM tasks WHERE metadata->>'keep_running' = %s", ('true',))
+
+# JSONB containment operator (@>)
+cur.execute("SELECT * FROM events WHERE payload_json @> %s::jsonb",
+            (json.dumps({"event_type": "lead_created"}),))
+```
+
+### Transaction isolation with multiple reads
+```python
+with get_conn() as cur:
+    # All reads in the same transaction see a consistent snapshot
+    cur.execute("SELECT SUM(amount) FROM expenses WHERE venture_id = %s", (vid,))
+    total = cur.fetchone()['sum']
+    cur.execute("SELECT budget FROM ventures WHERE id = %s", (vid,))
+    budget = cur.fetchone()['budget']
+    # total and budget are guaranteed consistent — no other transaction can change them mid-read
+```
+
 ## Conceptual Model
 
 ### Neon Architecture
@@ -203,5 +322,55 @@ psycopg2 opens an implicit transaction on the first query. EOS uses `with conn:`
 
 ### UUID columns
 Neon stores UUIDs as `uuid` type. psycopg2 returns them as `uuid.UUID` objects, but EOS casts to `str()` in the caches. Always `str(row['id'])` when storing UUIDs in Python dicts.
+
+### psycopg2-specific gotchas
+
+**Cursor used outside `with` block:**
+```python
+# WRONG — cursor is closed after the with block exits
+with get_conn() as cur:
+    cur.execute("SELECT * FROM t")
+rows = cur.fetchall()  # InterfaceError: cursor already closed
+
+# CORRECT — fetch inside the block
+with get_conn() as cur:
+    cur.execute("SELECT * FROM t")
+    rows = cur.fetchall()
+```
+
+**None vs empty result confusion:**
+```python
+row = cur.fetchone()
+# row is None if no rows match — NOT an empty dict
+# Always check: if row: before accessing row['column']
+```
+
+**psycopg2.errors requires explicit import:**
+```python
+# WRONG — psycopg2.errors is not auto-imported
+import psycopg2
+try:
+    cur.execute(...)
+except psycopg2.errors.UniqueViolation:  # AttributeError: module has no attribute 'errors'
+    pass
+
+# CORRECT — import the errors module explicitly
+import psycopg2.errors
+# OR catch the parent class:
+except psycopg2.IntegrityError:  # works without importing psycopg2.errors
+    pass
+```
+
+**datetime timezone awareness:**
+psycopg2 returns `timestamp with time zone` columns as timezone-aware `datetime` objects and `timestamp without time zone` as naive `datetime` objects. Comparing aware and naive datetimes raises `TypeError`. EOS Neon tables use `timestamptz` — always compare with timezone-aware Python datetimes.
+
+**Large fetchall() on big tables:**
+`cur.fetchall()` loads the entire result set into memory. For tables with millions of rows, use `cur.fetchmany(batch_size)` in a loop or add `LIMIT` to the query. EOS tables are small enough that `fetchall()` is fine for all current use cases.
+
+**Connection object is not thread-safe:**
+A single `psycopg2` connection must not be shared across threads. Each thread needs its own `get_conn()` call. EOS is single-threaded per service, so this is not currently an issue — but it will matter if any service adds threading.
+
+**Decimal vs float for numeric columns:**
+psycopg2 returns Postgres `numeric`/`decimal` columns as Python `Decimal` objects, not `float`. `json.dumps()` cannot serialize `Decimal` — use `str(val)` or `float(val)` before serializing. EOS uses `monthly_revenue numeric` in the ventures table — watch for this.
 
 See references/best_practices.md for connection parameters, error codes, and anti-patterns.
