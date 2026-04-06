@@ -2,6 +2,7 @@
 # EOS Daily Backup
 # Backs up all critical local files to a dated archive.
 # Runs daily at 6am via orchestrator.
+set -euo pipefail
 
 BACKUP_DIR="/opt/OS/backups"
 DATE=$(date +%Y%m%d)
