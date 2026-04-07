@@ -6,8 +6,8 @@ version: 1.0
 source_url: "https://higgsfield.ai/"
 last_researched: "2026-04-06"
 instantiated_from: templates/tools/_template/
-api_version: "Higgsfield web product (no public REST API as of 2026-04)"
-sdk_version: "N/A — GUI / human-operator tool"
+api_version: "higgsfield.ai web app (primary) + cloud.higgsfield.ai Cloud API (gated, Clerk auth, docs behind sign-in — not yet onboarded to EOS)"
+sdk_version: "N/A — GUI surface active; Cloud API SDK status unknown until EOS has account access"
 speed_category: stable
 ---
 
@@ -78,12 +78,24 @@ Canonical EOS handoff pattern:
 
 ## Authentication
 
-N/A for agents. Higgsfield is browser-only — Antony logs in via the web at
-higgsfield.ai with his account credentials. There is no API key for EOS to
-manage, no OAuth flow, no token to rotate. The "auth" surface is Antony's
-session cookie in his browser. If a future public API ships, this section
-gets a real signature; until then, treat Higgsfield as a manual GUI tool
-and never pretend EOS can authenticate to it.
+**Gated API exists — `cloud.higgsfield.ai`** is a live Higgsfield Cloud API
+management portal titled "Higgsfield Cloud API / API Management," gated
+behind **Clerk authentication** (sign-in/sign-up → `/dashboard`). Endpoint
+docs, pricing, and SDK references are NOT publicly indexed — you must
+create a Higgsfield account and sign in to the cloud portal to access the
+dashboard, generate API keys, and read the endpoint surface.
+
+As of 2026-04-06 EOS does not have a cloud.higgsfield.ai account
+provisioned, so agent-callable integration is blocked on: (1) Antony
+signing up at cloud.higgsfield.ai, (2) capturing the real endpoint
+catalog + auth model from the gated docs, (3) updating this skill with
+the real signatures.
+
+Until then, the **consumer web app at higgsfield.ai** is still the
+primary surface — Antony logs in there via browser, executes generations
+in the GUI, saves outputs. Agents draft prompts; Antony runs them. When
+the Cloud API is onboarded, the "Agent-callable path" will open and this
+section gets the real OAuth/API-key signature.
 
 ## Quick Reference
 
@@ -185,9 +197,12 @@ Internalize this and Higgsfield's quirks make sense:
 
 ## Gotchas
 
-- **No public API.** Anything that says "call the Higgsfield API from EOS"
-  is wrong. cloud.higgsfield.ai exists but is undocumented and not a
-  product surface. Drafting prompts for Antony is the only valid agent path.
+- **Cloud API exists but is gated.** `cloud.higgsfield.ai` is a real
+  "Higgsfield Cloud API / API Management" portal behind Clerk auth.
+  Endpoint docs are NOT publicly indexed — you need an account to see
+  them. Until EOS has that account and the real endpoint catalog
+  captured, the drafting-prompts-for-Antony pattern is the only valid
+  agent path. Do NOT invent endpoint signatures; wait for real docs.
 - **Credits expire after 90 days.** Top-up packs disappear. Don't tell
   Antony to bulk-buy credits "to save money" — they rot.
 - **Model routing changes pricing silently.** Kling 3.0 ≈ 6 credits,
