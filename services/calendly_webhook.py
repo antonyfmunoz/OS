@@ -40,6 +40,14 @@ LEADS_DIR = os.path.join(VAULT, "03_CRM/Leads")
 
 app = Flask(__name__)
 
+# Mount Higgsfield webhook route on the same Flask app so os-webhook
+# (docker container, port 8080) handles /webhooks/higgsfield too.
+try:
+    from services.higgsfield_webhook import register as _register_higgsfield
+    _register_higgsfield(app)
+except Exception as _e:
+    print(f"[calendly_webhook] higgsfield webhook mount failed: {_e}")
+
 
 def _detect_venture_from_event(event_name: str) -> str:
     """Detect venture from Calendly event name."""
