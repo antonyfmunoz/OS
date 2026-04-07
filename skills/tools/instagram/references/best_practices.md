@@ -1,8 +1,11 @@
 # Instagram — Best Practices (Creator-Level Reference)
 
 Source: Meta Developer Docs + Playwright automation patterns + EOS production experience
-Version: Instagram Graph API v19.0 / Playwright 1.58.0 automation
-Last Researched: 2026-04-04
+Version: Instagram Graph API v22.0 (v24.0 available) / Playwright 1.58.0 automation
+SDK Version: Playwright 1.58.0 (sync) + Apify actors + raw HTTPS to graph.facebook.com
+Last Researched: 2026-04-06
+
+Cross-reference: Auth (long-lived tokens, system user tokens, app review, webhook subscription mechanics) is owned by `skills/tools/meta_graph_api/`. This document covers Instagram-specific endpoints and production Playwright/Apify patterns.
 
 ---
 
@@ -904,3 +907,279 @@ Instagram invalidates sessions after 24-72 hours of headless usage.
 **Symptom:** DM Monitor redirected to login page.
 **Fix:** Monitor detects login redirect and triggers fresh login flow.
 Manual intervention needed for verification code relay.
+
+---
+
+## 22. Instagram Graph API — Publishing, Insights, Comments, Shopping (2026-04-06 expansion)
+
+This section is the deep reference for Instagram-specific Graph API endpoints. It is **additive** to the Playwright/Apify content above — those remain the production paths for DM monitoring and comment scraping. The Graph API is the right path for **content publishing** (Reels, Stories, Feed, Carousels), **first-party analytics**, **comment moderation on owned media**, and **Shopping product tagging**.
+
+**Auth note:** Long-lived tokens, system user tokens, app review for advanced permissions, webhook subscription setup, and the unified Meta token zoo are documented in `skills/tools/meta_graph_api/references/best_practices.md`. This section assumes you already have a valid Page Access Token (or System User token) with the right scopes.
+
+### 22.1 Conceptual model
+
+- **IG Business Account** (linked to a Facebook Page) — required for the publishing/insights API. Creator accounts are NOT supported for content publishing.
+- **{ig-user-id}** — the IG Business Account ID, NOT the username. Resolve it via:
+  ```http
+  GET /{page-id}?fields=instagram_business_account&access_token={page-token}
+  ```
+- **Page Access Token** — derived from the linked Facebook Page; carries Instagram permissions when the IG account is connected.
+- **Required scopes (publishing + insights + comments + shopping):**
+  `instagram_basic`, `instagram_content_publish`, `instagram_manage_insights`, `instagram_manage_comments`, `pages_read_engagement`, `pages_show_list`, `business_management`, and (for shopping) `instagram_shopping_tag_products`, `catalog_management`.
+
+### 22.2 Two-step container publishing flow
+
+All content publishing uses this pattern:
+
+```
+1. POST /{ig-user-id}/media          → returns container_id
+2. (poll) GET /{container_id}?fields=status_code  → wait for FINISHED
+3. POST /{ig-user-id}/media_publish?creation_id={container_id} → returns published media id
+```
+
+**Container lifecycle:**
+- Containers expire 24 hours after creation if not published.
+- Video containers (Reels, video posts) require polling — initial status is `IN_PROGRESS`, transitions to `FINISHED` (ready) or `ERROR`/`EXPIRED` typically within 30–90 seconds. Image containers are usually `FINISHED` immediately.
+- Status codes: `IN_PROGRESS`, `FINISHED`, `ERROR`, `EXPIRED`, `PUBLISHED`.
+
+### 22.3 Reels publishing
+
+```http
+POST https://graph.facebook.com/v22.0/{ig-user-id}/media
+Content-Type: application/x-www-form-urlencoded
+
+media_type=REELS
+&video_url=https://cdn.example.com/reel.mp4
+&caption=Built different. #LifeMaxing
+&cover_url=https://cdn.example.com/cover.jpg     (optional, overrides thumb_offset)
+&thumb_offset=1000                                (ms into video for auto thumbnail)
+&share_to_feed=true                               (also publish to main feed grid)
+&collaborators=["partner_username"]               (JSON array of IG usernames)
+&audio_name=Custom Track Name                     (optional metadata)
+&access_token=...
+```
+
+**Reels constraints (current as of 2026-04-06):**
+| Constraint | Value |
+|---|---|
+| Account type | Instagram Business only (Creator NOT supported) |
+| Aspect ratio (Reels-tab eligible) | 9:16 |
+| Duration (Reels-tab eligible) | 5–90 seconds |
+| API max duration | 15 minutes (anything outside 5–90s publishes as regular video) |
+| Video container format | MOV or MP4 (H.264, AAC) |
+| Max file size | 1 GB |
+| Video host | Uploads route through `rupload.facebook.com` (not graph.facebook.com) |
+| Rate limit | 100 API-published posts per IG account per rolling 24h (counts ALL types) |
+
+**Designation gotcha:** After publishing a Reel, `GET /{media-id}?fields=media_type` returns `VIDEO`, not `REELS`. To confirm a media object is a Reel, request `media_product_type` instead — Reels return `REELS`.
+
+### 22.4 Stories publishing
+
+```http
+POST /{ig-user-id}/media
+  ?media_type=STORIES
+  &image_url=https://cdn.example.com/story.jpg
+  &access_token=...
+```
+or for video stories:
+```http
+POST /{ig-user-id}/media
+  ?media_type=STORIES
+  &video_url=https://cdn.example.com/story.mp4
+  &access_token=...
+```
+
+**Stories constraints:**
+- Image: JPG/PNG, recommended 1080×1920, max 8 MB.
+- Video: MP4/MOV, 9:16, max 60 seconds, max 100 MB.
+- **No caption parameter.** Stickers, polls, questions, link stickers, mention stickers, hashtag stickers — none are supported via the Content Publishing API. Only raw media uploads.
+- Stories expire after 24 hours per normal IG behavior.
+- Stories container also requires the two-step publish flow.
+
+### 22.5 Carousel publishing (children)
+
+```python
+# 1. Create child containers (one per item; no caption on children; mark is_carousel_item=true)
+for image_url in image_urls:
+    POST /{ig-user-id}/media
+      ?image_url={image_url}
+      &is_carousel_item=true
+      &access_token=...
+    # → child_container_id
+
+# 2. Create parent carousel container
+POST /{ig-user-id}/media
+  ?media_type=CAROUSEL
+  &children=child1,child2,child3      # comma-separated, max 10
+  &caption=...
+  &access_token=...
+
+# 3. Publish parent
+POST /{ig-user-id}/media_publish?creation_id={parent_id}
+```
+
+Carousels support 2–10 items. Mixed image/video carousels supported. Product tags for Shopping carousels go on the **child container** at creation time.
+
+### 22.6 Collaborators API
+
+The `collaborators` parameter on Feed/Reels media creation accepts a JSON-encoded array of IG usernames. The collaborator receives an in-app invitation and must accept before the post appears on their grid and counts cross-engagement.
+
+```http
+&collaborators=["partner_handle","second_partner"]
+```
+
+- Available for: Reels and feed image/video posts.
+- NOT available for: Stories, Carousels (currently).
+- Up to 3 collaborators per post.
+
+### 22.7 Mentions and tags
+
+**Photo user tags (image posts only):**
+```http
+&user_tags=[{"username":"someone","x":0.5,"y":0.6}]
+```
+Coordinates are 0.0–1.0 normalized.
+
+**Caption mentions:** Putting `@username` in the caption auto-resolves and notifies the mentioned account on publish — no separate parameter needed.
+
+**Story mentions:** Mention stickers cannot be created via the Content Publishing API. Workaround: bake the @-mention into the visible image overlay and put it in the caption — but Story captions are also unsupported, so the mention notification will not fire via API publish. This is an app-only feature.
+
+**Mentioned-media webhook:** Subscribe to the `mentions` field on the Instagram webhook product (configured via meta_graph_api skill). When your account is @-mentioned in someone else's caption or comment, the webhook fires. Look up the mentioning content via:
+```http
+GET /{ig-user-id}?fields=mentioned_media.media_id({other-media-id}){caption,media_type,media_url,permalink}
+GET /{ig-user-id}?fields=mentioned_comment.comment_id({comment-id}){text,user{username},like_count}
+```
+
+### 22.8 Insights API — account level
+
+```http
+GET /{ig-user-id}/insights
+  ?metric=reach,views,profile_views,accounts_engaged,total_interactions,likes,comments,shares,saves,replies,follows_and_unfollows,profile_links_taps,website_clicks
+  &metric_type=total
+  &period=day
+  &since={unix_ts}
+  &until={unix_ts}
+  &access_token=...
+```
+
+**Demographic breakdowns:**
+```http
+GET /{ig-user-id}/insights
+  ?metric=follower_demographics
+  &period=lifetime
+  &metric_type=total
+  &breakdown=age,gender,city,country
+  &timeframe=last_30_days
+```
+Other demographic metrics: `engaged_audience_demographics`, `reached_audience_demographics`.
+
+**April 2025 metric deprecation (must update):**
+- `impressions` → use `views`
+- `plays` (Reels) → use `views`
+- `clips_replays_count` → folded into `views`
+- `ig_reels_aggregated_all_plays_count` → folded into `views`
+
+`metric_type=total` is required on most metrics in v18.0+. Without it, the API returns `(#100) param metric must be one of...` errors on metrics that previously worked unparameterized.
+
+### 22.9 Insights API — media level
+
+```http
+GET /{ig-media-id}/insights
+  ?metric=reach,likes,comments,shares,saved,total_interactions,views
+  &access_token=...
+```
+
+**Per media-type metric availability:**
+
+| Media type | Available metrics |
+|---|---|
+| Image / Carousel | `reach`, `views`, `likes`, `comments`, `shares`, `saved`, `total_interactions`, `profile_visits`, `profile_activity`, `follows` |
+| Reels | `reach`, `views`, `likes`, `comments`, `shares`, `saved`, `total_interactions`, `ig_reels_video_view_total_time` (ms), `ig_reels_avg_watch_time` (ms) |
+| Stories | `reach`, `views`, `replies`, `shares`, `total_interactions`, `profile_visits`, `follows`, `navigation` |
+
+**Story navigation breakdown:** request `navigation` and the response includes sub-counts `tap_back`, `tap_forward`, `tap_exit`, `swipe_forward`. Useful for funnel analysis on Story sequences.
+
+**Watch-time math:**
+- `ig_reels_video_view_total_time` is total milliseconds across all viewers.
+- `ig_reels_avg_watch_time` is per-viewer average in ms.
+- Completion rate: `(ig_reels_avg_watch_time / video_duration_ms)`.
+
+### 22.10 Comment moderation
+
+Owned-media comment management — works without ManyChat or Apify, directly via Graph API:
+
+```http
+GET /{ig-media-id}/comments
+  ?fields=id,text,timestamp,username,like_count,replies{id,text,username}
+  &access_token=...
+
+GET /{ig-comment-id}/replies
+  ?fields=id,text,username,timestamp
+
+POST /{ig-media-id}/comments?message=Reply on the post directly
+POST /{ig-comment-id}/replies?message=Threaded reply
+DELETE /{ig-comment-id}
+POST /{ig-comment-id}?hide=true     # hide (not delete) — can be unhidden with hide=false
+```
+
+**Moderation webhook:** Subscribe to webhook field `comments` on the Instagram product. Payload includes `media.id`, `id` (comment id), `text`, `from.username`. Fire-and-forget moderation handler can match against profanity/spam lists and call `DELETE` or `?hide=true` automatically.
+
+**Rate-limit note:** Comment writes count against the 200 calls/user/hour limit on the IG Graph API rate limiter — keep automated reply volume modest.
+
+### 22.11 Shopping — Product tagging (Lyfe Spectrum)
+
+Requires:
+- An approved Instagram Shop linked to a Facebook Catalog
+- `instagram_shopping_tag_products` and `catalog_management` permissions
+- Products with `review_status=approved` in the catalog
+
+**Discover taggable catalogs and products:**
+```http
+GET /{ig-user-id}/available_catalogs?access_token=...
+# → list of catalogs eligible for IG tagging
+
+GET /{ig-user-id}/catalog_product_search?q=hoodie&catalog_id={catalog_id}
+# → product ids matching the search
+```
+
+**Tag products on an image post:**
+```http
+POST /{ig-user-id}/media
+  ?image_url=...
+  &caption=...
+  &product_tags=[{"product_id":"123","x":0.5,"y":0.5},{"product_id":"456","x":0.3,"y":0.7}]
+```
+
+**Tag products on a Reel or video:**
+```http
+&product_tags=[{"product_id":"123"},{"product_id":"456"}]
+```
+No x/y on video — tags appear as a tappable product collection on the Reel.
+
+**Carousel:** product tags go on each child container at creation time, NOT on the parent carousel container.
+
+**Eligibility check:**
+```http
+GET /{product-id}?fields=review_status,visibility,availability
+```
+`review_status` must be `approved`. `visibility` must be `published`. If `pending` or `rejected`, the tag will silently fail to render.
+
+### 22.12 Version pinning and rollover
+
+- Pin to a specific Graph API version in every URL: `https://graph.facebook.com/v22.0/...`
+- Meta deprecates versions ~2 years after release. v22.0 was released April 2025; v24.0 is current rolling. v19.0 references in older EOS code should be migrated.
+- Subscribe to Meta's Graph API changelog: https://developers.facebook.com/docs/graph-api/changelog/
+- When migrating versions, run a diff against `https://developers.facebook.com/docs/graph-api/changelog/version{X}.0/` to catch field renames and removed metrics.
+
+### 22.13 What lives in meta_graph_api skill, NOT here
+
+To avoid duplication, the following are documented in `skills/tools/meta_graph_api/`:
+- Long-lived token exchange (`/oauth/access_token?grant_type=fb_exchange_token`)
+- System User tokens for server-to-server publishing
+- App review submission for `instagram_content_publish` and `instagram_manage_insights`
+- Webhook subscription setup (`POST /{app-id}/subscriptions`) and signature verification
+- Cross-product token reuse across Messenger, WhatsApp, Threads, Pages
+- Business Manager / Asset assignment patterns
+- The unified token zoo (User vs Page vs System User vs App tokens)
+
+When in doubt, auth lives in meta_graph_api; endpoints live here.
