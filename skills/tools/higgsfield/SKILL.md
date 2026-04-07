@@ -6,8 +6,8 @@ version: 1.0
 source_url: "https://higgsfield.ai/"
 last_researched: "2026-04-06"
 instantiated_from: templates/tools/_template/
-api_version: "higgsfield.ai web app (primary) + cloud.higgsfield.ai Cloud API (gated, Clerk auth, docs behind sign-in — not yet onboarded to EOS)"
-sdk_version: "N/A — GUI surface active; Cloud API SDK status unknown until EOS has account access"
+api_version: "Higgsfield Cloud API — base https://platform.higgsfield.ai (REST, async job queue, webhooks)"
+sdk_version: "higgsfield-client (Python, sync + async); JS/TS coming soon"
 speed_category: stable
 ---
 
@@ -46,11 +46,14 @@ Core product surface (2026-04):
 
 ## EOS Integration
 
-**Operating mode: human-in-the-loop GUI tool.** Higgsfield has no public
-API that EOS can call directly. Antony executes the actual generation in
-the browser. The agent's job is to draft *Higgsfield-shaped prompts* —
-camera-move + style preset + tightly-scoped subject action — that he can
-paste verbatim.
+**Operating mode: hybrid — real API for agent-callable generation + GUI
+for creative exploration.** Higgsfield ships a public REST API at
+`https://platform.higgsfield.ai` with a Python SDK (`higgsfield-client`),
+async job queue, and webhook callbacks. Agents CAN call Higgsfield
+directly for headless generation. The GUI remains the exploration
+surface — Antony tunes prompts there, then agents productionize the
+winning formulas against the API for batch work (drop campaigns, social
+cadence, ad creative variation).
 
 Primary EOS use cases:
 
@@ -65,39 +68,147 @@ Primary EOS use cases:
 - **Initiate Arena marketing** — conversion-grade B-roll for landing pages
   and ad creative when stock footage is too generic.
 
-Canonical EOS handoff pattern:
+Canonical EOS handoff patterns:
 
-1. Antony provides reference image (or describes subject) + mood / vibe.
-2. Agent picks one camera-move preset and one Soul aesthetic preset from
-   the catalog in references/best_practices.md.
-3. Agent drafts the prompt using the **{ subject anchor } + { one verb-led
-   beat } + { camera-move tag } + { style tokens }** structure.
-4. Output is a paste-ready block: model choice, preset names, prompt text,
-   duration, resolution, expected credit cost.
-5. Antony executes in browser, saves output to the relevant brand folder.
+**Pattern A — Agent-callable production (API):**
+1. Agent picks model (`higgsfield-ai/soul/standard`, `higgsfield-ai/dop/standard`,
+   `bytedance/seedream/v4/text-to-image`, `kling-video/v2.1/pro/image-to-video`,
+   `bytedance/seedance/v1/pro/image-to-video`, etc.).
+2. Agent calls `higgsfield_client.submit(model_id, arguments={...},
+   webhook_url=...)` or `subscribe()` for sync.
+3. Webhook fires on Completed / Failed / NSFW to an EOS endpoint.
+4. Handler downloads output from returned URL within 7-day retention
+   window, writes to `/opt/OS/media/higgsfield/{venture}/{date}/`.
+
+**Pattern B — Creative exploration (GUI):**
+1. Antony explores a concept in higgsfield.ai web GUI with camera-move
+   presets, Soul aesthetics, Soul ID identity lock.
+2. Once a winning recipe is found, agent translates it into an API
+   `arguments` dict and productionizes for batch/scheduled runs.
 
 ## Authentication
 
-**Gated API exists — `cloud.higgsfield.ai`** is a live Higgsfield Cloud API
-management portal titled "Higgsfield Cloud API / API Management," gated
-behind **Clerk authentication** (sign-in/sign-up → `/dashboard`). Endpoint
-docs, pricing, and SDK references are NOT publicly indexed — you must
-create a Higgsfield account and sign in to the cloud portal to access the
-dashboard, generate API keys, and read the endpoint surface.
+**Base URL:** `https://platform.higgsfield.ai`
 
-As of 2026-04-06 EOS does not have a cloud.higgsfield.ai account
-provisioned, so agent-callable integration is blocked on: (1) Antony
-signing up at cloud.higgsfield.ai, (2) capturing the real endpoint
-catalog + auth model from the gated docs, (3) updating this skill with
-the real signatures.
+**Auth header:** API keys are generated in the `cloud.higgsfield.ai`
+dashboard (Clerk-authenticated). Each key is a pair —
+**key id + key secret** — passed together in the Authorization header:
 
-Until then, the **consumer web app at higgsfield.ai** is still the
-primary surface — Antony logs in there via browser, executes generations
-in the GUI, saves outputs. Agents draft prompts; Antony runs them. When
-the Cloud API is onboarded, the "Agent-callable path" will open and this
-section gets the real OAuth/API-key signature.
+```
+Authorization: Key {HIGGSFIELD_API_KEY}:{HIGGSFIELD_API_KEY_SECRET}
+Content-Type: application/json
+Accept: application/json
+```
+
+EOS secret storage:
+- `HIGGSFIELD_API_KEY` and `HIGGSFIELD_API_KEY_SECRET` in
+  `/opt/OS/eos_ai/.env` (never committed).
+- Python SDK auto-reads them from the environment.
+
+Failed and NSFW-flagged requests are NOT charged — credits refund
+automatically. Invoice billing available for enterprise via
+`support@higgsfield.ai`.
 
 ## Quick Reference
+
+### REST API — raw curl
+
+```bash
+# Submit a Soul image generation
+curl -X POST 'https://platform.higgsfield.ai/higgsfield-ai/soul/standard' \
+  -H 'Authorization: Key '"$HIGGSFIELD_API_KEY:$HIGGSFIELD_API_KEY_SECRET" \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "prompt": "tactical-luxury founder at black desk, editorial lighting",
+    "aspect_ratio": "16:9",
+    "resolution": "720p"
+  }'
+# → { "status": "queued", "request_id": "<uuid>", ... }
+
+# Poll status
+curl "https://platform.higgsfield.ai/requests/{request_id}/status" \
+  -H 'Authorization: Key '"$HIGGSFIELD_API_KEY:$HIGGSFIELD_API_KEY_SECRET"
+
+# Cancel a queued request
+curl -X POST "https://platform.higgsfield.ai/requests/{request_id}/cancel" \
+  -H 'Authorization: Key '"$HIGGSFIELD_API_KEY:$HIGGSFIELD_API_KEY_SECRET"
+```
+
+### Python SDK — sync
+
+```python
+import higgsfield_client
+
+result = higgsfield_client.subscribe(
+    'higgsfield-ai/soul/standard',
+    arguments={
+        'prompt': 'tactical-luxury founder at black desk, editorial lighting',
+        'aspect_ratio': '16:9',
+        'resolution': '720p',
+    },
+)
+print(result['images'][0]['url'])
+```
+
+### Python SDK — submit + webhook (EOS canonical pattern)
+
+```python
+import higgsfield_client
+
+controller = higgsfield_client.submit(
+    'higgsfield-ai/dop/standard',
+    arguments={
+        'image_url': 'https://cdn.eos.local/sources/hoodie.jpg',
+        'prompt': 'charcoal hoodie slowly rotates, revealing Lyfe Spectrum mark',
+        'duration': 5,
+    },
+    webhook_url='https://eos.munozconglomerate.com/webhooks/higgsfield',
+)
+request_id = controller.request_id  # persist in Neon for reconciliation
+```
+
+### File upload (reference image for image-to-video)
+
+```python
+url = higgsfield_client.upload_file('/opt/OS/media/sources/hoodie.jpg')
+# Pass as image_url in DoP / Kling / Seedance arguments
+```
+
+### Webhook payload (EOS handler)
+
+```python
+# POST /webhooks/higgsfield
+# Add ?hf_webhook=... on request OR set webhook_url in SDK
+{
+  "status": "Completed",        # or Failed / NSFW
+  "request_id": "<uuid>",
+  "status_url": "...",
+  "cancel_url": "...",
+  "images": [{"url": "..."}]    # for image models
+  # OR "video": {"url": "..."}  # for video models
+}
+# Retry policy: 2 hours until 2xx. Idempotency key: request_id.
+```
+
+### Known model IDs (docs snapshot 2026-04-06)
+
+```
+Images:
+  higgsfield-ai/soul/standard           (flagship text-to-image, Soul)
+  reve/text-to-image                    (versatile alternative)
+  bytedance/seedream/v4/text-to-image   (Seedream v4, text-to-image)
+  bytedance/seedream/v4/edit            (advanced editing)
+
+Video (image-to-video):
+  higgsfield-ai/dop/standard            (DoP — camera-move catalog lives here)
+  higgsfield-ai/dop/preview             (premium tier)
+  kling-video/v2.1/pro/image-to-video   (Kling v2.1 Pro)
+  bytedance/seedance/v1/pro/image-to-video  (Seedance v1 Pro)
+```
+
+Full routed-model list (Veo 3/3.1, Sora 2, WAN, Speak, Mix, Avatar,
+Popcorn, Recast) is visible in the cloud.higgsfield.ai dashboard.
+Confirm exact model_id before coding against a new model.
 
 ### The two preset axes (pick one of each)
 
@@ -197,12 +308,37 @@ Internalize this and Higgsfield's quirks make sense:
 
 ## Gotchas
 
-- **Cloud API exists but is gated.** `cloud.higgsfield.ai` is a real
-  "Higgsfield Cloud API / API Management" portal behind Clerk auth.
-  Endpoint docs are NOT publicly indexed — you need an account to see
-  them. Until EOS has that account and the real endpoint catalog
-  captured, the drafting-prompts-for-Antony pattern is the only valid
-  agent path. Do NOT invent endpoint signatures; wait for real docs.
+- **Public docs at docs.higgsfield.ai.** The docs index lives at
+  `docs.higgsfield.ai/llms.txt` — pull it when refreshing this skill.
+  API base is `https://platform.higgsfield.ai`. The management
+  dashboard at `cloud.higgsfield.ai` is where API keys are generated
+  (Clerk-authenticated).
+- **Auth header is `Key {id}:{secret}` — NOT `Bearer`.** The single
+  most likely first-integration bug. Both halves of the key pair are
+  required, colon-separated.
+- **`hf_webhook` query param OR `webhook_url` SDK kwarg.** Two ways to
+  register the same callback. Pick one per request, never both.
+- **Webhooks have no documented signature verification.** Idempotency
+  must be enforced on the handler side using `request_id` as the dedup
+  key. Treat the endpoint as publicly callable and verify the
+  `request_id` exists in the EOS-issued set before acting.
+- **Webhook retries for 2 hours until 2xx.** Return 2xx fast; do the
+  work in a background task after ack.
+- **7-day file retention.** Generated images/videos disappear from
+  Higgsfield storage after ≥7 days. EOS must download outputs into
+  `/opt/OS/media/higgsfield/` immediately on webhook ack or the URLs
+  will 404.
+- **Failed + NSFW requests are NOT charged.** Credits auto-refund.
+  Don't build guardrails that pre-pay; let the API reject and refund.
+- **Rate limits vary by plan and model.** Not publicly numeric —
+  viewable in the cloud.higgsfield.ai dashboard. Enterprise can raise
+  via support@higgsfield.ai.
+- **Timeouts are per-model.** No global wall-clock. A DoP generation
+  timeout is different from a Seedream edit timeout. Exceeded requests
+  fail without charge.
+- **JS/TS SDK is "coming soon."** Python SDK `higgsfield-client` is
+  the only first-party path today. For Node services, use raw REST
+  until the JS SDK ships.
 - **Credits expire after 90 days.** Top-up packs disappear. Don't tell
   Antony to bulk-buy credits "to save money" — they rot.
 - **Model routing changes pricing silently.** Kling 3.0 ≈ 6 credits,
@@ -217,8 +353,8 @@ Internalize this and Higgsfield's quirks make sense:
   as 5s beats, not 30s scenes. Use Mix to stitch.
 - **Speak needs clean audio.** Background noise in the VO destroys lip sync.
 - **Free tier = 10 credits/day.** Useless for production.
-- **No webhooks, no callbacks.** EOS cannot be notified when a render
-  finishes. Fire-and-forget; Antony reports back manually.
+- **Webhooks DO fire on final status only** (Completed / Failed / NSFW),
+  not intermediate progress. For progress UI, poll `/requests/{id}/status`.
 - **Reference-image aspect ratio sets output aspect ratio.** Want 9:16 for
   Reels? Feed a 9:16 source frame. The model will not recompose.
 - **Veo 3 / Sora 2 routing has content filters Higgsfield doesn't surface
