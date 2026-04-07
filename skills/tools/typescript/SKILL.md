@@ -1,17 +1,27 @@
 ---
 name: typescript
-description: "Use when writing, modifying, or debugging TypeScript code in the EOS saas layer — covers Hono routing, Drizzle schema types, Zod validation, module patterns, and strict-mode conventions."
+description: "Use when writing, modifying, or debugging TypeScript in the EOS stack — covers React 18/19 component and hook typing, Zod-derived types, discriminated unions, satisfies/as const, tsconfig for Vite, AND backend Hono routing + Drizzle schema types + RLS patterns."
 allowed-tools: "Read, Bash"
-version: 1.0
+version: 2.0
 source_url: "https://www.typescriptlang.org/docs/"
 last_researched: "2026-04-06"
 instantiated_from: templates/tools/_template/
-api_version: "TypeScript 5.4"
-sdk_version: "tsx 4.19.2"
+api_version: "5.8"
+sdk_version: "typescript@5.8"
 speed_category: medium
 trigger: both
 effort: medium
 context: fork
+sources:
+  - "https://www.typescriptlang.org/docs/"
+  - "https://react.dev/learn/typescript"
+  - "https://devblogs.microsoft.com/typescript/announcing-typescript-5-8/"
+  - "https://devblogs.microsoft.com/typescript/typescript-native-port/"
+  - "https://www.totaltypescript.com/clarifying-the-satisfies-operator"
+  - "https://www.totaltypescript.com/tsconfig-cheat-sheet"
+  - "https://react.dev/reference/react/forwardRef"
+  - "https://www.typescriptlang.org/tsconfig/verbatimModuleSyntax.html"
+  - "https://www.typescriptlang.org/docs/handbook/modules/guides/choosing-compiler-options.html"
 ---
 
 # Tool: TypeScript
@@ -221,22 +231,131 @@ This separation means:
 - Python handles reasoning, generation, and agent orchestration
 - The two layers share a database (Neon Postgres) but access it independently
 
+## Frontend Quick Reference (React 18/19 + Vite)
+
+### Strict tsconfig for Vite+React
+
+```jsonc
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": false,
+    "noEmit": true
+  },
+  "include": ["src"]
+}
+```
+
+### Component Props (preferred patterns)
+
+```tsx
+// 1. Inline for simple local components
+function Badge({ label }: { label: string }) { return <span>{label}</span> }
+
+// 2. Named type for reusable — extend native element props
+import type { ComponentPropsWithoutRef } from 'react'
+type ButtonProps = ComponentPropsWithoutRef<'button'> & {
+  variant?: 'primary' | 'ghost'
+}
+function Button({ variant = 'primary', className, ...rest }: ButtonProps) {
+  return <button data-variant={variant} className={className} {...rest} />
+}
+```
+
+Never use `React.FC` — it loses generics and implicitly adds `children`.
+
+### Hook Typing — Discriminated Union State
+
+```tsx
+type AsyncState<T> =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'success'; data: T }
+  | { status: 'error'; error: Error }
+
+const [state, setState] = useState<AsyncState<User>>({ status: 'idle' })
+if (state.status === 'success') state.data // narrowed
+```
+
+### Zod-Derived Types (single source of truth)
+
+```ts
+const UserSchema = z.object({
+  id: z.string().uuid(),
+  email: z.string().email(),
+  role: z.enum(['admin', 'member']).default('member'),
+})
+type User      = z.infer<typeof UserSchema>   // output — has role
+type UserInput = z.input<typeof UserSchema>   // input  — role optional
+```
+
+Never re-declare a type that can be `z.infer`'d. For `react-hook-form` use `useForm<z.input<typeof Schema>>()` — the input type matches the raw form fields before defaults/transforms apply.
+
+### `satisfies` vs type annotation
+
+```ts
+// Bad: widens config.port to string | number
+const config: Record<string, string | number> = { port: 3000, host: 'localhost' }
+
+// Good: validates shape AND preserves literal inference
+const config = { port: 3000, host: 'localhost' } satisfies Record<string, string | number>
+config.port // number (not string | number)
+```
+
+### `as const` for enum-like unions
+
+```ts
+const STAGES = ['idea', 'early', 'growth', 'scale'] as const
+type Stage = typeof STAGES[number]
+```
+
+### Template literal types for routes
+
+```ts
+type ApiRoute = `/api/${string}`
+type Method   = 'GET' | 'POST' | 'PATCH' | 'DELETE'
+type Endpoint = `${Method} ${ApiRoute}`
+```
+
 ## Gotchas
 
-1. **Two separate runtimes** — Python (`eos_ai`) and TypeScript (`saas`) are completely separate processes. Do not import Python modules in TS or vice versa. The bridge is the only connection.
+1. **Two separate runtimes** — Python (`eos_ai`) and TypeScript (`saas`) are completely separate processes. The bridge is the only connection.
 
-2. **Drizzle RLS requires `withOrg()`** — Every query on a tenant-scoped table MUST go through `withOrg(orgId, fn)`. Queries on `appDb` outside `withOrg()` return zero rows (fail-closed by design). Only `db` (admin pool) bypasses RLS, and that is for auth checks and migrations only.
+2. **Drizzle RLS requires `withOrg()`** — Every query on a tenant-scoped table MUST go through `withOrg(orgId, fn)`. Queries outside `withOrg()` return zero rows silently.
 
-3. **Neon HTTP driver cannot do transactions** — EOS uses the WebSocket driver (`@neondatabase/serverless` with `ws` polyfill) specifically because `SET LOCAL` requires a real transaction. The HTTP driver is stateless and would not maintain the RLS session variable.
+3. **Neon HTTP driver cannot do transactions** — EOS uses the WebSocket driver because `SET LOCAL` requires a real transaction.
 
-4. **Zod: always `safeParse`, never `parse`** — `parse()` throws on invalid input, which would bubble up as a 500 error. `safeParse()` returns `{ success, data, error }` so you can return a proper 400 with `parsed.error.flatten()`. Every route in EOS uses `safeParse`.
+4. **Zod: always `safeParse`, never `parse`** — `parse()` throws and bubbles to 500. `safeParse()` lets you return a proper 400.
 
-5. **Type narrowing with discriminated unions** — When using `safeParse`, TypeScript narrows `parsed.data` only after checking `parsed.success`. Do not access `.data` before the guard. The Zod types handle this automatically if you follow the `if (!parsed.success) return` pattern.
+5. **tsx does not type-check** — Always run `npx tsc --noEmit` before declaring a change complete.
 
-6. **tsx vs tsc** — `tsx` (via esbuild) executes TypeScript directly without type checking. It is fast but will not catch type errors. `tsc --noEmit` is the type checker. EOS uses tsx for running, tsc for verification. Always run `tsc --noEmit` before declaring a TypeScript change complete.
+6. **ESM imports need `.js` extensions** — Even though source is `.ts`, relative imports use `.js` under `moduleResolution: "bundler"` / ESM.
 
-7. **ESM imports require `.js` extension** — The tsconfig uses `module: "ESNext"` with `moduleResolution: "Bundler"`. All relative imports use `.js` extensions (e.g., `import type { Env } from '../types.js'`) even though the source files are `.ts`. This is the ESM standard that tsx and Node.js require.
+7. **`React.FC` is an anti-pattern** — Prefer `function Comp(props: Props)`. `React.FC` breaks generic components and implicitly injects `children`, which you rarely want.
 
-8. **`as any` is a code smell** — The codebase has one instance of `(result.data as any).output` in the skills improve route. This is a known tech debt item. New code should define proper types for bridge responses rather than using type assertions.
+8. **`useForm<z.infer<...>>` is wrong when the schema has `.default()` or `.transform()`** — Use `z.input<typeof Schema>` for the form type. `z.infer` (alias of `z.output`) is post-transform and will make fields required that are still optional in the DOM.
 
-See references/best_practices.md for TypeScript language patterns, type system mental models, and anti-patterns.
+9. **`noUncheckedIndexedAccess` changes everything** — With it enabled, `arr[0]` is `T | undefined`. This is the correct behavior but requires narrowing before use. Worth the pain.
+
+10. **`verbatimModuleSyntax` enforces `import type`** — Any import used only as a type must be `import type`. The compiler no longer erases unused value imports. Pairs well with `isolatedModules` and bundlers like Vite/esbuild.
+
+11. **React 19 deprecates `forwardRef`** — `ref` is now a normal prop. For React 18 codebases keep `forwardRef`; for new React 19 code, type `ref` as `React.Ref<HTMLButtonElement>` directly in props. Do not mix the two patterns in one component.
+
+12. **`as SomeType` assertions hide bugs** — They silence the compiler without proving anything. Prefer type guards, `in` checks, or Zod runtime validation at boundaries.
+
+13. **Drizzle numeric columns return strings** — `numeric()` columns are `string` in TS, not `number`. Convert with `Number()` when doing math.
+
+14. **`as const` position matters** — `['a','b'] as const` → `readonly ['a','b']`. `['a' as const, 'b']` → `['a', string]`. Put `as const` at the end of the full expression.
+
+See references/best_practices.md for full 19-section research, references/examples.md for executable patterns, references/anti_patterns.md for real failures, and references/integrations.md for composition with React/Zod/RHF/React Query/Drizzle/Hono/Vite.

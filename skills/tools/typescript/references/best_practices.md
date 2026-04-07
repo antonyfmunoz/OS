@@ -1,8 +1,10 @@
 # TypeScript — Creator-Level Best Practices
-Source: https://www.typescriptlang.org/docs/
-API Version: TypeScript 5.4
-SDK Version: tsx 4.19.2
+Source: https://www.typescriptlang.org/docs/ + https://react.dev/learn/typescript
+API Version: TypeScript 5.8 (GA Feb 2025)
+SDK Version: typescript@5.8, tsx 4.19.2
 Last Researched: 2026-04-06
+
+Scope: Both the frontend (React 18/19 + Vite) and backend (Hono + Drizzle + Zod) layers of EOS. This file covers the language itself and its composition with the EOS stack.
 
 ---
 
@@ -483,3 +485,300 @@ Current EOS TypeScript patterns that are confirmed working:
 6. **`as const` assertion position matters** — `['a', 'b'] as const` gives `readonly ['a', 'b']`. `['a' as const, 'b']` gives `['a', string]`. Always put `as const` at the end of the full expression.
 
 7. **Drizzle pgEnum values must match exactly** — The values in `pgEnum()` must match the Postgres enum exactly. A mismatch causes runtime INSERT/UPDATE failures, not compile-time errors.
+
+---
+
+# Frontend Expansion — React + Vite TypeScript
+
+This section covers the frontend half of the EOS TypeScript surface: React 18/19 component typing, hook generics, Zod-driven forms, and the modern Vite tsconfig.
+
+## TypeScript 5.5 → 5.8 Highlights (what actually changed for app code)
+
+- **5.5 — Inferred type predicates.** `arr.filter(Boolean)` now narrows correctly; no more `filter((x): x is T => !!x)`. Also regex literal syntax checking at compile time.
+- **5.5 — Isolated declarations.** A new mode that requires explicit return types on exports so declaration files can be emitted file-by-file in parallel (enables the native Go port's speed).
+- **5.6 — Disallowed nullish and truthy checks.** Flags `if (x ?? true)` and similar always-truthy expressions at compile time.
+- **5.6 — Iterator helper methods** in the standard lib (map/filter/take on iterators).
+- **5.7 — Path rewriting for relative paths.** `--rewriteRelativeImportExtensions` — allows `.ts` imports in source that get rewritten to `.js` on emit. Useful for Node ESM without bundlers.
+- **5.7 — Checks for never-initialized variables.** `let x: string` then read before write is now an error.
+- **5.8 — `--erasableSyntaxOnly`.** Targets Node.js's native TypeScript execution: forbids `enum`, namespaces with values, parameter properties, etc. — anything that can't be erased. Pair with Node 22+ `--experimental-strip-types`.
+- **5.8 — `require()` of ESM under `--module nodenext`.** No longer errors.
+- **5.8 — Granular checks for branches in return expressions.** Each branch of a conditional `return` is checked against the declared return type.
+
+## The Native Go Compiler (tsc-go / "TypeScript 7")
+
+- Announced March 2025 by Anders Hejlsberg. Rewrites the TS compiler in Go.
+- ~10x faster type-checking (VS Code's 1.5M LOC dropped from 77s to 7.5s).
+- Mid-2025: CLI typecheck preview. End-2025: feature-complete builds + language service. Will ship as "TypeScript 7" alongside the existing JS-based "TypeScript 6" during transition.
+- **Impact on EOS:** monitor. No code changes required — the Go compiler targets the same language, same tsconfig. When GA, swap the `typescript` package for `@typescript/native` and enjoy. Editor starts instantly. `tsc --noEmit` in CI becomes a 1-2s check instead of 10-30s.
+
+## React Component Typing (the modern patterns)
+
+### The four legitimate ways to type a component
+
+```tsx
+// 1. Inline — for one-off local components
+function Greeting({ name }: { name: string }) { return <h1>Hi {name}</h1> }
+
+// 2. Named type — for reusable components
+type GreetingProps = { name: string; excited?: boolean }
+function Greeting({ name, excited }: GreetingProps) { /* ... */ }
+
+// 3. Extend an HTML element's props (MOST COMMON)
+import type { ComponentPropsWithoutRef } from 'react'
+type ButtonProps = ComponentPropsWithoutRef<'button'> & { variant?: 'primary' | 'ghost' }
+function Button({ variant = 'primary', ...rest }: ButtonProps) {
+  return <button data-variant={variant} {...rest} />
+}
+
+// 4. Generic component — must be `function`, not arrow + React.FC
+function List<T>({ items, render }: { items: T[]; render: (item: T) => React.ReactNode }) {
+  return <ul>{items.map((it, i) => <li key={i}>{render(it)}</li>)}</ul>
+}
+```
+
+`React.FC` is officially discouraged. Why: implicit `children`, broken generics, nothing you gain.
+
+### Event handlers
+
+```tsx
+// Prefer the dedicated event type:
+function onChange(e: React.ChangeEvent<HTMLInputElement>) { /* ... */ }
+function onClick(e: React.MouseEvent<HTMLButtonElement>)  { /* ... */ }
+
+// Or let JSX infer inline — usually cleaner:
+<input onChange={(e) => setValue(e.currentTarget.value)} />
+```
+
+### Hooks
+
+```tsx
+// useState — prefer inference
+const [count, setCount] = useState(0)               // number
+const [user, setUser]   = useState<User | null>(null) // when initial is null
+
+// useState with discriminated union (best for async)
+type LoadState<T> = { kind: 'idle' } | { kind: 'loading' } | { kind: 'ok'; data: T } | { kind: 'err'; error: Error }
+const [s, setS] = useState<LoadState<User>>({ kind: 'idle' })
+
+// useReducer
+type Action = { type: 'inc' } | { type: 'set'; value: number }
+function reducer(state: { count: number }, action: Action) {
+  switch (action.type) {
+    case 'inc': return { count: state.count + 1 }
+    case 'set': return { count: action.value }
+  }
+}
+const [state, dispatch] = useReducer(reducer, { count: 0 })
+
+// useContext with null default (avoid silent bugs)
+const UserContext = createContext<User | null>(null)
+function useUser(): User {
+  const u = useContext(UserContext)
+  if (!u) throw new Error('useUser must be inside UserProvider')
+  return u
+}
+
+// useRef
+const inputRef = useRef<HTMLInputElement>(null)
+inputRef.current?.focus()
+```
+
+### forwardRef (React 18) vs ref-as-prop (React 19)
+
+```tsx
+// React 18 — forwardRef with ComponentPropsWithoutRef
+import { forwardRef, ComponentPropsWithoutRef } from 'react'
+type InputProps = ComponentPropsWithoutRef<'input'>
+const Input = forwardRef<HTMLInputElement, InputProps>((props, ref) =>
+  <input ref={ref} {...props} />
+)
+
+// React 19 — ref is a normal prop
+type InputProps19 = ComponentPropsWithoutRef<'input'> & { ref?: React.Ref<HTMLInputElement> }
+function Input19({ ref, ...rest }: InputProps19) {
+  return <input ref={ref} {...rest} />
+}
+```
+
+`forwardRef` will be deprecated (not removed) in a future React release. For EOS saas frontend (React 18), keep `forwardRef`. When upgrading to React 19, run the React codemod rather than hand-editing.
+
+## Inference-First Typing
+
+TypeScript's type system is designed for inference. Annotate at boundaries (function parameters, public API returns, module exports, hook state initialized with `null`), let inference do the rest.
+
+```ts
+// Bad — over-typed, noisy, breaks on refactor
+const users: User[] = data.map((d: RawUser): User => ({ id: d.id, name: d.name }))
+
+// Good — infer everything internal
+const users = data.map((d) => ({ id: d.id, name: d.name }))
+//    ^? { id: string; name: string }[]
+```
+
+Rule of thumb:
+- Explicit types at **boundaries** (exported functions, public props, API inputs/outputs).
+- Inferred types **everywhere else**.
+- Use `satisfies` when you want validation without widening.
+
+## `satisfies` — The Modern Alternative to Type Annotations
+
+```ts
+// Matt Pocock's canonical example
+const routes = {
+  home: { path: '/',      auth: false },
+  admin:{ path: '/admin', auth: true  },
+} satisfies Record<string, { path: string; auth: boolean }>
+
+routes.home.path  // string literal preserved, still validated against the shape
+// Without `satisfies`, a plain annotation would widen `path` to string and `auth` to boolean,
+// losing the literal types. With `as const` alone, you get literals but no shape validation.
+```
+
+Three places `satisfies` is essential:
+1. Config objects where you want literal inference AND shape validation.
+2. Tuples that would otherwise be `T[]`: `[1, 2, 3] satisfies [number, number, number]`.
+3. Typing the return value of a factory without widening the internal shape.
+
+## Zod as the Single Source of Truth
+
+```ts
+import { z } from 'zod'
+
+export const UserSchema = z.object({
+  id: z.string().uuid(),
+  email: z.string().email(),
+  role: z.enum(['admin', 'member']).default('member'),
+  createdAt: z.coerce.date(),
+})
+
+export type User      = z.infer<typeof UserSchema>   // post-parse OUTPUT
+export type UserInput = z.input<typeof UserSchema>   // pre-parse INPUT
+```
+
+- `z.infer` = `z.output` = what you get **after** `.parse()` runs. Defaults applied, transforms applied, coercion done.
+- `z.input` = what the raw input must satisfy **before** parse. Fields with `.default()` are optional here; `z.coerce.date()` accepts strings here but produces `Date` in output.
+
+**The rule:** `useForm<z.input<typeof Schema>>()` for react-hook-form, `z.infer<typeof Schema>` for anything working with already-parsed data (DB rows, API responses returned to the client after server validation).
+
+## Discriminated Unions for State
+
+The single most impactful TS pattern for frontend:
+
+```ts
+type Query<T> =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'success'; data: T; fetchedAt: number }
+  | { status: 'error'; error: Error; retryCount: number }
+```
+
+Benefits:
+- Impossible states are impossible: `{ status: 'success', error: new Error() }` won't type-check.
+- Exhaustive handling in switches (combined with `never` in default).
+- TypeScript narrows inside `if (q.status === 'success')` so `q.data` is accessible.
+
+## Generic Hook Typing
+
+```ts
+// useQuery — typed response
+function useQuery<TData>(url: string): { data: TData | undefined; loading: boolean } { /* ... */ }
+const { data } = useQuery<User>('/api/me')
+
+// useMutation — TData, TError, TVariables
+function useMutation<TData, TError, TVariables>(
+  fn: (vars: TVariables) => Promise<TData>
+): { mutate: (vars: TVariables) => void; data?: TData; error?: TError } { /* ... */ }
+
+const { mutate } = useMutation<User, ApiError, { email: string }>(
+  (vars) => api.createUser(vars)
+)
+```
+
+When wrapping `@tanstack/react-query`, the library already handles this — don't re-type. See references/integrations.md.
+
+## Template Literal Types for Routes
+
+```ts
+type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE'
+type ApiPath   = `/api/${string}`
+type Endpoint  = `${HttpMethod} ${ApiPath}`
+
+function request(endpoint: Endpoint): Promise<Response> { /* ... */ }
+request('GET /api/users')   // ok
+request('FOO /api/users')   // error
+```
+
+## `as const` — the Enum Alternative
+
+```ts
+export const STAGES = ['idea', 'pre_revenue', 'early', 'growth', 'scale'] as const
+export type Stage = typeof STAGES[number]
+```
+
+Why not `enum`?
+- `enum` has runtime behavior (generates an object).
+- `enum` values can't be used in template literal types.
+- `const enum` is banned by `isolatedModules` and `verbatimModuleSyntax`.
+- `as const` arrays are erased, literal-typed, and play nicely with `zod.enum(STAGES)`.
+
+## Vite + React tsconfig Reference
+
+```jsonc
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",      // the Vite/esbuild lookup mode
+    "jsx": "react-jsx",                  // automatic JSX runtime
+    "strict": true,
+    "noUncheckedIndexedAccess": true,    // arr[0] is T | undefined — the correct default
+    "noFallthroughCasesInSwitch": true,
+    "isolatedModules": true,             // every file must be independently transpilable
+    "verbatimModuleSyntax": true,        // forces `import type` for type-only imports
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true
+  },
+  "include": ["src"]
+}
+```
+
+Why each flag:
+- `moduleResolution: "bundler"` — lets you omit `.js` extensions on relative imports (Vite/esbuild resolves them). The Node ESM `nodenext` mode forces extensions; bundler mode does not.
+- `isolatedModules` — required when a bundler transpiles each file independently (Vite/esbuild/swc). Disallows const enums, non-exported ambient consts, and certain re-exports.
+- `verbatimModuleSyntax` — replaced `importsNotUsedAsValues` and `preserveValueImports`. Simple rule: anything with `type` is erased, anything without is kept. Forces you to write `import type { Foo }` when Foo is only used in type positions. Keeps tree-shaking honest.
+- `noUncheckedIndexedAccess` — the single most impactful strict flag after `strict: true`. Makes `arr[i]` and `obj[key]` return `T | undefined`.
+
+## Branded Types for IDs
+
+```ts
+type Brand<T, B> = T & { readonly __brand: B }
+type OrgId     = Brand<string, 'OrgId'>
+type VentureId = Brand<string, 'VentureId'>
+
+function asOrgId(s: string): OrgId { return s as OrgId }
+
+function loadVenture(orgId: OrgId, ventureId: VentureId) { /* ... */ }
+// loadVenture(ventureId, orgId) — type error, can't swap
+```
+
+EOS should adopt this for `orgId`/`userId`/`ventureId`/`skillId` to prevent accidental argument swaps.
+
+---
+
+# Updated Anti-Pattern Notes (Frontend)
+
+- **`React.FC`** — breaks generics, implicit `children`, no benefit. Never use.
+- **Over-typing internals** — annotating every local `const` hurts refactor ergonomics. Let inference work.
+- **Under-typing boundaries** — exported functions without return types cause cascading `any`. Always annotate exported return types.
+- **`as any`** — it's the nuclear option. Use `unknown` + narrowing, or Zod at the boundary.
+- **`@ts-ignore` without a comment** — if you must suppress, use `@ts-expect-error` with a reason. `@ts-expect-error` fails if the error goes away, preventing stale suppressions.
+- **Non-null assertion (`foo!`) in hot paths** — defer to `if (!foo) throw` at the top, then inference handles the rest.
+- **`{}` as a type** — means "anything non-null/undefined", not "empty object". Use `Record<string, never>` for truly empty, or `object` for object-ish.
+- **Re-declaring Zod-derived types** — if you have a schema, use `z.infer`. Having both a hand-written type and a schema guarantees they will drift.
+
+See references/anti_patterns.md for the full list with before/after code.
