@@ -1,17 +1,25 @@
 ---
 name: tailwind
-description: "Use when building UI components with utility classes, configuring Tailwind CSS, creating responsive layouts, adding dark mode, or debugging styling issues in saas/ or Remotion projects."
+description: "Use when authoring React/JSX components with utility classes, configuring Tailwind v4 via @theme, wiring shadcn/ui theming, building responsive layouts, implementing dark mode with @custom-variant, composing variants via CVA + cn(), or debugging styling issues in saas/ or Remotion projects."
 allowed-tools: "Read, Bash"
-version: 1.0
+version: 2.0
 source_url: "https://tailwindcss.com/docs"
 last_researched: "2026-04-06"
 instantiated_from: templates/tools/_template/
-api_version: "v4"
-sdk_version: "tailwindcss 4.0.0"
+api_version: "4.x"
+sdk_version: "tailwindcss@4"
 speed_category: fast
 trigger: both
 effort: medium
 context: fork
+sources:
+  - https://tailwindcss.com/blog/tailwindcss-v4
+  - https://tailwindcss.com/docs/installation/using-vite
+  - https://tailwindcss.com/docs/theme
+  - https://tailwindcss.com/docs/dark-mode
+  - https://ui.shadcn.com/docs/tailwind-v4
+  - https://ui.shadcn.com/docs/theming
+  - https://cva.style/docs
 ---
 
 # Tool: Tailwind CSS v4
@@ -52,16 +60,24 @@ Remotion-specific rules:
 - Tailwind is for layout and static styling only in Remotion context
 - CSS `@import "tailwindcss"` in `src/index.css` is the sole entry point
 
-### saas/ project (planned)
-`saas/` — Initiate Arena SaaS app. Currently API-only (Hono + Drizzle).
-No frontend yet. When the React UI layer is built, Tailwind v4 will be
-the styling framework. Stack will be: React 18+, Vite, Tailwind v4, shadcn/ui.
+### saas/ project — React + shadcn/ui frontend (primary consumer)
+`saas/` — Initiate Arena SaaS app. React 18 + TS strict + Vite + Tailwind v4 + shadcn/ui.
+This is the primary consumer of Tailwind in EOS going forward.
 
-Expected setup:
-- `src/index.css` with `@import "tailwindcss";`
-- `@theme` block for brand colors (Lyfe Institute palette)
-- Vite plugin: `@tailwindcss/vite` (v4's native Vite integration)
-- shadcn/ui components use Tailwind utility classes + CSS variables
+Required setup:
+- `npm install tailwindcss @tailwindcss/vite` (NOT `@tailwindcss/postcss` — Vite plugin is faster)
+- `vite.config.ts`: `import tailwindcss from '@tailwindcss/vite'` → `plugins: [tailwindcss(), react()]`
+- `src/index.css` entry point — see `references/examples.md` recipe (a)
+- `@custom-variant dark (&:is(.dark *));` for shadcn class-based dark mode
+- shadcn's CSS variables defined at `:root` and `.dark` as HSL triplets (`240 10% 3.9%`)
+- `@theme inline` block references those vars without re-wrapping in `hsl()` so
+  opacity modifiers like `bg-primary/80` work correctly
+- `src/lib/utils.ts` exports `cn()` = `twMerge(clsx(inputs))` for class composition
+- CVA (`class-variance-authority`) for component variants (Button, Badge, Alert)
+- Dark mode toggle = add/remove `.dark` class on `<html>` via localStorage + matchMedia
+
+See `references/examples.md` for complete, copy-pasteable recipes and
+`references/integrations.md` for the React + shadcn + CVA contract.
 
 ### Config file locations
 | Project | Config Method | Location |
@@ -267,6 +283,31 @@ v4's default palette uses OKLCH color space. In older browsers without OKLCH
 support, colors fall back to sRGB. The visual difference is usually minor
 but can affect brand color accuracy. Define exact brand colors with hex/rgb
 in `@theme` to avoid this.
+
+### shadcn dark mode requires @custom-variant, not darkMode config (v4)
+In v4 the `darkMode: 'class'` JS config key no longer exists. You MUST add
+`@custom-variant dark (&:is(.dark *));` to your CSS entry file, otherwise
+every `dark:` utility silently falls back to `prefers-color-scheme` and
+your `.dark` class toggle does nothing. This is the #1 shadcn+v4 bug.
+
+### @theme inline is required when referencing :root CSS variables
+If you write `@theme { --color-primary: var(--primary); }` WITHOUT `inline`,
+the variable resolves at the `@theme` definition scope, not at usage scope —
+so dark mode overrides under `.dark` never take effect. Always use
+`@theme inline { ... }` when mapping shadcn's `:root`/`.dark` HSL variables
+into Tailwind's color namespace.
+
+### Tailwind-merge must match your v4 version
+tailwind-merge <v2.5 does not understand v4's new utilities (`size-*`,
+`@container`, 3D transforms, `bg-linear-*`). Using an old tailwind-merge
+with v4 produces silently wrong class deduplication — conflicts don't
+resolve and the "later" class does NOT win. Pin `tailwind-merge@^2.5` minimum.
+
+### HSL triplet format, NOT hsl() wrapped (for shadcn opacity modifiers)
+shadcn stores colors as bare triplets: `--primary: 240 5.9% 10%;` — NOT
+`hsl(240 5.9% 10%)`. This is what lets `bg-primary/80` apply the `/80`
+opacity modifier (Tailwind wraps it internally as `hsl(var(--primary) / 0.8)`).
+If you store the full `hsl(...)` form, opacity modifiers break.
 
 ### Class name conflicts with CSS variables
 v4 uses CSS custom properties (variables) extensively under the hood.
