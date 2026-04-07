@@ -224,6 +224,9 @@ class MeetingTransport:
         self._attached_sink: Optional[Any] = None
         self._attached_sources: dict[str, dict] = {}
         self._sources_lock = threading.RLock()
+        self._playback_attempts: int = 0
+        self._playback_by_status: dict[str, int] = {}
+        self._playback_last_result: Optional[dict] = None
         if ensure_node:
             self._ensure_node_registered()
 
@@ -445,20 +448,88 @@ class MeetingTransport:
         of raising.
         """
         if self._attached_sink is None or not self._playback_enabled:
-            return {
+            out = {
                 "status": "disabled",
                 "detail": "no playback sink attached or playback disabled",
             }
+            self._record_playback(out)
+            return out
         clean = (text or "").strip()
         if not clean:
-            return {"status": "empty_text"}
+            out = {"status": "empty_text"}
+            self._record_playback(out)
+            return out
         try:
             result = self._attached_sink.play_text(clean)
             if isinstance(result, dict):
-                return {"status": "ok", **result}
-            return {"status": "ok", "detail": str(result) if result is not None else ""}
+                out = {"status": "ok", **result}
+            else:
+                out = {
+                    "status": "ok",
+                    "detail": str(result) if result is not None else "",
+                }
+            self._record_playback(out)
+            return out
         except Exception as e:  # noqa: BLE001
-            return {"status": "playback_error", "detail": str(e)}
+            out = {"status": "playback_error", "detail": str(e)}
+            self._record_playback(out)
+            return out
+
+    def _record_playback(self, result: dict) -> None:
+        """Bounded in-memory counter for playback observability. Never raises."""
+        try:
+            self._playback_attempts += 1
+            status = str(result.get("status") or "unknown")
+            self._playback_by_status[status] = (
+                self._playback_by_status.get(status, 0) + 1
+            )
+            self._playback_last_result = dict(result)
+        except Exception:  # noqa: BLE001
+            pass
+
+    def playback_status_snapshot(self) -> dict[str, Any]:
+        """Shared PlaybackStatusSnapshot dict for this meeting transport."""
+        try:
+            from eos_ai.substrate.playback_status import (
+                make_playback_status_snapshot,
+            )
+
+            attached = bool(self._attached_sink)
+            enabled = bool(self._playback_enabled)
+            if attached and enabled:
+                mode = "attached"
+            elif attached:
+                mode = "attached_degraded"
+            else:
+                mode = "transcript_only"
+            return make_playback_status_snapshot(
+                transport="meeting",
+                mode=mode,
+                attached=attached,
+                enabled=enabled,
+                busy=False,
+                depth=0,
+                max_depth=1,
+                attempt_count=int(self._playback_attempts),
+                by_status=dict(self._playback_by_status),
+                last_result=self._playback_last_result,
+                recent=[],
+            ).as_dict()
+        except Exception as e:  # noqa: BLE001
+            _log(f"playback_status_snapshot failed: {e}")
+            return {
+                "transport": "meeting",
+                "mode": "transcript_only",
+                "attached": False,
+                "enabled": False,
+                "busy": False,
+                "depth": 0,
+                "max_depth": 1,
+                "attempt_count": 0,
+                "by_status": {},
+                "last_result": None,
+                "recent": [],
+            }
 
     # ── Node registration (best-effort, never raises) ─────────────────────
 
@@ -758,6 +829,7 @@ class MeetingTransport:
             "recent_sessions": recent_sessions,
             "recent_events": recent_events,
             "audio_loop": audio_loop,
+            "playback_status": self.playback_status_snapshot(),
             "env_hook_enabled": _env_hook_enabled(),
             "playback_env_enabled": _playback_env_enabled(),
             "supported_platforms": sorted(SUPPORTED_PLATFORMS),
