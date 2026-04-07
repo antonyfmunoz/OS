@@ -252,7 +252,101 @@ useEffect(() => {
 
 ---
 
-## 15. Mixing controlled and uncontrolled inputs
+## 15. (React 19) Creating the promise for `use()` inside render
+
+**Bad:**
+```tsx
+function Comments() {
+  const comments = use(fetch("/api/comments").then((r) => r.json()));
+  return <ul>...</ul>;
+}
+```
+
+**Why it fails:** every render creates a brand-new promise, which
+`use()` suspends on, which triggers another render, which creates
+another promise. Infinite suspension, never resolves.
+
+**Fix:** the promise must come from a cache owned outside render — a
+loader, a parent component, a Server Component, or a query library.
+
+```tsx
+const commentsPromise = fetchComments(); // module scope, or from a loader
+function Comments() {
+  const comments = use(commentsPromise);
+  return <ul>...</ul>;
+}
+```
+
+In EOS, use `useSuspenseQuery` from TanStack Query instead of calling
+`use()` with hand-rolled promises.
+
+---
+
+## 16. (React 19) Mixing `forwardRef` and ref-as-prop in the same file
+
+**Bad:**
+```tsx
+const OldInput = forwardRef<HTMLInputElement, Props>((p, ref) => ...);
+function NewInput({ ref, ...rest }: Props & { ref?: Ref<HTMLInputElement> }) { ... }
+// Wrapper spreads props AFTER ref:
+function Wrapper(props: Props & { ref?: Ref<HTMLInputElement> }) {
+  return <OldInput ref={props.ref} {...props} />; // props.ref gets clobbered
+}
+```
+
+**Why it fails:** `ref` is now a regular prop, so spread order matters.
+Also, a `ForwardRef`-wrapped component with a `ref` prop makes its
+props referentially unstable, which kills downstream memoization.
+
+**Fix:** run the codemod across the whole file at once. Pick one
+convention. Never interleave.
+
+---
+
+## 17. (React 19) Using Actions inside a Server Component boundary
+
+**Bad:**
+```tsx
+// In a Server Component file
+"use server";
+export default function Page() {
+  const [state, action, pending] = useActionState(...); // hooks forbidden in SC
+}
+```
+
+**Why it fails:** hooks only run in Client Components. Server
+Components cannot call `useActionState` — they define the action and
+pass it down to a Client Component that consumes it.
+
+**Fix:** mark the consumer with `"use client"` and pass the server
+action down as a prop.
+
+---
+
+## 18. (React 19) Mixing React Compiler with manual memoization
+
+**Bad:**
+```tsx
+// With reactCompiler: true enabled
+function Chart({ data }) {
+  const sorted = useMemo(() => data.slice().sort(), [data]); // double memo
+  const onClick = useCallback(() => {}, []); // compiler already did this
+  return <Canvas data={sorted} onClick={onClick} />;
+}
+```
+
+**Why it fails:** not broken, just wasteful. The compiler already
+inserted memoization; your manual hooks add another layer of
+bookkeeping the compiler can't remove.
+
+**Fix:** in a compiled codebase, drop manual `useMemo`/`useCallback`
+from new code. Use the `"use no memo"` file directive to opt a
+specific file out of the compiler if you need precise control for
+profiling.
+
+---
+
+## 19. Mixing controlled and uncontrolled inputs
 
 **Bad:**
 ```tsx

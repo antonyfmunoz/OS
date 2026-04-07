@@ -2,12 +2,12 @@
 name: react
 description: "Use when creating, modifying, or debugging React components, hooks, or rendering behavior in the EOS SaaS codebase (/opt/OS/saas) — building UI with React 18 + TypeScript, wiring state with hooks, integrating React Query for server state, composing shadcn/ui primitives, handling forms with React Hook Form + Zod, diagnosing re-render loops, stale closures, Strict Mode double-invocation, Suspense boundaries, or concurrent rendering issues. Also use when deciding between client state and server state, writing custom hooks, or planning a migration path toward React 19 / Server Components."
 allowed-tools: "Read, Write, Edit, Bash, WebFetch, WebSearch"
-version: 1.0
+version: 2.0
 source_url: "https://react.dev"
 last_researched: "2026-04-06"
 instantiated_from: templates/tools/_template/
-api_version: "18.3"
-sdk_version: "react@18.3"
+api_version: "19.0"
+sdk_version: "react@19 (primary), react@18.3 (legacy)"
 speed_category: "fast"
 trigger: both
 effort: high
@@ -39,11 +39,22 @@ Components — is machinery that preserves this model as apps grow.
 
 Core capabilities:
 - **Components** — reusable, composable units. Function components only in new code.
-- **Hooks** — `useState`, `useReducer`, `useEffect`, `useMemo`, `useCallback`,
+- **Hooks (React 18 + 19)** — `useState`, `useReducer`, `useEffect`,
+  `useLayoutEffect`, `useInsertionEffect`, `useMemo`, `useCallback`,
   `useRef`, `useContext`, `useTransition`, `useDeferredValue`, `useId`,
-  `useSyncExternalStore`, `useLayoutEffect`, `useImperativeHandle`.
-- **Concurrent rendering (React 18)** — interruptible renders,
+  `useSyncExternalStore`, `useImperativeHandle`, `useDebugValue`,
+  and **React 19 additions**: `use()` (read promises + context, works in
+  conditionals), `useActionState` (replaces `useFormState`),
+  `useOptimistic` (optimistic UI with automatic rollback),
+  `useFormStatus` (from `react-dom`, read parent form pending state).
+- **Actions (React 19)** — any async function passed to `<form action={fn}>`
+  or `startTransition` becomes an Action: automatic pending state, error
+  capture, form reset on success, and integration with `useOptimistic`.
+- **Concurrent rendering (React 18+)** — interruptible renders,
   automatic batching, `startTransition`, Suspense for data fetching.
+- **React Compiler (1.0 stable, Jan 2026)** — build-time auto-memoization.
+  Eliminates most manual `useMemo` / `useCallback` / `React.memo`. Opt-in
+  via `babel-plugin-react-compiler` or Next.js 16 `reactCompiler: true`.
 - **Strict Mode** — development-time double-invocation of renders,
   effects, and state initializers to surface impurity.
 - **Reconciliation** — keyed diffing of virtual DOM trees.
@@ -223,6 +234,37 @@ Think of a React app as a **pure function that produces a tree**.
    - **Server state** — React Query. Caches, refetches, invalidation.
    - **Derived state** — neither. Compute during render from existing state.
 
+## React 19 Migration Playbook (for `/opt/OS/saas`)
+
+EOS SaaS is currently React 18.3. Target: React 19 once shadcn/ui, Radix,
+and React Hook Form confirm 19 compatibility in the lockfile we use.
+
+Upgrade path:
+1. Bump to `react@18.3` first — it adds warnings for deprecated APIs so
+   you catch issues before jumping to 19.
+2. Run the official codemod: `npx codemod@latest react/19/migration-recipe`.
+3. Replace `forwardRef` with ref-as-prop:
+   ```tsx
+   // 18
+   const Input = forwardRef<HTMLInputElement, Props>((props, ref) =>
+     <input ref={ref} {...props} />);
+   // 19
+   function Input({ ref, ...props }: Props & { ref?: Ref<HTMLInputElement> }) {
+     return <input ref={ref} {...props} />;
+   }
+   ```
+4. Convert `useFormState` → `useActionState` (imported from `react`, not `react-dom`).
+5. Remove `propTypes` and `defaultProps` on function components — silently
+   ignored in 19. Use TS types and ES6 default parameters.
+6. Consider migrating form mutations to `<form action={submitAction}>` +
+   `useActionState`. Keep React Hook Form for complex forms; Actions are
+   best for simple server-bound forms.
+7. Enable React Compiler last, after the codebase is on 19 and tests pass.
+
+**Do NOT mix** `forwardRef` components and ref-as-prop components in the
+same file — the ref-as-prop existence on a `ForwardRef` component makes
+props referentially unstable and breaks downstream memoization.
+
 ## Gotchas
 
 - **Strict Mode double-invocation.** In dev, every effect runs
@@ -269,6 +311,29 @@ Think of a React app as a **pure function that produces a tree**.
   deferred; the input remains synchronous. Don't wrap an event handler
   entirely in `startTransition`.
 
+- **(React 19) `use()` cannot consume promises created during render.**
+  `use(fetch(url))` in a render body creates a new promise every render
+  and will spin forever. The promise must come from a cache (React Query,
+  a Suspense-compatible loader, or a prop passed in from a parent / Server
+  Component). Create-once-outside-render, then `use()` it.
+
+- **(React 19) Ref-as-prop + `forwardRef` in the same file breaks memo.**
+  If a component accepts `ref` as a prop, it cannot also be wrapped in
+  `forwardRef`. Worse, spreading props AFTER `ref` can silently clobber
+  it. Pick one convention per file; run the codemod across the whole repo
+  in one pass.
+
+- **(React 19) React Compiler + manual `useMemo` is fine but wasteful.**
+  The compiler is additive: manual memos still work, but writing them
+  against a compiled component is double-memoization. New code in a
+  compiled codebase should drop manual memos entirely unless profiling
+  shows the compiler missed a hot path. Use the `"use no memo"` directive
+  to opt a file out of the compiler when debugging.
+
+- **(React 19) `useActionState` lives on `react`, `useFormStatus` on
+  `react-dom`.** Easy import mistake — TS won't catch it, you'll get a
+  runtime "hook is not a function" error.
+
 ## References
 
 - `references/best_practices.md` — full 19-section creator-level protocol.
@@ -276,10 +341,17 @@ Think of a React app as a **pure function that produces a tree**.
 - `references/anti_patterns.md` — real failure modes and fixes.
 - `references/integrations.md` — Vite / TS / Tailwind / shadcn / RQ / Zod / RHF stack composition.
 
-## Source
+## Sources (live-fetched 2026-04-06)
 
-- https://react.dev (authoritative, Meta-maintained)
-- https://react.dev/reference/react (hooks API)
-- https://react.dev/learn (conceptual)
-- https://tkdodo.eu/blog (React Query patterns)
-- https://overreacted.io (Dan Abramov — mental model posts)
+- https://react.dev — authoritative docs (Meta)
+- https://react.dev/blog/2024/12/05/react-19 — React 19 launch post
+- https://react.dev/blog/2024/04/25/react-19-upgrade-guide — upgrade/breaking changes
+- https://react.dev/reference/react/hooks — full hook index (adds useActionState, useEffectEvent)
+- https://react.dev/reference/rules — Rules of React (purity, idempotence, hooks, components)
+- https://react.dev/learn/you-might-not-need-an-effect — canonical effect anti-patterns
+- https://react.dev/learn/react-compiler/introduction — React Compiler 1.0 (stable Jan 2026)
+- https://react.dev/reference/react/use — use() hook
+- https://tkdodo.eu/blog/effective-react-query-keys — query key hierarchies
+- https://tkdodo.eu/blog/automatic-query-invalidation-after-mutations — invalidation patterns
+- https://overreacted.io — Dan Abramov, mental models (UI = f(data, state) for RSC era)
+- https://www.epicreact.dev — Kent C. Dodds, Suspense internals

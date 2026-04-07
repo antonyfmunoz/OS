@@ -220,3 +220,56 @@ Vite            → dev server, bundle, HMR
 ```
 
 Anything outside this stack is a deliberate exception, not a default.
+
+---
+
+## React 19 Migration Plan for EOS SaaS
+
+**Current state:** React 18.3.1 across all `/opt/OS/saas/*` apps.
+**Target state:** React 19.x with Compiler opt-in per-directory.
+
+### Phase 1 — Staging on 18.3 (safe)
+- Confirm every `/opt/OS/saas/*` app is on `react@18.3.1` / `react-dom@18.3.1`.
+- Enable the `react-hooks/exhaustive-deps` ESLint rule as an error, not a warning.
+- Remove every `// eslint-disable-next-line react-hooks/exhaustive-deps`
+  suppression. Each one is a latent bug the Compiler will refuse to optimize.
+- Replace any remaining `useEffect` data fetches with React Query (we already do this, but audit).
+
+### Phase 2 — Upgrade to React 19
+- Bump `react`, `react-dom`, `@types/react`, `@types/react-dom` to 19.x.
+- Verify shadcn/ui, Radix primitives, react-hook-form, @tanstack/react-query,
+  and Wouter/React Router are on versions that list React 19 in peer deps.
+  (Radix and RHF added 19 support in 2025; RQ v5 is compatible.)
+- Run the codemod: `npx codemod@latest react/19/migration-recipe`.
+- Hand-review the diff for:
+  - `forwardRef` → ref-as-prop conversions
+  - `useFormState` → `useActionState` (import moves from `react-dom` to `react`)
+  - Removed `propTypes` and `defaultProps` on function components
+  - Legacy context / string refs (unlikely in our codebase)
+- Run the full Vitest suite and Playwright e2e pass.
+- Keep React Hook Form for complex forms. Evaluate Actions only for
+  brand-new server-bound forms with no client validation complexity.
+
+### Phase 3 — React Compiler opt-in
+- Install `babel-plugin-react-compiler` and wire it into the Vite config
+  via `@vitejs/plugin-react`'s Babel pass.
+- Start with one low-risk directory (e.g. `components/ui/` copy is
+  already pure by shadcn's design). Enable the compiler for that path
+  only via Babel `overrides`.
+- Measure: bundle size delta, Lighthouse scores, React DevTools Profiler
+  before/after on the top 3 pages.
+- Expand compiler coverage directory by directory. Use the
+  `"use no memo"` file directive to opt out any file where the compiler
+  trips on a rule violation (and then fix the violation).
+- Once 100% opted in, remove all manual `useMemo` / `useCallback` /
+  `React.memo` from new code in code review.
+
+### What NOT to do during migration
+- Do NOT migrate to Server Components. EOS SaaS is a Vite SPA —
+  Server Components require a framework that owns the server (Next.js
+  App Router, TanStack Start). Revisit only when EOS needs SSR for
+  SEO/marketing surfaces.
+- Do NOT replace React Query with `use()` + hand-rolled caches.
+  TanStack Query owns the cache and composes with `use()` and
+  `useSuspenseQuery` cleanly.
+- Do NOT mix `forwardRef` and ref-as-prop components in the same file.

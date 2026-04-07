@@ -1,9 +1,18 @@
 # React — Creator-Level Best Practices
 
-Source: https://react.dev
-API Version: React 18.3 (React 19 awareness noted)
-SDK Version: react@18.3.1 / react-dom@18.3.1
+Source: https://react.dev (live-fetched 2026-04-06)
+API Version: React 19.0 (stable) — dual coverage of React 18.3 for the EOS SaaS codebase
+SDK Version: react@19 / react-dom@19 (target), react@18.3.1 / react-dom@18.3.1 (current)
 Last Researched: 2026-04-06
+
+Live sources consulted this refresh:
+- react.dev/blog/2024/12/05/react-19 (React 19 launch — Actions, use(), ref-as-prop, metadata, stylesheets, preload APIs)
+- react.dev/reference/react/hooks (hook index, confirms useActionState, useEffectEvent)
+- react.dev/reference/rules (Rules of React — purity, idempotence)
+- react.dev/learn/you-might-not-need-an-effect (canonical effect anti-patterns)
+- react.dev/learn/react-compiler/introduction (Compiler 1.0 stable Jan 2026)
+- tkdodo.eu/blog/effective-react-query-keys + automatic-query-invalidation
+- epicreact.dev — Kent C. Dodds on Suspense internals ("throwing promises")
 
 React is not an app framework. It is a **rendering library with a
 component model**. Understanding that distinction is the difference
@@ -48,7 +57,7 @@ root.unmount();
 `createRoot` is the React 18 replacement for `ReactDOM.render`.
 It enables concurrent features. Using the legacy API opts you out.
 
-### Hook API (React 18.3)
+### Hook API (React 18.3 + React 19 additions)
 
 | Hook | Signature | Purpose |
 |------|-----------|---------|
@@ -65,15 +74,119 @@ It enables concurrent features. Using the legacy API opts you out.
 | `useId` | `() => string` | Stable SSR-safe unique id for a11y. |
 | `useSyncExternalStore<T>` | `(subscribe, getSnapshot, getServerSnapshot?) => T` | Subscribe to external store (Redux, Zustand). |
 | `useImperativeHandle<T>` | `(ref, () => T, deps) => void` | Customize what parent refs see. |
+| `useInsertionEffect` | `(fn, deps?) => void` | CSS-in-JS libraries only; runs before DOM mutations. |
+| `useDebugValue<T>` | `(v: T, format?) => void` | DevTools label for custom hooks. |
+| **`use<T>` (19)** | `(resource: Promise<T> \| Context<T>) => T` | Read a promise (suspends) or context. **Callable inside conditionals/loops.** |
+| **`useActionState<S,P>` (19)** | `(action: (prev:S, payload:P)=>Promise<S>, initial:S) => [S, (p:P)=>void, boolean]` | State-managed async action with pending flag. Replaces `useFormState`. |
+| **`useOptimistic<S,A>` (19)** | `(state: S, updateFn: (s:S,a:A)=>S) => [S, (a:A)=>void]` | Optimistic UI with automatic rollback on error/unmount. |
+| **`useFormStatus` (19, `react-dom`)** | `() => { pending: boolean; data: FormData \| null; method: string \| null; action: ((formData: FormData) => void \| Promise<void>) \| null }` | Read parent `<form action>` status from a child. |
+| **`useEffectEvent` (19, experimental→stable)** | `(fn) => stableFn` | Non-reactive event inside effects — escape hatch for values you want to read without re-subscribing. |
 
-### Rules of Hooks (enforced by `eslint-plugin-react-hooks`)
+### Rules of React (react.dev/reference/rules — direct phrasing)
 
+The Rules of React are broader than the Rules of Hooks and are what the
+React Compiler relies on to auto-memoize safely:
+
+**Components and Hooks must be pure:**
+- Components must be **idempotent** — same props/state/context → same output.
+- **Side effects run outside of render.** Never do I/O, mutation, or
+  subscription setup in the render body. Use event handlers or effects.
+- **Props and state are immutable** within a single render snapshot.
+- **Arguments and return values of Hooks are immutable** once passed.
+- **Values are immutable after being passed to JSX** — mutate before, not after.
+
+**React calls components and hooks — you don't:**
+- **Never call component functions directly** (`MyComponent(props)`).
+  Use JSX (`<MyComponent {...props} />`).
+- **Never pass hooks around as values.** Call them at the top level
+  of a component or custom hook.
+
+**Rules of Hooks (enforced by `eslint-plugin-react-hooks`):**
 1. Only call hooks at the top level of a function component or custom hook.
-2. Never call hooks inside conditionals, loops, or nested functions.
-3. Custom hooks must start with `use`.
+2. Never call hooks inside conditionals, loops, or nested functions
+   (**exception in React 19:** `use()` CAN be called in conditionals).
+3. Only call hooks from React functions (components or other hooks).
+4. Custom hooks must start with `use`.
 
 These rules exist because React identifies hooks by **call order**.
-Breaking order corrupts the hook state list.
+Breaking order corrupts the hook state list. They are also the contract
+the React Compiler requires to memoize safely — violating purity means
+the compiler's auto-memoization will produce wrong results.
+
+### React 19 — Actions pattern (exact signatures)
+
+```tsx
+// Full Action with state, optimistic UI, and form
+function ChangeName({ name, setName }: Props) {
+  const [error, submitAction, isPending] = useActionState(
+    async (_prev: string | null, formData: FormData) => {
+      const next = formData.get("name") as string;
+      const err = await updateName(next);
+      if (err) return err;
+      setName(next);
+      return null;
+    },
+    null,
+  );
+
+  return (
+    <form action={submitAction}>
+      <input name="name" defaultValue={name} />
+      <button type="submit" disabled={isPending}>
+        {isPending ? "Saving…" : "Save"}
+      </button>
+      {error && <p role="alert">{error}</p>}
+    </form>
+  );
+}
+```
+
+```tsx
+// Optimistic UI — updates instantly, rolls back on error automatically
+function TodoList({ todos, addTodo }: Props) {
+  const [optimisticTodos, addOptimistic] = useOptimistic(
+    todos,
+    (state: Todo[], pending: string) => [
+      ...state,
+      { id: `tmp-${pending}`, text: pending, pending: true },
+    ],
+  );
+
+  async function submit(formData: FormData) {
+    const text = formData.get("text") as string;
+    addOptimistic(text);
+    await addTodo(text); // on throw, React reverts the optimistic value
+  }
+
+  return (
+    <form action={submit}>
+      <input name="text" />
+      <ul>
+        {optimisticTodos.map((t) => (
+          <li key={t.id} style={{ opacity: t.pending ? 0.5 : 1 }}>{t.text}</li>
+        ))}
+      </ul>
+    </form>
+  );
+}
+```
+
+```tsx
+// use() with a cached promise — NOT created during render
+// The promise is owned by the cache/loader, not the component.
+function Comments({ commentsPromise }: { commentsPromise: Promise<Comment[]> }) {
+  const comments = use(commentsPromise); // suspends to nearest <Suspense>
+  return <ul>{comments.map((c) => <li key={c.id}>{c.text}</li>)}</ul>;
+}
+
+function Page({ loader }: { loader: { comments: Promise<Comment[]> } }) {
+  return (
+    <Suspense fallback={<Spinner />}>
+      <Comments commentsPromise={loader.comments} />
+    </Suspense>
+  );
+}
+```
 
 ## Pagination Patterns
 
@@ -263,18 +376,43 @@ Premature memoization is the number-one waste of React dev time.
 
 ## Version Pinning
 
-- **React 18.3** is the current stable branch as of 2026-04.
-- **React 19** is released and stable but adoption is gradual.
-  Key React 19 additions to know: Actions, `useActionState`,
-  `useOptimistic`, `use()` hook for reading promises/context,
-  ref as a prop (no more `forwardRef`), `<form action>` integration.
-- **Server Components** ship via Next.js App Router and future Remix.
-  Not applicable to Vite-based SPAs (EOS SaaS) yet.
+- **React 19.0** shipped December 2024 and is the current stable
+  branch as of 2026-04. React 19.x has received patch updates through
+  the release of React Compiler 1.0 (Jan 2026).
+- **React 18.3** was the final 18.x release and exists specifically to
+  warn on deprecated APIs before upgrading to 19. Use it as a staging
+  step, not a long-term pin.
+- **React 19 breaking changes** (from react.dev/blog/2024/04/25/react-19-upgrade-guide):
+  - `forwardRef` still works but is deprecated — ref is now a normal prop
+    on function components. A codemod (`react/19/migration-recipe`) is
+    provided.
+  - `propTypes` are silently ignored on function components — migrate to
+    TypeScript or Zod validation.
+  - `defaultProps` removed from function components — use ES6 default
+    parameters. Class components still support it.
+  - `useFormState` renamed to `useActionState` and moved from `react-dom`
+    to `react`.
+  - Legacy Context (`contextTypes`, `getChildContext`) removed.
+  - String refs removed.
+  - `ReactDOM.render` / `hydrate` / `findDOMNode` removed (18 already
+    deprecated them).
+- **React Compiler 1.0** (stable, Jan 2026). Babel plugin
+  `babel-plugin-react-compiler` or `reactCompiler: true` in Next.js 16.
+  Requires **strict** adherence to the Rules of React — violations cause
+  the compiler to skip that component with a warning rather than miscompile.
+  For EOS: opt in per-directory once the codebase is on React 19 and
+  ESLint reports zero `react-hooks/exhaustive-deps` suppressions.
+- **Server Components** ship via Next.js App Router (stable), TanStack
+  Start (beta), and future Remix/React Router v7. **Not applicable to
+  Vite-based SPAs** (EOS SaaS) without a framework that owns the
+  server. Plan to evaluate once EOS has a need for server-rendered
+  marketing pages or SEO surfaces.
 - Pin `react` and `react-dom` to the **exact same version**.
 - Pin `@types/react` and `@types/react-dom` to matching majors.
 - React follows **semver** — patch releases are safe; major releases
-  have migration guides. Follow `react@18 → 19` migration guide when
-  upgrading.
+  have migration guides. The 18→19 migration guide (react.dev) is the
+  authoritative reference; the Codemod.com recipe covers the mechanical
+  transforms.
 
 ---
 
@@ -391,14 +529,40 @@ and faster builds.
 - **React 16.8 (2019)** — Hooks. The biggest shift since component classes.
 - **React 17 (2020)** — no new features; delegated root setup, enabling gradual upgrades.
 - **React 18 (2022)** — concurrent rendering, Suspense for data, `useTransition`, automatic batching, Strict Mode effects double-run.
-- **React 19 (2024-2025)** — Actions, `useActionState`, `useOptimistic`, `use()` hook, ref as prop, `<form action>`, React Compiler (Babel plugin that auto-memoizes).
-- **React Compiler** — the biggest trajectory shift. Manual `useMemo`/`useCallback` become unnecessary for most code; the compiler inserts memoization automatically. Currently experimental; stable adoption likely 2026.
-- **Server Components** — React's attempt to unify server rendering with the component model. Available in Next.js App Router; expanding to Remix/TanStack Start. Not relevant for Vite SPAs yet.
-- **Suspense expansion** — more integrations for data fetching frameworks.
+- **React 19 (Dec 2024)** — Actions, `useActionState`, `useOptimistic`,
+  `useFormStatus`, `use()` hook, ref as prop, `<form action>` integration,
+  document metadata hoisting (`<title>`, `<meta>`, `<link>` inside
+  components auto-hoist to `<head>`), stylesheet precedence, resource
+  preloading APIs (`preload`, `preinit`, `preconnect`, `prefetchDNS`),
+  Context as Provider shorthand (`<Ctx value={...}>`), better hydration
+  error diffs, first-class custom elements support.
+- **React Compiler 1.0 (Jan 2026, stable)** — the biggest trajectory
+  shift since hooks. Build-time auto-memoization. Manual `useMemo` /
+  `useCallback` / `React.memo` become unnecessary for most code. Ships
+  in Next.js 16 as `reactCompiler: true`. Opt-in via Babel/SWC plugin
+  for Vite projects. Per-file opt-out via `"use no memo"` directive.
+- **"The Two Reacts"** (Dan Abramov framing, 2024-2025) — client
+  components are `UI = f(state)`, server components are `UI = f(data)`.
+  React 19 is the first version where both exist in the same tree and
+  the mental model is `UI = f(data, state)`. JSX over the wire is the
+  unifying abstraction.
+- **Server Components** — App Router stable, TanStack Start beta,
+  Remix → React Router v7 convergence. Not relevant for Vite SPAs
+  (EOS) until a framework-owned server is in play.
+- **Suspense expansion** — `use()` normalizes promise consumption;
+  query libraries (TanStack Query v5+) expose `useSuspenseQuery` as the
+  recommended data hook. Kent C. Dodds' "throwing promises" pattern is
+  now first-class.
+- **`useEffectEvent`** — graduating from experimental. Non-reactive
+  event inside effects. Solves the "I want the latest value but don't
+  want to re-subscribe" problem more cleanly than refs.
 
 Direction: make React "just work" without developers needing to
 hand-optimize. The Compiler is the clearest expression of this —
-"write idiomatic React, let the tool make it fast."
+"write idiomatic React, let the tool make it fast." React 19 + Compiler
+together close the loop: the Rules of React become the compiler's
+input specification, and following them produces automatically
+optimized code.
 
 ## Conceptual Model and Solution Recipes
 
@@ -426,7 +590,7 @@ Recipes:
 
 ## Industry Expert and Cutting-Edge Usage
 
-Frontier patterns the top 5% are using:
+Frontier patterns the top 5% are using in 2026:
 
 - **Compound components.** Expose a parent component with attached
   children: `<Tabs><Tabs.List/><Tabs.Panel/></Tabs>`. Radix and
@@ -451,7 +615,33 @@ Frontier patterns the top 5% are using:
 - **TkDodo's React Query patterns** — query keys as hierarchies,
   invalidate-by-prefix, optimistic updates with rollback.
 - **Dan Abramov's "You might not need an effect"** — the canonical
-  post on when NOT to use useEffect. Required reading.
+  post on when NOT to use useEffect. Required reading. The live
+  react.dev version (react.dev/learn/you-might-not-need-an-effect)
+  lists 8 specific anti-patterns: transforming data, caching, resetting
+  state on prop changes, adjusting state on props, event logic,
+  POST requests, chained effects, parent notification — every one has
+  a better non-effect alternative. For EOS: if a `useEffect` does
+  anything other than sync with an external system, delete it.
+- **TkDodo's query key factories** (tkdodo.eu) — one factory per feature:
+  `leadKeys = { all: ['leads'], lists: () => [...leadKeys.all, 'list'],
+   list: (f) => [...leadKeys.lists(), f], details: () => [...leadKeys.all, 'detail'],
+   detail: (id) => [...leadKeys.details(), id] }`. Enables prefix-based
+  invalidation: `invalidateQueries({ queryKey: leadKeys.lists() })`
+  invalidates every list without touching details.
+- **TkDodo's automatic invalidation via global cache callbacks** — set
+  up `queryClient.getMutationCache().subscribe(...)` once at app boot
+  to invalidate affected queries whenever ANY mutation settles. Kills
+  90% of per-mutation `onSuccess: invalidate` boilerplate.
+- **Kent C. Dodds' "throwing promises" insight** — Suspense works by
+  components literally throwing a Promise, which React catches,
+  awaits, and re-renders on resolution. `use()` is the ergonomic
+  wrapper. One Suspense boundary per independent content section is
+  the rule of thumb (a dashboard with revenue + orders + analytics
+  needs three boundaries, not one).
+- **Actions + `useOptimistic` as the new form pattern** — for
+  server-bound forms React 19 can replace React Hook Form entirely.
+  RHF remains superior for complex multi-step client-side forms with
+  nested validation; Actions win for single-purpose server mutations.
 
 Experts writing React in 2026:
 - **Dan Abramov** (overreacted.io) — mental models.

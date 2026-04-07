@@ -292,7 +292,113 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
 ---
 
-## 7. Concurrent features — startTransition
+## 7b. React 19 — Server-bound form with Actions + useActionState
+
+```tsx
+import { useActionState } from "react";
+
+type State = { error: string | null; ok: boolean };
+
+async function submitLead(_prev: State, formData: FormData): Promise<State> {
+  const res = await fetch("/api/leads", { method: "POST", body: formData });
+  if (!res.ok) return { error: await res.text(), ok: false };
+  return { error: null, ok: true };
+}
+
+export function NewLeadForm() {
+  const [state, action, pending] = useActionState(submitLead, {
+    error: null, ok: false,
+  });
+  return (
+    <form action={action} className="flex flex-col gap-3">
+      <input name="name" required />
+      <input name="email" type="email" required />
+      <button type="submit" disabled={pending}>
+        {pending ? "Saving…" : "Create lead"}
+      </button>
+      {state.error && <p role="alert">{state.error}</p>}
+      {state.ok && <p>Lead created.</p>}
+    </form>
+  );
+}
+```
+
+## 7c. React 19 — Optimistic UI with useOptimistic
+
+```tsx
+import { useOptimistic, startTransition } from "react";
+
+type Msg = { id: string; text: string; pending?: boolean };
+
+export function Chat({ messages, send }: {
+  messages: Msg[];
+  send: (text: string) => Promise<void>;
+}) {
+  const [optimistic, addOptimistic] = useOptimistic<Msg[], string>(
+    messages,
+    (state, text) => [...state, { id: `tmp-${Date.now()}`, text, pending: true }],
+  );
+
+  async function onSubmit(formData: FormData) {
+    const text = formData.get("text") as string;
+    startTransition(() => addOptimistic(text));
+    await send(text); // throw → React auto-rolls back the optimistic item
+  }
+
+  return (
+    <>
+      <ul>{optimistic.map((m) =>
+        <li key={m.id} style={{ opacity: m.pending ? 0.5 : 1 }}>{m.text}</li>
+      )}</ul>
+      <form action={onSubmit}><input name="text" /></form>
+    </>
+  );
+}
+```
+
+## 7d. React 19 — use() for reading a cached promise
+
+```tsx
+import { use, Suspense } from "react";
+
+// Promise lives OUTSIDE render — created by a loader/cache
+const leadsPromise: Promise<Lead[]> = fetch("/api/leads").then((r) => r.json());
+
+function LeadList() {
+  const leads = use(leadsPromise); // suspends until resolved
+  return <ul>{leads.map((l) => <li key={l.id}>{l.name}</li>)}</ul>;
+}
+
+export function LeadsPage() {
+  return (
+    <Suspense fallback={<Spinner />}>
+      <LeadList />
+    </Suspense>
+  );
+}
+```
+
+Note: in EOS, prefer `useSuspenseQuery` from TanStack Query over hand-rolling `use()` with raw fetches — Query owns the cache and `use()` composes with it cleanly.
+
+## 7e. React 19 — ref as a normal prop (no forwardRef)
+
+```tsx
+// Old (React 18)
+const Input18 = forwardRef<HTMLInputElement, InputProps>((props, ref) =>
+  <input ref={ref} {...props} />);
+
+// New (React 19)
+interface InputProps extends React.ComponentProps<"input"> {
+  ref?: React.Ref<HTMLInputElement>;
+}
+export function Input({ ref, ...rest }: InputProps) {
+  return <input ref={ref} {...rest} />;
+}
+```
+
+---
+
+## 8. Concurrent features — startTransition
 
 ```tsx
 import { useState, useTransition } from "react";
