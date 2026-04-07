@@ -45,6 +45,12 @@ conn = psycopg2.connect(os.environ["DATABASE_URL"])
 
 ## Core Operations with Exact Signatures
 
+> **Postgres internals (planner, indexes, JSONB ops, pgvector, locking, EXPLAIN,
+> MVCC, CTEs, window functions, SKIP LOCKED queues)**: see
+> `references/raw_sql_mastery.md`. This section covers psycopg2/Neon surface
+> signatures; raw_sql_mastery.md goes deeper into how PG evaluates them.
+
+
 **psycopg2.connect()** — the only entry point:
 ```python
 psycopg2.connect(
@@ -754,9 +760,66 @@ except psycopg2.Error:
 - Branch creation via API is sub-second regardless of DB size. The CLI command: `neonctl branches create --name dev`
 - Compute restart clears `pg_stat_activity` — do not rely on it for long-term connection monitoring.
 
+**Expert-level planner and index intuition (see raw_sql_mastery.md for the
+full treatment):**
+
+Read every `EXPLAIN (ANALYZE, BUFFERS)` plan leaves-first. The three
+diagnoses that cover 90% of slow queries are: (1) a Seq Scan on a large
+table with a selective `WHERE` means missing index; (2) estimated vs actual
+row counts that differ by more than 10x means stale stats — `ANALYZE` or
+raise `default_statistics_target`; (3) a Nested Loop whose inner node shows
+`actual rows=1 loops=N` costs N lookups, not one — look at `loops=`, not
+per-iteration rows. `Sort Method: external merge Disk` means `work_mem` is
+too small for the sort.
+
+Index selection is about access pattern, not selectivity. A composite index
+`(a, b, c)` serves `WHERE a=?`, `WHERE a=? AND b=?`, and
+`WHERE a=? AND b=? AND c=?` — equality columns first, then the range or
+`ORDER BY` column. Partial indexes (`WHERE state = 'pending'`) are cheaper
+and faster for high-churn subsets. Expression indexes are mandatory whenever
+the `WHERE` wraps the column in a function (`lower(email)`). On Neon,
+`CREATE INDEX CONCURRENTLY` is production-safe but will leave an `INVALID`
+index if it fails — always check `pg_index.indisvalid` after.
+
+For pgvector in EOS (`memories.embedding vector(1536)`), prefer HNSW over
+IVFFlat on PG 16 + pgvector 0.5+. HNSW gives better recall/latency at the
+sizes EOS operates at, at the cost of a slower, more memory-hungry build
+(`maintenance_work_mem` matters; scale Neon compute up temporarily for
+initial index builds on large corpora). IVFFlat remains useful only if you
+need dramatically smaller index size and can tolerate lower recall. Query
+operators: `<->` L2, `<#>` negative inner product, `<=>` cosine distance —
+EOS uses cosine for semantic similarity. Tune query-time recall with
+`SET hnsw.ef_search = 100;`.
+
+RLS policy columns **must be indexed** or every query becomes a full scan
+with the policy expression as a filter. EOS policies key on `org_id` — that
+column is indexed on every tenant-scoped table. When a query looks slow
+despite a good predicate, check whether the RLS policy's column is in the
+chosen index; if not, add it (leftmost) to the composite.
+
 ---
 
 ## EOS Usage Patterns
+
+**pgvector embeddings (memories table):**
+EOS stores embeddings as `vector(1536)` (OpenAI-compatible dimensionality)
+on the `memories` table and serves nearest-neighbor search via an HNSW
+index with `vector_cosine_ops`. The query pattern is:
+
+```python
+with get_conn() as cur:
+    cur.execute("""
+        SELECT id, content, 1 - (embedding <=> %s::vector) AS similarity
+        FROM memories
+        ORDER BY embedding <=> %s::vector
+        LIMIT %s
+    """, (query_vec, query_vec, k))
+```
+
+RLS on `memories` enforces `org_id` isolation, so the ANN search is
+automatically scoped to the current tenant via `app.current_org_id`. For
+deeper pgvector/index-tuning notes see `references/raw_sql_mastery.md`.
+
 
 **Standard pattern (used in 60+ modules):**
 ```python

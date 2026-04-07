@@ -25,6 +25,12 @@ Neon is serverless Postgres. It separates storage and compute, enabling:
 
 The driver is **psycopg2 2.9.11** (C-based, synchronous). Not asyncpg, not SQLAlchemy.
 
+Raw-SQL / Postgres-internals mastery (planner, indexes, JSONB, pgvector,
+locking, EXPLAIN) is documented separately in
+`references/raw_sql_mastery.md` — consult it when a query is on a hot path,
+touches vectors, uses window/CTE/LATERAL constructs, or misbehaves under
+`EXPLAIN ANALYZE`.
+
 ## EOS Integration
 
 Neon is the ENTIRE persistence layer for EOS. Every module that stores or reads state goes through `eos_ai/db.py`.
@@ -374,3 +380,4 @@ A single `psycopg2` connection must not be shared across threads. Each thread ne
 psycopg2 returns Postgres `numeric`/`decimal` columns as Python `Decimal` objects, not `float`. `json.dumps()` cannot serialize `Decimal` — use `str(val)` or `float(val)` before serializing. EOS uses `monthly_revenue numeric` in the ventures table — watch for this.
 
 See references/best_practices.md for connection parameters, error codes, and anti-patterns.
+See references/raw_sql_mastery.md for Postgres-internals-level expertise (planner, indexes, JSONB, pgvector HNSW vs IVFFlat, locking, MVCC, EXPLAIN ANALYZE reading, CTEs, window functions, SKIP LOCKED work queues).
