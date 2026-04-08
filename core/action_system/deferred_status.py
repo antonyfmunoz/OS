@@ -121,6 +121,85 @@ def is_stale(deferred_at: str, *, threshold_hours: int) -> bool:
     return age >= timedelta(hours=threshold_hours)
 
 
+def wake_due_snoozed(now: datetime | None = None) -> list[str]:
+    """Promote snoozed deferred actions whose snoozed_until has passed.
+
+    Scans every `.status.json` sidecar in DEFERRED_DIR. For any record
+    with `status == "snoozed"` and a `snoozed_until` timestamp in the
+    past, rewrites the sidecar to `status="pending"` with a note
+    documenting the auto-wake.
+
+    Returns the list of action ids that were woken. Does NOT execute
+    anything — waking only flips sidecar state so the action reappears
+    in default `list` triage. The explicit-approval path through
+    `resume_action` remains the single approval pathway.
+
+    Interaction with `mark_stale_over_threshold`: stale detection
+    ignores non-pending statuses, so a snoozed-but-overdue item is
+    immune from stale pruning until this helper promotes it back to
+    pending.
+    """
+    if not os.path.isdir(DEFERRED_DIR):
+        return []
+    ref = now or datetime.now(timezone.utc)
+    woken: list[str] = []
+    for name in sorted(os.listdir(DEFERRED_DIR)):
+        if not name.endswith(".status.json"):
+            continue
+        action_id = name[: -len(".status.json")]
+        current = read_status(action_id)
+        if current.status != "snoozed":
+            continue
+        raw = current.snoozed_until
+        if not raw:
+            continue
+        try:
+            due = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+        except (ValueError, TypeError):
+            continue
+        if due.tzinfo is None:
+            due = due.replace(tzinfo=timezone.utc)
+        if due > ref:
+            continue
+        write_status(
+            action_id,
+            "pending",
+            note=f"auto-woken at {ref.isoformat()} (snoozed_until={raw})",
+        )
+        woken.append(action_id)
+    return woken
+
+
+def list_overdue_snoozed(now: datetime | None = None) -> list[str]:
+    """Return action ids that are snoozed and whose wake time has passed.
+
+    Read-only companion to `wake_due_snoozed` — used by the deferred
+    CLI's `list --overdue-snoozed` filter and the `wake --dry-run` flag.
+    """
+    if not os.path.isdir(DEFERRED_DIR):
+        return []
+    ref = now or datetime.now(timezone.utc)
+    out: list[str] = []
+    for name in sorted(os.listdir(DEFERRED_DIR)):
+        if not name.endswith(".status.json"):
+            continue
+        action_id = name[: -len(".status.json")]
+        current = read_status(action_id)
+        if current.status != "snoozed" or not current.snoozed_until:
+            continue
+        try:
+            due = datetime.fromisoformat(
+                str(current.snoozed_until).replace("Z", "+00:00")
+            )
+        except (ValueError, TypeError):
+            continue
+        if due.tzinfo is None:
+            due = due.replace(tzinfo=timezone.utc)
+        if due <= ref:
+            out.append(action_id)
+    return out
+
+
 def mark_stale_over_threshold(threshold_hours: int = DEFAULT_STALE_HOURS) -> list[str]:
     """Scan the deferred queue and mark actions past the threshold as stale.
 
@@ -157,4 +236,6 @@ __all__ = [
     "clear_status",
     "is_stale",
     "mark_stale_over_threshold",
+    "wake_due_snoozed",
+    "list_overdue_snoozed",
 ]
