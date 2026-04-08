@@ -43,9 +43,7 @@ from core.tool_mastery_manager.paths import SKILLS_TOOLS_DIR  # noqa: E402
 
 VALID_WORK_TYPES = ("research", "refresh", "repair")
 
-TME_DECISION_TREE = (
-    "/opt/OS/skills/meta/tool_mastery_engine/SKILL.md"
-)
+TME_DECISION_TREE = "/opt/OS/skills/meta/tool_mastery_engine/SKILL.md"
 VERIFY_CMD = "python3 /opt/OS/scripts/verify_tool_skill.py --skill {slug}"
 SYNC_CMD = "python3 /opt/OS/scripts/sync_skills_to_neon.py --skill {slug}"
 
@@ -114,7 +112,46 @@ def main() -> int:
     ap.add_argument("--work-type", required=True, choices=VALID_WORK_TYPES)
     ap.add_argument("--tool", required=True)
     ap.add_argument("--json", action="store_true", help="emit JSON plan only")
+    ap.add_argument(
+        "--execute",
+        action="store_true",
+        help=(
+            "invoke the Tool Mastery Research Agent to perform a real "
+            "source-grounded research run instead of just printing the plan"
+        ),
+    )
     args = ap.parse_args()
+
+    if args.execute:
+        # delegate to the research agent; honest v1 — plans are replaced
+        # by a real run with artifacts under logs/tool_mastery_research/
+        from core.tool_mastery_research_agent.agent import run as _run_research
+        from core.tool_mastery_research_agent.models import (
+            ResearchMode,
+            ResearchRequest,
+        )
+
+        request = ResearchRequest(
+            tool_slug=args.tool.strip(),
+            mode=ResearchMode(args.work_type),
+            source_agent="tool_mastery_research_dispatcher",
+        )
+        result = _run_research(request)
+        payload = result.to_dict()
+        if args.json:
+            print(json.dumps(payload, indent=2))
+        else:
+            print(
+                f"=== Tool Mastery {args.work_type.upper()} EXECUTED: {args.tool} ==="
+            )
+            print(f"status : {payload['status']}")
+            print(f"run_dir: {payload['run_dir']}")
+            if payload.get("summary_path"):
+                print(f"summary: {payload['summary_path']}")
+            for step in payload.get("next_steps", []):
+                print(f"  - {step}")
+        # exit code: 0 if anything useful produced
+        return 0 if payload["status"] in ("ok", "partial", "no_sources") else 1
 
     slug = args.tool.strip()
     if not slug:
