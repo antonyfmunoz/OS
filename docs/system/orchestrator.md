@@ -389,3 +389,62 @@ from core.orchestrator.signals import unregister_handler
 unregister_handler('test_sig', 'simple_test')
 "
 ```
+
+---
+
+## Phase 8 — Hardening (2026-04-08)
+
+### Loop heartbeat
+
+Every `run_cycle()` now writes `/opt/OS/logs/orchestrator_heartbeat.json`
+atomically (temp + rename) at the end of the cycle, whether the cycle
+succeeded or raised. Schema:
+
+```json
+{
+  "loop_version": "1.0.0",
+  "last_ran_at": "ISO8601 UTC",
+  "started_at": "ISO8601 UTC",
+  "cycle_duration_s": 0.0018,
+  "signals_processed": 0,
+  "workflows_triggered": 0,
+  "failures_detected": 0,
+  "deferred_stale_count": 0,
+  "retries_attempted": 0,
+  "escalations": 0,
+  "healthy": true,
+  "last_error": null
+}
+```
+
+`loop_version` is a module constant at `core.orchestrator.loop.LOOP_VERSION`.
+Bump it whenever the cycle contract or heartbeat schema changes so any
+external monitor can version-pin.
+
+The heartbeat is **advisory**. A disk failure writing the heartbeat
+is caught and swallowed — it must never kill a cycle. The cycle's
+primary duty is to drain signals; self-reporting is secondary.
+
+### Operator "is the loop alive?" check
+
+`scripts/orchestrator_status.py` now reads the heartbeat and prints
+one of three states at the top of the status output:
+
+- `Loop: alive  last=Xs ago  v1.0.0  signals=N fails=N stale_deferred=N`
+- `Loop: STALE  last=Xm ago  (threshold 900s)`
+- `Loop: UNKNOWN (no heartbeat file yet)`
+
+Stale threshold is `15 * 60` seconds (3× the cron cadence of 5 min),
+which tolerates exactly one missed tick before flagging.
+
+### Legacy cleanup
+
+- Removed `test_sig → simple_test` from `logs/signals/bindings.json`.
+- Archived the `phase7_synthetic_test` pending emission to
+  `logs/signals/phase7_synthetic_test/processed/` with a
+  `-cleaned-archive` suffix so it can never be accidentally
+  reprocessed or mistaken for a real outcome.
+- Added a `[LEGACY — ... OUT of signal-driven ...]` comment block
+  above the `0 6 * * * eos_ai/orchestrator.py` cron line to make it
+  unambiguous to any future operator that this is a standalone
+  strategic agent, not part of the Control Plane path.

@@ -827,3 +827,61 @@ pre-approval for that scheduled path.
 See `docs/system/orchestrator.md` § "Phase 7 — Production Activation"
 for the full cron mapping, rollback procedure, and observability
 commands.
+
+---
+
+## Phase 8 — Discord approval worker activation (operationally ready, not active)
+
+The `scripts/workers/discord_approval_worker.py` is feature-complete
+and verified in `--dry-run` mode as of 2026-04-08. It is **not wired
+to cron** in this phase. The deferred queue fills up cleanly; notifications
+do not reach Discord until an operator explicitly activates the worker.
+
+### Current verified state
+
+- `--once` drains `logs/deferred/notifications.jsonl` from the tracked
+  byte offset in `logs/deferred/.worker_offset`.
+- With no `DISCORD_APPROVAL_WEBHOOK_URL` set, the worker tails lines,
+  skips any action whose file is no longer present in `logs/deferred/`
+  (already approved/dropped), and advances the offset only for those
+  skipped lines. New pending notifications would be held back until
+  a webhook is configured.
+- `--dry-run` is a safe no-op drain: it reads, marks skipped-stale
+  entries, and advances offset without POSTing.
+- At-most-once semantics: a crash mid-POST loses a notification
+  rather than duplicating it. The on-disk deferred queue remains the
+  source of truth.
+
+### Activation steps (when ready to go live)
+
+1. Set the webhook in `/opt/OS/services/.env`:
+
+   ```bash
+   DISCORD_APPROVAL_WEBHOOK_URL=https://discord.com/api/webhooks/...
+   ```
+
+2. One-time catch-up of the backlog (preview first):
+
+   ```bash
+   cd /opt/OS
+   python3 scripts/workers/discord_approval_worker.py --once --dry-run
+   ```
+
+   The `skipped_stale` count in the output tells you how many will
+   be silently dropped as already-resolved. `posted` tells you how
+   many live notifications would fire.
+
+3. Add the cron line:
+
+   ```cron
+   # Discord approval worker — drain notifications queue hourly
+   0 * * * * python3 scripts/workers/discord_approval_worker.py --once >> /opt/OS/logs/workers/discord_approval.log 2>&1
+   ```
+
+4. Monitor `/opt/OS/logs/workers/discord_approval.log` for the first
+   hour.
+
+### Rollback
+
+Remove the cron line, unset `DISCORD_APPROVAL_WEBHOOK_URL`. The
+deferred queue and offset file remain intact — no data loss.
