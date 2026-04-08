@@ -43,13 +43,12 @@ Cron migration (documented — NOT applied in Phase 4):
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from datetime import datetime, timezone
 
 sys.path.insert(0, "/opt/OS")
 
-from core.action_system.control_plane import log_decision, run_action
+from core.orchestrator.steps import ScriptWorkflowSpec, run_script_workflow
 
 SCRIPT_PATH = "/opt/OS/scripts/scheduled/weekly_review.sh"
 IDEMPOTENCY_TTL_SECONDS = 6 * 24 * 3600  # 6 days — < 1 week
@@ -62,9 +61,7 @@ def _idempotency_key(now: datetime | None = None) -> str:
 
 
 def main() -> int:
-    p = argparse.ArgumentParser(
-        description="Control Plane wrapper for weekly_review"
-    )
+    p = argparse.ArgumentParser(description="Control Plane wrapper for weekly_review")
     p.add_argument(
         "--approve",
         action="store_true",
@@ -84,73 +81,25 @@ def main() -> int:
     args = p.parse_args()
 
     key = None if args.no_idempotency else _idempotency_key()
-
-    log_decision(
-        context="scheduled invocation of weekly_review",
-        options_considered=[
-            "bash weekly_review.sh direct",
-            "python wrapper via Control Plane",
-        ],
-        chosen_option="python wrapper via Control Plane",
+    spec = ScriptWorkflowSpec(
+        name="weekly_review",
+        script_path=SCRIPT_PATH,
+        description=("weekly health review (imports, docker, skills, logs, CC brief)"),
+        expected_output=(
+            "Weekly review posted to Discord; exit 0 in logs/weekly_review.log"
+        ),
+        idempotency_key=key,
+        idempotency_ttl_seconds=IDEMPOTENCY_TTL_SECONDS,
+        risk_level=args.risk,
+        timeout=1800,
         reasoning=(
             "Route the weekly review through the Control Plane so the "
             "health audit has a full lifecycle record and an idempotency "
             "guard prevents duplicate weekly reports inside the same ISO "
             "week."
         ),
-        source_agent="cron",
     )
-
-    action = run_action(
-        type="run_script",
-        description="weekly health review (imports, docker, skills, logs, CC brief)",
-        inputs={"path": SCRIPT_PATH, "args": [], "timeout": 1800},
-        risk_level=args.risk,
-        source_agent="cron",
-        explicit_approval=args.approve,
-        expected_output=(
-            "Weekly review posted to Discord; exit 0 in logs/weekly_review.log"
-        ),
-        idempotency_key=key,
-        idempotency_ttl_seconds=IDEMPOTENCY_TTL_SECONDS,
-    )
-
-    print(
-        json.dumps(
-            {
-                "id": action.id,
-                "status": action.status,
-                "idempotency_key": key,
-                "validation": action.validation,
-                "approval": action.approval,
-                "result": {
-                    k: v
-                    for k, v in action.result.items()
-                    if k
-                    in (
-                        "ok",
-                        "returncode",
-                        "stderr",
-                        "deferred_path",
-                        "notification",
-                        "skipped",
-                        "reason",
-                        "original_action_id",
-                    )
-                },
-            },
-            indent=2,
-            default=str,
-        )
-    )
-
-    if action.status == "executed":
-        return 0
-    if action.status == "validated":
-        return 0  # deferred — a normal outcome
-    if action.status == "skipped_duplicate":
-        return 0  # idempotency hit — not a failure
-    return 1
+    return run_script_workflow(spec, approve=args.approve)
 
 
 if __name__ == "__main__":

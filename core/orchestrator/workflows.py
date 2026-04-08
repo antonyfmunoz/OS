@@ -16,6 +16,11 @@ from __future__ import annotations
 import importlib
 from typing import Any
 
+from .handlers import (
+    handle_action_failed,
+    handle_action_retry_requested,
+    handle_deferred_stale,
+)
 from .orchestrator import Orchestrator, default_orchestrator
 from .signals import register_handler
 
@@ -67,13 +72,37 @@ def register_default_workflows(orch: Orchestrator | None = None) -> list[str]:
         orch.register_workflow(name, _wrap_main(module_path))
         registered.append(name)
 
+    # Phase 6: signal handler workflows. These close the loop that
+    # `core.orchestrator.loop` opens — the loop observes + emits, the
+    # handlers react. They are registered as plain callables because
+    # they call `run_action()` internally when any side effect is
+    # required.
+    orch.register_workflow("handle_deferred_stale", handle_deferred_stale)
+    orch.register_workflow("handle_action_failed", handle_action_failed)
+    orch.register_workflow(
+        "handle_action_retry_requested", handle_action_retry_requested
+    )
+    registered.extend(
+        [
+            "handle_deferred_stale",
+            "handle_action_failed",
+            "handle_action_retry_requested",
+        ]
+    )
+
     # Default signal bindings. These match the natural rhythm:
-    #   morning_ready  → morning_prep
-    #   nightly_cycle  → nightly_consolidation
-    #   weekly_cycle   → weekly_review
+    #   morning_ready            → morning_prep
+    #   nightly_cycle            → nightly_consolidation
+    #   weekly_cycle             → weekly_review
+    #   deferred_stale           → handle_deferred_stale
+    #   action_failed            → handle_action_failed
+    #   action_retry_requested   → handle_action_retry_requested
     register_handler("morning_ready", "morning_prep")
     register_handler("nightly_cycle", "nightly_consolidation")
     register_handler("weekly_cycle", "weekly_review")
+    register_handler("deferred_stale", "handle_deferred_stale")
+    register_handler("action_failed", "handle_action_failed")
+    register_handler("action_retry_requested", "handle_action_retry_requested")
     return registered
 
 

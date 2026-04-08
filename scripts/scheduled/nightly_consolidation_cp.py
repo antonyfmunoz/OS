@@ -41,13 +41,12 @@ Cron migration:
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from datetime import datetime, timezone
 
 sys.path.insert(0, "/opt/OS")
 
-from core.action_system.control_plane import log_decision, run_action
+from core.orchestrator.steps import ScriptWorkflowSpec, run_script_workflow
 
 SCRIPT_PATH = "/opt/OS/scripts/scheduled/nightly_consolidation.sh"
 IDEMPOTENCY_TTL_SECONDS = 23 * 3600  # 23h — never collides with tomorrow's run
@@ -75,71 +74,36 @@ def main() -> int:
     )
     args = p.parse_args()
 
-    log_decision(
-        context="scheduled invocation of nightly_consolidation",
-        options_considered=[
-            "bash nightly_consolidation.sh direct",
-            "python wrapper via Control Plane",
-        ],
-        chosen_option="python wrapper via Control Plane",
-        reasoning=(
-            "Route nightly consolidation through the Control Plane so the "
-            "close_day ritual, wiki mutations, and LLM spend are captured "
-            "with a full lifecycle trail and can be deferred when not "
-            "pre-approved by the operator."
-        ),
-        source_agent="cron",
-    )
-
-    script_args = ["--dry-run"] if args.dry_run else []
-
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     # Dry-run invocations must not claim the real daily slot — they'd
     # lock out the real nightly consolidation. Key is distinct per mode.
-    key_prefix = "nightly_consolidation_dry" if args.dry_run else "nightly_consolidation"
-    action = run_action(
-        type="run_script",
+    key_prefix = (
+        "nightly_consolidation_dry" if args.dry_run else "nightly_consolidation"
+    )
+    spec = ScriptWorkflowSpec(
+        name="nightly_consolidation",
+        script_path=SCRIPT_PATH,
         description=(
             "nightly memory consolidation (close_day ritual, wiki promotion, "
             "summarization)" + (" [dry-run]" if args.dry_run else "")
         ),
-        inputs={"path": SCRIPT_PATH, "args": script_args, "timeout": 1800},
-        risk_level=args.risk,
-        source_agent="cron",
-        explicit_approval=args.approve,
         expected_output=(
             "END: exit code 0 in logs/nightly_consolidation.log, close_day "
             "ritual finished"
         ),
         idempotency_key=f"{key_prefix}:{today}",
         idempotency_ttl_seconds=IDEMPOTENCY_TTL_SECONDS,
+        risk_level=args.risk,
+        timeout=1800,
+        script_args=["--dry-run"] if args.dry_run else [],
+        reasoning=(
+            "Route nightly consolidation through the Control Plane so the "
+            "close_day ritual, wiki mutations, and LLM spend are captured "
+            "with a full lifecycle trail and can be deferred when not "
+            "pre-approved by the operator."
+        ),
     )
-
-    print(
-        json.dumps(
-            {
-                "id": action.id,
-                "status": action.status,
-                "validation": action.validation,
-                "approval": action.approval,
-                "result": {
-                    k: v
-                    for k, v in action.result.items()
-                    if k
-                    in ("ok", "returncode", "stderr", "deferred_path", "notification")
-                },
-            },
-            indent=2,
-            default=str,
-        )
-    )
-
-    if action.status == "executed":
-        return 0
-    if action.status == "validated":
-        # Deferred — a normal outcome when the operator has not pre-approved.
-        return 0
-    return 1
+    return run_script_workflow(spec, approve=args.approve)
 
 
 if __name__ == "__main__":
