@@ -33,12 +33,14 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime, timezone
 
 sys.path.insert(0, "/opt/OS")
 
 from core.action_system.control_plane import run_action, log_decision
 
 SCRIPT_PATH = "/opt/OS/scripts/scheduled/morning_prep.sh"
+IDEMPOTENCY_TTL_SECONDS = 23 * 3600  # 23h — never collides with tomorrow's run
 
 
 def main() -> int:
@@ -71,6 +73,7 @@ def main() -> int:
         source_agent="cron",
     )
 
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     action = run_action(
         type="run_script",
         description="scheduled morning prep (containers, keys, Neon, GWS, CC brief)",
@@ -79,6 +82,8 @@ def main() -> int:
         source_agent="cron",
         explicit_approval=args.approve,
         expected_output="SYSTEM READY line or issue list in logs/morning_YYYYMMDD.log",
+        idempotency_key=f"morning_prep:{today}",
+        idempotency_ttl_seconds=IDEMPOTENCY_TTL_SECONDS,
     )
 
     print(

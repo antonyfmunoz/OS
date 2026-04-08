@@ -43,12 +43,14 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime, timezone
 
 sys.path.insert(0, "/opt/OS")
 
 from core.action_system.control_plane import log_decision, run_action
 
 SCRIPT_PATH = "/opt/OS/scripts/scheduled/nightly_consolidation.sh"
+IDEMPOTENCY_TTL_SECONDS = 23 * 3600  # 23h — never collides with tomorrow's run
 
 
 def main() -> int:
@@ -91,6 +93,10 @@ def main() -> int:
 
     script_args = ["--dry-run"] if args.dry_run else []
 
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    # Dry-run invocations must not claim the real daily slot — they'd
+    # lock out the real nightly consolidation. Key is distinct per mode.
+    key_prefix = "nightly_consolidation_dry" if args.dry_run else "nightly_consolidation"
     action = run_action(
         type="run_script",
         description=(
@@ -105,6 +111,8 @@ def main() -> int:
             "END: exit code 0 in logs/nightly_consolidation.log, close_day "
             "ritual finished"
         ),
+        idempotency_key=f"{key_prefix}:{today}",
+        idempotency_ttl_seconds=IDEMPOTENCY_TTL_SECONDS,
     )
 
     print(
