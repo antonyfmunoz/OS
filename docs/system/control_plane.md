@@ -561,3 +561,237 @@ stale states coexist:
   without requiring any additional fields.
 
 ---
+
+## Phase 4 — Operational hardening
+
+Phase 4 adds five capabilities on top of the Phases 1–3 substrate:
+idempotency, Discord worker activation, a third workflow migration,
+decision-log querying, and snooze wake-up. No new persistence
+technology — every addition uses one-JSON-file-per-record on the
+same filesystem-first discipline.
+
+### 4.1 Idempotency
+
+**Goal.** Give callers a way to say *"at most once within this
+window"* without introducing a database or a lock manager.
+
+**Model.** One sentinel file per idempotency key at
+`/opt/OS/logs/idempotency/<sha1(key)>.json`. Keys are caller-chosen
+strings (e.g., `weekly_review:2026-W15`, `morning_prep:2026-04-08`);
+SHA-1 is the filesystem-safe digest, the original key is preserved
+inside the JSON body.
+
+**Sentinel schema:**
+
+```json
+{
+  "key": "weekly_review:2026-W15",
+  "action_id": "4f3e...-...",
+  "status": "in_flight | executed | failed | deferred",
+  "created_at": "<iso utc>",
+  "completed_at": "<iso utc or null>",
+  "ttl_seconds": 604800
+}
+```
+
+**API.** `run_action(..., idempotency_key=None, idempotency_ttl_seconds=None)`.
+Leaving `idempotency_key=None` preserves pre-Phase-4 behaviour exactly.
+
+**Pre-flight state machine inside `run_action`:**
+
+| Existing sentinel | Action |
+|---|---|
+| *missing or expired* | claim slot, proceed |
+| `in_flight`, not expired | return `skipped_duplicate` (conflict) |
+| `executed`, not expired | return `skipped_duplicate` (success short-circuit) |
+| `failed`, not expired | proceed, overwrite sentinel |
+| `deferred`, deferred file still present | return `skipped_duplicate` |
+| `deferred`, deferred file dropped | proceed, overwrite sentinel |
+
+**Post-execution updates:**
+
+- `executed` → sentinel flipped to `executed`, `completed_at` set.
+- `failed` → sentinel flipped to `failed`. Next caller may retry
+  immediately (retry gating is a TTL decision, not a status one).
+- `deferred` → sentinel flipped to `deferred`. Resume path (below)
+  flips it again on terminal state.
+- `rejected` (validator) → sentinel **cleared**. Rejections are
+  caller bugs; the next call should reproduce the error.
+
+**Concurrency primitive.** `os.open(path, O_CREAT | O_EXCL | O_WRONLY)`.
+Single-host mutual exclusion by OS guarantee. Loser catches
+`FileExistsError` and re-reads the existing sentinel. No `fcntl`, no
+lock manager, no DB.
+
+**Crash recovery.** An `in_flight` sentinel whose `ttl_seconds` has
+passed is considered a crashed prior run; next caller overwrites and
+proceeds. For permanent lockout from a non-expiring key, operator
+runs `scripts/deferred.py idempotency clear <key>`.
+
+**Resume integration.** The `idempotency_key` rides along on the
+`Action` dataclass and is persisted inside the deferred file (filtered
+through `load_deferred`'s `valid_keys` set, so pre-Phase-4 deferred
+files still load cleanly). When `resume_action` reaches a terminal
+state, it flips the sentinel to `executed` or `failed` to match.
+
+**Default TTLs (set in wrappers, not in core):**
+
+- `morning_prep`: 23 hours — survives flake retries, clears for
+  tomorrow's run.
+- `nightly_consolidation`: 23 hours — same reasoning. Dry-run uses a
+  distinct key prefix (`nightly_consolidation_dry`) so dry runs never
+  claim the real slot.
+- `weekly_review`: 6 days — strictly less than a week, so next
+  Sunday is never blocked by the previous Sunday's sentinel.
+
+**Operator CLI (extensions to `scripts/deferred.py`):**
+
+```bash
+python3 /opt/OS/scripts/deferred.py idempotency list
+python3 /opt/OS/scripts/deferred.py idempotency list --expired
+python3 /opt/OS/scripts/deferred.py idempotency show <key-or-sha>
+python3 /opt/OS/scripts/deferred.py idempotency clear <key-or-sha>
+python3 /opt/OS/scripts/deferred.py idempotency prune
+```
+
+### 4.2 Discord approval worker — test vs production
+
+The worker (`scripts/workers/discord_approval_worker.py`) was completed
+in Phase 3. Phase 4 activates it on a **test webhook** only.
+
+**Test activation (this session):**
+
+```bash
+# 1. Export a test channel webhook into the live shell:
+export DISCORD_APPROVAL_WEBHOOK_URL="https://discord.com/api/webhooks/<test>"
+
+# 2. Create a synthetic deferred action to generate a notification:
+python3 - <<'PY'
+import sys; sys.path.insert(0, "/opt/OS")
+from core.action_system.control_plane import run_action
+a = run_action(
+    type="shell_command",
+    description="test webhook dry fire",
+    inputs={"command": "echo test"},
+    risk_level="medium",
+)
+print(a.id, a.status)
+PY
+
+# 3. Drain once:
+python3 /opt/OS/scripts/workers/discord_approval_worker.py --once
+
+# 4. Verify the Discord post in the test channel.
+# 5. Drop the synthetic action:
+python3 /opt/OS/scripts/deferred.py drop <action_id>
+```
+
+**Production activation (documented, NOT executed by Phase 4):**
+
+```bash
+# 1. Add to /opt/OS/eos_ai/.env:
+#    DISCORD_APPROVAL_WEBHOOK_URL=<production webhook>
+
+# 2. Start under tmux for first rollout:
+tmux new -d -s cp-worker \
+  "python3 /opt/OS/scripts/workers/discord_approval_worker.py --loop"
+
+# 3. Verify:
+tmux capture-pane -t cp-worker -p | tail -20
+
+# 4. Upgrade to systemd only after 24h of healthy operation.
+```
+
+**Decoupling invariant.** The worker imports nothing from
+`core.action_system`. Phase 4 preserves this — the idempotency store
+is readable by anything, but the worker has no reason to consult it.
+
+### 4.3 Third workflow migration — `weekly_review_cp.py`
+
+**Wrapper:** `/opt/OS/scripts/scheduled/weekly_review_cp.py`.
+**Risk:** `low` (read-heavy health audit, no state mutation, budget
+capped inside the .sh at $1.00).
+**Idempotency key:** `weekly_review:<ISO-week>`, TTL 6 days.
+**Source agent:** `cron`.
+
+**Cron swap (documented, not applied):**
+
+```cron
+# OLD:
+# 0 6 * * 0 bash /opt/OS/scripts/scheduled/weekly_review.sh
+# NEW:
+# 0 6 * * 0 python3 /opt/OS/scripts/scheduled/weekly_review_cp.py --approve \
+#          >> /opt/OS/logs/weekly_review_cp.log 2>&1
+```
+
+`--approve` is redundant at low risk but kept for consistency with the
+other two wrappers and for forward-compat if the risk is upgraded.
+
+### 4.4 Decision log query CLI — `scripts/decisions.py`
+
+Read-only operator tool over `logs/decisions/*.jsonl`. Imports nothing
+from `core.action_system`. Commands:
+
+```bash
+# Recent decisions (last 7 days, 20 default)
+python3 /opt/OS/scripts/decisions.py list
+python3 /opt/OS/scripts/decisions.py list --limit 50
+python3 /opt/OS/scripts/decisions.py list --agent cron
+python3 /opt/OS/scripts/decisions.py list --context weekly_review
+python3 /opt/OS/scripts/decisions.py list --since 2026-04-01
+python3 /opt/OS/scripts/decisions.py list --today
+python3 /opt/OS/scripts/decisions.py list --json
+
+# Drill down
+python3 /opt/OS/scripts/decisions.py show <decision_id>
+python3 /opt/OS/scripts/decisions.py for-action <action_id>
+```
+
+The log directory is small (~1 file/day); the tool reads line-by-line
+with no index. If it ever needs an index, that itself is a signal the
+Control Plane is being overused.
+
+### 4.5 Snooze wake-up lifecycle
+
+`deferred_status.wake_due_snoozed()` scans `.status.json` sidecars and
+promotes any item whose `status == "snoozed"` and `snoozed_until <=
+now` back to `status="pending"`, with a note recording the auto-wake
+time.
+
+**Crucial:** waking does NOT execute. It only makes the action visible
+again in default `list` triage. The explicit-approval path through
+`resume_action` remains the single approval pathway.
+
+**Stale interaction.** `mark_stale_over_threshold` ignores non-pending
+statuses, so a snoozed item is immune from stale pruning until
+`wake_due_snoozed` promotes it. Phase 4 tests both halves of this
+interaction explicitly.
+
+**Operator commands:**
+
+```bash
+# Preview what would wake
+python3 /opt/OS/scripts/deferred.py wake --dry-run
+
+# Actually wake
+python3 /opt/OS/scripts/deferred.py wake
+
+# List overdue-snoozed only (read-only)
+python3 /opt/OS/scripts/deferred.py list --overdue-snoozed
+```
+
+### 4.6 Cron-readiness assessment (documentation only)
+
+Judgment on whether each cron-scheduled workflow is ready to be
+swapped to its Control Plane wrapper. Cron is **not modified** by
+Phase 4; the actual swap is an operator decision.
+
+| Workflow | Wrapper | Risk | Idempotency | Swap recommendation |
+|---|---|---|---|---|
+| `morning_prep.sh` | `morning_prep_cp.py` | medium | `morning_prep:<UTC-date>`, 23h TTL | **swap-ready** |
+| `nightly_consolidation.sh` | `nightly_consolidation_cp.py` | medium | `nightly_consolidation:<UTC-date>`, 23h TTL | **swap-ready** |
+| `weekly_review.sh` | `weekly_review_cp.py` | low | `weekly_review:<ISO-week>`, 6d TTL | **swap-ready** |
+| `nightly_maintenance.sh` | — | — | — | **not ready** — no wrapper |
+
+All three swap-ready entries are single-cron-line changes that can be
+reverted in one commit.
