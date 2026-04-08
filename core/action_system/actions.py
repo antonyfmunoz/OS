@@ -45,6 +45,12 @@ class Action:
     validation: dict[str, Any] = field(default_factory=dict)
     approval: dict[str, Any] = field(default_factory=dict)
     result: dict[str, Any] = field(default_factory=dict)
+    # Optional idempotency key (Phase 4). When set, run_action consults
+    # the idempotency sentinel store before proposing. Backwards-compat:
+    # `load_deferred` filters unknown keys, so pre-Phase-4 files load
+    # with the default of None, and post-Phase-4 files load on old code
+    # with the field silently dropped.
+    idempotency_key: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -58,6 +64,7 @@ def propose_action(
     expected_output: str = "",
     risk_level: RiskLevel = "low",
     source_agent: str = "unknown",
+    idempotency_key: str | None = None,
 ) -> Action:
     """Build an Action object in the `proposed` state.
 
@@ -72,4 +79,5 @@ def propose_action(
         expected_output=expected_output,
         risk_level=risk_level,
         source_agent=source_agent,
+        idempotency_key=idempotency_key,
     )
