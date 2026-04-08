@@ -1,6 +1,6 @@
 # Control Plane — EOS Intelligence Layer
 
-**Status:** v2 (Phase 2 complete — real workflow migrated, deferred queue + notifier foundation added)
+**Status:** v3 (Phase 3 complete — policy bridge, Discord approval worker, stale-deferred lifecycle, second real workflow migrated)
 **Location:** `/opt/OS/core/action_system/`
 **Entry point:** `core.action_system.control_plane.run_action`
 
@@ -341,3 +341,223 @@ python3 /opt/OS/scripts/deferred.py approve 25c42826-...
 - First migration: `scripts/scheduled/morning_prep_cp.py`
 - Phase 1 audit: `docs/audits/2026-04-06-control-plane-phase-1.md`
 - Phase 2 audit: `docs/audits/2026-04-08-control-plane-phase-2.md`
+- Phase 3 audit: `docs/audits/2026-04-08-control-plane-phase-3.md`
+
+---
+
+## Phase 3: Policy bridge, Discord worker, stale lifecycle, second migration
+
+Phase 3 upgrades the Control Plane from workable governance to
+operational governance by (a) unifying policy with `authority_engine`,
+(b) closing the approval loop through a worker, (c) preventing
+deferred-action buildup, and (d) proving the migration pattern on a
+second real workflow.
+
+### Authority integration model
+
+`core/action_system/policy.py` is the minimum correct bridge between
+the Control Plane and `eos_ai/authority_engine.py`. Two governance
+systems coexist with **different domains** and must not be collapsed:
+
+| Layer | Domain | Vocabulary | Source of truth |
+|---|---|---|---|
+| `authority_engine` | Business actions (`send_dm`, `publish_content`, `execute_payment`) | Uppercase (`LOW/MEDIUM/HIGH/CRITICAL`) | Neon (`approvals` table) |
+| Control Plane | Runtime actions (`run_script`, `shell_command`, `write_file`, `call_api`) | Lowercase (`low/medium/high/critical`) | Disk (`logs/deferred/`) |
+
+The policy bridge:
+
+- Exposes one canonical Control Plane vocabulary.
+- Provides `normalize_risk()`, `map_to_authority_class()`,
+  `required_autonomy_level()`, `requires_explicit_approval()`,
+  `blocks_auto_execute()`.
+- Lazily imports `authority_engine.RISK_CLASSES` via
+  `authority_classify()` — wrapped in a try/except so the runtime
+  layer never crashes when the business layer is unavailable.
+- Composes the two classifications with `resolve_effective_risk()`
+  where **the stricter always wins** — a low-declared runtime action
+  that maps to a `CRITICAL` business classification is upgraded to
+  `critical` at propose time.
+
+**Integration contract.**
+
+    Control Plane owns runtime action risk.
+    AuthorityEngine owns business action risk.
+    When a runtime action carries business semantics, pass
+    `business_action_type=<name>` to `run_action()` and the bridge
+    will upgrade the risk to the stricter of the two.
+
+**`critical` is a hard block.** Critical-risk actions are never
+auto-executed, even with `explicit_approval=True`. They stay in
+`validated` for operator visibility but `approve_action` refuses
+them. Downgrading a critical action requires a code change (a
+policy decision, not a call-site decision).
+
+**No circular dependency.** `policy.py` has no module-level import of
+`eos_ai.*`. The lookup is function-scoped so the Control Plane can
+run in minimal environments (tests, workers) even if the business
+layer is broken.
+
+```python
+from core.action_system.control_plane import run_action
+
+# Runtime-only action — risk stays low
+run_action(type="shell_command", description="cache refresh",
+           inputs={"command": "..."}, risk_level="low")
+
+# Runtime action with business semantics — bridge upgrades to critical
+run_action(type="run_script", description="send outreach batch",
+           inputs={"path": "..."}, risk_level="low",
+           business_action_type="publish_content")
+# → action.risk_level == "critical", status == "validated" (blocked)
+```
+
+### Discord approval worker
+
+`scripts/workers/discord_approval_worker.py` is the integration seam
+between `notifications.jsonl` and external approval channels.
+
+Design constraints:
+
+- **Decoupled.** Never imports `core.action_system`. Reads the JSONL
+  + checks the deferred directory. The Control Plane's execution path
+  is never blocked on notification delivery.
+- **Offset-based tailing.** Stores the last processed byte offset in
+  `logs/deferred/.worker_offset`. Restarts don't re-notify old events.
+- **Stale-skip via filesystem.** Before posting, the worker verifies
+  the per-action JSON still exists. Actions approved or dropped from
+  CLI between notification and drain are silently skipped.
+- **Best-effort POST.** Non-2xx and missing-webhook cases are logged
+  to stderr. The deferred queue remains the source of truth.
+- **Replay-safe when inert.** If `DISCORD_APPROVAL_WEBHOOK_URL` is
+  unset, the offset is *not* advanced — once the webhook is
+  configured, a single `--once` drain replays every pending line.
+
+Configuration:
+
+    DISCORD_APPROVAL_WEBHOOK_URL    # required for real delivery
+    DISCORD_APPROVAL_POLL_SECONDS   # loop mode interval (default 15s)
+
+Operator flow:
+
+```bash
+# Drain once (cron-friendly):
+python3 /opt/OS/scripts/workers/discord_approval_worker.py --once
+
+# Tail forever (systemd / tmux):
+python3 /opt/OS/scripts/workers/discord_approval_worker.py --loop
+
+# Dry-run without a webhook (inspect what would be sent):
+python3 /opt/OS/scripts/workers/discord_approval_worker.py --once --dry-run
+
+# Replay the entire queue (for debugging):
+python3 /opt/OS/scripts/workers/discord_approval_worker.py --reset --once
+```
+
+**Current runtime state.** The worker is operationally ready. Real
+Discord delivery requires only one env var (`DISCORD_APPROVAL_WEBHOOK_URL`);
+the worker is otherwise fully functional and has been validated with
+`--dry-run`.
+
+### Stale-deferred lifecycle
+
+Deferred actions now carry an optional sidecar status. Absence of a
+sidecar = `pending`, so every pre-Phase-3 deferred action inherits the
+correct default without migration.
+
+**Storage.** `/opt/OS/logs/deferred/<action_id>.status.json` holds the
+sidecar. The Phase 2 queue layout (`<action_id>.json` per action) is
+unchanged. `list_deferred()` skips `*.status.json` to avoid collision.
+
+**States:**
+
+| Status | Meaning |
+|---|---|
+| `pending` | Default; no sidecar, operator has not yet responded |
+| `acknowledged` | Operator has seen it, intentionally still waiting |
+| `snoozed` | Intentionally deferred again; `snoozed_until` is ISO timestamp |
+| `stale` | Older than the threshold; eligible for pruning |
+
+**Threshold** defaults to **72 hours** and is configurable on every
+stale-check / prune invocation via `--older-than N`. The threshold
+lives with the operator interface, not the storage layer.
+
+**Operator commands** (all on `scripts/deferred.py`):
+
+```bash
+# Read or set sidecar status
+python3 /opt/OS/scripts/deferred.py status <id>
+python3 /opt/OS/scripts/deferred.py status <id> --set acknowledged --note "triaged"
+python3 /opt/OS/scripts/deferred.py status <id> --set snoozed --until 2026-04-10T09:00:00Z
+
+# Scan queue and mark pending-and-too-old as stale
+python3 /opt/OS/scripts/deferred.py stale-check --older-than 72
+
+# Prune stale actions
+python3 /opt/OS/scripts/deferred.py prune                     # only sidecar-marked stale
+python3 /opt/OS/scripts/deferred.py prune --auto-mark --older-than 72
+python3 /opt/OS/scripts/deferred.py prune --auto-mark --dry-run
+
+# List now includes a STATUS column
+python3 /opt/OS/scripts/deferred.py list
+```
+
+`approve` and `drop` automatically clear the sidecar so a resumed or
+abandoned action never leaves stray status metadata on disk.
+
+**Rule.** `stale-check` only promotes `pending` actions to `stale` —
+it never overwrites operator annotations like `acknowledged` or
+`snoozed`. Once an operator touches an action, the stale detector
+backs off.
+
+### Second workflow migrated: `nightly_consolidation`
+
+`scripts/scheduled/nightly_consolidation_cp.py` wraps
+`scripts/scheduled/nightly_consolidation.sh` as a `run_script` action
+with `risk_level="medium"` and `source_agent="cron"`. The wrapper
+shape is deliberately identical to `morning_prep_cp.py` — the
+migration pattern is now boringly repeatable.
+
+Why this workflow:
+
+- **Bounded**: one cron line, ~75 lines of bash
+- **Stateful**: mutates wiki + substrate `close_day` rituals
+- **Gated**: already has a provider_health preflight
+- **Reversible**: underlying `.sh` untouched, revert the cron line to undo
+
+Cron migration:
+
+```bash
+# OLD:
+# 0 2 * * * bash /opt/OS/scripts/scheduled/nightly_consolidation.sh
+
+# NEW:
+# 0 2 * * * python3 /opt/OS/scripts/scheduled/nightly_consolidation_cp.py --approve \
+#          >> /opt/OS/logs/nightly_consolidation_cp.log 2>&1
+```
+
+The `--dry-run` flag on the wrapper passes through to the underlying
+`.sh`, so operators can defer a dry run, inspect it, and approve only
+if the preview looks right.
+
+### Logging review — Phase 3 findings
+
+Re-evaluating the logs now that two workflows, notifications, and
+stale states coexist:
+
+- **Execution logs are still sufficient.** Every lifecycle transition
+  is still one JSONL line. Risk upgrades from the policy bridge
+  appear in `action.validation` as `declared_risk` /
+  `effective_risk` / `business_action_type` — no schema change on
+  Action itself.
+- **Decision logs are still sufficient.** Each migrated wrapper
+  writes one decision entry per invocation, which is enough to
+  reconstruct "why did cron run this tonight" narratively.
+- **Operator commands are clearer.** The `STATUS` column in
+  `deferred list` means an operator can triage the full queue in one
+  view instead of having to cross-reference sidecar files.
+- **No new fields needed** on the Action schema — the policy bridge
+  information lives on `action.validation`, which already exists.
+- **Notification queue is unchanged.** The worker reads it
+  without requiring any additional fields.
+
+---
