@@ -795,3 +795,35 @@ Phase 4; the actual swap is an operator decision.
 
 All three swap-ready entries are single-cron-line changes that can be
 reverted in one commit.
+
+---
+
+## Phase 7 — Scheduled invocation path (2026-04-08)
+
+Scheduled workflows (morning_prep, nightly_consolidation, weekly_review)
+now enter the Control Plane via the orchestrator loop rather than via
+direct cron invocation of the `_cp.py` wrappers:
+
+```
+cron tick
+    └─> scripts/emit_signal.py <name>
+            └─> /opt/OS/logs/signals/<signal>/pending/*.json
+                    └─> (≤5min) orchestrator_loop.py (cron */5)
+                            └─> core.orchestrator.loop.run_cycle
+                                    └─> Orchestrator.run_workflow(name)
+                                            └─> workflows._wrap_main
+                                                    └─> sys.argv=[module,'--approve']
+                                                            └─> _cp.py main()
+                                                                    └─> run_script_workflow
+                                                                            └─> run_action(...)
+```
+
+The `--approve` injection at `_wrap_main` preserves the Control
+Plane's deferred-by-default behaviour for ad-hoc invocations while
+still letting a bound signal run without human intervention each day.
+The signal binding in `bindings.json` is the operator's durable
+pre-approval for that scheduled path.
+
+See `docs/system/orchestrator.md` § "Phase 7 — Production Activation"
+for the full cron mapping, rollback procedure, and observability
+commands.

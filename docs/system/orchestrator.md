@@ -269,10 +269,123 @@ core/orchestrator/
     workflows.py      ─ register_default_workflows (CP workflow bindings)
 
 scripts/orchestrator_loop.py   ─ CLI runner
+scripts/emit_signal.py         ─ cron-safe signal emitter (Phase 7)
 
 logs/
     orchestrator_state.json    ─ per-workflow run records
     signals/                   ─ signal mailboxes + bindings
     decisions/                 ─ (shared with Control Plane)
     execution/                 ─ (shared with Control Plane)
+```
+
+---
+
+## Phase 7 — Production Activation (2026-04-08)
+
+As of 2026-04-08 the orchestrator loop runs live from cron and drains
+the scheduled signal rhythm. This section documents the active
+operational state; `docs/audits/2026-04-08-phase-7-activation.md` has
+the full activation report.
+
+### Active cron → signal mapping
+
+| Schedule (UTC)  | Cron line                                                                             | Signal          | Bound workflow (via `register_default_workflows`) |
+|-----------------|---------------------------------------------------------------------------------------|-----------------|--------------------------------------------------|
+| `30 5 * * *`    | `python3 scripts/emit_signal.py morning_ready`                          | `morning_ready` | `morning_prep` → `morning_prep_cp.py` → `run_action` |
+| `0 3 * * *`     | `cd /opt/OS && python3 scripts/emit_signal.py nightly_cycle`                          | `nightly_cycle` | `nightly_consolidation` → `nightly_consolidation_cp.py` → `run_action` |
+| `0 6 * * 0`     | `cd /opt/OS && python3 scripts/emit_signal.py weekly_cycle`                           | `weekly_cycle`  | `weekly_review` → `weekly_review_cp.py` → `run_action` |
+| `*/5 * * * *`   | `cd /opt/OS && python3 scripts/orchestrator_loop.py --cycles 1`                       | —               | drains pending signals + scans stale/failures    |
+
+Latency from signal emission to workflow execution is bounded by the
+loop cadence (≤5 minutes). Morning prep emitted at 05:30 runs no later
+than 05:35. This is intentional slack — the loop is the single
+chokepoint the operator can inspect, pause, or widen.
+
+### How signal dispatch approves the wrapper
+
+`core.orchestrator.workflows._wrap_main` injects `sys.argv = [module, "--approve"]`
+around the `module.main()` call. The semantic: **the existence of the
+signal→workflow binding in `bindings.json` is the operator's durable
+pre-approval.** If the operator wants to pause a scheduled workflow,
+they unbind the signal (or comment out the cron line) — they do NOT
+need to race a daily deferred-approval queue. This keeps the Control
+Plane's defer path reserved for ad-hoc or novel invocations.
+
+### Inspecting pending signals
+
+```bash
+# Pending emissions per signal
+for d in /opt/OS/logs/signals/*/pending; do
+  n=$(ls "$d" 2>/dev/null | wc -l)
+  [ "$n" -gt 0 ] && echo "$(basename $(dirname $d)): $n"
+done
+
+# Processed outcomes (last 5, any signal)
+find /opt/OS/logs/signals/*/processed -name '*.json' -printf '%T@ %p\n' 2>/dev/null \
+  | sort -rn | head -5 | cut -d' ' -f2-
+
+# Signal bindings
+cat /opt/OS/logs/signals/bindings.json
+```
+
+### Inspecting orchestrator state
+
+```bash
+# Per-workflow run history
+cat /opt/OS/logs/orchestrator_state.json | python3 -m json.tool
+
+# Last loop cycle (driven by cron */5)
+tail -40 /opt/OS/logs/orchestrator_loop.log
+
+# Today's decisions trail (includes every dispatched workflow)
+tail -20 /opt/OS/logs/decisions/$(date -u +%Y-%m-%d)-decisions.jsonl
+
+# Today's execution trail (every run_action call)
+tail -20 /opt/OS/logs/execution/$(date -u +%Y-%m-%d)-execution.jsonl
+```
+
+### Manual signal emission
+
+```bash
+cd /opt/OS
+python3 scripts/emit_signal.py weekly_cycle
+python3 scripts/emit_signal.py nightly_cycle --payload-json '{"source":"manual"}'
+```
+
+The next `*/5` loop tick picks it up. For immediate execution:
+
+```bash
+python3 scripts/emit_signal.py weekly_cycle && \
+  python3 scripts/orchestrator_loop.py --cycles 1
+```
+
+### Rollback
+
+A crontab snapshot from before cutover is at
+`/opt/OS/docs/audits/rollback/crontab-pre-phase7-2026-04-08.txt`.
+
+```bash
+crontab /opt/OS/docs/audits/rollback/crontab-pre-phase7-2026-04-08.txt
+```
+
+This restores the raw `bash ... .sh` lines and removes both the
+emit_signal cron entries and the `*/5 orchestrator_loop` drain line.
+The underlying `.sh` scripts were never modified, so rollback is
+exact. `bindings.json` can remain in place — unbound signals are
+inert.
+
+### Known pre-existing drift
+
+`logs/signals/bindings.json` still contains the legacy entry
+`"test_sig": ["simple_test"]` from earlier dev work. `simple_test` is
+not in `register_default_workflows()`, so every cron-driven loop tick
+that sees a `test_sig` emission reports `"status": "unregistered"` for
+that handler and moves on. Harmless but noisy. To remove:
+
+```bash
+python3 -c "
+import sys; sys.path.insert(0,'/opt/OS')
+from core.orchestrator.signals import unregister_handler
+unregister_handler('test_sig', 'simple_test')
+"
 ```

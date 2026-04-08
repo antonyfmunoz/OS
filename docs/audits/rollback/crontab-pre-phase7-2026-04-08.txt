@@ -1,0 +1,36 @@
+0 4 * * * docker-compose run --rm os-scraper >> /opt/OS/logs/scraper.log 2>&1
+0 6 * * * cd /opt/OS && python3 eos_ai/orchestrator.py >> /opt/OS/logs/orchestrator.log 2>&1
+
+# EOS Scheduled Automations
+0 2 * * * bash /opt/OS/scripts/scheduled/nightly_maintenance.sh
+30 5 * * * bash /opt/OS/scripts/scheduled/morning_prep.sh
+0 6 * * 0 bash /opt/OS/scripts/scheduled/weekly_review.sh
+# DEX Email GPS — 3pm afternoon inbox pass
+0 15 * * * python3 /opt/OS/scripts/inbox_gps_afternoon.py >> /opt/OS/logs/email_gps.log 2>&1
+# DEX Email GPS — 11pm nightly review
+0 23 * * * python3 -c "import sys; sys.path.insert(0, '/opt/OS'); from dotenv import load_dotenv; load_dotenv('/opt/OS/eos_ai/.env'); load_dotenv('/opt/OS/services/.env'); from eos_ai.email_reviewer import EmailReviewer; from eos_ai.context import load_context_from_env; from eos_ai.discord_utils import post_to_webhook; import os; ctx = load_context_from_env(); er = EmailReviewer(ctx); report = er.run_nightly_review(); webhook = os.getenv('DISCORD_BRIEF_WEBHOOK'); post_to_webhook(report, webhook=webhook) if webhook else None; print(report)" >> /opt/OS/logs/email_review.log 2>&1
+# DEX Email GPS — 6pm EOD closing loop
+*/15 * * * * cd /opt/OS && python3 scripts/call_prep.py >> /opt/OS/logs/call_prep.log 2>&1
+*/15 * * * * cd /opt/OS && python3 scripts/notion_tasks_sync.py >> /opt/OS/logs/notion_tasks_sync.log 2>&1
+0 3 * * * cd /opt/OS && python3 scripts/discord_daily_clear.py >> /opt/OS/logs/discord_clear.log 2>&1
+*/15 * * * * cd /opt/OS && python3 scripts/post_meeting_capture.py >> /opt/OS/logs/post_meeting.log 2>&1
+0 18 * * * cd /opt/OS && python3 scripts/eod_sync.py >> /opt/OS/logs/eod_sync.log 2>&1
+*/15 * * * * cd /opt/OS && python3 scripts/calendar_invite_handler.py >> /opt/OS/logs/calendar_invites.log 2>&1
+0 6 * * 0 cd /opt/OS && python3 scripts/portfolio_brief.py >> /opt/OS/logs/portfolio_brief.log 2>&1
+5 6 * * * cd /opt/OS && python3 scripts/waiting_on_checker.py >> /opt/OS/logs/waiting_on.log 2>&1
+# DEX Meetings — no-show detector (every 15 min)
+*/15 * * * * cd /opt/OS && python3 scripts/noshow_detector.py >> /opt/OS/logs/noshow.log 2>&1
+# DEX Meetings — relationship nurturing (Monday 7am PDT)
+0 7 * * 1 cd /opt/OS && python3 scripts/relationship_nurture.py >> /opt/OS/logs/nurture.log 2>&1
+# DEX Meetings — weekly business review (Sunday 7pm PDT)
+0 19 * * 0 cd /opt/OS && python3 scripts/weekly_review.py >> /opt/OS/logs/weekly_review.log 2>&1
+# DEX Week Architect — Sunday 8pm PDT
+0 20 * * 0 cd /opt/OS && python3 scripts/week_architect.py >> /opt/OS/logs/week_architect.log 2>&1
+10 6 * * * cd /opt/OS && python3 scripts/deadline_monitor.py >> /opt/OS/logs/deadlines.log 2>&1
+45 5 * * * cd /opt/OS && python3 scripts/morning_intel.py >> /opt/OS/logs/morning_intel.log 2>&1
+*/5 * * * * cd /opt/OS && python3 scripts/day_reminder.py >> /opt/OS/logs/day_reminder.log 2>&1
+30 12 * * * cd /opt/OS && python3 scripts/midday_checkin.py >> /opt/OS/logs/midday.log 2>&1
+*/5 * * * * cd /opt/OS && python3 scripts/agent_task_executor.py >> /opt/OS/scripts/agent_executor.log 2>&1
+*/15 * * * * cd /opt/OS && python3 scripts/notion_sync_poller.py >> /opt/OS/logs/notion_sync.log 2>&1
+# EOS Memory — nightly consolidation (3am, flock-protected)
+0 3 * * * bash /opt/OS/scripts/scheduled/nightly_consolidation.sh >> /opt/OS/logs/nightly_consolidation.log 2>&1
