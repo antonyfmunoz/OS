@@ -73,6 +73,9 @@ def list_deferred() -> list[dict[str, Any]]:
     for name in sorted(os.listdir(DEFERRED_DIR)):
         if not name.endswith(".json"):
             continue
+        # Skip status sidecars written by deferred_status.py
+        if name.endswith(".status.json"):
+            continue
         path = os.path.join(DEFERRED_DIR, name)
         try:
             with open(path) as f:
