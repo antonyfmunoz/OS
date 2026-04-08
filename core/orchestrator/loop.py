@@ -52,6 +52,12 @@ from .signals import (
     mark_processed,
 )
 
+# Bumped whenever the cycle contract or heartbeat schema changes.
+# Kept here (not in config) so a grep for LOOP_VERSION finds both
+# the producer and any consumer that pins a minimum version.
+LOOP_VERSION = "1.0.0"
+HEARTBEAT_PATH = "/opt/OS/logs/orchestrator_heartbeat.json"
+
 
 # ---------------------------------------------------------------------------
 # Cycle configuration
@@ -351,6 +357,42 @@ def _scan_failures(config: LoopConfig, report: CycleReport) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _write_heartbeat(report: CycleReport, error: str | None = None) -> None:
+    """Atomically write a single-cycle heartbeat artifact.
+
+    Read by scripts/orchestrator_status.py and any external monitor
+    that wants to answer "is the loop alive?" without importing any
+    core modules. Filesystem-first, one file, rewritten every cycle.
+    """
+    started = report.started_at
+    finished = report.finished_at or datetime.now(timezone.utc).isoformat()
+    try:
+        duration = (
+            datetime.fromisoformat(finished) - datetime.fromisoformat(started)
+        ).total_seconds()
+    except ValueError:
+        duration = None
+    payload = {
+        "loop_version": LOOP_VERSION,
+        "last_ran_at": finished,
+        "started_at": started,
+        "cycle_duration_s": duration,
+        "signals_processed": report.signals_drained,
+        "workflows_triggered": report.workflows_triggered,
+        "failures_detected": report.failures_detected,
+        "deferred_stale_count": report.stale_deferred,
+        "retries_attempted": report.retries_attempted,
+        "escalations": report.escalations,
+        "healthy": error is None,
+        "last_error": error,
+    }
+    os.makedirs(os.path.dirname(HEARTBEAT_PATH), exist_ok=True)
+    tmp = HEARTBEAT_PATH + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(payload, f, indent=2)
+    os.replace(tmp, HEARTBEAT_PATH)
+
+
 def run_cycle(
     orch: Orchestrator | None = None,
     config: LoopConfig | None = None,
@@ -362,12 +404,21 @@ def run_cycle(
         started_at=datetime.now(timezone.utc).isoformat(),
         finished_at="",
     )
+    error: str | None = None
     try:
         _drain_signals(orch, report)
         _scan_stale_deferred(config, report)
         _scan_failures(config, report)
+    except Exception as e:  # defensive — heartbeat must still record the failure
+        error = f"{type(e).__name__}: {e}"
+        raise
     finally:
         report.finished_at = datetime.now(timezone.utc).isoformat()
+        try:
+            _write_heartbeat(report, error=error)
+        except OSError:
+            # Heartbeat is advisory; never let it kill a cycle.
+            pass
     return report
 
 
