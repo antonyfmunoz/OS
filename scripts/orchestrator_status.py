@@ -34,10 +34,16 @@ from core.action_system.logging import (  # noqa: E402
     DECISION_LOG_DIR,
     EXECUTION_LOG_DIR,
 )
+from core.orchestrator.loop import HEARTBEAT_PATH  # noqa: E402
 from core.orchestrator.orchestrator import (  # noqa: E402
     STATE_PATH,
     default_orchestrator,
 )
+
+# Loop should tick at least once per 5 minutes (cron: */5). Flag as
+# stale at 3x expected cadence to tolerate a missed run without
+# screaming.
+LOOP_STALE_THRESHOLD_S = 15 * 60
 from core.orchestrator.signals import (  # noqa: E402
     get_handlers,
     list_pending,
@@ -196,6 +202,34 @@ def recent_failures(limit: int = 20) -> list[dict[str, Any]]:
     return out[:limit]
 
 
+def loop_heartbeat() -> dict[str, Any]:
+    """Read the orchestrator heartbeat written by core.orchestrator.loop.
+
+    Returns a dict with `present`, `alive`, `age_seconds`, plus the
+    raw heartbeat payload if it exists. `alive` is True when the
+    heartbeat was updated inside LOOP_STALE_THRESHOLD_S.
+    """
+    if not os.path.isfile(HEARTBEAT_PATH):
+        return {"present": False, "alive": False, "age_seconds": None}
+    try:
+        with open(HEARTBEAT_PATH) as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        return {
+            "present": True,
+            "alive": False,
+            "age_seconds": None,
+            "error": f"{type(e).__name__}: {e}",
+        }
+    age = _age_seconds(data.get("last_ran_at"))
+    return {
+        "present": True,
+        "alive": age is not None and age <= LOOP_STALE_THRESHOLD_S,
+        "age_seconds": age,
+        "payload": data,
+    }
+
+
 def loop_activity() -> dict[str, Any]:
     """Return summary from today's decision log of orchestrator.loop entries."""
     day = _now().strftime("%Y-%m-%d")
@@ -247,6 +281,24 @@ def _hdr(title: str) -> str:
 def render_text(snapshot: dict[str, Any]) -> str:
     out: list[str] = []
     out.append(f"EOS Orchestrator Status — {snapshot['generated_at']}")
+
+    hb = snapshot["heartbeat"]
+    if not hb["present"]:
+        out.append("Loop: UNKNOWN (no heartbeat file yet)")
+    elif hb["alive"]:
+        p = hb.get("payload", {})
+        out.append(
+            f"Loop: alive  last={_fmt_age(hb['age_seconds'])} ago  "
+            f"v{p.get('loop_version', '?')}  "
+            f"signals={p.get('signals_processed', 0)} "
+            f"fails={p.get('failures_detected', 0)} "
+            f"stale_deferred={p.get('deferred_stale_count', 0)}"
+        )
+    else:
+        out.append(
+            f"Loop: STALE  last={_fmt_age(hb['age_seconds'])} ago  "
+            f"(threshold {LOOP_STALE_THRESHOLD_S}s)"
+        )
 
     out.append(_hdr("Pending signals"))
     signals = snapshot["pending_signals"]
@@ -311,6 +363,7 @@ def render_text(snapshot: dict[str, Any]) -> str:
 def build_snapshot() -> dict[str, Any]:
     return {
         "generated_at": _now().isoformat(),
+        "heartbeat": loop_heartbeat(),
         "pending_signals": pending_signals_summary(),
         "deferred": deferred_summary(),
         "workflows": recent_workflows(),
