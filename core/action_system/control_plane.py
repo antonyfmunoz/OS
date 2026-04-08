@@ -22,6 +22,7 @@ from .logging import log_execution, log_decision
 from .tme import query_relevant_skills
 from .deferred import save_deferred, load_deferred, delete_deferred, list_deferred
 from .notifier import Notifier, default_notifier
+from .policy import resolve_effective_risk
 
 
 def _execute_approved(action: Action, *, consult_tme: bool) -> Action:
@@ -46,6 +47,7 @@ def run_action(
     explicit_approval: bool = False,
     consult_tme: bool = False,
     notifier: Notifier | None = None,
+    business_action_type: str | None = None,
 ) -> Action:
     """Push an action through the full Control Plane lifecycle.
 
@@ -57,14 +59,23 @@ def run_action(
     it is also persisted to /opt/OS/logs/deferred/ and announced through
     the notifier stack.
     """
+    # Policy bridge: if this runtime action also carries business-layer
+    # semantics, upgrade the risk to the stricter of the two. Never
+    # downgrades — a low-declared action with a business type mapped to
+    # HIGH becomes high.
+    effective_risk = resolve_effective_risk(risk_level, business_action_type)
     action = propose_action(
         type=type,
         description=description,
         inputs=inputs,
         expected_output=expected_output,
-        risk_level=risk_level,
+        risk_level=effective_risk,
         source_agent=source_agent,
     )
+    if business_action_type:
+        action.validation.setdefault("business_action_type", business_action_type)
+        action.validation.setdefault("declared_risk", risk_level)
+        action.validation.setdefault("effective_risk", effective_risk)
     log_execution(action)  # proposed
 
     validate_action(action)

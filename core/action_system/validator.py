@@ -10,6 +10,11 @@ from __future__ import annotations
 from typing import Any
 
 from .actions import Action, ALLOWED_ACTION_TYPES
+from .policy import (
+    blocks_auto_execute,
+    normalize_risk,
+    requires_explicit_approval,
+)
 
 # Paths we will never touch regardless of caller.
 FORBIDDEN_PATH_PREFIXES: tuple[str, ...] = (
@@ -69,8 +74,22 @@ def validate_action(action: Action) -> dict[str, Any]:
     if not action.description:
         errors.append("missing action.description")
 
-    if action.risk_level not in ("low", "medium", "high"):
-        errors.append(f"invalid risk_level {action.risk_level!r}")
+    # Normalise through the policy bridge. Accepts lowercase CP vocab
+    # (low/medium/high/critical) as well as uppercase authority-engine
+    # vocab (LOW/MEDIUM/HIGH/CRITICAL) and rewrites to canonical form.
+    normalized = normalize_risk(action.risk_level)
+    if action.risk_level not in ("low", "medium", "high", "critical"):
+        # Only flag if normalisation had nothing plausible to work with.
+        if not isinstance(
+            action.risk_level, str
+        ) or action.risk_level.strip().lower() not in (
+            "low",
+            "medium",
+            "high",
+            "critical",
+        ):
+            errors.append(f"invalid risk_level {action.risk_level!r}")
+    action.risk_level = normalized
 
     # Type-specific safety checks.
     if action.type == "write_file":
@@ -123,8 +142,29 @@ def approve_action(
         action.approval = result
         return result
 
-    if action.risk_level == "low":
-        result = {"approved": True, "reason": "auto-approved (low risk)"}
+    # Critical is a hard block: policy bridge says it must never
+    # auto-execute regardless of explicit_approval=True. Callers that
+    # truly need to run a critical action must downgrade it in a code
+    # review + commit, not at the call site.
+    if blocks_auto_execute(action.risk_level):
+        result = {
+            "approved": False,
+            "reason": (
+                f"{action.risk_level}-risk action is blocked from auto-execute; "
+                "must be downgraded or routed through the business approval queue"
+            ),
+        }
+        action.approval = result
+        # Stays in `validated` so it shows up in the deferred queue for
+        # operator visibility — but `run_action` will not execute it
+        # even with explicit_approval=True.
+        return result
+
+    if not requires_explicit_approval(action.risk_level):
+        result = {
+            "approved": True,
+            "reason": f"auto-approved ({action.risk_level} risk)",
+        }
         action.approval = result
         action.status = "approved"
         return result
