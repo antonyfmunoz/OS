@@ -1,0 +1,47 @@
+# Tool Mastery Manager — seed list (discovery source iii).
+#
+# Lists tools that must have mastery coverage in this environment
+# regardless of whether they already have a SKILL.md. The Manager reads
+# this file during discovery and treats any entry that is missing,
+# stale, or invalid as work to be queued.
+#
+# Keep this list deterministic and explicit. Do NOT try to be clever —
+# the whole point of this source is that a human (or an installer) has
+# declared intent. If a tool matters to this environment and you want
+# the Manager to guarantee coverage, add it here.
+#
+# Format:
+#   tools:
+#     - <slug>                            # bare slug — simplest form
+#     - name: <slug>                      # object form — lets you add
+#       display_name: "Human Name"        # metadata without breaking
+#       note: "why this is here"          # the slug-only entries above.
+#
+# Slugs are normalised to snake_case, matching skills/tools/ layout.
+
+tools:
+  # --- Core LLM / infra ---
+  - name: anthropic_api
+    note: "Primary LLM provider for EOS agent runtime"
+  - name: google_gemini
+    note: "Fallback LLM provider in model_router"
+  - name: ollama
+    note: "Local LLM fallback"
+
+  # --- Data + storage ---
+  - name: neon_postgres
+    note: "Primary DB for EOS — every write goes here"
+
+  # --- Claude Code runtime ---
+  - name: claude_code
+    note: "Host CLI the Manager runs inside"
+  - name: claude_agent_sdk
+    note: "Subagent runtime"
+
+  # --- Ops / shell ---
+  - name: bash
+    note: "Shell executor baseline"
+  - name: git
+    note: "Version control"
+  - name: docker
+    note: "Container runtime for EOS services"
