@@ -73,14 +73,25 @@ def author(request: AuthorRequest) -> AuthorResult:
     )
 
     preserved: list[str] = []
-    if not plan.will_write_skill_md and not plan.will_write_bp_md:
+    preserve_mode = (
+        plan.skill_exists
+        and not plan.will_write_skill_md
+        and not plan.will_write_bp_md
+    )
+    if preserve_mode:
         # Existing human skill — preserve everything. This is the
-        # "refresh against a strong skill" path.
+        # "refresh against a strong skill" path. We don't touch files;
+        # the counters reflect reality (nothing authored, nothing
+        # placeheld), not the hypothetical drafts we declined to use.
         result.notes.append(plan.preserved_reason)
         preserved = [d.section for d in drafts]
         result.sections_preserved = len(preserved)
+        result.sections_sourced = 0
+        result.sections_placeholder = 0
         result.skill_path = str(plan.skill_md) if plan.skill_exists else None
-        result.best_practices_path = str(plan.bp_md) if plan.bp_md.is_file() else None
+        result.best_practices_path = (
+            str(plan.bp_md) if plan.bp_md.is_file() else None
+        )
     else:
         # 4. Maybe scaffold, then write.
         if plan.will_scaffold and request.allow_scaffold:
@@ -122,8 +133,8 @@ def author(request: AuthorRequest) -> AuthorResult:
         elif plan.skill_exists:
             result.skill_path = str(plan.skill_md)
 
-    result.sections_sourced = sourced_count
-    result.sections_placeholder = placeholder_count
+        result.sections_sourced = sourced_count
+        result.sections_placeholder = placeholder_count
 
     # 5. Verify against the canonical verifier.
     report = verify_skill(request.tool_slug)
@@ -133,8 +144,15 @@ def author(request: AuthorRequest) -> AuthorResult:
         result.notes.append(f"verifier error: {report.error}")
 
     # 6. Decide final status.
+    #
+    # Preserve-mode (existing human skill, untouched) + verifier pass
+    # is AUTHORED_READY — the tool IS ready, the agent simply had
+    # nothing to improve. The "partial" state is reserved for runs
+    # where we actually wrote placeholder sections to disk.
     if not report.passed:
         result.status = AuthorStatus.VERIFY_FAILED
+    elif preserve_mode:
+        result.status = AuthorStatus.AUTHORED_READY
     elif placeholder_count > 0:
         result.status = AuthorStatus.AUTHORED_PARTIAL
     else:
