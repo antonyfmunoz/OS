@@ -1,0 +1,13 @@
+[
+  {
+    "action_id": "act_0021d912c1bb",
+    "kind": "speak_text",
+    "payload": {
+      "text": "[ea_orchestrator] heard: what is on the agenda for today"
+    },
+    "issued_by": "voice_session:ea_orchestrator",
+    "target_node_id": "discord_vc_ptest-guild_ptest-channel",
+    "issued_at": "2026-04-09T00:50:50.194505+00:00",
+    "status": "dispatched"
+  }
+]

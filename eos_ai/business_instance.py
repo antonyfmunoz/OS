@@ -241,6 +241,40 @@ class BusinessInstanceManager:
                 )
         return True
 
+    def get_default_venture_id(self) -> Optional[str]:
+        """
+        Return the default venture_id for the current org — substrate-neutral.
+
+        Resolution order:
+        1. EOS_DEFAULT_VENTURE env var (operator override)
+        2. First venture row for this org_id (alphabetical for determinism)
+        3. None (caller must handle — no hardcoded fallback)
+
+        Used by gateway/primitives/tenant when a venture isn't passed explicitly.
+        """
+        import os as _os
+        env_default = _os.getenv('EOS_DEFAULT_VENTURE', '').strip()
+        if env_default:
+            return env_default
+        try:
+            from eos_ai.db import get_conn
+            with get_conn(self.ctx.org_id) as cur:
+                cur.execute(
+                    """
+                    SELECT name FROM ventures
+                    WHERE org_id = %s
+                    ORDER BY created_at ASC NULLS LAST, name ASC
+                    LIMIT 1
+                    """,
+                    (self.ctx.org_id,),
+                )
+                row = cur.fetchone()
+                if row:
+                    return row.get('name')
+        except Exception as e:
+            print(f'[BIM] get_default_venture_id failed: {e}')
+        return None
+
     def get_bis(self, venture_id: str) -> Optional[BusinessInstance]:
         """Load BIS from ventures.config_json. Returns None if not found."""
         from eos_ai.db import get_conn, resolve_venture

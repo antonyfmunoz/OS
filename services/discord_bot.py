@@ -93,6 +93,41 @@ from eos_ai.knowledge_integrator import KnowledgeIntegrator
 from eos_ai.voice_engine import VoiceEngine
 from eos_ai.business_instance import get_ai_name
 from eos_ai.discord_utils import chunk_message, post_to_webhook
+from eos_ai.substrate.discord_text_transport import (
+    maybe_mirror_discord_text_message as _maybe_pseudo_live_text,
+)
+
+# Install the router-backed voice-session responder at import time so that
+# every Discord pseudo-live text ingress (which flows through
+# inject_transcript → VoiceSessionRuntime.submit_utterance → global responder)
+# routes through eos_ai.model_router.call_with_fallback instead of the
+# substrate's default "[role] heard: ..." stub. Idempotent; safe to call
+# multiple times. The substrate architecture is preserved — we are only
+# replacing the pluggable responder hook the substrate already exposes.
+try:
+    from eos_ai.substrate.voice_eos_responder import (
+        install_default_eos_voice_responder as _install_voice_router_responder,
+        is_eos_voice_responder_installed as _is_voice_router_responder_installed,
+    )
+
+    if not _is_voice_router_responder_installed():
+        _install_voice_router_responder()
+        print(
+            "[Discord] voice-session responder = router-backed "
+            "(eos_ai.voice_eos_responder → model_router.call_with_fallback)",
+            flush=True,
+        )
+    else:
+        print(
+            "[Discord] voice-session responder already router-backed",
+            flush=True,
+        )
+except Exception as _voice_responder_install_err:  # noqa: BLE001
+    print(
+        f"[Discord] WARNING: failed to install router-backed voice responder: "
+        f"{_voice_responder_install_err} — Discord pseudo-live will echo stub",
+        flush=True,
+    )
 
 # ─── Handler imports ─────────────────────────────────────────────────────────
 
@@ -937,6 +972,42 @@ async def _listen_loop(
 
             print(f"[Voice] Heard: {text}")
 
+            # ── Bounded substrate mirror (opt-in, default OFF) ──────────────
+            # When EOS_DISCORD_VOICE_TRANSPORT_ENABLED is truthy, mirror this
+            # transcript through the bounded voice seam so it lands in
+            # voice_session / audio_loop / SPEAK_TEXT alongside the existing
+            # gateway routing. Never raises. Returns None when disabled.
+            try:
+                from eos_ai.substrate.discord_voice_transport import (
+                    maybe_mirror_discord_utterance,
+                )
+
+                _guild_id = (
+                    str(getattr(getattr(vc, "channel", None), "guild", None).id)
+                    if getattr(vc, "channel", None) is not None
+                    and getattr(vc.channel, "guild", None) is not None
+                    else None
+                )
+                _channel_id = (
+                    str(vc.channel.id)
+                    if getattr(vc, "channel", None) is not None
+                    else None
+                )
+                # Pass `voice_client=vc` so that when
+                # EOS_DISCORD_VOICE_PLAYBACK_ENABLED is also truthy, the
+                # mirror hook can opportunistically attach the live VC and
+                # play the EOS reply back into the channel. Default-off:
+                # if either env var is unset, this is a transcript-only no-op.
+                maybe_mirror_discord_utterance(
+                    text,
+                    user_id=user_id,
+                    guild_id=_guild_id,
+                    channel_id=_channel_id,
+                    voice_client=vc,
+                )
+            except Exception as _mirror_err:  # noqa: BLE001
+                print(f"[Voice] substrate mirror skipped: {_mirror_err}")
+
             should_respond, classification = _ve.should_respond(text, 0.0)
             print(f"[Voice] [{classification}] respond={should_respond}")
 
@@ -1185,6 +1256,75 @@ async def on_message(message: discord.Message):
                         f"⚠️ Provisioning encountered an issue: {_pe}\n"
                         "Run `!onboard` again to retry."
                     )
+            return
+
+    # ── Pseudo-Live Voice Loop v1 — bounded Discord text → shared seam ─────
+    # Default OFF. Activates only when EOS_DISCORD_TEXT_TRANSPORT_ENABLED is
+    # truthy AND the guild/channel/user allowlists permit this message. On
+    # success it emits a TTS-flagged text reply through the SAME shared voice
+    # substrate used by the voice transport. Never raises.
+    try:
+        _pl_result = _maybe_pseudo_live_text(
+            text,
+            guild_id=str(message.guild.id) if message.guild else None,
+            channel_id=str(message.channel.id),
+            user_id=str(message.author.id),
+        )
+    except Exception as _ple:  # noqa: BLE001
+        print(f"[PseudoLive] hook error: {_ple}")
+        _pl_result = None
+
+    if _pl_result is not None:
+        _pl_ingress = _pl_result.get("ingress") or {}
+        _pl_env = _pl_result.get("envelope") or {}
+        _pl_status = _pl_ingress.get("status")
+        if (
+            _pl_status not in ("disabled", "gate_denied")
+            and _pl_env.get("status") == "ok"
+        ):
+            # emit_plan has up to two entries: "visible" (display text
+            # with footer) and "spoken" (clean body for TTS).
+            # Order: send Discord text FIRST, then dispatch TTS.
+            # TTS is deferred (emit_tts=False in substrate) so the bot
+            # controls timing — text arrives before voice.
+            _pl_plan = _pl_env.get("emit_plan") or [
+                {
+                    "content": _pl_env.get("content", ""),
+                    "tts": False,
+                    "role": "combined",
+                }
+            ]
+            _visible_content = ""
+            for _pl_entry in _pl_plan:
+                _role = _pl_entry.get("role", "combined")
+                if _role == "spoken":
+                    continue
+                _entry_content = (_pl_entry.get("content") or "").strip()
+                if _entry_content:
+                    _visible_content = _entry_content
+                    break  # first visible/combined entry wins
+            # 1. Send Discord message FIRST
+            if _visible_content:
+                try:
+                    await message.channel.send(_visible_content, tts=False)
+                except Exception as _se:  # noqa: BLE001
+                    print(f"[PseudoLive] send failed: {_se}")
+            # 2. THEN dispatch TTS via propose_speak_text
+            _deferred = _pl_result.get("deferred_tts") or {}
+            _tts_node = _deferred.get("node_id")
+            _tts_text = _deferred.get("spoken_text") or ""
+            _tts_role = _deferred.get("role_slug") or "ea_orchestrator"
+            if _tts_node and _tts_text:
+                try:
+                    from eos_ai.substrate.station_helpers import propose_speak_text
+
+                    propose_speak_text(
+                        _tts_node,
+                        _tts_text,
+                        issued_by=f"discord_text:{_tts_role}",
+                    )
+                except Exception as _te:  # noqa: BLE001
+                    print(f"[PseudoLive] deferred TTS failed: {_te}")
             return
 
     # Meeting mode triggers — natural language detection
@@ -4259,6 +4399,40 @@ async def cmd_agent_results(ctx: commands.Context):
         await ctx.reply("\n".join(lines)[:1900])
     except Exception as e:
         await ctx.reply(f"❌ Error: {e}")
+
+
+@bot.command(name="trace")
+async def cmd_trace(ctx: commands.Context, limit: int = 5):
+    """Show recent execution traces (builder mode only)."""
+    try:
+        from eos_ai.substrate.discord_mode_routing import resolve_discord_mode
+
+        gid = str(ctx.guild.id) if ctx.guild else None
+        cid = str(ctx.channel.id)
+        mode = resolve_discord_mode(gid, cid)
+
+        if mode == "product":
+            await ctx.reply("Trace output is not available in product mode.")
+            return
+
+        from eos_ai.substrate.execution_trace import (
+            format_trace_compact,
+            get_trace_history,
+        )
+
+        capped = max(1, min(limit, 20))
+        traces = get_trace_history().latest(limit=capped)
+        if not traces:
+            await ctx.reply("No traces recorded yet.")
+            return
+
+        lines = [f"**Execution Traces** (last {len(traces)}):", "```"]
+        for t in traces:
+            lines.append(format_trace_compact(t))
+        lines.append("```")
+        await ctx.reply("\n".join(lines)[:1900], tts=False)
+    except Exception as e:
+        await ctx.reply(f"Trace error: {e}", tts=False)
 
 
 # ─── Entry point ──────────────────────────────────────────────────────────────

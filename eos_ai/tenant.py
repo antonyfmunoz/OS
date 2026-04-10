@@ -59,7 +59,8 @@ class TenantManager:
         try:
             from eos_ai.business_instance import BusinessInstanceManager
             bim = BusinessInstanceManager(self.ctx)
-            bis = bim.get_bis('lyfe_institute')
+            default_venture = bim.get_default_venture_id()
+            bis = bim.get_bis(default_venture) if default_venture else None
 
             return TenantContext(
                 org_id=self.ctx.org_id,

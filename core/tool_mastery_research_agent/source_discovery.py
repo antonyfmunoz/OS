@@ -18,8 +18,23 @@ import json
 import re
 from pathlib import Path
 
+from .candidate_approval import (
+    approved_source_refs,
+    latest_approval_file,
+    load_approval_file,
+)
+from .docs_site_discovery import discover_docs_site_urls, parse_site_coordinates
+from .github_extractor import expand_github_repo, parse_github_url
 from .models import SourcePlan, SourceRef, SourceTier
 from .paths import CLAUDE_JSON, TOOL_DOC_REGISTRY
+from .source_quality import (
+    SIGNAL_HIGH,
+    SIGNAL_LOW,
+    SIGNAL_MEDIUM,
+    score_source,
+    sort_sources_by_quality,
+)
+from .structured_crawl import crawl_approved_docs
 
 
 _REGISTRY_ROW = re.compile(
@@ -193,10 +208,38 @@ def discover_sources(
     plan.sources.extend(mcp_refs)
     plan.notes.extend(mcp_notes)
 
+    # Fallback tier: operator-approved candidate sources.
+    #
+    # Only *accepted* candidates from the most recent candidates file
+    # are pulled in. This is the gated bridge from search_discovery →
+    # the fetcher. Unapproved candidates never reach this path.
+    if plan.is_empty:
+        approval_path = latest_approval_file(tool_slug)
+        if approval_path is not None:
+            try:
+                approval = load_approval_file(approval_path)
+                approved = approved_source_refs(approval)
+                if approved:
+                    plan.sources.extend(approved)
+                    plan.notes.append(
+                        f"loaded {len(approved)} operator-approved candidate "
+                        f"source(s) from {approval_path.name}"
+                    )
+                else:
+                    plan.notes.append(
+                        f"candidate file {approval_path.name} exists but no "
+                        "candidates are marked accepted — approval still pending"
+                    )
+            except (OSError, ValueError, KeyError) as err:
+                plan.notes.append(
+                    f"failed to load candidate approval file {approval_path}: {err}"
+                )
+
     if plan.is_empty:
         plan.notes.append(
-            "no primary sources found — request likely needs explicit "
-            "--official-url or a registry entry before research can proceed"
+            "no primary sources found — run `--generate-candidates` to "
+            "propose sources for approval, or re-run with --official-url / "
+            "a registry entry before research can proceed"
         )
 
     # de-duplicate by URL while preserving order
@@ -207,6 +250,113 @@ def discover_sources(
             continue
         seen.add(ref.url)
         unique.append(ref)
-    plan.sources = unique
+
+    # GitHub repo expansion (Phase 1 unlock): any github.com/owner/repo
+    # URL is replaced in-place with the prioritised set of raw files
+    # inside that repo. The original repo URL is kept as a trailing
+    # low-priority reference so provenance of *why* those raw files
+    # were chosen remains on the plan. Non-repo GitHub URLs (search,
+    # issues, gists) pass through untouched.
+    expanded: list[SourceRef] = []
+    for ref in unique:
+        if parse_github_url(ref.url) is None:
+            expanded.append(ref)
+            continue
+        new_refs, notes = expand_github_repo(ref)
+        plan.notes.extend(notes)
+        if new_refs:
+            # De-duplicate expanded URLs against anything we've already seen.
+            for nref in new_refs:
+                if nref.url in seen:
+                    continue
+                seen.add(nref.url)
+                expanded.append(nref)
+            # Keep the original repo URL too — lets the author agent
+            # link back to the canonical surface even though the raw
+            # files carry the real signal. Signal scoring will push
+            # it to the bottom of the plan automatically.
+            expanded.append(ref)
+        else:
+            # Expansion failed — keep the original ref so the run is
+            # still honest about what was attempted.
+            expanded.append(ref)
+    unique = expanded
+
+    # Phase 2: Docs Site Discovery.
+    #
+    # For every unique non-raw-github host that landed on the plan,
+    # probe /llms.txt and /sitemap.xml once. Any discovered doc-shaped
+    # URLs are appended with explicit provenance. We never probe the
+    # same host twice per run, and we skip hosts already owned by the
+    # GitHub raw extractor (raw.githubusercontent.com) or the bare
+    # github.com repo surface — repo expansion already covered those.
+    probed_hosts: set[str] = set()
+    discovered: list[SourceRef] = []
+    for ref in list(unique):
+        coords = parse_site_coordinates(ref.url)
+        if coords is None:
+            continue
+        if coords.host in probed_hosts:
+            continue
+        probed_hosts.add(coords.host)
+        new_refs, notes = discover_docs_site_urls(ref, tool_slug=tool_slug)
+        plan.notes.extend(notes)
+        for nref in new_refs:
+            if nref.url in seen:
+                continue
+            seen.add(nref.url)
+            discovered.append(nref)
+    if discovered:
+        plan.notes.append(
+            f"docs_site_discovery: surfaced {len(discovered)} new URL(s) "
+            f"across {len(probed_hosts)} probed host(s)"
+        )
+        unique.extend(discovered)
+
+    # Phase 3: Structured Crawl Expansion.
+    #
+    # Take the already-approved doc pages (registry + Phase 1 github
+    # expansion + Phase 2 sitemap/llms discoveries) and follow their
+    # in-page links ONE hop, same host only, doc-shaped paths only,
+    # under strict per-host and per-run caps. This exists for SPA
+    # vendor sites that publish no sitemap and no llms.txt — clo3d
+    # is the canonical target. Every new URL keeps full provenance
+    # (parent URL, depth, match reason) on its origin field. Signal
+    # scoring still runs after this step, so crawled candidates pay
+    # the same prose-density tax as every other source.
+    crawl_report = crawl_approved_docs(
+        approved_refs=list(unique),
+        tool_slug=tool_slug,
+        already_seen=seen,
+    )
+    plan.notes.extend(crawl_report.notes)
+    if crawl_report.emitted:
+        for cref in crawl_report.emitted:
+            if cref.url in seen:
+                continue
+            seen.add(cref.url)
+            unique.append(cref)
+        plan.notes.append(
+            f"structured_crawl: added {len(crawl_report.emitted)} new "
+            f"URL(s) from {len(crawl_report.seeds)} approved seed(s)"
+        )
+
+    # Quality-aware ordering: fetch high-signal sources first so the
+    # fetch budget gets spent on URLs that actually contain technical
+    # prose (official docs, API refs, real repos) before marketing
+    # homepages or search aggregators.
+    scored = sort_sources_by_quality(unique)
+    plan.sources = [ref for ref, _score in scored]
+
+    counts: dict[str, int] = {SIGNAL_HIGH: 0, SIGNAL_MEDIUM: 0, SIGNAL_LOW: 0}
+    for _ref, score in scored:
+        counts[score] = counts.get(score, 0) + 1
+    if plan.sources:
+        plan.notes.append(
+            "source quality (pre-fetch): "
+            f"{counts.get(SIGNAL_HIGH, 0)} high / "
+            f"{counts.get(SIGNAL_MEDIUM, 0)} medium / "
+            f"{counts.get(SIGNAL_LOW, 0)} low"
+        )
 
     return plan

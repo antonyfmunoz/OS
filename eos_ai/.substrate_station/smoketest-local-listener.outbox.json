@@ -1,0 +1,24 @@
+[
+  {
+    "action_id": "act_086cef4a47c0",
+    "kind": "open_scene",
+    "payload": {
+      "scene": "operator_mode"
+    },
+    "issued_by": "ritual:open_day",
+    "target_node_id": "smoketest-local-listener",
+    "issued_at": "2026-04-07T08:08:45.828847+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_fb2c0ea74020",
+    "kind": "open_scene",
+    "payload": {
+      "scene": "operator_mode"
+    },
+    "issued_by": "ritual:open_day",
+    "target_node_id": "smoketest-local-listener",
+    "issued_at": "2026-04-07T08:08:48.229245+00:00",
+    "status": "dispatched"
+  }
+]

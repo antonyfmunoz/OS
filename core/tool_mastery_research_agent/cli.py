@@ -23,7 +23,17 @@ import sys
 from pathlib import Path
 
 from .agent import run
+from .candidate_approval import (
+    apply_decision,
+    build_approval_file,
+    format_candidates_for_display,
+    latest_approval_file,
+    load_approval_file,
+    persist_approval_file,
+    save_approval_file,
+)
 from .models import ResearchMode, ResearchRequest
+from .search_discovery import generate_candidates
 
 
 def _load_action_file(path: Path) -> ResearchRequest:
@@ -69,11 +79,133 @@ def build_parser() -> argparse.ArgumentParser:
         help="path to a deferred Control Plane action file",
     )
     ap.add_argument("--json", action="store_true", help="emit machine-readable result")
+
+    # ---- candidate generation / approval subcommands (flag-style) ----
+    ap.add_argument(
+        "--generate-candidates",
+        action="store_true",
+        help=(
+            "generate deterministic source candidates for --tool and write "
+            "them to logs/tool_mastery_research/<slug>/candidates/ for "
+            "operator approval. Does NOT fetch anything."
+        ),
+    )
+    ap.add_argument(
+        "--show-candidates",
+        action="store_true",
+        help="print the latest candidates file for --tool",
+    )
+    ap.add_argument(
+        "--accept",
+        default="",
+        help="comma-separated 1-based indexes of candidates to accept",
+    )
+    ap.add_argument(
+        "--reject",
+        default="",
+        help="comma-separated 1-based indexes of candidates to reject",
+    )
+    ap.add_argument("--accept-all", action="store_true")
+    ap.add_argument("--reject-all", action="store_true")
+    ap.add_argument(
+        "--operator",
+        default="operator",
+        help="name recorded against approval decisions",
+    )
     return ap
+
+
+def _parse_index_set(raw: str) -> set[int]:
+    out: set[int] = set()
+    for piece in (raw or "").split(","):
+        piece = piece.strip()
+        if not piece:
+            continue
+        try:
+            out.add(int(piece))
+        except ValueError as err:
+            raise ValueError(f"invalid index {piece!r}: {err}") from err
+    return out
+
+
+def _handle_generate_candidates(tool: str) -> int:
+    plan = generate_candidates(tool)
+    if not plan.candidates:
+        print(f"no candidates generated for {tool!r}", file=sys.stderr)
+        for note in plan.notes:
+            print(f"  note: {note}", file=sys.stderr)
+        return 1
+    approval = build_approval_file(plan)
+    path = persist_approval_file(approval)
+    print(f"wrote candidates file: {path}")
+    print()
+    print(format_candidates_for_display(approval))
+    print()
+    print(
+        f"next: review and approve with --tool {tool} --accept <n,m> (or --accept-all)"
+    )
+    return 0
+
+
+def _handle_show_candidates(tool: str) -> int:
+    path = latest_approval_file(tool)
+    if path is None:
+        print(f"no candidates file found for {tool!r}", file=sys.stderr)
+        return 1
+    approval = load_approval_file(path)
+    print(f"file: {path}")
+    print(format_candidates_for_display(approval))
+    return 0
+
+
+def _handle_apply_decision(args: argparse.Namespace) -> int:
+    tool = args.tool
+    path = latest_approval_file(tool)
+    if path is None:
+        print(f"no candidates file found for {tool!r}", file=sys.stderr)
+        return 1
+    approval = load_approval_file(path)
+    try:
+        accept = _parse_index_set(args.accept)
+        reject = _parse_index_set(args.reject)
+    except ValueError as err:
+        print(f"error: {err}", file=sys.stderr)
+        return 2
+    apply_decision(
+        approval,
+        accept=accept,
+        reject=reject,
+        accept_all=args.accept_all,
+        reject_all=args.reject_all,
+        operator=args.operator,
+    )
+    save_approval_file(path, approval)
+    print(f"updated: {path}")
+    print(format_candidates_for_display(approval))
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+
+    # ---- candidate lifecycle subcommands take precedence ----
+    if args.generate_candidates:
+        if not args.tool:
+            print("error: --generate-candidates requires --tool", file=sys.stderr)
+            return 2
+        return _handle_generate_candidates(args.tool)
+
+    if args.show_candidates:
+        if not args.tool:
+            print("error: --show-candidates requires --tool", file=sys.stderr)
+            return 2
+        return _handle_show_candidates(args.tool)
+
+    if args.accept or args.reject or args.accept_all or args.reject_all:
+        if not args.tool:
+            print("error: --accept/--reject require --tool", file=sys.stderr)
+            return 2
+        return _handle_apply_decision(args)
 
     if args.consume_action:
         try:

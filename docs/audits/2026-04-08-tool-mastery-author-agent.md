@@ -395,3 +395,140 @@ Secondary next steps (smaller):
   against strong skills.
 
 None of these are v1 blockers. The Author Agent is shipped.
+
+---
+
+## Phase 6 — Author Intelligence
+
+**Shipped:** 2026-04-08
+
+The Author Agent is no longer a section-filler. It now reasons about
+structured patterns and renders them as concrete markdown primitives.
+
+### What changed
+
+1. **Pattern-priority sourcing.** `SectionEvidence` now carries a
+   first-class `patterns` list alongside prose `excerpts`. The draft
+   renderer prefers patterns when they exist and falls back to prose
+   only when no structured signal is available.
+
+2. **Extended pattern → section map** in `mapping._PATTERN_SECTION_MAP`:
+   - `SDK Idioms` ← `install_command`, `setup_flow`, `config_block`,
+     `config_pattern`
+   - `Core Operations` ← `function_signature`, `parameter_definitions`,
+     `endpoints`, `api_objects`
+   - `Data Model` ← `json_schema_fields`
+   - `Conceptual Model and Solution Recipes` ← `stepwise_workflow`,
+     `ordered_workflow`, `workflow_sequence`
+
+3. **Section-specific rendering** in `draft._render_pattern`:
+   - Code-like kinds (`install_command`, `config_block`,
+     `function_signature`, `endpoints`, `api_objects`,
+     `json_schema_fields`) → fenced code block
+   - Ordered-flow kinds (`setup_flow`, `stepwise_workflow`,
+     `ordered_workflow`, `workflow_sequence`) → numbered markdown list
+   - Everything else → bounded blockquote
+
+4. **Explicit grounding.** Every pattern block emits a single line with
+   `**Label** — [SOURCE: url] (confidence: X, N occurrences)` *before*
+   the excerpt. No implicit claims — the reader can trace every
+   statement to its source.
+
+5. **Controlled multi-source synthesis.** Prose excerpts are added
+   *alongside* patterns only when they contribute a URL not already
+   covered by a pattern. Same-source duplication is suppressed.
+
+6. **Quality gates.**
+   - `_looks_marketing()` rejects fluff like "world-class",
+     "cutting-edge", "leverage" when 2+ markers hit in a single
+     excerpt.
+   - `_has_usable_evidence()` downgrades a section to Uncovered if
+     `sourced=True` but every candidate excerpt is marketing fluff
+     and there are no patterns — honest fallback is preserved.
+
+7. **Status badges** differentiate grounding in `best_practices.md`:
+   `Sourced (pattern × N)`, `Sourced (pattern × N + prose)`,
+   `Sourced (prose)`, `Uncovered`.
+
+### Validation — remotion
+
+Ran `author(AuthorRequest(tool_slug='remotion', force_rewrite=True))`
+against `logs/tool_mastery_research/remotion/2026-04-09T-phase5-rebuild/
+research_artifact.json` (5 raw captures, 2 structured `setup_flow`
+patterns, confidence `high`).
+
+**Before Phase 6** — `skills/tools/remotion/references/best_practices.md`
+was 838 lines of uniform prose-excerpt blockquotes with no source
+markers and no pattern differentiation.
+
+**After Phase 6** — 353 lines with:
+
+| Metric                         | Before | After |
+|--------------------------------|--------|-------|
+| Line count                     | 838    | 353   |
+| `[SOURCE: …]` grounding lines  | 0      | 2     |
+| Pattern-rendered sections      | 0      | 1     |
+| Mixed (pattern+prose) sections | 0      | 1     |
+| Honest `Uncovered` sections    | n/a    | 14    |
+
+Section-by-section grounding report:
+
+```
+SDK Idioms                                    mixed    (2 patterns + 3 urls)
+Data Model                                    prose    (5 urls)
+Cost Model                                    prose    (2 urls)
+Problem-Solution Map and Hidden Capabilities  prose    (5 urls)
+Trajectory and Evolution                      prose    (5 urls)
+(14 other sections)                           UNCOVERED
+```
+
+The `SDK Idioms` section now leads with **two ordered-list setup
+flows** — each prefixed by `[SOURCE: <mdx url>] (confidence: high,
+9 occurrences)` — followed by independent prose excerpts from three
+additional source URLs. Compare to the previous output where SDK
+Idioms was an undifferentiated wall of blockquoted migration notes.
+
+Verifier: **PASS**. Final status: `authored_partial` (5 sourced, 14
+uncovered — honest, not forced).
+
+### Quality improvements
+
+1. **Specificity.** "Install `zod`" and "Don't use `npx remotion
+   install` anymore" are now rendered as numbered steps with source
+   attribution, instead of being buried mid-blockquote.
+2. **Trust.** A reader can trace every rendered claim to a URL
+   without leaving the markdown file.
+3. **Honesty.** Uncovered sections are still honestly flagged — the
+   agent does NOT fabricate Authentication, Rate Limits, or Error
+   Codes for remotion (which is a rendering framework without an
+   API surface). Phase 6 preserved the honest-fallback discipline.
+
+### Not done (deferred)
+
+- No LLM synthesis. Phase 6 stays deterministic and reproducible —
+  the same inputs always produce the same markdown.
+
+---
+
+## Phase 7 — Code/Config Extraction Support (2026-04-09)
+
+The author agent received Phase 7 integration to support 14 new pattern
+kinds from the research agent's structural extractors.
+
+### Changes
+
+| File | What |
+|---|---|
+| `mapping.py` | `_PATTERN_SECTION_MAP` expanded 12 → 26 entries |
+| `draft.py` | `_CODE_FENCE_KINDS` +4: version_header, version_constraint, pinned_dependencies, error_handling_pattern |
+| `draft.py` | `_ORDERED_KINDS` +2: quickstart_flow, tutorial_progression |
+| `draft.py` | `_PATTERN_LABELS` +14 human-readable labels for all new kinds |
+
+### No architectural changes required
+
+The pattern-priority rendering architecture from Phase 6 handled the
+expansion with zero structural changes. `_apply_pattern_evidence()`
+routes by kind → section via the map; `_render_pattern()` dispatches
+by kind membership in `_CODE_FENCE_KINDS` / `_ORDERED_KINDS` / default
+blockquote. The existing architecture was designed for exactly this
+kind of extractor expansion.

@@ -1,0 +1,46 @@
+[
+  {
+    "action_id": "act_4012d08d07b8",
+    "kind": "speak_text",
+    "payload": {
+      "text": "Back online. Operator mode is live."
+    },
+    "issued_by": "operator_presence",
+    "target_node_id": "discord_vc_smoketest-guild-1_smoketest-channel-1",
+    "issued_at": "2026-04-09T03:43:56.594564+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_d2e56736be25",
+    "kind": "speak_text",
+    "payload": {
+      "text": "[ea_orchestrator] heard: what is on the agenda today"
+    },
+    "issued_by": "voice_session:ea_orchestrator",
+    "target_node_id": "discord_vc_smoketest-guild-1_smoketest-channel-1",
+    "issued_at": "2026-04-09T03:43:57.445824+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_219fe09d9f09",
+    "kind": "speak_text",
+    "payload": {
+      "text": "[ea_orchestrator] heard: mirrored from discord bot"
+    },
+    "issued_by": "voice_session:ea_orchestrator",
+    "target_node_id": "discord_vc_smoketest-guild-1_smoketest-channel-1",
+    "issued_at": "2026-04-09T03:43:58.944792+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_dd4ea75cbeea",
+    "kind": "speak_text",
+    "payload": {
+      "text": "Session released."
+    },
+    "issued_by": "operator_presence",
+    "target_node_id": "discord_vc_smoketest-guild-1_smoketest-channel-1",
+    "issued_at": "2026-04-09T03:43:59.788009+00:00",
+    "status": "dispatched"
+  }
+]

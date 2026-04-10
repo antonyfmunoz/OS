@@ -1,8 +1,11 @@
 """
 EmbeddingEngine — Three-tier hybrid embedding with graceful degradation.
 
-Tier 1: fastembed (local, free, 384-dim) — primary
-Tier 2: Gemini text-embedding (cloud, paid, 768-dim) — fallback
+Tier 1: fastembed BAAI/bge-small-en-v1.5 (local, free, 384-dim) — primary.
+         Matches the embeddings.embedding vector(384) schema exactly.
+Tier 2: Gemini text-embedding (cloud, 768-dim) — fallback. NOTE: its 768-dim
+         output will NOT fit the 384-dim column; Tier 2 is effectively a
+         query-side fallback only (semantic_search will skip DB write path).
 Tier 3: keyword matching (no embedding) — always works, returns None
 
 Every interaction stored → immediately embedded → semantically retrievable
@@ -167,22 +170,56 @@ class EmbeddingEngine:
         Deletes any existing embedding for this interaction before reinserting.
         Records which model/tier was used in embedding_model column.
         """
-        vector = self.embed(content, 'retrieval_document')
+        # Provider stage
+        try:
+            vector = self.embed(content, 'retrieval_document')
+        except Exception as e:
+            print(
+                f'[EmbeddingEngine] PROVIDER_FAILURE iid={interaction_id} '
+                f'cls={type(e).__name__}: {e}'
+            )
+            return False
         if not vector:
+            print(
+                f'[EmbeddingEngine] PROVIDER_NO_VECTOR iid={interaction_id} '
+                f'(all tiers returned None — keyword-only mode)'
+            )
             return False
 
-        # Determine which model label to record
+        # Dimension guard — DB column is vector(384); reject mismatches loudly
+        # instead of letting Postgres raise a cryptic type error mid-INSERT.
+        EXPECTED_DIMS = self.FASTEMBED_DIMS  # 384
+        if len(vector) != EXPECTED_DIMS:
+            print(
+                f'[EmbeddingEngine] DIMENSION_MISMATCH iid={interaction_id} '
+                f'got={len(vector)} expected={EXPECTED_DIMS} — skipping DB write. '
+                f'Tier 2 (Gemini 768-dim) cannot be persisted against the '
+                f'current 384-dim schema.'
+            )
+            return False
+
+        # Determine which model label to record (fastembed is the only writeable tier)
         try:
             self._get_text_model()
             model_label = self.FASTEMBED_MODEL
         except Exception:
-            model_label = self.GEMINI_MODEL
+            model_label = self.GEMINI_MODEL  # shouldn't happen given dim guard above
 
-        from eos_ai.db import get_conn
+        # Serialization stage
         import json
         try:
+            vec_json = json.dumps(vector)
+        except (TypeError, ValueError) as e:
+            print(
+                f'[EmbeddingEngine] SERIALIZATION_FAILURE iid={interaction_id} '
+                f'cls={type(e).__name__}: {e}'
+            )
+            return False
+
+        # DB write stage
+        from eos_ai.db import get_conn
+        try:
             with get_conn(org_id) as cur:
-                # Remove existing embedding if re-embedding
                 cur.execute(
                     'DELETE FROM embeddings '
                     'WHERE interaction_id = %s AND org_id = %s',
@@ -198,14 +235,24 @@ class EmbeddingEngine:
                     (
                         interaction_id,
                         org_id,
-                        json.dumps(vector),
+                        vec_json,
                         content[:200],
                         model_label,
                     ),
                 )
             return True
         except Exception as e:
-            print(f'[EmbeddingEngine] store failed: {e}')
+            # Keep non-blocking semantics but classify the failure.
+            kind = 'DB_FAILURE'
+            msg = str(e).lower()
+            if 'expected' in msg and 'dimensions' in msg:
+                kind = 'DIMENSION_MISMATCH_DB'
+            elif 'duplicate' in msg or 'unique' in msg:
+                kind = 'DB_CONSTRAINT'
+            print(
+                f'[EmbeddingEngine] {kind} iid={interaction_id} '
+                f'cls={type(e).__name__}: {e}'
+            )
             return False
 
     def semantic_search(

@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 WORKDIR /app
-RUN apt-get update && apt-get install -y git curl gcc python3-dev ffmpeg espeak && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y git curl gcc python3-dev ffmpeg espeak tmux && rm -rf /var/lib/apt/lists/*
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs && rm -rf /var/lib/apt/lists/*
 COPY services/requirements.txt .
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu

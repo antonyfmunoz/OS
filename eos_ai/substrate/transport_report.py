@@ -246,10 +246,29 @@ def unified_transport_report(
         "by_status": merged_by_status,
     }
 
-    return {
+    # ── Meeting intelligence (bounded, never raises) ───────────────────
+    meeting_intel: dict[str, Any] = {
+        "summary": None,
+        "recent_interventions": [],
+        "memory_extracted_count": 0,
+    }
+    try:
+        from eos_ai.substrate.meeting_intelligence import (
+            intelligence_report_block,
+        )
+
+        meeting_intel = intelligence_report_block(
+            node_id=meeting_node_id,
+            meeting_id=meeting_id,
+        )
+    except Exception as e:  # noqa: BLE001
+        _log(f"meeting_intelligence block failed: {e}")
+
+    report = {
         "node_id": node_id,
         "discord_node_id": discord_node_id,
         "meeting_node_id": meeting_node_id,
+        "meeting_intelligence": meeting_intel,
         "generated_at": _utcnow_iso(),
         "workstation": workstation,
         "discord_transport": discord_status,
@@ -265,6 +284,354 @@ def unified_transport_report(
         },
         "playback_aggregates": playback_aggregates,
     }
+
+    # ── Additive operator-facing augmentations ─────────────────────────
+    try:
+        report["continuity"] = _continuity_block(report)
+        report["ingress"] = _ingress_block(report)
+        report["playback_last"] = _playback_last_block(report)
+        report["meet_bridges"] = _meet_bridges_block(report)
+        report["supervision_hints"] = _supervision_hints_block(report)
+        report["pseudo_live"] = _pseudo_live_block()
+    except Exception as e:  # noqa: BLE001
+        _log(f"augmentation failed: {e}")
+        report.setdefault("continuity", _empty_continuity())
+        report.setdefault("ingress", _empty_ingress())
+        report.setdefault("playback_last", _empty_playback_last())
+        report.setdefault("meet_bridges", [])
+        report.setdefault("supervision_hints", [])
+        report.setdefault("pseudo_live", _empty_pseudo_live())
+        report["continuity_error"] = str(e)[:200]
+
+    return report
+
+
+def _empty_pseudo_live() -> dict:
+    return {
+        "ingress_enabled": False,
+        "tts_reply_enabled": False,
+        "allowlists": {"guilds": [], "channels": [], "users": []},
+        "reply_max_chars": 0,
+        "recent_events": [],
+        "transcript_source": "discord_text",
+    }
+
+
+def _pseudo_live_block() -> dict:
+    try:
+        from eos_ai.substrate.discord_text_transport import pseudo_live_status
+
+        return pseudo_live_status()
+    except Exception as e:  # noqa: BLE001
+        _log(f"_pseudo_live_block failed: {e}")
+        out = _empty_pseudo_live()
+        out["error"] = str(e)[:200]
+        return out
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Augmentation helpers — all best-effort, never raise to caller
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _empty_continuity() -> dict:
+    return {
+        "shared_role_slug": None,
+        "active_transports": [],
+        "transports_seen": [],
+        "common_node_role_count": 0,
+        "any_active_session": False,
+    }
+
+
+def _empty_ingress() -> dict:
+    return {
+        "discord": {"last_at": None, "count": 0},
+        "meeting": {"last_at": None, "count": 0},
+        "local": {"last_at": None, "count": 0},
+        "by_source_total": 0,
+    }
+
+
+def _empty_playback_last() -> dict:
+    return {
+        "discord": {"at": None, "status": None},
+        "meeting": {"at": None, "status": None},
+    }
+
+
+def _continuity_block(report: dict) -> dict:
+    out = _empty_continuity()
+    try:
+        dt = report.get("discord_transport") or {}
+        mt = report.get("meeting_transport") or {}
+        ws = report.get("workstation") or {}
+        transports_seen: list[str] = []
+        active: list[str] = []
+        roles: list[str] = []
+
+        # workstation: "active" if any capture history or classification real_ready
+        wsr = ws.get("readiness") or {}
+        if wsr:
+            transports_seen.append("workstation")
+            cls = wsr.get("classification")
+            hist_count = (ws.get("real_capture_report") or {}).get("history_count") or 0
+            if cls in ("real_ready", "real_capture_ready") or hist_count > 0:
+                active.append("workstation")
+
+        if isinstance(dt, dict) and dt.get("mode") != "unavailable":
+            transports_seen.append("discord")
+            if int(dt.get("active_session_count") or 0) > 0:
+                active.append("discord")
+            rs = dt.get("role_slug")
+            if isinstance(rs, str) and rs:
+                roles.append(rs)
+
+        if isinstance(mt, dict) and mt.get("mode") != "unavailable":
+            transports_seen.append("meeting")
+            if int(mt.get("active_session_count") or 0) > 0:
+                active.append("meeting")
+            rs = mt.get("role_slug")
+            if isinstance(rs, str) and rs:
+                roles.append(rs)
+
+        shared_role: Optional[str] = None
+        common_count = 0
+        if roles:
+            counts: dict[str, int] = {}
+            for r in roles:
+                counts[r] = counts.get(r, 0) + 1
+            shared_role, common_count = max(counts.items(), key=lambda kv: kv[1])
+
+        out["shared_role_slug"] = shared_role
+        out["active_transports"] = active
+        out["transports_seen"] = transports_seen
+        out["common_node_role_count"] = common_count
+        out["any_active_session"] = bool(active)
+    except Exception as e:  # noqa: BLE001
+        _log(f"_continuity_block failed: {e}")
+    return out
+
+
+def _latest_occurred_at(entries: list[dict]) -> Optional[str]:
+    best: Optional[str] = None
+    for e in entries or []:
+        if not isinstance(e, dict):
+            continue
+        ts = e.get("occurred_at") or e.get("ts")
+        if isinstance(ts, str) and ts:
+            if best is None or ts > best:
+                best = ts
+    return best
+
+
+def _ingress_block(report: dict) -> dict:
+    out = _empty_ingress()
+    try:
+        tr = report.get("transcripts") or {}
+        local = tr.get("local") or []
+        discord = tr.get("discord") or []
+        meeting = tr.get("meeting") or []
+        out["local"] = {
+            "last_at": _latest_occurred_at(local),
+            "count": len(local),
+        }
+        out["discord"] = {
+            "last_at": _latest_occurred_at(discord),
+            "count": len(discord),
+        }
+        out["meeting"] = {
+            "last_at": _latest_occurred_at(meeting),
+            "count": len(meeting),
+        }
+        by_src = tr.get("by_source") or {}
+        try:
+            out["by_source_total"] = sum(int(v) for v in by_src.values())
+        except Exception:  # noqa: BLE001
+            out["by_source_total"] = 0
+    except Exception as e:  # noqa: BLE001
+        _log(f"_ingress_block failed: {e}")
+    return out
+
+
+def _playback_last_block(report: dict) -> dict:
+    out = _empty_playback_last()
+    try:
+        pa = (report.get("playback_aggregates") or {}).get("by_transport") or {}
+        for t in ("discord", "meeting"):
+            pb = pa.get(t) or {}
+            last = pb.get("last_result") if isinstance(pb, dict) else None
+            if isinstance(last, dict):
+                out[t] = {
+                    "at": last.get("at") or last.get("occurred_at"),
+                    "status": last.get("status"),
+                }
+    except Exception as e:  # noqa: BLE001
+        _log(f"_playback_last_block failed: {e}")
+    return out
+
+
+# Average JSONL caption line byte length — used for cheap backlog estimates.
+# Tuned against typical caption records {"ts","text","speaker","meeting_code",
+# "source","event_id"} which round to ~160-200 bytes. 180 is a conservative
+# middle. Skipped entirely for files > 1 MB.
+_MEET_BRIDGE_AVG_LINE = 180
+_MEET_BRIDGE_BACKLOG_MAX = 1_000_000
+
+
+def _iso_from_mtime(mtime: float) -> Optional[str]:
+    try:
+        return datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat()
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _attached_meeting_codes(report: dict) -> set[str]:
+    """Best-effort: peek attached meeting sources for their meeting_code.
+
+    Uses the currently-live default meeting transport instance's private
+    ``_attached_sources`` dict to reach the live source objects. This is
+    intentionally gated behind try/except — if the shape changes we fall
+    back to no attached-code info.
+    """
+    codes: set[str] = set()
+    try:
+        from eos_ai.substrate.meeting_transport import (
+            get_default_meeting_transport,
+        )
+
+        t = get_default_meeting_transport()
+        live = getattr(t, "_attached_sources", None)
+        if not isinstance(live, dict):
+            return codes
+        for _name, entry in live.items():
+            if not isinstance(entry, dict):
+                continue
+            if entry.get("provider") != "google_meet":
+                continue
+            src = entry.get("source")
+            mc = getattr(src, "meeting_code", None)
+            if isinstance(mc, str) and mc:
+                # sanitize to match on-disk filename
+                try:
+                    from eos_ai.substrate.meet_caption_bridge import (
+                        sanitize_meeting_code,
+                    )
+
+                    codes.add(sanitize_meeting_code(mc))
+                except Exception:  # noqa: BLE001
+                    codes.add(mc)
+    except Exception:  # noqa: BLE001
+        pass
+    return codes
+
+
+def _meet_bridges_block(report: dict) -> list[dict]:
+    out: list[dict] = []
+    try:
+        from eos_ai.substrate.meet_caption_bridge import BRIDGE_ROOT
+
+        if not BRIDGE_ROOT.exists():
+            return out
+        attached_codes = _attached_meeting_codes(report)
+        paths = sorted(BRIDGE_ROOT.glob("*.jsonl"))
+        for p in paths[:50]:  # bound
+            try:
+                st = p.stat()
+                size = int(st.st_size)
+                code = p.stem
+                backlog: Optional[int] = None
+                if 0 < size <= _MEET_BRIDGE_BACKLOG_MAX:
+                    backlog = max(1, size // _MEET_BRIDGE_AVG_LINE)
+                out.append(
+                    {
+                        "meeting_code": code,
+                        "path": str(p),
+                        "exists": True,
+                        "size_bytes": size,
+                        "modified_at": _iso_from_mtime(st.st_mtime),
+                        "attached_to_transport": code in attached_codes,
+                        "backlog_estimate_lines": backlog,
+                    }
+                )
+            except OSError:
+                continue
+    except Exception as e:  # noqa: BLE001
+        _log(f"_meet_bridges_block failed: {e}")
+    return out
+
+
+def _supervision_hints_block(report: dict) -> list[str]:
+    hints: list[str] = []
+    try:
+        dt = report.get("discord_transport") or {}
+        mt = report.get("meeting_transport") or {}
+        ws = report.get("workstation") or {}
+        ingress = report.get("ingress") or {}
+        bridges = report.get("meet_bridges") or []
+
+        # discord attachment
+        if isinstance(dt, dict) and dt.get("mode") != "unavailable":
+            if not dt.get("attached_vc"):
+                hints.append("discord: voice client not attached")
+            if dt.get("mode") == "transcript_only_no_lib":
+                hints.append("discord: voice lib missing — transcript-only")
+
+        # meeting attached sources
+        if isinstance(mt, dict) and mt.get("mode") != "unavailable":
+            atts = mt.get("attached_sources") or []
+            if not atts:
+                hints.append("meeting: no caption bridge attached")
+
+        # workstation readiness
+        wsr = (ws.get("readiness") or {}) if isinstance(ws, dict) else {}
+        cls = wsr.get("classification")
+        if cls in ("simulated_only", "unsupported", "degraded"):
+            hints.append(f"workstation: ptt classification={cls}")
+
+        # meet bridge backlog
+        for b in bridges[:5]:
+            try:
+                bk = b.get("backlog_estimate_lines")
+                if isinstance(bk, int) and bk >= 3:
+                    name = b.get("meeting_code") or "?"
+                    hints.append(f"meeting: bridge '{name}' backlog ~{bk} lines"[:80])
+            except Exception:  # noqa: BLE001
+                continue
+
+        # ingress silence: no transcripts at all across transports
+        try:
+            total = int(ingress.get("by_source_total") or 0)
+            if total == 0:
+                hints.append("transcripts: no ingress across any transport")
+        except Exception:  # noqa: BLE001
+            pass
+
+        # playback capability
+        pa = report.get("playback_aggregates") or {}
+        for t in ("discord", "meeting"):
+            pb = (pa.get("by_transport") or {}).get(t) or {}
+            if isinstance(pb, dict) and pb.get("mode") == "transcript_only":
+                if pb.get("attached") is False and pb.get("enabled") is False:
+                    # already implied by earlier hints — skip to stay terse
+                    pass
+    except Exception as e:  # noqa: BLE001
+        _log(f"_supervision_hints_block failed: {e}")
+
+    # Bound + normalize
+    normed: list[str] = []
+    for h in hints:
+        if not isinstance(h, str):
+            continue
+        s = h.strip()
+        if not s:
+            continue
+        if len(s) > 80:
+            s = s[:80]
+        normed.append(s)
+        if len(normed) >= 10:
+            break
+    return normed
 
 
 __all__ = ["unified_transport_report"]

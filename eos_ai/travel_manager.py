@@ -49,16 +49,26 @@ def build_travel_brief(
     """Build a complete travel logistics brief."""
     try:
         from eos_ai.model_router import get_router, TaskType
+        from eos_ai.context import load_context_from_env as _lctx
         router = get_router()
 
-        prompt = f"""You are DEX, EA to Antony Munoz.
+        # Substrate-neutral traveler/home base framing from ctx.
+        _ctx = ctx or _lctx()
+        _traveler = (
+            getattr(_ctx, 'founder_name', None)
+            or getattr(_ctx, 'user_name', None)
+            or 'the founder'
+        )
+        _home_base = getattr(_ctx, 'home_base', None) or 'their home base'
+
+        prompt = f"""You are the EA assistant for {_traveler}.
 Build a complete pre-trip brief for this travel event.
 
 Event: {event_title}
 Destination: {destination}
 Dates: {start_date} to {end_date}
 Attendees/context: {', '.join(attendees) if attendees else 'Solo'}
-Antony is based in Portland, OR (PDT)
+Home base: {_home_base}
 
 Create a comprehensive travel brief covering:
 

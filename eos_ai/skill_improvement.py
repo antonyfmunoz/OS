@@ -363,10 +363,20 @@ class SkillImprovementEngine:
         """
         GENERATED_SKILLS_DIR.mkdir(parents=True, exist_ok=True)
 
+        # Substrate-neutral venture framing from ctx.
+        _ctx = getattr(self, 'ctx', None)
+        _active = (
+            getattr(_ctx, 'active_venture', None)
+            or (getattr(_ctx, 'ventures', []) or [{}])[0]
+            or {}
+        )
+        _v_name = _active.get('name', 'the active venture') if isinstance(_active, dict) else 'the active venture'
+        _v_offer = _active.get('offer', '') if isinstance(_active, dict) else ''
+        _v_framing = f"{_v_name}{' — ' + _v_offer if _v_offer else ''}"
+
         prompt = (
             "You are designing a new AI skill file for a founder-operator's "
-            "sales and outreach intelligence system (Initiate Arena — a 90-day "
-            "discipline program for men aged 18-25).\n\n"
+            f"sales and outreach intelligence system ({_v_framing}).\n\n"
             "A recurring task pattern has been detected with no skill assigned:\n\n"
             f"Pattern      : {pattern['pattern_description']}\n"
             f"Task type    : {pattern['task_type']}\n"

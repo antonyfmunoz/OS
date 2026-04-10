@@ -186,9 +186,20 @@ def draft_talking_points(
             f'- {v.get("name")}: {v.get("offer", "")}' for v in ventures
         ) if ventures else 'Entrepreneur and founder'
 
+        # Substrate-neutral speaker/brand framing from ctx.
+        _speaker = (
+            getattr(ctx, 'founder_name', None)
+            or getattr(ctx, 'user_name', None)
+            or 'the founder'
+        )
+        _brand_voice = (
+            getattr(ctx, 'brand_voice', None)
+            or 'direct, structured, founder-operator tone'
+        )
+
         return router.call_with_fallback(TaskType.ANALYSIS, f"""Draft talking points for a speaking engagement.
 
-Speaker: Antony Munoz
+Speaker: {_speaker}
 Ventures: {venture_context}
 Topic: {topic}
 Audience: {audience}
@@ -206,7 +217,7 @@ Create:
 ## Closing
 ## Q&A prep
 
-Antony's brand: tactical luxury, Vigilante Architect, cinematic and structured tone.""").strip()
+Brand voice: {_brand_voice}.""").strip()
     except Exception as e:
         return f'Talking points unavailable: {e}'
 

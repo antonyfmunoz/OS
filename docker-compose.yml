@@ -117,6 +117,11 @@ services:
       - /root/.config/@googleworkspace:/root/.config/@googleworkspace
       - /root/.claude:/root/.claude:ro
       - /root/.claude.json:/root/.claude.json:ro
+      # Host tmux socket — lets the router's claude_cli backend reach the
+      # host's `dex_main` Claude Code session from inside the container.
+      # Host server lives at /tmp/tmux-0/default (root UID 0); container is
+      # also root so the default socket path resolves identically.
+      - /tmp/tmux-0:/tmp/tmux-0
     env_file:
       - services/.env
       - eos_ai/.env
@@ -130,4 +135,17 @@ services:
       - OTEL_METRICS_EXPORTER=none
       - OTEL_LOGS_EXPORTER=none
       - ANTHROPIC_DISABLE_TELEMETRY=1
+
+      - EOS_ROUTER_CLAUDE_CLI_ENABLED=1
+      - EOS_ROUTER_CLAUDE_CLI_TARGET=vps
+      - EOS_ROUTER_CLAUDE_CLI_SESSION=dex_main
+      # Force default tmux socket dir so container tmux binds to the mounted
+      # host socket rather than a container-private one.
+      - TMUX_TMPDIR=/tmp
+
+      - EOS_DISCORD_TEXT_TRANSPORT_ENABLED=1
+      - EOS_DISCORD_TEXT_REPLY_TTS_ENABLED=1
+      - EOS_DISCORD_TEXT_ALLOWED_GUILDS=*
+      - EOS_DISCORD_TEXT_ALLOWED_CHANNELS=*
+      - EOS_DISCORD_TEXT_ALLOWED_USERS=*
     command: python3 services/discord_bot.py

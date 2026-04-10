@@ -118,6 +118,28 @@ def _add_common(p: argparse.ArgumentParser) -> None:
         action="store_true",
         help="print list_attached_sources() as JSON",
     )
+    p.add_argument(
+        "--attach-google-meet",
+        default=None,
+        metavar="URL_OR_CODE",
+        help="attach a real GoogleMeetSource for the given meet URL or code",
+    )
+    p.add_argument(
+        "--google-meet-name",
+        default="google_meet",
+        help="name to register the GoogleMeetSource under (default: google_meet)",
+    )
+    p.add_argument(
+        "--google-meet-poll-once",
+        action="store_true",
+        help="after attaching, pump the google_meet source once",
+    )
+    p.add_argument(
+        "--show-source-status",
+        default=None,
+        metavar="NAME",
+        help="print status_snapshot() for an attached GoogleMeetSource by name",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -151,6 +173,12 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+# Process-local registry of GoogleMeetSource instances created via this CLI
+# invocation, keyed by source name. Lets --show-source-status print the
+# adapter-specific snapshot after --attach-google-meet in the same call.
+_GMEET_REGISTRY: dict[str, object] = {}
+
+
 def _run_source_ops(args: argparse.Namespace) -> None:
     """Run attach/pump/show/detach ops against the configured meeting transport.
 
@@ -162,11 +190,15 @@ def _run_source_ops(args: argparse.Namespace) -> None:
             args.pump is not None,
             args.show_attached,
             args.detach_source,
+            args.attach_google_meet,
+            args.google_meet_poll_once,
+            args.show_source_status,
         ]
     )
     if not needs_transport:
         return
 
+    from eos_ai.substrate.google_meet_source import GoogleMeetSource
     from eos_ai.substrate.meeting_sources import FakeMeetingSource
 
     transport = _transport(args)
@@ -181,14 +213,42 @@ def _run_source_ops(args: argparse.Namespace) -> None:
         )
         _print_json(transport.attach_source(source))
 
+    if args.attach_google_meet:
+        gmeet = GoogleMeetSource(
+            name=args.google_meet_name,
+            meeting_url=args.attach_google_meet,
+        )
+        _GMEET_REGISTRY[gmeet.name] = gmeet
+        attach_res = transport.attach_source(gmeet)
+        attach_res["adapter_mode"] = gmeet.mode
+        attach_res["meeting_code"] = gmeet.meeting_code
+        _print_json(attach_res)
+
+    if args.google_meet_poll_once:
+        _print_json(transport.pump_attached_sources(max_per_source=1))
+
     if args.pump is not None:
         _print_json(transport.pump_attached_sources(max_per_source=args.pump or 1))
 
     if args.show_attached:
         _print_json(transport.list_attached_sources())
 
+    if args.show_source_status:
+        gmeet = _GMEET_REGISTRY.get(args.show_source_status)
+        if gmeet is None:
+            _print_json(
+                {
+                    "status": "not_found",
+                    "name": args.show_source_status,
+                    "hint": "GoogleMeetSource only visible within the same CLI invocation",
+                }
+            )
+        else:
+            _print_json(gmeet.status_snapshot())  # type: ignore[attr-defined]
+
     if args.detach_source:
         _print_json(transport.detach_source(args.detach_source))
+        _GMEET_REGISTRY.pop(args.detach_source, None)
 
 
 def main() -> int:

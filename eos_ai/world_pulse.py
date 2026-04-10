@@ -181,14 +181,25 @@ class WorldPulse:
             from eos_ai.model_router import get_router, TaskType as RouterTaskType
             router = get_router()
 
+            # Build a substrate-neutral venture context string from ctx.ventures
+            # (falls back to a generic founder framing when no ventures are loaded).
+            _ventures = getattr(self, 'ctx', None)
+            _v_list = getattr(_ventures, 'ventures', []) if _ventures else []
+            if _v_list:
+                _venture_ctx_str = ', '.join(
+                    f"{v.get('name', v.get('id', ''))}"
+                    f"{' (' + v.get('offer', '') + ')' if v.get('offer') else ''}"
+                    for v in _v_list
+                )
+            else:
+                _venture_ctx_str = 'a founder-operator portfolio'
+
             for query in queries:
                 prompt = (
                     f"{query['prompt']}\n\n"
                     f'Provide 3-5 specific, actionable insights. '
                     f'Focus on what matters for a founder running: '
-                    f"Lyfe Institute (men's coaching $750), "
-                    f'Empyrean Creative (B2B AI services), '
-                    f'Personal Brand (content business). '
+                    f'{_venture_ctx_str}. '
                     f'Be specific and current.'
                 )
 

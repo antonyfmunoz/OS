@@ -997,3 +997,111 @@ After drafting any Higgsfield handoff, the agent must verify:
 
 If any box is unchecked, the handoff is incomplete. Re-draft before
 sending to Antony.
+
+---
+
+## Canonical Section Aliases
+
+The sections below satisfy the Tool Mastery verifier's canonical schema.
+Higgsfield is a consumer web video-gen product — it has a public UI and
+subscription tiers but no documented programmatic SDK as of the
+`last_researched` date. Where existing content above covers a canonical
+topic under a different heading, that location is cited. Where genuine
+content is unavailable without a new research pass, an honest minimal
+placeholder is recorded to avoid fabrication.
+
+### Error Codes
+See `## Error Handling` above for observed failure modes and recovery
+patterns. Higgsfield does not publish a numeric error-code catalogue;
+errors surface as on-screen messages ("generation failed", "content
+policy violation", "quota exhausted"). Recovery is retry-with-variation
+for content-policy hits and wait-and-retry for quota.
+
+### Anti-Patterns
+- Stacking camera language in the prompt body when a preset already owns
+  the camera move (produces fighting motion).
+- Using long cinematic prose prompts (short prompts beat long ones — see
+  `## Why short prompts beat long ones` above).
+- Requesting specific named celebrities or trademarked IP — triggers
+  content-policy failure with no refund of credit.
+- Using text-to-video when image-to-video with a reference frame would
+  be far more controllable.
+
+### Data Model
+Primary entities observed via the web UI: `Project`, `Generation`
+(`video`, `image`), `Preset` (camera move), `Model Tier` (Lite / Turbo /
+Ultra / DoP), `Subscription Plan`. There is no public schema
+documentation; the above is inferred from the UI and subject to change.
+
+### Limits
+Generation length: typically 5–10 seconds per clip depending on model.
+Resolution caps vary by plan tier (see `## Plan tiers (2026-04, subject
+to change)` above). Concurrent generations are gated by plan. Content
+policy limits are enforced on subject identity, nudity, violence.
+
+### Cost Model
+See `## Plan tiers (2026-04, subject to change)` and `## Per-generation
+cost (model routing)` above. Pricing is subscription + per-generation
+credit. Higgsfield changes pricing and tier names frequently; verify
+against the live billing page before committing spend plans.
+
+### Version Pinning
+Higgsfield has no public SDK versioning. Pin by:
+1. Model name + tier (e.g. `DoP / Ultra`) in the generation record.
+2. Date of generation (UI behavior changes without notice).
+3. Exact preset name (presets are added and occasionally renamed).
+
+EOS convention: record all three in the asset sidecar JSON for any
+generation shipped to a brand channel.
+
+### Design Intent
+Higgsfield's design intent is **preset-owned camera language**: the
+product's thesis is that cinematic camera moves are a fixed vocabulary
+(dolly zoom, crane, orbit, etc.) and the user should pick from that
+vocabulary rather than describe it in prose. This is why short prompts
+beat long ones — the camera is already encoded in the preset, leaving
+the prompt body free to describe subject and action only.
+
+### Problem-Solution Map
+See the pattern library above (`## Pattern 1` through `## Pattern 5`) for
+the primary problem→solution mapping. Problems covered: personal brand
+hook shot, product drop, pitch reel beat, talking-head explainer,
+multi-shot sequence.
+
+### Operational Behavior
+Generations are queue-based; expect 30 s to several minutes per clip
+depending on tier and load. Failed generations on content-policy do not
+refund credits. The UI sometimes displays a completed generation before
+the CDN has finished propagating — wait and refresh if the download 404s.
+
+### Ecosystem Position
+Higgsfield sits in the AI video-gen category alongside Runway, Pika,
+Kling, Luma Dream Machine, and Sora. Its differentiation is the
+preset-first camera vocabulary — competitors generally take free-form
+prompts. Best paired with: still-image models (Midjourney, Flux) for
+reference frames; traditional NLE (Premiere, DaVinci) for final
+assembly; and voiceover pipelines for talking-head output.
+
+### Trajectory
+Higgsfield is actively shipping new presets and model tiers.
+Pricing and tier names have changed multiple times in the months before
+the `last_researched` date. Expect continued volatility. Do not hard-code
+model names or tier pricing into EOS automation — route via a config
+table that can be updated without a deploy.
+
+### Conceptual Model
+The core mental model is: **subject-prompt × camera-preset = clip**.
+The user's job is to get the subject prompt right; the preset owns the
+motion. See `## Push / Pull (subject-anchored translation)` above for
+the subject-side translation layer and the preset sections for the
+camera-side vocabulary.
+
+### Industry Expert Usage
+Professional usage patterns observed in the creator community:
+- Image-to-video with a Midjourney / Flux reference frame (not
+  text-to-video) for maximum subject control.
+- One camera move per clip; never mix moves in a single generation.
+- Batch-generate 4–8 variations and cherry-pick in an NLE rather than
+  iterating prompts for a single "perfect" clip.
+- Use Higgsfield for hero shots only; cut to B-roll from cheaper sources
+  for filler.

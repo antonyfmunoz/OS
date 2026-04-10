@@ -3,8 +3,8 @@ name: shadcn_ui
 description: "Use when adding, modifying, or composing shadcn/ui components in /opt/OS/saas — running the `shadcn` CLI to vendor components, authoring or editing components.json, theming via CSS variables (HSL tokens + dark mode), integrating Radix UI primitives with Tailwind classes and CVA (class-variance-authority) variants, wiring the <Form> primitives to React Hook Form + zodResolver, building DataTable with TanStack Table, nesting Dialog/Popover/DropdownMenu with portals, using the cn() + tailwind-merge helper, extending component variants, resolving React 19 peer-dep issues, handling the New York vs Default style decision, or diagnosing why a re-run of `shadcn add` clobbered local edits."
 allowed-tools: "Read, Write, Edit, Bash, WebFetch, WebSearch"
 version: 1.0
-source_url: "https://ui.shadcn.com"
-last_researched: "2026-04-06"
+source_url: "https://ui.shadcn.com/docs"
+last_researched: "2026-04-09"
 instantiated_from: templates/tools/_template/
 api_version: "n/a (CLI + registry)"
 sdk_version: "shadcn@latest"

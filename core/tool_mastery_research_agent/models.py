@@ -149,6 +149,20 @@ class ResearchArtifact:
     # Each entry: {"section": str, "has_source": bool, "source_urls": [..]}
     section_coverage: list[dict[str, Any]] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    # Run-level quality flag: "high" | "mixed" | "low"
+    quality: str = "low"
+    # Per-source signal reports (pre-author-agent prose density check).
+    signal_reports: list[dict[str, Any]] = field(default_factory=list)
+    # Phase 5 — per-source content classification reports.
+    # Each entry is a SourceTypeReport.to_dict().
+    source_type_reports: list[dict[str, Any]] = field(default_factory=list)
+    # Phase 5 — structured patterns extracted from OK, classified sources.
+    # Shape: {"usage": [...], "api": [...], "workflows": [...]}.
+    # Each pattern dict carries kind, excerpt, url, confidence, occurrences,
+    # and structured flags so the Author Agent can route by kind.
+    extracted_patterns: dict[str, list[dict[str, Any]]] = field(
+        default_factory=lambda: {"usage": [], "api": [], "workflows": []}
+    )
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -158,6 +172,14 @@ class ResearchArtifact:
             "sources": [s.to_dict() for s in self.sources],
             "section_coverage": list(self.section_coverage),
             "notes": list(self.notes),
+            "quality": self.quality,
+            "signal_reports": list(self.signal_reports),
+            "source_type_reports": list(self.source_type_reports),
+            "extracted_patterns": {
+                "usage": list(self.extracted_patterns.get("usage", [])),
+                "api": list(self.extracted_patterns.get("api", [])),
+                "workflows": list(self.extracted_patterns.get("workflows", [])),
+            },
         }
 
 

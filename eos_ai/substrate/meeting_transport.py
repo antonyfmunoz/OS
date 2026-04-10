@@ -408,6 +408,21 @@ class MeetingTransport:
                     pumped_here += 1
                     total += 1
                     last_status = "ok"
+                    # Meeting Intelligence Layer v1 — bounded, additive,
+                    # never raises. Summary/intervention/memory on each
+                    # successful inject.
+                    try:
+                        from eos_ai.substrate.meeting_intelligence import (
+                            on_utterance_injected,
+                        )
+
+                        on_utterance_injected(
+                            self.node_id,
+                            self.meeting_id,
+                            [u],
+                        )
+                    except Exception:  # noqa: BLE001
+                        pass
                 except Exception as e:  # noqa: BLE001
                     last_status = "error"
                     last_error = str(e)
@@ -447,16 +462,49 @@ class MeetingTransport:
         playback is disabled, returns a structured `disabled` result instead
         of raising.
         """
+        # Lazy import to keep hot path clean.
+        try:
+            from eos_ai.substrate.discord_voice_playback import (
+                normalize_playback_result,
+            )
+        except Exception:  # noqa: BLE001
+            normalize_playback_result = None  # type: ignore
+
+        def _wrap(out: dict) -> dict:
+            if normalize_playback_result is None:
+                return out
+            try:
+                env = normalize_playback_result(
+                    out,
+                    transport="meeting",
+                    text_preview=(text or "").strip()[:80] or None,
+                )
+                # Additive merge: existing keys win to preserve backward compat.
+                merged = dict(env)
+                merged.update(out)
+                # Ensure envelope-only keys are present even when out has them missing.
+                for k in ("transport", "occurred_at", "reason", "queued_depth"):
+                    if k not in merged or merged.get(k) is None and k in env:
+                        merged[k] = env[k]
+                merged["transport"] = "meeting"
+                if "occurred_at" not in merged:
+                    merged["occurred_at"] = env["occurred_at"]
+                return merged
+            except Exception:  # noqa: BLE001
+                return out
+
         if self._attached_sink is None or not self._playback_enabled:
             out = {
                 "status": "disabled",
                 "detail": "no playback sink attached or playback disabled",
             }
+            out = _wrap(out)
             self._record_playback(out)
             return out
         clean = (text or "").strip()
         if not clean:
             out = {"status": "empty_text"}
+            out = _wrap(out)
             self._record_playback(out)
             return out
         try:
@@ -468,10 +516,12 @@ class MeetingTransport:
                     "status": "ok",
                     "detail": str(result) if result is not None else "",
                 }
+            out = _wrap(out)
             self._record_playback(out)
             return out
         except Exception as e:  # noqa: BLE001
-            out = {"status": "playback_error", "detail": str(e)}
+            out = {"status": "playback_error", "detail": str(e), "kind": "sink_error"}
+            out = _wrap(out)
             self._record_playback(out)
             return out
 

@@ -48,9 +48,9 @@ from eos_ai.db import get_conn
 _TRUST_THRESHOLDS = [
     (200, 5),
     (100, 4),
-    (50,  3),
-    (10,  2),
-    (0,   1),
+    (50, 3),
+    (10, 2),
+    (0, 1),
 ]
 
 
@@ -65,8 +65,8 @@ class UserModel:
     """
 
     def __init__(self, ctx: EOSContext):
-        self.ctx      = ctx
-        self.loop     = CognitiveLoop(ctx)
+        self.ctx = ctx
+        self.loop = CognitiveLoop(ctx)
         self._runtime = AgentRuntime(ctx)
         self._ensure_table()
 
@@ -113,7 +113,7 @@ class UserModel:
                     "SELECT COUNT(*) AS cnt FROM interactions WHERE user_id = %s",
                     (self.ctx.user_id,),
                 )
-                row   = cur.fetchone()
+                row = cur.fetchone()
                 count = int(row["cnt"]) if row else 0
         except Exception as e:
             print(f"[UserModel] Trust level query failed: {e}")
@@ -141,8 +141,7 @@ class UserModel:
             trust_level:           int
         """
         cutoff = (
-            datetime.datetime.now(datetime.timezone.utc)
-            - datetime.timedelta(days=30)
+            datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=30)
         ).isoformat()
 
         # ── Pull interaction history ──────────────────────────────────────────
@@ -162,9 +161,9 @@ class UserModel:
                 rows = cur.fetchall()
                 interactions = [
                     {
-                        "input":     (row["input_summary"] or "").strip(),
+                        "input": (row["input_summary"] or "").strip(),
                         "task_type": row["task_type"] or "unknown",
-                        "agent":     row["agent_label"] or "unknown",
+                        "agent": row["agent_label"] or "unknown",
                     }
                     for row in rows
                 ]
@@ -176,19 +175,17 @@ class UserModel:
         # ── No history yet ────────────────────────────────────────────────────
         if not interactions:
             return {
-                "communication_style":  "No interaction history yet.",
-                "avg_prompt_length":    0,
-                "common_shorthand":     [],
+                "communication_style": "No interaction history yet.",
+                "avg_prompt_length": 0,
+                "common_shorthand": [],
                 "frequent_ambiguities": [],
-                "preferred_depth":      "detailed",
-                "decision_style":       "unknown",
-                "trust_level":          trust_level,
+                "preferred_depth": "detailed",
+                "decision_style": "unknown",
+                "trust_level": trust_level,
             }
 
         # ── Compute stats ─────────────────────────────────────────────────────
-        word_lengths = [
-            len(i["input"].split()) for i in interactions if i["input"]
-        ]
+        word_lengths = [len(i["input"].split()) for i in interactions if i["input"]]
         avg_length = int(sum(word_lengths) / len(word_lengths)) if word_lengths else 0
 
         task_counts: dict[str, int] = {}
@@ -200,9 +197,7 @@ class UserModel:
 
         detailed_count = sum(1 for l in word_lengths if l >= 15)
         preferred_depth = (
-            "detailed"
-            if detailed_count > len(word_lengths) * 0.4
-            else "brief"
+            "detailed" if detailed_count > len(word_lengths) * 0.4 else "brief"
         )
 
         # Sample inputs for AI synthesis
@@ -212,6 +207,36 @@ class UserModel:
             for i in sample_sorted[:20]
             if i["input"]
         )
+
+        # ── Guard: skip LLM call if sample data lacks real content ────────────
+        # If all samples are identical or very short channel names, there's
+        # nothing behavioral to analyze — return a static profile.
+        unique_inputs = set(
+            i["input"].strip().lower() for i in interactions if i["input"].strip()
+        )
+        meaningful_inputs = [
+            inp
+            for inp in unique_inputs
+            if len(inp.split()) >= 3  # at least 3 words to be a real prompt
+        ]
+        if len(meaningful_inputs) < 5:
+            print(
+                f"[UserModel] Insufficient prompt diversity for profiling "
+                f"({len(meaningful_inputs)} unique meaningful inputs) — skipping LLM call"
+            )
+            return {
+                "communication_style": (
+                    "Insufficient interaction data for profiling. "
+                    f"Found {len(interactions)} interactions but only "
+                    f"{len(meaningful_inputs)} contain real prompt content."
+                ),
+                "avg_prompt_length": avg_length,
+                "common_shorthand": [],
+                "frequent_ambiguities": [],
+                "preferred_depth": preferred_depth,
+                "decision_style": "insufficient data",
+                "trust_level": trust_level,
+            }
 
         # ── AI synthesis via CognitiveLoop ────────────────────────────────────
         prompt = (
@@ -239,6 +264,7 @@ class UserModel:
         ai_profile: dict = {}
         try:
             import re as _re
+
             result = self.loop.run(
                 input=prompt,
                 agent="user_model.profiler",
@@ -247,13 +273,13 @@ class UserModel:
             )
             raw = (result.output or "").strip()
             # Strip markdown code blocks
-            if '```' in raw:
-                parts = raw.split('```')
+            if "```" in raw:
+                parts = raw.split("```")
                 for part in parts:
                     p = part.strip()
-                    if p.startswith('json'):
+                    if p.startswith("json"):
                         p = p[4:].strip()
-                    if p.startswith('{') or p.startswith('['):
+                    if p.startswith("{") or p.startswith("["):
                         raw = p
                         break
             elif raw.startswith("```"):
@@ -265,28 +291,28 @@ class UserModel:
                 raw = m.group(0)
             try:
                 # Remove trailing commas before closing braces/brackets
-                clean_raw = _re.sub(r',\s*([}\]])', r'\1', raw)
+                clean_raw = _re.sub(r",\s*([}\]])", r"\1", raw)
                 ai_profile = json.loads(clean_raw, strict=False)
             except (json.JSONDecodeError, ValueError) as je:
-                print(f'[UserModel] JSON parse fallback: {je}')
+                print(f"[UserModel] JSON parse fallback: {je}")
                 ai_profile = {}
         except Exception as e:
             print(f"[UserModel] AI synthesis failed: {e}")
             ai_profile = {
-                "communication_style":  "Could not synthesize — insufficient data or AI error.",
-                "common_shorthand":     [],
+                "communication_style": "Could not synthesize — insufficient data or AI error.",
+                "common_shorthand": [],
                 "frequent_ambiguities": [],
-                "decision_style":       "unknown",
+                "decision_style": "unknown",
             }
 
         return {
-            "communication_style":  ai_profile.get("communication_style", "unknown"),
-            "avg_prompt_length":    avg_length,
-            "common_shorthand":     ai_profile.get("common_shorthand", []),
+            "communication_style": ai_profile.get("communication_style", "unknown"),
+            "avg_prompt_length": avg_length,
+            "common_shorthand": ai_profile.get("common_shorthand", []),
             "frequent_ambiguities": ai_profile.get("frequent_ambiguities", []),
-            "preferred_depth":      preferred_depth,
-            "decision_style":       ai_profile.get("decision_style", "unknown"),
-            "trust_level":          trust_level,
+            "preferred_depth": preferred_depth,
+            "decision_style": ai_profile.get("decision_style", "unknown"),
+            "trust_level": trust_level,
         }
 
     # ─── Intent expansion ────────────────────────────────────────────────────
@@ -318,8 +344,8 @@ class UserModel:
         if profile.get("trust_level", 1) < 3:
             return raw_prompt
 
-        comm_style    = profile.get("communication_style", "")
-        shorthand     = ", ".join(profile.get("common_shorthand", []))
+        comm_style = profile.get("communication_style", "")
+        shorthand = ", ".join(profile.get("common_shorthand", []))
         decision_style = profile.get("decision_style", "")
 
         prompt = (
@@ -329,7 +355,7 @@ class UserModel:
             f"FOUNDER COMMUNICATION STYLE:\n{comm_style}\n\n"
             f"KNOWN SHORTHAND:\n{shorthand or 'none documented yet'}\n\n"
             f"DECISION STYLE:\n{decision_style}\n\n"
-            f"COMPRESSED PROMPT: \"{raw_prompt}\"\n\n"
+            f'COMPRESSED PROMPT: "{raw_prompt}"\n\n'
             "Expand into a precise, expert-grade execution prompt using the profile context. "
             "Return ONLY the expanded prompt — no commentary, no preamble."
         )
@@ -376,6 +402,7 @@ class UserModel:
         # Sync up to harness-level intelligence profile
         try:
             from eos_ai.os_trinity import OSTrinity
+
             trinity = OSTrinity(self.ctx)
             trinity.sync_from_user_model(self.ctx.user_id)
         except Exception as e:
@@ -421,7 +448,7 @@ class UserModel:
                     "SELECT COUNT(*) AS cnt FROM interactions WHERE user_id = %s",
                     (self.ctx.user_id,),
                 )
-                row   = cur.fetchone()
+                row = cur.fetchone()
                 count = int(row["cnt"]) if row else 0
 
             if count > 0 and count % 10 == 0:

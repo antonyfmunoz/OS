@@ -8,8 +8,7 @@ Last Researched: 2026-04-06
 
 # Tier 1 — Technical Mastery
 
-## Section 1: Authentication
-
+## Authentication
 **Method:** API key via HTTP header.
 
 **Header:** `X-Subscription-Token: {api_key}`
@@ -34,8 +33,7 @@ separate Brave accounts per organization.
 
 ---
 
-## Section 2: Core Operations with Exact Signatures
-
+## Core Operations
 ### Web Search
 ```
 GET https://api.search.brave.com/res/v1/web/search
@@ -236,8 +234,7 @@ Response: {"query": {...}, "results": [{"query": str, "is_entity": bool}]}
 
 ---
 
-## Section 3: Pagination Patterns
-
+## Pagination
 **Method:** Offset-based pagination, NOT cursor-based.
 
 **Parameters:**
@@ -270,8 +267,7 @@ NOT the first result.
 
 ---
 
-## Section 4: Rate Limits
-
+## Rate Limits
 | Tier           | Requests/second | Requests/month | Rate limit header |
 |----------------|-----------------|----------------|-------------------|
 | Free           | 1               | 2,000          | Yes               |
@@ -311,8 +307,7 @@ the billing cycle resets. There is no overage — the API hard-stops.
 
 ---
 
-## Section 5: Error Codes and Recovery
-
+## Error Codes
 | Code | Meaning                      | Retryable | Recovery                              |
 |------|------------------------------|-----------|---------------------------------------|
 | 200  | Success                      | N/A       | Parse response                        |
@@ -347,8 +342,7 @@ the billing cycle resets. There is no overage — the API hard-stops.
 
 ---
 
-## Section 6: SDK Idioms
-
+## SDK Idioms
 **No official Python SDK.** Brave Search is a pure REST API. Use `requests` or `urllib`.
 
 **EOS pattern (from brave_search.py):**
@@ -390,8 +384,7 @@ are official. For EOS, raw HTTP is preferred — fewer dependencies, full contro
 
 ---
 
-## Section 7: Anti-Patterns
-
+## Anti-Patterns
 ### Anti-pattern 1: Using Authorization Bearer header
 ```python
 # WRONG — Brave uses a custom header, not Bearer
@@ -461,8 +454,7 @@ results = data.get("web", {}).get("results", [])
 
 ---
 
-## Section 8: Data Model
-
+## Data Model
 ```
 SearchResponse
   |-- query: QueryInfo
@@ -512,15 +504,13 @@ no entity creation, no state mutation.
 
 ---
 
-## Section 9: Webhooks and Events
-
+## Webhooks
 **N/A.** Brave Search API is a stateless query API. There are no webhooks, no event
 subscriptions, no push notifications. All interactions are request-response.
 
 ---
 
-## Section 10: Limits
-
+## Limits
 | Limit                        | Value           |
 |------------------------------|-----------------|
 | Query length                 | 400 characters  |
@@ -540,8 +530,7 @@ subscriptions, no push notifications. All interactions are request-response.
 
 ---
 
-## Section 11: Cost Model
-
+## Cost Model
 | Plan           | Monthly cost | Queries/month | Cost per query | Overage     |
 |----------------|-------------|---------------|----------------|-------------|
 | Free           | $0          | 2,000         | $0             | Hard stop   |
@@ -563,8 +552,7 @@ at $5/month provides 10x headroom.
 
 ---
 
-## Section 12: Version Pinning
-
+## Version Pinning
 **Current API version:** v1 (in the URL path: `/res/v1/`)
 
 **Versioning strategy:** Path-based. The version is part of the URL, not a header.
@@ -587,8 +575,7 @@ given their conservative approach.
 
 # Tier 2 — Creator Intelligence
 
-## Section 13: Design Intent and Tradeoffs
-
+## Design Intent
 **Why Brave Search exists:** Brave built its own search index to provide an alternative
 to Google/Bing that doesn't track users. The API monetizes this index for developers
 who need search results without privacy violations or Google/Bing dependencies.
@@ -617,8 +604,7 @@ who need search results without privacy violations or Google/Bing dependencies.
 
 ---
 
-## Section 14: Problem-Solution Map and Hidden Capabilities
-
+## Problem-Solution Map
 **Problems Brave Search actually solves:**
 1. **Vendor-independent web search** — No Google/Bing API key dependency
 2. **AI training data** — Data for AI tier explicitly licenses results for LLM use
@@ -644,8 +630,7 @@ who need search results without privacy violations or Google/Bing dependencies.
 
 ---
 
-## Section 15: Operational Behavior and Edge Cases
-
+## Operational Behavior
 **Eventual consistency:** Not applicable — Brave Search is a stateless query engine
 with no write operations. Results may vary as the index updates, but there's no
 consistency model to worry about.
@@ -672,8 +657,7 @@ consistency model to worry about.
 
 ---
 
-## Section 16: Ecosystem Position and Composition
-
+## Ecosystem Position
 **Where Brave Search sits in a data architecture:**
 - **Research layer** — Sits alongside Google Custom Search, Serper, SerpAPI, and Bing
   as a web search provider. Used to discover URLs, not to fetch content.
@@ -704,8 +688,7 @@ Brave Search -> news results -> Discord webhook notification
 
 ---
 
-## Section 17: Trajectory and Evolution
-
+## Trajectory
 **Where Brave Search is heading (as of 2026):**
 - **AI-first search** — The Summarizer API and "Data for AI" tier signal Brave's bet
   that AI agents will be major API consumers. Expect more AI-focused features.
@@ -729,8 +712,7 @@ since launch. The v1 API appears stable for the foreseeable future.
 
 ---
 
-## Section 18: Conceptual Model and Solution Recipes
-
+## Conceptual Model
 **Mental model:** Think of Brave Search API as a **multi-vertical query router**. You
 send one query, and Brave routes it across web, news, video, FAQ, discussion, location,
 and infobox indexes. The `mixed.main` field tells you which verticals matter most for
@@ -793,8 +775,7 @@ discussions.sort(key=lambda d: int(d.get("data", {}).get("num_answers", 0)), rev
 
 ---
 
-## Section 19: Industry Expert and Cutting-Edge Usage
-
+## Industry Expert Usage
 **How AI agent builders use Brave Search (2026):**
 - **Tool-use agents** — Brave is the go-to search tool for LLM agents that need web
   search without Google/Bing API overhead. Its simple auth (single header) and

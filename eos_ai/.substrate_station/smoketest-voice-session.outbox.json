@@ -1,0 +1,35 @@
+[
+  {
+    "action_id": "act_375f5cfff2a2",
+    "kind": "speak_text",
+    "payload": {
+      "text": "[ceo] heard: should we ship today"
+    },
+    "issued_by": "voice_session:ceo",
+    "target_node_id": "smoketest-voice-session",
+    "issued_at": "2026-04-07T08:08:20.457751+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_7617e7142c60",
+    "kind": "speak_text",
+    "payload": {
+      "text": "Session released."
+    },
+    "issued_by": "operator_presence",
+    "target_node_id": "smoketest-voice-session",
+    "issued_at": "2026-04-07T08:08:21.222437+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_ce3710602d3d",
+    "kind": "speak_text",
+    "payload": {
+      "text": "Back online. Operator mode is live."
+    },
+    "issued_by": "operator_presence",
+    "target_node_id": "smoketest-voice-session",
+    "issued_at": "2026-04-07T08:08:22.162799+00:00",
+    "status": "dispatched"
+  }
+]

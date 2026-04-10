@@ -599,9 +599,20 @@ class EvolutionEngine:
             name:        str
             approval_id: str | None
         """
+        # Substrate-neutral venture framing from ctx.
+        _ctx = getattr(self, 'ctx', None)
+        _active = (
+            getattr(_ctx, 'active_venture', None)
+            or (getattr(_ctx, 'ventures', []) or [{}])[0]
+            or {}
+        )
+        _v_name = _active.get('name', 'the active venture') if isinstance(_active, dict) else 'the active venture'
+        _v_offer = _active.get('offer', '') if isinstance(_active, dict) else ''
+        _v_framing = f"{_v_name}{' — ' + _v_offer if _v_offer else ''}"
+
         prompt = (
             "You are designing a new AI sub-agent for a founder-operator's "
-            "system (Initiate Arena — a 90-day discipline program for men 18-25).\n\n"
+            f"system ({_v_framing}).\n\n"
             "A recurring task pattern has been detected with no assigned agent:\n\n"
             f"PATTERN: {pattern_description}\n\n"
             "Design a new sub-agent that handles this pattern.\n\n"

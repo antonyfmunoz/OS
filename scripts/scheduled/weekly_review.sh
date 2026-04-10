@@ -10,6 +10,17 @@ echo "=== EOS Weekly Review: $(date) ===" >> "$LOG"
 
 cd /opt/OS
 
+# Provider health gate — skip if no LLM provider is reachable
+if ! python3 -c "
+import sys; sys.path.insert(0, '/opt/OS')
+from dotenv import load_dotenv; load_dotenv('/opt/OS/eos_ai/.env')
+from eos_ai.provider_health import check_all
+sys.exit(0 if check_all().any_healthy else 1)
+" 2>/dev/null; then
+  echo "[$(date -Iseconds)] SKIP weekly_review: no healthy LLM provider" >> "$LOG"
+  exit 0
+fi
+
 claude -p --allowedTools "Bash Read Write Glob Grep" \
   --add-dir /opt/OS \
   --max-budget-usd 1.00 \

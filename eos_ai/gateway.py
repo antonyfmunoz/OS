@@ -382,8 +382,8 @@ class EOSGateway:
 
                     ctx = load_context_from_env()
                     bim = BusinessInstanceManager(ctx)
-                    venture_id = request.get("venture_id", "lyfe_institute")
-                    bis = bim.get_bis(venture_id)
+                    venture_id = request.get("venture_id") or bim.get_default_venture_id()
+                    bis = bim.get_bis(venture_id) if venture_id else None
                     if bis:
                         old_name = bis.ai_name
                         bis.ai_name = new_name
@@ -579,6 +579,9 @@ class EOSGateway:
             "username": request.get("username"),
             "outcome": outcome,
             "summary": result_summary[:300],
+            # Substrate capability telemetry — additive, observability only.
+            # Populated upstream by capability_tagging.tag_request().
+            "required_capabilities": request.get("required_capabilities") or [],
         }
         try:
             with get_conn(ORG_ID) as cur:
@@ -609,6 +612,16 @@ class EOSGateway:
         Returns a dict with at minimum:
             {"status": "ok"|"error"|"pending", ...result fields}
         """
+        # 0-pre. Substrate capability tagging (additive, observability only).
+        # Annotates request["required_capabilities"] so downstream logging
+        # and future capability-aware routing can see what was needed.
+        # NEVER raises — tag_request swallows and logs internally.
+        try:
+            from eos_ai.substrate.capability_tagging import tag_request
+            tag_request(request)
+        except Exception as _cap_e:
+            print(f"[Gateway] capability tagging skipped: {_cap_e}")
+
         # 0. Automation check — handles before AI routing
         automation_result = self._handle_automation(request)
         if automation_result is not None:
@@ -682,13 +695,14 @@ class EOSGateway:
                     ctx_eos = _load_ctx()
                     sm = StageManager(ctx_eos)
 
-                    # Venture from request first, then text signals, then default
-                    venture_id = request.get("venture_id") or "lyfe_institute"
-                    text_lower = prompt.lower()
-                    if "empyrean" in text_lower:
-                        venture_id = "empyrean_creative"
-                    elif "personal brand" in text_lower:
-                        venture_id = "personal_brand"
+                    # Venture from request, then BIM default. Text-keyword routing
+                    # was venture-specific leakage and has been removed — venture
+                    # selection must come from explicit request or BIM lookup.
+                    from eos_ai.business_instance import BusinessInstanceManager as _BIM
+                    _bim_st = _BIM(ctx_eos)
+                    venture_id = request.get("venture_id") or _bim_st.get_default_venture_id()
+                    if not venture_id:
+                        raise RuntimeError("no venture available for stage transition")
 
                     tr = sm.advance_stage(
                         venture_id=venture_id,
@@ -710,8 +724,10 @@ class EOSGateway:
 
                 ctx_sa = _load_ctx_sa()
                 sae = SelfAwarenessEngine(ctx_sa)
-                venture_id_sa = request.get("venture_id") or "lyfe_institute"
-                change = sae.detect_change_from_text(prompt, venture_id_sa)
+                from eos_ai.business_instance import BusinessInstanceManager as _BIM_sa
+                _bim_sa = _BIM_sa(ctx_sa)
+                venture_id_sa = request.get("venture_id") or _bim_sa.get_default_venture_id()
+                change = sae.detect_change_from_text(prompt, venture_id_sa) if venture_id_sa else None
                 if change and change.change_type not in (
                     # Skip FIRST_SALE — stage_manager already handles the transition
                     ChangeType.FIRST_SALE,

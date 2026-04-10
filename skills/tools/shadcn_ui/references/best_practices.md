@@ -10,8 +10,7 @@ Tier 1 = technical mastery. Tier 2 = creator intelligence.
 
 ---
 
-## Section 1: Authentication
-
+## Authentication
 **Not applicable in the traditional sense.** shadcn/ui is a CLI that
 fetches component manifests from a public HTTP registry. There is no
 API key, no OAuth, no account.
@@ -46,8 +45,7 @@ and is referenced by `components.json`.
 
 ---
 
-## Section 2: Core Operations with Exact Signatures
-
+## Core Operations
 shadcn/ui's "API" is the CLI and the vendored components. The
 signatures below are current as of shadcn@2.x.
 
@@ -175,8 +173,7 @@ export function cn(...inputs: ClassValue[]) {
 
 ---
 
-## Section 3: Pagination Patterns
-
+## Pagination
 **Not applicable in the library sense.** shadcn has no paginated API.
 What matters is **DataTable pagination**, which is a TanStack Table
 recipe shadcn ships as an example.
@@ -228,8 +225,7 @@ API; render only the current page inside `<CommandList>`.
 
 ---
 
-## Section 4: Rate Limits
-
+## Rate Limits
 **Not applicable to runtime.** Vendored components have zero network
 cost at runtime.
 
@@ -251,8 +247,7 @@ What actually needs rate-limit awareness in a shadcn UI:
 
 ---
 
-## Section 5: Error Codes and Recovery
-
+## Error Codes
 ### CLI error modes
 
 - **`ERESOLVE` during `shadcn add`** — npm peer-dep conflict, usually
@@ -293,8 +288,7 @@ If an overwrite destroys edits, `git restore` is the fix.
 
 ---
 
-## Section 6: SDK Idioms
-
+## SDK Idioms
 shadcn/ui has no runtime SDK. The "SDK" is:
 
 1. **The CLI** (`shadcn@latest`) — idiomatic usage:
@@ -338,8 +332,7 @@ shadcn/ui has no runtime SDK. The "SDK" is:
 
 ---
 
-## Section 7: Anti-Patterns
-
+## Anti-Patterns
 Lifted from shadcn/ui GitHub issues, the EOS experience so far, and
 community posts. See `anti_patterns.md` for the full annotated list.
 Headlines:
@@ -372,8 +365,7 @@ Headlines:
 
 ---
 
-## Section 8: Data Model
-
+## Data Model
 shadcn/ui has no data model of its own, but its **configuration**,
 **registry**, and **theme** have schemas worth knowing.
 
@@ -437,8 +429,7 @@ unquoted form is what lets you do `bg-primary/90` (opacity modifier).
 
 ---
 
-## Section 9: Webhooks and Events
-
+## Webhooks
 **Not applicable.** There is no event stream, no webhook, no
 observability plane. The "events" relevant to shadcn are:
 
@@ -464,8 +455,7 @@ navigation (Enter, Space), which `onClick` does not always catch.
 
 ---
 
-## Section 10: Limits
-
+## Limits
 Practical limits worth knowing:
 
 - **Bundle impact:** adding ~20 shadcn components + Radix deps adds
@@ -494,8 +484,7 @@ Practical limits worth knowing:
 
 ---
 
-## Section 11: Cost Model
-
+## Cost Model
 **Direct cost: $0.** shadcn/ui is MIT licensed. The public registry
 is free. No SaaS plan, no seat licensing.
 
@@ -521,8 +510,7 @@ contributes. Kill components you imported but don't use.
 
 ---
 
-## Section 12: Version Pinning
-
+## Version Pinning
 shadcn/ui is weird here because there is no versioned runtime
 package. You pin:
 
@@ -561,8 +549,7 @@ Currently in flight as of 2026-04-06:
 
 ---
 
-## Section 13: Design Intent and Tradeoffs
-
+## Design Intent
 shadcn (the creator, @shadcn) built this in 2023 because every
 existing React component library had the same problem: **you don't
 own your components.** If MUI ships a breaking change, you eat it.
@@ -607,8 +594,7 @@ the usual tradeoff.
 
 ---
 
-## Section 14: Problem-Solution Map and Hidden Capabilities
-
+## Problem-Solution Map
 **Real problems solved:**
 
 1. **"I want a great-looking UI without design skill."** shadcn's
@@ -657,8 +643,7 @@ the usual tradeoff.
 
 ---
 
-## Section 15: Operational Behavior and Edge Cases
-
+## Operational Behavior
 - **`shadcn add` runs npm install as a side effect.** If your network
   is slow, the CLI appears to hang. It's just `npm install` under
   the hood. First-time `init` can take 60+ seconds.
@@ -703,8 +688,7 @@ the usual tradeoff.
 
 ---
 
-## Section 16: Ecosystem Position and Composition
-
+## Ecosystem Position
 shadcn/ui sits at the **presentation layer**. It is:
 
 - **Above Tailwind** (consumes Tailwind classes).
@@ -753,8 +737,7 @@ shadcn/ui sits at the **presentation layer**. It is:
 
 ---
 
-## Section 17: Trajectory and Evolution
-
+## Trajectory
 Where shadcn/ui is going as of 2026-04-06:
 
 - **Registries as first-class.** The CLI shipped `shadcn build` and
@@ -796,8 +779,7 @@ name, Default style for new projects.
 
 ---
 
-## Section 18: Conceptual Model and Solution Recipes
-
+## Conceptual Model
 **Mental model in one sentence:** shadcn/ui is how you ship the
 Radix + Tailwind combo without writing the boilerplate each time,
 with a CLI that acts as `npm install` for source code.
@@ -880,8 +862,7 @@ with a CLI that acts as `npm install` for source code.
 
 ---
 
-## Section 19: Industry Expert and Cutting-Edge Usage
-
+## Industry Expert Usage
 How the frontier uses shadcn/ui in 2026:
 
 - **Vercel, Linear, Supabase, Resend, Cal.com** all ship interfaces

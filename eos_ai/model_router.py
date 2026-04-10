@@ -63,6 +63,7 @@ class RoutingResult:
 
 
 class ModelProvider(Enum):
+    CLAUDE_CLI = "claude_cli"  # persistent tmux Claude Code session (substrate)
     CC_SDK = "cc_sdk"
     ANTHROPIC = "anthropic"
     PERPLEXITY = "perplexity"
@@ -142,30 +143,34 @@ class ModelConfig:
 
 # Provider priority for fallback ordering (lower = preferred)
 # Default priority — used for analyze/generate/code/strategic tasks
+# Claude CLI (persistent tmux session) first for conversational continuity →
 # CC SDK (Opus) for quality → Gemini (cheap, fast) → Groq (fast inference)
 # → Anthropic (401 until credits restored) → Perplexity (search tasks)
 # → Ollama (free local catch-all)
 PROVIDER_PRIORITY: dict = {
-    ModelProvider.CC_SDK: 0,
-    ModelProvider.GEMINI: 1,
-    ModelProvider.GROQ: 2,
-    ModelProvider.ANTHROPIC: 3,
-    ModelProvider.PERPLEXITY: 4,
-    ModelProvider.OLLAMA: 5,
-    ModelProvider.MANUS: 6,
+    ModelProvider.CLAUDE_CLI: 0,
+    ModelProvider.CC_SDK: 1,
+    ModelProvider.GEMINI: 2,
+    ModelProvider.GROQ: 3,
+    ModelProvider.ANTHROPIC: 4,
+    ModelProvider.PERPLEXITY: 5,
+    ModelProvider.OLLAMA: 6,
+    ModelProvider.MANUS: 7,
 }
 
 # Fast-path priority — used for fast_response/conversation tasks
-# Gemini Flash first (fast + cheap) → Groq (ultra-fast) → Anthropic (Haiku)
+# Claude CLI session first so Discord/pseudo-live keeps a single stateful
+# brain → Gemini Flash (fast + cheap) → Groq (ultra-fast) → Anthropic (Haiku)
 # → CC SDK reserved for escalation only → Ollama local catch-all
 PROVIDER_PRIORITY_FAST: dict = {
-    ModelProvider.GEMINI: 0,
-    ModelProvider.GROQ: 1,
-    ModelProvider.ANTHROPIC: 2,
-    ModelProvider.CC_SDK: 3,
-    ModelProvider.PERPLEXITY: 4,
-    ModelProvider.OLLAMA: 5,
-    ModelProvider.MANUS: 6,
+    ModelProvider.CLAUDE_CLI: 0,
+    ModelProvider.GEMINI: 1,
+    ModelProvider.GROQ: 2,
+    ModelProvider.ANTHROPIC: 3,
+    ModelProvider.CC_SDK: 4,
+    ModelProvider.PERPLEXITY: 5,
+    ModelProvider.OLLAMA: 6,
+    ModelProvider.MANUS: 7,
 }
 
 # Task types that use the fast-path priority
@@ -195,7 +200,7 @@ PROVIDER_QUALITY: dict = {
     "gemini": 0.65,  # Gemini 2.5 Flash
     "groq": 0.55,  # Llama 3.3 70B
     "perplexity": 0.60,  # Sonar (search-augmented)
-    "ollama": 0.45,  # Local gemma3:4b — significant upgrade from qwen2.5:0.5b
+    "ollama": 0.35,  # Local qwen2.5:0.5b — emergency fallback only, low quality
 }
 
 MODEL_REGISTRY: dict[str, ModelConfig] = {
@@ -248,17 +253,19 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
         cost_per_1k=0.00059,
         base_url="https://api.groq.com/openai/v1",
     ),
-    # OLLAMA: Local fallback
-    # gemma3:4b — 3.3 GiB. Fits with os-bot stopped (5.2 GiB available).
+    # OLLAMA: Local emergency fallback only.
+    # Hardware reality: 2 vCPU / 8 GB VPS with no GPU.
+    # qwen2.5:0.5b (~400 MB) is the only model that loads fast enough to be useful.
+    # Larger models (1.5b/3b/4b/7b) are too slow on CPU-only — multi-minute responses
+    # defeat the purpose of a "fallback that responds when clouds are down".
+    # Strengths intentionally minimal — Ollama is last-resort, not primary.
     # base_url from env so Docker containers can reach host Ollama via gateway IP.
-    "ollama-gemma": ModelConfig(
+    "ollama-qwen": ModelConfig(
         provider=ModelProvider.OLLAMA,
-        model_id="gemma3:4b",
+        model_id="qwen2.5:0.5b",
         api_key_env="",
         strengths=[
             TaskType.FAST_RESPONSE,
-            TaskType.CONVERSATION,
-            TaskType.ANALYSIS,
         ],
         cost_per_1k=0.0,
         base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
@@ -289,7 +296,7 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
             TaskType.BROWSER_CONTROL,
         ],
         cost_per_1k=0.0,
-        available=True,
+        available=False,  # No programmatic API — browser-only. Re-enable when Meta ships API.
         base_url="https://manus.im",
     ),
 }
@@ -370,9 +377,6 @@ class ModelRouter:
                 config.available = (
                     config.provider == ModelProvider.OLLAMA and _ollama_available()
                 )
-            elif config.provider == ModelProvider.MANUS:
-                # Manus accessible via browser even without native API key
-                config.available = True
             elif os.getenv(config.api_key_env):
                 config.available = True
             else:
@@ -504,13 +508,16 @@ class ModelRouter:
             return response.content[0].text
         except Exception as e:
             err_str = str(e)
-            if (
+            _fatal = (
                 "credit balance is too low" in err_str
                 or "Your credit balance" in err_str
-            ):
+                or "authentication_error" in err_str
+                or "invalid x-api-key" in err_str
+            )
+            if _fatal:
                 # All Anthropic models share the same account — mark them all unavailable
                 print(
-                    "[ModelRouter] Anthropic credits depleted — marking all Anthropic models unavailable"
+                    f"[ModelRouter] Anthropic unavailable — marking all models down: {err_str[:120]}"
                 )
                 for cfg in MODEL_REGISTRY.values():
                     if cfg.provider == ModelProvider.ANTHROPIC:
@@ -546,8 +553,12 @@ class ModelRouter:
                 max_tokens=max_tokens,
             )
             if hasattr(response, "usage") and response.usage:
-                self._last_input_tokens = getattr(response.usage, "prompt_tokens", 0) or 0
-                self._last_output_tokens = getattr(response.usage, "completion_tokens", 0) or 0
+                self._last_input_tokens = (
+                    getattr(response.usage, "prompt_tokens", 0) or 0
+                )
+                self._last_output_tokens = (
+                    getattr(response.usage, "completion_tokens", 0) or 0
+                )
             return response.choices[0].message.content or ""
         except Exception as e:
             print(f"[ModelRouter] {config.provider.value} error: {e}")
@@ -563,13 +574,15 @@ class ModelRouter:
         try:
             import requests
 
-            # gemma3:4b handles ~8k context comfortably
-            _sys = system[:6000] if system else ""
+            # qwen2.5:0.5b on 2-vCPU CPU: keep prompts small, cap output tokens.
+            # Anything larger than ~2k input takes >60s on this hardware.
+            _sys = system[:1500] if system else ""
+            _max_tokens = min(max_tokens, 256)
             payload: dict = {
                 "model": config.model_id,
-                "prompt": prompt[:8000],
+                "prompt": prompt[:2000],
                 "stream": False,
-                "options": {"num_predict": max_tokens},
+                "options": {"num_predict": _max_tokens},
             }
             if _sys:
                 payload["system"] = _sys
@@ -577,7 +590,7 @@ class ModelRouter:
             resp = requests.post(
                 f"{config.base_url}/api/generate",
                 json=payload,
-                timeout=300,
+                timeout=60,
             )
             elapsed = time.time() - start
             if elapsed > 60:
@@ -619,8 +632,12 @@ class ModelRouter:
                 config=cfg,
             )
             if hasattr(response, "usage_metadata") and response.usage_metadata:
-                self._last_input_tokens = getattr(response.usage_metadata, "prompt_token_count", 0) or 0
-                self._last_output_tokens = getattr(response.usage_metadata, "candidates_token_count", 0) or 0
+                self._last_input_tokens = (
+                    getattr(response.usage_metadata, "prompt_token_count", 0) or 0
+                )
+                self._last_output_tokens = (
+                    getattr(response.usage_metadata, "candidates_token_count", 0) or 0
+                )
             return response.text or ""
         except Exception as e:
             print(f"[ModelRouter] Gemini error: {e}")
@@ -660,6 +677,19 @@ def get_router(ctx=None) -> ModelRouter:
 # Any agent ending in "_ceo" or explicitly strategic gets best-available model.
 # No venture-specific names in the substrate.
 _CEO_AGENT_KEYWORDS = ("_ceo", "portfolio_advisor", "strategic")
+
+
+def _claude_cli_backend_enabled() -> bool:
+    """Whether to attempt the Claude CLI tmux session as backend #0.
+
+    Default ON. Set EOS_ROUTER_CLAUDE_CLI_ENABLED=0 to disable (e.g. on
+    machines without tmux/claude CLI, or when running unit tests that
+    should exercise only the provider chain).
+    """
+    raw = (os.getenv("EOS_ROUTER_CLAUDE_CLI_ENABLED") or "").strip().lower()
+    if raw in ("0", "false", "no", "off"):
+        return False
+    return True
 
 
 def _is_ceo_agent(agent_type: str | None) -> bool:
@@ -739,6 +769,93 @@ def call_with_fallback(
 
     start = time.time()
 
+    # ── Backend #0: Claude CLI persistent tmux session ──
+    # Shared first backend for all routed calls (fast + heavy paths). This is
+    # the router's single seam for "Claude Code CLI first"; if it returns any
+    # bounded failure (tmux missing, cli missing, session missing, empty reply,
+    # ask exception) we fall through to the existing provider chain unchanged.
+    # Never raises — respond_via_claude_session is a safe-degrade adapter.
+    cli_enabled = _claude_cli_backend_enabled()
+    logger.info(
+        "[Router] claude_cli backend gate: enabled=%s priority_index=%s path=%s",
+        cli_enabled,
+        priority.get(ModelProvider.CLAUDE_CLI, "missing"),
+        "fast" if is_fast else "heavy",
+    )
+    if cli_enabled:
+        try:
+            from eos_ai.substrate.claude_responder import (
+                DEFAULT_SESSION_NAME,
+                DEFAULT_TARGET,
+                respond_via_claude_session,
+            )
+
+            cli_target = (
+                os.getenv("EOS_ROUTER_CLAUDE_CLI_TARGET") or DEFAULT_TARGET
+            ).strip().lower() or DEFAULT_TARGET
+            cli_session = (
+                os.getenv("EOS_ROUTER_CLAUDE_CLI_SESSION") or DEFAULT_SESSION_NAME
+            ).strip() or DEFAULT_SESSION_NAME
+
+            # ── Discord Channel Mode Routing v1 override ──
+            # If the caller (Discord ingress) has bound a mode context on this
+            # thread, use its target/session instead of the env defaults. The
+            # shared router is unchanged; only the Claude CLI session name
+            # differs between builder vs product modes, which keeps builder
+            # and product contexts isolated without forking the pipeline.
+            mode_label = None
+            try:
+                from eos_ai.substrate.discord_mode_routing import (
+                    current_mode_context,
+                )
+
+                _mctx = current_mode_context()
+                if _mctx:
+                    mode_label = _mctx.get("mode")
+                    _mt = (_mctx.get("target") or "").strip().lower()
+                    if _mt:
+                        cli_target = _mt
+                    _ms = (_mctx.get("session_name") or "").strip()
+                    if _ms:
+                        cli_session = _ms
+            except Exception as _mode_exc:  # noqa: BLE001 — never poison router
+                logger.warning("[Router] mode_context lookup failed: %s", _mode_exc)
+            logger.info(
+                "[Router] claude_cli attempt: target=%s session=%s mode=%s",
+                cli_target,
+                cli_session,
+                mode_label or "none",
+            )
+            cli_res = respond_via_claude_session(
+                prompt,
+                target=cli_target,
+                session_name=cli_session,
+            )
+            if cli_res.get("ok") and cli_res.get("reply"):
+                latency_ms = int((time.time() - start) * 1000)
+                logger.info(
+                    "[Router] claude_cli/%s responded (%dms, primary)",
+                    cli_session,
+                    latency_ms,
+                )
+                _stamp_trace("claude_cli", f"tmux:{cli_session}", latency_ms, "ok")
+                return RoutingResult(
+                    output=cli_res["reply"],
+                    provider="claude_cli",
+                    model=f"tmux:{cli_session}",
+                    task_type=task_type_str,
+                    latency_ms=latency_ms,
+                )
+            logger.info(
+                "[Router] claude_cli unavailable (reason=%s detail=%s) — falling through",
+                cli_res.get("reason"),
+                (cli_res.get("detail") or "")[:200],
+            )
+        except Exception as exc:  # noqa: BLE001 — boundary: never raise
+            logger.warning("[Router] claude_cli backend error: %s", exc)
+    else:
+        logger.info("[Router] claude_cli backend disabled via env — skipping")
+
     if is_fast:
         # ── FAST PATH: Haiku first, escalate to cc_sdk if quality low ──
 
@@ -765,6 +882,7 @@ def call_with_fallback(
                     config.model_id,
                     latency_ms,
                 )
+                _stamp_trace(config.provider.value, config.model_id, latency_ms, "ok")
                 return RoutingResult(
                     output=output,
                     provider=config.provider.value,
@@ -792,6 +910,7 @@ def call_with_fallback(
                     cc_result.model,
                     latency_ms,
                 )
+                _stamp_trace("cc_sdk", cc_result.model, latency_ms, "ok_escalated")
                 return RoutingResult(
                     output=cc_result.output,
                     provider="cc_sdk",
@@ -818,6 +937,12 @@ def call_with_fallback(
                     config.provider.value,
                     config.model_id,
                     latency_ms,
+                )
+                _stamp_trace(
+                    config.provider.value,
+                    config.model_id,
+                    latency_ms,
+                    "ok_fast_fallback",
                 )
                 return RoutingResult(
                     output=output,
@@ -849,6 +974,7 @@ def call_with_fallback(
                     cc_result.model,
                     latency_ms,
                 )
+                _stamp_trace("cc_sdk", cc_result.model, latency_ms, "ok")
                 return RoutingResult(
                     output=cc_result.output,
                     provider="cc_sdk",
@@ -880,6 +1006,12 @@ def call_with_fallback(
                     config.model_id,
                     latency_ms,
                 )
+                _stamp_trace(
+                    config.provider.value,
+                    config.model_id,
+                    latency_ms,
+                    "ok_heavy_fallback",
+                )
                 return RoutingResult(
                     output=output,
                     provider=config.provider.value,
@@ -893,6 +1025,7 @@ def call_with_fallback(
 
     latency_ms = int((time.time() - start) * 1000)
     logger.error("[Router] ALL PROVIDERS FAILED")
+    _stamp_trace("none", "none", latency_ms, "all_failed")
     return RoutingResult(
         output=(
             "[EOS] All intelligence providers unavailable. "
@@ -903,6 +1036,24 @@ def call_with_fallback(
         task_type=task_type_str,
         latency_ms=latency_ms,
     )
+
+
+def _stamp_trace(provider: str, model: str, latency_ms: int, result: str) -> None:
+    """Stamp execution trace with router outcome. Never raises."""
+    try:
+        from eos_ai.substrate.execution_trace import get_current_trace, finalize_trace
+
+        trace = get_current_trace()
+        if trace is not None:
+            finalize_trace(
+                trace,
+                provider=provider,
+                model=model,
+                latency_ms=latency_ms,
+                result=result,
+            )
+    except Exception:
+        pass
 
 
 def adversarial_code_review(

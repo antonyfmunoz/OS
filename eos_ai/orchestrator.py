@@ -684,12 +684,17 @@ def run_ceo_morning_delegation(
     except Exception as e:
         print(f"[CEOMorning] Portfolio scan failed: {e}")
 
-    # Get ventures — from arg, then ctx.ventures, then default
-    venture_list = (
-        ventures
-        or getattr(ctx, "ventures", [])
-        or [{"id": "lyfe_institute", "name": "Lyfe Institute"}]
-    )
+    # Get ventures — from arg, then ctx.ventures, then BIM default (substrate-neutral)
+    venture_list = ventures or getattr(ctx, "ventures", [])
+    if not venture_list:
+        try:
+            from eos_ai.business_instance import BusinessInstanceManager
+            _default_vid = BusinessInstanceManager(ctx).get_default_venture_id()
+            if _default_vid:
+                venture_list = [{"id": _default_vid, "name": _default_vid}]
+        except Exception as _e:
+            print(f"[CEOMorning] BIM default venture lookup failed: {_e}")
+            venture_list = []
 
     results = []
 
@@ -990,11 +995,32 @@ async def generate_morning_brief(ctx: EOSContext) -> str:
     now = _dt.now()
     date_str = now.strftime("%A, %B %d")
 
-    companies = [
-        ("lyfe_institute", "Lyfe Institute", "🏢"),
-        ("empyrean_creative", "Empyrean Creative", "⚡"),
-        ("personal_brand", "Personal Brand", "👤"),
-    ]
+    # Substrate-neutral venture list — pulled from ctx/BIM, not hardcoded.
+    # Falls back to ctx.ventures, then BIM default, then an empty list.
+    companies: list[tuple[str, str, str]] = []
+    try:
+        _ctx_ventures = getattr(ctx, "ventures", []) if "ctx" in dir() else []
+    except Exception:
+        _ctx_ventures = []
+    if not _ctx_ventures:
+        try:
+            from eos_ai.context import load_context_from_env as _lctx
+            from eos_ai.business_instance import BusinessInstanceManager as _BIM
+            _c = _lctx()
+            _ctx_ventures = getattr(_c, "ventures", []) or []
+            if not _ctx_ventures:
+                _vid = _BIM(_c).get_default_venture_id()
+                if _vid:
+                    _ctx_ventures = [{"id": _vid, "name": _vid}]
+        except Exception as _e:
+            print(f"[Portfolio] venture resolution failed: {_e}")
+            _ctx_ventures = []
+    for _v in _ctx_ventures:
+        companies.append((
+            _v.get("id", ""),
+            _v.get("name", _v.get("id", "")),
+            _v.get("icon", "🏢"),
+        ))
 
     company_sections: list[str] = []
 

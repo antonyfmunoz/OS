@@ -51,6 +51,13 @@ instead of binary speech/no-speech. Loaded via `torch.hub`. More accurate than
 webrtcvad especially for noisy environments, music backgrounds, and edge cases.
 Primary VAD in `IntelligentVoiceProcessor.is_speech_frame()`.
 
+## Authentication
+
+Not applicable — `numpy`, `librosa`, `webrtcvad`, and `silero-vad` are local
+Python libraries loaded via pip/torch.hub. No API keys, no tokens, no network
+auth. Model weights for Silero VAD are downloaded once via `torch.hub.load()`
+and cached locally in `~/.cache/torch/hub/`.
+
 ## EOS Integration
 
 ### Primary modules

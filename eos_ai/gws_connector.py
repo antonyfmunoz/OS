@@ -12,13 +12,38 @@ Usage:
 """
 
 import json
+import os
 import subprocess
+import time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path as _Path
 from dotenv import load_dotenv as _load_dotenv
 _ROOT = _Path(__file__).parent.parent
 _load_dotenv(_ROOT / 'services' / '.env')
 _load_dotenv(_ROOT / 'eos_ai' / '.env', override=True)
+
+# Circuit breaker: if the CLI times out, skip further calls for this long.
+# File-based so cron-spawned processes see each other's failures.
+_GWS_COOLDOWN_FILE = "/tmp/gws_cooldown"
+_GWS_COOLDOWN_SECONDS = 300  # 5 minutes
+_GWS_TIMEOUT = int(os.getenv("GWS_CLI_TIMEOUT", "90"))
+
+
+def _in_cooldown() -> float:
+    """Return seconds remaining in cooldown, or 0 if clear."""
+    try:
+        ts = float(_Path(_GWS_COOLDOWN_FILE).read_text().strip())
+    except Exception:
+        return 0.0
+    remaining = (ts + _GWS_COOLDOWN_SECONDS) - time.time()
+    return max(0.0, remaining)
+
+
+def _trip_cooldown() -> None:
+    try:
+        _Path(_GWS_COOLDOWN_FILE).write_text(str(time.time()))
+    except Exception:
+        pass
 
 
 class GWSConnector:
@@ -35,7 +60,18 @@ class GWSConnector:
         Run a gws CLI command and return parsed JSON, or None on error.
         Strips the "Using keyring backend: keyring" line before parsing.
         body is passed as --json for POST/PATCH request bodies.
+
+        Circuit breaker: after a CLI timeout, subsequent calls short-circuit
+        for _GWS_COOLDOWN_SECONDS to prevent cron timeout-spam.
         """
+        remaining = _in_cooldown()
+        if remaining > 0:
+            print(
+                f"[GWS] Skipping {' '.join(args)}: recent timeout, "
+                f"cooldown {int(remaining)}s remaining"
+            )
+            return None
+
         cmd = ["npx", "@googleworkspace/cli"] + list(args)
         if params:
             cmd += ["--params", json.dumps(params)]
@@ -44,19 +80,39 @@ class GWSConnector:
 
         try:
             result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=30
+                cmd, capture_output=True, text=True, timeout=_GWS_TIMEOUT
             )
-            output = result.stdout
-            lines = output.split("\n")
-            clean = "\n".join(
-                l for l in lines if not l.startswith("Using keyring")
+        except subprocess.TimeoutExpired:
+            _trip_cooldown()
+            print(
+                f"[GWS] CLI timeout after {_GWS_TIMEOUT}s: {' '.join(args)} "
+                f"— tripping {_GWS_COOLDOWN_SECONDS}s cooldown"
             )
-            clean = clean.strip()
-            if not clean:
-                return None
-            return json.loads(clean)
+            return None
         except Exception as e:
-            print(f"[GWS] Command failed: {e}")
+            print(f"[GWS] Command failed ({type(e).__name__}): {e}")
+            return None
+
+        if result.returncode != 0:
+            stderr = (result.stderr or "").strip().splitlines()[-1:] or [""]
+            print(
+                f"[GWS] CLI exit={result.returncode}: {' '.join(args)} "
+                f"— {stderr[0]}"
+            )
+            return None
+
+        output = result.stdout
+        lines = output.split("\n")
+        clean = "\n".join(
+            l for l in lines if not l.startswith("Using keyring")
+        )
+        clean = clean.strip()
+        if not clean:
+            return None
+        try:
+            return json.loads(clean)
+        except json.JSONDecodeError as e:
+            print(f"[GWS] JSON parse failed: {e} — output head: {clean[:120]!r}")
             return None
 
     # ── Calendar ──────────────────────────────────────────────────────────────

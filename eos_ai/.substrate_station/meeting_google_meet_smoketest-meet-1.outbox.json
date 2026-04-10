@@ -1,0 +1,57 @@
+[
+  {
+    "action_id": "act_a9615eb49a4d",
+    "kind": "speak_text",
+    "payload": {
+      "text": "Back online. Operator mode is live."
+    },
+    "issued_by": "operator_presence",
+    "target_node_id": "meeting_google_meet_smoketest-meet-1",
+    "issued_at": "2026-04-08T16:22:44.464951+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_ab0bbefbc74b",
+    "kind": "speak_text",
+    "payload": {
+      "text": "[ea_orchestrator] heard: what is on the agenda for this meeting"
+    },
+    "issued_by": "voice_session:ea_orchestrator",
+    "target_node_id": "meeting_google_meet_smoketest-meet-1",
+    "issued_at": "2026-04-08T16:22:45.302090+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_8b8d5de337e6",
+    "kind": "speak_text",
+    "payload": {
+      "text": "[ea_orchestrator] heard: mirrored from a meeting bridge"
+    },
+    "issued_by": "voice_session:ea_orchestrator",
+    "target_node_id": "meeting_google_meet_smoketest-meet-1",
+    "issued_at": "2026-04-08T16:22:46.548126+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_c4c17e275267",
+    "kind": "speak_text",
+    "payload": {
+      "text": "[ea_orchestrator] heard: what's our top blocker right now"
+    },
+    "issued_by": "voice_session:ea_orchestrator",
+    "target_node_id": "meeting_google_meet_smoketest-meet-1",
+    "issued_at": "2026-04-08T16:22:47.728965+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_474f3e44ea9c",
+    "kind": "speak_text",
+    "payload": {
+      "text": "Session released."
+    },
+    "issued_by": "operator_presence",
+    "target_node_id": "meeting_google_meet_smoketest-meet-1",
+    "issued_at": "2026-04-08T16:22:48.537897+00:00",
+    "status": "dispatched"
+  }
+]

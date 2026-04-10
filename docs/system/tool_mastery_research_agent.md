@@ -1,6 +1,6 @@
 # Tool Mastery Research Agent
 
-Status: **v1 (honest executor)** — 2026-04-08
+Status: **v1.1 (honest executor + deterministic candidate generation)** — 2026-04-08
 Location: `/opt/OS/core/tool_mastery_research_agent/`
 
 The Research Agent is the execution layer for the Tool Mastery
@@ -140,6 +140,112 @@ python3 scripts/tool_mastery_research_dispatcher.py \
 
 `no_sources` is intentionally exit 0 — an empty plan is a valid,
 honest outcome and the artifact still records why.
+
+## Discovery modes
+
+Discovery runs in a fixed priority order inside `source_discovery.discover_sources()`:
+
+1. **Explicit `--official-url`** — highest trust, always wins.
+2. **`--hint <url>` values** — treated as explicit operator assertions.
+3. **`tool_doc_registry.md`** — human-maintained canonical list.
+4. **`~/.claude.json` MCP entries** — HTTP manifest endpoints for MCP-backed tools.
+5. **Operator-approved candidates** (new in v1.1) — the fallback tier
+   that unblocks discovery when every upstream source comes up empty.
+
+Only tier 5 is gated by approval. Tiers 1–4 are already curated or
+operator-supplied and flow straight into the fetcher.
+
+### Candidate generation (deterministic, no network)
+
+When tiers 1–4 yield nothing, the operator can generate **deterministic
+source candidates** using `core/tool_mastery_research_agent/search_discovery.py`.
+
+Six pattern families, each a pure function of the slug:
+
+| Family              | Tier                | Shape                                      |
+|---------------------|---------------------|--------------------------------------------|
+| `vendor_domain`     | `official_docs`     | `https://<slug>.{com,io,ai}`, `docs.<slug>.com` |
+| `api_reference`     | `official_api_ref`  | `https://docs.<slug>.com/{api,reference}`  |
+| `github_search`     | `official_repo`     | `https://github.com/search?q=<slug>`       |
+| `github_repo_guess` | `official_repo`     | `https://github.com/<slug>/<slug>`         |
+| `pypi`              | `official_package`  | `https://pypi.org/project/<slug>/`         |
+| `npm`               | `official_package`  | `https://www.npmjs.com/package/<slug>`     |
+
+**Candidates are proposals, not claims.** They are algorithmically
+constructed URL shapes — nothing is looked up, no LLM is consulted, no
+search provider is called. A candidate only means *"if a source of this
+kind exists, this is where convention would put it"*. Every candidate
+carries a `rationale` string and an `origin="generated"` tag so
+downstream readers can always distinguish a generated URL from a
+registry-sourced one.
+
+## Approval flow
+
+The approval gate is **file-based** and composes with the existing
+Control Plane without needing a new action type:
+
+```
+1. generate
+   python3 -m core.tool_mastery_research_agent \
+       --tool <slug> --generate-candidates
+
+   → writes logs/tool_mastery_research/<slug>/candidates/<stamp>.json
+   → the write is routed through Control Plane `write_file`, so
+     logs/execution/<date>-execution.jsonl records:
+       - action.type = "write_file"
+       - action.description = "tool_mastery:search_candidates:<slug> — ..."
+       - source_agent = "tool_mastery_research_agent"
+       - idempotency_key = "tool_mastery:search_candidates:<slug>:<ts>"
+
+2. review
+   python3 -m core.tool_mastery_research_agent \
+       --tool <slug> --show-candidates
+
+3. decide (any combination)
+   python3 -m core.tool_mastery_research_agent --tool <slug> --accept 2,5,8
+   python3 -m core.tool_mastery_research_agent --tool <slug> --reject 1,4
+   python3 -m core.tool_mastery_research_agent --tool <slug> --accept-all
+   python3 -m core.tool_mastery_research_agent --tool <slug> --reject-all
+
+   → mutates the same candidates file in place, stamping
+     status/decided_at/decided_by on each record.
+
+4. research
+   python3 -m core.tool_mastery_research_agent --tool <slug> --mode research
+
+   → discover_sources() automatically loads the *accepted* subset from
+     the latest candidates file when tiers 1–4 are empty. Fetching
+     then proceeds through the existing fetcher.
+```
+
+Only candidates with `status="accepted"` are ever promoted to
+`SourceRef` and handed to the fetcher. Pending and rejected candidates
+are inert.
+
+## Trust model
+
+The discovery system is built around a single invariant:
+
+> **No URL reaches the fetcher without an explicit trust decision.**
+
+| Source tier              | Trust decision made by            | When |
+|--------------------------|-----------------------------------|------|
+| `--official-url`         | operator                          | request time |
+| `--hint`                 | operator                          | request time |
+| `tool_doc_registry.md`   | whoever wrote the registry row    | registry maintenance |
+| MCP HTTP manifest        | implicit (the tool is installed)  | install time |
+| Generated candidates     | operator, per-URL                 | approval step |
+
+Generated candidates are the *only* tier without prior curation, which
+is exactly why they require a per-URL approval step. The approval file
+is co-located with the run under `logs/tool_mastery_research/<slug>/candidates/`
+so the audit trail for "why did we fetch this URL" is one directory
+away from the research artifact that used it.
+
+The system refuses to fabricate. If every tier comes up empty and no
+candidates have been approved, `discover_sources()` returns an empty
+plan with notes explaining what was checked — the honest empty beats
+a confident wrong.
 
 ## Limitations
 

@@ -15,6 +15,7 @@ EOS_ROOT = Path(os.environ.get("EOS_ROOT", "/opt/OS"))
 SKILLS_TOOLS_DIR = EOS_ROOT / "skills" / "tools"
 CONFIG_DIR = EOS_ROOT / "config"
 SEED_LIST_PATH = CONFIG_DIR / "tool_mastery_seeds.yaml"
+EXCLUDE_LIST_PATH = CONFIG_DIR / "tool_mastery_exclude.yaml"
 SCRIPTS_DIR = EOS_ROOT / "scripts"
 RESEARCH_DISPATCHER = SCRIPTS_DIR / "tool_mastery_research_dispatcher.py"
 SCAFFOLD_SCRIPT = (

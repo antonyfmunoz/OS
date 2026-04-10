@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Iterable
 
 from .models import DiscoverySource, ToolRef
-from .paths import CLAUDE_JSON, SEED_LIST_PATH, SKILLS_TOOLS_DIR
+from .paths import CLAUDE_JSON, EXCLUDE_LIST_PATH, SEED_LIST_PATH, SKILLS_TOOLS_DIR
 
 # Same rule as scaffold_tool_skill.py normalize_to_snake_case — kept local
 # so discovery has no import-time coupling to that script.
@@ -223,14 +223,100 @@ def _merge(refs_lists: list[list[ToolRef]]) -> list[ToolRef]:
     return sorted(merged.values(), key=lambda t: t.slug)
 
 
+def load_exclude_slugs(path: Path = EXCLUDE_LIST_PATH) -> dict[str, str]:
+    """Load the exclusion list from config/tool_mastery_exclude.yaml.
+
+    Returns a dict mapping normalised slug -> reason string. Reasons are
+    retained so the Manager can log *why* a slug was excluded when it
+    filters discovery output.
+
+    Format (see config/tool_mastery_exclude.yaml for the full contract):
+
+        exclude_slugs:
+          - slug: goviralbitch
+            reason: "ghost mcpServers entry from uninstalled plugin"
+            audit: docs/audits/...md
+
+    Degrades silently if the file is missing or malformed — an exclusion
+    list failure must never break discovery.
+    """
+    if not path.is_file():
+        return {}
+    try:
+        import yaml  # local import — keeps discovery lazy
+    except Exception:
+        return {}
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except Exception:
+        return {}
+    items = data.get("exclude_slugs") if isinstance(data, dict) else None
+    if not isinstance(items, list):
+        return {}
+    out: dict[str, str] = {}
+    for entry in items:
+        if isinstance(entry, str):
+            slug = normalise_slug(entry)
+            if slug:
+                out[slug] = "(no reason given)"
+        elif isinstance(entry, dict):
+            raw = entry.get("slug") or entry.get("name")
+            if not raw:
+                continue
+            slug = normalise_slug(str(raw))
+            if not slug:
+                continue
+            out[slug] = str(entry.get("reason") or "(no reason given)").strip()
+    return out
+
+
+def _apply_exclusions(
+    refs: list[ToolRef],
+    exclusions: dict[str, str],
+    *,
+    log: bool = True,
+) -> list[ToolRef]:
+    """Drop any ToolRef whose slug is in the exclusions dict.
+
+    Logs each dropped slug to stderr when `log=True` so operators can
+    see exactly what was filtered and why. This is the self-cleaning
+    signal: the Manager is loud about what it's ignoring.
+    """
+    if not exclusions:
+        return refs
+    kept: list[ToolRef] = []
+    for r in refs:
+        if r.slug in exclusions:
+            if log:
+                import sys
+                reason = exclusions[r.slug]
+                sources = ",".join(s.value for s in r.sources)
+                print(
+                    f"[tool_mastery_manager] excluded slug={r.slug} "
+                    f"sources={sources} reason={reason!r}",
+                    file=sys.stderr,
+                )
+            continue
+        kept.append(r)
+    return kept
+
+
 def discover_all(
     *,
     explicit: Iterable[str] | None = None,
     include_skills_dir: bool = True,
     include_seed_list: bool = True,
     include_claude_json: bool = True,
+    apply_exclusions: bool = True,
 ) -> list[ToolRef]:
-    """Run every enabled discovery source and return a merged ToolRef list."""
+    """Run every enabled discovery source and return a merged ToolRef list.
+
+    When `apply_exclusions=True` (default), slugs declared in
+    `config/tool_mastery_exclude.yaml` are filtered out after the merge.
+    This is how the Manager suppresses ghost MCP entries (uninstalled
+    plugins, abandoned per-project mcpServers blocks, etc.) without
+    mutating the underlying discovery sources.
+    """
     buckets: list[list[ToolRef]] = []
     if include_skills_dir:
         buckets.append(discover_skills_dir())
@@ -240,4 +326,7 @@ def discover_all(
         buckets.append(discover_seed_list())
     if include_claude_json:
         buckets.append(discover_claude_json())
-    return _merge(buckets)
+    merged = _merge(buckets)
+    if apply_exclusions:
+        merged = _apply_exclusions(merged, load_exclude_slugs())
+    return merged

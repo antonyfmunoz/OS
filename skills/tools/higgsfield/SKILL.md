@@ -3,8 +3,8 @@ name: higgsfield
 description: "Use when drafting Higgsfield AI video or image prompts for Antony to execute via the web GUI — short-form cinematic content for personal brand, Lyfe Spectrum drops, or Empyrean Studio creative work. Trigger on requests for camera-move shot lists, image-to-video prompts, Soul photo prompts, talking-avatar (Speak) scripts, or any time the brief mentions Bullet Time / Crash Zoom / FPV / Dolly Zoom / cinematic AI video."
 allowed-tools: "Read, Write, Edit"
 version: 1.0
-source_url: "https://higgsfield.ai/"
-last_researched: "2026-04-06"
+source_url: "https://higgsfield.ai"
+last_researched: "2026-04-09"
 instantiated_from: templates/tools/_template/
 api_version: "Higgsfield Cloud API — base https://platform.higgsfield.ai (REST, async job queue, webhooks)"
 sdk_version: "higgsfield-client (Python, sync + async); JS/TS coming soon"

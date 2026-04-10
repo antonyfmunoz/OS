@@ -3,8 +3,8 @@ name: posthog
 description: "Use when capturing product events, identifying users, checking feature flags, running experiments, querying insights via HogQL, wiring LLM observability (`posthog.ai`), or building session-replay/surveys/CDP flows against PostHog Cloud (US/EU) or self-hosted. Covers posthog-python SDK, REST API, and `/decide/` behavior."
 allowed-tools: "Read, Write, Edit, Bash, WebFetch, WebSearch"
 version: 1.0
-source_url: "https://posthog.com/docs"
-last_researched: "2026-04-06"
+source_url: "https://posthog.com/docs/api"
+last_researched: "2026-04-09"
 instantiated_from: templates/tools/_template/
 api_version: "REST v1"
 sdk_version: "posthog-python>=3.7,<4"

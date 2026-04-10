@@ -848,7 +848,14 @@ class ContextualReasoningEngine:
         self.ctx      = ctx
         self._registry = PrimitiveRegistry(ctx)
 
-    def get_current_context(self, venture_id: str = 'lyfe_institute') -> dict:
+    def get_current_context(self, venture_id: str | None = None) -> dict:
+        # Resolve default venture from BIM if not passed — no hardcoded venture
+        if not venture_id:
+            try:
+                from eos_ai.business_instance import BusinessInstanceManager as _BIM
+                venture_id = _BIM(self.ctx).get_default_venture_id()
+            except Exception:
+                venture_id = None
         """
         Return the current stage context dict.
         Used by CognitiveLoop to evaluate stage appropriateness.
@@ -892,7 +899,7 @@ class ContextualReasoningEngine:
             try:
                 from eos_ai.evolution_engine import EvolutionEngine
                 _ee = EvolutionEngine(self.ctx)
-                _venture = context.get('venture_id', 'lyfe_institute')
+                _venture = context.get('venture_id')  # may be None — substrate-neutral
                 _adv_lower = advice.lower()
                 for pid, prim in PRIMITIVE_LIBRARY.items():
                     _prim_words = prim.principle.lower().split()[:5]

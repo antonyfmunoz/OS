@@ -4,7 +4,7 @@ description: "Use when any agent needs to read or write Notion databases, publis
 allowed-tools: "Read, Bash"
 version: 1.0
 source_url: "https://developers.notion.com/"
-last_researched: "2026-04-04"
+last_researched: "2026-04-09"
 instantiated_from: templates/tools/_template/
 api_version: "Notion API 2022-06-28"
 sdk_version: "notion-client 2.x (Python) / REST API direct (EOS)"

@@ -1,0 +1,101 @@
+[
+  {
+    "action_id": "act_095183fa9e2d",
+    "kind": "speak_text",
+    "payload": {
+      "text": "Back online. Operator mode is live."
+    },
+    "issued_by": "operator_presence",
+    "target_node_id": "smoketest-operator-state",
+    "issued_at": "2026-04-07T05:59:34.968642+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_37f74458f06e",
+    "kind": "speak_text",
+    "payload": {
+      "text": "Operator mode loading. Stand by."
+    },
+    "issued_by": "operator_presence",
+    "target_node_id": "smoketest-operator-state",
+    "issued_at": "2026-04-07T05:59:35.572951+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_53515b9677c1",
+    "kind": "speak_text",
+    "payload": {
+      "text": "[ea_orchestrator] heard: status check"
+    },
+    "issued_by": "voice_session:ea_orchestrator",
+    "target_node_id": "smoketest-operator-state",
+    "issued_at": "2026-04-07T05:59:36.484986+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_636f6b21991a",
+    "kind": "speak_text",
+    "payload": {
+      "text": "Operator mode live. Ready."
+    },
+    "issued_by": "operator_presence",
+    "target_node_id": "smoketest-operator-state",
+    "issued_at": "2026-04-07T05:59:36.634912+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_2c1a68be4a18",
+    "kind": "speak_text",
+    "payload": {
+      "text": "Session released."
+    },
+    "issued_by": "operator_presence",
+    "target_node_id": "smoketest-operator-state",
+    "issued_at": "2026-04-07T05:59:38.003068+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_ea0b54d0f338",
+    "kind": "speak_text",
+    "payload": {
+      "text": "operator state smoketest"
+    },
+    "issued_by": "ritual:open_day",
+    "target_node_id": "smoketest-operator-state",
+    "issued_at": "2026-04-07T05:59:40.031490+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_ea7193283afa",
+    "kind": "open_scene",
+    "payload": {
+      "scene": "operator_mode"
+    },
+    "issued_by": "ritual:open_day",
+    "target_node_id": "smoketest-operator-state",
+    "issued_at": "2026-04-07T05:59:40.032609+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_37963d7db379",
+    "kind": "speak_text",
+    "payload": {
+      "text": "Focused scene released."
+    },
+    "issued_by": "operator_presence",
+    "target_node_id": "smoketest-operator-state",
+    "issued_at": "2026-04-07T05:59:41.096380+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_970b0f2f8a76",
+    "kind": "speak_text",
+    "payload": {
+      "text": "Closed. Standing down."
+    },
+    "issued_by": "operator_presence",
+    "target_node_id": "smoketest-operator-state",
+    "issued_at": "2026-04-07T05:59:42.916740+00:00",
+    "status": "dispatched"
+  }
+]

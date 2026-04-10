@@ -27,6 +27,7 @@ from .models import FetchedSource, FetchStatus, SourceRef
 USER_AGENT = "EOS-ToolMasteryResearchAgent/1.0 (+https://github.com/antonyfmunoz/OS)"
 TIMEOUT_SECONDS = 15
 MAX_BYTES = 2_000_000  # 2 MB cap per source
+DEFAULT_MAX_FETCHES = 20  # fetch budget cap per run (raised for GitHub repo expansion)
 
 
 def _iso_now() -> str:
@@ -134,11 +135,29 @@ def fetch_plan(
     sources: list[SourceRef],
     *,
     raw_dir: Path,
+    max_fetches: int = DEFAULT_MAX_FETCHES,
 ) -> list[FetchedSource]:
-    """Fetch all sources in order. Does not parallelise — v1 stays
-    simple and polite."""
+    """Fetch sources in order, capped by ``max_fetches``.
+
+    Sources beyond the cap are recorded as SKIPPED so the provenance
+    remains honest ("we saw it, we chose not to spend a fetch on it")
+    rather than silently disappearing from the run.
+    """
 
     results: list[FetchedSource] = []
     for i, ref in enumerate(sources, start=1):
+        if i > max_fetches:
+            results.append(
+                FetchedSource(
+                    ref=ref,
+                    status=FetchStatus.SKIPPED,
+                    fetched_at=_iso_now(),
+                    error=(
+                        f"fetch budget exceeded (cap={max_fetches}); "
+                        "deprioritized by source quality scoring"
+                    ),
+                )
+            )
+            continue
         results.append(fetch_source(ref, raw_dir=raw_dir, index=i))
     return results

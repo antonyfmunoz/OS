@@ -1,0 +1,24 @@
+[
+  {
+    "action_id": "act_6d93591db7e1",
+    "kind": "speak_text",
+    "payload": {
+      "text": "[ea_orchestrator] heard: what is our top blocker right now"
+    },
+    "issued_by": "voice_session:ea_orchestrator",
+    "target_node_id": "meeting_google_meet_abc-defg-hij",
+    "issued_at": "2026-04-07T08:07:43.177820+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_c11dbbba0ed0",
+    "kind": "speak_text",
+    "payload": {
+      "text": "[ea_orchestrator] heard: manual fallback line"
+    },
+    "issued_by": "voice_session:ea_orchestrator",
+    "target_node_id": "meeting_google_meet_abc-defg-hij",
+    "issued_at": "2026-04-07T08:07:44.321081+00:00",
+    "status": "dispatched"
+  }
+]

@@ -9,6 +9,21 @@ echo "=== EOS Morning Prep: $(date) ===" >> "$LOG"
 
 cd /opt/OS
 
+# Substrate: start open_day ritual (additive, failures non-fatal).
+RITUAL_ID="$(python3 -m eos_ai.substrate.ritual_runner open_day start 2>>"$LOG" || true)"
+echo "[$(date -Iseconds)] open_day ritual_id=${RITUAL_ID:-none}" >> "$LOG"
+
+# Provider health gate — skip if no LLM provider is reachable
+if ! python3 -c "
+import sys; sys.path.insert(0, '/opt/OS')
+from dotenv import load_dotenv; load_dotenv('/opt/OS/eos_ai/.env')
+from eos_ai.provider_health import check_all
+sys.exit(0 if check_all().any_healthy else 1)
+" 2>/dev/null; then
+  echo "[$(date -Iseconds)] SKIP morning_prep: no healthy LLM provider" >> "$LOG"
+  exit 0
+fi
+
 claude -p --allowedTools "Bash Read Glob Grep" \
   --add-dir /opt/OS \
   --max-budget-usd 0.30 \
@@ -44,10 +59,8 @@ Step 4 — GWS auth check:
   python3 -c \"
 import sys; sys.path.insert(0,'/opt/OS')
 from eos_ai.gws_connector import GWSConnector
-from eos_ai.context import load_context_from_env
-ctx = load_context_from_env()
-gws = GWSConnector(ctx)
-status = gws.check_auth()
+gws = GWSConnector()
+status = 'ok' if gws else 'unavailable'
 print('GWS:', status)
 \" 2>/dev/null || echo 'GWS: check skipped'
 
@@ -55,3 +68,8 @@ Step 5 — Final status:
   Print one line: 'SYSTEM READY' or list each issue." >> "$LOG" 2>&1
 
 echo "=== Done: $(date) ===" >> "$LOG"
+
+# Substrate: finish open_day ritual (additive, failures non-fatal).
+if [ -n "${RITUAL_ID:-}" ]; then
+  python3 -m eos_ai.substrate.ritual_runner open_day finish "$RITUAL_ID" 2>>"$LOG" || true
+fi

@@ -1,0 +1,79 @@
+[
+  {
+    "action_id": "act_a6fab51513b3",
+    "kind": "speak_text",
+    "payload": {
+      "text": "Back online. Operator mode is live."
+    },
+    "issued_by": "operator_presence",
+    "target_node_id": "discord_vc_test_guild_test_channel",
+    "issued_at": "2026-04-09T03:00:29.919178+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_47afbebd910c",
+    "kind": "speak_text",
+    "payload": {
+      "text": "Understood \u2014 booking held. Next step: confirm time."
+    },
+    "issued_by": "voice_session:ea_orchestrator",
+    "target_node_id": "discord_vc_test_guild_test_channel",
+    "issued_at": "2026-04-09T03:00:30.869560+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_ea495df60aa6",
+    "kind": "speak_text",
+    "payload": {
+      "text": "[ea_orchestrator] I heard you, but my reasoning path is degraded right now (router error). Try again or switch role."
+    },
+    "issued_by": "voice_session:ea_orchestrator",
+    "target_node_id": "discord_vc_test_guild_test_channel",
+    "issued_at": "2026-04-09T03:00:32.436723+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_c3a381d75511",
+    "kind": "speak_text",
+    "payload": {
+      "text": "Understood \u2014 booking held. Next step: confirm time."
+    },
+    "issued_by": "voice_session:ea_orchestrator",
+    "target_node_id": "discord_vc_test_guild_test_channel",
+    "issued_at": "2026-04-09T03:44:08.671791+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_bc62597c7fef",
+    "kind": "speak_text",
+    "payload": {
+      "text": "[ea_orchestrator] I heard you, but my reasoning path is degraded right now (router error). Try again or switch role."
+    },
+    "issued_by": "voice_session:ea_orchestrator",
+    "target_node_id": "discord_vc_test_guild_test_channel",
+    "issued_at": "2026-04-09T03:44:09.885438+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_a7cf05065b13",
+    "kind": "speak_text",
+    "payload": {
+      "text": "Understood \u2014 booking held. Next step: confirm time."
+    },
+    "issued_by": "voice_session:ea_orchestrator",
+    "target_node_id": "discord_vc_test_guild_test_channel",
+    "issued_at": "2026-04-09T19:48:22.015907+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_8e344904e526",
+    "kind": "speak_text",
+    "payload": {
+      "text": "[ea_orchestrator] I heard you, but my reasoning path is degraded right now (router error). Try again or switch role."
+    },
+    "issued_by": "voice_session:ea_orchestrator",
+    "target_node_id": "discord_vc_test_guild_test_channel",
+    "issued_at": "2026-04-09T19:48:23.457825+00:00",
+    "status": "dispatched"
+  }
+]

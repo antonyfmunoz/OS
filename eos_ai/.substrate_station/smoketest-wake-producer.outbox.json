@@ -1,0 +1,68 @@
+[
+  {
+    "action_id": "act_1e9469257c06",
+    "kind": "speak_text",
+    "payload": {
+      "text": "Back online. Operator mode is live."
+    },
+    "issued_by": "operator_presence",
+    "target_node_id": "smoketest-wake-producer",
+    "issued_at": "2026-04-07T05:27:57.886465+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_7eb1ea2de0d6",
+    "kind": "speak_text",
+    "payload": {
+      "text": "Operator mode loading. Stand by."
+    },
+    "issued_by": "operator_presence",
+    "target_node_id": "smoketest-wake-producer",
+    "issued_at": "2026-04-07T05:27:58.496667+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_28aa8aaf7f35",
+    "kind": "speak_text",
+    "payload": {
+      "text": "Operator mode live. Ready."
+    },
+    "issued_by": "operator_presence",
+    "target_node_id": "smoketest-wake-producer",
+    "issued_at": "2026-04-07T05:27:59.379617+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_1724eae3f738",
+    "kind": "speak_text",
+    "payload": {
+      "text": "Session released."
+    },
+    "issued_by": "operator_presence",
+    "target_node_id": "smoketest-wake-producer",
+    "issued_at": "2026-04-07T05:27:59.975465+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_0bdf7fd93711",
+    "kind": "speak_text",
+    "payload": {
+      "text": "Back online. Operator mode is live."
+    },
+    "issued_by": "operator_presence",
+    "target_node_id": "smoketest-wake-producer",
+    "issued_at": "2026-04-07T05:28:00.624873+00:00",
+    "status": "dispatched"
+  },
+  {
+    "action_id": "act_d11b9b660858",
+    "kind": "speak_text",
+    "payload": {
+      "text": "Operator mode loading. Stand by."
+    },
+    "issued_by": "operator_presence",
+    "target_node_id": "smoketest-wake-producer",
+    "issued_at": "2026-04-07T05:28:01.271530+00:00",
+    "status": "dispatched"
+  }
+]

@@ -50,17 +50,33 @@ SIGNAL_TIERS = ("CRITICAL", "HIGH", "NORMAL", "BACKGROUND")
 
 # Keywords that escalate a signal to CRITICAL tier
 _CRITICAL_KEYWORDS = [
-    "targeting your offer", "directly competes", "platform ban",
-    "policy change", "algorithm update", "market disruption",
-    "shutting down", "regulatory", "terms of service violation",
-    "banning accounts", "content removal", "account suspension",
+    "targeting your offer",
+    "directly competes",
+    "platform ban",
+    "policy change",
+    "algorithm update",
+    "market disruption",
+    "shutting down",
+    "regulatory",
+    "terms of service violation",
+    "banning accounts",
+    "content removal",
+    "account suspension",
 ]
 
 # Keywords that escalate to HIGH tier
 _HIGH_KEYWORDS = [
-    "new competitor", "new entrant", "market entry", "icp shift",
-    "language shift", "unexpected", "viral", "breakthrough",
-    "gen z", "shifting psychology", "new offer launched",
+    "new competitor",
+    "new entrant",
+    "market entry",
+    "icp shift",
+    "language shift",
+    "unexpected",
+    "viral",
+    "breakthrough",
+    "gen z",
+    "shifting psychology",
+    "new offer launched",
 ]
 
 
@@ -85,12 +101,41 @@ class RealityIntelligenceEngine:
     """
 
     def __init__(self, ctx: EOSContext):
-        self.ctx       = ctx
-        self.loop      = CognitiveLoop(ctx)
+        self.ctx = ctx
+        self.loop = CognitiveLoop(ctx)
         self.event_bus = EventBus()
-        self.memory    = AgentMemory()
+        self.memory = AgentMemory()
 
     # ─── scan_market_signals ─────────────────────────────────────────────────
+
+    @staticmethod
+    def _venture_scan_ready(venture_id: str) -> bool:
+        """Return True if the venture has enough real data to ground a scan.
+
+        A venture is NOT ready when its ICP, competitors, AND content angles
+        are all TODO placeholders — scanning would produce fabricated signals.
+        """
+        try:
+            v = VentureKnowledgeBase.get(venture_id)
+        except Exception:
+            return False
+
+        icp_empty = (
+            v.primary_icp.strip().startswith("TODO") or not v.primary_icp.strip()
+        )
+        comps_empty = (
+            all(c.strip().startswith("TODO") for c in v.competitors)
+            if v.competitors
+            else True
+        )
+        angles_empty = (
+            all(a.strip().startswith("TODO") for a in v.winning_content_angles)
+            if v.winning_content_angles
+            else True
+        )
+
+        # Need at least ONE real data source to ground signals
+        return not (icp_empty and comps_empty and angles_empty)
 
     def scan_market_signals(self, venture_id: str) -> list[dict]:
         """
@@ -98,7 +143,15 @@ class RealityIntelligenceEngine:
         augmented by venture context reasoning.
 
         Returns list of dicts: {signal_type, content, confidence, source, tier}.
+        Skips ventures with insufficient data (all TODOs) to avoid fabrication.
         """
+        # Guard: skip ventures with no real ICP/competitor/content data
+        if not self._venture_scan_ready(venture_id):
+            print(
+                f"[RealityEngine] {venture_id}: skipped — insufficient data (all TODOs)"
+            )
+            return []
+
         from eos_ai.scrapling_connector import ScraplingConnector
 
         venture_ctx = VentureKnowledgeBase.to_agent_context(venture_id, detail="full")
@@ -113,10 +166,11 @@ class RealityIntelligenceEngine:
             for comp in competitors[:3]:
                 # Try to extract a URL if the competitor string contains one
                 import re as _re
-                url_match = _re.search(r'https?://\S+', comp)
+
+                url_match = _re.search(r"https?://\S+", comp)
                 if url_match:
                     result = sc.fetch(url_match.group(0), stealth=True)
-                    if result['status'] == 'ok' and result['text']:
+                    if result["status"] == "ok" and result["text"]:
                         live_intel.append(
                             f"LIVE — {result['title']} ({result['url']}):\n"
                             f"{result['text'][:800]}"
@@ -131,6 +185,17 @@ class RealityIntelligenceEngine:
                 + "\n\n".join(live_intel)
                 + "\n\nUse this live data to make your signals more specific and current."
             )
+
+        # Build venture-specific signal type descriptions from real data
+        v = VentureKnowledgeBase.get(venture_id)
+        real_competitors = [
+            c for c in v.competitors if not c.strip().startswith("TODO")
+        ]
+        comp_names = (
+            ", ".join(real_competitors[:5])
+            if real_competitors
+            else "competitors in this space"
+        )
 
         prompt = (
             "You are a market intelligence analyst conducting a real-time scan. "
@@ -149,19 +214,17 @@ class RealityIntelligenceEngine:
             "<confidence: HIGH/MEDIUM/LOW> | <source: competitor_analysis/"
             "platform_monitor/icp_listening/trend_scan>\n\n"
             "Cover these signal types:\n"
-            "- COMPETITOR: What are the known competitors (Tony Robbins, Joe Dispenza, "
-            "  execution-focused masculine development creators) doing right now? "
+            f"- COMPETITOR: What are the known competitors ({comp_names}) doing right now? "
             "  Any new moves, price changes, or positioning shifts?\n"
-            "- PLATFORM: Any Instagram, Discord, or Whop policy or algorithm changes "
-            "  affecting DM-based outreach or course delivery?\n"
-            "- ICP_SHIFT: Is the 18-25 men personal development language or psychology "
-            "  shifting? Any new dominant frustrations or desires emerging?\n"
-            "- MARKET_ENTRY: Are new players entering the structured execution / "
-            "  discipline-focused masculine development space?\n"
-            "- CONTENT: What content angles are gaining unexpected traction in the "
-            "  self-improvement space for this demographic right now?\n"
-            "- BLOCKER: What external market condition is most blocking first revenue "
-            "  for a pre-launch 90-day cohort program at $750 right now?\n\n"
+            "- PLATFORM: Any platform policy or algorithm changes affecting "
+            "  the channels this venture uses for outreach or delivery?\n"
+            "- ICP_SHIFT: Is the target customer's language or psychology shifting? "
+            "  Any new dominant frustrations or desires emerging in this market?\n"
+            "- MARKET_ENTRY: Are new players entering this venture's specific market space?\n"
+            "- CONTENT: What content angles are gaining unexpected traction "
+            "  in this venture's market right now?\n"
+            f"- BLOCKER: What external market condition is most blocking revenue "
+            f"  for this specific offer at {v.price_point or 'its current price point'} right now?\n\n"
             "Be specific. Every signal must reference details from the venture context."
         )
 
@@ -179,30 +242,36 @@ class RealityIntelligenceEngine:
                 line = line.strip()
                 if not line.startswith("SIGNAL:"):
                     continue
-                parts = [p.strip() for p in line[len("SIGNAL:"):].split("|")]
+                parts = [p.strip() for p in line[len("SIGNAL:") :].split("|")]
                 if len(parts) < 4:
                     continue
 
                 signal_type = parts[0].upper()
-                content     = parts[1]
-                raw_conf    = parts[2].upper()
-                confidence  = raw_conf if raw_conf in ("HIGH", "MEDIUM", "LOW") else "MEDIUM"
-                source      = parts[3]
+                content = parts[1]
+                raw_conf = parts[2].upper()
+                confidence = (
+                    raw_conf if raw_conf in ("HIGH", "MEDIUM", "LOW") else "MEDIUM"
+                )
+                source = parts[3]
 
                 raw_signal = {
                     "signal_type": signal_type,
-                    "content":     content,
-                    "confidence":  confidence,
-                    "source":      source,
+                    "content": content,
+                    "confidence": confidence,
+                    "source": source,
                 }
                 tier = self.classify_signal(raw_signal)
 
-                signals.append({
-                    **raw_signal,
-                    "tier":       tier,
-                    "venture_id": venture_id,
-                    "scanned_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                })
+                signals.append(
+                    {
+                        **raw_signal,
+                        "tier": tier,
+                        "venture_id": venture_id,
+                        "scanned_at": datetime.datetime.now(
+                            datetime.timezone.utc
+                        ).isoformat(),
+                    }
+                )
 
         print(f"[RealityEngine] {venture_id}: {len(signals)} signals scanned")
         return signals
@@ -220,8 +289,8 @@ class RealityIntelligenceEngine:
           BACKGROUND — low-confidence signals
         """
         signal_type = (signal.get("signal_type") or "").upper()
-        confidence  = (signal.get("confidence")  or "").upper()
-        content     = (signal.get("content")     or "").lower()
+        confidence = (signal.get("confidence") or "").upper()
+        content = (signal.get("content") or "").lower()
 
         # CRITICAL: any platform policy signal at high/medium confidence,
         # or content mentioning disruptive keywords
@@ -232,7 +301,10 @@ class RealityIntelligenceEngine:
             return "CRITICAL"
 
         # HIGH: new entrants, ICP shifts, or competitor signals at solid confidence
-        if signal_type in ("MARKET_ENTRY", "ICP_SHIFT") and confidence in ("HIGH", "MEDIUM"):
+        if signal_type in ("MARKET_ENTRY", "ICP_SHIFT") and confidence in (
+            "HIGH",
+            "MEDIUM",
+        ):
             return "HIGH"
 
         if signal_type == "COMPETITOR" and confidence == "HIGH":
@@ -288,13 +360,16 @@ class RealityIntelligenceEngine:
                 if tier == "CRITICAL":
                     # Publish immediately — fires signal_captured handler
                     try:
-                        self.event_bus.publish("signal_captured", {
-                            "signal_text": signal["content"],
-                            "source":      signal["source"],
-                            "venture_id":  vid,
-                            "tier":        "CRITICAL",
-                            "signal_type": signal["signal_type"],
-                        })
+                        self.event_bus.publish(
+                            "signal_captured",
+                            {
+                                "signal_text": signal["content"],
+                                "source": signal["source"],
+                                "venture_id": vid,
+                                "tier": "CRITICAL",
+                                "signal_type": signal["signal_type"],
+                            },
+                        )
                     except Exception as e:
                         print(f"[RealityEngine] event_bus CRITICAL publish failed: {e}")
                     critical_alerts.append(
@@ -304,13 +379,16 @@ class RealityIntelligenceEngine:
                 elif tier == "HIGH":
                     # Publish to event bus for morning brief inclusion
                     try:
-                        self.event_bus.publish("signal_captured", {
-                            "signal_text": signal["content"],
-                            "source":      signal["source"],
-                            "venture_id":  vid,
-                            "tier":        "HIGH",
-                            "signal_type": signal["signal_type"],
-                        })
+                        self.event_bus.publish(
+                            "signal_captured",
+                            {
+                                "signal_text": signal["content"],
+                                "source": signal["source"],
+                                "venture_id": vid,
+                                "tier": "HIGH",
+                                "signal_type": signal["signal_type"],
+                            },
+                        )
                     except Exception as e:
                         print(f"[RealityEngine] event_bus HIGH publish failed: {e}")
 
@@ -330,17 +408,13 @@ class RealityIntelligenceEngine:
             # Immediate alert for CRITICAL signals
             if critical_alerts:
                 alert_lines = "\n".join(f"• {a}" for a in critical_alerts)
-                _notify(
-                    f"REALITY ENGINE — CRITICAL\n"
-                    f"Venture: {vid}\n\n"
-                    f"{alert_lines}"
-                )
+                _notify(f"REALITY ENGINE — CRITICAL\nVenture: {vid}\n\n{alert_lines}")
 
             summary[vid] = tier_counts
             all_signals.extend(signals)
             print(f"[RealityEngine] {vid} → {tier_counts}")
 
-        summary['all_signals'] = all_signals
+        summary["all_signals"] = all_signals
         return summary
 
     # ─── run_competitor_analysis ─────────────────────────────────────────────
@@ -393,8 +467,12 @@ class RealityIntelligenceEngine:
         )
 
         keys = [
-            "POSITIONING", "OFFER_STRUCTURE", "TARGET_ICP",
-            "WEAKNESSES", "OPPORTUNITIES", "THREAT_LEVEL",
+            "POSITIONING",
+            "OFFER_STRUCTURE",
+            "TARGET_ICP",
+            "WEAKNESSES",
+            "OPPORTUNITIES",
+            "THREAT_LEVEL",
         ]
         parsed = _parse_labeled_sections(result.output or "", keys)
         parsed["competitor"] = competitor
@@ -418,8 +496,7 @@ class RealityIntelligenceEngine:
                 f"TRUTH REPORT — {venture_id}\n\n"
                 "No confirmed competitors configured in VentureKnowledgeBase. "
                 "Update the competitors list to enable full analysis.\n\n"
-                "Current entries:\n"
-                + "\n".join(f"  • {c}" for c in v.competitors)
+                "Current entries:\n" + "\n".join(f"  • {c}" for c in v.competitors)
             )
 
         analyses: list[dict] = []
@@ -435,9 +512,7 @@ class RealityIntelligenceEngine:
         comp_blocks: list[str] = []
         for a in analyses:
             if "error" in a:
-                comp_blocks.append(
-                    f"[{a['competitor']}] Analysis failed: {a['error']}"
-                )
+                comp_blocks.append(f"[{a['competitor']}] Analysis failed: {a['error']}")
                 continue
             comp_blocks.append(
                 f"COMPETITOR: {a['competitor']}\n"
@@ -458,9 +533,7 @@ class RealityIntelligenceEngine:
                 "with clear strategic recommendations. No hedging — be the advisor "
                 "who tells you the truth about your market position.\n\n"
                 f"YOUR VENTURE:\n{venture_ctx}\n\n"
-                "COMPETITOR ANALYSES:\n\n"
-                + "\n\n".join(comp_blocks)
-                + "\n\n"
+                "COMPETITOR ANALYSES:\n\n" + "\n\n".join(comp_blocks) + "\n\n"
                 "Produce the Truth Report with these sections:\n\n"
                 "MARKET MAP\n"
                 "How are the current players positioned relative to each other? "
@@ -491,8 +564,7 @@ class RealityIntelligenceEngine:
             f"TRUTH REPORT — {venture_id.replace('_', ' ').title()}\n"
             f"Generated: {today}\n"
             f"Competitors analyzed: {len(analyses)}\n"
-            f"{'─' * 48}\n\n"
-            + (synthesis.output or "Synthesis failed — check logs.")
+            f"{'─' * 48}\n\n" + (synthesis.output or "Synthesis failed — check logs.")
         )
 
         # Log to memory for record
@@ -501,10 +573,12 @@ class RealityIntelligenceEngine:
                 org_id=self.ctx.org_id,
                 event_type="truth_report",
                 payload={
-                    "venture_id":  venture_id,
+                    "venture_id": venture_id,
                     "competitors": [a.get("competitor") for a in analyses],
-                    "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                    "preview":     (synthesis.output or "")[:400],
+                    "generated_at": datetime.datetime.now(
+                        datetime.timezone.utc
+                    ).isoformat(),
+                    "preview": (synthesis.output or "")[:400],
                 },
             )
         except Exception:

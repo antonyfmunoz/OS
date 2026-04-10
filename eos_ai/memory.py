@@ -9,8 +9,9 @@ Tables used:
   outcomes        — RLHF signal: reply/no_reply/booked/closed/ignored
   events          — orphaned replies (no matching interaction) stored here
   human_profiles  — per-lead psychological/behavioral profile JSON
-  embeddings      — vector(1536) — disabled until schema dimension is corrected
-                    (embedder produces 384-dim; schema expects 1536-dim)
+  embeddings      — vector(384), written by EmbeddingEngine.embed_interaction()
+                    using fastembed BAAI/bge-small-en-v1.5 (384-dim). Read path
+                    is EmbeddingEngine.semantic_search(). See embedding_engine.py.
 
 Public interface is unchanged — callers (agent_runtime, icp_scorer, dm_monitor,
 calendly_webhook) do not need modification.
@@ -543,19 +544,16 @@ class AgentMemory:
 
     # ─── Semantic retrieval ───────────────────────────────────────────────────
 
-    def embed_and_store(self, interaction_id: str, text: str) -> None:
+    def embed_and_store(self, interaction_id: str, text: str) -> bool:
         """
         Embed text and persist the vector for interaction_id.
 
-        Currently a no-op: the embeddings table uses vector(1536) but the
-        Python fastembed model produces 384-dim vectors. A schema migration
-        is needed to add a vector(384) column or change the dimension.
-        Semantic retrieval degrades gracefully to returning an empty list.
-
-        TODO: add migration `ALTER TABLE embeddings ADD COLUMN embedding_384 vector(384)`
-        and wire fastembed here.
+        Delegates to EmbeddingEngine.embed_interaction() — the canonical
+        write path. Schema is vector(384); fastembed BAAI/bge-small-en-v1.5
+        produces matching 384-dim vectors. Returns True on success.
         """
-        pass
+        from eos_ai.embedding_engine import EmbeddingEngine
+        return EmbeddingEngine().embed_interaction(interaction_id, text, ORG_ID)
 
     def semantic_search(
         self,

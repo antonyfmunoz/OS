@@ -3,8 +3,8 @@ name: stripe
 description: "Use when creating, charging, refunding, or managing Stripe customers, payment intents, subscriptions, products, prices, checkout sessions, invoices, or webhooks — or when integrating payments for Initiate Arena, Empyrean Studio, or any Munoz Conglomerate venture. Also use when verifying webhook signatures, debugging 3DS/SCA flows, handling dunning, or composing Stripe with Sigma, Connect, Billing, or Treasury."
 allowed-tools: "Read, Write, Edit, Bash, WebFetch, WebSearch"
 version: 1.0
-source_url: "https://docs.stripe.com"
-last_researched: "2026-04-06"
+source_url: "https://stripe.com/docs/api"
+last_researched: "2026-04-09"
 instantiated_from: templates/tools/_template/
 api_version: "2026-03-25.dahlia"
 sdk_version: "stripe-python v11+"

@@ -20,10 +20,8 @@ def get_upcoming_calls(window_start_mins: int = 25, window_end_mins: int = 45) -
     """
     try:
         from eos_ai.gws_connector import GWSConnector
-        from eos_ai.context import load_context_from_env
 
-        ctx = load_context_from_env()
-        gws = GWSConnector(ctx)
+        gws = GWSConnector()
 
         now = datetime.now(timezone.utc)
         window_start = now + timedelta(minutes=window_start_mins)
@@ -254,10 +252,8 @@ Under 100 words. Direct format.""").strip()
         from datetime import timezone
         from dateutil.parser import parse as _parse
         from eos_ai.gws_connector import GWSConnector
-        from eos_ai.context import load_context_from_env
 
-        _ctx = load_context_from_env()
-        _gws = GWSConnector(_ctx)
+        _gws = GWSConnector()
         _all_events = _gws.get_upcoming_events(days=2)
 
         _agenda_state_file = '/tmp/agenda_sent_state.json'
@@ -362,7 +358,7 @@ Under 100 words. Direct format.""").strip()
         from eos_ai.travel_manager import detect_travel_event, build_travel_brief, log_trip
 
         _t_ctx = _tctx()
-        _t_gws = _TGWS(_t_ctx)
+        _t_gws = _TGWS()  # GWSConnector takes no args
         _t_all = _t_gws.get_upcoming_events(days=3)
 
         _travel_state_file = '/tmp/travel_brief_state.json'

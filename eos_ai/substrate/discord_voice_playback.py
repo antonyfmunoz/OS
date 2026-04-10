@@ -542,9 +542,107 @@ def playback_env_enabled() -> bool:
     return val in ("1", "true", "yes", "on")
 
 
+# === SHARED PLAYBACK STATUS CONTRACT (Subagent C) ===
+
+# Canonical reason codes — used by Discord native playback AND by
+# MeetingTransport.play_reply() normalization. Adding a new code here
+# requires updating both sites.
+PLAYBACK_REASONS: dict[str, str] = {
+    "ok": "playback accepted",
+    "queued": "accepted into bounded queue",
+    "busy_skipped": "another utterance already playing and queue full",
+    "tts_unavailable": "no usable TTS engine",
+    "vc_unavailable": "no voice client / sink attached",
+    "ffmpeg_missing": "ffmpeg not in PATH",
+    "playback_error": "downstream playback raised",
+    "empty_text": "no text to play",
+    "disabled": "playback disabled by env or operator",
+    "sink_error": "attached sink raised",
+}
+
+
+def normalize_playback_result(
+    raw: Any,
+    *,
+    transport: str,
+    text_preview: Optional[str] = None,
+) -> dict[str, Any]:
+    """Coerce any playback result into the canonical envelope.
+
+    Canonical shape:
+        {
+          "transport": "discord" | "meeting" | "<other>",
+          "status": <one of PLAYBACK_REASONS keys>,
+          "reason": <human string>,
+          "detail": <free-form>,
+          "text_preview": <str or None>,
+          "queued_depth": <int or None>,
+          "occurred_at": <ISO-8601 UTC Z>,
+        }
+
+    Never raises. Unknown statuses fall through to "playback_error" with
+    the original status preserved in detail.
+    """
+    envelope: dict[str, Any] = {
+        "transport": str(transport or "unknown"),
+        "status": "playback_error",
+        "reason": PLAYBACK_REASONS["playback_error"],
+        "detail": "",
+        "text_preview": text_preview,
+        "queued_depth": None,
+        "occurred_at": _utcnow_iso(),
+    }
+
+    try:
+        if isinstance(raw, PlaybackResult):
+            raw = raw.as_dict()
+
+        if raw is None:
+            envelope["detail"] = "no result (None)"
+            return envelope
+
+        if isinstance(raw, BaseException):
+            envelope["detail"] = f"{type(raw).__name__}: {raw}"
+            return envelope
+
+        if isinstance(raw, str):
+            envelope["detail"] = f"raw string result: {raw}"
+            return envelope
+
+        if isinstance(raw, dict):
+            status = str(raw.get("status") or "").strip()
+            if status in PLAYBACK_REASONS:
+                envelope["status"] = status
+                envelope["reason"] = raw.get("reason") or PLAYBACK_REASONS[status]
+                envelope["detail"] = raw.get("detail", "") or ""
+            else:
+                envelope["detail"] = (
+                    f"unknown status '{status}': {raw.get('detail', '')}".strip()
+                )
+            qd = raw.get("queued_depth")
+            if qd is not None:
+                try:
+                    envelope["queued_depth"] = int(qd)
+                except Exception:
+                    envelope["queued_depth"] = None
+            if text_preview is None and raw.get("text_preview"):
+                envelope["text_preview"] = raw.get("text_preview")
+            if raw.get("occurred_at"):
+                envelope["occurred_at"] = raw.get("occurred_at")
+            return envelope
+
+        envelope["detail"] = f"unknown result type: {type(raw).__name__}"
+        return envelope
+    except Exception as e:  # noqa: BLE001
+        envelope["detail"] = f"normalize failed: {e}"
+        return envelope
+
+
 __all__ = [
     "DiscordVoicePlayback",
     "PlaybackResult",
+    "PLAYBACK_REASONS",
+    "normalize_playback_result",
     "probe_playback_capability",
     "get_playback_history",
     "reset_playback_history_for_tests",

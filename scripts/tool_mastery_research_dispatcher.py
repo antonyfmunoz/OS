@@ -107,10 +107,95 @@ def _plan_repair(slug: str, report: dict) -> dict:
     }
 
 
+AUTHOR_DESCRIPTION_PREFIX = "tool_mastery:author:"
+
+
+def _drain_author_queue(*, tool_filter: str | None, json_only: bool) -> int:
+    """Consume queued tool_mastery.author actions from the deferred queue.
+
+    For each matching deferred action we call ``resume_action`` so the
+    standard Control Plane lifecycle (approve → execute → log) handles
+    it. The action's ``run_script`` executor invokes
+    ``scripts/tool_mastery_author.py`` with the inputs that were queued
+    by the Research Agent.
+    """
+    from core.action_system.control_plane import resume_action
+    from core.action_system.deferred import list_deferred
+
+    deferred = list_deferred()
+    matches = [
+        d
+        for d in deferred
+        if (d.get("description") or "").startswith(AUTHOR_DESCRIPTION_PREFIX)
+    ]
+    if tool_filter:
+        suffix = f"{AUTHOR_DESCRIPTION_PREFIX}{tool_filter} "
+        matches = [
+            d for d in matches if (d.get("description") or "").startswith(suffix)
+        ]
+
+    drained: list[dict] = []
+    for entry in matches:
+        action_id = entry["id"]
+        try:
+            executed = resume_action(action_id)
+            drained.append(
+                {
+                    "action_id": action_id,
+                    "description": entry.get("description"),
+                    "status": executed.status,
+                    "result_ok": bool(executed.result.get("ok")),
+                    "stdout_tail": (executed.result.get("stdout") or "")[-1000:],
+                    "stderr_tail": (executed.result.get("stderr") or "")[-1000:],
+                }
+            )
+        except Exception as e:
+            drained.append(
+                {
+                    "action_id": action_id,
+                    "description": entry.get("description"),
+                    "error": f"{type(e).__name__}: {e}",
+                }
+            )
+
+    payload = {
+        "ok": True,
+        "scanned": len(deferred),
+        "matched": len(matches),
+        "drained": drained,
+    }
+    if json_only:
+        print(json.dumps(payload, indent=2))
+    else:
+        print("=== Tool Mastery AUTHOR queue drain ===")
+        print(f"deferred actions scanned: {payload['scanned']}")
+        print(f"author actions matched : {payload['matched']}")
+        for d in drained:
+            print()
+            print(f"  action_id : {d['action_id']}")
+            print(f"  desc      : {d.get('description')}")
+            if "error" in d:
+                print(f"  ERROR     : {d['error']}")
+                continue
+            print(f"  status    : {d['status']}")
+            print(f"  result_ok : {d['result_ok']}")
+            if d.get("stderr_tail"):
+                print(f"  stderr    : {d['stderr_tail'][-300:]}")
+    # Exit 0 if everything succeeded OR queue empty; non-zero if any failed.
+    if not drained:
+        return 0
+    return (
+        0
+        if all(d.get("result_ok") for d in drained if "error" not in d)
+        and not any("error" in d for d in drained)
+        else 1
+    )
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--work-type", required=True, choices=VALID_WORK_TYPES)
-    ap.add_argument("--tool", required=True)
+    ap.add_argument("--work-type", required=False, choices=VALID_WORK_TYPES)
+    ap.add_argument("--tool", required=False)
     ap.add_argument("--json", action="store_true", help="emit JSON plan only")
     ap.add_argument(
         "--execute",
@@ -120,7 +205,26 @@ def main() -> int:
             "source-grounded research run instead of just printing the plan"
         ),
     )
+    ap.add_argument(
+        "--execute-author",
+        action="store_true",
+        help=(
+            "drain queued tool_mastery.author actions from the Control "
+            "Plane deferred queue and run the Tool Mastery Author Agent "
+            "for each one"
+        ),
+    )
     args = ap.parse_args()
+
+    if args.execute_author:
+        return _drain_author_queue(tool_filter=args.tool, json_only=args.json)
+
+    if not args.work_type or not args.tool:
+        print(
+            "error: --work-type and --tool are required unless --execute-author is set",
+            file=sys.stderr,
+        )
+        return 2
 
     if args.execute:
         # delegate to the research agent; honest v1 — plans are replaced

@@ -1,0 +1,24 @@
+[
+  {
+    "type": "event",
+    "payload": {
+      "node_id": "smoketest-voice-eos-responder",
+      "event_type": "heartbeat",
+      "payload": {
+        "reason": "interval",
+        "capabilities": [
+          "audio_output",
+          "text_to_speech",
+          "local_filesystem",
+          "url_open",
+          "app_launch",
+          "scene_bootstrap",
+          "window_focus"
+        ],
+        "status": "online",
+        "last_seen": "2026-04-07T08:08:34.139619+00:00"
+      },
+      "occurred_at": "2026-04-07T08:08:34.283704+00:00"
+    }
+  }
+]

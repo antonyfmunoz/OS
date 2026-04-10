@@ -1,406 +1,350 @@
-# Drizzle ORM — Best Practices Reference
+# Drizzle Orm — Creator-Level Best Practices
 
-Complete reference following the 19-section Tool Mastery Research Protocol.
+_Drafted by tool_mastery_author_agent at 2026-04-09T07:41:58.404494+00:00._
+
+This document is source-grounded. Every **Sourced** section contains bounded excerpts from fetched official documentation and a list of source URLs. Every **Uncovered** section is honestly marked and must be filled by human research before the tool can be considered at creator-level mastery.
 
 ---
+
+# Tier 1 — Technical Mastery
 
 ## Authentication
 
-Drizzle connects to PostgreSQL via a connection string. No API keys, no OAuth — just `DATABASE_URL`.
+**Status:** Uncovered
 
-**EOS pattern — dual pools:**
-- `DATABASE_URL` — admin role (`neondb_owner`, BYPASSRLS). Migrations only.
-- `DATABASE_APP_URL` — app role (`eos_app`, no BYPASSRLS). All runtime queries. RLS enforced.
-
-Connection setup (Neon WebSocket for Node.js):
-```typescript
-import { Pool, neonConfig } from '@neondatabase/serverless'
-import { drizzle } from 'drizzle-orm/neon-serverless'
-import ws from 'ws'
-
-neonConfig.webSocketConstructor = ws
-const pool = new Pool({ connectionString: process.env.DATABASE_APP_URL })
-const db = drizzle(pool, { schema })
-```
-
-For serverless (Vercel/Cloudflare) without transactions, use the HTTP driver:
-```typescript
-import { drizzle } from 'drizzle-orm/neon-http'
-const db = drizzle(process.env.DATABASE_URL!)
-```
-
----
+⚠ **Uncovered.** The research captures for this tool did not contain sufficient signal for this section. Requires manual research from upstream docs, creator content, or production experience before this section can be considered mastered.
 
 ## Core Operations with Exact Signatures
 
-### Select
-```typescript
-db.select().from(table)                          // → Row[]
-db.select({ col: table.col }).from(table)        // → { col: T }[]
-db.selectDistinct().from(table)                   // → Row[] (DISTINCT)
-db.selectDistinctOn([table.col]).from(table)      // → Row[] (DISTINCT ON)
-db.select().from(table).where(predicate)          // filtered
-db.select().from(table).orderBy(asc(t.col))       // sorted
-db.select().from(table).limit(n).offset(m)        // paginated
-db.$count(table)                                  // → number
-db.$count(table, predicate)                       // → number (filtered)
+**Status:** Sourced (pattern × 2 + prose)
+
+_Grounded in 2 structured pattern(s) extracted from the raw research captures. Patterns are preferred over prose because they carry their own provenance and confidence._
+
+**Parameter Definitions** — `[SOURCE: https://orm.drizzle.team/docs/cache]`  _(confidence: high, 2 occurrences)_
+
+> - `getTableName` (table) — (table
+> - `getTableName` (table) — (table
+
+**Function Signature** — `[SOURCE: https://orm.drizzle.team/docs/connect-expo-sqlite]`  _(confidence: medium, 1 occurrences)_
+
 ```
-
-### Insert
-```typescript
-db.insert(table).values(row)                      // single
-db.insert(table).values([row1, row2])             // batch
-db.insert(table).values(row).returning()          // → Row[]
-db.insert(table).values(row)
-  .onConflictDoNothing()                          // skip on conflict
-db.insert(table).values(row)
-  .onConflictDoUpdate({ target: t.id, set: {} }) // upsert
+function
 ```
-
-### Update
-```typescript
-db.update(table).set({ col: val }).where(pred)               // basic
-db.update(table).set({ col: sql`NOW()` }).where(pred)        // SQL expr
-db.update(table).set(updates).where(pred).returning()        // → Row[]
-```
-
-### Delete
-```typescript
-db.delete(table).where(pred)                      // basic
-db.delete(table).where(pred).returning()          // → Row[]
-```
-
-### Filter operators (all from `drizzle-orm`)
-`eq`, `ne`, `gt`, `lt`, `gte`, `lte`, `like`, `ilike`, `inArray`, `notInArray`, `isNull`, `isNotNull`, `between`, `and`, `or`, `not`, `exists`, `sql`
-
-### Aggregates
-`count`, `sum`, `avg`, `min`, `max`, `countDistinct`, `sumDistinct`, `avgDistinct`
 
 ---
+
+_Additional prose context from independent sources (cross-referenced to increase section coverage)._
+
+**Excerpt 1:**
+
+> The cache is used only when .$withCache() is added to a query.
+> // - 'all': All queries are cached globally.
+> // The default behavior is 'explicit'.
+> override strategy(): "explicit" | "all" {
+> // This function accepts query and parameters that cached into key param,
+> // allowing you to retrieve response values for this query from the cache.
+> override async get(key: string): Promise
+> {
+> const res = (await this.kv.get(key)) ?? undefined;
+> return res;
+> // This function accepts several options to define how cached data will be stored:
+> // - 'key': A hashed query and parameters.
+> // - 'response': An…
+
+**Excerpt 2:**
+
+> ? config.ex * 1000 : this.globalTtl);
+> await this.kv.set(key, response, ttl);
+> for (const table of tables) {
+> const keys = this.usedTablesPerKey[table];
+> if (keys === undefined) {
+> this.usedTablesPerKey[table] = [key];
+> } else {
+> keys.push(key);
+> // This function is called when insert, update, or delete statements are executed.
+> // You can either skip this step or invalidate queries that used the affected tables.
+> // The function receives an object with two keys:
+> // - 'tags': Used for queries labeled with a specific tag, allowing you to invalidate by that tag.
+> // - 'tables': The actual…
+
+**Excerpt 3:**
+
+> We embrace SQL dialects and dialect specific drivers and syntax and mirror most popular
+> SQLite-like
+> all
+> ,
+> get
+> ,
+> values
+> and
+> run
+> query methods syntax.
+
+**Sources:**
+- https://orm.drizzle.team/docs/cache
+- https://orm.drizzle.team/docs/connect-cloudflare-do
+- https://orm.drizzle.team/docs/sustainability
+- https://orm.drizzle.team/docs/latest-releases
+- https://orm.drizzle.team/docs/connect-expo-sqlite
+
+> _Authored by tool_mastery_author_agent with pattern-priority rendering. Human review recommended before treating as creator-level mastery._
 
 ## Pagination Patterns
 
-**Offset-based (simple, standard):**
-```typescript
-const page = 2
-const pageSize = 20
-await db.select().from(table)
-  .orderBy(asc(table.createdAt))
-  .limit(pageSize)
-  .offset((page - 1) * pageSize)
-```
+**Status:** Uncovered
 
-**Cursor-based (performant for large datasets):**
-```typescript
-await db.select().from(table)
-  .where(gt(table.createdAt, lastSeenTimestamp))
-  .orderBy(asc(table.createdAt))
-  .limit(pageSize)
-```
-
-Cursor-based avoids the O(n) skip cost of `OFFSET` on large tables.
-
----
+⚠ **Uncovered.** The research captures for this tool did not contain sufficient signal for this section. Requires manual research from upstream docs, creator content, or production experience before this section can be considered mastered.
 
 ## Rate Limits
 
-Drizzle itself has no rate limits — it is a client-side ORM. Rate limits come from the database:
+**Status:** Uncovered
 
-- **Neon free tier:** 100 concurrent connections, 3000 compute hours/month
-- **Neon paid:** connection limits based on plan (pooled connections via PgBouncer)
-- **Connection pool:** set `max` on the Pool to avoid exhausting connections:
-  ```typescript
-  const pool = new Pool({ connectionString: url, max: 20, idleTimeoutMillis: 30000 })
-  ```
-
----
+⚠ **Uncovered.** The research captures for this tool did not contain sufficient signal for this section. Requires manual research from upstream docs, creator content, or production experience before this section can be considered mastered.
 
 ## Error Codes and Recovery
 
-Drizzle does not wrap database errors. Constraint violations throw the underlying driver's error with PostgreSQL error codes:
+**Status:** Uncovered
 
-| Code | Name | Cause |
-|------|------|-------|
-| `23505` | unique_violation | Duplicate key on UNIQUE or PK constraint |
-| `23503` | foreign_key_violation | Referenced row does not exist |
-| `23502` | not_null_violation | NULL in NOT NULL column |
-| `23514` | check_violation | CHECK constraint failed |
-
-```typescript
-try {
-  await db.insert(users).values({ email: 'dup@x.com' })
-} catch (e: any) {
-  if (e.code === '23505') {
-    // handle duplicate
-  }
-}
-```
-
-Transaction errors: any throw inside `db.transaction()` auto-rolls back. `tx.rollback()` throws `TransactionRollbackError` (importable from `drizzle-orm`).
-
----
+⚠ **Uncovered.** The research captures for this tool did not contain sufficient signal for this section. Requires manual research from upstream docs, creator content, or production experience before this section can be considered mastered.
 
 ## SDK Idioms
 
-**Type inference from schema:**
-```typescript
-type User    = typeof users.$inferSelect   // result type
-type NewUser = typeof users.$inferInsert   // input type
+**Status:** Sourced (pattern × 5)
+
+_Grounded in 5 structured pattern(s) extracted from the raw research captures. Patterns are preferred over prose because they carry their own provenance and confidence._
+
+**Install Command** — `[SOURCE: https://orm.drizzle.team/docs/arktype]`  _(confidence: medium, 1 occurrences)_
+
+```
+yarn add
+
+arktype
 ```
 
-**Type-safe JSON columns:**
-```typescript
-jsonb().$type<{ foo: string }>()
+**Install Command** — `[SOURCE: https://orm.drizzle.team/docs/arktype]`  _(confidence: medium, 1 occurrences)_
+
+```
+pnpm add
+
+arktype
 ```
 
-**Prepared statements (serverless optimization):**
-```typescript
-const getUser = db.select().from(users)
-  .where(eq(users.email, sql.placeholder('email')))
-  .prepare('getUser')
+**Install Command** — `[SOURCE: https://orm.drizzle.team/docs/arktype]`  _(confidence: medium, 1 occurrences)_
 
-await getUser.execute({ email: 'dan@x.com' })
+```
+bun add
+
+arktype
 ```
 
-**Self-referencing FK with AnyPgColumn:**
-```typescript
-parentId: uuid('parent_id').references((): AnyPgColumn => table.id)
+**Install Command** — `[SOURCE: https://orm.drizzle.team/docs/connect-cloudflare-do]`  _(confidence: medium, 1 occurrences)_
+
+```
+yarn add
+
+drizzle-orm
 ```
 
-**Custom types (pgvector example from EOS):**
-```typescript
-const vectorType = customType<{ data: number[]; driverData: string; config: { dimensions: number } }>({
-  dataType(config) { return `vector(${config?.dimensions ?? 1536})` },
-  toDriver(value) { return `[${value.join(',')}]` },
-  fromDriver(value) { return value.slice(1, -1).split(',').map(Number) },
-})
+**Install Command** — `[SOURCE: https://orm.drizzle.team/docs/connect-cloudflare-do]`  _(confidence: medium, 1 occurrences)_
+
+```
+yarn add
+
+-D
 ```
 
-**Table third argument is an array (v0.39+):**
-```typescript
-pgTable('name', { ...columns }, (t) => [
-  index('idx').on(t.col),
-  primaryKey({ columns: [t.a, t.b] }),
-])
-```
-Note: EOS schema uses the object syntax `(t) => ({})` which also works but the array form is the newer convention.
+**Sources:**
+- https://orm.drizzle.team/docs/arktype
+- https://orm.drizzle.team/docs/connect-cloudflare-do
 
----
+> _Authored by tool_mastery_author_agent with pattern-priority rendering. Human review recommended before treating as creator-level mastery._
 
 ## Anti-Patterns
 
-1. **Using `push` in production** — skips migration history, can drop+add instead of rename. Always `generate` + `migrate`.
-2. **Selecting all columns when you need a few** — `db.select().from(table)` fetches everything. Use partial selects.
-3. **Missing indexes on foreign keys** — PostgreSQL does NOT auto-create indexes on FK columns. Add `index()` explicitly.
-4. **N+1 queries in loops** — use `db.query.*.findMany({ with: ... })` or joins instead of per-row selects.
-5. **Confusing `relations()` with `.references()`** — relations are ORM metadata only. `.references()` creates actual FK constraints.
-6. **Using `sql.raw()` with user input** — SQL injection risk. Use parameterized `sql` template tag.
-7. **Editing applied migration files** — `__drizzle_migrations` tracks checksums. Tampering breaks deployments.
-8. **Creating connections inside request handlers** — in serverless, declare pool + prepared statements outside the handler for reuse.
+**Status:** Uncovered
 
----
+⚠ **Uncovered.** The research captures for this tool did not contain sufficient signal for this section. Requires manual research from upstream docs, creator content, or production experience before this section can be considered mastered.
 
 ## Data Model
 
-Drizzle schema maps directly to SQL DDL. One TypeScript file → one or more tables.
+**Status:** Sourced (prose)
 
-**EOS schema architecture (from `saas/db/schema.ts`):**
-- 14 tables: users, portfolios, organizations, orgMembers, ventures, agents, userAgentSessions, skills, events, skillVersions, workflows, interactions, outcomes, humanProfiles, approvals, embeddings
-- 7 enums: orgPlan, memberRole, ventureStage, agentDataTier, autonomyStage, approvalStatus, outcomeType
-- 1 custom type: vectorType (pgvector)
-- Zod validators co-located with schema (tokensJsonSchema)
-- All tables use `uuid().primaryKey().defaultRandom()` for IDs
-- All tables use `timestamp('created_at', { withTimezone: true }).notNull().defaultNow()`
-- Most tables are org-scoped with RLS via `org_id` column
+_Source-grounded excerpts from fetched documentation. Keyword matches: `database`, `field`, `object`, `schema`._
 
----
+**Excerpt 1:**
+
+> Using Drizzle you can define and manage database schemas in TypeScript, access your data in a SQL-like
+> or relational way, and take advantage of opt-in tools
+> to push your developer experience
+> through the roof
+> . 🤯
+
+**Excerpt 2:**
+
+> for you, so you can fetch relational nested data from the database
+> in the most convenient and performant way, and never think about joins and data mapping.
+
+**Excerpt 3:**
+
+> Each create schema function accepts an additional optional parameter that you can used to extend, modify or completely overwite a field’s schema.
+
+**Sources:**
+- https://orm.drizzle.team/docs/overview
+- https://orm.drizzle.team/docs/arktype
+- https://orm.drizzle.team/docs/cache
+- https://orm.drizzle.team/docs/connect-cloudflare-do
+- https://orm.drizzle.team/docs/latest-releases
+
+> _Authored by tool_mastery_author_agent with pattern-priority rendering. Human review recommended before treating as creator-level mastery._
 
 ## Webhooks and Events
 
-N/A — Drizzle is a client-side ORM with no webhook or event system. Database-level triggers and notifications are handled at the PostgreSQL layer, not through Drizzle.
+**Status:** Uncovered
 
----
+⚠ **Uncovered.** The research captures for this tool did not contain sufficient signal for this section. Requires manual research from upstream docs, creator content, or production experience before this section can be considered mastered.
+
+_Weak signals observed (below 2-hit threshold): `event`._
 
 ## Limits
 
-- **Max connections:** determined by PostgreSQL/Neon plan, not Drizzle. Set `max` on Pool.
-- **Query size:** no Drizzle limit. PostgreSQL default `max_query_length` is effectively unlimited.
-- **Batch insert:** no hard limit on `.values([])` array size, but very large batches should be chunked to avoid memory issues and statement size limits.
-- **Migration files:** no limit on count. Each migration is a separate SQL file tracked in `__drizzle_migrations`.
+**Status:** Uncovered
 
----
+⚠ **Uncovered.** The research captures for this tool did not contain sufficient signal for this section. Requires manual research from upstream docs, creator content, or production experience before this section can be considered mastered.
+
+_Weak signals observed (below 2-hit threshold): `maximum`._
 
 ## Cost Model
 
-Drizzle ORM and Drizzle Kit are fully open source (Apache 2.0). Zero cost.
+**Status:** Uncovered
 
-Drizzle Studio (visual browser) is free for local use. Cloud hosted version has a paid tier.
-
-Cost is driven entirely by the underlying database (Neon billing: compute hours, storage, data transfer).
-
----
+⚠ **Uncovered.** The research captures for this tool did not contain sufficient signal for this section. Requires manual research from upstream docs, creator content, or production experience before this section can be considered mastered.
 
 ## Version Pinning
 
-```json
-{
-  "dependencies": {
-    "drizzle-orm": "0.39.3"
-  },
-  "devDependencies": {
-    "drizzle-kit": "0.30.4"
-  }
-}
-```
+**Status:** Uncovered
 
-drizzle-orm and drizzle-kit versions must be compatible. Always update them together. Check the [Drizzle changelog](https://orm.drizzle.team/docs/changelog) before upgrading.
-
-Breaking changes to watch:
-- v0.29 → v0.30: table third argument changed from object to array form
-- Schema push behavior changes between minor versions — always test with `strict: true`
+⚠ **Uncovered.** The research captures for this tool did not contain sufficient signal for this section. Requires manual research from upstream docs, creator content, or production experience before this section can be considered mastered.
 
 ---
+
+# Tier 2 — Creator Intelligence
 
 ## Design Intent and Tradeoffs
 
-Drizzle's core design philosophy: **"If you know SQL, you know Drizzle."**
+**Status:** Uncovered
 
-**Tradeoffs vs Prisma:**
-- No query engine runtime (Prisma ships a Rust binary). Drizzle compiles to raw SQL.
-- No schema.prisma DSL — schema is TypeScript, so you get IDE autocomplete and refactoring.
-- No automatic migrations — you control when to generate and apply.
-- Relations are opt-in metadata, not the primary API. SQL joins are first-class.
-- Smaller bundle, faster cold starts (critical for serverless).
-
-**Tradeoffs vs raw SQL:**
-- Adds type safety at the cost of learning the query builder API.
-- Schema changes are tracked via TypeScript diffs, not hand-written ALTER statements.
-- Some complex queries (recursive CTEs, window functions) still need `sql` template tag.
-
-**Why EOS chose Drizzle:**
-- TypeScript-native (matches the saas stack)
-- Neon driver support with WebSocket pooling
-- RLS-compatible (can run `SET LOCAL` in transactions)
-- No runtime overhead (important for the serverless API layer)
-
----
+⚠ **Uncovered.** The research captures for this tool did not contain sufficient signal for this section. Requires manual research from upstream docs, creator content, or production experience before this section can be considered mastered.
 
 ## Problem-Solution Map and Hidden Capabilities
 
-| Problem | Solution |
-|---------|----------|
-| Need RLS with Neon | WebSocket driver + `set_config()` in transaction |
-| Column rename in migration | Enable `strict: true` — Kit prompts instead of drop+add |
-| Type-safe JSON columns | `jsonb().$type<MyInterface>()` |
-| pgvector support | `customType()` with `toDriver`/`fromDriver` |
-| Prepared statements for serverless | `.prepare('name')` + `.execute({ params })` |
-| Self-referencing FK | `(): AnyPgColumn => table.id` return type |
-| Multiple FKs to same table | `relationName` parameter in `relations()` |
-| Seed data in migrations | `npx drizzle-kit generate --custom --name=seed` creates empty migration |
-| Database introspection | `npx drizzle-kit pull` generates schema.ts from live DB |
-| Non-public schemas | `pgSchema('name').table(...)` instead of `pgTable(...)` |
-| Composite primary keys | `primaryKey({ columns: [t.a, t.b] })` in table third arg |
-| Conditional updates | `sql` template in `.set()` for SQL expressions like `NOW()` |
+**Status:** Sourced (prose)
 
----
+_Source-grounded excerpts from fetched documentation. Keyword matches: `example`, `how to`._
+
+**Excerpt 1:**
+
+> This example shows how to plug in a custom
+> cache
+> in Drizzle: you provide functions to fetch data from the cache, store results back into cache, and invalidate entries whenever a mutation runs.
+
+**Excerpt 2:**
+
+> This information is needed for cache invalidation.
+> // For example, if a query uses the "users" and "posts" tables, you can store this information.
+
+**Excerpt 3:**
+
+> Option A - Maximum performance.
+> // Prefer to bundle all the database interaction within a single Durable Object call
+> // for maximum performance, since database access is fast within a DO.
+> const usersAll = await stub.insertAndList({
+> name: 'John',
+> age: 30,
+> email: 'john@example.com',
+> console.log('New user created.
+
+**Sources:**
+- https://orm.drizzle.team/docs/cache
+- https://orm.drizzle.team/docs/connect-cloudflare-do
+
+> _Authored by tool_mastery_author_agent with pattern-priority rendering. Human review recommended before treating as creator-level mastery._
 
 ## Operational Behavior and Edge Cases
 
-- **`undefined` in `.set()` is silently ignored.** The column is excluded from the UPDATE statement. Only `null` sets a column to NULL.
-- **`leftJoin` makes all right-side columns nullable** in TypeScript types. Must handle `null` even if the data logically always exists.
-- **`tx.rollback()` throws `TransactionRollbackError`.** Code after it never runs. The error propagates out of the transaction callback.
-- **Neon HTTP driver is single-query only.** No `SET LOCAL`, no multi-statement transactions. Use WebSocket driver for transactional RLS.
-- **`generatedAlwaysAsIdentity()` columns cannot be inserted into.** PostgreSQL raises an error if you try to provide a value. Use `generatedByDefaultAsIdentity()` if you need to override.
-- **Migration checksum tracking:** `__drizzle_migrations` stores hashes. If you edit a migration file after applying it, future runs may error or re-apply.
-- **Empty `.values([])` array** — behavior is undefined. Always check array length before batch insert.
+**Status:** Uncovered
 
----
+⚠ **Uncovered.** The research captures for this tool did not contain sufficient signal for this section. Requires manual research from upstream docs, creator content, or production experience before this section can be considered mastered.
+
+_Weak signals observed (below 2-hit threshold): `behavior`._
 
 ## Ecosystem Position and Composition
 
-Drizzle sits in the TypeScript ORM space alongside:
-- **Prisma** — more mature, larger community, but heavier runtime (Rust engine), slower cold starts
-- **Kysely** — query builder only (no schema management), very lightweight
-- **TypeORM** — decorator-based, older patterns, less type-safe
-- **MikroORM** — full-featured but smaller community
+**Status:** Uncovered
 
-Drizzle's position: **the SQL-native TypeScript ORM.** Appeals to developers who want type safety without abstracting away SQL.
-
-Composition in EOS:
-- **Drizzle ORM** — schema + queries
-- **Drizzle Kit** — migrations
-- **@neondatabase/serverless** — WebSocket/HTTP drivers
-- **Zod** — runtime validation (co-located with schema)
-- **Hono** — HTTP framework (routes call Drizzle queries)
-
----
+⚠ **Uncovered.** The research captures for this tool did not contain sufficient signal for this section. Requires manual research from upstream docs, creator content, or production experience before this section can be considered mastered.
 
 ## Trajectory and Evolution
 
-- **v0.39.x (current):** Stable. Table third argument array form. Identity columns preferred over serial.
-- **Drizzle Studio:** Visual database browser. Available as CLI (`npx drizzle-kit studio`) or web.
-- **Drizzle Seed:** New package for deterministic test data generation (early stage).
-- **Multi-dialect:** PostgreSQL, MySQL, SQLite, SingleStore, Gel. Adding more.
-- **Edge-first:** Designed for serverless/edge runtimes (Cloudflare Workers, Vercel Edge, Deno).
-- **Direction:** Moving toward more relational query capabilities, better error messages, and tighter Neon integration.
+**Status:** Sourced (prose)
 
-The team ships fast — expect minor breaking changes between 0.x versions. Pin versions and read changelogs.
+_Source-grounded excerpts from fetched documentation. Keyword matches: `migration`, `roadmap`._
 
----
+**Excerpt 1:**
+
+> You can run migrations on application startup using our custom
+> useMigrations
+> migrations hook on in
+> useEffect
+> hook manually as you want.
+
+**Excerpt 2:**
+
+> They hired the whole team so we can keep working on Drizzle full-time, keep cooking on the roadmap,
+> ship more improvements, and continue building all the ambitious stuff we’ve wanted to bring to the community.
+
+**Excerpt 3:**
+
+> Added with update, with delete, with insert, possibility to specify custom schema and custom name for migrations table, sqlite proxy batch and relational queries support.
+
+**Sources:**
+- https://orm.drizzle.team/docs/connect-expo-sqlite
+- https://orm.drizzle.team/docs/sustainability
+- https://orm.drizzle.team/docs/latest-releases
+
+> _Authored by tool_mastery_author_agent with pattern-priority rendering. Human review recommended before treating as creator-level mastery._
 
 ## Conceptual Model and Solution Recipes
 
-### Recipe: Add a new table to EOS
+**Status:** Uncovered
 
-1. Define table in `saas/db/schema.ts` with `pgTable()`, add indexes, export types
-2. If org-scoped, add `orgId` column with `.references(() => organizations.id, { onDelete: 'cascade' })`
-3. Add `index()` on `orgId` (PostgreSQL does not auto-index FKs)
-4. Run `npx drizzle-kit generate --name=add-table-name`
-5. Review generated SQL in `drizzle/` output directory
-6. Run `npx drizzle-kit migrate`
-7. Add RLS policy manually in a custom migration if org-scoped
-
-### Recipe: Add a column to existing table
-
-1. Add column definition in schema.ts (with `.default()` for existing rows or `.notNull()` with a default)
-2. Run `npx drizzle-kit generate --name=add-column-name` with `strict: true` in config
-3. Verify the generated SQL is ALTER ADD, not DROP+ADD
-4. Apply with `npx drizzle-kit migrate`
-
-### Recipe: Query with RLS in EOS
-
-```typescript
-import { withOrg } from '../../db/client.js'
-import { ventures } from '../../db/schema.js'
-import { eq } from 'drizzle-orm'
-
-const rows = await withOrg(orgId, (tx) =>
-  tx.select().from(ventures).where(eq(ventures.orgId, orgId))
-)
-```
-
----
+⚠ **Uncovered.** The research captures for this tool did not contain sufficient signal for this section. Requires manual research from upstream docs, creator content, or production experience before this section can be considered mastered.
 
 ## Industry Expert and Cutting-Edge Usage
 
-**Prepared statements for serverless cold starts:**
-Declare `db` and prepared queries outside the handler function. In AWS Lambda / Vercel Functions, the module scope persists across warm invocations. This eliminates repeated connection and query compilation overhead.
+**Status:** Sourced (prose)
 
-**RLS via Drizzle transactions (EOS pattern):**
-Using `set_config('app.current_org_id', orgId, true)` inside a Drizzle transaction is the cleanest way to implement row-level security with Neon. The third parameter (`true` = LOCAL) ensures the setting is transaction-scoped and never bleeds to other requests. This pattern is used by Neon's own documentation.
+_Source-grounded excerpts from fetched documentation. Keyword matches: `production`, `scale`._
 
-**Custom types for pgvector:**
-EOS implements a `customType()` for pgvector that handles serialization (`[1,2,3]` format) and deserialization. This is the recommended approach until Drizzle adds native vector support. The `dimensions` config parameter maps to `vector(N)` in DDL.
+**Excerpt 1:**
 
-**Partial selects for API responses:**
-Always use partial selects in API routes. Fetching all columns wastes bandwidth and can leak sensitive fields. EOS routes use `db.select({ id: t.id, name: t.name }).from(t)` pattern.
+> You can configure the output
+> format by providing a different Effect logger layer (e.g.,
+> Logger.pretty
+> for development,
+> Logger.json
+> for production).
 
-**Upsert with `excluded` reference:**
-For conflict resolution that references the incoming row's values:
-```typescript
-.onConflictDoUpdate({
-  target: table.id,
-  set: { name: sql`excluded.name`, updatedAt: sql`NOW()` },
-})
-```
-`excluded` is PostgreSQL's keyword for the row that would have been inserted.
+**Excerpt 2:**
+
+> After a lot of great conversations with the PlanetScale team and Sam Lambert, we all came to the same conclusion:
+> the best way to make Drizzle the most sustainablest ORM on Earth was to just join forces.
+
+**Excerpt 3:**
+
+> Besides the 5 core Drizzle team members, we also have 18 more developers working with us on different production-grade apps in outsourcing and consulting.
+
+**Sources:**
+- https://orm.drizzle.team/docs/connect-effect-postgres
+- https://orm.drizzle.team/docs/sustainability
+
+> _Authored by tool_mastery_author_agent with pattern-priority rendering. Human review recommended before treating as creator-level mastery._

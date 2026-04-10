@@ -9,6 +9,19 @@ echo "=== EOS Nightly Maintenance: $(date) ===" >> "$LOG"
 
 cd /opt/OS
 
+# Provider health gate — skip whole job if no LLM provider is reachable.
+# Exits 0 (success) so cron doesn't email failure noise.
+if ! python3 -c "
+import sys; sys.path.insert(0, '/opt/OS')
+from dotenv import load_dotenv; load_dotenv('/opt/OS/eos_ai/.env')
+from eos_ai.provider_health import check_all
+h = check_all()
+sys.exit(0 if h.any_healthy else 1)
+" 2>/dev/null; then
+  echo "[$(date -Iseconds)] SKIP nightly_maintenance: no healthy LLM provider" >> "$LOG"
+  exit 0
+fi
+
 claude -p --allowedTools "Bash Read Write Edit Glob Grep" \
   --add-dir /opt/OS \
   --max-budget-usd 0.50 \

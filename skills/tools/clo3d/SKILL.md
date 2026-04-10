@@ -3,8 +3,8 @@ name: clo3d
 description: "Use when designing, drafting, simulating, fitting, grading, rendering, or exporting garments in CLO 3D for Lyfe Spectrum apparel — including techpack drafts, fabric briefs, fit notes, colorway proposals, render briefs, and CLO-SET handoff. GUI-only human-operator workflow."
 allowed-tools: "Read, Write, Edit"
 version: 1.0
-source_url: "https://www.clo3d.com/"
-last_researched: "2026-04-06"
+source_url: "https://www.clo3d.com/docs"
+last_researched: "2026-04-09"
 instantiated_from: templates/tools/_template/
 api_version: "N/A — GUI tool (Python plug-in API exists but runs in-app, not headless)"
 sdk_version: "N/A"
