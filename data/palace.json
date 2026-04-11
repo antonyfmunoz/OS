@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-04-11T02:26:55.047765+00:00",
-  "source_graph_generated_at": "2026-04-11T02:26:51.362001+00:00",
+  "generated_at": "2026-04-11T03:01:49.520451+00:00",
+  "source_graph_generated_at": "2026-04-11T02:58:22.196682+00:00",
   "source_graph_stale": false,
-  "source_graph_age_hours": 0.0,
+  "source_graph_age_hours": 0.06,
   "stale_threshold_hours": 24,
   "rooms": [
     {
@@ -756,6 +756,44 @@
           "docstring": "CLI entry for the Tool Mastery Research Agent."
         }
       ]
+    }
+  ],
+  "candidates": [
+    {
+      "id": "cluster_000",
+      "label": "eos_ai/substrate/claude_responder.py",
+      "size": 96,
+      "path": "10_Wiki/palace/candidates/cluster_000.md"
+    },
+    {
+      "id": "cluster_001",
+      "label": "eos_ai/agent_teams.py",
+      "size": 72,
+      "path": "10_Wiki/palace/candidates/cluster_001.md"
+    },
+    {
+      "id": "cluster_002",
+      "label": "core/orchestrator/handlers.py",
+      "size": 13,
+      "path": "10_Wiki/palace/candidates/cluster_002.md"
+    },
+    {
+      "id": "cluster_003",
+      "label": "core/orchestrator/decisions.py",
+      "size": 11,
+      "path": "10_Wiki/palace/candidates/cluster_003.md"
+    },
+    {
+      "id": "cluster_004",
+      "label": "scripts/_tme_common.py",
+      "size": 8,
+      "path": "10_Wiki/palace/candidates/cluster_004.md"
+    },
+    {
+      "id": "cluster_005",
+      "label": "scripts/measure_phase8_batch.py",
+      "size": 6,
+      "path": "10_Wiki/palace/candidates/cluster_005.md"
     }
   ]
 }

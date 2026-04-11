@@ -1,20 +1,22 @@
 ---
 type: codebase-function
 file: scripts/build_palace.py
-line: 320
+line: 381
 generated: 2026-04-11
 ---
 
 # build
 
-**File:** [[scripts-build_palace-py]] | **Line:** 320
-**Signature:** `build(verbose) → dict[str, Any]`
+**File:** [[scripts-build_palace-py]] | **Line:** 381
+**Signature:** `build(verbose, with_overlay) → dict[str, Any]`
 
 *No docstring.*
 
 ## Calls
 
 - [[scripts-build_palace-py-_graph_freshness]]
+- [[scripts-build_palace-py-_load_overlay_clusters]]
+- [[scripts-build_palace-py-_render_candidate_room]]
 - [[scripts-build_palace-py-render_index]]
 - [[scripts-build_palace-py-render_room]]
 - [[scripts-build_palace-py-render_wing]]

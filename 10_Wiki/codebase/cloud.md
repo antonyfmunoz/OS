@@ -11,8 +11,8 @@ codebase knowledge graph stored in `10_Wiki/codebase/`.
 ## What This Is
 
 A persistent, structured knowledge graph of the entire EOS codebase.
-It contains 389 files, 372 classes,
-and 3362 functions with full dependency mapping.
+It contains 393 files, 373 classes,
+and 3420 functions with full dependency mapping.
 
 Every node (file, class, function) is a markdown page with:
 - What it depends on (Depends On section with wikilinks)

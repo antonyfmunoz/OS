@@ -5,7 +5,7 @@ generated: 2026-04-11
 
 # Codebase Knowledge Graph
 
-Auto-generated map of the EOS codebase. **3179** pages covering **389** files, **372** classes, **3362** functions.
+Auto-generated map of the EOS codebase. **3199** pages covering **393** files, **373** classes, **3420** functions.
 
 ## How to Use This Graph
 
@@ -19,7 +19,7 @@ Auto-generated map of the EOS codebase. **3179** pages covering **389** files, *
 
 - [[core]] — 54 files, 13,090 lines
 - [[eos_ai]] — 179 files, 75,154 lines
-- [[scripts]] — 141 files, 35,022 lines
+- [[scripts]] — 145 files, 37,111 lines
 - [[services]] — 15 files, 13,337 lines
 
 ## Critical Files
@@ -78,8 +78,10 @@ These are core infrastructure files. Read before modifying.
 - [[scripts-eod_sync-py]]
 - [[scripts-eos_status-py]]
 - [[scripts-higgsfield_smoke_test-py]]
+- [[scripts-incremental_graph-py]]
 - [[scripts-measure_phase8_batch-py]]
 - [[scripts-meet_caption_writer-py]]
+- [[scripts-merge_graphs-py]]
 - [[scripts-midday_checkin-py]]
 - [[scripts-morning_intel-py]]
 - [[scripts-nightly_consolidation-py]]
@@ -103,6 +105,7 @@ These are core infrastructure files. Read before modifying.
 - [[scripts-query_skills-py]]
 - [[scripts-relationship_nurture-py]]
 - [[scripts-router_claude_runtime_debug-py]]
+- [[scripts-run_graphify-py]]
 - [[scripts-scheduled-morning_prep_cp-py]]
 - [[scripts-scheduled-nightly_consolidation_cp-py]]
 - [[scripts-scheduled-weekly_review_cp-py]]
@@ -181,6 +184,7 @@ These are core infrastructure files. Read before modifying.
 - [[scripts-verify_knowledge_system-py]]
 - [[scripts-verify_tool_skill-py]]
 - [[scripts-waiting_on_checker-py]]
+- [[scripts-watch_graph-py]]
 - [[scripts-week_architect-py]]
 - [[scripts-weekly_review-py]]
 - [[scripts-wiki_session_start_hook-py]]
@@ -200,17 +204,17 @@ These are core infrastructure files. Read before modifying.
 
 | Metric | Count |
 |--------|-------|
-| Files | 389 |
-| Classes | 372 |
-| Functions | 3362 |
-| Edges | 11863 |
-| Total Lines | 136,603 |
-| Entry Points | 154 |
+| Files | 393 |
+| Classes | 373 |
+| Functions | 3420 |
+| Edges | 12011 |
+| Total Lines | 138,692 |
+| Entry Points | 158 |
 | Critical Files | 12 |
 
 ### Edge Types
 
-- **calls**: 7280
-- **contains**: 3734
-- **imports**: 843
+- **calls**: 7351
+- **contains**: 3793
+- **imports**: 861
 - **inherits**: 6

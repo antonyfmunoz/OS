@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: scripts/build_palace.py
-line: 171
+line: 177
 generated: 2026-04-11
 ---
 
 # render_room
 
-**File:** [[scripts-build_palace-py]] | **Line:** 171
+**File:** [[scripts-build_palace-py]] | **Line:** 177
 **Signature:** `render_room(room, loci) → str`
 
 *No docstring.*

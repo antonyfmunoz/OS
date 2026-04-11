@@ -37,7 +37,13 @@ ROOT = Path("/opt/OS")
 PALACE_DIR = ROOT / "10_Wiki" / "palace"
 WINGS_DIR = PALACE_DIR / "wings"
 ROOMS_DIR = PALACE_DIR / "rooms"
+CANDIDATES_DIR = PALACE_DIR / "candidates"
 PALACE_JSON = ROOT / "data" / "palace.json"
+OVERLAY_JSON = ROOT / "data" / "graphify_overlay.json"
+
+# Overlay clusters with fewer than this many members are not promoted to
+# candidate rooms — singletons and tiny groups add noise.
+MIN_CANDIDATE_CLUSTER_SIZE = 5
 
 # Functional rooms — each room owns a set of path prefixes.
 # Modify to reshape the palace; build_palace.py re-promotes nodes every run.
@@ -317,7 +323,62 @@ def _graph_freshness(q: GraphQuery) -> tuple[bool, float]:
     return age > timedelta(hours=STALE_GRAPH_HOURS), hours
 
 
-def build(verbose: bool = True) -> dict[str, Any]:
+def _render_candidate_room(cluster: dict[str, Any]) -> str:
+    """Render a Graphify-derived cluster as an UNCURATED candidate room.
+
+    Candidate rooms live in 10_Wiki/palace/candidates/ and are explicitly
+    *not* wired into the wing index — they surface for human review only.
+    This preserves the curated palace as source of truth while letting
+    overlay signal become visible when present.
+    """
+    lines: list[str] = [
+        "---",
+        "type: palace-candidate",
+        f"cluster_id: {cluster.get('id', 'unknown')}",
+        f"source: graphify",
+        f"generated: {datetime.now(timezone.utc).date().isoformat()}",
+        "---",
+        "",
+        f"# Candidate Cluster — {cluster.get('label', cluster.get('id'))}",
+        "",
+        "> **UNCURATED.** This cluster was auto-detected by Graphify overlay.",
+        "> It is NOT part of the curated palace. Promote to a real room by",
+        "> editing `scripts/build_palace.py` ROOM_DEFS if the grouping is useful.",
+        "",
+        f"**Size:** {cluster.get('size', len(cluster.get('members', [])))} files  ",
+        f"**Seed label:** `{cluster.get('label', '?')}`",
+        "",
+        "## Members",
+        "",
+    ]
+    for m in cluster.get("members", []):
+        lines.append(f"- `{m}`")
+    lines += [
+        "",
+        "## Traversal",
+        "",
+        "- Up to palace → [[../index|Memory Palace index]]",
+        "- Curator notes → edit ROOM_DEFS in scripts/build_palace.py",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def _load_overlay_clusters() -> list[dict[str, Any]]:
+    if not OVERLAY_JSON.exists():
+        return []
+    try:
+        overlay = json.loads(OVERLAY_JSON.read_text())
+    except json.JSONDecodeError:
+        return []
+    return [
+        c
+        for c in overlay.get("clusters", [])
+        if c.get("size", len(c.get("members", []))) >= MIN_CANDIDATE_CLUSTER_SIZE
+    ]
+
+
+def build(verbose: bool = True, with_overlay: bool = False) -> dict[str, Any]:
     q = GraphQuery.load()
     PALACE_DIR.mkdir(parents=True, exist_ok=True)
     WINGS_DIR.mkdir(parents=True, exist_ok=True)
@@ -356,6 +417,31 @@ def build(verbose: bool = True) -> dict[str, Any]:
         "graph_age_hours": graph_age_hours,
     }
     (PALACE_DIR / "index.md").write_text(render_index(rooms_by_wing, stats))
+
+    # ── Optional overlay enrichment (candidate rooms, never injected) ────
+    if with_overlay:
+        CANDIDATES_DIR.mkdir(parents=True, exist_ok=True)
+        clusters = _load_overlay_clusters()
+        written = 0
+        for cluster in clusters:
+            path = CANDIDATES_DIR / f"{cluster.get('id', 'unknown')}.md"
+            path.write_text(_render_candidate_room(cluster))
+            written += 1
+        palace_state["candidates"] = [
+            {
+                "id": c.get("id"),
+                "label": c.get("label"),
+                "size": c.get("size", len(c.get("members", []))),
+                "path": f"10_Wiki/palace/candidates/{c.get('id')}.md",
+            }
+            for c in clusters
+        ]
+        stats["candidates"] = written
+        if verbose:
+            print(f"  overlay: {written} candidate rooms from graphify_overlay.json")
+    else:
+        palace_state["candidates"] = []
+
     PALACE_JSON.write_text(json.dumps(palace_state, indent=2))
 
     if verbose:
@@ -377,6 +463,11 @@ def build(verbose: bool = True) -> dict[str, Any]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="build_palace")
     parser.add_argument("--stats", action="store_true", help="print stats only")
+    parser.add_argument(
+        "--with-overlay",
+        action="store_true",
+        help="also emit candidate rooms from data/graphify_overlay.json",
+    )
     args = parser.parse_args(argv)
     if args.stats:
         if not PALACE_JSON.exists():
@@ -384,7 +475,7 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         print(json.dumps(json.loads(PALACE_JSON.read_text())["rooms"][0], indent=2))
         return 0
-    build()
+    build(with_overlay=args.with_overlay)
     return 0
 
 

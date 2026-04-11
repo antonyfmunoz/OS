@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: scripts/build_palace.py
-line: 250
+line: 256
 generated: 2026-04-11
 ---
 
 # render_index
 
-**File:** [[scripts-build_palace-py]] | **Line:** 250
+**File:** [[scripts-build_palace-py]] | **Line:** 256
 **Signature:** `render_index(rooms_by_wing, stats) → str`
 
 *No docstring.*

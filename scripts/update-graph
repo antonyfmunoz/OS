@@ -10,6 +10,13 @@
 #   scripts/update-graph --stats      # stats only
 #   scripts/update-graph --graph-only # skip palace + summaries
 #   scripts/update-graph --module eos_ai.gateway  # single module scoped
+#   scripts/update-graph --with-overlay # + graphify + merge + palace candidates
+#
+# Related commands (real-time cognition upgrade):
+#   scripts/watch-cognition           # start the file watcher (incremental mode)
+#   scripts/incremental_graph.py      # manual incremental update
+#   scripts/run_graphify.py           # produce enrichment overlay
+#   scripts/merge_graphs.py           # merge overlay into a derived graph file
 
 set -euo pipefail
 
@@ -17,10 +24,12 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(dirname "$SCRIPT_DIR")"
 
 GRAPH_ONLY=0
+WITH_OVERLAY=0
 FWD_ARGS=()
 for arg in "$@"; do
   case "$arg" in
     --graph-only) GRAPH_ONLY=1 ;;
+    --with-overlay) WITH_OVERLAY=1 ;;
     *) FWD_ARGS+=("$arg") ;;
   esac
 done
@@ -43,13 +52,31 @@ for arg in "${FWD_ARGS[@]+"${FWD_ARGS[@]}"}"; do
   [[ "$arg" == "--stats" ]] && exit 0
 done
 
-echo ""
-echo "[2/3] memory palace"
-python3 "$SCRIPT_DIR/build_palace.py"
+if [[ "$WITH_OVERLAY" == "1" ]]; then
+  echo ""
+  echo "[2/5] graphify overlay"
+  python3 "$SCRIPT_DIR/run_graphify.py"
 
-echo ""
-echo "[3/3] node summaries"
-python3 "$SCRIPT_DIR/summarize_nodes.py"
+  echo ""
+  echo "[3/5] merge overlay"
+  python3 "$SCRIPT_DIR/merge_graphs.py"
+
+  echo ""
+  echo "[4/5] memory palace (+ candidates)"
+  python3 "$SCRIPT_DIR/build_palace.py" --with-overlay
+
+  echo ""
+  echo "[5/5] node summaries"
+  python3 "$SCRIPT_DIR/summarize_nodes.py"
+else
+  echo ""
+  echo "[2/3] memory palace"
+  python3 "$SCRIPT_DIR/build_palace.py"
+
+  echo ""
+  echo "[3/3] node summaries"
+  python3 "$SCRIPT_DIR/summarize_nodes.py"
+fi
 
 echo ""
 echo "Graph location:   $ROOT/data/codebase_graph.json"
@@ -57,5 +84,10 @@ echo "Palace state:     $ROOT/data/palace.json"
 echo "Summaries:        $ROOT/data/node_summaries.json"
 echo "Obsidian vault:   $ROOT/10_Wiki/codebase/"
 echo "Palace vault:     $ROOT/10_Wiki/palace/"
+if [[ "$WITH_OVERLAY" == "1" ]]; then
+  echo "Overlay:          $ROOT/data/graphify_overlay.json"
+  echo "Merged graph:     $ROOT/data/codebase_graph_merged.json"
+  echo "Candidates:       $ROOT/10_Wiki/palace/candidates/"
+fi
 echo ""
 echo "Verify:  python3 scripts/verify_knowledge_system.py"

@@ -5,7 +5,7 @@ generated: 2026-04-11
 
 # scripts/
 
-**Files:** 141 | **Lines:** 35,022 | **Classes:** 27 | **Functions:** 808
+**Files:** 145 | **Lines:** 37,111 | **Classes:** 28 | **Functions:** 866
 
 ## Entry Points
 
@@ -31,8 +31,10 @@ generated: 2026-04-11
 - [[scripts-eod_sync-py]]
 - [[scripts-eos_status-py]]
 - [[scripts-higgsfield_smoke_test-py]]
+- [[scripts-incremental_graph-py]]
 - [[scripts-measure_phase8_batch-py]]
 - [[scripts-meet_caption_writer-py]]
+- [[scripts-merge_graphs-py]]
 - [[scripts-midday_checkin-py]]
 - [[scripts-morning_intel-py]]
 - [[scripts-nightly_consolidation-py]]
@@ -56,6 +58,7 @@ generated: 2026-04-11
 - [[scripts-query_skills-py]]
 - [[scripts-relationship_nurture-py]]
 - [[scripts-router_claude_runtime_debug-py]]
+- [[scripts-run_graphify-py]]
 - [[scripts-scheduled-morning_prep_cp-py]]
 - [[scripts-scheduled-nightly_consolidation_cp-py]]
 - [[scripts-scheduled-weekly_review_cp-py]]
@@ -134,6 +137,7 @@ generated: 2026-04-11
 - [[scripts-verify_knowledge_system-py]]
 - [[scripts-verify_tool_skill-py]]
 - [[scripts-waiting_on_checker-py]]
+- [[scripts-watch_graph-py]]
 - [[scripts-week_architect-py]]
 - [[scripts-weekly_review-py]]
 - [[scripts-wiki_session_start_hook-py]]
@@ -147,7 +151,7 @@ generated: 2026-04-11
 - [[scripts-bis_context-py]] (88 lines) *[entry]* — BIS context injector — prints active venture context from VE
 - [[scripts-build_notion_databases-py]] (117 lines) — Create the 9 databases that failed in the first build pass.
 - [[scripts-build_notion_workspace-py]] (713 lines) — Build EOS Notion Workspace
-- [[scripts-build_palace-py]] (393 lines) *[entry]* — build_palace.py — Generates the EOS memory palace from the g
+- [[scripts-build_palace-py]] (484 lines) *[entry]* — build_palace.py — Generates the EOS memory palace from the g
 - [[scripts-build_skill_graph-py]] (217 lines) *[entry]* — build_skill_graph.py — Tool Mastery Engine skill dependency 
 - [[scripts-calendar_invite_handler-py]] (300 lines) *[entry]* — Calendar Invite Handler — polls for pending invites every 15
 - [[scripts-call_prep-py]] (431 lines) *[entry]* — Call Prep — runs every 15 minutes via cron.
@@ -171,9 +175,11 @@ generated: 2026-04-11
 - [[scripts-higgsfield_smoke_test-py]] (78 lines) *[entry]* — Higgsfield Cloud API end-to-end smoke test.
 - [[scripts-inbox_gps_afternoon-py]] (30 lines) — Email GPS — 3pm afternoon inbox pass.
 - [[scripts-inbox_zero_init-py]] (403 lines) — Inbox Zero Initialization — run ONCE on first DEX setup.
+- [[scripts-incremental_graph-py]] (773 lines) *[entry]* — incremental_graph.py — Dirty-set incremental updates for the
 - [[scripts-measure_phase8_batch-py]] (336 lines) *[entry]* — Phase 8 batch measurement — full re-extraction.
 - [[scripts-meet_caption_writer-py]] (66 lines) *[entry]* — Operator CLI to append Meet captions to the JSONL bridge.
 - [[scripts-memory_neon-py]] (565 lines) — Neon integration helpers for the memory pipeline.
+- [[scripts-merge_graphs-py]] (214 lines) *[entry]* — merge_graphs.py — Merge graphify_overlay.json into codebase_
 - [[scripts-midday_checkin-py]] (105 lines) *[entry]* — Mid-day check-in — runs at 12:30pm PDT.
 - [[scripts-morning_intel-py]] (179 lines) *[entry]* — Morning Intelligence Brief — runs at 5:45am PDT daily,
 - [[scripts-nightly_consolidation-py]] (325 lines) *[entry]* — Nightly memory consolidation — the "sleep/dream" layer.
@@ -197,6 +203,7 @@ generated: 2026-04-11
 - [[scripts-query_skills-py]] (213 lines) *[entry]* — query_skills.py — Tool Mastery Engine CLI registry.
 - [[scripts-relationship_nurture-py]] (128 lines) *[entry]* — Relationship nurturing — checks for contacts not heard from 
 - [[scripts-router_claude_runtime_debug-py]] (75 lines) *[entry]* — Router runtime debug helper — prints the actual, live state 
+- [[scripts-run_graphify-py]] (526 lines) *[entry]* — run_graphify.py — Pluggable enrichment layer (Graphify adapt
 - [[scripts-salience-py]] (595 lines) — Salience scoring for conversation summaries.
 - [[scripts-scheduled-morning_prep_cp-py]] (83 lines) *[entry]* — morning_prep_cp.py — Control Plane wrapper for morning_prep.
 - [[scripts-scheduled-nightly_consolidation_cp-py]] (111 lines) *[entry]* — nightly_consolidation_cp.py — Control Plane wrapper for nigh
@@ -278,6 +285,7 @@ generated: 2026-04-11
 - [[scripts-verify_knowledge_system-py]] (353 lines) *[entry]* — verify_knowledge_system.py — Acceptance check for the EOS co
 - [[scripts-verify_tool_skill-py]] (189 lines) *[entry]* — verify_tool_skill.py — Tool Mastery Engine verifier / linter
 - [[scripts-waiting_on_checker-py]] (94 lines) *[entry]* — WAITING_ON checker — scans emails in WAITING_ON folder
+- [[scripts-watch_graph-py]] (485 lines) *[entry]* — watch_graph.py — Near real-time file watcher for the codebas
 - [[scripts-week_architect-py]] (118 lines) *[entry]* — Week Architect — Sunday 8pm PDT.
 - [[scripts-weekly_review-py]] (241 lines) *[entry]* — Weekly business review — Sunday 7pm PDT.
 - [[scripts-wiki_session_start_hook-py]] (23 lines) *[entry]* — SessionStart hook: no-op.

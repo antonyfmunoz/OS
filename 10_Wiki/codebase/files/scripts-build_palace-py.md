@@ -2,8 +2,8 @@
 type: codebase-file
 path: scripts/build_palace.py
 module: scripts.build_palace
-lines: 393
-size: 13136
+lines: 484
+size: 16461
 tags: [entry-point]
 generated: 2026-04-11
 ---
@@ -19,7 +19,7 @@ Structure:
     Wing       -> 10_Wiki/palace/wings/<wing>.md          (top-level module)
 ...
 
-**Lines:** 393 | **Size:** 13,136 bytes
+**Lines:** 484 | **Size:** 16,461 bytes
 
 ## Depends On
 
@@ -34,7 +34,9 @@ Structure:
 - **fn** [[scripts-build_palace-py-render_wing]]`(wing, rooms) → str`
 - **fn** [[scripts-build_palace-py-render_index]]`(rooms_by_wing, stats) → str`
 - **fn** [[scripts-build_palace-py-_graph_freshness]]`(q) → tuple[bool, float]`
-- **fn** [[scripts-build_palace-py-build]]`(verbose) → dict[str, Any]`
+- **fn** [[scripts-build_palace-py-_render_candidate_room]]`(cluster) → str`
+- **fn** [[scripts-build_palace-py-_load_overlay_clusters]]`() → list[dict[str, Any]]`
+- **fn** [[scripts-build_palace-py-build]]`(verbose, with_overlay) → dict[str, Any]`
 - **fn** [[scripts-build_palace-py-main]]`(argv) → int`
 
 ## Import Statements

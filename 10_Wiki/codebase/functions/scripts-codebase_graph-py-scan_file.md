@@ -24,3 +24,4 @@ Parse a single Python file and extract all nodes.
 ## Called By
 
 - [[scripts-codebase_graph-py-scan_codebase]]
+- [[scripts-incremental_graph-py-_scan_python_files]]

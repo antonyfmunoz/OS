@@ -21,6 +21,10 @@ of interconnected markdown files with wikilinks.
 
 **Lines:** 1214 | **Size:** 43,803 bytes
 
+## Used By
+
+- [[scripts-incremental_graph-py]]
+
 ## Contains
 
 - **class** [[scripts-codebase_graph-py-FunctionNode]] — 0 methods

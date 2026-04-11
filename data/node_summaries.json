@@ -32983,9 +32983,513 @@
         "raw_docstring": null
       },
       "history": []
+    },
+    "file::scripts/incremental_graph.py": {
+      "current": {
+        "summary": "incremental_graph.py \u2014 Dirty-set incremental updates for the codebase graph.",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "incremental_graph.py \u2014 Dirty-set incremental updates for the codebase graph.\n\nRebuilds ONLY the parts of data/codebase_graph.json affected by a small set\nof changed files. Falls back to a full rebuild (via scripts/codebase_graph.py)\nwhen the change set is too large or the dirty region becomes inconsistent.\n\nStrategy\n--------\n  1. Load the persisted graph JSON.\n  2. Resolve each changed path to a graph file-id (or mark as new/deleted).\n  3. Compute dirty-set = {changed files} \u222a {1-hop dependents via file imports}.\n  4. For each file in the dirty-set:\n        - if deleted \u2192 strip its file/class/function nodes and all edges\n          touching them.\n        - if created or edited \u2192 parse with scan_file(); replace the node\n          entries in graph.files / classes / functions.\n  5. Strip every edge where from_id or to_id belongs to a dirty-set node.\n  6. Rebuild lookup maps (module_to_path, class_name_to_id,\n     file_import_targets, fn_by_file_and_name) from the merged graph.\n  7. Recompute edges (contains/imports/inherits/calls) for the dirty-set only.\n  8. Update stats, bump generated_at, write back to disk.\n\nFallback (\u2192 full rebuild via scripts/codebase_graph.py)\n  - Dirty-set exceeds MAX_DIRTY_RATIO of total files.\n  - Parser raises unexpected exception.\n  - Graph file is unreadable or missing required keys.\n  - File deleted but still referenced by non-dirty edges after the pass\n    (graph corruption guard).\n  - Caller explicitly requests mode=\"full\".\n\nCLI\n---\n    python3 scripts/incremental_graph.py path/a.py path/b.py\n    python3 scripts/incremental_graph.py --mode full        # force rebuild\n    python3 scripts/incremental_graph.py --dry-run path/a.py\n    python3 scripts/incremental_graph.py --stdin            # read paths from stdin\n    python3 scripts/incremental_graph.py --stats\n\nProgrammatic\n------------\n    from scripts.incremental_graph import update\n    report = update([\"eos_ai/memory.py\"])\n    # {'mode': 'incremental', 'dirty_files': 3, 'edges_added': 8, ...}"
+      },
+      "history": []
+    },
+    "file::scripts/merge_graphs.py": {
+      "current": {
+        "summary": "merge_graphs.py \u2014 Merge graphify_overlay.json into codebase_graph.json.",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "merge_graphs.py \u2014 Merge graphify_overlay.json into codebase_graph.json.\n\nRULES (non-negotiable):\n  - Primary graph (data/codebase_graph.json) is SOURCE OF TRUTH.\n  - The overlay is ADDITIVE ONLY. Core edges are never replaced.\n  - Every overlay edge is tagged with \"source\": \"graphify\".\n  - Output is written to data/codebase_graph_merged.json BY DEFAULT\n    so the primary file is never touched. Optional --in-place flag\n    writes back to the primary (use with caution).\n  - Reversibility: deleting the merged file restores the system.\n\nCLI\n---\n    python3 scripts/merge_graphs.py                          # write merged copy\n    python3 scripts/merge_graphs.py --dry-run                # counts only\n    python3 scripts/merge_graphs.py --output some/path.json  # custom output\n    python3 scripts/merge_graphs.py --stats                  # stats from merged\n\nThe merged file has the same shape as the primary graph plus a top-level\n\"graphify\" key holding the overlay metadata (clusters, co_occurrences)."
+      },
+      "history": []
+    },
+    "file::scripts/run_graphify.py": {
+      "current": {
+        "summary": "run_graphify.py \u2014 Pluggable enrichment layer (Graphify adapter).",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "run_graphify.py \u2014 Pluggable enrichment layer (Graphify adapter).\n\nProduces data/graphify_overlay.json \u2014 an additive enrichment over the\nprimary codebase_graph.json. NEVER writes to the primary graph.\n\nStrategy\n--------\n    1. If an external \"graphify\" tool is available (binary on PATH, or a\n       python module importable as `graphify`), invoke it and capture its\n       output. This is a probe \u2014 the exact interface is unknown, so we\n       accept either (a) JSON on stdout, or (b) a file written at a\n       conventional location.\n    2. If no external tool is available, run the INTERNAL enrichment\n       pipeline, which produces equivalent structure using only stdlib\n       and the existing graph.\n\nInternal enrichment pipeline\n----------------------------\n    A. CLUSTERS \u2014 label-propagation community detection on the file\n       import graph. Each file starts with its own label; we iterate,\n       assigning each file the most common label among its neighbors\n       (imports + imported-by). Converges quickly on modular codebases.\n\n    B. CO-OCCURRENCE EDGES \u2014 pairs of files that share \u22653 distinct\n       symbol tokens in docstrings (module, class, function docs), but\n       have no direct import edge between them. Surfaces implicit\n       conceptual coupling (\"these files talk about the same things\").\n\n    C. CROSS-LANGUAGE LINKS \u2014 SQL file table names mentioned in Python\n       docstrings or module names \u2192 one edge per (sql_file, py_file)\n       pair flagged as references_schema.\n\nOutput shape (data/graphify_overlay.json)\n-----------------------------------------\n    {\n      \"generated_at\": ISO timestamp,\n      \"source\": \"external:<tool>\" | \"internal\",\n      \"meta\": { \"tool_version\": str | null, \"notes\": str },\n      \"clusters\": [\n        { \"id\": \"cluster_<n>\", \"label\": str, \"members\": [file, ...] }\n      ],\n      \"edges\": [\n        { \"from\": str, \"to\": str, \"relationship\": str, \"source\": \"graphify\", \"confidence\": float }\n      ],\n      \"co_occurrences\": [\n        { \"a\": str, \"b\": str, \"shared_terms\": [str, ...] }\n      ]\n    }\n\nCLI\n---\n    python3 scripts/run_graphify.py                   # auto-detect\n    python3 scripts/run_graphify.py --force-internal  # skip external probe\n    python3 scripts/run_graphify.py --dry-run         # report only, don't write\n    python3 scripts/run_graphify.py --stats           # show overlay stats"
+      },
+      "history": []
+    },
+    "file::scripts/watch_graph.py": {
+      "current": {
+        "summary": "watch_graph.py \u2014 Near real-time file watcher for the codebase graph.",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "watch_graph.py \u2014 Near real-time file watcher for the codebase graph.\n\nWatches SCAN_DIRS (eos_ai, services, scripts, core) via watchdog/inotify and\ntriggers incremental graph updates as files are edited, created, or deleted.\nKeeps the cognition stack fresh without manual rebuilds or git-hook latency.\n\nFlow per event batch (debounced):\n  1. Accumulate events for `--debounce` ms.\n  2. Ask incremental_graph.update() to rebuild affected region.\n  3. If the updater falls back to a full rebuild, that's logged.\n  4. Optionally chain:\n        run_graphify.py \u2192 merge_graphs.py \u2192 summarize_nodes.py\n     behind --with-overlay.\n\nUsage\n-----\n    python3 scripts/watch_graph.py\n    python3 scripts/watch_graph.py --debounce 2000 --verbose\n    python3 scripts/watch_graph.py --with-overlay\n    python3 scripts/watch_graph.py --once eos_ai/memory.py   # smoke-test path\n\nCLI flags\n---------\n    --debounce MS       event coalescing window (default 1500 ms)\n    --with-overlay      run graphify + merge after each settled batch\n    --full-threshold N  force full rebuild when >N unique files in one batch\n    --verbose           log every event + timing\n    --once PATH [...]   run a single incremental update for given paths, no watch\n    --dry-run           log what WOULD happen, don't touch the graph"
+      },
+      "history": []
+    },
+    "class::scripts/watch_graph.py::CodebaseEventHandler": {
+      "current": {
+        "summary": "Accumulates file-system events into a thread-safe pending set.",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "Accumulates file-system events into a thread-safe pending set."
+      },
+      "history": []
+    },
+    "function::scripts/build_palace.py::_render_candidate_room": {
+      "current": {
+        "summary": "Render a Graphify-derived cluster as an UNCURATED candidate room.",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "Render a Graphify-derived cluster as an UNCURATED candidate room.\n\nCandidate rooms live in 10_Wiki/palace/candidates/ and are explicitly\n*not* wired into the wing index \u2014 they surface for human review only.\nThis preserves the curated palace as source of truth while letting\noverlay signal become visible when present."
+      },
+      "history": []
+    },
+    "function::scripts/build_palace.py::_load_overlay_clusters": {
+      "current": {
+        "summary": "function _load_overlay_clusters",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/incremental_graph.py::_load_graph": {
+      "current": {
+        "summary": "function _load_graph",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/incremental_graph.py::_save_graph": {
+      "current": {
+        "summary": "function _save_graph",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/incremental_graph.py::_rel": {
+      "current": {
+        "summary": "Normalize a path to the rel-from-ROOT form the graph uses.",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "Normalize a path to the rel-from-ROOT form the graph uses."
+      },
+      "history": []
+    },
+    "function::scripts/incremental_graph.py::_is_tracked": {
+      "current": {
+        "summary": "True if a relative path falls under SCAN_DIRS and is not excluded.",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "True if a relative path falls under SCAN_DIRS and is not excluded."
+      },
+      "history": []
+    },
+    "function::scripts/incremental_graph.py::_classify": {
+      "current": {
+        "summary": "Return 'python', 'non_python', or 'skip' for an in-scope file.",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "Return 'python', 'non_python', or 'skip' for an in-scope file."
+      },
+      "history": []
+    },
+    "function::scripts/incremental_graph.py::_file_imported_by": {
+      "current": {
+        "summary": "Build reverse file-import map from the persisted edges list.",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "Build reverse file-import map from the persisted edges list."
+      },
+      "history": []
+    },
+    "function::scripts/incremental_graph.py::_compute_dirty_set": {
+      "current": {
+        "summary": "Return (dirty_python, dirty_non_python, deleted) sets.",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "Return (dirty_python, dirty_non_python, deleted) sets.\n\nDirty-set for python files = changed python \u222a 1-hop dependents of changed\npython files. Non-python files don't get dependent expansion (the Python\nscope doesn't carry call/import edges into them)."
+      },
+      "history": []
+    },
+    "function::scripts/incremental_graph.py::_node_ids_for_files": {
+      "current": {
+        "summary": "Every file/class/function id owned by the given set of file paths.",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "Every file/class/function id owned by the given set of file paths."
+      },
+      "history": []
+    },
+    "function::scripts/incremental_graph.py::_strip_dirty": {
+      "current": {
+        "summary": "Remove nodes and edges belonging to the dirty file set, in place.",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "Remove nodes and edges belonging to the dirty file set, in place."
+      },
+      "history": []
+    },
+    "function::scripts/incremental_graph.py::_strip_non_python": {
+      "current": {
+        "summary": "function _strip_non_python",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/incremental_graph.py::_scan_python_files": {
+      "current": {
+        "summary": "Parse the dirty python files. Raises on SyntaxError so caller can",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "Parse the dirty python files. Raises on SyntaxError so caller can\ndecide whether to fall back to full rebuild."
+      },
+      "history": []
+    },
+    "function::scripts/incremental_graph.py::_scan_non_python_file": {
+      "current": {
+        "summary": "Run the modular parser registry against a single non-python file.",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "Run the modular parser registry against a single non-python file."
+      },
+      "history": []
+    },
+    "function::scripts/incremental_graph.py::_edge_to_dict": {
+      "current": {
+        "summary": "function _edge_to_dict",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/incremental_graph.py::_recompute_edges_for_dirty": {
+      "current": {
+        "summary": "Compute the edges that the dirty files contribute. Uses the GLOBAL",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "Compute the edges that the dirty files contribute. Uses the GLOBAL\nlookup maps (built from the merged graph state) so cross-file resolution\nstays consistent with how codebase_graph.py would have resolved them."
+      },
+      "history": []
+    },
+    "function::scripts/incremental_graph.py::_recompute_stats": {
+      "current": {
+        "summary": "function _recompute_stats",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/incremental_graph.py::_run_full_rebuild": {
+      "current": {
+        "summary": "Shell out to the canonical full-rebuild pipeline.",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "Shell out to the canonical full-rebuild pipeline."
+      },
+      "history": []
+    },
+    "function::scripts/incremental_graph.py::update": {
+      "current": {
+        "summary": "Update the graph incrementally for the given changed paths.",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "Update the graph incrementally for the given changed paths.\n\nmode:\n    \"auto\"        \u2014 incremental if safe, else full rebuild\n    \"incremental\" \u2014 force incremental (may still fall back on error)\n    \"full\"        \u2014 skip dirty-set logic and run full rebuild"
+      },
+      "history": []
+    },
+    "function::scripts/incremental_graph.py::_print_stats": {
+      "current": {
+        "summary": "function _print_stats",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/incremental_graph.py::main": {
+      "current": {
+        "summary": "function main",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/merge_graphs.py::_load_json": {
+      "current": {
+        "summary": "function _load_json",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/merge_graphs.py::_edge_key": {
+      "current": {
+        "summary": "Canonical key for a primary-graph edge.",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "Canonical key for a primary-graph edge."
+      },
+      "history": []
+    },
+    "function::scripts/merge_graphs.py::_overlay_edge_to_primary": {
+      "current": {
+        "summary": "Normalize an overlay edge {from, to, relationship} to the primary",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "Normalize an overlay edge {from, to, relationship} to the primary\nedge shape {from_type, from_id, to_type, to_id, relationship}."
+      },
+      "history": []
+    },
+    "function::scripts/merge_graphs.py::merge": {
+      "current": {
+        "summary": "function merge",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/merge_graphs.py::_print_stats": {
+      "current": {
+        "summary": "function _print_stats",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/merge_graphs.py::main": {
+      "current": {
+        "summary": "function main",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/run_graphify.py::_probe_external": {
+      "current": {
+        "summary": "Return (invocation_hint, version_string) if an external Graphify is",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "Return (invocation_hint, version_string) if an external Graphify is\navailable, otherwise (None, None). 'invocation_hint' is one of:\n  \"binary\"     \u2014 graphify binary on PATH\n  \"module\"     \u2014 python module importable as graphify"
+      },
+      "history": []
+    },
+    "function::scripts/run_graphify.py::_run_external_binary": {
+      "current": {
+        "summary": "Invoke the binary and try to parse JSON from stdout. If the binary",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "Invoke the binary and try to parse JSON from stdout. If the binary\ndoesn't support stdout JSON, we give up and fall back \u2014 this is by\ndesign, since the binary interface is unknown."
+      },
+      "history": []
+    },
+    "function::scripts/run_graphify.py::_run_external_module": {
+      "current": {
+        "summary": "Try a few conventional module entry points.",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "Try a few conventional module entry points."
+      },
+      "history": []
+    },
+    "function::scripts/run_graphify.py::_load_graph": {
+      "current": {
+        "summary": "function _load_graph",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/run_graphify.py::_file_import_graph": {
+      "current": {
+        "summary": "Build undirected file-import adjacency from graph edges.",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "Build undirected file-import adjacency from graph edges."
+      },
+      "history": []
+    },
+    "function::scripts/run_graphify.py::_label_propagation": {
+      "current": {
+        "summary": "Naive synchronous label propagation. Deterministic by sorted node order.",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "Naive synchronous label propagation. Deterministic by sorted node order."
+      },
+      "history": []
+    },
+    "function::scripts/run_graphify.py::_clusters_from_labels": {
+      "current": {
+        "summary": "function _clusters_from_labels",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/run_graphify.py::_tokenize_doc": {
+      "current": {
+        "summary": "function _tokenize_doc",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/run_graphify.py::_co_occurrence_edges": {
+      "current": {
+        "summary": "Find file pairs that share \u22653 distinct docstring tokens AND have no",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "Find file pairs that share \u22653 distinct docstring tokens AND have no\ndirect import edge between them."
+      },
+      "history": []
+    },
+    "function::scripts/run_graphify.py::_cross_language_edges": {
+      "current": {
+        "summary": "SQL table names mentioned in Python docstrings \u2192 references_schema edges.",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "SQL table names mentioned in Python docstrings \u2192 references_schema edges."
+      },
+      "history": []
+    },
+    "function::scripts/run_graphify.py::_build_internal": {
+      "current": {
+        "summary": "function _build_internal",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/run_graphify.py::_build_external": {
+      "current": {
+        "summary": "Try the external Graphify; normalize its output to our overlay shape.",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "Try the external Graphify; normalize its output to our overlay shape."
+      },
+      "history": []
+    },
+    "function::scripts/run_graphify.py::run": {
+      "current": {
+        "summary": "function run",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/run_graphify.py::_print_stats": {
+      "current": {
+        "summary": "function _print_stats",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/run_graphify.py::main": {
+      "current": {
+        "summary": "function main",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/watch_graph.py::_now": {
+      "current": {
+        "summary": "function _now",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/watch_graph.py::_is_tracked_path": {
+      "current": {
+        "summary": "Mirrors incremental_graph._is_tracked but operates on absolute paths.",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "Mirrors incremental_graph._is_tracked but operates on absolute paths."
+      },
+      "history": []
+    },
+    "function::scripts/watch_graph.py::_append_perf": {
+      "current": {
+        "summary": "function _append_perf",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/watch_graph.py::CodebaseEventHandler.__init__": {
+      "current": {
+        "summary": "function __init__",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/watch_graph.py::CodebaseEventHandler._record": {
+      "current": {
+        "summary": "function _record",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/watch_graph.py::CodebaseEventHandler.on_created": {
+      "current": {
+        "summary": "function on_created",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/watch_graph.py::CodebaseEventHandler.on_modified": {
+      "current": {
+        "summary": "function on_modified",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/watch_graph.py::CodebaseEventHandler.on_deleted": {
+      "current": {
+        "summary": "function on_deleted",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/watch_graph.py::CodebaseEventHandler.on_moved": {
+      "current": {
+        "summary": "function on_moved",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/watch_graph.py::CodebaseEventHandler.runaway_active": {
+      "current": {
+        "summary": "function runaway_active",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/watch_graph.py::_run_overlay_chain": {
+      "current": {
+        "summary": "graphify \u2192 merge \u2192 summaries \u2192 palace(--with-overlay).",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "graphify \u2192 merge \u2192 summaries \u2192 palace(--with-overlay).\n\nEach step runs as a subprocess so a failure in one doesn't crash the\nwatcher. Palace rebuild only emits candidate rooms; curated ROOM_DEFS\nremain the source of truth."
+      },
+      "history": []
+    },
+    "function::scripts/watch_graph.py::_process_batch": {
+      "current": {
+        "summary": "function _process_batch",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/watch_graph.py::_debounce_loop": {
+      "current": {
+        "summary": "Pulls batches from the pending set on a debounced cadence and calls",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "Pulls batches from the pending set on a debounced cadence and calls\n_process_batch for each settled batch."
+      },
+      "history": []
+    },
+    "function::scripts/watch_graph.py::watch": {
+      "current": {
+        "summary": "function watch",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
+    },
+    "function::scripts/watch_graph.py::once": {
+      "current": {
+        "summary": "Run a single batch without entering watch mode \u2014 used for smoke tests.",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": "Run a single batch without entering watch mode \u2014 used for smoke tests."
+      },
+      "history": []
+    },
+    "function::scripts/watch_graph.py::main": {
+      "current": {
+        "summary": "function main",
+        "ts": "2026-04-11T02:58:01.788773+00:00",
+        "raw_docstring": null
+      },
+      "history": []
     }
   },
-  "versions": 3,
-  "last_run": "2026-04-11T02:26:55.187268+00:00",
-  "last_new_or_changed": 17
+  "versions": 4,
+  "last_run": "2026-04-11T02:58:01.788773+00:00",
+  "last_new_or_changed": 63
 }
