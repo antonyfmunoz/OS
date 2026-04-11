@@ -30,6 +30,67 @@ Wiki index: /opt/OS/10_Wiki/index.md
 
 ---
 
+## Cognition Stack (MANDATORY at session start)
+
+EOS has a five-layer pre-computed knowledge system. AI NEVER starts blind.
+
+### Bootstrap command (run once per session)
+
+```bash
+python3 /opt/OS/scripts/session_bootstrap.py --compact
+```
+
+This prints status for every layer and exits non-zero if the graph is stale.
+If stale, rebuild before making structural decisions:
+
+```bash
+scripts/update-graph        # rebuilds graph + palace + summaries end-to-end
+```
+
+### Load order (first → last)
+
+  1. `/opt/OS/cloud.md`                       — system context
+  2. `/opt/OS/10_Wiki/palace/index.md`        — memory palace entry
+  3. `/opt/OS/10_Wiki/cloud_palace.md`        — palace usage rules
+  4. `/opt/OS/10_Wiki/codebase/cloud.md`      — graph rules
+  5. `/opt/OS/10_Wiki/retrieval_rules.md`     — enforced hierarchy
+
+### Retrieval hierarchy (NON-NEGOTIABLE)
+
+```
+Palace  →  Graph  →  Summaries  →  Raw Source  →  Logs / Transcripts
+```
+
+- **Palace first** — `10_Wiki/palace/rooms/<room>.md` names the concern and
+  the highest-value files for it.
+- **Graph second** — `python3 scripts/query_graph.py <cmd>` answers every
+  structural question (deps, dependents, path, critical, centrality, search).
+- **Summaries third** — `data/node_summaries.json` has a one-line summary
+  for every file, class, and function. Faster than opening a file.
+- **Raw source fourth** — only open a file when the graph and summary cannot
+  answer. Before `Read`, you must be able to state which graph query you ran
+  and why it was insufficient.
+- **Logs last** — transcripts and runtime logs are last resort.
+
+### Hard rules
+
+- Never `Read` a Python/JS/TS/SQL file before you have run at least one
+  `query_graph.py` command for that file or its concern.
+- Never `Grep` for a symbol the graph already indexes — use
+  `scripts/query_graph.py search <term>`.
+- Never trust the graph without checking freshness. The bootstrap
+  `--check` flag will warn if the graph is older than 24 h.
+- If the file you need is not in the graph (new file, untracked language),
+  say so explicitly and then read it. The escape hatch is legitimate — but
+  must be declared.
+
+### Verification
+
+Run `python3 scripts/verify_knowledge_system.py` to validate that every
+layer is present, fresh, and queryable. This is the single acceptance check.
+
+---
+
 # Developer Agent — Soul Document
 
 ## Identity

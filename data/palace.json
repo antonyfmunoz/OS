@@ -1,0 +1,761 @@
+{
+  "generated_at": "2026-04-11T02:26:55.047765+00:00",
+  "source_graph_generated_at": "2026-04-11T02:26:51.362001+00:00",
+  "source_graph_stale": false,
+  "source_graph_age_hours": 0.0,
+  "stale_threshold_hours": 24,
+  "rooms": [
+    {
+      "id": "intelligence_core",
+      "name": "Intelligence Core",
+      "wing": "eos_ai",
+      "purpose": "Cognition loop, routing, identity, primitives \u2014 the mind of EOS.",
+      "prefixes": [
+        "eos_ai/cognitive_loop.py",
+        "eos_ai/ai_identity.py",
+        "eos_ai/agent_runtime.py",
+        "eos_ai/agent_hierarchy.py",
+        "eos_ai/model_router.py",
+        "eos_ai/model_preferences.py",
+        "eos_ai/primitives.py",
+        "eos_ai/intent_router.py",
+        "eos_ai/gateway.py"
+      ],
+      "loci": [
+        {
+          "path": "eos_ai/agent_runtime.py",
+          "score": 45,
+          "module": "eos_ai.agent_runtime",
+          "critical": true,
+          "entry_point": false,
+          "docstring": "Agent runtime for OS agents."
+        },
+        {
+          "path": "eos_ai/cognitive_loop.py",
+          "score": 29,
+          "module": "eos_ai.cognitive_loop",
+          "critical": true,
+          "entry_point": false,
+          "docstring": "CognitiveLoop \u2014 full Perceive \u2192 Understand \u2192 Plan \u2192 Execute"
+        },
+        {
+          "path": "eos_ai/model_router.py",
+          "score": 15,
+          "module": "eos_ai.model_router",
+          "critical": true,
+          "entry_point": false,
+          "docstring": "ModelRouter \u2014 standalone multi-model router for EOS."
+        },
+        {
+          "path": "eos_ai/gateway.py",
+          "score": 13,
+          "module": "eos_ai.gateway",
+          "critical": true,
+          "entry_point": false,
+          "docstring": "EOSGateway \u2014 single control plane for all AI operations."
+        },
+        {
+          "path": "eos_ai/primitives.py",
+          "score": 11,
+          "module": "eos_ai.primitives",
+          "critical": true,
+          "entry_point": false,
+          "docstring": "Primitives \u2014 stage-aware business rules and contextual reasoning engine."
+        },
+        {
+          "path": "eos_ai/agent_hierarchy.py",
+          "score": 10,
+          "module": "eos_ai.agent_hierarchy",
+          "critical": true,
+          "entry_point": false,
+          "docstring": "Agent hierarchy for EntrepreneurOS."
+        },
+        {
+          "path": "eos_ai/ai_identity.py",
+          "score": 10,
+          "module": "eos_ai.ai_identity",
+          "critical": true,
+          "entry_point": false,
+          "docstring": "AIIdentityEngine \u2014 foundational AI identity principles."
+        },
+        {
+          "path": "eos_ai/model_preferences.py",
+          "score": 4,
+          "module": "eos_ai.model_preferences",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "Multi-model router with business context awareness and full human override."
+        },
+        {
+          "path": "eos_ai/intent_router.py",
+          "score": 1,
+          "module": "eos_ai.intent_router",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "IntentRouter \u2014 classify founder messages to the correct agent domain."
+        }
+      ]
+    },
+    {
+      "id": "memory_persistence",
+      "name": "Memory & Persistence",
+      "wing": "eos_ai",
+      "purpose": "Neon-backed memory, session state, authority, context.",
+      "prefixes": [
+        "eos_ai/memory.py",
+        "eos_ai/db.py",
+        "eos_ai/session_state.py",
+        "eos_ai/context.py",
+        "eos_ai/system_context.py",
+        "eos_ai/authority_engine.py",
+        "eos_ai/knowledge_integrator.py"
+      ],
+      "loci": [
+        {
+          "path": "eos_ai/context.py",
+          "score": 86,
+          "module": "eos_ai.context",
+          "critical": false,
+          "entry_point": false,
+          "docstring": ""
+        },
+        {
+          "path": "eos_ai/db.py",
+          "score": 60,
+          "module": "eos_ai.db",
+          "critical": true,
+          "entry_point": false,
+          "docstring": "Neon (PostgreSQL) connection layer for the Python AI layer."
+        },
+        {
+          "path": "eos_ai/memory.py",
+          "score": 33,
+          "module": "eos_ai.memory",
+          "critical": true,
+          "entry_point": false,
+          "docstring": "Persistent memory for OS agents \u2014 backed by Neon (PostgreSQL)."
+        },
+        {
+          "path": "eos_ai/authority_engine.py",
+          "score": 8,
+          "module": "eos_ai.authority_engine",
+          "critical": false,
+          "entry_point": false,
+          "docstring": ""
+        },
+        {
+          "path": "eos_ai/knowledge_integrator.py",
+          "score": 7,
+          "module": "eos_ai.knowledge_integrator",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "KnowledgeIntegrator \u2014 permanent knowledge accumulation layer."
+        },
+        {
+          "path": "eos_ai/system_context.py",
+          "score": 1,
+          "module": "eos_ai.system_context",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "SystemContext \u2014 interface-aware intelligence layer."
+        },
+        {
+          "path": "eos_ai/session_state.py",
+          "score": 0,
+          "module": "eos_ai.session_state",
+          "critical": false,
+          "entry_point": false,
+          "docstring": ""
+        }
+      ]
+    },
+    {
+      "id": "substrate",
+      "name": "Substrate Layer",
+      "wing": "eos_ai",
+      "purpose": "Voice/meeting/operator pipeline \u2014 station daemon + transports.",
+      "prefixes": [
+        "eos_ai/substrate/"
+      ],
+      "loci": [
+        {
+          "path": "eos_ai/substrate/station_daemon.py",
+          "score": 45,
+          "module": "eos_ai.substrate.station_daemon",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "StationDaemon \u2014 minimal local node execution loop."
+        },
+        {
+          "path": "eos_ai/substrate/station_bus.py",
+          "score": 44,
+          "module": "eos_ai.substrate.station_bus",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "StationBus \u2014 MVP transport between EOS and local Station Daemons."
+        },
+        {
+          "path": "eos_ai/substrate/voice_session.py",
+          "score": 41,
+          "module": "eos_ai.substrate.voice_session",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "Voice session \u2014 bounded live voice-presence layer for the substrate."
+        },
+        {
+          "path": "eos_ai/substrate/local_listener.py",
+          "score": 24,
+          "module": "eos_ai.substrate.local_listener",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "Local listener \u2014 bounded wake/activation layer for the substrate."
+        },
+        {
+          "path": "eos_ai/substrate/nodes.py",
+          "score": 22,
+          "module": "eos_ai.substrate.nodes",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "Node abstraction \u2014 execution targets beyond \"the VPS\"."
+        },
+        {
+          "path": "eos_ai/substrate/ritual_body.py",
+          "score": 21,
+          "module": "eos_ai.substrate.ritual_body",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "Ritual body \u2014 tiny executable layer for open_day / close_day."
+        },
+        {
+          "path": "eos_ai/substrate/audio_loop.py",
+          "score": 20,
+          "module": "eos_ai.substrate.audio_loop",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "Audio loop \u2014 bounded local interaction-window model."
+        },
+        {
+          "path": "eos_ai/substrate/actions.py",
+          "score": 18,
+          "module": "eos_ai.substrate.actions",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "SafeAction schema \u2014 structured intents for future local execution."
+        },
+        {
+          "path": "eos_ai/substrate/result_query.py",
+          "score": 17,
+          "module": "eos_ai.substrate.result_query",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "Result query helpers \u2014 tiny operator-facing view over the ResultStore."
+        },
+        {
+          "path": "eos_ai/substrate/result_store.py",
+          "score": 16,
+          "module": "eos_ai.substrate.result_store",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "ResultStore \u2014 durable index of ingested ActionResults."
+        },
+        {
+          "path": "eos_ai/substrate/rituals.py",
+          "score": 16,
+          "module": "eos_ai.substrate.rituals",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "Ritual workflow scaffold \u2014 open_day / close_day."
+        },
+        {
+          "path": "eos_ai/substrate/ritual_runner.py",
+          "score": 15,
+          "module": "eos_ai.substrate.ritual_runner",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "Ritual runner \u2014 shell-callable entry points for open_day / close_day."
+        },
+        {
+          "path": "eos_ai/substrate/discord_text_transport.py",
+          "score": 13,
+          "module": "eos_ai.substrate.discord_text_transport",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "Discord text transport \u2014 Pseudo-Live Voice Loop v1."
+        },
+        {
+          "path": "eos_ai/substrate/station_drainer.py",
+          "score": 13,
+          "module": "eos_ai.substrate.station_drainer",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "Station drainer \u2014 EOS-side ingestion seam for inbox messages."
+        },
+        {
+          "path": "eos_ai/substrate/wake_producer.py",
+          "score": 13,
+          "module": "eos_ai.substrate.wake_producer",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "Wake producer \u2014 bounded wake-word / clap activation layer for the substrate."
+        }
+      ]
+    },
+    {
+      "id": "strategy_orchestration",
+      "name": "Strategy & Orchestration",
+      "wing": "eos_ai",
+      "purpose": "Orchestrator, strategy engine, portfolio advisor, reality engine.",
+      "prefixes": [
+        "eos_ai/orchestrator.py",
+        "eos_ai/strategy_engine.py",
+        "eos_ai/portfolio_advisor.py",
+        "eos_ai/reality_engine.py",
+        "eos_ai/accountability.py",
+        "eos_ai/research_engine.py"
+      ],
+      "loci": [
+        {
+          "path": "eos_ai/orchestrator.py",
+          "score": 18,
+          "module": "eos_ai.orchestrator",
+          "critical": true,
+          "entry_point": true,
+          "docstring": "EOSOrchestrator \u2014 strategic intelligence layer."
+        },
+        {
+          "path": "eos_ai/strategy_engine.py",
+          "score": 10,
+          "module": "eos_ai.strategy_engine",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "StrategyEngine \u2014 first-principles strategic reasoning layer."
+        },
+        {
+          "path": "eos_ai/research_engine.py",
+          "score": 9,
+          "module": "eos_ai.research_engine",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "ResearchEngine \u2014 autonomous knowledge gap detection and research layer."
+        },
+        {
+          "path": "eos_ai/reality_engine.py",
+          "score": 7,
+          "module": "eos_ai.reality_engine",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "RealityIntelligenceEngine \u2014 continuous market intelligence layer."
+        },
+        {
+          "path": "eos_ai/portfolio_advisor.py",
+          "score": 3,
+          "module": "eos_ai.portfolio_advisor",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "Portfolio Advisor \u2014 board-level intelligence across all companies in the portfolio."
+        },
+        {
+          "path": "eos_ai/accountability.py",
+          "score": 0,
+          "module": "eos_ai.accountability",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "AccountabilityEngine \u2014 holds the founder to their word."
+        }
+      ]
+    },
+    {
+      "id": "transports",
+      "name": "Transports",
+      "wing": "services",
+      "purpose": "Discord, Telegram, webhooks \u2014 how EOS reaches the founder.",
+      "prefixes": [
+        "services/"
+      ],
+      "loci": [
+        {
+          "path": "services/discord_bot.py",
+          "score": 21,
+          "module": "services.discord_bot",
+          "critical": true,
+          "entry_point": true,
+          "docstring": "EntrepreneurOS Discord Bot \u2014 DEX conversational layer."
+        },
+        {
+          "path": "services/telegram_control.py",
+          "score": 10,
+          "module": "services.telegram_control",
+          "critical": true,
+          "entry_point": false,
+          "docstring": ""
+        },
+        {
+          "path": "services/dm_monitor.py",
+          "score": 7,
+          "module": "services.dm_monitor",
+          "critical": false,
+          "entry_point": true,
+          "docstring": ""
+        },
+        {
+          "path": "services/apify_scraper.py",
+          "score": 5,
+          "module": "services.apify_scraper",
+          "critical": false,
+          "entry_point": true,
+          "docstring": ""
+        },
+        {
+          "path": "services/icp_scorer.py",
+          "score": 5,
+          "module": "services.icp_scorer",
+          "critical": false,
+          "entry_point": true,
+          "docstring": ""
+        },
+        {
+          "path": "services/calendly_webhook.py",
+          "score": 4,
+          "module": "services.calendly_webhook",
+          "critical": false,
+          "entry_point": true,
+          "docstring": ""
+        },
+        {
+          "path": "services/higgsfield_webhook.py",
+          "score": 4,
+          "module": "services.higgsfield_webhook",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "Higgsfield Cloud API webhook receiver."
+        },
+        {
+          "path": "services/heartbeat.py",
+          "score": 3,
+          "module": "services.heartbeat",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "EOS Heartbeat Service"
+        },
+        {
+          "path": "services/kpi_tracker.py",
+          "score": 3,
+          "module": "services.kpi_tracker",
+          "critical": false,
+          "entry_point": true,
+          "docstring": ""
+        },
+        {
+          "path": "services/overnight_scrape.py",
+          "score": 3,
+          "module": "services.overnight_scrape",
+          "critical": false,
+          "entry_point": true,
+          "docstring": ""
+        },
+        {
+          "path": "services/cost_tracker.py",
+          "score": 0,
+          "module": "services.cost_tracker",
+          "critical": false,
+          "entry_point": false,
+          "docstring": ""
+        },
+        {
+          "path": "services/handlers/cc_command_handler.py",
+          "score": 0,
+          "module": "services.handlers.cc_command_handler",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "Inline command handlers for Discord on_message."
+        },
+        {
+          "path": "services/handlers/intent_handler.py",
+          "score": 0,
+          "module": "services.handlers.intent_handler",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "Intent classification and gateway routing."
+        },
+        {
+          "path": "services/handlers/pipeline_handler.py",
+          "score": 0,
+          "module": "services.handlers.pipeline_handler",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "Pipeline update detection and Notion stage updates."
+        },
+        {
+          "path": "services/handlers/voice_handler.py",
+          "score": 0,
+          "module": "services.handlers.voice_handler",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "Voice handler \u2014 skeleton module."
+        }
+      ]
+    },
+    {
+      "id": "tooling",
+      "name": "Tooling & Scripts",
+      "wing": "scripts",
+      "purpose": "Automation, graph updates, build/verify scripts.",
+      "prefixes": [
+        "scripts/"
+      ],
+      "loci": [
+        {
+          "path": "scripts/substrate_audio_loop_smoke_test.py",
+          "score": 13,
+          "module": "scripts.substrate_audio_loop_smoke_test",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "Audio loop smoke test."
+        },
+        {
+          "path": "scripts/substrate_durable_result_smoke_test.py",
+          "score": 13,
+          "module": "scripts.substrate_durable_result_smoke_test",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "Substrate durable-result smoke test."
+        },
+        {
+          "path": "scripts/substrate_operator_state_smoke_test.py",
+          "score": 13,
+          "module": "scripts.substrate_operator_state_smoke_test",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "Operator state engine smoke test."
+        },
+        {
+          "path": "scripts/_tme_common.py",
+          "score": 12,
+          "module": "scripts._tme_common",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "Shared helpers for Tool Mastery Engine system scripts."
+        },
+        {
+          "path": "scripts/substrate_result_loop_smoke_test.py",
+          "score": 12,
+          "module": "scripts.substrate_result_loop_smoke_test",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "Substrate station full round-trip smoke test."
+        },
+        {
+          "path": "scripts/substrate_transport_report_smoke_test.py",
+          "score": 12,
+          "module": "scripts.substrate_transport_report_smoke_test",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "Unified transport report smoke test."
+        },
+        {
+          "path": "scripts/substrate_stt_producer_smoke_test.py",
+          "score": 11,
+          "module": "scripts.substrate_stt_producer_smoke_test",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "STT producer smoke test."
+        },
+        {
+          "path": "scripts/substrate_voice_session_smoke_test.py",
+          "score": 11,
+          "module": "scripts.substrate_voice_session_smoke_test",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "Voice session smoke test."
+        },
+        {
+          "path": "scripts/substrate_google_meet_smoke_test.py",
+          "score": 10,
+          "module": "scripts.substrate_google_meet_smoke_test",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "Google Meet source adapter smoke test."
+        },
+        {
+          "path": "scripts/substrate_ptt_binding_smoke_test.py",
+          "score": 10,
+          "module": "scripts.substrate_ptt_binding_smoke_test",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "PTT binding smoke test."
+        },
+        {
+          "path": "scripts/substrate_smoke_test.py",
+          "score": 10,
+          "module": "scripts.substrate_smoke_test",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "Substrate station MVP smoke test."
+        },
+        {
+          "path": "scripts/orchestrator_status.py",
+          "score": 9,
+          "module": "scripts.orchestrator_status",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "orchestrator_status.py \u2014 operator-friendly snapshot of the Control Plane."
+        },
+        {
+          "path": "scripts/substrate_discord_text_tts_smoke_test.py",
+          "score": 9,
+          "module": "scripts.substrate_discord_text_tts_smoke_test",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "Discord Pseudo-Live Voice Loop v1 \u2014 smoke test."
+        },
+        {
+          "path": "scripts/substrate_discord_voice_playback_smoke_test.py",
+          "score": 9,
+          "module": "scripts.substrate_discord_voice_playback_smoke_test",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "Discord voice playback smoke test."
+        },
+        {
+          "path": "scripts/substrate_meeting_attachment_smoke_test.py",
+          "score": 9,
+          "module": "scripts.substrate_meeting_attachment_smoke_test",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "Slice A smoke test: real meeting attachment seam."
+        }
+      ]
+    },
+    {
+      "id": "core_agents",
+      "name": "Core Agents",
+      "wing": "core",
+      "purpose": "Tool mastery author/research agents, execution contract.",
+      "prefixes": [
+        "core/"
+      ],
+      "loci": [
+        {
+          "path": "core/action_system/control_plane.py",
+          "score": 12,
+          "module": "core.action_system.control_plane",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "Control Plane \u2014 the public entry point for the EOS Action System."
+        },
+        {
+          "path": "core/action_system/logging.py",
+          "score": 10,
+          "module": "core.action_system.logging",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "Append-only JSONL loggers for execution and decision records."
+        },
+        {
+          "path": "core/orchestrator/steps.py",
+          "score": 7,
+          "module": "core.orchestrator.steps",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "Reusable orchestrator step helpers."
+        },
+        {
+          "path": "core/tool_mastery_manager/coverage.py",
+          "score": 7,
+          "module": "core.tool_mastery_manager.coverage",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "Unified coverage evaluator for the Tool Mastery Manager."
+        },
+        {
+          "path": "core/action_system/deferred.py",
+          "score": 6,
+          "module": "core.action_system.deferred",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "Durable persistence for deferred actions."
+        },
+        {
+          "path": "core/orchestrator/loop.py",
+          "score": 6,
+          "module": "core.orchestrator.loop",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "Autonomous loop \u2014 deterministic orchestration cycle."
+        },
+        {
+          "path": "core/execution_contract.py",
+          "score": 5,
+          "module": "core.execution_contract",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "ExecutionContract \u2014 unified execution entry point for all EOS AI operations."
+        },
+        {
+          "path": "core/orchestrator/orchestrator.py",
+          "score": 5,
+          "module": "core.orchestrator.orchestrator",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "Orchestrator \u2014 execution coordinator for named workflows."
+        },
+        {
+          "path": "core/orchestrator/signals.py",
+          "score": 4,
+          "module": "core.orchestrator.signals",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "Signals \u2014 filesystem-backed event layer for the orchestrator."
+        },
+        {
+          "path": "core/orchestrator/workflows.py",
+          "score": 4,
+          "module": "core.orchestrator.workflows",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "Workflow registry \u2014 wires existing Control Plane workflows into the orchestrator."
+        },
+        {
+          "path": "core/tool_mastery_author_agent/__main__.py",
+          "score": 3,
+          "module": "core.tool_mastery_author_agent.__main__",
+          "critical": false,
+          "entry_point": true,
+          "docstring": ""
+        },
+        {
+          "path": "core/tool_mastery_author_agent/cli.py",
+          "score": 3,
+          "module": "core.tool_mastery_author_agent.cli",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "CLI entry for the Tool Mastery Author Agent."
+        },
+        {
+          "path": "core/tool_mastery_manager/ensure.py",
+          "score": 3,
+          "module": "core.tool_mastery_manager.ensure",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "ensure_mastery \u2014 the primary entry point of the Tool Mastery Manager."
+        },
+        {
+          "path": "core/tool_mastery_research_agent/__main__.py",
+          "score": 3,
+          "module": "core.tool_mastery_research_agent.__main__",
+          "critical": false,
+          "entry_point": true,
+          "docstring": ""
+        },
+        {
+          "path": "core/tool_mastery_research_agent/cli.py",
+          "score": 3,
+          "module": "core.tool_mastery_research_agent.cli",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "CLI entry for the Tool Mastery Research Agent."
+        }
+      ]
+    }
+  ]
+}

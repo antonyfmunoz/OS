@@ -1,0 +1,13 @@
+---
+type: codebase-function
+file: scripts/query_skills.py
+line: 194
+generated: 2026-04-11
+---
+
+# main
+
+**File:** [[scripts-query_skills-py]] | **Line:** 194
+**Signature:** `main() → int`
+
+*No docstring.*

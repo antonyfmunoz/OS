@@ -1,0 +1,285 @@
+---
+type: codebase-module
+generated: 2026-04-11
+---
+
+# scripts/
+
+**Files:** 141 | **Lines:** 35,022 | **Classes:** 27 | **Functions:** 808
+
+## Entry Points
+
+- [[scripts-agent_task_executor-py]]
+- [[scripts-bis_context-py]]
+- [[scripts-build_palace-py]]
+- [[scripts-build_skill_graph-py]]
+- [[scripts-calendar_invite_handler-py]]
+- [[scripts-call_prep-py]]
+- [[scripts-check_skill_staleness-py]]
+- [[scripts-check_stop_condition-py]]
+- [[scripts-codebase_graph-py]]
+- [[scripts-control_plane_run-py]]
+- [[scripts-day_reminder-py]]
+- [[scripts-deadline_monitor-py]]
+- [[scripts-decisions-py]]
+- [[scripts-deferred-py]]
+- [[scripts-detemplatize_skills-py]]
+- [[scripts-discord_daily_clear-py]]
+- [[scripts-discord_setup_channels-py]]
+- [[scripts-emit_signal-py]]
+- [[scripts-env_upsert-py]]
+- [[scripts-eod_sync-py]]
+- [[scripts-eos_status-py]]
+- [[scripts-higgsfield_smoke_test-py]]
+- [[scripts-measure_phase8_batch-py]]
+- [[scripts-meet_caption_writer-py]]
+- [[scripts-midday_checkin-py]]
+- [[scripts-morning_intel-py]]
+- [[scripts-nightly_consolidation-py]]
+- [[scripts-noshow_detector-py]]
+- [[scripts-notion_cleanup-py]]
+- [[scripts-notion_outcome_sync-py]]
+- [[scripts-notion_seed-py]]
+- [[scripts-notion_seed_all-py]]
+- [[scripts-notion_setup-py]]
+- [[scripts-notion_sync_poller-py]]
+- [[scripts-notion_tasks_sync-py]]
+- [[scripts-orchestrator_loop-py]]
+- [[scripts-orchestrator_status-py]]
+- [[scripts-permission_notify-py]]
+- [[scripts-portfolio_brief-py]]
+- [[scripts-post_meeting_capture-py]]
+- [[scripts-pre_tool_use_log-py]]
+- [[scripts-promote_to_wiki-py]]
+- [[scripts-pump_meet_source-py]]
+- [[scripts-query_graph-py]]
+- [[scripts-query_skills-py]]
+- [[scripts-relationship_nurture-py]]
+- [[scripts-router_claude_runtime_debug-py]]
+- [[scripts-scheduled-morning_prep_cp-py]]
+- [[scripts-scheduled-nightly_consolidation_cp-py]]
+- [[scripts-scheduled-weekly_review_cp-py]]
+- [[scripts-session_bootstrap-py]]
+- [[scripts-session_start_context-py]]
+- [[scripts-subagent_start_context-py]]
+- [[scripts-substrate_audio_loop_cli-py]]
+- [[scripts-substrate_audio_loop_smoke_test-py]]
+- [[scripts-substrate_claude_responder_smoke_test-py]]
+- [[scripts-substrate_claude_session_bridge_smoke_test-py]]
+- [[scripts-substrate_claude_session_cli-py]]
+- [[scripts-substrate_control_layer_smoke_test-py]]
+- [[scripts-substrate_coordination_intelligence_smoke_test-py]]
+- [[scripts-substrate_discord_claude_hardswitch_smoke_test-py]]
+- [[scripts-substrate_discord_mode_routing_smoke_test-py]]
+- [[scripts-substrate_discord_text_tts_smoke_test-py]]
+- [[scripts-substrate_discord_tts_body_only_smoke_test-py]]
+- [[scripts-substrate_discord_voice_playback_smoke_test-py]]
+- [[scripts-substrate_discord_voice_transport_cli-py]]
+- [[scripts-substrate_discord_voice_transport_smoke_test-py]]
+- [[scripts-substrate_drain_station-py]]
+- [[scripts-substrate_drainer_smoke_test-py]]
+- [[scripts-substrate_durable_result_smoke_test-py]]
+- [[scripts-substrate_execution_intelligence_smoke_test-py]]
+- [[scripts-substrate_execution_linkage_smoke_test-py]]
+- [[scripts-substrate_execution_trace_cli-py]]
+- [[scripts-substrate_execution_trace_smoke_test-py]]
+- [[scripts-substrate_google_meet_smoke_test-py]]
+- [[scripts-substrate_hybrid_execution_smoke_test-py]]
+- [[scripts-substrate_local_listener-py]]
+- [[scripts-substrate_local_listener_smoke_test-py]]
+- [[scripts-substrate_meeting_attachment_smoke_test-py]]
+- [[scripts-substrate_meeting_intelligence_smoke_test-py]]
+- [[scripts-substrate_meeting_intelligence_upgrade_smoke_test-py]]
+- [[scripts-substrate_meeting_transport_cli-py]]
+- [[scripts-substrate_meeting_transport_smoke_test-py]]
+- [[scripts-substrate_operator_cli-py]]
+- [[scripts-substrate_operator_interface_smoke_test-py]]
+- [[scripts-substrate_operator_state_smoke_test-py]]
+- [[scripts-substrate_product_linkage_smoke_test-py]]
+- [[scripts-substrate_ptt_binding_cli-py]]
+- [[scripts-substrate_ptt_binding_smoke_test-py]]
+- [[scripts-substrate_remote_execution_smoke_test-py]]
+- [[scripts-substrate_remote_executor_daemon-py]]
+- [[scripts-substrate_resolution_intelligence_smoke_test-py]]
+- [[scripts-substrate_resource_context_guard_smoke_test-py]]
+- [[scripts-substrate_result_loop_smoke_test-py]]
+- [[scripts-substrate_router_claude_primary_smoke_test-py]]
+- [[scripts-substrate_router_claude_runtime_activation_smoke_test-py]]
+- [[scripts-substrate_session_orchestration_cli-py]]
+- [[scripts-substrate_session_orchestration_smoke_test-py]]
+- [[scripts-substrate_session_soul_doc_smoke_test-py]]
+- [[scripts-substrate_smoke_test-py]]
+- [[scripts-substrate_stt_producer_cli-py]]
+- [[scripts-substrate_stt_producer_smoke_test-py]]
+- [[scripts-substrate_stt_workstation_readiness_smoke_test-py]]
+- [[scripts-substrate_temporal_intelligence_smoke_test-py]]
+- [[scripts-substrate_transport_report_cli-py]]
+- [[scripts-substrate_transport_report_smoke_test-py]]
+- [[scripts-substrate_voice_eos_responder_smoke_test-py]]
+- [[scripts-substrate_voice_session_cli-py]]
+- [[scripts-substrate_voice_session_smoke_test-py]]
+- [[scripts-substrate_wake_producer_cli-py]]
+- [[scripts-substrate_wake_producer_smoke_test-py]]
+- [[scripts-substrate_workflow_delegation_smoke_test-py]]
+- [[scripts-substrate_workflow_execution_smoke_test-py]]
+- [[scripts-substrate_workflow_execution_v11_smoke_test-py]]
+- [[scripts-summarize_conversations-py]]
+- [[scripts-summarize_nodes-py]]
+- [[scripts-sync_skills_to_neon-py]]
+- [[scripts-test_execution_contract-py]]
+- [[scripts-tool_mastery_author-py]]
+- [[scripts-tool_mastery_manager-py]]
+- [[scripts-tool_mastery_research_dispatcher-py]]
+- [[scripts-user_prompt_capture-py]]
+- [[scripts-verify_knowledge_system-py]]
+- [[scripts-verify_tool_skill-py]]
+- [[scripts-waiting_on_checker-py]]
+- [[scripts-week_architect-py]]
+- [[scripts-weekly_review-py]]
+- [[scripts-wiki_session_start_hook-py]]
+- [[scripts-wiki_stop_hook-py]]
+- [[scripts-workers-discord_approval_worker-py]]
+
+## All Files
+
+- [[scripts-_tme_common-py]] (230 lines) — Shared helpers for Tool Mastery Engine system scripts.
+- [[scripts-agent_task_executor-py]] (346 lines) *[entry]* — Agent Task Executor — polls the tasks table for
+- [[scripts-bis_context-py]] (88 lines) *[entry]* — BIS context injector — prints active venture context from VE
+- [[scripts-build_notion_databases-py]] (117 lines) — Create the 9 databases that failed in the first build pass.
+- [[scripts-build_notion_workspace-py]] (713 lines) — Build EOS Notion Workspace
+- [[scripts-build_palace-py]] (393 lines) *[entry]* — build_palace.py — Generates the EOS memory palace from the g
+- [[scripts-build_skill_graph-py]] (217 lines) *[entry]* — build_skill_graph.py — Tool Mastery Engine skill dependency 
+- [[scripts-calendar_invite_handler-py]] (300 lines) *[entry]* — Calendar Invite Handler — polls for pending invites every 15
+- [[scripts-call_prep-py]] (431 lines) *[entry]* — Call Prep — runs every 15 minutes via cron.
+- [[scripts-check_skill_staleness-py]] (170 lines) *[entry]* — check_skill_staleness.py — Tool Mastery Engine staleness aud
+- [[scripts-check_stop_condition-py]] (88 lines) *[entry]* — Stop hook handler.
+- [[scripts-codebase_graph-py]] (1214 lines) *[entry]* — codebase_graph.py — Persistent codebase knowledge graph for 
+- [[scripts-control_plane_run-py]] (105 lines) *[entry]* — control_plane_run.py — run a shell command or script through
+- [[scripts-create_meetings_db-py]] (68 lines) — 
+- [[scripts-day_reminder-py]] (117 lines) *[entry]* — Day Reminder — fires reminders throughout the day.
+- [[scripts-deadline_monitor-py]] (183 lines) *[entry]* — Deadline Monitor — checks tasks with due dates
+- [[scripts-decisions-py]] (202 lines) *[entry]* — decisions.py — operator CLI for the Control Plane decision l
+- [[scripts-deferred-py]] (349 lines) *[entry]* — deferred.py — operator CLI for the Control Plane deferred qu
+- [[scripts-detemplatize_skills-py]] (204 lines) *[entry]* — Removes hardcoded venture data from all skills.
+- [[scripts-discord_daily_clear-py]] (35 lines) *[entry]* — 
+- [[scripts-discord_setup_channels-py]] (195 lines) *[entry]* — Discord Builder/Product Channels Setup v1.
+- [[scripts-emit_signal-py]] (68 lines) *[entry]* — Emit an orchestrator signal from cron or the shell.
+- [[scripts-env_upsert-py]] (105 lines) *[entry]* — Idempotent .env key upsert.
+- [[scripts-eod_sync-py]] (243 lines) *[entry]* — EOD Sync — 6pm PDT daily closing loop.
+- [[scripts-eos_status-py]] (161 lines) *[entry]* — EOS Operator Status — single inspectable surface.
+- [[scripts-fix_founder_refs-py]] (52 lines) — Replace hardcoded 'Antony' founder references with generic '
+- [[scripts-higgsfield_smoke_test-py]] (78 lines) *[entry]* — Higgsfield Cloud API end-to-end smoke test.
+- [[scripts-inbox_gps_afternoon-py]] (30 lines) — Email GPS — 3pm afternoon inbox pass.
+- [[scripts-inbox_zero_init-py]] (403 lines) — Inbox Zero Initialization — run ONCE on first DEX setup.
+- [[scripts-measure_phase8_batch-py]] (336 lines) *[entry]* — Phase 8 batch measurement — full re-extraction.
+- [[scripts-meet_caption_writer-py]] (66 lines) *[entry]* — Operator CLI to append Meet captions to the JSONL bridge.
+- [[scripts-memory_neon-py]] (565 lines) — Neon integration helpers for the memory pipeline.
+- [[scripts-midday_checkin-py]] (105 lines) *[entry]* — Mid-day check-in — runs at 12:30pm PDT.
+- [[scripts-morning_intel-py]] (179 lines) *[entry]* — Morning Intelligence Brief — runs at 5:45am PDT daily,
+- [[scripts-nightly_consolidation-py]] (325 lines) *[entry]* — Nightly memory consolidation — the "sleep/dream" layer.
+- [[scripts-noshow_detector-py]] (156 lines) *[entry]* — No-show detector — checks meetings that started 30+ min ago 
+- [[scripts-notion_cleanup-py]] (569 lines) *[entry]* — Notion Cleanup — archives old scaffold databases
+- [[scripts-notion_outcome_sync-py]] (197 lines) *[entry]* — Notion → Neon Outcome Sync
+- [[scripts-notion_seed-py]] (506 lines) *[entry]* — Notion Seed — populates initial rows in EOS Notion databases
+- [[scripts-notion_seed_all-py]] (931 lines) *[entry]* — Notion Seed All — seeds Empyrean Creative, Personal Brand ve
+- [[scripts-notion_setup-py]] (1081 lines) *[entry]* — Notion Setup — creates the full per-venture primitive databa
+- [[scripts-notion_sync_poller-py]] (44 lines) *[entry]* — Notion Sync Poller — runs every 15 minutes via cron.
+- [[scripts-notion_tasks_sync-py]] (282 lines) *[entry]* — Notion Tasks → Neon Sync
+- [[scripts-orchestrator_loop-py]] (74 lines) *[entry]* — Orchestrator loop runner.
+- [[scripts-orchestrator_status-py]] (389 lines) *[entry]* — orchestrator_status.py — operator-friendly snapshot of the C
+- [[scripts-permission_notify-py]] (103 lines) *[entry]* — PermissionRequest hook.
+- [[scripts-portfolio_brief-py]] (128 lines) *[entry]* — Sunday Portfolio Brief — runs at 6am every Sunday.
+- [[scripts-post_meeting_capture-py]] (135 lines) *[entry]* — Post-meeting capture — polls for recently ended calendar eve
+- [[scripts-pre_tool_use_log-py]] (55 lines) *[entry]* — PreToolUse hook.
+- [[scripts-promote_to_wiki-py]] (438 lines) *[entry]* — Promote durable knowledge from summaries into 10_Wiki/.
+- [[scripts-pump_meet_source-py]] (129 lines) *[entry]* — pump_meet_source — operator-driven single-shot pump for a Go
+- [[scripts-query_graph-py]] (328 lines) *[entry]* — query_graph.py — Retrieval layer over the EOS codebase knowl
+- [[scripts-query_skills-py]] (213 lines) *[entry]* — query_skills.py — Tool Mastery Engine CLI registry.
+- [[scripts-relationship_nurture-py]] (128 lines) *[entry]* — Relationship nurturing — checks for contacts not heard from 
+- [[scripts-router_claude_runtime_debug-py]] (75 lines) *[entry]* — Router runtime debug helper — prints the actual, live state 
+- [[scripts-salience-py]] (595 lines) — Salience scoring for conversation summaries.
+- [[scripts-scheduled-morning_prep_cp-py]] (83 lines) *[entry]* — morning_prep_cp.py — Control Plane wrapper for morning_prep.
+- [[scripts-scheduled-nightly_consolidation_cp-py]] (111 lines) *[entry]* — nightly_consolidation_cp.py — Control Plane wrapper for nigh
+- [[scripts-scheduled-weekly_review_cp-py]] (107 lines) *[entry]* — weekly_review_cp.py — Control Plane wrapper for weekly_revie
+- [[scripts-session_bootstrap-py]] (161 lines) *[entry]* — session_bootstrap.py — Mandatory context load at session sta
+- [[scripts-session_start_context-py]] (199 lines) *[entry]* — SessionStart hook.
+- [[scripts-subagent_start_context-py]] (87 lines) *[entry]* — SubagentStart hook.
+- [[scripts-substrate_audio_loop_cli-py]] (136 lines) *[entry]* — Bounded operator CLI for the local audio loop.
+- [[scripts-substrate_audio_loop_smoke_test-py]] (293 lines) *[entry]* — Audio loop smoke test.
+- [[scripts-substrate_claude_responder_smoke_test-py]] (229 lines) *[entry]* — Substrate Claude Responder v1 — smoke test.
+- [[scripts-substrate_claude_session_bridge_smoke_test-py]] (208 lines) *[entry]* — Substrate Claude Code Session Bridge v1 — smoke test.
+- [[scripts-substrate_claude_session_cli-py]] (171 lines) *[entry]* — Claude Code Session Bridge CLI.
+- [[scripts-substrate_control_layer_smoke_test-py]] (130 lines) *[entry]* — Substrate Control Layer v1 — smoke test.
+- [[scripts-substrate_coordination_intelligence_smoke_test-py]] (275 lines) *[entry]* — Smoke test for Coordination Intelligence Layer v1.
+- [[scripts-substrate_discord_claude_hardswitch_smoke_test-py]] (213 lines) *[entry]* — Discord Claude Primary Backend + TTS Sanitization — smoke te
+- [[scripts-substrate_discord_mode_routing_smoke_test-py]] (542 lines) *[entry]* — Discord Channel Mode Routing v1 — smoke test.
+- [[scripts-substrate_discord_text_tts_smoke_test-py]] (276 lines) *[entry]* — Discord Pseudo-Live Voice Loop v1 — smoke test.
+- [[scripts-substrate_discord_tts_body_only_smoke_test-py]] (299 lines) *[entry]* — Discord TTS Body-Only Split — smoke test.
+- [[scripts-substrate_discord_voice_playback_smoke_test-py]] (290 lines) *[entry]* — Discord voice playback smoke test.
+- [[scripts-substrate_discord_voice_transport_cli-py]] (238 lines) *[entry]* — Discord voice transport CLI — bounded operator interface to 
+- [[scripts-substrate_discord_voice_transport_smoke_test-py]] (205 lines) *[entry]* — Discord voice transport smoke test.
+- [[scripts-substrate_drain_station-py]] (104 lines) *[entry]* — Operator entrypoint: drain one or more station inboxes once.
+- [[scripts-substrate_drainer_smoke_test-py]] (123 lines) *[entry]* — Substrate station drainer smoke test.
+- [[scripts-substrate_durable_result_smoke_test-py]] (235 lines) *[entry]* — Substrate durable-result smoke test.
+- [[scripts-substrate_execution_intelligence_smoke_test-py]] (305 lines) *[entry]* — Smoke test for Execution Intelligence Layer v1.
+- [[scripts-substrate_execution_linkage_smoke_test-py]] (234 lines) *[entry]* — Smoke test for Execution Linkage Layer v1.
+- [[scripts-substrate_execution_trace_cli-py]] (178 lines) *[entry]* — Operator CLI for EOS execution trace history.
+- [[scripts-substrate_execution_trace_smoke_test-py]] (449 lines) *[entry]* — Smoke test for Execution Trace Layer v1.
+- [[scripts-substrate_google_meet_smoke_test-py]] (284 lines) *[entry]* — Google Meet source adapter smoke test.
+- [[scripts-substrate_hybrid_execution_smoke_test-py]] (686 lines) *[entry]* — Hybrid Execution Target Policy v1 — smoke test.
+- [[scripts-substrate_local_listener-py]] (104 lines) *[entry]* — Local listener CLI — emit a bounded activation trigger.
+- [[scripts-substrate_local_listener_smoke_test-py]] (147 lines) *[entry]* — Local listener smoke test.
+- [[scripts-substrate_meeting_attachment_smoke_test-py]] (204 lines) *[entry]* — Slice A smoke test: real meeting attachment seam.
+- [[scripts-substrate_meeting_intelligence_smoke_test-py]] (143 lines) *[entry]* — Smoke test for Meeting Intelligence Layer v1.
+- [[scripts-substrate_meeting_intelligence_upgrade_smoke_test-py]] (235 lines) *[entry]* — Smoke test for Meeting Intelligence Decision Upgrade.
+- [[scripts-substrate_meeting_transport_cli-py]] (266 lines) *[entry]* — Meeting voice transport CLI.
+- [[scripts-substrate_meeting_transport_smoke_test-py]] (283 lines) *[entry]* — Meeting voice transport smoke test.
+- [[scripts-substrate_mode_behavior_control_smoke_test-py]] (338 lines) — Smoke test — Mode Behavior + Session Control v1.
+- [[scripts-substrate_operator_cli-py]] (229 lines) *[entry]* — Operator CLI for EOS substrate — Operator Interface Layer v1
+- [[scripts-substrate_operator_interface_smoke_test-py]] (348 lines) *[entry]* — Smoke test for Operator Interface Layer v1.
+- [[scripts-substrate_operator_state_smoke_test-py]] (243 lines) *[entry]* — Operator state engine smoke test.
+- [[scripts-substrate_product_linkage_smoke_test-py]] (378 lines) *[entry]* — Smoke test for Product Linkage Layer v1.
+- [[scripts-substrate_ptt_binding_cli-py]] (121 lines) *[entry]* — Workstation push-to-talk binding CLI.
+- [[scripts-substrate_ptt_binding_smoke_test-py]] (178 lines) *[entry]* — PTT binding smoke test.
+- [[scripts-substrate_remote_execution_smoke_test-py]] (234 lines) *[entry]* — Control Layer v2 — Remote Execution smoke test.
+- [[scripts-substrate_remote_executor_daemon-py]] (92 lines) *[entry]* — Control Layer v2 — Remote Executor Daemon CLI.
+- [[scripts-substrate_resolution_intelligence_smoke_test-py]] (241 lines) *[entry]* — Smoke test for Resolution Intelligence Layer v1.
+- [[scripts-substrate_resource_context_guard_smoke_test-py]] (799 lines) *[entry]* — Resource Guard, Workload Classification & Context Lifecycle 
+- [[scripts-substrate_result_loop_smoke_test-py]] (161 lines) *[entry]* — Substrate station full round-trip smoke test.
+- [[scripts-substrate_router_claude_primary_smoke_test-py]] (236 lines) *[entry]* — Router Claude-CLI Primary Backend — smoke test.
+- [[scripts-substrate_router_claude_runtime_activation_smoke_test-py]] (186 lines) *[entry]* — Regression smoke test: router claude_cli backend runtime act
+- [[scripts-substrate_session_orchestration_cli-py]] (165 lines) *[entry]* — Session Orchestration CLI — operator visibility into session
+- [[scripts-substrate_session_orchestration_smoke_test-py]] (369 lines) *[entry]* — Session Orchestration Smoke Tests.
+- [[scripts-substrate_session_soul_doc_smoke_test-py]] (196 lines) *[entry]* — substrate_session_soul_doc_smoke_test.py
+- [[scripts-substrate_smoke_test-py]] (228 lines) *[entry]* — Substrate station MVP smoke test.
+- [[scripts-substrate_stt_producer_cli-py]] (191 lines) *[entry]* — STT producer CLI — bounded operator interface to the local S
+- [[scripts-substrate_stt_producer_smoke_test-py]] (259 lines) *[entry]* — STT producer smoke test.
+- [[scripts-substrate_stt_workstation_readiness_smoke_test-py]] (253 lines) *[entry]* — STT workstation readiness smoke test.
+- [[scripts-substrate_temporal_intelligence_smoke_test-py]] (315 lines) *[entry]* — Smoke test for Temporal Intelligence Layer v1.
+- [[scripts-substrate_transport_report_cli-py]] (150 lines) *[entry]* — Unified transport report CLI.
+- [[scripts-substrate_transport_report_smoke_test-py]] (195 lines) *[entry]* — Unified transport report smoke test.
+- [[scripts-substrate_voice_eos_responder_smoke_test-py]] (328 lines) *[entry]* — Voice → EOS responder smoke test.
+- [[scripts-substrate_voice_router_responder_smoke_test-py]] (201 lines) — Voice-session router responder smoke test.
+- [[scripts-substrate_voice_session_cli-py]] (149 lines) *[entry]* — Bounded operator CLI for the voice session substrate.
+- [[scripts-substrate_voice_session_smoke_test-py]] (223 lines) *[entry]* — Voice session smoke test.
+- [[scripts-substrate_wake_producer_cli-py]] (110 lines) *[entry]* — Wake producer CLI — simulate wake-word / clap events and vie
+- [[scripts-substrate_wake_producer_smoke_test-py]] (222 lines) *[entry]* — Wake producer smoke test.
+- [[scripts-substrate_workflow_delegation_smoke_test-py]] (579 lines) *[entry]* — Workflow Delegation Layer v1 — smoke test.
+- [[scripts-substrate_workflow_execution_smoke_test-py]] (329 lines) *[entry]* — Substrate Workflow Execution Layer — smoke test.
+- [[scripts-substrate_workflow_execution_v11_smoke_test-py]] (396 lines) *[entry]* — Substrate Workflow Execution Layer v1.1 — smoke test.
+- [[scripts-summarize_conversations-py]] (508 lines) *[entry]* — Summarize conversation files into structured knowledge summa
+- [[scripts-summarize_nodes-py]] (150 lines) *[entry]* — summarize_nodes.py — Append-only one-line summaries for ever
+- [[scripts-sync_skills_to_neon-py]] (156 lines) *[entry]* — sync_skills_to_neon.py — Canonical Tool Mastery Engine → Neo
+- [[scripts-test_execution_contract-py]] (112 lines) *[entry]* — Test execution_contract.run_task() with two messages.
+- [[scripts-tool_mastery_author-py]] (125 lines) *[entry]* — Tool Mastery author dispatcher.
+- [[scripts-tool_mastery_manager-py]] (216 lines) *[entry]* — Tool Mastery Manager — CLI.
+- [[scripts-tool_mastery_research_dispatcher-py]] (311 lines) *[entry]* — Tool Mastery research dispatcher.
+- [[scripts-user_prompt_capture-py]] (112 lines) *[entry]* — UserPromptSubmit hook: capture user messages into conversati
+- [[scripts-verify_knowledge_system-py]] (353 lines) *[entry]* — verify_knowledge_system.py — Acceptance check for the EOS co
+- [[scripts-verify_tool_skill-py]] (189 lines) *[entry]* — verify_tool_skill.py — Tool Mastery Engine verifier / linter
+- [[scripts-waiting_on_checker-py]] (94 lines) *[entry]* — WAITING_ON checker — scans emails in WAITING_ON folder
+- [[scripts-week_architect-py]] (118 lines) *[entry]* — Week Architect — Sunday 8pm PDT.
+- [[scripts-weekly_review-py]] (241 lines) *[entry]* — Weekly business review — Sunday 7pm PDT.
+- [[scripts-wiki_session_start_hook-py]] (23 lines) *[entry]* — SessionStart hook: no-op.
+- [[scripts-wiki_stop_hook-py]] (168 lines) *[entry]* — Stop hook: capture real conversation content to session file
+- [[scripts-workers-discord_approval_worker-py]] (234 lines) *[entry]* — discord_approval_worker.py — tail notifications.jsonl, post 

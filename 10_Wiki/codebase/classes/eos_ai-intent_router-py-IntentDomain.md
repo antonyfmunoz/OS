@@ -1,0 +1,16 @@
+---
+type: codebase-class
+file: eos_ai/intent_router.py
+line: 19
+generated: 2026-04-11
+---
+
+# IntentDomain
+
+**File:** [[eos_ai-intent_router-py]] | **Line:** 19
+
+*No docstring.*
+
+## Inherits From
+
+- `Enum`
