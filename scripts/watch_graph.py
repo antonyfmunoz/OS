@@ -232,6 +232,7 @@ def _process_batch(
     with_overlay: bool,
     dry_run: bool,
     verbose: bool,
+    full_rebuild_on_error: bool = False,
 ) -> None:
     start = time.monotonic()
     load1 = 0.0
@@ -272,9 +273,28 @@ def _process_batch(
                 "ts": _now(),
                 "batch_size": len(paths),
                 "error": str(exc),
+                "phase": "incremental",
             }
         )
-        return
+        if not full_rebuild_on_error:
+            return
+        # Escalate: run a forced full rebuild so the graph reconverges
+        # even when an incremental scan crashed (malformed file, AST
+        # regression, parser bug, etc.).
+        print("[watch] --full-rebuild-on-error → escalating to full rebuild")
+        try:
+            report = incremental_update(paths, mode="full", verbose=verbose)
+        except Exception as exc2:
+            print(f"[watch] full rebuild also crashed: {exc2}")
+            _append_perf(
+                {
+                    "ts": _now(),
+                    "batch_size": len(paths),
+                    "error": str(exc2),
+                    "phase": "full_rebuild_escalation",
+                }
+            )
+            return
 
     duration = time.monotonic() - start
     print(
@@ -309,6 +329,7 @@ def _debounce_loop(
     with_overlay: bool,
     dry_run: bool,
     verbose: bool,
+    full_rebuild_on_error: bool = False,
 ) -> None:
     """Pulls batches from the pending set on a debounced cadence and calls
     _process_batch for each settled batch."""
@@ -354,6 +375,7 @@ def _debounce_loop(
             with_overlay=with_overlay,
             dry_run=dry_run,
             verbose=verbose,
+            full_rebuild_on_error=full_rebuild_on_error,
         )
 
 
@@ -364,6 +386,7 @@ def watch(
     full_threshold: int = 100,
     dry_run: bool = False,
     verbose: bool = False,
+    full_rebuild_on_error: bool = False,
 ) -> int:
     pending: set[str] = set()
     lock = threading.Lock()
@@ -388,7 +411,8 @@ def watch(
     observer.start()
     print(
         f"[watch] active — debounce={debounce_ms}ms overlay={with_overlay} "
-        f"full_threshold={full_threshold} dry_run={dry_run}"
+        f"full_threshold={full_threshold} dry_run={dry_run} "
+        f"rebuild_on_error={full_rebuild_on_error}"
     )
     print("[watch] press Ctrl+C to stop")
 
@@ -401,6 +425,7 @@ def watch(
             "with_overlay": with_overlay,
             "dry_run": dry_run,
             "verbose": verbose,
+            "full_rebuild_on_error": full_rebuild_on_error,
         },
         name="watch-debounce",
         daemon=True,
@@ -438,6 +463,7 @@ def once(paths: Iterable[str], **kwargs) -> int:
         with_overlay=kwargs.get("with_overlay", False),
         dry_run=kwargs.get("dry_run", False),
         verbose=kwargs.get("verbose", False),
+        full_rebuild_on_error=kwargs.get("full_rebuild_on_error", False),
     )
     return 0
 
@@ -445,12 +471,26 @@ def once(paths: Iterable[str], **kwargs) -> int:
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="watch_graph")
     p.add_argument("--debounce", type=int, default=1500, help="ms (default 1500)")
-    p.add_argument("--with-overlay", action="store_true", help="run graphify + merge after batches")
+    # Primary spec flag: --graphify. --with-overlay is retained as an
+    # alias so existing invocations (docs, tmux panes, scripts) keep
+    # working verbatim.
+    p.add_argument(
+        "--graphify",
+        "--with-overlay",
+        dest="with_overlay",
+        action="store_true",
+        help="run graphify + merge + palace overlay after each batch",
+    )
     p.add_argument(
         "--full-threshold",
         type=int,
         default=100,
         help="force full rebuild when a batch exceeds this many files",
+    )
+    p.add_argument(
+        "--full-rebuild-on-error",
+        action="store_true",
+        help="escalate to full rebuild when an incremental batch raises",
     )
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--verbose", "-v", action="store_true")
@@ -469,12 +509,14 @@ def main(argv: list[str] | None = None) -> int:
             with_overlay=args.with_overlay,
             dry_run=args.dry_run,
             verbose=args.verbose,
+            full_rebuild_on_error=args.full_rebuild_on_error,
         )
 
     return watch(
         debounce_ms=args.debounce,
         with_overlay=args.with_overlay,
         full_threshold=args.full_threshold,
+        full_rebuild_on_error=args.full_rebuild_on_error,
         dry_run=args.dry_run,
         verbose=args.verbose,
     )
