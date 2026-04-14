@@ -190,6 +190,88 @@ def open_day(
     store.put(new_session)
     _log(f"day opened: {new_session.day_session_id} mode={day_mode.value}")
 
+    # ── Best-effort: update station presence from open_day ──────────────────
+    try:
+        from eos_ai.substrate.station_presence import (
+            StationPresenceMode,
+            set_presence_mode,
+        )
+
+        if resolved_node == "local":
+            set_presence_mode(StationPresenceMode.LOCAL)
+        else:
+            set_presence_mode(StationPresenceMode.REMOTE)
+    except Exception:  # noqa: BLE001
+        pass
+
+    # ── Task system summary (best-effort, v2-enhanced when available) ──────
+    task_summary: dict = {}
+    try:
+        from eos_ai.substrate.task_queue import get_enhanced_task_summary
+
+        task_summary = get_enhanced_task_summary()
+    except Exception:  # noqa: BLE001
+        # v2 unavailable — fall back to v1 summary
+        try:
+            from eos_ai.substrate.task_system import get_task_summary
+
+            task_summary = get_task_summary()
+        except Exception as exc:  # noqa: BLE001
+            _log(f"task_summary failed: {exc}")
+
+    # ── Pipeline summary (best-effort) ──────────────────────────────────────
+    pipeline_summary: dict = {}
+    try:
+        from eos_ai.substrate.pipeline_execution import get_pipeline_summary
+
+        pipeline_summary = get_pipeline_summary()
+    except Exception as exc:  # noqa: BLE001
+        _log(f"pipeline_summary failed: {exc}")
+
+    # ── Perception summary (v4, best-effort) ──────────────────────────────
+    perception_summary: dict = {}
+    try:
+        from eos_ai.substrate.auto_task_generation import get_perception_summary
+
+        perception_summary = get_perception_summary()
+    except Exception as exc:  # noqa: BLE001
+        _log(f"perception_summary failed: {exc}")
+
+    # ── Live session summary (v4, best-effort) ─────────────────────────────
+    live_session_summary: dict = {}
+    try:
+        from eos_ai.substrate.live_sessions import get_live_session_summary
+
+        live_session_summary = get_live_session_summary()
+    except Exception as exc:  # noqa: BLE001
+        _log(f"live_session_summary failed: {exc}")
+
+    # ── Station summary (v5, unified via station_presence) ──────────────────
+    station_summary: dict = {}
+    try:
+        from eos_ai.substrate.station_presence import get_station_summary
+
+        station_summary = get_station_summary()
+    except Exception as exc:  # noqa: BLE001
+        _log(f"station_summary failed: {exc}")
+
+    # ── Blocked operator items (v4, best-effort) ──────────────────────────
+    blocked_operator_items: list = []
+    try:
+        from eos_ai.substrate.task_queue import get_waiting_on_operator_tasks
+
+        waiting_tasks = get_waiting_on_operator_tasks()
+        for t in waiting_tasks[:5]:
+            blocked_operator_items.append(
+                {
+                    "task_id": t.task_id,
+                    "title": t.title,
+                    "prompt": t.requires_input_prompt,
+                }
+            )
+    except Exception as exc:  # noqa: BLE001
+        _log(f"blocked_operator_items failed: {exc}")
+
     # ── Build response ───────────────────────────────────────────────────────
     response: dict = {
         "status": "ok",
@@ -201,11 +283,30 @@ def open_day(
             "overnight_tasks": overnight_tasks,
             "recommended_first_action": recommended_first_action,
             "resume_context": resume_context,
+            "task_summary": task_summary,
+            # Pipeline-level briefing (v3)
+            "completed_overnight": pipeline_summary.get("completed_pipelines", 0),
+            "active_pipelines": pipeline_summary.get("active_pipelines", 0),
+            "failed_pipelines": pipeline_summary.get("failed_pipelines", 0),
+            "waiting_on_operator": pipeline_summary.get("waiting_on_operator", 0),
+            "top_priority_task_title": pipeline_summary.get("top_priority_task_title"),
+            "top_blocked_prompt": pipeline_summary.get("top_blocked_prompt"),
         },
         "day_mode": day_mode.value,
         "active_workspace": resolved_workspace,
         "opened_at": now,
     }
+    # v4/v5 extensions (additive, backward-compatible)
+    if perception_summary:
+        response["perception_summary"] = perception_summary
+    if live_session_summary:
+        response["live_session_summary"] = live_session_summary
+    if station_summary:
+        response["station_summary"] = station_summary
+        # Backward compat alias
+        response["local_station_summary"] = station_summary
+    if blocked_operator_items:
+        response["blocked_operator_items"] = blocked_operator_items
     if ritual_warning:
         response["ritual_warning"] = ritual_warning
     return response
@@ -294,6 +395,80 @@ def close_day(
     store.put(current)
     _log(f"day closed: {current.day_session_id} mode={day_mode.value}")
 
+    # ── Best-effort: update station presence from close_day ─────────────────
+    try:
+        from eos_ai.substrate.station_presence import (
+            StationPresenceMode,
+            set_presence_mode,
+        )
+
+        if day_mode == OperatorDayMode.OVERNIGHT:
+            set_presence_mode(StationPresenceMode.OVERNIGHT)
+        else:
+            set_presence_mode(StationPresenceMode.AWAY)
+    except Exception:  # noqa: BLE001
+        pass
+
+    # ── Prepare overnight queue (move READY → OVERNIGHT_QUEUED) ────────────
+    overnight_queue_prep: Optional[dict] = None
+    if day_mode == OperatorDayMode.OVERNIGHT:
+        try:
+            from eos_ai.substrate.task_queue import prepare_overnight_queue
+
+            overnight_queue_prep = prepare_overnight_queue()
+        except Exception as exc:  # noqa: BLE001
+            _log(f"overnight queue prep failed: {exc}")
+
+    # ── Run overnight tasks if transitioning to OVERNIGHT mode ────────────────
+    overnight_completed: list = []
+    if day_mode == OperatorDayMode.OVERNIGHT:
+        try:
+            from eos_ai.substrate.task_system import run_overnight_tasks
+
+            executed = run_overnight_tasks()
+            overnight_completed = [t.task_id for t in executed]
+        except Exception as exc:  # noqa: BLE001
+            _log(f"overnight task execution failed: {exc}")
+
+    # ── Pipeline summary for close (best-effort) ────────────────────────────
+    blocked_pipeline_count = 0
+    try:
+        from eos_ai.substrate.pipeline_execution import get_pipeline_summary
+
+        pipe_summary = get_pipeline_summary()
+        blocked_pipeline_count = pipe_summary.get("waiting_on_operator", 0)
+    except Exception:  # noqa: BLE001
+        pass
+
+    # ── Live session count for close (v4, best-effort) ────────────────────
+    active_live_sessions = 0
+    try:
+        from eos_ai.substrate.live_sessions import get_live_session_summary
+
+        ls_summary = get_live_session_summary()
+        active_live_sessions = ls_summary.get("total_active", 0)
+    except Exception:  # noqa: BLE001
+        pass
+
+    # ── Local control mode for close (v4, best-effort) ─────────────────────
+    local_control_mode = "passive"
+    try:
+        from eos_ai.substrate.local_control import LocalControlStore
+
+        local_control_mode = LocalControlStore.default().get_mode().value
+    except Exception:  # noqa: BLE001
+        pass
+
+    # ── Station presence mode for close (v5, best-effort) ──────────────────
+    station_presence_mode = "away"
+    try:
+        from eos_ai.substrate.station_presence import get_station_presence
+
+        sp = get_station_presence()
+        station_presence_mode = sp.mode.value
+    except Exception:  # noqa: BLE001
+        pass
+
     # ── Build response ────────────────────────────────────────────────────────
     response: dict = {
         "status": "ok",
@@ -309,7 +484,19 @@ def close_day(
             "node_preference": current.node_preference,
         },
         "closed_at": now,
+        "overnight_queue_count": len(overnight_tasks) if overnight_tasks else 0,
+        "blocked_count": blocked_pipeline_count,
+        # v4 extensions (additive)
+        "active_live_sessions": active_live_sessions,
+        "local_control_mode": local_control_mode,
+        # v5 extensions (additive)
+        "station_presence_mode": station_presence_mode,
+        "live_session_count": active_live_sessions,
     }
+    if overnight_completed:
+        response["overnight_tasks_executed"] = overnight_completed
+    if overnight_queue_prep:
+        response["overnight_queue_prep"] = overnight_queue_prep
     if ritual_warning:
         response["ritual_warning"] = ritual_warning
     return response

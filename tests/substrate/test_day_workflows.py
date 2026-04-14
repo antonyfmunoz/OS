@@ -409,6 +409,75 @@ def test_ritual_created() -> None:
         )
 
 
+# ─── Test 8: open_day station summary ──────────────────────────────────────
+
+
+def test_open_day_station_summary() -> None:
+    print("\n── Test 8: open_day station summary ──")
+    _reset_all()
+    # Also reset station_presence
+    try:
+        from eos_ai.substrate.storage import get_storage
+
+        get_storage().put("station_presence", None)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from eos_ai.substrate.station_presence import StationPresenceStore
+
+        StationPresenceStore.reset_default_for_tests()
+    except Exception:  # noqa: BLE001
+        pass
+
+    result = open_day(workspace="builder", node_preference="local")
+    _report("status ok", result["status"] == "ok")
+    has_station = "station_summary" in result or "local_station_summary" in result
+    _report("has station summary key", has_station)
+    station = result.get("station_summary") or result.get("local_station_summary", {})
+    if station:
+        _report("has presence_mode", "presence_mode" in station)
+        _report("has local_available", "local_available" in station)
+        _report("has control_mode", "control_mode" in station)
+        _report("has wake_enabled", "wake_enabled" in station)
+        _report("has tts_enabled", "tts_enabled" in station)
+
+
+# ─── Test 9: close_day new keys ───────────────────────────────────────────
+
+
+def test_close_day_new_keys() -> None:
+    print("\n── Test 9: close_day new keys ──")
+    _reset_all()
+    # Also reset station_presence
+    try:
+        from eos_ai.substrate.storage import get_storage
+
+        get_storage().put("station_presence", None)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from eos_ai.substrate.station_presence import StationPresenceStore
+
+        StationPresenceStore.reset_default_for_tests()
+    except Exception:  # noqa: BLE001
+        pass
+
+    open_day()
+    result = close_day(
+        completed_today=["test"],
+        unresolved=[],
+        overnight_tasks=[],
+    )
+    _report("status ok", result["status"] == "ok")
+    _report("has station_presence_mode", "station_presence_mode" in result)
+    _report("has live_session_count", "live_session_count" in result)
+    _report(
+        "station_presence_mode is away (no overnight tasks)",
+        result.get("station_presence_mode") == "away",
+        f"got {result.get('station_presence_mode')!r}",
+    )
+
+
 # ─── Run ────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -422,6 +491,8 @@ if __name__ == "__main__":
     test_continuity_carries_forward()
     test_restart_safe()
     test_ritual_created()
+    test_open_day_station_summary()
+    test_close_day_new_keys()
 
     print("\n" + "=" * 60)
     print(f"Results: {_PASS} passed, {_FAIL} failed")
