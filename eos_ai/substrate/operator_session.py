@@ -95,7 +95,7 @@ class OperatorSession:
     is_day_open: bool = False
 
     # Workspace / routing
-    active_workspace: str = "product"  # "product" | "builder"
+    active_workspace: str = "builder"  # "product" | "builder"
     node_preference: str = "auto"  # "auto" | "local" | "vps"
     last_active_node: Optional[str] = None
     last_active_discord_channel_id: Optional[str] = None
@@ -178,7 +178,7 @@ class OperatorSession:
             day_session_id=str(d.get("day_session_id") or _new_id("ds")),
             day_mode=day_mode,
             is_day_open=bool(d.get("is_day_open", False)),
-            active_workspace=str(d.get("active_workspace", "product")),
+            active_workspace=str(d.get("active_workspace", "builder")),
             node_preference=str(d.get("node_preference", "auto")),
             last_active_node=d.get("last_active_node"),
             last_active_discord_channel_id=d.get("last_active_discord_channel_id"),
