@@ -256,14 +256,15 @@ class OperatorSessionStore:
             return self._session
 
     def put(self, session: OperatorSession) -> None:
-        """Persist a session record. Sets updated_at and flushes to storage."""
+        """Persist a session record.
+
+        Sets updated_at on the passed session in place, then flushes to
+        storage. Flush failures are caught inside _flush() (best-effort).
+        """
         with self._lock:
-            try:
-                session.updated_at = _utcnow()
-                self._session = session
-                self._flush()
-            except Exception as e:  # noqa: BLE001
-                _log(f"put failed: {e}")
+            session.updated_at = _utcnow()
+            self._session = session
+            self._flush()
 
     # — singleton ────────────────────────────────────────────────────────────
 
