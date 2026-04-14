@@ -121,6 +121,7 @@ def open_day(
         return {
             "status": "already_open",
             "day_session_id": current.day_session_id,
+            "ritual_id": current.ritual_open_id,
             "day_mode": current.day_mode.value,
             "active_workspace": current.active_workspace,
             "opened_at": current.opened_at,
