@@ -302,6 +302,197 @@ CHANNEL_MAP: dict[str, str | None] = {
     "content-ideas": "CONTENT",
 }
 
+# ─── Day ritual helpers ───────────────────────────────────────────────────────
+
+_OPEN_DAY_PHRASES = [
+    r"start my day",
+    r"open day",
+    r"open my day",
+    r"open session",
+]
+
+_CLOSE_DAY_PHRASES = [
+    r"close day",
+    r"end my day",
+    r"close my day",
+    r"close session",
+    r"eod",
+]
+
+_OPEN_EXACT = [r"good morning"]
+_CLOSE_EXACT = [r"good night"]
+
+_OPEN_PATTERN = re.compile(
+    r"^\s*(?:" + "|".join(_OPEN_DAY_PHRASES) + r")\s*[.!]?\s*$",
+    re.IGNORECASE,
+)
+_CLOSE_PATTERN = re.compile(
+    r"^\s*(?:" + "|".join(_CLOSE_DAY_PHRASES) + r")\s*[.!]?\s*$",
+    re.IGNORECASE,
+)
+_OPEN_EXACT_PATTERN = re.compile(
+    r"^\s*(?:" + "|".join(_OPEN_EXACT) + r")\s*[.!]?\s*$",
+    re.IGNORECASE,
+)
+_CLOSE_EXACT_PATTERN = re.compile(
+    r"^\s*(?:" + "|".join(_CLOSE_EXACT) + r")\s*[.!]?\s*$",
+    re.IGNORECASE,
+)
+
+
+def _detect_day_command(text: str) -> str | None:
+    if text.startswith("!"):
+        return None
+    if _OPEN_PATTERN.match(text):
+        return "open_day"
+    if _CLOSE_PATTERN.match(text):
+        return "close_day"
+    if _OPEN_EXACT_PATTERN.match(text):
+        return "open_day"
+    if _CLOSE_EXACT_PATTERN.match(text):
+        return "close_day"
+    return None
+
+
+def _run_day_command(
+    cmd: str,
+    *,
+    workspace: str | None = None,
+    node_preference: str | None = None,
+    discord_channel_id: str | None = None,
+    continuity_text: str | None = None,
+) -> dict:
+    try:
+        from eos_ai.substrate.day_workflows import close_day, open_day
+
+        if cmd == "open_day":
+            return open_day(
+                workspace=workspace,
+                node_preference=node_preference,
+                discord_channel_id=discord_channel_id,
+            )
+        elif cmd == "close_day":
+            return close_day(
+                continuity_notes=continuity_text,
+                discord_channel_id=discord_channel_id,
+            )
+        else:
+            return {"status": "error", "detail": f"unknown command: {cmd}"}
+    except Exception as e:
+        print(f"[DayRitual] error in {cmd}: {e}")
+        return {"status": "error", "detail": str(e)}
+
+
+def _format_day_result(result: dict) -> str:
+    status = result.get("status", "error")
+
+    if status == "already_open":
+        ws = result.get("active_workspace", "unknown")
+        mode = result.get("day_mode", "unknown")
+        opened = result.get("opened_at", "unknown")
+        return (
+            f"Day is already open.\nWorkspace: {ws} | Mode: {mode} | Opened: {opened}"
+        )
+
+    if status == "not_open":
+        return "No day is currently open. Use `start my day` or `!openday` first."
+
+    if status == "error":
+        return f"Day ritual error: {result.get('detail', 'unknown')}"
+
+    # open_day ok
+    if "briefing" in result:
+        b = result["briefing"]
+        mode = result.get("day_mode", "unknown")
+        ws = result.get("active_workspace", "unknown")
+        left_off = b.get("where_we_left_off") or "Fresh start."
+        priorities = b.get("unfinished_priorities") or []
+        overnight = b.get("overnight_tasks") or []
+        first_action = b.get("recommended_first_action") or "Check your priorities."
+        resume = b.get("resume_context")
+        lines = [
+            f"**Day Open** — {mode}",
+            f"Workspace: {ws} | Node: {result.get('node_preference', 'auto')}",
+            "",
+            f"**Where we left off:**\n{left_off}",
+            "",
+        ]
+        if priorities:
+            lines.append("**Unfinished priorities:**")
+            for p in priorities:
+                lines.append(f"- {p}")
+        else:
+            lines.append("**Unfinished priorities:**\nNone.")
+        lines.append("")
+        if overnight:
+            lines.append("**Overnight tasks:**")
+            for t in overnight:
+                lines.append(f"- {t}")
+        else:
+            lines.append("**Overnight tasks:**\nNone.")
+        lines.append("")
+        lines.append(f"**Recommended first action:**\n{first_action}")
+        if resume:
+            lines.append(f"\n**Resume context:**\n{resume}")
+        warning = result.get("ritual_warning")
+        if warning:
+            lines.append(f"\n_Ritual warning: {warning}_")
+        return "\n".join(lines)
+
+    # close_day ok
+    if "summary" in result:
+        s = result["summary"]
+        completed = s.get("completed_today") or []
+        unresolved = s.get("unresolved") or []
+        overnight = s.get("overnight_tasks") or []
+        notes = s.get("continuity_notes")
+        mode = s.get("day_mode", "inactive")
+        lines = [f"**Day Closed** — {mode}", ""]
+        if completed:
+            lines.append("**Completed today:**")
+            for c in completed:
+                lines.append(f"- {c}")
+        else:
+            lines.append("**Completed today:**\nNothing logged.")
+        lines.append("")
+        if unresolved:
+            lines.append("**Unresolved:**")
+            for u in unresolved:
+                lines.append(f"- {u}")
+        else:
+            lines.append("**Unresolved:**\nAll clear.")
+        lines.append("")
+        if overnight:
+            lines.append("**Overnight tasks:**")
+            for t in overnight:
+                lines.append(f"- {t}")
+        else:
+            lines.append("**Overnight tasks:**\nNone.")
+        if notes:
+            lines.append(f"\n**Continuity notes:**\n{notes}")
+        warning = result.get("ritual_warning")
+        if warning:
+            lines.append(f"\n_Ritual warning: {warning}_")
+        return "\n".join(lines)
+
+    return f"Day ritual completed with status: {status}"
+
+
+async def _send_day_response(invoking_channel, formatted_text: str) -> None:
+    for chunk in chunk_message(formatted_text):
+        await invoking_channel.send(chunk)
+    # Best-effort mirror to #morning-brief
+    try:
+        _mb_id = CHANNEL_IDS.get("morning-brief")
+        if _mb_id and str(invoking_channel.id) != str(_mb_id):
+            _mb_chan = bot.get_channel(_mb_id)
+            if _mb_chan:
+                for chunk in chunk_message(formatted_text):
+                    await _mb_chan.send(chunk)
+    except Exception as _mirror_exc:
+        print(f"[DayRitual] mirror to #morning-brief failed: {_mirror_exc}")
+
+
 # ─── Active meeting state ─────────────────────────────────────────────────────
 
 _active_meeting: dict = {
@@ -513,7 +704,13 @@ def _detect_pipeline_update(text: str) -> tuple[str, str] | None:
     return (stage, lead_hint)
 
 
-def _run_gateway(text: str, channel_name: str, username: str) -> str:
+def _run_gateway(
+    text: str,
+    channel_name: str,
+    username: str,
+    guild_id: str | None = None,
+    channel_id: str | None = None,
+) -> str:
     """
     Classify intent, build request, call gateway, return output text.
     Runs synchronously — called from asyncio executor to avoid blocking.
@@ -527,6 +724,8 @@ def _run_gateway(text: str, channel_name: str, username: str) -> str:
         ki=_ki,
         channel_sessions=_channel_sessions,
         default_venture_id=_DEFAULT_VENTURE_ID,
+        guild_id=guild_id,
+        channel_id=channel_id,
     )
 
 
@@ -795,6 +994,33 @@ async def on_ready():
 
     # Warm up cc_sdk session (pre-load DEX agent, reduce cold start)
     asyncio.create_task(_warmup_cc_sdk())
+
+    # ── Start CC reply webhook receiver ──────────────────────────────────
+    # Receives POSTs from the CC Stop hook with assistant replies and
+    # dispatches them to the correct Discord channel.
+    try:
+        from cc_webhook_receiver import start_webhook_server
+
+        await start_webhook_server(bot, AI_NAME)
+    except Exception as e:
+        print(f"[Discord] CC webhook receiver failed to start: {e}")
+
+    # ── Wire up session watcher → Discord bridge ───────────────────────────
+    # SessionWatcher polls tmux panes for mid-session pauses (plan mode,
+    # permission requests, questions).  SessionDiscordBridge renders them
+    # as interactive Discord messages with buttons.
+    try:
+        from eos_ai.substrate.session_discord_bridge import get_bridge
+        from eos_ai.substrate.session_watcher import start_watcher
+
+        bridge = get_bridge()
+        bridge.set_bot(bot)
+
+        start_watcher("vps", "dex_builder_main", on_event=bridge.on_watcher_event)
+        start_watcher("vps", "dex_product_main", on_event=bridge.on_watcher_event)
+        print("[Discord] Session watchers + Discord bridge started")
+    except Exception as e:
+        print(f"[Discord] Session watcher/bridge setup failed: {e}")
 
 
 # ─── Auto-join voice ──────────────────────────────────────────────────────────
@@ -1172,12 +1398,17 @@ async def on_message(message: discord.Message):
                     transcribed = await loop.run_in_executor(None, _ve.transcribe, tmp)
                     if transcribed:
                         await message.add_reaction("🎙️")
+                        _att_gid = str(message.guild.id) if message.guild else None
+                        _att_cid = str(message.channel.id)
                         response = await loop.run_in_executor(
                             None,
-                            _run_gateway,
-                            transcribed,
-                            getattr(message.channel, "name", "dm"),
-                            str(message.author),
+                            lambda: _run_gateway(
+                                transcribed,
+                                getattr(message.channel, "name", "dm"),
+                                str(message.author),
+                                guild_id=_att_gid,
+                                channel_id=_att_cid,
+                            ),
                         )
                         reply = (
                             f"🎙️ **You said:** {transcribed}\n**{AI_NAME}:** {response}"
@@ -1212,6 +1443,22 @@ async def on_message(message: discord.Message):
     # #wins is one-way announcement channel
     if channel_name == "wins":
         await bot.process_commands(message)
+        return
+
+    # ── Day ritual intercept (before onboarding/CC injection/gateway) ────────
+    _day_cmd = _detect_day_command(text)
+    if _day_cmd:
+        async with message.channel.typing():
+            loop = asyncio.get_event_loop()
+            _day_result = await loop.run_in_executor(
+                None,
+                lambda cmd=_day_cmd: _run_day_command(
+                    cmd,
+                    discord_channel_id=str(message.channel.id),
+                ),
+            )
+            _day_text = _format_day_result(_day_result)
+            await _send_day_response(message.channel, _day_text)
         return
 
     # ── Active onboarding session — route before anything else ────────────────
@@ -1258,11 +1505,78 @@ async def on_message(message: discord.Message):
                     )
             return
 
-    # ── Pseudo-Live Voice Loop v1 — bounded Discord text → shared seam ─────
-    # Default OFF. Activates only when EOS_DISCORD_TEXT_TRANSPORT_ENABLED is
-    # truthy AND the guild/channel/user allowlists permit this message. On
-    # success it emits a TTS-flagged text reply through the SAME shared voice
-    # substrate used by the voice transport. Never raises.
+    # ── Fire-and-forget CC injection ─────────────────────────────────────
+    # Injects message into the CC tmux session. Reply delivery is handled
+    # asynchronously by the CC Stop hook → webhook receiver pipeline.
+    # No pane scraping, no polling, no state machines.
+    #
+    # Local bridge: if Antony is at his PC (local bridge healthy via
+    # Tailscale), forward to local machine first. If local unavailable,
+    # fall back to VPS tmux injection transparently.
+    _cc_injected = False
+    try:
+        from eos_ai.substrate.discord_mode_routing import (
+            resolve_discord_mode,
+            resolve_mode_session,
+        )
+        from eos_ai.substrate.claude_session_bridge import send_message as _cc_send
+
+        _cc_gid = str(message.guild.id) if message.guild else None
+        _cc_cid = str(message.channel.id)
+        _cc_mode = resolve_discord_mode(_cc_gid, _cc_cid)
+        _cc_session_info = resolve_mode_session(
+            _cc_mode, guild_id=_cc_gid, channel_id=_cc_cid
+        )
+        _cc_session_name = _cc_session_info.get("session_name")
+        _cc_target = _cc_session_info.get("target") or "vps"
+
+        if not _cc_session_name:
+            _cc_session_name = os.getenv("EOS_ROUTER_CLAUDE_CLI_SESSION", "dex_main")
+
+        # ── Try local bridge first (Antony's PC via Tailscale) ──────────
+        try:
+            from services.local_bridge_client import forward_to_local
+
+            loop = asyncio.get_event_loop()
+            _local_ok = await loop.run_in_executor(
+                None, lambda: forward_to_local(text, _cc_session_name)
+            )
+            if _local_ok:
+                _cc_injected = True
+                print(
+                    f"[LocalBridge] Forwarded {len(text)} chars to "
+                    f"{_cc_session_name} on local machine"
+                )
+        except Exception as _lb_exc:  # noqa: BLE001
+            print(f"[LocalBridge] Error: {_lb_exc}")
+
+        # ── Fall back to VPS tmux injection ─────────────────────────────
+        if not _cc_injected:
+            loop = asyncio.get_event_loop()
+            _cc_result = await loop.run_in_executor(
+                None, lambda: _cc_send(_cc_target, _cc_session_name, text)
+            )
+
+            if _cc_result.get("ok"):
+                _cc_injected = True
+                print(
+                    f"[CC] Injected {len(text)} chars into {_cc_session_name} "
+                    f"— reply via Stop hook"
+                )
+            else:
+                print(
+                    f"[CC] Injection failed for {_cc_session_name}: "
+                    f"{_cc_result.get('reason', 'unknown')}"
+                )
+    except Exception as _cc_exc:  # noqa: BLE001
+        print(f"[CC] Injection error: {_cc_exc}")
+
+    if _cc_injected:
+        await bot.process_commands(message)
+        return
+
+    # ── PseudoLive fallback — full pipeline via gateway/model_router ──────
+    # Fires only when CC injection failed (session missing, tmux down, etc).
     try:
         _pl_result = _maybe_pseudo_live_text(
             text,
@@ -1278,53 +1592,51 @@ async def on_message(message: discord.Message):
         _pl_ingress = _pl_result.get("ingress") or {}
         _pl_env = _pl_result.get("envelope") or {}
         _pl_status = _pl_ingress.get("status")
-        if (
-            _pl_status not in ("disabled", "gate_denied")
-            and _pl_env.get("status") == "ok"
-        ):
-            # emit_plan has up to two entries: "visible" (display text
-            # with footer) and "spoken" (clean body for TTS).
-            # Order: send Discord text FIRST, then dispatch TTS.
-            # TTS is deferred (emit_tts=False in substrate) so the bot
-            # controls timing — text arrives before voice.
-            _pl_plan = _pl_env.get("emit_plan") or [
-                {
-                    "content": _pl_env.get("content", ""),
-                    "tts": False,
-                    "role": "combined",
-                }
-            ]
-            _visible_content = ""
-            for _pl_entry in _pl_plan:
-                _role = _pl_entry.get("role", "combined")
-                if _role == "spoken":
-                    continue
-                _entry_content = (_pl_entry.get("content") or "").strip()
-                if _entry_content:
-                    _visible_content = _entry_content
-                    break  # first visible/combined entry wins
-            # 1. Send Discord message FIRST
-            if _visible_content:
-                try:
-                    await message.channel.send(_visible_content, tts=False)
-                except Exception as _se:  # noqa: BLE001
-                    print(f"[PseudoLive] send failed: {_se}")
-            # 2. THEN dispatch TTS via propose_speak_text
-            _deferred = _pl_result.get("deferred_tts") or {}
-            _tts_node = _deferred.get("node_id")
-            _tts_text = _deferred.get("spoken_text") or ""
-            _tts_role = _deferred.get("role_slug") or "ea_orchestrator"
-            if _tts_node and _tts_text:
-                try:
-                    from eos_ai.substrate.station_helpers import propose_speak_text
+        if _pl_status not in ("disabled", "gate_denied"):
+            # Transport was active — NEVER fall through to gateway/Gemini.
+            # If envelope is ok, send the reply. Otherwise return gracefully.
+            if _pl_env.get("status") == "ok":
+                _pl_plan = _pl_env.get("emit_plan") or [
+                    {
+                        "content": _pl_env.get("content", ""),
+                        "tts": False,
+                        "role": "combined",
+                    }
+                ]
+                _visible_content = ""
+                for _pl_entry in _pl_plan:
+                    _role = _pl_entry.get("role", "combined")
+                    if _role == "spoken":
+                        continue
+                    _entry_content = (_pl_entry.get("content") or "").strip()
+                    if _entry_content:
+                        _visible_content = _entry_content
+                        break
+                if _visible_content:
+                    try:
+                        await message.channel.send(_visible_content, tts=False)
+                    except Exception as _se:  # noqa: BLE001
+                        print(f"[PseudoLive] send failed: {_se}")
+                _deferred = _pl_result.get("deferred_tts") or {}
+                _tts_node = _deferred.get("node_id")
+                _tts_text = _deferred.get("spoken_text") or ""
+                _tts_role = _deferred.get("role_slug") or "ea_orchestrator"
+                if _tts_node and _tts_text:
+                    try:
+                        from eos_ai.substrate.station_helpers import propose_speak_text
 
-                    propose_speak_text(
-                        _tts_node,
-                        _tts_text,
-                        issued_by=f"discord_text:{_tts_role}",
-                    )
-                except Exception as _te:  # noqa: BLE001
-                    print(f"[PseudoLive] deferred TTS failed: {_te}")
+                        propose_speak_text(
+                            _tts_node,
+                            _tts_text,
+                            issued_by=f"discord_text:{_tts_role}",
+                        )
+                    except Exception as _te:  # noqa: BLE001
+                        print(f"[PseudoLive] deferred TTS failed: {_te}")
+            else:
+                print(
+                    f"[PseudoLive] CC session failed: status={_pl_status} "
+                    f"detail={_pl_ingress.get('detail', '')}"
+                )
             return
 
     # Meeting mode triggers — natural language detection
@@ -1487,14 +1799,15 @@ async def on_message(message: discord.Message):
                 if not buf:
                     return
                 combined = _assemble_parts(buf)
+                _fl_gid = str(orig_message.guild.id) if orig_message.guild else None
+                _fl_cid = str(orig_message.channel.id)
                 async with chan.typing():
                     ev_loop = asyncio.get_event_loop()
                     out = await ev_loop.run_in_executor(
                         None,
-                        _run_gateway,
-                        combined,
-                        cname,
-                        uname,
+                        lambda: _run_gateway(
+                            combined, cname, uname, guild_id=_fl_gid, channel_id=_fl_cid
+                        ),
                     )
                 if out:
                     await _send_response(orig_message, out)
@@ -1522,25 +1835,17 @@ async def on_message(message: discord.Message):
     if await try_inline_commands(message, text, _pending_events):
         return
 
-    # Smart routing: simple → local Qwen (free) → Claude via EOS gateway
+    # All messages → full EOS gateway (execution_contract pipeline)
+    _gid = str(message.guild.id) if message.guild else None
+    _cid = str(message.channel.id)
     async with message.channel.typing():
         loop = asyncio.get_event_loop()
 
-        if _ve.is_simple_query(text) and _ve.is_running():
-            local_response = await loop.run_in_executor(None, _ve.query_local, text)
-            if local_response:
-                for chunk in chunk_message(local_response):
-                    await message.reply(chunk)
-                await bot.process_commands(message)
-                return
-
-        # Complex query or Ollama unavailable → full EOS gateway
         output = await loop.run_in_executor(
             None,
-            _run_gateway,
-            text,
-            channel_name,
-            username,
+            lambda: _run_gateway(
+                text, channel_name, username, guild_id=_gid, channel_id=_cid
+            ),
         )
 
     if output:
@@ -1596,20 +1901,10 @@ async def on_message(message: discord.Message):
 
 
 async def _send_response(message: discord.Message, output: str) -> None:
-    """Send main response, then footer as a separate follow-up if present."""
-    divider = "─" * 33  # thin dash divider used by cognitive loop footer
-    if divider in output:
-        parts = output.split(divider, 1)
-        main = parts[0].rstrip() + f"\n\n— {AI_NAME}"
-        footer = divider + parts[1].strip()
-        for chunk in chunk_message(main):
-            await message.reply(chunk)
-        for chunk in chunk_message(footer):
-            await message.channel.send(chunk)
-    else:
-        output = output.rstrip() + f"\n\n— {AI_NAME}"
-        for chunk in chunk_message(output):
-            await message.reply(chunk)
+    """Send response to Discord with full footer intact."""
+    output = output.rstrip() + f"\n\n— {AI_NAME}"
+    for chunk in chunk_message(output):
+        await message.reply(chunk)
 
 
 # ─── Discord Server Manager ───────────────────────────────────────────────────
@@ -1823,6 +2118,58 @@ async def _setup_server_structure(guild: discord.Guild) -> None:
         print(f"[Discord] Server setup error: {e}")
 
 
+# ─── Session watcher commands ────────────────────────────────────────────────
+
+
+@bot.command(name="answer")
+async def cmd_answer(ctx: commands.Context, session_name: str, *, text: str):
+    """Answer a CC session question: !answer dex_builder_main <your answer>"""
+    if ctx.author.id != FOUNDER_ID:
+        await ctx.reply("Founder only.")
+        return
+    try:
+        from eos_ai.substrate.session_discord_bridge import get_bridge
+
+        result = await get_bridge().handle_answer_command(session_name, text)
+        await ctx.reply(result)
+    except Exception as e:
+        await ctx.reply(f"Error: {e}")
+
+
+@bot.command(name="watcher_status")
+async def cmd_watcher_status(ctx: commands.Context):
+    """Show session watcher status."""
+    if ctx.author.id != FOUNDER_ID:
+        await ctx.reply("Founder only.")
+        return
+    try:
+        import time as _time
+
+        from eos_ai.substrate.session_watcher import _WATCHERS, _WATCHERS_LOCK
+
+        with _WATCHERS_LOCK:
+            if not _WATCHERS:
+                await ctx.reply("No watchers running.")
+                return
+            lines = []
+            for name, w in _WATCHERS.items():
+                status = "🟢 running" if w.is_running else "🔴 stopped"
+                ago = int(_time.time() - w.last_activity)
+                if ago < 60:
+                    age_str = f"{ago}s ago"
+                elif ago < 3600:
+                    age_str = f"{ago // 60}m ago"
+                else:
+                    age_str = f"{ago // 3600}h ago"
+                preview = w.last_reply_preview[:80] if w.last_reply_preview else "—"
+                lines.append(
+                    f"`{name}`: {status} — `{w.state.value}` — {age_str}\n  └ {preview}"
+                )
+        await ctx.reply("\n".join(lines))
+    except Exception as e:
+        await ctx.reply(f"Error: {e}")
+
+
 # ─── Commands ─────────────────────────────────────────────────────────────────
 
 
@@ -1959,6 +2306,55 @@ async def cmd_eod(ctx: commands.Context):
 
     subprocess.Popen(["python3", "/opt/OS/scripts/eod_sync.py"])
     await ctx.reply("📊 EOD sync running...")
+
+
+@bot.command(name="openday")
+async def cmd_openday(ctx: commands.Context, *, args: str = ""):
+    """Open the operator's day. Usage: !openday [workspace=builder] [node=local]"""
+    if ctx.author.id != FOUNDER_ID:
+        await ctx.reply("Founder only.")
+        return
+    workspace = None
+    node_pref = None
+    for part in args.split():
+        if part.startswith("workspace="):
+            workspace = part.split("=", 1)[1]
+        elif part.startswith("node="):
+            node_pref = part.split("=", 1)[1]
+    async with ctx.typing():
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: _run_day_command(
+                "open_day",
+                workspace=workspace,
+                node_preference=node_pref,
+                discord_channel_id=str(ctx.channel.id),
+            ),
+        )
+        formatted = _format_day_result(result)
+        await _send_day_response(ctx.channel, formatted)
+
+
+@bot.command(name="closeday")
+async def cmd_closeday(ctx: commands.Context, *, args: str = ""):
+    """Close the operator's day. Usage: !closeday [continuity notes as free text]"""
+    if ctx.author.id != FOUNDER_ID:
+        await ctx.reply("Founder only.")
+        return
+    continuity = args.strip() if args.strip() else None
+    async with ctx.typing():
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: _run_day_command(
+                "close_day",
+                continuity_text=continuity,
+                discord_channel_id=str(ctx.channel.id),
+            ),
+        )
+        formatted = _format_day_result(result)
+        await _send_day_response(ctx.channel, formatted)
 
 
 @bot.command(name="accept")
