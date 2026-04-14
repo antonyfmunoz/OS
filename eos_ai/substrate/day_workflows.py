@@ -92,9 +92,9 @@ def _advance_ritual_best_effort(
 
 def open_day(
     *,
-    workspace: Optional[str],
-    node_preference: Optional[str],
-    discord_channel_id: Optional[str],
+    workspace: Optional[str] = None,
+    node_preference: Optional[str] = None,
+    discord_channel_id: Optional[str] = None,
 ) -> dict:
     """Open the operator's day session.
 
@@ -216,12 +216,12 @@ def open_day(
 
 def close_day(
     *,
-    completed_today: list,
-    unresolved: list,
-    overnight_tasks: list,
-    continuity_notes: Optional[str],
-    resume_context: Optional[str],
-    discord_channel_id: Optional[str],
+    completed_today: Optional[list] = None,
+    unresolved: Optional[list] = None,
+    overnight_tasks: Optional[list] = None,
+    continuity_notes: Optional[str] = None,
+    resume_context: Optional[str] = None,
+    discord_channel_id: Optional[str] = None,
 ) -> dict:
     """Close the operator's day session and write continuity for the next open.
 
