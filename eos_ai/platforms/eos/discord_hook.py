@@ -125,3 +125,34 @@ def attach_founder_issue_to_live_session(
     except Exception as exc:
         _log(f"attach to live session failed: {exc}")
         return None
+
+
+# ─── Live runtime bridge ─────────────────────────────────────────────────────
+
+
+def handle_eos_discord_live_message(
+    text: str,
+    *,
+    session_id: Optional[str] = None,
+    dry_run: bool = False,
+) -> str:
+    """
+    Process a founder Discord message through the EA live runtime.
+
+    Unlike handle_eos_discord_message (which uses the EA orchestrator directly),
+    this routes through the live runtime for control phrase interception,
+    immediate execution, and live session binding.
+
+    Falls back to handle_eos_discord_message if the live runtime fails.
+    """
+    try:
+        from eos_ai.platforms.eos.live_runtime import handle_live_user_utterance
+
+        result = handle_live_user_utterance(
+            text, session_id=session_id, dry_run=dry_run
+        )
+        return result.spoken_text
+
+    except Exception as exc:
+        _log(f"live runtime failed, falling back to direct EA: {exc}")
+        return handle_eos_discord_message(text, session_id=session_id)
