@@ -4,7 +4,7 @@ path: eos_ai/knowledge_graph.py
 module: eos_ai.knowledge_graph
 lines: 530
 size: 20822
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/knowledge_graph.py

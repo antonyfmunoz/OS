@@ -4,7 +4,7 @@ path: eos_ai/quality_gate.py
 module: eos_ai.quality_gate
 lines: 526
 size: 16696
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/quality_gate.py

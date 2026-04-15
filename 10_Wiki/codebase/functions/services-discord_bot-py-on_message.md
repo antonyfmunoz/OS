@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: services/discord_bot.py
-line: 1166
-generated: 2026-04-11
+line: 1182
+generated: 2026-04-12
 ---
 
 # on_message
 
-**File:** [[services-discord_bot-py]] | **Line:** 1166
+**File:** [[services-discord_bot-py]] | **Line:** 1182
 **Signature:** `on_message(message)`
 
 *No docstring.*

@@ -4,7 +4,7 @@ path: eos_ai/substrate/station_readiness.py
 module: eos_ai.substrate.station_readiness
 lines: 306
 size: 11439
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/station_readiness.py

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/operator_interface.py
 line: 150
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # get_owner_breakdown

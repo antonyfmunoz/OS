@@ -4,7 +4,7 @@ path: eos_ai/ceo_agent.py
 module: eos_ai.ceo_agent
 lines: 375
 size: 14833
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/ceo_agent.py

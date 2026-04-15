@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_claude_session_cli.py
 line: 91
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # cmd_ask

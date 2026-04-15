@@ -4,7 +4,7 @@ path: eos_ai/substrate/capabilities.py
 module: eos_ai.substrate.capabilities
 lines: 81
 size: 2742
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/capabilities.py

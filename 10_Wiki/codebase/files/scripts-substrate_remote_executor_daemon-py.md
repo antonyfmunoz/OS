@@ -5,7 +5,7 @@ module: scripts.substrate_remote_executor_daemon
 lines: 92
 size: 2665
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_remote_executor_daemon.py

@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/overnight_scrape.py
 line: 58
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # force_group_a

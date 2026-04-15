@@ -82,11 +82,30 @@ def _execute_call_api(action: Action) -> dict[str, Any]:
         return {"ok": False, "error": f"{type(e).__name__}: {e}"}
 
 
+def _execute_compose_action(action: Action) -> dict[str, Any]:
+    """Execute a composed action — the primitive architecture's native type.
+
+    Composed actions carry their intent, primitive tags, and domain data
+    in inputs.  The executor logs the primitive trace and returns success.
+    Real side effects (LLM calls, API hits) will be wired per-action-type
+    as the system matures.  For MVP, execution = successful dispatch +
+    audit trail.
+    """
+    return {
+        "ok": True,
+        "action_type": action.inputs.get("action", "unknown"),
+        "intent": action.inputs.get("intent", ""),
+        "primitive_tags": action.inputs.get("primitive_tags", []),
+        "executed_by": "compose_action_executor",
+    }
+
+
 _DISPATCH = {
     "shell_command": _execute_shell_command,
     "run_script": _execute_run_script,
     "write_file": _execute_write_file,
     "call_api": _execute_call_api,
+    "compose_action": _execute_compose_action,
 }
 
 

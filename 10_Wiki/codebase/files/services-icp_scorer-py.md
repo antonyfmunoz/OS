@@ -5,7 +5,7 @@ module: services.icp_scorer
 lines: 604
 size: 20037
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # services/icp_scorer.py

@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/action_system/policy.py
 line: 133
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # resolve_effective_risk

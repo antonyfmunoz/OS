@@ -95,6 +95,7 @@ class NodeRegistry:
     def _load(self) -> None:
         try:
             from eos_ai.substrate.storage import get_storage
+
             raw = get_storage().get(self._STORAGE_KEY, default={}) or {}
             for node_id, data in raw.items():
                 self._nodes[node_id] = Node(
@@ -108,13 +109,17 @@ class NodeRegistry:
                 )
         except Exception as e:
             import sys
-            print(f"[substrate.nodes] load failed ({e}); starting empty", file=sys.stderr)
+
+            print(
+                f"[substrate.nodes] load failed ({e}); starting empty", file=sys.stderr
+            )
 
     def _flush(self) -> None:
         if not self._persist:
             return
         try:
             from eos_ai.substrate.storage import get_storage
+
             payload = {
                 nid: {
                     "node_id": n.node_id,
@@ -130,7 +135,10 @@ class NodeRegistry:
             get_storage().put(self._STORAGE_KEY, payload)
         except Exception as e:
             import sys
-            print(f"[substrate.nodes] flush failed ({e}); in-memory only", file=sys.stderr)
+
+            print(
+                f"[substrate.nodes] flush failed ({e}); in-memory only", file=sys.stderr
+            )
 
     # ─── CRUD ─────────────────────────────────────────────────────────────
     def upsert(self, node: Node) -> Node:
@@ -158,6 +166,44 @@ class NodeRegistry:
 
     def online(self) -> list[Node]:
         return [n for n in self._nodes.values() if n.status == NodeStatus.ONLINE]
+
+    def purge_stale(self, *, max_age_hours: float = 24.0) -> list[str]:
+        """Remove nodes whose last_seen is older than max_age_hours.
+
+        Protects well-known nodes (vps-primary, antony-workstation) from
+        purge.  Returns list of removed node_ids.
+        """
+        from datetime import datetime, timezone
+
+        protected = {"vps-primary", "antony-workstation"}
+        cutoff = datetime.now(timezone.utc).timestamp() - (max_age_hours * 3600)
+        removed: list[str] = []
+
+        for node_id, node in list(self._nodes.items()):
+            if node_id in protected:
+                continue
+            if node.last_seen is None:
+                # No last_seen — stale by definition
+                removed.append(node_id)
+                continue
+            try:
+                seen_ts = datetime.fromisoformat(node.last_seen).timestamp()
+                if seen_ts < cutoff:
+                    removed.append(node_id)
+            except (ValueError, TypeError):
+                removed.append(node_id)
+
+        for nid in removed:
+            self._nodes.pop(nid, None)
+        if removed:
+            self._flush()
+            import sys
+
+            print(
+                f"[substrate.nodes] purged {len(removed)} stale node(s)",
+                file=sys.stderr,
+            )
+        return removed
 
     # ─── Defaults ─────────────────────────────────────────────────────────
     @classmethod

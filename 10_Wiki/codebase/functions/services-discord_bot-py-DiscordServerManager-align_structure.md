@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: services/discord_bot.py
-line: 1729
-generated: 2026-04-11
+line: 1779
+generated: 2026-04-12
 ---
 
 # DiscordServerManager.align_structure
 
-**File:** [[services-discord_bot-py]] | **Line:** 1729
+**File:** [[services-discord_bot-py]] | **Line:** 1779
 **Signature:** `align_structure() → None`
 
 **Class:** [[services-discord_bot-py-DiscordServerManager]]

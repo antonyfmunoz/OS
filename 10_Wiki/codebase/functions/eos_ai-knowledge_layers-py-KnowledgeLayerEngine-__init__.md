@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/knowledge_layers.py
 line: 263
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # KnowledgeLayerEngine.__init__

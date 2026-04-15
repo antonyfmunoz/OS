@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_research_agent/headless_fetcher.py
 line: 224
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # render_low_signal_sources

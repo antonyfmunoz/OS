@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: scripts/merge_graphs.py
-line: 186
-generated: 2026-04-11
+line: 305
+generated: 2026-04-12
 ---
 
 # main
 
-**File:** [[scripts-merge_graphs-py]] | **Line:** 186
+**File:** [[scripts-merge_graphs-py]] | **Line:** 305
 **Signature:** `main(argv) → int`
 
 *No docstring.*

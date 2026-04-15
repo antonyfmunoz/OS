@@ -5,7 +5,7 @@ module: scripts.substrate_discord_voice_transport_smoke_test
 lines: 205
 size: 7756
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_discord_voice_transport_smoke_test.py

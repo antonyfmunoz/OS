@@ -5,7 +5,7 @@ module: scripts.wiki_stop_hook
 lines: 168
 size: 4864
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/wiki_stop_hook.py

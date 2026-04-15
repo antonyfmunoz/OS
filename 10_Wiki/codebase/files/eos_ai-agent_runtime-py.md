@@ -5,7 +5,7 @@ module: eos_ai.agent_runtime
 lines: 522
 size: 21636
 tags: [critical]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/agent_runtime.py

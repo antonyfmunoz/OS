@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/onboarding_backfill.py
 line: 30
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # OnboardingBackfill

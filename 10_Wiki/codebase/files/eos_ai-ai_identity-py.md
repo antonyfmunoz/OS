@@ -5,7 +5,7 @@ module: eos_ai.ai_identity
 lines: 268
 size: 8362
 tags: [critical]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/ai_identity.py

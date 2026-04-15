@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/event_manager.py
 line: 124
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # log_speaking_engagement

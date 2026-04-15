@@ -5,7 +5,7 @@ module: eos_ai.gateway
 lines: 1882
 size: 72321
 tags: [critical]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/gateway.py

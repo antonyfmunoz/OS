@@ -5,7 +5,7 @@ module: scripts.substrate_session_orchestration_cli
 lines: 165
 size: 5031
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_session_orchestration_cli.py

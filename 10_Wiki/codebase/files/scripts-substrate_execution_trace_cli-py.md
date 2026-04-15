@@ -5,7 +5,7 @@ module: scripts.substrate_execution_trace_cli
 lines: 178
 size: 5194
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_execution_trace_cli.py

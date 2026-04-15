@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_research_agent/github_extractor.py
 line: 100
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # parse_github_url

@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/eos_status.py
 line: 32
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # section

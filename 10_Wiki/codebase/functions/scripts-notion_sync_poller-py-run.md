@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/notion_sync_poller.py
 line: 21
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # run

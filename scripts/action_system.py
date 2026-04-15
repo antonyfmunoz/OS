@@ -66,6 +66,11 @@ sys.path.insert(0, "/opt/OS")
 
 # Reuse the existing cognition stack — do not reinvent.
 from scripts.query_graph import GraphQuery  # noqa: E402
+from core.environment import Environment  # noqa: E402
+from core.capability import (  # noqa: E402
+    OperationKind,
+    operation_for_action_type,
+)
 
 ROOT = Path("/opt/OS")
 DATA_DIR = ROOT / "data"
@@ -203,7 +208,9 @@ class Action:
     risk_level: RiskLevel = RiskLevel.NONE
     requires_approval: bool = False
     status: ActionStatus = ActionStatus.PROPOSED
-    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    created_at: str = field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
     impact: Impact | None = None
 
 
@@ -222,14 +229,64 @@ class ActionResult:
 
 
 class ActionSystem:
-    """Single orchestration surface for propose → assess → execute → log."""
+    """Single orchestration surface for propose → assess → execute → log.
 
-    def __init__(self, *, verbose: bool = False) -> None:
+    Environment-aware: pass `env=make_sandbox(...)` to redirect every
+    file write, log append, and snapshot into an isolated tree. When
+    `env` is None (the default), the system runs against production.
+    """
+
+    def __init__(
+        self,
+        *,
+        verbose: bool = False,
+        env: Environment | None = None,
+        security: "object | None" = None,
+        actor_token: "object | None" = None,
+    ) -> None:
+        """
+        Args:
+            verbose      — print debug info to stdout
+            env          — core.environment.Environment to run under
+            security     — optional core.security.SecurityContext. When
+                           provided, every execute() call runs through
+                           SecurityContext.authorize_action() BEFORE the
+                           existing risk gate. None = legacy behavior.
+            actor_token  — the Token (or raw string) that identifies the
+                           principal performing the action. Required when
+                           `security` is set.
+        """
         self.verbose = verbose
+        self.env = env or Environment.production()
+        self.security = security
+        self.actor_token = actor_token
         self._graph_query: GraphQuery | None = None
         self._critical_hubs: set[str] | None = None
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
-        SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
+
+        # Instance-level paths — these are what every executor uses.
+        # Production path values match the module-level constants so
+        # external code that reads LOG_PATH/SNAPSHOT_DIR still works.
+        self._log_path: Path = self.env.action_log_path
+        self._snapshot_dir: Path = self.env.snapshot_dir
+        self._data_dir: Path = self.env.data_dir
+        self._workspace_root: Path = self.env.workspace
+
+        self._data_dir.mkdir(parents=True, exist_ok=True)
+        self._snapshot_dir.mkdir(parents=True, exist_ok=True)
+        self._log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # ─── Environment-aware path helpers ────────────────────────────────────
+
+    def _resolve_target(self, target: str) -> Path:
+        """Translate an action target into the current env's workspace.
+
+        In sandbox mode this also ensures the file is copy-on-written
+        from production when the workspace doesn't have it yet, so
+        edits always have a baseline to snapshot.
+        """
+        if self.env.is_production:
+            return _abs(target)
+        return self.env.ensure_copied(target)
 
     # ─── Lazy graph layer ──────────────────────────────────────────────────
 
@@ -274,9 +331,7 @@ class ActionSystem:
         action.impact = self.assess_impact(action)
         action.risk_level = self.evaluate_risk(action)
         action.requires_approval = action.risk_level.rank >= RiskLevel.HIGH.rank
-        action.dependencies = (
-            action.impact.direct_dependents if action.impact else []
-        )
+        action.dependencies = action.impact.direct_dependents if action.impact else []
         self._emit_log(action, event="proposed")
         return action
 
@@ -401,6 +456,79 @@ class ActionSystem:
         executor. Always logs the outcome — success or failure."""
         start = time.monotonic()
 
+        # ─── Enterprise security gate (optional) ────────────────────────
+        # When a SecurityContext is attached, every action goes through
+        # identity → RBAC → env policy → approval queue → audit BEFORE
+        # the legacy risk gate below runs. The legacy gate is kept as
+        # defense-in-depth.
+        if self.security is not None and not dry_run:
+            sec_decision = self._security_check(action)
+            if sec_decision is not None and sec_decision.status == "denied":
+                action.status = ActionStatus.REJECTED
+                self._emit_log(
+                    action,
+                    event="rejected_security",
+                    extra={
+                        "reason": sec_decision.reason,
+                        "audit_event_id": sec_decision.audit_event_id,
+                    },
+                )
+                return ActionResult(
+                    action_id=action.id,
+                    status=ActionStatus.REJECTED,
+                    error=f"security denied: {sec_decision.reason}",
+                    duration_seconds=round(time.monotonic() - start, 3),
+                )
+            if sec_decision is not None and sec_decision.status == "pending":
+                action.status = ActionStatus.REJECTED
+                self._emit_log(
+                    action,
+                    event="pending_approval",
+                    extra={
+                        "reason": sec_decision.reason,
+                        "approval_id": sec_decision.approval_id,
+                        "audit_event_id": sec_decision.audit_event_id,
+                    },
+                )
+                return ActionResult(
+                    action_id=action.id,
+                    status=ActionStatus.REJECTED,
+                    error=(f"pending approval: request {sec_decision.approval_id}"),
+                    duration_seconds=round(time.monotonic() - start, 3),
+                )
+            # If approved, drop the legacy "requires_approval" gate for
+            # this run — security already authorized it.
+            if sec_decision is not None and sec_decision.status == "approved":
+                approve = True
+
+        # ─── Advisor gate for HIGH/CRITICAL actions ──────────────────────
+        # Before the approval gate, ask the advisor to validate actions
+        # at HIGH or CRITICAL risk. The advisor never executes — it only
+        # returns approve/modify/reject guidance. If it rejects, the
+        # action is halted. If the advisor is unavailable, we fall
+        # through to the normal approval gate.
+        if not dry_run and action.risk_level.rank >= RiskLevel.HIGH.rank:
+            advisor_decision = self._advisor_check(action)
+            if advisor_decision is not None:
+                if advisor_decision.get("decision") == "reject":
+                    action.status = ActionStatus.REJECTED
+                    self._emit_log(
+                        action,
+                        event="rejected_advisor",
+                        extra={
+                            "advisor_reasoning": advisor_decision.get("reasoning", ""),
+                            "advisor_confidence": advisor_decision.get("confidence", 0),
+                        },
+                    )
+                    return ActionResult(
+                        action_id=action.id,
+                        status=ActionStatus.REJECTED,
+                        error=(
+                            f"advisor rejected: {advisor_decision.get('reasoning', 'no reason given')}"
+                        ),
+                        duration_seconds=round(time.monotonic() - start, 3),
+                    )
+
         if action.requires_approval and not approve and not dry_run:
             action.status = ActionStatus.REJECTED
             self._emit_log(action, event="rejected_no_approval")
@@ -470,6 +598,88 @@ class ActionSystem:
             result.graph_refresh = self._refresh_graph([action.target])
         return result
 
+    # ─── Security bridge ───────────────────────────────────────────────────
+
+    def _security_check(self, action: "Action") -> "object | None":
+        """Translate an Action into a SecurityContext.authorize_action call.
+
+        Returns the AuthorizationDecision, or None if security is not
+        configured. The return type is intentionally annotated as object
+        to avoid an import cycle (core.security imports nothing from
+        scripts.action_system; the reverse is also avoided at module
+        level via lazy attribute access).
+        """
+        if self.security is None or self.actor_token is None:
+            return None
+
+        is_hub = bool(action.impact and action.impact.is_critical_hub)
+        op = operation_for_action_type(action.type.value, is_critical_hub=is_hub)
+        return self.security.authorize_action(
+            token=self.actor_token,
+            action_type=action.type.value,
+            target=action.target,
+            operation=op,
+            risk=action.risk_level.value,
+            agent=getattr(self, "agent_name", "") or "",
+            reason=action.reason,
+            metadata={
+                "action_id": action.id,
+                "is_critical_hub": is_hub,
+                "direct_dependents": (
+                    len(action.impact.direct_dependents) if action.impact else 0
+                ),
+            },
+        )
+
+    def _advisor_check(self, action: Action) -> dict[str, Any] | None:
+        """Ask the advisor to validate a HIGH/CRITICAL action.
+
+        Returns a dict with keys (decision, reasoning, confidence) or
+        None if the advisor is unavailable. Non-fatal — if the advisor
+        module fails to import or the call errors, returns None so the
+        normal approval gate still runs.
+        """
+        try:
+            from core.advisor import call_advisor
+        except Exception:
+            return None
+
+        task = (
+            f"Validate this {action.type.value} action:\n"
+            f"  Target: {action.target}\n"
+            f"  Risk: {action.risk_level.value}\n"
+            f"  Reason: {action.reason}\n"
+        )
+        if action.impact:
+            task += (
+                f"  Critical hub: {action.impact.is_critical_hub}\n"
+                f"  Dependents: {len(action.impact.direct_dependents)}\n"
+            )
+
+        context: dict[str, Any] = {
+            "is_critical_hub": bool(action.impact and action.impact.is_critical_hub),
+            "dependent_count": len(action.impact.direct_dependents)
+            if action.impact
+            else 0,
+        }
+        metadata: dict[str, Any] = {
+            "risk": action.risk_level.value,
+            "action_type": action.type.value,
+            "requires_advisor": True,
+        }
+
+        try:
+            result = call_advisor(
+                task=task,
+                executor_output=f"Action proposed: {action.type.value} on {action.target}",
+                context=context,
+                metadata=metadata,
+                escalation_reason="high_risk_action",
+            )
+            return result.to_dict()
+        except Exception:
+            return None
+
     # ─── Type-specific executors ───────────────────────────────────────────
 
     def _exec_query_graph(self, action: Action) -> ActionResult:
@@ -503,10 +713,15 @@ class ActionSystem:
 
     def _exec_edit_file(self, action: Action) -> ActionResult:
         """Whole-file rewrite with snapshot. Payload must contain
-        either `content` (str) or `content_path` (path to read from)."""
-        path = _abs(action.target)
+        either `content` (str) or `content_path` (path to read from).
+
+        Sandbox mode: the target is copy-on-written from production so
+        the edit has a real baseline before it lands in the workspace.
+        """
+        path = self._resolve_target(action.target)
         if not path.exists():
             raise FileNotFoundError(f"edit target does not exist: {path}")
+        self.env.guard_write(path)
         new_content = self._resolve_content(action.payload)
         snapshot = self._snapshot_file(action.id, path)
         path.write_text(new_content)
@@ -521,9 +736,10 @@ class ActionSystem:
         """Create a new file (or overwrite). If the file exists, snapshots
         it first so rollback restores prior bytes; if it does not exist,
         rollback deletes the created file."""
-        path = _abs(action.target)
+        path = self._resolve_target(action.target)
+        self.env.guard_write(path)
         new_content = self._resolve_content(action.payload)
-        snapshot_dir = SNAPSHOT_DIR / action.id
+        snapshot_dir = self._snapshot_dir / action.id
         snapshot_dir.mkdir(parents=True, exist_ok=True)
         existed = path.exists()
         if existed:
@@ -541,10 +757,11 @@ class ActionSystem:
 
     def _exec_delete_file(self, action: Action) -> ActionResult:
         """Soft delete: move to snapshot dir instead of actually unlinking."""
-        path = _abs(action.target)
+        path = self._resolve_target(action.target)
         if not path.exists():
             raise FileNotFoundError(f"delete target does not exist: {path}")
-        snapshot_dir = SNAPSHOT_DIR / action.id
+        self.env.guard_write(path)
+        snapshot_dir = self._snapshot_dir / action.id
         snapshot_dir.mkdir(parents=True, exist_ok=True)
         trash = snapshot_dir / path.name
         shutil.move(str(path), str(trash))
@@ -557,22 +774,30 @@ class ActionSystem:
         )
 
     def _exec_run_script(self, action: Action) -> ActionResult:
-        """Run a Python script by path. payload.args is optional list[str]."""
-        script = _abs(action.target)
+        """Run a Python script by path. payload.args is optional list[str].
+
+        Sandbox mode: cwd is the sandbox workspace so any relative writes
+        the script makes land in the sandbox tree, not production.
+        """
+        # Scripts themselves always resolve from production — we're
+        # running the *real* script, but against a sandbox workspace.
+        if self.env.is_production:
+            script = _abs(action.target)
+        else:
+            script = _abs(action.target)  # production source
         if not script.exists():
             raise FileNotFoundError(f"script not found: {script}")
         args = [str(a) for a in action.payload.get("args", [])]
         timeout = int(action.payload.get("timeout", 120))
+        cwd = str(self._workspace_root if not self.env.is_production else ROOT)
         proc = subprocess.run(
             ["python3", str(script), *args],
             capture_output=True,
             text=True,
             timeout=timeout,
-            cwd=str(ROOT),
+            cwd=cwd,
         )
-        status = (
-            ActionStatus.SUCCEEDED if proc.returncode == 0 else ActionStatus.FAILED
-        )
+        status = ActionStatus.SUCCEEDED if proc.returncode == 0 else ActionStatus.FAILED
         return ActionResult(
             action_id=action.id,
             status=status,
@@ -581,22 +806,25 @@ class ActionSystem:
         )
 
     def _exec_run_command(self, action: Action) -> ActionResult:
-        """Run a shell command. payload.command is required."""
+        """Run a shell command. payload.command is required.
+
+        Sandbox mode runs the command in the sandbox workspace so any
+        `cat > foo.txt` style side effects land there, not production.
+        """
         command = str(action.payload.get("command", "")).strip()
         if not command:
             raise ValueError("run_command requires payload.command")
         timeout = int(action.payload.get("timeout", 60))
+        cwd = str(self._workspace_root if not self.env.is_production else ROOT)
         proc = subprocess.run(
             command,
             shell=True,
             capture_output=True,
             text=True,
             timeout=timeout,
-            cwd=str(ROOT),
+            cwd=cwd,
         )
-        status = (
-            ActionStatus.SUCCEEDED if proc.returncode == 0 else ActionStatus.FAILED
-        )
+        status = ActionStatus.SUCCEEDED if proc.returncode == 0 else ActionStatus.FAILED
         return ActionResult(
             action_id=action.id,
             status=status,
@@ -612,7 +840,7 @@ class ActionSystem:
         RUN_SCRIPT and RUN_COMMAND have no automatic rollback — those
         are rejected. Callers must compose a compensating action.
         """
-        snap_dir = SNAPSHOT_DIR / action_id
+        snap_dir = self._snapshot_dir / action_id
         if not snap_dir.exists():
             raise FileNotFoundError(f"no snapshot dir for action {action_id}")
 
@@ -629,9 +857,7 @@ class ActionSystem:
             # Action was DELETE_FILE — restore from the trash copy.
             original_path = Path(deleted_marker.read_text().strip())
             # There is exactly one snapshot entry besides the marker.
-            snapshots = [
-                p for p in snap_dir.iterdir() if p.name != "__deleted_from__"
-            ]
+            snapshots = [p for p in snap_dir.iterdir() if p.name != "__deleted_from__"]
             if not snapshots:
                 raise FileNotFoundError("snapshot payload missing")
             original_path.parent.mkdir(parents=True, exist_ok=True)
@@ -678,7 +904,7 @@ class ActionSystem:
     # ─── Snapshot + logging helpers ────────────────────────────────────────
 
     def _snapshot_file(self, action_id: str, path: Path) -> Path:
-        snap_dir = SNAPSHOT_DIR / action_id
+        snap_dir = self._snapshot_dir / action_id
         snap_dir.mkdir(parents=True, exist_ok=True)
         snap_file = snap_dir / f"{path.name}.{_short_hash(str(path))}.bak"
         snap_file.write_bytes(path.read_bytes())
@@ -727,7 +953,14 @@ class ActionSystem:
 
     def _refresh_graph(self, paths: list[str]) -> dict[str, Any]:
         """Best-effort incremental refresh. Never raises — the action
-        succeeded, and stale-graph is a recoverable annoyance."""
+        succeeded, and stale-graph is a recoverable annoyance.
+
+        Skipped in sandbox mode so sandbox edits never mutate the
+        production codebase graph. The sandbox reads the production
+        graph at query time; it does not need a shadow graph.
+        """
+        if not self.env.is_production:
+            return {"mode": "skipped", "reason": "sandbox env — graph refresh disabled"}
         try:
             from scripts.incremental_graph import update as incr_update
         except Exception as exc:
@@ -769,12 +1002,22 @@ class ActionSystem:
         self._emit_neon(record)
 
     def _append_jsonl(self, record: dict[str, Any]) -> None:
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
-        with LOG_PATH.open("a", encoding="utf-8") as f:
+        self._data_dir.mkdir(parents=True, exist_ok=True)
+        self._log_path.parent.mkdir(parents=True, exist_ok=True)
+        # Tag every log row with the env label so observability can
+        # separate production from sandbox runs in the same tail.
+        record.setdefault("env", self.env.label)
+        with self._log_path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(record, default=str) + "\n")
 
     def _emit_neon(self, record: dict[str, Any]) -> None:
-        """Best-effort Neon audit. Never blocks or raises."""
+        """Best-effort Neon audit. Never blocks or raises.
+
+        Skipped entirely in sandbox mode — sandbox runs must not pollute
+        the production Neon audit trail.
+        """
+        if not self.env.is_production:
+            return
         try:
             from eos_ai.memory import AgentMemory
         except Exception:
@@ -791,9 +1034,9 @@ class ActionSystem:
     # ─── History ───────────────────────────────────────────────────────────
 
     def history(self, *, limit: int = 20) -> list[dict[str, Any]]:
-        if not LOG_PATH.exists():
+        if not self._log_path.exists():
             return []
-        lines = LOG_PATH.read_text().strip().splitlines()
+        lines = self._log_path.read_text().strip().splitlines()
         out: list[dict[str, Any]] = []
         for line in lines[-limit:]:
             try:
@@ -939,9 +1182,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.payload_string is not None:
             payload["content"] = args.payload_string
         else:
-            parser.error(
-                f"{args.cmd} requires --payload-file or --payload-string"
-            )
+            parser.error(f"{args.cmd} requires --payload-file or --payload-string")
             return 2
 
     if action_type == ActionType.RUN_SCRIPT:
@@ -983,11 +1224,16 @@ def main(argv: list[str] | None = None) -> int:
     result = system.execute(action, dry_run=dry_run, approve=approve)
 
     print(json.dumps(asdict(result), indent=2, default=str))
-    return 0 if result.status in (
-        ActionStatus.SUCCEEDED,
-        ActionStatus.SKIPPED_DRY_RUN,
-        ActionStatus.ROLLED_BACK,
-    ) else 1
+    return (
+        0
+        if result.status
+        in (
+            ActionStatus.SUCCEEDED,
+            ActionStatus.SKIPPED_DRY_RUN,
+            ActionStatus.ROLLED_BACK,
+        )
+        else 1
+    )
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@ path: eos_ai/doc_creator.py
 module: eos_ai.doc_creator
 lines: 371
 size: 9576
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/doc_creator.py

@@ -4,7 +4,7 @@ path: eos_ai/substrate/result_query.py
 module: eos_ai.substrate.result_query
 lines: 455
 size: 14682
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/result_query.py

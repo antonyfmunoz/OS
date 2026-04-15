@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/notion_seed.py
 line: 465
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # seed_goals

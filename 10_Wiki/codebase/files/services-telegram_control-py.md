@@ -5,7 +5,7 @@ module: services.telegram_control
 lines: 3148
 size: 118578
 tags: [critical]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # services/telegram_control.py

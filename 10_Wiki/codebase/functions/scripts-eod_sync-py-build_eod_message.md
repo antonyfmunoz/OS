@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/eod_sync.py
 line: 150
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # build_eod_message

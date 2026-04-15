@@ -5,7 +5,7 @@ module: scripts.substrate_ptt_binding_smoke_test
 lines: 178
 size: 6581
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_ptt_binding_smoke_test.py

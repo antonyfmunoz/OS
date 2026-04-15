@@ -4,7 +4,7 @@ path: eos_ai/business_instance.py
 module: eos_ai.business_instance
 lines: 490
 size: 19263
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/business_instance.py

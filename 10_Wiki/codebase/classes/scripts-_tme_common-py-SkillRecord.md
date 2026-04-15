@@ -2,7 +2,7 @@
 type: codebase-class
 file: scripts/_tme_common.py
 line: 60
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # SkillRecord

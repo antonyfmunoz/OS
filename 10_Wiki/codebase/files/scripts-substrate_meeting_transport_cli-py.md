@@ -5,7 +5,7 @@ module: scripts.substrate_meeting_transport_cli
 lines: 266
 size: 8192
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_meeting_transport_cli.py

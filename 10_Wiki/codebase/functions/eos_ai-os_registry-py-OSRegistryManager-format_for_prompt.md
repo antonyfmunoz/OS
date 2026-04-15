@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/os_registry.py
 line: 294
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # OSRegistryManager.format_for_prompt

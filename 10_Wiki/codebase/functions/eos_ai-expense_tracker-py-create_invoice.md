@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/expense_tracker.py
 line: 193
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # create_invoice

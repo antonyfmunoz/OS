@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: eos_ai/substrate/tts_sanitize.py
-line: 92
-generated: 2026-04-11
+line: 100
+generated: 2026-04-12
 ---
 
 # sanitize_tts_reply
 
-**File:** [[eos_ai-substrate-tts_sanitize-py]] | **Line:** 92
+**File:** [[eos_ai-substrate-tts_sanitize-py]] | **Line:** 100
 **Signature:** `sanitize_tts_reply(text) → str`
 
 Return the clean spoken body of `text`, stripping footer / meta noise.

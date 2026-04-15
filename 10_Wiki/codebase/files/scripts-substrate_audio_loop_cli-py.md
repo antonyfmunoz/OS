@@ -5,7 +5,7 @@ module: scripts.substrate_audio_loop_cli
 lines: 136
 size: 4184
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_audio_loop_cli.py

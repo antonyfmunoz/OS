@@ -4,7 +4,7 @@ path: eos_ai/substrate/operator_presence.py
 module: eos_ai.substrate.operator_presence
 lines: 120
 size: 4294
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/operator_presence.py

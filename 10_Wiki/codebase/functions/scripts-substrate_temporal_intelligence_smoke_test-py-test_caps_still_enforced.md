@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_temporal_intelligence_smoke_test.py
 line: 251
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # test_caps_still_enforced

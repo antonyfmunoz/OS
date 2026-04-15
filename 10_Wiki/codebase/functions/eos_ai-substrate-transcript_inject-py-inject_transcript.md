@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/transcript_inject.py
 line: 71
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # inject_transcript

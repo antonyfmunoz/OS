@@ -4,7 +4,7 @@ path: eos_ai/world_pulse.py
 module: eos_ai.world_pulse
 lines: 600
 size: 23188
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/world_pulse.py

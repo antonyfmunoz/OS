@@ -4,7 +4,7 @@ path: scripts/inbox_zero_init.py
 module: scripts.inbox_zero_init
 lines: 403
 size: 14783
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/inbox_zero_init.py

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/app_allowlist.py
 line: 65
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # resolve_app

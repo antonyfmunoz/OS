@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_router_claude_runtime_activation_smoke_test.py
 line: 86
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # main

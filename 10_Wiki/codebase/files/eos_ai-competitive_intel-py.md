@@ -4,7 +4,7 @@ path: eos_ai/competitive_intel.py
 module: eos_ai.competitive_intel
 lines: 149
 size: 4891
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/competitive_intel.py

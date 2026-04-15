@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/template_library.py
 line: 371
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # TemplateLibrary.get_stage_guidance

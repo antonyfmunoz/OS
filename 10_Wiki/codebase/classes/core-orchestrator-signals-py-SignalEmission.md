@@ -2,7 +2,7 @@
 type: codebase-class
 file: core/orchestrator/signals.py
 line: 80
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # SignalEmission

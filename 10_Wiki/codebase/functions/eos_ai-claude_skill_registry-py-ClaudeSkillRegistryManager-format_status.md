@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/claude_skill_registry.py
 line: 280
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # ClaudeSkillRegistryManager.format_status

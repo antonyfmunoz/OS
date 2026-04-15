@@ -4,7 +4,7 @@ path: core/action_system/deferred_status.py
 module: core.action_system.deferred_status
 lines: 242
 size: 7983
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/action_system/deferred_status.py

@@ -5,7 +5,7 @@ module: eos_ai.status
 lines: 330
 size: 11123
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/status.py

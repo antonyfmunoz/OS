@@ -5,7 +5,7 @@ module: scripts.codebase_graph
 lines: 1214
 size: 43803
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/codebase_graph.py

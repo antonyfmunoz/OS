@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_workflow_delegation_smoke_test.py
 line: 129
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # test_skill_tool_classification

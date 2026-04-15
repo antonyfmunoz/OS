@@ -4,7 +4,7 @@ path: core/action_system/deferred.py
 module: core.action_system.deferred
 lines: 97
 size: 3086
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/action_system/deferred.py

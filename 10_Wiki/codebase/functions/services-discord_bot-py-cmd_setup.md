@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: services/discord_bot.py
-line: 2384
-generated: 2026-04-11
+line: 2474
+generated: 2026-04-12
 ---
 
 # cmd_setup
 
-**File:** [[services-discord_bot-py]] | **Line:** 2384
+**File:** [[services-discord_bot-py]] | **Line:** 2474
 **Signature:** `cmd_setup(ctx)`
 
 Setup EOS Discord server structure. Founder only.

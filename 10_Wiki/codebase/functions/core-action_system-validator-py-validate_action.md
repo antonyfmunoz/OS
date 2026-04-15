@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/action_system/validator.py
 line: 59
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # validate_action

@@ -4,7 +4,7 @@ path: core/tool_mastery_author_agent/loader.py
 module: core.tool_mastery_author_agent.loader
 lines: 219
 size: 7867
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/tool_mastery_author_agent/loader.py

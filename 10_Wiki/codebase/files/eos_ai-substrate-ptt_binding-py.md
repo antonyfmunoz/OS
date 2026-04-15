@@ -4,7 +4,7 @@ path: eos_ai/substrate/ptt_binding.py
 module: eos_ai.substrate.ptt_binding
 lines: 382
 size: 14337
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/ptt_binding.py

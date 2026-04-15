@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/quality_gate.py
 line: 118
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # QualityTransformationGate.get_enhancement_prompt

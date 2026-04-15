@@ -2,7 +2,7 @@
 type: codebase-class
 file: core/tool_mastery_author_agent/reconcile.py
 line: 33
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # ReconcilePlan

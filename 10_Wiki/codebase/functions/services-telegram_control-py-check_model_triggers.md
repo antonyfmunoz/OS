@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/telegram_control.py
 line: 2205
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # check_model_triggers

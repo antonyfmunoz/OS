@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/claude_session_bridge.py
 line: 585
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # send_message
@@ -24,3 +24,5 @@ Inject text into a tmux session's active pane (followed by Enter).
 ## Called By
 
 - [[eos_ai-substrate-claude_session_bridge-py-ask_session]]
+- [[eos_ai-substrate-session_watcher-py-SessionWatcher-send_response]]
+- [[eos_ai-substrate-session_watcher-py-ask_session_watched]]

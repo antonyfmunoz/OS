@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/session_control.py
 line: 92
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # clear_session

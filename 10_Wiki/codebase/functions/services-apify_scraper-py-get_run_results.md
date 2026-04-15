@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/apify_scraper.py
 line: 277
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # get_run_results

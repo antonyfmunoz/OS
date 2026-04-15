@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/harness_registry.py
 line: 288
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # HarnessRegistryManager.format_status

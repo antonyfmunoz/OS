@@ -5,7 +5,7 @@ module: scripts.tool_mastery_manager
 lines: 216
 size: 8074
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/tool_mastery_manager.py

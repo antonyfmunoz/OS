@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/research_engine.py
 line: 602
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # ResearchEngine.run_domain_update_cycle

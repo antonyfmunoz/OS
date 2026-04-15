@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/orchestrator/signals.py
 line: 146
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # get_handlers

@@ -4,7 +4,7 @@ path: eos_ai/substrate/meeting_transport.py
 module: eos_ai.substrate.meeting_transport
 lines: 1012
 size: 38606
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/meeting_transport.py

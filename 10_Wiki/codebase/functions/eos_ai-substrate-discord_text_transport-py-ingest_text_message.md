@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/discord_text_transport.py
 line: 284
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # ingest_text_message

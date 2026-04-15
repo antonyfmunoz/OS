@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/action_system/deferred_status.py
 line: 112
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # is_stale

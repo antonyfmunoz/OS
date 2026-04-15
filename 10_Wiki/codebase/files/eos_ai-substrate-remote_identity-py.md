@@ -4,7 +4,7 @@ path: eos_ai/substrate/remote_identity.py
 module: eos_ai.substrate.remote_identity
 lines: 81
 size: 2331
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/remote_identity.py

@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_session_orchestration_cli.py
 line: 142
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # main

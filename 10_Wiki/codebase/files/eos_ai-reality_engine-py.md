@@ -4,7 +4,7 @@ path: eos_ai/reality_engine.py
 module: eos_ai.reality_engine
 lines: 588
 size: 24465
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/reality_engine.py

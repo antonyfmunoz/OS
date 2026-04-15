@@ -5,7 +5,7 @@ module: eos_ai.integration_test
 lines: 257
 size: 10132
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/integration_test.py

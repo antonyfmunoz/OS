@@ -1,0 +1,106 @@
+{
+  "id": "wf-research-06f23d67",
+  "name": "research",
+  "goal": "How does the cognition stack work?",
+  "status": "dry_run",
+  "result": {
+    "final": {},
+    "steps": {
+      "scan": "skipped",
+      "summarize": "skipped",
+      "confidence": "skipped"
+    }
+  },
+  "created_at": "2026-04-11T03:24:44.209954+00:00",
+  "finished_at": null,
+  "steps": [
+    {
+      "id": "scan",
+      "type": "research",
+      "input": {
+        "prompt": "Research this question: How does the cognition stack work?",
+        "graph_search": "How"
+      },
+      "dependencies": [],
+      "assigned_agent": "researcher",
+      "status": "skipped",
+      "output": {
+        "dry_run": true,
+        "agent": "researcher",
+        "would_run": "research",
+        "prompt_preview": "Research this question: How does the cognition stack work?",
+        "input": {
+          "prompt": "Research this question: How does the cognition stack work?",
+          "graph_search": "How"
+        }
+      },
+      "attempts": 1,
+      "max_attempts": 2,
+      "error": null,
+      "started_at": "2026-04-11T03:24:44.211457+00:00",
+      "finished_at": "2026-04-11T03:24:44.211563+00:00"
+    },
+    {
+      "id": "summarize",
+      "type": "research",
+      "input": {
+        "prompt": "Given this prior research, write a 5-bullet summary.\n\nPrior research: {scan.summary}\nGraph hits: {scan.graph_hits}"
+      },
+      "dependencies": [
+        "scan"
+      ],
+      "assigned_agent": "researcher",
+      "status": "skipped",
+      "output": {
+        "dry_run": true,
+        "agent": "researcher",
+        "would_run": "research",
+        "prompt_preview": "Given this prior research, write a 5-bullet summary.\n\nPrior research: {scan.summary}\nGraph hits: {scan.graph_hits}",
+        "input": {
+          "prompt": "Given this prior research, write a 5-bullet summary.\n\nPrior research: {scan.summary}\nGraph hits: {scan.graph_hits}"
+        }
+      },
+      "attempts": 1,
+      "max_attempts": 2,
+      "error": null,
+      "started_at": "2026-04-11T03:24:44.211971+00:00",
+      "finished_at": "2026-04-11T03:24:44.212401+00:00"
+    },
+    {
+      "id": "confidence",
+      "type": "decision",
+      "input": {
+        "prompt": "Rate your confidence in the following summary.\n\nSummary: {summarize.summary}",
+        "choices": [
+          "high",
+          "medium",
+          "low"
+        ]
+      },
+      "dependencies": [
+        "summarize"
+      ],
+      "assigned_agent": "researcher",
+      "status": "skipped",
+      "output": {
+        "dry_run": true,
+        "agent": "researcher",
+        "would_run": "decision",
+        "prompt_preview": "Rate your confidence in the following summary.\n\nSummary: {summarize.summary}",
+        "input": {
+          "prompt": "Rate your confidence in the following summary.\n\nSummary: {summarize.summary}",
+          "choices": [
+            "high",
+            "medium",
+            "low"
+          ]
+        }
+      },
+      "attempts": 1,
+      "max_attempts": 2,
+      "error": null,
+      "started_at": "2026-04-11T03:24:44.212862+00:00",
+      "finished_at": "2026-04-11T03:24:44.212943+00:00"
+    }
+  ]
+}

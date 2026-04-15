@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/agent_hierarchy.py
 line: 348
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # AgentHierarchy.format_for_prompt

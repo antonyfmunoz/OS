@@ -4,7 +4,7 @@ path: eos_ai/person_recognition.py
 module: eos_ai.person_recognition
 lines: 614
 size: 24177
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/person_recognition.py

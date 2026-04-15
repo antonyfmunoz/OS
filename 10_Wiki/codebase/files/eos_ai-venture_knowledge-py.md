@@ -4,7 +4,7 @@ path: eos_ai/venture_knowledge.py
 module: eos_ai.venture_knowledge
 lines: 377
 size: 20691
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/venture_knowledge.py

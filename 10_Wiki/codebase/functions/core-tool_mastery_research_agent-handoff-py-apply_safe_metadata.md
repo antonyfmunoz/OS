@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_research_agent/handoff.py
 line: 73
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # apply_safe_metadata

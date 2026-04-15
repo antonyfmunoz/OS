@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/meeting_intelligence.py
 line: 374
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # reset_meeting_summary_store_for_tests

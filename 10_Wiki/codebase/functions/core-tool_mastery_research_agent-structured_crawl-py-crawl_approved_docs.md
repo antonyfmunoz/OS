@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_research_agent/structured_crawl.py
 line: 243
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # crawl_approved_docs

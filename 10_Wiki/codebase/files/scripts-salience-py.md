@@ -4,7 +4,7 @@ path: scripts/salience.py
 module: scripts.salience
 lines: 595
 size: 21972
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/salience.py

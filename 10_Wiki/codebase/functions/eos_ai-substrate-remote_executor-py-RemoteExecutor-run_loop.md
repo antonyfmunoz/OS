@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/remote_executor.py
 line: 164
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # RemoteExecutor.run_loop

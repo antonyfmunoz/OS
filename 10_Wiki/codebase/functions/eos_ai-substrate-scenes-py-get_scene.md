@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/scenes.py
 line: 75
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # get_scene

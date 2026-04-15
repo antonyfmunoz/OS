@@ -4,7 +4,7 @@ path: eos_ai/substrate/remote_executor.py
 module: eos_ai.substrate.remote_executor
 lines: 217
 size: 8076
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/remote_executor.py

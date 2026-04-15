@@ -5,7 +5,7 @@ module: scripts.substrate_stt_workstation_readiness_smoke_test
 lines: 253
 size: 9113
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_stt_workstation_readiness_smoke_test.py

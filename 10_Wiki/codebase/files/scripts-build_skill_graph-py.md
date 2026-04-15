@@ -5,7 +5,7 @@ module: scripts.build_skill_graph
 lines: 217
 size: 7118
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/build_skill_graph.py

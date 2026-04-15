@@ -4,7 +4,7 @@ path: eos_ai/substrate/actions.py
 module: eos_ai.substrate.actions
 lines: 119
 size: 4241
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/actions.py

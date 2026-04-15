@@ -4,7 +4,7 @@ path: eos_ai/substrate/audio_loop.py
 module: eos_ai.substrate.audio_loop
 lines: 613
 size: 21219
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/audio_loop.py

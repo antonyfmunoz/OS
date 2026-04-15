@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/skill_improvement.py
 line: 423
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # SkillImprovementEngine.run_self_organization_cycle

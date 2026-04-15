@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/document_filer.py
 line: 32
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # classify_document

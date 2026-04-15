@@ -4,7 +4,7 @@ path: eos_ai/substrate/role_resolver.py
 module: eos_ai.substrate.role_resolver
 lines: 75
 size: 2605
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/role_resolver.py

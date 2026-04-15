@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/role_resolver.py
 line: 72
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # all_mappings

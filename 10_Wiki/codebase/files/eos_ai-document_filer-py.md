@@ -4,7 +4,7 @@ path: eos_ai/document_filer.py
 module: eos_ai.document_filer
 lines: 143
 size: 4163
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/document_filer.py

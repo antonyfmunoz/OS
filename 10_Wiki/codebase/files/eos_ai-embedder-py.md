@@ -4,7 +4,7 @@ path: eos_ai/embedder.py
 module: eos_ai.embedder
 lines: 70
 size: 1997
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/embedder.py

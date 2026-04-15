@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/task_executor.py
 line: 62
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # TaskExecutor

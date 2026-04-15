@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/self_awareness.py
 line: 169
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # SelfAwarenessEngine

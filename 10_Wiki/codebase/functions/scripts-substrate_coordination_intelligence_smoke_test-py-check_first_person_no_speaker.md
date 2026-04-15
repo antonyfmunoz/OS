@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_coordination_intelligence_smoke_test.py
 line: 69
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # check_first_person_no_speaker

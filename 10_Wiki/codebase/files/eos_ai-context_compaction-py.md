@@ -4,7 +4,7 @@ path: eos_ai/context_compaction.py
 module: eos_ai.context_compaction
 lines: 224
 size: 8955
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/context_compaction.py

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/storage.py
 line: 47
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # SubstrateStorage.all_keys

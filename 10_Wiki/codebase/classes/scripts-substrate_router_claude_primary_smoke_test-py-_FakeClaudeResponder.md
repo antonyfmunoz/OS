@@ -2,7 +2,7 @@
 type: codebase-class
 file: scripts/substrate_router_claude_primary_smoke_test.py
 line: 46
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # _FakeClaudeResponder

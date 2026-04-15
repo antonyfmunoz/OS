@@ -4,7 +4,7 @@ path: eos_ai/pattern_engine.py
 module: eos_ai.pattern_engine
 lines: 206
 size: 8364
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/pattern_engine.py

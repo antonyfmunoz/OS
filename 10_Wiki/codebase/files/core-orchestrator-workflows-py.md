@@ -4,7 +4,7 @@ path: core/orchestrator/workflows.py
 module: core.orchestrator.workflows
 lines: 125
 size: 4800
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/orchestrator/workflows.py

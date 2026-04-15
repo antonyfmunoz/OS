@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/principle_engine.py
 line: 410
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # PrincipleEngine.format_for_prompt

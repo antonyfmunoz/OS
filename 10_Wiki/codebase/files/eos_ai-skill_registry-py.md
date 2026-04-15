@@ -4,7 +4,7 @@ path: eos_ai/skill_registry.py
 module: eos_ai.skill_registry
 lines: 255
 size: 10376
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/skill_registry.py

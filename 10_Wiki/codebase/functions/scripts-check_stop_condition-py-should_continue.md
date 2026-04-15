@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/check_stop_condition.py
 line: 22
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # should_continue

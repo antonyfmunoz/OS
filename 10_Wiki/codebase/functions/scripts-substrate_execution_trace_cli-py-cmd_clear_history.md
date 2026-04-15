@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_execution_trace_cli.py
 line: 77
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # cmd_clear_history

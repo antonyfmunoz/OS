@@ -5,7 +5,7 @@ module: scripts.query_graph
 lines: 328
 size: 13234
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/query_graph.py
@@ -23,6 +23,7 @@ opening source files. Use this BEFORE grepping or reading implementations.
 
 ## Used By
 
+- [[scripts-action_system-py]]
 - [[scripts-build_palace-py]]
 - [[scripts-session_bootstrap-py]]
 

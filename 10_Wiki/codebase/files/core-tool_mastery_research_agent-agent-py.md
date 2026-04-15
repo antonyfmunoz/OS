@@ -4,7 +4,7 @@ path: core/tool_mastery_research_agent/agent.py
 module: core.tool_mastery_research_agent.agent
 lines: 199
 size: 6767
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/tool_mastery_research_agent/agent.py

@@ -2,7 +2,7 @@
 type: codebase-class
 file: core/tool_mastery_author_agent/loader.py
 line: 96
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # RawCapture

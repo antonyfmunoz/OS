@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/knowledge_integrator.py
 line: 160
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # KnowledgeIntegrator.integrate_search_result

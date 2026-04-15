@@ -5,7 +5,7 @@ module: scripts.substrate_execution_linkage_smoke_test
 lines: 234
 size: 7524
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_execution_linkage_smoke_test.py

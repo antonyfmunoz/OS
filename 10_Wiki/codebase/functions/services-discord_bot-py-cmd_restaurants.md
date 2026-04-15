@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: services/discord_bot.py
-line: 3902
-generated: 2026-04-11
+line: 3992
+generated: 2026-04-12
 ---
 
 # cmd_restaurants
 
-**File:** [[services-discord_bot-py]] | **Line:** 3902
+**File:** [[services-discord_bot-py]] | **Line:** 3992
 **Signature:** `cmd_restaurants(ctx)`
 
 Research restaurants. Usage: !restaurants [city] | [occasion] | [budget]

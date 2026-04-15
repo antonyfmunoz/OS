@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_manager/ensure.py
 line: 118
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # ensure_mastery

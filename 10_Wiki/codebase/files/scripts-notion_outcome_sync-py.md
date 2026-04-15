@@ -5,7 +5,7 @@ module: scripts.notion_outcome_sync
 lines: 197
 size: 5751
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/notion_outcome_sync.py

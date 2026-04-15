@@ -5,7 +5,7 @@ module: scripts.notion_seed
 lines: 506
 size: 16612
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/notion_seed.py

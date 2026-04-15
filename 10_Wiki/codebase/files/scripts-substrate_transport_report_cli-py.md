@@ -5,7 +5,7 @@ module: scripts.substrate_transport_report_cli
 lines: 150
 size: 4677
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_transport_report_cli.py

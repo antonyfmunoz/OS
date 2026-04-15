@@ -4,7 +4,7 @@ path: core/tool_mastery_research_agent/headless_fetcher.py
 module: core.tool_mastery_research_agent.headless_fetcher
 lines: 367
 size: 13508
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/tool_mastery_research_agent/headless_fetcher.py

@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_temporal_intelligence_smoke_test.py
 line: 91
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # test_follow_up_prioritizes_stale

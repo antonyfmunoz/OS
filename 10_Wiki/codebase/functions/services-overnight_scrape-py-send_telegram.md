@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/overnight_scrape.py
 line: 22
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # send_telegram

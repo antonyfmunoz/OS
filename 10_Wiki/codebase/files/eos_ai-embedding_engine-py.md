@@ -4,7 +4,7 @@ path: eos_ai/embedding_engine.py
 module: eos_ai.embedding_engine
 lines: 416
 size: 15339
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/embedding_engine.py

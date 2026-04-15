@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/notion_tasks_sync.py
 line: 115
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # write_to_neon

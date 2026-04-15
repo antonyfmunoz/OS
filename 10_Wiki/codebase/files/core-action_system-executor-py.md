@@ -4,7 +4,7 @@ path: core/action_system/executor.py
 module: core.action_system.executor
 lines: 114
 size: 3857
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/action_system/executor.py

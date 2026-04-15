@@ -4,7 +4,7 @@ path: eos_ai/substrate/discord_text_transport.py
 module: eos_ai.substrate.discord_text_transport
 lines: 1674
 size: 62037
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/discord_text_transport.py

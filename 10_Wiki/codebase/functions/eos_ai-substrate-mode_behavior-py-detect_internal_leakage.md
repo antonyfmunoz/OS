@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/mode_behavior.py
 line: 241
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # detect_internal_leakage

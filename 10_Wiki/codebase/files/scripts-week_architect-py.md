@@ -5,7 +5,7 @@ module: scripts.week_architect
 lines: 118
 size: 3447
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/week_architect.py

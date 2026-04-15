@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/substrate/audio_loop.py
 line: 131
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # AudioLoopState

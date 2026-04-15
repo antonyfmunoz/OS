@@ -5,7 +5,7 @@ module: scripts.notion_cleanup
 lines: 569
 size: 19331
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/notion_cleanup.py

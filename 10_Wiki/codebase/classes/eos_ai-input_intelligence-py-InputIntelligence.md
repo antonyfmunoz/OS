@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/input_intelligence.py
 line: 103
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # InputIntelligence

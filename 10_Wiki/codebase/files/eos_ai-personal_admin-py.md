@@ -4,7 +4,7 @@ path: eos_ai/personal_admin.py
 module: eos_ai.personal_admin
 lines: 142
 size: 4675
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/personal_admin.py

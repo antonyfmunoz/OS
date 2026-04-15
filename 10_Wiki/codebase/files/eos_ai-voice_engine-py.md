@@ -4,7 +4,7 @@ path: eos_ai/voice_engine.py
 module: eos_ai.voice_engine
 lines: 631
 size: 25146
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/voice_engine.py

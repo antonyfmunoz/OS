@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/channel.py
 line: 389
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # ChannelRouter.notify

@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/notion_tasks_sync.py
 line: 51
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # query_database

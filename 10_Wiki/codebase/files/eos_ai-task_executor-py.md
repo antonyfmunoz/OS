@@ -4,7 +4,7 @@ path: eos_ai/task_executor.py
 module: eos_ai.task_executor
 lines: 282
 size: 10177
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/task_executor.py

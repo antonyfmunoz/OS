@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/action_system/tme.py
 line: 57
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # ensure_tool_mastery

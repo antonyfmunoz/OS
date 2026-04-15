@@ -5,7 +5,7 @@ module: scripts.bis_context
 lines: 88
 size: 2422
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/bis_context.py

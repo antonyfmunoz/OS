@@ -5,7 +5,7 @@ module: scripts.session_bootstrap
 lines: 161
 size: 5039
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/session_bootstrap.py

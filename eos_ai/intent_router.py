@@ -17,13 +17,13 @@ from eos_ai.context import EOSContext
 
 
 class IntentDomain(Enum):
-    PORTFOLIO = 'portfolio'
-    CEO       = 'ceo'
-    EA        = 'ea'
-    OUTREACH  = 'outreach'
-    CONTENT   = 'content'
-    RESEARCH  = 'research'
-    GENERAL   = 'general'
+    PORTFOLIO = "portfolio"
+    CEO = "ceo"
+    EA = "ea"
+    OUTREACH = "outreach"
+    CONTENT = "content"
+    RESEARCH = "research"
+    GENERAL = "general"
 
 
 class IntentRouter:
@@ -36,59 +36,115 @@ class IntentRouter:
         self.ctx = ctx
 
     PORTFOLIO_SIGNALS = [
-        'portfolio', 'all companies',
-        'all ventures', 'overall',
-        'empire', 'holdings',
-        'which company', 'compare',
-        'allocation', 'north star',
-        'across my', 'all three',
+        "portfolio",
+        "all companies",
+        "all ventures",
+        "overall",
+        "empire",
+        "holdings",
+        "which company",
+        "compare",
+        "allocation",
+        "north star",
+        "across my",
+        "all three",
+    ]
+
+    # Conversational / greeting patterns — must match before CEO to prevent
+    # casual questions like "hey DEX what are we building today?" from
+    # escalating to CEO agent.
+    CONVERSATION_SIGNALS = [
+        "hey dex",
+        "hi dex",
+        "yo dex",
+        "what's up",
+        "how are you",
+        "what are we",
+        "what do we",
+        "good morning",
+        "good afternoon",
+        "what's going on",
+        "talk to me",
+        "hey there",
+        "sup",
     ]
 
     CEO_SIGNALS = [
-        'lyfe institute', 'empyrean',
-        'personal brand', 'revenue',
-        'clients', 'stage', 'strategy',
-        'focus', 'binding constraint',
-        'priority', 'what should i',
-        'today', 'this week',
-        'performance', 'business',
+        "lyfe institute",
+        "empyrean",
+        "personal brand",
+        "revenue",
+        "clients",
+        "stage",
+        "strategy",
+        "focus",
+        "binding constraint",
+        "priority",
+        "what should i",
+        "performance",
+        "business",
     ]
 
     EA_SIGNALS = [
-        'email', 'inbox', 'calendar',
-        'schedule', 'meeting', 'call',
-        'book', 'block time', 'remind',
-        'draft', 'respond to',
-        'sync', 'daily sync',
-        'follow up',
+        "email",
+        "inbox",
+        "calendar",
+        "schedule",
+        "meeting",
+        "call",
+        "book",
+        "block time",
+        "remind",
+        "draft",
+        "respond to",
+        "sync",
+        "daily sync",
+        "follow up",
     ]
 
     OUTREACH_SIGNALS = [
-        'dm', 'outreach', 'lead',
-        'prospect', 'send message',
-        'instagram', 'pipeline',
-        'follow up with',
-        'message them',
+        "dm",
+        "outreach",
+        "lead",
+        "prospect",
+        "send message",
+        "instagram",
+        "pipeline",
+        "follow up with",
+        "message them",
     ]
 
     CONTENT_SIGNALS = [
-        'post', 'content', 'caption',
-        'video', 'reel', 'story',
-        'publish', 'create content',
-        'write a',
+        "post",
+        "content",
+        "caption",
+        "video",
+        "reel",
+        "story",
+        "publish",
+        "create content",
+        "write a",
     ]
 
     RESEARCH_SIGNALS = [
-        'research', 'find out',
-        'look up', 'competitor',
-        'market', 'analyze',
-        'who is', 'what is',
-        'search for',
+        "research",
+        "find out",
+        "look up",
+        "competitor",
+        "market",
+        "analyze",
+        "who is",
+        "what is",
+        "search for",
     ]
 
     def route(self, text: str) -> IntentDomain:
         """Classify text into the most specific matching domain."""
         t = text.lower()
+
+        # Conversational greetings → EA before anything else
+        if any(s in t for s in self.CONVERSATION_SIGNALS):
+            return IntentDomain.EA
 
         if any(s in t for s in self.PORTFOLIO_SIGNALS):
             return IntentDomain.PORTFOLIO
@@ -107,11 +163,11 @@ class IntentRouter:
     def get_agent(self, domain: IntentDomain) -> str:
         """Map domain to canonical agent_id."""
         return {
-            IntentDomain.PORTFOLIO: 'portfolio_agent',
-            IntentDomain.CEO:       'ceo_agent',
-            IntentDomain.EA:        'executive_assistant',
-            IntentDomain.OUTREACH:  'outreach_agent',
-            IntentDomain.CONTENT:   'content_agent',
-            IntentDomain.RESEARCH:  'research_agent',
-            IntentDomain.GENERAL:   'executive_assistant',
-        }.get(domain, 'executive_assistant')
+            IntentDomain.PORTFOLIO: "portfolio_agent",
+            IntentDomain.CEO: "ceo_agent",
+            IntentDomain.EA: "executive_assistant",
+            IntentDomain.OUTREACH: "outreach_agent",
+            IntentDomain.CONTENT: "content_agent",
+            IntentDomain.RESEARCH: "research_agent",
+            IntentDomain.GENERAL: "executive_assistant",
+        }.get(domain, "executive_assistant")

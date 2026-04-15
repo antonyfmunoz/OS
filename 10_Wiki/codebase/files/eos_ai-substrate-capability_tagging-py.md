@@ -4,7 +4,7 @@ path: eos_ai/substrate/capability_tagging.py
 module: eos_ai.substrate.capability_tagging
 lines: 134
 size: 4930
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/capability_tagging.py

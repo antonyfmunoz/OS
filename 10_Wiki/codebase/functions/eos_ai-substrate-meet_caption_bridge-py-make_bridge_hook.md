@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/meet_caption_bridge.py
 line: 470
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # make_bridge_hook

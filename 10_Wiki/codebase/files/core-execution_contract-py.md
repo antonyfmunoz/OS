@@ -4,7 +4,7 @@ path: core/execution_contract.py
 module: core.execution_contract
 lines: 385
 size: 13347
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/execution_contract.py

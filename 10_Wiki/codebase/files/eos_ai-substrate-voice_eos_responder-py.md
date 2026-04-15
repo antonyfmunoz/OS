@@ -4,7 +4,7 @@ path: eos_ai/substrate/voice_eos_responder.py
 module: eos_ai.substrate.voice_eos_responder
 lines: 339
 size: 12247
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/voice_eos_responder.py

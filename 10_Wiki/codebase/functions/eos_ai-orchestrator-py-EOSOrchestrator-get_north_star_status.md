@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/orchestrator.py
 line: 1253
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # EOSOrchestrator.get_north_star_status

@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/wiki_session_start_hook.py
 line: 17
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # main

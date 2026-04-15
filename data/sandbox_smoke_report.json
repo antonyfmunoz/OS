@@ -1,0 +1,48 @@
+{
+  "kind": "sandbox_smoke",
+  "duration_s": 11.852,
+  "total": 8,
+  "passed": 8,
+  "steps": [
+    {
+      "name": "write file lands in sandbox workspace",
+      "ok": "yes",
+      "detail": "sbx_exists=True prod_exists=False"
+    },
+    {
+      "name": "CoW edit: prod unchanged, sandbox copy stubbed",
+      "ok": "yes",
+      "detail": "prod_changed=False sbx_copy_ok=True"
+    },
+    {
+      "name": "workflow logs stay in sandbox",
+      "ok": "yes",
+      "detail": "prod_delta=0 sbx_log_size=2153"
+    },
+    {
+      "name": "orchestrator tick leaves prod log alone",
+      "ok": "yes",
+      "detail": "rc=0 prod_delta=0"
+    },
+    {
+      "name": "observability shows sandbox via env_root",
+      "ok": "yes",
+      "detail": "sbx_visible=True leaked_to_prod_filter=False"
+    },
+    {
+      "name": "sandbox_runs enumerates smoke-obs",
+      "ok": "yes",
+      "detail": "found=1"
+    },
+    {
+      "name": "playground context manager cleans up",
+      "ok": "yes",
+      "detail": "root_existed_before=True root_exists_after=False"
+    },
+    {
+      "name": "adversarial safety verifier passes (10/10)",
+      "ok": "yes",
+      "detail": ""
+    }
+  ]
+}

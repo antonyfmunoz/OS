@@ -5,7 +5,7 @@ module: scripts.substrate_drain_station
 lines: 104
 size: 3570
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_drain_station.py

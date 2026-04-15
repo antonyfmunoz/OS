@@ -5,7 +5,7 @@ module: eos_ai.system_health
 lines: 436
 size: 13972
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/system_health.py

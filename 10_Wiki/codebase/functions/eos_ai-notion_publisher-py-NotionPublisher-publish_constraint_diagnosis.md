@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/notion_publisher.py
 line: 354
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # NotionPublisher.publish_constraint_diagnosis

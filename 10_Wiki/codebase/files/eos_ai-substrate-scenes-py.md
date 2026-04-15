@@ -4,7 +4,7 @@ path: eos_ai/substrate/scenes.py
 module: eos_ai.substrate.scenes
 lines: 81
 size: 2761
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/scenes.py

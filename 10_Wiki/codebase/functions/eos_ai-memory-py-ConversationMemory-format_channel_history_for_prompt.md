@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/memory.py
 line: 927
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # ConversationMemory.format_channel_history_for_prompt

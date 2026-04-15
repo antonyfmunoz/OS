@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/check_skill_staleness.py
 line: 136
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # main

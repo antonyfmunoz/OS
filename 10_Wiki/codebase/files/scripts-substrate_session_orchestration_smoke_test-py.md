@@ -5,7 +5,7 @@ module: scripts.substrate_session_orchestration_smoke_test
 lines: 369
 size: 10873
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_session_orchestration_smoke_test.py

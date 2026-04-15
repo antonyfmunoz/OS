@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/email_reviewer.py
 line: 35
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # EmailReviewer.__init__

@@ -4,7 +4,7 @@ path: eos_ai/stage_manager.py
 module: eos_ai.stage_manager
 lines: 297
 size: 10719
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/stage_manager.py

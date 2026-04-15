@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/evolution_engine.py
 line: 270
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # EvolutionEngine.analyze_system_performance

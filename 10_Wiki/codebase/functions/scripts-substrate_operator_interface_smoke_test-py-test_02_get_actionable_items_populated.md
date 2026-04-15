@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_operator_interface_smoke_test.py
 line: 106
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # test_02_get_actionable_items_populated

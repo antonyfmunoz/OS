@@ -5,7 +5,7 @@ module: scripts.verify_knowledge_system
 lines: 353
 size: 11870
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/verify_knowledge_system.py

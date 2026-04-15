@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/personal_admin.py
 line: 17
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # add_important_date

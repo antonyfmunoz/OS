@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_research_agent/candidate_approval.py
 line: 53
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # CandidateRecord.from_candidate

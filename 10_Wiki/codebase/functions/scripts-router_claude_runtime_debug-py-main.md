@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/router_claude_runtime_debug.py
 line: 25
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # main

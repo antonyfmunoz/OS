@@ -5,7 +5,7 @@ module: scripts.substrate_wake_producer_cli
 lines: 110
 size: 3048
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_wake_producer_cli.py

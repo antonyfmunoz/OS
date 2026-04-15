@@ -4,7 +4,7 @@ path: eos_ai/task_yield_matrix.py
 module: eos_ai.task_yield_matrix
 lines: 176
 size: 6209
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/task_yield_matrix.py

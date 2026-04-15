@@ -4,7 +4,7 @@ path: eos_ai/user_model.py
 module: eos_ai.user_model
 lines: 460
 size: 19062
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/user_model.py

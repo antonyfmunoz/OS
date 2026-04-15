@@ -5,7 +5,7 @@ module: scripts.substrate_claude_session_cli
 lines: 171
 size: 5362
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_claude_session_cli.py

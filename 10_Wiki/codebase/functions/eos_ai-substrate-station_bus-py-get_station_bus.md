@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/station_bus.py
 line: 178
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # get_station_bus

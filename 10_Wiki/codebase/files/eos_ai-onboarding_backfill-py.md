@@ -4,7 +4,7 @@ path: eos_ai/onboarding_backfill.py
 module: eos_ai.onboarding_backfill
 lines: 339
 size: 13497
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/onboarding_backfill.py

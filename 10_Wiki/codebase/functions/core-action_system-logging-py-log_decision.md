@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/action_system/logging.py
 line: 49
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # log_decision
@@ -23,3 +23,4 @@ Append a decision record capturing WHY an action was (or was not) taken.
 - [[core-orchestrator-loop-py-_scan_stale_deferred]]
 - [[core-orchestrator-orchestrator-py-Orchestrator-run_workflow]]
 - [[core-orchestrator-pipeline-py-run_pipeline]]
+- [[scripts-force_execution_loop-py-main]]

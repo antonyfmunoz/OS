@@ -4,7 +4,7 @@ path: core/action_system/notifier.py
 module: core.action_system.notifier
 lines: 120
 size: 4304
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/action_system/notifier.py

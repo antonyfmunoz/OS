@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/audio_loop.py
 line: 119
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # TranscriptEntry.from_dict

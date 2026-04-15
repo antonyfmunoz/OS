@@ -5,7 +5,7 @@ module: scripts.substrate_stt_producer_smoke_test
 lines: 259
 size: 9270
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_stt_producer_smoke_test.py

@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/session_bootstrap.py
 line: 68
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # print_compact

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/discord_voice_transport.py
 line: 697
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # reset_default_discord_voice_transports_for_tests

@@ -4,7 +4,7 @@ path: eos_ai/human_intelligence.py
 module: eos_ai.human_intelligence
 lines: 714
 size: 32473
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/human_intelligence.py

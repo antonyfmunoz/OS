@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_operator_interface_smoke_test.py
 line: 265
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # test_14_cli_subcommands_execute

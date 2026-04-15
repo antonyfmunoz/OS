@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/eod_closing_loop.py
 line: 37
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # EODClosingLoop.__init__

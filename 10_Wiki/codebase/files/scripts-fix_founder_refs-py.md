@@ -4,7 +4,7 @@ path: scripts/fix_founder_refs.py
 module: scripts.fix_founder_refs
 lines: 52
 size: 2045
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/fix_founder_refs.py

@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/memory_neon.py
 line: 548
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # ensure_indexes

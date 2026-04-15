@@ -2,7 +2,7 @@
 type: codebase-class
 file: scripts/substrate_discord_voice_transport_cli.py
 line: 105
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # _FakeVoiceClient

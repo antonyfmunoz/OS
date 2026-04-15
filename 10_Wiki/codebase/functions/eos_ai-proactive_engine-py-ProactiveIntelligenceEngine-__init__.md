@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/proactive_engine.py
 line: 84
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # ProactiveIntelligenceEngine.__init__

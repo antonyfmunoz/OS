@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/portfolio_advisor.py
 line: 641
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # PortfolioAdvisor.identify_binding_constraint

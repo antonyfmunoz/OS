@@ -5,7 +5,7 @@ module: scripts.control_plane_run
 lines: 105
 size: 3401
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/control_plane_run.py

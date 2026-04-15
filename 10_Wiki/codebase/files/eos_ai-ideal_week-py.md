@@ -4,7 +4,7 @@ path: eos_ai/ideal_week.py
 module: eos_ai.ideal_week
 lines: 264
 size: 8728
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/ideal_week.py

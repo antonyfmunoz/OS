@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_author_agent/loader.py
 line: 49
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # sanitize_text

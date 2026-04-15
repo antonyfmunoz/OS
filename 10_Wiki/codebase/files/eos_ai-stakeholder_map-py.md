@@ -4,7 +4,7 @@ path: eos_ai/stakeholder_map.py
 module: eos_ai.stakeholder_map
 lines: 251
 size: 7900
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/stakeholder_map.py

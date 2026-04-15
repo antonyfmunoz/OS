@@ -5,7 +5,7 @@ module: scripts.discord_setup_channels
 lines: 195
 size: 6249
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/discord_setup_channels.py

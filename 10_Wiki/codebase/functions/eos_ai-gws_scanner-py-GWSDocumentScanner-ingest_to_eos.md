@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/gws_scanner.py
 line: 394
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # GWSDocumentScanner.ingest_to_eos

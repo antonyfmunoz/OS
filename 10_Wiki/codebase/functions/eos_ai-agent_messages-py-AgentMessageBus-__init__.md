@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/agent_messages.py
 line: 63
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # AgentMessageBus.__init__

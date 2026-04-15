@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/ceo_agent.py
 line: 268
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # CEOAgent.check_and_evolve

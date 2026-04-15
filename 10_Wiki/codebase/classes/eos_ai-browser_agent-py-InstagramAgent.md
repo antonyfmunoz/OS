@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/browser_agent.py
 line: 478
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # InstagramAgent

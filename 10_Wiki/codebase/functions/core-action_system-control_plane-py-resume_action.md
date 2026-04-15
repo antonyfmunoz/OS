@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/action_system/control_plane.py
 line: 221
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # resume_action

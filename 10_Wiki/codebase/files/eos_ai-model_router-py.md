@@ -2,10 +2,10 @@
 type: codebase-file
 path: eos_ai/model_router.py
 module: eos_ai.model_router
-lines: 1109
-size: 40289
+lines: 1116
+size: 40671
 tags: [critical]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/model_router.py
@@ -19,7 +19,7 @@ across Anthropic, Perplexity, Groq, Gemini, and Ollama.
 
 ...
 
-**Lines:** 1109 | **Size:** 40,289 bytes
+**Lines:** 1116 | **Size:** 40,671 bytes
 
 ## Depends On
 

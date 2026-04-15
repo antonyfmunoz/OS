@@ -4,7 +4,7 @@ path: eos_ai/substrate/execution_trace.py
 module: eos_ai.substrate.execution_trace
 lines: 301
 size: 9445
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/execution_trace.py

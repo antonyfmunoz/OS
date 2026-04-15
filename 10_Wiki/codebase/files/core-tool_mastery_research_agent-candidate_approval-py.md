@@ -4,7 +4,7 @@ path: core/tool_mastery_research_agent/candidate_approval.py
 module: core.tool_mastery_research_agent.candidate_approval
 lines: 272
 size: 9037
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/tool_mastery_research_agent/candidate_approval.py

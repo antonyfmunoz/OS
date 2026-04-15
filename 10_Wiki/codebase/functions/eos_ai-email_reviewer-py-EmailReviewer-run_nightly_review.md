@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/email_reviewer.py
 line: 38
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # EmailReviewer.run_nightly_review

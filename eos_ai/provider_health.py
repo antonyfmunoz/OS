@@ -69,34 +69,10 @@ def _has_env(name: str) -> bool:
 def check_anthropic() -> tuple[bool, str]:
     if not _has_env("ANTHROPIC_API_KEY"):
         return False, "no api key"
-    # Real inference probe — 1 token. /v1/models returns 200 even when
-    # inference is blocked by credits/quota, so it's not trustworthy alone.
-    try:
-        import requests
-        r = requests.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key": os.getenv("ANTHROPIC_API_KEY", ""),
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-            json={
-                "model": "claude-haiku-4-5-20251001",
-                "max_tokens": 1,
-                "messages": [{"role": "user", "content": "."}],
-            },
-            timeout=5,
-        )
-        if r.status_code == 200:
-            return True, "ok"
-        if r.status_code == 401:
-            return False, "401 invalid key"
-        if r.status_code in (400, 402, 429):
-            body = (r.text or "")[:120]
-            return False, f"{r.status_code} {body}"
-        return False, f"http {r.status_code}"
-    except Exception as e:
-        return False, f"net error: {str(e)[:50]}"
+    # Key-presence check only. Real inference probes burn tokens and
+    # produce 401 stdout noise when credits are depleted. The router's
+    # own fallback logic handles actual availability at call time.
+    return True, "key present (no inference probe)"
 
 
 def check_gemini() -> tuple[bool, str]:

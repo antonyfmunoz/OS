@@ -4,7 +4,7 @@ path: eos_ai/context.py
 module: eos_ai.context
 lines: 41
 size: 990
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/context.py

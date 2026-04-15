@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/stage_manager.py
 line: 102
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # StageManager.__init__

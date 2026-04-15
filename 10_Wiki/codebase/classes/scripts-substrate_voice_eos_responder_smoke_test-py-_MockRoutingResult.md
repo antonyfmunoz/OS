@@ -2,7 +2,7 @@
 type: codebase-class
 file: scripts/substrate_voice_eos_responder_smoke_test.py
 line: 62
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # _MockRoutingResult

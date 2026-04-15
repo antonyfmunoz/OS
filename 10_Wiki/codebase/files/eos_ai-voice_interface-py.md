@@ -4,7 +4,7 @@ path: eos_ai/voice_interface.py
 module: eos_ai.voice_interface
 lines: 801
 size: 30429
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/voice_interface.py

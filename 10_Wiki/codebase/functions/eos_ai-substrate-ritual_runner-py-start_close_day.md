@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/ritual_runner.py
 line: 125
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # start_close_day

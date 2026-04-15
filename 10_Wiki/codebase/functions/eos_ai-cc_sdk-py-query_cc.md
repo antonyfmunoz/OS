@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/cc_sdk.py
 line: 64
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # query_cc

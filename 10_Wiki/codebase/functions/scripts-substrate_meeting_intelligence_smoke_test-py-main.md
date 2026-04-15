@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_meeting_intelligence_smoke_test.py
 line: 37
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # main

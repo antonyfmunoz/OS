@@ -2,7 +2,7 @@
 type: codebase-class
 file: services/icp_scorer.py
 line: 32
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # RateLimiter

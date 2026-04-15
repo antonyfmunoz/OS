@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/local_listener.py
 line: 159
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # TriggerHistory.clear

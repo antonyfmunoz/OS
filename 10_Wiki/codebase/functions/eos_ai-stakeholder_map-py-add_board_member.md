@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/stakeholder_map.py
 line: 160
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # add_board_member

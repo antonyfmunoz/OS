@@ -40,6 +40,42 @@ def _utcnow() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+# ─── Streaming Events ──────────────────────────────────────────────────────
+
+
+def _stream_step_event(
+    event_type_name: str,
+    message: str,
+    *,
+    pipeline: "TaskPipeline",
+    step: "PipelineStep",
+) -> None:
+    """Best-effort streaming event emission for pipeline steps."""
+    try:
+        from eos_ai.platforms.eos.streaming_bridge import StreamEventType, stream_event
+
+        type_map = {
+            "step_started": StreamEventType.STEP_STARTED,
+            "step_completed": StreamEventType.STEP_COMPLETED,
+            "error": StreamEventType.ERROR,
+        }
+        etype = type_map.get(event_type_name, StreamEventType.INFO)
+        stream_event(
+            etype,
+            message,
+            payload={
+                "pipeline_id": pipeline.pipeline_id,
+                "pipeline_title": pipeline.title,
+                "step_id": step.step_id,
+                "step_index": str(step.step_index),
+                "step_title": step.title or "",
+            },
+            source="pipeline_execution",
+        )
+    except Exception as exc:
+        _log(f"stream step event failed: {exc}")
+
+
 # ─── Local Control Action Detection ──────────────────────────────────────────
 
 _BROWSER_KEYWORDS = frozenset(
@@ -409,12 +445,24 @@ def execute_pipeline(
             return pipeline
 
         # ── Execute the step ────────────────────────────────────────────────
+        _stream_step_event(
+            "step_started",
+            f"Starting step {step.step_index}: {step.title}",
+            pipeline=pipeline,
+            step=step,
+        )
         _execute_step(
             step,
             pipeline,
             session,
             local_available=local_available,
             dry_run=dry_run,
+        )
+        _stream_step_event(
+            "step_completed" if step.status == StepStatus.COMPLETED else "error",
+            f"Step {step.step_index} {step.status.value}: {step.title}",
+            pipeline=pipeline,
+            step=step,
         )
 
         # ── Handle step outcome ─────────────────────────────────────────────

@@ -4,7 +4,7 @@ path: eos_ai/proactive_engine.py
 module: eos_ai.proactive_engine
 lines: 432
 size: 16214
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/proactive_engine.py

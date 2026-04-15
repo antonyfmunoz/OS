@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/knowledge_graph.py
 line: 91
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # KnowledgeGraph.get_entity_context

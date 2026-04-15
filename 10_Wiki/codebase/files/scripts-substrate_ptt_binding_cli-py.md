@@ -5,7 +5,7 @@ module: scripts.substrate_ptt_binding_cli
 lines: 121
 size: 3794
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_ptt_binding_cli.py

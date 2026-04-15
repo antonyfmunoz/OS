@@ -5,7 +5,7 @@ module: scripts.meet_caption_writer
 lines: 66
 size: 2092
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/meet_caption_writer.py

@@ -4,7 +4,7 @@ path: eos_ai/knowledge_layers.py
 module: eos_ai.knowledge_layers
 lines: 414
 size: 23725
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/knowledge_layers.py

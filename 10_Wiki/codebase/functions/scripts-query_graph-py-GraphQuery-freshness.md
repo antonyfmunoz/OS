@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/query_graph.py
 line: 207
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # GraphQuery.freshness
@@ -16,5 +16,6 @@ generated: 2026-04-11
 
 ## Called By
 
+- [[scripts-action_system-py-ActionSystem-_exec_query_graph]]
 - [[scripts-query_graph-py-main]]
 - [[scripts-session_bootstrap-py-check_freshness]]

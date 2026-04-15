@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/action_system/policy.py
 line: 94
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # map_to_authority_class

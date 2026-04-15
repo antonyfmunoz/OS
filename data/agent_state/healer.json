@@ -1,0 +1,14 @@
+{
+  "agent": "healer",
+  "created_at": "2026-04-11T03:52:24.244978+00:00",
+  "last_tick_at": "2026-04-12T19:55:36.178404+00:00",
+  "tick_count": 20,
+  "tick_failures": 0,
+  "custom": {
+    "last_alerts_seen": [],
+    "reenable_candidates": [],
+    "actions_taken_this_tick": [],
+    "updated_at": "2026-04-12T19:55:36.178391+00:00",
+    "advisor_interpretation_forwarded": false
+  }
+}

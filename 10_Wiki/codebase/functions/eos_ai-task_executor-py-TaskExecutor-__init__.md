@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/task_executor.py
 line: 79
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # TaskExecutor.__init__

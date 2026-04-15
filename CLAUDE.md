@@ -172,6 +172,14 @@ eos_ai/primitives.py      — 13 primitives
 eos_ai/agent_runtime.py   — LLM dispatch
 services/discord_bot.py — primary interface
 
+## Obsidian Backlinks
+When writing .md files in 10_Wiki/ or vault/:
+- Use `[[wikilinks]]` inline where a reader would want to navigate
+- New wiki pages: check existing pages for bidirectional linking opportunities
+- Summaries: link to promoted wiki pages
+- Don't bolt links onto operational files (dashboards, templates) unless they aid navigation
+- Health check: `python3 scripts/vault_backlink_audit.py`
+
 ## EOS conventions
 - AI name from get_ai_name() never hardcoded
 - Agents registered in Neon not just in code

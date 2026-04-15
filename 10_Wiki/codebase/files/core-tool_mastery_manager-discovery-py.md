@@ -4,7 +4,7 @@ path: core/tool_mastery_manager/discovery.py
 module: core.tool_mastery_manager.discovery
 lines: 333
 size: 11138
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/tool_mastery_manager/discovery.py

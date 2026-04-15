@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/portfolio_brief.py
 line: 25
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # post_to_notion

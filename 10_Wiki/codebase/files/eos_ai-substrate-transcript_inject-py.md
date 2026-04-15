@@ -4,7 +4,7 @@ path: eos_ai/substrate/transcript_inject.py
 module: eos_ai.substrate.transcript_inject
 lines: 205
 size: 7081
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/transcript_inject.py

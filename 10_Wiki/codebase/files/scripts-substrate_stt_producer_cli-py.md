@@ -5,7 +5,7 @@ module: scripts.substrate_stt_producer_cli
 lines: 191
 size: 6170
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_stt_producer_cli.py

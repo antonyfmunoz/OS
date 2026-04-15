@@ -40,6 +40,78 @@ def _utcnow() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+# ---- Streaming helpers -------------------------------------------------------
+
+
+_BROWSER_ACTION_NARRATION: dict[str, str] = {
+    "open_url": "Opening browser...",
+    "click": "Clicking element...",
+    "type_text": "Typing text...",
+    "extract": "Extracting data...",
+    "screenshot": "Taking screenshot...",
+    "navigate_back": "Going back...",
+    "close": "Closing browser...",
+}
+
+
+def _stream_browser_event(
+    event_type_name: str,
+    action: "BrowserActionType",
+    payload: dict[str, Any],
+) -> None:
+    """Best-effort streaming event for browser actions."""
+    try:
+        from eos_ai.platforms.eos.streaming_bridge import StreamEventType, stream_event
+
+        narration = _BROWSER_ACTION_NARRATION.get(
+            action.value, f"Browser: {action.value}..."
+        )
+        # Add context from payload
+        if action.value == "open_url" and payload.get("url"):
+            narration = f"Opening {payload['url'][:60]}..."
+        elif action.value == "click" and payload.get("selector"):
+            narration = f"Clicking {payload['selector'][:40]}..."
+        elif action.value == "extract" and payload.get("selector"):
+            narration = f"Extracting from {payload['selector'][:40]}..."
+
+        stream_event(
+            StreamEventType.ACTION_EXECUTED,
+            narration,
+            payload={"action": action.value, **payload},
+            source="browser_agent",
+        )
+    except Exception:
+        pass  # Best-effort, never interrupt browser operations
+
+
+def _stream_browser_result(
+    action: "BrowserActionType",
+    result: "BrowserActionResult",
+) -> None:
+    """Best-effort streaming event for browser action results."""
+    try:
+        from eos_ai.platforms.eos.streaming_bridge import StreamEventType, stream_event
+
+        if result.ok:
+            msg = f"Done: {result.data[:80]}" if result.data else "Done."
+            stream_event(
+                StreamEventType.ACTION_RESULT,
+                msg,
+                payload={"action": action.value, "ok": True},
+                source="browser_agent",
+                speak=False,  # Don't narrate every result — too noisy
+            )
+        else:
+            stream_event(
+                StreamEventType.ERROR,
+                f"Browser error: {result.error or 'unknown'}",
+                payload={"action": action.value, "ok": False},
+                source="browser_agent",
+            )
+    except Exception:
+        pass
+
+
 # ---- Enum -------------------------------------------------------------------
 
 
@@ -201,8 +273,10 @@ class BrowserAgent:
         """Thread-safe dispatch to the appropriate action handler.
 
         Always returns a BrowserActionResult, never raises.
+        Emits streaming events for real-time narration.
         """
         payload = payload or {}
+        _stream_browser_event("action_executed", action, payload)
         t0 = time.monotonic()
         try:
             with self._lock:
@@ -214,6 +288,7 @@ class BrowserAgent:
                 error=str(e),
             )
         result.duration_ms = round((time.monotonic() - t0) * 1000, 2)
+        _stream_browser_result(action, result)
         return result
 
     def _dispatch(

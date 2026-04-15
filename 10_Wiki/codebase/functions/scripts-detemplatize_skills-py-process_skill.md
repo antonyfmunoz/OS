@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/detemplatize_skills.py
 line: 147
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # process_skill

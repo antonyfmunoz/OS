@@ -5,7 +5,7 @@ module: scripts.noshow_detector
 lines: 156
 size: 5194
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/noshow_detector.py

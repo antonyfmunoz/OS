@@ -4,7 +4,7 @@ path: eos_ai/feedback_loop.py
 module: eos_ai.feedback_loop
 lines: 468
 size: 16041
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/feedback_loop.py

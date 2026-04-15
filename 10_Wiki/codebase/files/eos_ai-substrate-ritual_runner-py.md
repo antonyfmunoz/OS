@@ -5,7 +5,7 @@ module: eos_ai.substrate.ritual_runner
 lines: 218
 size: 7366
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/ritual_runner.py

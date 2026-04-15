@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/agent_task_executor.py
 line: 175
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # run_executor

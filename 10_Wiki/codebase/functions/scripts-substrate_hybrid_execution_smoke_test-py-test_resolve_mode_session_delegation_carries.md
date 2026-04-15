@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_hybrid_execution_smoke_test.py
 line: 319
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # test_resolve_mode_session_delegation_carries

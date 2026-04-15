@@ -5,7 +5,7 @@ module: scripts.scheduled.morning_prep_cp
 lines: 83
 size: 2888
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/scheduled/morning_prep_cp.py

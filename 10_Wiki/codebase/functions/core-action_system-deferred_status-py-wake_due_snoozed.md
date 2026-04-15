@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/action_system/deferred_status.py
 line: 124
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # wake_due_snoozed

@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/apify_scraper.py
 line: 158
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # update_hashtag_performance

@@ -4,7 +4,7 @@ path: eos_ai/os_registry.py
 module: eos_ai.os_registry
 lines: 321
 size: 9813
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/os_registry.py

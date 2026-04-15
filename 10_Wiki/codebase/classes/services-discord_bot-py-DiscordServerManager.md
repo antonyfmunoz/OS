@@ -1,13 +1,13 @@
 ---
 type: codebase-class
 file: services/discord_bot.py
-line: 1624
-generated: 2026-04-11
+line: 1674
+generated: 2026-04-12
 ---
 
 # DiscordServerManager
 
-**File:** [[services-discord_bot-py]] | **Line:** 1624
+**File:** [[services-discord_bot-py]] | **Line:** 1674
 
 Idempotent Discord server structure manager.
 Creates channels and categories only if they don't already exist.

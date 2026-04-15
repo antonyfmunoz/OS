@@ -5,7 +5,7 @@ module: scripts.session_start_context
 lines: 199
 size: 5529
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/session_start_context.py

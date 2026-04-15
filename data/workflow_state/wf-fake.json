@@ -1,0 +1,42 @@
+{
+  "id": "wf-fake",
+  "name": "fake",
+  "goal": "smoke",
+  "status": "dry_run",
+  "result": {
+    "final": {},
+    "steps": {
+      "only": "skipped"
+    }
+  },
+  "created_at": "2026-04-11T03:34:56.683885+00:00",
+  "finished_at": null,
+  "steps": [
+    {
+      "id": "only",
+      "type": "research",
+      "input": {
+        "prompt": "static",
+        "graph_search": ""
+      },
+      "dependencies": [],
+      "assigned_agent": "researcher",
+      "status": "skipped",
+      "output": {
+        "dry_run": true,
+        "agent": "researcher",
+        "would_run": "research",
+        "prompt_preview": "static",
+        "input": {
+          "prompt": "static",
+          "graph_search": ""
+        }
+      },
+      "attempts": 1,
+      "max_attempts": 2,
+      "error": null,
+      "started_at": "2026-04-11T03:34:56.684801+00:00",
+      "finished_at": "2026-04-11T03:34:56.684928+00:00"
+    }
+  ]
+}

@@ -4,7 +4,7 @@ path: core/tool_mastery_manager/ensure.py
 module: core.tool_mastery_manager.ensure
 lines: 173
 size: 6538
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/tool_mastery_manager/ensure.py

@@ -4,7 +4,7 @@ path: eos_ai/meetings.py
 module: eos_ai.meetings
 lines: 854
 size: 30615
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/meetings.py

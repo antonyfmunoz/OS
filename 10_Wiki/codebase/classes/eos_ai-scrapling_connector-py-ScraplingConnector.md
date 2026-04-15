@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/scrapling_connector.py
 line: 26
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # ScraplingConnector

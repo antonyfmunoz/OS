@@ -5,7 +5,7 @@ module: services.overnight_scrape
 lines: 252
 size: 7849
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # services/overnight_scrape.py

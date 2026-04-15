@@ -5,7 +5,7 @@ module: scripts.summarize_nodes
 lines: 150
 size: 4654
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/summarize_nodes.py

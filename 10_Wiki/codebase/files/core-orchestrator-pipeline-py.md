@@ -4,7 +4,7 @@ path: core/orchestrator/pipeline.py
 module: core.orchestrator.pipeline
 lines: 277
 size: 8689
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/orchestrator/pipeline.py

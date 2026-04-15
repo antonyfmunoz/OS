@@ -4,7 +4,7 @@ path: eos_ai/notion_publisher.py
 module: eos_ai.notion_publisher
 lines: 496
 size: 16647
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/notion_publisher.py

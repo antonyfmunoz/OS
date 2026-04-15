@@ -4,7 +4,7 @@ path: eos_ai/agent_messages.py
 module: eos_ai.agent_messages
 lines: 141
 size: 4848
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/agent_messages.py

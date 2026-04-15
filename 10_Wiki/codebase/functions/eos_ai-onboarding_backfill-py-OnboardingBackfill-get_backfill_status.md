@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/onboarding_backfill.py
 line: 318
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # OnboardingBackfill.get_backfill_status

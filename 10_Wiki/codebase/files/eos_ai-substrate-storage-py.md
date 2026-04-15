@@ -4,7 +4,7 @@ path: eos_ai/substrate/storage.py
 module: eos_ai.substrate.storage
 lines: 212
 size: 7453
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/storage.py

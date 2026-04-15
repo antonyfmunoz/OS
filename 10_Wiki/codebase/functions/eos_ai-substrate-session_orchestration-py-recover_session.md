@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/session_orchestration.py
 line: 287
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # recover_session

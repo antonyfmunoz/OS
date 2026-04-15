@@ -208,6 +208,35 @@ class EALiveRuntime:
         except Exception as exc:
             _log(f"attach work to session failed: {exc}")
 
+    # ── streaming bridge integration ─────────────────────────────────────
+
+    def _bind_streaming_bridge(self) -> None:
+        """Bind the streaming bridge to the current live session."""
+        try:
+            from eos_ai.platforms.eos.streaming_bridge import get_streaming_bridge
+
+            bridge = get_streaming_bridge()
+            bridge.set_session(self.live_session_id)
+        except Exception as exc:
+            _log(f"streaming bridge bind failed: {exc}")
+
+    def _stream_state_change(self, message: str) -> None:
+        """Emit a streaming event for runtime state transitions."""
+        try:
+            from eos_ai.platforms.eos.streaming_bridge import (
+                StreamEventType,
+                stream_event,
+            )
+
+            stream_event(
+                StreamEventType.INFO,
+                message,
+                source="live_runtime",
+                speak=False,
+            )
+        except Exception:
+            pass
+
     # ── control handlers ──────────────────────────────────────────────────
 
     def _handle_pause(self) -> LiveRuntimeResult:
@@ -347,6 +376,9 @@ class EALiveRuntime:
         # 5. Ensure live session
         self._ensure_live_session()
 
+        # Bind streaming bridge to the live session
+        self._bind_streaming_bridge()
+
         # 6. Route through EA orchestrator
         from eos_ai.platforms.eos.ea_orchestrator import handle_founder_message
 
@@ -361,6 +393,10 @@ class EALiveRuntime:
         if created_task_ids or created_pipeline_ids:
             self.state = RuntimeState.EXECUTING
             self.updated_at = _utcnow()
+            self._stream_state_change(
+                f"Executing {len(created_task_ids)} tasks, "
+                f"{len(created_pipeline_ids)} pipelines..."
+            )
 
             try:
                 from eos_ai.platforms.eos.execution_bridge import (

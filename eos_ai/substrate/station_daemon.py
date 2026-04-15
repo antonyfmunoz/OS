@@ -83,6 +83,7 @@ def _utcnow() -> str:
 
 # ─── Handler result contract ─────────────────────────────────────────────────
 
+
 @dataclass
 class _HandlerOutcome:
     status: ActionStatus
@@ -94,6 +95,7 @@ Handler = Callable[[SafeAction], _HandlerOutcome]
 
 
 # ─── StationDaemon ────────────────────────────────────────────────────────────
+
 
 class StationDaemon:
     """
@@ -132,8 +134,20 @@ class StationDaemon:
         # Dry-run: side-effect-free execution for smoke tests and headless hosts.
         # Enable via constructor or STATION_DAEMON_DRY_RUN=1 in the environment.
         if dry_run is None:
-            dry_run = os.getenv("STATION_DAEMON_DRY_RUN", "").lower() in ("1", "true", "yes")
+            dry_run = os.getenv("STATION_DAEMON_DRY_RUN", "").lower() in (
+                "1",
+                "true",
+                "yes",
+            )
         self.dry_run = dry_run
+
+        # HTTP transport — additive alongside file bus.
+        self._http_enabled = not os.getenv("STATION_DAEMON_NO_HTTP", "").lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+        self._http_server: Optional["NodeTransportServer"] = None
 
         # Handler table — the ONLY action kinds this daemon will execute.
         # Adding kinds here is a deliberate, reviewable change.
@@ -165,10 +179,64 @@ class StationDaemon:
         _log("stop requested")
         self._stop.set()
 
+    def _start_http_transport(self) -> None:
+        """Start the aiohttp HTTP transport in a background thread (best-effort)."""
+        if not self._http_enabled:
+            _log("HTTP transport disabled via STATION_DAEMON_NO_HTTP")
+            return
+        try:
+            import asyncio
+            from eos_ai.substrate.node_transport import NodeTransportServer
+
+            self._http_server = NodeTransportServer(self)
+
+            def _run_http():
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    started = loop.run_until_complete(self._http_server.start())
+                    if started:
+                        # Keep the loop running until daemon stops
+                        loop.run_until_complete(self._http_wait_loop(loop))
+                except Exception as e:
+                    _log(f"HTTP transport thread error: {e}")
+                finally:
+                    if self._http_server is not None:
+                        loop.run_until_complete(self._http_server.stop())
+                    loop.close()
+
+            self._http_thread = threading.Thread(
+                target=_run_http, daemon=True, name="station-http"
+            )
+            self._http_thread.start()
+            _log("HTTP transport thread started")
+
+        except ImportError:
+            _log("aiohttp not installed — HTTP transport disabled")
+        except Exception as exc:
+            _log(f"HTTP transport start failed: {exc}")
+
+    async def _http_wait_loop(self, loop) -> None:
+        """Wait in the async loop until the daemon's stop event is set."""
+        while not self._stop.is_set():
+            await asyncio.sleep(0.5)
+
+    def _stop_http_transport(self) -> None:
+        """Stop the HTTP transport (best-effort)."""
+        if self._http_server is not None:
+            _log("stopping HTTP transport")
+            # The stop event will cause _http_wait_loop to exit,
+            # which triggers cleanup in the thread.
+
     def run(self) -> None:
-        """Blocking main loop. Returns when stop() is called."""
+        """Blocking main loop. Returns when stop() is called.
+
+        Starts HTTP transport alongside the file bus polling loop.
+        Both transports run concurrently. File bus is always active.
+        """
         self.register()
         self._emit_heartbeat(reason="startup")
+        self._start_http_transport()
         _log(f"polling {self.node_id} outbox every {self.poll_interval_s}s")
 
         try:
@@ -176,6 +244,7 @@ class StationDaemon:
                 self._tick()
                 self._stop.wait(self.poll_interval_s)
         finally:
+            self._stop_http_transport()
             self._mark_offline()
             _log("stopped")
 
@@ -196,7 +265,20 @@ class StationDaemon:
         for raw in pending:
             self._process_action(raw)
 
-    def _process_action(self, raw: dict) -> None:
+    def _process_action(
+        self, raw: dict, *, post_to_bus: bool = True
+    ) -> Optional[_HandlerOutcome]:
+        """Process a single action dict and return the outcome.
+
+        Args:
+            raw: SafeAction dict with kind, payload, action_id, etc.
+            post_to_bus: If True (default), post result to StationBus inbox.
+                         Set False when called from HTTP transport (result
+                         returned directly to the caller).
+
+        Returns:
+            The _HandlerOutcome, or None if the kind was completely unknown.
+        """
         action_id = raw.get("action_id", "unknown")
         kind_value = raw.get("kind", "")
         try:
@@ -206,8 +288,9 @@ class StationDaemon:
                 status=ActionStatus.REJECTED,
                 detail=f"unknown action kind: {kind_value!r}",
             )
-            self._post_result(action_id, outcome)
-            return
+            if post_to_bus:
+                self._post_result(action_id, outcome)
+            return outcome
 
         handler = self._handlers.get(kind)
         if handler is None:
@@ -215,8 +298,9 @@ class StationDaemon:
                 status=ActionStatus.REJECTED,
                 detail=f"no handler for {kind.value}; not in MVP allow-list",
             )
-            self._post_result(action_id, outcome)
-            return
+            if post_to_bus:
+                self._post_result(action_id, outcome)
+            return outcome
 
         action = SafeAction(
             kind=kind,
@@ -237,7 +321,9 @@ class StationDaemon:
             )
             _log(f"handler error for {action_id}: {e}")
 
-        self._post_result(action_id, outcome, kind=kind)
+        if post_to_bus:
+            self._post_result(action_id, outcome, kind=kind)
+        return outcome
 
     # ─── Action handlers ──────────────────────────────────────────────────
     def _handle_play_sound(self, action: SafeAction) -> _HandlerOutcome:
@@ -283,7 +369,11 @@ class StationDaemon:
                 detail=f"played {path} via {player}",
                 data={"player": player, "path": path},
             )
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError) as e:
+        except (
+            subprocess.CalledProcessError,
+            subprocess.TimeoutExpired,
+            FileNotFoundError,
+        ) as e:
             return _HandlerOutcome(
                 status=ActionStatus.FAILED,
                 detail=f"player {player} failed: {e}",
@@ -320,7 +410,9 @@ class StationDaemon:
             if tts == "say":
                 subprocess.run(["say", text], check=True, timeout=60)
             elif tts == "espeak":
-                subprocess.run(["espeak", text], check=True, timeout=60, stderr=subprocess.DEVNULL)
+                subprocess.run(
+                    ["espeak", text], check=True, timeout=60, stderr=subprocess.DEVNULL
+                )
             elif tts == "spd-say":
                 subprocess.run(["spd-say", "--wait", text], check=True, timeout=60)
             else:
@@ -333,7 +425,11 @@ class StationDaemon:
                 detail=f"spoke via {tts}",
                 data={"tts": tts, "chars": len(text)},
             )
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError) as e:
+        except (
+            subprocess.CalledProcessError,
+            subprocess.TimeoutExpired,
+            FileNotFoundError,
+        ) as e:
             # Fall back to stdout — never fail the daemon because audio hardware is missing.
             print(f"[station_daemon:speak] {text}")
             return _HandlerOutcome(
@@ -422,7 +518,9 @@ class StationDaemon:
         payload = action.payload or {}
         app_id = payload.get("app_id")
         if not app_id:
-            return _HandlerOutcome(status=ActionStatus.REJECTED, detail="missing app_id")
+            return _HandlerOutcome(
+                status=ActionStatus.REJECTED, detail="missing app_id"
+            )
 
         app = resolve_app(app_id)
         if app is None:
@@ -432,7 +530,9 @@ class StationDaemon:
             )
 
         extra_args = payload.get("args") or []
-        if not isinstance(extra_args, list) or not all(isinstance(a, str) for a in extra_args):
+        if not isinstance(extra_args, list) or not all(
+            isinstance(a, str) for a in extra_args
+        ):
             return _HandlerOutcome(
                 status=ActionStatus.REJECTED,
                 detail="args must be a list of strings",
@@ -503,7 +603,9 @@ class StationDaemon:
         payload = action.payload or {}
         scene_name = payload.get("scene")
         if not scene_name:
-            return _HandlerOutcome(status=ActionStatus.REJECTED, detail="missing scene name")
+            return _HandlerOutcome(
+                status=ActionStatus.REJECTED, detail="missing scene name"
+            )
 
         scene: Optional[Scene] = get_scene(scene_name)
         if scene is None:
@@ -517,12 +619,14 @@ class StationDaemon:
         for idx, step in enumerate(scene.steps):
             handler = self._handlers.get(step.kind)
             if handler is None:
-                step_results.append({
-                    "idx": idx,
-                    "kind": step.kind.value,
-                    "status": ActionStatus.REJECTED.value,
-                    "detail": "no handler / not in MVP allow-list",
-                })
+                step_results.append(
+                    {
+                        "idx": idx,
+                        "kind": step.kind.value,
+                        "status": ActionStatus.REJECTED.value,
+                        "detail": "no handler / not in MVP allow-list",
+                    }
+                )
                 any_failed = True
                 continue
             sub_action = SafeAction(
@@ -538,12 +642,14 @@ class StationDaemon:
                     status=ActionStatus.FAILED,
                     detail=f"{type(e).__name__}: {e}",
                 )
-            step_results.append({
-                "idx": idx,
-                "kind": step.kind.value,
-                "status": outcome.status.value,
-                "detail": outcome.detail,
-            })
+            step_results.append(
+                {
+                    "idx": idx,
+                    "kind": step.kind.value,
+                    "status": outcome.status.value,
+                    "detail": outcome.detail,
+                }
+            )
             if outcome.status in (ActionStatus.FAILED, ActionStatus.REJECTED):
                 any_failed = True
 
@@ -573,7 +679,9 @@ class StationDaemon:
         payload = action.payload or {}
         app_id = payload.get("app_id")
         if not app_id:
-            return _HandlerOutcome(status=ActionStatus.REJECTED, detail="missing app_id")
+            return _HandlerOutcome(
+                status=ActionStatus.REJECTED, detail="missing app_id"
+            )
 
         app = resolve_app(app_id)
         if app is None:
@@ -707,6 +815,7 @@ class StationDaemon:
 
 # ─── Operator entrypoint ──────────────────────────────────────────────────────
 
+
 def _build_arg_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="station_daemon",
@@ -714,7 +823,9 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--node-id", default=DEFAULT_NODE_ID)
     p.add_argument("--poll-interval", type=float, default=DEFAULT_POLL_INTERVAL_S)
-    p.add_argument("--heartbeat-interval", type=float, default=DEFAULT_HEARTBEAT_INTERVAL_S)
+    p.add_argument(
+        "--heartbeat-interval", type=float, default=DEFAULT_HEARTBEAT_INTERVAL_S
+    )
     p.add_argument(
         "--capability",
         action="append",

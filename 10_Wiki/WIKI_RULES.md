@@ -83,10 +83,14 @@ Lowercase, hyphenated slugs: `icp-signals.md`, `initiate-arena.md`.
 
 ### Linking Rules
 
-- Use Obsidian wikilinks: `[[page-name]]`
-- Link between wiki pages freely
+- Use Obsidian `[[wikilinks]]` — never raw file paths or markdown `[text](url)` links
+- Link inline where the reference adds navigational value — if a reader would want to jump to that page, link it
 - Link to RAW files when citing provenance: `[[01_Inbox/raw_notes/Raw Notes]]`
-- Every page should link to at least one other wiki page (no orphans)
+- Wiki knowledge pages (concepts, entities, decisions, synthesis) should have at least one incoming link from another page
+- Summaries that promoted wiki pages should link to those pages
+- When creating a new page, check if existing pages reference the same concept and add `[[links]]` in both directions
+- Do NOT add links mechanically — a dashboard full of dataview queries doesn't need a Related section. A concept page that references another concept does.
+- Vault operational files (dashboards, daily logs, templates) use links only when it aids navigation, not for completeness
 
 ---
 

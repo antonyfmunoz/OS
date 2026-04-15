@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/execution_contract.py
 line: 75
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # run_task

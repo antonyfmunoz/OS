@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: scripts/watch_graph.py
-line: 445
-generated: 2026-04-11
+line: 471
+generated: 2026-04-12
 ---
 
 # main
 
-**File:** [[scripts-watch_graph-py]] | **Line:** 445
+**File:** [[scripts-watch_graph-py]] | **Line:** 471
 **Signature:** `main(argv) → int`
 
 *No docstring.*

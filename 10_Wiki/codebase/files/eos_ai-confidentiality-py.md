@@ -4,7 +4,7 @@ path: eos_ai/confidentiality.py
 module: eos_ai.confidentiality
 lines: 119
 size: 3459
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/confidentiality.py

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/scene_policy.py
 line: 166
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # select_scene

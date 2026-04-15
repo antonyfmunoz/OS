@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/action_system/deferred.py
 line: 30
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # save_deferred

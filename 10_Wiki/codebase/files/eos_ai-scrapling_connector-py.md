@@ -4,7 +4,7 @@ path: eos_ai/scrapling_connector.py
 module: eos_ai.scrapling_connector
 lines: 148
 size: 4202
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/scrapling_connector.py

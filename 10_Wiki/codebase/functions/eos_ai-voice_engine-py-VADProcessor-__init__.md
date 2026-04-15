@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/voice_engine.py
 line: 336
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # VADProcessor.__init__

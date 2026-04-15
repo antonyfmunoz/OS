@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/decision_log.py
 line: 157
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # DecisionLog.get_recent_decisions

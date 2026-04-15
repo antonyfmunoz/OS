@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/resource_guard.py
 line: 118
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # current_resource_snapshot

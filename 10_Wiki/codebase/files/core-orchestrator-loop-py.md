@@ -4,7 +4,7 @@ path: core/orchestrator/loop.py
 module: core.orchestrator.loop
 lines: 451
 size: 15526
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/orchestrator/loop.py

@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_research_agent/candidate_approval.py
 line: 221
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # approved_source_refs

@@ -1,14 +1,17 @@
 ---
 type: codebase-module
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/
 
-**Files:** 54 | **Lines:** 13,090 | **Classes:** 61 | **Functions:** 330
+**Files:** 73 | **Lines:** 21,799 | **Classes:** 111 | **Functions:** 626
 
 ## Entry Points
 
+- [[core-control_plane-py]]
+- [[core-optimizer-py]]
+- [[core-security-cli-py]]
 - [[core-tool_mastery_author_agent-__main__-py]]
 - [[core-tool_mastery_author_agent-cli-py]]
 - [[core-tool_mastery_research_agent-__main__-py]]
@@ -27,7 +30,15 @@ generated: 2026-04-11
 - [[core-action_system-policy-py]] (165 lines) — Policy bridge between the Control Plane and `eos_ai.authorit
 - [[core-action_system-tme-py]] (78 lines) — Tool Mastery Engine / Manager integration for the Control Pl
 - [[core-action_system-validator-py]] (188 lines) — Validation + approval rules for Actions.
+- [[core-advisor-py]] (864 lines) — advisor.py — Conditional intelligence layer for the EOS AI O
+- [[core-agent_harness-py]] (741 lines) — agent_harness.py — Unified execution surface for every agent
+- [[core-capability-py]] (511 lines) — capability.py — Permission + risk matrix for the unified EOS
+- [[core-control_plane-py]] (322 lines) *[entry]* — control_plane.py — Unified control plane composing the orche
+- [[core-coord_assignment-py]] (405 lines) — Semantic Space v1.1 — Coordinate Assignment
+- [[core-environment-py]] (535 lines) — environment.py — Execution environment model for the EOS AI 
 - [[core-execution_contract-py]] (385 lines) — ExecutionContract — unified execution entry point for all EO
+- [[core-observability-py]] (408 lines) — observability.py — Read-only view over the EOS AI OS.
+- [[core-optimizer-py]] (652 lines) *[entry]* — optimizer.py — Feedback loop for the EOS AI OS.
 - [[core-orchestrator-decisions-py]] (159 lines) — Decision helpers for signal handler workflows.
 - [[core-orchestrator-handlers-py]] (322 lines) — Signal handler workflows.
 - [[core-orchestrator-loop-py]] (451 lines) — Autonomous loop — deterministic orchestration cycle.
@@ -36,6 +47,16 @@ generated: 2026-04-11
 - [[core-orchestrator-signals-py]] (209 lines) — Signals — filesystem-backed event layer for the orchestrator
 - [[core-orchestrator-steps-py]] (211 lines) — Reusable orchestrator step helpers.
 - [[core-orchestrator-workflows-py]] (125 lines) — Workflow registry — wires existing Control Plane workflows i
+- [[core-persistent_agents-py]] (566 lines) — persistent_agents.py — Long-running stateful agents in the E
+- [[core-security-approval-py]] (415 lines) — approval.py — Approval queue for high-risk actions.
+- [[core-security-audit-py]] (272 lines) — audit.py — Append-only audit log with hash-chain integrity.
+- [[core-security-cli-py]] (288 lines) *[entry]* — cli.py — Operator CLI for the EOS security layer.
+- [[core-security-context-py]] (642 lines) — context.py — SecurityContext facade.
+- [[core-security-environments-py]] (227 lines) — environments.py — Environment policy layer for the security 
+- [[core-security-execution-py]] (331 lines) — execution.py — Restricted execution contexts for agent workl
+- [[core-security-identity-py]] (401 lines) — identity.py — User model and token-based authentication.
+- [[core-security-rbac-py]] (304 lines) — rbac.py — Role-based access control on top of core.capabilit
+- [[core-semantic_space-py]] (499 lines) — Semantic Space v1.2 — Query Projection, Region Search, Graph
 - [[core-tool_mastery_author_agent-__main__-py]] (5 lines) *[entry]* — 
 - [[core-tool_mastery_author_agent-agent-py]] (189 lines) — Author Agent orchestrator.
 - [[core-tool_mastery_author_agent-cli-py]] (133 lines) *[entry]* — CLI entry for the Tool Mastery Author Agent.
@@ -70,3 +91,4 @@ generated: 2026-04-11
 - [[core-tool_mastery_research_agent-source_discovery-py]] (363 lines) — Source discovery for the Tool Mastery Research Agent.
 - [[core-tool_mastery_research_agent-source_quality-py]] (371 lines) — Source quality scoring for the Tool Mastery Research Agent.
 - [[core-tool_mastery_research_agent-structured_crawl-py]] (437 lines) — Structured crawl expansion for the Tool Mastery Research Age
+- [[core-wiki_navigation-py]] (326 lines) — Wiki Navigation Layer — bridges graph nodes and Obsidian wik

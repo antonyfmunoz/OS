@@ -5,7 +5,7 @@ module: scripts.substrate_audio_loop_smoke_test
 lines: 293
 size: 11744
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_audio_loop_smoke_test.py

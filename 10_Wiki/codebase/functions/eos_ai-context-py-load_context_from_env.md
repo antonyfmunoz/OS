@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/context.py
 line: 34
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # load_context_from_env

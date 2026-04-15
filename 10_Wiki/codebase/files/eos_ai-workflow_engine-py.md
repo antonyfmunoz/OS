@@ -4,7 +4,7 @@ path: eos_ai/workflow_engine.py
 module: eos_ai.workflow_engine
 lines: 1013
 size: 38451
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/workflow_engine.py
@@ -21,6 +21,10 @@ Two layers:
 ## Depends On
 
 - [[eos_ai-context-py]]
+
+## Used By
+
+- [[scripts-force_execution_loop-py]]
 
 ## Contains
 

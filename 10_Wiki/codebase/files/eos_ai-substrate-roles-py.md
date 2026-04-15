@@ -4,7 +4,7 @@ path: eos_ai/substrate/roles.py
 module: eos_ai.substrate.roles
 lines: 156
 size: 5496
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/roles.py

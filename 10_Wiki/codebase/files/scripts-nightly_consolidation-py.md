@@ -5,7 +5,7 @@ module: scripts.nightly_consolidation
 lines: 325
 size: 10509
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/nightly_consolidation.py

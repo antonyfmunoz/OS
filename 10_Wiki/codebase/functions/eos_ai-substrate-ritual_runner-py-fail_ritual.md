@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/ritual_runner.py
 line: 155
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # fail_ritual

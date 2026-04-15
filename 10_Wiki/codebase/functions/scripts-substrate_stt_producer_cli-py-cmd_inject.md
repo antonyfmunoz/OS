@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_stt_producer_cli.py
 line: 106
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # cmd_inject

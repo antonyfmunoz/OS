@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/promote_to_wiki.py
 line: 83
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # get_existing_wiki_pages

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/signal_hierarchy.py
 line: 141
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # SignalHierarchyEngine.rank_context_injections

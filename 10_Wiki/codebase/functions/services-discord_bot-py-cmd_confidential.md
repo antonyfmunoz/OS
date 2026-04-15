@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: services/discord_bot.py
-line: 2214
-generated: 2026-04-11
+line: 2304
+generated: 2026-04-12
 ---
 
 # cmd_confidential
 
-**File:** [[services-discord_bot-py]] | **Line:** 2214
+**File:** [[services-discord_bot-py]] | **Line:** 2304
 **Signature:** `cmd_confidential(ctx)`
 
 Start a confidential session. Usage: !confidential [topic] | [parties] | [level]

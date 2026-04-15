@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/founder_rate.py
 line: 246
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # check_against_no_list

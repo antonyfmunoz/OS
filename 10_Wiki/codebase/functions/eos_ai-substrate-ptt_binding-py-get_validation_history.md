@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/ptt_binding.py
 line: 130
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # get_validation_history

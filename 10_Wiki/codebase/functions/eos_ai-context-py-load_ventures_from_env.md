@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/context.py
 line: 21
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # load_ventures_from_env

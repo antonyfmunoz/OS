@@ -4,7 +4,7 @@ path: core/tool_mastery_manager/models.py
 module: core.tool_mastery_manager.models
 lines: 122
 size: 4162
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/tool_mastery_manager/models.py

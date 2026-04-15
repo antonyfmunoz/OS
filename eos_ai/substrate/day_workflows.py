@@ -255,6 +255,33 @@ def open_day(
     except Exception as exc:  # noqa: BLE001
         _log(f"station_summary failed: {exc}")
 
+    # ── Node health summary (v6, via node_controller) ─────────────────────
+    node_health: dict = {}
+    try:
+        from eos_ai.substrate.node_controller import get_node_health_summary
+
+        node_health = get_node_health_summary()
+    except Exception as exc:  # noqa: BLE001
+        _log(f"node_health_summary failed: {exc}")
+
+    # ── Apply default scene based on workspace (v6, best-effort) ──────────
+    active_scene: Optional[str] = None
+    try:
+        from eos_ai.substrate.scenes import get_scene
+
+        default_scene = (
+            "builder_mode" if resolved_workspace == "builder" else "operator_mode"
+        )
+        if resolved_node == "local":
+            default_scene = "full_station"
+        scene = get_scene(default_scene)
+        if scene is not None:
+            active_scene = scene.name
+            new_session.active_scene = active_scene
+            store.put(new_session)
+    except Exception as exc:  # noqa: BLE001
+        _log(f"scene application failed: {exc}")
+
     # ── Blocked operator items (v4, best-effort) ──────────────────────────
     blocked_operator_items: list = []
     try:
@@ -307,6 +334,11 @@ def open_day(
         response["local_station_summary"] = station_summary
     if blocked_operator_items:
         response["blocked_operator_items"] = blocked_operator_items
+    # v6 extensions (node health + scene)
+    if node_health:
+        response["node_health"] = node_health
+    if active_scene:
+        response["active_scene"] = active_scene
     if ritual_warning:
         response["ritual_warning"] = ritual_warning
     return response
@@ -409,6 +441,29 @@ def close_day(
     except Exception:  # noqa: BLE001
         pass
 
+    # ── Apply close scene (v6, best-effort) ───────────────────────────────
+    close_scene: Optional[str] = None
+    try:
+        from eos_ai.substrate.scenes import get_scene as _get_scene
+
+        scene_name = "overnight" if day_mode == OperatorDayMode.OVERNIGHT else "idle"
+        scene = _get_scene(scene_name)
+        if scene is not None:
+            close_scene = scene.name
+            current.active_scene = close_scene
+            store.put(current)  # persist scene after assignment
+    except Exception as exc:  # noqa: BLE001
+        _log(f"close scene application failed: {exc}")
+
+    # ── Node health for close summary (v6, best-effort) ───────────────────
+    node_health_close: dict = {}
+    try:
+        from eos_ai.substrate.node_controller import get_node_health_summary
+
+        node_health_close = get_node_health_summary()
+    except Exception as exc:  # noqa: BLE001
+        _log(f"node_health_summary (close) failed: {exc}")
+
     # ── Prepare overnight queue (move READY → OVERNIGHT_QUEUED) ────────────
     overnight_queue_prep: Optional[dict] = None
     if day_mode == OperatorDayMode.OVERNIGHT:
@@ -497,6 +552,11 @@ def close_day(
         response["overnight_tasks_executed"] = overnight_completed
     if overnight_queue_prep:
         response["overnight_queue_prep"] = overnight_queue_prep
+    # v6 extensions (node health + scene)
+    if node_health_close:
+        response["node_health"] = node_health_close
+    if close_scene:
+        response["active_scene"] = close_scene
     if ritual_warning:
         response["ritual_warning"] = ritual_warning
     return response

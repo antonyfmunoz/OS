@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/delegation_tracker.py
 line: 15
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # log_delegation

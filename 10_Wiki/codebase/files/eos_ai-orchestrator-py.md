@@ -5,7 +5,7 @@ module: eos_ai.orchestrator
 lines: 1878
 size: 72999
 tags: [critical, entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/orchestrator.py

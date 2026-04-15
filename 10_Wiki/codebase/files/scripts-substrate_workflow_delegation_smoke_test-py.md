@@ -5,7 +5,7 @@ module: scripts.substrate_workflow_delegation_smoke_test
 lines: 579
 size: 20966
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_workflow_delegation_smoke_test.py

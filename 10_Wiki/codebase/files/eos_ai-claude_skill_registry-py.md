@@ -4,7 +4,7 @@ path: eos_ai/claude_skill_registry.py
 module: eos_ai.claude_skill_registry
 lines: 298
 size: 11242
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/claude_skill_registry.py

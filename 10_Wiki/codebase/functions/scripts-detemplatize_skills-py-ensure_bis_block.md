@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/detemplatize_skills.py
 line: 103
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # ensure_bis_block

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/strategy_engine.py
 line: 141
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # StrategyEngine.analyze_company_position

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/person_recognition.py
 line: 285
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # format_person_context

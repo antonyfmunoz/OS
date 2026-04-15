@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/founder_rate.py
 line: 93
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # log_time_block

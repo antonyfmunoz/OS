@@ -4,7 +4,7 @@ path: eos_ai/substrate/meeting_intelligence.py
 module: eos_ai.substrate.meeting_intelligence
 lines: 2181
 size: 82491
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/meeting_intelligence.py

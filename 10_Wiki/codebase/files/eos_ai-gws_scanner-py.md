@@ -4,7 +4,7 @@ path: eos_ai/gws_scanner.py
 module: eos_ai.gws_scanner
 lines: 700
 size: 27421
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/gws_scanner.py

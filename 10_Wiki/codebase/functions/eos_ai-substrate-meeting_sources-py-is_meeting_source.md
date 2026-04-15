@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/meeting_sources.py
 line: 45
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # is_meeting_source

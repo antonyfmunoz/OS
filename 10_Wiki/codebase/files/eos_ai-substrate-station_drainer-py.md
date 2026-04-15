@@ -4,7 +4,7 @@ path: eos_ai/substrate/station_drainer.py
 module: eos_ai.substrate.station_drainer
 lines: 348
 size: 11064
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/station_drainer.py

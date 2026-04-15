@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: eos_ai/cognitive_loop.py
-line: 1377
-generated: 2026-04-11
+line: 1387
+generated: 2026-04-12
 ---
 
 # detect_intent_and_inject
 
-**File:** [[eos_ai-cognitive_loop-py]] | **Line:** 1377
+**File:** [[eos_ai-cognitive_loop-py]] | **Line:** 1387
 **Signature:** `detect_intent_and_inject(text, req, ctx) → dict`
 
 Detect founder intent from natural language and inject

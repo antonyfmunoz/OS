@@ -19,6 +19,7 @@ ALLOWED_ACTION_TYPES: tuple[str, ...] = (
     "shell_command",
     "write_file",
     "call_api",
+    "compose_action",
 )
 
 

@@ -5,7 +5,7 @@ module: scripts.substrate_claude_session_bridge_smoke_test
 lines: 208
 size: 8260
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_claude_session_bridge_smoke_test.py

@@ -4,7 +4,7 @@ path: core/tool_mastery_research_agent/artifact.py
 module: core.tool_mastery_research_agent.artifact
 lines: 609
 size: 22108
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/tool_mastery_research_agent/artifact.py

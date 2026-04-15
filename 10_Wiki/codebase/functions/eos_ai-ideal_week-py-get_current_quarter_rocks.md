@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/ideal_week.py
 line: 256
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # get_current_quarter_rocks

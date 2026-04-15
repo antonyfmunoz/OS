@@ -4,7 +4,7 @@ path: eos_ai/ceo_intelligence.py
 module: eos_ai.ceo_intelligence
 lines: 727
 size: 20821
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/ceo_intelligence.py

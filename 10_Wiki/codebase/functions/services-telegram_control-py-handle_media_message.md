@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/telegram_control.py
 line: 2046
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # handle_media_message

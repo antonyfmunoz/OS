@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/detemplatize_skills.py
 line: 55
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # replace_old_bis_block

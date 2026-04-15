@@ -5,7 +5,7 @@ module: eos_ai.db
 lines: 124
 size: 4464
 tags: [critical]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/db.py

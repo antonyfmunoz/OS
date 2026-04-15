@@ -4,7 +4,7 @@ path: eos_ai/tenant.py
 module: eos_ai.tenant
 lines: 146
 size: 5318
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/tenant.py

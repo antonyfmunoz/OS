@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/world_pulse.py
 line: 226
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # WorldPulse.run_market_intel_scan

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/discord_text_transport.py
 line: 1616
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # pseudo_live_status

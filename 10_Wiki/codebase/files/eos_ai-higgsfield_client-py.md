@@ -4,7 +4,7 @@ path: eos_ai/higgsfield_client.py
 module: eos_ai.higgsfield_client
 lines: 120
 size: 4259
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/higgsfield_client.py

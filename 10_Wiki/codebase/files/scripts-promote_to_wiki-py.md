@@ -5,7 +5,7 @@ module: scripts.promote_to_wiki
 lines: 438
 size: 15267
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/promote_to_wiki.py

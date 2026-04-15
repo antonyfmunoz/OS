@@ -5,7 +5,7 @@ module: scripts.eod_sync
 lines: 243
 size: 8155
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/eod_sync.py

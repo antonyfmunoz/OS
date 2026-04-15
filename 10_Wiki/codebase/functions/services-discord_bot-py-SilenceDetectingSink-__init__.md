@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/discord_bot.py
 line: 209
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # SilenceDetectingSink.__init__

@@ -4,7 +4,7 @@ path: core/tool_mastery_research_agent/handoff.py
 module: core.tool_mastery_research_agent.handoff
 lines: 124
 size: 3756
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/tool_mastery_research_agent/handoff.py

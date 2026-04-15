@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/skill_registry.py
 line: 250
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # reset_skill_registry

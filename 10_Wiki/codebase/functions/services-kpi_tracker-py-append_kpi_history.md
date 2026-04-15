@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/kpi_tracker.py
 line: 185
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # append_kpi_history

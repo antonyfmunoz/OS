@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/setup_wizard.py
 line: 48
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # generate_ea_soul_doc

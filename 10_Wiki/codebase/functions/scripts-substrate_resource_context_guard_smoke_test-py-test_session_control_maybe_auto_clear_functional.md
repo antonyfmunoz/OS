@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_resource_context_guard_smoke_test.py
 line: 626
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # test_session_control_maybe_auto_clear_functional

@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_operator_state_smoke_test.py
 line: 69
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # main

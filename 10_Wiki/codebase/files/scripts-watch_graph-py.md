@@ -2,10 +2,10 @@
 type: codebase-file
 path: scripts/watch_graph.py
 module: scripts.watch_graph
-lines: 485
-size: 15623
+lines: 527
+size: 17341
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/watch_graph.py
@@ -19,7 +19,7 @@ triggers incremental graph updates as files are edited, created, or deleted.
 Keeps the cognition stack fresh without manual rebuilds or git-hook latency.
 ...
 
-**Lines:** 485 | **Size:** 15,623 bytes
+**Lines:** 527 | **Size:** 17,341 bytes
 
 ## Depends On
 

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/operator_state.py
 line: 371
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # get_operator_state_store

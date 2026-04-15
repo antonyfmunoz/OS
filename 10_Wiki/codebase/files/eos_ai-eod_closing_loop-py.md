@@ -4,7 +4,7 @@ path: eos_ai/eod_closing_loop.py
 module: eos_ai.eod_closing_loop
 lines: 344
 size: 12951
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/eod_closing_loop.py

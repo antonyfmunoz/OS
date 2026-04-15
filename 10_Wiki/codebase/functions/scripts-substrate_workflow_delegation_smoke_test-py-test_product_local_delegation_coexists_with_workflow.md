@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_workflow_delegation_smoke_test.py
 line: 467
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # test_product_local_delegation_coexists_with_workflow

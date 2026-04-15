@@ -4,7 +4,7 @@ path: eos_ai/harness_registry.py
 module: eos_ai.harness_registry
 lines: 304
 size: 10314
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/harness_registry.py

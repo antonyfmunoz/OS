@@ -5,7 +5,7 @@ module: eos_ai.setup_wizard
 lines: 167
 size: 5659
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/setup_wizard.py

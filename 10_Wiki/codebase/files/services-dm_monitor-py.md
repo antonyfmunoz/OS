@@ -5,7 +5,7 @@ module: services.dm_monitor
 lines: 1383
 size: 52865
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # services/dm_monitor.py

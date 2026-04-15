@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/query_graph.py
 line: 56
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # GraphQuery.load
@@ -16,6 +16,7 @@ generated: 2026-04-11
 
 ## Called By
 
+- [[scripts-action_system-py-ActionSystem-_graph]]
 - [[scripts-build_palace-py-build]]
 - [[scripts-query_graph-py-main]]
 - [[scripts-session_bootstrap-py-check_freshness]]

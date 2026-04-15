@@ -4,7 +4,7 @@ path: eos_ai/substrate/discord_voice_transport.py
 module: eos_ai.substrate.discord_voice_transport
 lines: 805
 size: 30582
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/discord_voice_transport.py

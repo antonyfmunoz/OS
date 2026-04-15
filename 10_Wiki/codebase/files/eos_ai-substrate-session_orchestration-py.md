@@ -5,7 +5,7 @@ module: eos_ai.substrate.session_orchestration
 lines: 418
 size: 13214
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/session_orchestration.py

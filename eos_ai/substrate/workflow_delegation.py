@@ -124,6 +124,31 @@ _WORKFLOW_SYSTEM_OPS_PATTERNS: list[re.Pattern[str]] = [
     )
 ]
 
+# ── planning-only exclusions ───────────────────────────────────────────────
+# Messages that ASK for a plan/analysis without requesting execution should
+# pass through to the CC session (conversation intent) rather than being
+# intercepted as builder_dev workflows.  Checked BEFORE builder_dev patterns.
+
+_PLANNING_ONLY_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(p, re.IGNORECASE)
+    for p in (
+        r"\bplan\s+out\b",
+        r"\boutline\s+(?:how|a\s+plan|the\s+plan|steps)\b",
+        r"\bsketch\s+out\b",
+        r"\bdraft\s+(?:a\s+)?plan\b",
+        r"\bplan\s+(?:how|for)\b",
+        r"\bdon'?t\s+execute\b",
+        r"\bbut\s+don'?t\s+(?:do|execute|implement|build|run)\b",
+        r"\bwithout\s+execut(?:ing|e)\b",
+        r"\bjust\s+plan\b",
+        r"\bplan\s+only\b",
+        r"\bthink\s+through\b",
+        r"\bhow\s+would\s+you\b",
+        r"\bwhat\s+would\s+(?:it|the)\b.*\blook\s+like\b",
+        r"\bwalk\s+me\s+through\b",
+    )
+]
+
 _SKILL_TOOL_PATTERNS: list[re.Pattern[str]] = [
     re.compile(p, re.IGNORECASE)
     for p in (
@@ -179,12 +204,31 @@ def classify_workflow_intent(
 
     clean = text.strip()
 
+    # ── DEBUG: trace classification (remove after fix confirmed) ──────
+    import sys as _sys
+
+    _dbg = f"[workflow_delegation] classifying: {clean[:120]!r} | mode={mode}"
+    print(_dbg, file=_sys.stderr)
+
+    # 0. Planning-only exclusion — pass through to CC session
+    for pat in _PLANNING_ONLY_PATTERNS:
+        if pat.search(clean):
+            _reason = f"planning_only_exclusion:{pat.pattern[:40]}"
+            print(
+                f"[workflow_delegation] → STEP 0 matched: {_reason}",
+                file=_sys.stderr,
+            )
+            return _result(INTENT_CONVERSATION, KIND_NONE, _reason, "high")
+
     # 1. Check builder_dev workflow patterns
     for pat in _WORKFLOW_BUILDER_DEV_PATTERNS:
         if pat.search(clean):
-            return _result(
-                INTENT_WORKFLOW, KIND_BUILDER_DEV, f"pattern:{pat.pattern[:40]}", "high"
+            _reason = f"pattern:{pat.pattern[:40]}"
+            print(
+                f"[workflow_delegation] → STEP 1 matched (builder_dev): {_reason}",
+                file=_sys.stderr,
             )
+            return _result(INTENT_WORKFLOW, KIND_BUILDER_DEV, _reason, "high")
 
     # 2. Check product_runtime workflow patterns
     for pat in _WORKFLOW_PRODUCT_RUNTIME_PATTERNS:

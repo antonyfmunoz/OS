@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/summarize_conversations.py
 line: 337
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # update_memory_index

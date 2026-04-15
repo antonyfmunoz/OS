@@ -443,7 +443,7 @@ class ModelRouter:
         elif provider == ModelProvider.GEMINI:
             return self._call_gemini(model_config, prompt, system, max_tokens)
         else:
-            print(f"[ModelRouter] Unknown provider: {provider}")
+            logger.warning("[ModelRouter] Unknown provider: %s", provider)
             return ""
 
     def call_with_fallback(
@@ -480,7 +480,7 @@ class ModelRouter:
             # Call returned '' — provider may have just marked itself unavailable
             # Loop continues to next candidate automatically
 
-        print(f"[ModelRouter] All candidates exhausted for {task_type.name}")
+        logger.warning("[ModelRouter] All candidates exhausted for %s", task_type.name)
         return ""
 
     def _call_anthropic(
@@ -516,14 +516,15 @@ class ModelRouter:
             )
             if _fatal:
                 # All Anthropic models share the same account — mark them all unavailable
-                print(
-                    f"[ModelRouter] Anthropic unavailable — marking all models down: {err_str[:120]}"
+                logger.warning(
+                    "[ModelRouter] Anthropic unavailable — marking all models down: %s",
+                    err_str[:120],
                 )
                 for cfg in MODEL_REGISTRY.values():
                     if cfg.provider == ModelProvider.ANTHROPIC:
                         cfg.available = False
             else:
-                print(f"[ModelRouter] Anthropic error: {e}")
+                logger.warning("[ModelRouter] Anthropic error: %s", e)
             return ""
 
     def _call_openai_compatible(
@@ -561,7 +562,7 @@ class ModelRouter:
                 )
             return response.choices[0].message.content or ""
         except Exception as e:
-            print(f"[ModelRouter] {config.provider.value} error: {e}")
+            logger.warning("[ModelRouter] %s error: %s", config.provider.value, e)
             return ""
 
     def _call_ollama(
@@ -606,7 +607,7 @@ class ModelRouter:
                 self._last_output_tokens = data.get("eval_count", 0) or 0
                 return data.get("response", "")
         except Exception as e:
-            print(f"[ModelRouter] Ollama error: {e}")
+            logger.warning("[ModelRouter] Ollama error: %s", e)
         return ""
 
     def _call_gemini(
@@ -640,7 +641,7 @@ class ModelRouter:
                 )
             return response.text or ""
         except Exception as e:
-            print(f"[ModelRouter] Gemini error: {e}")
+            logger.warning("[ModelRouter] Gemini error: %s", e)
         return ""
 
     def get_status(self) -> str:
@@ -707,6 +708,7 @@ def call_with_fallback(
     trigger_source: str = "conversational",
     agent_type: str | None = None,
     force_opus: bool = False,
+    raw_input: str | None = None,
 ) -> RoutingResult:
     """
     Main routing entry point for all EOS agent calls.
@@ -718,6 +720,13 @@ def call_with_fallback(
         falls back to Haiku if cc_sdk fails
 
     CEO/strategic agents always use best available model.
+
+    Args:
+        raw_input: The original user message before cognitive loop augmentation.
+                   Used by the Claude CLI (tmux) backend which already has full
+                   context via CLAUDE.md — sending the augmented prompt would
+                   redundantly paste system context into the tmux pane and exceed
+                   the 8000-char send limit.
     """
     if isinstance(task_type, TaskType):
         task_type_str = task_type.value
@@ -820,31 +829,45 @@ def call_with_fallback(
                         cli_session = _ms
             except Exception as _mode_exc:  # noqa: BLE001 — never poison router
                 logger.warning("[Router] mode_context lookup failed: %s", _mode_exc)
+            # Use raw_input for the tmux session — the CC session already
+            # has full context via CLAUDE.md and soul docs. Sending the
+            # augmented prompt redundantly pastes system context into the
+            # pane and often exceeds the 8000-char send limit.
+            cli_text = raw_input if raw_input else prompt
             logger.info(
-                "[Router] claude_cli attempt: target=%s session=%s mode=%s",
+                "[Router] claude_cli attempt: target=%s session=%s mode=%s raw=%s chars=%d",
                 cli_target,
                 cli_session,
                 mode_label or "none",
+                bool(raw_input),
+                len(cli_text),
             )
             cli_res = respond_via_claude_session(
-                prompt,
+                cli_text,
                 target=cli_target,
                 session_name=cli_session,
             )
             if cli_res.get("ok") and cli_res.get("reply"):
                 latency_ms = int((time.time() - start) * 1000)
+                reply_text = cli_res["reply"]
+                # Estimate tokens from character count (CC sessions don't
+                # expose exact token counts — chars/4 is a reasonable proxy)
+                est_tokens = max(1, len(reply_text) // 4)
                 logger.info(
-                    "[Router] claude_cli/%s responded (%dms, primary)",
+                    "[Router] claude_cli/%s responded (%dms, ~%d tok, primary)",
                     cli_session,
                     latency_ms,
+                    est_tokens,
                 )
                 _stamp_trace("claude_cli", f"tmux:{cli_session}", latency_ms, "ok")
                 return RoutingResult(
-                    output=cli_res["reply"],
+                    output=reply_text,
                     provider="claude_cli",
                     model=f"tmux:{cli_session}",
                     task_type=task_type_str,
                     latency_ms=latency_ms,
+                    tokens_used=est_tokens,
+                    output_tokens=est_tokens,
                 )
             logger.info(
                 "[Router] claude_cli unavailable (reason=%s detail=%s) — falling through",
@@ -984,19 +1007,19 @@ def call_with_fallback(
                 )
             logger.info("[Router] cc_sdk failed, falling back to registry providers")
 
-        # 2. Registry-based fallback (Haiku → Gemini → Ollama)
-        candidates = [
+        # 2. Registry-based fallback — strength-matched first, then any available
+        strength_matched = [
             c
             for c in MODEL_REGISTRY.values()
             if router_task in c.strengths and c.available
         ]
-        if not candidates:
-            candidates = [c for c in MODEL_REGISTRY.values() if c.available]
-        candidates.sort(key=lambda x: priority.get(x.provider, 99))
+        strength_matched.sort(key=lambda x: priority.get(x.provider, 99))
+        _tried_providers: set = set()
 
-        for config in candidates:
+        for config in strength_matched:
             if not config.available:
                 continue
+            _tried_providers.add(config.provider)
             output = router.call(config, prompt, system or "", 2000)
             if output:
                 latency_ms = int((time.time() - start) * 1000)
@@ -1011,6 +1034,43 @@ def call_with_fallback(
                     config.model_id,
                     latency_ms,
                     "ok_heavy_fallback",
+                )
+                return RoutingResult(
+                    output=output,
+                    provider=config.provider.value,
+                    model=config.model_id,
+                    task_type=task_type_str,
+                    input_tokens=router._last_input_tokens,
+                    output_tokens=router._last_output_tokens,
+                    tokens_used=router._last_input_tokens + router._last_output_tokens,
+                    latency_ms=latency_ms,
+                )
+
+        # 3. All strength-matched failed — try remaining available providers
+        remaining = [
+            c
+            for c in MODEL_REGISTRY.values()
+            if c.available and c.provider not in _tried_providers
+        ]
+        remaining.sort(key=lambda x: priority.get(x.provider, 99))
+
+        for config in remaining:
+            if not config.available:
+                continue
+            output = router.call(config, prompt, system or "", 2000)
+            if output:
+                latency_ms = int((time.time() - start) * 1000)
+                logger.info(
+                    "[Router] %s/%s responded (%dms, heavy remaining)",
+                    config.provider.value,
+                    config.model_id,
+                    latency_ms,
+                )
+                _stamp_trace(
+                    config.provider.value,
+                    config.model_id,
+                    latency_ms,
+                    "ok_heavy_remaining",
                 )
                 return RoutingResult(
                     output=output,

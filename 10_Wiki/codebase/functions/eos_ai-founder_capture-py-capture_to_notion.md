@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/founder_capture.py
 line: 121
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # capture_to_notion

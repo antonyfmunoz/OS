@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/skill_registry.py
 line: 28
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # SkillRegistry.__init__

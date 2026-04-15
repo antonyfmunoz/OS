@@ -4,7 +4,7 @@ path: eos_ai/delegation_tracker.py
 module: eos_ai.delegation_tracker
 lines: 101
 size: 3230
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/delegation_tracker.py

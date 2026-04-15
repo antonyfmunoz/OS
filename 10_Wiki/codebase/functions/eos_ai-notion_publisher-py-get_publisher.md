@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/notion_publisher.py
 line: 493
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # get_publisher

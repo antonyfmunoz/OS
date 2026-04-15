@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_voice_session_cli.py
 line: 104
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # build_parser

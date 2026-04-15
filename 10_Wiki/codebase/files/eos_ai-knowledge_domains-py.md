@@ -4,7 +4,7 @@ path: eos_ai/knowledge_domains.py
 module: eos_ai.knowledge_domains
 lines: 1144
 size: 48667
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/knowledge_domains.py

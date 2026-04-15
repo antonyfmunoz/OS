@@ -5,7 +5,7 @@ module: services.higgsfield_webhook
 lines: 141
 size: 4625
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # services/higgsfield_webhook.py

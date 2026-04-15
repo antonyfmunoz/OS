@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/actions.py
 line: 98
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # SafeAction.to_dict

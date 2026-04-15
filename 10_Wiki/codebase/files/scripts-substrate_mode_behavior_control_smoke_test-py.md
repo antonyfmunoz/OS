@@ -4,7 +4,7 @@ path: scripts/substrate_mode_behavior_control_smoke_test.py
 module: scripts.substrate_mode_behavior_control_smoke_test
 lines: 338
 size: 10206
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_mode_behavior_control_smoke_test.py

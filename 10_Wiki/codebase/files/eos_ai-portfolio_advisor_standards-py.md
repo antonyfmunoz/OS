@@ -4,7 +4,7 @@ path: eos_ai/portfolio_advisor_standards.py
 module: eos_ai.portfolio_advisor_standards
 lines: 487
 size: 15595
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/portfolio_advisor_standards.py

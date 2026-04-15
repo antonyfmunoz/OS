@@ -5,7 +5,7 @@ module: scripts.scheduled.weekly_review_cp
 lines: 107
 size: 3946
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/scheduled/weekly_review_cp.py

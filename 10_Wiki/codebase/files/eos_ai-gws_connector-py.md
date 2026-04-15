@@ -4,7 +4,7 @@ path: eos_ai/gws_connector.py
 module: eos_ai.gws_connector
 lines: 1035
 size: 36063
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/gws_connector.py

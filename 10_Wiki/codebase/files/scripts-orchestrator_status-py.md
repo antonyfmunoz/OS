@@ -5,7 +5,7 @@ module: scripts.orchestrator_status
 lines: 389
 size: 12290
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/orchestrator_status.py

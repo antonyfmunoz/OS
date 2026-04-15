@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/world_pulse.py
 line: 581
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # WorldPulse.get_pulse_summary

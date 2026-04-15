@@ -4,7 +4,7 @@ path: core/tool_mastery_research_agent/models.py
 module: core.tool_mastery_research_agent.models
 lines: 210
 size: 6934
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/tool_mastery_research_agent/models.py

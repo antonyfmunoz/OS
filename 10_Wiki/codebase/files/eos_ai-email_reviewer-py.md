@@ -4,7 +4,7 @@ path: eos_ai/email_reviewer.py
 module: eos_ai.email_reviewer
 lines: 166
 size: 5698
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/email_reviewer.py

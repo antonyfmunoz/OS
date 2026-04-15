@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/knowledge_graph.py
 line: 464
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # KnowledgeGraph.auto_link_interaction

@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/run_graphify.py
 line: 450
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # run

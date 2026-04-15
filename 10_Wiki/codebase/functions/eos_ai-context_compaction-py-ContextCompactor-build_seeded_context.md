@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/context_compaction.py
 line: 169
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # ContextCompactor.build_seeded_context

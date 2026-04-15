@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: services/discord_bot.py
-line: 3929
-generated: 2026-04-11
+line: 4019
+generated: 2026-04-12
 ---
 
 # cmd_proofread
 
-**File:** [[services-discord_bot-py]] | **Line:** 3929
+**File:** [[services-discord_bot-py]] | **Line:** 4019
 **Signature:** `cmd_proofread(ctx)`
 
 Proofread outgoing communications. Usage: !proofread [paste your text here]

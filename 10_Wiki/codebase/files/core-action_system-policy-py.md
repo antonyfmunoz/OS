@@ -4,7 +4,7 @@ path: core/action_system/policy.py
 module: core.action_system.policy
 lines: 165
 size: 6077
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/action_system/policy.py

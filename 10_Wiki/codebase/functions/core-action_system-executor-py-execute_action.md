@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/action_system/executor.py
 line: 93
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # execute_action

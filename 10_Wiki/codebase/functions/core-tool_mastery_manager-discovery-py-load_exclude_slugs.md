@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_manager/discovery.py
 line: 226
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # load_exclude_slugs

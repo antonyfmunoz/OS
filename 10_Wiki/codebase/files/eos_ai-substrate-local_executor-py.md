@@ -4,7 +4,7 @@ path: eos_ai/substrate/local_executor.py
 module: eos_ai.substrate.local_executor
 lines: 216
 size: 7500
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/local_executor.py

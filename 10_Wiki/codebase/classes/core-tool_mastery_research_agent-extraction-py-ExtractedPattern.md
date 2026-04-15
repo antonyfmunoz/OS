@@ -2,7 +2,7 @@
 type: codebase-class
 file: core/tool_mastery_research_agent/extraction.py
 line: 460
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # ExtractedPattern

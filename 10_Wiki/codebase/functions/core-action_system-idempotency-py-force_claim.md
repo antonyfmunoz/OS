@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/action_system/idempotency.py
 line: 168
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # force_claim

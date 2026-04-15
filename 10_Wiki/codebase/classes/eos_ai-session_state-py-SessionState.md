@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/session_state.py
 line: 8
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # SessionState

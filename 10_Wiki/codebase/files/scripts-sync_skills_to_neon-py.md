@@ -5,7 +5,7 @@ module: scripts.sync_skills_to_neon
 lines: 156
 size: 5065
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/sync_skills_to_neon.py

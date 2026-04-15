@@ -4,7 +4,7 @@ path: eos_ai/channel.py
 module: eos_ai.channel
 lines: 453
 size: 12924
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/channel.py

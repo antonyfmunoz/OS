@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/agent_runtime.py
 line: 74
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # RateLimiter

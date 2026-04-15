@@ -5,7 +5,7 @@ module: scripts.substrate_hybrid_execution_smoke_test
 lines: 686
 size: 25307
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_hybrid_execution_smoke_test.py

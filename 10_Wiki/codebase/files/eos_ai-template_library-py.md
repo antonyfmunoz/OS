@@ -4,7 +4,7 @@ path: eos_ai/template_library.py
 module: eos_ai.template_library
 lines: 418
 size: 13449
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/template_library.py

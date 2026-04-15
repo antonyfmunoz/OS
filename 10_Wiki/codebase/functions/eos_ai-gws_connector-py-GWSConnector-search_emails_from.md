@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/gws_connector.py
 line: 710
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # GWSConnector.search_emails_from

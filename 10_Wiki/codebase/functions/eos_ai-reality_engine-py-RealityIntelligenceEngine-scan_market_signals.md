@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/reality_engine.py
 line: 140
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # RealityIntelligenceEngine.scan_market_signals

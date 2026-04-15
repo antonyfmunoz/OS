@@ -5,7 +5,7 @@ module: scripts.substrate_drainer_smoke_test
 lines: 123
 size: 4164
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_drainer_smoke_test.py

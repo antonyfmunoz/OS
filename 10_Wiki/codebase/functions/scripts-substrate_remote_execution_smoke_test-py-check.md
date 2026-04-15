@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_remote_execution_smoke_test.py
 line: 38
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # check

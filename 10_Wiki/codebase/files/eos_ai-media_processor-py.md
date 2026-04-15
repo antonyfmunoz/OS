@@ -4,7 +4,7 @@ path: eos_ai/media_processor.py
 module: eos_ai.media_processor
 lines: 351
 size: 12208
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/media_processor.py

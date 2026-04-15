@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/provider_health.py
 line: 167
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # check_cc_sdk

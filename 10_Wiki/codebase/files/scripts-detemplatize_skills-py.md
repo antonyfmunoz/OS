@@ -5,7 +5,7 @@ module: scripts.detemplatize_skills
 lines: 204
 size: 6440
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/detemplatize_skills.py

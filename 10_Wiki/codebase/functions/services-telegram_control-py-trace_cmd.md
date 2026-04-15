@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/telegram_control.py
 line: 2577
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # trace_cmd

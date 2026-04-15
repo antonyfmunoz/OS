@@ -5,7 +5,7 @@ module: scripts.substrate_wake_producer_smoke_test
 lines: 222
 size: 8994
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_wake_producer_smoke_test.py

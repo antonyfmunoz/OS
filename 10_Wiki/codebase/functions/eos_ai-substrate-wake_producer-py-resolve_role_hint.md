@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/wake_producer.py
 line: 115
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # resolve_role_hint

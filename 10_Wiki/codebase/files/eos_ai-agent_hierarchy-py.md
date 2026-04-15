@@ -5,7 +5,7 @@ module: eos_ai.agent_hierarchy
 lines: 435
 size: 15025
 tags: [critical]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/agent_hierarchy.py

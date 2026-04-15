@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/result_store.py
 line: 241
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # reset_result_store_for_tests

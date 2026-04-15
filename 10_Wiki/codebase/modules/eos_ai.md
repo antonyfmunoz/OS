@@ -1,11 +1,11 @@
 ---
 type: codebase-module
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/
 
-**Files:** 179 | **Lines:** 75,154 | **Classes:** 280 | **Functions:** 1882
+**Files:** 181 | **Lines:** 76,079 | **Classes:** 286 | **Functions:** 1913
 
 ## Critical Files
 
@@ -51,7 +51,7 @@ generated: 2026-04-11
 - [[eos_ai-ceo_operational_standards-py]] (604 lines) — CEO Best Practices — operational ruleset for
 - [[eos_ai-channel-py]] (453 lines) — EOS Channel System
 - [[eos_ai-claude_skill_registry-py]] (298 lines) — ClaudeSkillRegistry — tracks all .claude/skills files, syncs
-- [[eos_ai-cognitive_loop-py]] (1669 lines) **[CRITICAL]** — CognitiveLoop — full Perceive → Understand → Plan → Execute
+- [[eos_ai-cognitive_loop-py]] (1679 lines) **[CRITICAL]** — CognitiveLoop — full Perceive → Understand → Plan → Execute
 - [[eos_ai-competitive_intel-py]] (149 lines) — Competitive Intelligence — tracks competitor signals
 - [[eos_ai-confidentiality-py]] (119 lines) — Confidentiality Protocol — handles sensitive
 - [[eos_ai-context-py]] (41 lines) — 
@@ -98,7 +98,7 @@ generated: 2026-04-11
 - [[eos_ai-meetings-py]] (854 lines) — Meetings — central module for all meeting lifecycle manageme
 - [[eos_ai-memory-py]] (1019 lines) **[CRITICAL]** — Persistent memory for OS agents — backed by Neon (PostgreSQL
 - [[eos_ai-model_preferences-py]] (472 lines) — Multi-model router with business context awareness and full 
-- [[eos_ai-model_router-py]] (1109 lines) **[CRITICAL]** — ModelRouter — standalone multi-model router for EOS.
+- [[eos_ai-model_router-py]] (1116 lines) **[CRITICAL]** — ModelRouter — standalone multi-model router for EOS.
 - [[eos_ai-notebooklm_sync-py]] (314 lines) — NotebookLMSync — bidirectional sync between Neon and Noteboo
 - [[eos_ai-notion_publisher-py]] (496 lines) — EOS Notion Publisher — canonical pattern for writing EOS con
 - [[eos_ai-notion_sync-py]] (470 lines) — Notion Sync — EOS runtime write layer.
@@ -141,7 +141,7 @@ generated: 2026-04-11
 - [[eos_ai-substrate-capabilities-py]] (81 lines) — Capability abstraction — what a node can do.
 - [[eos_ai-substrate-capability_tagging-py]] (134 lines) — Capability tagging — additive pre-routing layer.
 - [[eos_ai-substrate-claude_responder-py]] (179 lines) — Claude Responder v1 — thin adapter that turns a text prompt 
-- [[eos_ai-substrate-claude_session_bridge-py]] (1057 lines) — Claude Code Session Bridge v1 — persistent tmux-backed Claud
+- [[eos_ai-substrate-claude_session_bridge-py]] (1149 lines) — Claude Code Session Bridge v1 — persistent tmux-backed Claud
 - [[eos_ai-substrate-context_lifecycle-py]] (314 lines) — Context lifecycle — pressure-aware session maintenance with 
 - [[eos_ai-substrate-control_bridge-py]] (173 lines) — Control Layer v1 — Control Bridge (VPS side).
 - [[eos_ai-substrate-control_commands-py]] (104 lines) — Control Layer v1 — Command Envelope.
@@ -181,7 +181,9 @@ generated: 2026-04-11
 - [[eos_ai-substrate-scene_policy-py]] (244 lines) — Scene policy — deterministic mapping from (node, readiness, 
 - [[eos_ai-substrate-scenes-py]] (81 lines) — Scene registry — small, code-declared workstation bootstrap 
 - [[eos_ai-substrate-session_control-py]] (260 lines) — Session control — lifecycle commands for Claude Code tmux se
+- [[eos_ai-substrate-session_discord_bridge-py]] (288 lines) — Session Discord Bridge — routes SessionWatcher events to Dis
 - [[eos_ai-substrate-session_orchestration-py]] (418 lines) *[entry]* — Session Orchestration Layer v1 — registry, health, recovery,
+- [[eos_ai-substrate-session_watcher-py]] (520 lines) — Session Watcher — continuous tmux state machine for Claude C
 - [[eos_ai-substrate-station-py]] (228 lines) — Station Daemon contract.
 - [[eos_ai-substrate-station_bus-py]] (188 lines) — StationBus — MVP transport between EOS and local Station Dae
 - [[eos_ai-substrate-station_daemon-py]] (749 lines) *[entry]* — StationDaemon — minimal local node execution loop.
@@ -193,7 +195,7 @@ generated: 2026-04-11
 - [[eos_ai-substrate-target_policy-py]] (214 lines) — Hybrid Execution Target Policy v1 — deterministic target res
 - [[eos_ai-substrate-transcript_inject-py]] (205 lines) — Transcript injection — the bounded entry point for text-shap
 - [[eos_ai-substrate-transport_report-py]] (638 lines) — Unified transport report — bounded read-only join across the
-- [[eos_ai-substrate-tts_sanitize-py]] (173 lines) — TTS reply sanitization — strip Claude Code / provider footer
+- [[eos_ai-substrate-tts_sanitize-py]] (181 lines) — TTS reply sanitization — strip Claude Code / provider footer
 - [[eos_ai-substrate-voice_eos_responder-py]] (339 lines) — Voice → EOS responder bridge.
 - [[eos_ai-substrate-voice_session-py]] (790 lines) — Voice session — bounded live voice-presence layer for the su
 - [[eos_ai-substrate-wake_producer-py]] (491 lines) — Wake producer — bounded wake-word / clap activation layer fo

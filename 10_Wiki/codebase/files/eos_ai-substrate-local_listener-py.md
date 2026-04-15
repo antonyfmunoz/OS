@@ -4,7 +4,7 @@ path: eos_ai/substrate/local_listener.py
 module: eos_ai.substrate.local_listener
 lines: 397
 size: 15578
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/local_listener.py

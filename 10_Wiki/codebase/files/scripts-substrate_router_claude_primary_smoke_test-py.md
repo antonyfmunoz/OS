@@ -5,7 +5,7 @@ module: scripts.substrate_router_claude_primary_smoke_test
 lines: 236
 size: 7720
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_router_claude_primary_smoke_test.py

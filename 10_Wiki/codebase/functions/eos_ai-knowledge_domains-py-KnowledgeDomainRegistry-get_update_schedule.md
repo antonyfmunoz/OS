@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/knowledge_domains.py
 line: 977
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # KnowledgeDomainRegistry.get_update_schedule

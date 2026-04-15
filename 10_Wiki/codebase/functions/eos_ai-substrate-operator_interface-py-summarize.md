@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/operator_interface.py
 line: 184
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # summarize

@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_transport_report_cli.py
 line: 127
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # build_parser

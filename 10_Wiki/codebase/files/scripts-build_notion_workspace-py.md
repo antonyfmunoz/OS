@@ -4,7 +4,7 @@ path: scripts/build_notion_workspace.py
 module: scripts.build_notion_workspace
 lines: 713
 size: 26458
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/build_notion_workspace.py

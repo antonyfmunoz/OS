@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/control_plane_run.py
 line: 26
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # main

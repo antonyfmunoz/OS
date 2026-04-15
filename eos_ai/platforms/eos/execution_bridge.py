@@ -48,11 +48,32 @@ class ExecutionBridgeResult:
         }
 
 
+# ─── Streaming ─────────────────────────────────────────────────────────────
+
+
+def _stream(event_type_name: str, message: str, **kwargs: str) -> None:
+    """Best-effort streaming event emission."""
+    try:
+        from eos_ai.platforms.eos.streaming_bridge import StreamEventType, stream_event
+
+        type_map = {
+            "task_started": StreamEventType.TASK_STARTED,
+            "task_completed": StreamEventType.TASK_COMPLETED,
+            "step_started": StreamEventType.STEP_STARTED,
+            "step_completed": StreamEventType.STEP_COMPLETED,
+            "error": StreamEventType.ERROR,
+        }
+        etype = type_map.get(event_type_name, StreamEventType.INFO)
+        stream_event(etype, message, payload=kwargs, source="execution_bridge")
+    except Exception as exc:
+        _log(f"stream event failed: {exc}")
+
+
 # ─── Helpers ────────────────────────────────────────────────────────────────
 
 
 def _is_local_available() -> bool:
-    """Check station_presence for local node availability."""
+    """Check station_presence for local node availability (legacy helper)."""
     try:
         from eos_ai.substrate.station_presence import StationPresenceStore
 
@@ -60,6 +81,32 @@ def _is_local_available() -> bool:
     except Exception as exc:  # noqa: BLE001
         _log(f"station_presence check failed: {exc}")
         return False
+
+
+def _get_routing_decision(
+    *, session=None, prefer_local: bool = True
+) -> "tuple[bool, dict]":
+    """Get a routing decision from NodeController.
+
+    Returns (local_available, routing_info) where routing_info is the
+    decision dict for logging. Falls back to legacy _is_local_available()
+    if NodeController is unavailable.
+    """
+    try:
+        from eos_ai.substrate.node_controller import TransportPreference, route
+
+        decision = route(session=session, prefer_local=prefer_local)
+        routing_info = decision.to_dict()
+        local = decision.transport != TransportPreference.VPS_DIRECT
+        _log(
+            f"routing decision: {decision.target_node_id} via "
+            f"{decision.transport.value} ({decision.reason.value})"
+        )
+        return local, routing_info
+    except Exception as exc:  # noqa: BLE001
+        _log(f"NodeController unavailable ({exc}); falling back to legacy check")
+        local = _is_local_available() if prefer_local else False
+        return local, {"fallback": "legacy", "local_available": local}
 
 
 def _get_operator_session():
@@ -206,15 +253,19 @@ def execute_created_work_immediately(
     if not task_ids and not pipeline_ids:
         return result
 
-    local_available = _is_local_available() if prefer_local else False
     session = _get_operator_session()
+    local_available, routing_info = _get_routing_decision(
+        session=session, prefer_local=prefer_local
+    )
 
     _log(
         f"executing {len(task_ids)} tasks, {len(pipeline_ids)} pipelines "
-        f"(dry_run={dry_run}, local_available={local_available})"
+        f"(dry_run={dry_run}, local_available={local_available}, "
+        f"routing={routing_info.get('reason', routing_info.get('fallback', 'unknown'))})"
     )
 
     for task_id in task_ids:
+        _stream("task_started", f"Starting task {task_id}...", task_id=task_id)
         _execute_single_task(
             task_id,
             result,
@@ -222,14 +273,29 @@ def execute_created_work_immediately(
             local_available=local_available,
             dry_run=dry_run,
         )
+        summary = result.execution_summaries.get(
+            task_id, result.errors.get(task_id, "done")
+        )
+        _stream("task_completed", f"Task finished: {summary}", task_id=task_id)
 
     for pipeline_id in pipeline_ids:
+        _stream(
+            "task_started",
+            f"Starting pipeline {pipeline_id}...",
+            pipeline_id=pipeline_id,
+        )
         _execute_single_pipeline(
             pipeline_id,
             result,
             session=session,
             local_available=local_available,
             dry_run=dry_run,
+        )
+        summary = result.execution_summaries.get(
+            pipeline_id, result.errors.get(pipeline_id, "done")
+        )
+        _stream(
+            "task_completed", f"Pipeline finished: {summary}", pipeline_id=pipeline_id
         )
 
     _log(

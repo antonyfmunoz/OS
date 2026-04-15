@@ -5,7 +5,7 @@ module: scripts.query_skills
 lines: 213
 size: 7101
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/query_skills.py

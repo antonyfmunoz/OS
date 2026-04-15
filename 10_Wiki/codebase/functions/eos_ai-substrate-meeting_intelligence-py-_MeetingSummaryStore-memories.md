@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/meeting_intelligence.py
 line: 344
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # _MeetingSummaryStore.memories

@@ -5,7 +5,7 @@ module: scripts.permission_notify
 lines: 103
 size: 2364
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/permission_notify.py

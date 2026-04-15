@@ -4,7 +4,7 @@ path: eos_ai/skill_improvement.py
 module: eos_ai.skill_improvement
 lines: 449
 size: 18727
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/skill_improvement.py

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/gateway.py
 line: 1650
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # EOSGateway.queue_for_approval

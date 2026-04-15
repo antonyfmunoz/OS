@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/execution_trace.py
 line: 271
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # set_current_trace

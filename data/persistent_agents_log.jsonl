@@ -1,0 +1,65 @@
+{"ts": "2026-04-11T03:52:24.245783+00:00", "agent": "observer", "ok": true, "summary": "workflows ok=0 failed=1 rate=100% harness_err=50% alerts=0", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-11T03:52:24.246122+00:00", "agent": "healer", "ok": true, "summary": "alerts=0 reenable_candidates=0 actions=[]", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-11T03:52:24.246696+00:00", "agent": "librarian", "ok": false, "summary": "consolidated 6 workflows; digest_ok=False", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-11T03:56:08.956901+00:00", "agent": "observer", "ok": true, "summary": "workflows ok=0 failed=1 rate=100% harness_err=67% alerts=0", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-11T03:56:08.957352+00:00", "agent": "healer", "ok": true, "summary": "alerts=0 reenable_candidates=0 actions=[]", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-11T03:56:08.958448+00:00", "agent": "observer", "ok": true, "summary": "workflows ok=0 failed=1 rate=100% harness_err=67% alerts=0", "duration_ms": 2, "alerts": []}
+{"ts": "2026-04-11T03:56:08.958831+00:00", "agent": "healer", "ok": true, "summary": "alerts=0 reenable_candidates=0 actions=[]", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-11T03:56:08.959274+00:00", "agent": "librarian", "ok": true, "summary": "up-to-date (wf-fake)", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-11T03:56:08.959671+00:00", "agent": "librarian", "ok": true, "summary": "up-to-date (wf-fake)", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-11T03:59:30.232415+00:00", "agent": "observer", "ok": true, "summary": "workflows ok=0 failed=1 rate=100% harness_err=75% alerts=0", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-11T03:59:30.322860+00:00", "agent": "observer", "ok": true, "summary": "workflows ok=0 failed=1 rate=100% harness_err=75% alerts=0", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-11T03:59:30.323967+00:00", "agent": "healer", "ok": true, "summary": "alerts=0 reenable_candidates=0 actions=[]", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-11T03:59:30.324068+00:00", "agent": "observer", "ok": true, "summary": "workflows ok=0 failed=1 rate=100% harness_err=75% alerts=0", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-11T03:59:30.324766+00:00", "agent": "librarian", "ok": true, "summary": "up-to-date (wf-fake)", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-11T03:59:30.325250+00:00", "agent": "healer", "ok": true, "summary": "alerts=0 reenable_candidates=0 actions=[]", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-11T03:59:30.325791+00:00", "agent": "librarian", "ok": true, "summary": "up-to-date (wf-fake)", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-11T04:00:05.823762+00:00", "agent": "observer", "ok": true, "summary": "workflows ok=0 failed=1 rate=100% harness_err=80% alerts=1", "duration_ms": 2, "alerts": ["harness_error_rate=80% over 5 calls"]}
+{"ts": "2026-04-11T04:00:05.957439+00:00", "agent": "observer", "ok": true, "summary": "workflows ok=0 failed=1 rate=100% harness_err=80% alerts=1", "duration_ms": 0, "alerts": ["harness_error_rate=80% over 5 calls"]}
+{"ts": "2026-04-11T04:00:05.957621+00:00", "agent": "observer", "ok": true, "summary": "workflows ok=0 failed=1 rate=100% harness_err=80% alerts=1", "duration_ms": 2, "alerts": ["harness_error_rate=80% over 5 calls"]}
+{"ts": "2026-04-11T04:00:07.541247+00:00", "agent": "healer", "ok": true, "summary": "alerts=1 reenable_candidates=0 actions=['memory_note']", "duration_ms": 1576, "alerts": ["harness_error_rate=80% over 5 calls"]}
+{"ts": "2026-04-11T04:00:07.606089+00:00", "agent": "librarian", "ok": true, "summary": "up-to-date (wf-fake)", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-11T04:00:07.649054+00:00", "agent": "healer", "ok": true, "summary": "alerts=1 reenable_candidates=0 actions=['memory_note']", "duration_ms": 1681, "alerts": ["harness_error_rate=80% over 5 calls"]}
+{"ts": "2026-04-11T04:00:07.650105+00:00", "agent": "librarian", "ok": true, "summary": "up-to-date (wf-fake)", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-11T04:01:11.543311+00:00", "agent": "observer", "ok": true, "summary": "workflows ok=0 failed=1 rate=100% harness_err=80% alerts=1", "duration_ms": 0, "alerts": ["harness_error_rate=80% over 5 calls"]}
+{"ts": "2026-04-11T04:01:11.544571+00:00", "agent": "observer", "ok": true, "summary": "workflows ok=0 failed=1 rate=100% harness_err=80% alerts=1", "duration_ms": 2, "alerts": ["harness_error_rate=80% over 5 calls"]}
+{"ts": "2026-04-11T04:01:13.274758+00:00", "agent": "healer", "ok": true, "summary": "alerts=1 reenable_candidates=0 actions=['memory_note']", "duration_ms": 1479, "alerts": ["harness_error_rate=80% over 5 calls"]}
+{"ts": "2026-04-11T04:01:13.300579+00:00", "agent": "healer", "ok": true, "summary": "alerts=1 reenable_candidates=0 actions=['memory_note']", "duration_ms": 1750, "alerts": ["harness_error_rate=80% over 5 calls"]}
+{"ts": "2026-04-11T04:01:13.308453+00:00", "agent": "librarian", "ok": true, "summary": "up-to-date (wf-fake)", "duration_ms": 5, "alerts": []}
+{"ts": "2026-04-11T04:01:13.317193+00:00", "agent": "librarian", "ok": true, "summary": "up-to-date (wf-fake)", "duration_ms": 6, "alerts": []}
+{"ts": "2026-04-11T04:01:59.618766+00:00", "agent": "observer", "ok": true, "summary": "workflows ok=0 failed=1 rate=100% harness_err=83% alerts=1", "duration_ms": 0, "alerts": ["harness_error_rate=83% over 6 calls"]}
+{"ts": "2026-04-11T04:01:59.724049+00:00", "agent": "observer", "ok": true, "summary": "workflows ok=0 failed=1 rate=100% harness_err=83% alerts=1", "duration_ms": 1, "alerts": ["harness_error_rate=83% over 6 calls"]}
+{"ts": "2026-04-11T04:01:59.725443+00:00", "agent": "observer", "ok": true, "summary": "workflows ok=0 failed=1 rate=100% harness_err=83% alerts=1", "duration_ms": 3, "alerts": ["harness_error_rate=83% over 6 calls"]}
+{"ts": "2026-04-11T04:02:01.041919+00:00", "agent": "healer", "ok": true, "summary": "alerts=1 reenable_candidates=0 actions=['memory_note']", "duration_ms": 1309, "alerts": ["harness_error_rate=83% over 6 calls"]}
+{"ts": "2026-04-11T04:02:01.052210+00:00", "agent": "librarian", "ok": true, "summary": "up-to-date (wf-fake)", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-11T04:02:01.203270+00:00", "agent": "healer", "ok": true, "summary": "alerts=1 reenable_candidates=0 actions=['memory_note']", "duration_ms": 1477, "alerts": ["harness_error_rate=83% over 6 calls"]}
+{"ts": "2026-04-11T04:02:01.207398+00:00", "agent": "librarian", "ok": true, "summary": "up-to-date (wf-fake)", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-12T05:48:41.675148+00:00", "agent": "observer", "ok": true, "summary": "workflows ok=0 failed=1 rate=100% harness_err=86% alerts=1 advisor_says=advisor response not parseable; raw: How is Claude doing this session? (optional", "duration_ms": 3277, "alerts": ["harness_error_rate=86% over 7 calls"]}
+{"ts": "2026-04-12T05:48:50.168605+00:00", "agent": "observer", "ok": true, "summary": "workflows ok=0 failed=1 rate=100% harness_err=75% alerts=1 advisor_says=advisor response not parseable; raw: How is Claude doing this session? (optional", "duration_ms": 8383, "alerts": ["harness_error_rate=75% over 8 calls"]}
+{"ts": "2026-04-12T05:48:51.529399+00:00", "agent": "healer", "ok": true, "summary": "alerts=1 reenable_candidates=0 actions=['memory_note']", "duration_ms": 1338, "alerts": ["harness_error_rate=75% over 8 calls"]}
+{"ts": "2026-04-12T05:48:51.570995+00:00", "agent": "librarian", "ok": true, "summary": "up-to-date (wf-fake)", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-12T05:48:57.861154+00:00", "agent": "observer", "ok": true, "summary": "workflows ok=0 failed=1 rate=100% harness_err=75% alerts=1 advisor_says=advisor response not parseable; raw: How is Claude doing this session? (optional", "duration_ms": 16074, "alerts": ["harness_error_rate=75% over 8 calls"]}
+{"ts": "2026-04-12T05:49:02.010134+00:00", "agent": "healer", "ok": true, "summary": "alerts=1 reenable_candidates=0 actions=['memory_note']", "duration_ms": 4147, "alerts": ["harness_error_rate=75% over 8 calls"]}
+{"ts": "2026-04-12T05:49:02.013595+00:00", "agent": "librarian", "ok": true, "summary": "up-to-date (wf-fake)", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-12T05:49:36.997130+00:00", "agent": "observer", "ok": true, "summary": "workflows ok=0 failed=1 rate=100% harness_err=50% alerts=1 advisor_says=advisor response not parseable; raw: How is Claude doing this session? (optional", "duration_ms": 3248, "alerts": ["harness_error_rate=50% over 12 calls"]}
+{"ts": "2026-04-12T05:49:45.819842+00:00", "agent": "observer", "ok": true, "summary": "workflows ok=0 failed=1 rate=100% harness_err=46% alerts=1 advisor_says=advisor response not parseable; raw: How is Claude doing this session? (optional", "duration_ms": 3276, "alerts": ["harness_error_rate=46% over 13 calls"]}
+{"ts": "2026-04-12T05:49:47.169419+00:00", "agent": "healer", "ok": true, "summary": "alerts=1 reenable_candidates=0 actions=['memory_note']", "duration_ms": 1348, "alerts": ["harness_error_rate=46% over 13 calls"]}
+{"ts": "2026-04-12T05:49:47.170285+00:00", "agent": "librarian", "ok": true, "summary": "up-to-date (wf-fake)", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-12T19:53:48.835363+00:00", "agent": "observer", "ok": true, "summary": "workflows ok=0 failed=1 rate=100% harness_err=43% alerts=1 advisor_says=advisor response not parseable; raw: How is Claude doing this session? (optional", "duration_ms": 3274, "alerts": ["harness_error_rate=43% over 14 calls"]}
+{"ts": "2026-04-12T19:53:50.315743+00:00", "agent": "healer", "ok": true, "summary": "alerts=1 reenable_candidates=0 actions=['memory_note']", "duration_ms": 1477, "alerts": ["harness_error_rate=43% over 14 calls"]}
+{"ts": "2026-04-12T19:53:50.317176+00:00", "agent": "librarian", "ok": true, "summary": "up-to-date (wf-fake)", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-12T19:53:56.078502+00:00", "agent": "observer", "ok": true, "summary": "workflows ok=0 failed=1 rate=100% harness_err=43% alerts=1 advisor_says=advisor response not parseable; raw: How is Claude doing this session? (optional", "duration_ms": 10512, "alerts": ["harness_error_rate=43% over 14 calls"]}
+{"ts": "2026-04-12T19:53:57.095679+00:00", "agent": "healer", "ok": true, "summary": "alerts=1 reenable_candidates=0 actions=['memory_note']", "duration_ms": 1016, "alerts": ["harness_error_rate=43% over 14 calls"]}
+{"ts": "2026-04-12T19:53:57.097202+00:00", "agent": "librarian", "ok": true, "summary": "up-to-date (wf-fake)", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-12T19:55:29.996389+00:00", "agent": "observer", "ok": true, "summary": "workflows ok=0 failed=1 rate=100% harness_err=38% alerts=0", "duration_ms": 1, "alerts": []}
+{"ts": "2026-04-12T19:55:29.996643+00:00", "agent": "observer", "ok": true, "summary": "workflows ok=0 failed=1 rate=100% harness_err=38% alerts=0", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-12T19:55:29.997197+00:00", "agent": "healer", "ok": true, "summary": "alerts=0 reenable_candidates=0 actions=[]", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-12T19:55:29.997170+00:00", "agent": "healer", "ok": true, "summary": "alerts=0 reenable_candidates=0 actions=[]", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-12T19:55:29.997703+00:00", "agent": "librarian", "ok": true, "summary": "up-to-date (wf-fake)", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-12T19:55:29.998708+00:00", "agent": "librarian", "ok": true, "summary": "up-to-date (wf-fake)", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-12T19:55:36.177613+00:00", "agent": "observer", "ok": true, "summary": "workflows ok=0 failed=1 rate=100% harness_err=38% alerts=0", "duration_ms": 1, "alerts": []}
+{"ts": "2026-04-12T19:55:36.177720+00:00", "agent": "observer", "ok": true, "summary": "workflows ok=0 failed=1 rate=100% harness_err=38% alerts=0", "duration_ms": 2, "alerts": []}
+{"ts": "2026-04-12T19:55:36.178548+00:00", "agent": "healer", "ok": true, "summary": "alerts=0 reenable_candidates=0 actions=[]", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-12T19:55:36.178585+00:00", "agent": "healer", "ok": true, "summary": "alerts=0 reenable_candidates=0 actions=[]", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-12T19:55:36.179721+00:00", "agent": "librarian", "ok": true, "summary": "up-to-date (wf-fake)", "duration_ms": 0, "alerts": []}
+{"ts": "2026-04-12T19:55:36.179699+00:00", "agent": "librarian", "ok": true, "summary": "up-to-date (wf-fake)", "duration_ms": 0, "alerts": []}

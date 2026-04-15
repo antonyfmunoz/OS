@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/gws_connector.py
 line: 959
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # GWSConnector.get_message_headers

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/claude_session_bridge.py
 line: 649
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # capture_output
@@ -24,3 +24,4 @@ Capture bounded pane output from a tmux session.
 ## Called By
 
 - [[eos_ai-substrate-claude_session_bridge-py-ask_session]]
+- [[eos_ai-substrate-session_watcher-py-SessionWatcher-_poll_once]]

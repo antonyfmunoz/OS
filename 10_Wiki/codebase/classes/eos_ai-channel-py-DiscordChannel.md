@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/channel.py
 line: 111
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # DiscordChannel

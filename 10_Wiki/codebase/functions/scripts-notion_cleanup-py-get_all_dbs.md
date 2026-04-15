@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/notion_cleanup.py
 line: 264
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # get_all_dbs

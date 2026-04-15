@@ -4,7 +4,7 @@ path: eos_ai/notion_sync.py
 module: eos_ai.notion_sync
 lines: 470
 size: 14070
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/notion_sync.py

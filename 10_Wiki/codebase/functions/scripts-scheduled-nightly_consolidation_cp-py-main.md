@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/scheduled/nightly_consolidation_cp.py
 line: 55
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # main

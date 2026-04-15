@@ -175,16 +175,24 @@ def format_response_footer(
     tokens = getattr(result, "tokens_used", None) or {}
     total_tokens = tokens.get("total", 0)
 
-    model_display = {
+    _display_map = {
         "claude-haiku-4-5-20251001": "Haiku",
         "claude-sonnet-4-6": "Sonnet",
         "claude-opus-4-6": "Opus",
         "sonar-pro": "Perplexity",
         "gemini-2.0-flash": "Gemini Flash",
         "gemma3:4b": "Gemma3 4B (local)",
-    }.get(model, model)
+    }
+    # Claude CLI tmux sessions: "claude_cli/tmux:session_name" → "Opus (CLI session_name)"
+    if model.startswith("claude_cli/tmux:"):
+        _session_name = model.split("tmux:", 1)[1]
+        model_display = f"Opus (CLI {_session_name})"
+    else:
+        model_display = _display_map.get(model, model)
 
-    if cost == 0.0:
+    if cost == 0.0 and model.startswith("claude_cli/"):
+        cost_str = "CC session"
+    elif cost == 0.0:
         cost_str = "free (local)"
     elif cost < 0.001:
         cost_str = "<$0.001"
@@ -269,6 +277,7 @@ class CognitiveLoop:
         workflow_id: str | None = None,
         channel: str = "",
         max_iterations: int = 3,
+        raw_input: str | None = None,
     ) -> CognitiveResult:
 
         # 0. PERCEIVE — resolve multimodal input to text
@@ -432,9 +441,7 @@ class CognitiveLoop:
                 _system_parts.append(_bis_prompt)
             else:
                 _system_parts.append(
-                    "INSTANCE CONTEXT:\n"
-                    "Stage: pre-revenue\n"
-                    "Load BIS for full context."
+                    "INSTANCE CONTEXT:\nStage: pre-revenue\nLoad BIS for full context."
                 )
         except Exception:
             _system_parts.append(
@@ -588,7 +595,9 @@ class CognitiveLoop:
             from eos_ai.primitives import PrimitiveRegistry
 
             _pr = PrimitiveRegistry(self.ctx)
-            _prim_ctx = _pr.compose_business_context(venture_id or self.ctx.active_venture_id or "")
+            _prim_ctx = _pr.compose_business_context(
+                venture_id or self.ctx.active_venture_id or ""
+            )
             _prim_block = _prim_ctx.strip()[:800] if _prim_ctx else ""
             if _prim_block:
                 _system_parts.append(_prim_block)
@@ -790,6 +799,10 @@ class CognitiveLoop:
             pass
 
         original_prompt = text
+        # raw_input is the actual user message BEFORE gateway augmentation.
+        # Falls back to text (which may already be gateway-augmented) if not
+        # provided by the caller.
+        _true_raw_input = raw_input if raw_input else text
         enhanced = self._enhance_prompt(text)
         enhanced_prompt = enhanced
         system_extra = "\n\n".join(_system_parts) if _system_parts else None
@@ -819,6 +832,7 @@ class CognitiveLoop:
             agent=agent,
             ctx=self.ctx,
             system_extra=system_extra,
+            raw_input=_true_raw_input,
         )
 
         # 5. VERIFY — quality loop
@@ -856,6 +870,7 @@ class CognitiveLoop:
                 agent=agent,
                 ctx=self.ctx,
                 system_extra=system_extra,
+                raw_input=_true_raw_input,
             )
             iteration += 1
 
@@ -865,7 +880,9 @@ class CognitiveLoop:
             from eos_ai.primitives import ContextualReasoningEngine
 
             _cre = ContextualReasoningEngine(self.ctx)
-            _stage_ctx = _cre.get_current_context(venture_id or self.ctx.active_venture_id or "")
+            _stage_ctx = _cre.get_current_context(
+                venture_id or self.ctx.active_venture_id or ""
+            )
             _advice_triggers = [
                 "hire",
                 "build a team",

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/google_meet_source.py
 line: 233
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # GoogleMeetSource.detach_hook

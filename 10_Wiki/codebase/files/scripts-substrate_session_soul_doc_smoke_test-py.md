@@ -5,7 +5,7 @@ module: scripts.substrate_session_soul_doc_smoke_test
 lines: 196
 size: 6958
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_session_soul_doc_smoke_test.py

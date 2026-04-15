@@ -69,6 +69,27 @@ _MAX_POLLS = 60
 _MIN_POLL_INTERVAL_S = 0.1
 _MAX_POLL_INTERVAL_S = 5.0
 
+# ─── Session → persona soul-doc mapping ──────────────────────────────────────
+# When claude is launched inside a session, an optional soul-doc path can be
+# appended to the default system prompt via --append-system-prompt. This is
+# how dex_product_main gets EA persona instead of the developer CLAUDE.md.
+#
+# Builder sessions (dex_builder_main) deliberately have NO entry here — they
+# run bare `claude` and pick up /opt/OS/CLAUDE.md as the full developer
+# context. That is the correct behavior for the developer lane.
+#
+# Per-channel session names (dex_product_main_<channel_id>) are handled by
+# _resolve_soul_doc() via prefix match, so the EOS_DISCORD_MODE_PER_CHANNEL
+# feature keeps working.
+#
+# Override at runtime with the env var:
+#   EOS_SESSION_SOUL_DOC__<session_name> = /absolute/path/to/doc.md
+_SESSION_SOUL_DOCS: dict[str, str] = {
+    "dex_product_main": "/opt/OS/agents/executive_assistant.md",
+}
+
+_SOUL_DOC_ENV_PREFIX = "EOS_SESSION_SOUL_DOC__"
+
 # Session name sanitation: tmux session names must not contain ":" or ".".
 _SESSION_NAME_FORBIDDEN = set(":.\n\r\t ")
 
@@ -241,6 +262,63 @@ def _err(target: str, session_name: str, reason: str, **extra: Any) -> dict[str,
 # ---------------------------------------------------------------------------
 # Low-level tmux plumbing (bounded, explicit)
 # ---------------------------------------------------------------------------
+
+
+def _resolve_soul_doc(session_name: str) -> str | None:
+    """Resolve the soul-doc path for a session, if any.
+
+    Lookup order:
+      1. Env override EOS_SESSION_SOUL_DOC__<session_name> (exact match)
+      2. Exact match in _SESSION_SOUL_DOCS
+      3. Prefix match against _SESSION_SOUL_DOCS keys (handles per-channel
+         suffixes like dex_product_main_1234567890)
+
+    Returns an absolute path that is verified to exist, or None.
+    Never raises.
+    """
+    # 1. Env override
+    env_key = f"{_SOUL_DOC_ENV_PREFIX}{session_name}"
+    env_val = (os.getenv(env_key) or "").strip()
+    if env_val:
+        if os.path.isfile(env_val):
+            return env_val
+        return None
+
+    # 2. Exact match
+    if session_name in _SESSION_SOUL_DOCS:
+        path = _SESSION_SOUL_DOCS[session_name]
+        return path if os.path.isfile(path) else None
+
+    # 3. Prefix match (per-channel variants: dex_product_main_<channel_id>)
+    for base_name, path in _SESSION_SOUL_DOCS.items():
+        if session_name.startswith(base_name + "_"):
+            return path if os.path.isfile(path) else None
+
+    return None
+
+
+def _build_claude_launch_cmd(session_name: str) -> tuple[str, str | None]:
+    """Build the shell command string to launch claude in a session pane.
+
+    Returns (command_string, soul_doc_path_used_or_None).
+
+    The command is a single shell line that will be typed into the tmux
+    pane's shell via `send-keys`. If a soul doc is resolved, it is appended
+    via --append-system-prompt using command substitution so the shell does
+    the file reading — this avoids any Python-side escaping of arbitrary
+    markdown content.
+    """
+    soul_doc = _resolve_soul_doc(session_name)
+    if not soul_doc:
+        return "claude", None
+
+    # Single-quote the path so paths with spaces / special chars are safe.
+    # command substitution $(cat '...') streams the file contents into the
+    # flag value; the outer double quotes keep it as a single argv token
+    # from claude's perspective.
+    quoted_path = soul_doc.replace("'", "'\\''")
+    cmd = f"claude --append-system-prompt \"$(cat '{quoted_path}')\""
+    return cmd, soul_doc
 
 
 def _run_tmux(args: list[str]) -> dict[str, Any]:
@@ -468,11 +546,16 @@ def ensure_session(
 
     claude_launched = False
     claude_reason = ""
+    soul_doc_used: str | None = None
     if launch_claude and created:
         cli = detect_claude_cli_available()
         if cli.get("available"):
-            # Send "claude" as a shell command into the new session's pane.
-            res = _run_tmux(["send-keys", "-t", session_name, "claude", "Enter"])
+            # Build the launch command. For sessions with a persona mapping
+            # (e.g. dex_product_main → executive_assistant.md) this appends
+            # the soul doc via --append-system-prompt. Builder sessions get
+            # a bare `claude` and pick up /opt/OS/CLAUDE.md as usual.
+            launch_cmd, soul_doc_used = _build_claude_launch_cmd(session_name)
+            res = _run_tmux(["send-keys", "-t", session_name, launch_cmd, "Enter"])
             if res.get("ok"):
                 claude_launched = True
                 # brief settle so the CLI has a moment to initialize
@@ -492,6 +575,7 @@ def ensure_session(
         "claude_launched": claude_launched,
         "claude_reason": claude_reason,
         "working_dir": working_dir,
+        "soul_doc": soul_doc_used,
         "node_id": _current_node_id(),
         "layer": LAYER_NAME,
         "version": LAYER_VERSION,
@@ -534,7 +618,14 @@ def send_message(target: str, session_name: str, text: str) -> dict[str, Any]:
     if not _tmux_has_session(session_name):
         return _err(target, session_name, "session_missing")
 
-    # Send literal text (-l), then a separate Enter keypress.
+    # Flatten to a single line — newlines cause tmux to show
+    # "[Pasted text #N +X lines]" instead of clean injection.
+    text = " ".join(text.splitlines())
+
+    # Send literal text (-l), pause 100ms for CC to register the paste,
+    # then send Enter as a separate keypress.  Without this delay the
+    # second message in a rapid sequence can sit unsubmitted because
+    # Enter arrives before CC has ingested the pasted text.
     res_text = _run_tmux(["send-keys", "-t", session_name, "-l", text])
     if not res_text.get("ok"):
         return _err(
@@ -543,6 +634,7 @@ def send_message(target: str, session_name: str, text: str) -> dict[str, Any]:
             "send_keys_text_failed",
             stderr=res_text.get("stderr"),
         )
+    time.sleep(0.1)  # let CC register pasted text before Enter
     res_enter = _run_tmux(["send-keys", "-t", session_name, "Enter"])
     if not res_enter.get("ok"):
         return _err(
@@ -628,6 +720,29 @@ _PROMPT_MARKER = "❯"
 _DECORATION_LINE_RE = re.compile(r"^[\s─━═╌╍┄┅┈┉\-–—_.·•·,]+$")
 # CC boot banner pattern — e.g. "▐▛███▜▌ Claude Code v2.1.97 ▝▜█████▛▘ Opus 4.6"
 _CC_BANNER_RE = re.compile(r"[▐▛▜▌▝▘█]+.*Claude Code")
+# CC footer metadata lines — cost, tokens, timing, spend summaries, provider badge
+_CC_FOOTER_RE = re.compile(
+    r"^\s*("
+    r"\$\d"  # cost lines: "$0.0264"
+    r"|[\d,]+\s*tokens"  # token counts: "8,349 tokens"
+    r"|⏱"  # timing: "⏱ 47.3s"
+    r"|⚙"  # gear: settings/config line
+    r"|🪙"  # token coin
+    r"|📊"  # chart: stats line
+    r"|💰"  # money bag: cost line
+    r"|Today\s+\$"  # daily spend: "Today $1.23"
+    r"|Month\s+\$"  # monthly spend: "Month $45.67"
+    r"|All-time\s+\$"  # all-time spend: "All-time $123.45"
+    r"|>\s*\$\d"  # "> $0.03" cost prefix
+    r"|\d+\.\d+s\b"  # bare timing: "47.3s"
+    r"|provider:"  # "provider: claude"
+    r"|model:"  # "model: opus"
+    r"|claude-\w"  # model badge: "claude-opus-4-6"
+    r"|gemini-\w"  # model badge: "gemini-2.5-flash"
+    r"|Context:"  # "Context: 8k tokens"
+    r")",
+    re.IGNORECASE,
+)
 
 
 def _scrub_cli_chrome(text: str) -> str:
@@ -679,11 +794,13 @@ def _scrub_cli_chrome(text: str) -> str:
     lines = truncated
 
     # 4. Drop decoration-only lines (box-drawing separators from CC rendering)
-    #    Also drop CC boot banner lines (e.g. "▐▛███▜▌ Claude Code v2.1.97 ...")
+    #    Also drop CC boot banner lines and footer metadata (cost, tokens, etc.)
     lines = [
         line
         for line in lines
-        if not _DECORATION_LINE_RE.match(line) and not _CC_BANNER_RE.search(line)
+        if not _DECORATION_LINE_RE.match(line)
+        and not _CC_BANNER_RE.search(line)
+        and not _CC_FOOTER_RE.match(line)
     ]
 
     # 5. Strip tmux trailing whitespace padding per line
@@ -801,7 +918,78 @@ def ask_session(
 
     Returns a structured dict with best-effort extracted reply text. Never
     raises. Degrades safely if tmux/claude CLI are missing.
+
+    If a SessionWatcher is running for this session, delegates to the
+    watcher-aware path (faster, state-aware). Falls back to polling
+    if no watcher is active.
     """
+    # ── Watcher-aware fast path ──────────────────────────────────────────
+    try:
+        from eos_ai.substrate.session_watcher import get_watcher
+
+        watcher = get_watcher(session_name)
+        if watcher:
+            if ensure:
+                ensure_res = ensure_session(
+                    target,
+                    session_name,
+                    working_dir=working_dir,
+                    launch_claude=True,
+                )
+                if not ensure_res.get("ok"):
+                    return {
+                        "ok": False,
+                        "stage": "ensure",
+                        "ensure": ensure_res,
+                        "layer": LAYER_NAME,
+                        "version": LAYER_VERSION,
+                    }
+
+            # Resolve timeout from poll params
+            _interval = poll_interval_s or 1.0
+            _polls = max_polls or 40
+            timeout = _interval * _polls
+
+            # Send message, then let wait_for_reply handle its own
+            # state clearing under the watcher lock (avoids race where
+            # the daemon thread sets the event between our clear and
+            # wait_for_reply's clear, losing the reply).
+            send_res = send_message(target, session_name, text)
+            if not send_res.get("ok"):
+                return {
+                    "ok": False,
+                    "stage": "send",
+                    "send": send_res,
+                    "layer": LAYER_NAME,
+                    "version": LAYER_VERSION,
+                }
+
+            raw_reply = watcher.wait_for_reply(timeout=timeout)
+            # Watcher returns raw tmux text — scrub CC chrome/footer
+            reply = _scrub_cli_chrome(raw_reply).strip("\n") if raw_reply else ""
+            return {
+                "ok": True,
+                "target": target,
+                "session_name": session_name,
+                "sent_chars": len(text),
+                "polls_done": 0,
+                "poll_interval_s": 0,
+                "max_polls": 0,
+                "reply_text": reply,
+                "reply_chars": len(reply),
+                "before_chars": 0,
+                "after_chars": 0,
+                "ensure": None,
+                "watcher": True,
+                "layer": LAYER_NAME,
+                "version": LAYER_VERSION,
+            }
+    except ImportError:
+        pass  # session_watcher not available — use polling fallback
+    except Exception as e:
+        print(f"[ask_session] Watcher path failed, falling back to polling: {e}")
+
+    # ── Polling fallback (original behavior) ─────────────────────────────
     # Resolve defaults: caller arg → env var → hardcoded default
     _default_interval = 1.0
     _default_polls = 40

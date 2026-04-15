@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: services/discord_bot.py
-line: 2915
-generated: 2026-04-11
+line: 3005
+generated: 2026-04-12
 ---
 
 # post_outreach_alert
 
-**File:** [[services-discord_bot-py]] | **Line:** 2915
+**File:** [[services-discord_bot-py]] | **Line:** 3005
 **Signature:** `post_outreach_alert(alert) → None`
 
 *No docstring.*

@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_author_agent/mapping.py
 line: 541
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # map_sections

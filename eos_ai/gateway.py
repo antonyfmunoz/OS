@@ -382,7 +382,9 @@ class EOSGateway:
 
                     ctx = load_context_from_env()
                     bim = BusinessInstanceManager(ctx)
-                    venture_id = request.get("venture_id") or bim.get_default_venture_id()
+                    venture_id = (
+                        request.get("venture_id") or bim.get_default_venture_id()
+                    )
                     bis = bim.get_bis(venture_id) if venture_id else None
                     if bis:
                         old_name = bis.ai_name
@@ -618,6 +620,7 @@ class EOSGateway:
         # NEVER raises — tag_request swallows and logs internally.
         try:
             from eos_ai.substrate.capability_tagging import tag_request
+
             tag_request(request)
         except Exception as _cap_e:
             print(f"[Gateway] capability tagging skipped: {_cap_e}")
@@ -699,8 +702,11 @@ class EOSGateway:
                     # was venture-specific leakage and has been removed — venture
                     # selection must come from explicit request or BIM lookup.
                     from eos_ai.business_instance import BusinessInstanceManager as _BIM
+
                     _bim_st = _BIM(ctx_eos)
-                    venture_id = request.get("venture_id") or _bim_st.get_default_venture_id()
+                    venture_id = (
+                        request.get("venture_id") or _bim_st.get_default_venture_id()
+                    )
                     if not venture_id:
                         raise RuntimeError("no venture available for stage transition")
 
@@ -725,9 +731,16 @@ class EOSGateway:
                 ctx_sa = _load_ctx_sa()
                 sae = SelfAwarenessEngine(ctx_sa)
                 from eos_ai.business_instance import BusinessInstanceManager as _BIM_sa
+
                 _bim_sa = _BIM_sa(ctx_sa)
-                venture_id_sa = request.get("venture_id") or _bim_sa.get_default_venture_id()
-                change = sae.detect_change_from_text(prompt, venture_id_sa) if venture_id_sa else None
+                venture_id_sa = (
+                    request.get("venture_id") or _bim_sa.get_default_venture_id()
+                )
+                change = (
+                    sae.detect_change_from_text(prompt, venture_id_sa)
+                    if venture_id_sa
+                    else None
+                )
                 if change and change.change_type not in (
                     # Skip FIRST_SALE — stage_manager already handles the transition
                     ChangeType.FIRST_SALE,
@@ -885,6 +898,7 @@ class EOSGateway:
             return output, 0.0, False
 
         thresholds = {
+            "claude_cli": 0.0,  # CC is trusted primary — never reject
             "claude": 0.75,
             "anthropic": 0.75,
             "gemini": 0.60,
@@ -892,8 +906,9 @@ class EOSGateway:
             "gemma": 0.50,
         }
         threshold = 0.50
+        provider_lower = provider.lower()
         for key, val in thresholds.items():
-            if key in provider.lower():
+            if key in provider_lower:
                 threshold = val
                 break
 
@@ -952,6 +967,10 @@ class EOSGateway:
         from eos_ai.context import load_context_from_env
 
         prompt = request["prompt"]
+        # Preserve the true raw user message before any gateway augmentation.
+        # _original_prompt is set by InputIntelligence when it enhances; if
+        # not present, the request["prompt"] is the original user text.
+        _raw_user_input = request.get("_original_prompt", prompt)
         venture_id = request.get("venture_id")
         username = request.get("username")
         team = request.get("team")
@@ -1279,6 +1298,7 @@ class EOSGateway:
                 task_type=TaskType.ANALYZE,
                 venture_id=venture_id,
                 channel=request.get("channel", ""),
+                raw_input=_raw_user_input,
             )
 
         elif team:
@@ -1295,6 +1315,7 @@ class EOSGateway:
                 venture_id=venture_id,
                 skill_name=config.skill_name,
                 channel=request.get("channel", ""),
+                raw_input=_raw_user_input,
             )
         else:
             # Direct task — route to correct agent via hierarchy, then run
@@ -1378,6 +1399,7 @@ class EOSGateway:
                 task_type=task_type,
                 venture_id=venture_id,
                 channel=request.get("channel", ""),
+                raw_input=_raw_user_input,
             )
 
         if result.status == "pending_approval":
@@ -1757,6 +1779,8 @@ class EOSGateway:
             "Classify the message into exactly one intent. "
             "Reply with ONLY the intent word, nothing else.\n\n"
             "INTENTS:\n"
+            "CONVERSATION — casual greeting, hey DEX, what's up, how are you, "
+            "what are we doing, chat, small talk, checking in\n"
             "BRIEF — status updates, what's happening, morning brief, how are things, summary\n"
             "STRATEGY — strategic advice, priorities, what should I focus on, what matters most\n"
             "OUTREACH — DMs, leads, pipeline, prospects, reply rates, who replied, follow up\n"
@@ -1771,6 +1795,7 @@ class EOSGateway:
             "UNKNOWN — cannot determine intent clearly"
         )
         _VALID = {
+            "CONVERSATION",
             "BRIEF",
             "STRATEGY",
             "OUTREACH",

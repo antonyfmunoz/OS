@@ -100,6 +100,7 @@ class OperatorSession:
     last_active_node: Optional[str] = None
     last_active_discord_channel_id: Optional[str] = None
     active_tmux_session: Optional[str] = None
+    active_scene: Optional[str] = None
 
     # Ritual pointers
     ritual_open_id: Optional[str] = None
@@ -143,6 +144,7 @@ class OperatorSession:
             "last_active_node": self.last_active_node,
             "last_active_discord_channel_id": self.last_active_discord_channel_id,
             "active_tmux_session": self.active_tmux_session,
+            "active_scene": self.active_scene,
             "ritual_open_id": self.ritual_open_id,
             "ritual_close_id": self.ritual_close_id,
             "created_at": self.created_at,
@@ -183,6 +185,7 @@ class OperatorSession:
             last_active_node=d.get("last_active_node"),
             last_active_discord_channel_id=d.get("last_active_discord_channel_id"),
             active_tmux_session=d.get("active_tmux_session"),
+            active_scene=d.get("active_scene"),
             ritual_open_id=d.get("ritual_open_id"),
             ritual_close_id=d.get("ritual_close_id"),
             created_at=str(d.get("created_at") or _utcnow()),

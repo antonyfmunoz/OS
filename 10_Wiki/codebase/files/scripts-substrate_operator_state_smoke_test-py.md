@@ -5,7 +5,7 @@ module: scripts.substrate_operator_state_smoke_test
 lines: 243
 size: 9925
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_operator_state_smoke_test.py

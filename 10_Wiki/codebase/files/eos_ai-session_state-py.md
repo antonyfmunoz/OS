@@ -4,7 +4,7 @@ path: eos_ai/session_state.py
 module: eos_ai.session_state
 lines: 91
 size: 3223
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/session_state.py

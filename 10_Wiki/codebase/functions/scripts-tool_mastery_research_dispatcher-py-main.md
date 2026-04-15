@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/tool_mastery_research_dispatcher.py
 line: 195
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # main

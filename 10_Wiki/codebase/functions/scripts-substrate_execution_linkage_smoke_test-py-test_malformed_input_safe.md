@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_execution_linkage_smoke_test.py
 line: 191
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # test_malformed_input_safe

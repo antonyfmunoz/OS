@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/dm_monitor.py
 line: 554
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # cleanup_old_screenshots

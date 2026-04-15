@@ -4,7 +4,7 @@ path: eos_ai/substrate/mode_behavior.py
 module: eos_ai.substrate.mode_behavior
 lines: 257
 size: 8913
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/mode_behavior.py

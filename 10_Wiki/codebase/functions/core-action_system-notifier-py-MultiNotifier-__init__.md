@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/action_system/notifier.py
 line: 101
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # MultiNotifier.__init__

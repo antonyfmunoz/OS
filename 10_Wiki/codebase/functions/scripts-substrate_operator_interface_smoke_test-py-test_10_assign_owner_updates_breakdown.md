@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_operator_interface_smoke_test.py
 line: 208
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # test_10_assign_owner_updates_breakdown

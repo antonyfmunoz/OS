@@ -4,7 +4,7 @@ path: eos_ai/substrate/target_policy.py
 module: eos_ai.substrate.target_policy
 lines: 214
 size: 6898
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/target_policy.py

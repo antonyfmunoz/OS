@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/feedback_loop.py
 line: 358
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # FeedbackLoop.check_and_close_observable_signals

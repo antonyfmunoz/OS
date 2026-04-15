@@ -5,7 +5,7 @@ module: scripts.substrate_discord_text_tts_smoke_test
 lines: 276
 size: 9919
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_discord_text_tts_smoke_test.py

@@ -1,11 +1,11 @@
 ---
 type: codebase-index
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # Codebase Knowledge Graph
 
-Auto-generated map of the EOS codebase. **3199** pages covering **393** files, **373** classes, **3420** functions.
+Auto-generated map of the EOS codebase. **3680** pages covering **429** files, **459** classes, **3991** functions.
 
 ## How to Use This Graph
 
@@ -17,10 +17,10 @@ Auto-generated map of the EOS codebase. **3199** pages covering **393** files, *
 
 ## Modules
 
-- [[core]] — 54 files, 13,090 lines
-- [[eos_ai]] — 179 files, 75,154 lines
-- [[scripts]] — 145 files, 37,111 lines
-- [[services]] — 15 files, 13,337 lines
+- [[core]] — 73 files, 21,799 lines
+- [[eos_ai]] — 181 files, 76,079 lines
+- [[scripts]] — 160 files, 45,098 lines
+- [[services]] — 15 files, 13,427 lines
 
 ## Critical Files
 
@@ -41,6 +41,9 @@ These are core infrastructure files. Read before modifying.
 
 ## Entry Points
 
+- [[core-control_plane-py]]
+- [[core-optimizer-py]]
+- [[core-security-cli-py]]
 - [[core-tool_mastery_author_agent-__main__-py]]
 - [[core-tool_mastery_author_agent-cli-py]]
 - [[core-tool_mastery_research_agent-__main__-py]]
@@ -56,9 +59,12 @@ These are core infrastructure files. Read before modifying.
 - [[eos_ai-substrate-session_orchestration-py]]
 - [[eos_ai-substrate-station_daemon-py]]
 - [[eos_ai-system_health-py]]
+- [[scripts-action_system-py]]
 - [[scripts-agent_task_executor-py]]
+- [[scripts-benchmark_semantic_space-py]]
 - [[scripts-bis_context-py]]
 - [[scripts-build_palace-py]]
+- [[scripts-build_semantic_coords-py]]
 - [[scripts-build_skill_graph-py]]
 - [[scripts-calendar_invite_handler-py]]
 - [[scripts-call_prep-py]]
@@ -76,7 +82,10 @@ These are core infrastructure files. Read before modifying.
 - [[scripts-emit_signal-py]]
 - [[scripts-env_upsert-py]]
 - [[scripts-eod_sync-py]]
+- [[scripts-eos_os-py]]
+- [[scripts-eos_os_smoke_test-py]]
 - [[scripts-eos_status-py]]
+- [[scripts-force_execution_loop-py]]
 - [[scripts-higgsfield_smoke_test-py]]
 - [[scripts-incremental_graph-py]]
 - [[scripts-measure_phase8_batch-py]]
@@ -93,6 +102,7 @@ These are core infrastructure files. Read before modifying.
 - [[scripts-notion_setup-py]]
 - [[scripts-notion_sync_poller-py]]
 - [[scripts-notion_tasks_sync-py]]
+- [[scripts-orchestrator-py]]
 - [[scripts-orchestrator_loop-py]]
 - [[scripts-orchestrator_status-py]]
 - [[scripts-permission_notify-py]]
@@ -102,13 +112,18 @@ These are core infrastructure files. Read before modifying.
 - [[scripts-promote_to_wiki-py]]
 - [[scripts-pump_meet_source-py]]
 - [[scripts-query_graph-py]]
+- [[scripts-query_semantic_space-py]]
 - [[scripts-query_skills-py]]
 - [[scripts-relationship_nurture-py]]
 - [[scripts-router_claude_runtime_debug-py]]
 - [[scripts-run_graphify-py]]
+- [[scripts-sandbox_runner-py]]
+- [[scripts-sandbox_safety_verifier-py]]
+- [[scripts-sandbox_smoke_test-py]]
 - [[scripts-scheduled-morning_prep_cp-py]]
 - [[scripts-scheduled-nightly_consolidation_cp-py]]
 - [[scripts-scheduled-weekly_review_cp-py]]
+- [[scripts-security_smoke_test-py]]
 - [[scripts-session_bootstrap-py]]
 - [[scripts-session_start_context-py]]
 - [[scripts-subagent_start_context-py]]
@@ -181,6 +196,7 @@ These are core infrastructure files. Read before modifying.
 - [[scripts-tool_mastery_manager-py]]
 - [[scripts-tool_mastery_research_dispatcher-py]]
 - [[scripts-user_prompt_capture-py]]
+- [[scripts-vault_backlink_audit-py]]
 - [[scripts-verify_knowledge_system-py]]
 - [[scripts-verify_tool_skill-py]]
 - [[scripts-waiting_on_checker-py]]
@@ -190,6 +206,7 @@ These are core infrastructure files. Read before modifying.
 - [[scripts-wiki_session_start_hook-py]]
 - [[scripts-wiki_stop_hook-py]]
 - [[scripts-workers-discord_approval_worker-py]]
+- [[scripts-workflow_engine-py]]
 - [[services-apify_scraper-py]]
 - [[services-calendly_webhook-py]]
 - [[services-discord_bot-py]]
@@ -204,17 +221,17 @@ These are core infrastructure files. Read before modifying.
 
 | Metric | Count |
 |--------|-------|
-| Files | 393 |
-| Classes | 373 |
-| Functions | 3420 |
-| Edges | 12011 |
-| Total Lines | 138,692 |
-| Entry Points | 158 |
+| Files | 429 |
+| Classes | 459 |
+| Functions | 3991 |
+| Edges | 13910 |
+| Total Lines | 156,403 |
+| Entry Points | 175 |
 | Critical Files | 12 |
 
 ### Edge Types
 
-- **calls**: 7351
-- **contains**: 3793
-- **imports**: 861
-- **inherits**: 6
+- **calls**: 8493
+- **contains**: 4450
+- **imports**: 958
+- **inherits**: 9

@@ -5,7 +5,7 @@ module: scripts.notion_tasks_sync
 lines: 282
 size: 9125
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/notion_tasks_sync.py

@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_manager/models.py
 line: 94
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # ManagerPlan.to_dict

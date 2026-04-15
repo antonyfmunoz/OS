@@ -5,7 +5,7 @@ module: scripts.morning_intel
 lines: 179
 size: 5642
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/morning_intel.py

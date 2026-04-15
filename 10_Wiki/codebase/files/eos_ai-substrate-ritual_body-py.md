@@ -4,7 +4,7 @@ path: eos_ai/substrate/ritual_body.py
 module: eos_ai.substrate.ritual_body
 lines: 342
 size: 13596
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/ritual_body.py

@@ -5,7 +5,7 @@ module: scripts.agent_task_executor
 lines: 346
 size: 11638
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/agent_task_executor.py

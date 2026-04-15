@@ -5,7 +5,7 @@ module: scripts.deadline_monitor
 lines: 183
 size: 6072
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/deadline_monitor.py

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/confidentiality.py
 line: 35
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # detect_confidential_context

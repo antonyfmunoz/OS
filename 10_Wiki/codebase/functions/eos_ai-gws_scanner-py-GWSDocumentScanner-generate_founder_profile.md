@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/gws_scanner.py
 line: 499
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # GWSDocumentScanner.generate_founder_profile

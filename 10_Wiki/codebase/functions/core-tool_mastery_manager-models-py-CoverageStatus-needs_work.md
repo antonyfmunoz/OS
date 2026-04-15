@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_manager/models.py
 line: 29
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # CoverageStatus.needs_work

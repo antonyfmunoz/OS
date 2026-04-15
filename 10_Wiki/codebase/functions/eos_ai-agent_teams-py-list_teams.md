@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/agent_teams.py
 line: 386
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # list_teams

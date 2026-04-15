@@ -5,7 +5,7 @@ module: scripts.substrate_discord_mode_routing_smoke_test
 lines: 542
 size: 18101
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_discord_mode_routing_smoke_test.py

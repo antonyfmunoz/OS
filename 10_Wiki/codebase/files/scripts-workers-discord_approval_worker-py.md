@@ -5,7 +5,7 @@ module: scripts.workers.discord_approval_worker
 lines: 234
 size: 7493
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/workers/discord_approval_worker.py

@@ -5,7 +5,7 @@ module: scripts.substrate_meeting_transport_smoke_test
 lines: 283
 size: 11063
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_meeting_transport_smoke_test.py

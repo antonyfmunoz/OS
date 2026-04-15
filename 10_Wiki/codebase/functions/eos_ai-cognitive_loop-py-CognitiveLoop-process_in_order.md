@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: eos_ai/cognitive_loop.py
-line: 1220
-generated: 2026-04-11
+line: 1230
+generated: 2026-04-12
 ---
 
 # CognitiveLoop.process_in_order
 
-**File:** [[eos_ai-cognitive_loop-py]] | **Line:** 1220
+**File:** [[eos_ai-cognitive_loop-py]] | **Line:** 1230
 **Signature:** `process_in_order(input, agent, task_type, venture_id) → 'CognitiveResult'`
 
 **Class:** [[eos_ai-cognitive_loop-py-CognitiveLoop]]

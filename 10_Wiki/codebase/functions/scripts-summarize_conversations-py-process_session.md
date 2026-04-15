@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/summarize_conversations.py
 line: 391
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # process_session

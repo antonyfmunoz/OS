@@ -4,7 +4,7 @@ path: eos_ai/substrate/app_allowlist.py
 module: eos_ai.substrate.app_allowlist
 lines: 71
 size: 2162
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/app_allowlist.py

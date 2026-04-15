@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/telegram_control.py
 line: 1709
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # wants_voice_response

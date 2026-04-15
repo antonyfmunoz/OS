@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/salience.py
 line: 487
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # score_cross_session

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/model_preferences.py
 line: 414
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # ModelPreferences.clear_task_override

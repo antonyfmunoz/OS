@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/error_handler.py
 line: 147
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # ErrorHandler.classify_error

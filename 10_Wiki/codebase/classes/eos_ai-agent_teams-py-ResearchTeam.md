@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/agent_teams.py
 line: 122
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # ResearchTeam

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/principle_engine.py
 line: 359
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # PrincipleEngine.__init__

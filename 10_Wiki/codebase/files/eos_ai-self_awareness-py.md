@@ -4,7 +4,7 @@ path: eos_ai/self_awareness.py
 module: eos_ai.self_awareness
 lines: 699
 size: 27322
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/self_awareness.py

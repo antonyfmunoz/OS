@@ -5,7 +5,7 @@ module: scripts.deferred
 lines: 349
 size: 10691
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/deferred.py

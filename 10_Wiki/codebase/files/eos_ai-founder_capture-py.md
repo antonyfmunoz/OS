@@ -4,7 +4,7 @@ path: eos_ai/founder_capture.py
 module: eos_ai.founder_capture
 lines: 227
 size: 7679
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/founder_capture.py

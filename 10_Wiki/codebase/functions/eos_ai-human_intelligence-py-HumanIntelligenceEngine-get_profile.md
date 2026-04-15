@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/human_intelligence.py
 line: 320
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # HumanIntelligenceEngine.get_profile

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/competitive_intel.py
 line: 35
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # log_competitor_signal

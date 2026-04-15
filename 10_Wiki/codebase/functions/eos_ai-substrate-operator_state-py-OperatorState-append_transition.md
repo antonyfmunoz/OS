@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/operator_state.py
 line: 175
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # OperatorState.append_transition

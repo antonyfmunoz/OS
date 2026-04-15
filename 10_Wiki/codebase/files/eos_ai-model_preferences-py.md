@@ -4,7 +4,7 @@ path: eos_ai/model_preferences.py
 module: eos_ai.model_preferences
 lines: 472
 size: 19661
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/model_preferences.py

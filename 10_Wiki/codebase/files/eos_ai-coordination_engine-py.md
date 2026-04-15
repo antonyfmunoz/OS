@@ -4,7 +4,7 @@ path: eos_ai/coordination_engine.py
 module: eos_ai.coordination_engine
 lines: 400
 size: 14953
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/coordination_engine.py

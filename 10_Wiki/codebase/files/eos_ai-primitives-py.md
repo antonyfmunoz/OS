@@ -5,7 +5,7 @@ module: eos_ai.primitives
 lines: 932
 size: 32830
 tags: [critical]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/primitives.py

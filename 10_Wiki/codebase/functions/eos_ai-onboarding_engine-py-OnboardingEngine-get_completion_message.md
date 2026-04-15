@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/onboarding_engine.py
 line: 313
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # OnboardingEngine.get_completion_message

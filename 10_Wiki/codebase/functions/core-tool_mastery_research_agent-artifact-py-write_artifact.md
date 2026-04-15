@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_research_agent/artifact.py
 line: 582
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # write_artifact

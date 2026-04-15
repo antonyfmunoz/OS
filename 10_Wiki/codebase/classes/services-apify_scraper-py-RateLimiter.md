@@ -2,7 +2,7 @@
 type: codebase-class
 file: services/apify_scraper.py
 line: 81
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # RateLimiter

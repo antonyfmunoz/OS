@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/telegram_control.py
 line: 545
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # log_call_outcome

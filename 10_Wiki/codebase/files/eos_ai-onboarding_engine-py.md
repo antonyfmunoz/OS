@@ -4,7 +4,7 @@ path: eos_ai/onboarding_engine.py
 module: eos_ai.onboarding_engine
 lines: 353
 size: 14657
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/onboarding_engine.py

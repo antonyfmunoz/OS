@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_author_agent/mapping.py
 line: 279
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # is_prose_block

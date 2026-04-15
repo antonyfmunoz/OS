@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: services/discord_bot.py
-line: 2911
-generated: 2026-04-11
+line: 3001
+generated: 2026-04-12
 ---
 
 # post_morning_brief
 
-**File:** [[services-discord_bot-py]] | **Line:** 2911
+**File:** [[services-discord_bot-py]] | **Line:** 3001
 **Signature:** `post_morning_brief(brief) → None`
 
 *No docstring.*

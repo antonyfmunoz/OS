@@ -4,7 +4,7 @@ path: eos_ai/travel_manager.py
 module: eos_ai.travel_manager
 lines: 359
 size: 10089
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/travel_manager.py

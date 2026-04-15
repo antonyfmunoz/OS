@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/orchestrator/handlers.py
 line: 94
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # handle_deferred_stale

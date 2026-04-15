@@ -4,7 +4,7 @@ path: eos_ai/strategy_engine.py
 module: eos_ai.strategy_engine
 lines: 526
 size: 22264
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/strategy_engine.py

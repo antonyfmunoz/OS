@@ -4,7 +4,7 @@ path: core/tool_mastery_author_agent/draft.py
 module: core.tool_mastery_author_agent.draft
 lines: 452
 size: 15881
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/tool_mastery_author_agent/draft.py

@@ -4,7 +4,7 @@ path: eos_ai/discord_utils.py
 module: eos_ai.discord_utils
 lines: 173
 size: 5372
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/discord_utils.py

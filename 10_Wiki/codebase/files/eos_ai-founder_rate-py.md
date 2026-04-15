@@ -4,7 +4,7 @@ path: eos_ai/founder_rate.py
 module: eos_ai.founder_rate
 lines: 299
 size: 9832
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/founder_rate.py

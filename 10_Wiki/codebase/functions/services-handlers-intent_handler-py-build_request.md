@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/handlers/intent_handler.py
 line: 56
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # build_request

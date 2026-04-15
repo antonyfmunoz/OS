@@ -5,7 +5,7 @@ module: scripts.notion_setup
 lines: 1081
 size: 37473
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/notion_setup.py

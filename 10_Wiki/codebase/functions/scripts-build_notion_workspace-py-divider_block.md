@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/build_notion_workspace.py
 line: 74
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # divider_block

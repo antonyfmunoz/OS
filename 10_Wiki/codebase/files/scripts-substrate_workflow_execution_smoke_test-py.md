@@ -5,7 +5,7 @@ module: scripts.substrate_workflow_execution_smoke_test
 lines: 329
 size: 12072
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_workflow_execution_smoke_test.py

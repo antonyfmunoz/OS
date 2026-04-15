@@ -5,7 +5,7 @@ module: eos_ai.provider_health
 lines: 225
 size: 7719
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/provider_health.py

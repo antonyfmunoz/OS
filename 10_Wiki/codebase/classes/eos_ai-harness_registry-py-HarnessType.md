@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/harness_registry.py
 line: 19
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # HarnessType

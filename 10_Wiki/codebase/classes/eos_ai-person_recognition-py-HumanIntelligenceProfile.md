@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/person_recognition.py
 line: 308
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # HumanIntelligenceProfile

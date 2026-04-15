@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/travel_manager.py
 line: 333
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # reconcile_trip_expenses

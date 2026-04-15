@@ -4,7 +4,7 @@ path: eos_ai/notebooklm_sync.py
 module: eos_ai.notebooklm_sync
 lines: 314
 size: 11501
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/notebooklm_sync.py

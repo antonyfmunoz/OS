@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/query_graph.py
 line: 175
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # GraphQuery.centrality
@@ -16,4 +16,6 @@ Rank files by (imported_by + imports) — simple centrality proxy.
 
 ## Called By
 
+- [[scripts-action_system-py-ActionSystem-_critical_hub_set]]
+- [[scripts-action_system-py-ActionSystem-assess_impact]]
 - [[scripts-query_graph-py-main]]

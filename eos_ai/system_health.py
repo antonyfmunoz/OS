@@ -167,19 +167,20 @@ class EOSSystemHealth:
                 "error": str(e)[:100],
             }
 
-        # Model router — actual LLM call
+        # Model router — availability check only (no real LLM call)
         try:
-            from eos_ai.model_router import call_with_fallback, TaskType
+            from eos_ai.model_router import get_router, MODEL_REGISTRY
 
-            result = call_with_fallback(
-                prompt="1+1=",
-                task_type=TaskType.FAST_RESPONSE,
-            )
+            router = get_router()
+            router._check_availability()
+            available = [
+                f"{c.provider.value}/{c.model_id}"
+                for c in MODEL_REGISTRY.values()
+                if c.available
+            ]
             health["model_router"] = {
-                "status": "healthy",
-                "provider": result.provider,
-                "model": result.model,
-                "latency_ms": result.latency_ms,
+                "status": "healthy" if available else "no_providers",
+                "available_models": available,
             }
         except Exception as e:
             health["model_router"] = {

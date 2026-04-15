@@ -4,7 +4,7 @@ path: eos_ai/substrate/resource_guard.py
 module: eos_ai.substrate.resource_guard
 lines: 273
 size: 8099
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/resource_guard.py

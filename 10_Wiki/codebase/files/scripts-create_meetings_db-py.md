@@ -4,7 +4,7 @@ path: scripts/create_meetings_db.py
 module: scripts.create_meetings_db
 lines: 68
 size: 2172
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/create_meetings_db.py

@@ -4,7 +4,7 @@ path: eos_ai/substrate/ritual_reconciler.py
 module: eos_ai.substrate.ritual_reconciler
 lines: 175
 size: 6092
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/ritual_reconciler.py

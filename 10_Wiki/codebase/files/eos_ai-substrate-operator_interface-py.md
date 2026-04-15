@@ -4,7 +4,7 @@ path: eos_ai/substrate/operator_interface.py
 module: eos_ai.substrate.operator_interface
 lines: 349
 size: 11388
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/operator_interface.py

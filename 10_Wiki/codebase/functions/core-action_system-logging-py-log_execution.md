@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/action_system/logging.py
 line: 32
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # log_execution

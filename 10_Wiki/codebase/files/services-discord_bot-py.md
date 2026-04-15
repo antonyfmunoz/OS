@@ -2,10 +2,10 @@
 type: codebase-file
 path: services/discord_bot.py
 module: services.discord_bot
-lines: 4457
-size: 166434
+lines: 4547
+size: 169683
 tags: [critical, entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # services/discord_bot.py
@@ -21,7 +21,7 @@ Smart routing: simple → local Qwen (free) → Claude via EOS.
 AI name is user-configurable via BIS or AI_NAME env var.
 ...
 
-**Lines:** 4457 | **Size:** 166,434 bytes
+**Lines:** 4547 | **Size:** 169,683 bytes
 
 ## Depends On
 
@@ -54,8 +54,11 @@ AI name is user-configurable via BIS or AI_NAME env var.
 - **fn** [[services-discord_bot-py-on_voice_state_update]]`(member, before, after)`
 - **fn** [[services-discord_bot-py-_listen_loop]]`(vc, text_channel) → None`
 - **fn** [[services-discord_bot-py-on_message]]`(message)`
+- **fn** [[services-discord_bot-py-_strip_cc_footer]]`(text) → str`
 - **fn** [[services-discord_bot-py-_send_response]]`(message, output) → None`
 - **fn** [[services-discord_bot-py-_setup_server_structure]]`(guild) → None`
+- **fn** [[services-discord_bot-py-cmd_answer]]`(ctx, session_name)`
+- **fn** [[services-discord_bot-py-cmd_watcher_status]]`(ctx)`
 - **fn** [[services-discord_bot-py-cmd_brief]]`(ctx)`
 - **fn** [[services-discord_bot-py-cmd_status]]`(ctx)`
 - **fn** [[services-discord_bot-py-cmd_portfolio]]`(ctx)`

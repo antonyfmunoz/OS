@@ -4,7 +4,7 @@ path: eos_ai/substrate/station_bus.py
 module: eos_ai.substrate.station_bus
 lines: 188
 size: 7027
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/station_bus.py

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/harness_registry.py
 line: 270
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # HarnessRegistryManager.get_active_models

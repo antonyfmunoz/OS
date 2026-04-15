@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: services/discord_bot.py
-line: 1879
-generated: 2026-04-11
+line: 1969
+generated: 2026-04-12
 ---
 
 # cmd_join
 
-**File:** [[services-discord_bot-py]] | **Line:** 1879
+**File:** [[services-discord_bot-py]] | **Line:** 1969
 **Signature:** `cmd_join(ctx)`
 
 Join the voice channel the user is currently in.

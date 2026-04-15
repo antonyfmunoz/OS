@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: services/discord_bot.py
-line: 2677
-generated: 2026-04-11
+line: 2767
+generated: 2026-04-12
 ---
 
 # cmd_verify_inbox
 
-**File:** [[services-discord_bot-py]] | **Line:** 2677
+**File:** [[services-discord_bot-py]] | **Line:** 2767
 **Signature:** `cmd_verify_inbox(ctx)`
 
 Spot-check Gmail GPS labels — sample 5 emails per folder.

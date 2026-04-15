@@ -4,7 +4,7 @@ path: eos_ai/reality_context.py
 module: eos_ai.reality_context
 lines: 154
 size: 5608
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/reality_context.py

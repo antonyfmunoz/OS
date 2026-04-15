@@ -4,7 +4,7 @@ path: eos_ai/portfolio_advisor.py
 module: eos_ai.portfolio_advisor
 lines: 788
 size: 30909
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/portfolio_advisor.py

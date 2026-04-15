@@ -1,17 +1,20 @@
 ---
 type: codebase-module
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/
 
-**Files:** 145 | **Lines:** 37,111 | **Classes:** 28 | **Functions:** 866
+**Files:** 160 | **Lines:** 45,098 | **Classes:** 58 | **Functions:** 1107
 
 ## Entry Points
 
+- [[scripts-action_system-py]]
 - [[scripts-agent_task_executor-py]]
+- [[scripts-benchmark_semantic_space-py]]
 - [[scripts-bis_context-py]]
 - [[scripts-build_palace-py]]
+- [[scripts-build_semantic_coords-py]]
 - [[scripts-build_skill_graph-py]]
 - [[scripts-calendar_invite_handler-py]]
 - [[scripts-call_prep-py]]
@@ -29,7 +32,10 @@ generated: 2026-04-11
 - [[scripts-emit_signal-py]]
 - [[scripts-env_upsert-py]]
 - [[scripts-eod_sync-py]]
+- [[scripts-eos_os-py]]
+- [[scripts-eos_os_smoke_test-py]]
 - [[scripts-eos_status-py]]
+- [[scripts-force_execution_loop-py]]
 - [[scripts-higgsfield_smoke_test-py]]
 - [[scripts-incremental_graph-py]]
 - [[scripts-measure_phase8_batch-py]]
@@ -46,6 +52,7 @@ generated: 2026-04-11
 - [[scripts-notion_setup-py]]
 - [[scripts-notion_sync_poller-py]]
 - [[scripts-notion_tasks_sync-py]]
+- [[scripts-orchestrator-py]]
 - [[scripts-orchestrator_loop-py]]
 - [[scripts-orchestrator_status-py]]
 - [[scripts-permission_notify-py]]
@@ -55,13 +62,18 @@ generated: 2026-04-11
 - [[scripts-promote_to_wiki-py]]
 - [[scripts-pump_meet_source-py]]
 - [[scripts-query_graph-py]]
+- [[scripts-query_semantic_space-py]]
 - [[scripts-query_skills-py]]
 - [[scripts-relationship_nurture-py]]
 - [[scripts-router_claude_runtime_debug-py]]
 - [[scripts-run_graphify-py]]
+- [[scripts-sandbox_runner-py]]
+- [[scripts-sandbox_safety_verifier-py]]
+- [[scripts-sandbox_smoke_test-py]]
 - [[scripts-scheduled-morning_prep_cp-py]]
 - [[scripts-scheduled-nightly_consolidation_cp-py]]
 - [[scripts-scheduled-weekly_review_cp-py]]
+- [[scripts-security_smoke_test-py]]
 - [[scripts-session_bootstrap-py]]
 - [[scripts-session_start_context-py]]
 - [[scripts-subagent_start_context-py]]
@@ -134,6 +146,7 @@ generated: 2026-04-11
 - [[scripts-tool_mastery_manager-py]]
 - [[scripts-tool_mastery_research_dispatcher-py]]
 - [[scripts-user_prompt_capture-py]]
+- [[scripts-vault_backlink_audit-py]]
 - [[scripts-verify_knowledge_system-py]]
 - [[scripts-verify_tool_skill-py]]
 - [[scripts-waiting_on_checker-py]]
@@ -143,15 +156,19 @@ generated: 2026-04-11
 - [[scripts-wiki_session_start_hook-py]]
 - [[scripts-wiki_stop_hook-py]]
 - [[scripts-workers-discord_approval_worker-py]]
+- [[scripts-workflow_engine-py]]
 
 ## All Files
 
 - [[scripts-_tme_common-py]] (230 lines) — Shared helpers for Tool Mastery Engine system scripts.
+- [[scripts-action_system-py]] (1241 lines) *[entry]* — action_system.py — Controlled execution layer on top of the 
 - [[scripts-agent_task_executor-py]] (346 lines) *[entry]* — Agent Task Executor — polls the tasks table for
+- [[scripts-benchmark_semantic_space-py]] (428 lines) *[entry]* — Benchmark semantic space prefilter vs baseline graph retriev
 - [[scripts-bis_context-py]] (88 lines) *[entry]* — BIS context injector — prints active venture context from VE
 - [[scripts-build_notion_databases-py]] (117 lines) — Create the 9 databases that failed in the first build pass.
 - [[scripts-build_notion_workspace-py]] (713 lines) — Build EOS Notion Workspace
 - [[scripts-build_palace-py]] (484 lines) *[entry]* — build_palace.py — Generates the EOS memory palace from the g
+- [[scripts-build_semantic_coords-py]] (129 lines) *[entry]* — Build semantic coordinates for all graph nodes.
 - [[scripts-build_skill_graph-py]] (217 lines) *[entry]* — build_skill_graph.py — Tool Mastery Engine skill dependency 
 - [[scripts-calendar_invite_handler-py]] (300 lines) *[entry]* — Calendar Invite Handler — polls for pending invites every 15
 - [[scripts-call_prep-py]] (431 lines) *[entry]* — Call Prep — runs every 15 minutes via cron.
@@ -170,8 +187,11 @@ generated: 2026-04-11
 - [[scripts-emit_signal-py]] (68 lines) *[entry]* — Emit an orchestrator signal from cron or the shell.
 - [[scripts-env_upsert-py]] (105 lines) *[entry]* — Idempotent .env key upsert.
 - [[scripts-eod_sync-py]] (243 lines) *[entry]* — EOD Sync — 6pm PDT daily closing loop.
+- [[scripts-eos_os-py]] (398 lines) *[entry]* — eos_os.py — Unified operator CLI for the EOS AI Operating Sy
+- [[scripts-eos_os_smoke_test-py]] (251 lines) *[entry]* — eos_os_smoke_test.py — End-to-end verification for the EOS A
 - [[scripts-eos_status-py]] (161 lines) *[entry]* — EOS Operator Status — single inspectable surface.
 - [[scripts-fix_founder_refs-py]] (52 lines) — Replace hardcoded 'Antony' founder references with generic '
+- [[scripts-force_execution_loop-py]] (309 lines) *[entry]* — force_execution_loop.py — Force ONE complete end-to-end exec
 - [[scripts-higgsfield_smoke_test-py]] (78 lines) *[entry]* — Higgsfield Cloud API end-to-end smoke test.
 - [[scripts-inbox_gps_afternoon-py]] (30 lines) — Email GPS — 3pm afternoon inbox pass.
 - [[scripts-inbox_zero_init-py]] (403 lines) — Inbox Zero Initialization — run ONCE on first DEX setup.
@@ -179,7 +199,7 @@ generated: 2026-04-11
 - [[scripts-measure_phase8_batch-py]] (336 lines) *[entry]* — Phase 8 batch measurement — full re-extraction.
 - [[scripts-meet_caption_writer-py]] (66 lines) *[entry]* — Operator CLI to append Meet captions to the JSONL bridge.
 - [[scripts-memory_neon-py]] (565 lines) — Neon integration helpers for the memory pipeline.
-- [[scripts-merge_graphs-py]] (214 lines) *[entry]* — merge_graphs.py — Merge graphify_overlay.json into codebase_
+- [[scripts-merge_graphs-py]] (341 lines) *[entry]* — merge_graphs.py — Merge graphify_overlay.json into codebase_
 - [[scripts-midday_checkin-py]] (105 lines) *[entry]* — Mid-day check-in — runs at 12:30pm PDT.
 - [[scripts-morning_intel-py]] (179 lines) *[entry]* — Morning Intelligence Brief — runs at 5:45am PDT daily,
 - [[scripts-nightly_consolidation-py]] (325 lines) *[entry]* — Nightly memory consolidation — the "sleep/dream" layer.
@@ -191,6 +211,7 @@ generated: 2026-04-11
 - [[scripts-notion_setup-py]] (1081 lines) *[entry]* — Notion Setup — creates the full per-venture primitive databa
 - [[scripts-notion_sync_poller-py]] (44 lines) *[entry]* — Notion Sync Poller — runs every 15 minutes via cron.
 - [[scripts-notion_tasks_sync-py]] (282 lines) *[entry]* — Notion Tasks → Neon Sync
+- [[scripts-orchestrator-py]] (1122 lines) *[entry]* — orchestrator.py — Continuous, autonomous execution layer for
 - [[scripts-orchestrator_loop-py]] (74 lines) *[entry]* — Orchestrator loop runner.
 - [[scripts-orchestrator_status-py]] (389 lines) *[entry]* — orchestrator_status.py — operator-friendly snapshot of the C
 - [[scripts-permission_notify-py]] (103 lines) *[entry]* — PermissionRequest hook.
@@ -200,16 +221,22 @@ generated: 2026-04-11
 - [[scripts-promote_to_wiki-py]] (438 lines) *[entry]* — Promote durable knowledge from summaries into 10_Wiki/.
 - [[scripts-pump_meet_source-py]] (129 lines) *[entry]* — pump_meet_source — operator-driven single-shot pump for a Go
 - [[scripts-query_graph-py]] (328 lines) *[entry]* — query_graph.py — Retrieval layer over the EOS codebase knowl
+- [[scripts-query_semantic_space-py]] (342 lines) *[entry]* — Query the semantic space — inspect coordinates, run queries,
 - [[scripts-query_skills-py]] (213 lines) *[entry]* — query_skills.py — Tool Mastery Engine CLI registry.
 - [[scripts-relationship_nurture-py]] (128 lines) *[entry]* — Relationship nurturing — checks for contacts not heard from 
 - [[scripts-router_claude_runtime_debug-py]] (75 lines) *[entry]* — Router runtime debug helper — prints the actual, live state 
 - [[scripts-run_graphify-py]] (526 lines) *[entry]* — run_graphify.py — Pluggable enrichment layer (Graphify adapt
 - [[scripts-salience-py]] (595 lines) — Salience scoring for conversation summaries.
+- [[scripts-sandbox_runner-py]] (774 lines) *[entry]* — sandbox_runner.py — Safe experimentation surface for the EOS
+- [[scripts-sandbox_safety_verifier-py]] (331 lines) *[entry]* — sandbox_safety_verifier.py — Adversarial tests for the sandb
+- [[scripts-sandbox_smoke_test-py]] (293 lines) *[entry]* — sandbox_smoke_test.py — End-to-end proof that the sandbox la
 - [[scripts-scheduled-morning_prep_cp-py]] (83 lines) *[entry]* — morning_prep_cp.py — Control Plane wrapper for morning_prep.
 - [[scripts-scheduled-nightly_consolidation_cp-py]] (111 lines) *[entry]* — nightly_consolidation_cp.py — Control Plane wrapper for nigh
 - [[scripts-scheduled-weekly_review_cp-py]] (107 lines) *[entry]* — weekly_review_cp.py — Control Plane wrapper for weekly_revie
+- [[scripts-security_smoke_test-py]] (503 lines) *[entry]* — security_smoke_test.py — End-to-end smoke test for core.secu
 - [[scripts-session_bootstrap-py]] (161 lines) *[entry]* — session_bootstrap.py — Mandatory context load at session sta
 - [[scripts-session_start_context-py]] (199 lines) *[entry]* — SessionStart hook.
+- [[scripts-session_watcher_smoke_test-py]] (245 lines) — Smoke tests for Session Watcher + Discord Bridge.
 - [[scripts-subagent_start_context-py]] (87 lines) *[entry]* — SubagentStart hook.
 - [[scripts-substrate_audio_loop_cli-py]] (136 lines) *[entry]* — Bounded operator CLI for the local audio loop.
 - [[scripts-substrate_audio_loop_smoke_test-py]] (293 lines) *[entry]* — Audio loop smoke test.
@@ -282,12 +309,14 @@ generated: 2026-04-11
 - [[scripts-tool_mastery_manager-py]] (216 lines) *[entry]* — Tool Mastery Manager — CLI.
 - [[scripts-tool_mastery_research_dispatcher-py]] (311 lines) *[entry]* — Tool Mastery research dispatcher.
 - [[scripts-user_prompt_capture-py]] (112 lines) *[entry]* — UserPromptSubmit hook: capture user messages into conversati
+- [[scripts-vault_backlink_audit-py]] (275 lines) *[entry]* — Vault Backlink Health + Retrieval Signal Report
 - [[scripts-verify_knowledge_system-py]] (353 lines) *[entry]* — verify_knowledge_system.py — Acceptance check for the EOS co
 - [[scripts-verify_tool_skill-py]] (189 lines) *[entry]* — verify_tool_skill.py — Tool Mastery Engine verifier / linter
 - [[scripts-waiting_on_checker-py]] (94 lines) *[entry]* — WAITING_ON checker — scans emails in WAITING_ON folder
-- [[scripts-watch_graph-py]] (485 lines) *[entry]* — watch_graph.py — Near real-time file watcher for the codebas
+- [[scripts-watch_graph-py]] (527 lines) *[entry]* — watch_graph.py — Near real-time file watcher for the codebas
 - [[scripts-week_architect-py]] (118 lines) *[entry]* — Week Architect — Sunday 8pm PDT.
 - [[scripts-weekly_review-py]] (241 lines) *[entry]* — Weekly business review — Sunday 7pm PDT.
 - [[scripts-wiki_session_start_hook-py]] (23 lines) *[entry]* — SessionStart hook: no-op.
 - [[scripts-wiki_stop_hook-py]] (168 lines) *[entry]* — Stop hook: capture real conversation content to session file
 - [[scripts-workers-discord_approval_worker-py]] (234 lines) *[entry]* — discord_approval_worker.py — tail notifications.jsonl, post 
+- [[scripts-workflow_engine-py]] (1177 lines) *[entry]* — WorkflowEngine — goal-driven, graph-aware, agent-executed wo

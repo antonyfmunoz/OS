@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_operator_interface_smoke_test.py
 line: 247
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # test_13_degrades_on_empty_and_malformed

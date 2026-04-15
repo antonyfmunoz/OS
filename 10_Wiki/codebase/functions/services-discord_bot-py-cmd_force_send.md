@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: services/discord_bot.py
-line: 2152
-generated: 2026-04-11
+line: 2242
+generated: 2026-04-12
 ---
 
 # cmd_force_send
 
-**File:** [[services-discord_bot-py]] | **Line:** 2152
+**File:** [[services-discord_bot-py]] | **Line:** 2242
 **Signature:** `cmd_force_send(ctx)`
 
 Force-send an email that failed the quality gate.

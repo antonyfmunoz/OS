@@ -5,7 +5,7 @@ module: scripts.substrate_result_loop_smoke_test
 lines: 161
 size: 6511
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_result_loop_smoke_test.py

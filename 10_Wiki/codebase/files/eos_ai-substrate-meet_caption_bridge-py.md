@@ -4,7 +4,7 @@ path: eos_ai/substrate/meet_caption_bridge.py
 module: eos_ai.substrate.meet_caption_bridge
 lines: 543
 size: 18717
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/meet_caption_bridge.py

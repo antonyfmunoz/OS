@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_research_agent/models.py
 line: 83
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # SourceRef.to_dict

@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/orchestrator/orchestrator.py
 line: 73
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # Orchestrator.run_workflow

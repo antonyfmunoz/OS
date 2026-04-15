@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/embedding_engine.py
 line: 29
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # EmbeddingEngine

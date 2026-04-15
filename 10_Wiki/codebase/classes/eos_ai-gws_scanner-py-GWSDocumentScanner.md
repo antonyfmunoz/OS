@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/gws_scanner.py
 line: 50
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # GWSDocumentScanner

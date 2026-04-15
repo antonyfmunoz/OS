@@ -1014,5 +1014,5 @@ class ConversationMemory:
             channel=str(row['channel']),
             agent=str(row['agent']),
             created_at=row['created_at'],
-            metadata=json.loads(row['metadata']) if row['metadata'] else {},
+            metadata=row['metadata'] if isinstance(row['metadata'], dict) else json.loads(row['metadata']) if row['metadata'] else {},
         )

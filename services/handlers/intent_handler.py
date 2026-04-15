@@ -38,6 +38,7 @@ CHANNEL_MAP: dict[str, str | None] = {
 
 # Intent → gateway request type mapping
 _INTENT_TO_TEAM: dict[str, tuple[str | None, str | None]] = {
+    "CONVERSATION": ("dex", None),
     "OUTREACH": ("sales", "outreach_writer"),
     "RESEARCH": ("research", "market_analyst"),
     "CONTENT": ("content", "content_writer"),
@@ -120,6 +121,8 @@ def run_gateway(
     ki,
     channel_sessions: dict,
     default_venture_id: str,
+    guild_id: str | None = None,
+    channel_id: str | None = None,
 ) -> str:
     """
     Classify intent, build request, call gateway, return output text.
@@ -263,8 +266,42 @@ Return JSON: {{"answers": true, "answer_summary": "brief summary"}}""",
     except Exception:
         pass
 
-    # Gateway handles all classification and routing
-    result = gateway.handle(req)
+    # Resolve Discord mode context so model_router's Claude CLI backend
+    # sees the correct session (builder vs product). Without this, the
+    # gateway path bypasses mode_context and falls back to env defaults.
+    _mode_cm = None
+    try:
+        from eos_ai.substrate.discord_mode_routing import (
+            mode_context as _mc,
+            resolve_discord_mode,
+            resolve_mode_session,
+        )
+
+        _discord_mode = resolve_discord_mode(guild_id, channel_id)
+        _mode_session = resolve_mode_session(
+            _discord_mode, guild_id=guild_id, channel_id=channel_id
+        )
+        _mode_cm = _mc(
+            _discord_mode,
+            target=_mode_session.get("target"),
+            session_name=_mode_session.get("session_name"),
+            guild_id=guild_id,
+            channel_id=channel_id,
+            source=_mode_session.get("source"),
+            delegated_local=_mode_session.get("delegated_local", False),
+            delegation_reason=_mode_session.get("delegation_reason"),
+            policy_version=_mode_session.get("policy_version"),
+        )
+    except Exception as _mode_err:
+        print(f"[IntentHandler] mode_context setup failed: {_mode_err}")
+
+    # Gateway handles all classification and routing — wrapped in mode_context
+    # so model_router picks up the correct Claude CLI session target.
+    if _mode_cm is not None:
+        with _mode_cm:
+            result = gateway.handle(req)
+    else:
+        result = gateway.handle(req)
 
     if result.get("status") == "error":
         print(f"[Discord] Gateway error: {result.get('error')}")

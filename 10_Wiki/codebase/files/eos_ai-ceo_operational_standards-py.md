@@ -4,7 +4,7 @@ path: eos_ai/ceo_operational_standards.py
 module: eos_ai.ceo_operational_standards
 lines: 604
 size: 19257
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/ceo_operational_standards.py

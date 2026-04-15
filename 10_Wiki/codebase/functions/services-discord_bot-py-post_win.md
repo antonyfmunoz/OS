@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: services/discord_bot.py
-line: 2919
-generated: 2026-04-11
+line: 3009
+generated: 2026-04-12
 ---
 
 # post_win
 
-**File:** [[services-discord_bot-py]] | **Line:** 2919
+**File:** [[services-discord_bot-py]] | **Line:** 3009
 **Signature:** `post_win(win) → None`
 
 *No docstring.*

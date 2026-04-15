@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/stt_producer.py
 line: 1086
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # reset_local_stt_runtime_for_tests

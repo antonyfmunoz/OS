@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/system_health.py
 line: 327
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # EOSSystemHealth.alert_if_degraded

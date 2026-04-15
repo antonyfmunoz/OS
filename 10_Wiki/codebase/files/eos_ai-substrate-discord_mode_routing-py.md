@@ -4,7 +4,7 @@ path: eos_ai/substrate/discord_mode_routing.py
 module: eos_ai.substrate.discord_mode_routing
 lines: 336
 size: 11196
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/discord_mode_routing.py

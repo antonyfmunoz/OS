@@ -5,7 +5,7 @@ module: scripts.pump_meet_source
 lines: 129
 size: 4682
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/pump_meet_source.py

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/ceo_operational_standards.py
 line: 578
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # get_delegation_rules

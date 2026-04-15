@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/discord_utils.py
 line: 22
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # chunk_message

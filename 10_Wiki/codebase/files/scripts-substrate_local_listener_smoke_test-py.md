@@ -5,7 +5,7 @@ module: scripts.substrate_local_listener_smoke_test
 lines: 147
 size: 5700
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_local_listener_smoke_test.py

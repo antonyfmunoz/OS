@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/expense_tracker.py
 line: 139
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # process_receipt_emails

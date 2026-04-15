@@ -4,7 +4,7 @@ path: eos_ai/substrate/workflow_delegation.py
 module: eos_ai.substrate.workflow_delegation
 lines: 430
 size: 14370
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/workflow_delegation.py

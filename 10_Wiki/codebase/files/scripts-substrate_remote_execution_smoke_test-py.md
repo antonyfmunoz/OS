@@ -5,7 +5,7 @@ module: scripts.substrate_remote_execution_smoke_test
 lines: 234
 size: 7639
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_remote_execution_smoke_test.py

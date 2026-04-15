@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/memory.py
 line: 887
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # ConversationMemory.get_session_summary

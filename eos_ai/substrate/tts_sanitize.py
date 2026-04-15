@@ -60,6 +60,12 @@ _LINE_DROP_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"^\s*\[(debug|trace|router|model_router|gateway)\]", re.IGNORECASE),
     # Signature tails ("— DEX", "-- EOS")
     re.compile(r"^\s*[—\-–]{1,2}\s*(dex|eos|claude|assistant)\s*$", re.IGNORECASE),
+    # EOS cognitive loop footer lines (⚙ model, 🪙 cost ⏱ time 📊 tokens)
+    re.compile(r".*⚙", re.IGNORECASE),
+    re.compile(r".*⏱", re.IGNORECASE),
+    re.compile(r".*\btokens\b", re.IGNORECASE),
+    re.compile(r".*\bassistant/session\b", re.IGNORECASE),
+    re.compile(r".*\bclaude_cli\b", re.IGNORECASE),
 )
 
 # Inline patterns — scrubbed from within a retained line (not the whole line).
@@ -80,6 +86,8 @@ _FOOTER_CUT_SENTINELS: tuple[re.Pattern[str], ...] = (
     re.compile(r"^\s*---\s*$"),
     re.compile(r"^\s*provider\s*[:=]", re.IGNORECASE),
     re.compile(r"^\s*tokens?\s*[:=]", re.IGNORECASE),
+    # EOS cognitive loop footer block starts with ─── divider
+    re.compile(r"^\s*[─]{3,}\s*$"),
 )
 
 

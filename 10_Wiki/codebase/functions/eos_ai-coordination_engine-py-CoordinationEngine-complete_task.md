@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/coordination_engine.py
 line: 240
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # CoordinationEngine.complete_task

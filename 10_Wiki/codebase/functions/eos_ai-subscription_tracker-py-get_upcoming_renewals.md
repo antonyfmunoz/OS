@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/subscription_tracker.py
 line: 87
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # get_upcoming_renewals

@@ -2,7 +2,7 @@
 type: codebase-class
 file: scripts/verify_knowledge_system.py
 line: 38
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # CheckResult

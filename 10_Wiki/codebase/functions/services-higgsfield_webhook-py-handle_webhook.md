@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/higgsfield_webhook.py
 line: 57
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # handle_webhook

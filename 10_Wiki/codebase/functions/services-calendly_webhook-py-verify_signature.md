@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/calendly_webhook.py
 line: 62
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # verify_signature

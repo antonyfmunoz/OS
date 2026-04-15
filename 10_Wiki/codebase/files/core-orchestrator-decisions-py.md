@@ -4,7 +4,7 @@ path: core/orchestrator/decisions.py
 module: core.orchestrator.decisions
 lines: 159
 size: 5228
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/orchestrator/decisions.py

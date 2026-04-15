@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/quality_gate.py
 line: 41
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # QualityTransformationGate.__init__

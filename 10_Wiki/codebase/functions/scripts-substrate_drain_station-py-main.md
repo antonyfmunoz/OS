@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_drain_station.py
 line: 41
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # main

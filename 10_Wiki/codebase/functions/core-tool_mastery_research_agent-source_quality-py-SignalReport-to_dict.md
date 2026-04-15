@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_research_agent/source_quality.py
 line: 242
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # SignalReport.to_dict

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/model_preferences.py
 line: 388
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # ModelPreferences.set_session_override

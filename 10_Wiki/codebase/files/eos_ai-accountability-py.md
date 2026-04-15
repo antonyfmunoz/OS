@@ -4,7 +4,7 @@ path: eos_ai/accountability.py
 module: eos_ai.accountability
 lines: 189
 size: 6442
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/accountability.py

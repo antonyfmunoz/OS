@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_resource_context_guard_smoke_test.py
 line: 156
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # test_workload_short_text_lightweight

@@ -5,7 +5,7 @@ module: services.apify_scraper
 lines: 910
 size: 32587
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # services/apify_scraper.py

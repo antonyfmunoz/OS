@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/result_query.py
 line: 146
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # unresolved_rituals

@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/substrate/rituals.py
 line: 93
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # RitualRegistry

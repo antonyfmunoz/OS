@@ -4,7 +4,7 @@ path: services/handlers/intent_handler.py
 module: services.handlers.intent_handler
 lines: 331
 size: 11141
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # services/handlers/intent_handler.py

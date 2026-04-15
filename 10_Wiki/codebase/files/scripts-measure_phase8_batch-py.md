@@ -5,7 +5,7 @@ module: scripts.measure_phase8_batch
 lines: 336
 size: 11668
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/measure_phase8_batch.py

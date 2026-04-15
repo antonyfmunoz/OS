@@ -1,13 +1,13 @@
 ---
 type: codebase-class
 file: eos_ai/cognitive_loop.py
-line: 233
-generated: 2026-04-11
+line: 241
+generated: 2026-04-12
 ---
 
 # CognitiveLoop
 
-**File:** [[eos_ai-cognitive_loop-py]] | **Line:** 233
+**File:** [[eos_ai-cognitive_loop-py]] | **Line:** 241
 
 Full cognitive loop. Wraps AgentRuntime with:
   - PERCEIVE:  load venture context and recent memory

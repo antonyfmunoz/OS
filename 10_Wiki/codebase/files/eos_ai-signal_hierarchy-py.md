@@ -4,7 +4,7 @@ path: eos_ai/signal_hierarchy.py
 module: eos_ai.signal_hierarchy
 lines: 250
 size: 8490
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/signal_hierarchy.py

@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/action_system/policy.py
 line: 104
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # requires_explicit_approval

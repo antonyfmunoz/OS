@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/build_skill_graph.py
 line: 102
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # build_graph

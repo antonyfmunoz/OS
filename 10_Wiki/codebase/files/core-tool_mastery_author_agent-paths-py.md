@@ -4,7 +4,7 @@ path: core/tool_mastery_author_agent/paths.py
 module: core.tool_mastery_author_agent.paths
 lines: 26
 size: 652
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/tool_mastery_author_agent/paths.py

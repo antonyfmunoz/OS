@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/system_context.py
 line: 180
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # SystemContext.get_system_prompt_prefix

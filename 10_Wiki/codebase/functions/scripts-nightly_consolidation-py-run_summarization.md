@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/nightly_consolidation.py
 line: 64
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # run_summarization

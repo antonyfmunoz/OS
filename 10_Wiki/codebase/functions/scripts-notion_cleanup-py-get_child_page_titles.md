@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/notion_cleanup.py
 line: 290
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # get_child_page_titles

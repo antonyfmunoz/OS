@@ -4,7 +4,7 @@ path: eos_ai/substrate/voice_session.py
 module: eos_ai.substrate.voice_session
 lines: 790
 size: 29559
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/voice_session.py

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/research_engine.py
 line: 428
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # ResearchEngine.run_gap_fill_cycle

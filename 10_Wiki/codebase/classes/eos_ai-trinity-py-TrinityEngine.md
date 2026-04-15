@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/trinity.py
 line: 29
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # TrinityEngine

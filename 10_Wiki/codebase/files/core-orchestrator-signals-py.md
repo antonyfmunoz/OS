@@ -4,7 +4,7 @@ path: core/orchestrator/signals.py
 module: core.orchestrator.signals
 lines: 209
 size: 6341
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/orchestrator/signals.py

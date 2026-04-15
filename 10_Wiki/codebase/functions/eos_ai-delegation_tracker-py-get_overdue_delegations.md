@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/delegation_tracker.py
 line: 52
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # get_overdue_delegations

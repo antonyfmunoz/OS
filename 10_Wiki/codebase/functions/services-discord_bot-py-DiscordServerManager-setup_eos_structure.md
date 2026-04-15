@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: services/discord_bot.py
-line: 1677
-generated: 2026-04-11
+line: 1727
+generated: 2026-04-12
 ---
 
 # DiscordServerManager.setup_eos_structure
 
-**File:** [[services-discord_bot-py]] | **Line:** 1677
+**File:** [[services-discord_bot-py]] | **Line:** 1727
 **Signature:** `setup_eos_structure() → list[str]`
 
 **Class:** [[services-discord_bot-py-DiscordServerManager]]

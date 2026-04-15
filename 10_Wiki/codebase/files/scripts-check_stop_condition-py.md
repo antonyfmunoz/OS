@@ -5,7 +5,7 @@ module: scripts.check_stop_condition
 lines: 88
 size: 2130
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/check_stop_condition.py

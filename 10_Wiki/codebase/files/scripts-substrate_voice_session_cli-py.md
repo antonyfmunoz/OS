@@ -5,7 +5,7 @@ module: scripts.substrate_voice_session_cli
 lines: 149
 size: 4745
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_voice_session_cli.py

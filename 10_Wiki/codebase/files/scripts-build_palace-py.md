@@ -5,7 +5,7 @@ module: scripts.build_palace
 lines: 484
 size: 16461
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/build_palace.py

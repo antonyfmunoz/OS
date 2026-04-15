@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/ptt_binding.py
 line: 188
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # validate_real_capture

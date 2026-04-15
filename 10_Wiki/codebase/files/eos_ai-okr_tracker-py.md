@@ -4,7 +4,7 @@ path: eos_ai/okr_tracker.py
 module: eos_ai.okr_tracker
 lines: 119
 size: 3919
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/okr_tracker.py

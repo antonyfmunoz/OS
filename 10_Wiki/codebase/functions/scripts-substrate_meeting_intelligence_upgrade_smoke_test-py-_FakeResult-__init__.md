@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_meeting_intelligence_upgrade_smoke_test.py
 line: 31
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # _FakeResult.__init__

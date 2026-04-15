@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/scheduled/morning_prep_cp.py
 line: 45
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # main

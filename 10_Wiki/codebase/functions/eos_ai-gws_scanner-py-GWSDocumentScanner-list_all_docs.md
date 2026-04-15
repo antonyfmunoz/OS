@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/gws_scanner.py
 line: 86
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # GWSDocumentScanner.list_all_docs

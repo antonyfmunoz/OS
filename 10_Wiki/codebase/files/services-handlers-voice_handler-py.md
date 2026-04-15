@@ -4,7 +4,7 @@ path: services/handlers/voice_handler.py
 module: services.handlers.voice_handler
 lines: 23
 size: 674
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # services/handlers/voice_handler.py

@@ -4,7 +4,7 @@ path: eos_ai/principle_engine.py
 module: eos_ai.principle_engine
 lines: 517
 size: 23213
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/principle_engine.py

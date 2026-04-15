@@ -4,7 +4,7 @@ path: eos_ai/substrate/stt_producer.py
 module: eos_ai.substrate.stt_producer
 lines: 1147
 size: 42041
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/stt_producer.py

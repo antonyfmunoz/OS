@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/skill_registry_v2.py
 line: 60
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # SkillV2.to_markdown

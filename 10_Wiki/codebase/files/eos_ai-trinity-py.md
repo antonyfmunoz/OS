@@ -4,7 +4,7 @@ path: eos_ai/trinity.py
 module: eos_ai.trinity
 lines: 113
 size: 3966
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/trinity.py

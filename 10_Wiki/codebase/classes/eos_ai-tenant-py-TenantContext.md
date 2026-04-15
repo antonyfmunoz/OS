@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/tenant.py
 line: 28
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # TenantContext

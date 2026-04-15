@@ -5,7 +5,7 @@ module: scripts.run_graphify
 lines: 526
 size: 19013
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/run_graphify.py

@@ -5,7 +5,7 @@ module: eos_ai.memory
 lines: 1019
 size: 39100
 tags: [critical]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/memory.py

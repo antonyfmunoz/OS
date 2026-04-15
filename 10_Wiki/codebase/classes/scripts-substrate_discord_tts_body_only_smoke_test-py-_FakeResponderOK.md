@@ -2,7 +2,7 @@
 type: codebase-class
 file: scripts/substrate_discord_tts_body_only_smoke_test.py
 line: 104
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # _FakeResponderOK

@@ -5,7 +5,7 @@ module: scripts.substrate_claude_responder_smoke_test
 lines: 229
 size: 9246
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_claude_responder_smoke_test.py

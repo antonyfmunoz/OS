@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_execution_linkage_smoke_test.py
 line: 182
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # test_report_block_fallback_has_linkage_fields

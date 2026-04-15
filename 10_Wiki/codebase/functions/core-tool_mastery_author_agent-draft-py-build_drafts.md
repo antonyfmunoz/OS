@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_author_agent/draft.py
 line: 283
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # build_drafts

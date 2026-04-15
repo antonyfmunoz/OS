@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/notion_sync.py
 line: 303
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # write_decision

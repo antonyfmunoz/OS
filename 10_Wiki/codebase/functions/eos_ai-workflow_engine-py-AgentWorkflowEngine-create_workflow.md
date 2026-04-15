@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/workflow_engine.py
 line: 799
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # AgentWorkflowEngine.create_workflow

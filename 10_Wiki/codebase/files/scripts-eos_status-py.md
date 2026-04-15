@@ -5,7 +5,7 @@ module: scripts.eos_status
 lines: 161
 size: 5077
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/eos_status.py

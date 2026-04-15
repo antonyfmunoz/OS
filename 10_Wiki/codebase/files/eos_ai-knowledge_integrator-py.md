@@ -4,7 +4,7 @@ path: eos_ai/knowledge_integrator.py
 module: eos_ai.knowledge_integrator
 lines: 241
 size: 7905
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/knowledge_integrator.py

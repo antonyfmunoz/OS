@@ -4,7 +4,7 @@ path: core/action_system/actions.py
 module: core.action_system.actions
 lines: 84
 size: 2636
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/action_system/actions.py

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/venture_knowledge.py
 line: 310
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # VentureKnowledgeBase.list_ventures

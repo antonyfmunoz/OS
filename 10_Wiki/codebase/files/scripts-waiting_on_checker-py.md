@@ -5,7 +5,7 @@ module: scripts.waiting_on_checker
 lines: 94
 size: 2632
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/waiting_on_checker.py

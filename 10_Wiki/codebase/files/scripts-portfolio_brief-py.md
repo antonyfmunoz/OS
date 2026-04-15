@@ -5,7 +5,7 @@ module: scripts.portfolio_brief
 lines: 128
 size: 3942
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/portfolio_brief.py

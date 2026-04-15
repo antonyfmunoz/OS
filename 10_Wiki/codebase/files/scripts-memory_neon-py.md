@@ -4,7 +4,7 @@ path: scripts/memory_neon.py
 module: scripts.memory_neon
 lines: 565
 size: 18307
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/memory_neon.py

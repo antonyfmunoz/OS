@@ -4,7 +4,7 @@ path: eos_ai/substrate/ritual_inference.py
 module: eos_ai.substrate.ritual_inference
 lines: 199
 size: 7082
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/ritual_inference.py

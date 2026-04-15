@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/claude_session_bridge.py
 line: 397
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # list_sessions

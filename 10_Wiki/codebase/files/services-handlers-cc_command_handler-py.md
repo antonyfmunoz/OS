@@ -4,7 +4,7 @@ path: services/handlers/cc_command_handler.py
 module: services.handlers.cc_command_handler
 lines: 564
 size: 20710
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # services/handlers/cc_command_handler.py

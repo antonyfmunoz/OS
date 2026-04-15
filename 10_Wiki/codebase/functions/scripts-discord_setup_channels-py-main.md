@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/discord_setup_channels.py
 line: 187
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # main

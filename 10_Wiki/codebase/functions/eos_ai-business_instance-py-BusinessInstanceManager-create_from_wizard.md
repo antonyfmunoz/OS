@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/business_instance.py
 line: 315
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # BusinessInstanceManager.create_from_wizard

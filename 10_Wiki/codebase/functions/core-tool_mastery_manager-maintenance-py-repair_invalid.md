@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_manager/maintenance.py
 line: 29
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # repair_invalid

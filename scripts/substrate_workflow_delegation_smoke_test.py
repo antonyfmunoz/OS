@@ -199,6 +199,46 @@ def test_system_ops_classification() -> None:
         )
 
 
+def test_planning_only_exclusion() -> None:
+    _header("Planning-only exclusion (pass through to CC session)")
+    from eos_ai.substrate.workflow_delegation import classify_workflow_intent
+
+    cases = [
+        "plan out how you would add a health check endpoint to the EOS API",
+        "Plan out (but don't execute) how you would add a new agent",
+        "outline how to add a feature for user auth",
+        "sketch out steps to build the new handler",
+        "just plan how to fix the bug in the router",
+        "how would you add a new endpoint for webhooks",
+        "walk me through adding a test for the pipeline",
+        "think through how to implement the new module",
+        "draft a plan for the deployment feature",
+        "plan only — add the health check endpoint",
+        "without executing, create a new route handler",
+    ]
+    for text in cases:
+        r = classify_workflow_intent(text, "builder")
+        check(
+            f"planning_excluded: {text[:45]}",
+            r["intent"] == "conversation" and r["workflow_kind"] == "none",
+            f"got intent={r['intent']} kind={r['workflow_kind']} reason={r['reason']}",
+        )
+
+    # Verify that non-planning builder_dev messages still match
+    still_builder = [
+        "fix the bug in the router",
+        "add a new endpoint for users",
+        "deploy the latest build",
+    ]
+    for text in still_builder:
+        r = classify_workflow_intent(text, "builder")
+        check(
+            f"still_builder_dev: {text[:40]}",
+            r["intent"] == "workflow" and r["workflow_kind"] == "builder_dev",
+            f"got intent={r['intent']} kind={r['workflow_kind']}",
+        )
+
+
 def test_empty_input() -> None:
     _header("Empty input")
     from eos_ai.substrate.workflow_delegation import classify_workflow_intent
@@ -543,6 +583,7 @@ def main() -> int:
     test_content_ops_classification()
     test_analysis_classification()
     test_system_ops_classification()
+    test_planning_only_exclusion()
     test_empty_input()
     test_builder_allows_builder_dev()
     test_product_blocks_builder_dev()

@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_ptt_binding_cli.py
 line: 52
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # cmd_devices

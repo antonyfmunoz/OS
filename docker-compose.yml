@@ -110,6 +110,8 @@ services:
       - eos_network
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    ports:
+      - "0.0.0.0:8765:8765"
     volumes:
       - /opt/OS:/app
       - /opt/OS/logs:/opt/OS/logs

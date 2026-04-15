@@ -4,7 +4,7 @@ path: eos_ai/research_engine.py
 module: eos_ai.research_engine
 lines: 696
 size: 29629
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/research_engine.py

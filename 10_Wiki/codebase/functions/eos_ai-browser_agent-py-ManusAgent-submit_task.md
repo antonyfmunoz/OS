@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/browser_agent.py
 line: 470
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # ManusAgent.submit_task

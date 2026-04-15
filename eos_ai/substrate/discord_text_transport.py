@@ -395,24 +395,6 @@ def ingest_text_message(
             "event": ev.as_dict(),
         }
 
-    # Call inject_transcript directly on the shared voice node so the
-    # source tag is explicitly "discord_text" (not "discord_voice") while
-    # reusing the session/responder/audio_loop wiring.
-    try:
-        from eos_ai.substrate.transcript_inject import inject_transcript
-    except Exception as e:  # noqa: BLE001
-        ev = DiscordTextEvent(
-            kind="error",
-            guild_id=gid,
-            channel_id=cid,
-            user_id=uid,
-            text_preview=preview,
-            status="import_failed",
-            detail=str(e),
-        )
-        _history.record(ev)
-        return {"status": "import_failed", "detail": str(e), "event": ev.as_dict()}
-
     # ── Discord Channel Mode Routing v1 ─────────────────────────────────────
     # Classify the channel into a substrate mode (builder|product|unknown) and
     # resolve the corresponding Claude session target/name. Mode is metadata
@@ -558,6 +540,13 @@ def ingest_text_message(
     # is not deferred, execute it here and short-circuit inject_transcript.
     # Deferred handlers (no session bound) fall through to the normal path.
     wf_exec_result: Optional[dict] = None
+    # ── DEBUG: trace workflow gate decision (remove after fix confirmed) ──
+    _log(
+        f"workflow gate: exec_class={meta.get('workflow_execution_class')!r} "
+        f"allowed={meta.get('workflow_allowed')!r} "
+        f"kind={meta.get('workflow_kind')!r} "
+        f"reason={meta.get('workflow_policy_reason')!r}"
+    )
     if (
         meta.get("workflow_execution_class") == "workflow"
         and meta.get("workflow_allowed") is True
@@ -636,13 +625,9 @@ def ingest_text_message(
             }
     # ────────────────────────────────────────────────────────────────────
 
-    # Wrap conversation path with trace_context so model_router._stamp_trace()
-    # can find the per-request trace via thread-local storage.
-    _trace_cm = (
-        trace_context(_trace)
-        if (_trace is not None and trace_context is not None)
-        else None
-    )
+    # Route conversation through execution_contract — unified pipeline that
+    # handles gateway → cognitive_loop → memory → trace → learn.
+    # Mode context is still active so downstream routing sees the right target.
     try:
         with mode_context(
             discord_mode,
@@ -655,27 +640,26 @@ def ingest_text_message(
             delegation_reason=mode_session.get("delegation_reason"),
             policy_version=mode_session.get("policy_version"),
         ):
-            if _trace_cm is not None:
-                _trace_cm.__enter__()
-            try:
-                if _trace is not None:
-                    _ut(
-                        _trace,
-                        execution_path="conversation",
-                        workflow_executed=False,
-                    )
-                result = inject_transcript(
-                    transport.node_id,
-                    clean,
-                    source=_TRANSCRIPT_SOURCE,
-                    start_if_missing=True,
-                    role_slug=role_slug,
-                    metadata=meta,
-                    emit_tts=emit_tts,
+            if _trace is not None:
+                _ut(
+                    _trace,
+                    execution_path="conversation",
+                    workflow_executed=False,
                 )
-            finally:
-                if _trace_cm is not None:
-                    _trace_cm.__exit__(None, None, None)
+            from core.execution_contract import run_task as _run_task
+
+            ec_result = _run_task(
+                text=clean,
+                channel=f"discord_text:{cid or 'unknown'}",
+                mode=discord_mode,
+                username=uid or "unknown",
+                metadata={
+                    "venture_id": meta.get("venture_id"),
+                    "team": meta.get("team"),
+                    "sub_agent": meta.get("sub_agent"),
+                    "substrate_meta": meta,
+                },
+            )
     except Exception as e:  # noqa: BLE001
         ev = DiscordTextEvent(
             kind="error",
@@ -683,14 +667,31 @@ def ingest_text_message(
             channel_id=cid,
             user_id=uid,
             text_preview=preview,
-            status="inject_exception",
+            status="contract_exception",
             detail=str(e),
         )
         _history.record(ev)
-        return {"status": "inject_exception", "detail": str(e), "event": ev.as_dict()}
+        return {"status": "contract_exception", "detail": str(e), "event": ev.as_dict()}
 
-    session_id = result.get("session_id")
-    reply_text = _latest_agent_reply(session_id) if session_id else None
+    session_id = ec_result.get("session_id")
+    reply_text = ec_result.get("response") or None
+
+    # Map execution_contract result to substrate status
+    ec_status = "ok" if ec_result.get("ok") else "error"
+    ec_detail = ec_result.get("error") or ec_result.get("path", "")
+
+    # Finalize substrate trace with contract's provider info
+    if _trace is not None:
+        try:
+            _ft(
+                _trace,
+                provider=ec_result.get("provider") or None,
+                result="success" if ec_result.get("ok") else "error",
+                latency_ms=None,  # contract already timed itself
+            )
+            get_trace_history().record(_trace)
+        except Exception:  # noqa: BLE001
+            pass
 
     ev = DiscordTextEvent(
         kind="ingress",
@@ -699,20 +700,25 @@ def ingest_text_message(
         user_id=uid,
         text_preview=preview,
         session_id=session_id,
-        status=result.get("status"),
-        detail=result.get("detail"),
+        status=ec_status,
+        detail=ec_detail,
     )
     _history.record(ev)
 
     return {
-        "status": result.get("status"),
+        "status": ec_status,
         "session_id": session_id,
         "node_id": transport.node_id,
-        "role_slug": result.get("role_slug"),
-        "detail": result.get("detail"),
-        "audio_loop": result.get("audio_loop"),
+        "role_slug": role_slug,
+        "detail": ec_detail,
+        "audio_loop": None,
         "reply_text": reply_text,
         "event": ev.as_dict(),
+        # execution_contract metadata
+        "trace_id": ec_result.get("trace_id"),
+        "provider": ec_result.get("provider"),
+        "logged": ec_result.get("logged"),
+        "execution_path": ec_result.get("path"),
         # workflow metadata
         "workflow_intent": meta.get("workflow_intent"),
         "workflow_kind": meta.get("workflow_kind"),

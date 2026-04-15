@@ -5,7 +5,7 @@ module: scripts.substrate_meeting_intelligence_smoke_test
 lines: 143
 size: 5902
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_meeting_intelligence_smoke_test.py

@@ -5,7 +5,7 @@ module: scripts.incremental_graph
 lines: 773
 size: 28826
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/incremental_graph.py

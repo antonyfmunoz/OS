@@ -4,7 +4,7 @@ path: eos_ai/substrate/claude_responder.py
 module: eos_ai.substrate.claude_responder
 lines: 179
 size: 5310
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/claude_responder.py

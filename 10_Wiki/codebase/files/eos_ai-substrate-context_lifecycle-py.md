@@ -4,7 +4,7 @@ path: eos_ai/substrate/context_lifecycle.py
 module: eos_ai.substrate.context_lifecycle
 lines: 314
 size: 10589
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/context_lifecycle.py

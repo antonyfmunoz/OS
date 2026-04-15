@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_hybrid_execution_smoke_test.py
 line: 223
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # test_delegation_on_keyword_match

@@ -4,7 +4,7 @@ path: eos_ai/ea_operational_standards.py
 module: eos_ai.ea_operational_standards
 lines: 140
 size: 4642
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/ea_operational_standards.py

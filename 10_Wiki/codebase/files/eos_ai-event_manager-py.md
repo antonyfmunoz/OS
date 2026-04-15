@@ -4,7 +4,7 @@ path: eos_ai/event_manager.py
 module: eos_ai.event_manager
 lines: 267
 size: 8101
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/event_manager.py

@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/call_prep.py
 line: 55
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # build_prep_brief

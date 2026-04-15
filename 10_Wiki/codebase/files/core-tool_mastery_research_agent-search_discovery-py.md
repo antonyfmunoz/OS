@@ -4,7 +4,7 @@ path: core/tool_mastery_research_agent/search_discovery.py
 module: core.tool_mastery_research_agent.search_discovery
 lines: 354
 size: 11610
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/tool_mastery_research_agent/search_discovery.py

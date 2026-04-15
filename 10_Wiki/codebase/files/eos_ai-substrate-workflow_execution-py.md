@@ -4,7 +4,7 @@ path: eos_ai/substrate/workflow_execution.py
 module: eos_ai.substrate.workflow_execution
 lines: 362
 size: 11702
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/workflow_execution.py

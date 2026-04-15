@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/accountability.py
 line: 169
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # AccountabilityEngine.mark_follow_up_sent

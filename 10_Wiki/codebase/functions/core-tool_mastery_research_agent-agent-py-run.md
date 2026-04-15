@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_research_agent/agent.py
 line: 95
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # run

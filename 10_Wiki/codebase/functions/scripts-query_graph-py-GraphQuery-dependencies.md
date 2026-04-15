@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/query_graph.py
 line: 124
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # GraphQuery.dependencies
@@ -20,4 +20,6 @@ What this node depends on (what it imports or calls).
 
 ## Called By
 
+- [[scripts-action_system-py-ActionSystem-_exec_query_graph]]
+- [[scripts-action_system-py-ActionSystem-assess_impact]]
 - [[scripts-query_graph-py-main]]

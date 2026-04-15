@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/query_graph.py
 line: 131
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # GraphQuery.dependents
@@ -20,4 +20,6 @@ What depends on this node (reverse lookup).
 
 ## Called By
 
+- [[scripts-action_system-py-ActionSystem-_exec_query_graph]]
+- [[scripts-action_system-py-ActionSystem-assess_impact]]
 - [[scripts-query_graph-py-main]]

@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/morning_intel.py
 line: 24
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # build_intel_brief

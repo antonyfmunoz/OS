@@ -4,7 +4,7 @@ path: eos_ai/substrate/workload_policy.py
 module: eos_ai.substrate.workload_policy
 lines: 193
 size: 5974
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/workload_policy.py

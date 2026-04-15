@@ -5,7 +5,7 @@ module: scripts.substrate_discord_voice_transport_cli
 lines: 238
 size: 7160
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/substrate_discord_voice_transport_cli.py

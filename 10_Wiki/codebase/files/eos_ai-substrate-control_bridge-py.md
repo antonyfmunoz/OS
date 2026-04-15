@@ -4,7 +4,7 @@ path: eos_ai/substrate/control_bridge.py
 module: eos_ai.substrate.control_bridge
 lines: 173
 size: 5584
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/control_bridge.py

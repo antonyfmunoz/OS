@@ -2,7 +2,7 @@
 type: codebase-class
 file: core/action_system/notifier.py
 line: 32
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # FileNotifier

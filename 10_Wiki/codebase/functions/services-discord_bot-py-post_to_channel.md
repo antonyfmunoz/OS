@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: services/discord_bot.py
-line: 2896
-generated: 2026-04-11
+line: 2986
+generated: 2026-04-12
 ---
 
 # post_to_channel
 
-**File:** [[services-discord_bot-py]] | **Line:** 2896
+**File:** [[services-discord_bot-py]] | **Line:** 2986
 **Signature:** `post_to_channel(channel_name, content) → bool`
 
 Post content to a named channel by ID. Returns True if sent.

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/meeting_intelligence.py
 line: 1978
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # build_linkage_snapshot

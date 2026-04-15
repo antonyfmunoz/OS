@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/higgsfield_smoke_test.py
 line: 30
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # main

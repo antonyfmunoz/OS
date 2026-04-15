@@ -4,7 +4,7 @@ path: eos_ai/substrate/discord_voice_playback.py
 module: eos_ai.substrate.discord_voice_playback
 lines: 651
 size: 23243
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/discord_voice_playback.py

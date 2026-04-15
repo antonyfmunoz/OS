@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: services/discord_bot.py
-line: 2248
-generated: 2026-04-11
+line: 2338
+generated: 2026-04-12
 ---
 
 # cmd_pending
 
-**File:** [[services-discord_bot-py]] | **Line:** 2248
+**File:** [[services-discord_bot-py]] | **Line:** 2338
 **Signature:** `cmd_pending(ctx)`
 
 Show all pending approval emails.

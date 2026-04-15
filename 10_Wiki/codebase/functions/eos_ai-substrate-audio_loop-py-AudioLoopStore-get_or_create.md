@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/audio_loop.py
 line: 318
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # AudioLoopStore.get_or_create

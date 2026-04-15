@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/workers/discord_approval_worker.py
 line: 122
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # drain_once

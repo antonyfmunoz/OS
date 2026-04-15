@@ -4,7 +4,7 @@ path: eos_ai/email_gps.py
 module: eos_ai.email_gps
 lines: 1463
 size: 56875
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/email_gps.py

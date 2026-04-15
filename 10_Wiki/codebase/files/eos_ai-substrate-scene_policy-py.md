@@ -4,7 +4,7 @@ path: eos_ai/substrate/scene_policy.py
 module: eos_ai.substrate.scene_policy
 lines: 244
 size: 7905
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/scene_policy.py

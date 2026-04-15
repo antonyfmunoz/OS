@@ -4,7 +4,7 @@ path: eos_ai/week_architect.py
 module: eos_ai.week_architect
 lines: 95
 size: 3176
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/week_architect.py

@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: eos_ai/cognitive_loop.py
-line: 260
-generated: 2026-04-11
+line: 268
+generated: 2026-04-12
 ---
 
 # CognitiveLoop.run
 
-**File:** [[eos_ai-cognitive_loop-py]] | **Line:** 260
+**File:** [[eos_ai-cognitive_loop-py]] | **Line:** 268
 **Signature:** `run(input, session_id, cm, agent, task_type, venture_id, skill_name, workflow_id, channel, max_iterations) → CognitiveResult`
 
 **Class:** [[eos_ai-cognitive_loop-py-CognitiveLoop]]

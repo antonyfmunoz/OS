@@ -5,7 +5,7 @@ module: scripts.tool_mastery_research_dispatcher
 lines: 311
 size: 11030
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/tool_mastery_research_dispatcher.py

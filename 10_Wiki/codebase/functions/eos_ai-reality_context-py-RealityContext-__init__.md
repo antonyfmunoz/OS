@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/reality_context.py
 line: 31
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # RealityContext.__init__

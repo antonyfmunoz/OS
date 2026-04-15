@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/session_state.py
 line: 58
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # SessionState.get_resume_context

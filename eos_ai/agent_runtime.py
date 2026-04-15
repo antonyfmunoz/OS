@@ -144,7 +144,6 @@ class AgentResult:
 
 
 class AgentRuntime:
-
     def __init__(self, ctx: EOSContext | None = None) -> None:
         self._skills = get_skill_registry()
         self._prefs = ModelPreferences(ctx or load_context_from_env())
@@ -180,6 +179,7 @@ class AgentRuntime:
         require_realtime: bool = False,
         forced_model: str | None = None,
         task_criticality: str = "normal",
+        raw_input: str | None = None,
     ) -> AgentResult:
         """
         Execute a task with the appropriate model.
@@ -349,6 +349,7 @@ class AgentRuntime:
             system=system_prompt,
             task_type=task_type.value,
             agent_type=agent,
+            raw_input=raw_input,
         )
         output = routing_result.output
         model = f"{routing_result.provider}/{routing_result.model}"

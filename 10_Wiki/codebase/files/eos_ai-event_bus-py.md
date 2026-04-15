@@ -5,7 +5,7 @@ module: eos_ai.event_bus
 lines: 510
 size: 19074
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/event_bus.py

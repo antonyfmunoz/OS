@@ -4,7 +4,7 @@ path: eos_ai/substrate/operator_transitions.py
 module: eos_ai.substrate.operator_transitions
 lines: 482
 size: 17484
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/operator_transitions.py

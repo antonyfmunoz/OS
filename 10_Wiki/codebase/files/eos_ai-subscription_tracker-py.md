@@ -4,7 +4,7 @@ path: eos_ai/subscription_tracker.py
 module: eos_ai.subscription_tracker
 lines: 126
 size: 4009
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/subscription_tracker.py

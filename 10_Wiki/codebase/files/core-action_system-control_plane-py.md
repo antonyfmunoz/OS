@@ -4,7 +4,7 @@ path: core/action_system/control_plane.py
 module: core.action_system.control_plane
 lines: 273
 size: 10180
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/action_system/control_plane.py
@@ -30,6 +30,7 @@ Lifecycle:
 - [[core-tool_mastery_manager-ensure-py]]
 - [[scripts-control_plane_run-py]]
 - [[scripts-deferred-py]]
+- [[scripts-force_execution_loop-py]]
 
 ## Contains
 

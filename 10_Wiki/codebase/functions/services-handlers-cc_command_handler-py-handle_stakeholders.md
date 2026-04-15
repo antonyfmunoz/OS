@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/handlers/cc_command_handler.py
 line: 359
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # handle_stakeholders

@@ -4,7 +4,7 @@ path: services/handlers/pipeline_handler.py
 module: services.handlers.pipeline_handler
 lines: 139
 size: 3585
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # services/handlers/pipeline_handler.py

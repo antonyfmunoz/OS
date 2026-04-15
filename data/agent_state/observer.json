@@ -1,0 +1,17 @@
+{
+  "agent": "observer",
+  "created_at": "2026-04-11T03:52:24.244915+00:00",
+  "last_tick_at": "2026-04-12T19:55:36.177415+00:00",
+  "tick_count": 25,
+  "tick_failures": 0,
+  "custom": {
+    "last_workflow_ok": 0,
+    "last_workflow_failed": 1,
+    "last_failure_rate": 1.0,
+    "last_harness_error_rate": 0.375,
+    "last_disabled_jobs": [],
+    "alerts": [],
+    "updated_at": "2026-04-12T19:55:36.177370+00:00",
+    "advisor_interpretation": null
+  }
+}

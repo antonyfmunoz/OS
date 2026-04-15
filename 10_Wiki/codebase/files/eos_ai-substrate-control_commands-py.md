@@ -4,7 +4,7 @@ path: eos_ai/substrate/control_commands.py
 module: eos_ai.substrate.control_commands
 lines: 104
 size: 3565
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/control_commands.py

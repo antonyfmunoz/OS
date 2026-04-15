@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_discord_mode_routing_smoke_test.py
 line: 232
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # test_end_to_end_router_override

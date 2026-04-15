@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/ceo_agent.py
 line: 51
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # CEOAgent.detect_primitives

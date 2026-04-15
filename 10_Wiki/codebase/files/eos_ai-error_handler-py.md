@@ -4,7 +4,7 @@ path: eos_ai/error_handler.py
 module: eos_ai.error_handler
 lines: 347
 size: 12783
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/error_handler.py

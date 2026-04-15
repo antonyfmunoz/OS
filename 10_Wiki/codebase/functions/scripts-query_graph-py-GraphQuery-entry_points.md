@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/query_graph.py
 line: 163
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # GraphQuery.entry_points

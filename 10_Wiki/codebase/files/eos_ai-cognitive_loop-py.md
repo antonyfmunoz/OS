@@ -2,10 +2,10 @@
 type: codebase-file
 path: eos_ai/cognitive_loop.py
 module: eos_ai.cognitive_loop
-lines: 1669
-size: 60075
+lines: 1679
+size: 60468
 tags: [critical]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/cognitive_loop.py
@@ -19,7 +19,7 @@ Wraps AgentRuntime with authority gating, prompt enhancement,
 quality verification, and reflection logging. Every AI task
 ...
 
-**Lines:** 1669 | **Size:** 60,075 bytes
+**Lines:** 1679 | **Size:** 60,468 bytes
 
 ## Depends On
 

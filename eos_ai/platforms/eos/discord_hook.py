@@ -156,3 +156,32 @@ def handle_eos_discord_live_message(
     except Exception as exc:
         _log(f"live runtime failed, falling back to direct EA: {exc}")
         return handle_eos_discord_message(text, session_id=session_id)
+
+
+# ─── Streaming event forwarding ────────────────────────────────────────────
+
+
+def enable_discord_streaming() -> None:
+    """Enable streaming event forwarding to Discord.
+
+    Streaming events (execution narration) will be posted to the
+    DISCORD_STREAMING_WEBHOOK if configured.
+    """
+    try:
+        from eos_ai.platforms.eos.streaming_bridge import get_streaming_bridge
+
+        get_streaming_bridge().set_discord_enabled(True)
+        _log("discord streaming enabled")
+    except Exception as exc:
+        _log(f"enable discord streaming failed: {exc}")
+
+
+def disable_discord_streaming() -> None:
+    """Disable streaming event forwarding to Discord."""
+    try:
+        from eos_ai.platforms.eos.streaming_bridge import get_streaming_bridge
+
+        get_streaming_bridge().set_discord_enabled(False)
+        _log("discord streaming disabled")
+    except Exception as exc:
+        _log(f"disable discord streaming failed: {exc}")

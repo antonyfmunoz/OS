@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/meeting_transport.py
 line: 170
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # get_meeting_transport_history

@@ -4,7 +4,7 @@ path: eos_ai/agent_teams.py
 module: eos_ai.agent_teams
 lines: 396
 size: 14447
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/agent_teams.py

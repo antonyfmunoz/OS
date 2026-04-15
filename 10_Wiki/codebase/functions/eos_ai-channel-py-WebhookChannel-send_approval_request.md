@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/channel.py
 line: 258
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # WebhookChannel.send_approval_request

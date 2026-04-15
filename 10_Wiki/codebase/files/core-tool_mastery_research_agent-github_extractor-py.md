@@ -4,7 +4,7 @@ path: core/tool_mastery_research_agent/github_extractor.py
 module: core.tool_mastery_research_agent.github_extractor
 lines: 349
 size: 11960
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/tool_mastery_research_agent/github_extractor.py

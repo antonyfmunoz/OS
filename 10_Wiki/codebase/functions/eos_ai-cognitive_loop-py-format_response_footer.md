@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/cognitive_loop.py
 line: 152
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # format_response_footer

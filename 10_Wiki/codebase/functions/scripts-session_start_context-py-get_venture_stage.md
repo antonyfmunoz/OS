@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/session_start_context.py
 line: 105
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # get_venture_stage

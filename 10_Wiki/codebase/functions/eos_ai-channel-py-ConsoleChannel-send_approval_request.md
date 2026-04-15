@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/channel.py
 line: 281
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # ConsoleChannel.send_approval_request

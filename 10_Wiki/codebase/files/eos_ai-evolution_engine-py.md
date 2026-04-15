@@ -4,7 +4,7 @@ path: eos_ai/evolution_engine.py
 module: eos_ai.evolution_engine
 lines: 869
 size: 35284
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/evolution_engine.py

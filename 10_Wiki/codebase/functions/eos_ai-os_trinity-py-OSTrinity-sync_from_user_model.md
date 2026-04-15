@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/os_trinity.py
 line: 362
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # OSTrinity.sync_from_user_model

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/workflow_execution.py
 line: 240
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # execute_workflow_if_allowed

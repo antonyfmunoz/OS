@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/voice_engine.py
 line: 101
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # IntelligentVoiceProcessor.is_speech_frame

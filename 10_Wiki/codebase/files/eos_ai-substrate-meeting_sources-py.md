@@ -4,7 +4,7 @@ path: eos_ai/substrate/meeting_sources.py
 module: eos_ai.substrate.meeting_sources
 lines: 174
 size: 5432
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # eos_ai/substrate/meeting_sources.py

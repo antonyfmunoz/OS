@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/action_system/control_plane.py
 line: 83
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # run_action
@@ -30,3 +30,6 @@ Returns the Action object with final state in `.status`, `.validation`,
 - [[core-orchestrator-steps-py-run_script_workflow]]
 - [[core-tool_mastery_manager-ensure-py-_queue]]
 - [[scripts-control_plane_run-py-main]]
+- [[scripts-force_execution_loop-py-step_generate_outreach_message]]
+- [[scripts-force_execution_loop-py-step_save_outreach_to_file]]
+- [[scripts-force_execution_loop-py-step_verify_output]]

@@ -4,7 +4,7 @@ path: core/orchestrator/handlers.py
 module: core.orchestrator.handlers
 lines: 322
 size: 11279
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # core/orchestrator/handlers.py

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/target_policy.py
 line: 169
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # should_delegate_product_to_local

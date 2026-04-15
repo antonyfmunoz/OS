@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/summarize_conversations.py
 line: 207
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # write_summary

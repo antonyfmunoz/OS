@@ -5,7 +5,7 @@ module: scripts.router_claude_runtime_debug
 lines: 75
 size: 2771
 tags: [entry-point]
-generated: 2026-04-11
+generated: 2026-04-12
 ---
 
 # scripts/router_claude_runtime_debug.py
