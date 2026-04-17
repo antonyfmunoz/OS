@@ -31,6 +31,7 @@ Import surface (stable):
 
 from eos_ai.substrate.nodes import (
     Node,
+    NodeRole,
     NodeType,
     NodeStatus,
     NodeRegistry,
@@ -263,6 +264,204 @@ from eos_ai.substrate.live_sessions import (
     get_live_session_summary,
 )
 
+# Interaction archive (verbatim conversation continuity)
+from eos_ai.substrate.interaction_archive import (
+    Direction,
+    Interface,
+    ArchivedInteraction,
+    InteractionArchive,
+    get_interaction_archive,
+    archive_inbound,
+    archive_outbound,
+    create_clear_checkpoint,
+)
+
+# v10: task record (lifecycle indexing)
+from eos_ai.substrate.task_record import (
+    TaskRecordStatus,
+    TaskRecord,
+    TaskRecordStore,
+    get_task_record_store,
+    record_task_start,
+    record_task_complete,
+    record_task_failure,
+)
+
+# v10: query brain (conversational retrieval)
+from eos_ai.substrate.query_brain import (
+    QueryIntent,
+    QueryResult,
+    classify_query,
+    execute_query,
+    is_query,
+    parse_time_reference,
+)
+
+# v10: conversation router
+from eos_ai.substrate.conversation_router import (
+    route_message,
+    detect_high_context_risk,
+    is_browser_intent,
+)
+
+# v11: browser execution policy
+from eos_ai.substrate.browser_policy import (
+    BrowserTarget,
+    FallbackReason,
+    BrowserActionRecord,
+    resolve_browser_target,
+)
+
+# v9: task checkpoint
+from eos_ai.substrate.task_checkpoint import (
+    AutoClearPolicy,
+    TaskCheckpointResult,
+    checkpoint_task_boundary,
+    checkpoint_from_task,
+    checkpoint_from_pipeline,
+)
+
+# v9: presence runtime
+from eos_ai.substrate.presence_runtime import (
+    PresenceMode,
+    PresenceBehavior,
+    PRESENCE_BEHAVIORS,
+    WorkProfile,
+    ProfileBehavior,
+    PROFILE_BEHAVIORS,
+    OperatorRuntimeState,
+    BootstrapRequirements,
+    set_presence,
+    set_profile,
+    get_runtime,
+    resolve_bootstrap,
+    get_lifecycle_modifiers,
+    presence_for_continuity,
+)
+from eos_ai.substrate.plan_executor import (
+    ExecutionOutcome,
+    PhaseResult,
+    PlanExecutionResult,
+    execute_with_plan,
+    execute_sequential_phases,
+    execute_parallel_subagents,
+    execute_planner_executor_verifier,
+)
+
+# v22: event-native execution fabric
+from eos_ai.substrate.execution_contract import (
+    ExecutionClass,
+    ExecutionConstraints,
+    ExecutionMode,
+    ExecutionRequest,
+    ExecutionResult,
+    ExecutionStatus,
+    ExecutionTarget as FabricExecutionTarget,
+    NodeCapability,
+    NodeHealthSnapshot,
+    RoutingContext,
+    RoutingDecision,
+    RoutingReasonCode,
+    get_execution_mode,
+)
+from eos_ai.substrate.execution_adapter import (
+    ExecutionAdapter,
+    AdapterHealth,
+    LocalRuntimeAdapter,
+    WorkstationAdapter,
+)
+from eos_ai.substrate.execution_router import (
+    ExecutionRouter,
+)
+from eos_ai.substrate.execution_events import (
+    build_execution_requested_event,
+    build_execution_completed_event,
+    build_execution_failed_event,
+    build_execution_timed_out_event,
+    build_execution_rejected_event,
+    build_execution_retried_event,
+)
+from eos_ai.substrate.execution_worker import (
+    ExecutionWorker,
+)
+from eos_ai.substrate.execution_authority import (
+    ExecutionAuthority,
+)
+from eos_ai.substrate.execution_result_handler import (
+    ExecutionResultHandler,
+)
+from eos_ai.substrate.decision_events import (
+    build_decision_made_event,
+)
+from eos_ai.substrate.decision_engine import (
+    DecisionEngine,
+    DecisionOutput,
+    DecisionStrategy,
+    Rule,
+    RuleBasedStrategy,
+    evaluate_and_emit,
+)
+from eos_ai.substrate.intent_models import (
+    Intent,
+    IntentStatus,
+    IntentType,
+    Plan,
+    PlanStep,
+    build_intent_create_mutations,
+    build_intent_update_mutations,
+    compute_intent_id,
+    compute_plan_id,
+    get_active_intents_from_state,
+    get_intent_from_state,
+    intent_store_key,
+)
+from eos_ai.substrate.planner_events import (
+    build_intent_completed_event,
+    build_intent_created_event,
+    build_plan_created_event,
+    build_plan_step_emitted_event,
+)
+from eos_ai.substrate.planner import (
+    IntentAwareStrategy,
+    PlannerStrategy,
+    build_intent_complete_mutations,
+    build_intent_fail_mutations,
+    build_step_advance_mutations,
+    derive_plan,
+    register_plan_generator,
+)
+
+# Event scheduler runtime enforcement
+from eos_ai.substrate.event_scheduler import (
+    NonMutatingEventViolation,
+    register_event_schema_source,
+)
+
+# LLM planning layer
+from eos_ai.substrate.llm_planner import (
+    EventSchema,
+    EventTypeRegistry,
+    LLMEventProposal,
+    LLMPlannerConfig,
+    LLMPlanningStrategy,
+    LLMProposalResult,
+    ProposedEvent,
+    SelectionPolicy,
+    ValidationResult,
+)
+from eos_ai.substrate.llm_decision_events import (
+    build_llm_decision_accepted_event,
+    build_llm_decision_received_event,
+    build_llm_decision_rejected_event,
+    build_llm_decision_requested_event,
+    build_llm_decision_skipped_event,
+    build_llm_response_drift_event,
+)
+from eos_ai.substrate.llm_replay import (
+    LLMDecisionRecord,
+    ReplayableStrategy,
+)
+
 __all__ = [
     "Node",
     "NodeType",
@@ -446,4 +645,147 @@ __all__ = [
     "detach_task_from_live_session",
     "detach_pipeline_from_live_session",
     "get_live_session_summary",
+    # interaction archive (verbatim conversation continuity)
+    "Direction",
+    "Interface",
+    "ArchivedInteraction",
+    "InteractionArchive",
+    "get_interaction_archive",
+    "archive_inbound",
+    "archive_outbound",
+    "create_clear_checkpoint",
+    # task record (v10)
+    "TaskRecordStatus",
+    "TaskRecord",
+    "TaskRecordStore",
+    "get_task_record_store",
+    "record_task_start",
+    "record_task_complete",
+    "record_task_failure",
+    # query brain (v10)
+    "QueryIntent",
+    "QueryResult",
+    "classify_query",
+    "execute_query",
+    "is_query",
+    "parse_time_reference",
+    # conversation router (v10)
+    "route_message",
+    "detect_high_context_risk",
+    "is_browser_intent",
+    # browser execution policy (v11)
+    "BrowserTarget",
+    "FallbackReason",
+    "BrowserActionRecord",
+    "resolve_browser_target",
+    # task checkpoint (v9)
+    "AutoClearPolicy",
+    "TaskCheckpointResult",
+    "checkpoint_task_boundary",
+    "checkpoint_from_task",
+    "checkpoint_from_pipeline",
+    # presence runtime (v9)
+    "PresenceMode",
+    "PresenceBehavior",
+    "PRESENCE_BEHAVIORS",
+    "WorkProfile",
+    "ProfileBehavior",
+    "PROFILE_BEHAVIORS",
+    "OperatorRuntimeState",
+    "BootstrapRequirements",
+    "set_presence",
+    "set_profile",
+    "get_runtime",
+    "resolve_bootstrap",
+    "get_lifecycle_modifiers",
+    "presence_for_continuity",
+    # plan executor (execution-aware orchestration)
+    "ExecutionOutcome",
+    "PhaseResult",
+    "PlanExecutionResult",
+    "execute_with_plan",
+    "execute_sequential_phases",
+    "execute_parallel_subagents",
+    "execute_planner_executor_verifier",
+    # event-native execution fabric (v22)
+    "ExecutionClass",
+    "ExecutionConstraints",
+    "ExecutionMode",
+    "ExecutionRequest",
+    "ExecutionResult",
+    "ExecutionStatus",
+    "FabricExecutionTarget",
+    "NodeCapability",
+    "NodeHealthSnapshot",
+    "RoutingContext",
+    "RoutingDecision",
+    "RoutingReasonCode",
+    "ExecutionAdapter",
+    "AdapterHealth",
+    "LocalRuntimeAdapter",
+    "WorkstationAdapter",
+    "ExecutionRouter",
+    "build_execution_requested_event",
+    "build_execution_completed_event",
+    "build_execution_failed_event",
+    "build_execution_timed_out_event",
+    "build_execution_rejected_event",
+    "build_execution_retried_event",
+    "ExecutionWorker",
+    "ExecutionAuthority",
+    "ExecutionResultHandler",
+    "get_execution_mode",
+    # decision engine (intelligence layer)
+    "build_decision_made_event",
+    "DecisionEngine",
+    "DecisionOutput",
+    "DecisionStrategy",
+    "Rule",
+    "RuleBasedStrategy",
+    "evaluate_and_emit",
+    # intent + planning layer (intelligence layer)
+    "Intent",
+    "IntentStatus",
+    "IntentType",
+    "Plan",
+    "PlanStep",
+    "build_intent_create_mutations",
+    "build_intent_update_mutations",
+    "compute_intent_id",
+    "compute_plan_id",
+    "get_active_intents_from_state",
+    "get_intent_from_state",
+    "intent_store_key",
+    "build_intent_completed_event",
+    "build_intent_created_event",
+    "build_plan_created_event",
+    "build_plan_step_emitted_event",
+    "IntentAwareStrategy",
+    "PlannerStrategy",
+    "build_intent_complete_mutations",
+    "build_intent_fail_mutations",
+    "build_step_advance_mutations",
+    "derive_plan",
+    "register_plan_generator",
+    # Event scheduler runtime enforcement
+    "NonMutatingEventViolation",
+    "register_event_schema_source",
+    # LLM planning layer
+    "EventSchema",
+    "EventTypeRegistry",
+    "LLMEventProposal",
+    "LLMPlannerConfig",
+    "LLMPlanningStrategy",
+    "LLMProposalResult",
+    "ProposedEvent",
+    "SelectionPolicy",
+    "ValidationResult",
+    "LLMDecisionRecord",
+    "ReplayableStrategy",
+    "build_llm_decision_accepted_event",
+    "build_llm_decision_received_event",
+    "build_llm_decision_rejected_event",
+    "build_llm_decision_requested_event",
+    "build_llm_decision_skipped_event",
+    "build_llm_response_drift_event",
 ]
