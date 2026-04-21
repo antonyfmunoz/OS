@@ -123,6 +123,7 @@ def run_gateway(
     default_venture_id: str,
     guild_id: str | None = None,
     channel_id: str | None = None,
+    memory_only: bool = False,
 ) -> str:
     """
     Classify intent, build request, call gateway, return output text.
@@ -130,11 +131,45 @@ def run_gateway(
     """
     if channel_name not in channel_sessions:
         channel_sessions[channel_name] = str(_uuid_mod.uuid4())
+        try:
+            from eos_ai.substrate.storage import get_storage
+            get_storage().put(f"session:{channel_name}", channel_sessions[channel_name])
+        except Exception:
+            pass
     session_id = channel_sessions[channel_name]
 
     # Classify intent
     intent = gateway.classify_intent(text)
     print(f"[Discord] #{channel_name} | {username} | intent={intent}")
+
+    # Memory-only mode: log the interaction without calling the LLM.
+    # Used by bypass paths that already handled the response (pipeline updates, etc).
+    if memory_only:
+        try:
+            from eos_ai.context import load_context_from_env
+            from eos_ai.memory import ConversationMemory
+
+            _mo_ctx = load_context_from_env()
+            _mo_cm = ConversationMemory(_mo_ctx)
+            _mo_cm.store(
+                session_id=session_id,
+                role="user",
+                content=text[:10000],
+                channel=f"discord_{channel_name}",
+                agent="bypass_handler",
+            )
+        except Exception as _mo_err:
+            print(f"[IntentHandler] memory_only write failed: {_mo_err}")
+        try:
+            ki.integrate(
+                content=f"Discord #{channel_name}\nUser: {text[:300]}\nSystem: [handled by bypass]",
+                source="discord_conversation",
+                category="conversation",
+                metadata={"channel": channel_name, "user": username, "intent": intent, "memory_only": True},
+            )
+        except Exception:
+            pass
+        return ""
 
     # Use channel hint if intent is UNKNOWN
     if intent == "UNKNOWN":
@@ -192,20 +227,16 @@ def run_gateway(
                 _q_payload = json.loads(_q_payload)
             _question = _q_payload.get("question", "")
 
-            from eos_ai.model_router import (
-                get_router as _cl_get_router,
-                TaskType as _cl_TT,
-            )
+            from eos_ai.model_router import call_with_fallback as _cl_cwf
 
-            _cl_router = _cl_get_router()
-            _cl_model = _cl_router.route(_cl_TT.FAST_RESPONSE)
-            _cl_check = _cl_router.call(
-                _cl_model,
-                f"""Does this message answer this question?
+            _cl_result = _cl_cwf(
+                prompt=f"""Does this message answer this question?
 Question: {_question}
 Message: {text}
 Return JSON: {{"answers": true, "answer_summary": "brief summary"}}""",
-            ).strip()
+                task_type="fast_response",
+            )
+            _cl_check = (_cl_result.output if _cl_result else "").strip()
 
             if "```" in _cl_check:
                 _cl_check = _cl_check.split("```")[1].replace("json", "").strip()
@@ -266,32 +297,51 @@ Return JSON: {{"answers": true, "answer_summary": "brief summary"}}""",
     except Exception:
         pass
 
-    # Resolve Discord mode context so model_router's Claude CLI backend
-    # sees the correct session (builder vs product). Without this, the
-    # gateway path bypasses mode_context and falls back to env defaults.
+    # Resolve Discord mode context — registry-first, env fallback.
+    # mode_context injects routing metadata into thread-local state
+    # so model_router's Claude CLI backend targets the correct session.
     _mode_cm = None
     try:
         from eos_ai.substrate.discord_mode_routing import (
             mode_context as _mc,
             resolve_discord_mode,
-            resolve_mode_session,
         )
+        from eos_ai.runtime.session_registry import get_registry
 
         _discord_mode = resolve_discord_mode(guild_id, channel_id)
-        _mode_session = resolve_mode_session(
-            _discord_mode, guild_id=guild_id, channel_id=channel_id
-        )
-        _mode_cm = _mc(
-            _discord_mode,
-            target=_mode_session.get("target"),
-            session_name=_mode_session.get("session_name"),
-            guild_id=guild_id,
-            channel_id=channel_id,
-            source=_mode_session.get("source"),
-            delegated_local=_mode_session.get("delegated_local", False),
-            delegation_reason=_mode_session.get("delegation_reason"),
-            policy_version=_mode_session.get("policy_version"),
-        )
+
+        _reg = get_registry()
+        _reg_session = _reg.resolve_by_channel(str(channel_id)) if channel_id else None
+
+        if _reg_session:
+            _mode_cm = _mc(
+                _reg_session.mode,
+                target=_reg_session.node,
+                session_name=_reg_session.tmux_name,
+                guild_id=guild_id,
+                channel_id=channel_id,
+                source="registry",
+                delegated_local=(_reg_session.node == "local"),
+                delegation_reason=None,
+                policy_version=None,
+            )
+        else:
+            from eos_ai.substrate.discord_mode_routing import resolve_mode_session
+
+            _mode_session = resolve_mode_session(
+                _discord_mode, guild_id=guild_id, channel_id=channel_id
+            )
+            _mode_cm = _mc(
+                _discord_mode,
+                target=_mode_session.get("target"),
+                session_name=_mode_session.get("session_name"),
+                guild_id=guild_id,
+                channel_id=channel_id,
+                source=_mode_session.get("source"),
+                delegated_local=_mode_session.get("delegated_local", False),
+                delegation_reason=_mode_session.get("delegation_reason"),
+                policy_version=_mode_session.get("policy_version"),
+            )
     except Exception as _mode_err:
         print(f"[IntentHandler] mode_context setup failed: {_mode_err}")
 

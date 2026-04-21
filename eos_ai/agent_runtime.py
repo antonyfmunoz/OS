@@ -155,10 +155,15 @@ class AgentRuntime:
 
     @property
     def client(self):
-        """Legacy: exposes an Anthropic client for services that manage their
-        own prompts (apify_scraper, dm_monitor). Returns None when key absent."""
+        """Deprecated: use model_router.call_with_fallback() instead.
+        Kept for backward compatibility — logs warning on use."""
+        import warnings
+        warnings.warn(
+            "AgentRuntime.client is deprecated — use model_router.call_with_fallback()",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         import anthropic
-
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         return anthropic.Anthropic(api_key=api_key) if api_key else None
 

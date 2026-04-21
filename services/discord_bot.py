@@ -93,8 +93,19 @@ from eos_ai.knowledge_integrator import KnowledgeIntegrator
 from eos_ai.voice_engine import VoiceEngine
 from eos_ai.business_instance import get_ai_name
 from eos_ai.discord_utils import chunk_message, post_to_webhook
+from eos_ai.substrate.session_discord_bridge import send_reply as _send_reply
 from eos_ai.substrate.discord_text_transport import (
     maybe_mirror_discord_text_message as _maybe_pseudo_live_text,
+)
+from eos_ai.substrate.message_framing import get_inbound_buffer
+from eos_ai.substrate.event_spine import (
+    EventType as _FrameEventType,
+    create_event as _frame_create_event,
+)
+from eos_ai.substrate.event_store import get_event_store as _frame_get_event_store
+from eos_ai.substrate.interaction_archive import (
+    archive_inbound as _archive_inbound,
+    Interface as _ArchiveInterface,
 )
 
 # Install the router-backed voice-session responder at import time so that
@@ -479,16 +490,14 @@ def _format_day_result(result: dict) -> str:
 
 
 async def _send_day_response(invoking_channel, formatted_text: str) -> None:
-    for chunk in chunk_message(formatted_text):
-        await invoking_channel.send(chunk)
+    await _send_reply(invoking_channel, formatted_text)
     # Best-effort mirror to #morning-brief
     try:
         _mb_id = CHANNEL_IDS.get("morning-brief")
         if _mb_id and str(invoking_channel.id) != str(_mb_id):
             _mb_chan = bot.get_channel(_mb_id)
             if _mb_chan:
-                for chunk in chunk_message(formatted_text):
-                    await _mb_chan.send(chunk)
+                await _send_reply(_mb_chan, formatted_text)
     except Exception as _mirror_exc:
         print(f"[DayRitual] mirror to #morning-brief failed: {_mirror_exc}")
 
@@ -710,11 +719,15 @@ def _run_gateway(
     username: str,
     guild_id: str | None = None,
     channel_id: str | None = None,
+    memory_only: bool = False,
 ) -> str:
     """
     Classify intent, build request, call gateway, return output text.
     Runs synchronously — called from asyncio executor to avoid blocking.
     Delegates to handlers.intent_handler.run_gateway.
+
+    memory_only: when True, skip LLM call and only write to memory.
+    Used by bypass paths that already sent a response to the user.
     """
     return _handler_run_gateway(
         text=text,
@@ -726,6 +739,7 @@ def _run_gateway(
         default_venture_id=_DEFAULT_VENTURE_ID,
         guild_id=guild_id,
         channel_id=channel_id,
+        memory_only=memory_only,
     )
 
 
@@ -794,9 +808,10 @@ async def handle_meeting_voice(
         ]
     ):
         if channel:
-            await channel.send(
+            await _send_reply(
+                channel,
                 f"💰 **{AI_NAME}: Buying signal detected.**\n"
-                f"Send the Whop link now.\n\n— {AI_NAME}"
+                f"Send the Whop link now.\n\n— {AI_NAME}",
             )
         return "Buying signal. Send the link."
 
@@ -840,6 +855,11 @@ async def start_meeting_mode(
     _active_meeting["started_at"] = datetime.now(timezone.utc).isoformat()
     _active_meeting["notes"] = []
     _active_meeting["key_points"] = []
+    try:
+        from eos_ai.substrate.storage import get_storage
+        get_storage().put("active_meeting", dict(_active_meeting))
+    except Exception:
+        pass
 
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(
@@ -860,8 +880,9 @@ async def start_meeting_mode(
     brief = result.get("output", "")
 
     if channel:
-        await channel.send(
-            f"📋 **{AI_NAME}: Meeting started — {meeting_type}**\n\n{brief}\n\n— {AI_NAME}"
+        await _send_reply(
+            channel,
+            f"📋 **{AI_NAME}: Meeting started — {meeting_type}**\n\n{brief}\n\n— {AI_NAME}",
         )
 
     # speak brief (fire-and-forget)
@@ -900,8 +921,9 @@ async def end_active_meeting(channel=None) -> None:
     summary = result.get("output", "")
 
     if channel:
-        await channel.send(
-            f"📝 **{AI_NAME}: Meeting summary**\n\n{summary}\n\n— {AI_NAME}"
+        await _send_reply(
+            channel,
+            f"📝 **{AI_NAME}: Meeting summary**\n\n{summary}\n\n— {AI_NAME}",
         )
 
     # clear state
@@ -909,6 +931,11 @@ async def end_active_meeting(channel=None) -> None:
     _active_meeting["lead_name"] = None
     _active_meeting["notes"] = []
     _active_meeting["key_points"] = []
+    try:
+        from eos_ai.substrate.storage import get_storage
+        get_storage().put("active_meeting", dict(_active_meeting))
+    except Exception:
+        pass
 
 
 # ─── Startup ──────────────────────────────────────────────────────────────────
@@ -970,6 +997,29 @@ async def on_ready():
     await asyncio.sleep(2)
     _bot_ready = True
 
+    # ── Restore persisted session state from SubstrateStorage ──────────
+    try:
+        from eos_ai.substrate.storage import get_storage
+        _store = get_storage()
+        _restored = 0
+        for _key in _store.all_keys():
+            if _key.startswith("session:"):
+                _chan = _key[len("session:"):]
+                _channel_sessions[_chan] = _store.get(_key)
+                _restored += 1
+        if _restored:
+            print(f"[Discord] Restored {_restored} channel session(s) from storage")
+        _meeting_state = _store.get("active_meeting")
+        if _meeting_state and _meeting_state.get("type"):
+            _active_meeting["type"] = _meeting_state["type"]
+            _active_meeting["lead_name"] = _meeting_state.get("lead_name")
+            _active_meeting["started_at"] = _meeting_state.get("started_at")
+            _active_meeting["notes"] = _meeting_state.get("notes", [])
+            _active_meeting["key_points"] = _meeting_state.get("key_points", [])
+            print(f"[Discord] Restored active meeting: {_meeting_state['type']}")
+    except Exception as _restore_err:
+        print(f"[Discord] Session restore failed (non-blocking): {_restore_err}")
+
     await bot.change_presence(
         activity=discord.Activity(
             type=discord.ActivityType.watching,
@@ -1021,6 +1071,15 @@ async def on_ready():
         print("[Discord] Session watchers + Discord bridge started")
     except Exception as e:
         print(f"[Discord] Session watcher/bridge setup failed: {e}")
+
+    # ── Start Station Daemon (background heartbeat loop) ─────────────────
+    try:
+        from eos_ai.substrate.station_daemon import start_station_daemon
+
+        start_station_daemon()
+        print("[Discord] Station daemon started")
+    except Exception as e:
+        print(f"[Discord] Station daemon failed to start: {e}")
 
 
 # ─── Auto-join voice ──────────────────────────────────────────────────────────
@@ -1134,8 +1193,9 @@ async def on_voice_state_update(
 
         print(f"[Voice] WS ready: {type(vc.ws).__name__}")
         if general:
-            await general.send(
-                f"👁️ **{AI_NAME} Joined {target_channel.name} voice chat.**"
+            await _send_reply(
+                general,
+                f"👁️ **{AI_NAME} Joined {target_channel.name} voice chat.**",
             )
         asyncio.create_task(_listen_loop(vc, general))
 
@@ -1148,8 +1208,9 @@ async def on_voice_state_update(
             except Exception:
                 pass
         if general:
-            await general.send(
-                f"👁️ **{AI_NAME} Disconnected from {before.channel.name} voice chat.**"
+            await _send_reply(
+                general,
+                f"👁️ **{AI_NAME} Disconnected from {before.channel.name} voice chat.**",
             )
 
     # Founder SWITCHED channels (both not None)
@@ -1167,7 +1228,9 @@ async def on_voice_state_update(
             except Exception:
                 pass
         if general:
-            await general.send(f"👁️ **{AI_NAME} followed you to {after.channel.name}.**")
+            await _send_reply(
+                general, f"👁️ **{AI_NAME} followed you to {after.channel.name}.**"
+            )
 
 
 async def _listen_loop(
@@ -1253,9 +1316,10 @@ async def _listen_loop(
                 if meeting_ctx and meeting_ctx["confidence"] > 0.6:
                     _active_meeting["type"] = meeting_ctx["type"]
                     if text_channel:
-                        await text_channel.send(
+                        await _send_reply(
+                            text_channel,
                             f"📋 **{AI_NAME}: {meeting_ctx['type']} detected.**\n"
-                            f"Taking notes. I'll surface relevant context as needed.\n\n— {AI_NAME}"
+                            f"Taking notes. I'll surface relevant context as needed.\n\n— {AI_NAME}",
                         )
 
             meeting_type = _active_meeting.get("type")
@@ -1314,8 +1378,7 @@ async def _listen_loop(
                 user = bot.get_user(user_id)
                 name = user.display_name if user else "You"
                 msg = f"🎙️ **{name}:** {text}\n**{AI_NAME}:** {response}"
-                for chunk in chunk_message(msg):
-                    await text_channel.send(chunk)
+                await _send_reply(text_channel, msg)
 
             audio_out = await loop.run_in_executor(None, _ve.speak, response[:300])
             if audio_out and os.path.exists(audio_out):
@@ -1362,7 +1425,7 @@ async def _listen_loop(
     asyncio.create_task(sink.monitor_silence(vc))
 
     if text_channel:
-        await text_channel.send(f"👁️ **{AI_NAME} is listening.**")
+        await _send_reply(text_channel, f"👁️ **{AI_NAME} is listening.**")
 
     while vc.is_connected():
         await asyncio.sleep(1)
@@ -1413,8 +1476,7 @@ async def on_message(message: discord.Message):
                         reply = (
                             f"🎙️ **You said:** {transcribed}\n**{AI_NAME}:** {response}"
                         )
-                        for chunk in chunk_message(reply):
-                            await message.reply(chunk)
+                        await _send_reply(message.channel, reply)
                         # Speak in voice if connected
                         if message.guild and message.guild.voice_client:
                             vc = message.guild.voice_client
@@ -1445,6 +1507,133 @@ async def on_message(message: discord.Message):
         await bot.process_commands(message)
         return
 
+    # ── Inbound multi-message buffering (/buffer + /done) ────────────────────
+    _ib = get_inbound_buffer()
+    _uid = str(message.author.id)
+    _cid_str = str(message.channel.id)
+
+    if text.strip().lower() == "/done":
+        group = _ib.finalize(_uid, _cid_str)
+        if group is None:
+            await _send_reply(message.channel, "No active buffer to finalize.")
+            await bot.process_commands(message)
+            return
+        # Emit INBOUND_FINALIZED spine event
+        try:
+            _ib_store = _frame_get_event_store()
+            _ib_event = _frame_create_event(
+                _FrameEventType.INBOUND_FINALIZED,
+                source="discord_inbound",
+                target="eos_gateway",
+                payload=group.serialize(),
+                correlation_id=group.group_id,
+            )
+            _ib_store.append(_ib_event)
+        except Exception:
+            pass  # tracing failure must never block the request path
+        # Archive buffered inbound verbatim (logical message, not individual chunks)
+        try:
+            _archive_inbound(
+                group.combined_text,
+                interface=_ArchiveInterface.DISCORD.value,
+                correlation_id=group.group_id,
+                logical_message_id=group.group_id,
+                metadata={
+                    "type": "buffered",
+                    "message_count": group.message_count,
+                    "user_id": _uid,
+                    "channel_id": _cid_str,
+                },
+            )
+        except Exception:
+            pass  # archive failure must never block message path
+        # Replace text with combined buffer and fall through to normal processing
+        text = group.combined_text
+        await _send_reply(
+            message.channel,
+            f"Buffer finalized — {group.message_count} message(s), "
+            f"{group.combined_text_length} chars. Processing...",
+        )
+        # Fall through to normal processing with the combined text
+
+    elif text.strip().lower() == "/buffer":
+        if _ib.has_active(_uid, _cid_str):
+            count = _ib.get_count(_uid, _cid_str)
+            await _send_reply(
+                message.channel,
+                f"Buffer already active — {count} message(s). "
+                "Send more messages, then /done when ready.",
+            )
+        else:
+            # Start an empty buffer — next messages will accumulate
+            _ib.add(_uid, _cid_str, "")
+            # Remove the empty placeholder — it was just to create the group
+            _ib_key = f"{_uid}:{_cid_str}"
+            with _ib._lock:
+                buf = _ib._buffers.get(_ib_key)
+                if buf and buf.messages == [""]:
+                    buf.messages.clear()
+            await _send_reply(
+                message.channel,
+                "Buffer started. Send your messages, then /done when ready.",
+            )
+        _bf_gid = str(message.guild.id) if message.guild else None
+        _bf_cid = str(message.channel.id)
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            None,
+            lambda: _run_gateway(
+                text, channel_name, username,
+                guild_id=_bf_gid, channel_id=_bf_cid,
+                memory_only=True,
+            ),
+        )
+        await bot.process_commands(message)
+        return
+
+    elif _ib.has_active(_uid, _cid_str):
+        # Active buffer exists — accumulate instead of processing
+        group = _ib.add(_uid, _cid_str, text)
+        # Emit INBOUND_RECEIVED spine event
+        try:
+            _ib_store = _frame_get_event_store()
+            _ib_event = _frame_create_event(
+                _FrameEventType.INBOUND_RECEIVED,
+                source="discord_inbound",
+                target="buffer",
+                payload={
+                    "group_id": group.group_id,
+                    "user_id": _uid,
+                    "channel_id": _cid_str,
+                    "message_index": group.message_count,
+                    "text_length": len(text),
+                },
+                correlation_id=group.group_id,
+            )
+            _ib_store.append(_ib_event)
+        except Exception:
+            pass
+        count = group.message_count
+        await message.add_reaction("📝")
+        if count % 3 == 0:
+            await _send_reply(
+                message.channel,
+                f"Buffered {count} messages. Send /done when ready.",
+            )
+        _ba_gid = str(message.guild.id) if message.guild else None
+        _ba_cid = str(message.channel.id)
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            None,
+            lambda: _run_gateway(
+                text, channel_name, username,
+                guild_id=_ba_gid, channel_id=_ba_cid,
+                memory_only=True,
+            ),
+        )
+        await bot.process_commands(message)
+        return
+
     # ── Day ritual intercept (before onboarding/CC injection/gateway) ────────
     _day_cmd = _detect_day_command(text)
     if _day_cmd:
@@ -1459,6 +1648,17 @@ async def on_message(message: discord.Message):
             )
             _day_text = _format_day_result(_day_result)
             await _send_day_response(message.channel, _day_text)
+        _dr_gid = str(message.guild.id) if message.guild else None
+        _dr_cid = str(message.channel.id)
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            None,
+            lambda: _run_gateway(
+                text, channel_name, username,
+                guild_id=_dr_gid, channel_id=_dr_cid,
+                memory_only=True,
+            ),
+        )
         return
 
     # ── Active onboarding session — route before anything else ────────────────
@@ -1472,10 +1672,10 @@ async def on_message(message: discord.Message):
             next_q = _onboarding.get_next_question(_ob_session)
 
             if next_q:
-                await message.channel.send(next_q)
+                await _send_reply(message.channel, next_q)
             else:
                 # All questions answered — provision
-                await message.channel.send("⚙️ **Provisioning your EOS...**")
+                await _send_reply(message.channel, "⚙️ **Provisioning your EOS...**")
                 try:
                     provision_result = await _onboarding.analyze_and_provision(
                         _ob_session
@@ -1495,83 +1695,206 @@ async def on_message(message: discord.Message):
                         provision_result["data"],
                         provision_result["results"],
                     )
-                    for chunk in chunk_message(completion):
-                        await message.channel.send(chunk)
+                    await _send_reply(message.channel, completion)
                 except Exception as _pe:
                     print(f"[Onboarding] Provisioning error: {_pe}")
-                    await message.channel.send(
+                    await _send_reply(
+                        message.channel,
                         f"⚠️ Provisioning encountered an issue: {_pe}\n"
-                        "Run `!onboard` again to retry."
+                        "Run `!onboard` again to retry.",
                     )
+            _ob_gid = str(message.guild.id) if message.guild else None
+            _ob_cid = str(message.channel.id)
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(
+                None,
+                lambda: _run_gateway(
+                    text, channel_name, username,
+                    guild_id=_ob_gid, channel_id=_ob_cid,
+                    memory_only=True,
+                ),
+            )
             return
 
-    # ── Fire-and-forget CC injection ─────────────────────────────────────
-    # Injects message into the CC tmux session. Reply delivery is handled
-    # asynchronously by the CC Stop hook → webhook receiver pipeline.
-    # No pane scraping, no polling, no state machines.
-    #
-    # Local bridge: if Antony is at his PC (local bridge healthy via
-    # Tailscale), forward to local machine first. If local unavailable,
-    # fall back to VPS tmux injection transparently.
+    # ── Archive single inbound verbatim ──────────────────────────────────
+    try:
+        _archive_inbound(
+            text,
+            interface=_ArchiveInterface.DISCORD.value,
+            metadata={
+                "type": "single",
+                "user_id": _uid,
+                "channel_id": _cid_str,
+                "channel_name": channel_name,
+            },
+        )
+    except Exception:
+        pass  # archive failure must never block message path
+
+    # ── Orchestration ingress (mode-gated) ──────────────────────────────
+    # When EOS_DISCORD_ORCHESTRATION_ENABLED=1, route through the substrate
+    # orchestration layer instead of CC injection / PseudoLive / Gateway.
+    # This is the single clean Discord text → orchestration boundary.
+    # When disabled (default), falls through to the existing CC/PseudoLive chain.
+    _orch_handled = False
+    try:
+        from eos_ai.substrate.discord_ingress_adapter import ingest_and_emit
+
+        _orch_result = ingest_and_emit(
+            text=text,
+            user_id=_uid,
+            channel_id=_cid_str,
+            guild_id=str(message.guild.id) if message.guild else "",
+            channel_name=channel_name,
+        )
+        if _orch_result.accepted:
+            _orch_handled = True
+            print(
+                f"[Orchestration] Ingested: intent_type={_orch_result.intent_type} "
+                f"event_id={_orch_result.intent_id}",
+                flush=True,
+            )
+            # Structured trace reply (best-effort)
+            try:
+                from eos_ai.substrate.operator_trace import (
+                    OperatorTrace,
+                    format_trace_for_discord,
+                )
+
+                _orch_trace = OperatorTrace(
+                    ingress_source="discord_ingress_adapter",
+                    ingress_transport="discord_text",
+                    ingress_text=text[:200],
+                    operator_id=_uid,
+                    intent_type=_orch_result.intent_type,
+                    intent_id=_orch_result.intent_id,
+                    intent_status="accepted",
+                )
+                _trace_text = format_trace_for_discord(_orch_trace)
+                await _send_reply(message.channel, _trace_text)
+            except Exception as _trace_err:  # noqa: BLE001
+                print(f"[Orchestration] trace format error: {_trace_err}", flush=True)
+    except Exception as _orch_err:  # noqa: BLE001
+        print(f"[Orchestration] ingress error: {_orch_err}", flush=True)
+
+    if _orch_handled:
+        _oh_gid = str(message.guild.id) if message.guild else None
+        _oh_cid = str(message.channel.id)
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            None,
+            lambda: _run_gateway(
+                text, channel_name, username,
+                guild_id=_oh_gid, channel_id=_oh_cid,
+                memory_only=True,
+            ),
+        )
+        await bot.process_commands(message)
+        return
+
+    # ── Session-first CC injection ───────────────────────────────────────
+    # Registry is source of truth for session identity.
+    # tmux session name is derived from SessionRecord, never hardcoded.
+    # Local bridge tried first if node == "local"; failover updates registry.
     _cc_injected = False
     try:
-        from eos_ai.substrate.discord_mode_routing import (
-            resolve_discord_mode,
-            resolve_mode_session,
-        )
-        from eos_ai.substrate.claude_session_bridge import send_message as _cc_send
+        from eos_ai.substrate.discord_mode_routing import resolve_discord_mode
+        from eos_ai.runtime.session_registry import get_registry
+        from eos_ai.runtime.session_router import route_session_message
+        from eos_ai.runtime.surface_registry import get_surface_registry
+        from eos_ai.substrate.target_policy import resolve_execution_policy
 
         _cc_gid = str(message.guild.id) if message.guild else None
         _cc_cid = str(message.channel.id)
         _cc_mode = resolve_discord_mode(_cc_gid, _cc_cid)
-        _cc_session_info = resolve_mode_session(
-            _cc_mode, guild_id=_cc_gid, channel_id=_cc_cid
+
+        _cc_target_policy = resolve_execution_policy(_cc_mode)
+        _cc_node = _cc_target_policy["target"]
+
+        _cc_registry = get_registry()
+        _cc_session = _cc_registry.resolve_or_create(
+            session_name="",
+            mode=_cc_mode,
+            node=_cc_node,
+            channel_id=_cc_cid,
+            transport="discord",
         )
-        _cc_session_name = _cc_session_info.get("session_name")
-        _cc_target = _cc_session_info.get("target") or "vps"
 
-        if not _cc_session_name:
-            _cc_session_name = os.getenv("EOS_ROUTER_CLAUDE_CLI_SESSION", "dex_main")
+        _sf_registry = get_surface_registry()
+        _sf_registry.attach_surface(
+            session_id=_cc_session.session_id,
+            surface_type="discord",
+            transport="webhook",
+            config={
+                "channel_id": _cc_cid,
+                "session_name": _cc_session.tmux_name,
+            },
+        )
 
-        # ── Try local bridge first (Antony's PC via Tailscale) ──────────
+        # ── LiveRuntime lifecycle pass ──────────────────────────────────
+        # Runs InputRouter → run_lifecycle() → continuity/objectives/progress
+        # alongside tmux routing. Failure here must NOT block message delivery.
         try:
-            from services.local_bridge_client import forward_to_local
+            from eos_ai.runtime.live_loop import get_or_create_runtime
+            from eos_ai.runtime.input_router import InputEvent
 
-            loop = asyncio.get_event_loop()
-            _local_ok = await loop.run_in_executor(
-                None, lambda: forward_to_local(text, _cc_session_name)
+            _lr = get_or_create_runtime(_cc_session.session_id)
+            _lr_event = InputEvent(
+                transport="discord",
+                text=text,
+                metadata={
+                    "channel_id": _cc_cid,
+                    "author_id": str(message.author.id),
+                    "session_id": _cc_session.session_id,
+                },
             )
-            if _local_ok:
-                _cc_injected = True
-                print(
-                    f"[LocalBridge] Forwarded {len(text)} chars to "
-                    f"{_cc_session_name} on local machine"
-                )
-        except Exception as _lb_exc:  # noqa: BLE001
-            print(f"[LocalBridge] Error: {_lb_exc}")
-
-        # ── Fall back to VPS tmux injection ─────────────────────────────
-        if not _cc_injected:
-            loop = asyncio.get_event_loop()
-            _cc_result = await loop.run_in_executor(
-                None, lambda: _cc_send(_cc_target, _cc_session_name, text)
+            _lr_result = _lr.handle_input(_lr_event)
+            print(
+                f"[LiveRuntime] {_lr_result['request_type']}: "
+                f"session={_cc_session.session_id} "
+                f"events={_lr_result['lifecycle_result'].get('events_count', 0)}",
+                flush=True,
+            )
+        except Exception as _lr_exc:  # noqa: BLE001
+            print(
+                f"[LiveRuntime] lifecycle pass failed (non-blocking): {_lr_exc}",
+                flush=True,
             )
 
-            if _cc_result.get("ok"):
-                _cc_injected = True
-                print(
-                    f"[CC] Injected {len(text)} chars into {_cc_session_name} "
-                    f"— reply via Stop hook"
-                )
-            else:
-                print(
-                    f"[CC] Injection failed for {_cc_session_name}: "
-                    f"{_cc_result.get('reason', 'unknown')}"
-                )
+        loop = asyncio.get_event_loop()
+        _cc_route_result = await loop.run_in_executor(
+            None, lambda: route_session_message(_cc_session, text)
+        )
+
+        if _cc_route_result.get("ok"):
+            _cc_injected = True
+            _cc_registry.update_activity(_cc_session.session_id)
+            print(
+                f"[CC] {_cc_route_result['method']}: {len(text)} chars → "
+                f"{_cc_route_result['session_name']} on {_cc_route_result['node']} "
+                f"(session={_cc_session.session_id})"
+            )
+        else:
+            print(
+                f"[CC] Injection failed for {_cc_session.session_id}: "
+                f"{_cc_route_result.get('reason', 'unknown')}"
+            )
     except Exception as _cc_exc:  # noqa: BLE001
         print(f"[CC] Injection error: {_cc_exc}")
 
     if _cc_injected:
+        _ccm_gid = str(message.guild.id) if message.guild else None
+        _ccm_cid = str(message.channel.id)
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            None,
+            lambda: _run_gateway(
+                f"[CC Session] {text}",
+                channel_name, username,
+                guild_id=_ccm_gid, channel_id=_ccm_cid,
+                memory_only=True,
+            ),
+        )
         await bot.process_commands(message)
         return
 
@@ -1612,11 +1935,77 @@ async def on_message(message: discord.Message):
                     if _entry_content:
                         _visible_content = _entry_content
                         break
+                _pl_delivery_ok = False
                 if _visible_content:
                     try:
-                        await message.channel.send(_visible_content, tts=False)
+                        _pl_delivery_ok = await _send_reply(
+                            message.channel, _visible_content
+                        )
                     except Exception as _se:  # noqa: BLE001
                         print(f"[PseudoLive] send failed: {_se}")
+
+                # ── Post-delivery finalization ───────────────────────
+                # Uses run_lifecycle proposal to prevent duplicate
+                # finalization when watcher/webhook also fire.
+                _pl_fin = _pl_result.get("finalization_ready") or {}
+                if _pl_fin.get("should_finalize"):
+                    # Hard guard: drop if lifecycle is sealed
+                    _pl_terminal = False
+                    try:
+                        from eos_ai.substrate.run_lifecycle import (
+                            is_run_terminally_finalized as _pl_term_check,
+                        )
+
+                        _pl_session_check = _pl_fin.get("source_session", "")
+                        if _pl_session_check and _pl_term_check(_pl_session_check):
+                            print(
+                                f"[PseudoLive] Late finalization dropped: "
+                                f"session={_pl_session_check} — terminally finalized"
+                            )
+                            _pl_terminal = True
+                    except Exception:
+                        pass
+
+                    if not _pl_terminal:
+                        try:
+                            _pl_session = _pl_fin.get("source_session", "")
+                            from eos_ai.substrate.run_lifecycle import (
+                                propose_run_completion as _pl_propose,
+                            )
+
+                            _pl_proposal = _pl_propose(
+                                _pl_session,
+                                "pseudolive",
+                                payload={
+                                    "delivery_ok": _pl_delivery_ok,
+                                    "correlation_id": _pl_fin.get("correlation_id", ""),
+                                },
+                            )
+                            if not _pl_proposal.accepted:
+                                print(
+                                    f"[PseudoLive] Proposal rejected: {_pl_proposal.reason}"
+                                )
+                            else:
+                                from eos_ai.substrate.task_finalization import (
+                                    finalize_completed_task as _pl_finalize,
+                                )
+
+                                _pl_fin_result = _pl_finalize(
+                                    delivery_success=_pl_delivery_ok,
+                                    delivery_mode="pseudolive",
+                                    source_session=_pl_session,
+                                    role=_pl_fin.get("role", ""),
+                                    interface="discord",
+                                    final_output=(_visible_content or "")[:2000],
+                                    clear_target=_pl_fin.get("clear_target", "vps"),
+                                    correlation_id=_pl_fin.get("correlation_id", ""),
+                                    auto_clear=_pl_fin.get("should_clear") or None,
+                                )
+                                if _pl_fin_result.clear_executed:
+                                    print("[PseudoLive] Auto-clear executed")
+                        except Exception as _fin_e:  # noqa: BLE001
+                            print(f"[PseudoLive] finalization failed: {_fin_e}")
+
                 _deferred = _pl_result.get("deferred_tts") or {}
                 _tts_node = _deferred.get("node_id")
                 _tts_text = _deferred.get("spoken_text") or ""
@@ -1637,6 +2026,18 @@ async def on_message(message: discord.Message):
                     f"[PseudoLive] CC session failed: status={_pl_status} "
                     f"detail={_pl_ingress.get('detail', '')}"
                 )
+            _plm_gid = str(message.guild.id) if message.guild else None
+            _plm_cid = str(message.channel.id)
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(
+                None,
+                lambda: _run_gateway(
+                    f"[CC Session] {text}",
+                    channel_name, username,
+                    guild_id=_plm_gid, channel_id=_plm_cid,
+                    memory_only=True,
+                ),
+            )
             return
 
     # Meeting mode triggers — natural language detection
@@ -1650,6 +2051,17 @@ async def on_message(message: discord.Message):
     if meeting_match:
         lead = meeting_match.group(1) or ""
         await start_meeting_mode("sales_call", lead, message.channel)
+        _ms_gid = str(message.guild.id) if message.guild else None
+        _ms_cid = str(message.channel.id)
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            None,
+            lambda: _run_gateway(
+                text, channel_name, username,
+                guild_id=_ms_gid, channel_id=_ms_cid,
+                memory_only=True,
+            ),
+        )
         return
 
     if any(
@@ -1664,6 +2076,17 @@ async def on_message(message: discord.Message):
         ]
     ):
         await end_active_meeting(message.channel)
+        _me_gid = str(message.guild.id) if message.guild else None
+        _me_cid = str(message.channel.id)
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            None,
+            lambda: _run_gateway(
+                text, channel_name, username,
+                guild_id=_me_gid, channel_id=_me_cid,
+                memory_only=True,
+            ),
+        )
         return
 
     # ── Pending capture resolution (1/2/3 venture reply) ────────────────────
@@ -1689,13 +2112,35 @@ async def on_message(message: discord.Message):
 
             capture(_pending["text"], venture_id=_venture_id)
             _icon = "💡" if _pending["type"] == "idea" else "✅"
-            await message.channel.send(f"{_icon} Added to your list.")
+            await _send_reply(message.channel, f"{_icon} Added to your list.")
         except Exception:
             pass
+        _fc_gid = str(message.guild.id) if message.guild else None
+        _fc_cid = str(message.channel.id)
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            None,
+            lambda: _run_gateway(
+                _pending["text"], channel_name, username,
+                guild_id=_fc_gid, channel_id=_fc_cid,
+                memory_only=True,
+            ),
+        )
         return
 
     # ── Pipeline update detection (delegated to handler) ────────────────────
     if await handle_pipeline_update(message, text):
+        _pl_gid = str(message.guild.id) if message.guild else None
+        _pl_cid = str(message.channel.id)
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            None,
+            lambda: _run_gateway(
+                text, channel_name, username,
+                guild_id=_pl_gid, channel_id=_pl_cid,
+                memory_only=True,
+            ),
+        )
         return
 
     # ── Founder capture — detect tasks/ideas, write to Your list + Notion ────
@@ -1745,17 +2190,32 @@ async def on_message(message: discord.Message):
                     for i, v in enumerate(_ventures_list)
                     if i < len(_num_emojis)
                 )
-                await message.channel.send(
+                await _send_reply(
+                    message.channel,
                     f"{'💡' if _ctype == 'idea' else '✅'} Got it. Which venture is this for?\n"
-                    f"{_choices}"
+                    f"{_choices}",
                 )
                 _pending_captures[_channel_id] = {"text": text, "type": _ctype}
+                _ac_gid = str(message.guild.id) if message.guild else None
+                _ac_cid = str(message.channel.id)
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(
+                    None,
+                    lambda: _run_gateway(
+                        text,
+                        channel_name,
+                        username,
+                        guild_id=_ac_gid,
+                        channel_id=_ac_cid,
+                        memory_only=True,
+                    ),
+                )
                 return
 
             _capture_result = capture(text, venture_id=_venture_id)
             if _capture_result.get("captured"):
                 _icon = "💡" if _ctype == "idea" else "✅"
-                await message.channel.send(f"{_icon} Added to your list.")
+                await _send_reply(message.channel, f"{_icon} Added to your list.")
     except Exception:
         pass  # Never let capture break the main flow
 
@@ -1833,6 +2293,17 @@ async def on_message(message: discord.Message):
 
     # ── Inline commands (delegated to handler) ──────────────────────────────
     if await try_inline_commands(message, text, _pending_events):
+        _ic_gid = str(message.guild.id) if message.guild else None
+        _ic_cid = str(message.channel.id)
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            None,
+            lambda: _run_gateway(
+                text, channel_name, username,
+                guild_id=_ic_gid, channel_id=_ic_cid,
+                memory_only=True,
+            ),
+        )
         return
 
     # All messages → full EOS gateway (execution_contract pipeline)
@@ -1903,8 +2374,7 @@ async def on_message(message: discord.Message):
 async def _send_response(message: discord.Message, output: str) -> None:
     """Send response to Discord with full footer intact."""
     output = output.rstrip() + f"\n\n— {AI_NAME}"
-    for chunk in chunk_message(output):
-        await message.reply(chunk)
+    await _send_reply(message.channel, output)
 
 
 # ─── Discord Server Manager ───────────────────────────────────────────────────
@@ -2099,10 +2569,11 @@ class DiscordServerManager:
         # Announce in general
         general = discord.utils.get(self.guild.text_channels, name="general")
         if general:
-            await general.send(
+            await _send_reply(
+                general,
                 f"🎯 **Stage {new_stage} unlocked for {company}.**\n\n"
                 f"New channels and primitives now active.\n"
-                f"{AI_NAME} has updated your operating system.\n\n— {AI_NAME}"
+                f"{AI_NAME} has updated your operating system.\n\n— {AI_NAME}",
             )
 
         return created
@@ -2151,8 +2622,11 @@ async def cmd_watcher_status(ctx: commands.Context):
             if not _WATCHERS:
                 await ctx.reply("No watchers running.")
                 return
+            from eos_ai.substrate.discord_output_policy import get_display_name
+
             lines = []
             for name, w in _WATCHERS.items():
+                display = get_display_name(name)
                 status = "🟢 running" if w.is_running else "🔴 stopped"
                 ago = int(_time.time() - w.last_activity)
                 if ago < 60:
@@ -2163,7 +2637,7 @@ async def cmd_watcher_status(ctx: commands.Context):
                     age_str = f"{ago // 3600}h ago"
                 preview = w.last_reply_preview[:80] if w.last_reply_preview else "—"
                 lines.append(
-                    f"`{name}`: {status} — `{w.state.value}` — {age_str}\n  └ {preview}"
+                    f"**{display}**: {status} — `{w.state.value}` — {age_str}\n  └ {preview}"
                 )
         await ctx.reply("\n".join(lines))
     except Exception as e:
@@ -2203,8 +2677,7 @@ async def cmd_status(ctx: commands.Context):
 
         output = await loop.run_in_executor(None, _portfolio_scan)
 
-    for chunk in chunk_message(output or "Status retrieved."):
-        await ctx.reply(chunk)
+    await _send_reply(ctx.channel, output or "Status retrieved.")
 
 
 @bot.command(name="portfolio")
@@ -2229,9 +2702,10 @@ async def cmd_join(ctx: commands.Context):
         vc = ctx.voice_client
     else:
         vc = await channel.connect()
-    await ctx.send(
+    await _send_reply(
+        ctx.channel,
         f"🎙️ **{AI_NAME} connected.** Talk to me. "
-        "Drop an audio file and I'll transcribe + respond."
+        "Drop an audio file and I'll transcribe + respond.",
     )
     # Only start the listen loop on a fresh connect.
     # Auto-join (on_voice_state_update) already started it if the bot
@@ -2246,7 +2720,7 @@ async def cmd_leave(ctx: commands.Context):
     """Disconnect from voice channel."""
     if ctx.voice_client:
         await ctx.voice_client.disconnect()
-        await ctx.send(f"👁️ **{AI_NAME} disconnected.**")
+        await _send_reply(ctx.channel, f"👁️ **{AI_NAME} disconnected.**")
     else:
         await ctx.reply("Not connected to any voice channel.")
 
@@ -2263,7 +2737,9 @@ async def cmd_say(ctx: commands.Context, *, text: str):
     audio_path = await loop.run_in_executor(None, _ve.speak, text)
     if audio_path and os.path.exists(audio_path):
         ctx.voice_client.play(discord.FFmpegPCMAudio(audio_path))
-        await ctx.send(f"🔊 {text[:80]}{'...' if len(text) > 80 else ''}")
+        await _send_reply(
+            ctx.channel, f"🔊 {text[:80]}{'...' if len(text) > 80 else ''}"
+        )
     else:
         await ctx.reply("TTS failed — check that espeak is installed.")
 
@@ -2396,8 +2872,7 @@ async def cmd_approve(ctx: commands.Context, approval_id: str = ""):
     result = _gateway.approve(approval_id)
     if result.get("status") == "ok":
         output = result.get("output") or "Approved and executed."
-        for chunk in chunk_message(output):
-            await ctx.reply(chunk)
+        await _send_reply(ctx.channel, output)
     else:
         await ctx.reply(f"Error: {result.get('error', 'unknown')}")
 
@@ -2815,8 +3290,7 @@ async def cmd_report(ctx: commands.Context, report_type: str = "profile"):
                 await ctx.reply("No profile yet. Run a GWS scan first.")
                 return
             profile = profile_path.read_text()
-        for chunk in chunk_message(profile, title="📊 EOS LEARNING REPORT"):
-            await ctx.channel.send(chunk)
+        await _send_reply(ctx.channel, f"**📊 EOS LEARNING REPORT**\n\n{profile}")
         await ctx.message.add_reaction("✅")
 
     elif report_type == "pulse":
@@ -2856,7 +3330,7 @@ async def cmd_onboard(ctx: commands.Context):
     # Get and send the first question immediately
     first_q = _onboarding.get_next_question(session)
     if first_q:
-        await ctx.send(first_q)
+        await _send_reply(ctx.channel, first_q)
 
 
 @bot.command(name="sync")
@@ -2875,8 +3349,7 @@ async def cmd_sync(ctx: commands.Context):
 
         loop = asyncio.get_event_loop()
         output = await loop.run_in_executor(None, _run)
-    for chunk in chunk_message(output):
-        await ctx.reply(chunk)
+    await _send_reply(ctx.channel, output)
 
 
 @bot.command(name="inbox")
@@ -2944,8 +3417,7 @@ async def cmd_draft(ctx: commands.Context):
 
         loop = asyncio.get_event_loop()
         output = await loop.run_in_executor(None, _run)
-    for chunk in chunk_message(output):
-        await ctx.reply(chunk)
+    await _send_reply(ctx.channel, output)
 
 
 @bot.command(name="cal")
@@ -3079,8 +3551,7 @@ async def cmd_verify_inbox(ctx: commands.Context):
 
         loop = asyncio.get_event_loop()
         output = await loop.run_in_executor(None, _run)
-    for chunk in chunk_message(output):
-        await ctx.reply(chunk)
+    await _send_reply(ctx.channel, output)
 
 
 @bot.command(name="folder-update")
@@ -3293,9 +3764,7 @@ async def post_to_channel(channel_name: str, content: str) -> bool:
     if not channel:
         print(f"[Discord] Channel {channel_id} not found in cache")
         return False
-    for chunk in chunk_message(content):
-        await channel.send(chunk)
-    return True
+    return await _send_reply(channel, content)
 
 
 async def post_morning_brief(brief: str) -> None:
@@ -3336,8 +3805,7 @@ async def cmd_drip(ctx: commands.Context, *, args: str = ""):
     await ctx.reply(f"🔍 Running Task Yield audit on {len(args.split(','))} tasks...")
     loop = asyncio.get_event_loop()
     report = await loop.run_in_executor(None, _run)
-    for i in range(0, len(report), 1900):
-        await ctx.send(report[i : i + 1900])
+    await _send_reply(ctx.channel, report)
 
 
 @bot.command(name="founderrate")
@@ -3484,8 +3952,7 @@ async def cmd_perfectweek(ctx: commands.Context):
 
     loop = asyncio.get_event_loop()
     msg = await loop.run_in_executor(None, _run)
-    for i in range(0, len(msg), 1900):
-        await ctx.send(msg[i : i + 1900])
+    await _send_reply(ctx.channel, msg)
 
 
 @bot.command(name="processcapture")
@@ -3523,7 +3990,7 @@ async def cmd_camcorder(ctx: commands.Context, *, args: str = ""):
 
     loop = asyncio.get_event_loop()
     output = await loop.run_in_executor(None, _run)
-    await ctx.send(output)
+    await _send_reply(ctx.channel, output)
 
 
 @bot.command(name="drive")
@@ -3582,7 +4049,7 @@ async def cmd_driveaudit(ctx: commands.Context):
 
     loop = asyncio.get_event_loop()
     output = await loop.run_in_executor(None, _run)
-    await ctx.send(output)
+    await _send_reply(ctx.channel, output)
 
 
 @bot.command(name="createfolder")
@@ -3638,8 +4105,7 @@ async def cmd_trip(ctx: commands.Context, *, args: str = ""):
     await ctx.reply("✈️ Building travel brief...")
     loop = asyncio.get_event_loop()
     output = await loop.run_in_executor(None, _run)
-    for i in range(0, len(output), 1900):
-        await ctx.send(output[i : i + 1900])
+    await _send_reply(ctx.channel, output)
 
 
 @bot.command(name="nolist")
@@ -3915,7 +4381,7 @@ async def cmd_invoice(ctx: commands.Context, *, args: str = ""):
     await ctx.reply("📄 Creating invoice...")
     loop = asyncio.get_event_loop()
     output = await loop.run_in_executor(None, _run)
-    await ctx.channel.send(output)
+    await _send_reply(ctx.channel, output)
 
 
 @bot.command(name="expensereport")
@@ -3932,7 +4398,7 @@ async def cmd_expensereport(ctx: commands.Context, month: str = ""):
 
     loop = asyncio.get_event_loop()
     report = await loop.run_in_executor(None, _run)
-    await ctx.reply(f"📊 **Expense Report:**\n```\n{report[:1800]}\n```")
+    await _send_reply(ctx.channel, f"📊 **Expense Report:**\n```\n{report}\n```")
 
 
 @bot.command(name="budget")
@@ -3950,7 +4416,7 @@ async def cmd_budget(ctx: commands.Context, target: str = "10000"):
 
     loop = asyncio.get_event_loop()
     report = await loop.run_in_executor(None, _run)
-    await ctx.reply(f"📊 **Budget vs Actual:**\n```\n{report}\n```")
+    await _send_reply(ctx.channel, f"📊 **Budget vs Actual:**\n```\n{report}\n```")
 
 
 # ─── Doc / brief / slides / factcheck commands ────────────────────────────────
@@ -3986,8 +4452,7 @@ async def cmd_briefdoc(ctx: commands.Context, *, args: str = ""):
     await ctx.reply("📝 Creating briefing doc...")
     loop = asyncio.get_event_loop()
     output = await loop.run_in_executor(None, _run)
-    for chunk in [output[i : i + 1900] for i in range(0, len(output), 1900)]:
-        await ctx.channel.send(chunk)
+    await _send_reply(ctx.channel, output)
 
 
 @bot.command(name="board")
@@ -4019,8 +4484,7 @@ async def cmd_board(ctx: commands.Context, *, args: str = ""):
     await ctx.reply("📋 Generating board update...")
     loop = asyncio.get_event_loop()
     output = await loop.run_in_executor(None, _run)
-    for chunk in [output[i : i + 1900] for i in range(0, len(output), 1900)]:
-        await ctx.channel.send(chunk)
+    await _send_reply(ctx.channel, output)
 
 
 @bot.command(name="investor")
@@ -4046,8 +4510,7 @@ async def cmd_investor(ctx: commands.Context, *, args: str = ""):
     await ctx.reply("📊 Generating investor update...")
     loop = asyncio.get_event_loop()
     output = await loop.run_in_executor(None, _run)
-    for chunk in [output[i : i + 1900] for i in range(0, len(output), 1900)]:
-        await ctx.channel.send(chunk)
+    await _send_reply(ctx.channel, output)
 
 
 @bot.command(name="slides")
@@ -4086,7 +4549,7 @@ async def cmd_slides(ctx: commands.Context, *, args: str = ""):
     await ctx.reply("📊 Creating presentation outline...")
     loop = asyncio.get_event_loop()
     output = await loop.run_in_executor(None, _run)
-    await ctx.channel.send(output)
+    await _send_reply(ctx.channel, output)
 
 
 @bot.command(name="factcheck")
@@ -4117,7 +4580,7 @@ async def cmd_factcheck(ctx: commands.Context, *, claim: str = ""):
 
     loop = asyncio.get_event_loop()
     output = await loop.run_in_executor(None, _run)
-    await ctx.reply(output)
+    await _send_reply(ctx.channel, output)
 
 
 # ─── Personal admin commands ──────────────────────────────────────────────────
@@ -4220,8 +4683,7 @@ async def cmd_gift(ctx: commands.Context, *, args: str = ""):
     await ctx.reply("🎁 Researching gifts...")
     loop = asyncio.get_event_loop()
     output = await loop.run_in_executor(None, _run)
-    for chunk in [output[i : i + 1900] for i in range(0, len(output), 1900)]:
-        await ctx.channel.send(chunk)
+    await _send_reply(ctx.channel, output)
 
 
 # ─── Travel research commands ─────────────────────────────────────────────────
@@ -4254,8 +4716,7 @@ async def cmd_flights(ctx: commands.Context, *, args: str = ""):
     await ctx.reply("✈️ Researching flights...")
     loop = asyncio.get_event_loop()
     output = await loop.run_in_executor(None, _run)
-    for chunk in [output[i : i + 1900] for i in range(0, len(output), 1900)]:
-        await ctx.channel.send(chunk)
+    await _send_reply(ctx.channel, output)
 
 
 @bot.command(name="hotels")
@@ -4284,8 +4745,7 @@ async def cmd_hotels(ctx: commands.Context, *, args: str = ""):
     await ctx.reply("🏨 Researching hotels...")
     loop = asyncio.get_event_loop()
     output = await loop.run_in_executor(None, _run)
-    for chunk in [output[i : i + 1900] for i in range(0, len(output), 1900)]:
-        await ctx.channel.send(chunk)
+    await _send_reply(ctx.channel, output)
 
 
 @bot.command(name="restaurants")
@@ -4311,8 +4771,7 @@ async def cmd_restaurants(ctx: commands.Context, *, args: str = ""):
     await ctx.reply("🍽️ Researching restaurants...")
     loop = asyncio.get_event_loop()
     output = await loop.run_in_executor(None, _run)
-    for chunk in [output[i : i + 1900] for i in range(0, len(output), 1900)]:
-        await ctx.channel.send(chunk)
+    await _send_reply(ctx.channel, output)
 
 
 @bot.command(name="proofread")
@@ -4345,7 +4804,7 @@ async def cmd_proofread(ctx: commands.Context, *, content: str = ""):
         if revised:
             lines.append(f"\n**Revised version:**\n```\n{revised[:600]}\n```")
 
-        await ctx.reply("\n".join(lines)[:1900])
+        await _send_reply(ctx.channel, "\n".join(lines))
     except Exception as e:
         await ctx.reply(f"❌ Error: {e}")
 
@@ -4389,7 +4848,7 @@ async def cmd_okr(ctx: commands.Context, subcommand: str = "report", *, args: st
             from eos_ai.okr_tracker import generate_okr_report
 
             report = generate_okr_report()
-            await ctx.reply(report[:1900])
+            await _send_reply(ctx.channel, report)
         except Exception as e:
             await ctx.reply(f"❌ Error: {e}")
 
@@ -4522,8 +4981,7 @@ async def cmd_talkingpoints(ctx: commands.Context, *, args: str = ""):
         duration = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 30
         fmt = parts[3] if len(parts) > 3 else "talk"
         points = draft_talking_points(topic, audience, duration, fmt)
-        for i in range(0, len(points), 1900):
-            await ctx.reply(points[i : i + 1900])
+        await _send_reply(ctx.channel, points)
     except Exception as e:
         await ctx.reply(f"❌ Error: {e}")
 
@@ -4573,7 +5031,7 @@ async def cmd_board_update(ctx: commands.Context, venture_id: str = ""):
 
         await ctx.reply("📋 Generating board update...")
         brief = generate_board_update_brief(venture_id)
-        await ctx.reply(f"📋 **Board Update — {venture_id}:**\n{brief[:1900]}")
+        await _send_reply(ctx.channel, f"📋 **Board Update — {venture_id}:**\n{brief}")
     except Exception as e:
         await ctx.reply(f"❌ Error: {e}")
 
@@ -4744,7 +5202,7 @@ async def cmd_tasks(ctx: commands.Context):
         if not all_pending:
             lines.append("✅ Queue is empty.")
 
-        await ctx.reply("\n".join(lines)[:1900])
+        await _send_reply(ctx.channel, "\n".join(lines))
     except Exception as e:
         await ctx.reply(f"❌ Error: {e}")
 
@@ -4792,7 +5250,7 @@ async def cmd_agent_results(ctx: commands.Context):
                 f"{approved} {p.get('agent_id', '')} — {p.get('description', '')[:50]}"
             )
 
-        await ctx.reply("\n".join(lines)[:1900])
+        await _send_reply(ctx.channel, "\n".join(lines))
     except Exception as e:
         await ctx.reply(f"❌ Error: {e}")
 
@@ -4826,7 +5284,7 @@ async def cmd_trace(ctx: commands.Context, limit: int = 5):
         for t in traces:
             lines.append(format_trace_compact(t))
         lines.append("```")
-        await ctx.reply("\n".join(lines)[:1900], tts=False)
+        await _send_reply(ctx.channel, "\n".join(lines))
     except Exception as e:
         await ctx.reply(f"Trace error: {e}", tts=False)
 

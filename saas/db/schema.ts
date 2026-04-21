@@ -433,3 +433,108 @@ export const embeddings = pgTable('embeddings', {
 
 export type Embedding    = typeof embeddings.$inferSelect
 export type NewEmbedding = typeof embeddings.$inferInsert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CLIENTS
+// CRM contacts — uses text org_id/venture_id (Python .env string IDs).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const clients = pgTable('clients', {
+  id:        uuid('id').primaryKey().defaultRandom(),
+  orgId:     text('org_id').notNull(),
+  ventureId: text('venture_id').notNull(),
+  name:      text('name').notNull(),
+  email:     text('email').notNull(),
+  phone:     text('phone'),
+  status:    text('status').notNull().default('lead'),  // lead/prospect/client/fulfilled/churned
+  source:    text('source').notNull().default('unknown'),
+  notes:     text('notes').default(''),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  orgIdx:     index('idx_clients_org_id').on(t.orgId),
+  ventureIdx: index('idx_clients_venture_id').on(t.ventureId),
+  statusIdx:  index('idx_clients_status').on(t.orgId, t.status),
+}))
+
+export type Client    = typeof clients.$inferSelect
+export type NewClient = typeof clients.$inferInsert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TRANSACTIONS
+// Revenue events tied to a client. Uses text org_id/venture_id.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const transactions = pgTable('transactions', {
+  id:                  uuid('id').primaryKey().defaultRandom(),
+  orgId:               text('org_id').notNull(),
+  ventureId:           text('venture_id').notNull(),
+  clientId:            uuid('client_id').notNull().references(() => clients.id, { onDelete: 'cascade' }),
+  productName:         text('product_name').notNull(),
+  amountCents:         integer('amount_cents').notNull(),
+  currency:            text('currency').notNull().default('USD'),
+  status:              text('status').notNull().default('pending'),  // pending/paid/refunded/failed
+  paymentDate:         timestamp('payment_date', { withTimezone: true }),
+  fulfillmentStatus:   text('fulfillment_status').notNull().default('not_started'),  // not_started/in_progress/complete
+  templateInstanceId:  text('template_instance_id'),
+  notes:               text('notes').default(''),
+  createdAt:           timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  orgIdx:     index('idx_transactions_org_id').on(t.orgId),
+  ventureIdx: index('idx_transactions_venture_id').on(t.ventureId),
+  clientIdx:  index('idx_transactions_client_id').on(t.clientId),
+  statusIdx:  index('idx_transactions_status').on(t.orgId, t.status),
+}))
+
+export type Transaction    = typeof transactions.$inferSelect
+export type NewTransaction = typeof transactions.$inferInsert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FULFILLMENT EVENTS
+// Delivery milestones for a transaction.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const fulfillmentEvents = pgTable('fulfillment_events', {
+  id:            uuid('id').primaryKey().defaultRandom(),
+  transactionId: uuid('transaction_id').notNull().references(() => transactions.id, { onDelete: 'cascade' }),
+  orgId:         text('org_id').notNull(),
+  ventureId:     text('venture_id').notNull(),
+  description:   text('description').notNull(),
+  completedAt:   timestamp('completed_at', { withTimezone: true }).notNull().defaultNow(),
+  completedBy:   text('completed_by').notNull(),
+  evidenceUrl:   text('evidence_url'),
+  notes:         text('notes').default(''),
+}, (t) => ({
+  txIdx:      index('idx_fulfillment_events_tx_id').on(t.transactionId),
+  orgIdx:     index('idx_fulfillment_events_org_id').on(t.orgId),
+  ventureIdx: index('idx_fulfillment_events_venture_id').on(t.ventureId),
+}))
+
+export type FulfillmentEvent    = typeof fulfillmentEvents.$inferSelect
+export type NewFulfillmentEvent = typeof fulfillmentEvents.$inferInsert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OFFERS
+// Offer ladder — products/services at each price point.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const offers = pgTable('offers', {
+  id:               uuid('id').primaryKey().defaultRandom(),
+  orgId:            text('org_id').notNull(),
+  ventureId:        text('venture_id').notNull(),
+  name:             text('name').notNull(),
+  positionInLadder: integer('position_in_ladder').notNull().default(1),
+  priceCents:       integer('price_cents').notNull(),
+  currency:         text('currency').notNull().default('USD'),
+  offerType:        text('offer_type').notNull(),  // coaching/program/service/product/retainer/project/subscription/affiliate/sponsorship/deal
+  description:      text('description').default(''),
+  validated:        boolean('validated').notNull().default(false),
+  createdAt:        timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  orgIdx:     index('idx_offers_org_id').on(t.orgId),
+  ventureIdx: index('idx_offers_venture_id').on(t.ventureId),
+  ladderIdx:  index('idx_offers_ladder').on(t.ventureId, t.positionInLadder),
+}))
+
+export type Offer    = typeof offers.$inferSelect
+export type NewOffer = typeof offers.$inferInsert

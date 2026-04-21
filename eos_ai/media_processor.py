@@ -126,18 +126,14 @@ class MediaProcessor:
             transcript = self._local_transcribe(file_path)
             if user_prompt and 'transcri' not in user_prompt.lower():
                 # user wants analysis not just transcript
-                if self.available:
-                    full = f'Transcript: {transcript}\n\n{user_prompt}'
-                    if _GENAI_NEW:
-                        resp = self._client.models.generate_content(
-                            model=self.model, contents=full
-                        )
-                    else:
-                        resp = self.model.generate_content(full)
-                    return (
-                        f'Transcript: "{transcript}"'
-                        f'\n\nAnalysis: {resp.text}'
-                    )
+                full = f'Transcript: {transcript}\n\n{user_prompt}'
+                from eos_ai.model_router import call_with_fallback
+                _routing = call_with_fallback(prompt=full, task_type="fast_response")
+                _analysis = _routing.output if _routing else ""
+                return (
+                    f'Transcript: "{transcript}"'
+                    f'\n\nAnalysis: {_analysis}'
+                )
             return transcript
 
         if not self.available:

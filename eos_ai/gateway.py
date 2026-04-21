@@ -977,7 +977,6 @@ class EOSGateway:
         sub_agent = request.get("sub_agent")
 
         ctx = load_context_from_env()
-        loop = CognitiveLoop(ctx)
 
         # Real-time web search — prepend result to prompt if signal detected
         if self._needs_web_search(prompt):
@@ -985,6 +984,89 @@ class EOSGateway:
             if _web_result:
                 prompt = f"REAL-TIME SEARCH RESULT:\n{_web_result}\n\n{prompt}"
                 print("[Gateway] Web search used")
+
+        # ── ExecutionSpine — new unified path ────────────────────────────────
+        # Attempts the new spine. On ANY failure, falls back to the existing
+        # CognitiveLoop branches below. This is the Phase 2 transition layer.
+        try:
+            from eos_ai.context_builder import ContextBuilder
+            from eos_ai.execution_spine import ExecutionSpine
+
+            _spine_agent = sub_agent or "executive_assistant"
+            if team and not sub_agent:
+                _spine_agent = {
+                    "dex": "executive_assistant",
+                    "lyfe_ceo": "lyfe_ceo",
+                    "brand_ceo": "brand_ceo",
+                    "portfolio_advisor": "portfolio_advisor",
+                }.get(team, "executive_assistant")
+            if not _spine_agent:
+                try:
+                    _spine_agent = self._route_to_agent(prompt)
+                except Exception:
+                    _spine_agent = "executive_assistant"
+
+            _spine_authority = "analyze"
+            task_type_str = request.get("task_type", "analyze").upper()
+            try:
+                _spine_task_type = TaskType[task_type_str]
+            except KeyError:
+                _spine_task_type = TaskType.ANALYZE
+
+            builder = ContextBuilder()
+            unified_ctx = builder.build(
+                ctx,
+                request.get("prompt", prompt),
+                session_id or "",
+                agent=_spine_agent,
+                venture_id=venture_id,
+                channel=request.get("channel", ""),
+                conversation_memory=cm,
+            )
+
+            spine = ExecutionSpine()
+            _spine_response = spine.run(
+                message=prompt,
+                unified_context=unified_ctx,
+                agent_type=_spine_agent,
+                authority_class=_spine_authority,
+                session_id=session_id,
+                channel_id=request.get("channel", ""),
+                org_id=str(ctx.org_id),
+                user_id=str(ctx.user_id),
+                task_type=_spine_task_type,
+                venture_id=venture_id,
+            )
+
+            print(
+                f"[Gateway] ExecutionSpine OK: agent={_spine_agent} "
+                f"tokens~{unified_ctx.estimated_tokens} "
+                f"failed_sources={len(unified_ctx.failed_sources)}"
+            )
+
+            return {
+                "status": "ok",
+                "interaction_id": None,
+                "model": "spine",
+                "skill": None,
+                "output": _spine_response,
+                "tokens": unified_ctx.estimated_tokens,
+                "iterations": 1,
+                "was_enhanced": False,
+                "quality_score": 0.5,
+                "quality_passed": True,
+                "original_prompt": _raw_user_input,
+                "enhanced_prompt": prompt if prompt != _raw_user_input else "",
+                "enhancement_reason": request.get("_enhancement_reason", ""),
+            }
+        except Exception as _spine_err:
+            import logging
+            logging.getLogger(__name__).error(
+                f"ExecutionSpine failed, falling back to CognitiveLoop: {_spine_err}"
+            )
+
+        # ── CognitiveLoop fallback — existing code below unchanged ───────────
+        loop = CognitiveLoop(ctx)
 
         # Named agent teams — direct agent routing with context injection
         _NAMED_AGENT_TEAMS = frozenset(
