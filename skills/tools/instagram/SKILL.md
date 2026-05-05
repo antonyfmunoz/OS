@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "Instagram Graph API v22.0 (Meta Graph API rolling — v24.0 available) / Playwright automation"
 sdk_version: "Playwright 1.58.0 (sync API) + Apify actors"
 speed_category: "slow"
+trigger: both
+effort: medium
+context: fork
 ---
 
 # Tool: Instagram

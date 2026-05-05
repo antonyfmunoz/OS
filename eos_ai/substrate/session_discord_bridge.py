@@ -430,6 +430,21 @@ def get_bridge() -> SessionDiscordBridge:
     return _bridge
 
 
+async def send_reply(channel, text: str) -> None:
+    """Send a message to a Discord channel, splitting if over 2000 chars."""
+    if not text:
+        return
+    # Discord limit is 2000 chars per message
+    while len(text) > 2000:
+        split_at = text.rfind("\n", 0, 2000)
+        if split_at == -1:
+            split_at = 2000
+        await channel.send(text[:split_at])
+        text = text[split_at:].lstrip("\n")
+    if text:
+        await channel.send(text)
+
+
 __all__ = [
     "LAYER_NAME",
     "LAYER_VERSION",
@@ -439,4 +454,5 @@ __all__ = [
     "SessionDiscordBridge",
     "format_event",
     "get_bridge",
+    "send_reply",
 ]

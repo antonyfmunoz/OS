@@ -11,7 +11,7 @@ last_updated: "2026-04-06"
 api_version: "2.x"
 sdk_version: "sonner@2.0.7"
 source_url: "https://sonner.emilkowal.ski/"
-speed_category: "fast"
+speed_category: "stable"
 sources:
   - "https://sonner.emilkowal.ski/"
   - "https://sonner.emilkowal.ski/getting-started"

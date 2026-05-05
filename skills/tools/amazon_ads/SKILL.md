@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "v3"
 sdk_version: "python-amazon-ad-api 0.7.x (community); official Amazon Ads SDKs (Java/Node/Python) 2024+"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: Amazon Ads

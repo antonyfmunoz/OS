@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "PA-API 5.0 (com.amazon.paapi5.v1) — RETIRES 2026-05-15, migrate to Creators API"
 sdk_version: "python-amazon-paapi 5.0.1 / paapi5-python-sdk 1.1.0 / paapi5-nodejs-sdk 1.0.0"
 speed_category: sunset
+trigger: both
+effort: medium
+context: fork
 ---
 
 # Tool: amazon_associates (PA-API 5.0)

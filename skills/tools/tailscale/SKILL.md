@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "tailscale 1.80.x"
 sdk_version: "tsnet (Go), REST API v2"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: tailscale

@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "Higgsfield Cloud API — base https://platform.higgsfield.ai (REST, async job queue, webhooks)"
 sdk_version: "higgsfield-client (Python, sync + async); JS/TS coming soon"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: Higgsfield AI

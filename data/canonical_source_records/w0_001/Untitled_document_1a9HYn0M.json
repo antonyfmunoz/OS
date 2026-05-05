@@ -1,0 +1,118 @@
+{
+  "file_id": "1a9HYn0M81rJ0C9qD9FN7pNojGR96LMgdqW2z5Wbegs0",
+  "title": "Untitled document",
+  "mime_type": "application/vnd.google-apps.document",
+  "source_account": "antonyfm@empyreanstudios.co",
+  "web_view_link": "https://docs.google.com/document/d/1a9HYn0M81rJ0C9qD9FN7pNojGR96LMgdqW2z5Wbegs0/edit?usp=drivesdk",
+  "modified_time": "2026-03-13T02:50:31.327Z",
+  "created_time": "2026-02-26T21:02:18.034Z",
+  "owner_metadata": {
+    "display_name": "Antony Munoz"
+  },
+  "parent_metadata": {
+    "folder_id": "0AMuKYpdP0e12Uk9PVA"
+  },
+  "backend_type": "api",
+  "extraction_timestamp": "2026-05-05T01:23:30.607858+00:00",
+  "extraction_method": "GOOGLE_DOCS_API_INCLUDE_TABS_CONTENT_TRUE",
+  "extraction_coverage_status": "complete",
+  "total_tabs": 7,
+  "total_words": 4233,
+  "total_characters": 27312,
+  "empty_tab_count": 0,
+  "tabs": [
+    {
+      "tab_id": "t.0",
+      "tab_title": "Notes",
+      "tab_path": "Notes",
+      "parent_tab_id": null,
+      "tab_order": 0,
+      "is_empty": false,
+      "word_count": 1440,
+      "character_count": 9512,
+      "extraction_coverage_status": "complete",
+      "extraction_notes": ""
+    },
+    {
+      "tab_id": "t.xje19nrwyjyg",
+      "tab_title": "INITIATE ARENA \u2014 CURRICULUM",
+      "tab_path": "INITIATE ARENA \u2014 CURRICULUM",
+      "parent_tab_id": null,
+      "tab_order": 1,
+      "is_empty": false,
+      "word_count": 149,
+      "character_count": 1022,
+      "extraction_coverage_status": "complete",
+      "extraction_notes": ""
+    },
+    {
+      "tab_id": "t.6g7opnm4zil4",
+      "tab_title": "INITIATE ARENA \u2013 EXECUTION WAR PATH",
+      "tab_path": "INITIATE ARENA \u2013 EXECUTION WAR PATH",
+      "parent_tab_id": null,
+      "tab_order": 2,
+      "is_empty": false,
+      "word_count": 211,
+      "character_count": 1463,
+      "extraction_coverage_status": "complete",
+      "extraction_notes": ""
+    },
+    {
+      "tab_id": "t.i0gixr7isjvn",
+      "tab_title": "Outreach & Sales Manual V1",
+      "tab_path": "Outreach & Sales Manual V1",
+      "parent_tab_id": null,
+      "tab_order": 3,
+      "is_empty": false,
+      "word_count": 985,
+      "character_count": 6213,
+      "extraction_coverage_status": "complete",
+      "extraction_notes": ""
+    },
+    {
+      "tab_id": "t.johqiu8y4zsp",
+      "tab_title": "INITIATE ARENA OFFER ",
+      "tab_path": "INITIATE ARENA OFFER ",
+      "parent_tab_id": null,
+      "tab_order": 4,
+      "is_empty": false,
+      "word_count": 72,
+      "character_count": 480,
+      "extraction_coverage_status": "complete",
+      "extraction_notes": ""
+    },
+    {
+      "tab_id": "t.ya256thsbpzk",
+      "tab_title": "Tab 6",
+      "tab_path": "Tab 6",
+      "parent_tab_id": null,
+      "tab_order": 5,
+      "is_empty": false,
+      "word_count": 1192,
+      "character_count": 7390,
+      "extraction_coverage_status": "complete",
+      "extraction_notes": ""
+    },
+    {
+      "tab_id": "t.tzsbvmwfvnfm",
+      "tab_title": "Tab 7",
+      "tab_path": "Tab 7",
+      "parent_tab_id": null,
+      "tab_order": 6,
+      "is_empty": false,
+      "word_count": 184,
+      "character_count": 1232,
+      "extraction_coverage_status": "complete",
+      "extraction_notes": ""
+    }
+  ],
+  "provenance": {
+    "backend_type": "api",
+    "extraction_method": "GOOGLE_DOCS_API_INCLUDE_TABS_CONTENT_TRUE",
+    "source_observed_from": "Google Docs API v1 via gws CLI",
+    "content_came_from_api": true,
+    "content_came_from_cli": false,
+    "content_came_from_visible_ui": false,
+    "any_content_inaccessible": false
+  }
+}

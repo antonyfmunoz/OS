@@ -1,0 +1,54 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "universal-meta-harness"
+version = "0.1.0"
+description = "Modular control-plane architecture for signal → interpretation → planning → capability routing → governed execution → observability → feedback/learning."
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = [
+    "requests",
+    "python-dotenv",
+    "openai>=1.0.0",
+    "anthropic",
+    "google-genai",
+    "flask>=3.1,<4.0",
+    "psycopg2-binary",
+    "numpy",
+    "fastembed",
+    "groq==1.1.1",
+]
+
+[project.optional-dependencies]
+voice = [
+    "py-cord[voice]==2.6.1",
+    "openai-whisper",
+    "faster-whisper",
+    "webrtcvad",
+    "librosa",
+    "silero-vad",
+]
+telegram = ["python-telegram-bot"]
+scraping = ["playwright", "yt-dlp"]
+agents = ["claude-agent-sdk>=0.1.55"]
+all = ["universal-meta-harness[voice,telegram,scraping,agents]"]
+
+[project.scripts]
+umh = "umh.__main__:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["umh"]

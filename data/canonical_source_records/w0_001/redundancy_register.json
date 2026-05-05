@@ -1,0 +1,27 @@
+{
+  "generated": "2026-05-04",
+  "method": "8-gram phrase overlap analysis on tab-aware corpus",
+  "total_docs_analyzed": 25,
+  "redundancy_pairs_found": 3,
+  "pairs": [
+    {
+      "doc_a": "Copy of Script Storytelling Structures",
+      "doc_b": "Script Storytelling Structures",
+      "shared_phrases": 196,
+      "overlap_ratio": 1.0
+    },
+    {
+      "doc_a": "CreatorOS",
+      "doc_b": "EntrepreneurOS",
+      "shared_phrases": 804,
+      "overlap_ratio": 0.236
+    },
+    {
+      "doc_a": "Coaching Frameworks & Workbooks",
+      "doc_b": "Coaching Philosophy/Methodology",
+      "shared_phrases": 81,
+      "overlap_ratio": 0.033
+    }
+  ],
+  "correction_note": "Prior register marked CreatorOS and Empyrean Studios as 'empty' \u2014 actually contain 27,301 and 10,985 words respectively. Those entries are now invalid."
+}

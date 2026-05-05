@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "AWS API (service-versioned)"
 sdk_version: "AWS CLI v2 2.17.x, boto3 1.35.x, botocore 1.35.x"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: AWS (Operator's-Eye View)

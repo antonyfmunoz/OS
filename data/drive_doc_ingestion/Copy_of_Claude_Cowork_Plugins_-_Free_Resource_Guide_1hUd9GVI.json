@@ -1,0 +1,17 @@
+{
+  "file_id": "1hUd9GVIAE5my9xhrREXuwzPspxnnmr5ml5kr4F7vg_w",
+  "title": "Copy of Claude Cowork Plugins - Free Resource Guide",
+  "mime_type": "application/vnd.google-apps.document",
+  "modified_time": "2026-03-03T20:21:52.613Z",
+  "created_time": "2026-03-03T20:21:52.613Z",
+  "owner": "Antony Munoz",
+  "parents": [
+    "0AMuKYpdP0e12Uk9PVA"
+  ],
+  "web_view_link": "https://docs.google.com/document/d/1hUd9GVIAE5my9xhrREXuwzPspxnnmr5ml5kr4F7vg_w/edit?usp=drivesdk",
+  "source_account": "antonyfm@empyreanstudios.co",
+  "ingestion_date": "2026-05-04T17:14:32.594642",
+  "character_count": 2163,
+  "word_count": 310,
+  "text_content": "Claude Cowork Plugins - Free Resource Guide\n\n\nOpen-Source Plugins (GitHub)\nAnthropic Knowledge Work Plugins\n11 ready-to-use plugins for HR, finance, legal, sales, marketing, design, and operations. All open source. Just text files, no code required.\n\nPlugin Library and Setup\nClaude Plugins Page\nBrowse the full plugin library. Install plugins directly from here into your Cowork sidebar.\n\nPlugin Help Center\nStep-by-step guide to installing, customizing, and creating your own plugins.\n\nOfficial Blog Post\nFull announcement with examples of what each plugin can do.\n\nAvailable Plugin Categories\nProductivity - Task management, workplace memory, visual dashboard\nData Analysis - SQL queries, data exploration, visualization, dashboards\nOperations - Vendor management, process docs, capacity planning\nLegal - Contract review, NDA triage, compliance workflows\nSales - Prospect research, deal prep, sales process\nFinance - Financial modeling, competitor analysis, key metrics\nHR - Job descriptions, onboarding materials, offer letters\nDesign - UX copy, accessibility audits, design critiques\nEngineering - Code review, documentation, technical specs\nInvestment Banking - Transaction docs, comparable companies, pitch materials\nEquity Research - Earnings transcripts, financial models, research notes\n\nEnterprise Connectors\nPlugins can connect Claude to your existing tools:\nGoogle Drive, Gmail, Google Calendar, DocuSign, FactSet, Apollo, Clay, Outreach, SimilarWeb, MSCI, LegalZoom, WordPress, Harvey\n\nHow to Get Started\n1. Open Claude Desktop app\n2. Switch to the Cowork tab\n3. Click Customize in the left sidebar\n4. Browse and install plugins\n5. Or use Plugin Create to build your own\n\nNote: Plugins require a Pro plan ($20/month) or higher. The plugins themselves are free and open source.\n\nPro Tips\nStart with the Productivity plugin. It gives you task management and a visual dashboard right away.\n\nCustomize any plugin by editing the markdown files. Add your company terminology, your tools, your processes.\n\nUse Plugin Create (built into Cowork) to make a plugin from scratch. No coding needed.\n\n\nCompiled by @aifornontechies\nLast updated: February 26, 2026\n"
+}

@@ -1,3 +1,9 @@
+---
+name: neon-db
+description: Use when writing database queries, creating tables, or debugging Neon PostgreSQL issues in EOS.
+allowed-tools: Bash, Read
+---
+
 # Neon PostgreSQL — Best Practices
 
 ## When to use

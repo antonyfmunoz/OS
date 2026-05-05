@@ -1,0 +1,236 @@
+{
+  "extraction_date": "2026-05-05T01:22:52.453243+00:00",
+  "method": "GOOGLE_DOCS_API_INCLUDE_TABS_CONTENT_TRUE",
+  "docs_attempted": 28,
+  "docs_extracted": 28,
+  "docs_errored": 0,
+  "total_tabs": 321,
+  "total_words": 283831,
+  "results": [
+    {
+      "file_id": "11Kd3lSDA5_YAbjRvDai7Z9Itf3hKvKKpJ8Bw6DKVcwc",
+      "name": "Untitled document",
+      "tab_count": 3,
+      "total_words": 995,
+      "output_file": "/opt/OS/data/drive_doc_ingestion_tab_aware/Untitled_document_11Kd3lSD.json",
+      "extraction_timestamp": "2026-05-05T01:21:44.172732+00:00"
+    },
+    {
+      "file_id": "11p36P6TMvTnnz2KdQ2wYd3cDKfjHtCvVKp2_XEkuvz8",
+      "name": "UMH",
+      "tab_count": 8,
+      "total_words": 13949,
+      "output_file": "/opt/OS/data/drive_doc_ingestion_tab_aware/UMH_11p36P6T.json",
+      "extraction_timestamp": "2026-05-05T01:21:46.694197+00:00"
+    },
+    {
+      "file_id": "11NeGXFxuUus_NP2GDr-uQkjsAwcBeMqQ97j2ZCaZqxQ",
+      "name": "Untitled document",
+      "tab_count": 4,
+      "total_words": 2119,
+      "output_file": "/opt/OS/data/drive_doc_ingestion_tab_aware/Untitled_document_11NeGXFx.json",
+      "extraction_timestamp": "2026-05-05T01:21:48.406842+00:00"
+    },
+    {
+      "file_id": "1kKBGCS9kewNMwOBAThXVkd1tYNcgddSUCjkpBjJtLSo",
+      "name": "EntrepreneurOS",
+      "tab_count": 14,
+      "total_words": 40222,
+      "output_file": "/opt/OS/data/drive_doc_ingestion_tab_aware/EntrepreneurOS_1kKBGCS9.json",
+      "extraction_timestamp": "2026-05-05T01:21:52.317198+00:00"
+    },
+    {
+      "file_id": "10yvoPIPnv2LpTtjoJXgFfrLGbj89tH70MX_ueQiLjQQ",
+      "name": "Untitled document",
+      "tab_count": 1,
+      "total_words": 35,
+      "output_file": "/opt/OS/data/drive_doc_ingestion_tab_aware/Untitled_document_10yvoPIP.json",
+      "extraction_timestamp": "2026-05-05T01:21:53.074235+00:00"
+    },
+    {
+      "file_id": "1-FhleB0dp3-PBM12nEWtDRiCFTNeZWGbtfrSy9ukZX4",
+      "name": "Untitled document",
+      "tab_count": 1,
+      "total_words": 952,
+      "output_file": "/opt/OS/data/drive_doc_ingestion_tab_aware/Untitled_document_1-FhleB0.json",
+      "extraction_timestamp": "2026-05-05T01:21:53.900354+00:00"
+    },
+    {
+      "file_id": "1N8XHmKXnJHHmbK8F-I6NQLayukiX1HJU5vQv2ge_p-g",
+      "name": "AI Tools",
+      "tab_count": 5,
+      "total_words": 2677,
+      "output_file": "/opt/OS/data/drive_doc_ingestion_tab_aware/AI_Tools_1N8XHmKX.json",
+      "extraction_timestamp": "2026-05-05T01:21:55.205581+00:00"
+    },
+    {
+      "file_id": "1a9HYn0M81rJ0C9qD9FN7pNojGR96LMgdqW2z5Wbegs0",
+      "name": "Untitled document",
+      "tab_count": 7,
+      "total_words": 4233,
+      "output_file": "/opt/OS/data/drive_doc_ingestion_tab_aware/Untitled_document_1a9HYn0M.json",
+      "extraction_timestamp": "2026-05-05T01:21:56.749118+00:00"
+    },
+    {
+      "file_id": "1-6vPlqwlG5ud5hRNnL2sFiKmNmofDI2ZITmFxoecWog",
+      "name": "LyfeOS",
+      "tab_count": 53,
+      "total_words": 44400,
+      "output_file": "/opt/OS/data/drive_doc_ingestion_tab_aware/LyfeOS_1-6vPlqw.json",
+      "extraction_timestamp": "2026-05-05T01:22:06.925209+00:00"
+    },
+    {
+      "file_id": "1NIZXMZRFHqC2uMi8AhfL79zwKoew5f6bix9LgirBIfI",
+      "name": "CreatorOS",
+      "tab_count": 8,
+      "total_words": 27301,
+      "output_file": "/opt/OS/data/drive_doc_ingestion_tab_aware/CreatorOS_1NIZXMZR.json",
+      "extraction_timestamp": "2026-05-05T01:22:16.316214+00:00"
+    },
+    {
+      "file_id": "1hUd9GVIAE5my9xhrREXuwzPspxnnmr5ml5kr4F7vg_w",
+      "name": "Copy of Claude Cowork Plugins - Free Resource Guide",
+      "tab_count": 1,
+      "total_words": 310,
+      "output_file": "/opt/OS/data/drive_doc_ingestion_tab_aware/Copy_of_Claude_Cowork_Plugins_-_Free_Res_1hUd9GVI.json",
+      "extraction_timestamp": "2026-05-05T01:22:17.101902+00:00"
+    },
+    {
+      "file_id": "19t72FIfZTVSv5y3JFuPwTcOi69wU6gakUEUYqq-lapQ",
+      "name": "Content",
+      "tab_count": 25,
+      "total_words": 9226,
+      "output_file": "/opt/OS/data/drive_doc_ingestion_tab_aware/Content_19t72FIf.json",
+      "extraction_timestamp": "2026-05-05T01:22:18.574776+00:00"
+    },
+    {
+      "file_id": "16Xjgrq6Vnkun3jpC38ckoQCCqNQs5DsU7kUhYNuJGDc",
+      "name": "Life Coaching (E-Learning/Info-Product Brand)",
+      "tab_count": 29,
+      "total_words": 9717,
+      "output_file": "/opt/OS/data/drive_doc_ingestion_tab_aware/Life_Coaching_(E-Learning_Info-Product_B_16Xjgrq6.json",
+      "extraction_timestamp": "2026-05-05T01:22:21.293606+00:00"
+    },
+    {
+      "file_id": "1ult_kJPpvcG_NzRMPyNLHYp-IEIiTFpTDwo9xSBTl4A",
+      "name": "Coaching Philosophy/Methodology",
+      "tab_count": 35,
+      "total_words": 34683,
+      "output_file": "/opt/OS/data/drive_doc_ingestion_tab_aware/Coaching_Philosophy_Methodology_1ult_kJP.json",
+      "extraction_timestamp": "2026-05-05T01:22:27.242613+00:00"
+    },
+    {
+      "file_id": "1_89hg-YbiC8P9rV1KfS2kicmgHQBAUpcgw5tHhK2FuY",
+      "name": "Coaching Frameworks & Workbooks",
+      "tab_count": 30,
+      "total_words": 19800,
+      "output_file": "/opt/OS/data/drive_doc_ingestion_tab_aware/Coaching_Frameworks_&_Workbooks_1_89hg-Y.json",
+      "extraction_timestamp": "2026-05-05T01:22:31.769077+00:00"
+    },
+    {
+      "file_id": "1e6E8OxCmVfZW2YkcK66HLIMPGLocBg7UkA4XK5oH94Q",
+      "name": "Conglomerate Brands",
+      "tab_count": 15,
+      "total_words": 11487,
+      "output_file": "/opt/OS/data/drive_doc_ingestion_tab_aware/Conglomerate_Brands_1e6E8OxC.json",
+      "extraction_timestamp": "2026-05-05T01:22:34.865984+00:00"
+    },
+    {
+      "file_id": "1lgFWS541urT9buV3fa5-wxZ-00-MOUbmBR5Xs-s5r_Q",
+      "name": "Antony F. Munoz (Personal Brand)",
+      "tab_count": 21,
+      "total_words": 19070,
+      "output_file": "/opt/OS/data/drive_doc_ingestion_tab_aware/Antony_F._Munoz_(Personal_Brand)_1lgFWS54.json",
+      "extraction_timestamp": "2026-05-05T01:22:39.368102+00:00"
+    },
+    {
+      "file_id": "1GO2F5vvxvoWfOD1jantn52WBo-ejc3U0Ki6arg7uTn0",
+      "name": "Empyrean Studios (Agency Brand)",
+      "tab_count": 15,
+      "total_words": 10985,
+      "output_file": "/opt/OS/data/drive_doc_ingestion_tab_aware/Empyrean_Studios_(Agency_Brand)_1GO2F5vv.json",
+      "extraction_timestamp": "2026-05-05T01:22:41.604502+00:00"
+    },
+    {
+      "file_id": "1u7pVkXSQqAPGvXil3yaGEefFDckZ4IU5LqvNTX9E1qQ",
+      "name": "Personal Curriculum",
+      "tab_count": 8,
+      "total_words": 106,
+      "output_file": "/opt/OS/data/drive_doc_ingestion_tab_aware/Personal_Curriculum_1u7pVkXS.json",
+      "extraction_timestamp": "2026-05-05T01:22:42.380728+00:00"
+    },
+    {
+      "file_id": "1-oD0UyXe8a9vczUwUthKJQLbpxx0U8pXWHAXVmfsrOo",
+      "name": "Business Template",
+      "tab_count": 10,
+      "total_words": 2072,
+      "output_file": "/opt/OS/data/drive_doc_ingestion_tab_aware/Business_Template_1-oD0UyX.json",
+      "extraction_timestamp": "2026-05-05T01:22:43.490929+00:00"
+    },
+    {
+      "file_id": "1deFPswAzsZYLYyAIRiXYOiKXiuOj1662FMmEBXDgDDo",
+      "name": "Systems Inventory",
+      "tab_count": 20,
+      "total_words": 22695,
+      "output_file": "/opt/OS/data/drive_doc_ingestion_tab_aware/Systems_Inventory_1deFPswA.json",
+      "extraction_timestamp": "2026-05-05T01:22:46.358169+00:00"
+    },
+    {
+      "file_id": "1b0dl5RHU4wy5lNmGje-qp6Is5HIGwqUvayiGzEeTvI4",
+      "name": "Copy of Script Storytelling Structures",
+      "tab_count": 1,
+      "total_words": 1575,
+      "output_file": "/opt/OS/data/drive_doc_ingestion_tab_aware/Copy_of_Script_Storytelling_Structures_1b0dl5RH.json",
+      "extraction_timestamp": "2026-05-05T01:22:47.698518+00:00"
+    },
+    {
+      "file_id": "1D8ltfXZ68-hFpjf9blfQb46rNBf8ndn8plzUmm6Rjss",
+      "name": "SEMAX: The Brain Upgrade Nobody Talks About",
+      "tab_count": 1,
+      "total_words": 299,
+      "output_file": "/opt/OS/data/drive_doc_ingestion_tab_aware/SEMAX:_The_Brain_Upgrade_Nobody_Talks_Ab_1D8ltfXZ.json",
+      "extraction_timestamp": "2026-05-05T01:22:48.373129+00:00"
+    },
+    {
+      "file_id": "18l4Yw5vWfx_ut06in1kuUjlWe7U4mtPhRM75W1y7gKc",
+      "name": "Script Storytelling Structures",
+      "tab_count": 1,
+      "total_words": 1575,
+      "output_file": "/opt/OS/data/drive_doc_ingestion_tab_aware/Script_Storytelling_Structures_18l4Yw5v.json",
+      "extraction_timestamp": "2026-05-05T01:22:49.371715+00:00"
+    },
+    {
+      "file_id": "1aZiPZ0ijSvLQsL6SpVzwbug52khV5XN0kYBFnNXvKuY",
+      "name": "Antony Munoz Email Sequence",
+      "tab_count": 2,
+      "total_words": 676,
+      "output_file": "/opt/OS/data/drive_doc_ingestion_tab_aware/Antony_Munoz_Email_Sequence_1aZiPZ0i.json",
+      "extraction_timestamp": "2026-05-05T01:22:50.068841+00:00"
+    },
+    {
+      "file_id": "10EHv9Nvy2tKyzbdv84ih9vLvCfR57pCP-Du2n7Z3I7I",
+      "name": "Automations",
+      "tab_count": 1,
+      "total_words": 0,
+      "output_file": "/opt/OS/data/drive_doc_ingestion_tab_aware/Automations_10EHv9Nv.json",
+      "extraction_timestamp": "2026-05-05T01:22:50.899691+00:00"
+    },
+    {
+      "file_id": "1-zgmTQuUBJKNQov82DMqVyP-9IZiuTErTYvo5YoF_3s",
+      "name": "AI Agents",
+      "tab_count": 1,
+      "total_words": 0,
+      "output_file": "/opt/OS/data/drive_doc_ingestion_tab_aware/AI_Agents_1-zgmTQu.json",
+      "extraction_timestamp": "2026-05-05T01:22:51.549640+00:00"
+    },
+    {
+      "file_id": "1eHO7Bj0zrVhdIztiw6774pLkYIjzw0RVa5mpGPThpFA",
+      "name": "Hunter Hoffman - Service Contract Agreement",
+      "tab_count": 1,
+      "total_words": 2672,
+      "output_file": "/opt/OS/data/drive_doc_ingestion_tab_aware/Hunter_Hoffman_-_Service_Contract_Agreem_1eHO7Bj0.json",
+      "extraction_timestamp": "2026-05-05T01:22:52.453197+00:00"
+    }
+  ],
+  "errors": []
+}

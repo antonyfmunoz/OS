@@ -557,6 +557,83 @@ knowing the tool deeply enough to see the shortcut.
 
 ---
 
+# Tier 3 — Community Intelligence (Cross-cutting)
+
+These sources supplement Tier 1 and Tier 2. They provide
+edge cases, real-world gotchas, and patterns that official
+docs never cover.
+
+---
+
+## Source A: GitHub Skill/Config Repos
+
+**What to research:**
+- Community-maintained best practice repos for the tool
+- Awesome-{tool} lists with curated resources
+- Popular config/dotfile repos that use the tool
+- Claude Code / AI agent skill repos that cover the tool
+
+**How to find them:**
+- WebSearch: `site:github.com {tool} best practices OR awesome-{tool}`
+- WebSearch: `site:github.com {tool} skill OR config OR dotfiles`
+- WebSearch: `{tool} claude code skill OR claude-code`
+
+**What "done" looks like:**
+Any structured knowledge repo found is evaluated. If its
+content exceeds our current skill quality for any section,
+the knowledge is ABSORBED: extracted into our references/,
+merged into relevant sections, external dependency deleted.
+
+**The Absorption Pattern:**
+1. Evaluate — is this higher quality than what we have?
+2. Extract — pull knowledge into our references/ directory
+3. Merge — integrate into existing sections
+4. Delete external dependency — our system owns it now
+5. Record the repo in update_intelligence.md for future checks
+
+---
+
+## Source B: Real User Edge Cases
+
+**What to research:**
+- Stack Overflow / GitHub Issues — actual failure modes
+- Reddit / HackerNews threads — real production experiences
+- Discord / Slack communities — operational tips
+- Blog posts by power users (not tutorials — production stories)
+
+**How to find them:**
+- WebSearch: `{tool} production gotchas lessons learned`
+- WebSearch: `{tool} site:stackoverflow.com common errors`
+- WebSearch: `{tool} "we switched from" OR "we migrated" {current_year}`
+
+**What "done" looks like:**
+At least 3 real-world gotchas that aren't in official docs
+are documented in the Gotchas section.
+
+---
+
+## Source C: Obsidian / Tool Ecosystem Plugins
+
+**When applicable:** tools that have Obsidian plugins, VS Code
+extensions, or ecosystem integrations that affect how EOS uses them.
+
+**What to research:**
+- Obsidian community plugins for the tool
+- VS Code extensions and their config patterns
+- Tool-specific ecosystem patterns (Dataview queries for data tools,
+  template patterns for content tools, etc.)
+
+**How to find them:**
+- WebSearch: `{tool} obsidian plugin OR vault template`
+- WebSearch: `{tool} vscode extension configuration`
+- WebSearch: `site:github.com obsidian-{tool} OR {tool}-obsidian`
+
+**What "done" looks like:**
+If the tool has ecosystem integrations relevant to EOS,
+they're documented in the Composition section of best_practices.md.
+
+---
+
 # Quality Gate
 
 Before marking any tool skill complete, verify:

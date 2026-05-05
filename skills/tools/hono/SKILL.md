@@ -8,7 +8,7 @@ last_researched: "2026-04-06"
 instantiated_from: templates/tools/_template/
 api_version: "Hono v4.12"
 sdk_version: "hono 4.12.8, @hono/node-server 1.19.11"
-speed_category: fast
+speed_category: medium
 trigger: both
 effort: medium
 context: fork

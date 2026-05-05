@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "Google Ads API v17"
 sdk_version: "google-ads-python 25.x"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: youtube_ads

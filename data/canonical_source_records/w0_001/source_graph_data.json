@@ -1,0 +1,512 @@
+{
+  "generated": "2026-05-04",
+  "method": "regex entity extraction on 283,831 words (tab-aware)",
+  "total_documents": 28,
+  "total_words_analyzed": 283831,
+  "unique_entities_found": 59,
+  "cross_document_connections": 1277,
+  "top_entities": [
+    {
+      "entity": "('concepts', 'content')",
+      "count": 520
+    },
+    {
+      "entity": "('companies', 'LYFEOS')",
+      "count": 271
+    },
+    {
+      "entity": "('concepts', 'Content')",
+      "count": 258
+    },
+    {
+      "entity": "('companies', 'EntrepreneurOS')",
+      "count": 233
+    },
+    {
+      "entity": "('companies', 'CreatorOS')",
+      "count": 189
+    },
+    {
+      "entity": "('products', 'UMH')",
+      "count": 139
+    },
+    {
+      "entity": "('concepts', 'offer')",
+      "count": 117
+    },
+    {
+      "entity": "('concepts', 'revenue')",
+      "count": 114
+    },
+    {
+      "entity": "('products', 'Game of Lyfe')",
+      "count": 86
+    },
+    {
+      "entity": "('products', 'Initiate Arena')",
+      "count": 84
+    },
+    {
+      "entity": "('concepts', 'Offer')",
+      "count": 71
+    },
+    {
+      "entity": "('concepts', 'pipeline')",
+      "count": 66
+    },
+    {
+      "entity": "('concepts', 'coaching')",
+      "count": 66
+    },
+    {
+      "entity": "('concepts', 'Coaching')",
+      "count": 59
+    },
+    {
+      "entity": "('concepts', 'Personal Brand')",
+      "count": 54
+    },
+    {
+      "entity": "('concepts', 'funnel')",
+      "count": 51
+    },
+    {
+      "entity": "('concepts', 'Revenue')",
+      "count": 49
+    },
+    {
+      "entity": "('companies', 'Lyfe Spectrum')",
+      "count": 46
+    },
+    {
+      "entity": "('concepts', 'outreach')",
+      "count": 45
+    },
+    {
+      "entity": "('concepts', 'Scaling')",
+      "count": 42
+    },
+    {
+      "entity": "('concepts', 'Funnel')",
+      "count": 41
+    },
+    {
+      "entity": "('concepts', 'scaling')",
+      "count": 40
+    },
+    {
+      "entity": "('companies', 'Lyfe Institute')",
+      "count": 34
+    },
+    {
+      "entity": "('concepts', 'CONTENT')",
+      "count": 34
+    },
+    {
+      "entity": "('people', 'Antony F. Munoz')",
+      "count": 33
+    },
+    {
+      "entity": "('concepts', 'personal brand')",
+      "count": 22
+    },
+    {
+      "entity": "('concepts', 'Outreach')",
+      "count": 21
+    },
+    {
+      "entity": "('concepts', 'Pipeline')",
+      "count": 21
+    },
+    {
+      "entity": "('companies', 'LyfeOS')",
+      "count": 19
+    },
+    {
+      "entity": "('companies', 'Empyrean Studio')",
+      "count": 19
+    }
+  ],
+  "multi_doc_entities": {
+    "Content": [
+      "LyfeOS",
+      "Untitled document",
+      "Business Template",
+      "UMH",
+      "Life Coaching (E-Learning/Info-Product Brand)",
+      "Content",
+      "Empyrean Studios (Agency Brand)",
+      "CreatorOS",
+      "Coaching Frameworks & Workbooks",
+      "Untitled document",
+      "Systems Inventory",
+      "Conglomerate Brands",
+      "Hunter Hoffman - Service Contract Agreement",
+      "EntrepreneurOS",
+      "Antony F. Munoz (Personal Brand)",
+      "Personal Curriculum",
+      "Coaching Philosophy/Methodology"
+    ],
+    "content": [
+      "LyfeOS",
+      "Untitled document",
+      "UMH",
+      "Life Coaching (E-Learning/Info-Product Brand)",
+      "Content",
+      "Empyrean Studios (Agency Brand)",
+      "AI Tools",
+      "CreatorOS",
+      "Coaching Frameworks & Workbooks",
+      "Untitled document",
+      "Systems Inventory",
+      "Conglomerate Brands",
+      "Hunter Hoffman - Service Contract Agreement",
+      "EntrepreneurOS",
+      "Antony F. Munoz (Personal Brand)",
+      "Coaching Philosophy/Methodology"
+    ],
+    "offer": [
+      "LyfeOS",
+      "Untitled document",
+      "Business Template",
+      "Life Coaching (E-Learning/Info-Product Brand)",
+      "Content",
+      "Empyrean Studios (Agency Brand)",
+      "AI Tools",
+      "CreatorOS",
+      "Coaching Frameworks & Workbooks",
+      "Systems Inventory",
+      "Conglomerate Brands",
+      "Copy of Claude Cowork Plugins - Free Resource Guide",
+      "EntrepreneurOS",
+      "Antony F. Munoz (Personal Brand)",
+      "Coaching Philosophy/Methodology"
+    ],
+    "coaching": [
+      "LyfeOS",
+      "Untitled document",
+      "UMH",
+      "Life Coaching (E-Learning/Info-Product Brand)",
+      "Content",
+      "SEMAX: The Brain Upgrade Nobody Talks About",
+      "Empyrean Studios (Agency Brand)",
+      "CreatorOS",
+      "Coaching Frameworks & Workbooks",
+      "Systems Inventory",
+      "Conglomerate Brands",
+      "EntrepreneurOS",
+      "Antony F. Munoz (Personal Brand)",
+      "Coaching Philosophy/Methodology"
+    ],
+    "revenue": [
+      "LyfeOS",
+      "Untitled document",
+      "UMH",
+      "Life Coaching (E-Learning/Info-Product Brand)",
+      "Empyrean Studios (Agency Brand)",
+      "CreatorOS",
+      "Coaching Frameworks & Workbooks",
+      "Untitled document",
+      "Systems Inventory",
+      "Conglomerate Brands",
+      "Hunter Hoffman - Service Contract Agreement",
+      "EntrepreneurOS",
+      "Antony F. Munoz (Personal Brand)",
+      "Coaching Philosophy/Methodology"
+    ],
+    "Offer": [
+      "LyfeOS",
+      "Business Template",
+      "Life Coaching (E-Learning/Info-Product Brand)",
+      "Content",
+      "Empyrean Studios (Agency Brand)",
+      "CreatorOS",
+      "Coaching Frameworks & Workbooks",
+      "Untitled document",
+      "Systems Inventory",
+      "EntrepreneurOS",
+      "Antony F. Munoz (Personal Brand)",
+      "Personal Curriculum",
+      "Coaching Philosophy/Methodology"
+    ],
+    "funnel": [
+      "LyfeOS",
+      "Business Template",
+      "Life Coaching (E-Learning/Info-Product Brand)",
+      "Content",
+      "Empyrean Studios (Agency Brand)",
+      "Coaching Frameworks & Workbooks",
+      "Untitled document",
+      "Systems Inventory",
+      "Conglomerate Brands",
+      "EntrepreneurOS",
+      "Antony F. Munoz (Personal Brand)",
+      "Coaching Philosophy/Methodology"
+    ],
+    "Coaching": [
+      "LyfeOS",
+      "Business Template",
+      "Life Coaching (E-Learning/Info-Product Brand)",
+      "Content",
+      "Empyrean Studios (Agency Brand)",
+      "Coaching Frameworks & Workbooks",
+      "Systems Inventory",
+      "EntrepreneurOS",
+      "Antony F. Munoz (Personal Brand)",
+      "Personal Curriculum",
+      "Coaching Philosophy/Methodology"
+    ],
+    "Scaling": [
+      "LyfeOS",
+      "Life Coaching (E-Learning/Info-Product Brand)",
+      "Empyrean Studios (Agency Brand)",
+      "CreatorOS",
+      "Coaching Frameworks & Workbooks",
+      "Systems Inventory",
+      "Conglomerate Brands",
+      "Hunter Hoffman - Service Contract Agreement",
+      "EntrepreneurOS",
+      "Antony F. Munoz (Personal Brand)",
+      "Coaching Philosophy/Methodology"
+    ],
+    "scaling": [
+      "LyfeOS",
+      "Business Template",
+      "Life Coaching (E-Learning/Info-Product Brand)",
+      "Content",
+      "Empyrean Studios (Agency Brand)",
+      "CreatorOS",
+      "Coaching Frameworks & Workbooks",
+      "Systems Inventory",
+      "EntrepreneurOS",
+      "Antony F. Munoz (Personal Brand)",
+      "Coaching Philosophy/Methodology"
+    ],
+    "Revenue": [
+      "LyfeOS",
+      "Life Coaching (E-Learning/Info-Product Brand)",
+      "Empyrean Studios (Agency Brand)",
+      "CreatorOS",
+      "Coaching Frameworks & Workbooks",
+      "Untitled document",
+      "Systems Inventory",
+      "Conglomerate Brands",
+      "EntrepreneurOS",
+      "Coaching Philosophy/Methodology"
+    ],
+    "outreach": [
+      "LyfeOS",
+      "Untitled document",
+      "UMH",
+      "Life Coaching (E-Learning/Info-Product Brand)",
+      "Empyrean Studios (Agency Brand)",
+      "AI Tools",
+      "CreatorOS",
+      "Untitled document",
+      "EntrepreneurOS"
+    ],
+    "Funnel": [
+      "Life Coaching (E-Learning/Info-Product Brand)",
+      "Empyrean Studios (Agency Brand)",
+      "CreatorOS",
+      "Coaching Frameworks & Workbooks",
+      "Untitled document",
+      "Systems Inventory",
+      "Hunter Hoffman - Service Contract Agreement",
+      "Antony F. Munoz (Personal Brand)",
+      "Coaching Philosophy/Methodology"
+    ],
+    "LYFEOS": [
+      "LyfeOS",
+      "Life Coaching (E-Learning/Info-Product Brand)",
+      "AI Tools",
+      "CreatorOS",
+      "Coaching Frameworks & Workbooks",
+      "Systems Inventory",
+      "EntrepreneurOS",
+      "Coaching Philosophy/Methodology"
+    ],
+    "pipeline": [
+      "LyfeOS",
+      "UMH",
+      "Empyrean Studios (Agency Brand)",
+      "AI Tools",
+      "CreatorOS",
+      "Systems Inventory",
+      "Conglomerate Brands",
+      "EntrepreneurOS"
+    ],
+    "Outreach": [
+      "Untitled document",
+      "UMH",
+      "Life Coaching (E-Learning/Info-Product Brand)",
+      "Empyrean Studios (Agency Brand)",
+      "Untitled document",
+      "Copy of Claude Cowork Plugins - Free Resource Guide",
+      "EntrepreneurOS",
+      "Coaching Philosophy/Methodology"
+    ],
+    "Initiate Arena": [
+      "Untitled document",
+      "Life Coaching (E-Learning/Info-Product Brand)",
+      "Coaching Frameworks & Workbooks",
+      "Untitled document",
+      "EntrepreneurOS",
+      "Antony F. Munoz (Personal Brand)",
+      "Coaching Philosophy/Methodology"
+    ],
+    "Antony F. Munoz": [
+      "Life Coaching (E-Learning/Info-Product Brand)",
+      "Content",
+      "CreatorOS",
+      "Conglomerate Brands",
+      "Hunter Hoffman - Service Contract Agreement",
+      "EntrepreneurOS",
+      "Antony F. Munoz (Personal Brand)"
+    ],
+    "CONTENT": [
+      "LyfeOS",
+      "Life Coaching (E-Learning/Info-Product Brand)",
+      "Coaching Frameworks & Workbooks",
+      "Untitled document",
+      "Systems Inventory",
+      "Antony F. Munoz (Personal Brand)",
+      "Coaching Philosophy/Methodology"
+    ],
+    "Lyfe Institute": [
+      "UMH",
+      "Life Coaching (E-Learning/Info-Product Brand)",
+      "Conglomerate Brands",
+      "EntrepreneurOS",
+      "Antony F. Munoz (Personal Brand)",
+      "Coaching Philosophy/Methodology"
+    ],
+    "Game of Lyfe": [
+      "Untitled document",
+      "Life Coaching (E-Learning/Info-Product Brand)",
+      "Antony Munoz Email Sequence",
+      "Systems Inventory",
+      "Antony F. Munoz (Personal Brand)",
+      "Coaching Philosophy/Methodology"
+    ],
+    "personal brand": [
+      "UMH",
+      "Coaching Frameworks & Workbooks",
+      "Systems Inventory",
+      "Conglomerate Brands",
+      "Antony F. Munoz (Personal Brand)",
+      "Coaching Philosophy/Methodology"
+    ],
+    "EntrepreneurOS": [
+      "LyfeOS",
+      "UMH",
+      "AI Tools",
+      "CreatorOS",
+      "EntrepreneurOS"
+    ],
+    "CreatorOS": [
+      "LyfeOS",
+      "UMH",
+      "AI Tools",
+      "CreatorOS",
+      "EntrepreneurOS"
+    ],
+    "LyfeOS": [
+      "Untitled document",
+      "UMH",
+      "CreatorOS",
+      "Antony F. Munoz (Personal Brand)",
+      "Coaching Philosophy/Methodology"
+    ],
+    "Lyfe Spectrum": [
+      "UMH",
+      "Life Coaching (E-Learning/Info-Product Brand)",
+      "Conglomerate Brands",
+      "Antony F. Munoz (Personal Brand)",
+      "Coaching Philosophy/Methodology"
+    ],
+    "Personal Brand": [
+      "Coaching Frameworks & Workbooks",
+      "Systems Inventory",
+      "Conglomerate Brands",
+      "Antony F. Munoz (Personal Brand)",
+      "Coaching Philosophy/Methodology"
+    ],
+    "OFFER": [
+      "Untitled document",
+      "Empyrean Studios (Agency Brand)",
+      "Untitled document",
+      "Systems Inventory",
+      "Antony F. Munoz (Personal Brand)"
+    ],
+    "Antony Munoz": [
+      "Content",
+      "CreatorOS",
+      "EntrepreneurOS",
+      "Antony F. Munoz (Personal Brand)"
+    ],
+    "FUNNEL": [
+      "Life Coaching (E-Learning/Info-Product Brand)",
+      "Empyrean Studios (Agency Brand)",
+      "Coaching Frameworks & Workbooks",
+      "Antony F. Munoz (Personal Brand)"
+    ],
+    "Personal brand": [
+      "Coaching Frameworks & Workbooks",
+      "Systems Inventory",
+      "Conglomerate Brands",
+      "Antony F. Munoz (Personal Brand)"
+    ],
+    "Pipeline": [
+      "LyfeOS",
+      "UMH",
+      "CreatorOS",
+      "EntrepreneurOS"
+    ],
+    "Empyrean Studios": [
+      "Content",
+      "Untitled document",
+      "Antony F. Munoz (Personal Brand)"
+    ],
+    "Empyrean Studio": [
+      "UMH",
+      "Conglomerate Brands",
+      "Antony F. Munoz (Personal Brand)"
+    ],
+    "Alex Hormozi": [
+      "Untitled document",
+      "Content",
+      "Antony F. Munoz (Personal Brand)"
+    ],
+    "PERSONAL BRAND": [
+      "Coaching Frameworks & Workbooks",
+      "Conglomerate Brands",
+      "Antony F. Munoz (Personal Brand)"
+    ],
+    "North Star": [
+      "CreatorOS",
+      "EntrepreneurOS",
+      "Coaching Philosophy/Methodology"
+    ],
+    "creatoros": [
+      "LyfeOS",
+      "CreatorOS",
+      "EntrepreneurOS"
+    ],
+    "entrepreneuros": [
+      "LyfeOS",
+      "CreatorOS",
+      "EntrepreneurOS"
+    ],
+    "lyfeos": [
+      "LyfeOS",
+      "CreatorOS",
+      "EntrepreneurOS"
+    ],
+    "PIPELINE": [
+      "UMH",
+      "Systems Inventory",
+      "EntrepreneurOS"
+    ]
+  }
+}

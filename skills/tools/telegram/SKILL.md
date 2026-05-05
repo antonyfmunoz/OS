@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "Bot API 7.x"
 sdk_version: "raw HTTP (no SDK) + python-telegram-bot 21.x"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: Telegram Bot API

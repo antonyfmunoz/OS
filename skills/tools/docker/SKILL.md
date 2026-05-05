@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "Docker Engine 27.x / API v1.47"
 sdk_version: "Docker Compose v2.32+"
 speed_category: "stable"
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: Docker + Docker Compose

@@ -1,3 +1,9 @@
+---
+name: deploy-service
+description: Use when deploying EOS service changes — Python file restarts, Docker rebuilds, or verifying deploys.
+allowed-tools: Bash
+---
+
 # How to Deploy EOS Service Changes
 
 ## Decision tree

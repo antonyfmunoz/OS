@@ -41,3 +41,6 @@ Gotchas:
 - Provider imports: use `google.genai` NOT `google.generativeai` (deprecated)
 - Anthropic credits are depleted — Gemini 2.5 Flash is primary provider
 - agent_runtime.py has `_claude_available` class flag — don't break that logic
+
+## Verification
+After review completes, verify findings by running the specific commands or checks that confirm each issue is real — not hypothetical.

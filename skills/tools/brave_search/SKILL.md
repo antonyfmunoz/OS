@@ -8,7 +8,7 @@ last_researched: "2026-04-06"
 instantiated_from: templates/tools/_template/
 api_version: "v1"
 sdk_version: "REST API (no official Python SDK — raw HTTP via requests or urllib)"
-speed_category: fast
+speed_category: medium
 trigger: both
 effort: low
 context: fork

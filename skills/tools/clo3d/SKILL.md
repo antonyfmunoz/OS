@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "N/A — GUI tool (Python plug-in API exists but runs in-app, not headless)"
 sdk_version: "N/A"
 speed_category: human-in-the-loop
+trigger: both
+effort: medium
+context: fork
 ---
 
 # Tool: CLO 3D

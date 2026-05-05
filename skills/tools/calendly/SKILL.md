@@ -8,7 +8,10 @@ last_researched: "2026-04-04"
 instantiated_from: templates/tools/_template/
 api_version: "Calendly API v2"
 sdk_version: "REST API direct (Flask webhook receiver)"
-speed_category: "fast"
+speed_category: "medium"
+trigger: both
+effort: medium
+context: fork
 ---
 
 # Tool: Calendly

@@ -1,0 +1,1839 @@
+"""
+EOSGateway — single control plane for all AI operations.
+
+Every AI request enters here. Nothing calls agent_runtime, event_bus,
+orchestrator, or agent_teams directly from outside umh.
+
+Request schema:
+    {
+        "type":       "agent_task" | "event" | "status" | "brief",
+        "team":       "sales" | "research" | "content" | None,
+        "sub_agent":  str | None,
+        "prompt":     str,
+        "venture_id": str | None,
+        "username":   str | None,
+        "task_type":  str | None,
+        # for type=event
+        "event_type": str | None,
+        "payload":    dict | None,
+        # optional override — force approval gate
+        "action":     "send" | "delete" | "payment" | None,
+    }
+
+Usage:
+    from umh.runtime_engine.gateway import EOSGateway
+    gw = EOSGateway()
+    result = gw.handle({"type": "brief", "prompt": "", "venture_id": "lyfe_institute"})
+"""
+
+import json
+import os
+import re as _re
+import sys
+import threading
+import uuid as _uuid_mod
+from datetime import datetime, timezone
+from pathlib import Path
+
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+from umh.storage.adapters.neon import get_conn, ORG_ID
+
+# ─── Constants ────────────────────────────────────────────────────────────────
+
+APPROVALS_DIR = Path(_REPO_ROOT) / "orchestrator" / "approvals"
+PENDING_DIR = APPROVALS_DIR / "pending"
+APPROVED_DIR = APPROVALS_DIR / "approved"
+
+# Sub-agents that require approval regardless of prompt — only agents that
+# exclusively execute external sends with zero internal-only use cases.
+# Intentionally empty: action flags and prompt patterns handle this more
+# precisely. Listing a sub-agent here blocks ALL requests to that agent,
+# including analysis, logging, and status checks — which is too broad.
+_APPROVAL_REQUIRED_AGENTS: frozenset[str] = frozenset()
+
+# Explicit action flags that always require approval
+# "publish" removed — Discord and Notion are internal systems
+_APPROVAL_REQUIRED_ACTIONS = frozenset({"send", "delete", "payment"})
+
+# Prompt patterns that signal external sends on behalf of the founder
+_EXTERNAL_SEND_PATTERNS = (
+    "send dm",
+    "send message",
+    "send outreach",
+    "send email",
+    "message them",
+    "reply to them",
+    "dm them",
+    "dm him",
+    "dm her",
+    "send it to",
+    "send this to",
+    "send this message",
+    "post on instagram",
+    "post on tiktok",
+    "send to prospect",
+    "outreach to",
+)
+
+# Prompt patterns for clearly internal operations — short-circuit to auto-execute
+_AUTO_EXECUTE_PATTERNS = (
+    # Lead / pipeline writes
+    "log lead",
+    "log this lead",
+    "add this lead",
+    "save this lead",
+    "log to pipeline",
+    "update pipeline",
+    "add to pipeline",
+    "add to crm",
+    # Notion writes
+    "log to notion",
+    "update notion",
+    "add to notion",
+    "save to notion",
+    "write to notion",
+    "create notion",
+    # Task operations (internal)
+    "create task",
+    "add task",
+    "new task",
+    # Activity / memory writes
+    "log activity",
+    "log this",
+    "save this",
+    "store this",
+    "note this",
+    "remember this",
+    "record this",
+    # BIS / system updates
+    "update bis",
+    "update my bis",
+    # Briefs (system-generated, not founder sends)
+    "morning brief",
+    # Internal Discord / Telegram posts
+    "post to discord",
+    "post in discord",
+    # General read/query patterns — reads never need approval
+    "what is",
+    "what are",
+    "show me",
+    "tell me",
+    "give me",
+    "how is",
+    "status of",
+    "check ",
+    "list ",
+    "get ",
+    "fetch ",
+    "summarize ",
+    "how many",
+    "how much",
+)
+
+# Signals that indicate a purely informational message (no action requested)
+_INFORMATIONAL_SIGNALS: tuple[str, ...] = (
+    "here is",
+    "here's",
+    "fyi",
+    "context:",
+    "note:",
+    "for context",
+    "just so you know",
+    "updating you",
+    "for your reference",
+    "heads up",
+    "background:",
+    "to update you",
+    "letting you know",
+    "i wanted to let you know",
+    "adding context",
+    "some context",
+    "log this",
+    "logging",
+    "recording",
+)
+
+# Signals that indicate an external action is being requested
+_ACTION_SIGNALS: tuple[str, ...] = (
+    "send dm",
+    "send message",
+    "send email",
+    "send outreach",
+    "message him",
+    "message her",
+    "message them",
+    "dm him",
+    "dm her",
+    "dm them",
+    "reach out",
+    "post on instagram",
+    "post on tiktok",
+    "outreach to",
+    "publish to",
+    "email him",
+    "email her",
+    "buy ",
+    "pay ",
+    "delete ",
+    "remove all",
+)
+
+# Required fields in every request
+_REQUIRED_FIELDS = {"type"}
+
+# Valid request types
+_VALID_TYPES = {"agent_task", "event", "status", "brief"}
+
+# Email instruction signals — founder correcting GPS folder classification
+EMAIL_INSTRUCTION_SIGNALS: tuple[str, ...] = (
+    "move this email",
+    "that email should",
+    "put emails from",
+    "emails like this",
+    "this label should",
+    "never put",
+    "always put",
+    "delete this label",
+    "should go to",
+    "belongs in",
+    "wrong folder",
+    "misclassified",
+)
+
+# Automation triggers — handled before the AI routing layer
+AUTOMATION_TRIGGERS: dict[str, list[str]] = {
+    "rename_ai": [
+        "call you",
+        "name you",
+        "rename you",
+        "your name is",
+        "call my ai",
+        "name my ai",
+        "rename to",
+        "i want to call you",
+    ],
+}
+
+
+def _utcnow() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _timestamp_id() -> str:
+    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
+
+
+# ─── EOSGateway (singleton) ───────────────────────────────────────────────────
+
+
+class EOSGateway:
+    """
+    Singleton gateway. EOSGateway() always returns the same instance.
+    Thread-safe.
+    """
+
+    _instance: "EOSGateway | None" = None
+    _class_lock: threading.Lock = threading.Lock()
+
+    def __new__(cls) -> "EOSGateway":
+        with cls._class_lock:
+            if cls._instance is None:
+                instance = super().__new__(cls)
+                instance._init_dirs()
+                cls._instance = instance
+        return cls._instance
+
+    def _init_dirs(self) -> None:
+        PENDING_DIR.mkdir(parents=True, exist_ok=True)
+        APPROVED_DIR.mkdir(parents=True, exist_ok=True)
+
+    # ─── Conversation memory helpers ─────────────────────────────────────────
+
+    _MEMORY_SIGNALS = (
+        "what did i say",
+        "what did we discuss",
+        "what was i saying",
+        "messages ago",
+        "last message",
+        "earlier i said",
+        "find everything",
+        "search for",
+        "pull everything",
+        "word for word",
+        "what have we talked about",
+        "give me everything",
+        "list everything",
+    )
+
+    def _is_memory_query(self, text: str) -> bool:
+        t = text.lower()
+        return any(s in t for s in self._MEMORY_SIGNALS)
+
+    def _handle_memory_query(self, text: str, session_id: str, cm: object) -> str:
+        """Return memory response string, or '' if query not matched."""
+        t = text.lower()
+
+        # "X messages ago"
+        ago = _re.search(r"(\d+)\s*messages?\s*ago", t)
+        if ago:
+            n = int(ago.group(1))
+            msgs = cm.get_session(session_id)
+            user_msgs = [m for m in msgs if m.role == "user"]
+            if len(user_msgs) >= n:
+                target = user_msgs[-n]
+                ts = target.created_at.strftime("%H:%M") if target.created_at else ""
+                return f'You said:\n\n"{target.content}"\n\n({ts})'
+            return "Could not find that message in this session."
+
+        # session dump — "today" / "this session" / "give me everything"
+        if any(
+            s in t
+            for s in [
+                "today",
+                "this session",
+                "give me everything",
+                "list everything",
+                "what have we talked about",
+            ]
+        ):
+            msgs = cm.get_session(session_id)
+            if not msgs:
+                return "No messages recorded in this session yet."
+            lines = ["Here is everything from this session:\n"]
+            for msg in msgs:
+                prefix = "You" if msg.role == "user" else "AI"
+                ts = msg.created_at.strftime("%H:%M") if msg.created_at else ""
+                lines.append(f"[{ts}] {prefix}: {msg.content}")
+            return "\n".join(lines)
+
+        # full-text search — "find X" / "search for X"
+        srch = _re.search(r"(?:find|search for|pull)\s+(.+)", t)
+        if srch:
+            query = srch.group(1).strip()
+            results = cm.search(query, limit=5)
+            if not results:
+                return f'Nothing found for "{query}".'
+            lines = [f'Found {len(results)} messages matching "{query}":\n']
+            for msg in results:
+                prefix = "You" if msg.role == "user" else "AI"
+                ts = msg.created_at.strftime("%Y-%m-%d %H:%M") if msg.created_at else ""
+                lines.append(f"[{ts}] {prefix}: {msg.content}")
+            return "\n".join(lines)
+
+        return ""
+
+    def _init_conversation_memory(
+        self, request: dict
+    ) -> tuple[object | None, str, str]:
+        """
+        Set up ConversationMemory for this request.
+        Returns (cm, session_id, channel). cm is None on failure.
+        """
+        session_id = request.get("session_id") or str(_uuid_mod.uuid4())
+        channel = request.get("channel", "unknown")
+        prompt = request.get("prompt", "")
+        rtype = request.get("type", "")
+        if not prompt or rtype not in ("agent_task", "brief"):
+            return None, session_id, channel
+        try:
+            from umh.runtime_engine.memory import ConversationMemory
+            from umh.environments.system_context import load_context_from_env
+
+            ctx = load_context_from_env()
+            cm = ConversationMemory(ctx)
+            return cm, session_id, channel
+        except Exception as e:
+            print(f"[Gateway] ConversationMemory init failed (non-blocking): {e}")
+            return None, session_id, channel
+
+    # ─── Automation handler ───────────────────────────────────────────────────
+
+    def _handle_automation(self, request: dict) -> dict | None:
+        """
+        Check request prompt against AUTOMATION_TRIGGERS.
+        Returns a result dict if an automation fired, else None.
+        Automations bypass the AI routing layer — handled directly.
+        """
+        import re
+
+        text = request.get("prompt", "")
+        if not text:
+            return None
+
+        # rename_ai — user wants to rename their AI instance
+        rename_keywords = AUTOMATION_TRIGGERS.get("rename_ai", [])
+        if any(kw in text.lower() for kw in rename_keywords):
+            match = re.search(
+                r"(?:call you|name you|rename to|"
+                r"your name is|call my ai|"
+                r"name my ai|i want to call you)\s+"
+                r"([A-Za-z][a-zA-Z0-9]{1,20})",
+                text,
+                re.IGNORECASE,
+            )
+            if match:
+                new_name = match.group(1).upper()
+                try:
+                    from umh.environments.system_context import load_context_from_env
+                    from umh.workstation.business import BusinessInstanceManager
+
+                    ctx = load_context_from_env()
+                    bim = BusinessInstanceManager(ctx)
+                    venture_id = (
+                        request.get("venture_id") or bim.get_default_venture_id()
+                    )
+                    bis = bim.get_bis(venture_id) if venture_id else None
+                    if bis:
+                        old_name = bis.ai_name
+                        bis.ai_name = new_name
+                        bim.save_bis(bis)
+                        return {
+                            "status": "ok",
+                            "output": (f"Done. I'm {new_name} now. Was {old_name}."),
+                            "action": "rename_ai",
+                            "new_name": new_name,
+                        }
+                except Exception as e:
+                    print(f"[Gateway] rename_ai failed: {e}")
+
+        return None
+
+    # ─── Email instruction handler ────────────────────────────────────────────
+
+    def _detect_email_instruction(self, text: str) -> bool:
+        t = text.lower()
+        return any(s in t for s in EMAIL_INSTRUCTION_SIGNALS)
+
+    def _handle_email_instruction(self, request: dict) -> dict | None:
+        """
+        Detect and process founder email folder correction instructions.
+        Updates the folder definition in Neon so all future classifications
+        use the new rule.
+        Returns a result dict if fired, else None.
+        """
+        text = request.get("prompt", "")
+        if not text or not self._detect_email_instruction(text):
+            return None
+
+        try:
+            from umh.environments.system_context import load_context_from_env
+            from umh.runtime_engine.email_gps import EmailGPS
+            from umh.gateway.entry import utility_llm_call
+
+            ctx_eos = load_context_from_env()
+            gps = EmailGPS(ctx_eos)
+
+            extraction = utility_llm_call(
+                prompt=(
+                    f"Extract the email folder instruction "
+                    f"from this message.\n\n"
+                    f"Message: {text}\n\n"
+                    f"Available folders: Antony, To Respond, Review, "
+                    f"Responded, Waiting On, Receipts-Financials, Newsletters\n\n"
+                    f"Return JSON only:\n"
+                    f'{{"folder_name": "exact folder name", '
+                    f'"instruction": "what should change"}}'
+                ),
+                operation="email_instruction_extract",
+            )
+
+            import json, re as _json_re
+
+            match = _json_re.search(r"\{.*\}", extraction, _json_re.DOTALL)
+            if not match:
+                return None
+
+            data = json.loads(match.group())
+            folder = data.get("folder_name", "")
+            instruction = data.get("instruction", text)
+
+            if not folder:
+                return None
+
+            new_purpose = gps.update_folder_purpose(folder, instruction)
+            if new_purpose:
+                return {
+                    "status": "ok",
+                    "output": (
+                        f'✅ Updated "{folder}" definition.\n\n'
+                        f"New rule: {new_purpose}\n\n"
+                        f"All future emails will use this definition. "
+                        f"Run `!inbox` to apply to new emails."
+                    ),
+                    "action": "email_folder_update",
+                }
+
+        except Exception as e:
+            print(f"[Gateway] Email instruction handler: {e}")
+
+        return None
+
+    # ─── Schema validation ────────────────────────────────────────────────────
+
+    def _validate(self, request: dict) -> str | None:
+        """Return an error string if the request is invalid, else None."""
+        missing = _REQUIRED_FIELDS - request.keys()
+        if missing:
+            return f"Missing required field(s): {missing}"
+        rtype = request.get("type")
+        if rtype not in _VALID_TYPES:
+            return f"Invalid type '{rtype}'. Must be one of: {_VALID_TYPES}"
+        if rtype == "agent_task" and not request.get("prompt"):
+            return "agent_task requires a non-empty 'prompt' field"
+        if rtype == "event" and not request.get("event_type"):
+            return "event requires a non-empty 'event_type' field"
+        return None
+
+    # ─── Approval detection ───────────────────────────────────────────────────
+
+    def _is_informational(self, prompt: str) -> bool:
+        """
+        True if the message is purely informational — context, FYI, logging,
+        or a multi-part continuation. These NEVER need approval.
+
+        Checks:
+          1. Part X/Y or continuation marker → always informational
+          2. Has an informational signal AND no external action signal
+        """
+        # Part indicators — always a context accumulation, never an action
+        if _re.search(r"(?i)\bpart\s+\d+/\d+\b|\b\d+\s*/\s*\d+\b", prompt):
+            return True
+        if any(s in prompt for s in ("continued", "cont'd", "cont.")):
+            return True
+
+        # Has informational signal AND no external action signal
+        has_info = any(s in prompt for s in _INFORMATIONAL_SIGNALS)
+        has_action = any(s in prompt for s in _ACTION_SIGNALS)
+        return has_info and not has_action
+
+    def _requires_approval(self, request: dict) -> bool:
+        """
+        Tiered approval gate.
+
+        NEVER approve:
+          - Purely informational messages (FYI, context, logging, Part X/Y)
+          - Reading any data
+          - Writing to Notion / pipeline DB / activity log / BIS
+          - Storing context or memory
+          - Morning brief
+
+        ALWAYS approve:
+          - Sending DM as founder (Instagram, email, any external channel)
+          - Making any payment
+          - Deleting any data
+          - Any irreversible external action on founder's behalf
+
+        Rule: internal reads/writes = auto
+              external actions in the world as the founder = approve
+        """
+        action = request.get("action", "")
+        prompt = request.get("prompt", "").lower()
+
+        # 0. Purely informational — never queue for approval
+        if self._is_informational(prompt):
+            return False
+
+        # 1. Internal operations short-circuit — never need approval
+        if any(pat in prompt for pat in _AUTO_EXECUTE_PATTERNS):
+            return False
+
+        # 2. Explicit action flag set by caller
+        if action in _APPROVAL_REQUIRED_ACTIONS:
+            return True
+
+        # 3. Prompt signals external send on behalf of the founder
+        if any(pat in prompt for pat in _EXTERNAL_SEND_PATTERNS):
+            return True
+
+        # 4. Irreversible or financial keywords in prompt
+        _irreversible = (
+            "delete ",
+            "remove all ",
+            "drop table",
+            "charge ",
+            "pay ",
+            "make payment",
+        )
+        if any(kw in prompt for kw in _irreversible):
+            return True
+
+        return False
+
+    # ─── Event logging ────────────────────────────────────────────────────────
+
+    def _log_gateway_event(
+        self,
+        request: dict,
+        outcome: str,
+        result_summary: str = "",
+    ) -> str:
+        """Log every gateway request to Neon events table."""
+        payload = {
+            "request_type": request.get("type"),
+            "team": request.get("team"),
+            "sub_agent": request.get("sub_agent"),
+            "venture_id": request.get("venture_id"),
+            "username": request.get("username"),
+            "outcome": outcome,
+            "summary": result_summary[:300],
+            # Substrate capability telemetry — additive, observability only.
+            # Populated upstream by capability_tagging.tag_request().
+            "required_capabilities": request.get("required_capabilities") or [],
+        }
+        try:
+            with get_conn(ORG_ID) as cur:
+                cur.execute(
+                    """
+                    INSERT INTO events (org_id, event_type, payload_json, handled_by)
+                    VALUES (%s, %s, %s, %s)
+                    RETURNING id
+                    """,
+                    (
+                        ORG_ID,
+                        f"gateway:{request.get('type', 'unknown')}",
+                        json.dumps(payload),
+                        json.dumps(["EOSGateway"]),
+                    ),
+                )
+                return str(cur.fetchone()["id"])
+        except Exception as e:
+            print(f"[Gateway] _log_gateway_event failed: {e}")
+            return ""
+
+    # ─── Routing ──────────────────────────────────────────────────────────────
+
+    def handle(self, request: dict) -> dict:
+        """
+        Validate, optionally gate for approval, then route and return result.
+
+        Returns a dict with at minimum:
+            {"status": "ok"|"error"|"pending", ...result fields}
+        """
+        # 0-pre. Substrate capability tagging (additive, observability only).
+        # Annotates request["required_capabilities"] so downstream logging
+        # and future capability-aware routing can see what was needed.
+        # NEVER raises — tag_request swallows and logs internally.
+        try:
+            from umh.substrate.capability_tagging import tag_request
+
+            tag_request(request)
+        except Exception as _cap_e:
+            print(f"[Gateway] capability tagging skipped: {_cap_e}")
+
+        # 0. Automation check — handles before AI routing
+        automation_result = self._handle_automation(request)
+        if automation_result is not None:
+            return automation_result
+
+        # 0b. Email instruction — founder correcting GPS folder definitions
+        email_instr_result = self._handle_email_instruction(request)
+        if email_instr_result is not None:
+            return email_instr_result
+
+        # 1. Validate
+        err = self._validate(request)
+        if err:
+            self._log_gateway_event(request, "error", err)
+            return {"status": "error", "error": err}
+
+        # 2. Approval gate
+        if self._requires_approval(request):
+            approval_id = self.queue_for_approval(request)
+            self._log_gateway_event(request, "pending", f"approval_id={approval_id}")
+            return {
+                "status": "pending",
+                "approval_id": approval_id,
+                "message": (
+                    f"Request queued for approval. "
+                    f"Use /approve {approval_id} to execute."
+                ),
+            }
+
+        # 2b. Conversation memory — store user message, check memory query
+        cm, session_id, channel = self._init_conversation_memory(request)
+        prompt = request.get("prompt", "")
+        if cm and prompt:
+            try:
+                cm.store(
+                    session_id=session_id,
+                    role="user",
+                    content=prompt,
+                    channel=channel,
+                )
+                # Memory query — answer from stored messages without calling AI
+                if self._is_memory_query(prompt):
+                    mem_resp = self._handle_memory_query(prompt, session_id, cm)
+                    if mem_resp:
+                        cm.store(
+                            session_id=session_id,
+                            role="assistant",
+                            content=mem_resp,
+                            channel=channel,
+                            agent="memory",
+                        )
+                        self._log_gateway_event(request, "ok", "memory_query")
+                        return {
+                            "status": "ok",
+                            "output": mem_resp,
+                            "session_id": session_id,
+                            "source": "memory",
+                        }
+            except Exception as _mem_err:
+                print(f"[Gateway] Memory store failed (non-blocking): {_mem_err}")
+
+        # 2c. Stage transition detection — fires before AI routing
+        stage_context = ""
+        if prompt and request.get("type") in ("agent_task", "brief"):
+            try:
+                from umh.runtime_engine.stage_manager import detect_stage_transition, StageManager
+                from umh.environments.system_context import load_context_from_env as _load_ctx
+
+                transition = detect_stage_transition(prompt)
+                if transition.get("detected"):
+                    ctx_eos = _load_ctx()
+                    sm = StageManager(ctx_eos)
+
+                    # Venture from request, then BIM default. Text-keyword routing
+                    # was venture-specific leakage and has been removed — venture
+                    # selection must come from explicit request or BIM lookup.
+                    from umh.workstation.business import BusinessInstanceManager as _BIM
+
+                    _bim_st = _BIM(ctx_eos)
+                    venture_id = (
+                        request.get("venture_id") or _bim_st.get_default_venture_id()
+                    )
+                    if not venture_id:
+                        raise RuntimeError("no venture available for stage transition")
+
+                    tr = sm.advance_stage(
+                        venture_id=venture_id,
+                        new_stage=transition["new_stage"],
+                    )
+                    stage_context = tr.message
+                    print(
+                        f"[Gateway] Stage transition: "
+                        f"{tr.previous_stage} → {tr.new_stage}"
+                    )
+            except Exception as _st_err:
+                print(f"[Gateway] Stage transition failed: {_st_err}")
+
+        # 2d. Self-awareness — detect any non-stage business change and process it
+        if prompt and request.get("type") in ("agent_task", "brief"):
+            try:
+                from umh.runtime_engine.self_awareness import SelfAwarenessEngine, ChangeType
+                from umh.environments.system_context import load_context_from_env as _load_ctx_sa
+
+                ctx_sa = _load_ctx_sa()
+                sae = SelfAwarenessEngine(ctx_sa)
+                from umh.workstation.business import BusinessInstanceManager as _BIM_sa
+
+                _bim_sa = _BIM_sa(ctx_sa)
+                venture_id_sa = (
+                    request.get("venture_id") or _bim_sa.get_default_venture_id()
+                )
+                change = (
+                    sae.detect_change_from_text(prompt, venture_id_sa)
+                    if venture_id_sa
+                    else None
+                )
+                if change and change.change_type not in (
+                    # Skip FIRST_SALE — stage_manager already handles the transition
+                    ChangeType.FIRST_SALE,
+                ):
+                    import asyncio as _asyncio
+
+                    try:
+                        loop_sa = _asyncio.get_event_loop()
+                        if loop_sa.is_running():
+                            # Already in an async context — schedule as a task
+                            _asyncio.ensure_future(sae.process_change(change))
+                        else:
+                            loop_sa.run_until_complete(sae.process_change(change))
+                    except RuntimeError:
+                        new_loop = _asyncio.new_event_loop()
+                        new_loop.run_until_complete(sae.process_change(change))
+                        new_loop.close()
+                    print(f"[SelfAwareness] Processed: {change.change_type.value}")
+            except Exception as _sa_err:
+                print(f"[SelfAwareness] {_sa_err}")
+
+        # 3. Route
+        rtype = request["type"]
+        try:
+            if rtype == "event":
+                result = self._route_event(request)
+            elif rtype == "agent_task":
+                # Input Intelligence Layer — elevate underpowered inputs
+                # before they reach the cognitive loop
+                try:
+                    from umh.runtime_engine.input_intelligence import InputIntelligence
+                    from umh.environments.system_context import load_context_from_env as _load_ii_ctx
+
+                    _prompt = request.get("prompt", "")
+                    _venture_id = request.get("venture_id")
+                    _ii = InputIntelligence(ctx=_load_ii_ctx(), venture_id=_venture_id)
+                    _ii_result = _ii.process(_prompt, venture_id=_venture_id)
+                    if _ii_result.was_enhanced:
+                        request = {
+                            **request,
+                            "prompt": _ii_result.enhanced,
+                            "_original_prompt": _ii_result.original,
+                            "_enhancement_reason": _ii_result.enhancement_reason,
+                            "_signal_type": _ii_result.signal_type,
+                        }
+                except Exception as _ii_err:
+                    import logging
+
+                    logging.getLogger(__name__).warning(
+                        f"InputIntelligence failed, passing original: {_ii_err}"
+                    )
+                result = self._route_agent_task(request, session_id=session_id, cm=cm)
+            elif rtype == "status":
+                result = self._route_status(request)
+            elif rtype == "brief":
+                result = self._route_brief(request)
+            else:
+                result = {"status": "error", "error": f"Unhandled type: {rtype}"}
+        except Exception as exc:
+            self._log_gateway_event(request, "error", str(exc))
+            return {"status": "error", "error": str(exc)}
+
+        # 3b. Prepend stage transition message if one fired
+        if stage_context and result.get("output"):
+            result["output"] = stage_context + "\n\n---\n\n" + result["output"]
+        elif stage_context:
+            result["output"] = stage_context
+
+        # 3c. Store assistant response and tag result with session_id
+        if cm and result.get("output"):
+            try:
+                cm.store(
+                    session_id=session_id,
+                    role="assistant",
+                    content=result["output"],
+                    channel=channel,
+                    agent="system",
+                )
+            except Exception as _cm_status_err:
+                print(f"[Gateway] Status memory store failed: {_cm_status_err}")
+        if session_id:
+            result["session_id"] = session_id
+
+        summary = json.dumps(result)[:300]
+        self._log_gateway_event(request, "ok", summary)
+        return result
+
+    # ─── Route: event ─────────────────────────────────────────────────────────
+
+    def _route_event(self, request: dict) -> dict:
+        from umh.runtime_engine.event_bus import get_bus
+
+        event_type = request["event_type"]
+        payload = request.get("payload") or {}
+        bus = get_bus()
+        result = bus.publish(event_type, payload)
+        return {
+            "status": "ok",
+            "event_type": event_type,
+            "handlers": result.handlers_called,
+        }
+
+    # ─── Web search ───────────────────────────────────────────────────────────
+
+    _WEB_SEARCH_SIGNALS: tuple[str, ...] = (
+        "what is the current",
+        "latest news",
+        "right now",
+        "today's",
+        "this week",
+        "how much does",
+        "what's the price",
+        "look up",
+        "search for",
+        "find me",
+        "what are people saying",
+        "trending",
+        "recent",
+    )
+
+    def _needs_web_search(self, text: str) -> bool:
+        t = text.lower()
+        return any(s in t for s in self._WEB_SEARCH_SIGNALS)
+
+    def _web_search(self, query: str) -> str:
+        try:
+            from umh.gateway.entry import utility_llm_call
+
+            return utility_llm_call(
+                prompt=(
+                    f"Search query: {query}\n\n"
+                    f"Provide a concise, factual answer with current information. "
+                    f"2-3 sentences maximum."
+                ),
+                operation="web_search",
+            )
+        except Exception as e:
+            print(f"[WebSearch] {e}")
+            return ""
+
+    # ─── EA routing ───────────────────────────────────────────────────────────
+
+    def _validate_output(
+        self, output: str, agent_type: str, provider: str
+    ) -> tuple[str, float, bool]:
+        """
+        Validate agent output quality at gateway boundary.
+        Returns: (output, score, passed)
+        Provider-aware thresholds — lower for weaker models.
+        """
+        if not output:
+            return output, 0.0, False
+
+        thresholds = {
+            "claude_cli": 0.0,  # CC is trusted primary — never reject
+            "claude": 0.75,
+            "anthropic": 0.75,
+            "gemini": 0.60,
+            "ollama": 0.55,
+            "gemma": 0.50,
+        }
+        threshold = 0.50
+        provider_lower = provider.lower()
+        for key, val in thresholds.items():
+            if key in provider_lower:
+                threshold = val
+                break
+
+        try:
+            from umh.runtime_engine.quality_gate import QualityTransformationGate
+
+            from umh.environments.system_context import load_context_from_env
+
+            ctx = load_context_from_env()
+            gate = QualityTransformationGate(ctx)
+            # Use transform() with minimal signal for scoring
+            result = gate.transform(
+                output=output,
+                input_text="",
+                classified_signal={},
+            )
+            score = result.overall_score
+            passed = score >= threshold
+
+            if not passed:
+                import logging
+
+                logging.getLogger(__name__).warning(
+                    f"[Quality] {agent_type} scored {score:.2f} "
+                    f"(threshold {threshold}) via {provider}"
+                )
+
+            return output, score, passed
+
+        except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).warning(f"[Quality] Gate failed: {e}")
+            return output, 0.5, True
+
+    def _route_to_agent(self, text: str, comm_type: str = "text") -> str:
+        """
+        Determine which agent should handle this request.
+        EA handles 90% of cases. Only escalates to CEOs or Portfolio Advisor
+        for genuinely company-specific or portfolio-level decisions.
+
+        Returns agent_id string.
+        """
+        try:
+            from umh.runtime_engine.agent_hierarchy import AgentHierarchy
+
+            return AgentHierarchy().route_request(text)
+        except Exception:
+            return "executive_assistant"
+
+    # ─── Route: agent_task ────────────────────────────────────────────────────
+
+    def _route_agent_task(self, request: dict, session_id: str = None, cm=None) -> dict:
+        from umh.runtime_engine.agent_runtime import TaskType
+        from umh.environments.system_context import load_context_from_env
+
+        prompt = request["prompt"]
+        _raw_user_input = request.get("_original_prompt", prompt)
+        venture_id = request.get("venture_id")
+        username = request.get("username")
+        team = request.get("team")
+        sub_agent = request.get("sub_agent")
+
+        ctx = load_context_from_env()
+
+        # Real-time web search — prepend result to prompt if signal detected
+        if self._needs_web_search(prompt):
+            _web_result = self._web_search(prompt)
+            if _web_result:
+                prompt = f"REAL-TIME SEARCH RESULT:\n{_web_result}\n\n{prompt}"
+                print("[Gateway] Web search used")
+
+        # ── Agent routing + context injection (shared across all paths) ───────
+        # These constants and helpers were previously defined inside the
+        # CognitiveLoop fallback block. They are gateway-level routing concerns
+        # that prepare the prompt before the canonical ExecutionSpine call.
+
+        _NAMED_AGENT_TEAMS = frozenset(
+            {"dex", "lyfe_ceo", "brand_ceo", "portfolio_advisor"}
+        )
+
+        _AGENT_DOMAIN_MAP = {
+            "executive_assistant": "ops",
+            "sales_agent": "sales",
+            "outreach_agent": "sales",
+            "content_agent": "content",
+            "research_agent": "research",
+            "intelligence_agent": "research",
+            "operations_agent": "ops",
+            "finance_agent": "analyze",
+            "marketing_agent": "content",
+            "customer_success_agent": "ops",
+            "lyfe_ceo": "strategy",
+            "lyfe_institute_ceo": "strategy",
+            "empyrean_ceo": "strategy",
+            "brand_ceo": "content",
+            "personal_brand_ceo": "content",
+            "ceo_agent": "strategy",
+            "portfolio_agent": "analyze",
+            "portfolio_advisor": "analyze",
+        }
+
+        _CEO_AGENTS = frozenset(
+            {
+                "lyfe_ceo",
+                "lyfe_institute_ceo",
+                "empyrean_ceo",
+                "brand_ceo",
+                "personal_brand_ceo",
+                "ceo_agent",
+            }
+        )
+
+        def _classify_ceo_task(prompt_text: str) -> str:
+            p = prompt_text.lower()
+            if any(
+                x in p
+                for x in [
+                    "constraint",
+                    "bottleneck",
+                    "blocking",
+                    "slow",
+                    "stuck",
+                    "not working",
+                    "stalled",
+                    "what to focus",
+                ]
+            ):
+                return "constraint"
+            if any(
+                x in p
+                for x in [
+                    "offer",
+                    "price",
+                    "product",
+                    "deliver",
+                    "promise",
+                    "guarantee",
+                    "value",
+                ]
+            ):
+                return "offer"
+            if any(
+                x in p
+                for x in [
+                    "hire",
+                    "team",
+                    "delegate",
+                    "who should",
+                    "role",
+                    "barrel",
+                    "ammunition",
+                ]
+            ):
+                return "hiring"
+            if any(
+                x in p
+                for x in [
+                    "metric",
+                    "kpi",
+                    "number",
+                    "measure",
+                    "track",
+                    "reply rate",
+                    "close rate",
+                    "dm",
+                ]
+            ):
+                return "metrics"
+            if any(
+                x in p
+                for x in [
+                    "decide",
+                    "should i",
+                    "choice",
+                    "option",
+                    "which",
+                    "reversible",
+                    "irreversible",
+                ]
+            ):
+                return "decisions"
+            if any(
+                x in p
+                for x in [
+                    "stage",
+                    "next level",
+                    "advance",
+                    "grow",
+                    "scale",
+                    "validation",
+                    "acquisition",
+                ]
+            ):
+                return "stage"
+            return "constraint"
+
+        def _inject_agent_context(prompt_text: str, agent_id: str) -> str:
+            """Single injection point for CEO, portfolio, agent, and domain standards."""
+            if agent_id in _CEO_AGENTS:
+                try:
+                    from umh.runtime_engine.skill_registry import get_skill_registry
+
+                    _sr = get_skill_registry()
+                    _ceo_skill = _sr.get_skill("ceo_framework")
+                    if _ceo_skill and _ceo_skill.content:
+                        _task_class = _classify_ceo_task(prompt_text)
+                        prompt_text = (
+                            f"CEO OPERATING STANDARDS "
+                            f"(task: {_task_class}):\n{_ceo_skill.content}\n\n"
+                            f"{prompt_text}"
+                        )
+                        print(f"[Gateway] CEO standards from skill: {_task_class}")
+                    else:
+                        raise ValueError("ceo_framework skill not found")
+                except Exception:
+                    try:
+                        from umh.runtime_engine.ceo_operational_standards import (
+                            get_constraint_rules,
+                            get_offer_rules,
+                            get_delegation_rules,
+                            get_hiring_rules,
+                            get_metric_rules,
+                            get_decision_rules,
+                            get_stage_rules,
+                            get_hormozi_rules,
+                        )
+
+                        _ceo_section_map = {
+                            "constraint": get_constraint_rules,
+                            "offer": get_offer_rules,
+                            "hiring": get_hiring_rules,
+                            "metrics": get_metric_rules,
+                            "decisions": get_decision_rules,
+                            "stage": get_stage_rules,
+                        }
+                        _task_class = _classify_ceo_task(prompt_text)
+                        _getter = _ceo_section_map.get(
+                            _task_class, get_constraint_rules
+                        )
+                        _ceo_deep = _getter()
+                        _ceo_deep += "\n" + get_hormozi_rules()
+                        if _task_class != "constraint":
+                            _ceo_deep += "\n" + get_delegation_rules()
+                        prompt_text = (
+                            f"CEO OPERATING STANDARDS "
+                            f"(task: {_task_class}):\n{_ceo_deep}\n\n"
+                            f"{prompt_text}"
+                        )
+                        print(f"[Gateway] CEO standards from Python: {_task_class}")
+                    except Exception as _ceo_err:
+                        print(f"[Gateway] CEO standards: {_ceo_err}")
+
+            if agent_id == "portfolio_advisor":
+                try:
+                    from umh.runtime_engine.skill_registry import get_skill_registry
+
+                    _sr_pa = get_skill_registry()
+                    _pa_skill = _sr_pa.get_skill("portfolio_framework")
+                    if _pa_skill and _pa_skill.content:
+                        prompt_text = (
+                            f"PORTFOLIO ADVISOR OPERATING STANDARDS "
+                            f"(Munger/Dalio framework):\n{_pa_skill.content}\n\n"
+                            f"{prompt_text}"
+                        )
+                        print("[Gateway] Portfolio advisor standards from skill")
+                    else:
+                        raise ValueError("portfolio_framework skill not found")
+                except Exception:
+                    try:
+                        from umh.runtime_engine.portfolio_advisor_standards import (
+                            get_all_standards as get_pa_standards,
+                        )
+
+                        _pa_deep = get_pa_standards()
+                        if _pa_deep:
+                            prompt_text = (
+                                f"PORTFOLIO ADVISOR OPERATING STANDARDS "
+                                f"(Munger/Dalio framework):\n{_pa_deep}\n\n"
+                                f"{prompt_text}"
+                            )
+                            print("[Gateway] Portfolio advisor standards from Python")
+                    except Exception as _pa_err:
+                        print(f"[Gateway] Portfolio advisor standards: {_pa_err}")
+
+            try:
+                from umh.runtime_engine.principle_engine import PrincipleEngine
+
+                _pe = PrincipleEngine(ctx)
+                _standards = _pe.format_agent_standards(agent_id)
+                if _standards:
+                    prompt_text = f"{_standards}\n\n{prompt_text}"
+                    print(f"[Gateway] Agent standards injected: {agent_id}")
+            except Exception as _se_err:
+                print(f"[Gateway] Standards inject: {_se_err}")
+
+            try:
+                from umh.runtime_engine.principle_engine import PrincipleEngine
+
+                _pe_d = PrincipleEngine(ctx)
+                _domain = _AGENT_DOMAIN_MAP.get(agent_id, "ops")
+                _domain_principles = _pe_d.format_for_prompt(_domain)
+                if _domain_principles:
+                    prompt_text = f"{_domain_principles}\n\n{prompt_text}"
+                    print(f"[Gateway] Domain principles injected: {_domain}")
+            except Exception as _dp_err:
+                print(f"[Gateway] Domain principles: {_dp_err}")
+
+            return prompt_text
+
+        # ── Resolve agent_id, task_type, and inject context into prompt ───────
+
+        agent_id = sub_agent or "executive_assistant"
+        spine_task_type = TaskType.ANALYZE
+        skill_name = None
+
+        if team and team in _NAMED_AGENT_TEAMS:
+            agent_id = {
+                "dex": "executive_assistant",
+                "lyfe_ceo": "lyfe_ceo",
+                "brand_ceo": "brand_ceo",
+                "portfolio_advisor": "portfolio_advisor",
+            }[team]
+
+            if agent_id == "executive_assistant":
+                try:
+                    from umh.runtime_engine.martell_patterns import detect_leverage_killer
+
+                    leverage = detect_leverage_killer(prompt)
+                    if leverage:
+                        prompt = leverage["intervention"] + "\n\n" + prompt
+                except Exception:
+                    pass
+
+                try:
+                    from umh.runtime_engine.skill_registry import get_skill_registry
+
+                    _sr_ea = get_skill_registry()
+                    _ea_skill = _sr_ea.get_skill("ea_framework")
+                    if _ea_skill and _ea_skill.content:
+                        prompt = f"OPERATIONAL STANDARDS:\n{_ea_skill.content}\n\n---\n\n{prompt}"
+                        print("[Gateway] EA standards from skill")
+                    else:
+                        raise ValueError("ea_framework skill not found")
+                except Exception:
+                    try:
+                        from umh.runtime_engine.ea_operational_standards import get_all_standards
+
+                        ea_standards = get_all_standards()
+                        prompt = (
+                            f"OPERATIONAL STANDARDS:\n{ea_standards}\n\n---\n\n{prompt}"
+                        )
+                        print("[Gateway] EA standards from Python")
+                    except Exception as _dex_err:
+                        print(f"[Gateway] DEX context inject: {_dex_err}")
+
+            elif agent_id == "portfolio_advisor":
+                try:
+                    from umh.runtime_engine.portfolio_advisor import (
+                        PortfolioAdvisor as PortfolioAgent,
+                    )
+
+                    _pa = PortfolioAgent(ctx)
+                    _ventures = _pa.scan_all_ventures()
+                    _port_brief = _pa.generate_portfolio_brief(_ventures)
+                    prompt = f"PORTFOLIO DATA:\n{_port_brief}\n\n{prompt}"
+                except Exception as _pa_err:
+                    print(f"[Gateway] Portfolio Advisor inject: {_pa_err}")
+
+            prompt = _inject_agent_context(prompt, agent_id)
+
+        elif team:
+            try:
+                from umh.runtime_engine.agent_teams import route as team_route
+            except ImportError:
+                pass
+
+            config = team_route(team, sub_agent)
+            agent_id = f"{team}.{sub_agent}"
+            spine_task_type = config.task_type
+            skill_name = config.skill_name
+
+        else:
+            task_type_str = request.get("task_type", "analyze").upper()
+            try:
+                spine_task_type = TaskType[task_type_str]
+            except KeyError:
+                spine_task_type = TaskType.ANALYZE
+
+            if not sub_agent:
+                try:
+                    from umh.runtime_engine.intent_router import IntentRouter, IntentDomain
+
+                    ir = IntentRouter(ctx)
+                    domain = ir.route(prompt)
+                    agent_id = ir.get_agent(domain)
+                    print(f"[Gateway] Intent: {domain.value} → {agent_id}")
+
+                    if domain == IntentDomain.PORTFOLIO:
+                        try:
+                            from umh.runtime_engine.portfolio_advisor import (
+                                PortfolioAdvisor as PortfolioAgent,
+                            )
+
+                            pa = PortfolioAgent(ctx)
+                            ventures = pa.scan_all_ventures()
+                            port_brief = pa.generate_portfolio_brief(ventures)
+                            prompt = f"PORTFOLIO DATA:\n{port_brief}\n\n{prompt}"
+                        except Exception as _pe:
+                            print(f"[Gateway] Portfolio inject: {_pe}")
+
+                    elif domain == IntentDomain.CEO:
+                        try:
+                            from umh.runtime_engine.ceo_agent import CEOAgent
+
+                            _ceo = CEOAgent(ctx)
+                            _prims = _ceo.detect_primitives()
+                            prompt = (
+                                f"CEO CONTEXT:\n"
+                                f"Stage: {_prims.get('stage', 1)}\n"
+                                f"Revenue: ${_prims.get('current_revenue', 0)}\n"
+                                f"Clients: {_prims.get('client_count', 0)}\n"
+                                f"Channel: {_prims.get('primary_channel', '')}\n\n"
+                                f"{prompt}"
+                            )
+                        except Exception as _ce:
+                            print(f"[Gateway] CEO inject: {_ce}")
+
+                except Exception as _ir_err:
+                    print(f"[Gateway] Intent routing: {_ir_err}")
+
+            if not sub_agent and agent_id == "executive_assistant":
+                agent_id = self._route_to_agent(prompt)
+
+            if agent_id in _CEO_AGENTS:
+                try:
+                    from umh.runtime_engine.delegation_tracker import log_delegation
+
+                    log_delegation(
+                        task=prompt[:200],
+                        delegated_to=agent_id,
+                        due_hours=24,
+                    )
+                except Exception as _del_err:
+                    print(f"[Gateway] Delegation log failed: {_del_err}")
+
+            prompt = _inject_agent_context(prompt, agent_id)
+
+        # ── SessionRuntime — session-scoped execution via spine ────────────────
+        # SessionRuntime wraps ExecutionSpine with session-level concerns:
+        # message accumulation, auto-compaction, and metadata aggregation.
+        # The spine itself remains stateless per-call.
+
+        from umh.runtime_engine.context_builder import ContextBuilder
+        from umh.runtime_engine.session_store import get_session
+
+        # Infer authority class from resolved task type
+        _authority_map = {
+            "score": "analyze",
+            "classify": "classify",
+            "summarize": "analyze",
+            "analyze": "analyze",
+            "generate": "draft_message",
+            "fast_response": "analyze",
+            "conversation": "analyze",
+            "code": "analyze",
+            "strategic": "analyze",
+        }
+        _tt_val = getattr(spine_task_type, "value", str(spine_task_type)).lower()
+        _spine_authority = _authority_map.get(_tt_val, "analyze")
+
+        _session = get_session(session_id, ctx)
+
+        _calibrated = _session.get_calibrated_thresholds()
+
+        builder = ContextBuilder()
+        unified_ctx = builder.build(
+            ctx,
+            request.get("prompt", prompt),
+            session_id or "",
+            agent=agent_id,
+            venture_id=venture_id,
+            channel=request.get("channel", ""),
+            conversation_memory=cm,
+            session_runtime=_session,
+            calibrated_thresholds=_calibrated,
+        )
+        _spine_response = _session.run(
+            message=prompt,
+            unified_context=unified_ctx,
+            agent_type=agent_id,
+            authority_class=_spine_authority,
+            channel_id=request.get("channel", ""),
+            org_id=str(ctx.org_id),
+            user_id=str(ctx.user_id),
+            task_type=spine_task_type,
+            venture_id=venture_id,
+            skill_name=skill_name,
+            calibrated_thresholds=_calibrated,
+        )
+
+        # Check for approval-pending response from spine
+        if _spine_response.startswith("Queued for approval"):
+            return {
+                "status": "pending",
+                "approval_id": _spine_response.split("`!approve ")[1].split("`")[0]
+                if "`!approve " in _spine_response
+                else "",
+                "message": _spine_response,
+            }
+
+        print(
+            f"[Gateway] SessionRuntime OK: agent={agent_id} "
+            f"tokens~{unified_ctx.estimated_tokens} "
+            f"session_turns={_session.stats.turns} "
+            f"session_cost=${_session.stats.total_cost_usd:.4f} "
+            f"failed_sources={len(unified_ctx.failed_sources)}"
+        )
+
+        # ── Gateway-level post-processing ────────────────────────────────────
+        # Accountability and decision logging are gateway-level concerns
+        # (not execution concerns), so they remain here.
+
+        try:
+            from umh.runtime_engine.accountability import AccountabilityEngine
+
+            _acct = AccountabilityEngine(ctx)
+            commitment = _acct.detect_commitment(prompt, venture_id or "")
+            if commitment:
+                print(f"[Accountability] Logged: {commitment.text[:50]}")
+        except Exception as e:
+            print(f"[Accountability] {e}")
+
+        try:
+            from umh.runtime_engine.decision_log import DecisionLog
+
+            _dl = DecisionLog(ctx)
+            if _dl.detect_decision(prompt):
+                _dl.log_from_message(prompt, venture_id=venture_id or "")
+        except Exception as e:
+            print(f"[DecisionLog] {e}")
+
+        # Quality gate at gateway boundary
+        _quality_score = 0.5
+        _quality_passed = True
+        if _spine_response:
+            _, _quality_score, _quality_passed = self._validate_output(
+                _spine_response,
+                agent_type=agent_id,
+                provider="spine",
+            )
+
+        return {
+            "status": "ok",
+            "interaction_id": None,
+            "model": getattr(_spine_response, "model_used", "spine"),
+            "skill": skill_name,
+            "output": _spine_response,
+            "tokens": unified_ctx.estimated_tokens,
+            "iterations": getattr(_spine_response, "iterations", 1),
+            "was_enhanced": getattr(_spine_response, "was_enhanced", False),
+            "quality_score": round(_quality_score, 3),
+            "quality_passed": _quality_passed,
+            "original_prompt": _raw_user_input,
+            "enhanced_prompt": prompt if prompt != _raw_user_input else "",
+            "enhancement_reason": request.get("_enhancement_reason", ""),
+        }
+
+    # ─── Route: status ────────────────────────────────────────────────────────
+
+    def _route_status(self, request: dict) -> dict:
+        try:
+            from umh.runtime_engine.status import (
+            _fetch_7d_raw,
+            _fetch_total_interactions,
+            _fetch_last_orchestrator_run,
+            _cost_est,
+            )
+        except ImportError:
+            pass
+        try:
+            from umh.runtime_engine.venture_knowledge import VentureKnowledgeBase
+        except ImportError:
+            pass
+
+        rows_7d = _fetch_7d_raw()
+        total_interactions = _fetch_total_interactions()
+        last_orch = _fetch_last_orchestrator_run()
+
+        # Venture north star
+        ventures = []
+        for vid in VentureKnowledgeBase.list_ventures():
+            v = VentureKnowledgeBase.get(vid)
+            pct = (
+                round(v.monthly_revenue / v.monthly_target * 100, 1)
+                if v.monthly_target > 0
+                else 0.0
+            )
+            ventures.append(
+                {
+                    "venture_id": vid,
+                    "revenue": v.monthly_revenue,
+                    "target": v.monthly_target,
+                    "pct": pct,
+                    "stage": v.stage,
+                }
+            )
+
+        # Events table count
+        try:
+            with get_conn(ORG_ID) as cur:
+                cur.execute(
+                    "SELECT COUNT(*) AS cnt FROM events WHERE org_id = %s", (ORG_ID,)
+                )
+                events_count = cur.fetchone()["cnt"]
+        except Exception:
+            events_count = 0
+
+        # Format readable output for Discord display
+        venture_lines = []
+        for v in ventures:
+            bar = "█" * int(v["pct"] / 10) + "░" * (10 - int(v["pct"] / 10))
+            venture_lines.append(
+                f"  {v['venture_id']}: ${v['revenue']:,.0f} / ${v['target']:,.0f} "
+                f"[{bar}] {v['pct']}% — Stage {v['stage']}"
+            )
+
+        last_orch_str = last_orch["timestamp"][:19] if last_orch else "never"
+        neon_status = "✅ connected" if events_count > 0 else "⚠️ no events"
+        output_lines = (
+            [
+                "**EOS SYSTEM STATUS**",
+                "",
+                "**NORTH STAR**",
+            ]
+            + venture_lines
+            + [
+                "",
+                "**ACTIVITY**",
+                f"  Interactions (total)  : {total_interactions:,}",
+                f"  Interactions (7d)     : {len(rows_7d)}",
+                f"  Cost (7d)             : ${round(_cost_est(rows_7d), 4):.4f}",
+                f"  Events logged         : {events_count:,}",
+                f"  Last orchestrator run : {last_orch_str}",
+                "",
+                "**INFRASTRUCTURE**",
+                f"  Neon database         : {neon_status}",
+            ]
+        )
+
+        return {
+            "status": "ok",
+            "interactions_total": total_interactions,
+            "interactions_7d": len(rows_7d),
+            "cost_7d_usd": round(_cost_est(rows_7d), 4),
+            "events_logged": events_count,
+            "last_orchestrator": last_orch_str,
+            "ventures": ventures,
+            "output": "\n".join(output_lines),
+        }
+
+    # ─── Route: brief ─────────────────────────────────────────────────────────
+
+    def _route_brief(self, request: dict) -> dict:
+        """Notion-first brief: run morning cycle, write to Notion, return URL."""
+        try:
+            from umh.runtime_engine.orchestrator import run_full_morning_cycle
+            from umh.environments.system_context import load_context_from_env
+
+            ctx = load_context_from_env()
+            result = run_full_morning_cycle(ctx, return_content=True)
+
+            notion_url = (result or {}).get("notion_url", "")
+            message = (result or {}).get("message", "")
+
+            if notion_url:
+                return {
+                    "status": "ok",
+                    "output": f"📋 Morning Brief ready\n{notion_url}",
+                    "notion_url": notion_url,
+                }
+            else:
+                # Fallback: return summary if Notion failed
+                summary = message[:500] if message else "Brief generated. Check Notion."
+                return {
+                    "status": "ok",
+                    "output": summary,
+                }
+
+        except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).error(f"[Brief] Route failed: {e}")
+            return {
+                "status": "ok",
+                "output": "Brief unavailable.",
+                "error": str(e),
+            }
+
+    # ─── Approval queue ───────────────────────────────────────────────────────
+
+    def queue_for_approval(self, request: dict) -> str:
+        """
+        Write request to pending/ directory.
+        Returns approval_id (timestamp-based, human-readable).
+        """
+        approval_id = f"{_timestamp_id()}_{request.get('type', 'req')}"
+        pending_file = PENDING_DIR / f"{approval_id}.json"
+        record = {
+            "approval_id": approval_id,
+            "queued_at": _utcnow(),
+            "request": request,
+            "status": "pending",
+        }
+        pending_file.write_text(json.dumps(record, indent=2), encoding="utf-8")
+        print(f"[Gateway] Approval queued: {approval_id}")
+        return approval_id
+
+    def approve(self, approval_id: str) -> dict:
+        """
+        Move pending → approved, then execute the original request.
+        Returns the execution result.
+        """
+        pending_file = PENDING_DIR / f"{approval_id}.json"
+        approved_file = APPROVED_DIR / f"{approval_id}.json"
+
+        if not pending_file.exists():
+            # Check if already approved
+            if approved_file.exists():
+                return {"status": "error", "error": f"{approval_id} already approved"}
+            return {"status": "error", "error": f"Approval {approval_id} not found"}
+
+        record = json.loads(pending_file.read_text(encoding="utf-8"))
+        record["status"] = "approved"
+        record["approved_at"] = _utcnow()
+
+        # Move to approved/
+        approved_file.write_text(json.dumps(record, indent=2), encoding="utf-8")
+        pending_file.unlink()
+        print(f"[Gateway] Approved: {approval_id}")
+
+        # Execute bypassing the approval gate (approved request runs directly)
+        original_request = record["request"]
+        rtype = original_request.get("type")
+        try:
+            if rtype == "event":
+                result = self._route_event(original_request)
+            elif rtype == "agent_task":
+                result = self._route_agent_task(original_request)
+            elif rtype == "status":
+                result = self._route_status(original_request)
+            elif rtype == "brief":
+                result = self._route_brief(original_request)
+            else:
+                result = {"status": "error", "error": f"Unknown type: {rtype}"}
+        except Exception as exc:
+            result = {"status": "error", "error": str(exc)}
+
+        self._log_gateway_event(
+            original_request, "approved_executed", json.dumps(result)[:300]
+        )
+        return result
+
+    # ─── Multi-part ordering ──────────────────────────────────────────────────
+
+    def split_and_order_prompt(self, text: str) -> list[str]:
+        """
+        Detect whether a prompt contains multiple distinct instructions and
+        return them as an ordered list.  Single-part prompts return [text].
+
+        Detection priority:
+          1. Numbered list  — "1. ...\n2. ..."
+          2. Connector split — lines starting with "also", "another", etc.
+        """
+        import re
+
+        # Numbered list: two or more "N. ..." items
+        numbered = re.findall(r"^\d+\.\s+.+$", text, re.MULTILINE)
+        if len(numbered) >= 2:
+            return [re.sub(r"^\d+\.\s+", "", n).strip() for n in numbered]
+
+        # Connector split on newlines before transition words
+        parts = re.split(
+            r"\n+(?=(?:also|another|additionally|and also|one more|finally)\b)",
+            text,
+            flags=re.IGNORECASE,
+        )
+        if len(parts) >= 2:
+            return [p.strip() for p in parts if p.strip()]
+
+        return [text]
+
+    def handle_ordered(self, request: dict) -> list[dict]:
+        """
+        Split the prompt into ordered parts and process each sequentially.
+        Returns a list of result dicts in order.  Single-part prompts return
+        a one-element list so callers can always iterate uniformly.
+        """
+        text = request.get("prompt", "")
+        parts = self.split_and_order_prompt(text)
+
+        if len(parts) == 1:
+            return [self.handle(request)]
+
+        results = []
+        for i, part in enumerate(parts):
+            part_request = {**request, "prompt": part}
+            result = self.handle(part_request)
+            result["part"] = i + 1
+            result["total_parts"] = len(parts)
+            results.append(result)
+        return results
+
+    def classify_intent(self, text: str) -> str:
+        """
+        Classify a natural language message into one of the known intents.
+        Single Haiku call. Returns the intent word in uppercase.
+        Falls back to 'UNKNOWN' on any failure.
+        """
+        _SYSTEM = (
+            "You are an intent router for an AI business operating system. "
+            "Classify the message into exactly one intent. "
+            "Reply with ONLY the intent word, nothing else.\n\n"
+            "INTENTS:\n"
+            "CONVERSATION — casual greeting, hey DEX, what's up, how are you, "
+            "what are we doing, chat, small talk, checking in\n"
+            "BRIEF — status updates, what's happening, morning brief, how are things, summary\n"
+            "STRATEGY — strategic advice, priorities, what should I focus on, what matters most\n"
+            "OUTREACH — DMs, leads, pipeline, prospects, reply rates, who replied, follow up\n"
+            "RESEARCH — market, competitors, industry, ICP, what's working in the market\n"
+            "CONTENT — content ideas, hooks, posts, captions, what to post\n"
+            "DECISION — should I do X, evaluating options, is this a good idea, advice on a choice\n"
+            "TASK — do this, run this, handle this, delegate, make this happen\n"
+            "INTEL — signals, market moves, alerts, what's happening out there\n"
+            "PORTFOLIO — all companies, overall status, capital allocation, big picture\n"
+            "JOURNAL — logging an update, here's what happened, reporting back, FYI\n"
+            "MODEL — model preferences, switching models, cost mode, which AI are you using\n"
+            "UNKNOWN — cannot determine intent clearly"
+        )
+        _VALID = {
+            "CONVERSATION",
+            "BRIEF",
+            "STRATEGY",
+            "OUTREACH",
+            "RESEARCH",
+            "CONTENT",
+            "DECISION",
+            "TASK",
+            "INTEL",
+            "PORTFOLIO",
+            "JOURNAL",
+            "MODEL",
+            "UNKNOWN",
+        }
+        try:
+            from umh.gateway.entry import utility_llm_call
+
+            raw = utility_llm_call(
+                prompt=text,
+                system=_SYSTEM,
+                operation="classify_intent",
+            )
+            intent = raw.strip().upper().split()[0] if raw else "UNKNOWN"
+            return intent if intent in _VALID else "UNKNOWN"
+        except Exception as e:
+            print(f"[Gateway] classify_intent failed: {e}")
+            return "UNKNOWN"
+
+    def get_pending_approvals(self) -> list[dict]:
+        """Return all requests waiting for approval."""
+        pending = []
+        for f in sorted(PENDING_DIR.glob("*.json")):
+            try:
+                record = json.loads(f.read_text(encoding="utf-8"))
+                pending.append(
+                    {
+                        "approval_id": record.get("approval_id"),
+                        "queued_at": record.get("queued_at"),
+                        "type": record.get("request", {}).get("type"),
+                        "sub_agent": record.get("request", {}).get("sub_agent"),
+                        "action": record.get("request", {}).get("action"),
+                        "prompt": record.get("request", {}).get("prompt", "")[:80],
+                    }
+                )
+            except Exception as exc:
+                pending.append({"file": f.name, "error": str(exc)})
+        return pending
+
+
+# ─── Module-level helper ──────────────────────────────────────────────────────
+
+
+def get_gateway() -> EOSGateway:
+    """Return the singleton EOSGateway instance."""
+    return EOSGateway()
+
+
+def ingest_external_context(
+    source: str,
+    content: str,
+    context_type: str = "design_decision",
+    venture_id: str | None = None,
+) -> str:
+    """
+    Capture context from any external source into Neon + embed immediately.
+
+    source:       'telegram_manual' | 'claude_ai' | 'voice_note' | 'document' | 'manual'
+    context_type: 'design_decision' | 'architectural_spec' | 'user_feedback'
+                  | 'strategic_insight' | 'correction' | 'user_note'
+
+    Stores as an interaction in Neon and triggers async embedding so the
+    note is immediately retrievable by any agent via semantic search.
+
+    Returns the interaction_id (UUID).
+    """
+    from umh.runtime_engine.memory import AgentMemory
+    from umh.runtime_engine.agent_runtime import AgentResult
+
+    result = AgentResult(
+        output=content[:500],
+        model_used="external",
+        tokens_used={"total": 0},
+        skill_used=None,
+    )
+    mem = AgentMemory()
+    interaction_id = mem.log(
+        agent_result=result,
+        venture_id=venture_id,
+        input_summary=f"[{source}] {context_type}",
+        agent=f"external_{source}",
+        task_type=context_type,
+    )
+    return interaction_id

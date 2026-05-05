@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "Playwright 1.58.0"
 sdk_version: "playwright 1.58.0 (Python, sync API)"
 speed_category: "stable"
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: Playwright

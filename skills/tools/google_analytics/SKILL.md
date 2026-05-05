@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "Data API v1beta, Admin API v1beta, Measurement Protocol v2"
 sdk_version: "google-analytics-data 0.18.x, google-analytics-admin 0.22.x"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: google_analytics

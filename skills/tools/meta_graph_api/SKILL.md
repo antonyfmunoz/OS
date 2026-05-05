@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "v23.0 stable / v24.0 / v25.0 latest (quarterly cadence, ~2yr support)"
 sdk_version: "facebook-business 25.0.0 (Python), facebook-nodejs-business-sdk 25.x"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: Meta Graph API

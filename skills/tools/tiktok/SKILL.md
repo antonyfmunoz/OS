@@ -8,7 +8,10 @@ last_researched: "2026-04-06"
 instantiated_from: templates/tools/_template/
 api_version: "v2"
 sdk_version: "HTTP / no first-party Python SDK (community: TikTokApi, pyktok, traktok)"
-speed_category: fast
+speed_category: medium
+trigger: both
+effort: medium
+context: fork
 ---
 
 # Tool: TikTok

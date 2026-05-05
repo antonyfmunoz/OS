@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "Node 22 LTS (Jod)"
 sdk_version: "npm 10.x / pnpm 9.x"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: Node.js

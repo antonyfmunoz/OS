@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "SP-API (versioned per endpoint: orders/v0, catalog/2022-04-01, listings/2021-08-01, fba/inventory/v1, feeds/2021-06-30, reports/2021-06-30, notifications/v1, tokens/2021-03-01)"
 sdk_version: "python-amazon-sp-api 1.9 (saleweaver)"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: Amazon Seller Central (SP-API)

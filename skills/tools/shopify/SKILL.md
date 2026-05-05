@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "2026-04 (Admin GraphQL stable)"
 sdk_version: "@shopify/shopify-api 11.x (Node), shopify-python-api 12.x"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: Shopify

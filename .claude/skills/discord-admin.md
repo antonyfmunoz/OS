@@ -1,3 +1,9 @@
+---
+name: discord-admin
+description: Use when creating, managing, or administering Discord server structure, channels, roles, or webhooks via the bot.
+allowed-tools: Bash, Read, Edit
+---
+
 # Discord Admin — Best Practices
 
 ## When to use this skill

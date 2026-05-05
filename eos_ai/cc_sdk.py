@@ -53,6 +53,23 @@ class CCResult:
     model: str = ""
 
 
+# ─── Provider state feedback ───────────────────────────────────────────────
+
+
+def _track_cc_sdk_result(success: bool) -> None:
+    """Feed cc_sdk outcome into the global provider state."""
+    try:
+        from eos_ai.runtime.provider_state import get_system_state
+
+        state = get_system_state()
+        if success:
+            state.record_provider_success("cc_sdk")
+        else:
+            state.record_provider_failure("cc_sdk")
+    except Exception:
+        pass
+
+
 # ─── Core async query ───────────────────────────────────────────────────────
 
 
@@ -156,18 +173,14 @@ async def query_cc(
             # output_parts will normally contain the real response.  Catch
             # here so the outer code sees collected output instead of an
             # empty failure.
-            logger.debug(
-                "cc_sdk _stream: caught %s (output_parts=%d)", e, len(output_parts)
-            )
+            logger.debug("cc_sdk _stream: caught %s (output_parts=%d)", e, len(output_parts))
 
     try:
         await asyncio.wait_for(_stream(), timeout=timeout)
 
     except asyncio.TimeoutError:
         if output_parts:
-            logger.warning(
-                "cc_sdk: timed out after %ss but partial output available", timeout
-            )
+            logger.warning("cc_sdk: timed out after %ss but partial output available", timeout)
         else:
             logger.warning("cc_sdk: timed out after %ss with no output", timeout)
             return None
@@ -226,9 +239,7 @@ def _kill_orphaned_claude_procs(before_pids: set[int]) -> None:
             timeout=3,
         )
         if result.returncode == 0:
-            current_pids = {
-                int(p) for p in result.stdout.strip().split("\n") if p.strip()
-            }
+            current_pids = {int(p) for p in result.stdout.strip().split("\n") if p.strip()}
             orphans = current_pids - before_pids
             for pid in orphans:
                 try:
@@ -271,6 +282,16 @@ def query_cc_sync(
     Safe to call from model_router and other sync code.
     Creates a new event loop if none is running.
     """
+    # Backpressure: don't spawn subprocesses when system is degraded
+    try:
+        from eos_ai.runtime.provider_state import get_system_state
+
+        if not get_system_state().allow_execution():
+            logger.info("[cc_sdk] blocked by backpressure gate")
+            return None
+    except Exception:
+        pass
+
     nested = _is_nested_cc_session()
     logger.warning(
         "[cc_sdk] called with task_type=%s agent_id=%s nested=%s",
@@ -309,13 +330,18 @@ def query_cc_sync(
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
             future = pool.submit(asyncio.run, coro)
             try:
-                return future.result(timeout=timeout + 5)
-            except (concurrent.futures.TimeoutError, TimeoutError):
-                logger.warning(
-                    "[cc_sdk] thread pool future timed out — killing orphans"
+                result = future.result(timeout=timeout + 5)
+                _track_cc_sdk_result(
+                    result is not None and getattr(result, "output", None) is not None
                 )
+                return result
+            except (concurrent.futures.TimeoutError, TimeoutError):
+                logger.warning("[cc_sdk] thread pool future timed out — killing orphans")
                 _kill_orphaned_claude_procs(before_pids)
                 future.cancel()
+                _track_cc_sdk_result(False)
                 return None
     else:
-        return asyncio.run(coro)
+        result = asyncio.run(coro)
+        _track_cc_sdk_result(result is not None and getattr(result, "output", None) is not None)
+        return result

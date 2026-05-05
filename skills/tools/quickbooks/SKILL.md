@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "v3 minor 75"
 sdk_version: "python-quickbooks 0.9.12 + intuit-oauth 1.2.6"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: quickbooks

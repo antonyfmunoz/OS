@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "Helix"
 sdk_version: "twitchio 2.10 (Python) / twurple 7.2 (TypeScript) / tmi.js 1.8 (chat)"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: Twitch

@@ -1,3 +1,9 @@
+---
+name: debug-agent
+description: Use when an EOS agent produces wrong output, blank responses, or fails to load identity/soul docs.
+allowed-tools: Bash, Read, Grep
+---
+
 # How to Debug an EOS Agent
 
 ## Step 1 — Isolate

@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "Apify API v2"
 sdk_version: "apify-client (Python) / REST API direct (EOS)"
 speed_category: "slow"
+trigger: both
+effort: medium
+context: fork
 ---
 
 # Tool: Apify

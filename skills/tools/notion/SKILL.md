@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "Notion API 2022-06-28"
 sdk_version: "notion-client 2.x (Python) / REST API direct (EOS)"
 speed_category: "fast"
+trigger: both
+effort: medium
+context: fork
 ---
 
 # Tool: Notion

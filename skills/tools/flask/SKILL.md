@@ -8,7 +8,7 @@ last_researched: "2026-04-06"
 instantiated_from: templates/tools/_template/
 api_version: "WSGI"
 sdk_version: "3.1.3"
-speed_category: fast
+speed_category: medium
 trigger: both
 effort: medium
 context: fork

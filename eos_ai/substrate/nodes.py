@@ -41,6 +41,12 @@ class NodeType(str, Enum):
     FUTURE_MOBILE = "future_mobile"
 
 
+class NodeRole(str, Enum):
+    ORCHESTRATOR = "orchestrator"
+    WORKSTATION = "workstation"
+    OBSERVER = "observer"
+
+
 class NodeStatus(str, Enum):
     ONLINE = "online"
     DEGRADED = "degraded"
@@ -60,6 +66,7 @@ class Node:
 
     node_id: str
     node_type: NodeType
+    role: NodeRole = NodeRole.WORKSTATION
     capabilities: list[str] = field(default_factory=list)
     status: NodeStatus = NodeStatus.UNKNOWN
     availability: str = "unknown"  # e.g. "always", "when_awake", "on_demand"
@@ -110,9 +117,7 @@ class NodeRegistry:
         except Exception as e:
             import sys
 
-            print(
-                f"[substrate.nodes] load failed ({e}); starting empty", file=sys.stderr
-            )
+            print(f"[substrate.nodes] load failed ({e}); starting empty", file=sys.stderr)
 
     def _flush(self) -> None:
         if not self._persist:
@@ -136,9 +141,7 @@ class NodeRegistry:
         except Exception as e:
             import sys
 
-            print(
-                f"[substrate.nodes] flush failed ({e}); in-memory only", file=sys.stderr
-            )
+            print(f"[substrate.nodes] flush failed ({e}); in-memory only", file=sys.stderr)
 
     # ─── CRUD ─────────────────────────────────────────────────────────────
     def upsert(self, node: Node) -> Node:

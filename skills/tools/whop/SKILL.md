@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "v5"
 sdk_version: "@whop/sdk 0.0.25 (Node/TS), whopsdk-python (Python)"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: Whop

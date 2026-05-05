@@ -8,7 +8,10 @@ last_researched: "2026-04-06"
 instantiated_from: templates/tools/_template/
 api_version: "PostgreSQL 16"
 sdk_version: "psycopg2 2.9.11"
-speed_category: fast
+speed_category: medium
+trigger: both
+effort: medium
+context: fork
 ---
 
 # Tool: Neon Postgres

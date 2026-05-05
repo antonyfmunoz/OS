@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "V4"
 sdk_version: "HTTP only (no first-party Python SDK; community libs: convertkit-python, joncalhoun/convertkit Go)"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: Kit (formerly ConvertKit)

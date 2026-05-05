@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "2023-06-01 (anthropic-version header)"
 sdk_version: "anthropic 0.49+ (Python SDK)"
 speed_category: "fast"
+trigger: both
+effort: medium
+context: fork
 ---
 
 # Tool: Anthropic API (Claude)

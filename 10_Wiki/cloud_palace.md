@@ -18,6 +18,8 @@ of the codebase. This file tells AI agents how to use it.
   rooms/              ← one page per functional cluster (intelligence_core, substrate, ...)
 ```
 
+Key navigational links: [[palace/index|Palace Index]], [[retrieval_rules|Retrieval Rules]].
+
 Each **room** page contains:
 
 - **Purpose** — one sentence naming the concern the room owns.
@@ -46,7 +48,7 @@ Each **room** page contains:
 4. Look at the **core loci** table. These are your files.
    Rank is `inbound*2 + outbound + critical*10 + entry*3`.
 
-5. Follow a locus wikilink to its codebase graph page under `10_Wiki/codebase/files/`.
+5. Follow a locus wikilink to its [[codebase/cloud|codebase graph]] page under `10_Wiki/codebase/files/`.
 
 6. Only open the real source file when the graph page does not answer.
 

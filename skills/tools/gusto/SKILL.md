@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "Gusto Embedded API v1 (2024-04-01 versioned header)"
 sdk_version: "@gusto/embedded-api 0.x (TS), gusto-embedded (Python)"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: gusto

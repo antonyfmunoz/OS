@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "tmux 3.5a"
 sdk_version: "libtmux 0.53 (Python bindings)"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: tmux

@@ -51,8 +51,12 @@ MIN_SKILL_CHARS = 500
 MIN_BP_CHARS = 2000
 
 # Freshness windows (days) by speed_category
-FRESHNESS_WINDOWS = {"fast": 30, "medium": 60, "stable": 90}
-DEFAULT_FRESHNESS_WINDOW = 60
+# fast = AI/ML tools, rapidly evolving APIs (daily check)
+# medium = SaaS APIs, frameworks with monthly releases (every 3 days)
+# stable = infrastructure, runtimes, mature tools (weekly)
+# slow = desktop software, creative tools (biweekly)
+FRESHNESS_WINDOWS = {"fast": 14, "medium": 45, "stable": 90, "slow": 120}
+DEFAULT_FRESHNESS_WINDOW = 45
 NEAR_STALE_FRACTION = 0.8  # flag at 80% of window
 
 
@@ -207,8 +211,8 @@ def section_present(body: str, heading: str) -> bool:
         if not m:
             continue
         text = m.group(1)
-        # Strip leading numbering like "1.", "12)", "1 -"
-        text = re.sub(r"^\d+[\.\)\-:]\s*", "", text).strip().lower()
+        # Strip leading numbering like "1.", "12)", "1 -", "Section 1:"
+        text = re.sub(r"^(?:section\s+)?\d+[\.\)\-:]\s*", "", text, flags=re.IGNORECASE).strip().lower()
         if text == target or text.startswith(target + " ") or text.startswith(
             target + ":"
         ) or text.startswith(target + "(") or text.startswith(target + "—"):

@@ -8,7 +8,10 @@ last_researched: "2026-04-04"
 instantiated_from: templates/tools/_template/
 api_version: "Gmail API v1"
 sdk_version: "GWS CLI (@googleworkspace/cli via npx) + googleapiclient (Python)"
-speed_category: "fast"
+speed_category: "medium"
+trigger: both
+effort: medium
+context: fork
 ---
 
 # Tool: Gmail

@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "PDF Services REST v3 / Acrobat Sign REST v6"
 sdk_version: "pdfservices-sdk Python 4.x, Node 4.x; Acrobat Pro DC 2024+"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: acrobat (Adobe Acrobat Pro + PDF Services API + Acrobat Sign)

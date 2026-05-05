@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "Data API v3 / Analytics API v2 / Reporting API v1"
 sdk_version: "google-api-python-client 2.122+"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: YouTube

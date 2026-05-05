@@ -1,0 +1,70 @@
+{
+  "file_id": "11Kd3lSDA5_YAbjRvDai7Z9Itf3hKvKKpJ8Bw6DKVcwc",
+  "title": "Untitled document",
+  "mime_type": "application/vnd.google-apps.document",
+  "source_account": "antonyfm@empyreanstudios.co",
+  "web_view_link": "https://docs.google.com/document/d/11Kd3lSDA5_YAbjRvDai7Z9Itf3hKvKKpJ8Bw6DKVcwc/edit?usp=drivesdk",
+  "modified_time": "2026-05-04T18:40:12.588Z",
+  "created_time": "2026-04-12T05:57:45.527Z",
+  "owner_metadata": {
+    "display_name": "Antony Munoz"
+  },
+  "parent_metadata": {
+    "folder_id": "0AMuKYpdP0e12Uk9PVA"
+  },
+  "backend_type": "api",
+  "extraction_timestamp": "2026-05-05T01:23:30.593753+00:00",
+  "extraction_method": "GOOGLE_DOCS_API_INCLUDE_TABS_CONTENT_TRUE",
+  "extraction_coverage_status": "complete",
+  "total_tabs": 3,
+  "total_words": 995,
+  "total_characters": 7390,
+  "empty_tab_count": 0,
+  "tabs": [
+    {
+      "tab_id": "t.0",
+      "tab_title": "Tab 1",
+      "tab_path": "Tab 1",
+      "parent_tab_id": null,
+      "tab_order": 0,
+      "is_empty": false,
+      "word_count": 319,
+      "character_count": 2005,
+      "extraction_coverage_status": "complete",
+      "extraction_notes": ""
+    },
+    {
+      "tab_id": "t.dt64kla117t",
+      "tab_title": "Tab 2",
+      "tab_path": "Tab 2",
+      "parent_tab_id": null,
+      "tab_order": 1,
+      "is_empty": false,
+      "word_count": 98,
+      "character_count": 960,
+      "extraction_coverage_status": "complete",
+      "extraction_notes": ""
+    },
+    {
+      "tab_id": "t.4uec7jc6uqjg",
+      "tab_title": "Tab 3",
+      "tab_path": "Tab 3",
+      "parent_tab_id": null,
+      "tab_order": 2,
+      "is_empty": false,
+      "word_count": 578,
+      "character_count": 4425,
+      "extraction_coverage_status": "complete",
+      "extraction_notes": ""
+    }
+  ],
+  "provenance": {
+    "backend_type": "api",
+    "extraction_method": "GOOGLE_DOCS_API_INCLUDE_TABS_CONTENT_TRUE",
+    "source_observed_from": "Google Docs API v1 via gws CLI",
+    "content_came_from_api": true,
+    "content_came_from_cli": false,
+    "content_came_from_visible_ui": false,
+    "any_content_inaccessible": false
+  }
+}

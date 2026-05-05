@@ -8,7 +8,10 @@ last_researched: "2026-04-06"
 instantiated_from: templates/tools/_template/
 api_version: "Public API v1 (stable, growing) + legacy api/v2 (unofficial, undocumented)"
 sdk_version: "HTTP / Pusher WebSocket / Playwright fallback"
-speed_category: fast
+speed_category: medium
+trigger: both
+effort: medium
+context: fork
 ---
 
 # Tool: Kick

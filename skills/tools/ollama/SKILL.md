@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "v1 (REST, no versioned path — all endpoints under /api/)"
 sdk_version: "raw HTTP (no SDK)"
 speed_category: fast
+trigger: both
+effort: medium
+context: fork
 ---
 
 # Tool: Ollama

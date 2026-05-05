@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "v5"
 sdk_version: "pinterest-python-generated 1.x (OpenAPI), or direct REST"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: Pinterest

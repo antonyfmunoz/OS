@@ -39,7 +39,8 @@ LAYER_VERSION = "v1"
 
 # ─── Polling config ──────────────────────────────────────────────────────────
 
-_POLL_INTERVAL_S = 0.5
+_POLL_INTERVAL_S = 2.0
+_POLL_INTERVAL_ACTIVE_S = 0.5  # faster polling during active send
 _STABLE_CYCLES_FOR_COMPLETE = 3  # output unchanged for N cycles = done
 _MAX_REPLY_CHARS = 20_000  # safety cap on extracted reply
 _IDLE_TIMEOUT_S = 30.0  # no activity at all → give up
@@ -166,9 +167,7 @@ class SessionWatcher:
         self._stable_count = 0
         self._last_marker_count = 0
         self._responding_text = ""
-        self._last_output_change: float = (
-            time.monotonic()
-        )  # track when output last changed
+        self._last_output_change: float = time.monotonic()  # track when output last changed
 
         # Baseline: length of clean output at the moment we send a message.
         # Everything before this offset belongs to *prior* interactions and
@@ -325,13 +324,18 @@ class SessionWatcher:
     # ─── Internal loop ───────────────────────────────────────────────────
 
     def _run_loop(self) -> None:
-        """Main polling loop — runs in daemon thread."""
+        """Main polling loop — runs in daemon thread.
+
+        Uses fast polling (0.5s) during active sends for responsiveness,
+        slow polling (2s) when idle to reduce CPU overhead.
+        """
         while not self._stop_event.is_set():
             try:
                 self._poll_once()
             except Exception as e:
                 print(f"[SessionWatcher] Error in {self.session_name}: {e}")
-            self._stop_event.wait(timeout=self._poll_interval)
+            interval = _POLL_INTERVAL_ACTIVE_S if self._active_send else self._poll_interval
+            self._stop_event.wait(timeout=interval)
 
     def _poll_once(self) -> None:
         """Single poll cycle: capture output, detect state, emit events.
@@ -394,10 +398,7 @@ class SessionWatcher:
                 if output_changed and has_tool_activity and not has_prompt:
                     self._state = SessionState.WORKING
                     self._stable_count = 0
-                elif (
-                    self._stable_count >= _STABLE_CYCLES_FOR_COMPLETE
-                    and not has_streaming
-                ):
+                elif self._stable_count >= _STABLE_CYCLES_FOR_COMPLETE and not has_streaming:
                     self._finalize_reply(clean, has_prompt)
 
             elif self._state == SessionState.WORKING:
@@ -405,10 +406,7 @@ class SessionWatcher:
                 if output_changed:
                     # Still working — reset stability counter
                     self._stable_count = 0
-                elif (
-                    self._stable_count >= _STABLE_CYCLES_FOR_COMPLETE
-                    and not has_streaming
-                ):
+                elif self._stable_count >= _STABLE_CYCLES_FOR_COMPLETE and not has_streaming:
                     if has_prompt:
                         # Tool calls done, prompt visible — extract final reply
                         self._finalize_reply(clean, has_prompt)

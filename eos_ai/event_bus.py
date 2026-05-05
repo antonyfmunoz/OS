@@ -28,6 +28,7 @@ from typing import Any, Callable
 
 import sys
 import os
+
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
@@ -41,20 +42,35 @@ def _utcnow() -> str:
 
 # ─── Supported event types ────────────────────────────────────────────────────
 
-EVENT_TYPES = frozenset({
-    "new_lead",         # → sales.icp_qualifier
-    "lead_replied",     # → sales.objection_handler
-    "lead_booked",      # log outcome + notify orchestrator
-    "lead_closed",      # log outcome + run profile update
-    "lead_lost",        # log outcome + log objection data
-    "signal_captured",  # → research.signal_analyzer
-    "content_needed",   # → content.hook_generator
-    "morning_cycle",    # → orchestrator.run_morning_cycle
-    "skill_threshold",  # → skill_improvement.check_and_improve
-})
+EVENT_TYPES = frozenset(
+    {
+        "new_lead",  # → sales.icp_qualifier
+        "lead_replied",  # → sales.objection_handler
+        "lead_booked",  # log outcome + notify orchestrator
+        "lead_closed",  # log outcome + run profile update
+        "lead_lost",  # log outcome + log objection data
+        "signal_captured",  # → research.signal_analyzer
+        "content_needed",  # → content.hook_generator
+        "morning_cycle",  # → orchestrator.run_morning_cycle
+        "skill_threshold",  # → skill_improvement.check_and_improve
+        "goal_activated",  # → goal state change: now producing tasks
+        "goal_deferred",  # → goal state change: paused, no tasks
+        "goal_completed",  # → goal state change: terminal
+        "goal_dropped",  # → goal state change: terminal
+        "goal_blocked",  # → goal state change: waiting on dependency
+        "goal_selection_cycle",  # → selection cycle completed
+        "goal_task_completed",  # → task succeeded → update goal performance
+        "goal_task_failed",  # → task failed → update goal performance
+        "goal_swap_triggered",  # → deferred goal replaced active (9F swap pressure)
+        "goal_opportunity_penalty",  # → active goal penalized by opportunity cost (9F)
+        "goal_executed",  # → goal execution completed (11A execution loop)
+        "goal_priority_decayed",  # → priority decay applied after sustained failure (9H)
+    }
+)
 
 
 # ─── EventBus (singleton) ────────────────────────────────────────────────────
+
 
 class EventBus:
     """
@@ -157,6 +173,7 @@ class EventBus:
 
 # ─── Default handlers ─────────────────────────────────────────────────────────
 
+
 def _handle_new_lead(payload: dict) -> dict:
     """
     new_lead → run icp_qualifier skill.
@@ -165,10 +182,10 @@ def _handle_new_lead(payload: dict) -> dict:
     """
     from eos_ai.agent_runtime import AgentRuntime, TaskType
 
-    username    = payload.get("username", "unknown")
-    score       = payload.get("score", 0)
-    state       = payload.get("state", "unknown")
-    venture_id  = payload.get("venture_id", "lyfe_institute")
+    username = payload.get("username", "unknown")
+    score = payload.get("score", 0)
+    state = payload.get("state", "unknown")
+    venture_id = payload.get("venture_id", "lyfe_institute")
 
     runtime = AgentRuntime()
     prompt = (
@@ -203,15 +220,15 @@ def _handle_lead_replied(payload: dict) -> dict:
     """
     from eos_ai.agent_runtime import AgentRuntime, TaskType
 
-    username       = payload.get("username", "unknown")
-    message        = payload.get("message", "")
+    username = payload.get("username", "unknown")
+    message = payload.get("message", "")
     interaction_id = payload.get("interaction_id")
-    venture_id     = payload.get("venture_id", "lyfe_institute")
+    venture_id = payload.get("venture_id", "lyfe_institute")
 
     runtime = AgentRuntime()
     prompt = (
         f"Lead @{username} replied:\n\n"
-        f"\"{message}\"\n\n"
+        f'"{message}"\n\n'
         f"Analyze the reply:\n"
         f"1. Conversation stage (Cold/Engaged/Diagnosing/Qualifying/Booked)\n"
         f"2. Objection or resistance detected (if any)\n"
@@ -240,9 +257,9 @@ def _handle_lead_booked(payload: dict) -> dict:
     """
     from eos_ai.memory import AgentMemory
 
-    username     = payload.get("username", "unknown")
+    username = payload.get("username", "unknown")
     booking_time = payload.get("booking_time", "")
-    venture_id   = payload.get("venture_id", "lyfe_institute")
+    venture_id = payload.get("venture_id", "lyfe_institute")
 
     mem = AgentMemory()
     row = mem.get_interaction_for_lead(username, venture_id=venture_id)
@@ -272,7 +289,7 @@ def _handle_lead_closed(payload: dict) -> dict:
     """
     from eos_ai.memory import AgentMemory
 
-    username   = payload.get("username", "unknown")
+    username = payload.get("username", "unknown")
     venture_id = payload.get("venture_id", "lyfe_institute")
 
     mem = AgentMemory()
@@ -287,15 +304,20 @@ def _handle_lead_closed(payload: dict) -> dict:
         print(f"[EventBus:lead_closed] @{username} — outcome logged (id={outcome_id})")
     else:
         outcome_id = None
-        mem.log_orphaned_reply(username, outcome_type="closed", score=1.0,
-                               notes="event_bus:lead_closed — no prior interaction")
+        mem.log_orphaned_reply(
+            username,
+            outcome_type="closed",
+            score=1.0,
+            notes="event_bus:lead_closed — no prior interaction",
+        )
         print(f"[EventBus:lead_closed] @{username} — logged as orphan")
 
     # Run human profile update
     try:
         from eos_ai.human_intelligence import HumanIntelligenceEngine
         from eos_ai.context import load_context_from_env
-        engine   = HumanIntelligenceEngine(load_context_from_env())
+
+        engine = HumanIntelligenceEngine(load_context_from_env())
         profiles = engine.run_profile_cycle()
         print(f"[EventBus:lead_closed] profile cycle: {profiles}")
     except Exception as e:
@@ -310,9 +332,9 @@ def _handle_lead_lost(payload: dict) -> dict:
     """
     from eos_ai.memory import AgentMemory
 
-    username       = payload.get("username", "unknown")
-    objection      = payload.get("objection", "")
-    venture_id     = payload.get("venture_id", "lyfe_institute")
+    username = payload.get("username", "unknown")
+    objection = payload.get("objection", "")
+    venture_id = payload.get("venture_id", "lyfe_institute")
 
     mem = AgentMemory()
     notes = f"event_bus:lead_lost"
@@ -345,13 +367,13 @@ def _handle_signal_captured(payload: dict) -> dict:
     from eos_ai.agent_runtime import AgentRuntime, TaskType
 
     signal_text = payload.get("signal_text", "")
-    source      = payload.get("source", "unknown")
-    venture_id  = payload.get("venture_id", "lyfe_institute")
+    source = payload.get("source", "unknown")
+    venture_id = payload.get("venture_id", "lyfe_institute")
 
     runtime = AgentRuntime()
     prompt = (
         f"Analyze this incoming signal from {source}:\n\n"
-        f"\"{signal_text}\"\n\n"
+        f'"{signal_text}"\n\n'
         f"1. ICP match level (high/medium/low) and why\n"
         f"2. Psychological state detected\n"
         f"3. Recommended immediate action"
@@ -374,8 +396,8 @@ def _handle_content_needed(payload: dict) -> dict:
     """
     from eos_ai.agent_runtime import AgentRuntime, TaskType
 
-    topic      = payload.get("topic", "")
-    platform   = payload.get("platform", "instagram")
+    topic = payload.get("topic", "")
+    platform = payload.get("platform", "instagram")
     venture_id = payload.get("venture_id", "lyfe_institute")
 
     runtime = AgentRuntime()
@@ -418,17 +440,115 @@ def _handle_skill_threshold(payload: dict) -> dict:
     from eos_ai.skill_improvement import SkillImprovementEngine
 
     skill_id = payload.get("skill_id")
-    print(f"[EventBus:skill_threshold] running improvement cycle"
-          + (f" for {skill_id}" if skill_id else " (all skills)"))
+    print(
+        f"[EventBus:skill_threshold] running improvement cycle"
+        + (f" for {skill_id}" if skill_id else " (all skills)")
+    )
 
-    engine  = SkillImprovementEngine()
+    engine = SkillImprovementEngine()
     summary = engine.run_improvement_cycle()
     improved = [s for s in summary if s.get("action") == "improved"]
     print(f"[EventBus:skill_threshold] {len(improved)} skill(s) improved")
     return {"improved": len(improved), "summary": summary}
 
 
+def _handle_goal_activated(payload: dict) -> dict:
+    """goal_activated → log + trigger selection cycle re-evaluation."""
+    goal_id = payload.get("goal_id", "unknown")
+    title = payload.get("title", "")
+    print(f"[EventBus:goal_activated] [{goal_id}] {title} → now producing tasks")
+    return {"goal_id": goal_id, "state": "active"}
+
+
+def _handle_goal_deferred(payload: dict) -> dict:
+    """goal_deferred → log. Tasks for this goal stop."""
+    goal_id = payload.get("goal_id", "unknown")
+    title = payload.get("title", "")
+    print(f"[EventBus:goal_deferred] [{goal_id}] {title} → tasks paused")
+    return {"goal_id": goal_id, "state": "deferred"}
+
+
+def _handle_goal_completed(payload: dict) -> dict:
+    """goal_completed → run selection cycle to promote next goal."""
+    goal_id = payload.get("goal_id", "unknown")
+    title = payload.get("title", "")
+    print(f"[EventBus:goal_completed] [{goal_id}] {title} → triggering re-selection")
+    try:
+        from eos_ai.goal_selector import GoalSelector
+
+        selector = GoalSelector()
+        active = selector.run_selection_cycle()
+        print(f"[EventBus:goal_completed] re-selection: {len(active)} active goals")
+        return {"goal_id": goal_id, "reselected": len(active)}
+    except Exception as e:
+        print(f"[EventBus:goal_completed] re-selection failed: {e}")
+        return {"goal_id": goal_id, "error": str(e)}
+
+
+def _handle_goal_dropped(payload: dict) -> dict:
+    """goal_dropped → run selection cycle to promote next goal."""
+    goal_id = payload.get("goal_id", "unknown")
+    title = payload.get("title", "")
+    print(f"[EventBus:goal_dropped] [{goal_id}] {title} → triggering re-selection")
+    try:
+        from eos_ai.goal_selector import GoalSelector
+
+        selector = GoalSelector()
+        active = selector.run_selection_cycle()
+        print(f"[EventBus:goal_dropped] re-selection: {len(active)} active goals")
+        return {"goal_id": goal_id, "reselected": len(active)}
+    except Exception as e:
+        print(f"[EventBus:goal_dropped] re-selection failed: {e}")
+        return {"goal_id": goal_id, "error": str(e)}
+
+
+def _handle_goal_task_completed(payload: dict) -> dict:
+    """goal_task_completed → update goal performance profile with success."""
+    goal_id = payload.get("goal_id")
+    if not goal_id:
+        return {"error": "no goal_id"}
+    try:
+        from eos_ai.goal_selector import OutcomeTracker
+
+        tracker = OutcomeTracker()
+        tracker.record_outcome(
+            goal_id=goal_id,
+            outcome_type="success",
+            execution_time=float(payload.get("execution_time", 0.0)),
+            impact_delta=float(payload.get("impact_delta", 0.0)),
+            task_type=payload.get("task_type", ""),
+            metadata=payload.get("metadata"),
+        )
+        return {"goal_id": goal_id, "outcome": "success"}
+    except Exception as e:
+        print(f"[EventBus:goal_task_completed] failed: {e}")
+        return {"goal_id": goal_id, "error": str(e)}
+
+
+def _handle_goal_task_failed(payload: dict) -> dict:
+    """goal_task_failed → update goal performance profile with failure."""
+    goal_id = payload.get("goal_id")
+    if not goal_id:
+        return {"error": "no goal_id"}
+    try:
+        from eos_ai.goal_selector import OutcomeTracker
+
+        tracker = OutcomeTracker()
+        tracker.record_outcome(
+            goal_id=goal_id,
+            outcome_type="failure",
+            execution_time=float(payload.get("execution_time", 0.0)),
+            task_type=payload.get("task_type", ""),
+            metadata=payload.get("metadata"),
+        )
+        return {"goal_id": goal_id, "outcome": "failure"}
+    except Exception as e:
+        print(f"[EventBus:goal_task_failed] failed: {e}")
+        return {"goal_id": goal_id, "error": str(e)}
+
+
 # ─── EventRegistry ────────────────────────────────────────────────────────────
+
 
 class EventRegistry:
     """
@@ -442,15 +562,21 @@ class EventRegistry:
     def register_defaults(self) -> None:
         """Wire all standard event type → handler mappings."""
         mappings = [
-            ("new_lead",        _handle_new_lead),
-            ("lead_replied",    _handle_lead_replied),
-            ("lead_booked",     _handle_lead_booked),
-            ("lead_closed",     _handle_lead_closed),
-            ("lead_lost",       _handle_lead_lost),
+            ("new_lead", _handle_new_lead),
+            ("lead_replied", _handle_lead_replied),
+            ("lead_booked", _handle_lead_booked),
+            ("lead_closed", _handle_lead_closed),
+            ("lead_lost", _handle_lead_lost),
             ("signal_captured", _handle_signal_captured),
-            ("content_needed",  _handle_content_needed),
-            ("morning_cycle",   _handle_morning_cycle),
+            ("content_needed", _handle_content_needed),
+            ("morning_cycle", _handle_morning_cycle),
             ("skill_threshold", _handle_skill_threshold),
+            ("goal_activated", _handle_goal_activated),
+            ("goal_deferred", _handle_goal_deferred),
+            ("goal_completed", _handle_goal_completed),
+            ("goal_dropped", _handle_goal_dropped),
+            ("goal_task_completed", _handle_goal_task_completed),
+            ("goal_task_failed", _handle_goal_task_failed),
         ]
         for event_type, handler in mappings:
             self._bus.subscribe(event_type, handler)
@@ -458,6 +584,7 @@ class EventRegistry:
 
 
 # ─── Module-level singleton helper ───────────────────────────────────────────
+
 
 def get_bus() -> EventBus:
     """Return the singleton EventBus instance."""
@@ -476,12 +603,15 @@ if __name__ == "__main__":
     registry.register_defaults()
 
     print("\n── Simulating new_lead event ──\n")
-    results = bus.publish("new_lead", {
-        "username":   "test_lead_cli",
-        "score":      9,
-        "state":      "Frustrated Drifter",
-        "venture_id": "lyfe_institute",
-    })
+    results = bus.publish(
+        "new_lead",
+        {
+            "username": "test_lead_cli",
+            "score": 9,
+            "state": "Frustrated Drifter",
+            "venture_id": "lyfe_institute",
+        },
+    )
 
     print("\n── Events table (last 5) ──\n")
     with get_conn(ORG_ID) as cur:

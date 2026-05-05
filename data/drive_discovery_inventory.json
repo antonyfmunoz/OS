@@ -1,0 +1,364 @@
+{
+  "work_order": "WO-LOCAL-PILOT-GDRIVE-GDOCS-001",
+  "account": "antonyfm@empyreanstudios.co",
+  "discovery_date": "2026-05-04",
+  "total_items": 29,
+  "type_distribution": {
+    "application/vnd.google-apps.document": 28,
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 1
+  },
+  "summary": {
+    "folders": 0,
+    "google_docs": 28,
+    "google_sheets": 0,
+    "other": 1
+  },
+  "files": [
+    {
+      "id": "11Kd3lSDA5_YAbjRvDai7Z9Itf3hKvKKpJ8Bw6DKVcwc",
+      "name": "Untitled document",
+      "mimeType": "application/vnd.google-apps.document",
+      "modifiedTime": "2026-05-04T18:40:12.588Z",
+      "createdTime": "2026-04-12T05:57:45.527Z",
+      "parents": [
+        "0AMuKYpdP0e12Uk9PVA"
+      ],
+      "webViewLink": "https://docs.google.com/document/d/11Kd3lSDA5_YAbjRvDai7Z9Itf3hKvKKpJ8Bw6DKVcwc/edit?usp=drivesdk",
+      "owner_display": "Antony Munoz"
+    },
+    {
+      "id": "11p36P6TMvTnnz2KdQ2wYd3cDKfjHtCvVKp2_XEkuvz8",
+      "name": "UMH",
+      "mimeType": "application/vnd.google-apps.document",
+      "modifiedTime": "2026-05-04T00:57:44.125Z",
+      "createdTime": "2026-04-23T22:13:18.900Z",
+      "parents": [
+        "0AMuKYpdP0e12Uk9PVA"
+      ],
+      "webViewLink": "https://docs.google.com/document/d/11p36P6TMvTnnz2KdQ2wYd3cDKfjHtCvVKp2_XEkuvz8/edit?usp=drivesdk",
+      "owner_display": "Antony Munoz"
+    },
+    {
+      "id": "11NeGXFxuUus_NP2GDr-uQkjsAwcBeMqQ97j2ZCaZqxQ",
+      "name": "Untitled document",
+      "mimeType": "application/vnd.google-apps.document",
+      "modifiedTime": "2026-04-22T14:36:13.278Z",
+      "createdTime": "2026-04-15T03:33:10.251Z",
+      "parents": [
+        "0AMuKYpdP0e12Uk9PVA"
+      ],
+      "webViewLink": "https://docs.google.com/document/d/11NeGXFxuUus_NP2GDr-uQkjsAwcBeMqQ97j2ZCaZqxQ/edit?usp=drivesdk",
+      "owner_display": "Antony Munoz"
+    },
+    {
+      "id": "1kKBGCS9kewNMwOBAThXVkd1tYNcgddSUCjkpBjJtLSo",
+      "name": "EntrepreneurOS",
+      "mimeType": "application/vnd.google-apps.document",
+      "modifiedTime": "2026-04-06T23:06:19.780Z",
+      "createdTime": "2026-02-02T01:47:44.826Z",
+      "parents": [
+        "0AMuKYpdP0e12Uk9PVA"
+      ],
+      "webViewLink": "https://docs.google.com/document/d/1kKBGCS9kewNMwOBAThXVkd1tYNcgddSUCjkpBjJtLSo/edit?usp=drivesdk",
+      "owner_display": "Antony Munoz"
+    },
+    {
+      "id": "10yvoPIPnv2LpTtjoJXgFfrLGbj89tH70MX_ueQiLjQQ",
+      "name": "Untitled document",
+      "mimeType": "application/vnd.google-apps.document",
+      "modifiedTime": "2026-04-03T18:04:11.516Z",
+      "createdTime": "2026-04-03T18:03:53.384Z",
+      "parents": [
+        "0AMuKYpdP0e12Uk9PVA"
+      ],
+      "webViewLink": "https://docs.google.com/document/d/10yvoPIPnv2LpTtjoJXgFfrLGbj89tH70MX_ueQiLjQQ/edit?usp=drivesdk",
+      "owner_display": "Antony Munoz"
+    },
+    {
+      "id": "1-FhleB0dp3-PBM12nEWtDRiCFTNeZWGbtfrSy9ukZX4",
+      "name": "Untitled document",
+      "mimeType": "application/vnd.google-apps.document",
+      "modifiedTime": "2026-03-26T15:36:52.250Z",
+      "createdTime": "2026-03-26T15:36:47.478Z",
+      "parents": [
+        "0AMuKYpdP0e12Uk9PVA"
+      ],
+      "webViewLink": "https://docs.google.com/document/d/1-FhleB0dp3-PBM12nEWtDRiCFTNeZWGbtfrSy9ukZX4/edit?usp=drivesdk",
+      "owner_display": "Antony Munoz"
+    },
+    {
+      "id": "1N8XHmKXnJHHmbK8F-I6NQLayukiX1HJU5vQv2ge_p-g",
+      "name": "AI Tools",
+      "mimeType": "application/vnd.google-apps.document",
+      "modifiedTime": "2026-03-19T00:31:32.895Z",
+      "createdTime": "2026-03-04T22:01:59.559Z",
+      "parents": [
+        "0AMuKYpdP0e12Uk9PVA"
+      ],
+      "webViewLink": "https://docs.google.com/document/d/1N8XHmKXnJHHmbK8F-I6NQLayukiX1HJU5vQv2ge_p-g/edit?usp=drivesdk",
+      "owner_display": "Antony Munoz"
+    },
+    {
+      "id": "1a9HYn0M81rJ0C9qD9FN7pNojGR96LMgdqW2z5Wbegs0",
+      "name": "Untitled document",
+      "mimeType": "application/vnd.google-apps.document",
+      "modifiedTime": "2026-03-13T02:50:31.327Z",
+      "createdTime": "2026-02-26T21:02:18.034Z",
+      "parents": [
+        "0AMuKYpdP0e12Uk9PVA"
+      ],
+      "webViewLink": "https://docs.google.com/document/d/1a9HYn0M81rJ0C9qD9FN7pNojGR96LMgdqW2z5Wbegs0/edit?usp=drivesdk",
+      "owner_display": "Antony Munoz"
+    },
+    {
+      "id": "1-6vPlqwlG5ud5hRNnL2sFiKmNmofDI2ZITmFxoecWog",
+      "name": "LyfeOS",
+      "mimeType": "application/vnd.google-apps.document",
+      "modifiedTime": "2026-03-09T09:07:35.419Z",
+      "createdTime": "2026-01-27T16:50:35.966Z",
+      "parents": [
+        "0AMuKYpdP0e12Uk9PVA"
+      ],
+      "webViewLink": "https://docs.google.com/document/d/1-6vPlqwlG5ud5hRNnL2sFiKmNmofDI2ZITmFxoecWog/edit?usp=drivesdk",
+      "owner_display": "Antony Munoz"
+    },
+    {
+      "id": "1NIZXMZRFHqC2uMi8AhfL79zwKoew5f6bix9LgirBIfI",
+      "name": "CreatorOS",
+      "mimeType": "application/vnd.google-apps.document",
+      "modifiedTime": "2026-03-09T08:51:11.604Z",
+      "createdTime": "2026-02-02T01:48:24.512Z",
+      "parents": [
+        "0AMuKYpdP0e12Uk9PVA"
+      ],
+      "webViewLink": "https://docs.google.com/document/d/1NIZXMZRFHqC2uMi8AhfL79zwKoew5f6bix9LgirBIfI/edit?usp=drivesdk",
+      "owner_display": "Antony Munoz"
+    },
+    {
+      "id": "1hUd9GVIAE5my9xhrREXuwzPspxnnmr5ml5kr4F7vg_w",
+      "name": "Copy of Claude Cowork Plugins - Free Resource Guide",
+      "mimeType": "application/vnd.google-apps.document",
+      "modifiedTime": "2026-03-03T20:21:52.613Z",
+      "createdTime": "2026-03-03T20:21:52.613Z",
+      "parents": [
+        "0AMuKYpdP0e12Uk9PVA"
+      ],
+      "webViewLink": "https://docs.google.com/document/d/1hUd9GVIAE5my9xhrREXuwzPspxnnmr5ml5kr4F7vg_w/edit?usp=drivesdk",
+      "owner_display": "Antony Munoz"
+    },
+    {
+      "id": "19t72FIfZTVSv5y3JFuPwTcOi69wU6gakUEUYqq-lapQ",
+      "name": "Content",
+      "mimeType": "application/vnd.google-apps.document",
+      "modifiedTime": "2026-03-01T03:21:44.036Z",
+      "createdTime": "2025-10-10T03:05:19.822Z",
+      "parents": [
+        "0AMuKYpdP0e12Uk9PVA"
+      ],
+      "webViewLink": "https://docs.google.com/document/d/19t72FIfZTVSv5y3JFuPwTcOi69wU6gakUEUYqq-lapQ/edit?usp=drivesdk",
+      "owner_display": "Antony Munoz"
+    },
+    {
+      "id": "16Xjgrq6Vnkun3jpC38ckoQCCqNQs5DsU7kUhYNuJGDc",
+      "name": "Life Coaching (E-Learning/Info-Product Brand)",
+      "mimeType": "application/vnd.google-apps.document",
+      "modifiedTime": "2026-03-01T01:53:33.461Z",
+      "createdTime": "2025-08-21T19:15:17.157Z",
+      "parents": [
+        "0AMuKYpdP0e12Uk9PVA"
+      ],
+      "webViewLink": "https://docs.google.com/document/d/16Xjgrq6Vnkun3jpC38ckoQCCqNQs5DsU7kUhYNuJGDc/edit?usp=drivesdk",
+      "owner_display": "Antony Munoz"
+    },
+    {
+      "id": "1ult_kJPpvcG_NzRMPyNLHYp-IEIiTFpTDwo9xSBTl4A",
+      "name": "Coaching Philosophy/Methodology",
+      "mimeType": "application/vnd.google-apps.document",
+      "modifiedTime": "2026-02-20T03:26:00.937Z",
+      "createdTime": "2025-08-21T18:14:28.942Z",
+      "parents": [
+        "0AMuKYpdP0e12Uk9PVA"
+      ],
+      "webViewLink": "https://docs.google.com/document/d/1ult_kJPpvcG_NzRMPyNLHYp-IEIiTFpTDwo9xSBTl4A/edit?usp=drivesdk",
+      "owner_display": "Antony Munoz"
+    },
+    {
+      "id": "1_89hg-YbiC8P9rV1KfS2kicmgHQBAUpcgw5tHhK2FuY",
+      "name": "Coaching Frameworks & Workbooks",
+      "mimeType": "application/vnd.google-apps.document",
+      "modifiedTime": "2026-02-02T05:05:26.542Z",
+      "createdTime": "2026-01-09T04:02:49.759Z",
+      "parents": [
+        "0AMuKYpdP0e12Uk9PVA"
+      ],
+      "webViewLink": "https://docs.google.com/document/d/1_89hg-YbiC8P9rV1KfS2kicmgHQBAUpcgw5tHhK2FuY/edit?usp=drivesdk",
+      "owner_display": "Antony Munoz"
+    },
+    {
+      "id": "1svTpbCtrmSoxFlCKau7doOU2PGr4hP-m",
+      "name": "LYFEOS_Product_Development_Roadmap.docx",
+      "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "modifiedTime": "2026-02-02T01:15:03.139Z",
+      "createdTime": "2026-02-02T01:15:03.139Z",
+      "parents": [
+        "0AMuKYpdP0e12Uk9PVA"
+      ],
+      "webViewLink": "https://docs.google.com/document/d/1svTpbCtrmSoxFlCKau7doOU2PGr4hP-m/edit?usp=drivesdk&ouid=108603406587522476692&rtpof=true&sd=true",
+      "owner_display": "Antony Munoz"
+    },
+    {
+      "id": "1e6E8OxCmVfZW2YkcK66HLIMPGLocBg7UkA4XK5oH94Q",
+      "name": "Conglomerate Brands",
+      "mimeType": "application/vnd.google-apps.document",
+      "modifiedTime": "2026-02-01T22:42:55.321Z",
+      "createdTime": "2026-01-01T23:40:37.705Z",
+      "parents": [
+        "0AMuKYpdP0e12Uk9PVA"
+      ],
+      "webViewLink": "https://docs.google.com/document/d/1e6E8OxCmVfZW2YkcK66HLIMPGLocBg7UkA4XK5oH94Q/edit?usp=drivesdk",
+      "owner_display": "Antony Munoz"
+    },
+    {
+      "id": "1lgFWS541urT9buV3fa5-wxZ-00-MOUbmBR5Xs-s5r_Q",
+      "name": "Antony F. Munoz (Personal Brand)",
+      "mimeType": "application/vnd.google-apps.document",
+      "modifiedTime": "2026-02-01T22:17:19.655Z",
+      "createdTime": "2025-08-21T19:15:05.126Z",
+      "parents": [
+        "0AMuKYpdP0e12Uk9PVA"
+      ],
+      "webViewLink": "https://docs.google.com/document/d/1lgFWS541urT9buV3fa5-wxZ-00-MOUbmBR5Xs-s5r_Q/edit?usp=drivesdk",
+      "owner_display": "Antony Munoz"
+    },
+    {
+      "id": "1GO2F5vvxvoWfOD1jantn52WBo-ejc3U0Ki6arg7uTn0",
+      "name": "Empyrean Studios (Agency Brand)",
+      "mimeType": "application/vnd.google-apps.document",
+      "modifiedTime": "2026-02-01T22:10:13.215Z",
+      "createdTime": "2025-08-21T19:23:04.173Z",
+      "parents": [
+        "0AMuKYpdP0e12Uk9PVA"
+      ],
+      "webViewLink": "https://docs.google.com/document/d/1GO2F5vvxvoWfOD1jantn52WBo-ejc3U0Ki6arg7uTn0/edit?usp=drivesdk",
+      "owner_display": "Antony Munoz"
+    },
+    {
+      "id": "1u7pVkXSQqAPGvXil3yaGEefFDckZ4IU5LqvNTX9E1qQ",
+      "name": "Personal Curriculum",
+      "mimeType": "application/vnd.google-apps.document",
+      "modifiedTime": "2026-02-01T05:43:48.953Z",
+      "createdTime": "2026-01-08T03:02:45.178Z",
+      "parents": [
+        "0AMuKYpdP0e12Uk9PVA"
+      ],
+      "webViewLink": "https://docs.google.com/document/d/1u7pVkXSQqAPGvXil3yaGEefFDckZ4IU5LqvNTX9E1qQ/edit?usp=drivesdk",
+      "owner_display": "Antony Munoz"
+    },
+    {
+      "id": "1-oD0UyXe8a9vczUwUthKJQLbpxx0U8pXWHAXVmfsrOo",
+      "name": "Business Template",
+      "mimeType": "application/vnd.google-apps.document",
+      "modifiedTime": "2026-01-28T17:23:20.606Z",
+      "createdTime": "2026-01-28T16:53:02.255Z",
+      "parents": [
+        "0AMuKYpdP0e12Uk9PVA"
+      ],
+      "webViewLink": "https://docs.google.com/document/d/1-oD0UyXe8a9vczUwUthKJQLbpxx0U8pXWHAXVmfsrOo/edit?usp=drivesdk",
+      "owner_display": "Antony Munoz"
+    },
+    {
+      "id": "1deFPswAzsZYLYyAIRiXYOiKXiuOj1662FMmEBXDgDDo",
+      "name": "Systems Inventory",
+      "mimeType": "application/vnd.google-apps.document",
+      "modifiedTime": "2025-11-21T02:26:59.393Z",
+      "createdTime": "2025-08-21T19:58:31.374Z",
+      "parents": [
+        "0AMuKYpdP0e12Uk9PVA"
+      ],
+      "webViewLink": "https://docs.google.com/document/d/1deFPswAzsZYLYyAIRiXYOiKXiuOj1662FMmEBXDgDDo/edit?usp=drivesdk",
+      "owner_display": "Antony Munoz"
+    },
+    {
+      "id": "1b0dl5RHU4wy5lNmGje-qp6Is5HIGwqUvayiGzEeTvI4",
+      "name": "Copy of Script Storytelling Structures",
+      "mimeType": "application/vnd.google-apps.document",
+      "modifiedTime": "2025-10-22T01:29:54.851Z",
+      "createdTime": "2025-10-22T01:29:54.850Z",
+      "parents": [
+        "0AMuKYpdP0e12Uk9PVA"
+      ],
+      "webViewLink": "https://docs.google.com/document/d/1b0dl5RHU4wy5lNmGje-qp6Is5HIGwqUvayiGzEeTvI4/edit?usp=drivesdk",
+      "owner_display": "Antony Munoz"
+    },
+    {
+      "id": "1D8ltfXZ68-hFpjf9blfQb46rNBf8ndn8plzUmm6Rjss",
+      "name": "SEMAX: The Brain Upgrade Nobody Talks About",
+      "mimeType": "application/vnd.google-apps.document",
+      "modifiedTime": "2025-09-07T23:37:48.405Z",
+      "createdTime": "2025-09-07T23:37:38.753Z",
+      "parents": [],
+      "webViewLink": "https://docs.google.com/document/d/1D8ltfXZ68-hFpjf9blfQb46rNBf8ndn8plzUmm6Rjss/edit?usp=drivesdk",
+      "owner_display": "connorsincoaching"
+    },
+    {
+      "id": "18l4Yw5vWfx_ut06in1kuUjlWe7U4mtPhRM75W1y7gKc",
+      "name": "Script Storytelling Structures",
+      "mimeType": "application/vnd.google-apps.document",
+      "modifiedTime": "2025-09-07T07:25:36.383Z",
+      "createdTime": "2025-04-10T15:20:24.481Z",
+      "parents": [],
+      "webViewLink": "https://docs.google.com/document/d/18l4Yw5vWfx_ut06in1kuUjlWe7U4mtPhRM75W1y7gKc/edit?usp=drivesdk",
+      "owner_display": "personalbrandlaunch"
+    },
+    {
+      "id": "1aZiPZ0ijSvLQsL6SpVzwbug52khV5XN0kYBFnNXvKuY",
+      "name": "Antony Munoz Email Sequence",
+      "mimeType": "application/vnd.google-apps.document",
+      "modifiedTime": "2025-09-02T17:16:13.862Z",
+      "createdTime": "2025-09-02T15:33:27.547Z",
+      "parents": [],
+      "webViewLink": "https://docs.google.com/document/d/1aZiPZ0ijSvLQsL6SpVzwbug52khV5XN0kYBFnNXvKuY/edit?usp=drivesdk",
+      "owner_display": "jeremy.ness"
+    },
+    {
+      "id": "10EHv9Nvy2tKyzbdv84ih9vLvCfR57pCP-Du2n7Z3I7I",
+      "name": "Automations",
+      "mimeType": "application/vnd.google-apps.document",
+      "modifiedTime": "2025-08-26T22:42:59.321Z",
+      "createdTime": "2025-08-26T22:42:59.321Z",
+      "parents": [
+        "0AMuKYpdP0e12Uk9PVA"
+      ],
+      "webViewLink": "https://docs.google.com/document/d/10EHv9Nvy2tKyzbdv84ih9vLvCfR57pCP-Du2n7Z3I7I/edit?usp=drivesdk",
+      "owner_display": "Antony Munoz"
+    },
+    {
+      "id": "1-zgmTQuUBJKNQov82DMqVyP-9IZiuTErTYvo5YoF_3s",
+      "name": "AI Agents",
+      "mimeType": "application/vnd.google-apps.document",
+      "modifiedTime": "2025-08-26T22:42:50.362Z",
+      "createdTime": "2025-08-26T22:42:50.362Z",
+      "parents": [
+        "0AMuKYpdP0e12Uk9PVA"
+      ],
+      "webViewLink": "https://docs.google.com/document/d/1-zgmTQuUBJKNQov82DMqVyP-9IZiuTErTYvo5YoF_3s/edit?usp=drivesdk",
+      "owner_display": "Antony Munoz"
+    },
+    {
+      "id": "1eHO7Bj0zrVhdIztiw6774pLkYIjzw0RVa5mpGPThpFA",
+      "name": "Hunter Hoffman - Service Contract Agreement",
+      "mimeType": "application/vnd.google-apps.document",
+      "modifiedTime": "2025-02-12T17:54:16.888Z",
+      "createdTime": "2025-02-12T17:48:54.087Z",
+      "parents": [
+        "0AMuKYpdP0e12Uk9PVA"
+      ],
+      "webViewLink": "https://docs.google.com/document/d/1eHO7Bj0zrVhdIztiw6774pLkYIjzw0RVa5mpGPThpFA/edit?usp=drivesdk",
+      "owner_display": "Antony Munoz"
+    }
+  ],
+  "folders": [],
+  "folder_count": 0,
+  "confirmed_account": "antonyfm@empyreanstudios.co",
+  "confirmed_display": "Antony Munoz"
+}

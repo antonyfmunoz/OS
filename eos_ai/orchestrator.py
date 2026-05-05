@@ -211,8 +211,7 @@ class CEOAgent:
         try:
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
-                    "SELECT COUNT(*) AS cnt FROM tasks "
-                    "WHERE org_id = %s AND status = 'pending'",
+                    "SELECT COUNT(*) AS cnt FROM tasks WHERE org_id = %s AND status = 'pending'",
                     (self.ctx.org_id,),
                 )
                 pending_tasks = cur.fetchone()["cnt"] or 0
@@ -300,11 +299,7 @@ def _fmt_company_reports(reports: list[dict]) -> str:
                 f"  {v['venture_id']}: ${v['revenue']:,.0f}/"
                 f"${v['target']:,.0f} ({v['percent_to_target']}%)"
             )
-        rr_str = (
-            f"{report['reply_rate']}%"
-            if report.get("reply_rate") is not None
-            else "no data"
-        )
+        rr_str = f"{report['reply_rate']}%" if report.get("reply_rate") is not None else "no data"
         lines.append(
             f"{name}\n"
             + ("\n".join(rev_lines) if rev_lines else "  No venture data")
@@ -689,6 +684,7 @@ def run_ceo_morning_delegation(
     if not venture_list:
         try:
             from eos_ai.business_instance import BusinessInstanceManager
+
             _default_vid = BusinessInstanceManager(ctx).get_default_venture_id()
             if _default_vid:
                 venture_list = [{"id": _default_vid, "name": _default_vid}]
@@ -794,9 +790,7 @@ def run_ceo_morning_delegation(
 
             objective_result = _ObjResult()
 
-            today_objective = (
-                objective_result.output or f"Advance {binding_constraint}"
-            ).strip()
+            today_objective = (objective_result.output or f"Advance {binding_constraint}").strip()
 
             # Delegate to specialist agents
             coordination = _CE(venture_ctx)
@@ -949,9 +943,7 @@ def check_proactive_triggers(ctx: EOSContext) -> list[str]:
             )
             est_revenue = float(cur.fetchone()["est"] or 0)
             if est_revenue > 0 and est_revenue % 750 == 0:
-                alerts.append(
-                    f"💰 Estimated revenue milestone: ${est_revenue:,.0f}. Keep going."
-                )
+                alerts.append(f"💰 Estimated revenue milestone: ${est_revenue:,.0f}. Keep going.")
 
     except Exception as e:
         print(f"[Orchestrator] Proactive trigger check failed: {e}")
@@ -1006,6 +998,7 @@ async def generate_morning_brief(ctx: EOSContext) -> str:
         try:
             from eos_ai.context import load_context_from_env as _lctx
             from eos_ai.business_instance import BusinessInstanceManager as _BIM
+
             _c = _lctx()
             _ctx_ventures = getattr(_c, "ventures", []) or []
             if not _ctx_ventures:
@@ -1016,11 +1009,13 @@ async def generate_morning_brief(ctx: EOSContext) -> str:
             print(f"[Portfolio] venture resolution failed: {_e}")
             _ctx_ventures = []
     for _v in _ctx_ventures:
-        companies.append((
-            _v.get("id", ""),
-            _v.get("name", _v.get("id", "")),
-            _v.get("icon", "🏢"),
-        ))
+        companies.append(
+            (
+                _v.get("id", ""),
+                _v.get("name", _v.get("id", "")),
+                _v.get("icon", "🏢"),
+            )
+        )
 
     company_sections: list[str] = []
 
@@ -1079,12 +1074,7 @@ async def generate_morning_brief(ctx: EOSContext) -> str:
         print(f"[Brief] Daily sync failed, falling back: {e}")
 
     # Fallback: original data-first brief
-    brief = (
-        f"━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"☀️ **MORNING BRIEF**\n"
-        f"{date_str}\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
-    )
+    brief = f"━━━━━━━━━━━━━━━━━━━━━━\n☀️ **MORNING BRIEF**\n{date_str}\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
 
     for section in company_sections:
         brief += section + "\n\n"
@@ -1170,9 +1160,7 @@ def write_to_notion_dashboard(ctx: EOSContext, morning_data: dict) -> None:
     """
     # The brief is already written to Notion by run_full_morning_cycle().
     # This is a no-op now — the Notion write happens earlier in the cycle.
-    print(
-        "[Orchestrator] write_to_notion_dashboard: skipped (handled by NotionPublisher)"
-    )
+    print("[Orchestrator] write_to_notion_dashboard: skipped (handled by NotionPublisher)")
 
 
 # ─── Orchestrator ─────────────────────────────────────────────────────────────
@@ -1292,15 +1280,8 @@ class EOSOrchestrator:
         for vid in venture_ids:
             ctx = VentureKnowledgeBase.to_agent_context(vid, detail="brief")
             stats = self._query_7d_stats(vid)
-            skills_str = (
-                ", ".join(f"{k}×{v}" for k, v in stats["skills_invoked"].items())
-                or "none"
-            )
-            rr = (
-                f"{stats['reply_rate']:.1%}"
-                if stats["reply_rate"] is not None
-                else "no data"
-            )
+            skills_str = ", ".join(f"{k}×{v}" for k, v in stats["skills_invoked"].items()) or "none"
+            rr = f"{stats['reply_rate']:.1%}" if stats["reply_rate"] is not None else "no data"
             stats_block = (
                 f"7-Day Activity:\n"
                 f"  Interactions : {stats['interactions_7d']}\n"
@@ -1370,9 +1351,7 @@ class EOSOrchestrator:
         today = datetime.date.today().isoformat()
         brief_path = DAILY_DIR / f"{today}.md"
 
-        header = (
-            f"# Morning Brief — {today}\n\n**North Star Status**\n{ns_block}\n\n---\n\n"
-        )
+        header = f"# Morning Brief — {today}\n\n**North Star Status**\n{ns_block}\n\n---\n\n"
         brief_path.write_text(header + brief_text, encoding="utf-8")
         print(f"[Orchestrator] Brief written → {brief_path}")
 
@@ -1450,8 +1429,7 @@ class EOSOrchestrator:
 
         north_star = self.get_north_star_status()
         ns_lines = "\n".join(
-            f"  {s['venture_id']}: ${s['revenue']:,.0f} / ${s['target']:,.0f}"
-            for s in north_star
+            f"  {s['venture_id']}: ${s['revenue']:,.0f} / ${s['target']:,.0f}" for s in north_star
         )
         print(f"[Orchestrator] North star:\n{ns_lines}")
 
@@ -1481,8 +1459,7 @@ class EOSOrchestrator:
             improved = [s for s in summary if s["action"] == "improved"]
             skipped = [s for s in summary if s["action"] != "improved"]
             improvement_summary = (
-                f"\n\n---\nSkill Improvement: "
-                f"{len(improved)} improved, {len(skipped)} skipped"
+                f"\n\n---\nSkill Improvement: {len(improved)} improved, {len(skipped)} skipped"
             )
             if improved:
                 names = ", ".join(s["skill_id"] for s in improved)
@@ -1519,9 +1496,7 @@ class EOSOrchestrator:
                 se = StrategyEngine(ctx)
                 strategy_text = se.weekly_strategy_review()
                 preview = strategy_text[:400].replace("\n", " ")
-                strategy_summary = (
-                    f"\n\n---\nWeekly Strategy Review written.\nPreview: {preview}"
-                )
+                strategy_summary = f"\n\n---\nWeekly Strategy Review written.\nPreview: {preview}"
             except Exception as e:
                 strategy_summary = f"\n\nStrategy review skipped: {e}"
                 print(f"[Orchestrator] Strategy review error: {e}")
@@ -1556,16 +1531,13 @@ class EOSOrchestrator:
             rie = RealityIntelligenceEngine(ctx)
             signal_summary = rie.process_signal_queue()
             total_signals = sum(
-                sum(v.values()) if isinstance(v, dict) else 0
-                for v in signal_summary.values()
+                sum(v.values()) if isinstance(v, dict) else 0 for v in signal_summary.values()
             )
             critical_count = sum(
-                v.get("CRITICAL", 0) if isinstance(v, dict) else 0
-                for v in signal_summary.values()
+                v.get("CRITICAL", 0) if isinstance(v, dict) else 0 for v in signal_summary.values()
             )
             high_count = sum(
-                v.get("HIGH", 0) if isinstance(v, dict) else 0
-                for v in signal_summary.values()
+                v.get("HIGH", 0) if isinstance(v, dict) else 0 for v in signal_summary.values()
             )
             reality_summary = (
                 f"\n\nReality Engine: {total_signals} signals scanned"
@@ -1622,11 +1594,7 @@ class EOSOrchestrator:
                 domain_summary = (
                     f"\n\nDomain update: {d_result['scanned']} scanned, "
                     f"{len(d_result['updated'])} updated"
-                    + (
-                        f" ({', '.join(d_result['updated'])})"
-                        if d_result["updated"]
-                        else ""
-                    )
+                    + (f" ({', '.join(d_result['updated'])})" if d_result["updated"] else "")
                 )
             except Exception as e:
                 domain_summary = f"\n\nDomain update skipped: {e}"
@@ -1642,7 +1610,9 @@ class EOSOrchestrator:
                 ctx_ai = load_context_from_env()
                 re_ai = ResearchEngine(ctx_ai)
                 ai_scan = re_ai.scan_ai_landscape()
-                ai_scan_summary = f"\n\nAI landscape scan: {ai_scan.get('cost_updates', 0)} cost updates"
+                ai_scan_summary = (
+                    f"\n\nAI landscape scan: {ai_scan.get('cost_updates', 0)} cost updates"
+                )
                 print(
                     f"[Orchestrator] AI landscape scan: "
                     f"{ai_scan.get('cost_updates', 0)} cost updates"
@@ -1661,9 +1631,7 @@ class EOSOrchestrator:
                 ee = EmbeddingEngine()
                 backfill = ee.backfill_missing(ctx_ee.org_id)
                 if backfill.get("embedded", 0) > 0:
-                    print(
-                        f"[Orchestrator] Backfilled {backfill['embedded']} embeddings"
-                    )
+                    print(f"[Orchestrator] Backfilled {backfill['embedded']} embeddings")
             except Exception as e:
                 print(f"[Orchestrator] Embedding backfill error: {e}")
 
@@ -1681,10 +1649,7 @@ class EOSOrchestrator:
                     f"\n\nWorld pulse: {pulse['total_integrated']} items integrated "
                     f"across {len(pulse['sources_scanned'])} sources"
                 )
-                print(
-                    f"[Orchestrator] World pulse: "
-                    f"{pulse['total_integrated']} items integrated"
-                )
+                print(f"[Orchestrator] World pulse: {pulse['total_integrated']} items integrated")
             except Exception as e:
                 world_pulse_summary = f"\n\nWorld pulse skipped: {e}"
                 print(f"[Orchestrator] World pulse error: {e}")
@@ -1715,7 +1680,9 @@ class EOSOrchestrator:
                     f"Top: {top['description']}"
                 )
             else:
-                pattern_summary = f"\n\nPatterns: {len(all_patterns)} detected, none high-confidence yet"
+                pattern_summary = (
+                    f"\n\nPatterns: {len(all_patterns)} detected, none high-confidence yet"
+                )
         except Exception as e:
             pattern_summary = f"\n\nPattern detection skipped: {e}"
             print(f"[Orchestrator] Pattern detection error: {e}")
@@ -1732,9 +1699,7 @@ class EOSOrchestrator:
                 timeout=60,
             )
             if _br.returncode == 0:
-                _first_line = (
-                    _br.stdout.strip().splitlines()[0] if _br.stdout.strip() else "done"
-                )
+                _first_line = _br.stdout.strip().splitlines()[0] if _br.stdout.strip() else "done"
                 backup_summary = f"\n\nBackup: {_first_line}"
             else:
                 backup_summary = f"\n\nBackup: failed ({_br.stderr[:80]})"
@@ -1798,13 +1763,13 @@ def refresh_ambient_state(ctx: EOSContext) -> None:
 
 def start_ambient_refresh_loop(ctx: EOSContext) -> None:
     """
-    Start a background daemon thread that refreshes ambient state every
-    30 minutes. Safe to call from any long-running process (Telegram bot,
-    API server). The thread is daemonized — it exits when the main process
-    exits.
+    Start a background daemon thread that refreshes ambient state.
+    Uses work_state to idle efficiently — exponential backoff under pressure,
+    instant wake on signal.
 
     Called by:
       - telegram_control.py at startup
+      - discord_bot.py at startup
       - orchestrator __main__ (no-op in cron context — process exits)
     """
     import threading
@@ -1812,12 +1777,41 @@ def start_ambient_refresh_loop(ctx: EOSContext) -> None:
 
     def _refresh_loop() -> None:
         while True:
+            from eos_ai.runtime.work_state import detect_work_state, record_signal
+
+            ws = detect_work_state()
+
+            # Idle gate — no work, no signal → sleep with backoff
+            if ws.is_idle and ws.pressure in (
+                ws.pressure.HIGH,
+                ws.pressure.CRITICAL,
+            ):
+                if ws.idle_delay > 60:
+                    print(
+                        f"[Ambient] Idle — pressure={ws.pressure.value}, "
+                        f"next check in {int(ws.idle_delay)}s"
+                    )
+                time.sleep(ws.idle_delay)
+                continue
+
+            # Backpressure gate — moderate pressure, skip heavy work
+            try:
+                from eos_ai.runtime.provider_state import get_system_state
+
+                _sys = get_system_state()
+                if not _sys.allow_execution():
+                    time.sleep(ws.idle_delay)
+                    continue
+                _sys.budget.record_cycle()
+            except Exception:
+                pass
+
             try:
                 refresh_ambient_state(ctx)
             except Exception as _e:
                 print(f"[Ambient] Refresh error: {_e}")
 
-            # Proactive intelligence scan — surfaces what matters without being asked
+            # Proactive intelligence scan
             try:
                 from eos_ai.proactive_engine import ProactiveIntelligenceEngine
 
@@ -1827,21 +1821,18 @@ def start_ambient_refresh_loop(ctx: EOSContext) -> None:
                     print(f"[Proactive] {len(_signals)} signal(s) detected:")
                     for _s in _signals:
                         print(f"  [{_s.urgency}] {_s.title}")
-                    # Deliver urgency 3+ via Telegram
                     _pie.scan_and_deliver(
                         send_telegram_fn=_notify,
                         min_urgency=3,
                     )
-                else:
-                    print("[Proactive] No signals detected")
             except Exception as _pe:
                 print(f"[Proactive] Scan failed: {_pe}")
 
-            time.sleep(1800)  # 30 minutes
+            time.sleep(ws.idle_delay)
 
     t = threading.Thread(target=_refresh_loop, daemon=True, name="ambient-refresh")
     t.start()
-    print("[Ambient] Background refresh loop started (30-min interval)")
+    print("[Ambient] Background refresh loop started (adaptive interval)")
 
 
 # ─── CLI entry point ─────────────────────────────────────────────────────────
@@ -1858,9 +1849,7 @@ if __name__ == "__main__":
         _registry = KnowledgeDomainRegistry()
         _due = _registry.get_update_schedule()
         if "technology_ai" in _due:
-            print(
-                "[Orchestrator] technology_ai domain never updated — running AI landscape scan"
-            )
+            print("[Orchestrator] technology_ai domain never updated — running AI landscape scan")
             _re = ResearchEngine(_ctx)
             _re.scan_ai_landscape()
     except Exception as _e:

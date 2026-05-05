@@ -1,0 +1,56 @@
+{
+  "test_date": "2026-05-04",
+  "sample_document": {
+    "file_id": "11p36P6TMvTnnz2KdQ2wYd3cDKfjHtCvVKp2_XEkuvz8",
+    "title": "UMH",
+    "api_total_tabs": 8,
+    "api_total_words": 13949
+  },
+  "cu_method": {
+    "chrome_flag": "--force-renderer-accessibility",
+    "profile": "Profile 5",
+    "execution": "Task Scheduler /IT",
+    "observation": "Windows UI Automation"
+  },
+  "results": {
+    "window_found": true,
+    "window_title": "UMH - Google Docs - Google Chrome",
+    "doc_tabs_detected": 8,
+    "doc_tab_names": [
+      "UNIVERSAL METS HARNESS",
+      "Tab 2",
+      "Tab 3",
+      "Tab 4",
+      "Tab 5",
+      "Tab 6",
+      "Tab 7",
+      "Tab 8"
+    ],
+    "tab_detection_method": "ControlType.TreeItem in accessibility tree",
+    "content_extraction_attempted": true,
+    "content_extraction_method": "Ctrl+A / Ctrl+C via SendKeys",
+    "content_extracted": false,
+    "content_extraction_failure_reason": "SetForegroundWindow returned False \u2014 Task Scheduler /IT process cannot steal foreground from Chrome window owned by user session. Clipboard extraction requires foreground ownership for SendKeys to target correct window.",
+    "foreground_acquired": false
+  },
+  "assessment": {
+    "tab_detection": "COMPLETE",
+    "tab_navigation": "NOT_ATTEMPTED",
+    "content_reading": "FAILED",
+    "content_reading_limitation": "Windows foreground window ownership \u2014 a known OS-level limitation for cross-process input simulation",
+    "workaround_options": [
+      "Launch Chrome from within the same task (ensures foreground ownership)",
+      "Use AppActivate with process name instead of SetForegroundWindow",
+      "Use AttachThreadInput to share foreground rights",
+      "Use accessibility TextPattern directly (but Chrome doesn't expose doc content via TextPattern)"
+    ]
+  },
+  "compliance": {
+    "api_used_for_live_extraction": false,
+    "playwright_used": false,
+    "cdp_used": false,
+    "screenshots_stored": false,
+    "documents_edited": false,
+    "credentials_captured": false
+  }
+}

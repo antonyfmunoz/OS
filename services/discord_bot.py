@@ -97,16 +97,31 @@ from eos_ai.substrate.session_discord_bridge import send_reply as _send_reply
 from eos_ai.substrate.discord_text_transport import (
     maybe_mirror_discord_text_message as _maybe_pseudo_live_text,
 )
-from eos_ai.substrate.message_framing import get_inbound_buffer
+
+# Graceful import for substrate modules that may not exist yet
+try:
+    from eos_ai.substrate.message_framing import get_inbound_buffer
+except ImportError:
+    get_inbound_buffer = None
+
 from eos_ai.substrate.event_spine import (
     EventType as _FrameEventType,
     create_event as _frame_create_event,
 )
-from eos_ai.substrate.event_store import get_event_store as _frame_get_event_store
-from eos_ai.substrate.interaction_archive import (
-    archive_inbound as _archive_inbound,
-    Interface as _ArchiveInterface,
-)
+
+try:
+    from eos_ai.substrate.event_store import get_event_store as _frame_get_event_store
+except ImportError:
+    _frame_get_event_store = None
+
+try:
+    from eos_ai.substrate.interaction_archive import (
+        archive_inbound as _archive_inbound,
+        Interface as _ArchiveInterface,
+    )
+except ImportError:
+    _archive_inbound = None
+    _ArchiveInterface = None
 
 # Install the router-backed voice-session responder at import time so that
 # every Discord pseudo-live text ingress (which flows through
@@ -190,9 +205,7 @@ _pending_captures: dict[str, dict] = {}
 _pending_events: dict[str, dict] = {}
 
 _PART_RE_WORD = re.compile(r"(?i)\bpart\s+(\d+)\s*/\s*(\d+)\b")  # "Part 1/2"
-_PART_RE_START = re.compile(
-    r"(?im)^(\d+)\s*/\s*(\d+)\s*[:\-\s]"
-)  # "1/2:" at line start
+_PART_RE_START = re.compile(r"(?im)^(\d+)\s*/\s*(\d+)\s*[:\-\s]")  # "1/2:" at line start
 
 
 def _detect_part(text: str) -> tuple[int, int] | None:
@@ -401,9 +414,7 @@ def _format_day_result(result: dict) -> str:
         ws = result.get("active_workspace", "unknown")
         mode = result.get("day_mode", "unknown")
         opened = result.get("opened_at", "unknown")
-        return (
-            f"Day is already open.\nWorkspace: {ws} | Mode: {mode} | Opened: {opened}"
-        )
+        return f"Day is already open.\nWorkspace: {ws} | Mode: {mode} | Opened: {opened}"
 
     if status == "not_open":
         return "No day is currently open. Use `start my day` or `!openday` first."
@@ -768,9 +779,7 @@ async def handle_meeting_voice(
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
             None,
-            lambda: __import__(
-                "eos_ai.agent_teams", fromlist=["run_team_task"]
-            ).run_team_task(
+            lambda: __import__("eos_ai.agent_teams", fromlist=["run_team_task"]).run_team_task(
                 team="sales",
                 sub_agent="objection_handler",
                 prompt=f"Objection on call: {text}",
@@ -857,6 +866,7 @@ async def start_meeting_mode(
     _active_meeting["key_points"] = []
     try:
         from eos_ai.substrate.storage import get_storage
+
         get_storage().put("active_meeting", dict(_active_meeting))
     except Exception:
         pass
@@ -864,9 +874,7 @@ async def start_meeting_mode(
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(
         None,
-        lambda: __import__(
-            "eos_ai.agent_teams", fromlist=["run_team_task"]
-        ).run_team_task(
+        lambda: __import__("eos_ai.agent_teams", fromlist=["run_team_task"]).run_team_task(
             team="sales",
             sub_agent="closer",
             prompt=(
@@ -933,6 +941,7 @@ async def end_active_meeting(channel=None) -> None:
     _active_meeting["key_points"] = []
     try:
         from eos_ai.substrate.storage import get_storage
+
         get_storage().put("active_meeting", dict(_active_meeting))
     except Exception:
         pass
@@ -942,9 +951,20 @@ async def end_active_meeting(channel=None) -> None:
 
 
 async def _warmup_cc_sdk():
-    """Pre-load cc_sdk session on startup to reduce cold start latency."""
-    await asyncio.sleep(5)  # let bot fully settle
+    """Pre-load cc_sdk session on startup to reduce cold start latency.
+
+    Skips warmup entirely when system is under high pressure — the subprocess
+    spawn would worsen the load spike during recovery restarts.
+    """
+    await asyncio.sleep(10)
     try:
+        from eos_ai.runtime.work_state import _measure_pressure, Pressure
+
+        p = _measure_pressure()
+        if p in (Pressure.HIGH, Pressure.CRITICAL):
+            logger.info("[Startup] cc_sdk warmup skipped — pressure=%s", p.value)
+            return
+
         from eos_ai.cc_sdk import query_cc_sync
 
         result = query_cc_sync(
@@ -1000,11 +1020,12 @@ async def on_ready():
     # ── Restore persisted session state from SubstrateStorage ──────────
     try:
         from eos_ai.substrate.storage import get_storage
+
         _store = get_storage()
         _restored = 0
         for _key in _store.all_keys():
             if _key.startswith("session:"):
-                _chan = _key[len("session:"):]
+                _chan = _key[len("session:") :]
                 _channel_sessions[_chan] = _store.get(_key)
                 _restored += 1
         if _restored:
@@ -1153,9 +1174,7 @@ async def on_voice_state_update(
             except discord.errors.ConnectionClosed as e:
                 if "4006" in str(e) or "session" in str(e).lower():
                     wait = 5 if attempt == 0 else (attempt + 1) * 30
-                    print(
-                        f"[Voice] 4006 on attempt {attempt + 1} — waiting {wait}s before retry"
-                    )
+                    print(f"[Voice] 4006 on attempt {attempt + 1} — waiting {wait}s before retry")
                     # Force-disconnect any stale session before retry
                     if member.guild.voice_client:
                         try:
@@ -1219,18 +1238,14 @@ async def on_voice_state_update(
         and after.channel is not None
         and before.channel.id != after.channel.id
     ):
-        print(
-            f"[Voice] Branch: FOUNDER SWITCHED {before.channel.name} → {after.channel.name}"
-        )
+        print(f"[Voice] Branch: FOUNDER SWITCHED {before.channel.name} → {after.channel.name}")
         if member.guild.voice_client:
             try:
                 await member.guild.voice_client.move_to(after.channel)
             except Exception:
                 pass
         if general:
-            await _send_reply(
-                general, f"👁️ **{AI_NAME} followed you to {after.channel.name}.**"
-            )
+            await _send_reply(general, f"👁️ **{AI_NAME} followed you to {after.channel.name}.**")
 
 
 async def _listen_loop(
@@ -1278,9 +1293,7 @@ async def _listen_loop(
                     else None
                 )
                 _channel_id = (
-                    str(vc.channel.id)
-                    if getattr(vc, "channel", None) is not None
-                    else None
+                    str(vc.channel.id) if getattr(vc, "channel", None) is not None else None
                 )
                 # Pass `voice_client=vc` so that when
                 # EOS_DISCORD_VOICE_PLAYBACK_ENABLED is also truthy, the
@@ -1304,9 +1317,7 @@ async def _listen_loop(
                 return
 
             context_summary = _ve.intelligent.get_context_summary()
-            prompt = (
-                f"{context_summary}\n\nCurrent: {text}" if context_summary else text
-            )
+            prompt = f"{context_summary}\n\nCurrent: {text}" if context_summary else text
 
             # Auto-detect meeting context
             if not _active_meeting.get("type"):
@@ -1389,11 +1400,7 @@ async def _listen_loop(
 
             try:
                 _ki.integrate(
-                    content=(
-                        f"Voice [{classification}]:\n"
-                        f"User: {text}\n"
-                        f"{AI_NAME}: {response}"
-                    ),
+                    content=(f"Voice [{classification}]:\nUser: {text}\n{AI_NAME}: {response}"),
                     source="discord_voice",
                     category="conversation",
                     metadata={
@@ -1449,6 +1456,15 @@ async def on_message(message: discord.Message):
     if message.author == bot.user or message.author.bot:
         return
 
+    # Wake idle system — a real user message is a work signal
+    try:
+        from eos_ai.runtime.work_state import record_signal, reset_idle_counter
+
+        record_signal()
+        reset_idle_counter()
+    except Exception:
+        pass
+
     # Handle audio file attachments → transcribe → route → speak back
     if message.attachments:
         for att in message.attachments:
@@ -1473,9 +1489,7 @@ async def on_message(message: discord.Message):
                                 channel_id=_att_cid,
                             ),
                         )
-                        reply = (
-                            f"🎙️ **You said:** {transcribed}\n**{AI_NAME}:** {response}"
-                        )
+                        reply = f"🎙️ **You said:** {transcribed}\n**{AI_NAME}:** {response}"
                         await _send_reply(message.channel, reply)
                         # Speak in voice if connected
                         if message.guild and message.guild.voice_client:
@@ -1508,11 +1522,11 @@ async def on_message(message: discord.Message):
         return
 
     # ── Inbound multi-message buffering (/buffer + /done) ────────────────────
-    _ib = get_inbound_buffer()
+    _ib = get_inbound_buffer() if get_inbound_buffer else None
     _uid = str(message.author.id)
     _cid_str = str(message.channel.id)
 
-    if text.strip().lower() == "/done":
+    if text.strip().lower() == "/done" and _ib is not None:
         group = _ib.finalize(_uid, _cid_str)
         if group is None:
             await _send_reply(message.channel, "No active buffer to finalize.")
@@ -1556,7 +1570,7 @@ async def on_message(message: discord.Message):
         )
         # Fall through to normal processing with the combined text
 
-    elif text.strip().lower() == "/buffer":
+    elif text.strip().lower() == "/buffer" and _ib is not None:
         if _ib.has_active(_uid, _cid_str):
             count = _ib.get_count(_uid, _cid_str)
             await _send_reply(
@@ -1583,15 +1597,18 @@ async def on_message(message: discord.Message):
         await loop.run_in_executor(
             None,
             lambda: _run_gateway(
-                text, channel_name, username,
-                guild_id=_bf_gid, channel_id=_bf_cid,
+                text,
+                channel_name,
+                username,
+                guild_id=_bf_gid,
+                channel_id=_bf_cid,
                 memory_only=True,
             ),
         )
         await bot.process_commands(message)
         return
 
-    elif _ib.has_active(_uid, _cid_str):
+    elif _ib is not None and _ib.has_active(_uid, _cid_str):
         # Active buffer exists — accumulate instead of processing
         group = _ib.add(_uid, _cid_str, text)
         # Emit INBOUND_RECEIVED spine event
@@ -1626,8 +1643,11 @@ async def on_message(message: discord.Message):
         await loop.run_in_executor(
             None,
             lambda: _run_gateway(
-                text, channel_name, username,
-                guild_id=_ba_gid, channel_id=_ba_cid,
+                text,
+                channel_name,
+                username,
+                guild_id=_ba_gid,
+                channel_id=_ba_cid,
                 memory_only=True,
             ),
         )
@@ -1654,8 +1674,11 @@ async def on_message(message: discord.Message):
         await loop.run_in_executor(
             None,
             lambda: _run_gateway(
-                text, channel_name, username,
-                guild_id=_dr_gid, channel_id=_dr_cid,
+                text,
+                channel_name,
+                username,
+                guild_id=_dr_gid,
+                channel_id=_dr_cid,
                 memory_only=True,
             ),
         )
@@ -1677,9 +1700,7 @@ async def on_message(message: discord.Message):
                 # All questions answered — provision
                 await _send_reply(message.channel, "⚙️ **Provisioning your EOS...**")
                 try:
-                    provision_result = await _onboarding.analyze_and_provision(
-                        _ob_session
-                    )
+                    provision_result = await _onboarding.analyze_and_provision(_ob_session)
 
                     # Discord structure (handled here — engine can't import bot)
                     try:
@@ -1709,8 +1730,11 @@ async def on_message(message: discord.Message):
             await loop.run_in_executor(
                 None,
                 lambda: _run_gateway(
-                    text, channel_name, username,
-                    guild_id=_ob_gid, channel_id=_ob_cid,
+                    text,
+                    channel_name,
+                    username,
+                    guild_id=_ob_gid,
+                    channel_id=_ob_cid,
                     memory_only=True,
                 ),
             )
@@ -1784,8 +1808,11 @@ async def on_message(message: discord.Message):
         await loop.run_in_executor(
             None,
             lambda: _run_gateway(
-                text, channel_name, username,
-                guild_id=_oh_gid, channel_id=_oh_cid,
+                text,
+                channel_name,
+                username,
+                guild_id=_oh_gid,
+                channel_id=_oh_cid,
                 memory_only=True,
             ),
         )
@@ -1890,8 +1917,10 @@ async def on_message(message: discord.Message):
             None,
             lambda: _run_gateway(
                 f"[CC Session] {text}",
-                channel_name, username,
-                guild_id=_ccm_gid, channel_id=_ccm_cid,
+                channel_name,
+                username,
+                guild_id=_ccm_gid,
+                channel_id=_ccm_cid,
                 memory_only=True,
             ),
         )
@@ -1938,9 +1967,7 @@ async def on_message(message: discord.Message):
                 _pl_delivery_ok = False
                 if _visible_content:
                     try:
-                        _pl_delivery_ok = await _send_reply(
-                            message.channel, _visible_content
-                        )
+                        _pl_delivery_ok = await _send_reply(message.channel, _visible_content)
                     except Exception as _se:  # noqa: BLE001
                         print(f"[PseudoLive] send failed: {_se}")
 
@@ -1982,9 +2009,7 @@ async def on_message(message: discord.Message):
                                 },
                             )
                             if not _pl_proposal.accepted:
-                                print(
-                                    f"[PseudoLive] Proposal rejected: {_pl_proposal.reason}"
-                                )
+                                print(f"[PseudoLive] Proposal rejected: {_pl_proposal.reason}")
                             else:
                                 from eos_ai.substrate.task_finalization import (
                                     finalize_completed_task as _pl_finalize,
@@ -2033,8 +2058,10 @@ async def on_message(message: discord.Message):
                 None,
                 lambda: _run_gateway(
                     f"[CC Session] {text}",
-                    channel_name, username,
-                    guild_id=_plm_gid, channel_id=_plm_cid,
+                    channel_name,
+                    username,
+                    guild_id=_plm_gid,
+                    channel_id=_plm_cid,
                     memory_only=True,
                 ),
             )
@@ -2057,8 +2084,11 @@ async def on_message(message: discord.Message):
         await loop.run_in_executor(
             None,
             lambda: _run_gateway(
-                text, channel_name, username,
-                guild_id=_ms_gid, channel_id=_ms_cid,
+                text,
+                channel_name,
+                username,
+                guild_id=_ms_gid,
+                channel_id=_ms_cid,
                 memory_only=True,
             ),
         )
@@ -2082,8 +2112,11 @@ async def on_message(message: discord.Message):
         await loop.run_in_executor(
             None,
             lambda: _run_gateway(
-                text, channel_name, username,
-                guild_id=_me_gid, channel_id=_me_cid,
+                text,
+                channel_name,
+                username,
+                guild_id=_me_gid,
+                channel_id=_me_cid,
                 memory_only=True,
             ),
         )
@@ -2121,8 +2154,11 @@ async def on_message(message: discord.Message):
         await loop.run_in_executor(
             None,
             lambda: _run_gateway(
-                _pending["text"], channel_name, username,
-                guild_id=_fc_gid, channel_id=_fc_cid,
+                _pending["text"],
+                channel_name,
+                username,
+                guild_id=_fc_gid,
+                channel_id=_fc_cid,
                 memory_only=True,
             ),
         )
@@ -2136,8 +2172,11 @@ async def on_message(message: discord.Message):
         await loop.run_in_executor(
             None,
             lambda: _run_gateway(
-                text, channel_name, username,
-                guild_id=_pl_gid, channel_id=_pl_cid,
+                text,
+                channel_name,
+                username,
+                guild_id=_pl_gid,
+                channel_id=_pl_cid,
                 memory_only=True,
             ),
         )
@@ -2299,8 +2338,11 @@ async def on_message(message: discord.Message):
         await loop.run_in_executor(
             None,
             lambda: _run_gateway(
-                text, channel_name, username,
-                guild_id=_ic_gid, channel_id=_ic_cid,
+                text,
+                channel_name,
+                username,
+                guild_id=_ic_gid,
+                channel_id=_ic_cid,
                 memory_only=True,
             ),
         )
@@ -2314,9 +2356,7 @@ async def on_message(message: discord.Message):
 
         output = await loop.run_in_executor(
             None,
-            lambda: _run_gateway(
-                text, channel_name, username, guild_id=_gid, channel_id=_cid
-            ),
+            lambda: _run_gateway(text, channel_name, username, guild_id=_gid, channel_id=_cid),
         )
 
     if output:
@@ -2326,11 +2366,7 @@ async def on_message(message: discord.Message):
         try:
             if message.guild and message.author.id == FOUNDER_ID:
                 founder_member = message.guild.get_member(FOUNDER_ID)
-                if (
-                    founder_member
-                    and founder_member.voice
-                    and founder_member.voice.channel
-                ):
+                if founder_member and founder_member.voice and founder_member.voice.channel:
                     founder_in_voice = True
         except Exception:
             pass
@@ -2421,9 +2457,7 @@ class DiscordServerManager:
             if channel_type == "voice":
                 ch = await self.guild.create_voice_channel(name=name, category=category)
             else:
-                ch = await self.guild.create_text_channel(
-                    name=name, topic=topic, category=category
-                )
+                ch = await self.guild.create_text_channel(name=name, topic=topic, category=category)
             print(f"[Discord] Created #{name}")
             return ch
         except discord.Forbidden:
@@ -2704,8 +2738,7 @@ async def cmd_join(ctx: commands.Context):
         vc = await channel.connect()
     await _send_reply(
         ctx.channel,
-        f"🎙️ **{AI_NAME} connected.** Talk to me. "
-        "Drop an audio file and I'll transcribe + respond.",
+        f"🎙️ **{AI_NAME} connected.** Talk to me. Drop an audio file and I'll transcribe + respond.",
     )
     # Only start the listen loop on a fresh connect.
     # Auto-join (on_voice_state_update) already started it if the bot
@@ -2737,9 +2770,7 @@ async def cmd_say(ctx: commands.Context, *, text: str):
     audio_path = await loop.run_in_executor(None, _ve.speak, text)
     if audio_path and os.path.exists(audio_path):
         ctx.voice_client.play(discord.FFmpegPCMAudio(audio_path))
-        await _send_reply(
-            ctx.channel, f"🔊 {text[:80]}{'...' if len(text) > 80 else ''}"
-        )
+        await _send_reply(ctx.channel, f"🔊 {text[:80]}{'...' if len(text) > 80 else ''}")
     else:
         await ctx.reply("TTS failed — check that espeak is installed.")
 
@@ -2768,9 +2799,7 @@ async def cmd_outcome(ctx: commands.Context, *, args: str = ""):
         if ok:
             await ctx.reply("✅ Outcome captured and synced to Notion.")
         else:
-            await ctx.reply(
-                "⚠️ Captured locally but Notion sync failed — check NOTION_MEETINGS_ID."
-            )
+            await ctx.reply("⚠️ Captured locally but Notion sync failed — check NOTION_MEETINGS_ID.")
     except Exception as e:
         await ctx.reply(f"❌ Failed: {e}")
 
@@ -2983,9 +3012,7 @@ async def cmd_approve_followup(ctx: commands.Context):
                         (row["id"],),
                     )
                 await ctx.reply(
-                    f"✅ **Email sent to {to_email}**\n"
-                    f"Subject: {subject}\n"
-                    f"Preview: {body[:200]}..."
+                    f"✅ **Email sent to {to_email}**\nSubject: {subject}\nPreview: {body[:200]}..."
                 )
             else:
                 await ctx.reply(
@@ -3006,8 +3033,7 @@ async def cmd_approve_followup(ctx: commands.Context):
                     (row["id"],),
                 )
             await ctx.reply(
-                f"✅ Approved (no recipient email on file).\n"
-                f"Draft:\n```\n{draft[:400]}\n```"
+                f"✅ Approved (no recipient email on file).\nDraft:\n```\n{draft[:400]}\n```"
             )
     except Exception as e:
         await ctx.reply(f"❌ Error: {e}")
@@ -3093,9 +3119,7 @@ async def cmd_confidential(ctx: commands.Context, *, args: str = ""):
         from eos_ai.confidentiality import create_confidential_session
 
         topic = parts[0]
-        parties = (
-            [p.strip() for p in parts[1].split(",")] if len(parts) > 1 else ["Antony"]
-        )
+        parties = [p.strip() for p in parts[1].split(",")] if len(parts) > 1 else ["Antony"]
         level = parts[2] if len(parts) > 2 else "restricted"
         create_confidential_session(topic, parties, level)
         await ctx.reply(
@@ -3166,9 +3190,7 @@ async def cmd_relationship(ctx: commands.Context, *, name: str = ""):
         _health = score_relationship_health(name=name)
         _profile = build_intelligence_profile(name=name)
 
-        _bar = "█" * int(_health["score"] * 10) + "░" * (
-            10 - int(_health["score"] * 10)
-        )
+        _bar = "█" * int(_health["score"] * 10) + "░" * (10 - int(_health["score"] * 10))
         _rel_lines = [
             f"**Relationship: {name}**",
             f"Health: [{_bar}] {_health['score']:.0%} — {_health['status']}",
@@ -3217,8 +3239,7 @@ Subject: [subject]
 [Antony]""",
         ).strip()
         await ctx.reply(
-            f"📧 Check-in draft for {name}:\n```\n{draft[:500]}\n```\n"
-            f"`!approve_followup` to send."
+            f"📧 Check-in draft for {name}:\n```\n{draft[:500]}\n```\n`!approve_followup` to send."
         )
     except Exception as e:
         await ctx.reply(f"❌ Error: {e}")
@@ -3235,9 +3256,7 @@ async def cmd_expenses(ctx: commands.Context):
             await ctx.reply("💳 No expenses logged this month.")
             return
         lines = [f"💳 **Expenses — Month to date: ${summary['total']:,.2f}**"]
-        for cat, amt in sorted(
-            summary["by_category"].items(), key=lambda x: x[1], reverse=True
-        ):
+        for cat, amt in sorted(summary["by_category"].items(), key=lambda x: x[1], reverse=True):
             lines.append(f"• {cat}: ${amt:,.2f}")
         lines.append(f"\n_{summary['count']} transactions_")
         await ctx.reply("\n".join(lines))
@@ -3270,9 +3289,7 @@ async def cmd_align(ctx: commands.Context):
         mgr = DiscordServerManager(ctx.guild)
         await mgr.align_structure()
     await ctx.reply(
-        "✅ Discord structure aligned.\n"
-        "🧠 EOS category organized.\n"
-        "Redundant channels removed."
+        "✅ Discord structure aligned.\n🧠 EOS category organized.\nRedundant channels removed."
     )
 
 
@@ -3468,8 +3485,7 @@ async def cmd_block(ctx: commands.Context, *, time_range: str = ""):
         await ctx.reply("Usage: `!block 2pm-4pm deep work`")
         return
     await ctx.reply(
-        f"📅 Focus block noted: **{time_range}**\n"
-        f"Calendar blocking via GWS coming in next build."
+        f"📅 Focus block noted: **{time_range}**\nCalendar blocking via GWS coming in next build."
     )
 
 
@@ -3523,9 +3539,7 @@ async def cmd_waiting(ctx: commands.Context):
                     return "⏳ **Waiting On:** Nothing currently waiting on a reply."
                 lines = [f"⏳ **Waiting On Reply** ({len(waiting)}):"]
                 for e in waiting:
-                    lines.append(
-                        f"  • {e.from_name or e.from_address}: {e.subject[:50]}"
-                    )
+                    lines.append(f"  • {e.from_name or e.from_address}: {e.subject[:50]}")
                 return "\n".join(lines)
             except Exception as e:
                 return f"Waiting On error: {e}"
@@ -3555,9 +3569,7 @@ async def cmd_verify_inbox(ctx: commands.Context):
 
 
 @bot.command(name="folder-update")
-async def cmd_folder_update(
-    ctx: commands.Context, folder: str = "", *, instruction: str = ""
-):
+async def cmd_folder_update(ctx: commands.Context, folder: str = "", *, instruction: str = ""):
     """Update a GPS folder definition. Usage: !folder-update <folder> <instruction>"""
     if not folder or not instruction:
         await ctx.reply(
@@ -3648,9 +3660,7 @@ async def cmd_subscriptions(ctx: commands.Context):
             if renewals:
                 lines.append("\n⚠️ **Renewing soon:**")
                 for r in renewals[:3]:
-                    lines.append(
-                        f"• {r['vendor']} in {r['days_until']}d — ${r['amount']}"
-                    )
+                    lines.append(f"• {r['vendor']} in {r['days_until']}d — ${r['amount']}")
             return "\n".join(lines)
         except Exception as e:
             return f"❌ Error: {e}"
@@ -3665,9 +3675,7 @@ async def cmd_add_sub(ctx: commands.Context, *, args: str = ""):
     """Add a subscription. Usage: !add_sub [vendor] [amount] [monthly/annual] [YYYY-MM-DD]"""
     parts = args.strip().split()
     if len(parts) < 4:
-        await ctx.reply(
-            "Usage: `!add_sub [vendor] [amount] [monthly/annual] [YYYY-MM-DD]`"
-        )
+        await ctx.reply("Usage: `!add_sub [vendor] [amount] [monthly/annual] [YYYY-MM-DD]`")
         return
 
     def _run():
@@ -4032,9 +4040,7 @@ async def cmd_driveaudit(ctx: commands.Context):
             root_files = issues.get("root_files", [])
             untitled = issues.get("untitled", [])
             if root_files:
-                lines.append(
-                    f"\n⚠️ **{len(root_files)} files in root (should be in folders):**"
-                )
+                lines.append(f"\n⚠️ **{len(root_files)} files in root (should be in folders):**")
                 for f in root_files[:5]:
                     lines.append(f"• {f.get('name', 'Unknown')}")
             if untitled:
@@ -4168,9 +4174,7 @@ async def cmd_noadd(ctx: commands.Context, *, args: str = ""):
 async def cmd_energy(ctx: commands.Context, *, args: str = ""):
     """Log daily energy. Usage: !energy [1-10] | [what drained you] | [what energized you]"""
     if not args.strip():
-        await ctx.reply(
-            "Usage: `!energy [1-10] | [what drained you] | [what energized you]`"
-        )
+        await ctx.reply("Usage: `!energy [1-10] | [what drained you] | [what energized you]`")
         return
 
     def _run():
@@ -4533,9 +4537,7 @@ async def cmd_slides(ctx: commands.Context, *, args: str = ""):
             if slide_list:
                 lines = [f"📊 **{title} — {len(slide_list)} slides:**"]
                 for s in slide_list[:5]:
-                    lines.append(
-                        f"{s['number']}. **{s['title']}** — {s['key_message']}"
-                    )
+                    lines.append(f"{s['number']}. **{s['title']}** — {s['key_message']}")
                 if len(slide_list) > 5:
                     lines.append(f"... and {len(slide_list) - 5} more slides")
                 drive_id = result.get("drive_file", {}).get("id", "")
@@ -4605,14 +4607,11 @@ async def cmd_dates(ctx: commands.Context):
             for d in dates:
                 days_until = d.get("days_until", "?")
                 if isinstance(days_until, int):
-                    urgency = (
-                        "🔴" if days_until <= 7 else "🟡" if days_until <= 14 else "🔵"
-                    )
+                    urgency = "🔴" if days_until <= 7 else "🟡" if days_until <= 14 else "🔵"
                 else:
                     urgency = "🔵"
                 lines.append(
-                    f"{urgency} {d['person']} — {d['type']} — "
-                    f"in {days_until} days ({d['date']})"
+                    f"{urgency} {d['person']} — {d['type']} — in {days_until} days ({d['date']})"
                 )
                 if d.get("notes"):
                     lines.append(f"   _{d['notes']}_")
@@ -4693,9 +4692,7 @@ async def cmd_gift(ctx: commands.Context, *, args: str = ""):
 async def cmd_flights(ctx: commands.Context, *, args: str = ""):
     """Research flights. Usage: !flights [from] | [to] | [date] | [return optional]"""
     if "|" not in args:
-        await ctx.reply(
-            "Usage: `!flights [from] | [to] | [date] | [return date optional]`"
-        )
+        await ctx.reply("Usage: `!flights [from] | [to] | [date] | [return date optional]`")
         return
 
     def _run():
@@ -4830,9 +4827,7 @@ async def cmd_minutes(ctx: commands.Context, *, args: str = ""):
         )
         if result.get("minutes"):
             await ctx.reply(
-                f"📋 **Minutes drafted:**\n"
-                f"```\n{result['minutes'][:800]}\n```\n"
-                f"Saved to Drive."
+                f"📋 **Minutes drafted:**\n```\n{result['minutes'][:800]}\n```\nSaved to Drive."
             )
         else:
             await ctx.reply("❌ Failed to draft minutes.")
@@ -4877,9 +4872,7 @@ async def cmd_okr(ctx: commands.Context, subcommand: str = "report", *, args: st
                             "current": 0,
                         }
                     )
-            ok = set_okr(
-                objective=objective, key_results=key_results, venture_id=venture_id
-            )
+            ok = set_okr(objective=objective, key_results=key_results, venture_id=venture_id)
             if ok:
                 await ctx.reply(
                     f"🎯 **OKR set for {venture_id}:**\n"
@@ -4891,9 +4884,7 @@ async def cmd_okr(ctx: commands.Context, subcommand: str = "report", *, args: st
         except Exception as e:
             await ctx.reply(f"❌ Error: {e}")
     else:
-        await ctx.reply(
-            "Usage: `!okr report` or `!okr set [venture] | [objective] | [KRs...]`"
-        )
+        await ctx.reply("Usage: `!okr report` or `!okr set [venture] | [objective] | [KRs...]`")
 
 
 @bot.command(name="event")
@@ -4914,8 +4905,7 @@ async def cmd_event(ctx: commands.Context, *, args: str = ""):
             lines = [f"📅 **Upcoming events ({len(events)}):**"]
             for e in events[:6]:
                 lines.append(
-                    f"• {e['name']} — {e['type']} — "
-                    f"{e['date']} — {e.get('location', 'TBD')}"
+                    f"• {e['name']} — {e['type']} — {e['date']} — {e.get('location', 'TBD')}"
                 )
                 incomplete = sum(1 for c in e.get("checklist", []) if not c.get("done"))
                 if incomplete:
@@ -5022,8 +5012,7 @@ async def cmd_board_update(ctx: commands.Context, venture_id: str = ""):
     """Generate board update brief. Usage: !board_update [venture_id]"""
     if not venture_id:
         await ctx.reply(
-            "Usage: `!board_update [venture_id]`\n"
-            "Example: `!board_update lyfe_institute`"
+            "Usage: `!board_update [venture_id]`\nExample: `!board_update lyfe_institute`"
         )
         return
     try:
@@ -5106,8 +5095,7 @@ async def cmd_itinerary(ctx: commands.Context, *, args: str = ""):
             hotel=parts[4] if len(parts) > 4 else "",
         )
         await ctx.reply(
-            f"✈️ **Itinerary: {parts[0]}**\n"
-            f"```\n{itinerary[:1500]}\n```\nSaved to Drive."
+            f"✈️ **Itinerary: {parts[0]}**\n```\n{itinerary[:1500]}\n```\nSaved to Drive."
         )
     except Exception as e:
         await ctx.reply(f"❌ Error: {e}")
@@ -5195,9 +5183,7 @@ async def cmd_tasks(ctx: commands.Context):
         if ai_tasks:
             lines.append(f"\n🤖 **Agents handling ({len(ai_tasks)}):**")
             for t in ai_tasks[:5]:
-                lines.append(
-                    f"• [{t['priority']}] {t['assignee_id']} — {t['description'][:50]}"
-                )
+                lines.append(f"• [{t['priority']}] {t['assignee_id']} — {t['description'][:50]}")
 
         if not all_pending:
             lines.append("✅ Queue is empty.")
@@ -5241,14 +5227,8 @@ async def cmd_agent_results(ctx: commands.Context):
             p = r["payload_json"]
             if isinstance(p, str):
                 p = _json.loads(p)
-            approved = (
-                "✅"
-                if p.get("approved")
-                else ("⚠️" if p.get("requires_approval") else "🔵")
-            )
-            lines.append(
-                f"{approved} {p.get('agent_id', '')} — {p.get('description', '')[:50]}"
-            )
+            approved = "✅" if p.get("approved") else ("⚠️" if p.get("requires_approval") else "🔵")
+            lines.append(f"{approved} {p.get('agent_id', '')} — {p.get('description', '')[:50]}")
 
         await _send_reply(ctx.channel, "\n".join(lines))
     except Exception as e:

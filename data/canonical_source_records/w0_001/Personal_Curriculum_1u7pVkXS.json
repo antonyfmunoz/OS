@@ -1,0 +1,130 @@
+{
+  "file_id": "1u7pVkXSQqAPGvXil3yaGEefFDckZ4IU5LqvNTX9E1qQ",
+  "title": "Personal Curriculum",
+  "mime_type": "application/vnd.google-apps.document",
+  "source_account": "antonyfm@empyreanstudios.co",
+  "web_view_link": "https://docs.google.com/document/d/1u7pVkXSQqAPGvXil3yaGEefFDckZ4IU5LqvNTX9E1qQ/edit?usp=drivesdk",
+  "modified_time": "2026-02-01T05:43:48.953Z",
+  "created_time": "2026-01-08T03:02:45.178Z",
+  "owner_metadata": {
+    "display_name": "Antony Munoz"
+  },
+  "parent_metadata": {
+    "folder_id": "0AMuKYpdP0e12Uk9PVA"
+  },
+  "backend_type": "api",
+  "extraction_timestamp": "2026-05-05T01:23:30.477502+00:00",
+  "extraction_method": "GOOGLE_DOCS_API_INCLUDE_TABS_CONTENT_TRUE",
+  "extraction_coverage_status": "complete",
+  "total_tabs": 8,
+  "total_words": 106,
+  "total_characters": 896,
+  "empty_tab_count": 7,
+  "tabs": [
+    {
+      "tab_id": "t.0",
+      "tab_title": "Antony's Skill Stack",
+      "tab_path": "Antony's Skill Stack",
+      "parent_tab_id": null,
+      "tab_order": 0,
+      "is_empty": false,
+      "word_count": 106,
+      "character_count": 889,
+      "extraction_coverage_status": "complete",
+      "extraction_notes": ""
+    },
+    {
+      "tab_id": "t.pd1d38i84ouq",
+      "tab_title": "Tab 2",
+      "tab_path": "Tab 2",
+      "parent_tab_id": null,
+      "tab_order": 1,
+      "is_empty": true,
+      "word_count": 0,
+      "character_count": 1,
+      "extraction_coverage_status": "complete",
+      "extraction_notes": "empty tab"
+    },
+    {
+      "tab_id": "t.2j9f58vjwkex",
+      "tab_title": "Tab 3",
+      "tab_path": "Tab 3",
+      "parent_tab_id": null,
+      "tab_order": 2,
+      "is_empty": true,
+      "word_count": 0,
+      "character_count": 1,
+      "extraction_coverage_status": "complete",
+      "extraction_notes": "empty tab"
+    },
+    {
+      "tab_id": "t.zb64aru96ka5",
+      "tab_title": "Tab 4",
+      "tab_path": "Tab 4",
+      "parent_tab_id": null,
+      "tab_order": 3,
+      "is_empty": true,
+      "word_count": 0,
+      "character_count": 1,
+      "extraction_coverage_status": "complete",
+      "extraction_notes": "empty tab"
+    },
+    {
+      "tab_id": "t.9l8nmn7g3oar",
+      "tab_title": "Tab 5",
+      "tab_path": "Tab 5",
+      "parent_tab_id": null,
+      "tab_order": 4,
+      "is_empty": true,
+      "word_count": 0,
+      "character_count": 1,
+      "extraction_coverage_status": "complete",
+      "extraction_notes": "empty tab"
+    },
+    {
+      "tab_id": "t.pck12cw2hndi",
+      "tab_title": "Tab 6",
+      "tab_path": "Tab 6",
+      "parent_tab_id": null,
+      "tab_order": 5,
+      "is_empty": true,
+      "word_count": 0,
+      "character_count": 1,
+      "extraction_coverage_status": "complete",
+      "extraction_notes": "empty tab"
+    },
+    {
+      "tab_id": "t.43hxzqofyxt5",
+      "tab_title": "Tab 7",
+      "tab_path": "Tab 7",
+      "parent_tab_id": null,
+      "tab_order": 6,
+      "is_empty": true,
+      "word_count": 0,
+      "character_count": 1,
+      "extraction_coverage_status": "complete",
+      "extraction_notes": "empty tab"
+    },
+    {
+      "tab_id": "t.tjc5kqzeos2x",
+      "tab_title": "Tab 8",
+      "tab_path": "Tab 8",
+      "parent_tab_id": null,
+      "tab_order": 7,
+      "is_empty": true,
+      "word_count": 0,
+      "character_count": 1,
+      "extraction_coverage_status": "complete",
+      "extraction_notes": "empty tab"
+    }
+  ],
+  "provenance": {
+    "backend_type": "api",
+    "extraction_method": "GOOGLE_DOCS_API_INCLUDE_TABS_CONTENT_TRUE",
+    "source_observed_from": "Google Docs API v1 via gws CLI",
+    "content_came_from_api": true,
+    "content_came_from_cli": false,
+    "content_came_from_visible_ui": false,
+    "any_content_inaccessible": false
+  }
+}

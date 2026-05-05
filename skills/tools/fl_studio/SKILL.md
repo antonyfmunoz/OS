@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "N/A — GUI DAW"
 sdk_version: "FL Studio 21.x / 24.x MIDI scripting (Python ControlSurface bindings, hardware-only)"
 speed_category: human-in-the-loop
+trigger: both
+effort: medium
+context: fork
 ---
 
 # Tool: FL Studio

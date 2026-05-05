@@ -1,3 +1,9 @@
+---
+name: new-skill
+description: Use when creating a new EOS agent skill — 8-component structure, Neon sync, and agent wiring.
+allowed-tools: Bash, Read, Write, Edit
+---
+
 # How to Add a New Agent Skill
 
 ## Steps

@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "obs-websocket v5.x, OBS Studio 31.x"
 sdk_version: "obsws-python 1.7+ (Python), obs-websocket-js 5.x (Node)"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: obs (OBS Studio + obs-websocket)

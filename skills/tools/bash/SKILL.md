@@ -8,7 +8,7 @@ last_researched: "2026-04-06"
 instantiated_from: templates/tools/_template/
 api_version: "Bash 5.2"
 sdk_version: "GNU coreutils, flock, date, find, tar, docker"
-speed_category: fast
+speed_category: stable
 trigger: both
 effort: medium
 context: fork

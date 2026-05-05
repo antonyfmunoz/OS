@@ -1,3 +1,9 @@
+---
+name: notion-api
+description: Use when reading from or writing to Notion via the API — pages, databases, blocks, or morning brief publishing.
+allowed-tools: Bash, Read
+---
+
 # Notion API — Best Practices
 
 ## When to use this skill

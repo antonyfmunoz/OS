@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "Lightroom Classic 14.4 (June 2025) / Lightroom (cloud) 8.4"
 sdk_version: "Firefly Services Lightroom API v1 (REST) / firefly-services-sdk-js lightroom 1.x"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: lightroom

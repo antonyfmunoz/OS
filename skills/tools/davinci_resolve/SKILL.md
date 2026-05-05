@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "DaVinci Resolve 19.1 Studio"
 sdk_version: "Resolve Scripting API (Python 3.6+ / Lua 5.1) — DaVinciResolveScript"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: DaVinci Resolve Studio

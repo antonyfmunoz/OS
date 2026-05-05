@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "Connect API 2025-09 (post brand-template ID migration)"
 sdk_version: "canva-connect-api-starter-kit (TypeScript, openapi-ts generated); no official Python SDK — use openapi-generator on canva.dev OpenAPI spec"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: Canva

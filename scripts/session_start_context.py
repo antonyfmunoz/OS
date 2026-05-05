@@ -51,10 +51,16 @@ def _acquire_lock():
 
 
 def get_cc_version() -> str:
+    pkg = "/usr/lib/node_modules/@anthropic-ai/claude-code/package.json"
     try:
-        result = subprocess.run(
-            ["claude", "--version"], capture_output=True, text=True, timeout=5
-        )
+        import json
+
+        with open(pkg) as f:
+            return json.load(f).get("version", "unknown")
+    except Exception:
+        pass
+    try:
+        result = subprocess.run(["claude", "--version"], capture_output=True, text=True, timeout=5)
         return result.stdout.strip().split()[0] if result.stdout else "unknown"
     except Exception:
         return "unknown"
@@ -144,15 +150,11 @@ def main():
 
     if version_changed:
         context_lines.append(
-            "!! CC VERSION CHANGED — "
-            "run /check-cc-updates before "
-            "any infrastructure work"
+            "!! CC VERSION CHANGED — run /check-cc-updates before any infrastructure work"
         )
 
     if pending > 0:
-        context_lines.append(
-            f"{pending} pending tasks — run /constraint-check to prioritize"
-        )
+        context_lines.append(f"{pending} pending tasks — run /constraint-check to prioritize")
 
     # Output to stdout — CC injects into context
     print("\n".join(context_lines))
@@ -161,9 +163,7 @@ def main():
     try:
         os.makedirs("/opt/OS/logs", exist_ok=True)
         with open("/opt/OS/logs/sessions.log", "a") as f:
-            f.write(
-                f"{now.isoformat()} CC:{cc_version} Stage:{stage} Pending:{pending}\n"
-            )
+            f.write(f"{now.isoformat()} CC:{cc_version} Stage:{stage} Pending:{pending}\n")
     except Exception:
         pass
 
@@ -171,15 +171,46 @@ def main():
     # Boris: "Enable Remote Control for all sessions"
     try:
         rc_result = subprocess.run(
-            ["claude", "remote-control", "--background"],
+            ["npx", "@anthropic-ai/claude-code", "remote-control", "--background"],
             capture_output=True,
             text=True,
-            timeout=5,
+            timeout=10,
         )
         if rc_result.returncode == 0:
             print("[Remote] Control active — access from iPhone at claude.ai")
     except Exception:
         pass  # Remote Control unavailable
+
+    # TME staleness flag (lightweight — no imports from _tme_common)
+    try:
+        import datetime
+        import re as _re
+
+        _tools_dir = "/opt/OS/skills/tools"
+        _today = datetime.date.today()
+        _stale = []
+        _WINDOWS = {"fast": 14, "medium": 45, "stable": 90, "slow": 120}
+        for _d in os.listdir(_tools_dir):
+            _skill = os.path.join(_tools_dir, _d, "SKILL.md")
+            if not os.path.isfile(_skill):
+                continue
+            with open(_skill) as _f:
+                _head = _f.read(500)
+            _lr = _re.search(r'last_researched:\s*["\']?(\d{4}-\d{2}-\d{2})', _head)
+            _sc = _re.search(r'speed_category:\s*["\']?(\w+)', _head)
+            if not _lr:
+                continue
+            _age = (_today - datetime.date.fromisoformat(_lr.group(1))).days
+            _window = _WINDOWS.get(_sc.group(1) if _sc else "medium", 60)
+            if _age > _window:
+                _stale.append(_d)
+        if _stale:
+            print(
+                f"[TME] {len(_stale)} stale tool skills: {' '.join(_stale[:5])}"
+                f"{'...' if len(_stale) > 5 else ''}"
+            )
+    except Exception:
+        pass  # TME check is best-effort — never block session start
 
 
 if __name__ == "__main__":

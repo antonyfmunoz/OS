@@ -8,7 +8,7 @@ last_researched: "2026-04-06"
 instantiated_from: templates/tools/_template/
 api_version: "whisper-large-v3-turbo (Groq), large-v3 (local)"
 sdk_version: "faster-whisper 1.2.1, openai-whisper 20250625, groq 1.1.1"
-speed_category: fast
+speed_category: medium
 trigger: both
 effort: medium
 context: fork

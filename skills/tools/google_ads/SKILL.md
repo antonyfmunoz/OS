@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "Google Ads API v23.1 (Feb 2026)"
 sdk_version: "google-ads-python 26.x"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: Google Ads API

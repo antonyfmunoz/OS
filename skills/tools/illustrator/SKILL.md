@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "Illustrator 28.x (CC 2025), UXP scripting v6"
 sdk_version: "Illustrator UXP Scripting (replacing ExtendScript JSX) — UXP 8.x"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: illustrator

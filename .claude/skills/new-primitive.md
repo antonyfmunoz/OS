@@ -1,3 +1,9 @@
+---
+name: new-primitive
+description: Use when adding a new business primitive to PRIMITIVE_LIBRARY — knowledge truth with validity matrix.
+allowed-tools: Bash, Read, Edit
+---
+
 # How to Add a Business Primitive
 
 ## Steps

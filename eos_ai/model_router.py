@@ -38,7 +38,73 @@ try:
 except Exception:
     pass
 
+from eos_ai.runtime.provider_state import get_system_state
+
 logger = logging.getLogger(__name__)
+
+
+# ─── Circuit Breaker ─────────────────────────────────────────────────────────
+# Prevents CPU death spiral when all providers are down.
+# After consecutive all-providers-failed results, enforces exponential backoff
+# before allowing the next attempt (30s, 60s, 120s, 240s, cap 300s).
+
+_circuit_consecutive_failures: int = 0
+_circuit_last_failure_time: float = 0.0
+_CIRCUIT_BASE_DELAY: float = 30.0
+_CIRCUIT_MAX_DELAY: float = 300.0
+
+
+def _circuit_check() -> str | None:
+    """Return an early-exit message if the circuit breaker is open, else None."""
+    global _circuit_consecutive_failures, _circuit_last_failure_time
+    if _circuit_consecutive_failures < 2:
+        return None
+    delay = min(
+        _CIRCUIT_BASE_DELAY * (2 ** (_circuit_consecutive_failures - 2)),
+        _CIRCUIT_MAX_DELAY,
+    )
+    elapsed = time.time() - _circuit_last_failure_time
+    if elapsed < delay:
+        remaining = int(delay - elapsed)
+        logger.warning(
+            "[Router] Circuit breaker OPEN — %d consecutive failures, retry in %ds",
+            _circuit_consecutive_failures,
+            remaining,
+        )
+        return f"[EOS] All providers down — circuit breaker open, retrying in {remaining}s."
+    return None
+
+
+def _circuit_record_failure() -> None:
+    global _circuit_consecutive_failures, _circuit_last_failure_time
+    _circuit_consecutive_failures += 1
+    _circuit_last_failure_time = time.time()
+    try:
+        from eos_ai.runtime.provider_state import get_system_state
+
+        get_system_state().record_all_providers_failed()
+    except Exception:
+        pass
+
+
+def _circuit_record_success() -> None:
+    global _circuit_consecutive_failures, _circuit_last_failure_time
+    _circuit_consecutive_failures = 0
+    _circuit_last_failure_time = 0.0
+
+
+def _track_provider_result(provider_name: str, success: bool) -> None:
+    """Feed per-provider result into global SystemProviderState."""
+    try:
+        from eos_ai.runtime.provider_state import get_system_state
+
+        state = get_system_state()
+        if success:
+            state.record_provider_success(provider_name)
+        else:
+            state.record_provider_failure(provider_name)
+    except Exception:
+        pass
 
 
 # ─── RoutingResult ────────────────────────────────────────────────────────────
@@ -174,9 +240,7 @@ PROVIDER_PRIORITY_FAST: dict = {
 }
 
 # Task types that use the fast-path priority
-_FAST_TASK_TYPES = frozenset(
-    {"fast_response", "conversation", "score", "classify", "summarize"}
-)
+_FAST_TASK_TYPES = frozenset({"fast_response", "conversation", "score", "classify", "summarize"})
 
 # Token caps for Haiku on cheap tasks (protect $5 budget)
 _HAIKU_TOKEN_CAPS: dict[str, int] = {
@@ -374,9 +438,7 @@ class ModelRouter:
         for config in MODEL_REGISTRY.values():
             if not config.api_key_env:
                 # Local model (Ollama) — check if actually running
-                config.available = (
-                    config.provider == ModelProvider.OLLAMA and _ollama_available()
-                )
+                config.available = config.provider == ModelProvider.OLLAMA and _ollama_available()
             elif os.getenv(config.api_key_env):
                 config.available = True
             else:
@@ -396,9 +458,7 @@ class ModelRouter:
         """
         # Models that handle this task type
         candidates = [
-            c
-            for c in MODEL_REGISTRY.values()
-            if task_type in c.strengths and c.available
+            c for c in MODEL_REGISTRY.values() if task_type in c.strengths and c.available
         ]
 
         if not candidates:
@@ -429,22 +489,21 @@ class ModelRouter:
         provider = model_config.provider
 
         if provider == ModelProvider.ANTHROPIC:
-            return self._call_anthropic(model_config, prompt, system, max_tokens)
+            result = self._call_anthropic(model_config, prompt, system, max_tokens)
         elif provider == ModelProvider.PERPLEXITY:
-            return self._call_openai_compatible(
-                model_config, prompt, system, max_tokens
-            )
+            result = self._call_openai_compatible(model_config, prompt, system, max_tokens)
         elif provider == ModelProvider.GROQ:
-            return self._call_openai_compatible(
-                model_config, prompt, system, max_tokens
-            )
+            result = self._call_openai_compatible(model_config, prompt, system, max_tokens)
         elif provider == ModelProvider.OLLAMA:
-            return self._call_ollama(model_config, prompt, system, max_tokens)
+            result = self._call_ollama(model_config, prompt, system, max_tokens)
         elif provider == ModelProvider.GEMINI:
-            return self._call_gemini(model_config, prompt, system, max_tokens)
+            result = self._call_gemini(model_config, prompt, system, max_tokens)
         else:
             logger.warning("[ModelRouter] Unknown provider: %s", provider)
             return ""
+
+        _track_provider_result(provider.value, bool(result))
+        return result
 
     def call_with_fallback(
         self,
@@ -462,9 +521,7 @@ class ModelRouter:
         """
         # Build candidate list for this task type
         candidates = [
-            c
-            for c in MODEL_REGISTRY.values()
-            if task_type in c.strengths and c.available
+            c for c in MODEL_REGISTRY.values() if task_type in c.strengths and c.available
         ]
         if not candidates:
             candidates = [c for c in MODEL_REGISTRY.values() if c.available]
@@ -554,12 +611,8 @@ class ModelRouter:
                 max_tokens=max_tokens,
             )
             if hasattr(response, "usage") and response.usage:
-                self._last_input_tokens = (
-                    getattr(response.usage, "prompt_tokens", 0) or 0
-                )
-                self._last_output_tokens = (
-                    getattr(response.usage, "completion_tokens", 0) or 0
-                )
+                self._last_input_tokens = getattr(response.usage, "prompt_tokens", 0) or 0
+                self._last_output_tokens = getattr(response.usage, "completion_tokens", 0) or 0
             return response.choices[0].message.content or ""
         except Exception as e:
             logger.warning("[ModelRouter] %s error: %s", config.provider.value, e)
@@ -649,9 +702,7 @@ class ModelRouter:
         for model_id, config in MODEL_REGISTRY.items():
             status = "✅" if config.available else "❌"
             lines.append(
-                f"  {status} {model_id} "
-                f"({config.provider.value}) "
-                f"${config.cost_per_1k}/1k tokens"
+                f"  {status} {model_id} ({config.provider.value}) ${config.cost_per_1k}/1k tokens"
             )
         return "\n".join(lines)
 
@@ -732,6 +783,16 @@ def call_with_fallback(
         task_type_str = task_type.value
     else:
         task_type_str = task_type
+
+    # Circuit breaker: short-circuit when all providers are known-down
+    breaker_msg = _circuit_check()
+    if breaker_msg:
+        return RoutingResult(
+            output=breaker_msg,
+            provider="none",
+            model="circuit_breaker",
+            task_type=task_type_str,
+        )
 
     # CEO/strategic agents override economy mode
     is_ceo = _is_ceo_agent(agent_type) or force_opus
@@ -918,7 +979,7 @@ def call_with_fallback(
                 )
 
         # 2. Escalate to cc_sdk (Opus — no token cap on escalation)
-        if router._cc_sdk_available:
+        if router._cc_sdk_available and get_system_state().allow_execution():
             cc_result = query_cc_sync(
                 prompt=prompt,
                 system=system or "",
@@ -946,8 +1007,7 @@ def call_with_fallback(
         remaining = [
             c
             for c in MODEL_REGISTRY.values()
-            if c.available
-            and c.provider not in (ModelProvider.ANTHROPIC, ModelProvider.CC_SDK)
+            if c.available and c.provider not in (ModelProvider.ANTHROPIC, ModelProvider.CC_SDK)
         ]
         remaining.sort(key=lambda x: priority.get(x.provider, 99))
 
@@ -982,7 +1042,7 @@ def call_with_fallback(
         # ── HEAVY PATH: cc_sdk (Opus) first, then registry fallback ──
 
         # 1. Try cc_sdk first (Opus 4.6 via Agent SDK — free via Max)
-        if router._cc_sdk_available:
+        if router._cc_sdk_available and get_system_state().allow_execution():
             cc_result = query_cc_sync(
                 prompt=prompt,
                 system=system or "",
@@ -1009,9 +1069,7 @@ def call_with_fallback(
 
         # 2. Registry-based fallback — strength-matched first, then any available
         strength_matched = [
-            c
-            for c in MODEL_REGISTRY.values()
-            if router_task in c.strengths and c.available
+            c for c in MODEL_REGISTRY.values() if router_task in c.strengths and c.available
         ]
         strength_matched.sort(key=lambda x: priority.get(x.provider, 99))
         _tried_providers: set = set()
@@ -1048,9 +1106,7 @@ def call_with_fallback(
 
         # 3. All strength-matched failed — try remaining available providers
         remaining = [
-            c
-            for c in MODEL_REGISTRY.values()
-            if c.available and c.provider not in _tried_providers
+            c for c in MODEL_REGISTRY.values() if c.available and c.provider not in _tried_providers
         ]
         remaining.sort(key=lambda x: priority.get(x.provider, 99))
 
@@ -1084,12 +1140,15 @@ def call_with_fallback(
                 )
 
     latency_ms = int((time.time() - start) * 1000)
-    logger.error("[Router] ALL PROVIDERS FAILED")
+    _circuit_record_failure()
+    logger.error(
+        "[Router] ALL PROVIDERS FAILED (consecutive: %d)",
+        _circuit_consecutive_failures,
+    )
     _stamp_trace("none", "none", latency_ms, "all_failed")
     return RoutingResult(
         output=(
-            "[EOS] All intelligence providers unavailable. "
-            "Check API keys and network connectivity."
+            "[EOS] All intelligence providers unavailable. Check API keys and network connectivity."
         ),
         provider="none",
         model="none",
@@ -1100,6 +1159,8 @@ def call_with_fallback(
 
 def _stamp_trace(provider: str, model: str, latency_ms: int, result: str) -> None:
     """Stamp execution trace with router outcome. Never raises."""
+    if "fail" not in result:
+        _circuit_record_success()
     try:
         from eos_ai.substrate.execution_trace import get_current_trace, finalize_trace
 

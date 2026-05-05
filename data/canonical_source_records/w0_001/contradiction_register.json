@@ -1,0 +1,795 @@
+{
+  "generated": "2026-05-04",
+  "method": "temporal marker + concept definition analysis on tab-aware corpus (283K words)",
+  "correction_note": "Prior register was based on 7.9% of content. This version uses full tab-aware corpus.",
+  "stale_content_indicators": [
+    {
+      "document": "Antony F. Munoz (Personal Brand)",
+      "stale_indicators": 8,
+      "sample_matches": [
+        "2024",
+        "2023",
+        "used to",
+        "no longer"
+      ],
+      "words": 19070
+    },
+    {
+      "document": "Coaching Frameworks & Workbooks",
+      "stale_indicators": 8,
+      "sample_matches": [
+        "used to",
+        "no longer"
+      ],
+      "words": 19800
+    },
+    {
+      "document": "Content",
+      "stale_indicators": 6,
+      "sample_matches": [
+        "2024",
+        "used to",
+        "no longer"
+      ],
+      "words": 9226
+    },
+    {
+      "document": "Coaching Philosophy/Methodology",
+      "stale_indicators": 5,
+      "sample_matches": [
+        "last year",
+        "no longer"
+      ],
+      "words": 34683
+    },
+    {
+      "document": "EntrepreneurOS",
+      "stale_indicators": 5,
+      "sample_matches": [
+        "deprecated",
+        "used to"
+      ],
+      "words": 40222
+    },
+    {
+      "document": "Systems Inventory",
+      "stale_indicators": 3,
+      "sample_matches": [
+        "used to"
+      ],
+      "words": 22695
+    },
+    {
+      "document": "Empyrean Studios (Agency Brand)",
+      "stale_indicators": 2,
+      "sample_matches": [
+        "used to"
+      ],
+      "words": 10985
+    },
+    {
+      "document": "UMH",
+      "stale_indicators": 2,
+      "sample_matches": [
+        "deprecated",
+        "no longer"
+      ],
+      "words": 13949
+    },
+    {
+      "document": "Untitled document",
+      "stale_indicators": 2,
+      "sample_matches": [
+        "no longer"
+      ],
+      "words": 2119
+    },
+    {
+      "document": "Antony Munoz Email Sequence",
+      "stale_indicators": 1,
+      "sample_matches": [
+        "used to"
+      ],
+      "words": 676
+    },
+    {
+      "document": "Conglomerate Brands",
+      "stale_indicators": 1,
+      "sample_matches": [
+        "no longer"
+      ],
+      "words": 11487
+    },
+    {
+      "document": "CreatorOS",
+      "stale_indicators": 1,
+      "sample_matches": [
+        "used to"
+      ],
+      "words": 27301
+    },
+    {
+      "document": "LyfeOS",
+      "stale_indicators": 1,
+      "sample_matches": [
+        "deprecated"
+      ],
+      "words": 44400
+    },
+    {
+      "document": "Untitled document",
+      "stale_indicators": 1,
+      "sample_matches": [
+        "deprecated"
+      ],
+      "words": 35
+    }
+  ],
+  "multi_definition_concepts": {
+    "mission": [
+      {
+        "doc": "AI Tools",
+        "context": "enforce permissions"
+      },
+      {
+        "doc": "AI Tools",
+        "context": "habits / missions"
+      },
+      {
+        "doc": "Antony F. Munoz (Personal Brand)",
+        "context": "ii. mission & storyline"
+      },
+      {
+        "doc": "Antony F. Munoz (Personal Brand)",
+        "context": "impact: anchored obsession with discipline, sovereignty, and the mission to liberate others from societal programming."
+      },
+      {
+        "doc": "Antony Munoz Email Sequence",
+        "context": "where your calendar becomes a mission list."
+      },
+      {
+        "doc": "Antony Munoz Email Sequence",
+        "context": "-missions"
+      },
+      {
+        "doc": "Business Template",
+        "context": "rules \u2192 permission \u2192 continuation / termination"
+      },
+      {
+        "doc": "Coaching Frameworks & Workbooks",
+        "context": "1. anchor truth: define the non-negotiable reason the brand deserves to exist beyond profit. this step turns vague mission statements into a governed "
+      },
+      {
+        "doc": "Coaching Frameworks & Workbooks",
+        "context": "mission (what it is doing now)"
+      },
+      {
+        "doc": "Coaching Philosophy/Methodology",
+        "context": "incarnational roadmaps/mission logs"
+      },
+      {
+        "doc": "Coaching Philosophy/Methodology",
+        "context": "mission log"
+      },
+      {
+        "doc": "Conglomerate Brands",
+        "context": "personal brand mission: pursue mastery and sovereignty in public."
+      },
+      {
+        "doc": "Conglomerate Brands",
+        "context": "education institute mission: develop sovereign individuals."
+      },
+      {
+        "doc": "Content",
+        "context": "transmission log"
+      },
+      {
+        "doc": "Content",
+        "context": "transmission log"
+      },
+      {
+        "doc": "Copy of Script Storytelling Structures",
+        "context": "template: (insert dream result) changed my life, and i made it my mission to help (insert target audience) go from (insert pain point/points) to (inse"
+      },
+      {
+        "doc": "CreatorOS",
+        "context": "roles & permissions"
+      },
+      {
+        "doc": "CreatorOS",
+        "context": "creators can share referral links and earn commission on marketplace sales."
+      },
+      {
+        "doc": "Empyrean Studios (Agency Brand)",
+        "context": "mission"
+      },
+      {
+        "doc": "Empyrean Studios (Agency Brand)",
+        "context": "case study development (with permission)"
+      },
+      {
+        "doc": "EntrepreneurOS",
+        "context": "revoke permissions"
+      },
+      {
+        "doc": "EntrepreneurOS",
+        "context": "permissions/governance"
+      },
+      {
+        "doc": "Hunter Hoffman - Service Contract Agreement",
+        "context": "the parties both agree to take all necessary precautions to prevent injury to any persons or damage to property during the term of this agreement, and"
+      },
+      {
+        "doc": "Life Coaching (E-Learning/Info-Product Brand)",
+        "context": "goal(missions) setting"
+      },
+      {
+        "doc": "Life Coaching (E-Learning/Info-Product Brand)",
+        "context": "private ecosystem: xp, missions, rank = addiction loop."
+      },
+      {
+        "doc": "LyfeOS",
+        "context": "complete onboarding system (9 missions, 100+ questions)"
+      },
+      {
+        "doc": "LyfeOS",
+        "context": "missions system (7 categories, weighting, thread integration)"
+      },
+      {
+        "doc": "Script Storytelling Structures",
+        "context": "template: (insert dream result) changed my life, and i made it my mission to help (insert target audience) go from (insert pain point/points) to (inse"
+      },
+      {
+        "doc": "Systems Inventory",
+        "context": "defines the mission of the framework"
+      },
+      {
+        "doc": "Systems Inventory",
+        "context": "gamified reality architecture: xp, levels, missions, artifacts, and mastery paths\u2014gated by real execution."
+      },
+      {
+        "doc": "UMH",
+        "context": "permissions"
+      },
+      {
+        "doc": "UMH",
+        "context": "permission_config.py"
+      },
+      {
+        "doc": "Untitled document",
+        "context": "do not open documents, export, download, screenshot, edit, delete, move, or change permissions without asking first."
+      }
+    ],
+    "target": [
+      {
+        "doc": "AI Tools",
+        "context": "1) the target: what \u201ccore kit\u201d actually is"
+      },
+      {
+        "doc": "Antony F. Munoz (Personal Brand)",
+        "context": "12) kpis & optimization targets"
+      },
+      {
+        "doc": "Antony F. Munoz (Personal Brand)",
+        "context": "target benchmarks (phase 1)"
+      },
+      {
+        "doc": "Business Template",
+        "context": "initial state \u2192 defined process \u2192 target state"
+      },
+      {
+        "doc": "Coaching Frameworks & Workbooks",
+        "context": "1. calculate your freedom: define the exact monthly and annual cost of your ideal lifestyle, including taxes, buffers, and reinvestment capital. this "
+      },
+      {
+        "doc": "Coaching Frameworks & Workbooks",
+        "context": "4. allocation strategy: translate risk tolerance, time horizons, and long-term objectives into a written investment philosophy and allocation framewor"
+      },
+      {
+        "doc": "Coaching Philosophy/Methodology",
+        "context": "this is observed and targeted for subconscious reprogramming."
+      },
+      {
+        "doc": "Coaching Philosophy/Methodology",
+        "context": "future vision \u2192 what is the new 18-month target?"
+      },
+      {
+        "doc": "Conglomerate Brands",
+        "context": "brand strategy & positioning: this document defines the target segment, positioning, differentiation, and competitive frame for each operating entity."
+      },
+      {
+        "doc": "Content",
+        "context": "here\u2019s where i\u2019m starting from, and where i want to get. body? 150 pounds. i want 175. brand? less than 1,000 followers. shooting for 10k. business? z"
+      },
+      {
+        "doc": "Content",
+        "context": "dune feels like an epic prophecy unfolding. barbie feels like a dopamine hit wrapped in pink. and that\u2019s intentional. each has its own unique story, s"
+      },
+      {
+        "doc": "Copy of Script Storytelling Structures",
+        "context": "template: (insert dream result) changed my life, and i made it my mission to help (insert target audience) go from (insert pain point/points) to (inse"
+      },
+      {
+        "doc": "CreatorOS",
+        "context": "3. target users"
+      },
+      {
+        "doc": "CreatorOS",
+        "context": "3. selects target platforms (instagram, tiktok, youtube shorts, x, etc.)"
+      },
+      {
+        "doc": "Empyrean Studios (Agency Brand)",
+        "context": "target audience"
+      },
+      {
+        "doc": "Empyrean Studios (Agency Brand)",
+        "context": "target avatar: the overworked architect"
+      },
+      {
+        "doc": "EntrepreneurOS",
+        "context": "-usequery-docswith3targetedqueries:"
+      },
+      {
+        "doc": "EntrepreneurOS",
+        "context": "targets"
+      },
+      {
+        "doc": "Life Coaching (E-Learning/Info-Product Brand)",
+        "context": "assignment: choose a rival + set target (+5,000 xp) \u2192 outcome: channel rivalry into growth."
+      },
+      {
+        "doc": "Life Coaching (E-Learning/Info-Product Brand)",
+        "context": "assignment: choose a rival + set target (+5,000 xp) \u2192 outcome: channel rivalry into growth."
+      },
+      {
+        "doc": "LyfeOS",
+        "context": "target user analysis and market positioning"
+      },
+      {
+        "doc": "LyfeOS",
+        "context": "3. target users & market"
+      },
+      {
+        "doc": "Script Storytelling Structures",
+        "context": "template: (insert dream result) changed my life, and i made it my mission to help (insert target audience) go from (insert pain point/points) to (inse"
+      },
+      {
+        "doc": "Systems Inventory",
+        "context": "one targeted fix per underperformer"
+      },
+      {
+        "doc": "Systems Inventory",
+        "context": "\"i help [target audience] go from [current state] to [dream result] in [timeframe]. comment \u2018x\u2019 for details.\""
+      },
+      {
+        "doc": "UMH",
+        "context": "target_area: str"
+      },
+      {
+        "doc": "UMH",
+        "context": "the immutable architectural target\u000b every phase must map to it\u000b nothing gets added that doesn\u2019t fit it\u000b nothing from prd or organism gets lost again"
+      },
+      {
+        "doc": "Untitled document",
+        "context": "echo \"--- resolved target ---\""
+      },
+      {
+        "doc": "Untitled document",
+        "context": "echo \"--- target contents ---\""
+      },
+      {
+        "doc": "Untitled document",
+        "context": "a chosen direction (12-month target)"
+      },
+      {
+        "doc": "Untitled document",
+        "context": "wake time target"
+      }
+    ],
+    "goal": [
+      {
+        "doc": "AI Tools",
+        "context": "non-goals"
+      },
+      {
+        "doc": "AI Tools",
+        "context": "goal: reuse the same platform skeleton across entrepreneuros (agentos), lyfeos, and creatoros while keeping separate repos / auth / db / deployments."
+      },
+      {
+        "doc": "Antony F. Munoz (Personal Brand)",
+        "context": "show the audience a better version of themselves\u2014mirror their pain, goals, and journey so they trust you."
+      },
+      {
+        "doc": "Antony F. Munoz (Personal Brand)",
+        "context": "season 1 goal"
+      },
+      {
+        "doc": "Antony Munoz Email Sequence",
+        "context": "the goal-setting\u2026"
+      },
+      {
+        "doc": "Antony Munoz Email Sequence",
+        "context": "they chase small goals."
+      },
+      {
+        "doc": "Coaching Frameworks & Workbooks",
+        "context": "most people believe they must choose between security and self-actualization, either trading meaning for money or meaningfully struggling without stab"
+      },
+      {
+        "doc": "Coaching Frameworks & Workbooks",
+        "context": "\u25cf where have income spikes previously distorted your spending or goals?"
+      },
+      {
+        "doc": "Coaching Philosophy/Methodology",
+        "context": "goals"
+      },
+      {
+        "doc": "Coaching Philosophy/Methodology",
+        "context": "future goals & vision"
+      },
+      {
+        "doc": "Conglomerate Brands",
+        "context": "time availability and lifestyle goals"
+      },
+      {
+        "doc": "Conglomerate Brands",
+        "context": "the goal is timeless uniform, not fandom apparel."
+      },
+      {
+        "doc": "Content",
+        "context": "keep it light, simple, and specific, the goal here isn\u2019t to get rich, it\u2019s to validate demand. collect testimonials, reviews, and client transformatio"
+      },
+      {
+        "doc": "Content",
+        "context": "in the beginning, your goal should be to learn business fundamentals, test offers, get feedback (collect reviews or testimonials), and iterate until y"
+      },
+      {
+        "doc": "Copy of Script Storytelling Structures",
+        "context": "the big goal/dream:"
+      },
+      {
+        "doc": "Copy of Script Storytelling Structures",
+        "context": "#1. introduce dream - explain origin of dream/big goal"
+      },
+      {
+        "doc": "CreatorOS",
+        "context": "goal: core infrastructure, auth, and basic user flows"
+      },
+      {
+        "doc": "CreatorOS",
+        "context": "goal: universal composer and cross-platform posting"
+      },
+      {
+        "doc": "Empyrean Studios (Agency Brand)",
+        "context": "this form helps us understand your business, challenges, and goals so we can build the right automation stack and strategy. the more detail you give u"
+      },
+      {
+        "doc": "Empyrean Studios (Agency Brand)",
+        "context": "section 3: goals & vision"
+      },
+      {
+        "doc": "EntrepreneurOS",
+        "context": "generate and evolve the org chart based on stage, model, and goals."
+      },
+      {
+        "doc": "EntrepreneurOS",
+        "context": "strategic goals"
+      },
+      {
+        "doc": "Life Coaching (E-Learning/Info-Product Brand)",
+        "context": "goal(missions) setting"
+      },
+      {
+        "doc": "Life Coaching (E-Learning/Info-Product Brand)",
+        "context": "assignment: redefine goals (+5,000 xp) \u2192 outcome: balance meaning."
+      },
+      {
+        "doc": "LyfeOS",
+        "context": "facilitate execution of meaningful actions aligned with identity and goals"
+      },
+      {
+        "doc": "LyfeOS",
+        "context": "goals & vision"
+      },
+      {
+        "doc": "Script Storytelling Structures",
+        "context": "the big goal/dream:"
+      },
+      {
+        "doc": "Script Storytelling Structures",
+        "context": "#1. introduce dream - explain origin of dream/big goal"
+      },
+      {
+        "doc": "Systems Inventory",
+        "context": "cta aligns to tof/mof/bof goal"
+      },
+      {
+        "doc": "Systems Inventory",
+        "context": "\"for the next [time_frame], i\u2019m committing to [goal]. let\u2019s see how this goes.\""
+      },
+      {
+        "doc": "UMH",
+        "context": "goal"
+      },
+      {
+        "doc": "UMH",
+        "context": "goals"
+      },
+      {
+        "doc": "Untitled document",
+        "context": "globally goal-driven"
+      },
+      {
+        "doc": "Untitled document",
+        "context": "optimize toward a defined goal function"
+      },
+      {
+        "doc": "Untitled document",
+        "context": "goal:"
+      },
+      {
+        "doc": "Untitled document",
+        "context": "goals:"
+      }
+    ],
+    "offer": [
+      {
+        "doc": "AI Tools",
+        "context": "offer builder"
+      },
+      {
+        "doc": "AI Tools",
+        "context": "course delivery (if entrepreneuros offers internal training)"
+      },
+      {
+        "doc": "Antony F. Munoz (Personal Brand)",
+        "context": "show something worse before your offer to make it look better."
+      },
+      {
+        "doc": "Antony F. Munoz (Personal Brand)",
+        "context": "growth driver \u2192 launches funnel to core offers."
+      },
+      {
+        "doc": "Business Template",
+        "context": "offer selection"
+      },
+      {
+        "doc": "Business Template",
+        "context": "4. layer 2: value engine (offer core)"
+      },
+      {
+        "doc": "Coaching Frameworks & Workbooks",
+        "context": "4. offer frameworks, not dogma"
+      },
+      {
+        "doc": "Coaching Frameworks & Workbooks",
+        "context": "instead, you must offer:"
+      },
+      {
+        "doc": "Coaching Philosophy/Methodology",
+        "context": "usp, offer, pricing"
+      },
+      {
+        "doc": "Coaching Philosophy/Methodology",
+        "context": "business projects \u2192 services, offers, programs, or products."
+      },
+      {
+        "doc": "Conglomerate Brands",
+        "context": "what: what the brand actually produces. what do you make or offer?"
+      },
+      {
+        "doc": "Conglomerate Brands",
+        "context": "offers"
+      },
+      {
+        "doc": "Content",
+        "context": "evolutionary skills: content creation, offer creation, copywriting, sales, public speaking, systems thinking, recruiting, management, leadership, fina"
+      },
+      {
+        "doc": "Content",
+        "context": "this is where most people skip or end up stalling forever. they try to build a massive business before validating one offer. then try to \u201cscale\u201d befor"
+      },
+      {
+        "doc": "Copy of Claude Cowork Plugins - Free Resource Guide",
+        "context": "hr - job descriptions, onboarding materials, offer letters"
+      },
+      {
+        "doc": "CreatorOS",
+        "context": "seed with 100 beta creators; offer free pro tier for early adopters; migration tools from competitors"
+      },
+      {
+        "doc": "CreatorOS",
+        "context": "creatoros is a creator commerce + content + community os that lets any creator/brand publish content, run discord-style communities, sell any offer (d"
+      },
+      {
+        "doc": "Empyrean Studios (Agency Brand)",
+        "context": "offer stack"
+      },
+      {
+        "doc": "Empyrean Studios (Agency Brand)",
+        "context": "offer: self-paced systems, coaching, q&a, accountability"
+      },
+      {
+        "doc": "EntrepreneurOS",
+        "context": "primary offer"
+      },
+      {
+        "doc": "EntrepreneurOS",
+        "context": "offer"
+      },
+      {
+        "doc": "Life Coaching (E-Learning/Info-Product Brand)",
+        "context": "1. differentiate the core offer"
+      },
+      {
+        "doc": "Life Coaching (E-Learning/Info-Product Brand)",
+        "context": "artifacts: offer template, sales scripts"
+      },
+      {
+        "doc": "LyfeOS",
+        "context": "lyfeos combines elements that no competitor offers together:"
+      },
+      {
+        "doc": "LyfeOS",
+        "context": "greatest contribution: core value offered to world"
+      },
+      {
+        "doc": "Personal Curriculum",
+        "context": "evolutionary skills: content creation, offer creation, copywriting, sales, public speaking, systems thinking, recruiting, management, leadership, fina"
+      },
+      {
+        "doc": "Systems Inventory",
+        "context": "copying others\u2019 pillars instead of mapping to your offer"
+      },
+      {
+        "doc": "Systems Inventory",
+        "context": "4) ctas & offer integration"
+      },
+      {
+        "doc": "Untitled document",
+        "context": "\u2022\ta proven offer"
+      },
+      {
+        "doc": "Untitled document",
+        "context": "one offer. one icp. one problem. one action."
+      },
+      {
+        "doc": "Untitled document",
+        "context": "new offers"
+      },
+      {
+        "doc": "Untitled document",
+        "context": "offer presentation (keep simple)"
+      }
+    ],
+    "vision": [
+      {
+        "doc": "Antony F. Munoz (Personal Brand)",
+        "context": "create future vision. \u201cwhat will your life be like 6 months from now?\u201d"
+      },
+      {
+        "doc": "Antony F. Munoz (Personal Brand)",
+        "context": "strategic growth hub \u2192 houses the long-term empire vision."
+      },
+      {
+        "doc": "Coaching Frameworks & Workbooks",
+        "context": "vision (20\u201330 year outcome)"
+      },
+      {
+        "doc": "Coaching Frameworks & Workbooks",
+        "context": "vision (entity-specific)"
+      },
+      {
+        "doc": "Coaching Philosophy/Methodology",
+        "context": "vision"
+      },
+      {
+        "doc": "Coaching Philosophy/Methodology",
+        "context": "future goals & vision"
+      },
+      {
+        "doc": "Conglomerate Brands",
+        "context": "holding company vision: to build an ecosystem of companies that help individuals reclaim meaning, agency, and fulfillment."
+      },
+      {
+        "doc": "Conglomerate Brands",
+        "context": "creative studio vision: to become a world-class forge for disciplined creation, where ideas, systems, and artifacts are built."
+      },
+      {
+        "doc": "CreatorOS",
+        "context": "1.1 vision statement"
+      },
+      {
+        "doc": "CreatorOS",
+        "context": "creatoros \u2014 full platform prd (v1.0 full vision)"
+      },
+      {
+        "doc": "Empyrean Studios (Agency Brand)",
+        "context": "\ud83d\udca1 strategic vision"
+      },
+      {
+        "doc": "Empyrean Studios (Agency Brand)",
+        "context": "resource requirements and access provision"
+      },
+      {
+        "doc": "EntrepreneurOS",
+        "context": "version 1.0 \u2014 full vision / authoritative spec"
+      },
+      {
+        "doc": "EntrepreneurOS",
+        "context": "2. product vision"
+      },
+      {
+        "doc": "Hunter Hoffman - Service Contract Agreement",
+        "context": "(i) by either party on provision of 30 days' written notice to the other party, with or without cause;"
+      },
+      {
+        "doc": "Hunter Hoffman - Service Contract Agreement",
+        "context": "if any one or more of the provisions contained in this agreement is, for any reason, held to be invalid, illegal, or unenforceable in any respect, tha"
+      },
+      {
+        "doc": "Life Coaching (E-Learning/Info-Product Brand)",
+        "context": "vision map"
+      },
+      {
+        "doc": "Life Coaching (E-Learning/Info-Product Brand)",
+        "context": "vision"
+      },
+      {
+        "doc": "LyfeOS",
+        "context": "complete product vision, philosophy, and objectives"
+      },
+      {
+        "doc": "LyfeOS",
+        "context": "personal life operating system\u000bversion 1.0 \u2014 comprehensive vision\u000bfebruary 01, 2026\u000bstatus: execution-ready"
+      },
+      {
+        "doc": "Systems Inventory",
+        "context": "use this section to track revisions and updates to the sop."
+      },
+      {
+        "doc": "Systems Inventory",
+        "context": "visionary (him)"
+      },
+      {
+        "doc": "UMH",
+        "context": "good. this is the most important step you\u2019ll take before continuing.\u000b we\u2019re going to lock the end-state spec as a system contract, not a vision."
+      },
+      {
+        "doc": "UMH",
+        "context": "vision"
+      },
+      {
+        "doc": "Untitled document",
+        "context": "\ud83e\udde0 phase 1 \u2014 you had vision (but too complex)"
+      },
+      {
+        "doc": "Untitled document",
+        "context": "\u2022\ta 30-year vision"
+      }
+    ],
+    "north star": [
+      {
+        "doc": "Coaching Philosophy/Methodology",
+        "context": "10-year north star"
+      },
+      {
+        "doc": "Coaching Philosophy/Methodology",
+        "context": "create your north star identity and define what \u201cwinning\u201d looks like in life."
+      },
+      {
+        "doc": "CreatorOS",
+        "context": "8.1 north star metric"
+      },
+      {
+        "doc": "EntrepreneurOS",
+        "context": "\u2219\tgoal-to-action alignment \u2014 morning brief shows tasks and projects but doesn\u2019t connect them to quarterly goals or north star metrics. no \u201cdoes this a"
+      },
+      {
+        "doc": "EntrepreneurOS",
+        "context": "- guards the north star against short-term noise"
+      }
+    ]
+  },
+  "assessment": "Detailed human review recommended after memory promotion approval"
+}

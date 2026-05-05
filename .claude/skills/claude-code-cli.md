@@ -1,3 +1,9 @@
+---
+name: claude-code-cli
+description: Use when operating as the Developer Agent inside EOS — session management, deploy decision tree, protocol layers.
+allowed-tools: Bash, Read
+---
+
 # Claude Code CLI — Best Practices
 
 ## When to use this skill

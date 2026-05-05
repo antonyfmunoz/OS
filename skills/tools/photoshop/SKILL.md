@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "Photoshop 2025 (26.x) / UXP Manifest v5 / Firefly Services v3 / Firefly Image Model 3"
 sdk_version: "@adobe/photoshop-apis (npm) — UXP runtime bundled with Photoshop"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: photoshop

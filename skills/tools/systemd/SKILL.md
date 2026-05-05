@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "systemd 249 (Ubuntu 22.04) / 255 (Ubuntu 24.04)"
 sdk_version: "python3-systemd 234 (sd_notify, journal handler)"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: systemd

@@ -8,7 +8,7 @@ last_researched: "2026-04-06"
 instantiated_from: templates/tools/_template/
 api_version: "vixie-cron (Debian/Ubuntu default)"
 sdk_version: "cron 3.0pl1-137 (Ubuntu)"
-speed_category: fast
+speed_category: stable
 trigger: both
 effort: medium
 context: fork

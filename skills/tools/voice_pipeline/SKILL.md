@@ -8,7 +8,7 @@ last_researched: "2026-04-06"
 instantiated_from: templates/tools/_template/
 api_version: "N/A (local libraries)"
 sdk_version: "numpy 2.4.3, librosa 0.11.0, webrtcvad 2.0.10, silero-vad 6.2.1"
-speed_category: fast
+speed_category: medium
 trigger: both
 effort: medium
 context: fork

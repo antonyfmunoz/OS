@@ -1,0 +1,266 @@
+{
+  "generation_date": "2026-05-05T01:23:30.608334+00:00",
+  "method": "GOOGLE_DOCS_API_INCLUDE_TABS_CONTENT_TRUE",
+  "backend_type": "api",
+  "total_documents": 28,
+  "total_tabs": 321,
+  "total_child_tabs": 134,
+  "total_empty_tabs": 72,
+  "total_words": 283831,
+  "prior_extraction_words": 22431,
+  "coverage_correction": "22431 -> 283831 (1265.4% of prior)",
+  "documents": [
+    {
+      "file_id": "1-zgmTQuUBJKNQov82DMqVyP-9IZiuTErTYvo5YoF_3s",
+      "title": "AI Agents",
+      "tabs": 1,
+      "child_tabs": 0,
+      "empty_tabs": 1,
+      "words": 0,
+      "coverage": "COMPLETE"
+    },
+    {
+      "file_id": "1N8XHmKXnJHHmbK8F-I6NQLayukiX1HJU5vQv2ge_p-g",
+      "title": "AI Tools",
+      "tabs": 5,
+      "child_tabs": 0,
+      "empty_tabs": 0,
+      "words": 2677,
+      "coverage": "COMPLETE"
+    },
+    {
+      "file_id": "1lgFWS541urT9buV3fa5-wxZ-00-MOUbmBR5Xs-s5r_Q",
+      "title": "Antony F. Munoz (Personal Brand)",
+      "tabs": 21,
+      "child_tabs": 11,
+      "empty_tabs": 3,
+      "words": 19070,
+      "coverage": "COMPLETE"
+    },
+    {
+      "file_id": "1aZiPZ0ijSvLQsL6SpVzwbug52khV5XN0kYBFnNXvKuY",
+      "title": "Antony Munoz Email Sequence",
+      "tabs": 2,
+      "child_tabs": 0,
+      "empty_tabs": 0,
+      "words": 676,
+      "coverage": "COMPLETE"
+    },
+    {
+      "file_id": "10EHv9Nvy2tKyzbdv84ih9vLvCfR57pCP-Du2n7Z3I7I",
+      "title": "Automations",
+      "tabs": 1,
+      "child_tabs": 0,
+      "empty_tabs": 1,
+      "words": 0,
+      "coverage": "COMPLETE"
+    },
+    {
+      "file_id": "1-oD0UyXe8a9vczUwUthKJQLbpxx0U8pXWHAXVmfsrOo",
+      "title": "Business Template",
+      "tabs": 10,
+      "child_tabs": 0,
+      "empty_tabs": 6,
+      "words": 2072,
+      "coverage": "COMPLETE"
+    },
+    {
+      "file_id": "1_89hg-YbiC8P9rV1KfS2kicmgHQBAUpcgw5tHhK2FuY",
+      "title": "Coaching Frameworks & Workbooks",
+      "tabs": 30,
+      "child_tabs": 21,
+      "empty_tabs": 11,
+      "words": 19800,
+      "coverage": "COMPLETE"
+    },
+    {
+      "file_id": "1ult_kJPpvcG_NzRMPyNLHYp-IEIiTFpTDwo9xSBTl4A",
+      "title": "Coaching Philosophy/Methodology",
+      "tabs": 35,
+      "child_tabs": 29,
+      "empty_tabs": 2,
+      "words": 34683,
+      "coverage": "COMPLETE"
+    },
+    {
+      "file_id": "1e6E8OxCmVfZW2YkcK66HLIMPGLocBg7UkA4XK5oH94Q",
+      "title": "Conglomerate Brands",
+      "tabs": 15,
+      "child_tabs": 0,
+      "empty_tabs": 1,
+      "words": 11487,
+      "coverage": "COMPLETE"
+    },
+    {
+      "file_id": "19t72FIfZTVSv5y3JFuPwTcOi69wU6gakUEUYqq-lapQ",
+      "title": "Content",
+      "tabs": 25,
+      "child_tabs": 18,
+      "empty_tabs": 6,
+      "words": 9226,
+      "coverage": "COMPLETE"
+    },
+    {
+      "file_id": "1hUd9GVIAE5my9xhrREXuwzPspxnnmr5ml5kr4F7vg_w",
+      "title": "Copy of Claude Cowork Plugins - Free Resource Guide",
+      "tabs": 1,
+      "child_tabs": 0,
+      "empty_tabs": 0,
+      "words": 310,
+      "coverage": "COMPLETE"
+    },
+    {
+      "file_id": "1b0dl5RHU4wy5lNmGje-qp6Is5HIGwqUvayiGzEeTvI4",
+      "title": "Copy of Script Storytelling Structures",
+      "tabs": 1,
+      "child_tabs": 0,
+      "empty_tabs": 0,
+      "words": 1575,
+      "coverage": "COMPLETE"
+    },
+    {
+      "file_id": "1NIZXMZRFHqC2uMi8AhfL79zwKoew5f6bix9LgirBIfI",
+      "title": "CreatorOS",
+      "tabs": 8,
+      "child_tabs": 0,
+      "empty_tabs": 1,
+      "words": 27301,
+      "coverage": "COMPLETE"
+    },
+    {
+      "file_id": "1GO2F5vvxvoWfOD1jantn52WBo-ejc3U0Ki6arg7uTn0",
+      "title": "Empyrean Studios (Agency Brand)",
+      "tabs": 15,
+      "child_tabs": 5,
+      "empty_tabs": 1,
+      "words": 10985,
+      "coverage": "COMPLETE"
+    },
+    {
+      "file_id": "1kKBGCS9kewNMwOBAThXVkd1tYNcgddSUCjkpBjJtLSo",
+      "title": "EntrepreneurOS",
+      "tabs": 14,
+      "child_tabs": 0,
+      "empty_tabs": 0,
+      "words": 40222,
+      "coverage": "COMPLETE"
+    },
+    {
+      "file_id": "1eHO7Bj0zrVhdIztiw6774pLkYIjzw0RVa5mpGPThpFA",
+      "title": "Hunter Hoffman - Service Contract Agreement",
+      "tabs": 1,
+      "child_tabs": 0,
+      "empty_tabs": 0,
+      "words": 2672,
+      "coverage": "COMPLETE"
+    },
+    {
+      "file_id": "16Xjgrq6Vnkun3jpC38ckoQCCqNQs5DsU7kUhYNuJGDc",
+      "title": "Life Coaching (E-Learning/Info-Product Brand)",
+      "tabs": 29,
+      "child_tabs": 14,
+      "empty_tabs": 12,
+      "words": 9717,
+      "coverage": "COMPLETE"
+    },
+    {
+      "file_id": "1-6vPlqwlG5ud5hRNnL2sFiKmNmofDI2ZITmFxoecWog",
+      "title": "LyfeOS",
+      "tabs": 53,
+      "child_tabs": 36,
+      "empty_tabs": 18,
+      "words": 44400,
+      "coverage": "COMPLETE"
+    },
+    {
+      "file_id": "1u7pVkXSQqAPGvXil3yaGEefFDckZ4IU5LqvNTX9E1qQ",
+      "title": "Personal Curriculum",
+      "tabs": 8,
+      "child_tabs": 0,
+      "empty_tabs": 7,
+      "words": 106,
+      "coverage": "COMPLETE"
+    },
+    {
+      "file_id": "1D8ltfXZ68-hFpjf9blfQb46rNBf8ndn8plzUmm6Rjss",
+      "title": "SEMAX: The Brain Upgrade Nobody Talks About",
+      "tabs": 1,
+      "child_tabs": 0,
+      "empty_tabs": 0,
+      "words": 299,
+      "coverage": "COMPLETE"
+    },
+    {
+      "file_id": "18l4Yw5vWfx_ut06in1kuUjlWe7U4mtPhRM75W1y7gKc",
+      "title": "Script Storytelling Structures",
+      "tabs": 1,
+      "child_tabs": 0,
+      "empty_tabs": 0,
+      "words": 1575,
+      "coverage": "COMPLETE"
+    },
+    {
+      "file_id": "1deFPswAzsZYLYyAIRiXYOiKXiuOj1662FMmEBXDgDDo",
+      "title": "Systems Inventory",
+      "tabs": 20,
+      "child_tabs": 0,
+      "empty_tabs": 1,
+      "words": 22695,
+      "coverage": "COMPLETE"
+    },
+    {
+      "file_id": "11p36P6TMvTnnz2KdQ2wYd3cDKfjHtCvVKp2_XEkuvz8",
+      "title": "UMH",
+      "tabs": 8,
+      "child_tabs": 0,
+      "empty_tabs": 0,
+      "words": 13949,
+      "coverage": "COMPLETE"
+    },
+    {
+      "file_id": "1-FhleB0dp3-PBM12nEWtDRiCFTNeZWGbtfrSy9ukZX4",
+      "title": "Untitled document",
+      "tabs": 1,
+      "child_tabs": 0,
+      "empty_tabs": 0,
+      "words": 952,
+      "coverage": "COMPLETE"
+    },
+    {
+      "file_id": "10yvoPIPnv2LpTtjoJXgFfrLGbj89tH70MX_ueQiLjQQ",
+      "title": "Untitled document",
+      "tabs": 1,
+      "child_tabs": 0,
+      "empty_tabs": 0,
+      "words": 35,
+      "coverage": "COMPLETE"
+    },
+    {
+      "file_id": "11Kd3lSDA5_YAbjRvDai7Z9Itf3hKvKKpJ8Bw6DKVcwc",
+      "title": "Untitled document",
+      "tabs": 3,
+      "child_tabs": 0,
+      "empty_tabs": 0,
+      "words": 995,
+      "coverage": "COMPLETE"
+    },
+    {
+      "file_id": "11NeGXFxuUus_NP2GDr-uQkjsAwcBeMqQ97j2ZCaZqxQ",
+      "title": "Untitled document",
+      "tabs": 4,
+      "child_tabs": 0,
+      "empty_tabs": 1,
+      "words": 2119,
+      "coverage": "COMPLETE"
+    },
+    {
+      "file_id": "1a9HYn0M81rJ0C9qD9FN7pNojGR96LMgdqW2z5Wbegs0",
+      "title": "Untitled document",
+      "tabs": 7,
+      "child_tabs": 0,
+      "empty_tabs": 0,
+      "words": 4233,
+      "coverage": "COMPLETE"
+    }
+  ]
+}

@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en" class="bg-gray-900">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UMH Operator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+
+    <!-- ─── Header / Nav ────────────────────────────────────────── -->
+    <header class="bg-gray-800 border-b border-gray-700 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <!-- Left: Title + Nav -->
+                <div class="flex items-center gap-6">
+                    <h1 class="text-lg font-bold text-white tracking-tight">UMH Operator</h1>
+                    <nav class="flex gap-1">
+                        <button data-nav="dashboard" onclick="navigate('dashboard')"
+                                class="px-3 py-1.5 text-sm font-medium border-b-2 transition-colors">
+                            Dashboard
+                        </button>
+                        <button data-nav="run" onclick="navigate('run')"
+                                class="px-3 py-1.5 text-sm font-medium border-b-2 transition-colors">
+                            Run
+                        </button>
+                        <button data-nav="approvals" onclick="navigate('approvals')"
+                                class="px-3 py-1.5 text-sm font-medium border-b-2 transition-colors">
+                            Approvals
+                        </button>
+                        <button data-nav="memory" onclick="navigate('memory')"
+                                class="px-3 py-1.5 text-sm font-medium border-b-2 transition-colors">
+                            Memory
+                        </button>
+                        <button data-nav="schedules" onclick="navigate('schedules')"
+                                class="px-3 py-1.5 text-sm font-medium border-b-2 transition-colors">
+                            Schedules
+                        </button>
+                        <button data-nav="goals" onclick="navigate('goals')"
+                                class="px-3 py-1.5 text-sm font-medium border-b-2 transition-colors">
+                            Goals
+                        </button>
+                        <button data-nav="queue" onclick="navigate('queue')"
+                                class="px-3 py-1.5 text-sm font-medium border-b-2 transition-colors"
+                                style="color:#94e2d5;">
+                            Queue
+                        </button>
+                        <button data-nav="controls" onclick="navigate('controls')"
+                                class="px-3 py-1.5 text-sm font-medium border-b-2 transition-colors"
+                                style="color:#fab387;">
+                            Controls
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- Right: Health + API Key -->
+                <div class="flex items-center gap-4">
+                    <!-- Health indicator -->
+                    <div class="flex items-center gap-1.5">
+                        <div id="health-dot" class="w-2 h-2 rounded-full bg-gray-500"></div>
+                        <span id="health-text" class="text-xs text-gray-500">Checking...</span>
+                    </div>
+
+                    <!-- API Key -->
+                    <div class="flex items-center gap-2">
+                        <input id="api-key-input"
+                               type="password"
+                               placeholder="API Key"
+                               class="bg-gray-700 border border-gray-600 text-white text-xs rounded px-2 py-1 w-36 focus:outline-none focus:border-blue-500">
+                        <button onclick="toggleApiKeyVisibility()"
+                                class="text-gray-400 hover:text-white text-xs" title="Toggle visibility">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                            </svg>
+                        </button>
+                        <button onclick="saveApiKey()"
+                                class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded transition-colors">
+                            Save
+                        </button>
+                        <span id="api-key-saved" class="text-green-400 text-xs hidden">Saved</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ─── Main Content ────────────────────────────────────────── -->
+    <main class="max-w-7xl mx-auto px-4 py-6">
+
+        <!-- ── Dashboard View ── -->
+        <div id="view-dashboard" class="view view-container">
+            <!-- Metrics Grid -->
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-10 gap-3 mb-6">
+                <div class="bg-gray-800 rounded-lg p-4 text-center">
+                    <p class="text-2xl font-bold text-white" id="metric-total">-</p>
+                    <p class="text-xs text-gray-400 mt-1">Total Tasks</p>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4 text-center">
+                    <p class="text-2xl font-bold text-yellow-400" id="metric-running">-</p>
+                    <p class="text-xs text-gray-400 mt-1">Running</p>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4 text-center">
+                    <p class="text-2xl font-bold text-blue-400" id="metric-paused">-</p>
+                    <p class="text-xs text-gray-400 mt-1">Paused</p>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4 text-center">
+                    <p class="text-2xl font-bold text-green-400" id="metric-completed">-</p>
+                    <p class="text-xs text-gray-400 mt-1">Completed</p>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4 text-center">
+                    <p class="text-2xl font-bold text-red-400" id="metric-failed">-</p>
+                    <p class="text-xs text-gray-400 mt-1">Failed</p>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4 text-center">
+                    <p class="text-2xl font-bold text-purple-400" id="metric-approvals">-</p>
+                    <p class="text-xs text-gray-400 mt-1">Pending Approvals</p>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4 text-center">
+                    <p class="text-2xl font-bold text-cyan-400" id="metric-tools">-</p>
+                    <p class="text-xs text-gray-400 mt-1">Tools</p>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4 text-center">
+                    <p class="text-2xl font-bold text-indigo-400" id="metric-agents">-</p>
+                    <p class="text-xs text-gray-400 mt-1">Reviews</p>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4 text-center">
+                    <p class="text-2xl font-bold text-teal-400" id="metric-schedules">-</p>
+                    <p class="text-xs text-gray-400 mt-1">Schedules</p>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4 text-center">
+                    <p class="text-2xl font-bold text-amber-400" id="metric-goals">-</p>
+                    <p class="text-xs text-gray-400 mt-1">Active Goals</p>
+                </div>
+            </div>
+
+            <!-- Error container -->
+            <div id="dashboard-error" class="mb-4"></div>
+
+            <!-- Tasks Table -->
+            <div class="bg-gray-800 rounded-lg overflow-hidden">
+                <div class="px-4 py-3 border-b border-gray-700">
+                    <h2 class="text-sm font-semibold text-gray-300">Recent Tasks</h2>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="text-left text-xs text-gray-500 border-b border-gray-700">
+                                <th class="py-2 px-3 font-medium">ID</th>
+                                <th class="py-2 px-3 font-medium">Status</th>
+                                <th class="py-2 px-3 font-medium">Objective</th>
+                                <th class="py-2 px-3 font-medium">Steps</th>
+                                <th class="py-2 px-3 font-medium">Created</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tasks-tbody">
+                            <tr>
+                                <td colspan="5" class="text-center text-gray-500 py-8">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Run View ── -->
+        <div id="view-run" class="view view-container hidden">
+            <div class="max-w-3xl mx-auto">
+                <h2 class="text-xl font-semibold text-white mb-4">Run a Task</h2>
+
+                <!-- Input -->
+                <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                    <label class="block text-sm text-gray-400 mb-2">What do you want to do?</label>
+                    <textarea id="objective-input"
+                              rows="3"
+                              placeholder="Describe your objective..."
+                              class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 resize-none"></textarea>
+                    <div class="flex gap-2 mt-3">
+                        <button id="btn-plan" onclick="planObjective()"
+                                class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded font-medium text-sm transition-colors">
+                            Plan
+                        </button>
+                        <button id="btn-run-execute" onclick="runObjective()"
+                                class="px-4 py-2 bg-green-600 hover:bg-green-500 rounded font-medium text-sm transition-colors hidden">
+                            Run
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Error -->
+                <div id="run-error" class="mb-4"></div>
+
+                <!-- Plan Result -->
+                <div id="plan-result" class="mb-4"></div>
+
+                <!-- Run Result -->
+                <div id="run-result"></div>
+            </div>
+        </div>
+
+        <!-- ── Task Detail View ── -->
+        <div id="view-task" class="view view-container hidden">
+            <div id="task-detail">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+
+        <!-- ── Approvals View ── -->
+        <div id="view-approvals" class="view view-container hidden">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-semibold text-white">
+                    Pending Approvals
+                    <span id="approvals-count" class="text-gray-400 text-base font-normal ml-2">0</span>
+                </h2>
+            </div>
+
+            <!-- Error -->
+            <div id="approvals-error" class="mb-4"></div>
+
+            <!-- Approvals List -->
+            <div id="approvals-list" class="space-y-3">
+                <div class="flex items-center justify-center py-12">
+                    <span class="spinner spinner-lg"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Memory View ── -->
+        <div id="view-memory" class="view view-container hidden">
+            <!-- Search bar -->
+            <div class="flex items-center gap-3 mb-4">
+                <h2 class="text-xl font-semibold text-white">Memory</h2>
+                <input id="memory-search-input" type="text" placeholder="Search memories..."
+                       class="bg-gray-700 border border-gray-600 text-white text-sm rounded px-3 py-1.5 w-64 focus:outline-none focus:border-blue-500">
+                <button onclick="searchMemory()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded">Search</button>
+                <span id="memory-count" class="text-gray-400 text-sm ml-auto">0 memories</span>
+            </div>
+
+            <!-- Error -->
+            <div id="memory-error" class="mb-4"></div>
+
+            <!-- Memory list -->
+            <div id="memory-list" class="space-y-2">
+                <div class="text-gray-500 text-center py-8">Loading...</div>
+            </div>
+        </div>
+
+        <!-- ── Schedules View ── -->
+        <div id="view-schedules" class="view view-container hidden">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-semibold text-white">
+                    Scheduled Workflows
+                    <span id="schedules-count" class="text-gray-400 text-base font-normal ml-2">0</span>
+                </h2>
+                <button onclick="showCreateScheduleForm()"
+                        class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors">
+                    + New Schedule
+                </button>
+            </div>
+
+            <!-- Create form (hidden by default) -->
+            <div id="schedule-create-form" class="bg-gray-800 rounded-lg p-4 mb-4 hidden">
+                <h3 class="text-sm font-semibold text-gray-300 mb-3">Create Schedule</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Name</label>
+                        <input id="sched-name" type="text" placeholder="Daily health check"
+                               class="w-full bg-gray-700 border border-gray-600 text-white text-sm rounded px-3 py-1.5 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Objective</label>
+                        <input id="sched-objective" type="text" placeholder="check system health"
+                               class="w-full bg-gray-700 border border-gray-600 text-white text-sm rounded px-3 py-1.5 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Type</label>
+                        <select id="sched-type" class="w-full bg-gray-700 border border-gray-600 text-white text-sm rounded px-3 py-1.5 focus:outline-none focus:border-blue-500">
+                            <option value="interval">Interval (minutes)</option>
+                            <option value="daily">Daily (HH:MM)</option>
+                            <option value="weekly">Weekly (day HH:MM)</option>
+                            <option value="cron_like">Cron-like</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Value</label>
+                        <input id="sched-value" type="text" placeholder="60"
+                               class="w-full bg-gray-700 border border-gray-600 text-white text-sm rounded px-3 py-1.5 focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+                <div class="flex gap-2 mt-3">
+                    <button onclick="createSchedule()"
+                            class="px-4 py-2 bg-green-600 hover:bg-green-500 rounded font-medium text-sm transition-colors">
+                        Create
+                    </button>
+                    <button onclick="hideCreateScheduleForm()"
+                            class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-sm transition-colors">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+
+            <!-- Error -->
+            <div id="schedules-error" class="mb-4"></div>
+
+            <!-- Schedules Table -->
+            <div class="bg-gray-800 rounded-lg overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="text-left text-xs text-gray-500 border-b border-gray-700">
+                                <th class="py-2 px-3 font-medium">Name</th>
+                                <th class="py-2 px-3 font-medium">Status</th>
+                                <th class="py-2 px-3 font-medium">Schedule</th>
+                                <th class="py-2 px-3 font-medium">Next Run</th>
+                                <th class="py-2 px-3 font-medium">Last Run</th>
+                                <th class="py-2 px-3 font-medium">Runs</th>
+                                <th class="py-2 px-3 font-medium">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="schedules-tbody">
+                            <tr>
+                                <td colspan="7" class="text-center text-gray-500 py-8">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Goals View ── -->
+        <div id="view-goals" class="view view-container hidden">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-semibold text-white">
+                    Goals
+                    <span id="goals-count" class="text-gray-400 text-base font-normal ml-2">0</span>
+                </h2>
+                <button onclick="showCreateGoalForm()"
+                        class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors">
+                    + New Goal
+                </button>
+            </div>
+
+            <!-- Create form (hidden by default) -->
+            <div id="goal-create-form" class="bg-gray-800 rounded-lg p-4 mb-4 hidden">
+                <h3 class="text-sm font-semibold text-gray-300 mb-3">Create Goal</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Name</label>
+                        <input id="goal-name" type="text" placeholder="Build weekly analytics"
+                               class="w-full bg-gray-700 border border-gray-600 text-white text-sm rounded px-3 py-1.5 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Objective</label>
+                        <input id="goal-objective" type="text" placeholder="Create automated weekly analytics reports"
+                               class="w-full bg-gray-700 border border-gray-600 text-white text-sm rounded px-3 py-1.5 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Priority</label>
+                        <select id="goal-priority" class="w-full bg-gray-700 border border-gray-600 text-white text-sm rounded px-3 py-1.5 focus:outline-none focus:border-blue-500">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Success Criteria (comma-separated)</label>
+                        <input id="goal-criteria" type="text" placeholder="reports generated, data validated"
+                               class="w-full bg-gray-700 border border-gray-600 text-white text-sm rounded px-3 py-1.5 focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+                <div class="flex gap-2 mt-3">
+                    <button onclick="createGoal()"
+                            class="px-4 py-2 bg-green-600 hover:bg-green-500 rounded font-medium text-sm transition-colors">
+                        Create
+                    </button>
+                    <button onclick="hideCreateGoalForm()"
+                            class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-sm transition-colors">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+
+            <!-- Error -->
+            <div id="goals-error" class="mb-4"></div>
+
+            <!-- Goals Table -->
+            <div class="bg-gray-800 rounded-lg overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="text-left text-xs text-gray-500 border-b border-gray-700">
+                                <th class="py-2 px-3 font-medium">Name</th>
+                                <th class="py-2 px-3 font-medium">Status</th>
+                                <th class="py-2 px-3 font-medium">Priority</th>
+                                <th class="py-2 px-3 font-medium">Progress</th>
+                                <th class="py-2 px-3 font-medium">Tasks</th>
+                                <th class="py-2 px-3 font-medium">Last Evaluated</th>
+                                <th class="py-2 px-3 font-medium">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="goals-tbody">
+                            <tr>
+                                <td colspan="7" class="text-center text-gray-500 py-8">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Strategy Detail Panel -->
+            <div id="strategy-panel" class="bg-gray-800 rounded-lg p-4 mt-4 hidden">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-semibold text-gray-300">
+                        Strategy: <span id="strategy-goal-name" class="text-white"></span>
+                    </h3>
+                    <div class="flex gap-2">
+                        <button onclick="recomputeStrategy()"
+                                class="text-xs px-2 py-1 bg-purple-600 hover:bg-purple-500 rounded transition-colors">
+                            Recompute
+                        </button>
+                        <button onclick="hideStrategyPanel()"
+                                class="text-xs px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded transition-colors">
+                            Close
+                        </button>
+                    </div>
+                </div>
+                <div id="strategy-info" class="grid grid-cols-4 gap-3 mb-3">
+                    <div class="bg-gray-700/50 rounded p-2">
+                        <div class="text-xs text-gray-400">Template</div>
+                        <div id="strategy-template" class="text-sm text-white">-</div>
+                    </div>
+                    <div class="bg-gray-700/50 rounded p-2">
+                        <div class="text-xs text-gray-400">Approach</div>
+                        <div id="strategy-approach" class="text-sm text-white">-</div>
+                    </div>
+                    <div class="bg-gray-700/50 rounded p-2">
+                        <div class="text-xs text-gray-400">Confidence</div>
+                        <div id="strategy-confidence" class="text-sm text-white">-</div>
+                    </div>
+                    <div class="bg-gray-700/50 rounded p-2">
+                        <div class="text-xs text-gray-400">Progress</div>
+                        <div id="strategy-progress" class="text-sm text-white">-</div>
+                    </div>
+                </div>
+                <div id="strategy-error" class="mb-3"></div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="text-left text-xs text-gray-500 border-b border-gray-700">
+                                <th class="py-2 px-3 font-medium">#</th>
+                                <th class="py-2 px-3 font-medium">Description</th>
+                                <th class="py-2 px-3 font-medium">Type</th>
+                                <th class="py-2 px-3 font-medium">Complexity</th>
+                                <th class="py-2 px-3 font-medium">Status</th>
+                                <th class="py-2 px-3 font-medium">Tasks</th>
+                            </tr>
+                        </thead>
+                        <tbody id="strategy-steps-tbody">
+                            <tr>
+                                <td colspan="6" class="text-center text-gray-500 py-4">No strategy computed</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Strategy Evolution Panel -->
+            <div id="evolution-panel" class="bg-gray-800 rounded-lg p-4 mt-4 hidden">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-semibold text-gray-300">
+                        Strategy Evolution: <span id="evolution-goal-name" class="text-white"></span>
+                    </h3>
+                    <div class="flex gap-2">
+                        <button onclick="triggerRefinement()"
+                                class="text-xs px-2 py-1 bg-amber-600 hover:bg-amber-500 rounded transition-colors">
+                            Analyze
+                        </button>
+                        <button onclick="hideEvolutionPanel()"
+                                class="text-xs px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded transition-colors">
+                            Close
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Versions List -->
+                <div class="mb-3">
+                    <div class="text-xs text-gray-400 mb-1">Versions</div>
+                    <div id="evolution-versions" class="space-y-2">
+                        <div class="text-sm text-gray-500">No versions recorded</div>
+                    </div>
+                </div>
+
+                <!-- Refinement Proposal -->
+                <div id="evolution-proposal" class="hidden">
+                    <div class="text-xs text-gray-400 mb-1">Refinement Proposal</div>
+                    <div class="bg-gray-700/50 rounded p-3">
+                        <div class="grid grid-cols-4 gap-2 mb-2">
+                            <div>
+                                <div class="text-xs text-gray-400">Confidence</div>
+                                <div id="proposal-confidence" class="text-sm text-white">-</div>
+                            </div>
+                            <div>
+                                <div class="text-xs text-gray-400">Expected Improvement</div>
+                                <div id="proposal-improvement" class="text-sm text-white">-</div>
+                            </div>
+                            <div>
+                                <div class="text-xs text-gray-400">Issues</div>
+                                <div id="proposal-issues-count" class="text-sm text-white">-</div>
+                            </div>
+                            <div>
+                                <div class="text-xs text-gray-400">Recommended</div>
+                                <div id="proposal-recommended" class="text-sm text-white">-</div>
+                            </div>
+                        </div>
+                        <div id="proposal-issues-list" class="text-sm text-gray-300 mb-2"></div>
+                        <div id="proposal-changes-list" class="text-sm text-gray-300 mb-2"></div>
+                        <button id="apply-refinement-btn" onclick="applyRefinement()"
+                                class="text-xs px-3 py-1 bg-green-600 hover:bg-green-500 rounded transition-colors hidden">
+                            Apply Refinement
+                        </button>
+                    </div>
+                </div>
+
+                <div id="evolution-error" class="mt-2"></div>
+            </div>
+        </div>
+
+        <!-- ── Queue View ── -->
+        <div id="view-queue" class="view view-container hidden">
+            <div id="queue-panel" style="margin-top:0; background:#1e1e2e; border-radius:8px; padding:20px; border:1px solid #444;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <h3 style="margin:0; color:#cdd6f4;">Execution Queue</h3>
+                    <div>
+                        <button onclick="refreshQueue()" style="background:#89b4fa; color:#1e1e2e; border:none; padding:6px 16px; border-radius:4px; cursor:pointer; margin-right:8px;">Refresh</button>
+                    </div>
+                </div>
+
+                <div id="queue-summary" style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px;">
+                    <div style="background:#313244; padding:12px; border-radius:6px;">
+                        <div style="color:#a6adc8; font-size:0.85em;">Queue Size</div>
+                        <div id="queue-size" style="font-size:1.4em; font-weight:bold; color:#89b4fa;">0</div>
+                    </div>
+                    <div style="background:#313244; padding:12px; border-radius:6px;">
+                        <div style="color:#a6adc8; font-size:0.85em;">Ready</div>
+                        <div id="queue-ready" style="font-size:1.4em; font-weight:bold; color:#a6e3a1;">0</div>
+                    </div>
+                    <div style="background:#313244; padding:12px; border-radius:6px;">
+                        <div style="color:#a6adc8; font-size:0.85em;">Starved</div>
+                        <div id="queue-starved" style="font-size:1.4em; font-weight:bold; color:#f38ba8;">0</div>
+                    </div>
+                </div>
+
+                <table style="width:100%; border-collapse:collapse;">
+                    <thead>
+                        <tr style="border-bottom:2px solid #444;">
+                            <th style="text-align:left; padding:8px; color:#a6adc8;">#</th>
+                            <th style="text-align:left; padding:8px; color:#a6adc8;">Task</th>
+                            <th style="text-align:left; padding:8px; color:#a6adc8;">Score</th>
+                            <th style="text-align:left; padding:8px; color:#a6adc8;">State</th>
+                            <th style="text-align:left; padding:8px; color:#a6adc8;">Why This Ran</th>
+                            <th style="text-align:left; padding:8px; color:#a6adc8;">Age</th>
+                        </tr>
+                    </thead>
+                    <tbody id="queue-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ── Controls View ── -->
+        <div id="view-controls" class="view view-container hidden">
+            <div id="controls-panel" style="margin-top:0; background:#1e1e2e; border-radius:8px; padding:20px; border:1px solid #444;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <h3 style="margin:0; color:#cdd6f4;">System Controls</h3>
+                    <div>
+                        <button onclick="saveControls()" style="background:#a6e3a1; color:#1e1e2e; border:none; padding:6px 16px; border-radius:4px; cursor:pointer; margin-right:8px;">Save</button>
+                    </div>
+                </div>
+
+                <!-- Execution Mode Selector -->
+                <div style="margin-bottom:20px;">
+                    <label style="color:#a6adc8; display:block; margin-bottom:8px; font-weight:bold;">Execution Mode</label>
+                    <div style="display:flex; gap:8px;">
+                        <button id="mode-conservative" onclick="setMode('conservative')" style="flex:1; padding:12px; border-radius:6px; border:2px solid #444; background:#313244; color:#cdd6f4; cursor:pointer;">
+                            <div style="font-weight:bold;">Conservative</div>
+                            <div style="font-size:0.8em; color:#a6adc8; margin-top:4px;">Stable, cautious</div>
+                        </button>
+                        <button id="mode-balanced" onclick="setMode('balanced')" style="flex:1; padding:12px; border-radius:6px; border:2px solid #89b4fa; background:#313244; color:#cdd6f4; cursor:pointer;">
+                            <div style="font-weight:bold;">Balanced</div>
+                            <div style="font-size:0.8em; color:#a6adc8; margin-top:4px;">Default behavior</div>
+                        </button>
+                        <button id="mode-aggressive" onclick="setMode('aggressive')" style="flex:1; padding:12px; border-radius:6px; border:2px solid #444; background:#313244; color:#cdd6f4; cursor:pointer;">
+                            <div style="font-weight:bold;">Aggressive</div>
+                            <div style="font-size:0.8em; color:#a6adc8; margin-top:4px;">High throughput</div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Max Concurrent Tasks -->
+                <div style="margin-bottom:16px;">
+                    <label style="color:#a6adc8; display:block; margin-bottom:6px;">Max Concurrent Tasks: <span id="mct-value" style="color:#f9e2af;">5</span></label>
+                    <input type="range" id="mct-slider" min="1" max="20" value="5" oninput="document.getElementById('mct-value').textContent=this.value" style="width:100%;">
+                </div>
+
+                <!-- Retry Policy -->
+                <div style="margin-bottom:16px;">
+                    <label style="color:#a6adc8; display:block; margin-bottom:6px;">Retry Policy</label>
+                    <select id="retry-select" style="background:#313244; color:#cdd6f4; border:1px solid #444; padding:8px 12px; border-radius:4px; width:100%;">
+                        <option value="strict">Strict (1 retry)</option>
+                        <option value="normal" selected>Normal (3 retries)</option>
+                        <option value="lenient">Lenient (5 retries)</option>
+                    </select>
+                </div>
+
+                <!-- Sliders -->
+                <div style="margin-bottom:16px;">
+                    <label style="color:#a6adc8; display:block; margin-bottom:6px;">Cost Sensitivity: <span id="cs-value" style="color:#f9e2af;">0.50</span></label>
+                    <input type="range" id="cs-slider" min="0" max="100" value="50" oninput="document.getElementById('cs-value').textContent=(this.value/100).toFixed(2)" style="width:100%;">
+                </div>
+
+                <div style="margin-bottom:16px;">
+                    <label style="color:#a6adc8; display:block; margin-bottom:6px;">Failure Tolerance: <span id="ft-value" style="color:#f9e2af;">0.50</span></label>
+                    <input type="range" id="ft-slider" min="0" max="100" value="50" oninput="document.getElementById('ft-value').textContent=(this.value/100).toFixed(2)" style="width:100%;">
+                </div>
+
+                <div style="margin-bottom:16px;">
+                    <label style="color:#a6adc8; display:block; margin-bottom:6px;">Exploration Factor: <span id="ef-value" style="color:#f9e2af;">0.30</span></label>
+                    <input type="range" id="ef-slider" min="0" max="100" value="30" oninput="document.getElementById('ef-value').textContent=(this.value/100).toFixed(2)" style="width:100%;">
+                </div>
+
+                <!-- Last Updated -->
+                <div style="color:#6c7086; font-size:0.85em; margin-top:12px;">
+                    Last updated: <span id="controls-updated">—</span>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

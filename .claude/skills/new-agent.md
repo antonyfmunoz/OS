@@ -1,3 +1,9 @@
+---
+name: new-agent
+description: Use when creating a new EOS agent — hierarchy entry, soul doc, Neon registration, and verification.
+allowed-tools: Bash, Read, Write, Edit
+---
+
 # How to Create a New EOS Agent
 
 ## Steps

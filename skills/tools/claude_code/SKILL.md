@@ -2,13 +2,21 @@
 name: claude_code
 description: "Use when any agent needs to execute code changes, run shell commands, manage files, dispatch subagents, or leverage Claude Code's agentic development capabilities."
 allowed-tools: "Read, Bash"
-version: 1.0
-source_url: "https://docs.anthropic.com/en/docs/claude-code"
-last_researched: "2026-04-04"
+version: 2.0
+source_url: "https://code.claude.com/docs/en"
+last_researched: "2026-04-28"
 instantiated_from: templates/tools/_template/
-api_version: "Claude Code CLI (latest)"
+api_version: "Claude Code CLI v2.1.119+"
 sdk_version: "claude-agent-sdk (npm @anthropic-ai/claude-code)"
 speed_category: "fast"
+cascade_targets:
+  - "/opt/OS/skills/meta/claude_code_best_practices/SKILL.md"
+  - "/opt/OS/.claude/settings.json"
+  - "/opt/OS/.claude/skills/*.md"
+  - "/opt/OS/.claude/agents/*.md"
+trigger: both
+effort: medium
+context: fork
 ---
 
 # Tool: Claude Code
@@ -149,3 +157,26 @@ CC SDK enforces `max_budget_usd` to prevent runaway costs. Fast tasks get $0.05 
 cc_sdk.py maintains `_agent_sessions` dict mapping agent_id → session_id. This allows agents to resume prior conversations. Session state is in-memory only — lost on process restart.
 
 See references/best_practices.md for Claude Code internals, skill patterns, and advanced usage.
+
+### Absorbed from shanraisshan/claude-code-best-practice (2026-04-28)
+The following reference files in references/ were absorbed from an external
+GitHub repo because our own TME research didn't produce them at sufficient
+depth. They are now owned by the TME and will be updated via the Incremental
+Update Flow like any other tool skill content:
+- settings_reference.md (1050 lines — CC settings schema, all 60+ keys)
+- skills_reference.md (CC skill frontmatter fields)
+- subagents_reference.md (CC subagent frontmatter fields)
+- mcp_reference.md (MCP server configuration)
+- memory_reference.md (CLAUDE.md hierarchy and loading)
+- commands_reference.md (custom slash commands)
+- cli_flags_reference.md (CLI flags and env vars)
+- power_ups_reference.md (interactive feature lessons)
+- Plus 5 implementation walkthrough files
+
+### CC Artifact Cascade
+When this skill updates, it MUST validate all CC artifacts in EOS:
+- .claude/settings.json — validate against CC schema ($schema present, no phantom keys)
+- .claude/skills/*.md — frontmatter with name + trigger description + allowed-tools
+- .claude/agents/*.md — frontmatter with name + description + model + tools + verification step
+- CLAUDE.md — no stale CC version references
+- skills/meta/claude_code_best_practices/SKILL.md — sync standards from this skill

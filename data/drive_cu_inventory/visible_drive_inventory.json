@@ -1,0 +1,318 @@
+{
+  "work_order": "WO-LOCAL-PILOT-GDRIVE-GDOCS-001",
+  "account": "antonyfm@empyreanstudios.co",
+  "discovery_date": "2026-05-04",
+  "method": "COMPUTER_USE_ONLY",
+  "observation_method": "WINDOWS_UI_AUTOMATION",
+  "backend": "task_scheduler_it + powershell_ui_automation",
+  "chrome_flag": "--force-renderer-accessibility",
+  "total_items": 26,
+  "items": [
+    {
+      "name": "AI Agents",
+      "item_type": "application/vnd.google-apps.document",
+      "modified_date": "Aug 26, 2025",
+      "owner": "me",
+      "location": "",
+      "row_index": 0,
+      "observation_method": "windows_ui_automation",
+      "confidence": 0.95
+    },
+    {
+      "name": "AI Tools",
+      "item_type": "application/vnd.google-apps.document",
+      "modified_date": "Mar 18",
+      "owner": "me",
+      "location": "",
+      "row_index": 1,
+      "observation_method": "windows_ui_automation",
+      "confidence": 0.95
+    },
+    {
+      "name": "Antony F. Munoz (Personal Brand)",
+      "item_type": "application/vnd.google-apps.document",
+      "modified_date": "Feb 1",
+      "owner": "me",
+      "location": "",
+      "row_index": 2,
+      "observation_method": "windows_ui_automation",
+      "confidence": 0.95
+    },
+    {
+      "name": "Automations",
+      "item_type": "application/vnd.google-apps.document",
+      "modified_date": "Aug 26, 2025",
+      "owner": "me",
+      "location": "",
+      "row_index": 3,
+      "observation_method": "windows_ui_automation",
+      "confidence": 0.95
+    },
+    {
+      "name": "Business Template",
+      "item_type": "application/vnd.google-apps.document",
+      "modified_date": "Jan 28",
+      "owner": "me",
+      "location": "",
+      "row_index": 4,
+      "observation_method": "windows_ui_automation",
+      "confidence": 0.95
+    },
+    {
+      "name": "Coaching Frameworks & Workbooks",
+      "item_type": "application/vnd.google-apps.document",
+      "modified_date": "Feb 1",
+      "owner": "me",
+      "location": "",
+      "row_index": 5,
+      "observation_method": "windows_ui_automation",
+      "confidence": 0.95
+    },
+    {
+      "name": "Coaching Philosophy/Methodology",
+      "item_type": "application/vnd.google-apps.document",
+      "modified_date": "Feb 19",
+      "owner": "me",
+      "location": "",
+      "row_index": 6,
+      "observation_method": "windows_ui_automation",
+      "confidence": 0.95
+    },
+    {
+      "name": "Conglomerate Brands",
+      "item_type": "application/vnd.google-apps.document",
+      "modified_date": "Feb 1",
+      "owner": "me",
+      "location": "",
+      "row_index": 7,
+      "observation_method": "windows_ui_automation",
+      "confidence": 0.95
+    },
+    {
+      "name": "Content",
+      "item_type": "application/vnd.google-apps.document",
+      "modified_date": "Feb 28",
+      "owner": "me",
+      "location": "",
+      "row_index": 8,
+      "observation_method": "windows_ui_automation",
+      "confidence": 0.95
+    },
+    {
+      "name": "Copy of Claude Cowork Plugins - Free Resource Guide",
+      "item_type": "application/vnd.google-apps.document",
+      "modified_date": "Mar 3",
+      "owner": "me",
+      "location": "",
+      "row_index": 9,
+      "observation_method": "windows_ui_automation",
+      "confidence": 0.95
+    },
+    {
+      "name": "Copy of Script Storytelling Structures",
+      "item_type": "application/vnd.google-apps.document",
+      "modified_date": "Oct 21, 2025",
+      "owner": "me",
+      "location": "",
+      "row_index": 10,
+      "observation_method": "windows_ui_automation",
+      "confidence": 0.95
+    },
+    {
+      "name": "CreatorOS",
+      "item_type": "application/vnd.google-apps.document",
+      "modified_date": "Mar 9",
+      "owner": "me",
+      "location": "",
+      "row_index": 11,
+      "observation_method": "windows_ui_automation",
+      "confidence": 0.95
+    },
+    {
+      "name": "Empyrean Studios (Agency Brand)",
+      "item_type": "application/vnd.google-apps.document",
+      "modified_date": "Feb 1",
+      "owner": "me",
+      "location": "",
+      "row_index": 12,
+      "observation_method": "windows_ui_automation",
+      "confidence": 0.95
+    },
+    {
+      "name": "EntrepreneurOS",
+      "item_type": "application/vnd.google-apps.document",
+      "modified_date": "Apr 6",
+      "owner": "me",
+      "location": "",
+      "row_index": 13,
+      "observation_method": "windows_ui_automation",
+      "confidence": 0.95
+    },
+    {
+      "name": "Hunter Hoffman - Service Contract Agreement",
+      "item_type": "application/vnd.google-apps.document",
+      "modified_date": "Feb 12, 2025",
+      "owner": "me",
+      "location": "",
+      "row_index": 14,
+      "observation_method": "windows_ui_automation",
+      "confidence": 0.95
+    },
+    {
+      "name": "Life Coaching (E-Learning/Info-Product Brand)",
+      "item_type": "application/vnd.google-apps.document",
+      "modified_date": "Feb 28",
+      "owner": "me",
+      "location": "",
+      "row_index": 15,
+      "observation_method": "windows_ui_automation",
+      "confidence": 0.95
+    },
+    {
+      "name": "LyfeOS",
+      "item_type": "application/vnd.google-apps.document",
+      "modified_date": "Mar 9",
+      "owner": "me",
+      "location": "",
+      "row_index": 16,
+      "observation_method": "windows_ui_automation",
+      "confidence": 0.95
+    },
+    {
+      "name": "LYFEOS_Product_Development_Roadmap.docx",
+      "item_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "modified_date": "Feb 1",
+      "owner": "me",
+      "location": "",
+      "row_index": 17,
+      "observation_method": "windows_ui_automation",
+      "confidence": 0.95
+    },
+    {
+      "name": "Personal Curriculum",
+      "item_type": "application/vnd.google-apps.document",
+      "modified_date": "Jan 31",
+      "owner": "me",
+      "location": "",
+      "row_index": 18,
+      "observation_method": "windows_ui_automation",
+      "confidence": 0.95
+    },
+    {
+      "name": "Systems Inventory",
+      "item_type": "application/vnd.google-apps.document",
+      "modified_date": "Nov 20, 2025",
+      "owner": "me",
+      "location": "",
+      "row_index": 19,
+      "observation_method": "windows_ui_automation",
+      "confidence": 0.95
+    },
+    {
+      "name": "UMH",
+      "item_type": "application/vnd.google-apps.document",
+      "modified_date": "May 3",
+      "owner": "me",
+      "location": "",
+      "row_index": 20,
+      "observation_method": "windows_ui_automation",
+      "confidence": 0.95
+    },
+    {
+      "name": "Untitled document",
+      "item_type": "application/vnd.google-apps.document",
+      "modified_date": "Mar 26",
+      "owner": "me",
+      "location": "",
+      "row_index": 21,
+      "observation_method": "windows_ui_automation",
+      "confidence": 0.95
+    },
+    {
+      "name": "Untitled document",
+      "item_type": "application/vnd.google-apps.document",
+      "modified_date": "Apr 3",
+      "owner": "me",
+      "location": "",
+      "row_index": 22,
+      "observation_method": "windows_ui_automation",
+      "confidence": 0.95
+    },
+    {
+      "name": "Untitled document",
+      "item_type": "application/vnd.google-apps.document",
+      "modified_date": "11:40 AM",
+      "owner": "me",
+      "location": "",
+      "row_index": 23,
+      "observation_method": "windows_ui_automation",
+      "confidence": 0.95
+    },
+    {
+      "name": "Untitled document",
+      "item_type": "application/vnd.google-apps.document",
+      "modified_date": "Apr 22",
+      "owner": "me",
+      "location": "",
+      "row_index": 24,
+      "observation_method": "windows_ui_automation",
+      "confidence": 0.95
+    },
+    {
+      "name": "Untitled document",
+      "item_type": "application/vnd.google-apps.document",
+      "modified_date": "Mar 12",
+      "owner": "me",
+      "location": "",
+      "row_index": 25,
+      "observation_method": "windows_ui_automation",
+      "confidence": 0.95
+    }
+  ],
+  "comparison": {
+    "api_baseline_count": 29,
+    "cu_inventory_count": 26,
+    "count_difference": -3,
+    "matching_items": [
+      "ai agents",
+      "ai tools",
+      "antony f. munoz (personal brand)",
+      "automations",
+      "business template",
+      "coaching frameworks & workbooks",
+      "coaching philosophy/methodology",
+      "conglomerate brands",
+      "content",
+      "copy of claude cowork plugins - free resource guide",
+      "copy of script storytelling structures",
+      "creatoros",
+      "empyrean studios (agency brand)",
+      "entrepreneuros",
+      "hunter hoffman - service contract agreement",
+      "life coaching (e-learning/info-product brand)",
+      "lyfeos",
+      "lyfeos_product_development_roadmap.docx",
+      "personal curriculum",
+      "systems inventory",
+      "umh",
+      "untitled document"
+    ],
+    "matching_count": 22,
+    "missing_from_cu": [
+      "antony munoz email sequence",
+      "script storytelling structures",
+      "semax: the brain upgrade nobody talks about"
+    ],
+    "missing_from_cu_count": 3,
+    "extra_in_cu": [],
+    "extra_in_cu_count": 0,
+    "confidence_score": 0.759,
+    "confidence_rating": "LOW"
+  },
+  "api_used": false,
+  "playwright_used": false,
+  "cdp_used": false,
+  "screenshots_stored": false,
+  "document_content_read": false,
+  "credentials_captured": false
+}

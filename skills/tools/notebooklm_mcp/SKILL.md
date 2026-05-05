@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: ""
 sdk_version: ""
 speed_category: ""
+trigger: both
+effort: medium
+context: fork
 ---
 
 # Tool: Notebooklm Mcp

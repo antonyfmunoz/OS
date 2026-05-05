@@ -1,0 +1,17 @@
+{
+  "file_id": "11Kd3lSDA5_YAbjRvDai7Z9Itf3hKvKKpJ8Bw6DKVcwc",
+  "title": "Untitled document",
+  "mime_type": "application/vnd.google-apps.document",
+  "modified_time": "2026-05-04T18:40:12.588Z",
+  "created_time": "2026-04-12T05:57:45.527Z",
+  "owner": "Antony Munoz",
+  "parents": [
+    "0AMuKYpdP0e12Uk9PVA"
+  ],
+  "web_view_link": "https://docs.google.com/document/d/11Kd3lSDA5_YAbjRvDai7Z9Itf3hKvKKpJ8Bw6DKVcwc/edit?usp=drivesdk",
+  "source_account": "antonyfm@empyreanstudios.co",
+  "ingestion_date": "2026-05-04T17:14:11.395971",
+  "character_count": 2005,
+  "word_count": 319,
+  "text_content": "That means the ln command probably failed, but the script still printed “Created” because the echo ran anyway.\nRun this exact version. It uses set -e so it will stop if anything fails:\ncd \"/mnt/c/Users/antonys beast pc/dev/OSv2\"\n\nset -e\n\necho \"PWD is: $PWD\"\ntest -d \"$PWD\" && echo \"Repo path exists\"\n\nsudo mkdir -p /opt\nsudo rm -rf /opt/OS\nsudo ln -s \"$PWD\" /opt/OS\n\necho \"--- /opt listing ---\"\nls -la /opt\n\necho \"--- /opt/OS symlink ---\"\nls -ld /opt/OS\n\necho \"--- resolved target ---\"\nreadlink /opt/OS\n\necho \"--- target contents ---\"\nls -la /opt/OS | head\nYou want to see something like:\n/opt/OS -> /mnt/c/Users/antonys beast pc/dev/OSv2\nThen retry:\ncat ~/eos_inbox/umh_core.txt | claude\nIf it still says /opt/OS does not exist, run this fallback instead:\ncd \"/mnt/c/Users/antonys beast pc/dev/OSv2\"\n\nsudo rm -rf /opt/OS\nsudo mkdir -p /opt/OS\nsudo mount --bind \"$PWD\" /opt/OS\n\nls -la /opt/OS | head\nThen retry Claude again.\n\n\n\n\n\ncat > ~/.tmux.conf <<'EOF'\n# --- TMUX USABILITY SETUP ---\n\n# Enable mouse scrolling, pane selection, resizing\nset -g mouse on\n\n# Bigger scrollback history\nset -g history-limit 100000\n\n# Use vi-style copy mode\nsetw -g mode-keys vi\n\n# Start windows/panes at 1 instead of 0\nset -g base-index 1\nsetw -g pane-base-index 1\n\n# More responsive escape timing\nset -sg escape-time 10\n\n# Easier reload\nbind r source-file ~/.tmux.conf \\; display-message \"tmux config reloaded\"\n\n# Enter copy mode with Prefix + [\nbind [ copy-mode\n\n# Vi copy-mode bindings:\n# v = start selection\n# y = copy selection\nbind-key -T copy-mode-vi v send-keys -X begin-selection\nbind-key -T copy-mode-vi y send-keys -X copy-selection-and-cancel\n\n# Also allow Enter to copy selection\nbind-key -T copy-mode-vi Enter send-keys -X copy-selection-and-cancel\n\n# Make PageUp enter copy mode and scroll up\nbind -n PageUp copy-mode -u\n\n# Status bar readability\nset -g status-interval 5\nset -g status-left-length 40\nset -g status-right-length 120\nEOF\n\ntmux source-file ~/.tmux.conf\necho \"tmux scrolling/copy mode enabled.\"\n"
+}

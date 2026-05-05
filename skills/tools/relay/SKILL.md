@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "N/A — no public REST API as of 2026-04-06"
 sdk_version: "N/A — dashboard-only; data ingress via Plaid/QuickBooks/Yodlee bank feeds"
 speed_category: human-in-the-loop
+trigger: both
+effort: medium
+context: fork
 ---
 
 # Tool: Relay (Relay Financial)

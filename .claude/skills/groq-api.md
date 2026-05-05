@@ -1,3 +1,9 @@
+---
+name: groq-api
+description: Use when calling Groq for speech-to-text (Whisper) or fast LLM inference (Llama/Mixtral).
+allowed-tools: Bash, Read
+---
+
 # Groq API — Best Practices
 
 ## When to use

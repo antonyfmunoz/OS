@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "Simple Upload API (rumble.com/api/simple-upload.php) — gated, manual approval"
 sdk_version: "HTTP multipart / Playwright fallback / OpenRSS proxy"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: Rumble

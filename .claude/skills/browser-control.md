@@ -1,3 +1,9 @@
+---
+name: browser-control
+description: Use when a task requires web browser interaction without a direct API — Instagram, LinkedIn, Notion, or any web tool.
+allowed-tools: Bash, Read
+---
+
 # Browser Control — Best Practices
 
 ## When to use

@@ -9,6 +9,9 @@ instantiated_from: templates/tools/_template/
 api_version: "Mercury API v1"
 sdk_version: "REST (no official SDK; community: mercury-bank-api 0.x)"
 speed_category: stable
+trigger: both
+effort: low
+context: fork
 ---
 
 # Tool: mercury

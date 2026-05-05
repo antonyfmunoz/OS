@@ -10,7 +10,7 @@ last_researched: "2026-04-06"
 last_updated: "2026-04-06"
 api_version: "1.x / 2.x (per primitive)"
 sdk_version: "@radix-ui/react-* 1.x; @radix-ui/react-dialog@1.1.x"
-speed_category: "fast"
+speed_category: "medium"
 source_url: "https://www.radix-ui.com/primitives/docs/overview/introduction"
 sources:
   - "https://www.radix-ui.com/primitives/docs/overview/introduction"

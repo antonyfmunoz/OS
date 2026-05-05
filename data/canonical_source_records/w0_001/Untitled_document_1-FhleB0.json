@@ -1,0 +1,46 @@
+{
+  "file_id": "1-FhleB0dp3-PBM12nEWtDRiCFTNeZWGbtfrSy9ukZX4",
+  "title": "Untitled document",
+  "mime_type": "application/vnd.google-apps.document",
+  "source_account": "antonyfm@empyreanstudios.co",
+  "web_view_link": "https://docs.google.com/document/d/1-FhleB0dp3-PBM12nEWtDRiCFTNeZWGbtfrSy9ukZX4/edit?usp=drivesdk",
+  "modified_time": "2026-03-26T15:36:52.250Z",
+  "created_time": "2026-03-26T15:36:47.478Z",
+  "owner_metadata": {
+    "display_name": "Antony Munoz"
+  },
+  "parent_metadata": {
+    "folder_id": "0AMuKYpdP0e12Uk9PVA"
+  },
+  "backend_type": "api",
+  "extraction_timestamp": "2026-05-05T01:23:30.590870+00:00",
+  "extraction_method": "GOOGLE_DOCS_API_INCLUDE_TABS_CONTENT_TRUE",
+  "extraction_coverage_status": "complete",
+  "total_tabs": 1,
+  "total_words": 952,
+  "total_characters": 5475,
+  "empty_tab_count": 0,
+  "tabs": [
+    {
+      "tab_id": "t.0",
+      "tab_title": "Tab 1",
+      "tab_path": "Tab 1",
+      "parent_tab_id": null,
+      "tab_order": 0,
+      "is_empty": false,
+      "word_count": 952,
+      "character_count": 5475,
+      "extraction_coverage_status": "complete",
+      "extraction_notes": ""
+    }
+  ],
+  "provenance": {
+    "backend_type": "api",
+    "extraction_method": "GOOGLE_DOCS_API_INCLUDE_TABS_CONTENT_TRUE",
+    "source_observed_from": "Google Docs API v1 via gws CLI",
+    "content_came_from_api": true,
+    "content_came_from_cli": false,
+    "content_came_from_visible_ui": false,
+    "any_content_inaccessible": false
+  }
+}

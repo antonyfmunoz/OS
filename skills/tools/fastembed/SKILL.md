@@ -8,7 +8,7 @@ last_researched: "2026-04-06"
 instantiated_from: templates/tools/_template/
 api_version: "N/A"
 sdk_version: "fastembed 0.8.0"
-speed_category: fast
+speed_category: medium
 trigger: both
 effort: low
 context: fork
