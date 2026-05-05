@@ -1,10 +1,12 @@
 # Tool Mastery Engine — System Reference
 
-The Tool Mastery Engine (TME) is the EOS sub-system that guarantees
-creator-level expertise with every external tool. Until 2026-04-06,
-it was a manually curated skill library. As of this upgrade, it is a
-**self-updating, queryable, enforceable** system backed by five
-utility scripts and a generated dependency graph.
+The Tool Mastery Engine (TME) is a UMH substrate subsystem that
+guarantees creator-level expertise with every external tool, SaaS,
+API, adapter, runtime, and capability UMH touches. EOS is one
+platform consumer of TME. Until 2026-04-06, TME was a manually
+curated skill library. As of this upgrade, it is a **self-updating,
+queryable, enforceable** system backed by five utility scripts and
+a generated dependency graph.
 
 This document describes the system layer. The authoring layer (the
 in-skill decision tree) still lives in

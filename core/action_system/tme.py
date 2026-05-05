@@ -75,3 +75,62 @@ def ensure_tool_mastery(tool: str, *, dry_run: bool = False) -> dict[str, Any]:
         return payload
     except Exception as e:
         return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+
+def ensure_mastery_before_tool_execution(
+    tool_name: str,
+    *,
+    pack_exists: bool = False,
+    pack_text: str = "",
+    last_researched: str | None = None,
+    speed_category: str = "medium",
+    tier: str = "standard",
+    founder_waiver: bool = False,
+) -> dict[str, Any]:
+    """Mastery Assurance Gate — blocks tool execution without a fresh pack.
+
+    Combines the existing ensure_tool_mastery flow with the new
+    mastery_assurance contract. Returns the MasteryAssuranceDecision
+    as a dict, or ``{"ok": False, "error": ...}`` on failure.
+    Never raises.
+    """
+    try:
+        from core.tool_mastery_manager.mastery_assurance import (
+            ensure_mastery_before_execution,
+        )
+
+        decision = ensure_mastery_before_execution(
+            tool_name=tool_name,
+            pack_exists=pack_exists,
+            pack_text=pack_text,
+            last_researched=last_researched,
+            speed_category=speed_category,
+            tier=tier,
+            founder_waiver=founder_waiver,
+        )
+        payload = decision.to_dict()
+        payload["ok"] = True
+        return payload
+    except Exception as e:
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+
+def resolve_mastery_for_user_intent(
+    text: str,
+) -> dict[str, Any]:
+    """Natural language tool/capability/runtime detection.
+
+    Wraps resolve_mastery_for_task for Control Plane callers.
+    Never raises.
+    """
+    try:
+        from core.tool_mastery_manager.tool_mastery_resolver import (
+            resolve_mastery_for_task,
+        )
+
+        resolution = resolve_mastery_for_task(text)
+        payload = resolution.to_dict()
+        payload["ok"] = True
+        return payload
+    except Exception as e:
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"}

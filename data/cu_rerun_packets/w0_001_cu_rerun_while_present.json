@@ -1,0 +1,81 @@
+{
+  "run_id": "W0-001-CU-RERUN-WHILE-PRESENT-001",
+  "packet_type": "cu_rerun_while_present",
+  "work_order_id": "WO-LOCAL-PILOT-GDRIVE-GDOCS-001",
+  "target_account": "antonyfm@empyreanstudios.co",
+  "created_phase": "96.7H",
+  "created_date": "2026-05-05",
+  "worker_mode": "manual_with_founder",
+  "founder_presence_required": true,
+  "playwright_enabled": false,
+  "cdp_enabled": false,
+  "screenshot_enabled": false,
+  "preferred_backend": "GUI_COMPUTER_USE",
+  "approval_routing": "founder_direct",
+  "tasks": [
+    {
+      "task_id": "DRIVE-CU-RERUN-001",
+      "package": "W-GDRIVE-CU-001",
+      "action": "rerun_drive_cu_inventory",
+      "description": "Open Chrome with Google Drive, run accessibility tree inventory, founder confirms 26 My Drive files",
+      "expected_result": {
+        "items": 26,
+        "account": "antonyfm@empyreanstudios.co",
+        "profile": "Antony (empyreanstudios.co)",
+        "method": "COMPUTER_USE_ONLY"
+      },
+      "governance": {
+        "no_gmail": true,
+        "no_account_switching": true,
+        "no_mutation": true,
+        "no_credential_capture": true,
+        "no_playwright": true,
+        "no_cdp": true,
+        "no_screenshots": true
+      }
+    },
+    {
+      "task_id": "DOCS-CU-RERUN-001",
+      "package": "W-GDOCS-CU-001",
+      "action": "rerun_docs_cu_tab_and_content_extraction",
+      "description": "Open Chrome with Google Docs, run tab detection + content extraction with foreground ownership solved, founder confirms",
+      "expected_result": {
+        "docs": 28,
+        "tabs": 321,
+        "child_tabs": 134,
+        "words": 283831,
+        "method": "COMPUTER_USE_ONLY"
+      },
+      "governance": {
+        "no_gmail": true,
+        "no_account_switching": true,
+        "no_mutation": true,
+        "no_credential_capture": true,
+        "no_playwright": true,
+        "no_cdp": true,
+        "no_screenshots": true
+      },
+      "hardening_gaps": [
+        "child_tabs_supported",
+        "content_extractable",
+        "scrolling_complete",
+        "per_tab_provenance_complete",
+        "empty_tabs_marked",
+        "inaccessible_tabs_marked",
+        "parity_against_api"
+      ]
+    }
+  ],
+  "dispatch_instructions": {
+    "method": "ssh_to_local_inbox_or_manual",
+    "ssh_host": "100.74.199.102",
+    "ssh_user": "DESKTOP-LVGUIQ9\\antonys beast pc",
+    "local_inbox": "~/eos_advisor_messages/inbox/",
+    "manual_fallback": "Copy this packet to local PC and run from WSL"
+  },
+  "response_contract": {
+    "drive_result_file": "w_gdrive_cu_rerun_result.json",
+    "docs_result_file": "w_gdocs_cu_rerun_result.json",
+    "response_location": "~/eos_advisor_messages/outbox/"
+  }
+}

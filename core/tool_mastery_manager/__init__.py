@@ -24,10 +24,51 @@ from .models import (
     ToolRef,
 )
 
+from .mastery_assurance import (
+    MasteryAssuranceDecision,
+    MasteryAssuranceStatus,
+    RecommendedFlow,
+    ensure_mastery_before_execution,
+    mastery_assurance_blocks_execution,
+)
+
+from .tool_mastery_resolver import (
+    ResolvedCapabilityMention,
+    ResolvedMasteryPack,
+    ResolvedToolMention,
+    ToolMasteryResolution,
+    resolve_mastery_for_task,
+)
+
+from .active_tool_context import (
+    ActiveToolContext,
+    create_active_tool_context,
+    update_active_tool_context,
+    should_continue_context,
+    should_switch_context,
+    summarize_active_tool_context,
+)
+
 __all__ = [
     "CoverageReport",
     "CoverageStatus",
     "EnsureResult",
     "ManagerPlan",
     "ToolRef",
+    "MasteryAssuranceDecision",
+    "MasteryAssuranceStatus",
+    "RecommendedFlow",
+    "ensure_mastery_before_execution",
+    "mastery_assurance_blocks_execution",
+    "ResolvedCapabilityMention",
+    "ResolvedMasteryPack",
+    "ResolvedToolMention",
+    "ToolMasteryResolution",
+    "resolve_mastery_for_task",
+    "ActiveToolContext",
+    "create_active_tool_context",
+    "update_active_tool_context",
+    "should_continue_context",
+    "should_switch_context",
+    "summarize_active_tool_context",
 ]
