@@ -1,12 +1,16 @@
 """
-Extraction backend parity contracts for Phase 96.0.
+Extraction backend parity contracts for Phase 96.0 + 96.2.
 
 Defines the canonical contract that ALL extraction backends (API, CLI,
-Computer Use, Browser Automation) must satisfy. No backend may claim
-COMPLETE unless it meets every coverage requirement.
+MCP, Computer Use, Browser Automation, Local File) must satisfy.
+No backend may claim COMPLETE unless it meets every coverage requirement.
 
 Same target outcome. Different mechanisms. Same output schema.
 Same completeness contract. Parity validation between backends.
+
+Phase 96.2 addition: MCP is a protocol/adapter layer, not automatically
+an independent backend. MCP tools must be classified by their underlying
+capability and failure domain.
 """
 
 from __future__ import annotations
@@ -19,10 +23,37 @@ from typing import Any
 class ExtractionBackendType(str, Enum):
     API = "api"
     CLI = "cli"
+    MCP = "mcp"
     COMPUTER_USE = "computer_use"
     BROWSER_AUTOMATION = "browser_automation"
+    LOCAL_FILE = "local_file"
     MANUAL = "manual"
     HYBRID = "hybrid"
+
+
+class MCPSubtype(str, Enum):
+    MCP_AS_INTERFACE = "mcp_as_interface"
+    MCP_API_CONNECTOR = "mcp_api_connector"
+    MCP_VENDOR_TOOL_WRAPPER = "mcp_vendor_tool_wrapper"
+    MCP_LOCAL_FILE_CONNECTOR = "mcp_local_file_connector"
+    MCP_COMPUTER_USE_CONTROLLER = "mcp_computer_use_controller"
+    MCP_BROWSER_AUTOMATION = "mcp_browser_automation"
+    MCP_NATIVE_SOURCE_CONNECTOR = "mcp_native_source_connector"
+    MCP_UNKNOWN = "mcp_unknown"
+
+
+class BackendIndependenceLevel(str, Enum):
+    LEVEL_0_INTERFACE_WRAPPER = "level_0_interface_wrapper"
+    LEVEL_1_DIFFERENT_IMPLEMENTATION_SAME_PROVIDER_API = "level_1_different_impl_same_api"
+    LEVEL_2_DIFFERENT_TOOLCHAIN_SAME_PROVIDER_API = "level_2_different_toolchain_same_api"
+    LEVEL_3_DIFFERENT_DATA_ACCESS_CHANNEL = "level_3_different_data_channel"
+    LEVEL_4_DIFFERENT_MODALITY = "level_4_different_modality"
+    LEVEL_5_HUMAN_ASSISTED = "level_5_human_assisted"
+
+
+def independence_counts_as_fallback(level: BackendIndependenceLevel) -> bool:
+    """LEVEL_0 does not count as an independent fallback."""
+    return level != BackendIndependenceLevel.LEVEL_0_INTERFACE_WRAPPER
 
 
 class ExtractionCapability(str, Enum):

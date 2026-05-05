@@ -1,12 +1,13 @@
 """
-Google Docs backend parity matrix for Phase 96.0.
+Google Docs backend parity matrix for Phase 96.0 + 96.2.
 
-Evaluates API, CLI, and Computer Use backends against the canonical
+Evaluates API, CLI, MCP, and Computer Use backends against the canonical
 Google Docs extraction contract and produces a capability matrix.
 
 Expected current state:
 - API: COMPLETE after tab-aware extraction
 - CLI: PARTIAL/COMPLETE depending on tab-aware wrapper
+- MCP: varies by subtype — must be classified before evaluation
 - Computer Use: PARTIAL (tab detection proven, content extraction blocked)
 """
 
@@ -17,12 +18,14 @@ from typing import Any
 
 from eos_ai.substrate.extraction_backend_contracts import (
     BackendCapabilityReport,
+    BackendIndependenceLevel,
     CanonicalExtractionContract,
     CapabilityDeclaration,
     ExtractionBackendType,
     ExtractionCapability,
     ExtractionCoverageStatus,
     ExtractionFailureReason,
+    MCPSubtype,
     build_google_docs_contract,
     evaluate_backend_against_contract,
 )
@@ -35,15 +38,22 @@ class BackendMatrixEntry:
     backend_type: ExtractionBackendType
     capabilities: dict[str, str] = field(default_factory=dict)
     overall_status: str = "UNKNOWN"
+    independence_level: str = ""
+    mcp_subtype: str = ""
     notes: str = ""
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        d: dict[str, Any] = {
             "backend_type": self.backend_type.value,
             "capabilities": self.capabilities,
             "overall_status": self.overall_status,
             "notes": self.notes,
         }
+        if self.independence_level:
+            d["independence_level"] = self.independence_level
+        if self.mcp_subtype:
+            d["mcp_subtype"] = self.mcp_subtype
+        return d
 
 
 @dataclass
@@ -54,16 +64,25 @@ class GoogleDocsParityMatrix:
     api_entry: BackendMatrixEntry | None = None
     cli_entry: BackendMatrixEntry | None = None
     cu_entry: BackendMatrixEntry | None = None
+    mcp_entries: list[BackendMatrixEntry] = field(default_factory=list)
+    browser_automation_entry: BackendMatrixEntry | None = None
+    local_file_entry: BackendMatrixEntry | None = None
     recommended_action: str = ""
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        d: dict[str, Any] = {
             "contract_source_type": self.contract.source_type if self.contract else "",
             "api": self.api_entry.to_dict() if self.api_entry else None,
             "cli": self.cli_entry.to_dict() if self.cli_entry else None,
             "computer_use": self.cu_entry.to_dict() if self.cu_entry else None,
+            "mcp_backends": [e.to_dict() for e in self.mcp_entries],
+            "browser_automation": (
+                self.browser_automation_entry.to_dict() if self.browser_automation_entry else None
+            ),
+            "local_file": (self.local_file_entry.to_dict() if self.local_file_entry else None),
             "recommended_action": self.recommended_action,
         }
+        return d
 
 
 def mark_api_capabilities(
@@ -245,6 +264,10 @@ def build_google_docs_backend_matrix(
     cli_entry = _report_to_matrix_entry(cli_report)
     cu_entry = _report_to_matrix_entry(cu_report)
 
+    mcp_entries = _build_mcp_matrix_entries()
+    browser_entry = _build_browser_automation_entry()
+    local_file_entry = _build_local_file_entry()
+
     recommendation = recommend_next_backend_hardening_step(api_report, cli_report, cu_report)
 
     return GoogleDocsParityMatrix(
@@ -252,6 +275,9 @@ def build_google_docs_backend_matrix(
         api_entry=api_entry,
         cli_entry=cli_entry,
         cu_entry=cu_entry,
+        mcp_entries=mcp_entries,
+        browser_automation_entry=browser_entry,
+        local_file_entry=local_file_entry,
         recommended_action=recommendation,
     )
 
@@ -266,6 +292,86 @@ def _report_to_matrix_entry(report: BackendCapabilityReport) -> BackendMatrixEnt
         backend_type=report.backend_type,
         capabilities=caps,
         overall_status=report.overall_status.value,
+    )
+
+
+def _build_mcp_matrix_entries() -> list[BackendMatrixEntry]:
+    """Build MCP matrix entries for all known MCP subtypes relevant to Google Docs."""
+    entries: list[BackendMatrixEntry] = []
+
+    entries.append(
+        BackendMatrixEntry(
+            backend_type=ExtractionBackendType.MCP,
+            overall_status="NOT_IMPLEMENTED",
+            independence_level=BackendIndependenceLevel.LEVEL_0_INTERFACE_WRAPPER.value,
+            mcp_subtype=MCPSubtype.MCP_AS_INTERFACE.value,
+            notes="Wrapper around internal API extractor — not independent fallback",
+        )
+    )
+
+    entries.append(
+        BackendMatrixEntry(
+            backend_type=ExtractionBackendType.MCP,
+            overall_status="NOT_IMPLEMENTED",
+            independence_level=(
+                BackendIndependenceLevel.LEVEL_1_DIFFERENT_IMPLEMENTATION_SAME_PROVIDER_API.value
+            ),
+            mcp_subtype=MCPSubtype.MCP_API_CONNECTOR.value,
+            notes="Must use includeTabsContent=true; still depends on Google API availability",
+        )
+    )
+
+    entries.append(
+        BackendMatrixEntry(
+            backend_type=ExtractionBackendType.MCP,
+            overall_status="UNKNOWN",
+            independence_level=(
+                BackendIndependenceLevel.LEVEL_2_DIFFERENT_TOOLCHAIN_SAME_PROVIDER_API.value
+            ),
+            mcp_subtype=MCPSubtype.MCP_VENDOR_TOOL_WRAPPER.value,
+            notes="Would wrap GAM/rclone/etc. — unknown if all-tabs support exists",
+        )
+    )
+
+    entries.append(
+        BackendMatrixEntry(
+            backend_type=ExtractionBackendType.MCP,
+            overall_status="NOT_APPROVED",
+            independence_level=BackendIndependenceLevel.LEVEL_3_DIFFERENT_DATA_ACCESS_CHANNEL.value,
+            mcp_subtype=MCPSubtype.MCP_LOCAL_FILE_CONNECTOR.value,
+            notes="Requires export/local-file/sync policy approval",
+        )
+    )
+
+    entries.append(
+        BackendMatrixEntry(
+            backend_type=ExtractionBackendType.MCP,
+            overall_status="MAPS_TO_CU",
+            independence_level=BackendIndependenceLevel.LEVEL_4_DIFFERENT_MODALITY.value,
+            mcp_subtype=MCPSubtype.MCP_COMPUTER_USE_CONTROLLER.value,
+            notes="Maps to Computer Use backend — same capabilities and blockers",
+        )
+    )
+
+    return entries
+
+
+def _build_browser_automation_entry() -> BackendMatrixEntry:
+    """Build the browser automation matrix entry (blocked unless approved)."""
+    return BackendMatrixEntry(
+        backend_type=ExtractionBackendType.BROWSER_AUTOMATION,
+        overall_status="BLOCKED",
+        notes="Blocked unless separately approved — Playwright/CDP/Selenium",
+    )
+
+
+def _build_local_file_entry() -> BackendMatrixEntry:
+    """Build the local file/export parser matrix entry."""
+    return BackendMatrixEntry(
+        backend_type=ExtractionBackendType.LOCAL_FILE,
+        overall_status="NOT_APPROVED",
+        independence_level=BackendIndependenceLevel.LEVEL_3_DIFFERENT_DATA_ACCESS_CHANNEL.value,
+        notes="Requires export/download/sync approval — not yet approved",
     )
 
 
