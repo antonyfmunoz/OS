@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.planning/artifacts/
+.planning/output/
+*.log
+.env
+.env.local
+.DS_Store
+Thumbs.db

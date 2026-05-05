@@ -1,0 +1,12 @@
+{
+  "projectId": "my-project",
+  "repoPath": ".",
+  "framework": "react-vite-tailwind-shadcn",
+  "stitchProjectId": "optional-stitch-project-id",
+  "designSystemPath": ".planning/design-system.md",
+  "outputPath": ".planning/output",
+  "clientSrcPath": "client/src",
+  "serverPath": "server",
+  "defaultBranch": "main",
+  "featureBranchPrefix": "feature/"
+}
