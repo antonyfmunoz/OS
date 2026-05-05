@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 # Secrets — never commit
 .env
 *.env
@@ -74,3 +75,77 @@ CLAUDE.local.md
 # Action system runtime state
 data/action_log.jsonl
 data/action_snapshots/
+=======
+# Secrets — never commit
+.env
+*.env
+13_Scripts/.env
+eos_ai/.env
+.env.local
+.env.production
+
+# Obsidian internals
+.obsidian/workspace.json
+.obsidian/cache
+.obsidian/workspace.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Logs
+logs/
+*.log
+*.log.*
+tmux-*.log
+
+# Session data
+instagram_session/
+instagram_session.json
+13_Scripts/instagram_session/
+13_Scripts/instagram_session.json
+services/instagram_session.json
+13_Scripts/approval_response.txt
+*.session
+
+# Memory conversation logs (may contain raw prompts/keys)
+vault/memory/conversations/
+vault/memory/summaries/
+
+# Local overrides
+.claude/settings.local.json
+*.local
+
+# Auto-generated state (timestamp noise)
+eos_ai/session_state.json
+scripts/notion_sync_state.json
+scripts/notion_tasks_sync_state.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database
+*.db
+*.sqlite
+eos_ai/memory.db.retired
+
+# Audio temp files
+/tmp/*.wav
+/tmp/*.mp3
+
+# Generated files
+/goviralbitch/
+CLAUDE.local.md
+
+# Action system runtime state
+data/action_log.jsonl
+data/action_snapshots/
+>>>>>>> Stashed changes
