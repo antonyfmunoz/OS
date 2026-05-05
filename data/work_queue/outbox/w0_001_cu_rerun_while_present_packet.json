@@ -1,0 +1,80 @@
+{
+  "packet_id": "WP-W0-001-CU-RERUN-001",
+  "work_order_id": "WO-LOCAL-PILOT-GDRIVE-GDOCS-001",
+  "title": "W0-001 CU Rerun While Founder Present",
+  "description": "Re-execute Google Drive and Google Docs Computer Use inventory on local Windows desktop while founder is physically present. Founder visually confirms output.",
+  "action_type": "cu_rerun_while_present",
+  "target_environment": [
+    "local_windows_gui",
+    "local_tmux",
+    "local_browser"
+  ],
+  "required_adapter_packages": [
+    "W-GWS-CORE-001",
+    "W-GDRIVE-CU-001",
+    "W-GDOCS-CU-001"
+  ],
+  "required_tool_mastery_packs": [
+    "computer_use_tool_mastery_pack",
+    "google_docs_tool_mastery_pack"
+  ],
+  "risk_level": "high",
+  "approval_status": "approved",
+  "founder_confirmation_required": true,
+  "allowed_actions": [
+    "open_google_drive",
+    "read_drive_inventory_via_accessibility_tree",
+    "open_google_docs",
+    "read_docs_tabs_via_accessibility_tree",
+    "extract_docs_content_via_foreground",
+    "write_result_to_outbox",
+    "write_heartbeat"
+  ],
+  "blocked_actions": [
+    "credential_capture",
+    "token_capture",
+    "cookie_capture",
+    "account_switching",
+    "gmail",
+    "edit",
+    "delete",
+    "move",
+    "share",
+    "permission_change",
+    "export",
+    "download",
+    "screenshot",
+    "ocr",
+    "playwright",
+    "cdp",
+    "memory_promotion"
+  ],
+  "expected_outputs": [
+    "drive_inventory_result.json",
+    "docs_tab_detection_result.json",
+    "docs_content_extraction_result.json",
+    "governance_compliance_report.json",
+    "founder_confirmation_response.json"
+  ],
+  "proof_requirements": [
+    "correct_account_visible",
+    "drive_visible",
+    "drive_inventory_count_26",
+    "docs_openability",
+    "tab_detection_attempt",
+    "content_extraction_attempt",
+    "governance_compliance",
+    "no_secret_no_mutation_confirmation",
+    "founder_confirmation_response"
+  ],
+  "timeout_seconds": 3600,
+  "created_at": "2026-05-05T00:00:00+00:00",
+  "expires_at": "",
+  "status": "approved",
+  "notes": [
+    "Phase 96.8A work packet — uses new Environment Bridge contract",
+    "Replaces data/cu_rerun_packets/w0_001_cu_rerun_while_present.json",
+    "Primary dispatch: local pull from VPS outbox",
+    "Fallback dispatch: manual copy to local inbox"
+  ]
+}
