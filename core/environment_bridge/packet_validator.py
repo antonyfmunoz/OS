@@ -1,8 +1,10 @@
 """Packet validator for the Environment Bridge.
 
 Validates work packets before execution. Catches missing approvals,
-expired packets, blocked action violations, missing governance, and
-missing proof requirements.
+expired packets, blocked action violations, missing governance,
+missing proof requirements, and missing/invalid execution bindings.
+
+Phase 96.8F: validates execution_binding field on W0 packets.
 
 UMH substrate subsystem. EOS is one platform consumer.
 """
@@ -13,6 +15,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from .execution_binding_validator import validate_execution_binding_dict
 from .work_packet import (
     WorkPacket,
     WorkPacketRiskLevel,
@@ -32,6 +35,8 @@ class PacketValidationStatus(str, Enum):
     MISSING_ROUTING_FIELDS = "missing_routing_fields"
     TARGET_ENVIRONMENT_MISMATCH = "target_environment_mismatch"
     UNKNOWN_ACTION_TYPE = "unknown_action_type"
+    MISSING_EXECUTION_BINDING = "missing_execution_binding"
+    INVALID_EXECUTION_BINDING = "invalid_execution_binding"
 
 
 CU_REQUIRED_BLOCKED_ACTIONS = [
@@ -135,6 +140,31 @@ def validate_work_packet(packet: WorkPacket) -> PacketValidationResult:
     if boundary_errors:
         result.governance_errors.extend(boundary_errors)
         result.status = PacketValidationStatus.MISSING_GOVERNANCE
+        return result
+
+    result.status = PacketValidationStatus.VALID
+    result.can_execute = True
+    return result
+
+
+def validate_w0_packet_dict(packet: dict[str, Any]) -> PacketValidationResult:
+    """Validate a W0 packet dict including execution_binding.
+
+    This validates the dict form produced by build_w0_001_packet()
+    rather than the WorkPacket dataclass. It checks for the
+    execution_binding field and validates its contents.
+    """
+    result = PacketValidationResult(packet_id=packet.get("packet_id", ""))
+
+    if "execution_binding" not in packet or not packet["execution_binding"]:
+        result.validation_errors.append("MISSING_EXECUTION_BINDING")
+        result.status = PacketValidationStatus.MISSING_EXECUTION_BINDING
+        return result
+
+    binding_result = validate_execution_binding_dict(packet["execution_binding"])
+    if not binding_result.valid:
+        result.validation_errors.extend(binding_result.errors)
+        result.status = PacketValidationStatus.INVALID_EXECUTION_BINDING
         return result
 
     result.status = PacketValidationStatus.VALID

@@ -80,6 +80,57 @@ def validate_wo_001_packet(packet: dict[str, Any]) -> list[str]:
     if packet.get("preferred_backend") != "GUI_COMPUTER_USE":
         errors.append(f"Wrong backend: {packet.get('preferred_backend')}")
 
+    binding_errors = validate_execution_binding_from_packet(packet)
+    errors.extend(binding_errors)
+
+    return errors
+
+
+def validate_execution_binding_from_packet(packet: dict[str, Any]) -> list[str]:
+    """Validate execution_binding within a W0 packet.
+
+    Checks that the binding exists and all 6 layers are present.
+    Does not import the full validator to avoid circular deps at
+    runtime on the local worker — uses lightweight field checks.
+    """
+    errors: list[str] = []
+
+    binding = packet.get("execution_binding")
+    if not binding:
+        errors.append("Missing execution_binding in packet")
+        return errors
+
+    if not binding.get("environment") or not binding["environment"].get("environment_id"):
+        errors.append("Execution binding missing environment")
+    if not binding.get("execution_surfaces"):
+        errors.append("Execution binding missing execution_surfaces")
+    if not binding.get("application") or not binding["application"].get("application_id"):
+        errors.append("Execution binding missing application")
+    if not binding.get("target_services"):
+        errors.append("Execution binding missing target_services")
+    if not binding.get("capabilities"):
+        errors.append("Execution binding missing capabilities")
+    if not binding.get("proof"):
+        errors.append("Execution binding missing proof")
+
+    app = binding.get("application", {})
+    launch = app.get("launch_method", "")
+    disallowed = app.get("disallowed_launch_methods", [])
+    if launch and launch in disallowed:
+        errors.append(f"Application launch method '{launch}' is disallowed")
+
+    for surf in binding.get("execution_surfaces", []):
+        surf_type = surf.get("execution_surface_type", "")
+        surf_role = surf.get("execution_surface_role", "")
+        if surf_type in ("wsl", "tmux") and surf_role == "gui_actuator":
+            errors.append(f"Execution surface {surf_type} cannot be gui_actuator")
+
+    for svc in binding.get("target_services", []):
+        svc_id = svc.get("target_service_id", "")
+        svc_family = svc.get("target_service_family", "")
+        if svc_id in ("google_drive", "google_docs") and svc_family != "google_workspace":
+            errors.append(f"Target service {svc_id} requires google_workspace family")
+
     return errors
 
 

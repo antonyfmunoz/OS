@@ -3,6 +3,11 @@
 Generates the W0-001 CU rerun packet with all required routing fields
 so the local worker validates without manual patching.
 
+Phase 96.8F: packets include an explicit execution_binding with all
+6 layers (environment, execution surface, application, target service,
+capability, proof) so the system never collapses these into a single
+vague "backend."
+
 UMH substrate subsystem. EOS is one platform consumer.
 """
 
@@ -11,6 +16,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
+from .execution_binding_contracts import build_w0_chrome_gws_binding
 from .work_packet import (
     WorkPacket,
     WorkPacketRiskLevel,
@@ -135,8 +141,9 @@ def build_w0_001_packet() -> dict[str, Any]:
         "status": "approved",
         "required_environment_adapters": ["environment_bridge"],
         "required_human_approval_adapters": ["founder_visual_confirmation"],
+        "execution_binding": build_w0_chrome_gws_binding().to_dict(),
         "notes": [
-            "Phase 96.8D packet — includes all required routing fields",
+            "Phase 96.8F packet — includes execution binding contract with all 6 layers",
             "Direct Chrome executable launch required (not explorer/default-browser)",
             "Visible-window proof required before VERIFY_ACTIVE_GOOGLE_ACCOUNT gate",
             "Primary dispatch: local pull from VPS outbox",
