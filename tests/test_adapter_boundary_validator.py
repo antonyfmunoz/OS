@@ -24,6 +24,7 @@ def _full_interaction(**overrides):
         required_adapter_package="W-GDRIVE-API-001",
         capability_contract="read_drive_inventory",
         governance_policy="cu_governance_v1",
+        mastery_requirements=["tool:google_drive_api"],
         proof_requirements=["drive_visible"],
         maturity_gate="mastery_assurance_gate",
     )
@@ -143,6 +144,17 @@ class TestMissingProofBlocks(unittest.TestCase):
         self.assertTrue(any("PROOF_MISSING" in e for e in result.errors))
 
 
+class TestMissingMasteryBlocks(unittest.TestCase):
+    def test_no_mastery_blocks(self):
+        ix = _full_interaction(
+            interaction_id="abv-070",
+            mastery_requirements=[],
+        )
+        result = validate_adapter_boundary(ix)
+        self.assertFalse(result.can_execute)
+        self.assertTrue(any("MASTERY_MISSING" in e for e in result.errors))
+
+
 class TestValidBoundaryAllowsExecution(unittest.TestCase):
     def test_full_valid_interaction(self):
         ix = _full_interaction(interaction_id="abv-100")
@@ -158,6 +170,8 @@ class TestValidBoundaryAllowsExecution(unittest.TestCase):
             external_system_type="local_wsl",
             adapter_category="environment",
             required_adapter_package="env-bridge-local-wsl",
+            target_environment=["local_wsl"],
+            required_worker_runtime="wsl-worker",
         )
         result = validate_adapter_boundary(ix)
         self.assertTrue(result.can_execute)

@@ -83,6 +83,17 @@ screenshot, ocr, playwright, cdp, memory_promotion.
 
 Missing any one blocks the packet from executing.
 
+## Terminology (Phase 96.8A.1 Correction)
+
+- The VPS ↔ Local Worker Bridge is an **Environment Adapter / bridge boundary**
+- The local tmux session is an **execution surface**, not the intelligence layer
+- The local worker is a **worker runtime** — it performs, not decides
+- Windows GUI / Chrome are **explicit environments/surfaces**
+- Adapters **connect and translate** but do NOT independently execute
+- Work packets are **governed executable instructions**
+- Proof artifacts **validate completion**
+- Founder confirmation is a **Human Approval Adapter path**
+
 ## Design Decisions
 
 1. **Pull over push.** SSH push is blocked by sandbox classifiers on

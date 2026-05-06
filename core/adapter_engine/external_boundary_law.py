@@ -1,14 +1,19 @@
 """UMH External Boundary Law.
 
 No external system, tool, SaaS, model, runtime, environment, human
-approval process, or data source may be used directly by UMH.
+approval process, data source, filesystem, browser, operating system,
+or physical-world actor may be accessed directly by UMH.
 
-Every external interaction must pass through an Adapter Package or
-Adapter Family member that translates the external reality into UMH
-primitives, contracts, capabilities, constraints, actions, outcomes,
-and proof artifacts.
+Every external interaction must pass through an Adapter Package,
+Adapter Family member, Environment Adapter, Model Adapter, Data Source
+Adapter, Human Approval Adapter, or Physical-World Adapter.
 
-Adapters are the universal orchestration boundary.
+Adapters are the universal connection and translation boundary between
+UMH's internal model and external reality.
+
+Adapters do NOT independently execute actions. Execution is performed
+only by the governed Action System through the Execution Spine, using
+an approved worker/runtime in an explicit environment.
 
 UMH substrate subsystem. EOS is one platform consumer.
 """
@@ -23,9 +28,12 @@ from .external_interaction_contract import (
     ExternalInteraction,
     external_interaction_has_adapter,
     external_interaction_has_capability_contract,
+    external_interaction_has_environment_when_required,
     external_interaction_has_governance,
+    external_interaction_has_mastery_requirements,
     external_interaction_has_maturity_gate,
     external_interaction_has_proof_requirements,
+    external_interaction_has_worker_when_required,
 )
 
 
@@ -36,7 +44,10 @@ class BoundaryLawStatus(str, Enum):
     MISSING_CONTRACT = "missing_contract"
     MISSING_GOVERNANCE = "missing_governance"
     MISSING_PROOF = "missing_proof"
+    MISSING_MASTERY = "missing_mastery"
     MISSING_MATURITY_GATE = "missing_maturity_gate"
+    MISSING_ENVIRONMENT = "missing_environment"
+    MISSING_WORKER = "missing_worker"
     UNKNOWN_EXTERNAL_SYSTEM = "unknown_external_system"
 
 
@@ -80,7 +91,10 @@ def evaluate_external_boundary_law(
     require_contract_for_external_interaction(interaction, decision)
     require_governance_for_external_interaction(interaction, decision)
     require_proof_for_external_interaction(interaction, decision)
+    require_mastery_for_external_interaction(interaction, decision)
     require_maturity_gate_for_external_interaction(interaction, decision)
+    require_environment_for_external_interaction(interaction, decision)
+    require_worker_for_external_interaction(interaction, decision)
 
     if not decision.violations:
         decision.compliant = True
@@ -95,8 +109,14 @@ def evaluate_external_boundary_law(
             decision.status = BoundaryLawStatus.MISSING_GOVERNANCE
         elif "MISSING_PROOF" in first_violation:
             decision.status = BoundaryLawStatus.MISSING_PROOF
+        elif "MISSING_MASTERY" in first_violation:
+            decision.status = BoundaryLawStatus.MISSING_MASTERY
         elif "MISSING_MATURITY" in first_violation:
             decision.status = BoundaryLawStatus.MISSING_MATURITY_GATE
+        elif "MISSING_ENVIRONMENT" in first_violation:
+            decision.status = BoundaryLawStatus.MISSING_ENVIRONMENT
+        elif "MISSING_WORKER" in first_violation:
+            decision.status = BoundaryLawStatus.MISSING_WORKER
 
     return decision
 
@@ -149,6 +169,17 @@ def require_proof_for_external_interaction(
         decision.required_fixes.append("Add proof_requirements")
 
 
+def require_mastery_for_external_interaction(
+    interaction: ExternalInteraction,
+    decision: BoundaryLawDecision,
+) -> None:
+    if not external_interaction_has_mastery_requirements(interaction):
+        decision.violations.append(
+            f"MISSING_MASTERY: {interaction.external_system} has no mastery requirements"
+        )
+        decision.required_fixes.append("Add mastery_requirements")
+
+
 def require_maturity_gate_for_external_interaction(
     interaction: ExternalInteraction,
     decision: BoundaryLawDecision,
@@ -158,6 +189,28 @@ def require_maturity_gate_for_external_interaction(
             f"MISSING_MATURITY_GATE: {interaction.external_system} has no maturity gate"
         )
         decision.required_fixes.append("Add maturity_gate")
+
+
+def require_environment_for_external_interaction(
+    interaction: ExternalInteraction,
+    decision: BoundaryLawDecision,
+) -> None:
+    if not external_interaction_has_environment_when_required(interaction):
+        decision.violations.append(
+            f"MISSING_ENVIRONMENT: {interaction.external_system} requires target_environment"
+        )
+        decision.required_fixes.append("Add target_environment")
+
+
+def require_worker_for_external_interaction(
+    interaction: ExternalInteraction,
+    decision: BoundaryLawDecision,
+) -> None:
+    if not external_interaction_has_worker_when_required(interaction):
+        decision.violations.append(
+            f"MISSING_WORKER: {interaction.external_system} requires worker_runtime"
+        )
+        decision.required_fixes.append("Add required_worker_runtime")
 
 
 def summarize_boundary_law_decision(

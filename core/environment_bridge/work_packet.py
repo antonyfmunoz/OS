@@ -70,6 +70,9 @@ class WorkPacket:
     adapter_boundary_required: bool = True
     required_environment_adapters: list[str] = field(default_factory=list)
     required_human_approval_adapters: list[str] = field(default_factory=list)
+    required_mastery_categories: list[str] = field(default_factory=list)
+    required_worker_runtime: str = ""
+    proof_artifact_requirements: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -97,6 +100,9 @@ class WorkPacket:
             "adapter_boundary_required": self.adapter_boundary_required,
             "required_environment_adapters": self.required_environment_adapters,
             "required_human_approval_adapters": self.required_human_approval_adapters,
+            "required_mastery_categories": self.required_mastery_categories,
+            "required_worker_runtime": self.required_worker_runtime,
+            "proof_artifact_requirements": self.proof_artifact_requirements,
             "notes": self.notes,
         }
 

@@ -1,8 +1,17 @@
 # Local Pull Worker Protocol v1
 
-**Phase:** 96.8A
+**Phase:** 96.8A / 96.8A.1
 **Status:** Active
-**Layer:** UMH Substrate — `core/environment_bridge/local_pull_protocol.py`
+**Layer:** UMH Substrate — Execution Plane (Worker Protocol)
+**Module:** `core/environment_bridge/local_pull_protocol.py`
+
+## Phase 96.8A.1 Classification
+
+The local pull protocol defines how the **worker runtime** claims and
+processes governed work packets. The local worker is a worker runtime —
+it performs execution on behalf of the Execution Plane. The protocol is
+transport infrastructure, not intelligence. Adapters connect/translate
+the work packets; the worker runtime performs the actuation.
 
 ## Purpose
 

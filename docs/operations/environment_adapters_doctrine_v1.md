@@ -1,69 +1,75 @@
 # Environment Adapters Doctrine v1
 
-**Phase:** 96.8A.1
-**Status:** Active
-**Layer:** UMH Substrate
+**Status:** ACTIVE
+**Layer:** Adapter Boundary Layer
+**Scope:** Environment subsystem
 
-## Core Principle
+---
 
-VPS, WSL, tmux, Windows GUI, Chrome, and the local worker are
-**environment adapters** — not standalone infrastructure.
+## Doctrine
 
-The VPS ↔ Local Worker Bridge is an Environment Adapter implementation.
-It exists because the External Boundary Law requires that all
-environment transitions pass through governed adapter boundaries.
+VPS, WSL, tmux, Windows GUI, Chrome, and the local worker bridge are **external environments/surfaces**. They require adapter boundaries. They are not part of UMH's internal intelligence layer.
 
-## Environment Adapter Inventory
+---
 
-| Environment | System Type | Adapter Category |
-|-------------|-------------|-----------------|
-| VPS (Linux) | `vps` | ENVIRONMENT |
-| Local WSL | `local_wsl` | ENVIRONMENT |
-| Local Windows GUI | `local_windows_gui` | ENVIRONMENT |
-| Tmux session | `tmux` | ENVIRONMENT |
-| Chrome browser | `chrome_browser` | BROWSER |
-| Founder visual confirmation | `founder_confirmation` | HUMAN_APPROVAL |
+## Classification
 
-## Bridge as Adapter Path
+| System | Classification |
+|--------|---------------|
+| VPS (100.77.233.50) | Environment — always-on orchestrator host |
+| Local WSL | Environment — Linux execution on Windows |
+| Windows GUI | Environment — visual desktop surface |
+| Chrome Browser | Environment/Surface — browser automation target |
+| tmux | Execution Surface — persistent terminal session |
+| Local Worker Bridge | Environment Adapter / bridge boundary |
+| Local Worker | Worker Runtime — process that performs execution |
+| SSH tunnel | Transport path (part of bridge) |
+| Tailscale | Network adapter (part of bridge) |
 
-The VPS ↔ Local Worker Bridge connects:
-- VPS orchestrator (environment adapter: VPS)
-- Local WSL worker (environment adapter: WSL)
-- Local tmux session (environment adapter: tmux)
-- Windows GUI (environment adapter: local_windows_gui)
-- Chrome session (browser adapter: chrome_browser)
-- Founder visual confirmation (human approval adapter)
+---
 
-Each of these is a separate external system that requires its own
-adapter boundary under the External Boundary Law.
+## Key Distinctions
 
-## Computer Use Dependency
+### Local Worker is a Worker Runtime
 
-Computer Use (CU) depends on environment adapters:
-- CU needs a visible Chrome instance → browser adapter
-- CU needs a Windows GUI → environment adapter
-- CU needs tmux for persistent execution → environment adapter
-- CU results need founder confirmation → human approval adapter
+The local worker is **not** intelligence. It is a worker runtime — a process/session that performs execution on behalf of the Execution Plane. It claims work packets, runs them, and returns results.
 
-Without environment adapters, CU has no execution surface.
+### tmux is an Execution Surface
 
-## Packet Validator Integration
+tmux provides a persistent terminal session where commands execute. It is not an adapter — it is a surface managed by an adapter. The tmux surface model (`core/environment_bridge/tmux_surface.py`) constructs commands but does not independently execute.
 
-The packet validator (`packet_validator.py`) enforces:
-- Local GUI packets require `required_environment_adapters`
-- Founder confirmation packets require `required_human_approval_adapters`
-- These fields were added in Phase 96.8A.1
+### The Bridge is an Environment Adapter
 
-## Work Packet Integration
+The VPS ↔ Local Worker Bridge (`core/environment_bridge/vps_local_bridge.py`) is an Environment Adapter / bridge boundary. It:
+- Connects the VPS to local environments
+- Translates work packets into dispatchable instructions
+- Validates that packets meet governance requirements
+- Does NOT independently execute
 
-Work packets (`work_packet.py`) carry:
-- `adapter_boundary_required` — defaults to True
-- `required_environment_adapters` — list of environment adapter IDs
-- `required_human_approval_adapters` — list of approval adapter IDs
-- `external_interaction_id` — link to ExternalInteraction record
+### Windows GUI and Chrome are Explicit Environments
 
-## Modules
+They require:
+- Environment Adapter boundary
+- Worker Runtime binding
+- Mastery requirements (Computer Use mastery)
+- Proof artifact requirements
+- Governance (17 CU blocked actions)
 
-- `core/environment_bridge/` — environment adapter implementations
-- `core/adapter_engine/adapter_taxonomy.py` — adapter classification
-- `core/adapter_engine/adapter_boundary_validator.py` — boundary enforcement
+### Founder Confirmation is a Human Approval Adapter Path
+
+The founder confirmation gate is mediated by a Human Approval Adapter. It is not a direct bypass — it is a governed approval path with its own adapter boundary.
+
+---
+
+## Relationship to Phase 96.8A
+
+Phase 96.8A built the VPS ↔ Local Worker Bridge as Environment Adapter infrastructure:
+- Work Packet contract (governed executable instruction)
+- Packet Validator (governance enforcement)
+- Local Pull Protocol (transport mechanism)
+- Result Ingestion (proof normalization)
+- Heartbeat (worker liveness)
+- tmux Surface (execution surface model)
+- VPS-Local Bridge (status evaluation)
+
+All of this is Adapter Boundary Layer + Execution Plane infrastructure.

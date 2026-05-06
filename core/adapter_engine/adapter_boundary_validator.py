@@ -23,9 +23,12 @@ from .adapter_taxonomy import (
 from .external_interaction_contract import (
     ExternalInteraction,
     external_interaction_has_adapter,
+    external_interaction_has_environment_when_required,
     external_interaction_has_governance,
+    external_interaction_has_mastery_requirements,
     external_interaction_has_maturity_gate,
     external_interaction_has_proof_requirements,
+    external_interaction_has_worker_when_required,
     external_interaction_is_validated,
 )
 
@@ -36,9 +39,12 @@ class AdapterBoundaryValidationStatus(str, Enum):
     DIRECT_EXTERNAL_USE_DETECTED = "direct_external_use_detected"
     ADAPTER_MISSING = "adapter_missing"
     ADAPTER_UNMATURED = "adapter_unmatured"
+    MASTERY_MISSING = "mastery_missing"
     TOOL_MASTERY_MISSING = "tool_mastery_missing"
     GOVERNANCE_MISSING = "governance_missing"
     PROOF_MISSING = "proof_missing"
+    ENVIRONMENT_MISSING = "environment_missing"
+    WORKER_MISSING = "worker_missing"
 
 
 _ENVIRONMENT_SYSTEM_TYPES = frozenset(
@@ -124,6 +130,15 @@ def validate_adapter_boundary(
     if not external_interaction_has_maturity_gate(interaction):
         result.errors.append("MATURITY_GATE_MISSING")
         result.required_fixes.append("Add maturity_gate")
+    if not external_interaction_has_mastery_requirements(interaction):
+        result.errors.append("MASTERY_MISSING")
+        result.required_fixes.append("Add mastery_requirements")
+    if not external_interaction_has_environment_when_required(interaction):
+        result.errors.append("ENVIRONMENT_MISSING")
+        result.required_fixes.append("Add target_environment")
+    if not external_interaction_has_worker_when_required(interaction):
+        result.errors.append("WORKER_MISSING")
+        result.required_fixes.append("Add required_worker_runtime")
 
     try:
         ext_type = ExternalSystemType(sys_type)
@@ -212,6 +227,15 @@ def validate_data_source_adapter_present(
             "requires data source adapter"
         )
         result.required_fixes.append("Add data source adapter package")
+
+
+def validate_mastery_requirements_present(
+    interaction: ExternalInteraction,
+    result: AdapterBoundaryValidationResult,
+) -> None:
+    if not external_interaction_has_mastery_requirements(interaction):
+        result.errors.append("MASTERY_REQUIREMENTS_MISSING")
+        result.required_fixes.append("Add mastery_requirements before execution")
 
 
 def adapter_boundary_blocks_execution(

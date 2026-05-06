@@ -1,8 +1,19 @@
 # Local Tmux Execution Surface v1
 
-**Phase:** 96.8A
+**Phase:** 96.8A / 96.8A.1
 **Status:** Active
-**Layer:** UMH Substrate — `core/environment_bridge/tmux_surface.py`
+**Layer:** UMH Substrate — Execution Surface (Adapter Boundary Layer)
+**Module:** `core/environment_bridge/tmux_surface.py`
+
+## Phase 96.8A.1 Classification
+
+tmux is an **execution surface** — a persistent terminal session where
+commands execute. It is NOT the intelligence layer. It is NOT an adapter.
+It is a surface managed by an Environment Adapter. The tmux surface model
+constructs commands but does not independently execute them.
+
+The local worker using tmux is a **worker runtime** — it performs execution
+on behalf of the Execution Plane through governed work packets.
 
 ## Purpose
 

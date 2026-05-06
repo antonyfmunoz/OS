@@ -107,6 +107,7 @@ class TestValidInteractionPasses(unittest.TestCase):
             required_adapter_family="google_workspace",
             capability_contract="read_drive_inventory",
             governance_policy="cu_governance_v1",
+            mastery_requirements=["tool:google_drive_api"],
             proof_requirements=["drive_visible", "inventory_count"],
             maturity_gate="mastery_assurance_gate",
         )

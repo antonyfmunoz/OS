@@ -55,3 +55,15 @@ The bridge evaluates status but does not initiate transport. The local
 worker initiates pull. The VPS places packets in outbox and waits.
 This is intentional — the VPS cannot reliably push to the local
 environment due to sandbox classifier restrictions on SSH.
+
+## Phase 96.8A.1 Terminology Alignment
+
+- Bridge is an **Environment Adapter / bridge boundary** (not isolated infrastructure)
+- Bridge connects and translates — it does **not** independently execute
+- Local worker is a **worker runtime** (performs execution, does not decide)
+- tmux is an **execution surface** (where commands run, not intelligence)
+- Windows GUI / Chrome are **explicit environments** requiring adapter boundaries
+- Work packets are **governed executable instructions** bound to execution contexts
+- Mastery requirements must be declared for external interactions
+- Proof artifact requirements must exist before execution
+

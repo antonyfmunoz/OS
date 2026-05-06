@@ -1,70 +1,69 @@
 # UMH External Boundary Law v1
 
-**Phase:** 96.8A.1
-**Status:** Active
-**Layer:** UMH Substrate — Foundational Law
+**Status:** ACTIVE
+**Layer:** Adapter Boundary Layer
+**Scope:** Universal — applies to all UMH subsystems and platform consumers
 
-## The Law
+---
 
-**No external system, tool, SaaS, model, runtime, environment, human
-approval process, or data source may be used directly by UMH.**
+## Doctrine
 
-**Every external interaction must pass through an Adapter Package or
-Adapter Family member that translates the external reality into UMH
-primitives, contracts, capabilities, constraints, actions, outcomes,
-and proof artifacts.**
+No external system, tool, SaaS, model, runtime, environment, human approval process, data source, filesystem, browser, operating system, or physical-world actor may be accessed directly by UMH.
 
-**Adapters are the universal orchestration boundary.**
+Every external interaction must pass through an Adapter Package, Adapter Family member, Environment Adapter, Model Adapter, Data Source Adapter, Human Approval Adapter, or Physical-World Adapter.
 
-## What Is External to UMH
+Adapters are the universal connection and translation boundary between UMH's internal model and external reality.
 
-- SaaS tools (Google Workspace, Notion, Linear, Slack, etc.)
-- APIs (REST, GraphQL, gRPC, etc.)
-- CLIs (gcloud, aws, gh, etc.)
-- MCP servers
-- Local/remote runtimes (VPS, WSL, containers, etc.)
-- Operating systems
-- Tmux/shell sessions
-- Local Windows GUI
-- Browser sessions (Chrome, Firefox, etc.)
-- Models/LLMs (Anthropic, OpenAI, Ollama, etc.)
-- Humans/founder approvals
-- Filesystems outside UMH-controlled contracts
-- Databases (Neon, Postgres, SQLite, etc.)
-- Emails/docs/messages
-- Physical-world devices/sensors/actors
+**Adapters do NOT independently execute actions.**
 
-## What Is Internal to UMH
+Execution is performed only by the governed Action System through the Execution Spine, using an approved worker/runtime in an explicit environment.
 
-- Primitives
-- Contracts
-- Control plane policies
-- Memory models
-- Adapter registry metadata
-- Work packet definitions
-- Maturity gates
-- Proof requirements
-- Canonical/instance schemas
+---
 
-## Why This Law Exists
+## Requirements for External Interaction
 
-Without this law, UMH degrades into a collection of ad-hoc scripts
-that directly call external systems. The adapter boundary ensures:
+Every external interaction must declare:
 
-1. **Governance** — every external interaction has allowed/blocked actions
-2. **Proof** — every external interaction produces auditable artifacts
-3. **Maturity** — no immature external path executes in production
-4. **Safety** — dangerous operations are blocked at the boundary
-5. **Universality** — the same orchestration pattern works for APIs,
-   GUIs, CLIs, models, databases, and human approvals
+1. **Adapter boundary** — which Adapter Package or Family mediates
+2. **Capability contract** — what the interaction can do
+3. **Environment** — where execution happens (when applicable)
+4. **Worker/runtime** — what performs execution (when applicable)
+5. **Governance policy** — what is allowed/blocked
+6. **Mastery requirements** — what competence UMH must have
+7. **Work Packet** — governed executable instruction
+8. **Proof requirements** — evidence that execution happened correctly
+9. **Trace path** — complete inspectable record
+
+---
+
+## Violation Types
+
+| Status | Meaning |
+|--------|---------|
+| COMPLIANT | All requirements satisfied |
+| MISSING_ADAPTER | No adapter boundary declared |
+| MISSING_CONTRACT | No capability contract |
+| MISSING_GOVERNANCE | No governance policy |
+| MISSING_PROOF | No proof requirements |
+| MISSING_MASTERY | No mastery requirements |
+| MISSING_MATURITY_GATE | No maturity gate |
+| MISSING_ENVIRONMENT | Environment required but not declared |
+| MISSING_WORKER | Worker required but not declared |
+| UNKNOWN_EXTERNAL_SYSTEM | System type not specified |
+
+---
 
 ## Enforcement
 
+The External Boundary Law is enforced by:
 - `core/adapter_engine/external_boundary_law.py` — evaluates compliance
 - `core/adapter_engine/adapter_boundary_validator.py` — validates boundaries
-- `core/adapter_engine/external_interaction_contract.py` — records interactions
-- `core/environment_bridge/packet_validator.py` — enforces at packet level
+- `core/environment_bridge/packet_validator.py` — validates work packets
 
-## Module
+Non-compliant interactions are BLOCKED. No exception without explicit founder override.
 
-`core/adapter_engine/external_boundary_law.py`
+---
+
+## Relation to Phase 96.8A
+
+The VPS ↔ Local Worker Bridge is an **Environment Adapter / bridge boundary**. It connects the VPS orchestrator to local execution environments (Windows, WSL, tmux). The bridge does not execute — it mediates the connection and translates work packets across the boundary.

@@ -95,6 +95,14 @@ def list_all_external_system_types() -> list[ExternalSystemType]:
     return list(ExternalSystemType)
 
 
+def adapter_category_is_execution_environment(category: AdapterCategory) -> bool:
+    return category in (AdapterCategory.ENVIRONMENT, AdapterCategory.RUNTIME)
+
+
+def adapter_category_is_human_path(category: AdapterCategory) -> bool:
+    return category == AdapterCategory.HUMAN_APPROVAL
+
+
 def classify_external_system(system_type: ExternalSystemType) -> AdapterCategory:
     mapping: dict[ExternalSystemType, AdapterCategory] = {
         ExternalSystemType.GOOGLE_WORKSPACE: AdapterCategory.SAAS,

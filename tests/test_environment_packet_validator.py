@@ -130,6 +130,9 @@ class TestValidCUPacket(unittest.TestCase):
             proof_requirements=["correct_account", "drive_inventory"],
         )
         pkt.required_environment_adapters = ["env-bridge-local-gui"]
+        pkt.required_worker_runtime = "local-windows-worker"
+        pkt.required_mastery_categories = ["tool", "environment"]
+        pkt.proof_artifact_requirements = ["screenshot", "inventory_json"]
         result = validate_work_packet(pkt)
         self.assertEqual(result.status, PacketValidationStatus.VALID)
         self.assertTrue(result.can_execute)

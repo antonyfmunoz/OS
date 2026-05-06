@@ -178,6 +178,17 @@ def _check_cu_governance(packet: WorkPacket) -> list[str]:
     return errors
 
 
+def packet_requires_mastery(packet: WorkPacket) -> bool:
+    return work_packet_targets_local_gui(packet) or packet.risk_level in (
+        WorkPacketRiskLevel.HIGH,
+        WorkPacketRiskLevel.CRITICAL,
+    )
+
+
+def packet_requires_worker_runtime(packet: WorkPacket) -> bool:
+    return work_packet_targets_local_gui(packet)
+
+
 def _check_adapter_boundary(packet: WorkPacket) -> list[str]:
     if not packet.adapter_boundary_required:
         return []
@@ -188,4 +199,10 @@ def _check_adapter_boundary(packet: WorkPacket) -> list[str]:
         errors.append(
             "ADAPTER_BOUNDARY: founder confirmation packet requires human approval adapter"
         )
+    if work_packet_targets_local_gui(packet) and not packet.required_worker_runtime:
+        errors.append("ADAPTER_BOUNDARY: local GUI packet requires worker runtime")
+    if packet_requires_mastery(packet) and not packet.required_mastery_categories:
+        errors.append("ADAPTER_BOUNDARY: external packet requires mastery requirements")
+    if not packet.proof_artifact_requirements and work_packet_targets_local_gui(packet):
+        errors.append("ADAPTER_BOUNDARY: local GUI packet requires proof artifact requirements")
     return errors

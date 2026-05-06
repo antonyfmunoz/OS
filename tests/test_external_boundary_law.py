@@ -25,6 +25,7 @@ def _valid_interaction(**overrides):
         required_adapter_package="W-GDRIVE-API-001",
         capability_contract="read_drive_inventory",
         governance_policy="cu_governance_v1",
+        mastery_requirements=["tool:google_drive_api"],
         proof_requirements=["drive_visible"],
         maturity_gate="mastery_assurance_gate",
     )

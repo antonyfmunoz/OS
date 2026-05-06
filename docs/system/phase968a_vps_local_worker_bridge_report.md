@@ -113,6 +113,19 @@ Total:             262 passed, 0 failed
 - No mutations to Google Workspace
 - No commits or pushes
 
+## Phase 96.8A.1 Corrections Applied
+
+Phase 96.8A.1 (External Boundary + Action Separation + Universal Mastery)
+applied the following corrections to Phase 96.8A deliverables:
+
+- Bridge reclassified as **Environment Adapter / bridge boundary**
+- Adapters clarified as **connection/translation** (not execution)
+- Local worker classified as **worker runtime**
+- tmux classified as **execution surface**
+- Work Packet expanded: `required_mastery_categories`, `required_worker_runtime`, `proof_artifact_requirements`
+- Packet Validator expanded: mastery/worker/proof-artifact checks for GUI packets
+- All 96.8A tests updated to provide new required fields — zero regressions
+
 ## Next Steps
 
 1. Founder bootstraps local worker (one-time, at Windows desktop)

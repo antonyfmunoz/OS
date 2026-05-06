@@ -19,6 +19,7 @@ class ExternalInteractionStatus(str, Enum):
     DRAFT = "draft"
     VALIDATED = "validated"
     BLOCKED = "blocked"
+    EXECUTION_REQUESTED = "execution_requested"
     EXECUTED = "executed"
     FAILED = "failed"
     COMPLETED = "completed"
@@ -42,8 +43,10 @@ class ExternalInteraction:
     required_adapter_family: str = ""
     capability_contract: str = ""
     target_environment: list[str] = field(default_factory=list)
+    required_worker_runtime: str = ""
     work_packet_id: str = ""
     governance_policy: str = ""
+    mastery_requirements: list[str] = field(default_factory=list)
     proof_requirements: list[str] = field(default_factory=list)
     maturity_gate: str = ""
     risk_level: ExternalInteractionRisk = ExternalInteractionRisk.LOW
@@ -62,8 +65,10 @@ class ExternalInteraction:
             "required_adapter_family": self.required_adapter_family,
             "capability_contract": self.capability_contract,
             "target_environment": self.target_environment,
+            "required_worker_runtime": self.required_worker_runtime,
             "work_packet_id": self.work_packet_id,
             "governance_policy": self.governance_policy,
+            "mastery_requirements": self.mastery_requirements,
             "proof_requirements": self.proof_requirements,
             "maturity_gate": self.maturity_gate,
             "risk_level": self.risk_level.value,
@@ -83,8 +88,10 @@ def build_external_interaction(
     required_adapter_family: str = "",
     capability_contract: str = "",
     target_environment: list[str] | None = None,
+    required_worker_runtime: str = "",
     work_packet_id: str = "",
     governance_policy: str = "",
+    mastery_requirements: list[str] | None = None,
     proof_requirements: list[str] | None = None,
     maturity_gate: str = "",
     risk_level: ExternalInteractionRisk = ExternalInteractionRisk.LOW,
@@ -100,8 +107,10 @@ def build_external_interaction(
         required_adapter_family=required_adapter_family,
         capability_contract=capability_contract,
         target_environment=target_environment or [],
+        required_worker_runtime=required_worker_runtime,
         work_packet_id=work_packet_id,
         governance_policy=governance_policy,
+        mastery_requirements=mastery_requirements or [],
         proof_requirements=proof_requirements or [],
         maturity_gate=maturity_gate,
         risk_level=risk_level,
@@ -127,10 +136,32 @@ def external_interaction_has_maturity_gate(interaction: ExternalInteraction) -> 
     return bool(interaction.maturity_gate)
 
 
+def external_interaction_has_mastery_requirements(
+    interaction: ExternalInteraction,
+) -> bool:
+    return len(interaction.mastery_requirements) > 0
+
+
 def external_interaction_has_capability_contract(
     interaction: ExternalInteraction,
 ) -> bool:
     return bool(interaction.capability_contract)
+
+
+def external_interaction_has_environment_when_required(
+    interaction: ExternalInteraction,
+) -> bool:
+    if interaction.adapter_category in ("environment", "runtime", "browser", "computer_use"):
+        return len(interaction.target_environment) > 0
+    return True
+
+
+def external_interaction_has_worker_when_required(
+    interaction: ExternalInteraction,
+) -> bool:
+    if interaction.adapter_category in ("environment", "runtime", "browser", "computer_use"):
+        return bool(interaction.required_worker_runtime)
+    return True
 
 
 def external_interaction_is_validated(interaction: ExternalInteraction) -> bool:
@@ -141,6 +172,9 @@ def external_interaction_is_validated(interaction: ExternalInteraction) -> bool:
             external_interaction_has_proof_requirements(interaction),
             external_interaction_has_maturity_gate(interaction),
             external_interaction_has_capability_contract(interaction),
+            external_interaction_has_mastery_requirements(interaction),
+            external_interaction_has_environment_when_required(interaction),
+            external_interaction_has_worker_when_required(interaction),
         ]
     )
 
@@ -153,8 +187,11 @@ def summarize_external_interaction(interaction: ExternalInteraction) -> dict[str
         "has_adapter": external_interaction_has_adapter(interaction),
         "has_governance": external_interaction_has_governance(interaction),
         "has_proof": external_interaction_has_proof_requirements(interaction),
+        "has_mastery": external_interaction_has_mastery_requirements(interaction),
         "has_maturity_gate": external_interaction_has_maturity_gate(interaction),
         "has_capability_contract": external_interaction_has_capability_contract(interaction),
+        "has_environment": external_interaction_has_environment_when_required(interaction),
+        "has_worker": external_interaction_has_worker_when_required(interaction),
         "is_validated": external_interaction_is_validated(interaction),
         "status": interaction.status.value,
         "risk_level": interaction.risk_level.value,

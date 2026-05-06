@@ -46,6 +46,9 @@ allowed/blocked actions, and proof requirements.
 | `adapter_boundary_required` | bool | Whether adapter boundary enforced (default True) |
 | `required_environment_adapters` | list[str] | Environment adapter IDs for GUI/tmux |
 | `required_human_approval_adapters` | list[str] | Human approval adapter IDs |
+| `required_mastery_categories` | list[str] | Mastery categories required before execution |
+| `required_worker_runtime` | str | Worker runtime ID that will perform execution |
+| `proof_artifact_requirements` | list[str] | Specific proof artifacts that must be produced |
 | `notes` | list[str] | Additional context |
 
 ## Lifecycle States
