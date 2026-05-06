@@ -1,0 +1,120 @@
+{
+  "timestamp": "2026-05-06T19:04:55.085589+00:00",
+  "validation_type": "dry_validation_only",
+  "execution_occurred": false,
+  "chrome_launched": false,
+  "drive_docs_accessed": false,
+  "secrets_captured": false,
+  "checks": {
+    "coherence_envelope_present": true,
+    "all_15_stages_present": true,
+    "stages_found": 15,
+    "stages_missing": [],
+    "mvp_stub_stages": [
+      {
+        "stage": "signal",
+        "reason": "founder_request_not_yet_signal_subsystem",
+        "has_trace_id": true,
+        "has_artifact_id": true
+      },
+      {
+        "stage": "interpretation",
+        "reason": "interpretation_subsystem_not_implemented",
+        "has_trace_id": true,
+        "has_artifact_id": true
+      },
+      {
+        "stage": "decomposition",
+        "reason": "decomposition_subsystem_not_implemented",
+        "has_trace_id": true,
+        "has_artifact_id": true
+      },
+      {
+        "stage": "primitive_mapping",
+        "reason": "primitive_mapping_subsystem_not_implemented",
+        "has_trace_id": true,
+        "has_artifact_id": true
+      },
+      {
+        "stage": "domain_mapping",
+        "reason": "domain_mapping_subsystem_not_implemented",
+        "has_trace_id": true,
+        "has_artifact_id": true
+      },
+      {
+        "stage": "state_context",
+        "reason": "state_context_subsystem_not_implemented",
+        "has_trace_id": true,
+        "has_artifact_id": true
+      },
+      {
+        "stage": "composition",
+        "reason": "composition_subsystem_not_implemented",
+        "has_trace_id": true,
+        "has_artifact_id": true
+      },
+      {
+        "stage": "capability_selection",
+        "reason": "capability_selection_subsystem_not_implemented",
+        "has_trace_id": true,
+        "has_artifact_id": true
+      },
+      {
+        "stage": "adapter_selection",
+        "reason": "adapter_selection_subsystem_not_implemented",
+        "has_trace_id": true,
+        "has_artifact_id": true
+      },
+      {
+        "stage": "mastery_check",
+        "reason": "mastery_check_manual_verification",
+        "has_trace_id": true,
+        "has_artifact_id": true
+      },
+      {
+        "stage": "governance_decision",
+        "reason": "governance_decision_manual_founder_approval",
+        "has_trace_id": true,
+        "has_artifact_id": true
+      },
+      {
+        "stage": "proof_contract",
+        "reason": "proof_contract_defined_in_packet",
+        "has_trace_id": true,
+        "has_artifact_id": true
+      },
+      {
+        "stage": "trace_path",
+        "reason": "trace_path_minimal_implementation",
+        "has_trace_id": true,
+        "has_artifact_id": true
+      }
+    ],
+    "complete_stages": [
+      "execution_binding",
+      "work_packet"
+    ],
+    "mvp_stub_allowed": true,
+    "all_mvp_stubs_labeled": true,
+    "coherence_gate_allowed": true,
+    "coherence_gate_status": "coherent_with_mvp_stubs",
+    "coherence_gate_errors": [],
+    "execution_binding_present": true,
+    "execution_binding_valid": true,
+    "execution_binding_errors": [],
+    "binding_layers": {
+      "environment": true,
+      "execution_surfaces": true,
+      "application": true,
+      "target_services": true,
+      "capabilities": true,
+      "proof": true
+    },
+    "packet_validator_status": "valid",
+    "packet_validator_can_execute": true,
+    "packet_validator_errors": []
+  },
+  "packet_id": "WP-W0-001-CU-RERUN-001",
+  "dry_validation_passed": true,
+  "overall_status": "PASS"
+}
