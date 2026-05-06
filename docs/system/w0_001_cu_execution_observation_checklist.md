@@ -6,19 +6,38 @@
 
 ---
 
-## Pre-Execution: Chrome Visible Launch Gate (Phase 96.8D)
+## Pre-Execution: Founder Visual Confirmation Gate (Phase 96.8E)
 
-Before ANY observation, confirm that Chrome was launched correctly:
+Before ANY observation, confirm Chrome visibility with your own eyes:
 
 | # | Question | Expected | Actual |
 |---|----------|----------|--------|
 | 0a | Was Chrome launched via direct executable path? | YES (not explorer.exe) | _____ |
-| 0b | Does chrome_launch_proof show visible_window_detected=true? | YES | _____ |
-| 0c | Is MainWindowHandle nonzero for at least one Chrome process? | YES | _____ |
-| 0d | Did worker reach VERIFY_ACTIVE_GOOGLE_ACCOUNT gate? | YES | _____ |
+| 0b | Is the worker showing PENDING_FOUNDER_VISUAL_CONFIRMATION? | YES | _____ |
+| 0c | Can you SEE a Chrome window on your desktop? | YES / NO | _____ |
+| 0d | Did you write the confirmation file? | YES | _____ |
 
-If 0a-0d are not all YES, Chrome launch is UNVERIFIED. Do not proceed
-with observation until visible Chrome window is confirmed.
+**IMPORTANT:** Process metadata (MainWindowHandle, MainWindowTitle) is
+NOT reliable proof. WSL/tmux can create processes without visible windows.
+Only your visual confirmation constitutes proof.
+
+To confirm Chrome is visible:
+```bash
+python3 /opt/OS/eos_ai/substrate/write_founder_gate_confirmation.py \
+  --work-order-id WO-LOCAL-PILOT-GDRIVE-GDOCS-001 \
+  --gate VISIBLE_CHROME_LAUNCH \
+  --confirmed true --notes "Chrome visible"
+```
+
+To confirm Chrome is NOT visible:
+```bash
+python3 /opt/OS/eos_ai/substrate/write_founder_gate_confirmation.py \
+  --work-order-id WO-LOCAL-PILOT-GDRIVE-GDOCS-001 \
+  --gate VISIBLE_CHROME_LAUNCH \
+  --confirmed false --notes "Chrome not visible"
+```
+
+If Chrome is not visible, do not proceed with observation.
 
 ---
 

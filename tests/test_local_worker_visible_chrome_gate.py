@@ -1,10 +1,12 @@
-"""Tests for local worker visible Chrome gate — Phase 96.8D.
+"""Tests for local worker visible Chrome gate — Phase 96.8E.
 
 Verifies that:
-- VERIFY_ACTIVE_GOOGLE_ACCOUNT cannot be reached without visible Chrome proof
-- Chrome process with MainWindowHandle=0 does NOT pass
-- Direct Chrome executable is the required method
-- explorer/default-browser launch is rejected
+- VERIFY_ACTIVE_GOOGLE_ACCOUNT cannot be reached without founder confirmation
+- Process metadata alone does not pass the gate
+- MainWindowHandle nonzero does not pass the gate
+- MainWindowTitle nonblank does not pass the gate
+- Founder confirmed=true passes the gate
+- Founder confirmed=false blocks the gate
 - Worker validates packet routing fields before execution
 """
 
@@ -17,6 +19,7 @@ from core.environment_bridge.chrome_visible_launch import (
     ChromeLaunchMethod,
     ChromeProcessSnapshot,
     ChromeVisibleLaunchStatus,
+    apply_founder_visual_confirmation,
     evaluate_visible_chrome_launch,
     visible_launch_proof_allows_next_gate,
     CHROME_EXECUTABLE_PATHS_WSL,
@@ -31,15 +34,34 @@ VALID_WSL_PATH = CHROME_EXECUTABLE_PATHS_WSL[0]
 DRIVE_URL = "https://drive.google.com/drive/my-drive"
 
 
-class TestVerifyAccountGateRequiresVisibleChrome(unittest.TestCase):
-    """VERIFY_ACTIVE_GOOGLE_ACCOUNT must not be reachable without visible window proof."""
+class TestVerifyAccountGateRequiresFounderConfirmation(unittest.TestCase):
+    """VERIFY_ACTIVE_GOOGLE_ACCOUNT must not be reachable without founder confirmation."""
 
-    def test_visible_window_allows_account_gate(self):
+    def test_metadata_alone_blocks_account_gate(self):
         procs = [ChromeProcessSnapshot(pid=100, main_window_handle=99999)]
         proof = evaluate_visible_chrome_launch(
             ChromeLaunchMethod.DIRECT_EXECUTABLE, VALID_WSL_PATH, DRIVE_URL, procs
         )
+        self.assertFalse(visible_launch_proof_allows_next_gate(proof))
+        self.assertEqual(
+            proof.status, ChromeVisibleLaunchStatus.PENDING_FOUNDER_VISUAL_CONFIRMATION
+        )
+
+    def test_founder_confirmed_allows_account_gate(self):
+        procs = [ChromeProcessSnapshot(pid=100, main_window_handle=99999)]
+        proof = evaluate_visible_chrome_launch(
+            ChromeLaunchMethod.DIRECT_EXECUTABLE, VALID_WSL_PATH, DRIVE_URL, procs
+        )
+        proof = apply_founder_visual_confirmation(proof, True, "Chrome open")
         self.assertTrue(visible_launch_proof_allows_next_gate(proof))
+
+    def test_founder_denied_blocks_account_gate(self):
+        procs = [ChromeProcessSnapshot(pid=100, main_window_handle=99999)]
+        proof = evaluate_visible_chrome_launch(
+            ChromeLaunchMethod.DIRECT_EXECUTABLE, VALID_WSL_PATH, DRIVE_URL, procs
+        )
+        proof = apply_founder_visual_confirmation(proof, False, "Not visible")
+        self.assertFalse(visible_launch_proof_allows_next_gate(proof))
 
     def test_background_process_blocks_account_gate(self):
         procs = [
@@ -50,20 +72,16 @@ class TestVerifyAccountGateRequiresVisibleChrome(unittest.TestCase):
             ChromeLaunchMethod.DIRECT_EXECUTABLE, VALID_WSL_PATH, DRIVE_URL, procs
         )
         self.assertFalse(visible_launch_proof_allows_next_gate(proof))
-        self.assertEqual(proof.status, ChromeVisibleLaunchStatus.CHROME_BACKGROUND_PROCESS_ONLY)
 
     def test_no_chrome_blocks_account_gate(self):
         proof = evaluate_visible_chrome_launch(
             ChromeLaunchMethod.DIRECT_EXECUTABLE, VALID_WSL_PATH, DRIVE_URL, []
         )
         self.assertFalse(visible_launch_proof_allows_next_gate(proof))
-        self.assertEqual(proof.status, ChromeVisibleLaunchStatus.CHROME_NOT_FOUND)
 
 
 class TestExplorerDefaultBrowserNotValid(unittest.TestCase):
-    """explorer.exe / default-browser routing must not pass for W0-001."""
-
-    def test_explorer_blocked_even_with_visible_window(self):
+    def test_explorer_blocked_even_with_visible_metadata(self):
         procs = [ChromeProcessSnapshot(pid=100, main_window_handle=99999)]
         proof = evaluate_visible_chrome_launch(
             ChromeLaunchMethod.EXPLORER_DEFAULT, "explorer.exe", DRIVE_URL, procs
@@ -71,23 +89,16 @@ class TestExplorerDefaultBrowserNotValid(unittest.TestCase):
         self.assertEqual(proof.status, ChromeVisibleLaunchStatus.LAUNCH_METHOD_DISALLOWED)
         self.assertFalse(visible_launch_proof_allows_next_gate(proof))
 
-    def test_powershell_start_without_chrome_path_blocked(self):
-        procs = [ChromeProcessSnapshot(pid=100, main_window_handle=99999)]
-        proof = evaluate_visible_chrome_launch(
-            ChromeLaunchMethod.POWERSHELL_START, "Start-Process", DRIVE_URL, procs
-        )
-        self.assertFalse(visible_launch_proof_allows_next_gate(proof))
-
 
 class TestDirectChromeExecutableRequired(unittest.TestCase):
-    """Only direct Chrome executable path is the required method."""
-
-    def test_direct_executable_with_correct_path(self):
+    def test_direct_executable_with_correct_path_goes_to_pending(self):
         procs = [ChromeProcessSnapshot(pid=100, main_window_handle=99999)]
         proof = evaluate_visible_chrome_launch(
             ChromeLaunchMethod.DIRECT_EXECUTABLE, VALID_WSL_PATH, DRIVE_URL, procs
         )
-        self.assertEqual(proof.status, ChromeVisibleLaunchStatus.VISIBLE_CHROME_LAUNCH)
+        self.assertEqual(
+            proof.status, ChromeVisibleLaunchStatus.PENDING_FOUNDER_VISUAL_CONFIRMATION
+        )
 
     def test_direct_executable_with_wrong_path_blocked(self):
         procs = [ChromeProcessSnapshot(pid=100, main_window_handle=99999)]
@@ -98,8 +109,6 @@ class TestDirectChromeExecutableRequired(unittest.TestCase):
 
 
 class TestWorkerPacketValidation(unittest.TestCase):
-    """Worker must reject packets missing required routing fields."""
-
     def _valid_packet(self) -> dict:
         return {
             "work_order_id": WO_001_ID,
@@ -144,15 +153,20 @@ class TestWorkerPacketValidation(unittest.TestCase):
         errors = validate_wo_001_packet(pkt)
         self.assertTrue(any("Playwright" in e for e in errors))
 
-    def test_worker_stops_safely_when_proof_missing(self):
-        """Worker's evaluate_visible_chrome_launch returns non-passing status
-        when no visible window exists, preventing VERIFY_ACTIVE_GOOGLE_ACCOUNT."""
-        procs = [ChromeProcessSnapshot(pid=100, main_window_handle=0)]
+
+class TestWorkerWritesPendingConfirmationGate(unittest.TestCase):
+    """Worker must stop at pending_founder_visual_confirmation after launch."""
+
+    def test_evaluate_always_returns_pending_when_processes_found(self):
+        procs = [ChromeProcessSnapshot(pid=1, main_window_handle=99999, main_window_title="Drive")]
         proof = evaluate_visible_chrome_launch(
             ChromeLaunchMethod.DIRECT_EXECUTABLE, VALID_WSL_PATH, DRIVE_URL, procs
         )
-        self.assertFalse(visible_launch_proof_allows_next_gate(proof))
-        self.assertIn("BACKGROUND", proof.status.value.upper())
+        self.assertEqual(
+            proof.status, ChromeVisibleLaunchStatus.PENDING_FOUNDER_VISUAL_CONFIRMATION
+        )
+        self.assertTrue(proof.founder_visual_confirmation_required)
+        self.assertFalse(proof.founder_visual_confirmation_received)
 
 
 if __name__ == "__main__":

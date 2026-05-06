@@ -1,6 +1,6 @@
 # Visible Chrome Launch Gate v1
 
-**Phase:** 96.8D
+**Phase:** 96.8E (updated from 96.8D)
 **Status:** Active
 **Layer:** UMH Substrate — Execution Proof (Adapter Boundary Layer)
 **Module:** `core/environment_bridge/chrome_visible_launch.py`
@@ -8,25 +8,22 @@
 ## Purpose
 
 Governs Chrome launch proof for W0-001 CU execution. Process existence
-alone is NOT sufficient — visible-window proof is required before the
-worker can proceed to VERIFY_ACTIVE_GOOGLE_ACCOUNT.
+and window metadata are recorded as evidence but are NOT sufficient
+proof. Only founder visual confirmation constitutes proof.
 
-## The Problem
+## The Problem (Phase 96.8D → 96.8E)
 
-During manual local test, Chrome processes existed (PIDs found) but
-`MainWindowHandle = 0` and `MainWindowTitle` was blank. This means
-Chrome was running as background processes (updaters, service workers)
-without a visible browser window. The old worker treated process
-existence as proof of launch — a false positive.
+Phase 96.8D discovered that process existence with `MainWindowHandle = 0`
+is insufficient. Phase 96.8E discovered that even `MainWindowHandle != 0`
+and `MainWindowTitle` nonblank are insufficient — WSL/tmux can spawn
+Windows processes that report window metadata but never appear as
+visible foreground windows on the desktop.
 
 ## Required Proof
 
-VISIBLE_CHROME_LAUNCH passes ONLY if:
-
-1. Chrome launched through direct executable path, AND
-2. At least one Chrome process has:
-   - `MainWindowHandle != 0`, OR
-   - `MainWindowTitle` is nonblank
+Chrome launch gate passes ONLY with explicit founder visual confirmation.
+Process/window metadata is evidence (recorded in proof artifact) but
+CANNOT finalize the gate.
 
 ## Disallowed Launch Methods
 
@@ -58,11 +55,19 @@ VISIBLE_CHROME_LAUNCH passes ONLY if:
 
 | Status | Meaning | Next Gate? |
 |--------|---------|------------|
-| `VISIBLE_CHROME_LAUNCH` | Visible window confirmed | YES |
-| `VISIBLE_CHROME_LAUNCH_UNVERIFIED` | Launch attempted, window state unknown | NO |
-| `CHROME_BACKGROUND_PROCESS_ONLY` | Processes exist, no visible window | NO |
-| `CHROME_NOT_FOUND` | No Chrome executable or processes | NO |
-| `LAUNCH_METHOD_DISALLOWED` | explorer/default-browser used | NO |
+| `pending_founder_visual_confirmation` | Waiting for founder | NO |
+| `founder_confirmed_visible` | Founder confirmed visible | YES |
+| `founder_denied_visible` | Founder denied visible | NO |
+| `chrome_not_found` | No Chrome processes | NO |
+| `launch_method_disallowed` | explorer/default-browser used | NO |
+
+## Metadata Evidence Levels
+
+| Level | Meaning | Proof? |
+|-------|---------|--------|
+| `none` | No Chrome processes found | NO |
+| `process_detected_only` | PIDs exist, no window metadata | NO |
+| `window_metadata_detected` | MainWindowHandle/Title nonzero | NO |
 
 ## Proof Artifact
 
@@ -74,18 +79,29 @@ The worker writes `chrome_launch_proof_{wo_id}.json` containing:
 - `process_ids` — PIDs of Chrome processes found
 - `main_window_handle_values` — handle values per process
 - `main_window_titles` — window titles per process
-- `visible_window_detected` — boolean
-- `founder_visual_confirmation_required` — whether manual check needed
-- `status` — pass/fail
+- `metadata_evidence` — evidence classification level
+- `founder_visual_confirmation_required` — always true for GUI
+- `founder_visual_confirmation_received` — whether founder responded
+- `founder_confirmed` — founder's answer
+- `status` — gate status
 
 ## Gate Flow
 
 ```
 Chrome launched via direct executable
-  → Wait 3s for window
+  → Wait 3s
   → Collect process snapshots (PowerShell Get-Process)
-  → Evaluate visible-window proof
-  → VISIBLE_CHROME_LAUNCH? → VERIFY_ACTIVE_GOOGLE_ACCOUNT
-  → CHROME_BACKGROUND_PROCESS_ONLY? → BLOCKED (founder confirmation required)
-  → CHROME_NOT_FOUND? → BLOCKED (no silent fallback)
+  → Classify metadata as evidence (NOT proof)
+  → Write chrome_launch_proof
+  → Write visible_chrome_confirmation_request
+  → PENDING_FOUNDER_VISUAL_CONFIRMATION (BLOCKED)
+  → Poll inbox for founder confirmation
+
+Founder confirms (confirmed=true)
+  → FOUNDER_CONFIRMED_VISIBLE
+  → VERIFY_ACTIVE_GOOGLE_ACCOUNT
+
+Founder denies (confirmed=false)
+  → FOUNDER_DENIED_VISIBLE
+  → BLOCKED (investigation required)
 ```

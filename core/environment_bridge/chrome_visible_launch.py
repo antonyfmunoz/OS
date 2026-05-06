@@ -1,8 +1,12 @@
 """Chrome visible launch gate for the Environment Bridge.
 
-Evaluates whether Chrome was launched through the direct executable
-path AND has a visible window (MainWindowHandle != 0 or MainWindowTitle
-nonblank). Process existence alone is NOT sufficient proof.
+Evaluates Chrome launch attempts for W0-001 CU execution. Process
+existence and window metadata (MainWindowHandle, MainWindowTitle) are
+recorded as evidence but are NOT sufficient proof of visible GUI.
+
+WSL/tmux execution can spawn Windows processes without reliable
+foreground visibility. Only founder visual confirmation constitutes
+proof that Chrome is visibly open.
 
 explorer.exe / default-browser routing is explicitly disallowed for
 governed W0-001 CU execution.
@@ -25,12 +29,21 @@ class ChromeLaunchMethod(str, Enum):
     UNKNOWN = "unknown"
 
 
+class MetadataEvidence(str, Enum):
+    """What process/window metadata was observed. Evidence only — not proof."""
+
+    NONE = "none"
+    PROCESS_DETECTED_ONLY = "process_detected_only"
+    WINDOW_METADATA_DETECTED = "window_metadata_detected"
+
+
 class ChromeVisibleLaunchStatus(str, Enum):
-    VISIBLE_CHROME_LAUNCH = "visible_chrome_launch"
-    VISIBLE_CHROME_LAUNCH_UNVERIFIED = "visible_chrome_launch_unverified"
-    CHROME_BACKGROUND_PROCESS_ONLY = "chrome_background_process_only"
+    PENDING_FOUNDER_VISUAL_CONFIRMATION = "pending_founder_visual_confirmation"
+    FOUNDER_CONFIRMED_VISIBLE = "founder_confirmed_visible"
+    FOUNDER_DENIED_VISIBLE = "founder_denied_visible"
     CHROME_NOT_FOUND = "chrome_not_found"
     LAUNCH_METHOD_DISALLOWED = "launch_method_disallowed"
+    VISIBLE_CHROME_LAUNCH_FAILED = "visible_chrome_launch_failed"
     NOT_ATTEMPTED = "not_attempted"
 
 
@@ -68,8 +81,10 @@ class ChromeVisibleLaunchProof:
     process_ids: list[int] = field(default_factory=list)
     main_window_handle_values: list[int] = field(default_factory=list)
     main_window_titles: list[str] = field(default_factory=list)
-    visible_window_detected: bool = False
-    founder_visual_confirmation_required: bool = False
+    metadata_evidence: str = MetadataEvidence.NONE.value
+    founder_visual_confirmation_required: bool = True
+    founder_visual_confirmation_received: bool = False
+    founder_confirmed: bool = False
     status: ChromeVisibleLaunchStatus = ChromeVisibleLaunchStatus.NOT_ATTEMPTED
     notes: list[str] = field(default_factory=list)
 
@@ -81,8 +96,10 @@ class ChromeVisibleLaunchProof:
             "process_ids": self.process_ids,
             "main_window_handle_values": self.main_window_handle_values,
             "main_window_titles": self.main_window_titles,
-            "visible_window_detected": self.visible_window_detected,
+            "metadata_evidence": self.metadata_evidence,
             "founder_visual_confirmation_required": self.founder_visual_confirmation_required,
+            "founder_visual_confirmation_received": self.founder_visual_confirmation_received,
+            "founder_confirmed": self.founder_confirmed,
             "status": self.status.value,
             "notes": self.notes,
         }
@@ -129,15 +146,16 @@ def parse_chrome_process_snapshot(
     )
 
 
-def visible_chrome_window_detected(
+def classify_metadata_evidence(
     processes: list[ChromeProcessSnapshot],
-) -> bool:
+) -> MetadataEvidence:
+    """Classify process/window metadata as evidence level. NOT proof."""
+    if not processes:
+        return MetadataEvidence.NONE
     for proc in processes:
-        if proc.main_window_handle != 0:
-            return True
-        if proc.main_window_title.strip():
-            return True
-    return False
+        if proc.main_window_handle != 0 or proc.main_window_title.strip():
+            return MetadataEvidence.WINDOW_METADATA_DETECTED
+    return MetadataEvidence.PROCESS_DETECTED_ONLY
 
 
 def evaluate_visible_chrome_launch(
@@ -146,6 +164,7 @@ def evaluate_visible_chrome_launch(
     requested_url: str,
     processes: list[ChromeProcessSnapshot],
 ) -> ChromeVisibleLaunchProof:
+    """Evaluate Chrome launch attempt. Always requires founder visual confirmation."""
     proof = ChromeVisibleLaunchProof(
         launch_method=launch_method.value,
         executable_path=executable_path,
@@ -157,6 +176,7 @@ def evaluate_visible_chrome_launch(
 
     if not is_allowed_chrome_launch_method(launch_method, executable_path):
         proof.status = ChromeVisibleLaunchStatus.LAUNCH_METHOD_DISALLOWED
+        proof.founder_visual_confirmation_required = False
         proof.notes.append(
             f"Launch method {launch_method.value} with path {executable_path} is not allowed"
         )
@@ -164,23 +184,63 @@ def evaluate_visible_chrome_launch(
 
     if not processes:
         proof.status = ChromeVisibleLaunchStatus.CHROME_NOT_FOUND
+        proof.metadata_evidence = MetadataEvidence.NONE.value
         proof.notes.append("No Chrome processes found after launch attempt")
         return proof
 
-    if visible_chrome_window_detected(processes):
-        proof.visible_window_detected = True
-        proof.status = ChromeVisibleLaunchStatus.VISIBLE_CHROME_LAUNCH
-        proof.notes.append("Visible Chrome window detected")
-        return proof
-
-    proof.status = ChromeVisibleLaunchStatus.CHROME_BACKGROUND_PROCESS_ONLY
+    evidence = classify_metadata_evidence(processes)
+    proof.metadata_evidence = evidence.value
+    proof.status = ChromeVisibleLaunchStatus.PENDING_FOUNDER_VISUAL_CONFIRMATION
     proof.founder_visual_confirmation_required = True
-    proof.notes.append(
-        "Chrome processes exist but MainWindowHandle=0 and MainWindowTitle blank. "
-        "Founder visual confirmation required."
-    )
+
+    if evidence == MetadataEvidence.WINDOW_METADATA_DETECTED:
+        proof.notes.append(
+            "Window metadata detected (MainWindowHandle/Title nonzero). "
+            "This is evidence only — NOT proof of visible GUI. "
+            "Founder visual confirmation required."
+        )
+    else:
+        proof.notes.append(
+            "Chrome processes detected but no window metadata. "
+            "Founder visual confirmation required."
+        )
+
     return proof
 
 
+def apply_founder_visual_confirmation(
+    proof: ChromeVisibleLaunchProof,
+    confirmed: bool,
+    notes: str = "",
+) -> ChromeVisibleLaunchProof:
+    """Apply founder's visual confirmation to the launch proof."""
+    proof.founder_visual_confirmation_received = True
+    proof.founder_confirmed = confirmed
+    if confirmed:
+        proof.status = ChromeVisibleLaunchStatus.FOUNDER_CONFIRMED_VISIBLE
+        proof.notes.append("Founder confirmed Chrome is visibly open")
+    else:
+        proof.status = ChromeVisibleLaunchStatus.FOUNDER_DENIED_VISIBLE
+        proof.notes.append("Founder confirmed Chrome is NOT visibly open")
+    if notes:
+        proof.notes.append(f"Founder notes: {notes}")
+    return proof
+
+
+def parse_founder_visual_confirmation(
+    data: dict[str, Any],
+) -> tuple[bool, bool, str]:
+    """Parse a founder visual confirmation response.
+
+    Returns (is_valid, confirmed, notes).
+    """
+    if data.get("response_type") != "founder_visual_confirmation":
+        return False, False, ""
+    if "confirmed" not in data:
+        return False, False, ""
+    return True, bool(data["confirmed"]), data.get("notes", "")
+
+
 def visible_launch_proof_allows_next_gate(proof: ChromeVisibleLaunchProof) -> bool:
-    return proof.status == ChromeVisibleLaunchStatus.VISIBLE_CHROME_LAUNCH
+    """Only founder-confirmed visible launch allows progression."""
+    return proof.status == ChromeVisibleLaunchStatus.FOUNDER_CONFIRMED_VISIBLE

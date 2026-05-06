@@ -367,19 +367,20 @@ def worker_should_stop(response: dict[str, Any] | None) -> bool:
 
 
 def _execute_approved_action(packet: dict[str, Any], response: dict[str, Any]) -> dict[str, Any]:
-    """Launch Chrome directly through the executable and validate visible-window proof.
+    """Launch Chrome directly and wait for founder visual confirmation.
 
-    The local worker launches Chrome directly via the Chrome executable
-    path (not explorer.exe, not default-browser routing). After launch,
-    it collects process/window snapshots and evaluates visible-window proof.
+    The local worker launches Chrome via the direct executable path
+    (not explorer.exe). After launch, it collects process/window
+    metadata as evidence, then STOPS at
+    VISIBLE_CHROME_LAUNCH_PENDING_FOUNDER_CONFIRMATION.
 
-    VISIBLE_CHROME_LAUNCH passes ONLY if:
-    - Chrome launched through direct executable path, AND
-    - MainWindowHandle != 0 OR MainWindowTitle nonblank
+    Process metadata (MainWindowHandle, MainWindowTitle) is evidence
+    only — NOT proof. WSL/tmux can spawn Windows processes without
+    reliable foreground visibility.
 
-    If Chrome processes exist but no visible window, status is
-    CHROME_BACKGROUND_PROCESS_ONLY and VERIFY_ACTIVE_GOOGLE_ACCOUNT
-    is NOT reached.
+    VERIFY_ACTIVE_GOOGLE_ACCOUNT is only reachable after the founder
+    explicitly confirms Chrome is visibly open by writing a confirmation
+    file to the inbox.
     """
     wo_id = packet["work_order_id"]
     drive_url = "https://drive.google.com/drive/my-drive"
@@ -388,9 +389,11 @@ def _execute_approved_action(packet: dict[str, Any], response: dict[str, Any]) -
     from core.environment_bridge.chrome_visible_launch import (
         ChromeLaunchMethod,
         ChromeVisibleLaunchStatus,
+        apply_founder_visual_confirmation,
         build_chrome_launch_command,
         evaluate_visible_chrome_launch,
         parse_chrome_process_snapshot,
+        parse_founder_visual_confirmation,
         visible_launch_proof_allows_next_gate,
         CHROME_EXECUTABLE_PATHS_WSL,
     )
@@ -419,8 +422,10 @@ def _execute_approved_action(packet: dict[str, Any], response: dict[str, Any]) -
             "process_ids": [],
             "main_window_handle_values": [],
             "main_window_titles": [],
-            "visible_window_detected": False,
-            "founder_visual_confirmation_required": False,
+            "metadata_evidence": "none",
+            "founder_visual_confirmation_required": True,
+            "founder_visual_confirmation_received": False,
+            "founder_confirmed": False,
             "status": ChromeVisibleLaunchStatus.CHROME_NOT_FOUND.value,
             "notes": ["Chrome executable not found or launch failed"],
         }
@@ -434,7 +439,7 @@ def _execute_approved_action(packet: dict[str, Any], response: dict[str, Any]) -
             "chrome_launch_proof": proof_data,
         }
 
-    _log("Waiting 3s for Chrome window to appear...")
+    _log("Waiting 3s for Chrome to start...")
     time.sleep(3)
 
     snapshots = _collect_chrome_process_snapshots()
@@ -450,49 +455,102 @@ def _execute_approved_action(packet: dict[str, Any], response: dict[str, Any]) -
 
     proof_data = proof.to_dict()
     write_outbox_message(f"chrome_launch_proof_{wo_id}.json", proof_data)
-    _log(f"Chrome visible launch status: {proof.status.value}")
+    _log(f"Chrome launch evidence: {proof.metadata_evidence}")
+    _log(f"Chrome launch status: {proof.status.value}")
 
-    if visible_launch_proof_allows_next_gate(proof):
-        next_gate_msg = {
-            "message_type": "NEXT_GATE",
-            "work_order_id": wo_id,
-            "sender": "node:local_pc_worker",
-            "recipient": "advisor",
-            "timestamp": _now_iso(),
-            "payload": {
-                "gate_action": "VERIFY_ACTIVE_GOOGLE_ACCOUNT",
-                "description": (
-                    f"Verify active Google account is {WO_001_ACCOUNT}. "
-                    "Chrome window visible. Visual confirmation required."
-                ),
-                "chrome_launch_proof": proof_data,
-            },
-        }
-        write_outbox_message(f"next_gate_{wo_id}.json", next_gate_msg)
-        _log("NEXT GATE: VERIFY_ACTIVE_GOOGLE_ACCOUNT")
-        _log("Worker stopped at account verification gate.")
-        return {
-            "success": True,
-            "backend": "VISIBLE_CHROME_LAUNCH",
-            "detail": "Visible Chrome window detected",
-            "next_gate": "VERIFY_ACTIVE_GOOGLE_ACCOUNT",
-            "error": None,
-            "chrome_launch_proof": proof_data,
-        }
+    confirmation_request = {
+        "message_type": "FOUNDER_VISUAL_CONFIRMATION_REQUIRED",
+        "work_order_id": wo_id,
+        "sender": "node:local_pc_worker",
+        "recipient": "founder",
+        "timestamp": _now_iso(),
+        "payload": {
+            "gate": "VISIBLE_CHROME_LAUNCH",
+            "question": "Is Google Chrome visibly open on your desktop with Google Drive loaded?",
+            "metadata_evidence": proof.metadata_evidence,
+            "process_count": len(processes),
+            "how_to_confirm": (
+                "python3 /opt/OS/eos_ai/substrate/write_founder_gate_confirmation.py "
+                f"--work-order-id {wo_id} --gate VISIBLE_CHROME_LAUNCH "
+                "--confirmed true --notes 'Chrome visibly open'"
+            ),
+            "how_to_deny": (
+                "python3 /opt/OS/eos_ai/substrate/write_founder_gate_confirmation.py "
+                f"--work-order-id {wo_id} --gate VISIBLE_CHROME_LAUNCH "
+                "--confirmed false --notes 'Chrome not visible'"
+            ),
+        },
+    }
+    write_outbox_message(f"visible_chrome_confirmation_request_{wo_id}.json", confirmation_request)
+    _log("BLOCKED: VISIBLE_CHROME_LAUNCH_PENDING_FOUNDER_CONFIRMATION")
+    _log("Waiting for founder visual confirmation...")
+    _log("Founder must confirm Chrome is visibly open before proceeding.")
 
-    _log(f"BLOCKED: {proof.status.value} — VERIFY_ACTIVE_GOOGLE_ACCOUNT not reached")
-    if proof.founder_visual_confirmation_required:
-        _log("Founder visual confirmation required to proceed")
+    confirmation_filename = f"founder_visual_confirmation_{wo_id}.json"
+    for i in range(720):
+        confirmation_path = INBOX_DIR / confirmation_filename
+        if confirmation_path.exists():
+            try:
+                conf_data = json.loads(confirmation_path.read_text())
+                is_valid, confirmed, conf_notes = parse_founder_visual_confirmation(conf_data)
+                if not is_valid:
+                    _log("Invalid confirmation file format — still waiting")
+                else:
+                    proof = apply_founder_visual_confirmation(proof, confirmed, conf_notes)
+                    proof_data = proof.to_dict()
+                    write_outbox_message(f"chrome_launch_proof_{wo_id}.json", proof_data)
 
+                    if visible_launch_proof_allows_next_gate(proof):
+                        _log("Founder CONFIRMED Chrome is visible")
+                        next_gate_msg = {
+                            "message_type": "NEXT_GATE",
+                            "work_order_id": wo_id,
+                            "sender": "node:local_pc_worker",
+                            "recipient": "advisor",
+                            "timestamp": _now_iso(),
+                            "payload": {
+                                "gate_action": "VERIFY_ACTIVE_GOOGLE_ACCOUNT",
+                                "description": (
+                                    f"Verify active Google account is {WO_001_ACCOUNT}. "
+                                    "Chrome visibility confirmed by founder."
+                                ),
+                                "chrome_launch_proof": proof_data,
+                            },
+                        }
+                        write_outbox_message(f"next_gate_{wo_id}.json", next_gate_msg)
+                        _log("NEXT GATE: VERIFY_ACTIVE_GOOGLE_ACCOUNT")
+                        return {
+                            "success": True,
+                            "backend": "VISIBLE_CHROME_LAUNCH",
+                            "detail": "founder_confirmed_visible",
+                            "next_gate": "VERIFY_ACTIVE_GOOGLE_ACCOUNT",
+                            "error": None,
+                            "chrome_launch_proof": proof_data,
+                        }
+                    else:
+                        _log("Founder DENIED Chrome is visible")
+                        return {
+                            "success": False,
+                            "backend": "VISIBLE_CHROME_LAUNCH",
+                            "detail": "founder_denied_visible",
+                            "next_gate": None,
+                            "error": "Founder confirmed Chrome is NOT visibly open",
+                            "chrome_launch_proof": proof_data,
+                        }
+            except (json.JSONDecodeError, OSError) as e:
+                _log(f"Error reading confirmation: {e}")
+
+        if i % 12 == 0 and i > 0:
+            _log(f"Still waiting for founder visual confirmation... ({i * 5}s)")
+        time.sleep(5)
+
+    _log("Timed out waiting for founder visual confirmation (60 min)")
     return {
         "success": False,
         "backend": "VISIBLE_CHROME_LAUNCH",
-        "detail": proof.status.value,
+        "detail": "pending_founder_visual_confirmation_timeout",
         "next_gate": None,
-        "error": (
-            "Chrome process exists but no visible window detected. "
-            "VERIFY_ACTIVE_GOOGLE_ACCOUNT blocked."
-        ),
+        "error": "Founder visual confirmation not received within timeout",
         "chrome_launch_proof": proof_data,
     }
 

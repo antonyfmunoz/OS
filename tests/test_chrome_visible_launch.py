@@ -1,4 +1,4 @@
-"""Tests for environment_bridge/chrome_visible_launch.py — Phase 96.8D."""
+"""Tests for environment_bridge/chrome_visible_launch.py — Phase 96.8E."""
 
 import sys
 
@@ -9,12 +9,15 @@ from core.environment_bridge.chrome_visible_launch import (
     ChromeLaunchMethod,
     ChromeProcessSnapshot,
     ChromeVisibleLaunchStatus,
+    MetadataEvidence,
+    apply_founder_visual_confirmation,
     build_chrome_launch_command,
+    classify_metadata_evidence,
     evaluate_visible_chrome_launch,
     is_allowed_chrome_launch_method,
     parse_chrome_process_snapshot,
+    parse_founder_visual_confirmation,
     required_chrome_executable_paths,
-    visible_chrome_window_detected,
     visible_launch_proof_allows_next_gate,
     CHROME_EXECUTABLE_PATHS_WSL,
     CHROME_EXECUTABLE_PATHS_WINDOWS,
@@ -89,49 +92,144 @@ class TestParseSnapshot(unittest.TestCase):
         self.assertEqual(snap.main_window_title, "Google Drive")
 
 
-class TestVisibleWindowDetection(unittest.TestCase):
-    def test_nonzero_handle_is_visible(self):
-        procs = [ChromeProcessSnapshot(pid=1, main_window_handle=999)]
-        self.assertTrue(visible_chrome_window_detected(procs))
+class TestClassifyMetadataEvidence(unittest.TestCase):
+    def test_no_processes_is_none(self):
+        self.assertEqual(classify_metadata_evidence([]), MetadataEvidence.NONE)
 
-    def test_nonblank_title_is_visible(self):
-        procs = [ChromeProcessSnapshot(pid=1, main_window_title="Google Drive")]
-        self.assertTrue(visible_chrome_window_detected(procs))
-
-    def test_zero_handle_blank_title_is_not_visible(self):
+    def test_process_only_no_window(self):
         procs = [ChromeProcessSnapshot(pid=1, main_window_handle=0, main_window_title="")]
-        self.assertFalse(visible_chrome_window_detected(procs))
+        self.assertEqual(classify_metadata_evidence(procs), MetadataEvidence.PROCESS_DETECTED_ONLY)
 
-    def test_empty_list_is_not_visible(self):
-        self.assertFalse(visible_chrome_window_detected([]))
+    def test_nonzero_handle_is_window_metadata(self):
+        procs = [ChromeProcessSnapshot(pid=1, main_window_handle=99999)]
+        self.assertEqual(
+            classify_metadata_evidence(procs), MetadataEvidence.WINDOW_METADATA_DETECTED
+        )
 
-    def test_multiple_background_processes_not_visible(self):
+    def test_nonblank_title_is_window_metadata(self):
+        procs = [ChromeProcessSnapshot(pid=1, main_window_title="Google Drive")]
+        self.assertEqual(
+            classify_metadata_evidence(procs), MetadataEvidence.WINDOW_METADATA_DETECTED
+        )
+
+
+class TestProcessMetadataDoesNotPassGate(unittest.TestCase):
+    """Process/window metadata alone must NEVER pass the visible Chrome gate."""
+
+    def test_process_existence_does_not_pass(self):
+        procs = [ChromeProcessSnapshot(pid=1, main_window_handle=0, main_window_title="")]
+        proof = evaluate_visible_chrome_launch(
+            ChromeLaunchMethod.DIRECT_EXECUTABLE, VALID_WSL_PATH, DRIVE_URL, procs
+        )
+        self.assertFalse(visible_launch_proof_allows_next_gate(proof))
+        self.assertEqual(
+            proof.status, ChromeVisibleLaunchStatus.PENDING_FOUNDER_VISUAL_CONFIRMATION
+        )
+
+    def test_nonzero_handle_does_not_pass(self):
+        procs = [ChromeProcessSnapshot(pid=1, main_window_handle=99999)]
+        proof = evaluate_visible_chrome_launch(
+            ChromeLaunchMethod.DIRECT_EXECUTABLE, VALID_WSL_PATH, DRIVE_URL, procs
+        )
+        self.assertFalse(visible_launch_proof_allows_next_gate(proof))
+        self.assertEqual(
+            proof.status, ChromeVisibleLaunchStatus.PENDING_FOUNDER_VISUAL_CONFIRMATION
+        )
+
+    def test_nonblank_title_does_not_pass(self):
+        procs = [ChromeProcessSnapshot(pid=1, main_window_title="Google Drive")]
+        proof = evaluate_visible_chrome_launch(
+            ChromeLaunchMethod.DIRECT_EXECUTABLE, VALID_WSL_PATH, DRIVE_URL, procs
+        )
+        self.assertFalse(visible_launch_proof_allows_next_gate(proof))
+        self.assertEqual(
+            proof.status, ChromeVisibleLaunchStatus.PENDING_FOUNDER_VISUAL_CONFIRMATION
+        )
+
+    def test_handle_and_title_together_do_not_pass(self):
+        procs = [ChromeProcessSnapshot(pid=1, main_window_handle=99999, main_window_title="Drive")]
+        proof = evaluate_visible_chrome_launch(
+            ChromeLaunchMethod.DIRECT_EXECUTABLE, VALID_WSL_PATH, DRIVE_URL, procs
+        )
+        self.assertFalse(visible_launch_proof_allows_next_gate(proof))
+
+    def test_multiple_processes_with_metadata_do_not_pass(self):
         procs = [
-            ChromeProcessSnapshot(pid=1, main_window_handle=0, main_window_title=""),
-            ChromeProcessSnapshot(pid=2, main_window_handle=0, main_window_title=""),
-            ChromeProcessSnapshot(pid=3, main_window_handle=0, main_window_title=""),
+            ChromeProcessSnapshot(pid=1, main_window_handle=99999, main_window_title="Drive"),
+            ChromeProcessSnapshot(pid=2, main_window_handle=88888, main_window_title="Docs"),
         ]
-        self.assertFalse(visible_chrome_window_detected(procs))
+        proof = evaluate_visible_chrome_launch(
+            ChromeLaunchMethod.DIRECT_EXECUTABLE, VALID_WSL_PATH, DRIVE_URL, procs
+        )
+        self.assertFalse(visible_launch_proof_allows_next_gate(proof))
+
+
+class TestFounderConfirmation(unittest.TestCase):
+    def test_founder_confirmed_true_passes(self):
+        procs = [ChromeProcessSnapshot(pid=1, main_window_handle=99999)]
+        proof = evaluate_visible_chrome_launch(
+            ChromeLaunchMethod.DIRECT_EXECUTABLE, VALID_WSL_PATH, DRIVE_URL, procs
+        )
+        proof = apply_founder_visual_confirmation(proof, True, "Chrome visible")
+        self.assertTrue(visible_launch_proof_allows_next_gate(proof))
+        self.assertEqual(proof.status, ChromeVisibleLaunchStatus.FOUNDER_CONFIRMED_VISIBLE)
+        self.assertTrue(proof.founder_confirmed)
+
+    def test_founder_confirmed_false_blocks(self):
+        procs = [ChromeProcessSnapshot(pid=1, main_window_handle=99999)]
+        proof = evaluate_visible_chrome_launch(
+            ChromeLaunchMethod.DIRECT_EXECUTABLE, VALID_WSL_PATH, DRIVE_URL, procs
+        )
+        proof = apply_founder_visual_confirmation(proof, False, "Not visible")
+        self.assertFalse(visible_launch_proof_allows_next_gate(proof))
+        self.assertEqual(proof.status, ChromeVisibleLaunchStatus.FOUNDER_DENIED_VISIBLE)
+
+    def test_confirmation_sets_received_flag(self):
+        procs = [ChromeProcessSnapshot(pid=1)]
+        proof = evaluate_visible_chrome_launch(
+            ChromeLaunchMethod.DIRECT_EXECUTABLE, VALID_WSL_PATH, DRIVE_URL, procs
+        )
+        self.assertFalse(proof.founder_visual_confirmation_received)
+        proof = apply_founder_visual_confirmation(proof, True)
+        self.assertTrue(proof.founder_visual_confirmation_received)
+
+
+class TestParseFounderConfirmation(unittest.TestCase):
+    def test_valid_confirmed(self):
+        data = {
+            "response_type": "founder_visual_confirmation",
+            "work_order_id": "WO-001",
+            "gate": "VISIBLE_CHROME_LAUNCH",
+            "confirmed": True,
+            "notes": "Chrome open",
+        }
+        is_valid, confirmed, notes = parse_founder_visual_confirmation(data)
+        self.assertTrue(is_valid)
+        self.assertTrue(confirmed)
+        self.assertEqual(notes, "Chrome open")
+
+    def test_valid_denied(self):
+        data = {
+            "response_type": "founder_visual_confirmation",
+            "confirmed": False,
+            "notes": "Not visible",
+        }
+        is_valid, confirmed, notes = parse_founder_visual_confirmation(data)
+        self.assertTrue(is_valid)
+        self.assertFalse(confirmed)
+
+    def test_wrong_response_type(self):
+        data = {"response_type": "something_else", "confirmed": True}
+        is_valid, _, _ = parse_founder_visual_confirmation(data)
+        self.assertFalse(is_valid)
+
+    def test_missing_confirmed_field(self):
+        data = {"response_type": "founder_visual_confirmation"}
+        is_valid, _, _ = parse_founder_visual_confirmation(data)
+        self.assertFalse(is_valid)
 
 
 class TestEvaluateVisibleChromeLaunch(unittest.TestCase):
-    def test_visible_window_passes(self):
-        procs = [ChromeProcessSnapshot(pid=1, main_window_handle=12345)]
-        proof = evaluate_visible_chrome_launch(
-            ChromeLaunchMethod.DIRECT_EXECUTABLE, VALID_WSL_PATH, DRIVE_URL, procs
-        )
-        self.assertEqual(proof.status, ChromeVisibleLaunchStatus.VISIBLE_CHROME_LAUNCH)
-        self.assertTrue(proof.visible_window_detected)
-
-    def test_background_only_fails(self):
-        procs = [ChromeProcessSnapshot(pid=1, main_window_handle=0, main_window_title="")]
-        proof = evaluate_visible_chrome_launch(
-            ChromeLaunchMethod.DIRECT_EXECUTABLE, VALID_WSL_PATH, DRIVE_URL, procs
-        )
-        self.assertEqual(proof.status, ChromeVisibleLaunchStatus.CHROME_BACKGROUND_PROCESS_ONLY)
-        self.assertFalse(proof.visible_window_detected)
-        self.assertTrue(proof.founder_visual_confirmation_required)
-
     def test_no_processes_is_not_found(self):
         proof = evaluate_visible_chrome_launch(
             ChromeLaunchMethod.DIRECT_EXECUTABLE, VALID_WSL_PATH, DRIVE_URL, []
@@ -145,6 +243,16 @@ class TestEvaluateVisibleChromeLaunch(unittest.TestCase):
         )
         self.assertEqual(proof.status, ChromeVisibleLaunchStatus.LAUNCH_METHOD_DISALLOWED)
 
+    def test_processes_found_goes_to_pending(self):
+        procs = [ChromeProcessSnapshot(pid=1, main_window_handle=0)]
+        proof = evaluate_visible_chrome_launch(
+            ChromeLaunchMethod.DIRECT_EXECUTABLE, VALID_WSL_PATH, DRIVE_URL, procs
+        )
+        self.assertEqual(
+            proof.status, ChromeVisibleLaunchStatus.PENDING_FOUNDER_VISUAL_CONFIRMATION
+        )
+        self.assertTrue(proof.founder_visual_confirmation_required)
+
     def test_proof_to_dict_has_all_fields(self):
         procs = [ChromeProcessSnapshot(pid=1, main_window_handle=12345)]
         proof = evaluate_visible_chrome_launch(
@@ -157,24 +265,35 @@ class TestEvaluateVisibleChromeLaunch(unittest.TestCase):
         self.assertIn("process_ids", d)
         self.assertIn("main_window_handle_values", d)
         self.assertIn("main_window_titles", d)
-        self.assertIn("visible_window_detected", d)
+        self.assertIn("metadata_evidence", d)
         self.assertIn("founder_visual_confirmation_required", d)
+        self.assertIn("founder_visual_confirmation_received", d)
+        self.assertIn("founder_confirmed", d)
         self.assertIn("status", d)
 
 
 class TestVisibleLaunchProofGate(unittest.TestCase):
-    def test_visible_allows_next_gate(self):
+    def test_pending_blocks_next_gate(self):
         procs = [ChromeProcessSnapshot(pid=1, main_window_handle=12345)]
         proof = evaluate_visible_chrome_launch(
             ChromeLaunchMethod.DIRECT_EXECUTABLE, VALID_WSL_PATH, DRIVE_URL, procs
         )
-        self.assertTrue(visible_launch_proof_allows_next_gate(proof))
+        self.assertFalse(visible_launch_proof_allows_next_gate(proof))
 
-    def test_background_blocks_next_gate(self):
-        procs = [ChromeProcessSnapshot(pid=1, main_window_handle=0)]
+    def test_founder_confirmed_allows_next_gate(self):
+        procs = [ChromeProcessSnapshot(pid=1, main_window_handle=12345)]
         proof = evaluate_visible_chrome_launch(
             ChromeLaunchMethod.DIRECT_EXECUTABLE, VALID_WSL_PATH, DRIVE_URL, procs
         )
+        proof = apply_founder_visual_confirmation(proof, True)
+        self.assertTrue(visible_launch_proof_allows_next_gate(proof))
+
+    def test_founder_denied_blocks_next_gate(self):
+        procs = [ChromeProcessSnapshot(pid=1, main_window_handle=12345)]
+        proof = evaluate_visible_chrome_launch(
+            ChromeLaunchMethod.DIRECT_EXECUTABLE, VALID_WSL_PATH, DRIVE_URL, procs
+        )
+        proof = apply_founder_visual_confirmation(proof, False)
         self.assertFalse(visible_launch_proof_allows_next_gate(proof))
 
     def test_not_found_blocks_next_gate(self):
