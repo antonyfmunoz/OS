@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from core.coherence.spine_coherence_validator import validate_coherence_envelope_dict
 from .execution_binding_validator import validate_execution_binding_dict
 from .work_packet import (
     WorkPacket,
@@ -37,6 +38,8 @@ class PacketValidationStatus(str, Enum):
     UNKNOWN_ACTION_TYPE = "unknown_action_type"
     MISSING_EXECUTION_BINDING = "missing_execution_binding"
     INVALID_EXECUTION_BINDING = "invalid_execution_binding"
+    INCOMPLETE_CANONICAL_SPINE = "incomplete_canonical_spine"
+    INVALID_COHERENCE_ENVELOPE = "invalid_coherence_envelope"
 
 
 CU_REQUIRED_BLOCKED_ACTIONS = [
@@ -148,11 +151,11 @@ def validate_work_packet(packet: WorkPacket) -> PacketValidationResult:
 
 
 def validate_w0_packet_dict(packet: dict[str, Any]) -> PacketValidationResult:
-    """Validate a W0 packet dict including execution_binding.
+    """Validate a W0 packet dict including execution_binding and coherence.
 
     This validates the dict form produced by build_w0_001_packet()
-    rather than the WorkPacket dataclass. It checks for the
-    execution_binding field and validates its contents.
+    rather than the WorkPacket dataclass. Checks execution_binding,
+    coherence_envelope, and their contents.
     """
     result = PacketValidationResult(packet_id=packet.get("packet_id", ""))
 
@@ -165,6 +168,17 @@ def validate_w0_packet_dict(packet: dict[str, Any]) -> PacketValidationResult:
     if not binding_result.valid:
         result.validation_errors.extend(binding_result.errors)
         result.status = PacketValidationStatus.INVALID_EXECUTION_BINDING
+        return result
+
+    if "coherence_envelope" not in packet or not packet["coherence_envelope"]:
+        result.validation_errors.append("MISSING_COHERENCE_ENVELOPE")
+        result.status = PacketValidationStatus.INCOMPLETE_CANONICAL_SPINE
+        return result
+
+    coherence_result = validate_coherence_envelope_dict(packet["coherence_envelope"])
+    if not coherence_result.coherent:
+        result.validation_errors.extend(coherence_result.errors)
+        result.status = PacketValidationStatus.INVALID_COHERENCE_ENVELOPE
         return result
 
     result.status = PacketValidationStatus.VALID

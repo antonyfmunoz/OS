@@ -83,6 +83,9 @@ def validate_wo_001_packet(packet: dict[str, Any]) -> list[str]:
     binding_errors = validate_execution_binding_from_packet(packet)
     errors.extend(binding_errors)
 
+    coherence_errors = validate_coherence_from_packet(packet)
+    errors.extend(coherence_errors)
+
     return errors
 
 
@@ -130,6 +133,64 @@ def validate_execution_binding_from_packet(packet: dict[str, Any]) -> list[str]:
         svc_family = svc.get("target_service_family", "")
         if svc_id in ("google_drive", "google_docs") and svc_family != "google_workspace":
             errors.append(f"Target service {svc_id} requires google_workspace family")
+
+    return errors
+
+
+def validate_coherence_from_packet(packet: dict[str, Any]) -> list[str]:
+    """Validate coherence_envelope within a W0 packet.
+
+    Lightweight field checks — does not import the full validator
+    to keep the local worker portable.
+    """
+    errors: list[str] = []
+
+    envelope = packet.get("coherence_envelope")
+    if not envelope:
+        errors.append("Missing coherence_envelope in packet")
+        return errors
+
+    lineage = envelope.get("lineage")
+    if not lineage:
+        errors.append("Coherence envelope missing lineage")
+        return errors
+
+    stages = lineage.get("stages", [])
+    if not stages:
+        errors.append("Coherence lineage has no stages")
+        return errors
+
+    required_names = {
+        "signal",
+        "interpretation",
+        "decomposition",
+        "primitive_mapping",
+        "domain_mapping",
+        "state_context",
+        "composition",
+        "capability_selection",
+        "adapter_selection",
+        "execution_binding",
+        "mastery_check",
+        "governance_decision",
+        "work_packet",
+        "proof_contract",
+        "trace_path",
+    }
+    present_names = {s.get("stage_name", "") for s in stages}
+    missing = required_names - present_names
+    if missing:
+        errors.append(f"Coherence lineage missing stages: {sorted(missing)}")
+
+    mvp_stub_allowed = lineage.get("mvp_stub_allowed", False)
+    for s in stages:
+        if s.get("status") == "mvp_stub" and not mvp_stub_allowed:
+            errors.append(f"Stage {s.get('stage_name')} is mvp_stub but mvp_stub_allowed is False")
+            break
+        if not s.get("artifact_id"):
+            errors.append(f"Stage {s.get('stage_name')} missing artifact_id")
+        if not s.get("trace_id"):
+            errors.append(f"Stage {s.get('stage_name')} missing trace_id")
 
     return errors
 
@@ -684,6 +745,30 @@ def run_auto_loop(packet_path: str | Path) -> dict[str, Any]:
         return summary
     summary["validation_passed"] = True
     _log("Validation passed")
+
+    # Step 2b: Coherence gate
+    _log("Running coherence gate...")
+    coherence_errors = validate_coherence_from_packet(packet)
+    if coherence_errors:
+        wo_id = packet.get("work_order_id", "unknown")
+        blocked_msg = {
+            "message_type": "COHERENCE_BLOCKED",
+            "work_order_id": wo_id,
+            "sender": "node:local_pc_worker",
+            "recipient": "advisor",
+            "timestamp": _now_iso(),
+            "payload": {
+                "final_status": "blocked_incomplete_canonical_spine",
+                "errors": coherence_errors,
+            },
+        }
+        write_outbox_message(f"coherence_blocked_{wo_id}.json", blocked_msg)
+        summary["error"] = f"Coherence gate blocked: {coherence_errors}"
+        summary["status"] = "blocked_incomplete_canonical_spine"
+        _log(f"BLOCK_EXECUTION: INCOMPLETE_CANONICAL_SPINE — {coherence_errors}")
+        return summary
+    summary["coherence_passed"] = True
+    _log("Coherence gate passed")
 
     # Step 3: Claim
     _log("Claiming work order...")

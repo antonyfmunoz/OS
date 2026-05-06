@@ -8,14 +8,28 @@ Phase 96.8F: packets include an explicit execution_binding with all
 capability, proof) so the system never collapses these into a single
 vague "backend."
 
+Phase 96.8G: packets include a coherence_envelope proving the packet
+descended from the canonical UMH spine. For W0 vertical-slice testing,
+stages without full subsystem implementations use explicit MVP stub
+artifacts — labeled, reasoned, and trace-linked.
+
 UMH substrate subsystem. EOS is one platform consumer.
 """
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime, timezone
 from typing import Any
 
+from core.coherence.spine_lineage_contracts import (
+    CoherenceEnvelope,
+    CoherenceStatus,
+    SpineLineage,
+    SpineStage,
+    SpineStageArtifact,
+    SpineStageStatus,
+)
 from .execution_binding_contracts import build_w0_chrome_gws_binding
 from .work_packet import (
     WorkPacket,
@@ -88,6 +102,84 @@ W0_001_REQUIRED_ROUTING_FIELDS = [
 ]
 
 
+def _build_w0_001_coherence_envelope() -> dict[str, Any]:
+    """Build the W0-001 coherence envelope with explicit MVP stub lineage."""
+    trace_id = f"W0-001-trace-{uuid.uuid4().hex[:12]}"
+    now = datetime.now(timezone.utc).isoformat()
+    sv = "1.0"
+
+    complete_stages = {
+        SpineStage.EXECUTION_BINDING.value,
+        SpineStage.WORK_PACKET.value,
+    }
+
+    mvp_stub_stages = {
+        SpineStage.SIGNAL.value: "founder_request_not_yet_signal_subsystem",
+        SpineStage.INTERPRETATION.value: "interpretation_subsystem_not_implemented",
+        SpineStage.DECOMPOSITION.value: "decomposition_subsystem_not_implemented",
+        SpineStage.PRIMITIVE_MAPPING.value: "primitive_mapping_subsystem_not_implemented",
+        SpineStage.DOMAIN_MAPPING.value: "domain_mapping_subsystem_not_implemented",
+        SpineStage.STATE_CONTEXT.value: "state_context_subsystem_not_implemented",
+        SpineStage.COMPOSITION.value: "composition_subsystem_not_implemented",
+        SpineStage.CAPABILITY_SELECTION.value: "capability_selection_subsystem_not_implemented",
+        SpineStage.ADAPTER_SELECTION.value: "adapter_selection_subsystem_not_implemented",
+        SpineStage.MASTERY_CHECK.value: "mastery_check_manual_verification",
+        SpineStage.GOVERNANCE_DECISION.value: "governance_decision_manual_founder_approval",
+        SpineStage.PROOF_CONTRACT.value: "proof_contract_defined_in_packet",
+        SpineStage.TRACE_PATH.value: "trace_path_minimal_implementation",
+    }
+
+    stages: list[dict[str, Any]] = []
+    for stage in SpineStage:
+        name = stage.value
+        if name in complete_stages:
+            stages.append(
+                SpineStageArtifact(
+                    stage_name=name,
+                    artifact_id=f"W0-001-{name}-{uuid.uuid4().hex[:8]}",
+                    artifact_type=f"{name}_contract",
+                    source="w0_packet_builder",
+                    timestamp=now,
+                    status=SpineStageStatus.COMPLETE.value,
+                    confidence=1.0,
+                    validation_status="validated",
+                    trace_id=trace_id,
+                    schema_version=sv,
+                ).to_dict()
+            )
+        else:
+            stages.append(
+                SpineStageArtifact(
+                    stage_name=name,
+                    artifact_id=f"W0-001-{name}-mvp-{uuid.uuid4().hex[:8]}",
+                    artifact_type=f"{name}_mvp_stub",
+                    source="w0_packet_builder",
+                    timestamp=now,
+                    status=SpineStageStatus.MVP_STUB.value,
+                    confidence=0.0,
+                    validation_status="mvp_stub",
+                    trace_id=trace_id,
+                    schema_version=sv,
+                    reason=mvp_stub_stages[name],
+                    allowed_for="W0 coherence validation only",
+                ).to_dict()
+            )
+
+    return CoherenceEnvelope(
+        lineage=SpineLineage(
+            stages=[SpineStageArtifact(**s) for s in stages],
+            mvp_stub_allowed=True,
+        ),
+        coherence_status=CoherenceStatus.COHERENT_WITH_MVP_STUBS.value,
+        trace_id=trace_id,
+        schema_version=sv,
+        notes=[
+            "W0 controlled vertical-slice — MVP stub lineage explicitly allowed",
+            "Full subsystem implementation required before MVP stubs can be removed",
+        ],
+    ).to_dict()
+
+
 def build_w0_001_packet() -> dict[str, Any]:
     """Build a complete W0-001 packet with all required routing fields."""
     return {
@@ -142,8 +234,9 @@ def build_w0_001_packet() -> dict[str, Any]:
         "required_environment_adapters": ["environment_bridge"],
         "required_human_approval_adapters": ["founder_visual_confirmation"],
         "execution_binding": build_w0_chrome_gws_binding().to_dict(),
+        "coherence_envelope": _build_w0_001_coherence_envelope(),
         "notes": [
-            "Phase 96.8F packet — includes execution binding contract with all 6 layers",
+            "Phase 96.8G packet — includes coherence envelope with canonical spine lineage",
             "Direct Chrome executable launch required (not explorer/default-browser)",
             "Visible-window proof required before VERIFY_ACTIVE_GOOGLE_ACCOUNT gate",
             "Primary dispatch: local pull from VPS outbox",

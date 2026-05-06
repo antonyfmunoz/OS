@@ -30,6 +30,7 @@ from eos_ai.substrate.local_worker_auto_loop import (
     WO_001_ACCOUNT,
 )
 from core.environment_bridge.execution_binding_contracts import build_w0_chrome_gws_binding
+from core.environment_bridge.w0_packet_builder import build_w0_001_packet
 
 VALID_WSL_PATH = CHROME_EXECUTABLE_PATHS_WSL[0]
 DRIVE_URL = "https://drive.google.com/drive/my-drive"
@@ -111,6 +112,7 @@ class TestDirectChromeExecutableRequired(unittest.TestCase):
 
 class TestWorkerPacketValidation(unittest.TestCase):
     def _valid_packet(self) -> dict:
+        full = build_w0_001_packet()
         return {
             "work_order_id": WO_001_ID,
             "target_account": WO_001_ACCOUNT,
@@ -119,6 +121,7 @@ class TestWorkerPacketValidation(unittest.TestCase):
             "approval_routing": "advisor_relay",
             "preferred_backend": "GUI_COMPUTER_USE",
             "execution_binding": build_w0_chrome_gws_binding().to_dict(),
+            "coherence_envelope": full["coherence_envelope"],
         }
 
     def test_valid_packet_passes(self):
