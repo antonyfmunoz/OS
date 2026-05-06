@@ -34,8 +34,8 @@
 #>
 
 param(
-    [string]$InboxPath = "$HOME\eos_relay\inbox",
-    [string]$OutboxPath = "$HOME\eos_relay\outbox",
+    [string]$InboxPath = "$HOME\eos_advisor_messages\windows_desktop_relay\inbox",
+    [string]$OutboxPath = "$HOME\eos_advisor_messages\windows_desktop_relay\outbox",
     [int]$PollIntervalSeconds = 2
 )
 

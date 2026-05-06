@@ -12,18 +12,26 @@ user home via /mnt/c/Users/<username>/. Path.home() returns the Linux
 home, not the Windows home, so we resolve the Windows user path
 explicitly when running under WSL.
 
+Canonical relay root:
+  Windows: %USERPROFILE%/eos_advisor_messages/windows_desktop_relay
+  WSL:     /mnt/c/Users/<username>/eos_advisor_messages/windows_desktop_relay
+
 UMH substrate subsystem. EOS is one platform consumer.
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import subprocess
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+RELAY_DIR_NAME = os.path.join("eos_advisor_messages", "windows_desktop_relay")
 
 
 def _resolve_windows_home() -> Path | None:
@@ -52,11 +60,14 @@ def _resolve_windows_home() -> Path | None:
     except (OSError, subprocess.TimeoutExpired):
         pass
 
-    for candidate in Path("/mnt/c/Users").iterdir():
-        if candidate.name in ("Public", "Default", "Default User", "All Users"):
-            continue
-        if candidate.is_dir():
-            return candidate
+    try:
+        for candidate in Path("/mnt/c/Users").iterdir():
+            if candidate.name in ("Public", "Default", "Default User", "All Users"):
+                continue
+            if candidate.is_dir():
+                return candidate
+    except OSError:
+        pass
 
     return None
 
@@ -66,16 +77,26 @@ def _default_relay_root() -> Path:
 
     On WSL: uses the Windows user home via /mnt/c/Users/<username>.
     On Windows: uses Path.home() directly.
-    On VPS/Linux: falls back to Path.home() (test/dev only).
+    On VPS/Linux without /mnt/c: returns Path.home() fallback (tests only).
     """
     if os.name == "nt":
-        return Path.home() / "eos_relay"
+        return Path.home() / RELAY_DIR_NAME
 
     win_home = _resolve_windows_home()
     if win_home is not None:
-        return win_home / "eos_relay"
+        return win_home / RELAY_DIR_NAME
 
-    return Path.home() / "eos_relay"
+    return Path.home() / RELAY_DIR_NAME
+
+
+def _is_windows_relay_environment() -> bool:
+    """Return True if this machine can reach a Windows relay.
+
+    True on native Windows or WSL with /mnt/c. False on VPS/Linux.
+    """
+    if os.name == "nt":
+        return True
+    return Path("/mnt/c").exists()
 
 
 def _log(msg: str) -> None:
@@ -89,6 +110,21 @@ RELAY_OUTBOX_DEFAULT = RELAY_ROOT / "outbox"
 
 RELAY_TIMEOUT_SECONDS = 120
 RELAY_POLL_INTERVAL = 2
+
+
+def resolve_relay_paths(
+    relay_root: Path | str | None = None,
+) -> tuple[Path, Path, Path]:
+    """Resolve relay root, inbox, and outbox paths.
+
+    If relay_root is provided, use it. Otherwise use the auto-detected default.
+    Returns (root, inbox, outbox).
+    """
+    if relay_root is not None:
+        root = Path(relay_root)
+    else:
+        root = RELAY_ROOT
+    return root, root / "inbox", root / "outbox"
 
 
 def write_request_to_relay(
@@ -180,9 +216,12 @@ def check_relay_available(
         "relay_available": inbox_exists and outbox_exists and inbox_writable,
         "relay_inbox": str(relay_inbox),
         "relay_outbox": str(relay_outbox),
+        "is_windows_relay_environment": _is_windows_relay_environment(),
     }
     _log(
-        f"  available={result['relay_available']} inbox_exists={inbox_exists} outbox_exists={outbox_exists} writable={inbox_writable}"
+        f"  available={result['relay_available']} "
+        f"inbox_exists={inbox_exists} outbox_exists={outbox_exists} "
+        f"writable={inbox_writable} win_env={result['is_windows_relay_environment']}"
     )
     return result
 
@@ -237,3 +276,79 @@ def send_request_and_wait(
         "request_path": str(request_path),
         "result": result,
     }
+
+
+# ── CLI entry point ─────────────────────────────────────────────────────────
+
+
+def _cli_main() -> None:
+    parser = argparse.ArgumentParser(description="Windows Interactive Desktop Relay Client")
+    parser.add_argument(
+        "--action",
+        choices=["PING", "CHECK"],
+        default="CHECK",
+        help="Action to perform (default: CHECK)",
+    )
+    parser.add_argument(
+        "--relay-root",
+        type=str,
+        default=None,
+        help="Explicit relay root directory (overrides auto-detection)",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Write request but mark as dry_run",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=15,
+        help="Timeout in seconds for result polling (default: 15)",
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Print detailed debug output",
+    )
+    args = parser.parse_args()
+
+    root, inbox, outbox = resolve_relay_paths(args.relay_root)
+
+    if args.debug:
+        _log(f"relay_root={root}")
+        _log(f"inbox={inbox}")
+        _log(f"outbox={outbox}")
+        _log(f"is_windows_env={_is_windows_relay_environment()}")
+        _log(f"action={args.action} dry_run={args.dry_run} timeout={args.timeout}")
+
+    if args.action == "CHECK":
+        status = check_relay_available(relay_inbox=inbox, relay_outbox=outbox)
+        print(json.dumps(status, indent=2))
+        sys.exit(0 if status["relay_available"] else 1)
+
+    if args.action == "PING":
+        sys.path.insert(0, "/opt/OS")
+        from core.environment_bridge.windows_desktop_request_builder import (
+            build_ping_request,
+        )
+
+        req = build_ping_request()
+        if args.debug:
+            _log(f"request_id={req.request_id}")
+            expected_result = inbox.parent / "outbox" / f"{req.request_id}_result.json"
+            _log(f"expected_result_path={expected_result}")
+
+        result = send_request_and_wait(
+            req.to_dict(),
+            relay_inbox=inbox,
+            relay_outbox=outbox,
+            timeout_seconds=args.timeout,
+            dry_run=args.dry_run,
+        )
+        print(json.dumps(result, indent=2, default=str))
+        sys.exit(0 if result["status"] in ("completed", "dry_run") else 1)
+
+
+if __name__ == "__main__":
+    _cli_main()

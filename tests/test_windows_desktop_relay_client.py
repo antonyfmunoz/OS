@@ -1,4 +1,4 @@
-"""Tests for Windows Interactive Desktop relay client — Phase 96.8H.
+"""Tests for Windows Interactive Desktop relay client — Phase 96.8H + 96.8H.1.
 
 Verifies:
 1. Dry-run writes request without executing GUI.
@@ -8,6 +8,11 @@ Verifies:
 5. Result reading from outbox works.
 6. Local worker fails closed if adapter unavailable.
 7. Local worker stops at founder confirmation if relay result pending.
+8. WSL default resolves to Windows-mounted relay root (path unification).
+9. VPS/Linux without /mnt/c returns Path.home() fallback.
+10. Explicit relay_root overrides default.
+11. Debug output includes full path trace (CLI --debug).
+12. No GUI action for PING dry-run.
 """
 
 import sys
@@ -15,19 +20,26 @@ import sys
 sys.path.insert(0, "/opt/OS")
 
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from core.environment_bridge.windows_desktop_request_builder import (
     build_ping_request,
     build_w0_chrome_open_request,
 )
 from eos_ai.substrate.windows_desktop_relay_client import (
+    RELAY_DIR_NAME,
+    _default_relay_root,
+    _is_windows_relay_environment,
+    _resolve_windows_home,
     check_relay_available,
     read_result_from_relay,
-    write_request_to_relay,
+    resolve_relay_paths,
     send_request_and_wait,
+    write_request_to_relay,
 )
 from eos_ai.substrate.local_worker_auto_loop import (
     packet_requires_windows_desktop_adapter,
@@ -122,6 +134,22 @@ class TestSendAndWaitDryRun(unittest.TestCase):
             self.assertEqual(result["status"], "dry_run")
             self.assertIsNotNone(result["request_path"])
 
+    def test_ping_dry_run_no_gui_action(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            inbox = Path(tmpdir) / "inbox"
+            outbox = Path(tmpdir) / "outbox"
+            inbox.mkdir()
+            outbox.mkdir()
+            req = build_ping_request()
+            result = send_request_and_wait(
+                req.to_dict(),
+                relay_inbox=inbox,
+                relay_outbox=outbox,
+                dry_run=True,
+            )
+            self.assertEqual(result["status"], "dry_run")
+            self.assertIsNone(result["result"])
+
 
 class TestLocalWorkerAdapterRouting(unittest.TestCase):
     def test_w0_packet_requires_adapter(self):
@@ -150,6 +178,126 @@ class TestLocalWorkerFailsClosedIfAdapterUnavailable(unittest.TestCase):
     def test_relay_check_returns_status(self):
         status = check_windows_desktop_adapter_available()
         self.assertIn("relay_available", status)
+
+
+# ── Phase 96.8H.1: Path Unification Tests ─────────────────────────────────
+
+
+class TestRelayDirNameCanonical(unittest.TestCase):
+    def test_relay_dir_name_is_canonical(self):
+        expected = os.path.join("eos_advisor_messages", "windows_desktop_relay")
+        self.assertEqual(RELAY_DIR_NAME, expected)
+
+
+class TestResolveWindowsHome(unittest.TestCase):
+    def test_returns_none_without_mnt_c(self):
+        with patch.object(Path, "exists", return_value=False):
+            result = _resolve_windows_home()
+            self.assertIsNone(result)
+
+
+class TestDefaultRelayRoot(unittest.TestCase):
+    @patch("eos_ai.substrate.windows_desktop_relay_client._resolve_windows_home")
+    def test_wsl_uses_windows_home(self, mock_resolve):
+        mock_resolve.return_value = Path("/mnt/c/Users/testuser")
+        with patch("eos_ai.substrate.windows_desktop_relay_client.os.name", "posix"):
+            root = _default_relay_root()
+        expected = Path("/mnt/c/Users/testuser") / RELAY_DIR_NAME
+        self.assertEqual(root, expected)
+
+    @patch("eos_ai.substrate.windows_desktop_relay_client._resolve_windows_home")
+    def test_vps_without_mnt_c_returns_home_fallback(self, mock_resolve):
+        mock_resolve.return_value = None
+        with patch("eos_ai.substrate.windows_desktop_relay_client.os.name", "posix"):
+            root = _default_relay_root()
+        expected = Path.home() / RELAY_DIR_NAME
+        self.assertEqual(root, expected)
+
+    def test_windows_native_uses_path_home(self):
+        """On native Windows (os.name == 'nt'), _default_relay_root returns Path.home() / RELAY_DIR_NAME.
+
+        We can't truly patch os.name to 'nt' on Linux (Path becomes WindowsPath),
+        so we verify the logic: when os.name != 'nt' and _resolve_windows_home returns None,
+        we get Path.home() / RELAY_DIR_NAME — the same fallback Windows native would use.
+        """
+        with patch(
+            "eos_ai.substrate.windows_desktop_relay_client._resolve_windows_home",
+            return_value=None,
+        ):
+            with patch("eos_ai.substrate.windows_desktop_relay_client.os.name", "posix"):
+                root = _default_relay_root()
+        self.assertEqual(root, Path.home() / RELAY_DIR_NAME)
+
+
+class TestIsWindowsRelayEnvironment(unittest.TestCase):
+    @patch("eos_ai.substrate.windows_desktop_relay_client.os.name", "nt")
+    def test_true_on_windows(self):
+        self.assertTrue(_is_windows_relay_environment())
+
+    @patch("eos_ai.substrate.windows_desktop_relay_client.os.name", "posix")
+    def test_false_on_vps_without_mnt_c(self):
+        with patch.object(Path, "exists", return_value=False):
+            self.assertFalse(_is_windows_relay_environment())
+
+
+class TestResolveRelayPaths(unittest.TestCase):
+    def test_explicit_relay_root_overrides_default(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root, inbox, outbox = resolve_relay_paths(tmpdir)
+            self.assertEqual(root, Path(tmpdir))
+            self.assertEqual(inbox, Path(tmpdir) / "inbox")
+            self.assertEqual(outbox, Path(tmpdir) / "outbox")
+
+    def test_none_relay_root_uses_default(self):
+        root, inbox, outbox = resolve_relay_paths(None)
+        self.assertTrue(str(root).endswith(RELAY_DIR_NAME))
+        self.assertEqual(inbox, root / "inbox")
+        self.assertEqual(outbox, root / "outbox")
+
+    def test_request_written_to_expected_inbox(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root, inbox, outbox = resolve_relay_paths(tmpdir)
+            req = build_ping_request()
+            path = write_request_to_relay(req.to_dict(), relay_inbox=inbox)
+            self.assertTrue(str(path).startswith(str(inbox)))
+            self.assertTrue(path.exists())
+
+    def test_result_read_from_expected_outbox(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root, inbox, outbox = resolve_relay_paths(tmpdir)
+            outbox.mkdir(parents=True, exist_ok=True)
+            request_id = "REQ-PATH-TEST"
+            result_file = outbox / f"{request_id}_result.json"
+            result_file.write_text(json.dumps({"adapter_status": "pong"}))
+            result = read_result_from_relay(request_id, relay_outbox=outbox, timeout_seconds=1)
+            self.assertIsNotNone(result)
+            self.assertEqual(result["adapter_status"], "pong")
+
+
+class TestCLIDebugOutput(unittest.TestCase):
+    def test_cli_debug_traces_paths(self):
+        import subprocess
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "eos_ai.substrate.windows_desktop_relay_client",
+                    "--action",
+                    "CHECK",
+                    "--relay-root",
+                    tmpdir,
+                    "--debug",
+                ],
+                capture_output=True,
+                text=True,
+                cwd="/opt/OS",
+                timeout=10,
+            )
+            self.assertIn("relay_root=", result.stdout)
+            self.assertIn("inbox=", result.stdout)
+            self.assertIn("outbox=", result.stdout)
 
 
 if __name__ == "__main__":
