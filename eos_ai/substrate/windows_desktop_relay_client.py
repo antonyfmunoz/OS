@@ -7,19 +7,85 @@ accessible from both WSL and Windows.
 This module runs on the WSL/tmux side. It never executes GUI actions
 itself — it delegates to the Windows-native relay.
 
+Path resolution: on WSL, the relay directories live under the Windows
+user home via /mnt/c/Users/<username>/. Path.home() returns the Linux
+home, not the Windows home, so we resolve the Windows user path
+explicitly when running under WSL.
+
 UMH substrate subsystem. EOS is one platform consumer.
 """
 
 from __future__ import annotations
 
 import json
+import os
+import subprocess
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-RELAY_INBOX_DEFAULT = Path.home() / "eos_relay" / "inbox"
-RELAY_OUTBOX_DEFAULT = Path.home() / "eos_relay" / "outbox"
+
+def _resolve_windows_home() -> Path | None:
+    """Resolve the Windows user home directory from WSL.
+
+    Returns the /mnt/c/Users/<username> path if running under WSL,
+    or None if not in WSL or resolution fails.
+    """
+    if not Path("/mnt/c").exists():
+        return None
+    try:
+        result = subprocess.run(
+            ["cmd.exe", "/C", "echo", "%USERPROFILE%"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        win_path = result.stdout.strip()
+        if win_path and "Users" in win_path:
+            drive_letter = win_path[0].lower()
+            unix_path = win_path.replace("\\", "/")
+            unix_path = f"/mnt/{drive_letter}" + unix_path[2:]
+            resolved = Path(unix_path)
+            if resolved.exists():
+                return resolved
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+    for candidate in Path("/mnt/c/Users").iterdir():
+        if candidate.name in ("Public", "Default", "Default User", "All Users"):
+            continue
+        if candidate.is_dir():
+            return candidate
+
+    return None
+
+
+def _default_relay_root() -> Path:
+    """Determine the correct relay root directory.
+
+    On WSL: uses the Windows user home via /mnt/c/Users/<username>.
+    On Windows: uses Path.home() directly.
+    On VPS/Linux: falls back to Path.home() (test/dev only).
+    """
+    if os.name == "nt":
+        return Path.home() / "eos_relay"
+
+    win_home = _resolve_windows_home()
+    if win_home is not None:
+        return win_home / "eos_relay"
+
+    return Path.home() / "eos_relay"
+
+
+def _log(msg: str) -> None:
+    ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
+    print(f"[{ts}] [relay-client] {msg}", flush=True)
+
+
+RELAY_ROOT = _default_relay_root()
+RELAY_INBOX_DEFAULT = RELAY_ROOT / "inbox"
+RELAY_OUTBOX_DEFAULT = RELAY_ROOT / "outbox"
 
 RELAY_TIMEOUT_SECONDS = 120
 RELAY_POLL_INTERVAL = 2
@@ -35,6 +101,7 @@ def write_request_to_relay(
     In dry_run mode, the request is written but marked as dry_run
     so the relay can skip execution.
     """
+    _log(f"write_request_to_relay: inbox={relay_inbox} dry_run={dry_run}")
     relay_inbox.mkdir(parents=True, exist_ok=True)
 
     if dry_run:
@@ -43,10 +110,14 @@ def write_request_to_relay(
     request_id = request.get("request_id", "unknown")
     filename = f"{request_id}.json"
     path = relay_inbox / filename
+    _log(f"  writing: {path}")
 
     with open(path, "w") as f:
         json.dump(request, f, indent=2)
 
+    exists = path.exists()
+    size = path.stat().st_size if exists else 0
+    _log(f"  written: exists={exists} size={size}B")
     return path
 
 
@@ -63,16 +134,23 @@ def read_result_from_relay(
     result_filename = f"{request_id}_result.json"
     result_path = relay_outbox / result_filename
     deadline = time.time() + timeout_seconds
+    _log(f"read_result_from_relay: watching {result_path} timeout={timeout_seconds}s")
 
+    poll_count = 0
     while time.time() < deadline:
         if result_path.exists():
+            _log(f"  result found: {result_path}")
             try:
                 with open(result_path) as f:
                     return json.load(f)
-            except (json.JSONDecodeError, OSError):
-                pass
+            except (json.JSONDecodeError, OSError) as e:
+                _log(f"  parse error: {e}")
+        poll_count += 1
+        if poll_count % 5 == 0:
+            _log(f"  polling... ({poll_count * poll_interval}s elapsed)")
         time.sleep(poll_interval)
 
+    _log(f"  timeout after {timeout_seconds}s")
     return None
 
 
@@ -81,6 +159,7 @@ def check_relay_available(
     relay_outbox: Path = RELAY_OUTBOX_DEFAULT,
 ) -> dict[str, Any]:
     """Check if the relay directories exist and are writable."""
+    _log(f"check_relay_available: inbox={relay_inbox} outbox={relay_outbox}")
     inbox_exists = relay_inbox.exists()
     outbox_exists = relay_outbox.exists()
 
@@ -94,7 +173,7 @@ def check_relay_available(
         except OSError:
             pass
 
-    return {
+    result = {
         "relay_inbox_exists": inbox_exists,
         "relay_outbox_exists": outbox_exists,
         "relay_inbox_writable": inbox_writable,
@@ -102,6 +181,10 @@ def check_relay_available(
         "relay_inbox": str(relay_inbox),
         "relay_outbox": str(relay_outbox),
     }
+    _log(
+        f"  available={result['relay_available']} inbox_exists={inbox_exists} outbox_exists={outbox_exists} writable={inbox_writable}"
+    )
+    return result
 
 
 def send_request_and_wait(
@@ -115,10 +198,13 @@ def send_request_and_wait(
 
     Returns a summary dict with the result or timeout status.
     """
+    _log(f"send_request_and_wait: dry_run={dry_run} inbox={relay_inbox} outbox={relay_outbox}")
     request_path = write_request_to_relay(request, relay_inbox, dry_run=dry_run)
     request_id = request.get("request_id", "unknown")
+    _log(f"  request_id={request_id} request_path={request_path}")
 
     if dry_run:
+        _log("  returning dry_run status (file was written, relay should skip execution)")
         return {
             "status": "dry_run",
             "request_id": request_id,
@@ -127,6 +213,7 @@ def send_request_and_wait(
             "note": "Dry run — request written but no execution expected",
         }
 
+    _log(f"  polling outbox for result (timeout={timeout_seconds}s)...")
     result = read_result_from_relay(
         request_id,
         relay_outbox,
@@ -134,6 +221,7 @@ def send_request_and_wait(
     )
 
     if result is None:
+        _log("  TIMEOUT — no result received")
         return {
             "status": "timeout",
             "request_id": request_id,
@@ -142,6 +230,7 @@ def send_request_and_wait(
             "error": f"No result within {timeout_seconds}s — relay may be unavailable",
         }
 
+    _log(f"  result received: adapter_status={result.get('adapter_status')}")
     return {
         "status": "completed",
         "request_id": request_id,
