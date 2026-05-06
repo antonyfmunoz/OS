@@ -1,16 +1,17 @@
 """
-Local worker auto-loop for Phase 96.8D.
+Local worker auto-loop for Phase 96.8D (updated 96.8H).
 
 Pull-based local worker that acts as the tmux/GUI relay:
 VPS creates governed packet → local worker pulls → local worker
-executes through local tmux/Windows GUI/Chrome directly → local
-worker validates visible-window proof → local worker stops at
-account verification gate only after real visible Chrome window.
+routes GUI actions through Windows Interactive Desktop Adapter →
+local worker validates visible-window proof → local worker stops
+at account verification gate only after founder confirmation.
 
-Chrome launch requires direct executable path. Process existence
-alone is NOT sufficient — visible-window proof (MainWindowHandle != 0
-or MainWindowTitle nonblank) is required before proceeding to
-VERIFY_ACTIVE_GOOGLE_ACCOUNT.
+Phase 96.8H: if execution_binding requires
+windows_interactive_desktop_adapter, the local worker routes to
+the relay client instead of direct WSL Chrome launch. If the relay
+is unavailable, execution is blocked. If the relay returns pending
+founder confirmation, execution stops at that gate.
 
 No Playwright. No scraping. No Gmail. No account switching.
 No explorer.exe / default-browser routing for W0-001.
@@ -193,6 +194,85 @@ def validate_coherence_from_packet(packet: dict[str, Any]) -> list[str]:
             errors.append(f"Stage {s.get('stage_name')} missing trace_id")
 
     return errors
+
+
+# ── Windows Interactive Desktop Adapter routing (Phase 96.8H) ──────────────
+
+
+def packet_requires_windows_desktop_adapter(packet: dict[str, Any]) -> bool:
+    """Check if the packet's execution binding requires the Windows desktop adapter."""
+    binding = packet.get("execution_binding", {})
+    if not binding:
+        return False
+
+    for surf in binding.get("execution_surfaces", []):
+        surf_role = surf.get("execution_surface_role", "")
+        surf_type = surf.get("execution_surface_type", "")
+        if surf_role == "gui_actuator" and surf_type == "powershell":
+            return True
+
+    return False
+
+
+def check_windows_desktop_adapter_available() -> dict[str, Any]:
+    """Check if the Windows desktop relay is available.
+
+    Imports the relay client and checks inbox/outbox directories.
+    Returns a status dict.
+    """
+    try:
+        from eos_ai.substrate.windows_desktop_relay_client import (
+            check_relay_available,
+        )
+
+        return check_relay_available()
+    except ImportError:
+        return {
+            "relay_available": False,
+            "error": "windows_desktop_relay_client not importable",
+        }
+
+
+def route_to_windows_desktop_adapter(
+    packet: dict[str, Any],
+    dry_run: bool = True,
+) -> dict[str, Any]:
+    """Route a GUI action through the Windows desktop adapter relay.
+
+    In dry_run mode (default), the request is written but not executed.
+    Returns a summary dict.
+    """
+    relay_check = check_windows_desktop_adapter_available()
+    if not relay_check.get("relay_available"):
+        return {
+            "status": "blocked",
+            "reason": "WINDOWS_INTERACTIVE_DESKTOP_ADAPTER_UNAVAILABLE",
+            "relay_check": relay_check,
+        }
+
+    try:
+        from core.environment_bridge.windows_desktop_request_builder import (
+            build_w0_chrome_open_request,
+        )
+        from eos_ai.substrate.windows_desktop_relay_client import (
+            send_request_and_wait,
+        )
+
+        wo_id = packet.get("work_order_id", "WO-LOCAL-PILOT-GDRIVE-GDOCS-001")
+        request = build_w0_chrome_open_request(work_order_id=wo_id)
+        result = send_request_and_wait(request.to_dict(), dry_run=dry_run)
+
+        visible_proof = result.get("result", {}).get("visible_proof_status", "")
+        if visible_proof == "pending_founder_visual_confirmation":
+            result["gate_status"] = "VISIBLE_CHROME_LAUNCH_PENDING_FOUNDER_CONFIRMATION"
+
+        return result
+    except ImportError as e:
+        return {
+            "status": "blocked",
+            "reason": "IMPORT_ERROR",
+            "error": str(e),
+        }
 
 
 # ── Outbox message writing ──────────────────────────────────────────────────
