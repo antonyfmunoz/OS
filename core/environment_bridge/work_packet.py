@@ -73,6 +73,13 @@ class WorkPacket:
     required_mastery_categories: list[str] = field(default_factory=list)
     required_worker_runtime: str = ""
     proof_artifact_requirements: list[str] = field(default_factory=list)
+    target_account: str = ""
+    worker_mode: str = ""
+    approval_routing: str = ""
+    preferred_backend: str = ""
+    playwright_enabled: bool = False
+    screenshot_capture: bool = False
+    cdp_enabled: bool = False
     notes: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -103,6 +110,13 @@ class WorkPacket:
             "required_mastery_categories": self.required_mastery_categories,
             "required_worker_runtime": self.required_worker_runtime,
             "proof_artifact_requirements": self.proof_artifact_requirements,
+            "target_account": self.target_account,
+            "worker_mode": self.worker_mode,
+            "approval_routing": self.approval_routing,
+            "preferred_backend": self.preferred_backend,
+            "playwright_enabled": self.playwright_enabled,
+            "screenshot_capture": self.screenshot_capture,
+            "cdp_enabled": self.cdp_enabled,
             "notes": self.notes,
         }
 

@@ -15,10 +15,13 @@
 | W0-001 packet found | YES |
 | Packet ID | WP-W0-001-CU-RERUN-001 |
 | Packet approval | APPROVED |
+| Packet routing fields | ALL PRESENT (Phase 96.8D) |
 | Packet executed | NO (awaiting local worker) |
 | Local worker heartbeat | NO (awaiting bootstrap) |
-| All bridge tests | 64 passed |
+| All bridge tests | 177 passed |
 | Bootstrap status module | Created + tested |
+| Chrome visible launch gate | Created + tested (Phase 96.8D) |
+| Manual packet patching required | NO (Phase 96.8D) |
 
 ---
 

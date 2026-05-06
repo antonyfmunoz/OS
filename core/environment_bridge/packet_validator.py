@@ -29,6 +29,7 @@ class PacketValidationStatus(str, Enum):
     UNSAFE_ACTION = "unsafe_action"
     MISSING_GOVERNANCE = "missing_governance"
     MISSING_PROOF_REQUIREMENTS = "missing_proof_requirements"
+    MISSING_ROUTING_FIELDS = "missing_routing_fields"
     TARGET_ENVIRONMENT_MISMATCH = "target_environment_mismatch"
     UNKNOWN_ACTION_TYPE = "unknown_action_type"
 
@@ -124,6 +125,12 @@ def validate_work_packet(packet: WorkPacket) -> PacketValidationResult:
         result.status = PacketValidationStatus.UNSAFE_ACTION
         return result
 
+    routing_errors = _check_routing_fields(packet)
+    if routing_errors:
+        result.validation_errors.extend(routing_errors)
+        result.status = PacketValidationStatus.MISSING_ROUTING_FIELDS
+        return result
+
     boundary_errors = _check_adapter_boundary(packet)
     if boundary_errors:
         result.governance_errors.extend(boundary_errors)
@@ -187,6 +194,21 @@ def packet_requires_mastery(packet: WorkPacket) -> bool:
 
 def packet_requires_worker_runtime(packet: WorkPacket) -> bool:
     return work_packet_targets_local_gui(packet)
+
+
+def _check_routing_fields(packet: WorkPacket) -> list[str]:
+    if not work_packet_targets_local_gui(packet):
+        return []
+    errors: list[str] = []
+    if not packet.target_account:
+        errors.append("ROUTING: local GUI packet requires target_account")
+    if not packet.worker_mode:
+        errors.append("ROUTING: local GUI packet requires worker_mode")
+    if not packet.approval_routing:
+        errors.append("ROUTING: local GUI packet requires approval_routing")
+    if not packet.preferred_backend:
+        errors.append("ROUTING: local GUI packet requires preferred_backend")
+    return errors
 
 
 def _check_adapter_boundary(packet: WorkPacket) -> list[str]:

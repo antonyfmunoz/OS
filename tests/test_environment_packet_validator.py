@@ -133,6 +133,10 @@ class TestValidCUPacket(unittest.TestCase):
         pkt.required_worker_runtime = "local-windows-worker"
         pkt.required_mastery_categories = ["tool", "environment"]
         pkt.proof_artifact_requirements = ["screenshot", "inventory_json"]
+        pkt.target_account = "antonyfm@empyreanstudios.co"
+        pkt.worker_mode = "auto"
+        pkt.approval_routing = "advisor_relay"
+        pkt.preferred_backend = "GUI_COMPUTER_USE"
         result = validate_work_packet(pkt)
         self.assertEqual(result.status, PacketValidationStatus.VALID)
         self.assertTrue(result.can_execute)

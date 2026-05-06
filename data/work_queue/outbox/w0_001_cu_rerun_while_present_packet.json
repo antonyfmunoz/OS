@@ -4,6 +4,10 @@
   "title": "W0-001 CU Rerun While Founder Present",
   "description": "Re-execute Google Drive and Google Docs Computer Use inventory on local Windows desktop while founder is physically present. Founder visually confirms output.",
   "action_type": "cu_rerun_while_present",
+  "target_account": "antonyfm@empyreanstudios.co",
+  "worker_mode": "auto",
+  "approval_routing": "advisor_relay",
+  "preferred_backend": "GUI_COMPUTER_USE",
   "target_environment": [
     "local_windows_gui",
     "local_tmux",
@@ -18,9 +22,22 @@
     "computer_use_tool_mastery_pack",
     "google_docs_tool_mastery_pack"
   ],
+  "required_mastery_categories": [
+    "tool",
+    "environment"
+  ],
+  "required_worker_runtime": "local-windows-worker",
+  "proof_artifact_requirements": [
+    "visible_chrome_launch_proof",
+    "drive_inventory_json",
+    "founder_confirmation"
+  ],
   "risk_level": "high",
   "approval_status": "approved",
   "founder_confirmation_required": true,
+  "playwright_enabled": false,
+  "screenshot_capture": false,
+  "cdp_enabled": false,
   "allowed_actions": [
     "open_google_drive",
     "read_drive_inventory_via_accessibility_tree",
@@ -68,12 +85,19 @@
     "founder_confirmation_response"
   ],
   "timeout_seconds": 3600,
-  "created_at": "2026-05-05T00:00:00+00:00",
+  "created_at": "2026-05-06T17:46:07.448116+00:00",
   "expires_at": "",
   "status": "approved",
+  "required_environment_adapters": [
+    "environment_bridge"
+  ],
+  "required_human_approval_adapters": [
+    "founder_visual_confirmation"
+  ],
   "notes": [
-    "Phase 96.8A work packet — uses new Environment Bridge contract",
-    "Replaces data/cu_rerun_packets/w0_001_cu_rerun_while_present.json",
+    "Phase 96.8D packet \u2014 includes all required routing fields",
+    "Direct Chrome executable launch required (not explorer/default-browser)",
+    "Visible-window proof required before VERIFY_ACTIVE_GOOGLE_ACCOUNT gate",
     "Primary dispatch: local pull from VPS outbox",
     "Fallback dispatch: manual copy to local inbox"
   ]

@@ -6,6 +6,22 @@
 
 ---
 
+## Pre-Execution: Chrome Visible Launch Gate (Phase 96.8D)
+
+Before ANY observation, confirm that Chrome was launched correctly:
+
+| # | Question | Expected | Actual |
+|---|----------|----------|--------|
+| 0a | Was Chrome launched via direct executable path? | YES (not explorer.exe) | _____ |
+| 0b | Does chrome_launch_proof show visible_window_detected=true? | YES | _____ |
+| 0c | Is MainWindowHandle nonzero for at least one Chrome process? | YES | _____ |
+| 0d | Did worker reach VERIFY_ACTIVE_GOOGLE_ACCOUNT gate? | YES | _____ |
+
+If 0a-0d are not all YES, Chrome launch is UNVERIFIED. Do not proceed
+with observation until visible Chrome window is confirmed.
+
+---
+
 ## MUST Observe (Required Proof)
 
 | # | Question | Expected | Actual |

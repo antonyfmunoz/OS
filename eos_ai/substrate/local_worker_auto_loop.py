@@ -1,14 +1,19 @@
 """
-Local worker auto-loop for Phase 94D.7R.
+Local worker auto-loop for Phase 96.8D.
 
-Minimal auto-loop that runs on the local PC (WSL) and processes relay
-packets dispatched from the VPS advisor. Reads packets, claims work
-orders, runs safe preflight, runs GUI backend healthcheck, emits
-approval requests, waits for advisor response, and executes approved
-actions via visible Chrome launch (preferred) or reports BACKEND_MISSING.
+Pull-based local worker that acts as the tmux/GUI relay:
+VPS creates governed packet → local worker pulls → local worker
+executes through local tmux/Windows GUI/Chrome directly → local
+worker validates visible-window proof → local worker stops at
+account verification gate only after real visible Chrome window.
+
+Chrome launch requires direct executable path. Process existence
+alone is NOT sufficient — visible-window proof (MainWindowHandle != 0
+or MainWindowTitle nonblank) is required before proceeding to
+VERIFY_ACTIVE_GOOGLE_ACCOUNT.
 
 No Playwright. No scraping. No Gmail. No account switching.
-No silent fallback to Explorer/default browser.
+No explorer.exe / default-browser routing for W0-001.
 """
 
 from __future__ import annotations
@@ -361,149 +366,170 @@ def worker_should_stop(response: dict[str, Any] | None) -> bool:
 # ── Approved action execution ──��───────────────────────────────────────────
 
 
-def _try_import_executor():
-    """Try to import the approved action executor from local worker dir."""
-    worker_dir = Path(__file__).parent
-    if str(worker_dir) not in sys.path:
-        sys.path.insert(0, str(worker_dir))
-    try:
-        import approved_action_executor as executor
-        import visible_browser_launch_backend as browser
-
-        return executor, browser
-    except ImportError:
-        return None, None
-
-
 def _execute_approved_action(packet: dict[str, Any], response: dict[str, Any]) -> dict[str, Any]:
-    """Validate approval and prepare the Chrome launch for VPS-side execution.
+    """Launch Chrome directly through the executable and validate visible-window proof.
 
-    WSL tmux sessions created via SSH lack the Windows interop socket,
-    so powershell.exe/cmd.exe cannot launch browsers from within the
-    worker process. Instead, the worker validates and writes a
-    pending_action file. The VPS executes the Chrome launch via
-    direct SSH (which has interop) and writes the result back.
+    The local worker launches Chrome directly via the Chrome executable
+    path (not explorer.exe, not default-browser routing). After launch,
+    it collects process/window snapshots and evaluates visible-window proof.
 
-    Backend: VISIBLE_CHROME_LAUNCH (not Explorer/default handler).
-    Does NOT silently fall back if Chrome is missing.
+    VISIBLE_CHROME_LAUNCH passes ONLY if:
+    - Chrome launched through direct executable path, AND
+    - MainWindowHandle != 0 OR MainWindowTitle nonblank
+
+    If Chrome processes exist but no visible window, status is
+    CHROME_BACKGROUND_PROCESS_ONLY and VERIFY_ACTIVE_GOOGLE_ACCOUNT
+    is NOT reached.
     """
     wo_id = packet["work_order_id"]
-    executor, browser = _try_import_executor()
+    drive_url = "https://drive.google.com/drive/my-drive"
 
-    if executor is None or browser is None:
-        _log("ERROR: Cannot import executor modules")
-        return {"success": False, "error": "Executor modules not available"}
+    sys.path.insert(0, "/opt/OS")
+    from core.environment_bridge.chrome_visible_launch import (
+        ChromeLaunchMethod,
+        ChromeVisibleLaunchStatus,
+        build_chrome_launch_command,
+        evaluate_visible_chrome_launch,
+        parse_chrome_process_snapshot,
+        visible_launch_proof_allows_next_gate,
+        CHROME_EXECUTABLE_PATHS_WSL,
+    )
 
-    errors = executor.validate_approval_for_action(response, "OPEN_GOOGLE_DRIVE", wo_id)
-    if errors:
-        _log(f"Approval validation failed: {errors}")
-        return {"success": False, "error": f"Validation failed: {errors}"}
+    chrome_exe = CHROME_EXECUTABLE_PATHS_WSL[0]
+    chrome_cmd = build_chrome_launch_command(drive_url, chrome_exe)
+    _log(f"Launching Chrome directly: {chrome_cmd}")
 
-    url_errors = browser.validate_url_allowed(browser.DRIVE_URL)
-    if url_errors:
-        _log(f"URL validation failed: {url_errors}")
-        return {"success": False, "error": f"URL blocked: {url_errors}"}
+    launch_success = False
+    try:
+        subprocess.Popen(
+            [chrome_exe, "--new-window", drive_url],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        launch_success = True
+        _log("Chrome launch command issued")
+    except (OSError, FileNotFoundError) as e:
+        _log(f"Chrome launch failed: {e}")
 
-    chrome_command = browser.build_open_url_in_chrome_command(browser.DRIVE_URL)
+    if not launch_success:
+        proof_data = {
+            "launch_method": ChromeLaunchMethod.DIRECT_EXECUTABLE.value,
+            "executable_path": chrome_exe,
+            "requested_url": drive_url,
+            "process_ids": [],
+            "main_window_handle_values": [],
+            "main_window_titles": [],
+            "visible_window_detected": False,
+            "founder_visual_confirmation_required": False,
+            "status": ChromeVisibleLaunchStatus.CHROME_NOT_FOUND.value,
+            "notes": ["Chrome executable not found or launch failed"],
+        }
+        write_outbox_message(f"chrome_launch_proof_{wo_id}.json", proof_data)
+        return {
+            "success": False,
+            "backend": "VISIBLE_CHROME_LAUNCH",
+            "detail": "CHROME_NOT_FOUND",
+            "next_gate": None,
+            "error": "Chrome executable not found — no silent fallback",
+            "chrome_launch_proof": proof_data,
+        }
 
-    pending_action = {
-        "action": "OPEN_GOOGLE_DRIVE",
-        "url": browser.DRIVE_URL,
-        "backend": browser.BACKEND_CLASS,
-        "target_account": WO_001_ACCOUNT,
-        "work_order_id": wo_id,
-        "status": "PENDING_VPS_EXECUTION",
-        "timestamp": _now_iso(),
-        "chrome_command": chrome_command,
-        "execution_method": "VPS direct SSH → PowerShell → chrome.exe",
-        "reason": "WSL tmux sessions lack Windows interop socket; Chrome preferred over default handler",
-        "silent_fallback_allowed": False,
-    }
-    write_outbox_message(f"pending_action_{wo_id}.json", pending_action)
-    _log("Wrote pending_action (VISIBLE_CHROME_LAUNCH) — waiting for VPS execution...")
+    _log("Waiting 3s for Chrome window to appear...")
+    time.sleep(3)
 
-    _log("Polling for action result from VPS...")
-    for i in range(60):
-        result_path = INBOX_DIR / f"action_result_{wo_id}.json"
-        if result_path.exists():
-            try:
-                result_data = json.loads(result_path.read_text())
-                success = result_data.get("success", False)
-                detail = result_data.get("detail", "")
-                chrome_path = result_data.get("chrome_path")
-                _log(f"VPS action result received: success={success}, detail={detail}")
+    snapshots = _collect_chrome_process_snapshots()
+    processes = [parse_chrome_process_snapshot(s) for s in snapshots]
+    _log(f"Found {len(processes)} Chrome processes")
 
-                if not success and "CHROME_NOT_FOUND" in str(detail):
-                    _log("CHROME_NOT_FOUND — emitting BACKEND_MISSING (no silent fallback)")
-                    missing_msg = browser.build_backend_missing_message(
-                        "Chrome executable not found on local PC"
-                    )
-                    write_outbox_message(f"backend_missing_{wo_id}.json", missing_msg)
-                    return {
-                        "success": False,
-                        "backend": browser.BACKEND_CLASS,
-                        "detail": "CHROME_NOT_FOUND",
-                        "next_gate": None,
-                        "error": "CHROME_NOT_FOUND — advisor decision required",
-                        "backend_missing": True,
-                    }
+    proof = evaluate_visible_chrome_launch(
+        launch_method=ChromeLaunchMethod.DIRECT_EXECUTABLE,
+        executable_path=chrome_exe,
+        requested_url=drive_url,
+        processes=processes,
+    )
 
-                action_msg = executor.build_action_executed_result(
-                    work_order_id=wo_id,
-                    action="OPEN_GOOGLE_DRIVE",
-                    backend=browser.BACKEND_CLASS,
-                    success=success,
-                    detail=detail,
-                    chrome_path=chrome_path,
-                )
-                write_outbox_message(f"action_result_{wo_id}.json", action_msg)
+    proof_data = proof.to_dict()
+    write_outbox_message(f"chrome_launch_proof_{wo_id}.json", proof_data)
+    _log(f"Chrome visible launch status: {proof.status.value}")
 
-                if success:
-                    next_gate = executor.build_next_gate_request(
-                        work_order_id=wo_id,
-                        gate_action="VERIFY_ACTIVE_GOOGLE_ACCOUNT",
-                        description=(
-                            f"Verify active Google account is {WO_001_ACCOUNT}. "
-                            "Visual confirmation required — is the correct account "
-                            "active in Chrome? If login required, respond "
-                            "LOGIN_REQUIRED_MANUAL_INTERVENTION. If wrong account, "
-                            "respond WRONG_ACCOUNT_PAUSE."
-                        ),
-                        possible_states=[
-                            "DRIVE_OPEN_ACCOUNT_VISIBLE",
-                            "LOGIN_REQUIRED_MANUAL_INTERVENTION",
-                            "WRONG_ACCOUNT_PAUSE",
-                            "CORRECT_ACCOUNT_CONFIRMED",
-                            "UNKNOWN_VISUAL_STATE",
-                        ],
-                    )
-                    write_outbox_message(f"next_gate_{wo_id}.json", next_gate)
-                    _log("NEXT GATE: VERIFY_ACTIVE_GOOGLE_ACCOUNT")
-                    _log("Worker stopped at verification gate.")
+    if visible_launch_proof_allows_next_gate(proof):
+        next_gate_msg = {
+            "message_type": "NEXT_GATE",
+            "work_order_id": wo_id,
+            "sender": "node:local_pc_worker",
+            "recipient": "advisor",
+            "timestamp": _now_iso(),
+            "payload": {
+                "gate_action": "VERIFY_ACTIVE_GOOGLE_ACCOUNT",
+                "description": (
+                    f"Verify active Google account is {WO_001_ACCOUNT}. "
+                    "Chrome window visible. Visual confirmation required."
+                ),
+                "chrome_launch_proof": proof_data,
+            },
+        }
+        write_outbox_message(f"next_gate_{wo_id}.json", next_gate_msg)
+        _log("NEXT GATE: VERIFY_ACTIVE_GOOGLE_ACCOUNT")
+        _log("Worker stopped at account verification gate.")
+        return {
+            "success": True,
+            "backend": "VISIBLE_CHROME_LAUNCH",
+            "detail": "Visible Chrome window detected",
+            "next_gate": "VERIFY_ACTIVE_GOOGLE_ACCOUNT",
+            "error": None,
+            "chrome_launch_proof": proof_data,
+        }
 
-                return {
-                    "success": success,
-                    "backend": browser.BACKEND_CLASS,
-                    "detail": detail,
-                    "chrome_path": chrome_path,
-                    "next_gate": "VERIFY_ACTIVE_GOOGLE_ACCOUNT" if success else None,
-                    "error": None if success else detail,
-                }
-            except (json.JSONDecodeError, OSError) as e:
-                _log(f"Error reading action result: {e}")
+    _log(f"BLOCKED: {proof.status.value} — VERIFY_ACTIVE_GOOGLE_ACCOUNT not reached")
+    if proof.founder_visual_confirmation_required:
+        _log("Founder visual confirmation required to proceed")
 
-        if i % 12 == 0 and i > 0:
-            _log(f"Still waiting for VPS execution... ({i * 5}s)")
-        time.sleep(5)
-
-    _log("Timed out waiting for VPS to execute action (5 min)")
     return {
         "success": False,
-        "backend": browser.BACKEND_CLASS,
-        "detail": "Timed out waiting for VPS-side Chrome launch execution",
+        "backend": "VISIBLE_CHROME_LAUNCH",
+        "detail": proof.status.value,
         "next_gate": None,
-        "error": "VPS execution timeout",
+        "error": (
+            "Chrome process exists but no visible window detected. "
+            "VERIFY_ACTIVE_GOOGLE_ACCOUNT blocked."
+        ),
+        "chrome_launch_proof": proof_data,
     }
+
+
+def _collect_chrome_process_snapshots() -> list[dict[str, Any]]:
+    """Collect Chrome process info from Windows via PowerShell.
+
+    Uses Get-Process to find chrome processes and their window handles/titles.
+    Returns raw snapshot dicts for parsing by chrome_visible_launch module.
+    """
+    snapshots: list[dict[str, Any]] = []
+    try:
+        cmd = (
+            'powershell.exe -NoProfile -Command "'
+            "Get-Process chrome -ErrorAction SilentlyContinue | "
+            "Select-Object Id,ProcessName,MainWindowHandle,MainWindowTitle | "
+            "ConvertTo-Json -Compress"
+            '"'
+        )
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
+        if result.stdout.strip():
+            data = json.loads(result.stdout.strip())
+            if isinstance(data, dict):
+                data = [data]
+            for proc in data:
+                snapshots.append(
+                    {
+                        "pid": proc.get("Id", 0),
+                        "process_name": proc.get("ProcessName", ""),
+                        "main_window_handle": proc.get("MainWindowHandle", 0),
+                        "main_window_title": proc.get("MainWindowTitle", ""),
+                        "executable_path": "",
+                    }
+                )
+    except (subprocess.TimeoutExpired, OSError, json.JSONDecodeError) as e:
+        _log(f"Chrome process snapshot collection failed: {e}")
+    return snapshots
 
 
 # ── Main auto-loop ─────���──────────────────────────────────────────────��─────
