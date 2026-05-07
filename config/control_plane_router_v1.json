@@ -1,0 +1,21 @@
+{
+  "_description": "Control plane router v1 configuration. UMH substrate.",
+  "_phase": "96.8N",
+  "_date": "2026-05-07",
+  "default_runtime_target": "local_worker_runtime_daemon",
+  "default_timeout_seconds": 60,
+  "proof_required": true,
+  "allowed_action_types": ["ping", "open_application_url"],
+  "enabled_adapters": ["windows_interactive_desktop_relay"],
+  "runtime_targets": {
+    "local_worker_runtime_daemon": {
+      "work_inbox": "data/runtime/local_worker_runtime/inbox",
+      "proof_dir": "data/runtime/runtime_proofs",
+      "message_bus": "filesystem_json"
+    }
+  },
+  "work_inbox": "data/runtime/local_worker_runtime/inbox",
+  "proof_dir": "data/runtime/runtime_proofs",
+  "adapter_registry_path": "data/registries/local_worker_adapter_registry_v1.json",
+  "version": "v1"
+}
