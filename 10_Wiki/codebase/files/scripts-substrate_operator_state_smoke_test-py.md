@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_operator_state_smoke_test.py
 module: scripts.substrate_operator_state_smoke_test
 lines: 243
-size: 9925
+size: 10167
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_operator_state_smoke_test.py
@@ -19,7 +19,7 @@ Proves the bounded OperatorState layer end-to-end:
   1. Reset state: clear voice/wake/operator stores.
 ...
 
-**Lines:** 243 | **Size:** 9,925 bytes
+**Lines:** 243 | **Size:** 10,167 bytes
 
 ## Depends On
 

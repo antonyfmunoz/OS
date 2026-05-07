@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/apify_scraper.py
 line: 485
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # transcribe_video
@@ -14,7 +14,6 @@ Download audio and transcribe with Whisper. Returns transcript text or None.
 
 ## Calls
 
-- [[eos_ai-agent_runtime-py-AgentRuntime-run]]
 - [[services-apify_scraper-py-_get_whisper_model]]
 
 ## Called By

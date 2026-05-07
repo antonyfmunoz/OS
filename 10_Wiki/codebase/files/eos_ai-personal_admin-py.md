@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/personal_admin.py
 module: eos_ai.personal_admin
 lines: 142
-size: 4675
-generated: 2026-04-12
+size: 4816
+generated: 2026-05-07
 ---
 
 # eos_ai/personal_admin.py
@@ -12,7 +12,7 @@ generated: 2026-04-12
 Personal Admin — important dates, gift research,
 and personal appointment management.
 
-**Lines:** 142 | **Size:** 4,675 bytes
+**Lines:** 142 | **Size:** 4,816 bytes
 
 ## Contains
 

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/meeting_intelligence.py
 line: 1238
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # refine_intervention_message

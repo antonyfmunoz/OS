@@ -1,11 +1,11 @@
 ---
 type: codebase-index
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # Codebase Knowledge Graph
 
-Auto-generated map of the EOS codebase. **3680** pages covering **429** files, **459** classes, **3991** functions.
+Auto-generated map of the EOS codebase. **5802** pages covering **647** files, **962** classes, **5786** functions.
 
 ## How to Use This Graph
 
@@ -17,26 +17,26 @@ Auto-generated map of the EOS codebase. **3680** pages covering **429** files, *
 
 ## Modules
 
-- [[core]] — 73 files, 21,799 lines
-- [[eos_ai]] — 181 files, 76,079 lines
-- [[scripts]] — 160 files, 45,098 lines
-- [[services]] — 15 files, 13,427 lines
+- [[core]] — 160 files, 42,019 lines
+- [[eos_ai]] — 299 files, 121,971 lines
+- [[scripts]] — 169 files, 47,812 lines
+- [[services]] — 19 files, 21,684 lines
 
 ## Critical Files
 
 These are core infrastructure files. Read before modifying.
 
 - [[eos_ai-agent_hierarchy-py]] — Agent hierarchy for EntrepreneurOS.
-- [[eos_ai-agent_runtime-py]] — Agent runtime for OS agents.
+- [[eos_ai-agent_runtime-py]] — 
 - [[eos_ai-ai_identity-py]] — AIIdentityEngine — foundational AI identity principles.
-- [[eos_ai-cognitive_loop-py]] — CognitiveLoop — full Perceive → Understand → Plan → Execute
+- [[eos_ai-cognitive_loop-py]] — 
 - [[eos_ai-db-py]] — Neon (PostgreSQL) connection layer for the Python AI layer.
-- [[eos_ai-gateway-py]] — EOSGateway — single control plane for all AI operations.
+- [[eos_ai-gateway-py]] — 
 - [[eos_ai-memory-py]] — Persistent memory for OS agents — backed by Neon (PostgreSQL
-- [[eos_ai-model_router-py]] — ModelRouter — standalone multi-model router for EOS.
-- [[eos_ai-orchestrator-py]] — EOSOrchestrator — strategic intelligence layer.
+- [[eos_ai-model_router-py]] — 
+- [[eos_ai-orchestrator-py]] — 
 - [[eos_ai-primitives-py]] — Primitives — stage-aware business rules and contextual reaso
-- [[services-discord_bot-py]] — EntrepreneurOS Discord Bot — DEX conversational layer.
+- [[services-discord_bot-py]] — 
 - [[services-telegram_control-py]] — 
 
 ## Entry Points
@@ -49,16 +49,28 @@ These are core infrastructure files. Read before modifying.
 - [[core-tool_mastery_research_agent-__main__-py]]
 - [[core-tool_mastery_research_agent-cli-py]]
 - [[eos_ai-browser_agent-py]]
+- [[eos_ai-company_instantiator-py]]
+- [[eos_ai-context_builder-py]]
 - [[eos_ai-event_bus-py]]
+- [[eos_ai-execution_loop-py]]
+- [[eos_ai-execution_spine-py]]
+- [[eos_ai-goal_selector-py]]
 - [[eos_ai-integration_test-py]]
 - [[eos_ai-orchestrator-py]]
+- [[eos_ai-primitive_registry-py]]
 - [[eos_ai-provider_health-py]]
 - [[eos_ai-setup_wizard-py]]
 - [[eos_ai-status-py]]
+- [[eos_ai-substrate-local_worker_auto_loop-py]]
 - [[eos_ai-substrate-ritual_runner-py]]
 - [[eos_ai-substrate-session_orchestration-py]]
 - [[eos_ai-substrate-station_daemon-py]]
+- [[eos_ai-substrate-windows_desktop_relay_client-py]]
+- [[eos_ai-substrate-write_founder_gate_confirmation-py]]
 - [[eos_ai-system_health-py]]
+- [[eos_ai-template_registry-py]]
+- [[eos_ai-transaction_workflow-py]]
+- [[eos_ai-world_model-py]]
 - [[scripts-action_system-py]]
 - [[scripts-agent_task_executor-py]]
 - [[scripts-benchmark_semantic_space-py]]
@@ -76,6 +88,7 @@ These are core infrastructure files. Read before modifying.
 - [[scripts-deadline_monitor-py]]
 - [[scripts-decisions-py]]
 - [[scripts-deferred-py]]
+- [[scripts-demo_mvp_loop-py]]
 - [[scripts-detemplatize_skills-py]]
 - [[scripts-discord_daily_clear-py]]
 - [[scripts-discord_setup_channels-py]]
@@ -86,6 +99,7 @@ These are core infrastructure files. Read before modifying.
 - [[scripts-eos_os_smoke_test-py]]
 - [[scripts-eos_status-py]]
 - [[scripts-force_execution_loop-py]]
+- [[scripts-goals-py]]
 - [[scripts-higgsfield_smoke_test-py]]
 - [[scripts-incremental_graph-py]]
 - [[scripts-measure_phase8_batch-py]]
@@ -106,6 +120,8 @@ These are core infrastructure files. Read before modifying.
 - [[scripts-orchestrator_loop-py]]
 - [[scripts-orchestrator_status-py]]
 - [[scripts-permission_notify-py]]
+- [[scripts-phase75a_classifier-py]]
+- [[scripts-phase75a_dep_scanner-py]]
 - [[scripts-portfolio_brief-py]]
 - [[scripts-post_meeting_capture-py]]
 - [[scripts-pre_tool_use_log-py]]
@@ -192,10 +208,13 @@ These are core infrastructure files. Read before modifying.
 - [[scripts-summarize_nodes-py]]
 - [[scripts-sync_skills_to_neon-py]]
 - [[scripts-test_execution_contract-py]]
+- [[scripts-tme_quality_audit-py]]
+- [[scripts-tme_staleness_sweep-py]]
 - [[scripts-tool_mastery_author-py]]
 - [[scripts-tool_mastery_manager-py]]
 - [[scripts-tool_mastery_research_dispatcher-py]]
 - [[scripts-user_prompt_capture-py]]
+- [[scripts-validate_w0_coherence_dry-py]]
 - [[scripts-vault_backlink_audit-py]]
 - [[scripts-verify_knowledge_system-py]]
 - [[scripts-verify_tool_skill-py]]
@@ -211,27 +230,29 @@ These are core infrastructure files. Read before modifying.
 - [[services-calendly_webhook-py]]
 - [[services-discord_bot-py]]
 - [[services-dm_monitor-py]]
+- [[services-goal_api-py]]
 - [[services-heartbeat-py]]
 - [[services-higgsfield_webhook-py]]
 - [[services-icp_scorer-py]]
 - [[services-kpi_tracker-py]]
+- [[services-local_bridge_server-py]]
 - [[services-overnight_scrape-py]]
 
 ## Stats
 
 | Metric | Count |
 |--------|-------|
-| Files | 429 |
-| Classes | 459 |
-| Functions | 3991 |
-| Edges | 13910 |
-| Total Lines | 156,403 |
-| Entry Points | 175 |
+| Files | 647 |
+| Classes | 962 |
+| Functions | 5786 |
+| Edges | 19081 |
+| Total Lines | 233,486 |
+| Entry Points | 196 |
 | Critical Files | 12 |
 
 ### Edge Types
 
-- **calls**: 8493
-- **contains**: 4450
-- **imports**: 958
-- **inherits**: 9
+- **calls**: 11004
+- **contains**: 6749
+- **imports**: 1299
+- **inherits**: 29

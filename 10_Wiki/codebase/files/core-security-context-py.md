@@ -3,8 +3,8 @@ type: codebase-file
 path: core/security/context.py
 module: core.security.context
 lines: 642
-size: 21384
-generated: 2026-04-12
+size: 22025
+generated: 2026-05-07
 ---
 
 # core/security/context.py
@@ -16,7 +16,7 @@ environment-policy + audit into one call:
 
 ...
 
-**Lines:** 642 | **Size:** 21,384 bytes
+**Lines:** 642 | **Size:** 22,025 bytes
 
 ## Depends On
 

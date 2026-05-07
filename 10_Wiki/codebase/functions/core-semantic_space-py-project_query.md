@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: core/semantic_space.py
-line: 244
-generated: 2026-04-12
+line: 252
+generated: 2026-05-07
 ---
 
 # project_query
 
-**File:** [[core-semantic_space-py]] | **Line:** 244
+**File:** [[core-semantic_space-py]] | **Line:** 252
 **Signature:** `project_query(query, pca_model) → tuple[float, float, float, np.ndarray]`
 
 Project a user query into semantic coordinate space.

@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/world_pulse.py
 line: 158
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # WorldPulse

@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/wiki_stop_hook.py
 module: scripts.wiki_stop_hook
 lines: 168
-size: 4864
+size: 5031
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/wiki_stop_hook.py
@@ -19,7 +19,7 @@ Only writes if there is meaningful assistant text to capture.
 Preserves idempotency via timestamp dedup check.
 ...
 
-**Lines:** 168 | **Size:** 4,864 bytes
+**Lines:** 168 | **Size:** 5,031 bytes
 
 ## Contains
 

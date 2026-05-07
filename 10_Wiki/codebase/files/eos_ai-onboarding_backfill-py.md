@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/onboarding_backfill.py
 module: eos_ai.onboarding_backfill
 lines: 339
-size: 13497
-generated: 2026-04-12
+size: 13835
+generated: 2026-05-07
 ---
 
 # eos_ai/onboarding_backfill.py
@@ -16,7 +16,7 @@ When a user connects their Google Workspace, this runs automatically and
 populates: Drive docs, Gmail contacts, Calendar patterns, Google Tasks,
 ...
 
-**Lines:** 339 | **Size:** 13,497 bytes
+**Lines:** 339 | **Size:** 13,835 bytes
 
 ## Depends On
 

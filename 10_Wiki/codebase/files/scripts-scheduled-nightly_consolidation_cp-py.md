@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/scheduled/nightly_consolidation_cp.py
 module: scripts.scheduled.nightly_consolidation_cp
 lines: 111
-size: 4087
+size: 4197
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/scheduled/nightly_consolidation_cp.py
@@ -19,7 +19,7 @@ Mirrors the shape of `morning_prep_cp.py` — this is deliberate, since
 part of Phase 3's goal is proving the migration pattern is boringly
 ...
 
-**Lines:** 111 | **Size:** 4,087 bytes
+**Lines:** 111 | **Size:** 4,197 bytes
 
 ## Depends On
 

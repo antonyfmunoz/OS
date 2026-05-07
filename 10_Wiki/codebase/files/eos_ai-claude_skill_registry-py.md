@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/claude_skill_registry.py
 module: eos_ai.claude_skill_registry
 lines: 298
-size: 11242
-generated: 2026-04-12
+size: 11539
+generated: 2026-05-07
 ---
 
 # eos_ai/claude_skill_registry.py
@@ -16,7 +16,7 @@ Every skill Claude Code uses to build and operate EOS lives here:
   - Stored in Neon so agents can reference them at runtime
 ...
 
-**Lines:** 298 | **Size:** 11,242 bytes
+**Lines:** 298 | **Size:** 11,539 bytes
 
 ## Contains
 

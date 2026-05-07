@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_discord_voice_playback_smoke_test.py
 module: scripts.substrate_discord_voice_playback_smoke_test
 lines: 290
-size: 10489
+size: 10778
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_discord_voice_playback_smoke_test.py
@@ -19,7 +19,7 @@ existing Discord voice transport adapter, end-to-end, WITHOUT touching a
 real Discord connection.
 ...
 
-**Lines:** 290 | **Size:** 10,489 bytes
+**Lines:** 290 | **Size:** 10,778 bytes
 
 ## Depends On
 

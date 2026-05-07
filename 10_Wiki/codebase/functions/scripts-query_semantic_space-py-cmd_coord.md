@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/query_semantic_space.py
 line: 214
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # cmd_coord

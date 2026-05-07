@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/ritual_body.py
 module: eos_ai.substrate.ritual_body
 lines: 342
-size: 13596
-generated: 2026-04-12
+size: 13937
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/ritual_body.py
@@ -16,7 +16,7 @@ with no side effects beyond state transitions. This module adds the smallest
 useful executable layer: a declarative `RitualPolicy` that maps a ritual
 ...
 
-**Lines:** 342 | **Size:** 13,596 bytes
+**Lines:** 342 | **Size:** 13,937 bytes
 
 ## Depends On
 

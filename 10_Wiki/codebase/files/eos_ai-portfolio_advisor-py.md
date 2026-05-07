@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/portfolio_advisor.py
 module: eos_ai.portfolio_advisor
 lines: 788
-size: 30909
-generated: 2026-04-12
+size: 31696
+generated: 2026-05-07
 ---
 
 # eos_ai/portfolio_advisor.py
@@ -16,7 +16,7 @@ the portfolio. Advises on capital allocation, cross-company patterns, and
 north star trajectory. Does not execute. Thinks in quarters, not days.
 ...
 
-**Lines:** 788 | **Size:** 30,909 bytes
+**Lines:** 788 | **Size:** 31,696 bytes
 
 ## Depends On
 

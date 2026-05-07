@@ -2,7 +2,7 @@
 type: codebase-class
 file: scripts/workflow_engine.py
 line: 306
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # Verifier

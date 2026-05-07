@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: core/semantic_space.py
-line: 412
-generated: 2026-04-12
+line: 420
+generated: 2026-05-07
 ---
 
 # apply_wiki_layer
 
-**File:** [[core-semantic_space-py]] | **Line:** 412
+**File:** [[core-semantic_space-py]] | **Line:** 420
 **Signature:** `apply_wiki_layer(candidates, graph, max_expansions) → list[dict]`
 
 Enrich candidates with wiki signal and apply bounded rerank bonus.

@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/security/context.py
 line: 214
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # SecurityContext.authorize_action

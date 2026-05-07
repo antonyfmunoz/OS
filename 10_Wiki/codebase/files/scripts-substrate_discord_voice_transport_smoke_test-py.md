@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_discord_voice_transport_smoke_test.py
 module: scripts.substrate_discord_voice_transport_smoke_test
 lines: 205
-size: 7756
+size: 7960
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_discord_voice_transport_smoke_test.py
@@ -19,7 +19,7 @@ Proves the bounded transcript-only Discord transport adapter end-to-end:
   2. Auto-registers a discord_vc_* node so VoiceSessionRuntime accepts it.
 ...
 
-**Lines:** 205 | **Size:** 7,756 bytes
+**Lines:** 205 | **Size:** 7,960 bytes
 
 ## Depends On
 

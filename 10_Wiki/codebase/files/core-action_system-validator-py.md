@@ -3,8 +3,8 @@ type: codebase-file
 path: core/action_system/validator.py
 module: core.action_system.validator
 lines: 188
-size: 5936
-generated: 2026-04-12
+size: 6123
+generated: 2026-05-07
 ---
 
 # core/action_system/validator.py
@@ -15,7 +15,7 @@ Kept deliberately simple. Two concerns:
     1. Is the action well-formed and safe to consider? (validate_action)
     2. Should we run it right now?                     (approve_action)
 
-**Lines:** 188 | **Size:** 5,936 bytes
+**Lines:** 188 | **Size:** 6,123 bytes
 
 ## Contains
 

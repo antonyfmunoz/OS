@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/build_skill_graph.py
 module: scripts.build_skill_graph
 lines: 217
-size: 7118
+size: 7334
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/build_skill_graph.py
@@ -19,7 +19,7 @@ skill's SKILL.md + references/best_practices.md for mentions of
 *other* tool slugs. Mentions come from:
 ...
 
-**Lines:** 217 | **Size:** 7,118 bytes
+**Lines:** 217 | **Size:** 7,334 bytes
 
 ## Depends On
 

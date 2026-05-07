@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/business_instance.py
 line: 470
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # get_ai_name
@@ -16,7 +16,3 @@ Priority: BIS.ai_name → AI_NAME env var → default 'DEX'.
 ## Calls
 
 - [[eos_ai-business_instance-py-BusinessInstanceManager-get_bis]]
-
-## Called By
-
-- [[services-discord_bot-py-on_ready]]

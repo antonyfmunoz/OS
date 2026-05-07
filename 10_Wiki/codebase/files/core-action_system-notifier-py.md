@@ -3,8 +3,8 @@ type: codebase-file
 path: core/action_system/notifier.py
 module: core.action_system.notifier
 lines: 120
-size: 4304
-generated: 2026-04-12
+size: 4423
+generated: 2026-05-07
 ---
 
 # core/action_system/notifier.py
@@ -16,7 +16,7 @@ Two implementations ship in v2:
 - FileNotifier  — always-on, writes an append-only JSONL queue that
 ...
 
-**Lines:** 120 | **Size:** 4,304 bytes
+**Lines:** 120 | **Size:** 4,423 bytes
 
 ## Used By
 

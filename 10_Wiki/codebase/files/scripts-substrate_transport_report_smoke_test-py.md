@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_transport_report_smoke_test.py
 module: scripts.substrate_transport_report_smoke_test
 lines: 195
-size: 7138
+size: 7332
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_transport_report_smoke_test.py
@@ -19,7 +19,7 @@ Proves that the unified report joins both transport fronts cleanly:
      in the audio_loop ring buffer.
 ...
 
-**Lines:** 195 | **Size:** 7,138 bytes
+**Lines:** 195 | **Size:** 7,332 bytes
 
 ## Depends On
 

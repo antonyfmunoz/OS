@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/workflow_engine.py
 module: eos_ai.workflow_engine
 lines: 1013
-size: 38451
-generated: 2026-04-12
+size: 39463
+generated: 2026-05-07
 ---
 
 # eos_ai/workflow_engine.py
@@ -16,7 +16,7 @@ Two layers:
 1. Skill-based workflows (WORKFLOWS dict + WorkflowEngine)
 ...
 
-**Lines:** 1013 | **Size:** 38,451 bytes
+**Lines:** 1013 | **Size:** 39,463 bytes
 
 ## Depends On
 

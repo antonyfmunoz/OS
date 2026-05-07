@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/signal_hierarchy.py
 module: eos_ai.signal_hierarchy
 lines: 250
-size: 8490
-generated: 2026-04-12
+size: 8739
+generated: 2026-05-07
 ---
 
 # eos_ai/signal_hierarchy.py
@@ -16,7 +16,7 @@ From PHILOSOPHY.md Section VI:
   Tier 2 — Context:      what domain, what stage?
 ...
 
-**Lines:** 250 | **Size:** 8,490 bytes
+**Lines:** 250 | **Size:** 8,739 bytes
 
 ## Contains
 

@@ -2,7 +2,7 @@
 type: codebase-class
 file: core/capability.py
 line: 162
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # CapabilityProfile

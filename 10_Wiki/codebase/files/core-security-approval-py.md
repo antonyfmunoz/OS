@@ -3,8 +3,8 @@ type: codebase-file
 path: core/security/approval.py
 module: core.security.approval
 lines: 415
-size: 15083
-generated: 2026-04-12
+size: 15497
+generated: 2026-05-07
 ---
 
 # core/security/approval.py
@@ -16,7 +16,7 @@ Flow (matches the objective in the spec):
     ActionSystem.execute()
 ...
 
-**Lines:** 415 | **Size:** 15,083 bytes
+**Lines:** 415 | **Size:** 15,497 bytes
 
 ## Used By
 

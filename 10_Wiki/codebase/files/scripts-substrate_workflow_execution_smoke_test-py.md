@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_workflow_execution_smoke_test.py
 module: scripts.substrate_workflow_execution_smoke_test
 lines: 329
-size: 12072
+size: 12400
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_workflow_execution_smoke_test.py
@@ -14,7 +14,7 @@ generated: 2026-04-12
 
 Substrate Workflow Execution Layer — smoke test.
 
-**Lines:** 329 | **Size:** 12,072 bytes
+**Lines:** 329 | **Size:** 12,400 bytes
 
 ## Contains
 

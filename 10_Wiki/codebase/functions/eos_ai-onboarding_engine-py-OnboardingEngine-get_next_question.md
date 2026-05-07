@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/onboarding_engine.py
 line: 121
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # OnboardingEngine.get_next_question
@@ -15,8 +15,3 @@ generated: 2026-04-12
 Return the next question to ask, advancing steps as needed.
 Returns None when all questions are answered (triggers provisioning).
 Sets session.pending_question to the returned question.
-
-## Called By
-
-- [[services-discord_bot-py-cmd_onboard]]
-- [[services-discord_bot-py-on_message]]

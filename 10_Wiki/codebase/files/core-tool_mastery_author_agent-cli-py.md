@@ -3,9 +3,9 @@ type: codebase-file
 path: core/tool_mastery_author_agent/cli.py
 module: core.tool_mastery_author_agent.cli
 lines: 133
-size: 4306
+size: 4438
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_author_agent/cli.py
@@ -19,7 +19,7 @@ Usage:
     python3 -m core.tool_mastery_author_agent \
 ...
 
-**Lines:** 133 | **Size:** 4,306 bytes
+**Lines:** 133 | **Size:** 4,438 bytes
 
 ## Contains
 

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/agent_hierarchy.py
 line: 300
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # AgentHierarchy.get_escalation_target

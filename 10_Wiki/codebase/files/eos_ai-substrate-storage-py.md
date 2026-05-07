@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/storage.py
 module: eos_ai.substrate.storage
 lines: 212
-size: 7453
-generated: 2026-04-12
+size: 7664
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/storage.py
@@ -16,7 +16,7 @@ Design rules:
   - Safe default: JSON file at /opt/OS/eos_ai/.substrate_state.json.
 ...
 
-**Lines:** 212 | **Size:** 7,453 bytes
+**Lines:** 212 | **Size:** 7,664 bytes
 
 ## Used By
 

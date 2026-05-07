@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/gws_connector.py
 line: 880
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # GWSConnector.apply_label_to_message

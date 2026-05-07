@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/onboarding_engine.py
 line: 97
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # OnboardingEngine.start_session
@@ -13,7 +13,3 @@ generated: 2026-04-12
 **Class:** [[eos_ai-onboarding_engine-py-OnboardingEngine]]
 
 *No docstring.*
-
-## Called By
-
-- [[services-discord_bot-py-cmd_onboard]]

@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/notion_seed.py
 line: 490
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # main

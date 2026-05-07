@@ -3,9 +3,9 @@ type: codebase-file
 path: core/tool_mastery_research_agent/__main__.py
 module: core.tool_mastery_research_agent.__main__
 lines: 5
-size: 79
+size: 83
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_research_agent/__main__.py
@@ -14,7 +14,7 @@ generated: 2026-04-12
 
 *No docstring.*
 
-**Lines:** 5 | **Size:** 79 bytes
+**Lines:** 5 | **Size:** 83 bytes
 
 ## Import Statements
 

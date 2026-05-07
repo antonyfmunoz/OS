@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/skill_improvement.py
 module: eos_ai.skill_improvement
 lines: 449
-size: 18727
-generated: 2026-04-12
+size: 19175
+generated: 2026-05-07
 ---
 
 # eos_ai/skill_improvement.py
@@ -16,7 +16,7 @@ skill files using examples of what worked vs what didn't.
 
 ...
 
-**Lines:** 449 | **Size:** 18,727 bytes
+**Lines:** 449 | **Size:** 19,175 bytes
 
 ## Depends On
 

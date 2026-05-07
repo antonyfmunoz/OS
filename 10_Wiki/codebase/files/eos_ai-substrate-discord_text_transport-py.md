@@ -2,9 +2,9 @@
 type: codebase-file
 path: eos_ai/substrate/discord_text_transport.py
 module: eos_ai.substrate.discord_text_transport
-lines: 1674
-size: 62037
-generated: 2026-04-12
+lines: 1681
+size: 64054
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/discord_text_transport.py
@@ -16,7 +16,7 @@ Purpose
 This is the **bounded Discord text-channel ingress** for the shared voice
 ...
 
-**Lines:** 1674 | **Size:** 62,037 bytes
+**Lines:** 1681 | **Size:** 64,054 bytes
 
 ## Depends On
 
@@ -30,7 +30,6 @@ This is the **bounded Discord text-channel ingress** for the shared voice
 - [[scripts-substrate_discord_text_tts_smoke_test-py]]
 - [[scripts-substrate_discord_tts_body_only_smoke_test-py]]
 - [[scripts-substrate_mode_behavior_control_smoke_test-py]]
-- [[services-discord_bot-py]]
 
 ## Contains
 

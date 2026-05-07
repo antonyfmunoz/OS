@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/wake_producer.py
 line: 180
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # WakeProducerHistory.record

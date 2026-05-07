@@ -3,8 +3,8 @@ type: codebase-file
 path: core/tool_mastery_author_agent/draft.py
 module: core.tool_mastery_author_agent.draft
 lines: 452
-size: 15881
-generated: 2026-04-12
+size: 16332
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_author_agent/draft.py
@@ -16,7 +16,7 @@ and renders it as markdown. Pattern-priority: structured signals (install
 commands, setup flows, JSON schema fields, workflow sequences) are
 ...
 
-**Lines:** 452 | **Size:** 15,881 bytes
+**Lines:** 452 | **Size:** 16,332 bytes
 
 ## Used By
 

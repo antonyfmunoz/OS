@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/daily_sync.py
 module: eos_ai.daily_sync
 lines: 607
-size: 26897
-generated: 2026-04-12
+size: 27503
+generated: 2026-05-07
 ---
 
 # eos_ai/daily_sync.py
@@ -16,7 +16,7 @@ Posted at 6am in #morning-brief via Discord.
 
 ...
 
-**Lines:** 607 | **Size:** 26,897 bytes
+**Lines:** 607 | **Size:** 27,503 bytes
 
 ## Contains
 

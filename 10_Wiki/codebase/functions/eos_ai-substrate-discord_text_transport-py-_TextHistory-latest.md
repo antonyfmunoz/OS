@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/discord_text_transport.py
 line: 182
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # _TextHistory.latest
@@ -23,4 +23,3 @@ generated: 2026-04-12
 - [[eos_ai-substrate-discord_text_transport-py-_handle_trace_command]]
 - [[eos_ai-substrate-discord_text_transport-py-pseudo_live_status]]
 - [[scripts-substrate_discord_text_tts_smoke_test-py-main]]
-- [[services-discord_bot-py-cmd_trace]]

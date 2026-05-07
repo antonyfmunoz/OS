@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/sandbox_safety_verifier.py
 line: 234
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # check_graph_refresh_disabled_in_sandbox

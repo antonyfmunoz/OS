@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_voice_session_smoke_test.py
 module: scripts.substrate_voice_session_smoke_test
 lines: 223
-size: 9687
+size: 9909
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_voice_session_smoke_test.py
@@ -19,7 +19,7 @@ Proves the bounded voice-presence MVP end-to-end:
   2. VoiceSessionRuntime.start_session(...) opens a bounded session for ea_orchestrator.
 ...
 
-**Lines:** 223 | **Size:** 9,687 bytes
+**Lines:** 223 | **Size:** 9,909 bytes
 
 ## Depends On
 

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/okr_tracker.py
 line: 61
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # get_okrs

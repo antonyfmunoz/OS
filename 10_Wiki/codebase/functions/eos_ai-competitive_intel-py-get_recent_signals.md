@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/competitive_intel.py
 line: 71
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # get_recent_signals

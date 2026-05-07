@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/result_store.py
 line: 232
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # get_result_store

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/scrapling_connector.py
 line: 81
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ScraplingConnector.search_and_fetch

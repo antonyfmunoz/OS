@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/meeting_transport.py
 line: 348
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # MeetingTransport.list_attached_sources

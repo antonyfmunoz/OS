@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: core/action_system/actions.py
-line: 55
-generated: 2026-04-12
+line: 56
+generated: 2026-05-07
 ---
 
 # Action.to_dict
 
-**File:** [[core-action_system-actions-py]] | **Line:** 55
+**File:** [[core-action_system-actions-py]] | **Line:** 56
 **Signature:** `to_dict() → dict[str, Any]`
 
 **Class:** [[core-action_system-actions-py-Action]]

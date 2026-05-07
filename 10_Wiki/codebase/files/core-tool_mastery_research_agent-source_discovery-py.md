@@ -3,8 +3,8 @@ type: codebase-file
 path: core/tool_mastery_research_agent/source_discovery.py
 module: core.tool_mastery_research_agent.source_discovery
 lines: 363
-size: 12846
-generated: 2026-04-12
+size: 13208
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_research_agent/source_discovery.py
@@ -16,7 +16,7 @@ order of preference is:
 
 ...
 
-**Lines:** 363 | **Size:** 12,846 bytes
+**Lines:** 363 | **Size:** 13,208 bytes
 
 ## Contains
 

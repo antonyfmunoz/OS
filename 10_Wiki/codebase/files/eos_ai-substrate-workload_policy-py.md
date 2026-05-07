@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/workload_policy.py
 module: eos_ai.substrate.workload_policy
 lines: 193
-size: 5974
-generated: 2026-04-12
+size: 6166
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/workload_policy.py
@@ -16,7 +16,7 @@ Purpose
 Classifies incoming requests by execution weight — lightweight, standard,
 ...
 
-**Lines:** 193 | **Size:** 5,974 bytes
+**Lines:** 193 | **Size:** 6,166 bytes
 
 ## Used By
 

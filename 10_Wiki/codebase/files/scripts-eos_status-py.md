@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/eos_status.py
 module: scripts.eos_status
 lines: 161
-size: 5077
+size: 5237
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/eos_status.py
@@ -19,7 +19,7 @@ Shows everything an operator needs to trust the substrate at a glance:
 - Docker service status
 ...
 
-**Lines:** 161 | **Size:** 5,077 bytes
+**Lines:** 161 | **Size:** 5,237 bytes
 
 ## Depends On
 

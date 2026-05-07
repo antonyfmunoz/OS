@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/os_registry.py
 module: eos_ai.os_registry
 lines: 321
-size: 9813
-generated: 2026-04-12
+size: 10133
+generated: 2026-05-07
 ---
 
 # eos_ai/os_registry.py
@@ -16,7 +16,7 @@ it activates, and how it injects into the cognitive loop.
 
 ...
 
-**Lines:** 321 | **Size:** 9,813 bytes
+**Lines:** 321 | **Size:** 10,133 bytes
 
 ## Used By
 

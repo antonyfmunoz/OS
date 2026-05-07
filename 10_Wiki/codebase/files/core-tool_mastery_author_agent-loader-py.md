@@ -3,8 +3,8 @@ type: codebase-file
 path: core/tool_mastery_author_agent/loader.py
 module: core.tool_mastery_author_agent.loader
 lines: 219
-size: 7867
-generated: 2026-04-12
+size: 8085
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_author_agent/loader.py
@@ -16,7 +16,7 @@ normalised in-memory structures the mapper can reason about.
 
 ...
 
-**Lines:** 219 | **Size:** 7,867 bytes
+**Lines:** 219 | **Size:** 8,085 bytes
 
 ## Used By
 

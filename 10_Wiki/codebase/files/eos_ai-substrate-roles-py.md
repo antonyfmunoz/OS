@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/roles.py
 module: eos_ai.substrate.roles
 lines: 156
-size: 5496
-generated: 2026-04-12
+size: 5651
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/roles.py
@@ -16,7 +16,7 @@ injection. This module does NOT replace it. It adds a complementary,
 routing-friendly `AgentRole` abstraction that captures:
 ...
 
-**Lines:** 156 | **Size:** 5,496 bytes
+**Lines:** 156 | **Size:** 5,651 bytes
 
 ## Used By
 

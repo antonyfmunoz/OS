@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/action_system/notifier.py
 line: 67
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # DiscordNotifier.__init__

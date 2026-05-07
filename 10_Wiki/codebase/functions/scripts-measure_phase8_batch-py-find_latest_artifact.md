@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/measure_phase8_batch.py
 line: 65
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # find_latest_artifact

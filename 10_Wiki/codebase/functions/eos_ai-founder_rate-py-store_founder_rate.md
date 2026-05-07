@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/founder_rate.py
 line: 41
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # store_founder_rate

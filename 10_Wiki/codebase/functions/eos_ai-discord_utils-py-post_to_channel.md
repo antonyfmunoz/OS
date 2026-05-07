@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/discord_utils.py
 line: 145
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # post_to_channel
@@ -18,9 +18,3 @@ when the event loop is running, or runs synchronously otherwise.
 ## Calls
 
 - [[eos_ai-discord_utils-py-chunk_message]]
-
-## Called By
-
-- [[services-discord_bot-py-post_morning_brief]]
-- [[services-discord_bot-py-post_outreach_alert]]
-- [[services-discord_bot-py-post_win]]

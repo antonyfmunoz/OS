@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/workflow_engine.py
 line: 42
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # StepOwner

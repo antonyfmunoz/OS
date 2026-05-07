@@ -3,9 +3,9 @@ type: codebase-file
 path: eos_ai/agent_hierarchy.py
 module: eos_ai.agent_hierarchy
 lines: 435
-size: 15025
+size: 15459
 tags: [critical]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # eos_ai/agent_hierarchy.py
@@ -19,7 +19,7 @@ Used by CognitiveLoop (PERCEIVE injection) and Gateway (routing) to ensure
 90% of all communication is handled by the Executive Assistant without
 ...
 
-**Lines:** 435 | **Size:** 15,025 bytes
+**Lines:** 435 | **Size:** 15,459 bytes
 
 ## Contains
 

@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/user_model.py
 module: eos_ai.user_model
 lines: 460
-size: 19062
-generated: 2026-04-12
+size: 19521
+generated: 2026-05-07
 ---
 
 # eos_ai/user_model.py
@@ -16,7 +16,7 @@ what he means. Profiles built from 30-day interaction history in Neon.
 Trust level grows with interaction volume — higher trust unlocks aggressive
 ...
 
-**Lines:** 460 | **Size:** 19,062 bytes
+**Lines:** 460 | **Size:** 19,521 bytes
 
 ## Depends On
 

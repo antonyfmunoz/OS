@@ -1,7 +1,7 @@
 ---
 type: palace-wing
 wing: eos_ai
-generated: 2026-04-11
+generated: 2026-05-07
 ---
 
 # Wing — eos_ai

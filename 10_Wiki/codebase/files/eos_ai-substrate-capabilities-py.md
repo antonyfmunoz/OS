@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/capabilities.py
 module: eos_ai.substrate.capabilities
 lines: 81
-size: 2742
-generated: 2026-04-12
+size: 2822
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/capabilities.py
@@ -16,7 +16,7 @@ the only executor; tomorrow a local Station Daemon will advertise things the
 VPS cannot do (microphone input, screen inspection, full computer control).
 ...
 
-**Lines:** 81 | **Size:** 2,742 bytes
+**Lines:** 81 | **Size:** 2,822 bytes
 
 ## Used By
 

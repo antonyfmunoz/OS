@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/gws_connector.py
 line: 433
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # GWSConnector.format_time_for_attendee

@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/harness_registry.py
 module: eos_ai.harness_registry
 lines: 304
-size: 10314
-generated: 2026-04-12
+size: 10617
+generated: 2026-05-07
 ---
 
 # eos_ai/harness_registry.py
@@ -16,7 +16,7 @@ status, required context layers, and env key for availability checks.
 
 ...
 
-**Lines:** 304 | **Size:** 10,314 bytes
+**Lines:** 304 | **Size:** 10,617 bytes
 
 ## Contains
 

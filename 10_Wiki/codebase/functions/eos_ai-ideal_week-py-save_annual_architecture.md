@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/ideal_week.py
 line: 195
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # save_annual_architecture

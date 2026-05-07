@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_voice_session_cli.py
 module: scripts.substrate_voice_session_cli
 lines: 149
-size: 4745
+size: 4893
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_voice_session_cli.py
@@ -19,7 +19,7 @@ Subcommands:
   say     --session SID --text TEXT        Submit an utterance to a session.
 ...
 
-**Lines:** 149 | **Size:** 4,745 bytes
+**Lines:** 149 | **Size:** 4,893 bytes
 
 ## Depends On
 

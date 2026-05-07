@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/deferred.py
 line: 66
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # cmd_show

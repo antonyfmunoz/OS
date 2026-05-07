@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_smoke_test.py
 module: scripts.substrate_smoke_test
 lines: 228
-size: 9210
+size: 9437
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_smoke_test.py
@@ -19,7 +19,7 @@ Proves the smallest real end-to-end loop:
   2. EOS side proposes SPEAK_TEXT + PLAY_SOUND via StationContract.
 ...
 
-**Lines:** 228 | **Size:** 9,210 bytes
+**Lines:** 228 | **Size:** 9,437 bytes
 
 ## Depends On
 

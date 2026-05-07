@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/scheduled/weekly_review_cp.py
 module: scripts.scheduled.weekly_review_cp
 lines: 107
-size: 3946
+size: 4052
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/scheduled/weekly_review_cp.py
@@ -19,7 +19,7 @@ Mirrors `morning_prep_cp.py` and `nightly_consolidation_cp.py` — the
 third instance is the one that proves the migration pattern is boring.
 ...
 
-**Lines:** 107 | **Size:** 3,946 bytes
+**Lines:** 107 | **Size:** 4,052 bytes
 
 ## Depends On
 

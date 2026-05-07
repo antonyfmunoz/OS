@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/incremental_graph.py
 line: 573
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # update

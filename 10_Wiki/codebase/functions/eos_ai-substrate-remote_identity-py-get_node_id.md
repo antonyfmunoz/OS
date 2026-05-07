@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/remote_identity.py
 line: 25
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # get_node_id

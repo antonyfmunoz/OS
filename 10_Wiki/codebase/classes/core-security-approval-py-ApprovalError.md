@@ -2,7 +2,7 @@
 type: codebase-class
 file: core/security/approval.py
 line: 128
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ApprovalError

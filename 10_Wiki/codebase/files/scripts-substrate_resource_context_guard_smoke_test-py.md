@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_resource_context_guard_smoke_test.py
 module: scripts.substrate_resource_context_guard_smoke_test
 lines: 799
-size: 29507
+size: 30305
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_resource_context_guard_smoke_test.py
@@ -19,7 +19,7 @@ Proves that:
   2.  "fix this bug in the auth system" → heavyweight.
 ...
 
-**Lines:** 799 | **Size:** 29,507 bytes
+**Lines:** 799 | **Size:** 30,305 bytes
 
 ## Contains
 

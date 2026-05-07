@@ -3,8 +3,8 @@ type: codebase-file
 path: core/security/execution.py
 module: core.security.execution
 lines: 331
-size: 11591
-generated: 2026-04-12
+size: 11921
+generated: 2026-05-07
 ---
 
 # core/security/execution.py
@@ -16,7 +16,7 @@ Goal
 When an agent runs code or commands, the security layer should be able
 ...
 
-**Lines:** 331 | **Size:** 11,591 bytes
+**Lines:** 331 | **Size:** 11,921 bytes
 
 ## Used By
 

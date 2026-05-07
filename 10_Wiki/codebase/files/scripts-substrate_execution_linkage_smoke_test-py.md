@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_execution_linkage_smoke_test.py
 module: scripts.substrate_execution_linkage_smoke_test
 lines: 234
-size: 7524
+size: 7757
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_execution_linkage_smoke_test.py
@@ -19,7 +19,7 @@ state into structured ActionableItems with execution readiness
 classification. No hot-path changes; no task execution.
 ...
 
-**Lines:** 234 | **Size:** 7,524 bytes
+**Lines:** 234 | **Size:** 7,757 bytes
 
 ## Depends On
 

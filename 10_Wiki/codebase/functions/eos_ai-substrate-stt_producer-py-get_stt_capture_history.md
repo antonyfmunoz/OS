@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/stt_producer.py
 line: 665
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # get_stt_capture_history

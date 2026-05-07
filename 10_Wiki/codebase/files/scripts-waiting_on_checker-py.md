@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/waiting_on_checker.py
 module: scripts.waiting_on_checker
 lines: 94
-size: 2632
+size: 2725
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/waiting_on_checker.py
@@ -16,7 +16,7 @@ WAITING_ON checker — scans emails in WAITING_ON folder
 that are older than 48h and surfaces them in Discord.
 Runs every morning at 6:05am after the brief.
 
-**Lines:** 94 | **Size:** 2,632 bytes
+**Lines:** 94 | **Size:** 2,725 bytes
 
 ## Contains
 

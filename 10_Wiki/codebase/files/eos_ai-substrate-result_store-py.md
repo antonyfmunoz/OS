@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/result_store.py
 module: eos_ai.substrate.result_store
 lines: 246
-size: 8813
-generated: 2026-04-12
+size: 9058
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/result_store.py
@@ -16,7 +16,7 @@ operator inspection (consumers).
 
 ...
 
-**Lines:** 246 | **Size:** 8,813 bytes
+**Lines:** 246 | **Size:** 9,058 bytes
 
 ## Used By
 

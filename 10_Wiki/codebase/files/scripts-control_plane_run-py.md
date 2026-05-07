@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/control_plane_run.py
 module: scripts.control_plane_run
 lines: 105
-size: 3401
+size: 3505
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/control_plane_run.py
@@ -19,7 +19,7 @@ calling subprocess directly, agents (and humans) should route meaningful
 work through this entry point so every execution is validated, approved,
 ...
 
-**Lines:** 105 | **Size:** 3,401 bytes
+**Lines:** 105 | **Size:** 3,505 bytes
 
 ## Depends On
 

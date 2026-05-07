@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/post_meeting_capture.py
 module: scripts.post_meeting_capture
 lines: 135
-size: 3769
+size: 3903
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/post_meeting_capture.py
@@ -17,7 +17,7 @@ and prompts DEX to capture outcomes in Discord.
 
 Runs every 15 minutes via cron. Deduplicates via /tmp/post_meeting_state.json.
 
-**Lines:** 135 | **Size:** 3,769 bytes
+**Lines:** 135 | **Size:** 3,903 bytes
 
 ## Contains
 

@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_transport_report_cli.py
 line: 142
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # main

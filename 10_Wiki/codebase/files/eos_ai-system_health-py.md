@@ -2,10 +2,10 @@
 type: codebase-file
 path: eos_ai/system_health.py
 module: eos_ai.system_health
-lines: 436
-size: 13972
+lines: 437
+size: 14490
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # eos_ai/system_health.py
@@ -19,7 +19,7 @@ Runs at: SessionStart, heartbeat every 30min,
 after every gateway call.
 ...
 
-**Lines:** 436 | **Size:** 13,972 bytes
+**Lines:** 437 | **Size:** 14,490 bytes
 
 ## Contains
 

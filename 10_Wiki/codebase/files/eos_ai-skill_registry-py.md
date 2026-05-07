@@ -3,19 +3,18 @@ type: codebase-file
 path: eos_ai/skill_registry.py
 module: eos_ai.skill_registry
 lines: 255
-size: 10376
-generated: 2026-04-12
+size: 10630
+generated: 2026-05-07
 ---
 
 # eos_ai/skill_registry.py
 
 *No docstring.*
 
-**Lines:** 255 | **Size:** 10,376 bytes
+**Lines:** 255 | **Size:** 10,630 bytes
 
 ## Used By
 
-- [[eos_ai-agent_runtime-py]]
 - [[eos_ai-skill_improvement-py]]
 - [[eos_ai-status-py]]
 

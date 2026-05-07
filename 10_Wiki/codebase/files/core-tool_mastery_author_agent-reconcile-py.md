@@ -3,8 +3,8 @@ type: codebase-file
 path: core/tool_mastery_author_agent/reconcile.py
 module: core.tool_mastery_author_agent.reconcile
 lines: 172
-size: 5601
-generated: 2026-04-12
+size: 5772
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_author_agent/reconcile.py
@@ -16,7 +16,7 @@ Policy: never destructively overwrite human-authored content unless
 fresh scaffold (all placeholders) or real human work, and behave
 ...
 
-**Lines:** 172 | **Size:** 5,601 bytes
+**Lines:** 172 | **Size:** 5,772 bytes
 
 ## Contains
 

@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/incremental_graph.py
 module: scripts.incremental_graph
 lines: 773
-size: 28826
+size: 29598
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/incremental_graph.py
@@ -19,7 +19,7 @@ of changed files. Falls back to a full rebuild (via scripts/codebase_graph.py)
 when the change set is too large or the dirty region becomes inconsistent.
 ...
 
-**Lines:** 773 | **Size:** 28,826 bytes
+**Lines:** 773 | **Size:** 29,598 bytes
 
 ## Depends On
 

@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/kpi_tracker.py
 line: 237
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # build_eod_report

@@ -2,7 +2,7 @@
 type: codebase-class
 file: core/tool_mastery_research_agent/search_discovery.py
 line: 114
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # CandidatePlan

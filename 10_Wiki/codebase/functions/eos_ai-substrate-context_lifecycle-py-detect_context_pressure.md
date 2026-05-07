@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/context_lifecycle.py
 line: 105
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # detect_context_pressure

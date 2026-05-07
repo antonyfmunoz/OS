@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/browser_agent.py
 line: 478
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # InstagramAgent
@@ -16,7 +16,7 @@ Session is maintained across calls within the same agent instance.
 
 ## Inherits From
 
-- [[eos_ai-browser_agent-py-BrowserAgent]]
+- [[eos_ai-substrate-browser_agent-py-BrowserAgent]]
 
 ## Methods
 

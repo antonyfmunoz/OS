@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/authority_engine.py
 line: 81
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # AuthorityEngine.check_can_execute
@@ -21,6 +21,4 @@ generated: 2026-04-12
 
 ## Called By
 
-- [[eos_ai-agent_runtime-py-AgentRuntime-run]]
 - [[eos_ai-authority_engine-py-AuthorityEngine-execute_or_queue]]
-- [[eos_ai-cognitive_loop-py-CognitiveLoop-run]]

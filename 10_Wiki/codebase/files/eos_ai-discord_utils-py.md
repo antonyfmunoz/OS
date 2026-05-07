@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/discord_utils.py
 module: eos_ai.discord_utils
 lines: 173
-size: 5372
-generated: 2026-04-12
+size: 5544
+generated: 2026-05-07
 ---
 
 # eos_ai/discord_utils.py
@@ -16,12 +16,11 @@ Never write custom chunking or webhook logic elsewhere.
 
 ...
 
-**Lines:** 173 | **Size:** 5,372 bytes
+**Lines:** 173 | **Size:** 5,544 bytes
 
 ## Used By
 
 - [[scripts-inbox_gps_afternoon-py]]
-- [[services-discord_bot-py]]
 
 ## Contains
 

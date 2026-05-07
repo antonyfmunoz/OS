@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/meet_caption_bridge.py
 line: 277
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # CaptionReader.path

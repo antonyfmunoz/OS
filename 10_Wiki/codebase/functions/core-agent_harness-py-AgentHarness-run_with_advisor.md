@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/agent_harness.py
 line: 435
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # AgentHarness.run_with_advisor

@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/travel_manager.py
 module: eos_ai.travel_manager
 lines: 359
-size: 10089
-generated: 2026-04-12
+size: 10447
+generated: 2026-05-07
 ---
 
 # eos_ai/travel_manager.py
@@ -13,7 +13,7 @@ Travel Manager — full trip logistics management.
 When a trip is detected, DEX builds a complete
 travel brief and manages logistics.
 
-**Lines:** 359 | **Size:** 10,089 bytes
+**Lines:** 359 | **Size:** 10,447 bytes
 
 ## Contains
 

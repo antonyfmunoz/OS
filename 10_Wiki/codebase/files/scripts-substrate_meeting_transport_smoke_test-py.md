@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_meeting_transport_smoke_test.py
 module: scripts.substrate_meeting_transport_smoke_test
 lines: 283
-size: 11063
+size: 11345
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_meeting_transport_smoke_test.py
@@ -19,7 +19,7 @@ Proves the bounded transcript-only meeting transport adapter end-to-end:
   2. Auto-registers a meeting_<platform>_<id> node so VoiceSessionRuntime
 ...
 
-**Lines:** 283 | **Size:** 11,063 bytes
+**Lines:** 283 | **Size:** 11,345 bytes
 
 ## Depends On
 

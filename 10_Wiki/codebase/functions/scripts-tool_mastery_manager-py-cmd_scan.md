@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/tool_mastery_manager.py
 line: 110
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # cmd_scan

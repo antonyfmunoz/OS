@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: eos_ai/substrate/session_watcher.py
-line: 165
-generated: 2026-04-12
+line: 210
+generated: 2026-05-07
 ---
 
 # SessionWatcher.start
 
-**File:** [[eos_ai-substrate-session_watcher-py]] | **Line:** 165
+**File:** [[eos_ai-substrate-session_watcher-py]] | **Line:** 210
 **Signature:** `start() → None`
 
 **Class:** [[eos_ai-substrate-session_watcher-py-SessionWatcher]]

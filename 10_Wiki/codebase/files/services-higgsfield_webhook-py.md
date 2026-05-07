@@ -3,9 +3,9 @@ type: codebase-file
 path: services/higgsfield_webhook.py
 module: services.higgsfield_webhook
 lines: 141
-size: 4625
+size: 4765
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # services/higgsfield_webhook.py
@@ -19,7 +19,7 @@ Flask endpoint at POST /webhooks/higgsfield that:
 1. Validates the incoming request_id exists in higgsfield_jobs and is
 ...
 
-**Lines:** 141 | **Size:** 4,625 bytes
+**Lines:** 141 | **Size:** 4,765 bytes
 
 ## Depends On
 

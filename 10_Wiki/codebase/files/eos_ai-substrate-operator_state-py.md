@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/operator_state.py
 module: eos_ai.substrate.operator_state
 lines: 394
-size: 14790
-generated: 2026-04-12
+size: 15183
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/operator_state.py
@@ -16,7 +16,7 @@ Purpose
 Until now the substrate had four parallel signals living in four stores:
 ...
 
-**Lines:** 394 | **Size:** 14,790 bytes
+**Lines:** 394 | **Size:** 15,183 bytes
 
 ## Used By
 

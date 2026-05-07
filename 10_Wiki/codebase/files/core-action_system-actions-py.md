@@ -2,9 +2,9 @@
 type: codebase-file
 path: core/action_system/actions.py
 module: core.action_system.actions
-lines: 84
-size: 2636
-generated: 2026-04-12
+lines: 85
+size: 2742
+generated: 2026-05-07
 ---
 
 # core/action_system/actions.py
@@ -14,7 +14,7 @@ Action object — the canonical unit of control in EOS.
 Every meaningful thing an agent wants to do is wrapped as an Action and
 passed through the Control Plane (propose → validate → approve → execute → log).
 
-**Lines:** 84 | **Size:** 2,636 bytes
+**Lines:** 85 | **Size:** 2,742 bytes
 
 ## Used By
 

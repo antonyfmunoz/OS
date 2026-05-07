@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_discord_mode_routing_smoke_test.py
 line: 462
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # test_tts_footer_untouched

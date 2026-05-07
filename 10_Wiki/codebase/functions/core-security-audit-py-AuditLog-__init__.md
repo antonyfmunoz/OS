@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/security/audit.py
 line: 111
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # AuditLog.__init__

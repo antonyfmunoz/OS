@@ -3,8 +3,8 @@ type: codebase-file
 path: core/tool_mastery_research_agent/source_quality.py
 module: core.tool_mastery_research_agent.source_quality
 lines: 371
-size: 11889
-generated: 2026-04-12
+size: 12259
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_research_agent/source_quality.py
@@ -16,7 +16,7 @@ Two jobs, one module:
 1. **Pre-fetch scoring** — classify a candidate source as HIGH or LOW
 ...
 
-**Lines:** 371 | **Size:** 11,889 bytes
+**Lines:** 371 | **Size:** 12,259 bytes
 
 ## Contains
 

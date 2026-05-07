@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/travel_manager.py
 line: 19
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # detect_travel_event

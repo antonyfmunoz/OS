@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/wake_producer.py
 line: 474
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # reset_wake_producer_runtime_for_tests

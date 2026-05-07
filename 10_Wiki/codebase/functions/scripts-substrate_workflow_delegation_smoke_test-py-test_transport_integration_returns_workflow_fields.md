@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: scripts/substrate_workflow_delegation_smoke_test.py
-line: 490
-generated: 2026-04-12
+line: 530
+generated: 2026-05-07
 ---
 
 # test_transport_integration_returns_workflow_fields
 
-**File:** [[scripts-substrate_workflow_delegation_smoke_test-py]] | **Line:** 490
+**File:** [[scripts-substrate_workflow_delegation_smoke_test-py]] | **Line:** 530
 **Signature:** `test_transport_integration_returns_workflow_fields() → None`
 
 *No docstring.*

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/business_instance.py
 line: 215
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # BusinessInstanceManager.save_bis

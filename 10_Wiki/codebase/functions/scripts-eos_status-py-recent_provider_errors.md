@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/eos_status.py
 line: 109
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # recent_provider_errors

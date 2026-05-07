@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/station_helpers.py
 module: eos_ai.substrate.station_helpers
 lines: 128
-size: 3548
-generated: 2026-04-12
+size: 3675
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/station_helpers.py
@@ -16,7 +16,7 @@ safe action on the bus without reconstructing the StationContract dance.
 Everything here still routes through StationContract.propose() so the
 ...
 
-**Lines:** 128 | **Size:** 3,548 bytes
+**Lines:** 128 | **Size:** 3,675 bytes
 
 ## Depends On
 

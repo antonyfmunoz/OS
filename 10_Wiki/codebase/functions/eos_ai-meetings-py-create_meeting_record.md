@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/meetings.py
 line: 16
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # create_meeting_record

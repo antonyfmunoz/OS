@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/voice_interface.py
 line: 647
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # VoiceInterface.end_meeting_session
@@ -21,8 +21,6 @@ Returns:
 
 ## Calls
 
-- [[eos_ai-agent_runtime-py-AgentRuntime-run]]
-- [[eos_ai-cognitive_loop-py-CognitiveLoop-run]]
 - [[eos_ai-voice_interface-py-VoiceInterface-_extract_list]]
 - [[eos_ai-voice_interface-py-VoiceInterface-_extract_section]]
 

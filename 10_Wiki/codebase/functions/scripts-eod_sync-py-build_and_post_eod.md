@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/eod_sync.py
 line: 220
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # build_and_post_eod

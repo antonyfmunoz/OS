@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_research_agent/headless_fetcher.py
 line: 145
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # RenderAttempt.to_dict

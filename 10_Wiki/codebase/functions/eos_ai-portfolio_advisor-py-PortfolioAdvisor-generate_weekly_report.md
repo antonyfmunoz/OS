@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/portfolio_advisor.py
 line: 698
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # PortfolioAdvisor.generate_weekly_report

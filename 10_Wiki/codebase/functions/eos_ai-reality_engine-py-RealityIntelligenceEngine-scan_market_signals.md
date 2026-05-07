@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/reality_engine.py
 line: 140
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # RealityIntelligenceEngine.scan_market_signals
@@ -20,8 +20,6 @@ Skips ventures with insufficient data (all TODOs) to avoid fabrication.
 
 ## Calls
 
-- [[eos_ai-agent_runtime-py-AgentRuntime-run]]
-- [[eos_ai-cognitive_loop-py-CognitiveLoop-run]]
 - [[eos_ai-memory-py-ConversationMemory-search]]
 - [[eos_ai-reality_engine-py-RealityIntelligenceEngine-_venture_scan_ready]]
 - [[eos_ai-reality_engine-py-RealityIntelligenceEngine-classify_signal]]

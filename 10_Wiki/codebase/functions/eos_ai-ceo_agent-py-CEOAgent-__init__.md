@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/ceo_agent.py
 line: 46
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # CEOAgent.__init__

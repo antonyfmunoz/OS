@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_meeting_intelligence_upgrade_smoke_test.py
 module: scripts.substrate_meeting_intelligence_upgrade_smoke_test
 lines: 235
-size: 9273
+size: 9507
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_meeting_intelligence_upgrade_smoke_test.py
@@ -19,7 +19,7 @@ Validates the additive bounded cognition upgrade:
   2. priority_level thresholds classify correctly (low / medium / high).
 ...
 
-**Lines:** 235 | **Size:** 9,273 bytes
+**Lines:** 235 | **Size:** 9,507 bytes
 
 ## Depends On
 

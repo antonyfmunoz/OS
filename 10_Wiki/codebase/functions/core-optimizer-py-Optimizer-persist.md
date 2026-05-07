@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/optimizer.py
 line: 534
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # Optimizer.persist

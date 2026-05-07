@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/station_helpers.py
 line: 24
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # propose_speak_text

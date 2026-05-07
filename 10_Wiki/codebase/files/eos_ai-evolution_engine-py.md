@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/evolution_engine.py
 module: eos_ai.evolution_engine
 lines: 869
-size: 35284
-generated: 2026-04-12
+size: 36152
+generated: 2026-05-07
 ---
 
 # eos_ai/evolution_engine.py
@@ -16,7 +16,7 @@ Combines two concerns:
      active at the venture's current stage, what unlocks next, and
 ...
 
-**Lines:** 869 | **Size:** 35,284 bytes
+**Lines:** 869 | **Size:** 36,152 bytes
 
 ## Depends On
 

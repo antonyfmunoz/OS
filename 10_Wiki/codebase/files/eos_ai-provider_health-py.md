@@ -2,10 +2,10 @@
 type: codebase-file
 path: eos_ai/provider_health.py
 module: eos_ai.provider_health
-lines: 225
-size: 7719
+lines: 201
+size: 7093
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # eos_ai/provider_health.py
@@ -19,7 +19,7 @@ Used by:
 - operator status script, to show inspectable health
 ...
 
-**Lines:** 225 | **Size:** 7,719 bytes
+**Lines:** 201 | **Size:** 7,093 bytes
 
 ## Used By
 

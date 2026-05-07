@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/agent_teams.py
 line: 313
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # run_team_task
@@ -16,7 +16,3 @@ returns result as a plain dict for easy inspection.
 Args:
     team:       Domain team name — 'sales', 'research', 'content',
 ...
-
-## Calls
-
-- [[eos_ai-agent_runtime-py-AgentRuntime-run_team_task]]

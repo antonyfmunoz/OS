@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/meeting_intelligence.py
 line: 1298
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # maybe_emit_intervention

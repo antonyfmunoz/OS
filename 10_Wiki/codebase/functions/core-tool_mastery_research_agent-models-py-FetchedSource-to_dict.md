@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_research_agent/models.py
 line: 122
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # FetchedSource.to_dict

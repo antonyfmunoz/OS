@@ -3,8 +3,8 @@ type: codebase-file
 path: core/tool_mastery_research_agent/candidate_approval.py
 module: core.tool_mastery_research_agent.candidate_approval
 lines: 272
-size: 9037
-generated: 2026-04-12
+size: 9308
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_research_agent/candidate_approval.py
@@ -16,7 +16,7 @@ with the existing Control Plane without introducing a new action type:
 
 ...
 
-**Lines:** 272 | **Size:** 9,037 bytes
+**Lines:** 272 | **Size:** 9,308 bytes
 
 ## Contains
 

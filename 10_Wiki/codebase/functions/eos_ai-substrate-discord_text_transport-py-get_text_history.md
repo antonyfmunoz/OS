@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/discord_text_transport.py
 line: 250
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # get_text_history

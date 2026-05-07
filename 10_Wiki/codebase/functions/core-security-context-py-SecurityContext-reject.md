@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/security/context.py
 line: 433
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # SecurityContext.reject

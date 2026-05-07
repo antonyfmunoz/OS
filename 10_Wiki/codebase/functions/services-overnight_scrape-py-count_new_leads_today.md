@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/overnight_scrape.py
 line: 35
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # count_new_leads_today

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/founder_rate.py
 line: 66
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # get_current_founder_rate

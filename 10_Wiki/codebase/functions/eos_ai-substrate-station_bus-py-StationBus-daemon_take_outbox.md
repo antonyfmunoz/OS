@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/station_bus.py
 line: 122
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # StationBus.daemon_take_outbox

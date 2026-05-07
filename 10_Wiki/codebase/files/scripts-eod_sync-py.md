@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/eod_sync.py
 module: scripts.eod_sync
 lines: 243
-size: 8155
+size: 8397
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/eod_sync.py
@@ -17,7 +17,7 @@ Sections: Meetings today | Purchases/expenses |
 Project updates | Decisions made.
 Posts to #morning-brief channel.
 
-**Lines:** 243 | **Size:** 8,155 bytes
+**Lines:** 243 | **Size:** 8,397 bytes
 
 ## Contains
 

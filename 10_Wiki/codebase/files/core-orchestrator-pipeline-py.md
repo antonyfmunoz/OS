@@ -3,8 +3,8 @@ type: codebase-file
 path: core/orchestrator/pipeline.py
 module: core.orchestrator.pipeline
 lines: 277
-size: 8689
-generated: 2026-04-12
+size: 8965
+generated: 2026-05-07
 ---
 
 # core/orchestrator/pipeline.py
@@ -16,12 +16,19 @@ A Pipeline is an ordered list of Steps. Each Step either:
   - wraps a plain Python callable that receives the shared context dict
 ...
 
-**Lines:** 277 | **Size:** 8,689 bytes
+**Lines:** 277 | **Size:** 8,965 bytes
 
 ## Depends On
 
 - [[core-action_system-control_plane-py]]
 - [[core-action_system-logging-py]]
+
+## Used By
+
+- [[core-execution_bridge-py]]
+- [[core-feedback-py]]
+- [[core-objective-py]]
+- [[core-router-py]]
 
 ## Contains
 

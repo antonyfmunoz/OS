@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_research_agent/headless_fetcher.py
 line: 81
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # is_likely_spa

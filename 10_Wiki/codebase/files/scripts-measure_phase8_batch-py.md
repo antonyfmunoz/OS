@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/measure_phase8_batch.py
 module: scripts.measure_phase8_batch
 lines: 336
-size: 11668
+size: 12003
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/measure_phase8_batch.py
@@ -19,7 +19,7 @@ For each of the 8 benchmark tools:
 2. Re-runs extraction with *current* Phase 8 code on every OK raw capture
 ...
 
-**Lines:** 336 | **Size:** 11,668 bytes
+**Lines:** 336 | **Size:** 12,003 bytes
 
 ## Depends On
 

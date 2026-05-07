@@ -2,7 +2,7 @@
 type: codebase-class
 file: core/tool_mastery_author_agent/models.py
 line: 111
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # AuthorResult

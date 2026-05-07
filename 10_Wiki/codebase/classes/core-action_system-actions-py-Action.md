@@ -1,13 +1,13 @@
 ---
 type: codebase-class
 file: core/action_system/actions.py
-line: 26
-generated: 2026-04-12
+line: 27
+generated: 2026-05-07
 ---
 
 # Action
 
-**File:** [[core-action_system-actions-py]] | **Line:** 26
+**File:** [[core-action_system-actions-py]] | **Line:** 27
 
 Canonical action record.
 

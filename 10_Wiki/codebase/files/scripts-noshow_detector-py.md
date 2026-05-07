@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/noshow_detector.py
 module: scripts.noshow_detector
 lines: 156
-size: 5194
+size: 5349
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/noshow_detector.py
@@ -16,7 +16,7 @@ No-show detector — checks meetings that started 30+ min ago with no
 outcome captured, marks as no-show, triggers recovery flow.
 Runs every 15 minutes via cron.
 
-**Lines:** 156 | **Size:** 5,194 bytes
+**Lines:** 156 | **Size:** 5,349 bytes
 
 ## Contains
 

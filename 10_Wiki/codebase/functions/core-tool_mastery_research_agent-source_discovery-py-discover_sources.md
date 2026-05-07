@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_research_agent/source_discovery.py
 line: 164
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # discover_sources

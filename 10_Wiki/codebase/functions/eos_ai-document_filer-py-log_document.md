@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/document_filer.py
 line: 75
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # log_document

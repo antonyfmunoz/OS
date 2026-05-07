@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_discord_text_tts_smoke_test.py
 line: 100
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # main

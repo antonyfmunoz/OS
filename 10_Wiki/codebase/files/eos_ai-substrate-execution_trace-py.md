@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/execution_trace.py
 module: eos_ai.substrate.execution_trace
 lines: 301
-size: 9445
-generated: 2026-04-12
+size: 9745
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/execution_trace.py
@@ -16,7 +16,7 @@ mode routing → target policy → workflow delegation → workflow execution �
 resource guard → context lifecycle → model router → response.
 ...
 
-**Lines:** 301 | **Size:** 9,445 bytes
+**Lines:** 301 | **Size:** 9,745 bytes
 
 ## Used By
 

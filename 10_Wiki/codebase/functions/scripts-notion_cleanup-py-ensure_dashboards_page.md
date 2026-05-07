@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/notion_cleanup.py
 line: 327
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ensure_dashboards_page

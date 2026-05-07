@@ -3,8 +3,8 @@ type: codebase-file
 path: core/tool_mastery_manager/ensure.py
 module: core.tool_mastery_manager.ensure
 lines: 173
-size: 6538
-generated: 2026-04-12
+size: 6710
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_manager/ensure.py
@@ -16,7 +16,7 @@ For a given tool slug this function:
     1. Evaluates current coverage via the composed TME utilities.
 ...
 
-**Lines:** 173 | **Size:** 6,538 bytes
+**Lines:** 173 | **Size:** 6,710 bytes
 
 ## Depends On
 

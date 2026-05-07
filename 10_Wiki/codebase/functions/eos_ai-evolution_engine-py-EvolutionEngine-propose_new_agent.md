@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/evolution_engine.py
 line: 591
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # EvolutionEngine.propose_new_agent
@@ -21,8 +21,6 @@ Returns:
 
 ## Calls
 
-- [[eos_ai-agent_runtime-py-AgentRuntime-run]]
-- [[eos_ai-cognitive_loop-py-CognitiveLoop-run]]
 - [[eos_ai-db-py-get_conn]]
 
 ## Called By

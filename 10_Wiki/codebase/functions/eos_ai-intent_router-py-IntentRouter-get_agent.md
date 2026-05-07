@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/intent_router.py
 line: 163
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # IntentRouter.get_agent

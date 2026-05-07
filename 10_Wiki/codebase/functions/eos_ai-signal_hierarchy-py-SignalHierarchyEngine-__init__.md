@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/signal_hierarchy.py
 line: 93
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # SignalHierarchyEngine.__init__

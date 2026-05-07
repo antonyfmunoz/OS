@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/playback_status.py
 line: 76
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # aggregate_by_status

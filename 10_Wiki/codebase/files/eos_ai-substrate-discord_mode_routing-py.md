@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/discord_mode_routing.py
 module: eos_ai.substrate.discord_mode_routing
 lines: 336
-size: 11196
-generated: 2026-04-12
+size: 11531
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/discord_mode_routing.py
@@ -16,7 +16,11 @@ Purpose
 EOS exposes two operating modes on Discord, selected by which channel a
 ...
 
-**Lines:** 336 | **Size:** 11,196 bytes
+**Lines:** 336 | **Size:** 11,531 bytes
+
+## Used By
+
+- [[scripts-direct_watcher_path_smoke_test-py]]
 
 ## Contains
 

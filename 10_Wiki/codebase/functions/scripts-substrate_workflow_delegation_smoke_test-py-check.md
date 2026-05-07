@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_workflow_delegation_smoke_test.py
 line: 41
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # check
@@ -27,10 +27,10 @@ generated: 2026-04-12
 - [[scripts-substrate_workflow_delegation_smoke_test-py-test_extra_keywords]]
 - [[scripts-substrate_workflow_delegation_smoke_test-py-test_no_hotpath_imports]]
 - [[scripts-substrate_workflow_delegation_smoke_test-py-test_no_second_router]]
+- [[scripts-substrate_workflow_delegation_smoke_test-py-test_planning_only_exclusion]]
 - [[scripts-substrate_workflow_delegation_smoke_test-py-test_policy_dict_shape]]
 - [[scripts-substrate_workflow_delegation_smoke_test-py-test_product_allows_product_runtime]]
 - [[scripts-substrate_workflow_delegation_smoke_test-py-test_product_blocks_builder_dev]]
 - [[scripts-substrate_workflow_delegation_smoke_test-py-test_product_local_delegation_coexists_with_workflow]]
 - [[scripts-substrate_workflow_delegation_smoke_test-py-test_product_runtime_classification]]
 - [[scripts-substrate_workflow_delegation_smoke_test-py-test_skill_tool_classification]]
-- [[scripts-substrate_workflow_delegation_smoke_test-py-test_system_ops_classification]]

@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/action_system/policy.py
 line: 79
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # normalize_risk

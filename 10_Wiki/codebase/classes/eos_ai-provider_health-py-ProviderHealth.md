@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/provider_health.py
 line: 25
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ProviderHealth

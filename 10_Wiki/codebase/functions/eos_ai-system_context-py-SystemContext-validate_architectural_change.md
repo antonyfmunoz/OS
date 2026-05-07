@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/system_context.py
 line: 80
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # SystemContext.validate_architectural_change

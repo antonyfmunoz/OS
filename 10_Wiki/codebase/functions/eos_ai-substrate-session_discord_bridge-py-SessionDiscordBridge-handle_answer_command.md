@@ -1,18 +1,18 @@
 ---
 type: codebase-function
 file: eos_ai/substrate/session_discord_bridge.py
-line: 258
-generated: 2026-04-12
+line: 412
+generated: 2026-05-07
 ---
 
 # SessionDiscordBridge.handle_answer_command
 
-**File:** [[eos_ai-substrate-session_discord_bridge-py]] | **Line:** 258
+**File:** [[eos_ai-substrate-session_discord_bridge-py]] | **Line:** 412
 **Signature:** `handle_answer_command(session_name, answer_text) → str`
 
 **Class:** [[eos_ai-substrate-session_discord_bridge-py-SessionDiscordBridge]]
 
-Handle /answer command — pipe text back into session.
+Handle !answer command — pipe text back into session.
 
 ## Calls
 

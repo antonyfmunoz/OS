@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/output_validator.py
 module: eos_ai.output_validator
 lines: 310
-size: 11485
-generated: 2026-04-12
+size: 11794
+generated: 2026-05-07
 ---
 
 # eos_ai/output_validator.py
@@ -16,7 +16,7 @@ From PHILOSOPHY.md Section VI:
   "What passes through all four is world class. Every time. By architecture."
 ...
 
-**Lines:** 310 | **Size:** 11,485 bytes
+**Lines:** 310 | **Size:** 11,794 bytes
 
 ## Contains
 

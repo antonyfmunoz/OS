@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/eos_status.py
 line: 59
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # cron_recent_runs

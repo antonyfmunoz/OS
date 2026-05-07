@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_remote_execution_smoke_test.py
 module: scripts.substrate_remote_execution_smoke_test
 lines: 234
-size: 7639
+size: 7872
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_remote_execution_smoke_test.py
@@ -19,7 +19,7 @@ introducing networking, threads, or a second pipeline.
 
 ...
 
-**Lines:** 234 | **Size:** 7,639 bytes
+**Lines:** 234 | **Size:** 7,872 bytes
 
 ## Depends On
 

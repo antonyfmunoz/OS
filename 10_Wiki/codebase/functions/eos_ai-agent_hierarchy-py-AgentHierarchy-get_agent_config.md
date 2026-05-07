@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/agent_hierarchy.py
 line: 424
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # AgentHierarchy.get_agent_config

@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_coordination_intelligence_smoke_test.py
 line: 152
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # check_high_escalation_more_direct

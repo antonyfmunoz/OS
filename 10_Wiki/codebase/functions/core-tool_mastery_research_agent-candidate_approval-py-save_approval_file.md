@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_research_agent/candidate_approval.py
 line: 169
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # save_approval_file

@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_audio_loop_cli.py
 module: scripts.substrate_audio_loop_cli
 lines: 136
-size: 4184
+size: 4319
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_audio_loop_cli.py
@@ -19,7 +19,7 @@ Subcommands:
   report-node --node NODE            Snapshot one node + its transcript ring.
 ...
 
-**Lines:** 136 | **Size:** 4,184 bytes
+**Lines:** 136 | **Size:** 4,319 bytes
 
 ## Contains
 

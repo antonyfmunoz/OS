@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/reality_engine.py
 line: 485
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # RealityIntelligenceEngine.generate_truth_report
@@ -18,8 +18,6 @@ Synthesizes into a market intelligence report with strategic recommendations.
 
 ## Calls
 
-- [[eos_ai-agent_runtime-py-AgentRuntime-run]]
-- [[eos_ai-cognitive_loop-py-CognitiveLoop-run]]
 - [[eos_ai-memory-py-AgentMemory-log_event]]
 - [[eos_ai-reality_engine-py-RealityIntelligenceEngine-run_competitor_analysis]]
 - [[eos_ai-venture_knowledge-py-VentureKnowledgeBase-get]]

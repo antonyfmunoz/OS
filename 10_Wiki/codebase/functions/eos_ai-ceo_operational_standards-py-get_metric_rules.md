@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/ceo_operational_standards.py
 line: 586
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # get_metric_rules

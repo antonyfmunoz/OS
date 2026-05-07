@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/ritual_runner.py
 line: 112
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # finish_open_day

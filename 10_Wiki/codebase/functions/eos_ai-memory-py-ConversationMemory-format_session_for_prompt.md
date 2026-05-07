@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/memory.py
 line: 912
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ConversationMemory.format_session_for_prompt
@@ -17,7 +17,3 @@ Format recent session history for injection into cognitive loop.
 ## Calls
 
 - [[eos_ai-memory-py-ConversationMemory-get_session]]
-
-## Called By
-
-- [[eos_ai-cognitive_loop-py-CognitiveLoop-run]]

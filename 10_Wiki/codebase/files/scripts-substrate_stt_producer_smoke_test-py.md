@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_stt_producer_smoke_test.py
 module: scripts.substrate_stt_producer_smoke_test
 lines: 259
-size: 9270
+size: 9528
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_stt_producer_smoke_test.py
@@ -19,7 +19,7 @@ Proves the bounded local STT/mic capture producer end-to-end:
   1. Reset all substrate stores (voice, wake, operator, audio loop, stt).
 ...
 
-**Lines:** 259 | **Size:** 9,270 bytes
+**Lines:** 259 | **Size:** 9,528 bytes
 
 ## Depends On
 

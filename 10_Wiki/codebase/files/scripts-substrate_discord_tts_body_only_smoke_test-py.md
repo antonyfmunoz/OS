@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_discord_tts_body_only_smoke_test.py
 module: scripts.substrate_discord_tts_body_only_smoke_test
 lines: 299
-size: 10678
+size: 10976
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_discord_tts_body_only_smoke_test.py
@@ -19,7 +19,7 @@ Proves:
      provider badge — all preserved).
 ...
 
-**Lines:** 299 | **Size:** 10,678 bytes
+**Lines:** 299 | **Size:** 10,976 bytes
 
 ## Depends On
 

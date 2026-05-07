@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/voice_engine.py
 module: eos_ai.voice_engine
 lines: 631
-size: 25146
-generated: 2026-04-12
+size: 25776
+generated: 2026-05-07
 ---
 
 # eos_ai/voice_engine.py
@@ -16,11 +16,7 @@ Handles:
   - Speech detection: Silero VAD (neural) → webrtcvad fallback
 ...
 
-**Lines:** 631 | **Size:** 25,146 bytes
-
-## Used By
-
-- [[services-discord_bot-py]]
+**Lines:** 631 | **Size:** 25,776 bytes
 
 ## Contains
 

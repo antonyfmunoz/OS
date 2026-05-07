@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_wake_producer_cli.py
 line: 27
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # cmd_simulate_wake_word

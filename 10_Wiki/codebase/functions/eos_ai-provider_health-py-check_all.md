@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: eos_ai/provider_health.py
-line: 175
-generated: 2026-04-12
+line: 151
+generated: 2026-05-07
 ---
 
 # check_all
 
-**File:** [[eos_ai-provider_health-py]] | **Line:** 175
+**File:** [[eos_ai-provider_health-py]] | **Line:** 151
 **Signature:** `check_all() → ProviderHealth`
 
 Run all provider checks. Designed to complete in under 15 seconds.

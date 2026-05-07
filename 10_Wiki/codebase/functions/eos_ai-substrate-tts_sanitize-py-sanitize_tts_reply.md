@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/tts_sanitize.py
 line: 100
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # sanitize_tts_reply

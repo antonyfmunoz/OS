@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_local_listener_smoke_test.py
 module: scripts.substrate_local_listener_smoke_test
 lines: 147
-size: 5700
+size: 5846
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_local_listener_smoke_test.py
@@ -19,7 +19,7 @@ Proves the smallest real end-to-end activation flow:
   2. LocalListener.manual_activate(...) emits a bounded trigger.
 ...
 
-**Lines:** 147 | **Size:** 5,700 bytes
+**Lines:** 147 | **Size:** 5,846 bytes
 
 ## Depends On
 

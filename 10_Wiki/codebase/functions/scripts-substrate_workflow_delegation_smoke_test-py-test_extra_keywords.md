@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: scripts/substrate_workflow_delegation_smoke_test.py
-line: 350
-generated: 2026-04-12
+line: 390
+generated: 2026-05-07
 ---
 
 # test_extra_keywords
 
-**File:** [[scripts-substrate_workflow_delegation_smoke_test-py]] | **Line:** 350
+**File:** [[scripts-substrate_workflow_delegation_smoke_test-py]] | **Line:** 390
 **Signature:** `test_extra_keywords() → None`
 
 *No docstring.*

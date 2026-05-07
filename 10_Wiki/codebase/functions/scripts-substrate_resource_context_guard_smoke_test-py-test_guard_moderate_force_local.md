@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_resource_context_guard_smoke_test.py
 line: 297
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # test_guard_moderate_force_local

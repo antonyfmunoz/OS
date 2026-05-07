@@ -2,7 +2,7 @@
 type: palace-room
 room_id: strategy_orchestration
 wing: eos_ai
-generated: 2026-04-11
+generated: 2026-05-07
 ---
 
 # Room — Strategy & Orchestration
@@ -21,7 +21,7 @@ These are the files you most often need; open them before grepping.
 
 | # | Locus | Score | Flags | One-liner |
 |---|-------|-------|-------|-----------|
-| 1 | [[eos_ai-orchestrator-py]] | 18 | `critical` `entry` | EOSOrchestrator — strategic intelligence layer. |
+| 1 | [[eos_ai-orchestrator-py]] | 13 | `critical` `entry` |  |
 | 2 | [[eos_ai-strategy_engine-py]] | 10 | — | StrategyEngine — first-principles strategic reasoning layer. |
 | 3 | [[eos_ai-research_engine-py]] | 9 | — | ResearchEngine — autonomous knowledge gap detection and research layer. |
 | 4 | [[eos_ai-reality_engine-py]] | 7 | — | RealityIntelligenceEngine — continuous market intelligence layer. |

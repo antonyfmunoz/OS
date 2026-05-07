@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/skill_registry.py
 line: 133
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # SkillRegistry.get_skill
@@ -19,5 +19,4 @@ Returns the best single match or None.
 
 ## Called By
 
-- [[eos_ai-agent_runtime-py-AgentRuntime-run]]
 - [[eos_ai-skill_improvement-py-SkillImprovementEngine-check_and_improve]]

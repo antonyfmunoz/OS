@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/telegram_control.py
 line: 2548
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # executions_cmd

@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/sandbox_smoke_test.py
 line: 120
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # step_workflow_logs_isolated

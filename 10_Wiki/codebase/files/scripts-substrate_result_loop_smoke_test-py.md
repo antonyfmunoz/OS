@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_result_loop_smoke_test.py
 module: scripts.substrate_result_loop_smoke_test
 lines: 161
-size: 6511
+size: 6671
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_result_loop_smoke_test.py
@@ -19,7 +19,7 @@ Proves the result/ritual loop end-to-end:
   1. Ritual body (open_day) proposes SPEAK_TEXT + OPEN_SCENE via the station
 ...
 
-**Lines:** 161 | **Size:** 6,511 bytes
+**Lines:** 161 | **Size:** 6,671 bytes
 
 ## Depends On
 

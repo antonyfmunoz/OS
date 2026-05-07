@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_discord_voice_transport_cli.py
 module: scripts.substrate_discord_voice_transport_cli
 lines: 238
-size: 7160
+size: 7397
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_discord_voice_transport_cli.py
@@ -19,7 +19,7 @@ Subcommands:
   status      Show transport status_report() for a (guild, channel) pair.
 ...
 
-**Lines:** 238 | **Size:** 7,160 bytes
+**Lines:** 238 | **Size:** 7,397 bytes
 
 ## Contains
 

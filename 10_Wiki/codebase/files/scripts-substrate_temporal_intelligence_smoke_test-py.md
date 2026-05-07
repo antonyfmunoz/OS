@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_temporal_intelligence_smoke_test.py
 module: scripts.substrate_temporal_intelligence_smoke_test
 lines: 315
-size: 11330
+size: 11644
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_temporal_intelligence_smoke_test.py
@@ -19,7 +19,7 @@ Intelligence. Time is simulated by directly manipulating `created_at` /
 `last_followup_prompt_ts` values so the test remains deterministic and
 ...
 
-**Lines:** 315 | **Size:** 11,330 bytes
+**Lines:** 315 | **Size:** 11,644 bytes
 
 ## Depends On
 

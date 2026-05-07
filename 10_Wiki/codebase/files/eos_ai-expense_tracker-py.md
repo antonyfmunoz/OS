@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/expense_tracker.py
 module: eos_ai.expense_tracker
 lines: 451
-size: 14398
-generated: 2026-04-12
+size: 14848
+generated: 2026-05-07
 ---
 
 # eos_ai/expense_tracker.py
@@ -12,7 +12,7 @@ generated: 2026-04-12
 Expense Tracker — processes receipts from Gmail RECEIPTS-FINANCIALS folder,
 categorizes, stores in Neon, surfaces in EOD and monthly reports.
 
-**Lines:** 451 | **Size:** 14,398 bytes
+**Lines:** 451 | **Size:** 14,848 bytes
 
 ## Contains
 

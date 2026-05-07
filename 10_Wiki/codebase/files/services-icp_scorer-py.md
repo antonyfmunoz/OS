@@ -3,9 +3,9 @@ type: codebase-file
 path: services/icp_scorer.py
 module: services.icp_scorer
 lines: 604
-size: 20037
+size: 20640
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # services/icp_scorer.py
@@ -14,7 +14,7 @@ generated: 2026-04-12
 
 *No docstring.*
 
-**Lines:** 604 | **Size:** 20,037 bytes
+**Lines:** 604 | **Size:** 20,640 bytes
 
 ## Depends On
 

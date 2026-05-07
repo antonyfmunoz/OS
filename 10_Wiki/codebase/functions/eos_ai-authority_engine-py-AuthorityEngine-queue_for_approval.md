@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/authority_engine.py
 line: 100
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # AuthorityEngine.queue_for_approval
@@ -21,4 +21,3 @@ generated: 2026-04-12
 ## Called By
 
 - [[eos_ai-authority_engine-py-AuthorityEngine-execute_or_queue]]
-- [[eos_ai-cognitive_loop-py-CognitiveLoop-run]]

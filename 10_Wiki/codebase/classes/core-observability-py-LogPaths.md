@@ -2,7 +2,7 @@
 type: codebase-class
 file: core/observability.py
 line: 40
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # LogPaths

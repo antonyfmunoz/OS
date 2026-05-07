@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/voice_interface.py
 module: eos_ai.voice_interface
 lines: 801
-size: 30429
-generated: 2026-04-12
+size: 31229
+generated: 2026-05-07
 ---
 
 # eos_ai/voice_interface.py
@@ -16,7 +16,7 @@ Wraps MediaProcessor synthesis/transcription into a clean interface for:
   - Meeting session capture (accumulate transcript without synthesis)
 ...
 
-**Lines:** 801 | **Size:** 30,429 bytes
+**Lines:** 801 | **Size:** 31,229 bytes
 
 ## Depends On
 

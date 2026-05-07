@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/research_engine.py
 line: 342
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ResearchEngine.store_knowledge

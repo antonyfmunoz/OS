@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/wake_producer.py
 line: 238
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # WakeProducerRuntime.simulate_wake_word

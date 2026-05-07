@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/scheduled/weekly_review_cp.py
 line: 63
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # main

@@ -3,8 +3,8 @@ type: codebase-file
 path: core/tool_mastery_manager/coverage.py
 module: core.tool_mastery_manager.coverage
 lines: 120
-size: 4254
-generated: 2026-04-12
+size: 4373
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_manager/coverage.py
@@ -16,7 +16,7 @@ collapses their per-concern verdicts into a single CoverageStatus per
 tool. No verification or staleness logic is duplicated here — if the
 ...
 
-**Lines:** 120 | **Size:** 4,254 bytes
+**Lines:** 120 | **Size:** 4,373 bytes
 
 ## Depends On
 

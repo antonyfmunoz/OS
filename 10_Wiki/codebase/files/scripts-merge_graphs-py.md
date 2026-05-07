@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/merge_graphs.py
 module: scripts.merge_graphs
 lines: 341
-size: 11845
+size: 12185
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/merge_graphs.py
@@ -19,7 +19,7 @@ RULES (non-negotiable):
   - The overlay is ADDITIVE ONLY. Core edges are never replaced.
 ...
 
-**Lines:** 341 | **Size:** 11,845 bytes
+**Lines:** 341 | **Size:** 12,185 bytes
 
 ## Contains
 

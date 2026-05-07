@@ -2,7 +2,7 @@
 type: codebase-class
 file: core/tool_mastery_research_agent/docs_site_discovery.py
 line: 153
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # SiteCoordinates

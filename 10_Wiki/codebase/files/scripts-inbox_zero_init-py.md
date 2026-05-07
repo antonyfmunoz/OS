@@ -3,8 +3,8 @@ type: codebase-file
 path: scripts/inbox_zero_init.py
 module: scripts.inbox_zero_init
 lines: 403
-size: 14783
-generated: 2026-04-12
+size: 15185
+generated: 2026-05-07
 ---
 
 # scripts/inbox_zero_init.py
@@ -16,7 +16,7 @@ Four-phase protocol:
   Phase 2 — PLAN     Show what will change. Confirm before proceeding.
 ...
 
-**Lines:** 403 | **Size:** 14,783 bytes
+**Lines:** 403 | **Size:** 15,185 bytes
 
 ## Depends On
 

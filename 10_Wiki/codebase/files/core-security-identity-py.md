@@ -3,8 +3,8 @@ type: codebase-file
 path: core/security/identity.py
 module: core.security.identity
 lines: 401
-size: 13847
-generated: 2026-04-12
+size: 14247
+generated: 2026-05-07
 ---
 
 # core/security/identity.py
@@ -16,7 +16,7 @@ Scope
 Single-tenant founder-phase OS. No OAuth, no external IdP, no LDAP.
 ...
 
-**Lines:** 401 | **Size:** 13,847 bytes
+**Lines:** 401 | **Size:** 14,247 bytes
 
 ## Used By
 

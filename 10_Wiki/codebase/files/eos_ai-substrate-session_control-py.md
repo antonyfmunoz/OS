@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/session_control.py
 module: eos_ai.substrate.session_control
 lines: 260
-size: 8103
-generated: 2026-04-12
+size: 8362
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/session_control.py
@@ -16,7 +16,7 @@ Purpose
 Provides /clear, /reset, and auto-clear functionality for persistent
 ...
 
-**Lines:** 260 | **Size:** 8,103 bytes
+**Lines:** 260 | **Size:** 8,362 bytes
 
 ## Used By
 

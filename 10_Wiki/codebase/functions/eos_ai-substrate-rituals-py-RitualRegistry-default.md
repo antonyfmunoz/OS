@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/rituals.py
 line: 156
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # RitualRegistry.default
@@ -16,6 +16,10 @@ generated: 2026-04-12
 
 ## Called By
 
+- [[eos_ai-substrate-day_workflows-py-_advance_ritual_best_effort]]
+- [[eos_ai-substrate-day_workflows-py-_start_ritual_best_effort]]
+- [[eos_ai-substrate-day_workflows-py-close_day]]
+- [[eos_ai-substrate-day_workflows-py-open_day]]
 - [[eos_ai-substrate-local_listener-py-LocalListener-_activate]]
 - [[eos_ai-substrate-ritual_body-py-_resolve_station]]
 - [[eos_ai-substrate-ritual_body-py-run_close_day_body]]
@@ -32,8 +36,6 @@ generated: 2026-04-12
 - [[scripts-substrate_durable_result_smoke_test-py-main]]
 - [[scripts-substrate_local_listener_smoke_test-py-_fail_terminal_open_days]]
 - [[scripts-substrate_local_listener_smoke_test-py-main]]
-- [[scripts-substrate_result_loop_smoke_test-py-main]]
-- [[scripts-substrate_smoke_test-py-main]]
 
 ## Decorators
 

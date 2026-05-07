@@ -1,13 +1,13 @@
 ---
 type: codebase-class
 file: eos_ai/substrate/session_watcher.py
-line: 97
-generated: 2026-04-12
+line: 119
+generated: 2026-05-07
 ---
 
 # WatcherEvent
 
-**File:** [[eos_ai-substrate-session_watcher-py]] | **Line:** 97
+**File:** [[eos_ai-substrate-session_watcher-py]] | **Line:** 119
 
 Event emitted by the watcher when state changes meaningfully.
 

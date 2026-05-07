@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/doc_creator.py
 module: eos_ai.doc_creator
 lines: 371
-size: 9576
-generated: 2026-04-12
+size: 9946
+generated: 2026-05-07
 ---
 
 # eos_ai/doc_creator.py
@@ -13,7 +13,7 @@ Document Creator — generates briefing docs, board updates,
 investor updates, proposals, and presentation outlines using
 LLM + Google Drive.
 
-**Lines:** 371 | **Size:** 9,576 bytes
+**Lines:** 371 | **Size:** 9,946 bytes
 
 ## Contains
 

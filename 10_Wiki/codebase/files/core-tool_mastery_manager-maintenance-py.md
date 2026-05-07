@@ -3,8 +3,8 @@ type: codebase-file
 path: core/tool_mastery_manager/maintenance.py
 module: core.tool_mastery_manager.maintenance
 lines: 61
-size: 1990
-generated: 2026-04-12
+size: 2050
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_manager/maintenance.py
@@ -15,7 +15,7 @@ Thin compositions over coverage + ensure. These exist so the ongoing
 upkeep path (refresh stale, repair invalid, audit all) is a first-class
 Manager surface rather than a tangle of shell commands.
 
-**Lines:** 61 | **Size:** 1,990 bytes
+**Lines:** 61 | **Size:** 2,050 bytes
 
 ## Used By
 

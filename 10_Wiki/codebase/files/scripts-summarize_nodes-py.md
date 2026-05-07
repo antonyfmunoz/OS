@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/summarize_nodes.py
 module: scripts.summarize_nodes
 lines: 150
-size: 4654
+size: 4803
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/summarize_nodes.py
@@ -19,7 +19,7 @@ Every run appends a new version record keyed by node id. Previous versions
 stay in the file under "history" so nothing is lost.
 ...
 
-**Lines:** 150 | **Size:** 4,654 bytes
+**Lines:** 150 | **Size:** 4,803 bytes
 
 ## Contains
 

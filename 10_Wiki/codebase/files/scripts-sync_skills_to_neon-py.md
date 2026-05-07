@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/sync_skills_to_neon.py
 module: scripts.sync_skills_to_neon
 lines: 156
-size: 5065
+size: 5220
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/sync_skills_to_neon.py
@@ -19,7 +19,7 @@ upserts rows into the `skills` table under the active org_id.
 
 ...
 
-**Lines:** 156 | **Size:** 5,065 bytes
+**Lines:** 156 | **Size:** 5,220 bytes
 
 ## Depends On
 

@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/query_skills.py
 module: scripts.query_skills
 lines: 213
-size: 7101
+size: 7313
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/query_skills.py
@@ -19,7 +19,7 @@ the staleness logic, and the dependency graph JSON (if built).
 
 ...
 
-**Lines:** 213 | **Size:** 7,101 bytes
+**Lines:** 213 | **Size:** 7,313 bytes
 
 ## Depends On
 

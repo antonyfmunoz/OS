@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_google_meet_smoke_test.py
 module: scripts.substrate_google_meet_smoke_test
 lines: 284
-size: 10003
+size: 10286
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_google_meet_smoke_test.py
@@ -19,7 +19,7 @@ Proves the GoogleMeetSource adapter:
   - reports honest mode (transcript_only / attached_degraded / attached_live)
 ...
 
-**Lines:** 284 | **Size:** 10,003 bytes
+**Lines:** 284 | **Size:** 10,286 bytes
 
 ## Depends On
 

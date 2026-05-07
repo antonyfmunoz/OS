@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_claude_session_cli.py
 module: scripts.substrate_claude_session_cli
 lines: 171
-size: 5362
+size: 5532
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_claude_session_cli.py
@@ -19,7 +19,7 @@ explicit, bounded control over persistent Claude Code tmux sessions on either
 the VPS node or the local node.
 ...
 
-**Lines:** 171 | **Size:** 5,362 bytes
+**Lines:** 171 | **Size:** 5,532 bytes
 
 ## Depends On
 

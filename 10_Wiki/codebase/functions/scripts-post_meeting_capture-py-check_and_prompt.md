@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/post_meeting_capture.py
 line: 39
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # check_and_prompt

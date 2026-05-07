@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/ritual_inference.py
 line: 148
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # infer_open_scene_hint

@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/icp_scorer.py
 line: 266
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # score_comment
@@ -15,7 +15,6 @@ Returns (result dict or None, input_tokens, output_tokens).
 
 ## Calls
 
-- [[eos_ai-agent_runtime-py-AgentRuntime-run_team_task]]
 - [[services-icp_scorer-py-RateLimiter-wait]]
 
 ## Called By

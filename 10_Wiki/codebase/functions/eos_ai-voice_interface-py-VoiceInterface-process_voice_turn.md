@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/voice_interface.py
 line: 260
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # VoiceInterface.process_voice_turn
@@ -21,8 +21,5 @@ Full voice conversation turn:
 
 ## Calls
 
-- [[eos_ai-agent_runtime-py-AgentRuntime-run]]
-- [[eos_ai-agent_runtime-py-calculate_cost]]
-- [[eos_ai-cognitive_loop-py-CognitiveLoop-run]]
 - [[eos_ai-voice_interface-py-VoiceInterface-synthesize]]
 - [[eos_ai-voice_interface-py-VoiceInterface-transcribe]]

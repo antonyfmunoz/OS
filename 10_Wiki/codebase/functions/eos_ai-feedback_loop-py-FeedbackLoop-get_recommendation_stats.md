@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/feedback_loop.py
 line: 331
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # FeedbackLoop.get_recommendation_stats

@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/security/cli.py
 line: 133
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # cmd_approval_show

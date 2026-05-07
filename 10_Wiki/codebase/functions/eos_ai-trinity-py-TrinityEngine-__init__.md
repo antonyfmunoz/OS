@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/trinity.py
 line: 38
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # TrinityEngine.__init__

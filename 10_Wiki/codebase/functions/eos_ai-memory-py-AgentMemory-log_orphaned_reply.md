@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/memory.py
 line: 356
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # AgentMemory.log_orphaned_reply
@@ -23,4 +23,3 @@ Returns event_id (UUID).
 ## Called By
 
 - [[services-calendly_webhook-py-_log_calendly_outcome]]
-- [[services-dm_monitor-py-_log_rlhf_outcome]]

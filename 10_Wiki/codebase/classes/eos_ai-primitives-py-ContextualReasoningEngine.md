@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/primitives.py
 line: 838
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ContextualReasoningEngine

@@ -2,9 +2,9 @@
 type: codebase-file
 path: core/action_system/tme.py
 module: core.action_system.tme
-lines: 78
-size: 3064
-generated: 2026-04-12
+lines: 137
+size: 5005
+generated: 2026-05-07
 ---
 
 # core/action_system/tme.py
@@ -16,12 +16,14 @@ Two concerns live here:
     1. Advisory skill search (legacy) — `query_relevant_skills` shells
 ...
 
-**Lines:** 78 | **Size:** 3,064 bytes
+**Lines:** 137 | **Size:** 5,005 bytes
 
 ## Contains
 
 - **fn** [[core-action_system-tme-py-query_relevant_skills]]`(term) → dict`
 - **fn** [[core-action_system-tme-py-ensure_tool_mastery]]`(tool) → dict[str, Any]`
+- **fn** [[core-action_system-tme-py-ensure_mastery_before_tool_execution]]`(tool_name) → dict[str, Any]`
+- **fn** [[core-action_system-tme-py-resolve_mastery_for_user_intent]]`(text) → dict[str, Any]`
 
 ## Import Statements
 

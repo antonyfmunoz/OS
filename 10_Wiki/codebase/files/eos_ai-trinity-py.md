@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/trinity.py
 module: eos_ai.trinity
 lines: 113
-size: 3966
-generated: 2026-04-12
+size: 4078
+generated: 2026-05-07
 ---
 
 # eos_ai/trinity.py
@@ -16,7 +16,7 @@ OS's state should inform another OS's response.
 
 ...
 
-**Lines:** 113 | **Size:** 3,966 bytes
+**Lines:** 113 | **Size:** 4,078 bytes
 
 ## Depends On
 

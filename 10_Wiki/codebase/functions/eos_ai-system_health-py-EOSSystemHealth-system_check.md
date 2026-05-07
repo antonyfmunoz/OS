@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: eos_ai/system_health.py
-line: 383
-generated: 2026-04-12
+line: 384
+generated: 2026-05-07
 ---
 
 # EOSSystemHealth.system_check
 
-**File:** [[eos_ai-system_health-py]] | **Line:** 383
+**File:** [[eos_ai-system_health-py]] | **Line:** 384
 **Signature:** `system_check() → str`
 
 **Class:** [[eos_ai-system_health-py-EOSSystemHealth]]

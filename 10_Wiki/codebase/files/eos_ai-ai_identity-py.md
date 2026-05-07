@@ -3,9 +3,9 @@ type: codebase-file
 path: eos_ai/ai_identity.py
 module: eos_ai.ai_identity
 lines: 268
-size: 8362
+size: 8629
 tags: [critical]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # eos_ai/ai_identity.py
@@ -19,7 +19,7 @@ The foundational identity of the AI itself.
 Universal. Non-negotiable. Platform-agnostic.
 ...
 
-**Lines:** 268 | **Size:** 8,362 bytes
+**Lines:** 268 | **Size:** 8,629 bytes
 
 ## Contains
 

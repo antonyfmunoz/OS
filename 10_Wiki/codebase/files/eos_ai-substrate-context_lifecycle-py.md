@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/context_lifecycle.py
 module: eos_ai.substrate.context_lifecycle
 lines: 314
-size: 10589
-generated: 2026-04-12
+size: 10902
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/context_lifecycle.py
@@ -16,7 +16,7 @@ Purpose
 Replaces message-count-based ``/clear`` decisions with multi-signal context
 ...
 
-**Lines:** 314 | **Size:** 10,589 bytes
+**Lines:** 314 | **Size:** 10,902 bytes
 
 ## Used By
 

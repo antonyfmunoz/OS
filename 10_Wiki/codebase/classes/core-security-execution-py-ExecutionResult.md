@@ -2,7 +2,7 @@
 type: codebase-class
 file: core/security/execution.py
 line: 207
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ExecutionResult

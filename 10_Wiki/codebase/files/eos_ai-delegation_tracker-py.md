@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/delegation_tracker.py
 module: eos_ai.delegation_tracker
 lines: 101
-size: 3230
-generated: 2026-04-12
+size: 3330
+generated: 2026-05-07
 ---
 
 # eos_ai/delegation_tracker.py
@@ -12,7 +12,7 @@ generated: 2026-04-12
 Delegation Tracker — tracks tasks routed to CEO agents
 or other parties. Follows up if not completed.
 
-**Lines:** 101 | **Size:** 3,230 bytes
+**Lines:** 101 | **Size:** 3,330 bytes
 
 ## Contains
 

@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/knowledge_layers.py
 module: eos_ai.knowledge_layers
 lines: 414
-size: 23725
-generated: 2026-04-12
+size: 24138
+generated: 2026-05-07
 ---
 
 # eos_ai/knowledge_layers.py
@@ -16,7 +16,7 @@ CognitiveLoop PERCEIVE step based on task context signals.
 
 ...
 
-**Lines:** 414 | **Size:** 23,725 bytes
+**Lines:** 414 | **Size:** 24,138 bytes
 
 ## Contains
 

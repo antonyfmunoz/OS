@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/higgsfield_smoke_test.py
 module: scripts.higgsfield_smoke_test
 lines: 78
-size: 2282
+size: 2359
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/higgsfield_smoke_test.py
@@ -19,7 +19,7 @@ verifies the `higgsfield_jobs` row was inserted, and polls status a
 few times so we can confirm auth + submit + request_id extraction
 ...
 
-**Lines:** 78 | **Size:** 2,282 bytes
+**Lines:** 78 | **Size:** 2,359 bytes
 
 ## Depends On
 

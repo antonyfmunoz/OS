@@ -3,8 +3,8 @@ type: codebase-file
 path: core/tool_mastery_research_agent/search_discovery.py
 module: core.tool_mastery_research_agent.search_discovery
 lines: 354
-size: 11610
-generated: 2026-04-12
+size: 11963
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_research_agent/search_discovery.py
@@ -16,7 +16,7 @@ When registry + MCP discovery return nothing, we still need a way to
 candidate URLs from explicit pattern families keyed off the tool slug.
 ...
 
-**Lines:** 354 | **Size:** 11,610 bytes
+**Lines:** 354 | **Size:** 11,963 bytes
 
 ## Contains
 

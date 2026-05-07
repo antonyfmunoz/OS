@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/station_bus.py
 line: 185
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # reset_station_bus_for_tests

@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_claude_session_bridge_smoke_test.py
 module: scripts.substrate_claude_session_bridge_smoke_test
 lines: 208
-size: 8260
+size: 8467
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_claude_session_bridge_smoke_test.py
@@ -19,7 +19,7 @@ Sessions are created with launch_claude=False so the test runs against a
 plain shell pane; message injection and capture are exercised using shell
 ...
 
-**Lines:** 208 | **Size:** 8,260 bytes
+**Lines:** 208 | **Size:** 8,467 bytes
 
 ## Depends On
 

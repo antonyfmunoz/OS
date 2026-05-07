@@ -2,21 +2,21 @@
 type: codebase-file
 path: core/coord_assignment.py
 module: core.coord_assignment
-lines: 405
-size: 12996
-generated: 2026-04-12
+lines: 415
+size: 13979
+generated: 2026-05-07
 ---
 
 # core/coord_assignment.py
 
-Semantic Space v1.1 — Coordinate Assignment
+Semantic Space v1.1 — Coordinate Assignment (Hybrid Index)
 
-Assigns each graph node a 3D semantic coordinate:
-  x = semantic position (PCA-1D of embedding)
-  y = abstraction level (deterministic table)
+Assigns each graph node a hybrid coordinate (1 learned + 2 rule-based):
+  x = semantic position (PCA-1D of embedding — the only learned dimension)
+  y = abstraction level (deterministic keyword table — NOT spatial)
 ...
 
-**Lines:** 405 | **Size:** 12,996 bytes
+**Lines:** 415 | **Size:** 13,979 bytes
 
 ## Contains
 

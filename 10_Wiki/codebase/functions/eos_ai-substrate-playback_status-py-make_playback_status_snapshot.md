@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/playback_status.py
 line: 47
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # make_playback_status_snapshot

@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_local_listener.py
 module: scripts.substrate_local_listener
 lines: 104
-size: 3156
+size: 3259
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_local_listener.py
@@ -19,7 +19,7 @@ It is intentionally tiny: pick a trigger kind, pick a node, optionally
 hint a requested mode, and the listener will (safely) attempt to start an
 ...
 
-**Lines:** 104 | **Size:** 3,156 bytes
+**Lines:** 104 | **Size:** 3,259 bytes
 
 ## Depends On
 

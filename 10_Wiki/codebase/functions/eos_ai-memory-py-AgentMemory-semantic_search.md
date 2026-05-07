@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/memory.py
 line: 558
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # AgentMemory.semantic_search
@@ -23,5 +23,4 @@ Returns ranked results — most similar first.
 
 ## Called By
 
-- [[eos_ai-cognitive_loop-py-CognitiveLoop-run]]
 - [[eos_ai-knowledge_integrator-py-KnowledgeIntegrator-query_knowledge]]

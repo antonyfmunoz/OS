@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/onboarding_engine.py
 line: 164
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # OnboardingEngine.analyze_and_provision
@@ -18,7 +18,3 @@ Returns:
     {
         'data':    dict  — structured business data extracted by LLM
 ...
-
-## Called By
-
-- [[services-discord_bot-py-on_message]]

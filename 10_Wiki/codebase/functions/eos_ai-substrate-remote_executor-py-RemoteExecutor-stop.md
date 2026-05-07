@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/remote_executor.py
 line: 46
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # RemoteExecutor.stop

@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/business_instance.py
 module: eos_ai.business_instance
 lines: 490
-size: 19263
-generated: 2026-04-12
+size: 19752
+generated: 2026-05-07
 ---
 
 # eos_ai/business_instance.py
@@ -16,11 +16,7 @@ the offer, ICP, and channels. Injected into agent prompts
 to give context-aware guidance at every stage.
 ...
 
-**Lines:** 490 | **Size:** 19,263 bytes
-
-## Used By
-
-- [[services-discord_bot-py]]
+**Lines:** 490 | **Size:** 19,752 bytes
 
 ## Contains
 

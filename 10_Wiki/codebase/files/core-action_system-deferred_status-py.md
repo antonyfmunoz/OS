@@ -3,8 +3,8 @@ type: codebase-file
 path: core/action_system/deferred_status.py
 module: core.action_system.deferred_status
 lines: 242
-size: 7983
-generated: 2026-04-12
+size: 8224
+generated: 2026-05-07
 ---
 
 # core/action_system/deferred_status.py
@@ -16,7 +16,7 @@ Status is stored as a sidecar JSON file next to each deferred action:
     /opt/OS/logs/deferred/<action_id>.json          # the action
 ...
 
-**Lines:** 242 | **Size:** 7,983 bytes
+**Lines:** 242 | **Size:** 8,224 bytes
 
 ## Used By
 

@@ -3,8 +3,8 @@ type: codebase-file
 path: core/security/rbac.py
 module: core.security.rbac
 lines: 304
-size: 9415
-generated: 2026-04-12
+size: 9718
+generated: 2026-05-07
 ---
 
 # core/security/rbac.py
@@ -16,7 +16,7 @@ Design decision
 `core.capability` already has `CapabilityProfile` + `CapabilityEnforcer`
 ...
 
-**Lines:** 304 | **Size:** 9,415 bytes
+**Lines:** 304 | **Size:** 9,718 bytes
 
 ## Depends On
 

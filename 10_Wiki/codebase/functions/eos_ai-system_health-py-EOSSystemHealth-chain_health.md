@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/system_health.py
 line: 134
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # EOSSystemHealth.chain_health

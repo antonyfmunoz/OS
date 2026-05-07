@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/orchestrator/loop.py
 line: 99
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # CycleReport.to_dict

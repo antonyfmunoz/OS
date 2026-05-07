@@ -3,8 +3,8 @@ type: codebase-file
 path: core/action_system/control_plane.py
 module: core.action_system.control_plane
 lines: 273
-size: 10180
-generated: 2026-04-12
+size: 10452
+generated: 2026-05-07
 ---
 
 # core/action_system/control_plane.py
@@ -16,7 +16,7 @@ Lifecycle:
 
 ...
 
-**Lines:** 273 | **Size:** 10,180 bytes
+**Lines:** 273 | **Size:** 10,452 bytes
 
 ## Depends On
 

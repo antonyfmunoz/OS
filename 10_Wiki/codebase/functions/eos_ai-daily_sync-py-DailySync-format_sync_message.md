@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/daily_sync.py
 line: 477
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # DailySync.format_sync_message

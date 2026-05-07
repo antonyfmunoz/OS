@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/voice_interface.py
 line: 247
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # VoiceInterface.synthesize
@@ -14,10 +14,6 @@ generated: 2026-04-12
 
 Convert text to speech. Markdown stripping is handled inside
 MediaProcessor.synthesize_speech(). Returns path to audio or None.
-
-## Calls
-
-- [[eos_ai-media_processor-py-MediaProcessor-synthesize_speech]]
 
 ## Called By
 

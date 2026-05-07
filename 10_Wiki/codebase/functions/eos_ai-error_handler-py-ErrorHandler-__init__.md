@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/error_handler.py
 line: 140
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ErrorHandler.__init__

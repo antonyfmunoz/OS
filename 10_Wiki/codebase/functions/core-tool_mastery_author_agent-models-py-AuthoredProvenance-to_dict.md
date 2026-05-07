@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_author_agent/models.py
 line: 99
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # AuthoredProvenance.to_dict

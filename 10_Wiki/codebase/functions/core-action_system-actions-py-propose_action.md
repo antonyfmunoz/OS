@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: core/action_system/actions.py
-line: 59
-generated: 2026-04-12
+line: 60
+generated: 2026-05-07
 ---
 
 # propose_action
 
-**File:** [[core-action_system-actions-py]] | **Line:** 59
+**File:** [[core-action_system-actions-py]] | **Line:** 60
 **Signature:** `propose_action(type, description) → Action`
 
 Build an Action object in the `proposed` state.

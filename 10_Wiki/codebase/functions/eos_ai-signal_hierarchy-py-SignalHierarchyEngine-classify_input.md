@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/signal_hierarchy.py
 line: 96
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # SignalHierarchyEngine.classify_input

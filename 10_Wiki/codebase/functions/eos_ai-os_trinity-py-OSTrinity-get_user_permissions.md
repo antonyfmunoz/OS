@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/os_trinity.py
 line: 166
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # OSTrinity.get_user_permissions

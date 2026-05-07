@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_coordination_intelligence_smoke_test.py
 module: scripts.substrate_coordination_intelligence_smoke_test
 lines: 275
-size: 9382
+size: 9656
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_coordination_intelligence_smoke_test.py
@@ -19,7 +19,7 @@ Temporal/Resolution/Execution intelligence. No hot-path changes, no new
 pipelines, no daemons. Time is simulated where needed.
 ...
 
-**Lines:** 275 | **Size:** 9,382 bytes
+**Lines:** 275 | **Size:** 9,656 bytes
 
 ## Depends On
 

@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_operator_cli.py
 module: scripts.substrate_operator_cli
 lines: 229
-size: 8584
+size: 8812
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_operator_cli.py
@@ -19,7 +19,7 @@ Deterministic. Bounded. No automation.
 
 ...
 
-**Lines:** 229 | **Size:** 8,584 bytes
+**Lines:** 229 | **Size:** 8,812 bytes
 
 ## Depends On
 

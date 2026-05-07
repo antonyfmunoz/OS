@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/template_library.py
 line: 397
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # TemplateLibrary.format_for_prompt

@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/decisions.py
 module: scripts.decisions
 lines: 202
-size: 6667
+size: 6868
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/decisions.py
@@ -19,7 +19,7 @@ This tool is READ-ONLY and imports nothing from `core.action_system` —
 if the Control Plane is broken, this tool still works. Matching the
 ...
 
-**Lines:** 202 | **Size:** 6,667 bytes
+**Lines:** 202 | **Size:** 6,868 bytes
 
 ## Contains
 

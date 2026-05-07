@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/meeting_intelligence.py
 module: eos_ai.substrate.meeting_intelligence
 lines: 2181
-size: 82491
-generated: 2026-04-12
+size: 84671
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/meeting_intelligence.py
@@ -16,7 +16,7 @@ Sits on top of the existing meeting_transport pipeline:
     inject_transcript → voice_session → responder → SPEAK_TEXT
 ...
 
-**Lines:** 2181 | **Size:** 82,491 bytes
+**Lines:** 2181 | **Size:** 84,671 bytes
 
 ## Contains
 

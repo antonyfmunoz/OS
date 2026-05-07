@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: eos_ai/substrate/discord_text_transport.py
-line: 1616
-generated: 2026-04-12
+line: 1623
+generated: 2026-05-07
 ---
 
 # pseudo_live_status
 
-**File:** [[eos_ai-substrate-discord_text_transport-py]] | **Line:** 1616
+**File:** [[eos_ai-substrate-discord_text_transport-py]] | **Line:** 1623
 **Signature:** `pseudo_live_status() → dict[str, Any]`
 
 Observability snapshot for the pseudo-live Discord text loop.

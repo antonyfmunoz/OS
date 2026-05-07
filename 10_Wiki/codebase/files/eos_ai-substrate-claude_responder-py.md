@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/claude_responder.py
 module: eos_ai.substrate.claude_responder
 lines: 179
-size: 5310
-generated: 2026-04-12
+size: 5488
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/claude_responder.py
@@ -16,7 +16,7 @@ routing it through a persistent Claude Code tmux session via
 Purpose
 ...
 
-**Lines:** 179 | **Size:** 5,310 bytes
+**Lines:** 179 | **Size:** 5,488 bytes
 
 ## Depends On
 

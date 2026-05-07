@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/voice_engine.py
 line: 478
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # VoiceEngine.should_respond
@@ -18,7 +18,3 @@ Suppresses response for thinking aloud, singing, music, and silence.
 ## Calls
 
 - [[eos_ai-voice_engine-py-IntelligentVoiceProcessor-classify_speech]]
-
-## Called By
-
-- [[services-discord_bot-py-_listen_loop]]

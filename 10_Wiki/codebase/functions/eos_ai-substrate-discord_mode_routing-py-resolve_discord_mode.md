@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/discord_mode_routing.py
 line: 113
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # resolve_discord_mode

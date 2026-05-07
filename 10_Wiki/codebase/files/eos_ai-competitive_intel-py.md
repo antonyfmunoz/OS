@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/competitive_intel.py
 module: eos_ai.competitive_intel
 lines: 149
-size: 4891
-generated: 2026-04-12
+size: 5039
+generated: 2026-05-07
 ---
 
 # eos_ai/competitive_intel.py
@@ -12,7 +12,7 @@ generated: 2026-04-12
 Competitive Intelligence — tracks competitor signals
 and synthesizes implications for each venture.
 
-**Lines:** 149 | **Size:** 4,891 bytes
+**Lines:** 149 | **Size:** 5,039 bytes
 
 ## Contains
 

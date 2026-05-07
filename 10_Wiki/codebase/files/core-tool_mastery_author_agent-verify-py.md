@@ -3,8 +3,8 @@ type: codebase-file
 path: core/tool_mastery_author_agent/verify.py
 module: core.tool_mastery_author_agent.verify
 lines: 77
-size: 2339
-generated: 2026-04-12
+size: 2415
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_author_agent/verify.py
@@ -15,7 +15,7 @@ We shell out to the canonical verifier rather than reimplementing
 its logic. The Author Agent's output is NEVER trusted on its own
 word — the verifier is the ground truth for READY status.
 
-**Lines:** 77 | **Size:** 2,339 bytes
+**Lines:** 77 | **Size:** 2,415 bytes
 
 ## Contains
 

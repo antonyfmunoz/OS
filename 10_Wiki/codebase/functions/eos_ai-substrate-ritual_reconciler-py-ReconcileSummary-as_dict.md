@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/ritual_reconciler.py
 line: 53
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ReconcileSummary.as_dict

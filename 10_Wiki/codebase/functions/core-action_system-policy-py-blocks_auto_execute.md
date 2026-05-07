@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/action_system/policy.py
 line: 109
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # blocks_auto_execute

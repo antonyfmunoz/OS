@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/gws_connector.py
 line: 858
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # GWSConnector.get_or_create_label

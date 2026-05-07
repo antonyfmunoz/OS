@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/stt_producer.py
 module: eos_ai.substrate.stt_producer
 lines: 1147
-size: 42041
-generated: 2026-04-12
+size: 43187
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/stt_producer.py
@@ -16,7 +16,7 @@ Purpose
 This module is the first REAL local mic/STT producer for the substrate.
 ...
 
-**Lines:** 1147 | **Size:** 42,041 bytes
+**Lines:** 1147 | **Size:** 43,187 bytes
 
 ## Used By
 

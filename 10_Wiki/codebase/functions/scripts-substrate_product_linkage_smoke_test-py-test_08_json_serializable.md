@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_product_linkage_smoke_test.py
 line: 327
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # test_08_json_serializable

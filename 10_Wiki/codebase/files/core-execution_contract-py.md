@@ -3,8 +3,8 @@ type: codebase-file
 path: core/execution_contract.py
 module: core.execution_contract
 lines: 385
-size: 13347
-generated: 2026-04-12
+size: 13731
+generated: 2026-05-07
 ---
 
 # core/execution_contract.py
@@ -16,7 +16,7 @@ Never raises — always returns a result dict with ok=True/False.
 
 ...
 
-**Lines:** 385 | **Size:** 13,347 bytes
+**Lines:** 385 | **Size:** 13,731 bytes
 
 ## Depends On
 

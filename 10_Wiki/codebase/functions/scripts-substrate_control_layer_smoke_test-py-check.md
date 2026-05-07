@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_control_layer_smoke_test.py
 line: 26
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # check

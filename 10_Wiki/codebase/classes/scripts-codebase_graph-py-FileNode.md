@@ -2,7 +2,7 @@
 type: codebase-class
 file: scripts/codebase_graph.py
 line: 143
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # FileNode

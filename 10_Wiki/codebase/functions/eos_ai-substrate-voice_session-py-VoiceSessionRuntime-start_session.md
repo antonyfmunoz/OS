@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/voice_session.py
 line: 480
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # VoiceSessionRuntime.start_session

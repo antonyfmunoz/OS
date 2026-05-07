@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/transcript_inject.py
 module: eos_ai.substrate.transcript_inject
 lines: 205
-size: 7081
-generated: 2026-04-12
+size: 7285
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/transcript_inject.py
@@ -16,7 +16,7 @@ Purpose
 -------
 ...
 
-**Lines:** 205 | **Size:** 7,081 bytes
+**Lines:** 205 | **Size:** 7,285 bytes
 
 ## Depends On
 

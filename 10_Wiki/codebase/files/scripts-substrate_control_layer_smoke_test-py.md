@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_control_layer_smoke_test.py
 module: scripts.substrate_control_layer_smoke_test
 lines: 130
-size: 4867
+size: 4996
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_control_layer_smoke_test.py
@@ -18,7 +18,7 @@ Validates the explicit, bounded execution bridge end-to-end without touching
 hot-path or networking. Uses a temporary node_id namespace to keep the live
 queue clean.
 
-**Lines:** 130 | **Size:** 4,867 bytes
+**Lines:** 130 | **Size:** 4,996 bytes
 
 ## Depends On
 

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/strategy_engine.py
 line: 291
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # StrategyEngine.run_decision_analysis
@@ -18,7 +18,5 @@ risk, timing, and clear recommendation.
 
 ## Calls
 
-- [[eos_ai-agent_runtime-py-AgentRuntime-run]]
-- [[eos_ai-cognitive_loop-py-CognitiveLoop-run]]
 - [[eos_ai-strategy_engine-py-_parse_labeled_sections]]
 - [[eos_ai-venture_knowledge-py-VentureKnowledgeBase-get]]

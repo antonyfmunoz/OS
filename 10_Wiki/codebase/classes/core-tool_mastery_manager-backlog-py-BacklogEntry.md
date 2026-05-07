@@ -2,7 +2,7 @@
 type: codebase-class
 file: core/tool_mastery_manager/backlog.py
 line: 44
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # BacklogEntry

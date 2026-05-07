@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_router_claude_primary_smoke_test.py
 module: scripts.substrate_router_claude_primary_smoke_test
 lines: 236
-size: 7720
+size: 7955
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_router_claude_primary_smoke_test.py
@@ -19,7 +19,7 @@ Proves the broader router (eos_ai.model_router.call_with_fallback) now:
   1. Tries Claude CLI (persistent tmux session) FIRST when available.
 ...
 
-**Lines:** 236 | **Size:** 7,720 bytes
+**Lines:** 236 | **Size:** 7,955 bytes
 
 ## Depends On
 

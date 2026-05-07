@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/notion_outcome_sync.py
 module: scripts.notion_outcome_sync
 lines: 197
-size: 5751
+size: 5947
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/notion_outcome_sync.py
@@ -19,7 +19,7 @@ log_standalone_outcome() into Neon when a lead reaches a terminal stage.
 Run on a schedule — every 15 minutes via cron or nightly_maintenance.sh.
 ...
 
-**Lines:** 197 | **Size:** 5,751 bytes
+**Lines:** 197 | **Size:** 5,947 bytes
 
 ## Contains
 

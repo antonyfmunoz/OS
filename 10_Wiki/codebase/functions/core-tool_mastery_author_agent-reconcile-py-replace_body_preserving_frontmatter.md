@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_author_agent/reconcile.py
 line: 148
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # replace_body_preserving_frontmatter

@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_remote_execution_smoke_test.py
 line: 87
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # test_malformed_rejected

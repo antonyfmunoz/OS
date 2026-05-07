@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_resolution_intelligence_smoke_test.py
 module: scripts.substrate_resolution_intelligence_smoke_test
 lines: 241
-size: 7902
+size: 8142
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_resolution_intelligence_smoke_test.py
@@ -19,7 +19,7 @@ Validates the additive bounded upgrade on top of Execution Intelligence:
   1. A commitment is created via update_meeting_summary.
 ...
 
-**Lines:** 241 | **Size:** 7,902 bytes
+**Lines:** 241 | **Size:** 8,142 bytes
 
 ## Depends On
 

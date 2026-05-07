@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/substrate/stt_producer.py
 line: 200
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # SttCaptureEvent

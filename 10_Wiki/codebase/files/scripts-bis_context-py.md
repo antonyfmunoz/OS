@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/bis_context.py
 module: scripts.bis_context
 lines: 88
-size: 2422
+size: 2509
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/bis_context.py
@@ -19,7 +19,7 @@ Usage:
   python3 /opt/OS/scripts/bis_context.py              # default fields
 ...
 
-**Lines:** 88 | **Size:** 2,422 bytes
+**Lines:** 88 | **Size:** 2,509 bytes
 
 ## Contains
 

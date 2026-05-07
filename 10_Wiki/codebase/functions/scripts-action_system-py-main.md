@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/action_system.py
 line: 1078
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # main

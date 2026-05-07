@@ -2,9 +2,9 @@
 type: codebase-file
 path: eos_ai/substrate/scenes.py
 module: eos_ai.substrate.scenes
-lines: 81
-size: 2761
-generated: 2026-04-12
+lines: 177
+size: 6750
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/scenes.py
@@ -16,7 +16,7 @@ prepare a workstation for a particular mode of work. Scenes are NOT runtime-
 definable in this pass: they are hardcoded here so the trust boundary cannot
 ...
 
-**Lines:** 81 | **Size:** 2,761 bytes
+**Lines:** 177 | **Size:** 6,750 bytes
 
 ## Depends On
 
@@ -44,5 +44,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Any
+from typing import Optional
 from eos_ai.substrate.actions import ActionKind
 ```

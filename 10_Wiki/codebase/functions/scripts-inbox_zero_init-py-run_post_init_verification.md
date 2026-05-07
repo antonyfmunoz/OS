@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/inbox_zero_init.py
 line: 189
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # run_post_init_verification

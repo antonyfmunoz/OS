@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/result_query.py
 module: eos_ai.substrate.result_query
 lines: 455
-size: 14682
-generated: 2026-04-12
+size: 15136
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/result_query.py
@@ -16,7 +16,7 @@ and reporting scripts can answer questions like:
 
 ...
 
-**Lines:** 455 | **Size:** 14,682 bytes
+**Lines:** 455 | **Size:** 15,136 bytes
 
 ## Depends On
 

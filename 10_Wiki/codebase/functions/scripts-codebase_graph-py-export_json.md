@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/codebase_graph.py
 line: 620
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # export_json

@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/persistent_agents.py
 line: 532
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # default_agents

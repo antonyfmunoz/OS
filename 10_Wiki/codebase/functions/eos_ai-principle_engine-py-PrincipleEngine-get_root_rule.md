@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/principle_engine.py
 line: 428
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # PrincipleEngine.get_root_rule

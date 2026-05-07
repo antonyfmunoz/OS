@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/portfolio_advisor.py
 line: 275
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # PortfolioAdvisor.cross_company_intelligence
@@ -17,6 +17,5 @@ strategic answer to the given topic or question.
 
 ## Calls
 
-- [[eos_ai-agent_runtime-py-AgentRuntime-run]]
 - [[eos_ai-portfolio_advisor-py-PortfolioAdvisor-_format_status_block]]
 - [[eos_ai-portfolio_advisor-py-PortfolioAdvisor-get_portfolio_status]]

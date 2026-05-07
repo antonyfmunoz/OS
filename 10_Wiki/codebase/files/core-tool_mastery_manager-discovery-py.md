@@ -3,8 +3,8 @@ type: codebase-file
 path: core/tool_mastery_manager/discovery.py
 module: core.tool_mastery_manager.discovery
 lines: 333
-size: 11138
-generated: 2026-04-12
+size: 11470
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_manager/discovery.py
@@ -16,7 +16,7 @@ Four deterministic sources, in priority order:
     (i)   skills_dir   — /opt/OS/skills/tools/ existing slugs
 ...
 
-**Lines:** 333 | **Size:** 11,138 bytes
+**Lines:** 333 | **Size:** 11,470 bytes
 
 ## Contains
 

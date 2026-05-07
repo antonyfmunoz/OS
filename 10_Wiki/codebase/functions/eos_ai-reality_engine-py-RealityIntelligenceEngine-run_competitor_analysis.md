@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/reality_engine.py
 line: 422
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # RealityIntelligenceEngine.run_competitor_analysis
@@ -19,8 +19,6 @@ Returns: positioning, offer_structure, target_icp, weaknesses,
 
 ## Calls
 
-- [[eos_ai-agent_runtime-py-AgentRuntime-run]]
-- [[eos_ai-cognitive_loop-py-CognitiveLoop-run]]
 - [[eos_ai-strategy_engine-py-_parse_labeled_sections]]
 - [[eos_ai-venture_knowledge-py-VentureKnowledgeBase-to_agent_context]]
 

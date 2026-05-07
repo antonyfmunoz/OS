@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/ceo_operational_standards.py
 module: eos_ai.ceo_operational_standards
 lines: 604
-size: 19257
-generated: 2026-04-12
+size: 19860
+generated: 2026-05-07
 ---
 
 # eos_ai/ceo_operational_standards.py
@@ -16,7 +16,7 @@ for every CEO domain request.
 Same structure as ea_best_practices.py.
 ...
 
-**Lines:** 604 | **Size:** 19,257 bytes
+**Lines:** 604 | **Size:** 19,860 bytes
 
 ## Contains
 

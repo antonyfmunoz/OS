@@ -3,8 +3,8 @@ type: codebase-file
 path: core/tool_mastery_research_agent/structured_crawl.py
 module: core.tool_mastery_research_agent.structured_crawl
 lines: 437
-size: 15876
-generated: 2026-04-12
+size: 16312
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_research_agent/structured_crawl.py
@@ -16,7 +16,7 @@ readable surface (no sitemap, no llms.txt, SPA shell, bot-walled
 aggregator search). For those tools, Phases 1 and 2 cannot find
 ...
 
-**Lines:** 437 | **Size:** 15,876 bytes
+**Lines:** 437 | **Size:** 16,312 bytes
 
 ## Contains
 

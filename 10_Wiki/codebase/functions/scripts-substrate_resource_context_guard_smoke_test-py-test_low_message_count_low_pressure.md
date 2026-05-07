@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_resource_context_guard_smoke_test.py
 line: 352
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # test_low_message_count_low_pressure

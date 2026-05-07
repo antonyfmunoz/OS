@@ -3,8 +3,8 @@ type: codebase-file
 path: core/tool_mastery_author_agent/mapping.py
 module: core.tool_mastery_author_agent.mapping
 lines: 610
-size: 21026
-generated: 2026-04-12
+size: 21635
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_author_agent/mapping.py
@@ -16,7 +16,7 @@ captures), the mapper decides which of the 19 TME best_practices
 sections have evidence in the captured material — and which do not.
 ...
 
-**Lines:** 610 | **Size:** 21,026 bytes
+**Lines:** 610 | **Size:** 21,635 bytes
 
 ## Used By
 

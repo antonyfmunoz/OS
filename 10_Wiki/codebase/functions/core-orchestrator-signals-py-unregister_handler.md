@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/orchestrator/signals.py
 line: 139
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # unregister_handler

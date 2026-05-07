@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/handlers/pipeline_handler.py
 line: 18
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # detect_pipeline_update

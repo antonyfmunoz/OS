@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/action_system.py
 module: scripts.action_system
 lines: 1241
-size: 49015
+size: 50255
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/action_system.py
@@ -19,7 +19,7 @@ Sits between the AI (which proposes actions) and the filesystem / shell
 
 ...
 
-**Lines:** 1241 | **Size:** 49,015 bytes
+**Lines:** 1241 | **Size:** 50,255 bytes
 
 ## Depends On
 

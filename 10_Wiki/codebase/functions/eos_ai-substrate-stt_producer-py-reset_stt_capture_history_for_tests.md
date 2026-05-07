@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/stt_producer.py
 line: 673
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # reset_stt_capture_history_for_tests

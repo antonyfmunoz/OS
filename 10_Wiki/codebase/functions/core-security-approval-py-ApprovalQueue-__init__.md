@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/security/approval.py
 line: 143
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ApprovalQueue.__init__

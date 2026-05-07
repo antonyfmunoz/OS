@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_manager/coverage.py
 line: 36
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # evaluate_coverage
@@ -19,7 +19,6 @@ Composes the three existing TME internals:
 
 ## Calls
 
-- [[scripts-_tme_common-py-load_skill]]
 - [[scripts-check_skill_staleness-py-_assess]]
 - [[scripts-verify_tool_skill-py-_check]]
 

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/db.py
 line: 64
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # get_conn
@@ -30,6 +30,8 @@ PostgreSQL RLS firewall scopes all queries to the correct tenant.
 - [[eos_ai-authority_engine-py-AuthorityEngine-get_pending]]
 - [[eos_ai-authority_engine-py-AuthorityEngine-queue_for_approval]]
 - [[eos_ai-authority_engine-py-AuthorityEngine-reject]]
+- [[eos_ai-company_instantiator-py-CompanyInstantiator-ensure_ventures]]
+- [[eos_ai-company_instantiator-py-CompanyInstantiator-seed_offers]]
 - [[eos_ai-context_compaction-py-ContextCompactor-_ensure_table]]
 - [[eos_ai-context_compaction-py-ContextCompactor-compact]]
 - [[eos_ai-context_compaction-py-ContextCompactor-get_lineage]]
@@ -37,12 +39,10 @@ PostgreSQL RLS firewall scopes all queries to the correct tenant.
 - [[eos_ai-coordination_engine-py-CoordinationEngine-assign_task]]
 - [[eos_ai-coordination_engine-py-CoordinationEngine-complete_task]]
 - [[eos_ai-coordination_engine-py-CoordinationEngine-get_task_queue]]
-- [[eos_ai-event_bus-py-EventBus-_log_event]]
 - [[eos_ai-evolution_engine-py-EvolutionEngine-analyze_system_performance]]
 - [[eos_ai-evolution_engine-py-EvolutionEngine-detect_new_agent_patterns]]
 - [[eos_ai-evolution_engine-py-EvolutionEngine-propose_new_agent]]
 - [[eos_ai-evolution_engine-py-EvolutionEngine-propose_workflow_improvement]]
-- [[eos_ai-evolution_engine-py-EvolutionEngine-run_weekly_evolution_cycle]]
 
 ## Decorators
 

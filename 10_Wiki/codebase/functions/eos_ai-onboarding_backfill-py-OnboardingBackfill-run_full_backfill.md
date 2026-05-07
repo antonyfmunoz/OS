@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/onboarding_backfill.py
 line: 43
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # OnboardingBackfill.run_full_backfill

@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/build_palace.py
 module: scripts.build_palace
 lines: 484
-size: 16461
+size: 16944
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/build_palace.py
@@ -19,7 +19,7 @@ Structure:
     Wing       -> 10_Wiki/palace/wings/<wing>.md          (top-level module)
 ...
 
-**Lines:** 484 | **Size:** 16,461 bytes
+**Lines:** 484 | **Size:** 16,944 bytes
 
 ## Depends On
 

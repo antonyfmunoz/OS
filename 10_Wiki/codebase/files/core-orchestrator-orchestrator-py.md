@@ -3,8 +3,8 @@ type: codebase-file
 path: core/orchestrator/orchestrator.py
 module: core.orchestrator.orchestrator
 lines: 200
-size: 6461
-generated: 2026-04-12
+size: 6660
+generated: 2026-05-07
 ---
 
 # core/orchestrator/orchestrator.py
@@ -16,7 +16,7 @@ The Orchestrator is a thin registry + dispatcher:
   - `run_workflow(name, context=...)`
 ...
 
-**Lines:** 200 | **Size:** 6,461 bytes
+**Lines:** 200 | **Size:** 6,660 bytes
 
 ## Depends On
 

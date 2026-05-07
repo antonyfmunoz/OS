@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/benchmark_semantic_space.py
 module: scripts.benchmark_semantic_space
 lines: 428
-size: 13650
+size: 14077
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/benchmark_semantic_space.py
@@ -19,7 +19,7 @@ Compares three paths:
   2. v1      — PCA spatial prefilter + proximity rerank + graph expansion
 ...
 
-**Lines:** 428 | **Size:** 13,650 bytes
+**Lines:** 428 | **Size:** 14,077 bytes
 
 ## Contains
 

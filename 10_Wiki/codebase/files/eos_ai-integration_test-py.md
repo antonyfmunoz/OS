@@ -3,9 +3,9 @@ type: codebase-file
 path: eos_ai/integration_test.py
 module: eos_ai.integration_test
 lines: 257
-size: 10132
+size: 10388
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # eos_ai/integration_test.py
@@ -19,7 +19,7 @@ through every layer: gateway → event bus → agent teams → memory.
 
 ...
 
-**Lines:** 257 | **Size:** 10,132 bytes
+**Lines:** 257 | **Size:** 10,388 bytes
 
 ## Depends On
 

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/voice_session.py
 line: 341
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # VoiceSessionStore.active

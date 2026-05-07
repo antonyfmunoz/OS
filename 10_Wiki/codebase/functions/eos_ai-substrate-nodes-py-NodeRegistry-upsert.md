@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: eos_ai/substrate/nodes.py
-line: 136
-generated: 2026-04-12
+line: 147
+generated: 2026-05-07
 ---
 
 # NodeRegistry.upsert
 
-**File:** [[eos_ai-substrate-nodes-py]] | **Line:** 136
+**File:** [[eos_ai-substrate-nodes-py]] | **Line:** 147
 **Signature:** `upsert(node) → Node`
 
 **Class:** [[eos_ai-substrate-nodes-py-NodeRegistry]]

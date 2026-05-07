@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/notion_sync.py
 line: 258
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # write_meeting

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/session_state.py
 line: 78
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # SessionState.clear

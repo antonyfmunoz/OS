@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_ptt_binding_smoke_test.py
 module: scripts.substrate_ptt_binding_smoke_test
 lines: 178
-size: 6581
+size: 6758
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_ptt_binding_smoke_test.py
@@ -19,7 +19,7 @@ Proves the bounded REAL_READY proof path end-to-end:
   2. validate_real_capture(...) on a degraded environment with a
 ...
 
-**Lines:** 178 | **Size:** 6,581 bytes
+**Lines:** 178 | **Size:** 6,758 bytes
 
 ## Depends On
 

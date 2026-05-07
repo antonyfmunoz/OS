@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: scripts/substrate_workflow_delegation_smoke_test.py
-line: 266
-generated: 2026-04-12
+line: 306
+generated: 2026-05-07
 ---
 
 # test_unknown_mode_restricts
 
-**File:** [[scripts-substrate_workflow_delegation_smoke_test-py]] | **Line:** 266
+**File:** [[scripts-substrate_workflow_delegation_smoke_test-py]] | **Line:** 306
 **Signature:** `test_unknown_mode_restricts() → None`
 
 *No docstring.*

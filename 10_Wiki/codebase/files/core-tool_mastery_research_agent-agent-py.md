@@ -3,8 +3,8 @@ type: codebase-file
 path: core/tool_mastery_research_agent/agent.py
 module: core.tool_mastery_research_agent.agent
 lines: 199
-size: 6767
-generated: 2026-04-12
+size: 6965
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_research_agent/agent.py
@@ -14,7 +14,7 @@ Research Agent orchestrator.
 Glues discovery → fetch → artifact → handoff into a single run, and
 writes a run manifest so every execution is auditable.
 
-**Lines:** 199 | **Size:** 6,767 bytes
+**Lines:** 199 | **Size:** 6,965 bytes
 
 ## Contains
 

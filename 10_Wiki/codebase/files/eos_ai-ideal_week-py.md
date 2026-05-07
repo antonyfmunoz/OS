@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/ideal_week.py
 module: eos_ai.ideal_week
 lines: 264
-size: 8728
-generated: 2026-04-12
+size: 8991
+generated: 2026-05-07
 ---
 
 # eos_ai/ideal_week.py
@@ -12,7 +12,7 @@ generated: 2026-04-12
 Ideal Week — stores and applies Antony's ideal
 week template. Used by week_architect.py as baseline.
 
-**Lines:** 264 | **Size:** 8,728 bytes
+**Lines:** 264 | **Size:** 8,991 bytes
 
 ## Contains
 

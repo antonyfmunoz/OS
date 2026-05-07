@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/query_skills.py
 line: 117
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # cmd_stale
@@ -14,6 +14,4 @@ generated: 2026-04-12
 
 ## Calls
 
-- [[scripts-_tme_common-py-all_skill_slugs]]
-- [[scripts-_tme_common-py-load_skill]]
 - [[scripts-check_skill_staleness-py-_assess]]

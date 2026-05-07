@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/orchestrator/loop.py
 line: 425
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # run_forever

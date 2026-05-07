@@ -3,8 +3,8 @@ type: codebase-file
 path: scripts/memory_neon.py
 module: scripts.memory_neon
 lines: 565
-size: 18307
-generated: 2026-04-12
+size: 18871
+generated: 2026-05-07
 ---
 
 # scripts/memory_neon.py
@@ -16,7 +16,7 @@ All calls are try/except guarded — Neon is enhancement, never blocking.
 
 ...
 
-**Lines:** 565 | **Size:** 18,307 bytes
+**Lines:** 565 | **Size:** 18,871 bytes
 
 ## Depends On
 

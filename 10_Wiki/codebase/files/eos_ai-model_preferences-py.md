@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/model_preferences.py
 module: eos_ai.model_preferences
 lines: 472
-size: 19661
-generated: 2026-04-12
+size: 20132
+generated: 2026-05-07
 ---
 
 # eos_ai/model_preferences.py
@@ -16,16 +16,12 @@ Priority order (highest to lowest):
   2. session_override — human session override
 ...
 
-**Lines:** 472 | **Size:** 19,661 bytes
+**Lines:** 472 | **Size:** 20,132 bytes
 
 ## Depends On
 
 - [[eos_ai-context-py]]
 - [[eos_ai-db-py]]
-
-## Used By
-
-- [[eos_ai-agent_runtime-py]]
 
 ## Contains
 

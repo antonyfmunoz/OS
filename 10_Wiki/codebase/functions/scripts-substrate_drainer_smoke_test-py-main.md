@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_drainer_smoke_test.py
 line: 43
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # main
@@ -14,7 +14,6 @@ generated: 2026-04-12
 
 ## Calls
 
-- [[eos_ai-event_bus-py-EventBus-subscribe]]
 - [[eos_ai-substrate-station-py-StationContract-event_log]]
 - [[eos_ai-substrate-station_bus-py-StationBus-_inbox_append]]
 - [[eos_ai-substrate-station_bus-py-StationBus-daemon_post_event]]

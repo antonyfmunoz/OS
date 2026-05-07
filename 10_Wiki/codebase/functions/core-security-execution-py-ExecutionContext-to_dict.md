@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/security/execution.py
 line: 190
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ExecutionContext.to_dict

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/discord_mode_routing.py
 line: 316
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # clear_mode_context_for_tests

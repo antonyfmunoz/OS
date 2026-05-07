@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/orchestrator/orchestrator.py
 line: 62
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # Orchestrator.register_workflow

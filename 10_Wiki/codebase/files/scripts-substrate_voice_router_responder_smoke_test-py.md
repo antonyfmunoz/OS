@@ -3,8 +3,8 @@ type: codebase-file
 path: scripts/substrate_voice_router_responder_smoke_test.py
 module: scripts.substrate_voice_router_responder_smoke_test
 lines: 201
-size: 6707
-generated: 2026-04-12
+size: 6907
+generated: 2026-05-07
 ---
 
 # scripts/substrate_voice_router_responder_smoke_test.py
@@ -16,7 +16,7 @@ voice responder (eos_ai.substrate.voice_eos_responder._eos_voice_responder)
 as the global responder for voice sessions, replacing the substrate's
 ...
 
-**Lines:** 201 | **Size:** 6,707 bytes
+**Lines:** 201 | **Size:** 6,907 bytes
 
 ## Depends On
 

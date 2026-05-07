@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/claude_responder.py
 line: 72
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # respond_via_claude_session

@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: eos_ai/substrate/station_daemon.py
-line: 113
-generated: 2026-04-12
+line: 116
+generated: 2026-05-07
 ---
 
 # StationDaemon.__init__
 
-**File:** [[eos_ai-substrate-station_daemon-py]] | **Line:** 113
+**File:** [[eos_ai-substrate-station_daemon-py]] | **Line:** 116
 **Signature:** `__init__(node_id) → None`
 
 **Class:** [[eos_ai-substrate-station_daemon-py-StationDaemon]]

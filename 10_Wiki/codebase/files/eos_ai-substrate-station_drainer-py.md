@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/station_drainer.py
 module: eos_ai.substrate.station_drainer
 lines: 348
-size: 11064
-generated: 2026-04-12
+size: 11411
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/station_drainer.py
@@ -16,7 +16,7 @@ Completes two round-trip loops:
     1) EVENTS
 ...
 
-**Lines:** 348 | **Size:** 11,064 bytes
+**Lines:** 348 | **Size:** 11,411 bytes
 
 ## Depends On
 

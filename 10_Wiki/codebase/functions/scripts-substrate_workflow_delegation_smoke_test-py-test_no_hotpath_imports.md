@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: scripts/substrate_workflow_delegation_smoke_test.py
-line: 415
-generated: 2026-04-12
+line: 455
+generated: 2026-05-07
 ---
 
 # test_no_hotpath_imports
 
-**File:** [[scripts-substrate_workflow_delegation_smoke_test-py]] | **Line:** 415
+**File:** [[scripts-substrate_workflow_delegation_smoke_test-py]] | **Line:** 455
 **Signature:** `test_no_hotpath_imports() → None`
 
 *No docstring.*

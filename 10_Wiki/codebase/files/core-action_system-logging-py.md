@@ -3,8 +3,8 @@ type: codebase-file
 path: core/action_system/logging.py
 module: core.action_system.logging
 lines: 73
-size: 2246
-generated: 2026-04-12
+size: 2318
+generated: 2026-05-07
 ---
 
 # core/action_system/logging.py
@@ -14,7 +14,7 @@ Append-only JSONL loggers for execution and decision records.
 Two logs, two directories, one record per line. Simple to `tail -f`,
 simple to grep, simple to replay.
 
-**Lines:** 73 | **Size:** 2,246 bytes
+**Lines:** 73 | **Size:** 2,318 bytes
 
 ## Used By
 

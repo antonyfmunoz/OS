@@ -3,9 +3,9 @@ type: codebase-file
 path: core/security/cli.py
 module: core.security.cli
 lines: 288
-size: 9255
+size: 9542
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # core/security/cli.py
@@ -19,7 +19,7 @@ Usage
     python3 -m core.security.cli user create <id> --role operator
 ...
 
-**Lines:** 288 | **Size:** 9,255 bytes
+**Lines:** 288 | **Size:** 9,542 bytes
 
 ## Depends On
 

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/error_handler.py
 line: 186
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ErrorHandler.handle
@@ -23,7 +23,3 @@ should_pause: True signals caller to stop and let Docker restart
 - [[eos_ai-error_handler-py-ErrorHandler-_log_error]]
 - [[eos_ai-error_handler-py-ErrorHandler-_send_alert]]
 - [[eos_ai-error_handler-py-ErrorHandler-classify_error]]
-
-## Called By
-
-- [[services-dm_monitor-py-main]]

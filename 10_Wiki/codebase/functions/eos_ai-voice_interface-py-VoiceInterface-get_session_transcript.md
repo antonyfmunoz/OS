@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/voice_interface.py
 line: 766
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # VoiceInterface.get_session_transcript

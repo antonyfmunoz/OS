@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/strategy_engine.py
 module: eos_ai.strategy_engine
 lines: 526
-size: 22264
-generated: 2026-04-12
+size: 22789
+generated: 2026-05-07
 ---
 
 # eos_ai/strategy_engine.py
@@ -16,7 +16,7 @@ These are the intelligence layers that elevate the AI from
 operational to genuinely strategic. They reason about market
 ...
 
-**Lines:** 526 | **Size:** 22,264 bytes
+**Lines:** 526 | **Size:** 22,789 bytes
 
 ## Depends On
 

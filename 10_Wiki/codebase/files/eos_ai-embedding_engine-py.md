@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/embedding_engine.py
 module: eos_ai.embedding_engine
 lines: 416
-size: 15339
-generated: 2026-04-12
+size: 15754
+generated: 2026-05-07
 ---
 
 # eos_ai/embedding_engine.py
@@ -16,7 +16,7 @@ Tier 1: fastembed BAAI/bge-small-en-v1.5 (local, free, 384-dim) — primary.
 Tier 2: Gemini text-embedding (cloud, 768-dim) — fallback. NOTE: its 768-dim
 ...
 
-**Lines:** 416 | **Size:** 15,339 bytes
+**Lines:** 416 | **Size:** 15,754 bytes
 
 ## Used By
 

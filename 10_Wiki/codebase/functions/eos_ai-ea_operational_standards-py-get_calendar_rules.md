@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/ea_operational_standards.py
 line: 126
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # get_calendar_rules

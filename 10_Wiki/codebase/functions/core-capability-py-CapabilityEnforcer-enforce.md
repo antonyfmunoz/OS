@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/capability.py
 line: 265
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # CapabilityEnforcer.enforce

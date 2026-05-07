@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/self_awareness.py
 line: 213
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # SelfAwarenessEngine.detect_change_from_text

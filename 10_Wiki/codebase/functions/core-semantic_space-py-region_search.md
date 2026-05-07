@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: core/semantic_space.py
-line: 261
-generated: 2026-04-12
+line: 269
+generated: 2026-05-07
 ---
 
 # region_search
 
-**File:** [[core-semantic_space-py]] | **Line:** 261
+**File:** [[core-semantic_space-py]] | **Line:** 269
 **Signature:** `region_search(graph, qcoord, top_k, weights, query, embedding_store, query_embedding) → list[dict]`
 
 Dual-pool prefilter → cosine rerank → return top_k candidates.

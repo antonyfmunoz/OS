@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: scripts/substrate_workflow_delegation_smoke_test.py
-line: 252
-generated: 2026-04-12
+line: 292
+generated: 2026-05-07
 ---
 
 # test_product_allows_product_runtime
 
-**File:** [[scripts-substrate_workflow_delegation_smoke_test-py]] | **Line:** 252
+**File:** [[scripts-substrate_workflow_delegation_smoke_test-py]] | **Line:** 292
 **Signature:** `test_product_allows_product_runtime() → None`
 
 *No docstring.*

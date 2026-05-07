@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/security/approval.py
 line: 358
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ApprovalQueue.iter_history

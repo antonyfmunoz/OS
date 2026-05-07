@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/workflow_engine.py
 module: scripts.workflow_engine
 lines: 1177
-size: 46115
+size: 47291
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/workflow_engine.py
@@ -19,7 +19,7 @@ NOT replace:
   - eos_ai/workflow_engine.py (skill-sequence + AgentWorkflow/Run model)
 ...
 
-**Lines:** 1177 | **Size:** 46,115 bytes
+**Lines:** 1177 | **Size:** 47,291 bytes
 
 ## Depends On
 

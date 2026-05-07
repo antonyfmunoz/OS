@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/security/rbac.py
 line: 206
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # RBACEngine.__init__

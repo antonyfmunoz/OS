@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/email_reviewer.py
 module: eos_ai.email_reviewer
 lines: 166
-size: 5698
-generated: 2026-04-12
+size: 5863
+generated: 2026-05-07
 ---
 
 # eos_ai/email_reviewer.py
@@ -16,7 +16,7 @@ checks for anomalies, builds a report, and posts to Discord.
 
 ...
 
-**Lines:** 166 | **Size:** 5,698 bytes
+**Lines:** 166 | **Size:** 5,863 bytes
 
 ## Contains
 

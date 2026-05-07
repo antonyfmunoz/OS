@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/voice_eos_responder.py
 module: eos_ai.substrate.voice_eos_responder
 lines: 339
-size: 12247
-generated: 2026-04-12
+size: 12585
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/voice_eos_responder.py
@@ -16,7 +16,7 @@ Purpose
 This is the first real intelligence adapter for the bounded voice session
 ...
 
-**Lines:** 339 | **Size:** 12,247 bytes
+**Lines:** 339 | **Size:** 12,585 bytes
 
 ## Depends On
 

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/channel.py
 line: 97
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # Channel.send_safe

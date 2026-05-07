@@ -1,11 +1,11 @@
 ---
 type: codebase-module
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/
 
-**Files:** 160 | **Lines:** 45,098 | **Classes:** 58 | **Functions:** 1107
+**Files:** 169 | **Lines:** 47,812 | **Classes:** 57 | **Functions:** 1119
 
 ## Entry Points
 
@@ -26,6 +26,7 @@ generated: 2026-04-12
 - [[scripts-deadline_monitor-py]]
 - [[scripts-decisions-py]]
 - [[scripts-deferred-py]]
+- [[scripts-demo_mvp_loop-py]]
 - [[scripts-detemplatize_skills-py]]
 - [[scripts-discord_daily_clear-py]]
 - [[scripts-discord_setup_channels-py]]
@@ -36,6 +37,7 @@ generated: 2026-04-12
 - [[scripts-eos_os_smoke_test-py]]
 - [[scripts-eos_status-py]]
 - [[scripts-force_execution_loop-py]]
+- [[scripts-goals-py]]
 - [[scripts-higgsfield_smoke_test-py]]
 - [[scripts-incremental_graph-py]]
 - [[scripts-measure_phase8_batch-py]]
@@ -56,6 +58,8 @@ generated: 2026-04-12
 - [[scripts-orchestrator_loop-py]]
 - [[scripts-orchestrator_status-py]]
 - [[scripts-permission_notify-py]]
+- [[scripts-phase75a_classifier-py]]
+- [[scripts-phase75a_dep_scanner-py]]
 - [[scripts-portfolio_brief-py]]
 - [[scripts-post_meeting_capture-py]]
 - [[scripts-pre_tool_use_log-py]]
@@ -142,10 +146,13 @@ generated: 2026-04-12
 - [[scripts-summarize_nodes-py]]
 - [[scripts-sync_skills_to_neon-py]]
 - [[scripts-test_execution_contract-py]]
+- [[scripts-tme_quality_audit-py]]
+- [[scripts-tme_staleness_sweep-py]]
 - [[scripts-tool_mastery_author-py]]
 - [[scripts-tool_mastery_manager-py]]
 - [[scripts-tool_mastery_research_dispatcher-py]]
 - [[scripts-user_prompt_capture-py]]
+- [[scripts-validate_w0_coherence_dry-py]]
 - [[scripts-vault_backlink_audit-py]]
 - [[scripts-verify_knowledge_system-py]]
 - [[scripts-verify_tool_skill-py]]
@@ -160,7 +167,7 @@ generated: 2026-04-12
 
 ## All Files
 
-- [[scripts-_tme_common-py]] (230 lines) — Shared helpers for Tool Mastery Engine system scripts.
+- [[scripts-_tme_common-py]] (466 lines) — 
 - [[scripts-action_system-py]] (1241 lines) *[entry]* — action_system.py — Controlled execution layer on top of the 
 - [[scripts-agent_task_executor-py]] (346 lines) *[entry]* — Agent Task Executor — polls the tasks table for
 - [[scripts-benchmark_semantic_space-py]] (428 lines) *[entry]* — Benchmark semantic space prefilter vs baseline graph retriev
@@ -181,7 +188,9 @@ generated: 2026-04-12
 - [[scripts-deadline_monitor-py]] (183 lines) *[entry]* — Deadline Monitor — checks tasks with due dates
 - [[scripts-decisions-py]] (202 lines) *[entry]* — decisions.py — operator CLI for the Control Plane decision l
 - [[scripts-deferred-py]] (349 lines) *[entry]* — deferred.py — operator CLI for the Control Plane deferred qu
+- [[scripts-demo_mvp_loop-py]] (284 lines) *[entry]* — UMH MVP Demo — exercises the complete operator loop.
 - [[scripts-detemplatize_skills-py]] (204 lines) *[entry]* — Removes hardcoded venture data from all skills.
+- [[scripts-direct_watcher_path_smoke_test-py]] (262 lines) — Smoke test — Direct CC Watcher Path for Discord messages.
 - [[scripts-discord_daily_clear-py]] (35 lines) *[entry]* — 
 - [[scripts-discord_setup_channels-py]] (195 lines) *[entry]* — Discord Builder/Product Channels Setup v1.
 - [[scripts-emit_signal-py]] (68 lines) *[entry]* — Emit an orchestrator signal from cron or the shell.
@@ -192,6 +201,7 @@ generated: 2026-04-12
 - [[scripts-eos_status-py]] (161 lines) *[entry]* — EOS Operator Status — single inspectable surface.
 - [[scripts-fix_founder_refs-py]] (52 lines) — Replace hardcoded 'Antony' founder references with generic '
 - [[scripts-force_execution_loop-py]] (309 lines) *[entry]* — force_execution_loop.py — Force ONE complete end-to-end exec
+- [[scripts-goals-py]] (110 lines) *[entry]* — CLI entry points for goal management. Wraps eos_ai/goal_sele
 - [[scripts-higgsfield_smoke_test-py]] (78 lines) *[entry]* — Higgsfield Cloud API end-to-end smoke test.
 - [[scripts-inbox_gps_afternoon-py]] (30 lines) — Email GPS — 3pm afternoon inbox pass.
 - [[scripts-inbox_zero_init-py]] (403 lines) — Inbox Zero Initialization — run ONCE on first DEX setup.
@@ -215,6 +225,8 @@ generated: 2026-04-12
 - [[scripts-orchestrator_loop-py]] (74 lines) *[entry]* — Orchestrator loop runner.
 - [[scripts-orchestrator_status-py]] (389 lines) *[entry]* — orchestrator_status.py — operator-friendly snapshot of the C
 - [[scripts-permission_notify-py]] (103 lines) *[entry]* — PermissionRequest hook.
+- [[scripts-phase75a_classifier-py]] (280 lines) *[entry]* — Phase 75A — Auto-classify UMH modules by PRD domain and MVP 
+- [[scripts-phase75a_dep_scanner-py]] (232 lines) *[entry]* — Phase 75A — AST-based dependency scanner for UMH.
 - [[scripts-portfolio_brief-py]] (128 lines) *[entry]* — Sunday Portfolio Brief — runs at 6am every Sunday.
 - [[scripts-post_meeting_capture-py]] (135 lines) *[entry]* — Post-meeting capture — polls for recently ended calendar eve
 - [[scripts-pre_tool_use_log-py]] (55 lines) *[entry]* — PreToolUse hook.
@@ -235,8 +247,9 @@ generated: 2026-04-12
 - [[scripts-scheduled-weekly_review_cp-py]] (107 lines) *[entry]* — weekly_review_cp.py — Control Plane wrapper for weekly_revie
 - [[scripts-security_smoke_test-py]] (503 lines) *[entry]* — security_smoke_test.py — End-to-end smoke test for core.secu
 - [[scripts-session_bootstrap-py]] (161 lines) *[entry]* — session_bootstrap.py — Mandatory context load at session sta
-- [[scripts-session_start_context-py]] (199 lines) *[entry]* — SessionStart hook.
-- [[scripts-session_watcher_smoke_test-py]] (245 lines) — Smoke tests for Session Watcher + Discord Bridge.
+- [[scripts-session_discord_control_smoke_test-py]] (279 lines) — Smoke tests for the interactive Discord control layer.
+- [[scripts-session_start_context-py]] (431 lines) *[entry]* — 
+- [[scripts-session_watcher_smoke_test-py]] (433 lines) — Smoke tests for Session Watcher + Discord Bridge.
 - [[scripts-subagent_start_context-py]] (87 lines) *[entry]* — SubagentStart hook.
 - [[scripts-substrate_audio_loop_cli-py]] (136 lines) *[entry]* — Bounded operator CLI for the local audio loop.
 - [[scripts-substrate_audio_loop_smoke_test-py]] (293 lines) *[entry]* — Audio loop smoke test.
@@ -298,17 +311,20 @@ generated: 2026-04-12
 - [[scripts-substrate_voice_session_smoke_test-py]] (223 lines) *[entry]* — Voice session smoke test.
 - [[scripts-substrate_wake_producer_cli-py]] (110 lines) *[entry]* — Wake producer CLI — simulate wake-word / clap events and vie
 - [[scripts-substrate_wake_producer_smoke_test-py]] (222 lines) *[entry]* — Wake producer smoke test.
-- [[scripts-substrate_workflow_delegation_smoke_test-py]] (579 lines) *[entry]* — Workflow Delegation Layer v1 — smoke test.
+- [[scripts-substrate_workflow_delegation_smoke_test-py]] (620 lines) *[entry]* — Workflow Delegation Layer v1 — smoke test.
 - [[scripts-substrate_workflow_execution_smoke_test-py]] (329 lines) *[entry]* — Substrate Workflow Execution Layer — smoke test.
 - [[scripts-substrate_workflow_execution_v11_smoke_test-py]] (396 lines) *[entry]* — Substrate Workflow Execution Layer v1.1 — smoke test.
 - [[scripts-summarize_conversations-py]] (508 lines) *[entry]* — Summarize conversation files into structured knowledge summa
 - [[scripts-summarize_nodes-py]] (150 lines) *[entry]* — summarize_nodes.py — Append-only one-line summaries for ever
 - [[scripts-sync_skills_to_neon-py]] (156 lines) *[entry]* — sync_skills_to_neon.py — Canonical Tool Mastery Engine → Neo
 - [[scripts-test_execution_contract-py]] (112 lines) *[entry]* — Test execution_contract.run_task() with two messages.
+- [[scripts-tme_quality_audit-py]] (246 lines) *[entry]* — TME Quality Audit — checks content depth, not just structure
+- [[scripts-tme_staleness_sweep-py]] (86 lines) *[entry]* — TME staleness sweep — summary-first report for hooks and cro
 - [[scripts-tool_mastery_author-py]] (125 lines) *[entry]* — Tool Mastery author dispatcher.
 - [[scripts-tool_mastery_manager-py]] (216 lines) *[entry]* — Tool Mastery Manager — CLI.
 - [[scripts-tool_mastery_research_dispatcher-py]] (311 lines) *[entry]* — Tool Mastery research dispatcher.
 - [[scripts-user_prompt_capture-py]] (112 lines) *[entry]* — UserPromptSubmit hook: capture user messages into conversati
+- [[scripts-validate_w0_coherence_dry-py]] (238 lines) *[entry]* — W0 Dry Validation with Coherence Envelope.
 - [[scripts-vault_backlink_audit-py]] (275 lines) *[entry]* — Vault Backlink Health + Retrieval Signal Report
 - [[scripts-verify_knowledge_system-py]] (353 lines) *[entry]* — verify_knowledge_system.py — Acceptance check for the EOS co
 - [[scripts-verify_tool_skill-py]] (189 lines) *[entry]* — verify_tool_skill.py — Tool Mastery Engine verifier / linter

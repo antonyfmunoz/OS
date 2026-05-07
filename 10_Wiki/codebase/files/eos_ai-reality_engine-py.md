@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/reality_engine.py
 module: eos_ai.reality_engine
 lines: 588
-size: 24465
-generated: 2026-04-12
+size: 25052
+generated: 2026-05-07
 ---
 
 # eos_ai/reality_engine.py
@@ -16,7 +16,7 @@ through the event bus in real time. Runs every 6 hours during waking hours
 (6am, 12pm, 6pm) as a scheduled job wired into the orchestrator and Telegram bot.
 ...
 
-**Lines:** 588 | **Size:** 24,465 bytes
+**Lines:** 588 | **Size:** 25,052 bytes
 
 ## Depends On
 

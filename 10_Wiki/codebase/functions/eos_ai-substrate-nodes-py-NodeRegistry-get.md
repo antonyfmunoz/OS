@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: eos_ai/substrate/nodes.py
-line: 142
-generated: 2026-04-12
+line: 153
+generated: 2026-05-07
 ---
 
 # NodeRegistry.get
 
-**File:** [[eos_ai-substrate-nodes-py]] | **Line:** 142
+**File:** [[eos_ai-substrate-nodes-py]] | **Line:** 153
 **Signature:** `get(node_id) → Optional[Node]`
 
 **Class:** [[eos_ai-substrate-nodes-py-NodeRegistry]]
@@ -16,6 +16,8 @@ generated: 2026-04-12
 
 ## Called By
 
+- [[eos_ai-substrate-execution_router-py-ExecutionRouter-_decision]]
+- [[eos_ai-substrate-execution_router-py-ExecutionRouter-route]]
 - [[eos_ai-substrate-local_listener-py-LocalListener-_activate]]
 - [[eos_ai-substrate-local_listener-py-TriggerHistory-_load]]
 - [[eos_ai-substrate-local_listener-py-TriggerHistory-latest]]
@@ -34,5 +36,3 @@ generated: 2026-04-12
 - [[eos_ai-substrate-station_daemon-py-StationDaemon-_handle_open_scene]]
 - [[eos_ai-substrate-station_daemon-py-StationDaemon-_handle_open_url]]
 - [[eos_ai-substrate-station_daemon-py-StationDaemon-_handle_play_sound]]
-- [[eos_ai-substrate-station_daemon-py-StationDaemon-_handle_speak_text]]
-- [[eos_ai-substrate-station_daemon-py-StationDaemon-_mark_offline]]

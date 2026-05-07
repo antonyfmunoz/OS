@@ -3,8 +3,8 @@ type: codebase-file
 path: core/tool_mastery_author_agent/models.py
 module: core.tool_mastery_author_agent.models
 lines: 141
-size: 4734
-generated: 2026-04-12
+size: 4874
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_author_agent/models.py
@@ -14,7 +14,7 @@ Data types for the Tool Mastery Author Agent.
 All JSON-serialisable via asdict() so runs can be persisted alongside
 the research run directory.
 
-**Lines:** 141 | **Size:** 4,734 bytes
+**Lines:** 141 | **Size:** 4,874 bytes
 
 ## Used By
 

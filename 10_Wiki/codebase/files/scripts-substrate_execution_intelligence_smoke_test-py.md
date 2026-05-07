@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_execution_intelligence_smoke_test.py
 module: scripts.substrate_execution_intelligence_smoke_test
 lines: 305
-size: 11166
+size: 11470
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_execution_intelligence_smoke_test.py
@@ -19,7 +19,7 @@ Validates the additive bounded upgrade on top of Meeting Intelligence:
   1. extract_commitments pulls commitments from simple utterances.
 ...
 
-**Lines:** 305 | **Size:** 11,166 bytes
+**Lines:** 305 | **Size:** 11,470 bytes
 
 ## Depends On
 

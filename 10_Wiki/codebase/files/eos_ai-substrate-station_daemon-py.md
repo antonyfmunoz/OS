@@ -2,10 +2,10 @@
 type: codebase-file
 path: eos_ai/substrate/station_daemon.py
 module: eos_ai.substrate.station_daemon
-lines: 749
-size: 28982
+lines: 861
+size: 33480
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/station_daemon.py
@@ -19,7 +19,7 @@ It runs on a workstation (or on the VPS for development), polls the
 StationBus outbox for SafeActions addressed to its node_id, executes the
 ...
 
-**Lines:** 749 | **Size:** 28,982 bytes
+**Lines:** 861 | **Size:** 33,480 bytes
 
 ## Depends On
 
@@ -54,7 +54,7 @@ StationBus outbox for SafeActions addressed to its node_id, executes the
 ## Contains
 
 - **class** [[eos_ai-substrate-station_daemon-py-_HandlerOutcome]] — 0 methods
-- **class** [[eos_ai-substrate-station_daemon-py-StationDaemon]] — 17 methods
+- **class** [[eos_ai-substrate-station_daemon-py-StationDaemon]] — 20 methods
 - **fn** [[eos_ai-substrate-station_daemon-py-_log]]`(msg) → None`
 - **fn** [[eos_ai-substrate-station_daemon-py-_utcnow]]`() → str`
 - **fn** [[eos_ai-substrate-station_daemon-py-_build_arg_parser]]`() → argparse.ArgumentParser`
@@ -65,6 +65,7 @@ StationBus outbox for SafeActions addressed to its node_id, executes the
 ```python
 from __future__ import annotations
 import argparse
+import asyncio
 import os
 import shutil
 import signal

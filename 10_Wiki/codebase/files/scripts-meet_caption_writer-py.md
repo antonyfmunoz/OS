@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/meet_caption_writer.py
 module: scripts.meet_caption_writer
 lines: 66
-size: 2092
+size: 2157
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/meet_caption_writer.py
@@ -19,7 +19,7 @@ Usage:
 
 ...
 
-**Lines:** 66 | **Size:** 2,092 bytes
+**Lines:** 66 | **Size:** 2,157 bytes
 
 ## Depends On
 

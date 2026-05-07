@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/voice_session.py
 module: eos_ai.substrate.voice_session
 lines: 790
-size: 29559
-generated: 2026-04-12
+size: 30348
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/voice_session.py
@@ -16,7 +16,7 @@ Purpose
 This module is the first VOICE PRESENCE MVP on top of the existing
 ...
 
-**Lines:** 790 | **Size:** 29,559 bytes
+**Lines:** 790 | **Size:** 30,348 bytes
 
 ## Depends On
 

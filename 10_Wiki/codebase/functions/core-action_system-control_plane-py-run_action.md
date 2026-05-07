@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/action_system/control_plane.py
 line: 83
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # run_action

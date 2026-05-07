@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/mode_behavior.py
 module: eos_ai.substrate.mode_behavior
 lines: 257
-size: 8913
-generated: 2026-04-12
+size: 9169
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/mode_behavior.py
@@ -16,7 +16,7 @@ Purpose
 Applies lightweight, deterministic transformations to router output based
 ...
 
-**Lines:** 257 | **Size:** 8,913 bytes
+**Lines:** 257 | **Size:** 9,169 bytes
 
 ## Used By
 

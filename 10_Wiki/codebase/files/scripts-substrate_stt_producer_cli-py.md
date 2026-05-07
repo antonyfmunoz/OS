@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_stt_producer_cli.py
 module: scripts.substrate_stt_producer_cli
 lines: 191
-size: 6170
+size: 6360
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_stt_producer_cli.py
@@ -19,7 +19,7 @@ Subcommands:
   capture             Perform one bounded capture on a node.
 ...
 
-**Lines:** 191 | **Size:** 6,170 bytes
+**Lines:** 191 | **Size:** 6,360 bytes
 
 ## Contains
 

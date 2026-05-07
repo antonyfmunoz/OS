@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/orchestrator/decisions.py
 line: 52
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # retry_count_today

@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_research_agent/github_extractor.py
 line: 290
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # expand_github_repo

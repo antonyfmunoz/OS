@@ -1,13 +1,13 @@
 ---
 type: codebase-class
 file: eos_ai/substrate/nodes.py
-line: 52
-generated: 2026-04-12
+line: 58
+generated: 2026-05-07
 ---
 
 # Node
 
-**File:** [[eos_ai-substrate-nodes-py]] | **Line:** 52
+**File:** [[eos_ai-substrate-nodes-py]] | **Line:** 58
 
 A single execution target the substrate can reason about.
 

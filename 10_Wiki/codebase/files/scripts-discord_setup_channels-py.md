@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/discord_setup_channels.py
 module: scripts.discord_setup_channels
 lines: 195
-size: 6249
+size: 6443
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/discord_setup_channels.py
@@ -19,7 +19,7 @@ Idempotent operator automation:
   2. Locate the target guild (env override → single-guild auto-detect).
 ...
 
-**Lines:** 195 | **Size:** 6,249 bytes
+**Lines:** 195 | **Size:** 6,443 bytes
 
 ## Contains
 

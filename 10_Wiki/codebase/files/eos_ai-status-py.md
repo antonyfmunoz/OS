@@ -3,9 +3,9 @@ type: codebase-file
 path: eos_ai/status.py
 module: eos_ai.status
 lines: 330
-size: 11123
+size: 11452
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # eos_ai/status.py
@@ -17,7 +17,7 @@ EOS Status Dashboard — daily health check for the AI system.
 Usage:
     python3 /opt/OS/eos_ai/status.py
 
-**Lines:** 330 | **Size:** 11,123 bytes
+**Lines:** 330 | **Size:** 11,452 bytes
 
 ## Depends On
 

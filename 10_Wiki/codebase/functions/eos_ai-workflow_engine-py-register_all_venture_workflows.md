@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/workflow_engine.py
 line: 585
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # register_all_venture_workflows

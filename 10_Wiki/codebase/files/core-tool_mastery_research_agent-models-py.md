@@ -3,8 +3,8 @@ type: codebase-file
 path: core/tool_mastery_research_agent/models.py
 module: core.tool_mastery_research_agent.models
 lines: 210
-size: 6934
-generated: 2026-04-12
+size: 7143
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_research_agent/models.py
@@ -15,7 +15,7 @@ Everything here is JSON-serialisable (str/int/float/bool/list/dict) via
 dataclasses.asdict() so that research runs can be persisted to disk
 without custom encoders, matching the Manager convention.
 
-**Lines:** 210 | **Size:** 6,934 bytes
+**Lines:** 210 | **Size:** 7,143 bytes
 
 ## Contains
 

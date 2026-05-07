@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/calendar_invite_handler.py
 module: scripts.calendar_invite_handler
 lines: 300
-size: 11025
+size: 11324
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/calendar_invite_handler.py
@@ -16,7 +16,7 @@ Calendar Invite Handler — polls for pending invites every 15 mins.
 DEX reviews each one, decides accept/decline based on rules,
 notifies Antony in Discord, logs to Notion Meetings DB.
 
-**Lines:** 300 | **Size:** 11,025 bytes
+**Lines:** 300 | **Size:** 11,324 bytes
 
 ## Contains
 

@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/template_library.py
 module: eos_ai.template_library
 lines: 418
-size: 13449
-generated: 2026-04-12
+size: 13866
+generated: 2026-05-07
 ---
 
 # eos_ai/template_library.py
@@ -16,7 +16,7 @@ Injected into CognitiveLoop PERCEIVE step alongside stage primitives.
 
 ...
 
-**Lines:** 418 | **Size:** 13,449 bytes
+**Lines:** 418 | **Size:** 13,866 bytes
 
 ## Contains
 

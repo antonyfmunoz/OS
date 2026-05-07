@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: eos_ai/substrate/nodes.py
-line: 164
-generated: 2026-04-12
+line: 213
+generated: 2026-05-07
 ---
 
 # NodeRegistry.default
 
-**File:** [[eos_ai-substrate-nodes-py]] | **Line:** 164
+**File:** [[eos_ai-substrate-nodes-py]] | **Line:** 213
 **Signature:** `default() → 'NodeRegistry'`
 
 **Class:** [[eos_ai-substrate-nodes-py-NodeRegistry]]
@@ -22,6 +22,7 @@ sole known node. Safe to call multiple times.
 
 ## Called By
 
+- [[eos_ai-substrate-execution_router-py-ExecutionRouter-__init__]]
 - [[eos_ai-substrate-local_listener-py-LocalListener-_activate]]
 - [[eos_ai-substrate-ritual_body-py-_resolve_station]]
 - [[eos_ai-substrate-ritual_body-py-run_close_day_body]]

@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/sandbox_safety_verifier.py
 module: scripts.sandbox_safety_verifier
 lines: 331
-size: 12024
+size: 12354
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/sandbox_safety_verifier.py
@@ -19,7 +19,7 @@ production state under any of the attack shapes we care about:
 
 ...
 
-**Lines:** 331 | **Size:** 12,024 bytes
+**Lines:** 331 | **Size:** 12,354 bytes
 
 ## Depends On
 

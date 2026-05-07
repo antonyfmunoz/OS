@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/memory.py
 line: 404
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # AgentMemory.log_event
@@ -23,9 +23,7 @@ Returns event_id (UUID).
 
 ## Called By
 
-- [[eos_ai-cognitive_loop-py-CognitiveLoop-run]]
 - [[eos_ai-knowledge_integrator-py-KnowledgeIntegrator-integrate]]
-- [[eos_ai-orchestrator-py-run_full_morning_cycle]]
 - [[eos_ai-reality_engine-py-RealityIntelligenceEngine-generate_truth_report]]
 - [[eos_ai-reality_engine-py-RealityIntelligenceEngine-process_signal_queue]]
 - [[eos_ai-research_engine-py-ResearchEngine-store_knowledge]]

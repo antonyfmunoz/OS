@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/environment.py
 line: 154
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # Environment.action_log_path

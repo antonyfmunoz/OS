@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/channel.py
 line: 179
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # TelegramChannel.__init__

@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/onboarding_engine.py
 module: eos_ai.onboarding_engine
 lines: 353
-size: 14657
-generated: 2026-04-12
+size: 15009
+generated: 2026-05-07
 ---
 
 # eos_ai/onboarding_engine.py
@@ -16,11 +16,7 @@ A new founder runs !onboard in Discord. DEX asks 15 questions across
   1. Uses the LLM to extract structured business data from free-form answers
 ...
 
-**Lines:** 353 | **Size:** 14,657 bytes
-
-## Used By
-
-- [[services-discord_bot-py]]
+**Lines:** 353 | **Size:** 15,009 bytes
 
 ## Contains
 

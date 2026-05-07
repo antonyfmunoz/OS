@@ -1,13 +1,13 @@
 ---
 type: codebase-class
 file: eos_ai/substrate/nodes.py
-line: 76
-generated: 2026-04-12
+line: 83
+generated: 2026-05-07
 ---
 
 # NodeRegistry
 
-**File:** [[eos_ai-substrate-nodes-py]] | **Line:** 76
+**File:** [[eos_ai-substrate-nodes-py]] | **Line:** 83
 
 Persistent node registry.
 
@@ -27,5 +27,6 @@ processes. Storage falls back to a JSON file if Neon is unavailable.
 - [[eos_ai-substrate-nodes-py-NodeRegistry-by_type]]`(node_type) → list[Node]` — 
 - [[eos_ai-substrate-nodes-py-NodeRegistry-with_capability]]`(slug) → list[Node]` — 
 - [[eos_ai-substrate-nodes-py-NodeRegistry-online]]`() → list[Node]` — 
+- [[eos_ai-substrate-nodes-py-NodeRegistry-purge_stale]]`() → list[str]` — Remove nodes whose last_seen is older than max_age_hours.
 - [[eos_ai-substrate-nodes-py-NodeRegistry-default]]`() → 'NodeRegistry'` — Process-wide default registry, seeded with the current VPS as the
 - [[eos_ai-substrate-nodes-py-NodeRegistry-reset_default_for_tests]]`() → None` — 

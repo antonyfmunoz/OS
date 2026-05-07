@@ -2,9 +2,9 @@
 type: codebase-file
 path: eos_ai/substrate/nodes.py
 module: eos_ai.substrate.nodes
-lines: 193
-size: 7292
-generated: 2026-04-12
+lines: 242
+size: 8795
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/nodes.py
@@ -16,10 +16,11 @@ introduces a typed `Node` model and an in-memory `NodeRegistry` so future
 routing code can reason about *where* work runs (VPS, local station, future
 ...
 
-**Lines:** 193 | **Size:** 7,292 bytes
+**Lines:** 242 | **Size:** 8,795 bytes
 
 ## Used By
 
+- [[eos_ai-substrate-execution_router-py]]
 - [[eos_ai-substrate-local_listener-py]]
 - [[eos_ai-substrate-ritual_body-py]]
 - [[eos_ai-substrate-ritual_inference-py]]
@@ -35,9 +36,10 @@ routing code can reason about *where* work runs (VPS, local station, future
 ## Contains
 
 - **class** [[eos_ai-substrate-nodes-py-NodeType]] — 0 methods
+- **class** [[eos_ai-substrate-nodes-py-NodeRole]] — 0 methods
 - **class** [[eos_ai-substrate-nodes-py-NodeStatus]] — 0 methods
 - **class** [[eos_ai-substrate-nodes-py-Node]] — 2 methods
-- **class** [[eos_ai-substrate-nodes-py-NodeRegistry]] — 12 methods
+- **class** [[eos_ai-substrate-nodes-py-NodeRegistry]] — 13 methods
 
 ## Import Statements
 

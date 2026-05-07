@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: scripts/substrate_workflow_delegation_smoke_test.py
-line: 202
-generated: 2026-04-12
+line: 242
+generated: 2026-05-07
 ---
 
 # test_empty_input
 
-**File:** [[scripts-substrate_workflow_delegation_smoke_test-py]] | **Line:** 202
+**File:** [[scripts-substrate_workflow_delegation_smoke_test-py]] | **Line:** 242
 **Signature:** `test_empty_input() → None`
 
 *No docstring.*

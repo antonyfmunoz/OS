@@ -3,8 +3,8 @@ type: codebase-file
 path: core/orchestrator/decisions.py
 module: core.orchestrator.decisions
 lines: 159
-size: 5228
-generated: 2026-04-12
+size: 5386
+generated: 2026-05-07
 ---
 
 # core/orchestrator/decisions.py
@@ -16,7 +16,7 @@ These are tiny, deterministic predicates that inspect an action dict
 answer one question each:
 ...
 
-**Lines:** 159 | **Size:** 5,228 bytes
+**Lines:** 159 | **Size:** 5,386 bytes
 
 ## Depends On
 

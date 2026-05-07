@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/rituals.py
 line: 196
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # RitualRegistry.get
@@ -16,6 +16,8 @@ generated: 2026-04-12
 
 ## Called By
 
+- [[eos_ai-substrate-day_workflows-py-close_day]]
+- [[eos_ai-substrate-day_workflows-py-open_day]]
 - [[eos_ai-substrate-local_listener-py-LocalListener-_activate]]
 - [[eos_ai-substrate-local_listener-py-TriggerHistory-_load]]
 - [[eos_ai-substrate-local_listener-py-TriggerHistory-latest]]

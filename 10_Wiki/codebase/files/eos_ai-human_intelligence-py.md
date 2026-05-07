@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/human_intelligence.py
 module: eos_ai.human_intelligence
 lines: 714
-size: 32473
-generated: 2026-04-12
+size: 33186
+generated: 2026-05-07
 ---
 
 # eos_ai/human_intelligence.py
@@ -16,7 +16,7 @@ Reads lead files from 03_CRM/Leads/, synthesizes communication style,
 dominant pain, objection risk, and next best action into a stored profile.
 ...
 
-**Lines:** 714 | **Size:** 32,473 bytes
+**Lines:** 714 | **Size:** 33,186 bytes
 
 ## Depends On
 

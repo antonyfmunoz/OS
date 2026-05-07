@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/embedder.py
 module: eos_ai.embedder
 lines: 70
-size: 1997
-generated: 2026-04-12
+size: 2066
+generated: 2026-05-07
 ---
 
 # eos_ai/embedder.py
@@ -16,7 +16,7 @@ Model: BAAI/bge-small-en-v1.5 via fastembed
   - 384-dimensional float32 vectors
 ...
 
-**Lines:** 70 | **Size:** 1,997 bytes
+**Lines:** 70 | **Size:** 2,066 bytes
 
 ## Contains
 

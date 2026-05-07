@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/db.py
 line: 96
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # resolve_venture
@@ -27,5 +27,4 @@ e.g. "Lyfe Institute" → "lyfe_institute" → "<uuid>"
 - [[eos_ai-memory-py-AgentMemory-log]]
 - [[eos_ai-memory-py-AgentMemory-log_lead_scored]]
 - [[eos_ai-memory-py-AgentMemory-semantic_search]]
-- [[eos_ai-orchestrator-py-EOSOrchestrator-_query_7d_stats]]
 - [[eos_ai-strategy_engine-py-_query_30d_stats]]

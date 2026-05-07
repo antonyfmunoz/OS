@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: eos_ai/substrate/discord_text_transport.py
-line: 757
-generated: 2026-04-12
+line: 764
+generated: 2026-05-07
 ---
 
 # build_tts_reply_envelope
 
-**File:** [[eos_ai-substrate-discord_text_transport-py]] | **Line:** 757
+**File:** [[eos_ai-substrate-discord_text_transport-py]] | **Line:** 764
 **Signature:** `build_tts_reply_envelope(reply_text) → dict[str, Any]`
 
 Produce a Discord-send envelope for a pseudo-live TTS reply.

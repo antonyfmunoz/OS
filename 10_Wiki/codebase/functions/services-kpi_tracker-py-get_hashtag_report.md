@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/kpi_tracker.py
 line: 222
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # get_hashtag_report

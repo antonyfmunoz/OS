@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/human_intelligence.py
 line: 368
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # HumanIntelligenceEngine.run_profile_cycle

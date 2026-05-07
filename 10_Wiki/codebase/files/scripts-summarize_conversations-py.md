@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/summarize_conversations.py
 module: scripts.summarize_conversations
 lines: 508
-size: 18085
+size: 18592
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/summarize_conversations.py
@@ -19,7 +19,7 @@ calls an LLM to extract structured knowledge, and writes
 summary files to vault/memory/summaries/.
 ...
 
-**Lines:** 508 | **Size:** 18,085 bytes
+**Lines:** 508 | **Size:** 18,592 bytes
 
 ## Contains
 

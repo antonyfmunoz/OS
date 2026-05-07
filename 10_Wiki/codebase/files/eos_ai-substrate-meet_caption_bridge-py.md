@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/meet_caption_bridge.py
 module: eos_ai.substrate.meet_caption_bridge
 lines: 543
-size: 18717
-generated: 2026-04-12
+size: 19259
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/meet_caption_bridge.py
@@ -16,7 +16,7 @@ captions. Writer half (this section) is owned by Subagent A; reader half is
 extended by Subagent B.
 ...
 
-**Lines:** 543 | **Size:** 18,717 bytes
+**Lines:** 543 | **Size:** 19,259 bytes
 
 ## Used By
 

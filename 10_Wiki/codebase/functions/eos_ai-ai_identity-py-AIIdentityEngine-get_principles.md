@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/ai_identity.py
 line: 256
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # AIIdentityEngine.get_principles

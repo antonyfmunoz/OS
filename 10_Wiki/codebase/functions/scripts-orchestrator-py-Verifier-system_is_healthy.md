@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/orchestrator.py
 line: 204
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # Verifier.system_is_healthy

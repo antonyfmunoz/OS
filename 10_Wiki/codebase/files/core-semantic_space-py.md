@@ -2,21 +2,21 @@
 type: codebase-file
 path: core/semantic_space.py
 module: core.semantic_space
-lines: 499
-size: 16914
-generated: 2026-04-12
+lines: 507
+size: 17870
+generated: 2026-05-07
 ---
 
 # core/semantic_space.py
 
-Semantic Space v1.2 — Query Projection, Region Search, Graph Expansion,
-                      Wiki-Aware Enrichment
+Semantic Space v1.2 — Hybrid Coordinate Index with Cosine Reranking
 
-Public API:
-    project_query(query, pca_model) -> (x, y, z, embedding)
+Coordinate system (NOT a true 3D spatial embedding):
+    x = semantic position — PCA-1D projection of embedding (learned)
+    y = abstraction level — rule-based categorical band (deterministic)
 ...
 
-**Lines:** 499 | **Size:** 16,914 bytes
+**Lines:** 507 | **Size:** 17,870 bytes
 
 ## Contains
 

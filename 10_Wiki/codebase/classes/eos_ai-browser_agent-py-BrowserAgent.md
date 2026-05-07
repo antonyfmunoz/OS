@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/browser_agent.py
 line: 36
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # BrowserAgent
@@ -10,11 +10,6 @@ generated: 2026-04-12
 **File:** [[eos_ai-browser_agent-py]] | **Line:** 36
 
 *No docstring.*
-
-## Inherited By
-
-- [[eos_ai-browser_agent-py-ManusAgent]]
-- [[eos_ai-browser_agent-py-InstagramAgent]]
 
 ## Methods
 

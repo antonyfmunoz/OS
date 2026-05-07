@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/scheduled/morning_prep_cp.py
 module: scripts.scheduled.morning_prep_cp
 lines: 83
-size: 2888
+size: 2970
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/scheduled/morning_prep_cp.py
@@ -19,7 +19,7 @@ Cron (or the operator) calls this Python entry instead of the raw
 bash script, and the underlying .sh runs as a `run_script` action:
 ...
 
-**Lines:** 83 | **Size:** 2,888 bytes
+**Lines:** 83 | **Size:** 2,970 bytes
 
 ## Depends On
 

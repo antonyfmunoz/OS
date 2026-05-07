@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/ceo_agent.py
 module: eos_ai.ceo_agent
 lines: 375
-size: 14833
-generated: 2026-04-12
+size: 15207
+generated: 2026-05-07
 ---
 
 # eos_ai/ceo_agent.py
@@ -16,7 +16,7 @@ Reasons about org chart composition based on stage and reality.
 Monitors for stage transitions and evolves the org chart.
 ...
 
-**Lines:** 375 | **Size:** 14,833 bytes
+**Lines:** 375 | **Size:** 15,207 bytes
 
 ## Depends On
 

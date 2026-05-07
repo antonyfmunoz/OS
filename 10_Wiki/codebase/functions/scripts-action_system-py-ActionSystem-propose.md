@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/action_system.py
 line: 315
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ActionSystem.propose

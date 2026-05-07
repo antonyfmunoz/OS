@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: eos_ai/substrate/claude_session_bridge.py
-line: 894
-generated: 2026-04-12
+line: 906
+generated: 2026-05-07
 ---
 
 # ask_session
 
-**File:** [[eos_ai-substrate-claude_session_bridge-py]] | **Line:** 894
+**File:** [[eos_ai-substrate-claude_session_bridge-py]] | **Line:** 906
 **Signature:** `ask_session(target, session_name, text) → dict[str, Any]`
 
 Ensure → capture-before → send → bounded-poll → capture-after → diff.

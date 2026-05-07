@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: scripts/substrate_workflow_delegation_smoke_test.py
-line: 375
-generated: 2026-04-12
+line: 415
+generated: 2026-05-07
 ---
 
 # test_determinism
 
-**File:** [[scripts-substrate_workflow_delegation_smoke_test-py]] | **Line:** 375
+**File:** [[scripts-substrate_workflow_delegation_smoke_test-py]] | **Line:** 415
 **Signature:** `test_determinism() → None`
 
 *No docstring.*

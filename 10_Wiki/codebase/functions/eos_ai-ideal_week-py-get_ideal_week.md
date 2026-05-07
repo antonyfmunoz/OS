@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/ideal_week.py
 line: 64
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # get_ideal_week

@@ -3,8 +3,8 @@ type: codebase-file
 path: core/tool_mastery_author_agent/agent.py
 module: core.tool_mastery_author_agent.agent
 lines: 189
-size: 6593
-generated: 2026-04-12
+size: 6781
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_author_agent/agent.py
@@ -15,7 +15,7 @@ Loader → mapping → drafting → reconcile → verify → final state.
 
 Public entry: ``author(request) -> AuthorResult``.
 
-**Lines:** 189 | **Size:** 6,593 bytes
+**Lines:** 189 | **Size:** 6,781 bytes
 
 ## Used By
 

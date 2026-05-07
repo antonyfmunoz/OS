@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_transport_report_cli.py
 module: scripts.substrate_transport_report_cli
 lines: 150
-size: 4677
+size: 4826
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_transport_report_cli.py
@@ -19,7 +19,7 @@ Subcommand:
 
 ...
 
-**Lines:** 150 | **Size:** 4,677 bytes
+**Lines:** 150 | **Size:** 4,826 bytes
 
 ## Contains
 

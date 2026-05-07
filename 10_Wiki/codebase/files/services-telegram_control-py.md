@@ -3,9 +3,9 @@ type: codebase-file
 path: services/telegram_control.py
 module: services.telegram_control
 lines: 3148
-size: 118578
+size: 121725
 tags: [critical]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # services/telegram_control.py
@@ -14,7 +14,7 @@ generated: 2026-04-12
 
 *No docstring.*
 
-**Lines:** 3148 | **Size:** 118,578 bytes
+**Lines:** 3148 | **Size:** 121,725 bytes
 
 ## Contains
 

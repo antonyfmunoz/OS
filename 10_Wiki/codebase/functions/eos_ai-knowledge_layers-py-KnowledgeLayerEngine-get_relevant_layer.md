@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/knowledge_layers.py
 line: 276
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # KnowledgeLayerEngine.get_relevant_layer

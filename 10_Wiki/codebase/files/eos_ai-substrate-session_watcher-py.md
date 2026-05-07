@@ -2,9 +2,9 @@
 type: codebase-file
 path: eos_ai/substrate/session_watcher.py
 module: eos_ai.substrate.session_watcher
-lines: 520
-size: 18252
-generated: 2026-04-12
+lines: 747
+size: 27954
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/session_watcher.py
@@ -16,7 +16,7 @@ One SessionWatcher instance per tmux session (dex_builder_main, dex_product_main
 Runs as a daemon thread, polls tmux pane every 0.5s, detects session state,
 ...
 
-**Lines:** 520 | **Size:** 18,252 bytes
+**Lines:** 747 | **Size:** 27,954 bytes
 
 ## Depends On
 
@@ -25,12 +25,15 @@ Runs as a daemon thread, polls tmux pane every 0.5s, detects session state,
 ## Used By
 
 - [[eos_ai-substrate-session_discord_bridge-py]]
+- [[scripts-direct_watcher_path_smoke_test-py]]
+- [[scripts-session_discord_control_smoke_test-py]]
+- [[scripts-session_watcher_smoke_test-py]]
 
 ## Contains
 
 - **class** [[eos_ai-substrate-session_watcher-py-SessionState]] — 0 methods
 - **class** [[eos_ai-substrate-session_watcher-py-WatcherEvent]] — 1 methods
-- **class** [[eos_ai-substrate-session_watcher-py-SessionWatcher]] — 12 methods
+- **class** [[eos_ai-substrate-session_watcher-py-SessionWatcher]] — 16 methods
 - **fn** [[eos_ai-substrate-session_watcher-py-get_watcher]]`(session_name) → SessionWatcher | None`
 - **fn** [[eos_ai-substrate-session_watcher-py-start_watcher]]`(target, session_name) → SessionWatcher`
 - **fn** [[eos_ai-substrate-session_watcher-py-stop_watcher]]`(session_name) → None`

@@ -2,7 +2,7 @@
 type: codebase-class
 file: core/tool_mastery_research_agent/headless_fetcher.py
 line: 134
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # RenderAttempt

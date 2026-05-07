@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/sandbox_safety_verifier.py
 line: 93
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # check_absolute_path_outside_repo_is_rejected

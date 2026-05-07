@@ -3,8 +3,8 @@ type: codebase-file
 path: core/tool_mastery_manager/models.py
 module: core.tool_mastery_manager.models
 lines: 122
-size: 4162
-generated: 2026-04-12
+size: 4283
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_manager/models.py
@@ -15,7 +15,7 @@ Kept deliberately small. Everything is JSON-serialisable so coverage
 reports and ensure results can be written to disk as backlog artifacts
 without custom encoders.
 
-**Lines:** 122 | **Size:** 4,162 bytes
+**Lines:** 122 | **Size:** 4,283 bytes
 
 ## Used By
 

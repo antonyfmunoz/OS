@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/actions.py
 module: eos_ai.substrate.actions
 lines: 119
-size: 4241
-generated: 2026-04-12
+size: 4359
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/actions.py
@@ -16,7 +16,7 @@ VPS emits typed *intents* and the Station Daemon interprets them. This keeps
 the trust boundary clean: the local node is the only thing that can touch the
 ...
 
-**Lines:** 119 | **Size:** 4,241 bytes
+**Lines:** 119 | **Size:** 4,359 bytes
 
 ## Used By
 

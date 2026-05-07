@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/research_engine.py
 line: 478
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ResearchEngine.scan_ai_landscape
@@ -20,6 +20,4 @@ Updates COST_PER_MILLION_TOKENS in-memory for this session.
 
 ## Calls
 
-- [[eos_ai-agent_runtime-py-AgentRuntime-run]]
-- [[eos_ai-cognitive_loop-py-CognitiveLoop-run]]
 - [[eos_ai-research_engine-py-ResearchEngine-_parse_model_costs]]

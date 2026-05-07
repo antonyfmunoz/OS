@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/substrate/station_readiness.py
 line: 53
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # StationReadiness

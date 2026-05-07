@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_drainer_smoke_test.py
 module: scripts.substrate_drainer_smoke_test
 lines: 123
-size: 4164
+size: 4286
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_drainer_smoke_test.py
@@ -19,7 +19,7 @@ Proves the EOS-side ingestion seam end-to-end:
   1. Daemon-side: post a StationEvent via StationBus.daemon_post_event()
 ...
 
-**Lines:** 123 | **Size:** 4,164 bytes
+**Lines:** 123 | **Size:** 4,286 bytes
 
 ## Depends On
 

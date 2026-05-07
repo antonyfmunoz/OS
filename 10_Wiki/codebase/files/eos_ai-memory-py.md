@@ -3,9 +3,9 @@ type: codebase-file
 path: eos_ai/memory.py
 module: eos_ai.memory
 lines: 1019
-size: 39100
+size: 40118
 tags: [critical]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # eos_ai/memory.py
@@ -19,7 +19,7 @@ same Postgres instance through the same RLS firewall. SQLite is gone.
 
 ...
 
-**Lines:** 1019 | **Size:** 39,100 bytes
+**Lines:** 1019 | **Size:** 40,118 bytes
 
 ## Depends On
 
@@ -27,16 +27,13 @@ same Postgres instance through the same RLS firewall. SQLite is gone.
 
 ## Used By
 
-- [[eos_ai-cognitive_loop-py]]
 - [[eos_ai-integration_test-py]]
 - [[eos_ai-knowledge_integrator-py]]
-- [[eos_ai-orchestrator-py]]
 - [[eos_ai-reality_engine-py]]
 - [[eos_ai-research_engine-py]]
 - [[eos_ai-status-py]]
 - [[eos_ai-strategy_engine-py]]
 - [[services-calendly_webhook-py]]
-- [[services-dm_monitor-py]]
 - [[services-icp_scorer-py]]
 
 ## Contains

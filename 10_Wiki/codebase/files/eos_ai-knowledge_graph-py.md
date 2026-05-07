@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/knowledge_graph.py
 module: eos_ai.knowledge_graph
 lines: 530
-size: 20822
-generated: 2026-04-12
+size: 21351
+generated: 2026-05-07
 ---
 
 # eos_ai/knowledge_graph.py
@@ -16,7 +16,7 @@ agents, and events into a navigable graph. Memory becomes a list only
 without this; with it the system can reason about relationships.
 ...
 
-**Lines:** 530 | **Size:** 20,822 bytes
+**Lines:** 530 | **Size:** 21,351 bytes
 
 ## Depends On
 

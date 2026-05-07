@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/scene_capabilities.py
 module: eos_ai.substrate.scene_capabilities
 lines: 173
-size: 6485
-generated: 2026-04-12
+size: 6657
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/scene_capabilities.py
@@ -16,7 +16,7 @@ action implicitly needs a node capability to execute meaningfully:
 
 ...
 
-**Lines:** 173 | **Size:** 6,485 bytes
+**Lines:** 173 | **Size:** 6,657 bytes
 
 ## Depends On
 

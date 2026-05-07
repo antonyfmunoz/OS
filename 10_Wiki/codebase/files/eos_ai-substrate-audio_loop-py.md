@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/audio_loop.py
 module: eos_ai.substrate.audio_loop
 lines: 613
-size: 21219
-generated: 2026-04-12
+size: 21831
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/audio_loop.py
@@ -16,7 +16,7 @@ Purpose
 Until now the substrate tracked voice sessions (VoiceSession), wake events
 ...
 
-**Lines:** 613 | **Size:** 21,219 bytes
+**Lines:** 613 | **Size:** 21,831 bytes
 
 ## Used By
 

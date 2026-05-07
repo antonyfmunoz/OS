@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/meetings.py
 line: 365
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # find_notion_meeting_by_person

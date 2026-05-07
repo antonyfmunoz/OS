@@ -3,9 +3,9 @@ type: codebase-file
 path: core/optimizer.py
 module: core.optimizer
 lines: 652
-size: 22623
+size: 23274
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # core/optimizer.py
@@ -19,7 +19,7 @@ patterns worth acting on, and writes improvement PROPOSALS to disk. A
 proposal is a declarative record of a change — it never mutates anything
 ...
 
-**Lines:** 652 | **Size:** 22,623 bytes
+**Lines:** 652 | **Size:** 23,274 bytes
 
 ## Used By
 

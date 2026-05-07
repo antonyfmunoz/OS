@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/rituals.py
 line: 174
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # RitualRegistry.advance
@@ -23,6 +23,7 @@ generated: 2026-04-12
 
 ## Called By
 
+- [[eos_ai-substrate-day_workflows-py-_advance_ritual_best_effort]]
 - [[eos_ai-substrate-ritual_runner-py-finish_close_day]]
 - [[eos_ai-substrate-ritual_runner-py-finish_open_day]]
 - [[eos_ai-substrate-ritual_runner-py-start_close_day]]

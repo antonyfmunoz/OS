@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/venture_knowledge.py
 line: 314
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # VentureKnowledgeBase.to_agent_context
@@ -21,9 +21,6 @@ generated: 2026-04-12
 
 ## Called By
 
-- [[eos_ai-agent_runtime-py-AgentRuntime-run]]
-- [[eos_ai-cognitive_loop-py-CognitiveLoop-run]]
-- [[eos_ai-orchestrator-py-EOSOrchestrator-morning_brief]]
 - [[eos_ai-reality_engine-py-RealityIntelligenceEngine-generate_truth_report]]
 - [[eos_ai-reality_engine-py-RealityIntelligenceEngine-run_competitor_analysis]]
 - [[eos_ai-reality_engine-py-RealityIntelligenceEngine-scan_market_signals]]

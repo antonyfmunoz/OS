@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_research_agent/source_quality.py
 line: 202
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # sort_sources_by_quality

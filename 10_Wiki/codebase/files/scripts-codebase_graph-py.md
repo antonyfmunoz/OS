@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/codebase_graph.py
 module: scripts.codebase_graph
 lines: 1214
-size: 43803
+size: 45016
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/codebase_graph.py
@@ -19,7 +19,7 @@ dependencies, and relationships, then generates an Obsidian vault
 of interconnected markdown files with wikilinks.
 ...
 
-**Lines:** 1214 | **Size:** 43,803 bytes
+**Lines:** 1214 | **Size:** 45,016 bytes
 
 ## Used By
 

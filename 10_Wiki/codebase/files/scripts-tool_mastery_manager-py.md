@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/tool_mastery_manager.py
 module: scripts.tool_mastery_manager
 lines: 216
-size: 8074
+size: 8289
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/tool_mastery_manager.py
@@ -19,7 +19,7 @@ is the source of truth; this file is deliberately shallow so changing
 Manager behaviour never requires CLI surgery.
 ...
 
-**Lines:** 216 | **Size:** 8,074 bytes
+**Lines:** 216 | **Size:** 8,289 bytes
 
 ## Depends On
 

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/agent_teams.py
 line: 360
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # run_browser_action

@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_manager/models.py
 line: 111
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # EnsureResult.to_dict

@@ -3,15 +3,15 @@ type: codebase-file
 path: eos_ai/venture_knowledge.py
 module: eos_ai.venture_knowledge
 lines: 377
-size: 20691
-generated: 2026-04-12
+size: 21067
+generated: 2026-05-07
 ---
 
 # eos_ai/venture_knowledge.py
 
 *No docstring.*
 
-**Lines:** 377 | **Size:** 20,691 bytes
+**Lines:** 377 | **Size:** 21,067 bytes
 
 ## Depends On
 
@@ -19,9 +19,6 @@ generated: 2026-04-12
 
 ## Used By
 
-- [[eos_ai-agent_runtime-py]]
-- [[eos_ai-cognitive_loop-py]]
-- [[eos_ai-orchestrator-py]]
 - [[eos_ai-reality_engine-py]]
 - [[eos_ai-research_engine-py]]
 - [[eos_ai-status-py]]

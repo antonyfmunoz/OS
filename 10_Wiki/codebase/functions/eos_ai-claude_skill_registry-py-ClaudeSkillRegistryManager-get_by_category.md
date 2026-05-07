@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/claude_skill_registry.py
 line: 187
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ClaudeSkillRegistryManager.get_by_category

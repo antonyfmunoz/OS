@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/tts_sanitize.py
 module: eos_ai.substrate.tts_sanitize
 lines: 181
-size: 6594
-generated: 2026-04-12
+size: 6774
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/tts_sanitize.py
@@ -16,7 +16,7 @@ Purpose
 Claude Code tmux sessions (and legacy provider responses) sometimes append
 ...
 
-**Lines:** 181 | **Size:** 6,594 bytes
+**Lines:** 181 | **Size:** 6,774 bytes
 
 ## Used By
 

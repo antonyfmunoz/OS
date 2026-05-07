@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/security/audit.py
 line: 78
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # AuditEvent.from_dict

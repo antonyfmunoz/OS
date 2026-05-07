@@ -2,7 +2,7 @@
 type: codebase-class
 file: scripts/sandbox_safety_verifier.py
 line: 51
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # Failure

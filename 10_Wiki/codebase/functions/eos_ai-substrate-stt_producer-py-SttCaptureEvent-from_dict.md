@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/stt_producer.py
 line: 237
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # SttCaptureEvent.from_dict

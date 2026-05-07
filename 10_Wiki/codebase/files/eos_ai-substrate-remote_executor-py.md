@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/remote_executor.py
 module: eos_ai.substrate.remote_executor
 lines: 217
-size: 8076
-generated: 2026-04-12
+size: 8292
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/remote_executor.py
@@ -16,7 +16,7 @@ this node and dispatches each command through the existing local_executor.
 The bridge queue remains the ONLY transport. The daemon is just a reader.
 ...
 
-**Lines:** 217 | **Size:** 8,076 bytes
+**Lines:** 217 | **Size:** 8,292 bytes
 
 ## Depends On
 

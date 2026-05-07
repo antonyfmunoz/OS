@@ -3,8 +3,8 @@ type: codebase-file
 path: core/advisor.py
 module: core.advisor
 lines: 864
-size: 28478
-generated: 2026-04-12
+size: 29341
+generated: 2026-05-07
 ---
 
 # core/advisor.py
@@ -16,7 +16,7 @@ The Advisor Strategy introduces two model roles:
   Executor  — fast/cheap model, default for all operations
 ...
 
-**Lines:** 864 | **Size:** 28,478 bytes
+**Lines:** 864 | **Size:** 29,341 bytes
 
 ## Depends On
 

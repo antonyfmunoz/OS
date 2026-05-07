@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/accountability.py
 module: eos_ai.accountability
 lines: 189
-size: 6442
-generated: 2026-04-12
+size: 6630
+generated: 2026-05-07
 ---
 
 # eos_ai/accountability.py
@@ -16,7 +16,7 @@ this engine logs it and schedules a follow-up. The proactive engine
 fires that follow-up at the right time through Telegram or Discord.
 ...
 
-**Lines:** 189 | **Size:** 6,442 bytes
+**Lines:** 189 | **Size:** 6,630 bytes
 
 ## Used By
 

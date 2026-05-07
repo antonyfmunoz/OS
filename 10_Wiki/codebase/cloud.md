@@ -1,6 +1,6 @@
 ---
 type: codebase-cloud
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # Cloud Context — Codebase Knowledge Graph
@@ -11,8 +11,8 @@ codebase knowledge graph stored in `10_Wiki/codebase/`.
 ## What This Is
 
 A persistent, structured knowledge graph of the entire EOS codebase.
-It contains 429 files, 459 classes,
-and 3991 functions with full dependency mapping.
+It contains 647 files, 962 classes,
+and 5786 functions with full dependency mapping.
 
 Every node (file, class, function) is a markdown page with:
 - What it depends on (Depends On section with wikilinks)
@@ -68,7 +68,7 @@ feeding into other tools.
 
 ## Freshness
 
-This graph was generated on 2026-04-12.
+This graph was generated on 2026-05-07.
 Run `scripts/update-graph` to rebuild after code changes.
 The graph does NOT auto-update — treat it as a snapshot.
 If a file referenced in the graph doesn't exist, the graph is stale.

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/harness_registry.py
 line: 261
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # HarnessRegistryManager.__init__

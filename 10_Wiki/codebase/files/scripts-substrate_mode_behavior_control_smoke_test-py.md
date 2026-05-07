@@ -3,8 +3,8 @@ type: codebase-file
 path: scripts/substrate_mode_behavior_control_smoke_test.py
 module: scripts.substrate_mode_behavior_control_smoke_test
 lines: 338
-size: 10206
-generated: 2026-04-12
+size: 10543
+generated: 2026-05-07
 ---
 
 # scripts/substrate_mode_behavior_control_smoke_test.py
@@ -16,7 +16,7 @@ Validates:
   2. Builder mode: debug/system allowed
 ...
 
-**Lines:** 338 | **Size:** 10,206 bytes
+**Lines:** 338 | **Size:** 10,543 bytes
 
 ## Depends On
 

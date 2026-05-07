@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/promote_to_wiki.py
 line: 180
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # update_wiki_index

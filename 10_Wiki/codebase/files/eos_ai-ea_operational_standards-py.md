@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/ea_operational_standards.py
 module: eos_ai.ea_operational_standards
 lines: 140
-size: 4642
-generated: 2026-04-12
+size: 4781
+generated: 2026-05-07
 ---
 
 # eos_ai/ea_operational_standards.py
@@ -13,7 +13,7 @@ EA Best Practices — world class EA operating standards
 for every tool DEX uses. Imported and applied in
 gws_connector.py, meetings.py, and email_gps.py.
 
-**Lines:** 140 | **Size:** 4,642 bytes
+**Lines:** 140 | **Size:** 4,781 bytes
 
 ## Contains
 

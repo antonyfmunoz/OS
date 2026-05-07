@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/session_bootstrap.py
 module: scripts.session_bootstrap
 lines: 161
-size: 5039
+size: 5199
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/session_bootstrap.py
@@ -19,7 +19,7 @@ Prints, in order:
     2. 10_Wiki/palace/index.md (palace index)
 ...
 
-**Lines:** 161 | **Size:** 5,039 bytes
+**Lines:** 161 | **Size:** 5,199 bytes
 
 ## Depends On
 

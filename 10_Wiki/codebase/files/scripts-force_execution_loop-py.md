@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/force_execution_loop.py
 module: scripts.force_execution_loop
 lines: 309
-size: 11540
+size: 11848
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/force_execution_loop.py
@@ -19,7 +19,7 @@ This is the activation script. It proves the full pipeline works:
     intent → workflow → action → logging → feedback → optimizer
 ...
 
-**Lines:** 309 | **Size:** 11,540 bytes
+**Lines:** 309 | **Size:** 11,848 bytes
 
 ## Depends On
 

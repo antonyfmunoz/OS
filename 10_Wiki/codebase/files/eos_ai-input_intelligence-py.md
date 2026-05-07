@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/input_intelligence.py
 module: eos_ai.input_intelligence
 lines: 340
-size: 13547
-generated: 2026-04-12
+size: 13886
+generated: 2026-05-07
 ---
 
 # eos_ai/input_intelligence.py
@@ -16,7 +16,7 @@ Sits at the gateway level between request intake and cognitive loop dispatch.
 Purpose: Implement the Harness Principle.
 ...
 
-**Lines:** 340 | **Size:** 13,547 bytes
+**Lines:** 340 | **Size:** 13,886 bytes
 
 ## Contains
 

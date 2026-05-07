@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/morning_intel.py
 module: scripts.morning_intel
 lines: 179
-size: 5642
+size: 5820
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/morning_intel.py
@@ -17,7 +17,7 @@ before the morning brief. Synthesizes overnight signals,
 market movements, and relevant news into a concise
 intelligence brief posted to #general.
 
-**Lines:** 179 | **Size:** 5,642 bytes
+**Lines:** 179 | **Size:** 5,820 bytes
 
 ## Contains
 

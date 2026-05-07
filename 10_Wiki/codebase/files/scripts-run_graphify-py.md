@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/run_graphify.py
 module: scripts.run_graphify
 lines: 526
-size: 19013
+size: 19538
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/run_graphify.py
@@ -19,7 +19,7 @@ primary codebase_graph.json. NEVER writes to the primary graph.
 
 ...
 
-**Lines:** 526 | **Size:** 19,013 bytes
+**Lines:** 526 | **Size:** 19,538 bytes
 
 ## Contains
 

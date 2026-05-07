@@ -3,8 +3,8 @@ type: codebase-file
 path: core/wiki_navigation.py
 module: core.wiki_navigation
 lines: 326
-size: 12319
-generated: 2026-04-12
+size: 12644
+generated: 2026-05-07
 ---
 
 # core/wiki_navigation.py
@@ -16,7 +16,7 @@ Provides:
     enrich_candidates(candidates, wiki_index) -> candidates with wiki metadata
 ...
 
-**Lines:** 326 | **Size:** 12,319 bytes
+**Lines:** 326 | **Size:** 12,644 bytes
 
 ## Contains
 

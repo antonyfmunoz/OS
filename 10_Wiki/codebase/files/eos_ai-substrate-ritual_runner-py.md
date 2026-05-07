@@ -3,9 +3,9 @@ type: codebase-file
 path: eos_ai/substrate/ritual_runner.py
 module: eos_ai.substrate.ritual_runner
 lines: 218
-size: 7366
+size: 7583
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/ritual_runner.py
@@ -19,7 +19,7 @@ possible surface: a module that can be invoked as
 
 ...
 
-**Lines:** 218 | **Size:** 7,366 bytes
+**Lines:** 218 | **Size:** 7,583 bytes
 
 ## Depends On
 

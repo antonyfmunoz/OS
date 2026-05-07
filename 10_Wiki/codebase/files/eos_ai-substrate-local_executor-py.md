@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/local_executor.py
 module: eos_ai.substrate.local_executor
 lines: 216
-size: 7500
-generated: 2026-04-12
+size: 7715
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/local_executor.py
@@ -16,7 +16,7 @@ inside a strict sandbox. NEVER raises. ALWAYS returns a result dict.
 
 ...
 
-**Lines:** 216 | **Size:** 7,500 bytes
+**Lines:** 216 | **Size:** 7,715 bytes
 
 ## Depends On
 

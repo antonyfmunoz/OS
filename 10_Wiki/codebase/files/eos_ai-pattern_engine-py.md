@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/pattern_engine.py
 module: eos_ai.pattern_engine
 lines: 206
-size: 8364
-generated: 2026-04-12
+size: 8569
+generated: 2026-05-07
 ---
 
 # eos_ai/pattern_engine.py
@@ -16,7 +16,7 @@ across multiple sessions. Surfaces avoidance behaviors, building-over-selling
 tendencies, low follow-through, and late working habits.
 ...
 
-**Lines:** 206 | **Size:** 8,364 bytes
+**Lines:** 206 | **Size:** 8,569 bytes
 
 ## Depends On
 

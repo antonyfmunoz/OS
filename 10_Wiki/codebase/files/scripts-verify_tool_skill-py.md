@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/verify_tool_skill.py
 module: scripts.verify_tool_skill
 lines: 189
-size: 6116
+size: 6304
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/verify_tool_skill.py
@@ -19,7 +19,7 @@ block with a real YAML-aware linter.
 
 ...
 
-**Lines:** 189 | **Size:** 6,116 bytes
+**Lines:** 189 | **Size:** 6,304 bytes
 
 ## Depends On
 

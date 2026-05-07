@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/meeting_sources.py
 line: 139
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # LiveMeetingSourceStub.read_utterance

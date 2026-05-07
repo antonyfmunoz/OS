@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/research_engine.py
 line: 226
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ResearchEngine.research_topic
@@ -21,8 +21,6 @@ Returns:
 
 ## Calls
 
-- [[eos_ai-agent_runtime-py-AgentRuntime-run]]
-- [[eos_ai-cognitive_loop-py-CognitiveLoop-run]]
 - [[eos_ai-strategy_engine-py-_parse_labeled_sections]]
 - [[eos_ai-venture_knowledge-py-VentureKnowledgeBase-get]]
 - [[eos_ai-venture_knowledge-py-VentureKnowledgeBase-to_agent_context]]

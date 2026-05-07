@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/stt_producer.py
 line: 1078
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # get_local_stt_runtime

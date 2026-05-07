@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: scripts/substrate_workflow_delegation_smoke_test.py
-line: 445
-generated: 2026-04-12
+line: 485
+generated: 2026-05-07
 ---
 
 # test_no_second_router
 
-**File:** [[scripts-substrate_workflow_delegation_smoke_test-py]] | **Line:** 445
+**File:** [[scripts-substrate_workflow_delegation_smoke_test-py]] | **Line:** 485
 **Signature:** `test_no_second_router() → None`
 
 *No docstring.*

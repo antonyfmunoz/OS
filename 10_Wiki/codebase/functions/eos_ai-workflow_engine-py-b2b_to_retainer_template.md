@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/workflow_engine.py
 line: 465
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # b2b_to_retainer_template

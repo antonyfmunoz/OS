@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/handlers/cc_command_handler.py
 line: 190
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # handle_meetingroi

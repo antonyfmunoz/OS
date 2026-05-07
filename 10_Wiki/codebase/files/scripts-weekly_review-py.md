@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/weekly_review.py
 module: scripts.weekly_review
 lines: 241
-size: 8486
+size: 8726
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/weekly_review.py
@@ -16,7 +16,7 @@ Weekly business review — Sunday 7pm PDT.
 Portfolio health, open items, DEX synthesis.
 Posts to #general.
 
-**Lines:** 241 | **Size:** 8,486 bytes
+**Lines:** 241 | **Size:** 8,726 bytes
 
 ## Contains
 

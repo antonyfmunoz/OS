@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/week_architect.py
 line: 18
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # architect_week

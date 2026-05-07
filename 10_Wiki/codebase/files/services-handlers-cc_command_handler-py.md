@@ -3,8 +3,8 @@ type: codebase-file
 path: services/handlers/cc_command_handler.py
 module: services.handlers.cc_command_handler
 lines: 564
-size: 20710
-generated: 2026-04-12
+size: 21273
+generated: 2026-05-07
 ---
 
 # services/handlers/cc_command_handler.py
@@ -16,7 +16,7 @@ Extracted from discord_bot.py — handles !followup, !travel,
 and calendar write detection.
 ...
 
-**Lines:** 564 | **Size:** 20,710 bytes
+**Lines:** 564 | **Size:** 21,273 bytes
 
 ## Contains
 

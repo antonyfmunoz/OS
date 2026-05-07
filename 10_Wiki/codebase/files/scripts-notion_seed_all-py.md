@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/notion_seed_all.py
 module: scripts.notion_seed_all
 lines: 931
-size: 34314
+size: 35244
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/notion_seed_all.py
@@ -19,7 +19,7 @@ Lyfe Institute was already seeded in notion_seed.py.
 This script completes the remaining two ventures.
 ...
 
-**Lines:** 931 | **Size:** 34,314 bytes
+**Lines:** 931 | **Size:** 35,244 bytes
 
 ## Depends On
 

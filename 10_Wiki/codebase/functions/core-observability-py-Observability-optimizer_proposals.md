@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/observability.py
 line: 285
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # Observability.optimizer_proposals

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/document_filer.py
 line: 115
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # process_email_attachments

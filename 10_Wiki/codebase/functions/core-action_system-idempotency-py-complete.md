@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/action_system/idempotency.py
 line: 186
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # complete

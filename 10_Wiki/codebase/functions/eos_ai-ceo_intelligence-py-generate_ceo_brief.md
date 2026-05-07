@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/ceo_intelligence.py
 line: 630
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # generate_ceo_brief

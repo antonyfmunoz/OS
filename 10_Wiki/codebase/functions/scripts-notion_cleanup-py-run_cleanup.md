@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/notion_cleanup.py
 line: 469
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # run_cleanup

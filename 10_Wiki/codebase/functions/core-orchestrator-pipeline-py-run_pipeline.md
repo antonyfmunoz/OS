@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/orchestrator/pipeline.py
 line: 200
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # run_pipeline
@@ -22,3 +22,8 @@ validation, deferral, and logging behave exactly as they do for a
 - [[core-action_system-logging-py-log_decision]]
 - [[core-orchestrator-pipeline-py-_run_action_step]]
 - [[core-orchestrator-pipeline-py-_run_func_step]]
+
+## Called By
+
+- [[core-execution_bridge-py-execute_composed]]
+- [[core-router-py-execute_routed]]

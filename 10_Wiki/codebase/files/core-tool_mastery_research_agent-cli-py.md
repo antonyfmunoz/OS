@@ -3,9 +3,9 @@ type: codebase-file
 path: core/tool_mastery_research_agent/cli.py
 module: core.tool_mastery_research_agent.cli
 lines: 250
-size: 7813
+size: 8062
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_research_agent/cli.py
@@ -19,7 +19,7 @@ Usage:
         --tool notebooklm_mcp --mode research
 ...
 
-**Lines:** 250 | **Size:** 7,813 bytes
+**Lines:** 250 | **Size:** 8,062 bytes
 
 ## Contains
 

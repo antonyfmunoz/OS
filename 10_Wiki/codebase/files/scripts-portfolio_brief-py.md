@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/portfolio_brief.py
 module: scripts.portfolio_brief
 lines: 128
-size: 3942
+size: 4069
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/portfolio_brief.py
@@ -16,7 +16,7 @@ Sunday Portfolio Brief — runs at 6am every Sunday.
 Scans all ventures, identifies binding constraint,
 posts to Discord #general + creates Notion page.
 
-**Lines:** 128 | **Size:** 3,942 bytes
+**Lines:** 128 | **Size:** 4,069 bytes
 
 ## Contains
 

@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/notebooklm_sync.py
 module: eos_ai.notebooklm_sync
 lines: 314
-size: 11501
-generated: 2026-04-12
+size: 11814
+generated: 2026-05-07
 ---
 
 # eos_ai/notebooklm_sync.py
@@ -16,7 +16,7 @@ Data flows:
   NotebookLM → Neon: query results stored as notebooklm_insight events for DEX
 ...
 
-**Lines:** 314 | **Size:** 11,501 bytes
+**Lines:** 314 | **Size:** 11,814 bytes
 
 ## Depends On
 

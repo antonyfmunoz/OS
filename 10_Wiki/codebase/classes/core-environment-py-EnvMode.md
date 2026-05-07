@@ -2,7 +2,7 @@
 type: codebase-class
 file: core/environment.py
 line: 90
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # EnvMode

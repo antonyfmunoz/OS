@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/eos_os_smoke_test.py
 module: scripts.eos_os_smoke_test
 lines: 251
-size: 8242
+size: 8492
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/eos_os_smoke_test.py
@@ -19,7 +19,7 @@ LLM providers. Prints a PASS/FAIL line per check and exits non-zero on
 the first failure so CI / ops can trust the return code.
 ...
 
-**Lines:** 251 | **Size:** 8,242 bytes
+**Lines:** 251 | **Size:** 8,492 bytes
 
 ## Contains
 

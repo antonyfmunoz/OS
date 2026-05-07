@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/control_bridge.py
 module: eos_ai.substrate.control_bridge
 lines: 173
-size: 5584
-generated: 2026-04-12
+size: 5756
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/control_bridge.py
@@ -16,7 +16,7 @@ No networking. The bridge is a queue, not a transport. Local-first by design.
 
 ...
 
-**Lines:** 173 | **Size:** 5,584 bytes
+**Lines:** 173 | **Size:** 5,756 bytes
 
 ## Depends On
 

@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/query_semantic_space.py
 module: scripts.query_semantic_space
 lines: 342
-size: 11731
+size: 12072
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/query_semantic_space.py
@@ -19,7 +19,7 @@ Usage:
     python3 scripts/query_semantic_space.py query "what breaks if I change memory" --show-scores
 ...
 
-**Lines:** 342 | **Size:** 11,731 bytes
+**Lines:** 342 | **Size:** 12,072 bytes
 
 ## Contains
 

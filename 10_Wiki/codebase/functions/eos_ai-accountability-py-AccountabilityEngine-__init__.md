@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/accountability.py
 line: 38
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # AccountabilityEngine.__init__

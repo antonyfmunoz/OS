@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/icp_scorer.py
 line: 479
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # add_to_kanban

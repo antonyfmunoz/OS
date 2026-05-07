@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/notion_seed_all.py
 line: 472
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # seed_personal_brand

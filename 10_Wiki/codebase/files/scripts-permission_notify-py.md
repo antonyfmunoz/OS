@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/permission_notify.py
 module: scripts.permission_notify
 lines: 103
-size: 2364
+size: 2466
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/permission_notify.py
@@ -17,7 +17,7 @@ Channel-agnostic permission notification.
 Uses ChannelRouter — works with Discord,
 Telegram, Webhook, or any configured channel.
 
-**Lines:** 103 | **Size:** 2,364 bytes
+**Lines:** 103 | **Size:** 2,466 bytes
 
 ## Contains
 

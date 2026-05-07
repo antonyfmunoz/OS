@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/decision_log.py
 module: eos_ai.decision_log
 lines: 218
-size: 7413
-generated: 2026-04-12
+size: 7630
+generated: 2026-05-07
 ---
 
 # eos_ai/decision_log.py
@@ -16,7 +16,7 @@ decision language in founder messages, extracts the key decision via LLM,
 and stores it permanently in Neon as a 'decision' event.
 ...
 
-**Lines:** 218 | **Size:** 7,413 bytes
+**Lines:** 218 | **Size:** 7,630 bytes
 
 ## Depends On
 

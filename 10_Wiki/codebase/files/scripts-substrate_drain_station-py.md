@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_drain_station.py
 module: scripts.substrate_drain_station
 lines: 104
-size: 3570
+size: 3673
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_drain_station.py
@@ -19,7 +19,7 @@ rituals so body_actions get their outcomes mirrored in-place.
 
 ...
 
-**Lines:** 104 | **Size:** 3,570 bytes
+**Lines:** 104 | **Size:** 3,673 bytes
 
 ## Depends On
 

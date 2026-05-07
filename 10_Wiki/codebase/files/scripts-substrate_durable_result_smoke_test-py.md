@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_durable_result_smoke_test.py
 module: scripts.substrate_durable_result_smoke_test
 lines: 235
-size: 8648
+size: 8882
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_durable_result_smoke_test.py
@@ -19,7 +19,7 @@ boundary. We can't fork a real subprocess cheaply here, so we simulate
 the boundary by:
 ...
 
-**Lines:** 235 | **Size:** 8,648 bytes
+**Lines:** 235 | **Size:** 8,882 bytes
 
 ## Depends On
 

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/audio_loop.py
 line: 378
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # reset_audio_loop_store_for_tests

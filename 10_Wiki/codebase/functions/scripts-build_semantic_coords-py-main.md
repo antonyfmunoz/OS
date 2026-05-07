@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/build_semantic_coords.py
 line: 23
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # main

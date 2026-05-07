@@ -2,9 +2,9 @@
 type: codebase-file
 path: eos_ai/substrate/claude_session_bridge.py
 module: eos_ai.substrate.claude_session_bridge
-lines: 1149
-size: 40395
-generated: 2026-04-12
+lines: 1161
+size: 42133
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/claude_session_bridge.py
@@ -16,11 +16,12 @@ CLI sessions running inside tmux. It is designed as a *responder backend*
 that later surfaces (Discord text, meeting intelligence, operator interface)
 ...
 
-**Lines:** 1149 | **Size:** 40,395 bytes
+**Lines:** 1161 | **Size:** 42,133 bytes
 
 ## Used By
 
 - [[eos_ai-substrate-session_watcher-py]]
+- [[scripts-direct_watcher_path_smoke_test-py]]
 
 ## Contains
 

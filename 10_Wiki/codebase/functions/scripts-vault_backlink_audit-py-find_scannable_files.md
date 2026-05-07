@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/vault_backlink_audit.py
 line: 59
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # find_scannable_files

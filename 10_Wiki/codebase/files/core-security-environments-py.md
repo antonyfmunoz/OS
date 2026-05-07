@@ -3,8 +3,8 @@ type: codebase-file
 path: core/security/environments.py
 module: core.security.environments
 lines: 227
-size: 7548
-generated: 2026-04-12
+size: 7774
+generated: 2026-05-07
 ---
 
 # core/security/environments.py
@@ -16,7 +16,7 @@ isolation with path resolution, copy-on-write workspaces, and a
 forbidden-writes list. This module adds the *policy* wrapper:
 ...
 
-**Lines:** 227 | **Size:** 7,548 bytes
+**Lines:** 227 | **Size:** 7,774 bytes
 
 ## Depends On
 

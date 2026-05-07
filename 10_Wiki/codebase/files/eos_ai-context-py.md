@@ -3,24 +3,23 @@ type: codebase-file
 path: eos_ai/context.py
 module: eos_ai.context
 lines: 41
-size: 990
-generated: 2026-04-12
+size: 1030
+generated: 2026-05-07
 ---
 
 # eos_ai/context.py
 
 *No docstring.*
 
-**Lines:** 41 | **Size:** 990 bytes
+**Lines:** 41 | **Size:** 1,030 bytes
 
 ## Used By
 
 - [[core-execution_contract-py]]
 - [[eos_ai-agent_messages-py]]
-- [[eos_ai-agent_runtime-py]]
 - [[eos_ai-authority_engine-py]]
 - [[eos_ai-ceo_agent-py]]
-- [[eos_ai-cognitive_loop-py]]
+- [[eos_ai-context_builder-py]]
 - [[eos_ai-context_compaction-py]]
 - [[eos_ai-coordination_engine-py]]
 - [[eos_ai-decision_log-py]]
@@ -34,7 +33,6 @@ generated: 2026-04-12
 - [[eos_ai-model_preferences-py]]
 - [[eos_ai-notebooklm_sync-py]]
 - [[eos_ai-onboarding_backfill-py]]
-- [[eos_ai-orchestrator-py]]
 - [[eos_ai-os_trinity-py]]
 - [[eos_ai-pattern_engine-py]]
 - [[eos_ai-portfolio_advisor-py]]
@@ -56,8 +54,6 @@ generated: 2026-04-12
 - [[scripts-inbox_zero_init-py]]
 - [[scripts-sync_skills_to_neon-py]]
 - [[services-apify_scraper-py]]
-- [[services-discord_bot-py]]
-- [[services-dm_monitor-py]]
 
 ## Contains
 

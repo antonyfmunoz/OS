@@ -2,9 +2,9 @@
 type: codebase-file
 path: eos_ai/substrate/workflow_delegation.py
 module: eos_ai.substrate.workflow_delegation
-lines: 430
-size: 14370
-generated: 2026-04-12
+lines: 474
+size: 16700
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/workflow_delegation.py
@@ -16,7 +16,7 @@ Purpose
 Classifies incoming requests into bounded intent classes (conversation,
 ...
 
-**Lines:** 430 | **Size:** 14,370 bytes
+**Lines:** 474 | **Size:** 16,700 bytes
 
 ## Used By
 

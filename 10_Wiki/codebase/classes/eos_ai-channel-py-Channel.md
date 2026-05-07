@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/channel.py
 line: 70
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # Channel
@@ -17,13 +17,6 @@ is_available(): check if channel configured
 ## Inherits From
 
 - `ABC`
-
-## Inherited By
-
-- [[eos_ai-channel-py-DiscordChannel]]
-- [[eos_ai-channel-py-TelegramChannel]]
-- [[eos_ai-channel-py-WebhookChannel]]
-- [[eos_ai-channel-py-ConsoleChannel]]
 
 ## Methods
 

@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/os_trinity.py
 module: eos_ai.os_trinity
 lines: 519
-size: 20930
-generated: 2026-04-12
+size: 21448
+generated: 2026-05-07
 ---
 
 # eos_ai/os_trinity.py
@@ -16,7 +16,7 @@ Manages three cross-product concerns:
   2. user_intelligence_profiles — harness-level user profile (survives product boundaries)
 ...
 
-**Lines:** 519 | **Size:** 20,930 bytes
+**Lines:** 519 | **Size:** 21,448 bytes
 
 ## Depends On
 

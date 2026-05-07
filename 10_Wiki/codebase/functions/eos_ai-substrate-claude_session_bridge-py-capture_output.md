@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: eos_ai/substrate/claude_session_bridge.py
-line: 649
-generated: 2026-04-12
+line: 657
+generated: 2026-05-07
 ---
 
 # capture_output
 
-**File:** [[eos_ai-substrate-claude_session_bridge-py]] | **Line:** 649
+**File:** [[eos_ai-substrate-claude_session_bridge-py]] | **Line:** 657
 **Signature:** `capture_output(target, session_name) → dict[str, Any]`
 
 Capture bounded pane output from a tmux session.

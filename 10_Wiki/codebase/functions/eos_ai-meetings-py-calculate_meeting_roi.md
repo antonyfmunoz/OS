@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/meetings.py
 line: 754
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # calculate_meeting_roi

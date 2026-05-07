@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/notion_outcome_sync.py
 line: 88
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # extract_page_data

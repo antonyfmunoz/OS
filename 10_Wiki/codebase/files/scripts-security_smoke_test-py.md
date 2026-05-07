@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/security_smoke_test.py
 module: scripts.security_smoke_test
 lines: 503
-size: 15578
+size: 16080
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/security_smoke_test.py
@@ -19,7 +19,7 @@ Covers:
 
 ...
 
-**Lines:** 503 | **Size:** 15,578 bytes
+**Lines:** 503 | **Size:** 16,080 bytes
 
 ## Depends On
 

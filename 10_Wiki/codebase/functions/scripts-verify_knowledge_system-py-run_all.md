@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/verify_knowledge_system.py
 line: 292
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # run_all

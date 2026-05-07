@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/call_prep.py
 module: scripts.call_prep
 lines: 431
-size: 15807
+size: 16237
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/call_prep.py
@@ -16,7 +16,7 @@ Call Prep — runs every 15 minutes via cron.
 Checks GWS calendar for events starting in the next 25-45 minutes.
 Fires a proactive prep brief to Discord if one is found.
 
-**Lines:** 431 | **Size:** 15,807 bytes
+**Lines:** 431 | **Size:** 16,237 bytes
 
 ## Contains
 

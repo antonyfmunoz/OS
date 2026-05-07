@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: core/semantic_space.py
-line: 178
-generated: 2026-04-12
+line: 186
+generated: 2026-05-07
 ---
 
 # cosine_sim
 
-**File:** [[core-semantic_space-py]] | **Line:** 178
+**File:** [[core-semantic_space-py]] | **Line:** 186
 **Signature:** `cosine_sim(vec_a, vec_b) → float`
 
 Cosine similarity. Assumes L2-normalized inputs (dot = cosine).

@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/notion_sync.py
 module: eos_ai.notion_sync
 lines: 470
-size: 14070
-generated: 2026-04-12
+size: 14539
+generated: 2026-05-07
 ---
 
 # eos_ai/notion_sync.py
@@ -16,7 +16,7 @@ Called by cognitive_loop, orchestrator, and agent_runtime.
 All write functions return Notion page ID (str) or '' on failure.
 ...
 
-**Lines:** 470 | **Size:** 14,070 bytes
+**Lines:** 470 | **Size:** 14,539 bytes
 
 ## Used By
 

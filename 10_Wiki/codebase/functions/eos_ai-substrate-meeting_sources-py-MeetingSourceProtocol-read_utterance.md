@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/meeting_sources.py
 line: 41
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # MeetingSourceProtocol.read_utterance

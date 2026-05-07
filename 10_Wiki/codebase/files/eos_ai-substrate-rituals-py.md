@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/rituals.py
 module: eos_ai.substrate.rituals
 lines: 214
-size: 8302
-generated: 2026-04-12
+size: 8515
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/rituals.py
@@ -16,10 +16,11 @@ founder's day. They coordinate multiple agents/components (briefings, handoffs,
 summaries) without each cron script reinventing structure.
 ...
 
-**Lines:** 214 | **Size:** 8,302 bytes
+**Lines:** 214 | **Size:** 8,515 bytes
 
 ## Used By
 
+- [[eos_ai-substrate-day_workflows-py]]
 - [[eos_ai-substrate-local_listener-py]]
 - [[eos_ai-substrate-ritual_body-py]]
 - [[eos_ai-substrate-ritual_reconciler-py]]

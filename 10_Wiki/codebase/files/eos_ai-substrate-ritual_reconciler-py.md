@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/ritual_reconciler.py
 module: eos_ai.substrate.ritual_reconciler
 lines: 175
-size: 6092
-generated: 2026-04-12
+size: 6266
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/ritual_reconciler.py
@@ -16,7 +16,7 @@ station action a ritual body proposed (see ritual_body.py). This module
 adds the smallest useful consumer for that metadata: a reconcile pass that
 ...
 
-**Lines:** 175 | **Size:** 6,092 bytes
+**Lines:** 175 | **Size:** 6,266 bytes
 
 ## Depends On
 

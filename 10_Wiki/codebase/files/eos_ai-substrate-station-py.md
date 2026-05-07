@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/station.py
 module: eos_ai.substrate.station
 lines: 228
-size: 9312
-generated: 2026-04-12
+size: 9539
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/station.py
@@ -16,7 +16,7 @@ future local Station Daemon running on the founder's workstation. This module
 contains NO daemon implementation — only the protocol/schema both sides will
 ...
 
-**Lines:** 228 | **Size:** 9,312 bytes
+**Lines:** 228 | **Size:** 9,539 bytes
 
 ## Depends On
 

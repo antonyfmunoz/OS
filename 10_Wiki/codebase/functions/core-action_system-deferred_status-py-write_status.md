@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/action_system/deferred_status.py
 line: 80
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # write_status

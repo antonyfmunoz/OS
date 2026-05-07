@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/stakeholder_map.py
 module: eos_ai.stakeholder_map
 lines: 251
-size: 7900
-generated: 2026-04-12
+size: 8150
+generated: 2026-05-07
 ---
 
 # eos_ai/stakeholder_map.py
@@ -12,7 +12,7 @@ generated: 2026-04-12
 Stakeholder Map — tracks key stakeholders per venture,
 their status, influence, and what they need.
 
-**Lines:** 251 | **Size:** 7,900 bytes
+**Lines:** 251 | **Size:** 8,150 bytes
 
 ## Contains
 

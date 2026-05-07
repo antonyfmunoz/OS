@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/result_store.py
 line: 65
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # IngestedResult.from_dict

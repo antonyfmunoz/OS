@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/human_intelligence.py
 line: 572
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # HumanIntelligenceEngine.adapt_communication
@@ -21,5 +21,4 @@ to a team member or a lead. Routes through Sonnet.
 
 ## Calls
 
-- [[eos_ai-agent_runtime-py-AgentRuntime-run]]
 - [[eos_ai-human_intelligence-py-HumanIntelligenceEngine-get_profile]]

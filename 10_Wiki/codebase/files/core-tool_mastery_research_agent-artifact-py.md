@@ -3,8 +3,8 @@ type: codebase-file
 path: core/tool_mastery_research_agent/artifact.py
 module: core.tool_mastery_research_agent.artifact
 lines: 609
-size: 22108
-generated: 2026-04-12
+size: 22716
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_research_agent/artifact.py
@@ -16,7 +16,7 @@ artifacts:
 
 ...
 
-**Lines:** 609 | **Size:** 22,108 bytes
+**Lines:** 609 | **Size:** 22,716 bytes
 
 ## Used By
 

@@ -3,8 +3,8 @@ type: codebase-file
 path: core/action_system/idempotency.py
 module: core.action_system.idempotency
 lines: 296
-size: 9311
-generated: 2026-04-12
+size: 9606
+generated: 2026-05-07
 ---
 
 # core/action_system/idempotency.py
@@ -16,7 +16,7 @@ One JSON file per key at /opt/OS/logs/idempotency/<sha1(key)>.json.
 The core contract is exactly one successful execution per key within
 ...
 
-**Lines:** 296 | **Size:** 9,311 bytes
+**Lines:** 296 | **Size:** 9,606 bytes
 
 ## Contains
 

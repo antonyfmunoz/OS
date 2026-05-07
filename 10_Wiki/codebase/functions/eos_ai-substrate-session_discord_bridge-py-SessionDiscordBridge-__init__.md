@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: eos_ai/substrate/session_discord_bridge.py
-line: 199
-generated: 2026-04-12
+line: 340
+generated: 2026-05-07
 ---
 
 # SessionDiscordBridge.__init__
 
-**File:** [[eos_ai-substrate-session_discord_bridge-py]] | **Line:** 199
+**File:** [[eos_ai-substrate-session_discord_bridge-py]] | **Line:** 340
 **Signature:** `__init__() → None`
 
 **Class:** [[eos_ai-substrate-session_discord_bridge-py-SessionDiscordBridge]]
@@ -18,3 +18,4 @@ generated: 2026-04-12
 
 - [[eos_ai-substrate-session_discord_bridge-py-PermissionView-__init__]]
 - [[eos_ai-substrate-session_discord_bridge-py-PlanApprovalView-__init__]]
+- [[eos_ai-substrate-session_discord_bridge-py-QuestionOptionView-__init__]]

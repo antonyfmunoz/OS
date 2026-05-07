@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/control_bridge.py
 line: 50
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # send_command

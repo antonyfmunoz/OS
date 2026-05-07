@@ -3,9 +3,9 @@ type: codebase-file
 path: eos_ai/primitives.py
 module: eos_ai.primitives
 lines: 932
-size: 32830
+size: 33761
 tags: [critical]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # eos_ai/primitives.py
@@ -19,7 +19,7 @@ KnowledgePrimitive        — structured principle with validity conditions matr
                              based on stage, context, and prerequisites.
 ...
 
-**Lines:** 932 | **Size:** 32,830 bytes
+**Lines:** 932 | **Size:** 33,761 bytes
 
 ## Depends On
 

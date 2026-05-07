@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/world_pulse.py
 module: eos_ai.world_pulse
 lines: 600
-size: 23188
-generated: 2026-04-12
+size: 23787
+generated: 2026-05-07
 ---
 
 # eos_ai/world_pulse.py
@@ -16,7 +16,7 @@ founder and their businesses.
 
 ...
 
-**Lines:** 600 | **Size:** 23,188 bytes
+**Lines:** 600 | **Size:** 23,787 bytes
 
 ## Depends On
 

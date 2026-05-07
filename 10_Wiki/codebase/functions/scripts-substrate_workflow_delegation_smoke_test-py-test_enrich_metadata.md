@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: scripts/substrate_workflow_delegation_smoke_test.py
-line: 302
-generated: 2026-04-12
+line: 342
+generated: 2026-05-07
 ---
 
 # test_enrich_metadata
 
-**File:** [[scripts-substrate_workflow_delegation_smoke_test-py]] | **Line:** 302
+**File:** [[scripts-substrate_workflow_delegation_smoke_test-py]] | **Line:** 342
 **Signature:** `test_enrich_metadata() → None`
 
 *No docstring.*

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/system_health.py
 line: 45
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # EOSSystemHealth.__init__

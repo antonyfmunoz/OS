@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/voice_eos_responder.py
 line: 302
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # build_eos_voice_responder

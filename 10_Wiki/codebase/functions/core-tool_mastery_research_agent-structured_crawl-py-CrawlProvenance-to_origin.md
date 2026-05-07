@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_research_agent/structured_crawl.py
 line: 94
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # CrawlProvenance.to_origin

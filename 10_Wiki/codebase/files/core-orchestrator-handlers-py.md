@@ -3,8 +3,8 @@ type: codebase-file
 path: core/orchestrator/handlers.py
 module: core.orchestrator.handlers
 lines: 322
-size: 11279
-generated: 2026-04-12
+size: 11600
+generated: 2026-05-07
 ---
 
 # core/orchestrator/handlers.py
@@ -16,7 +16,7 @@ orchestrator can run via `run_workflow()`. The context passed by the
 loop has shape:
 ...
 
-**Lines:** 322 | **Size:** 11,279 bytes
+**Lines:** 322 | **Size:** 11,600 bytes
 
 ## Depends On
 

@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/local_listener.py
 module: eos_ai.substrate.local_listener
 lines: 397
-size: 15578
-generated: 2026-04-12
+size: 15974
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/local_listener.py
@@ -16,7 +16,7 @@ Purpose
 Today the substrate only enters open_day via cron. This module adds a small,
 ...
 
-**Lines:** 397 | **Size:** 15,578 bytes
+**Lines:** 397 | **Size:** 15,974 bytes
 
 ## Depends On
 

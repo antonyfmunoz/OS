@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/operator_presence.py
 module: eos_ai.substrate.operator_presence
 lines: 120
-size: 4294
-generated: 2026-04-12
+size: 4413
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/operator_presence.py
@@ -16,7 +16,7 @@ This is the ENTIRE "cinematic EA presence" layer. On purpose.
 There is no LLM here. There is no prompt template engine. There is no
 ...
 
-**Lines:** 120 | **Size:** 4,294 bytes
+**Lines:** 120 | **Size:** 4,413 bytes
 
 ## Depends On
 

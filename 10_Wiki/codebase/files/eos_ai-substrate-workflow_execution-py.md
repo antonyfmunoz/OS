@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/workflow_execution.py
 module: eos_ai.substrate.workflow_execution
 lines: 362
-size: 11702
-generated: 2026-04-12
+size: 12063
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/workflow_execution.py
@@ -16,7 +16,7 @@ Purpose
 Executes classified workflow requests through explicit, bounded handlers.
 ...
 
-**Lines:** 362 | **Size:** 11,702 bytes
+**Lines:** 362 | **Size:** 12,063 bytes
 
 ## Depends On
 

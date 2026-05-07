@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/voice_engine.py
 line: 623
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # VoiceEngine.is_running
@@ -13,7 +13,3 @@ generated: 2026-04-12
 **Class:** [[eos_ai-voice_engine-py-VoiceEngine]]
 
 Check if Ollama is reachable.
-
-## Called By
-
-- [[services-discord_bot-py-_listen_loop]]

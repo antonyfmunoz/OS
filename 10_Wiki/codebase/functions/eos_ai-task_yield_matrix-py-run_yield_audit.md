@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/task_yield_matrix.py
 line: 100
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # run_yield_audit

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/discord_voice_playback.py
 line: 169
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # reset_playback_history_for_tests

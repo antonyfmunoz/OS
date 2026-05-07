@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/week_architect.py
 module: scripts.week_architect
 lines: 118
-size: 3447
+size: 3564
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/week_architect.py
@@ -17,7 +17,7 @@ Reviews the coming week, identifies gaps and conflicts,
 suggests structure, posts to #general.
 Runs after weekly review (7pm).
 
-**Lines:** 118 | **Size:** 3,447 bytes
+**Lines:** 118 | **Size:** 3,564 bytes
 
 ## Contains
 

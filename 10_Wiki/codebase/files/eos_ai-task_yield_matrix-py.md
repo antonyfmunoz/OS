@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/task_yield_matrix.py
 module: eos_ai.task_yield_matrix
 lines: 176
-size: 6209
-generated: 2026-04-12
+size: 6384
+generated: 2026-05-07
 ---
 
 # eos_ai/task_yield_matrix.py
@@ -13,7 +13,7 @@ Task Yield Matrix — Dan Martell's task audit framework.
 Delegate, Replace, Invest, Produce.
 Audits tasks by energy impact and financial value.
 
-**Lines:** 176 | **Size:** 6,209 bytes
+**Lines:** 176 | **Size:** 6,384 bytes
 
 ## Contains
 

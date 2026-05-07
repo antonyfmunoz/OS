@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/ceo_intelligence.py
 module: eos_ai.ceo_intelligence
 lines: 727
-size: 20821
-generated: 2026-04-12
+size: 21547
+generated: 2026-05-07
 ---
 
 # eos_ai/ceo_intelligence.py
@@ -16,7 +16,7 @@ Gives the CEO agent data-driven awareness of:
 - Offer stage position (I/II/III)
 ...
 
-**Lines:** 727 | **Size:** 20,821 bytes
+**Lines:** 727 | **Size:** 21,547 bytes
 
 ## Contains
 

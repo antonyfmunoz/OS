@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/user_model.py
 line: 377
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # UserModel.update_profile

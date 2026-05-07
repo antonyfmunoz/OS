@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/context_lifecycle.py
 line: 232
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # maybe_clear_and_restore

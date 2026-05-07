@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/capability_tagging.py
 module: eos_ai.substrate.capability_tagging
 lines: 134
-size: 4930
-generated: 2026-04-12
+size: 5063
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/capability_tagging.py
@@ -16,7 +16,7 @@ they would *like* a target node to have. It does NOT change routing. The
 model_router and gateway continue to make their own decisions; tags live on
 ...
 
-**Lines:** 134 | **Size:** 4,930 bytes
+**Lines:** 134 | **Size:** 5,063 bytes
 
 ## Depends On
 

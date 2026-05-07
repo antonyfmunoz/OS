@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/eos_os.py
 line: 326
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # main

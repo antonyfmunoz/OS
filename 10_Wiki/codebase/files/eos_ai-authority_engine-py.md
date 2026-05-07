@@ -3,15 +3,15 @@ type: codebase-file
 path: eos_ai/authority_engine.py
 module: eos_ai.authority_engine
 lines: 251
-size: 8681
-generated: 2026-04-12
+size: 8931
+generated: 2026-05-07
 ---
 
 # eos_ai/authority_engine.py
 
 *No docstring.*
 
-**Lines:** 251 | **Size:** 8,681 bytes
+**Lines:** 251 | **Size:** 8,931 bytes
 
 ## Depends On
 
@@ -20,8 +20,6 @@ generated: 2026-04-12
 
 ## Used By
 
-- [[eos_ai-agent_runtime-py]]
-- [[eos_ai-cognitive_loop-py]]
 - [[eos_ai-coordination_engine-py]]
 
 ## Contains

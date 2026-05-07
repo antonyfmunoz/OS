@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/channel.py
 line: 176
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # TelegramChannel
@@ -13,7 +13,7 @@ Telegram via Bot API.
 
 ## Inherits From
 
-- [[eos_ai-channel-py-Channel]]
+- [[core-domain-eos-py-Channel]]
 
 ## Methods
 

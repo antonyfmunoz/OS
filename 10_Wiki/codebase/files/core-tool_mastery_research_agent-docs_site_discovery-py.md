@@ -3,8 +3,8 @@ type: codebase-file
 path: core/tool_mastery_research_agent/docs_site_discovery.py
 module: core.tool_mastery_research_agent.docs_site_discovery
 lines: 610
-size: 21349
-generated: 2026-04-12
+size: 21958
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_research_agent/docs_site_discovery.py
@@ -16,7 +16,7 @@ HTML contains nothing but a bootstrap <script>. Phase 1's GitHub repo
 extractor solved the repo case, but sites like clo3d.com, higgsfield.ai,
 ...
 
-**Lines:** 610 | **Size:** 21,349 bytes
+**Lines:** 610 | **Size:** 21,958 bytes
 
 ## Contains
 

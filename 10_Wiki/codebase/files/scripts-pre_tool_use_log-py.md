@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/pre_tool_use_log.py
 module: scripts.pre_tool_use_log
 lines: 55
-size: 1259
+size: 1313
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/pre_tool_use_log.py
@@ -19,7 +19,7 @@ the model runs (PreToolUse)"
 
 ...
 
-**Lines:** 55 | **Size:** 1,259 bytes
+**Lines:** 55 | **Size:** 1,313 bytes
 
 ## Contains
 

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/roles.py
 line: 83
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # RoleRegistry.__init__

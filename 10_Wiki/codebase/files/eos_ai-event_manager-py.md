@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/event_manager.py
 module: eos_ai.event_manager
 lines: 267
-size: 8101
-generated: 2026-04-12
+size: 8367
+generated: 2026-05-07
 ---
 
 # eos_ai/event_manager.py
@@ -13,7 +13,7 @@ Event Manager — coordinates conferences, offsites, client dinners,
 team events, and speaking engagements. Distinct from calendar events —
 these are multi-day or multi-stakeholder events requiring logistics.
 
-**Lines:** 267 | **Size:** 8,101 bytes
+**Lines:** 267 | **Size:** 8,367 bytes
 
 ## Contains
 

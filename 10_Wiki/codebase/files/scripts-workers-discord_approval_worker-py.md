@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/workers/discord_approval_worker.py
 module: scripts.workers.discord_approval_worker
 lines: 234
-size: 7493
+size: 7726
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/workers/discord_approval_worker.py
@@ -19,7 +19,7 @@ announcement to an append-only JSONL queue at
 `/opt/OS/logs/deferred/notifications.jsonl`. This worker is the
 ...
 
-**Lines:** 234 | **Size:** 7,493 bytes
+**Lines:** 234 | **Size:** 7,726 bytes
 
 ## Contains
 

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/voice_engine.py
 line: 267
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # IntelligentVoiceProcessor.detect_meeting_context
@@ -14,7 +14,3 @@ generated: 2026-04-12
 
 Detects meeting situations from natural language cues.
 No explicit trigger phrases needed — infers from conversation content.
-
-## Called By
-
-- [[services-discord_bot-py-_listen_loop]]

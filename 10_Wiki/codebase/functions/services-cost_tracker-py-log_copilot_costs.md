@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/cost_tracker.py
 line: 315
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # log_copilot_costs

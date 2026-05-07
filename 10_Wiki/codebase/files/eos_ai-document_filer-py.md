@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/document_filer.py
 module: eos_ai.document_filer
 lines: 143
-size: 4163
-generated: 2026-04-12
+size: 4305
+generated: 2026-05-07
 ---
 
 # eos_ai/document_filer.py
@@ -13,7 +13,7 @@ Document Filing System — intelligently files documents
 arriving via email to the correct Drive folder.
 Uses LLM to classify then logs to Neon.
 
-**Lines:** 143 | **Size:** 4,163 bytes
+**Lines:** 143 | **Size:** 4,305 bytes
 
 ## Contains
 

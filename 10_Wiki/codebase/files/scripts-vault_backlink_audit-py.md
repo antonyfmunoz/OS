@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/vault_backlink_audit.py
 module: scripts.vault_backlink_audit
 lines: 275
-size: 9137
+size: 9411
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/vault_backlink_audit.py
@@ -19,7 +19,7 @@ across 10_Wiki/ and vault/.
 
 ...
 
-**Lines:** 275 | **Size:** 9,137 bytes
+**Lines:** 275 | **Size:** 9,411 bytes
 
 ## Contains
 

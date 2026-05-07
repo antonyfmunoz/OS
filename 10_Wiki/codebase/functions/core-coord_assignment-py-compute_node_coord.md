@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: core/coord_assignment.py
-line: 267
-generated: 2026-04-12
+line: 270
+generated: 2026-05-07
 ---
 
 # compute_node_coord
 
-**File:** [[core-coord_assignment-py]] | **Line:** 267
+**File:** [[core-coord_assignment-py]] | **Line:** 270
 **Signature:** `compute_node_coord(node_id, node, pca_model, embedding, summaries, edge_stats) → dict`
 
 Compute full semantic coordinate for a single node.

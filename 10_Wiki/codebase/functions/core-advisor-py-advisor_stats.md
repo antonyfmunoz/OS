@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/advisor.py
 line: 775
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # advisor_stats

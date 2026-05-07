@@ -3,8 +3,8 @@ type: codebase-file
 path: core/agent_harness.py
 module: core.agent_harness
 lines: 741
-size: 25112
-generated: 2026-04-12
+size: 25852
+generated: 2026-05-07
 ---
 
 # core/agent_harness.py
@@ -16,7 +16,7 @@ Every agent call flows through AgentHarness. The harness owns:
   * Tools         → scripts.action_system.ActionSystem
 ...
 
-**Lines:** 741 | **Size:** 25,112 bytes
+**Lines:** 741 | **Size:** 25,852 bytes
 
 ## Depends On
 

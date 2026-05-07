@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/calendar_invite_handler.py
 line: 121
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # respond_to_invite

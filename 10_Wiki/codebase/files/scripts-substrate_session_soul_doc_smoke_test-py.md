@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_session_soul_doc_smoke_test.py
 module: scripts.substrate_session_soul_doc_smoke_test
 lines: 196
-size: 6958
+size: 7153
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_session_soul_doc_smoke_test.py
@@ -19,7 +19,7 @@ Verifies that claude_session_bridge launches claude with the correct
 without any override for developer sessions (dex_builder_main).
 ...
 
-**Lines:** 196 | **Size:** 6,958 bytes
+**Lines:** 196 | **Size:** 7,153 bytes
 
 ## Depends On
 

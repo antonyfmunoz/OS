@@ -2,7 +2,7 @@
 type: codebase-class
 file: core/security/audit.py
 line: 50
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # AuditEvent

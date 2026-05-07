@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/build_semantic_coords.py
 module: scripts.build_semantic_coords
 lines: 129
-size: 4192
+size: 4320
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/build_semantic_coords.py
@@ -19,7 +19,7 @@ Usage:
     python3 scripts/build_semantic_coords.py --rebuild
 ...
 
-**Lines:** 129 | **Size:** 4,192 bytes
+**Lines:** 129 | **Size:** 4,320 bytes
 
 ## Contains
 

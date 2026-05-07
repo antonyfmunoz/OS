@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_discord_claude_hardswitch_smoke_test.py
 line: 105
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # main

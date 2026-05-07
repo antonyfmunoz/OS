@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/test_execution_contract.py
 module: scripts.test_execution_contract
 lines: 112
-size: 4011
+size: 4122
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/test_execution_contract.py
@@ -19,7 +19,7 @@ Verifies:
 2. Both messages appear in Neon messages table
 ...
 
-**Lines:** 112 | **Size:** 4,011 bytes
+**Lines:** 112 | **Size:** 4,122 bytes
 
 ## Depends On
 

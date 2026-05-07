@@ -3,8 +3,8 @@ type: codebase-file
 path: core/action_system/policy.py
 module: core.action_system.policy
 lines: 165
-size: 6077
-generated: 2026-04-12
+size: 6241
+generated: 2026-05-07
 ---
 
 # core/action_system/policy.py
@@ -16,7 +16,7 @@ Two governance systems coexist in EOS and they speak different dialects:
 - `eos_ai/authority_engine.py` governs *business* actions (`send_dm`,
 ...
 
-**Lines:** 165 | **Size:** 6,077 bytes
+**Lines:** 165 | **Size:** 6,241 bytes
 
 ## Contains
 

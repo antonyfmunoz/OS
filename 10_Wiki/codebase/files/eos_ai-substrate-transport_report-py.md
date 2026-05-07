@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/transport_report.py
 module: eos_ai.substrate.transport_report
 lines: 638
-size: 23912
-generated: 2026-04-12
+size: 24549
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/transport_report.py
@@ -16,7 +16,7 @@ Purpose
 -------
 ...
 
-**Lines:** 638 | **Size:** 23,912 bytes
+**Lines:** 638 | **Size:** 24,549 bytes
 
 ## Used By
 

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/travel_manager.py
 line: 212
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # research_restaurants

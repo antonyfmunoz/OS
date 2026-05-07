@@ -3,8 +3,8 @@ type: codebase-file
 path: scripts/salience.py
 module: scripts.salience
 lines: 595
-size: 21972
-generated: 2026-04-12
+size: 22566
+generated: 2026-05-07
 ---
 
 # scripts/salience.py
@@ -16,7 +16,7 @@ Operates on structured summary data (parsed frontmatter + body sections).
 
 ...
 
-**Lines:** 595 | **Size:** 21,972 bytes
+**Lines:** 595 | **Size:** 22,566 bytes
 
 ## Contains
 

@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/orchestrator_loop.py
 module: scripts.orchestrator_loop
 lines: 74
-size: 2155
+size: 2228
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/orchestrator_loop.py
@@ -19,7 +19,7 @@ Usage:
     python3 scripts/orchestrator_loop.py --cycles 3   # run N cycles with sleep
 ...
 
-**Lines:** 74 | **Size:** 2,155 bytes
+**Lines:** 74 | **Size:** 2,228 bytes
 
 ## Depends On
 

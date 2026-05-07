@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: eos_ai/substrate/scenes.py
-line: 75
-generated: 2026-04-12
+line: 171
+generated: 2026-05-07
 ---
 
 # get_scene
 
-**File:** [[eos_ai-substrate-scenes-py]] | **Line:** 75
+**File:** [[eos_ai-substrate-scenes-py]] | **Line:** 171
 **Signature:** `get_scene(name) → Scene | None`
 
 *No docstring.*

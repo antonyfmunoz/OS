@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/action_system/deferred.py
 line: 42
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # load_deferred

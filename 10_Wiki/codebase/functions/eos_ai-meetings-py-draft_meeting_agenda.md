@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/meetings.py
 line: 596
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # draft_meeting_agenda

@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/gws_connector.py
 module: eos_ai.gws_connector
 lines: 1035
-size: 36063
-generated: 2026-04-12
+size: 37097
+generated: 2026-05-07
 ---
 
 # eos_ai/gws_connector.py
@@ -16,7 +16,7 @@ All methods are safe — they log warnings on error and never crash.
 
 ...
 
-**Lines:** 1035 | **Size:** 36,063 bytes
+**Lines:** 1035 | **Size:** 37,097 bytes
 
 ## Used By
 

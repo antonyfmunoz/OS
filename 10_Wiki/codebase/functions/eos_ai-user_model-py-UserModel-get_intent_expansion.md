@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/user_model.py
 line: 320
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # UserModel.get_intent_expansion
@@ -21,7 +21,5 @@ Initiate Arena ICP segment using the warm opener template. Focus on
 
 ## Calls
 
-- [[eos_ai-agent_runtime-py-AgentRuntime-run]]
-- [[eos_ai-cognitive_loop-py-CognitiveLoop-run]]
 - [[eos_ai-user_model-py-UserModel-_load_profile]]
 - [[eos_ai-user_model-py-UserModel-get_trust_level]]

@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_execution_trace_cli.py
 line: 170
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # main

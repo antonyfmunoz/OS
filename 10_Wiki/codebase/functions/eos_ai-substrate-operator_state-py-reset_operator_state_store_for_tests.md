@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/operator_state.py
 line: 380
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # reset_operator_state_store_for_tests

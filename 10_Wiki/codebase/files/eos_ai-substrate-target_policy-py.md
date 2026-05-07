@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/target_policy.py
 module: eos_ai.substrate.target_policy
 lines: 214
-size: 6898
-generated: 2026-04-12
+size: 7111
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/target_policy.py
@@ -16,7 +16,7 @@ Purpose
 Resolves which execution target (``"local"`` or ``"vps"``) a request should
 ...
 
-**Lines:** 214 | **Size:** 6,898 bytes
+**Lines:** 214 | **Size:** 7,111 bytes
 
 ## Contains
 

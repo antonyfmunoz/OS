@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/result_query.py
 line: 398
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # recent_audio_loop_transcripts

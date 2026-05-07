@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/google_meet_source.py
 module: eos_ai.substrate.google_meet_source
 lines: 355
-size: 12755
-generated: 2026-04-12
+size: 13109
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/google_meet_source.py
@@ -16,7 +16,7 @@ MeetingTransport seam. Transcript-only. Pull-based. Never raises.
 
 ...
 
-**Lines:** 355 | **Size:** 12,755 bytes
+**Lines:** 355 | **Size:** 13,109 bytes
 
 ## Depends On
 

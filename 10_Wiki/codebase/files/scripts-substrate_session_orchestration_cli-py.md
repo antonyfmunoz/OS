@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_session_orchestration_cli.py
 module: scripts.substrate_session_orchestration_cli
 lines: 165
-size: 5031
+size: 5195
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_session_orchestration_cli.py
@@ -19,7 +19,7 @@ Usage:
     python3 scripts/substrate_session_orchestration_cli.py health
 ...
 
-**Lines:** 165 | **Size:** 5,031 bytes
+**Lines:** 165 | **Size:** 5,195 bytes
 
 ## Contains
 

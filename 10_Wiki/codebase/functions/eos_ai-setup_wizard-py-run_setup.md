@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/setup_wizard.py
 line: 86
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # run_setup

@@ -3,8 +3,8 @@ type: codebase-file
 path: core/orchestrator/steps.py
 module: core.orchestrator.steps
 lines: 211
-size: 6437
-generated: 2026-04-12
+size: 6647
+generated: 2026-05-07
 ---
 
 # core/orchestrator/steps.py
@@ -16,7 +16,7 @@ weekly_review) share a near-identical shape:
 
 ...
 
-**Lines:** 211 | **Size:** 6,437 bytes
+**Lines:** 211 | **Size:** 6,647 bytes
 
 ## Depends On
 

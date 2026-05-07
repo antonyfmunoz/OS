@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_discord_voice_playback_smoke_test.py
 line: 103
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # main

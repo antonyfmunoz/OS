@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/knowledge_integrator.py
 line: 69
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # KnowledgeIntegrator.integrate
@@ -32,4 +32,3 @@ Also logs to the events table for audit trail.
 - [[eos_ai-knowledge_integrator-py-KnowledgeIntegrator-integrate_world_event]]
 - [[eos_ai-world_pulse-py-WorldPulse-run_market_intel_scan]]
 - [[eos_ai-world_pulse-py-WorldPulse-run_pulse_scan]]
-- [[services-discord_bot-py-_listen_loop]]

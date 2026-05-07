@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/merge_graphs.py
 line: 305
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # main

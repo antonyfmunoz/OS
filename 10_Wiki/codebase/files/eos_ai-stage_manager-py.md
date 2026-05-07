@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/stage_manager.py
 module: eos_ai.stage_manager
 lines: 297
-size: 10719
-generated: 2026-04-12
+size: 11015
+generated: 2026-05-07
 ---
 
 # eos_ai/stage_manager.py
@@ -16,7 +16,7 @@ gateway.py detects it and calls StageManager.advance_stage().
 
 ...
 
-**Lines:** 297 | **Size:** 10,719 bytes
+**Lines:** 297 | **Size:** 11,015 bytes
 
 ## Depends On
 

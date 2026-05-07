@@ -2,7 +2,7 @@
 type: codebase-class
 file: core/security/execution.py
 line: 217
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # RestrictedExecutor

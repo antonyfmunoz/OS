@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/tool_mastery_research_dispatcher.py
 module: scripts.tool_mastery_research_dispatcher
 lines: 311
-size: 11030
+size: 11340
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/tool_mastery_research_dispatcher.py
@@ -19,7 +19,7 @@ Manager. When the Manager decides a tool needs `research`, `refresh`,
 or `repair` work, it enqueues a `run_script` action pointing at this
 ...
 
-**Lines:** 311 | **Size:** 11,030 bytes
+**Lines:** 311 | **Size:** 11,340 bytes
 
 ## Depends On
 

@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/telegram_control.py
 line: 1677
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # gateway_pending

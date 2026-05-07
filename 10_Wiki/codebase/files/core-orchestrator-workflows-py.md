@@ -3,8 +3,8 @@ type: codebase-file
 path: core/orchestrator/workflows.py
 module: core.orchestrator.workflows
 lines: 125
-size: 4800
-generated: 2026-04-12
+size: 4924
+generated: 2026-05-07
 ---
 
 # core/orchestrator/workflows.py
@@ -16,7 +16,7 @@ weekly_review_cp) already call `run_action()` internally with idempotency
 keys, so the orchestrator treats each one as a callable workflow that
 ...
 
-**Lines:** 125 | **Size:** 4,800 bytes
+**Lines:** 125 | **Size:** 4,924 bytes
 
 ## Used By
 

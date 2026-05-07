@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/email_gps.py
 line: 26
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # EmailFolder

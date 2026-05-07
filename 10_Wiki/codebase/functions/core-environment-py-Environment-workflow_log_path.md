@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/environment.py
 line: 158
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # Environment.workflow_log_path

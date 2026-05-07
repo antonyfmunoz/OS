@@ -3,9 +3,9 @@ type: codebase-file
 path: eos_ai/db.py
 module: eos_ai.db
 lines: 124
-size: 4464
+size: 4587
 tags: [critical]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # eos_ai/db.py
@@ -19,28 +19,28 @@ RLS pattern: every transaction opens with
 matching the saas pattern exactly — one Postgres instance, one RLS
 ...
 
-**Lines:** 124 | **Size:** 4,464 bytes
+**Lines:** 124 | **Size:** 4,587 bytes
 
 ## Used By
 
 - [[core-execution_contract-py]]
 - [[eos_ai-authority_engine-py]]
+- [[eos_ai-company_instantiator-py]]
 - [[eos_ai-context_compaction-py]]
 - [[eos_ai-coordination_engine-py]]
-- [[eos_ai-event_bus-py]]
 - [[eos_ai-evolution_engine-py]]
 - [[eos_ai-execution_engine-py]]
-- [[eos_ai-gateway-py]]
+- [[eos_ai-goal_selector-py]]
 - [[eos_ai-higgsfield_client-py]]
 - [[eos_ai-human_intelligence-py]]
 - [[eos_ai-knowledge_graph-py]]
 - [[eos_ai-memory-py]]
 - [[eos_ai-model_preferences-py]]
-- [[eos_ai-orchestrator-py]]
 - [[eos_ai-portfolio_advisor-py]]
 - [[eos_ai-research_engine-py]]
 - [[eos_ai-status-py]]
 - [[eos_ai-strategy_engine-py]]
+- [[eos_ai-transaction_workflow-py]]
 - [[eos_ai-user_model-py]]
 - [[eos_ai-venture_knowledge-py]]
 - [[scripts-higgsfield_smoke_test-py]]

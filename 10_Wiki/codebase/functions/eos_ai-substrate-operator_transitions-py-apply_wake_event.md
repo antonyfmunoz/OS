@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/operator_transitions.py
 line: 316
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # apply_wake_event

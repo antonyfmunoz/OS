@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/email_gps.py
 module: eos_ai.email_gps
 lines: 1463
-size: 56875
-generated: 2026-04-12
+size: 58337
+generated: 2026-05-07
 ---
 
 # eos_ai/email_gps.py
@@ -16,7 +16,7 @@ Antony never touches email until DEX has processed it first. Ever.
 checked by my assistant." — Dan Martell, Buy Back Your Time
 ...
 
-**Lines:** 1463 | **Size:** 56,875 bytes
+**Lines:** 1463 | **Size:** 58,337 bytes
 
 ## Used By
 

@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/notion_publisher.py
 module: eos_ai.notion_publisher
 lines: 496
-size: 16647
-generated: 2026-04-12
+size: 17142
+generated: 2026-05-07
 ---
 
 # eos_ai/notion_publisher.py
@@ -16,7 +16,7 @@ Never build a custom Notion writer from scratch.
 
 ...
 
-**Lines:** 496 | **Size:** 16,647 bytes
+**Lines:** 496 | **Size:** 17,142 bytes
 
 ## Contains
 

@@ -2,9 +2,9 @@
 type: codebase-file
 path: core/action_system/executor.py
 module: core.action_system.executor
-lines: 114
-size: 3857
-generated: 2026-04-12
+lines: 133
+size: 4769
+generated: 2026-05-07
 ---
 
 # core/action_system/executor.py
@@ -15,7 +15,7 @@ Each executor returns a JSON-serialisable dict. Failures are captured as
 {"ok": False, "error": str(e)} rather than raised, so the Control Plane
 can log them uniformly.
 
-**Lines:** 114 | **Size:** 3,857 bytes
+**Lines:** 133 | **Size:** 4,769 bytes
 
 ## Contains
 
@@ -24,6 +24,7 @@ can log them uniformly.
 - **fn** [[core-action_system-executor-py-_execute_run_script]]`(action) → dict[str, Any]`
 - **fn** [[core-action_system-executor-py-_execute_write_file]]`(action) → dict[str, Any]`
 - **fn** [[core-action_system-executor-py-_execute_call_api]]`(action) → dict[str, Any]`
+- **fn** [[core-action_system-executor-py-_execute_compose_action]]`(action) → dict[str, Any]`
 - **fn** [[core-action_system-executor-py-execute_action]]`(action) → dict[str, Any]`
 
 ## Import Statements

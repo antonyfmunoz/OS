@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_meeting_transport_smoke_test.py
 line: 71
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # _FakeSink.__init__

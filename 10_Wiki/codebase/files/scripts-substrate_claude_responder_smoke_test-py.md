@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_claude_responder_smoke_test.py
 module: scripts.substrate_claude_responder_smoke_test
 lines: 229
-size: 9246
+size: 9474
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_claude_responder_smoke_test.py
@@ -19,7 +19,7 @@ Claude Session Bridge and returns a structured reply dict without crashing
 under any environment condition (tmux missing, session missing, empty
 ...
 
-**Lines:** 229 | **Size:** 9,246 bytes
+**Lines:** 229 | **Size:** 9,474 bytes
 
 ## Depends On
 

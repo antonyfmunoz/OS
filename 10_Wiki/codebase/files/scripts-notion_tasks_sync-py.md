@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/notion_tasks_sync.py
 module: scripts.notion_tasks_sync
 lines: 282
-size: 9125
+size: 9406
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/notion_tasks_sync.py
@@ -19,7 +19,7 @@ morning brief Section 1 (Your list).
 
 ...
 
-**Lines:** 282 | **Size:** 9,125 bytes
+**Lines:** 282 | **Size:** 9,406 bytes
 
 ## Contains
 

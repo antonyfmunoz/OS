@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/notebooklm_sync.py
 line: 77
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # NotebookLMSync.sync_pipeline_to_notebook

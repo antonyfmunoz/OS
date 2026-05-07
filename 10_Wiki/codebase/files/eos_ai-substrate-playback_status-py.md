@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/playback_status.py
 module: eos_ai.substrate.playback_status
 lines: 93
-size: 2515
-generated: 2026-04-12
+size: 2607
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/playback_status.py
@@ -16,7 +16,7 @@ voice transport and the meeting voice transport emit via their
 ``status_report()`` methods. Operators get one contract per transport
 ...
 
-**Lines:** 93 | **Size:** 2,515 bytes
+**Lines:** 93 | **Size:** 2,607 bytes
 
 ## Contains
 

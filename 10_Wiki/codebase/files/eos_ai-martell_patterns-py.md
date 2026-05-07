@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/martell_patterns.py
 module: eos_ai.martell_patterns
 lines: 120
-size: 4085
-generated: 2026-04-12
+size: 4204
+generated: 2026-05-07
 ---
 
 # eos_ai/martell_patterns.py
@@ -16,7 +16,7 @@ behaviors and enforces the Solution Standard.
 1. The Staller — delays decisions, needs more info
 ...
 
-**Lines:** 120 | **Size:** 4,085 bytes
+**Lines:** 120 | **Size:** 4,204 bytes
 
 ## Contains
 

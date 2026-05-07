@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/environment.py
 line: 166
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # Environment.harness_log_path

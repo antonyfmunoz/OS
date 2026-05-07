@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/memory.py
 line: 692
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ConversationMemory.__init__

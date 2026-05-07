@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: eos_ai/system_health.py
-line: 226
-generated: 2026-04-12
+line: 227
+generated: 2026-05-07
 ---
 
 # EOSSystemHealth.feedback_health
 
-**File:** [[eos_ai-system_health-py]] | **Line:** 226
+**File:** [[eos_ai-system_health-py]] | **Line:** 227
 **Signature:** `feedback_health() → dict`
 
 **Class:** [[eos_ai-system_health-py-EOSSystemHealth]]

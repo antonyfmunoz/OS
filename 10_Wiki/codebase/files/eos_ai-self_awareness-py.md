@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/self_awareness.py
 module: eos_ai.self_awareness
 lines: 699
-size: 27322
-generated: 2026-04-12
+size: 28020
+generated: 2026-05-07
 ---
 
 # eos_ai/self_awareness.py
@@ -16,7 +16,7 @@ This engine handles all of them automatically without being told.
 
 ...
 
-**Lines:** 699 | **Size:** 27,322 bytes
+**Lines:** 699 | **Size:** 28,020 bytes
 
 ## Contains
 

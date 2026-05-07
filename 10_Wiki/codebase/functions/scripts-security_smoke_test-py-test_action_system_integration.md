@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/security_smoke_test.py
 line: 419
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # test_action_system_integration

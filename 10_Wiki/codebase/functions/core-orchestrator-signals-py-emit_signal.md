@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/orchestrator/signals.py
 line: 102
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # emit_signal

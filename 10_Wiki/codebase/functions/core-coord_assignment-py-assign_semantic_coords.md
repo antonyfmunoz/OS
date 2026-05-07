@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: core/coord_assignment.py
-line: 299
-generated: 2026-04-12
+line: 302
+generated: 2026-05-07
 ---
 
 # assign_semantic_coords
 
-**File:** [[core-coord_assignment-py]] | **Line:** 299
+**File:** [[core-coord_assignment-py]] | **Line:** 302
 **Signature:** `assign_semantic_coords(graph) → dict`
 
 Assign semantic coordinates to all nodes in the graph.

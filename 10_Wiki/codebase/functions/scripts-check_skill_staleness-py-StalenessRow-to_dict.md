@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/check_skill_staleness.py
 line: 54
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # StalenessRow.to_dict

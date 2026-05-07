@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/voice_interface.py
 line: 230
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # VoiceInterface.transcribe
@@ -15,10 +15,6 @@ generated: 2026-04-12
 Transcribe audio file to text via local Whisper.
 Logs the entry to session transcript.
 Returns transcript text.
-
-## Calls
-
-- [[eos_ai-media_processor-py-MediaProcessor-_local_transcribe]]
 
 ## Called By
 

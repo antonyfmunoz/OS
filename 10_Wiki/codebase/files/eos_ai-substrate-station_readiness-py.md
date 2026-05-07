@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/station_readiness.py
 module: eos_ai.substrate.station_readiness
 lines: 306
-size: 11439
-generated: 2026-04-12
+size: 11744
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/station_readiness.py
@@ -16,7 +16,7 @@ Pure derivation. No new state. No persistence. Reads:
   - ResultStore   (recent outcomes, fallbacks, kinds)
 ...
 
-**Lines:** 306 | **Size:** 11,439 bytes
+**Lines:** 306 | **Size:** 11,744 bytes
 
 ## Depends On
 

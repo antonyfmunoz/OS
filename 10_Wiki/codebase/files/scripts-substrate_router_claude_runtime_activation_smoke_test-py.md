@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_router_claude_runtime_activation_smoke_test.py
 module: scripts.substrate_router_claude_runtime_activation_smoke_test
 lines: 186
-size: 7127
+size: 7312
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_router_claude_runtime_activation_smoke_test.py
@@ -19,7 +19,7 @@ container wasn't reaching the host tmux session. Verifies:
 
 ...
 
-**Lines:** 186 | **Size:** 7,127 bytes
+**Lines:** 186 | **Size:** 7,312 bytes
 
 ## Contains
 

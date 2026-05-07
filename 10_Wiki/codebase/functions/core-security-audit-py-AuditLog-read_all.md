@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/security/audit.py
 line: 160
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # AuditLog.read_all

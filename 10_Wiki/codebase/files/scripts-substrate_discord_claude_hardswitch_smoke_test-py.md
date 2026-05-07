@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_discord_claude_hardswitch_smoke_test.py
 module: scripts.substrate_discord_claude_hardswitch_smoke_test
 lines: 213
-size: 7353
+size: 7565
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_discord_claude_hardswitch_smoke_test.py
@@ -19,7 +19,7 @@ removed: Discord text messages now flow through the shared broader router
 (eos_ai.model_router.call_with_fallback), where Claude CLI tmux is
 ...
 
-**Lines:** 213 | **Size:** 7,353 bytes
+**Lines:** 213 | **Size:** 7,565 bytes
 
 ## Depends On
 

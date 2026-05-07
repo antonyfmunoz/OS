@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/skill_registry_v2.py
 line: 87
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # SkillRegistryV2.register

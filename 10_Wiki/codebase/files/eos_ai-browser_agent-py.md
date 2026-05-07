@@ -3,9 +3,9 @@ type: codebase-file
 path: eos_ai/browser_agent.py
 module: eos_ai.browser_agent
 lines: 558
-size: 20908
+size: 21465
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # eos_ai/browser_agent.py
@@ -19,7 +19,7 @@ Same pattern as gws_connector.py — a clean wrapper that agents call,
 it executes in the browser, returns results.
 ...
 
-**Lines:** 558 | **Size:** 20,908 bytes
+**Lines:** 558 | **Size:** 21,465 bytes
 
 ## Contains
 

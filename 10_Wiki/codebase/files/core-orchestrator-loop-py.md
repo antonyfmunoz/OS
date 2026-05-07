@@ -3,8 +3,8 @@ type: codebase-file
 path: core/orchestrator/loop.py
 module: core.orchestrator.loop
 lines: 451
-size: 15526
-generated: 2026-04-12
+size: 15976
+generated: 2026-05-07
 ---
 
 # core/orchestrator/loop.py
@@ -16,7 +16,7 @@ One cycle does exactly four things, in order:
   1. Drain pending signals: for each pending emission, dispatch every
 ...
 
-**Lines:** 451 | **Size:** 15,526 bytes
+**Lines:** 451 | **Size:** 15,976 bytes
 
 ## Depends On
 

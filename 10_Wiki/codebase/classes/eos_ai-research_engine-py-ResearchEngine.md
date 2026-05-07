@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/research_engine.py
 line: 45
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ResearchEngine

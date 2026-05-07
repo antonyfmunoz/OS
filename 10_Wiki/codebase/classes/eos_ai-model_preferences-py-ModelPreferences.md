@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/model_preferences.py
 line: 106
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ModelPreferences

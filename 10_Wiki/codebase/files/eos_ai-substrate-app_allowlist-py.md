@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/app_allowlist.py
 module: eos_ai.substrate.app_allowlist
 lines: 71
-size: 2162
-generated: 2026-04-12
+size: 2232
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/app_allowlist.py
@@ -16,7 +16,7 @@ shell. The daemon is only allowed to launch apps whose `app_id` appears in
 this allow-list, and only by probing the declared candidate binaries with
 ...
 
-**Lines:** 71 | **Size:** 2,162 bytes
+**Lines:** 71 | **Size:** 2,232 bytes
 
 ## Used By
 

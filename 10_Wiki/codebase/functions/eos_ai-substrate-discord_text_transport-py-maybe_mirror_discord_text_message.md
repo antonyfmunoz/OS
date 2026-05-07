@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: eos_ai/substrate/discord_text_transport.py
-line: 1124
-generated: 2026-04-12
+line: 1131
+generated: 2026-05-07
 ---
 
 # maybe_mirror_discord_text_message
 
-**File:** [[eos_ai-substrate-discord_text_transport-py]] | **Line:** 1124
+**File:** [[eos_ai-substrate-discord_text_transport-py]] | **Line:** 1131
 **Signature:** `maybe_mirror_discord_text_message(text) → Optional[dict[str, Any]]`
 
 Opt-in hook for discord_bot.on_message.

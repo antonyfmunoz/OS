@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/higgsfield_client.py
 module: eos_ai.higgsfield_client
 lines: 120
-size: 4259
-generated: 2026-04-12
+size: 4378
+generated: 2026-05-07
 ---
 
 # eos_ai/higgsfield_client.py
@@ -16,7 +16,7 @@ Thin layer over the first-party `higgsfield-client` Python SDK that:
 - reads `HIGGSFIELD_API_KEY` + `HIGGSFIELD_API_KEY_SECRET` from /opt/OS/eos_ai/.env
 ...
 
-**Lines:** 120 | **Size:** 4,259 bytes
+**Lines:** 120 | **Size:** 4,378 bytes
 
 ## Depends On
 

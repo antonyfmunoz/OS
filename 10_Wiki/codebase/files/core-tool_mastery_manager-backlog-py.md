@@ -3,8 +3,8 @@ type: codebase-file
 path: core/tool_mastery_manager/backlog.py
 module: core.tool_mastery_manager.backlog
 lines: 189
-size: 6109
-generated: 2026-04-12
+size: 6297
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_manager/backlog.py
@@ -16,7 +16,7 @@ prioritised worklist of non-READY tools. `bootstrap()` is the fresh-
 environment path: it calls `backlog()` then invokes `ensure_mastery`
 ...
 
-**Lines:** 189 | **Size:** 6,109 bytes
+**Lines:** 189 | **Size:** 6,297 bytes
 
 ## Used By
 

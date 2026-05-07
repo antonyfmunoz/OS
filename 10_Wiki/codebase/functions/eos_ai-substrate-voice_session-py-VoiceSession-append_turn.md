@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/voice_session.py
 line: 185
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # VoiceSession.append_turn

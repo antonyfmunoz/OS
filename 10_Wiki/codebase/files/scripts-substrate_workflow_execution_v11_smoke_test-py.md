@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_workflow_execution_v11_smoke_test.py
 module: scripts.substrate_workflow_execution_v11_smoke_test
 lines: 396
-size: 16719
+size: 17114
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_workflow_execution_v11_smoke_test.py
@@ -17,7 +17,7 @@ Substrate Workflow Execution Layer v1.1 — smoke test.
 Validates that ``analysis`` and ``content_ops`` are now live handlers
 (no longer deferred stubs) while preserving all v1 constraints.
 
-**Lines:** 396 | **Size:** 16,719 bytes
+**Lines:** 396 | **Size:** 17,114 bytes
 
 ## Contains
 

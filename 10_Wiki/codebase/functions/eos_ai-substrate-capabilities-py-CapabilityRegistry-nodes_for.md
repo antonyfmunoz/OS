@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/capabilities.py
 line: 64
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # CapabilityRegistry.nodes_for

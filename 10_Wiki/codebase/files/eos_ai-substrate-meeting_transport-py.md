@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/meeting_transport.py
 module: eos_ai.substrate.meeting_transport
 lines: 1012
-size: 38606
-generated: 2026-04-12
+size: 39617
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/meeting_transport.py
@@ -16,7 +16,7 @@ Purpose
 This is the FIRST meeting voice transport adapter. It exists so that
 ...
 
-**Lines:** 1012 | **Size:** 38,606 bytes
+**Lines:** 1012 | **Size:** 39,617 bytes
 
 ## Depends On
 

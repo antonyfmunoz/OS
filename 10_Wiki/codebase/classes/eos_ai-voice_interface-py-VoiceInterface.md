@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/voice_interface.py
 line: 37
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # VoiceInterface

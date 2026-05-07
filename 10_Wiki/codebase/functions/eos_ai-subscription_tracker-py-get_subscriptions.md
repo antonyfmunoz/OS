@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/subscription_tracker.py
 line: 15
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # get_subscriptions

@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/apify_scraper.py
 line: 326
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # is_human_comment

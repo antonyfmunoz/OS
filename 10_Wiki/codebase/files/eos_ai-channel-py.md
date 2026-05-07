@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/channel.py
 module: eos_ai.channel
 lines: 453
-size: 12924
-generated: 2026-04-12
+size: 13376
+generated: 2026-05-07
 ---
 
 # eos_ai/channel.py
@@ -16,7 +16,7 @@ Adapted from OpenClaw's channel adapter pattern.
 Channels are two-way execution surfaces, not notification sinks.
 ...
 
-**Lines:** 453 | **Size:** 12,924 bytes
+**Lines:** 453 | **Size:** 13,376 bytes
 
 ## Contains
 

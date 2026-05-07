@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/local_listener.py
 line: 221
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # LocalListener.hotkey_activate

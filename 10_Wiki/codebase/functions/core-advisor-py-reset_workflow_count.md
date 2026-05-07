@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/advisor.py
 line: 263
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # reset_workflow_count

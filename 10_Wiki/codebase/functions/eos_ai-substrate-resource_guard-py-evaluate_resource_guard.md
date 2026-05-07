@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/resource_guard.py
 line: 155
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # evaluate_resource_guard

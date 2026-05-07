@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/person_recognition.py
 line: 466
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # format_intelligence_profile

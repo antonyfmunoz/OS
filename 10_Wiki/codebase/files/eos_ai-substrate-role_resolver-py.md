@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/role_resolver.py
 module: eos_ai.substrate.role_resolver
 lines: 75
-size: 2605
-generated: 2026-04-12
+size: 2679
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/role_resolver.py
@@ -16,7 +16,7 @@ uses long-form agent ids like `executive_assistant`, `lyfe_institute_ceo`,
 `empyrean_ceo`, `portfolio_advisor`. The substrate uses three abstract role
 ...
 
-**Lines:** 75 | **Size:** 2,605 bytes
+**Lines:** 75 | **Size:** 2,679 bytes
 
 ## Depends On
 

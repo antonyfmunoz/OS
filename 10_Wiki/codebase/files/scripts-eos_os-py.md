@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/eos_os.py
 module: scripts.eos_os
 lines: 398
-size: 12333
+size: 12730
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/eos_os.py
@@ -19,7 +19,7 @@ command in here maps 1:1 to something in the architecture doc
 (core/ARCHITECTURE_FINAL.md).
 ...
 
-**Lines:** 398 | **Size:** 12,333 bytes
+**Lines:** 398 | **Size:** 12,730 bytes
 
 ## Depends On
 

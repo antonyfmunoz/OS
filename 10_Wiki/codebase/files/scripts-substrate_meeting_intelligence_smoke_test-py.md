@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_meeting_intelligence_smoke_test.py
 module: scripts.substrate_meeting_intelligence_smoke_test
 lines: 143
-size: 5902
+size: 6044
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_meeting_intelligence_smoke_test.py
@@ -19,7 +19,7 @@ Validates:
   2. Summary updates after threshold.
 ...
 
-**Lines:** 143 | **Size:** 5,902 bytes
+**Lines:** 143 | **Size:** 6,044 bytes
 
 ## Depends On
 

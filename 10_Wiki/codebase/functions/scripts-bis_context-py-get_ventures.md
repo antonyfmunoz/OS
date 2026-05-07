@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/bis_context.py
 line: 24
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # get_ventures

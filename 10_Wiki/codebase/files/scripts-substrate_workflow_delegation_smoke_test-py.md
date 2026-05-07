@@ -2,10 +2,10 @@
 type: codebase-file
 path: scripts/substrate_workflow_delegation_smoke_test.py
 module: scripts.substrate_workflow_delegation_smoke_test
-lines: 579
-size: 20966
+lines: 620
+size: 23297
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_workflow_delegation_smoke_test.py
@@ -19,7 +19,7 @@ Proves that:
   2.  Product-runtime language → classified as workflow/product_runtime.
 ...
 
-**Lines:** 579 | **Size:** 20,966 bytes
+**Lines:** 620 | **Size:** 23,297 bytes
 
 ## Contains
 
@@ -33,6 +33,7 @@ Proves that:
 - **fn** [[scripts-substrate_workflow_delegation_smoke_test-py-test_content_ops_classification]]`() → None`
 - **fn** [[scripts-substrate_workflow_delegation_smoke_test-py-test_analysis_classification]]`() → None`
 - **fn** [[scripts-substrate_workflow_delegation_smoke_test-py-test_system_ops_classification]]`() → None`
+- **fn** [[scripts-substrate_workflow_delegation_smoke_test-py-test_planning_only_exclusion]]`() → None`
 - **fn** [[scripts-substrate_workflow_delegation_smoke_test-py-test_empty_input]]`() → None`
 - **fn** [[scripts-substrate_workflow_delegation_smoke_test-py-test_builder_allows_builder_dev]]`() → None`
 - **fn** [[scripts-substrate_workflow_delegation_smoke_test-py-test_product_blocks_builder_dev]]`() → None`

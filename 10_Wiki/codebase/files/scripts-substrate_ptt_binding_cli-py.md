@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_ptt_binding_cli.py
 module: scripts.substrate_ptt_binding_cli
 lines: 121
-size: 3794
+size: 3914
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_ptt_binding_cli.py
@@ -19,7 +19,7 @@ Subcommands:
   devices     List enumerable input audio devices.
 ...
 
-**Lines:** 121 | **Size:** 3,794 bytes
+**Lines:** 121 | **Size:** 3,914 bytes
 
 ## Contains
 

@@ -3,9 +3,9 @@ type: codebase-file
 path: eos_ai/setup_wizard.py
 module: eos_ai.setup_wizard
 lines: 167
-size: 5659
+size: 5825
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # eos_ai/setup_wizard.py
@@ -19,7 +19,7 @@ and generates a personalised EA soul doc from the master template.
 
 ...
 
-**Lines:** 167 | **Size:** 5,659 bytes
+**Lines:** 167 | **Size:** 5,825 bytes
 
 ## Contains
 

@@ -3,8 +3,8 @@ type: codebase-file
 path: core/tool_mastery_manager/paths.py
 module: core.tool_mastery_manager.paths
 lines: 26
-size: 934
-generated: 2026-04-12
+size: 959
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_manager/paths.py
@@ -15,7 +15,7 @@ Centralised so portability work can replace hardcoded /opt/OS with an
 EOS_ROOT env var in exactly one place. Everything in the manager imports
 paths from here rather than hardcoding.
 
-**Lines:** 26 | **Size:** 934 bytes
+**Lines:** 26 | **Size:** 959 bytes
 
 ## Used By
 

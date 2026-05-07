@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/primitives.py
 line: 882
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ContextualReasoningEngine.evaluate_principle

@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/operator_interface.py
 module: eos_ai.substrate.operator_interface
 lines: 349
-size: 11388
-generated: 2026-04-12
+size: 11736
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/operator_interface.py
@@ -16,7 +16,7 @@ linkage_snapshot(). This layer turns "structured intelligence exposed"
 into "human operator can query, filter, and act on it".
 ...
 
-**Lines:** 349 | **Size:** 11,388 bytes
+**Lines:** 349 | **Size:** 11,736 bytes
 
 ## Depends On
 

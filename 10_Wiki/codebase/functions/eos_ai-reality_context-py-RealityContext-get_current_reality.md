@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/reality_context.py
 line: 93
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # RealityContext.get_current_reality

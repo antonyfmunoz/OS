@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: scripts/substrate_workflow_delegation_smoke_test.py
-line: 282
-generated: 2026-04-12
+line: 322
+generated: 2026-05-07
 ---
 
 # test_conversation_always_allowed
 
-**File:** [[scripts-substrate_workflow_delegation_smoke_test-py]] | **Line:** 282
+**File:** [[scripts-substrate_workflow_delegation_smoke_test-py]] | **Line:** 322
 **Signature:** `test_conversation_always_allowed() → None`
 
 *No docstring.*

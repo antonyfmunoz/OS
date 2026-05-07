@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/human_intelligence.py
 line: 244
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # HumanIntelligenceEngine.build_profile
@@ -17,7 +17,6 @@ Returns the profile dict, or raises FileNotFoundError if no lead file found.
 
 ## Calls
 
-- [[eos_ai-agent_runtime-py-AgentRuntime-run]]
 - [[eos_ai-human_intelligence-py-HumanIntelligenceEngine-_build_profile_prompt]]
 - [[eos_ai-human_intelligence-py-HumanIntelligenceEngine-_find_lead_file]]
 - [[eos_ai-human_intelligence-py-HumanIntelligenceEngine-_parse_lead_file]]

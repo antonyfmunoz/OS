@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/sandbox_safety_verifier.py
 line: 159
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # check_workflow_logs_land_in_sandbox

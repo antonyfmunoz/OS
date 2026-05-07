@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_hybrid_execution_smoke_test.py
 line: 566
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # test_session_names_preserved

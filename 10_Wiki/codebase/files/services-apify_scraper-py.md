@@ -3,9 +3,9 @@ type: codebase-file
 path: services/apify_scraper.py
 module: services.apify_scraper
 lines: 910
-size: 32587
+size: 33496
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # services/apify_scraper.py
@@ -14,7 +14,7 @@ generated: 2026-04-12
 
 *No docstring.*
 
-**Lines:** 910 | **Size:** 32,587 bytes
+**Lines:** 910 | **Size:** 33,496 bytes
 
 ## Depends On
 

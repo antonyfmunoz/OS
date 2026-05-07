@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/notion_publisher.py
 line: 312
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # NotionPublisher.publish_intel_brief

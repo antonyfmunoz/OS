@@ -3,9 +3,9 @@ type: codebase-file
 path: eos_ai/substrate/session_orchestration.py
 module: eos_ai.substrate.session_orchestration
 lines: 418
-size: 13214
+size: 13631
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/session_orchestration.py
@@ -18,7 +18,7 @@ Bounded orchestration that knows which sessions should exist, whether they
 are healthy, and how to explicitly recover them. No background processes, no autonomous
 supervision, no hot-path imports.
 
-**Lines:** 418 | **Size:** 13,214 bytes
+**Lines:** 418 | **Size:** 13,631 bytes
 
 ## Used By
 

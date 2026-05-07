@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/portfolio_advisor_standards.py
 module: eos_ai.portfolio_advisor_standards
 lines: 487
-size: 15595
-generated: 2026-04-12
+size: 16081
+generated: 2026-05-07
 ---
 
 # eos_ai/portfolio_advisor_standards.py
@@ -16,7 +16,7 @@ portfolio-level advisory request.
 
 ...
 
-**Lines:** 487 | **Size:** 15,595 bytes
+**Lines:** 487 | **Size:** 16,081 bytes
 
 ## Contains
 

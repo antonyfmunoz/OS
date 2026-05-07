@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/memory.py
 line: 927
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ConversationMemory.format_channel_history_for_prompt
@@ -21,7 +21,3 @@ When query is empty: last 40 by recency, reversed to chronological.
 ## Calls
 
 - [[eos_ai-db-py-get_conn]]
-
-## Called By
-
-- [[eos_ai-cognitive_loop-py-CognitiveLoop-run]]

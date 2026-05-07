@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/user_prompt_capture.py
 module: scripts.user_prompt_capture
 lines: 112
-size: 2820
+size: 2931
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/user_prompt_capture.py
@@ -19,7 +19,7 @@ Together they create a complete conversation log.
 
 ...
 
-**Lines:** 112 | **Size:** 2,820 bytes
+**Lines:** 112 | **Size:** 2,931 bytes
 
 ## Contains
 

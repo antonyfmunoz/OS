@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/inbox_zero_init.py
 line: 288
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # verify_existing_labels

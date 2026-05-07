@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/memory_neon.py
 line: 384
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # get_related_sessions

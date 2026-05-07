@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/station_drainer.py
 line: 65
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # DrainStats.as_dict

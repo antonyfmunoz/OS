@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/founder_capture.py
 module: eos_ai.founder_capture
 lines: 227
-size: 7679
-generated: 2026-04-12
+size: 7905
+generated: 2026-05-07
 ---
 
 # eos_ai/founder_capture.py
@@ -13,7 +13,7 @@ Founder Capture — detects tasks, ideas, and reminders from Discord messages
 and writes them to the Neon events table so they appear in the morning brief
 Section 1 (Your list). Also pushes to Notion dashboard.
 
-**Lines:** 227 | **Size:** 7,679 bytes
+**Lines:** 227 | **Size:** 7,905 bytes
 
 ## Contains
 

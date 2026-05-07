@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/channel.py
 line: 231
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # WebhookChannel
@@ -13,7 +13,7 @@ Generic webhook channel for n8n, Make, Zapier.
 
 ## Inherits From
 
-- [[eos_ai-channel-py-Channel]]
+- [[core-domain-eos-py-Channel]]
 
 ## Methods
 

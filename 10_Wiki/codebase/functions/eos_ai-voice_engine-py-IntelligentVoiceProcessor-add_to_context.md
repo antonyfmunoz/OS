@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/voice_engine.py
 line: 302
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # IntelligentVoiceProcessor.add_to_context
@@ -13,7 +13,3 @@ generated: 2026-04-12
 **Class:** [[eos_ai-voice_engine-py-IntelligentVoiceProcessor]]
 
 *No docstring.*
-
-## Called By
-
-- [[services-discord_bot-py-_listen_loop]]

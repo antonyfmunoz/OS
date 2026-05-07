@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/subagent_start_context.py
 module: scripts.subagent_start_context
 lines: 87
-size: 2247
+size: 2333
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/subagent_start_context.py
@@ -16,7 +16,7 @@ SubagentStart hook.
 Injects agent-type-specific context when
 a CC native subagent starts.
 
-**Lines:** 87 | **Size:** 2,247 bytes
+**Lines:** 87 | **Size:** 2,333 bytes
 
 ## Contains
 

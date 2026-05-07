@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_meeting_transport_cli.py
 module: scripts.substrate_meeting_transport_cli
 lines: 266
-size: 8192
+size: 8457
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_meeting_transport_cli.py
@@ -19,7 +19,7 @@ Subcommands:
   start    Start a bounded voice session for the meeting node.
 ...
 
-**Lines:** 266 | **Size:** 8,192 bytes
+**Lines:** 266 | **Size:** 8,457 bytes
 
 ## Contains
 

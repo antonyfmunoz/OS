@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_research_agent/search_discovery.py
 line: 326
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # generate_candidates

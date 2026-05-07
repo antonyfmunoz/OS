@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/confidentiality.py
 module: eos_ai.confidentiality
 lines: 119
-size: 3459
-generated: 2026-04-12
+size: 3577
+generated: 2026-05-07
 ---
 
 # eos_ai/confidentiality.py
@@ -13,7 +13,7 @@ Confidentiality Protocol — handles sensitive
 negotiations, investor terms, M&A discussions,
 and any context requiring restricted logging.
 
-**Lines:** 119 | **Size:** 3,459 bytes
+**Lines:** 119 | **Size:** 3,577 bytes
 
 ## Contains
 

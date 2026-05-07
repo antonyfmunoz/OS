@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/security/environments.py
 line: 171
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # env_for_name

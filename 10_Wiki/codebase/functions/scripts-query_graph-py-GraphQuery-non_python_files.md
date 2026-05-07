@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/query_graph.py
 line: 231
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # GraphQuery.non_python_files

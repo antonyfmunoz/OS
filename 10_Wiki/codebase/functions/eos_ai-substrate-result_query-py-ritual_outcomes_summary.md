@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/result_query.py
 line: 422
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ritual_outcomes_summary

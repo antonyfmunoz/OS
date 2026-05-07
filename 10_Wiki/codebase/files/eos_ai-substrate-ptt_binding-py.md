@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/ptt_binding.py
 module: eos_ai.substrate.ptt_binding
 lines: 382
-size: 14337
-generated: 2026-04-12
+size: 14718
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/ptt_binding.py
@@ -16,7 +16,7 @@ Purpose
 This module is a thin, bounded orchestrator on top of the existing STT
 ...
 
-**Lines:** 382 | **Size:** 14,337 bytes
+**Lines:** 382 | **Size:** 14,718 bytes
 
 ## Used By
 

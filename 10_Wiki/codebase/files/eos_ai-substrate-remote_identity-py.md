@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/remote_identity.py
 module: eos_ai.substrate.remote_identity
 lines: 81
-size: 2331
-generated: 2026-04-12
+size: 2411
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/remote_identity.py
@@ -16,7 +16,7 @@ NO crypto. NO networking. Just env/hostname lookups and a string compare.
 
 ...
 
-**Lines:** 81 | **Size:** 2,331 bytes
+**Lines:** 81 | **Size:** 2,411 bytes
 
 ## Depends On
 

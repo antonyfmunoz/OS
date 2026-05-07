@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/person_recognition.py
 line: 488
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # score_relationship_health

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/email_gps.py
 line: 693
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # EmailGPS.process_inbox

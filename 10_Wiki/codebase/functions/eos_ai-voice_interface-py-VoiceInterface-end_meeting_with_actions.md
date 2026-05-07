@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/voice_interface.py
 line: 550
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # VoiceInterface.end_meeting_with_actions

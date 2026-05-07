@@ -1,11 +1,11 @@
 ---
 type: codebase-module
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # eos_ai/
 
-**Files:** 181 | **Lines:** 76,079 | **Classes:** 286 | **Functions:** 1913
+**Files:** 299 | **Lines:** 121,971 | **Classes:** 581 | **Functions:** 3121
 
 ## Critical Files
 
@@ -23,38 +23,52 @@ generated: 2026-04-12
 ## Entry Points
 
 - [[eos_ai-browser_agent-py]]
+- [[eos_ai-company_instantiator-py]]
+- [[eos_ai-context_builder-py]]
 - [[eos_ai-event_bus-py]]
+- [[eos_ai-execution_loop-py]]
+- [[eos_ai-execution_spine-py]]
+- [[eos_ai-goal_selector-py]]
 - [[eos_ai-integration_test-py]]
 - [[eos_ai-orchestrator-py]]
+- [[eos_ai-primitive_registry-py]]
 - [[eos_ai-provider_health-py]]
 - [[eos_ai-setup_wizard-py]]
 - [[eos_ai-status-py]]
+- [[eos_ai-substrate-local_worker_auto_loop-py]]
 - [[eos_ai-substrate-ritual_runner-py]]
 - [[eos_ai-substrate-session_orchestration-py]]
 - [[eos_ai-substrate-station_daemon-py]]
+- [[eos_ai-substrate-windows_desktop_relay_client-py]]
+- [[eos_ai-substrate-write_founder_gate_confirmation-py]]
 - [[eos_ai-system_health-py]]
+- [[eos_ai-template_registry-py]]
+- [[eos_ai-transaction_workflow-py]]
+- [[eos_ai-world_model-py]]
 
 ## All Files
 
 - [[eos_ai-accountability-py]] (189 lines) — AccountabilityEngine — holds the founder to their word.
 - [[eos_ai-agent_hierarchy-py]] (435 lines) **[CRITICAL]** — Agent hierarchy for EntrepreneurOS.
 - [[eos_ai-agent_messages-py]] (141 lines) — AgentMessageBus — inter-agent communication layer.
-- [[eos_ai-agent_runtime-py]] (522 lines) **[CRITICAL]** — Agent runtime for OS agents.
+- [[eos_ai-agent_runtime-py]] (1053 lines) **[CRITICAL]** — 
 - [[eos_ai-agent_teams-py]] (396 lines) — Domain team registry for the OS agent system.
 - [[eos_ai-ai_identity-py]] (268 lines) **[CRITICAL]** — AIIdentityEngine — foundational AI identity principles.
 - [[eos_ai-authority_engine-py]] (251 lines) — 
 - [[eos_ai-browser_agent-py]] (558 lines) *[entry]* — BrowserAgent — Playwright-based web operator for EOS agents.
 - [[eos_ai-business_instance-py]] (490 lines) — BusinessInstance — venture-stage context layer.
-- [[eos_ai-cc_sdk-py]] (322 lines) — cc_sdk — Claude Code Agent SDK wrapper for EOS.
+- [[eos_ai-cc_sdk-py]] (672 lines) — 
 - [[eos_ai-ceo_agent-py]] (375 lines) — CEOAgent — one per company, strategy layer.
 - [[eos_ai-ceo_intelligence-py]] (727 lines) — CEO Intelligence — real-time business diagnostics.
 - [[eos_ai-ceo_operational_standards-py]] (604 lines) — CEO Best Practices — operational ruleset for
 - [[eos_ai-channel-py]] (453 lines) — EOS Channel System
 - [[eos_ai-claude_skill_registry-py]] (298 lines) — ClaudeSkillRegistry — tracks all .claude/skills files, syncs
-- [[eos_ai-cognitive_loop-py]] (1679 lines) **[CRITICAL]** — CognitiveLoop — full Perceive → Understand → Plan → Execute
+- [[eos_ai-cognitive_loop-py]] (2952 lines) **[CRITICAL]** — 
+- [[eos_ai-company_instantiator-py]] (304 lines) *[entry]* — CompanyInstantiator — instantiate the 6 Munoz Conglomerate c
 - [[eos_ai-competitive_intel-py]] (149 lines) — Competitive Intelligence — tracks competitor signals
 - [[eos_ai-confidentiality-py]] (119 lines) — Confidentiality Protocol — handles sensitive
 - [[eos_ai-context-py]] (41 lines) — 
+- [[eos_ai-context_builder-py]] (520 lines) *[entry]* — ContextBuilder — single-pass context assembly for the execut
 - [[eos_ai-context_compaction-py]] (224 lines) — ContextCompactor — seamless context window management for lo
 - [[eos_ai-coordination_engine-py]] (400 lines) — CoordinationEngine — event-driven task coordination for AI a
 - [[eos_ai-daily_sync-py]] (607 lines) — DailySync — Dan Martell's Daily Sync Meeting format.
@@ -71,15 +85,18 @@ generated: 2026-04-12
 - [[eos_ai-embedding_engine-py]] (416 lines) — EmbeddingEngine — Three-tier hybrid embedding with graceful 
 - [[eos_ai-eod_closing_loop-py]] (344 lines) — EODClosingLoop — DEX's end-of-day report.
 - [[eos_ai-error_handler-py]] (347 lines) — ErrorHandler — self-healing error handling with Telegram ale
-- [[eos_ai-event_bus-py]] (510 lines) *[entry]* — EventBus — reactive coordination layer for EOS agents.
+- [[eos_ai-event_bus-py]] (1152 lines) *[entry]* — 
 - [[eos_ai-event_manager-py]] (267 lines) — Event Manager — coordinates conferences, offsites, client di
 - [[eos_ai-evolution_engine-py]] (869 lines) — EvolutionEngine — continuous self-improvement beyond skill r
 - [[eos_ai-execution_engine-py]] (359 lines) — ExecutionEngine — formal lifecycle tracking for every task i
+- [[eos_ai-execution_loop-py]] (322 lines) *[entry]* — ExecutionLoop — closed-loop goal execution with outcome feed
+- [[eos_ai-execution_spine-py]] (171 lines) *[entry]* — ExecutionSpine — single execution path for all EOS operation
 - [[eos_ai-expense_tracker-py]] (451 lines) — Expense Tracker — processes receipts from Gmail RECEIPTS-FIN
 - [[eos_ai-feedback_loop-py]] (468 lines) — FeedbackLoop — closes the loop between DEX recommendations a
 - [[eos_ai-founder_capture-py]] (227 lines) — Founder Capture — detects tasks, ideas, and reminders from D
 - [[eos_ai-founder_rate-py]] (299 lines) — Founder Rate — Dan Martell's framework for valuing
-- [[eos_ai-gateway-py]] (1882 lines) **[CRITICAL]** — EOSGateway — single control plane for all AI operations.
+- [[eos_ai-gateway-py]] (3866 lines) **[CRITICAL]** — 
+- [[eos_ai-goal_selector-py]] (1556 lines) *[entry]* — GoalSelector — goal selection + system focus layer (Phase 9D
 - [[eos_ai-gws_connector-py]] (1035 lines) — GWSConnector — Google Workspace integration via gws CLI.
 - [[eos_ai-gws_scanner-py]] (700 lines) — GWSDocumentScanner — reads Google Docs the founder owns,
 - [[eos_ai-harness_registry-py]] (304 lines) — HarnessRegistry — every tool, model, and agent that EOS can 
@@ -94,34 +111,49 @@ generated: 2026-04-12
 - [[eos_ai-knowledge_integrator-py]] (241 lines) — KnowledgeIntegrator — permanent knowledge accumulation layer
 - [[eos_ai-knowledge_layers-py]] (414 lines) — KnowledgeLayerEngine — behavioral and strategic knowledge in
 - [[eos_ai-martell_patterns-py]] (120 lines) — Martell Pattern Detection — identifies Leverage Killer
-- [[eos_ai-media_processor-py]] (351 lines) — MediaProcessor — unified multimodal file handler.
+- [[eos_ai-media_processor-py]] (700 lines) — 
 - [[eos_ai-meetings-py]] (854 lines) — Meetings — central module for all meeting lifecycle manageme
 - [[eos_ai-memory-py]] (1019 lines) **[CRITICAL]** — Persistent memory for OS agents — backed by Neon (PostgreSQL
 - [[eos_ai-model_preferences-py]] (472 lines) — Multi-model router with business context awareness and full 
-- [[eos_ai-model_router-py]] (1116 lines) **[CRITICAL]** — ModelRouter — standalone multi-model router for EOS.
+- [[eos_ai-model_router-py]] (2331 lines) **[CRITICAL]** — 
 - [[eos_ai-notebooklm_sync-py]] (314 lines) — NotebookLMSync — bidirectional sync between Neon and Noteboo
 - [[eos_ai-notion_publisher-py]] (496 lines) — EOS Notion Publisher — canonical pattern for writing EOS con
 - [[eos_ai-notion_sync-py]] (470 lines) — Notion Sync — EOS runtime write layer.
 - [[eos_ai-okr_tracker-py]] (119 lines) — OKR Tracker — tracks Objectives and Key Results per venture.
 - [[eos_ai-onboarding_backfill-py]] (339 lines) — OnboardingBackfill — reads all connected integrations on fir
 - [[eos_ai-onboarding_engine-py]] (353 lines) — OnboardingEngine — conversational onboarding for new EOS fou
-- [[eos_ai-orchestrator-py]] (1878 lines) **[CRITICAL]** — EOSOrchestrator — strategic intelligence layer.
+- [[eos_ai-orchestrator-py]] (3747 lines) **[CRITICAL]** — 
 - [[eos_ai-os_registry-py]] (321 lines) — OSRegistry — formal registry for all three OS modules.
 - [[eos_ai-os_trinity-py]] (519 lines) — OSTrinity — OS Trinity harness layer.
 - [[eos_ai-output_validator-py]] (310 lines) — OutputValidator — EOS applies its own principles to its own 
 - [[eos_ai-pattern_engine-py]] (206 lines) — PatternEngine — cross-session behavioral pattern detection.
 - [[eos_ai-person_recognition-py]] (614 lines) — Person Recognition — central module for identifying known pe
 - [[eos_ai-personal_admin-py]] (142 lines) — Personal Admin — important dates, gift research,
+- [[eos_ai-platforms-eos-context_builder-py]] (371 lines) — Context builder — assembles structured context dicts from su
+- [[eos_ai-platforms-eos-decision_log-py]] (177 lines) — EOS platform decision log — persists routing and delegation 
+- [[eos_ai-platforms-eos-delegation-py]] (60 lines) — Delegation logic — decides whether EA handles a founder inte
+- [[eos_ai-platforms-eos-discord_hook-py]] (188 lines) — Discord integration hook — thin wrapper for calling the EOS 
+- [[eos_ai-platforms-eos-ea_orchestrator-py]] (346 lines) — EA Orchestrator — main entrypoint for the EOS platform layer
+- [[eos_ai-platforms-eos-execution_bridge-py]] (317 lines) — ExecutionBridge — immediate task/pipeline execution from EAR
+- [[eos_ai-platforms-eos-intent_routing-py]] (236 lines) — Founder intent parsing — deterministic classification of fou
+- [[eos_ai-platforms-eos-live_runtime-py]] (528 lines) — EALiveRuntime — Conversational state machine for real-time E
+- [[eos_ai-platforms-eos-response_formatter-py]] (270 lines) — Response formatter — owns ALL text shaping for founder-facin
+- [[eos_ai-platforms-eos-roles-py]] (127 lines) — EOS platform roles — domain-specific business roles projecte
+- [[eos_ai-platforms-eos-streaming_bridge-py]] (422 lines) — StreamingBridge — real-time execution narration for the imme
+- [[eos_ai-platforms-eos-voice_runtime-py]] (632 lines) — VoiceRuntime — continuous conversational voice loop for the 
 - [[eos_ai-portfolio_advisor-py]] (788 lines) — Portfolio Advisor — board-level intelligence across all comp
 - [[eos_ai-portfolio_advisor_standards-py]] (487 lines) — Portfolio Advisor Best Practices — operational
+- [[eos_ai-primitive_registry-py]] (208 lines) *[entry]* — PrimitiveRegistry — ontological primitives for the Meta Harn
 - [[eos_ai-primitives-py]] (932 lines) **[CRITICAL]** — Primitives — stage-aware business rules and contextual reaso
 - [[eos_ai-principle_engine-py]] (517 lines) — PrincipleEngine — injects quality standards into every AI de
 - [[eos_ai-proactive_engine-py]] (432 lines) — ProactiveIntelligenceEngine — surfaces what matters without 
-- [[eos_ai-provider_health-py]] (225 lines) *[entry]* — Provider Health — single source of truth for "can we run an 
+- [[eos_ai-provider_health-py]] (201 lines) *[entry]* — Provider Health — single source of truth for "can we run an 
 - [[eos_ai-quality_gate-py]] (526 lines) — QualityTransformationGate — every output passes through the 
 - [[eos_ai-reality_context-py]] (154 lines) — RealityContext — ambient present-state snapshot.
 - [[eos_ai-reality_engine-py]] (588 lines) — RealityIntelligenceEngine — continuous market intelligence l
 - [[eos_ai-research_engine-py]] (696 lines) — ResearchEngine — autonomous knowledge gap detection and rese
+- [[eos_ai-runtime-provider_state-py]] (288 lines) — Global Provider State + Backpressure + Execution Budget.
+- [[eos_ai-runtime-work_state-py]] (221 lines) — Work State Detection + Idle Gate + Adaptive Throttling.
 - [[eos_ai-scrapling_connector-py]] (148 lines) — ScraplingConnector — stealth HTTP fetching for EOS agents.
 - [[eos_ai-self_awareness-py]] (699 lines) — SelfAwarenessEngine — EOS auto-reorganizes itself when anyth
 - [[eos_ai-session_state-py]] (91 lines) — 
@@ -136,33 +168,101 @@ generated: 2026-04-12
 - [[eos_ai-strategy_engine-py]] (526 lines) — StrategyEngine — first-principles strategic reasoning layer.
 - [[eos_ai-subscription_tracker-py]] (126 lines) — Subscription Tracker — maintains a registry of active
 - [[eos_ai-substrate-actions-py]] (119 lines) — SafeAction schema — structured intents for future local exec
+- [[eos_ai-substrate-adapter_best_practices_loader-py]] (228 lines) — Tool Mastery Pack loader for Phase 96.5.
+- [[eos_ai-substrate-adapter_engine_contracts-py]] (381 lines) — Adapter Engine contracts for Phase 96.5 + 96.6.
+- [[eos_ai-substrate-adapter_generation_contracts-py]] (114 lines) — Adapter generation contracts for Phase 96.5.
+- [[eos_ai-substrate-adapter_quality_gate-py]] (195 lines) — Adapter quality gate for Phase 96.5 + 96.6.
+- [[eos_ai-substrate-advisor_bridge_transport-py]] (264 lines) — Advisor bridge transport for Phase 94D.5.
+- [[eos_ai-substrate-advisor_relay_runtime-py]] (258 lines) — Advisor relay runtime for Phase 94D.4.
+- [[eos_ai-substrate-advisor_session_contracts-py]] (161 lines) — Advisor session contracts for Phase 94D.3.
 - [[eos_ai-substrate-app_allowlist-py]] (71 lines) — App launch allow-list for LAUNCH_APP actions.
+- [[eos_ai-substrate-approved_action_executor-py]] (339 lines) — Approved action executor for Phase 94D.7R.
 - [[eos_ai-substrate-audio_loop-py]] (613 lines) — Audio loop — bounded local interaction-window model.
+- [[eos_ai-substrate-auth_layer_contracts-py]] (90 lines) — Auth layer contracts for Phase 96.3.
+- [[eos_ai-substrate-auto_task_generation-py]] (291 lines) — Auto-task generation — bridges the perception layer to the t
+- [[eos_ai-substrate-backend_registry_contracts-py]] (120 lines) — Backend registry contracts for Phase 96.3.
+- [[eos_ai-substrate-backend_selection_engine-py]] (165 lines) — Backend selection engine for Phase 96.3.
+- [[eos_ai-substrate-browser_agent-py]] (528 lines) — Browser agent — real Playwright execution surface for the su
+- [[eos_ai-substrate-canonical_source_record-py]] (286 lines) — Canonical source record for Phase 96.0.
 - [[eos_ai-substrate-capabilities-py]] (81 lines) — Capability abstraction — what a node can do.
+- [[eos_ai-substrate-capability_routing-py]] (231 lines) — Capability-aware task routing — deterministic target selecti
+- [[eos_ai-substrate-capability_routing_contracts-py]] (166 lines) — Capability-based routing contracts for Phase 94D.4.
 - [[eos_ai-substrate-capability_tagging-py]] (134 lines) — Capability tagging — additive pre-routing layer.
+- [[eos_ai-substrate-chrome_accessibility_launch_backend-py]] (131 lines) — Chrome accessibility launch backend for Phase 95.1.
+- [[eos_ai-substrate-chrome_profile_launch_backend-py]] (202 lines) — Chrome profile launch backend for Phase 94D.9.
+- [[eos_ai-substrate-chrome_profile_resolver-py]] (240 lines) — Chrome profile resolver for Phase 94D.9.
 - [[eos_ai-substrate-claude_responder-py]] (179 lines) — Claude Responder v1 — thin adapter that turns a text prompt 
-- [[eos_ai-substrate-claude_session_bridge-py]] (1149 lines) — Claude Code Session Bridge v1 — persistent tmux-backed Claud
+- [[eos_ai-substrate-claude_session_bridge-py]] (1161 lines) — Claude Code Session Bridge v1 — persistent tmux-backed Claud
+- [[eos_ai-substrate-computer_use_backend_contracts-py]] (152 lines) — Computer-use backend contracts for Phase 94D.3.
 - [[eos_ai-substrate-context_lifecycle-py]] (314 lines) — Context lifecycle — pressure-aware session maintenance with 
 - [[eos_ai-substrate-control_bridge-py]] (173 lines) — Control Layer v1 — Control Bridge (VPS side).
 - [[eos_ai-substrate-control_commands-py]] (104 lines) — Control Layer v1 — Command Envelope.
+- [[eos_ai-substrate-cu_document_reader_hardening_plan-py]] (257 lines) — Computer Use document reader hardening plan for W0-001.
+- [[eos_ai-substrate-day_workflows-py]] (571 lines) — Day workflow coordination — open_day / close_day.
+- [[eos_ai-substrate-decision_engine-py]] (311 lines) — Decision engine — control-plane cognition layer.
 - [[eos_ai-substrate-discord_mode_routing-py]] (336 lines) — Discord Channel Mode Routing v1 — bounded channel→mode class
-- [[eos_ai-substrate-discord_text_transport-py]] (1674 lines) — Discord text transport — Pseudo-Live Voice Loop v1.
+- [[eos_ai-substrate-discord_text_transport-py]] (1681 lines) — Discord text transport — Pseudo-Live Voice Loop v1.
 - [[eos_ai-substrate-discord_voice_playback-py]] (651 lines) — Discord voice playback — bounded TTS adapter on top of the t
 - [[eos_ai-substrate-discord_voice_transport-py]] (805 lines) — Discord voice transport — bounded adapter onto the existing 
+- [[eos_ai-substrate-doc_cu_vs_api_comparator-py]] (164 lines) — Document CU vs API comparator for W0-001R.
+- [[eos_ai-substrate-drive_ui_inventory_comparator-py]] (155 lines) — Drive UI inventory comparator for Phase 95.0.
+- [[eos_ai-substrate-environment_contracts-py]] (138 lines) — Environment contracts for Phase 94D.8.
+- [[eos_ai-substrate-event_scheduler-py]] (352 lines) — Event-driven scheduler for lifecycle execution.
+- [[eos_ai-substrate-event_spine-py]] (207 lines) — Event Spine — unified structured event model for EOS substra
+- [[eos_ai-substrate-execution_adapter-py]] (416 lines) — Execution adapters — stateless wrappers around existing exec
+- [[eos_ai-substrate-execution_authority-py]] (496 lines) — Event-primary execution authority for lifecycle transitions.
+- [[eos_ai-substrate-execution_contract-py]] (303 lines) — Execution contract types for the event-native execution fabr
+- [[eos_ai-substrate-execution_events-py]] (168 lines) — Event construction helpers for the execution fabric.
+- [[eos_ai-substrate-execution_result_handler-py]] (499 lines) — Control-plane handler that processes execution results.
+- [[eos_ai-substrate-execution_router-py]] (220 lines) — Data-driven execution router for the event-native execution 
 - [[eos_ai-substrate-execution_trace-py]] (301 lines) — Execution trace for EOS request lifecycle.
+- [[eos_ai-substrate-execution_worker-py]] (361 lines) — Execution worker — scheduler handler that bridges requests t
+- [[eos_ai-substrate-extraction_backend_contracts-py]] (268 lines) — Extraction backend parity contracts for Phase 96.0 + 96.2.
+- [[eos_ai-substrate-extraction_parity_comparator-py]] (326 lines) — Extraction parity comparator for Phase 96.0.
+- [[eos_ai-substrate-google_docs_backend_parity_matrix-py]] (400 lines) — Google Docs backend parity matrix for Phase 96.0 + 96.2.
+- [[eos_ai-substrate-google_docs_tab_audit-py]] (180 lines) — Google Docs tab coverage audit for W0-001R.
+- [[eos_ai-substrate-google_docs_tab_extractor-py]] (171 lines) — Google Docs tab-aware content extractor for W0-001R.
 - [[eos_ai-substrate-google_meet_source-py]] (355 lines) — Google Meet transcript SOURCE adapter.
+- [[eos_ai-substrate-google_workspace_backend_options-py]] (281 lines) — Google Workspace backend/access-path options matrix for Phas
+- [[eos_ai-substrate-governance_gate_contracts-py]] (173 lines) — Governance gate contracts for Phase 94D.4.
+- [[eos_ai-substrate-gui_backend_healthcheck-py]] (247 lines) — GUI computer-use backend healthcheck for Phase 94D.5.
+- [[eos_ai-substrate-instance_ingestion_contracts-py]] (66 lines) — Instance ingestion contracts for Phase 96.4.
+- [[eos_ai-substrate-interactive_gui_worker_contracts-py]] (196 lines) — Interactive GUI worker contracts for Phase 94D.7S.
+- [[eos_ai-substrate-interactive_shell_executor-py]] (193 lines) — Interactive shell executor for Phase 94D.8.
+- [[eos_ai-substrate-interface_projection_contracts-py]] (186 lines) — Interface projection contracts for Phase 94D.3.
+- [[eos_ai-substrate-live_sessions-py]] (635 lines) — Live sessions — real-time continuous interaction layer for t
+- [[eos_ai-substrate-llm_decision_events-py]] (206 lines) — Event construction helpers for the LLM planning layer.
+- [[eos_ai-substrate-llm_planner-py]] (749 lines) — LLM planning strategy — constrained plan proposer.
+- [[eos_ai-substrate-llm_replay-py]] (616 lines) — Replay-safe determinism boundary for the LLM planning layer.
+- [[eos_ai-substrate-local_control-py]] (946 lines) — Local control — safe OS-level action layer for the local mac
+- [[eos_ai-substrate-local_env_secret_backend-py]] (179 lines) — Local .env secret backend for Phase 94D.9S.
 - [[eos_ai-substrate-local_executor-py]] (216 lines) — Control Layer v1 — Local Agent (Executor).
+- [[eos_ai-substrate-local_gui_control_contracts-py]] (246 lines) — Local GUI control contracts for Phase 95.0.
 - [[eos_ai-substrate-local_listener-py]] (397 lines) — Local listener — bounded wake/activation layer for the subst
+- [[eos_ai-substrate-local_worker_auto_loop-py]] (957 lines) *[entry]* — Local worker auto-loop for Phase 96.8D (updated 96.8H).
+- [[eos_ai-substrate-local_worker_relay_packets-py]] (200 lines) — Local worker relay packets for Phase 94D.5.
+- [[eos_ai-substrate-mcp_backend_classifier-py]] (191 lines) — MCP backend classifier for Phase 96.2.
+- [[eos_ai-substrate-mcp_backend_contracts-py]] (87 lines) — MCP backend contracts for Phase 96.2.
+- [[eos_ai-substrate-mcp_backend_discovery-py]] (170 lines) — MCP backend discovery for Phase 96.3.
 - [[eos_ai-substrate-meet_caption_bridge-py]] (543 lines) — Google Meet caption JSONL bridge.
 - [[eos_ai-substrate-meeting_intelligence-py]] (2181 lines) — Meeting Intelligence Layer v1 — bounded, additive, determini
 - [[eos_ai-substrate-meeting_sources-py]] (174 lines) — Meeting transcript SOURCE protocol + bounded fakes.
 - [[eos_ai-substrate-meeting_transport-py]] (1012 lines) — Meeting voice transport — bounded adapter onto the existing 
+- [[eos_ai-substrate-memory_scope_contracts-py]] (97 lines) — Memory scope contracts for Phase 96.4.
+- [[eos_ai-substrate-message_bus_contracts-py]] (215 lines) — Message bus contracts for Phase 94D.3.
 - [[eos_ai-substrate-mode_behavior-py]] (257 lines) — Mode behavior shaping — post-router output shaping by substr
-- [[eos_ai-substrate-nodes-py]] (193 lines) — Node abstraction — execution targets beyond "the VPS".
+- [[eos_ai-substrate-node_controller-py]] (357 lines) — NodeController — unified routing brain for task→node dispatc
+- [[eos_ai-substrate-node_transport-py]] (291 lines) — NodeTransport — aiohttp transport adapter for local station 
+- [[eos_ai-substrate-nodes-py]] (242 lines) — Node abstraction — execution targets beyond "the VPS".
 - [[eos_ai-substrate-operator_interface-py]] (349 lines) — Operator Interface Layer v1.
 - [[eos_ai-substrate-operator_presence-py]] (120 lines) — Operator presence — tiny deterministic hybrid intro/outro te
+- [[eos_ai-substrate-operator_session-py]] (300 lines) — Operator session spine — single authoritative source of trut
 - [[eos_ai-substrate-operator_state-py]] (394 lines) — Operator state — bounded unified state model for the worksta
 - [[eos_ai-substrate-operator_transitions-py]] (482 lines) — Operator transitions — deterministic state transition layer.
+- [[eos_ai-substrate-os_controller-py]] (713 lines) — OS controller — deep system control surface beyond browser a
+- [[eos_ai-substrate-perception-py]] (994 lines) — Perception layer — ambient sensing of system and environment
+- [[eos_ai-substrate-pipeline_execution-py]] (759 lines) — Pipeline execution engine — step-level execution, retry, and
+- [[eos_ai-substrate-planner-py]] (452 lines) — Planner — deterministic plan generation and step emission.
 - [[eos_ai-substrate-playback_status-py]] (93 lines) — Shared playback status snapshot shape for voice transports.
 - [[eos_ai-substrate-ptt_binding-py]] (382 lines) — Workstation push-to-talk (PTT) binding + REAL_READY proof pa
 - [[eos_ai-substrate-remote_executor-py]] (217 lines) — Control Layer v2 — Remote Executor (daemon-side reader).
@@ -179,35 +279,64 @@ generated: 2026-04-12
 - [[eos_ai-substrate-roles-py]] (156 lines) — Agent role abstraction — clean contract for multi-agent orch
 - [[eos_ai-substrate-scene_capabilities-py]] (173 lines) — Scene → capability requirements — tiny explicit mapping.
 - [[eos_ai-substrate-scene_policy-py]] (244 lines) — Scene policy — deterministic mapping from (node, readiness, 
-- [[eos_ai-substrate-scenes-py]] (81 lines) — Scene registry — small, code-declared workstation bootstrap 
+- [[eos_ai-substrate-scenes-py]] (177 lines) — Scene registry — small, code-declared workstation bootstrap 
+- [[eos_ai-substrate-secret_broker_contracts-py]] (213 lines) — Secret broker contracts for Phase 94D.9S.
+- [[eos_ai-substrate-secret_redaction-py]] (112 lines) — Secret redaction utilities for Phase 94D.9S.
 - [[eos_ai-substrate-session_control-py]] (260 lines) — Session control — lifecycle commands for Claude Code tmux se
-- [[eos_ai-substrate-session_discord_bridge-py]] (288 lines) — Session Discord Bridge — routes SessionWatcher events to Dis
+- [[eos_ai-substrate-session_discord_bridge-py]] (459 lines) — Session Discord Bridge — routes SessionWatcher events to Dis
 - [[eos_ai-substrate-session_orchestration-py]] (418 lines) *[entry]* — Session Orchestration Layer v1 — registry, health, recovery,
-- [[eos_ai-substrate-session_watcher-py]] (520 lines) — Session Watcher — continuous tmux state machine for Claude C
+- [[eos_ai-substrate-session_watcher-py]] (747 lines) — Session Watcher — continuous tmux state machine for Claude C
+- [[eos_ai-substrate-source_lifecycle_contracts-py]] (136 lines) — Source lifecycle contracts for Phase 96.3.
 - [[eos_ai-substrate-station-py]] (228 lines) — Station Daemon contract.
 - [[eos_ai-substrate-station_bus-py]] (188 lines) — StationBus — MVP transport between EOS and local Station Dae
-- [[eos_ai-substrate-station_daemon-py]] (749 lines) *[entry]* — StationDaemon — minimal local node execution loop.
+- [[eos_ai-substrate-station_daemon-py]] (861 lines) *[entry]* — StationDaemon — minimal local node execution loop.
 - [[eos_ai-substrate-station_drainer-py]] (348 lines) — Station drainer — EOS-side ingestion seam for inbox messages
 - [[eos_ai-substrate-station_helpers-py]] (128 lines) — Small helpers for proposing MVP SafeActions to a named stati
+- [[eos_ai-substrate-station_presence-py]] (335 lines) — Station presence — unified station posture and availability 
 - [[eos_ai-substrate-station_readiness-py]] (306 lines) — Station readiness — derived view of whether a node is fit fo
+- [[eos_ai-substrate-station_triggers-py]] (382 lines) — Station triggers — event history and control-plane dispatch 
 - [[eos_ai-substrate-storage-py]] (212 lines) — Substrate storage — minimal persistence for NodeRegistry and
 - [[eos_ai-substrate-stt_producer-py]] (1147 lines) — STT producer — bounded local speech-to-text capture layer.
+- [[eos_ai-substrate-substrate_projection_boundaries-py]] (207 lines) — UMH/EOS boundary enforcement for Phase 94D.4.
 - [[eos_ai-substrate-target_policy-py]] (214 lines) — Hybrid Execution Target Policy v1 — deterministic target res
+- [[eos_ai-substrate-task_decomposition-py]] (225 lines) — Deterministic task decomposition — breaks tasks into ordered
+- [[eos_ai-substrate-task_execution-py]] (504 lines) — Real task execution pipeline — binds tasks to tmux-backed Cl
+- [[eos_ai-substrate-task_pipeline-py]] (481 lines) — Task pipeline data model — ordered multi-step execution for 
+- [[eos_ai-substrate-task_queue-py]] (245 lines) — Priority queue layer for the task system.
+- [[eos_ai-substrate-task_system-py]] (602 lines) — Task autonomy and overnight execution system (v1).
+- [[eos_ai-substrate-template_promotion_contracts-py]] (60 lines) — Template promotion contracts for Phase 96.4.
+- [[eos_ai-substrate-tmux_environment_manager-py]] (206 lines) — Tmux environment manager for Phase 94D.8.
+- [[eos_ai-substrate-topology_contracts-py]] (264 lines) — Setup-agnostic topology contracts for Phase 94D.4.
 - [[eos_ai-substrate-transcript_inject-py]] (205 lines) — Transcript injection — the bounded entry point for text-shap
 - [[eos_ai-substrate-transport_report-py]] (638 lines) — Unified transport report — bounded read-only join across the
 - [[eos_ai-substrate-tts_sanitize-py]] (181 lines) — TTS reply sanitization — strip Claude Code / provider footer
+- [[eos_ai-substrate-visible_browser_launch_backend-py]] (277 lines) — Visible browser launch backend for Phase 94D.7R.
+- [[eos_ai-substrate-visible_drive_ui_inventory-py]] (423 lines) — Visible Drive UI inventory for Phase 95.0.
+- [[eos_ai-substrate-visible_google_doc_reader-py]] (359 lines) — Visible Google Doc reader for W0-001R computer-use fallback 
+- [[eos_ai-substrate-visible_gui_success_criteria-py]] (200 lines) — Visible GUI success criteria for Phase 94D.7S.
 - [[eos_ai-substrate-voice_eos_responder-py]] (339 lines) — Voice → EOS responder bridge.
 - [[eos_ai-substrate-voice_session-py]] (790 lines) — Voice session — bounded live voice-presence layer for the su
+- [[eos_ai-substrate-voice_wake-py]] (381 lines) — Voice wake — local station input layer for wake word, clap t
 - [[eos_ai-substrate-wake_producer-py]] (491 lines) — Wake producer — bounded wake-word / clap activation layer fo
-- [[eos_ai-substrate-workflow_delegation-py]] (430 lines) — Workflow Delegation Layer v1 — deterministic intent classifi
+- [[eos_ai-substrate-windows_desktop_relay_client-py]] (355 lines) *[entry]* — WSL-side relay client for the Windows Interactive Desktop Ad
+- [[eos_ai-substrate-windows_user_session_launcher-py]] (158 lines) — Windows user-session launcher for Phase 94D.8B.
+- [[eos_ai-substrate-work_order_contracts-py]] (286 lines) — Work order contracts for Phase 93R.1.
+- [[eos_ai-substrate-work_order_dispatch-py]] (246 lines) — Work order dispatch preparation for Phase 94R.
+- [[eos_ai-substrate-work_order_factory-py]] (193 lines) — Work order factory for Phase 93R.1.
+- [[eos_ai-substrate-worker_node_contracts-py]] (207 lines) — Worker node organism contracts for Phase 94D.4.
+- [[eos_ai-substrate-worker_node_runtime-py]] (208 lines) — Worker node organism runtime for Phase 94D.4.
+- [[eos_ai-substrate-workflow_delegation-py]] (474 lines) — Workflow Delegation Layer v1 — deterministic intent classifi
 - [[eos_ai-substrate-workflow_execution-py]] (362 lines) — Workflow Execution Layer v1.1 — bounded, deterministic workf
 - [[eos_ai-substrate-workload_policy-py]] (193 lines) — Workload Classification Policy v1 — deterministic execution 
+- [[eos_ai-substrate-write_founder_gate_confirmation-py]] (106 lines) *[entry]* — Write a founder visual confirmation file to the local inbox.
 - [[eos_ai-system_context-py]] (205 lines) — SystemContext — interface-aware intelligence layer.
-- [[eos_ai-system_health-py]] (436 lines) *[entry]* — EOS System Health Monitor
+- [[eos_ai-system_health-py]] (437 lines) *[entry]* — EOS System Health Monitor
 - [[eos_ai-task_executor-py]] (282 lines) — TaskExecutor — agent task execution layer.
 - [[eos_ai-task_yield_matrix-py]] (176 lines) — Task Yield Matrix — Dan Martell's task audit framework.
 - [[eos_ai-template_library-py]] (418 lines) — TemplateLibrary — pre-composed primitive assemblies for comm
+- [[eos_ai-template_registry-py]] (598 lines) *[entry]* — TemplateRegistry — formal template schema for the Meta Harne
 - [[eos_ai-tenant-py]] (146 lines) — Tenant — formal multi-tenant isolation layer for EOS.
+- [[eos_ai-transaction_workflow-py]] (287 lines) *[entry]* — TransactionWorkflow — end-to-end transaction lifecycle.
 - [[eos_ai-travel_manager-py]] (359 lines) — Travel Manager — full trip logistics management.
 - [[eos_ai-trinity-py]] (113 lines) — TrinityEngine — cross-OS intelligence layer.
 - [[eos_ai-user_model-py]] (460 lines) — UserModel — learns how the founder thinks, communicates, and
@@ -216,4 +345,5 @@ generated: 2026-04-12
 - [[eos_ai-voice_interface-py]] (801 lines) — VoiceInterface — dedicated voice conversation and meeting in
 - [[eos_ai-week_architect-py]] (95 lines) — WeekArchitect — designs the upcoming week using the Perfect 
 - [[eos_ai-workflow_engine-py]] (1013 lines) — WorkflowEngine — manages multi-step workflow execution and s
+- [[eos_ai-world_model-py]] (257 lines) *[entry]* — WorldModel — two-layer world model for the Meta Harness.
 - [[eos_ai-world_pulse-py]] (600 lines) — WorldPulse — continuous market and creator intelligence moni

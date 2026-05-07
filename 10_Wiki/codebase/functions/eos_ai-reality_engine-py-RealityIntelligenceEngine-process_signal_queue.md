@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/reality_engine.py
 line: 328
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # RealityIntelligenceEngine.process_signal_queue
@@ -21,7 +21,6 @@ Routing:
 
 ## Calls
 
-- [[eos_ai-event_bus-py-EventBus-publish]]
 - [[eos_ai-memory-py-AgentMemory-log_event]]
 - [[eos_ai-reality_engine-py-RealityIntelligenceEngine-scan_market_signals]]
 - [[eos_ai-reality_engine-py-_notify]]

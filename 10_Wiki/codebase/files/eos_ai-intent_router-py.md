@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/intent_router.py
 module: eos_ai.intent_router
 lines: 174
-size: 4274
-generated: 2026-04-12
+size: 4447
+generated: 2026-05-07
 ---
 
 # eos_ai/intent_router.py
@@ -16,7 +16,7 @@ so the right agent gets context injected before it responds.
 
 ...
 
-**Lines:** 174 | **Size:** 4,274 bytes
+**Lines:** 174 | **Size:** 4,447 bytes
 
 ## Depends On
 

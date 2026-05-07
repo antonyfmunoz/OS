@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/notion_cleanup.py
 module: scripts.notion_cleanup
 lines: 569
-size: 19331
+size: 19899
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/notion_cleanup.py
@@ -19,7 +19,7 @@ Problems to fix:
 1. Archive old emoji-prefixed scaffold DBs:
 ...
 
-**Lines:** 569 | **Size:** 19,331 bytes
+**Lines:** 569 | **Size:** 19,899 bytes
 
 ## Contains
 

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/meeting_transport.py
 line: 962
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # maybe_mirror_meeting_utterance

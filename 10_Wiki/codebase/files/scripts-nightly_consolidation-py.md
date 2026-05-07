@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/nightly_consolidation.py
 module: scripts.nightly_consolidation
 lines: 325
-size: 10509
+size: 10833
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/nightly_consolidation.py
@@ -19,7 +19,7 @@ Processes accumulated episodic memory into durable knowledge:
 2. Generate summaries with salience scoring
 ...
 
-**Lines:** 325 | **Size:** 10,509 bytes
+**Lines:** 325 | **Size:** 10,833 bytes
 
 ## Contains
 

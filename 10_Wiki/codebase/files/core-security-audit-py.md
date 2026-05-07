@@ -3,8 +3,8 @@ type: codebase-file
 path: core/security/audit.py
 module: core.security.audit
 lines: 272
-size: 9361
-generated: 2026-04-12
+size: 9632
+generated: 2026-05-07
 ---
 
 # core/security/audit.py
@@ -16,7 +16,7 @@ Every security-relevant event is recorded as a JSONL row that carries:
     - timestamp (UTC ISO8601)
 ...
 
-**Lines:** 272 | **Size:** 9,361 bytes
+**Lines:** 272 | **Size:** 9,632 bytes
 
 ## Used By
 

@@ -3,8 +3,8 @@ type: codebase-file
 path: core/persistent_agents.py
 module: core.persistent_agents
 lines: 566
-size: 20099
-generated: 2026-04-12
+size: 20664
+generated: 2026-05-07
 ---
 
 # core/persistent_agents.py
@@ -16,7 +16,7 @@ A persistent agent is NOT a thread. It is a state-carrying object whose
 written to disk (data/agent_state/<name>.json) after every tick so restarts
 ...
 
-**Lines:** 566 | **Size:** 20,099 bytes
+**Lines:** 566 | **Size:** 20,664 bytes
 
 ## Depends On
 

@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/orchestrator/workflows.py
 line: 79
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # register_default_workflows

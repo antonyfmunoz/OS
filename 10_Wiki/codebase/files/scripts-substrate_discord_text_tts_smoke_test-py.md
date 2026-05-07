@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_discord_text_tts_smoke_test.py
 module: scripts.substrate_discord_text_tts_smoke_test
 lines: 276
-size: 9919
+size: 10194
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_discord_text_tts_smoke_test.py
@@ -19,7 +19,7 @@ end-to-end WITHOUT requiring a live Discord client.
 
 ...
 
-**Lines:** 276 | **Size:** 9,919 bytes
+**Lines:** 276 | **Size:** 10,194 bytes
 
 ## Depends On
 

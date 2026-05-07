@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/discord_voice_playback.py
 module: eos_ai.substrate.discord_voice_playback
 lines: 651
-size: 23243
-generated: 2026-04-12
+size: 23893
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/discord_voice_playback.py
@@ -16,7 +16,7 @@ Purpose
 Take a single piece of EOS reply text and play it back into an attached
 ...
 
-**Lines:** 651 | **Size:** 23,243 bytes
+**Lines:** 651 | **Size:** 23,893 bytes
 
 ## Used By
 

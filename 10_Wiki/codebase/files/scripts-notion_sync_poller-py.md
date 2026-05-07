@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/notion_sync_poller.py
 module: scripts.notion_sync_poller
 lines: 44
-size: 1153
+size: 1196
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/notion_sync_poller.py
@@ -18,7 +18,7 @@ Notion Sync Poller — runs every 15 minutes via cron.
 2. Pulls Notion status changes back → Neon events table
    (delegates to notion_tasks_sync.sync_neon_to_notion)
 
-**Lines:** 44 | **Size:** 1,153 bytes
+**Lines:** 44 | **Size:** 1,196 bytes
 
 ## Contains
 

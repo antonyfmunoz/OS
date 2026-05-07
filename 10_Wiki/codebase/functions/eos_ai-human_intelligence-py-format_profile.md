@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/human_intelligence.py
 line: 701
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # format_profile

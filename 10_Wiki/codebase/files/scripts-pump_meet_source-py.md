@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/pump_meet_source.py
 module: scripts.pump_meet_source
 lines: 129
-size: 4682
+size: 4810
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/pump_meet_source.py
@@ -19,7 +19,7 @@ Attaches a ``GoogleMeetSource.from_bridge(...)`` to the default meeting
 transport and drains up to ``--max`` lines from its JSONL caption bridge
 ...
 
-**Lines:** 129 | **Size:** 4,682 bytes
+**Lines:** 129 | **Size:** 4,810 bytes
 
 ## Contains
 

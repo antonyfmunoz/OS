@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/tenant.py
 line: 131
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # TenantManager.format_for_prompt

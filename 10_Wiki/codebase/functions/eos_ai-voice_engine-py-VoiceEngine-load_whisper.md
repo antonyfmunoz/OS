@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/voice_engine.py
 line: 419
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # VoiceEngine.load_whisper

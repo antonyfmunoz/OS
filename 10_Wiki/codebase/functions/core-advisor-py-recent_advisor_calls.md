@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/advisor.py
 line: 831
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # recent_advisor_calls

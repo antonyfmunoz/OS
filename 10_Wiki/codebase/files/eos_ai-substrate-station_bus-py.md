@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/station_bus.py
 module: eos_ai.substrate.station_bus
 lines: 188
-size: 7027
-generated: 2026-04-12
+size: 7214
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/station_bus.py
@@ -16,7 +16,7 @@ ports or shipping raw shell. It is explicitly a placeholder that can be
 replaced with WebSocket / HTTP / Tailscale-sidecar without changing the
 ...
 
-**Lines:** 188 | **Size:** 7,027 bytes
+**Lines:** 188 | **Size:** 7,214 bytes
 
 ## Depends On
 

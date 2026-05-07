@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: scripts/substrate_workflow_delegation_smoke_test.py
-line: 231
-generated: 2026-04-12
+line: 271
+generated: 2026-05-07
 ---
 
 # test_product_blocks_builder_dev
 
-**File:** [[scripts-substrate_workflow_delegation_smoke_test-py]] | **Line:** 231
+**File:** [[scripts-substrate_workflow_delegation_smoke_test-py]] | **Line:** 271
 **Signature:** `test_product_blocks_builder_dev() → None`
 
 *No docstring.*

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/skill_improvement.py
 line: 121
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # SkillImprovementEngine.check_and_improve
@@ -21,7 +21,6 @@ Returns a result dict:
 
 ## Calls
 
-- [[eos_ai-agent_runtime-py-AgentRuntime-run]]
 - [[eos_ai-skill_improvement-py-SkillImprovementEngine-_build_prompt]]
 - [[eos_ai-skill_improvement-py-SkillImprovementEngine-_fetch_skill_outcomes]]
 - [[eos_ai-skill_registry-py-SkillRegistry-get_skill]]

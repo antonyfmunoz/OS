@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/human_intelligence.py
 line: 430
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # HumanIntelligenceEngine.profile_team_member
@@ -21,6 +21,5 @@ Returns:
 
 ## Calls
 
-- [[eos_ai-agent_runtime-py-AgentRuntime-run]]
 - [[eos_ai-db-py-get_conn]]
 - [[eos_ai-human_intelligence-py-HumanIntelligenceEngine-_store_profile]]

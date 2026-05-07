@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_operator_interface_smoke_test.py
 module: scripts.substrate_operator_interface_smoke_test
 lines: 348
-size: 12056
+size: 12403
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_operator_interface_smoke_test.py
@@ -19,7 +19,7 @@ of linkage_snapshot(). Deterministic. Bounded. No automation.
 
 ...
 
-**Lines:** 348 | **Size:** 12,056 bytes
+**Lines:** 348 | **Size:** 12,403 bytes
 
 ## Depends On
 

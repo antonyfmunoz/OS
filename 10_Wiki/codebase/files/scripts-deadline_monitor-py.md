@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/deadline_monitor.py
 module: scripts.deadline_monitor
 lines: 183
-size: 6072
+size: 6254
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/deadline_monitor.py
@@ -16,7 +16,7 @@ Deadline Monitor — checks tasks with due dates
 approaching or overdue. Runs every morning at 6:10am.
 Alerts in Discord.
 
-**Lines:** 183 | **Size:** 6,072 bytes
+**Lines:** 183 | **Size:** 6,254 bytes
 
 ## Contains
 

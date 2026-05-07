@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/skill_improvement.py
 line: 356
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # SkillImprovementEngine.propose_new_skill
@@ -20,7 +20,6 @@ Returns {action, skill_id, file_path, pattern}.
 
 ## Calls
 
-- [[eos_ai-agent_runtime-py-AgentRuntime-run]]
 - [[eos_ai-skill_improvement-py-SkillImprovementEngine-_log_skill_created]]
 
 ## Called By

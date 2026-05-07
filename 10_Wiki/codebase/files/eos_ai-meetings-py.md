@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/meetings.py
 module: eos_ai.meetings
 lines: 854
-size: 30615
-generated: 2026-04-12
+size: 31468
+generated: 2026-05-07
 ---
 
 # eos_ai/meetings.py
@@ -12,7 +12,7 @@ generated: 2026-04-12
 Meetings — central module for all meeting lifecycle management.
 Neon + Notion + Discord all three on every action.
 
-**Lines:** 854 | **Size:** 30,615 bytes
+**Lines:** 854 | **Size:** 31,468 bytes
 
 ## Contains
 

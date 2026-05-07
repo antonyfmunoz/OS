@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/context_compaction.py
 line: 32
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ContextCompactor.__init__

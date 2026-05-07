@@ -3,9 +3,9 @@ type: codebase-file
 path: services/overnight_scrape.py
 module: services.overnight_scrape
 lines: 252
-size: 7849
+size: 8100
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # services/overnight_scrape.py
@@ -14,7 +14,7 @@ generated: 2026-04-12
 
 *No docstring.*
 
-**Lines:** 252 | **Size:** 7,849 bytes
+**Lines:** 252 | **Size:** 8,100 bytes
 
 ## Contains
 

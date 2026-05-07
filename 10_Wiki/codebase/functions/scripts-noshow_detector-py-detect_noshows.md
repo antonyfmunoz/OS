@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/noshow_detector.py
 line: 24
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # detect_noshows

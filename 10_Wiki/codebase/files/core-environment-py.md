@@ -3,8 +3,8 @@ type: codebase-file
 path: core/environment.py
 module: core.environment
 lines: 535
-size: 19697
-generated: 2026-04-12
+size: 20231
+generated: 2026-05-07
 ---
 
 # core/environment.py
@@ -16,7 +16,7 @@ the rest of the system can be told "run against this environment" without
 touching module-level constants.
 ...
 
-**Lines:** 535 | **Size:** 19,697 bytes
+**Lines:** 535 | **Size:** 20,231 bytes
 
 ## Used By
 

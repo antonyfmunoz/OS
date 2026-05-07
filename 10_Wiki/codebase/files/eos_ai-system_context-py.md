@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/system_context.py
 module: eos_ai.system_context
 lines: 205
-size: 7663
-generated: 2026-04-12
+size: 7867
+generated: 2026-05-07
 ---
 
 # eos_ai/system_context.py
@@ -16,7 +16,7 @@ the correct authority scope, validation rules, and prompt
 context for that environment.
 ...
 
-**Lines:** 205 | **Size:** 7,663 bytes
+**Lines:** 205 | **Size:** 7,867 bytes
 
 ## Depends On
 

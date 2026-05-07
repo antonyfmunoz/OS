@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_operator_interface_smoke_test.py
 line: 197
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # test_09_mark_resolved_delta_in_summary

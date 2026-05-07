@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/self_awareness.py
 line: 59
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # SystemChange

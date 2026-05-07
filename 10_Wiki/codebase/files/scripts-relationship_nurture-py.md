@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/relationship_nurture.py
 module: scripts.relationship_nurture
 lines: 128
-size: 4024
+size: 4151
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/relationship_nurture.py
@@ -15,7 +15,7 @@ generated: 2026-04-12
 Relationship nurturing — checks for contacts not heard from in 30+ days
 and surfaces them. Runs weekly on Mondays at 7am PDT.
 
-**Lines:** 128 | **Size:** 4,024 bytes
+**Lines:** 128 | **Size:** 4,151 bytes
 
 ## Contains
 

@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/error_handler.py
 module: eos_ai.error_handler
 lines: 347
-size: 12783
-generated: 2026-04-12
+size: 13129
+generated: 2026-05-07
 ---
 
 # eos_ai/error_handler.py
@@ -16,11 +16,7 @@ Principle:
   2. If recovery fails: log to Neon, send ONE Telegram alert, signal pause
 ...
 
-**Lines:** 347 | **Size:** 12,783 bytes
-
-## Used By
-
-- [[services-dm_monitor-py]]
+**Lines:** 347 | **Size:** 13,129 bytes
 
 ## Contains
 

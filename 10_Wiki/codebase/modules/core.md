@@ -1,11 +1,11 @@
 ---
 type: codebase-module
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # core/
 
-**Files:** 73 | **Lines:** 21,799 | **Classes:** 111 | **Functions:** 626
+**Files:** 160 | **Lines:** 42,019 | **Classes:** 322 | **Functions:** 1322
 
 ## Entry Points
 
@@ -19,24 +19,102 @@ generated: 2026-04-12
 
 ## All Files
 
-- [[core-action_system-actions-py]] (84 lines) — Action object — the canonical unit of control in EOS.
+- [[core-action_system-actions-py]] (85 lines) — Action object — the canonical unit of control in EOS.
 - [[core-action_system-control_plane-py]] (273 lines) — Control Plane — the public entry point for the EOS Action Sy
 - [[core-action_system-deferred-py]] (97 lines) — Durable persistence for deferred actions.
 - [[core-action_system-deferred_status-py]] (242 lines) — Lightweight status tracking for deferred actions.
-- [[core-action_system-executor-py]] (114 lines) — Action executors — dispatch by action.type.
+- [[core-action_system-executor-py]] (133 lines) — Action executors — dispatch by action.type.
 - [[core-action_system-idempotency-py]] (296 lines) — Filesystem sentinel store for Control Plane idempotency.
 - [[core-action_system-logging-py]] (73 lines) — Append-only JSONL loggers for execution and decision records
 - [[core-action_system-notifier-py]] (120 lines) — Notifier foundation for deferred actions.
 - [[core-action_system-policy-py]] (165 lines) — Policy bridge between the Control Plane and `eos_ai.authorit
-- [[core-action_system-tme-py]] (78 lines) — Tool Mastery Engine / Manager integration for the Control Pl
+- [[core-action_system-tme-py]] (137 lines) — Tool Mastery Engine / Manager integration for the Control Pl
 - [[core-action_system-validator-py]] (188 lines) — Validation + approval rules for Actions.
+- [[core-adapter_engine-adapter_boundary_validator-py]] (245 lines) — Adapter boundary validator for the UMH Adapter Engine.
+- [[core-adapter_engine-adapter_taxonomy-py]] (131 lines) — Adapter taxonomy for the UMH Adapter Engine.
+- [[core-adapter_engine-external_boundary_law-py]] (227 lines) — UMH External Boundary Law.
+- [[core-adapter_engine-external_interaction_contract-py]] (199 lines) — External interaction contract for the UMH Adapter Engine.
+- [[core-adapter_package_manager-adapter_family_contracts-py]] (154 lines) — Adapter Family Contracts.
+- [[core-adapter_package_manager-adapter_package_readiness-py]] (127 lines) — Adapter Package Readiness evaluation.
+- [[core-adapter_package_manager-adapter_path_inventory-py]] (305 lines) — Adapter Path Inventory for W0-001 and Google Workspace.
+- [[core-adapter_package_manager-cu_founder_confirmation_gate-py]] (116 lines) — CU Founder Confirmation Gate.
+- [[core-adapter_package_manager-cu_proof_audit-py]] (312 lines) — CU Proof Audit.
+- [[core-adapter_package_manager-full_path_maturity-py]] (284 lines) — Full-Path Adapter Package Maturity Contract.
+- [[core-adapter_package_manager-google_cu_execution_probe-py]] (196 lines) — CU Execution Probe.
+- [[core-adapter_package_manager-google_cu_parity_validator-py]] (164 lines) — CU Parity Validator.
+- [[core-adapter_package_manager-google_docs_api_package-py]] (153 lines) — Google Docs API Adapter Package (W-GDOCS-API-001).
+- [[core-adapter_package_manager-google_docs_cu_maturity-py]] (349 lines) — Google Docs CU Maturity Gate (W-GDOCS-CU-001).
+- [[core-adapter_package_manager-google_docs_cu_package-py]] (130 lines) — Google Docs Computer Use Adapter Package (W-GDOCS-CU-001).
+- [[core-adapter_package_manager-google_drive_api_package-py]] (116 lines) — Google Drive API Adapter Package (W-GDRIVE-API-001).
+- [[core-adapter_package_manager-google_drive_cu_maturity-py]] (309 lines) — Google Drive CU Maturity Gate (W-GDRIVE-CU-001).
+- [[core-adapter_package_manager-google_drive_cu_package-py]] (115 lines) — Google Drive Computer Use Adapter Package (W-GDRIVE-CU-001).
+- [[core-adapter_package_manager-google_workspace_api_adapter_path-py]] (93 lines) — Google Workspace API Tab-Aware Adapter Path (W-GWS-API-001).
+- [[core-adapter_package_manager-google_workspace_api_contract_mapping-py]] (207 lines) — Canonical Contract Mapping for W-GWS-API-001.
+- [[core-adapter_package_manager-google_workspace_api_governance-py]] (119 lines) — Governance Policy for W-GWS-API-001.
+- [[core-adapter_package_manager-google_workspace_api_maturity-py]] (223 lines) — Maturity Gate for W-GWS-API-001.
+- [[core-adapter_package_manager-google_workspace_core_package-py]] (128 lines) — Google Workspace Core Foundation Package (W-GWS-CORE-001).
+- [[core-adapter_package_manager-google_workspace_family-py]] (162 lines) — Google Workspace Adapter Family.
+- [[core-adapter_package_manager-google_workspace_service_candidates-py]] (100 lines) — Google Workspace Future Service Package Candidates.
+- [[core-adapter_package_manager-local_worker_cu_preflight-py]] (177 lines) — Local Worker CU Preflight.
+- [[core-adapter_package_manager-local_worker_dispatch_check-py]] (221 lines) — Local Worker Dispatch Check.
+- [[core-adapter_package_manager-maturity_enforcement-py]] (301 lines) — Adapter Package Maturity Enforcement.
+- [[core-adapter_package_manager-package_set_contracts-py]] (186 lines) — Package Set Contracts.
+- [[core-adapter_package_manager-path_hardening_plan-py]] (217 lines) — Path Hardening Plan for Adapter Packages.
+- [[core-adapter_package_manager-test_tool_preflight-py]] (249 lines) — Test Tool Preflight for UMH task execution.
+- [[core-adapter_package_manager-w0_001_cu_slice_readiness-py]] (133 lines) — W0-001 CU Slice Readiness.
+- [[core-adapter_package_manager-w0_001_package_set-py]] (186 lines) — W0-001 Adapter Package Set.
+- [[core-adapter_package_manager-w_gdocs_cu_hardening_run-py]] (213 lines) — W-GDOCS-CU-001 Hardening Run.
+- [[core-adapter_package_manager-w_gdocs_cu_rerun_result-py]] (254 lines) — W-GDOCS-CU-001 Rerun Result Contract.
+- [[core-adapter_package_manager-w_gdrive_cu_confirmation_run-py]] (188 lines) — W-GDRIVE-CU-001 Confirmation Run.
+- [[core-adapter_package_manager-w_gdrive_cu_rerun_result-py]] (209 lines) — W-GDRIVE-CU-001 Rerun Result Contract.
 - [[core-advisor-py]] (864 lines) — advisor.py — Conditional intelligence layer for the EOS AI O
 - [[core-agent_harness-py]] (741 lines) — agent_harness.py — Unified execution surface for every agent
+- [[core-capabilities-py]] (331 lines) — Capability Registry — models available execution resources.
 - [[core-capability-py]] (511 lines) — capability.py — Permission + risk matrix for the unified EOS
+- [[core-coherence-coherence_gate-py]] (75 lines) — Coherence Gate — fail-closed execution guard.
+- [[core-coherence-spine_coherence_validator-py]] (234 lines) — Canonical Spine Coherence Validator.
+- [[core-coherence-spine_lineage_contracts-py]] (190 lines) — Canonical Spine Lineage Contracts.
+- [[core-composer-py]] (320 lines) — Composition Engine — converts intent + context into executab
+- [[core-connectors-base-py]] (232 lines) — Connector Base — common interface for real data ingestion.
+- [[core-connectors-content-py]] (157 lines) — Content Connector — ingest content performance metrics.
+- [[core-connectors-crm-py]] (164 lines) — CRM Connector — ingest lead and pipeline status changes.
+- [[core-connectors-email-py]] (160 lines) — Email / DM Connector — ingest outreach reply metrics.
+- [[core-context-py]] (125 lines) — L1 Context Layer — customisation inputs that shape compositi
 - [[core-control_plane-py]] (322 lines) *[entry]* — control_plane.py — Unified control plane composing the orche
-- [[core-coord_assignment-py]] (405 lines) — Semantic Space v1.1 — Coordinate Assignment
+- [[core-coord_assignment-py]] (415 lines) — Semantic Space v1.1 — Coordinate Assignment (Hybrid Index)
+- [[core-domain-creator-py]] (145 lines) — CreatorOS domain compositions — content creation structures.
+- [[core-domain-eos-py]] (273 lines) — EOS domain compositions — L2 business structures mapped to L
+- [[core-domain-lyfe-py]] (148 lines) — LyfeOS domain compositions — personal operating system struc
+- [[core-dynamics-py]] (271 lines) — Feedback Dynamics — model delayed, nonlinear, and compoundin
 - [[core-environment-py]] (535 lines) — environment.py — Execution environment model for the EOS AI 
+- [[core-environment_bridge-bootstrap_plan-py]] (231 lines) — Bootstrap plan for the Environment Bridge.
+- [[core-environment_bridge-bootstrap_status-py]] (145 lines) — Bootstrap status checker for the Environment Bridge.
+- [[core-environment_bridge-chrome_visible_launch-py]] (247 lines) — Chrome visible launch gate for the Environment Bridge.
+- [[core-environment_bridge-execution_binding_contracts-py]] (333 lines) — Execution Binding Contracts for the Environment Bridge.
+- [[core-environment_bridge-execution_binding_validator-py]] (282 lines) — Execution Binding Validator for the Environment Bridge.
+- [[core-environment_bridge-heartbeat-py]] (138 lines) — Worker heartbeat for the Environment Bridge.
+- [[core-environment_bridge-local_pull_protocol-py]] (257 lines) — Local pull protocol for the Environment Bridge.
+- [[core-environment_bridge-packet_validator-py]] (275 lines) — Packet validator for the Environment Bridge.
+- [[core-environment_bridge-queue_paths-py]] (102 lines) — Queue paths for the Environment Bridge.
+- [[core-environment_bridge-result_ingestion-py]] (165 lines) — Result ingestion for the Environment Bridge.
+- [[core-environment_bridge-tmux_surface-py]] (137 lines) — Tmux execution surface for the Environment Bridge.
+- [[core-environment_bridge-vps_local_bridge-py]] (145 lines) — VPS ↔ Local Worker bridge for the Environment Bridge.
+- [[core-environment_bridge-w0_packet_builder-py]] (269 lines) — W0-001 packet builder for the Environment Bridge.
+- [[core-environment_bridge-windows_desktop_adapter_contracts-py]] (181 lines) — Windows Interactive Desktop Adapter Contracts.
+- [[core-environment_bridge-windows_desktop_adapter_validator-py]] (162 lines) — Windows Interactive Desktop Adapter Validator.
+- [[core-environment_bridge-windows_desktop_request_builder-py]] (82 lines) — Windows Interactive Desktop Request Builder.
+- [[core-environment_bridge-work_packet-py]] (207 lines) — Work Packet contract for the Environment Bridge.
+- [[core-execution-action_execution_contracts-py]] (236 lines) — Action / Execution Separation Law contracts.
+- [[core-execution_bridge-py]] (1314 lines) — Execution Bridge — converts composed structures into executa
 - [[core-execution_contract-py]] (385 lines) — ExecutionContract — unified execution entry point for all EO
+- [[core-feedback-py]] (386 lines) — Feedback → Primitive Learning Loop.
+- [[core-improvement_governor-py]] (328 lines) — Improvement Governor — controlled self-modification with aud
+- [[core-mastery_engine-mastery_requirement_contracts-py]] (114 lines) — Mastery requirement contracts for the Universal Mastery Laye
+- [[core-mastery_engine-universal_mastery-py]] (126 lines) — Universal Mastery / Competence Layer.
+- [[core-matcher-py]] (331 lines) — Capability Matcher — selects the best execution resource for
+- [[core-memory_evolution-py]] (558 lines) — Memory Evolution System — adaptive learning from execution h
+- [[core-objective-py]] (231 lines) — Objective Function System — define TRUE success outside the 
+- [[core-objective_engine-py]] (417 lines) — Multi-Objective Engine — evaluate runs against multiple weig
 - [[core-observability-py]] (408 lines) — observability.py — Read-only view over the EOS AI OS.
 - [[core-optimizer-py]] (652 lines) *[entry]* — optimizer.py — Feedback loop for the EOS AI OS.
 - [[core-orchestrator-decisions-py]] (159 lines) — Decision helpers for signal handler workflows.
@@ -48,6 +126,10 @@ generated: 2026-04-12
 - [[core-orchestrator-steps-py]] (211 lines) — Reusable orchestrator step helpers.
 - [[core-orchestrator-workflows-py]] (125 lines) — Workflow registry — wires existing Control Plane workflows i
 - [[core-persistent_agents-py]] (566 lines) — persistent_agents.py — Long-running stateful agents in the E
+- [[core-primitives-py]] (251 lines) — L0 Ontological Primitives — the immutable atoms of EOS.
+- [[core-primitives_extended-py]] (244 lines) — Extended Primitive Attributes — derived overlays on L0 witho
+- [[core-reality_input-py]] (329 lines) — Reality Input Layer — ingest external signals and convert to
+- [[core-router-py]] (317 lines) — Resource Router — decomposes a pipeline into per-step capabi
 - [[core-security-approval-py]] (415 lines) — approval.py — Approval queue for high-risk actions.
 - [[core-security-audit-py]] (272 lines) — audit.py — Append-only audit log with hash-chain integrity.
 - [[core-security-cli-py]] (288 lines) *[entry]* — cli.py — Operator CLI for the EOS security layer.
@@ -56,7 +138,8 @@ generated: 2026-04-12
 - [[core-security-execution-py]] (331 lines) — execution.py — Restricted execution contexts for agent workl
 - [[core-security-identity-py]] (401 lines) — identity.py — User model and token-based authentication.
 - [[core-security-rbac-py]] (304 lines) — rbac.py — Role-based access control on top of core.capabilit
-- [[core-semantic_space-py]] (499 lines) — Semantic Space v1.2 — Query Projection, Region Search, Graph
+- [[core-self_improvement-py]] (482 lines) — Self-Improvement Interface — recursive system evolution.
+- [[core-semantic_space-py]] (507 lines) — Semantic Space v1.2 — Hybrid Coordinate Index with Cosine Re
 - [[core-tool_mastery_author_agent-__main__-py]] (5 lines) *[entry]* — 
 - [[core-tool_mastery_author_agent-agent-py]] (189 lines) — Author Agent orchestrator.
 - [[core-tool_mastery_author_agent-cli-py]] (133 lines) *[entry]* — CLI entry for the Tool Mastery Author Agent.
@@ -67,13 +150,16 @@ generated: 2026-04-12
 - [[core-tool_mastery_author_agent-paths-py]] (26 lines) — Path resolution for the Tool Mastery Author Agent.
 - [[core-tool_mastery_author_agent-reconcile-py]] (172 lines) — Reconcile drafts with existing on-disk skill files.
 - [[core-tool_mastery_author_agent-verify-py]] (77 lines) — Run verify_tool_skill.py against an authored tool.
+- [[core-tool_mastery_manager-active_tool_context-py]] (151 lines) — Active Tool Context for the Tool Mastery Engine.
 - [[core-tool_mastery_manager-backlog-py]] (189 lines) — Backlog / bootstrap flow.
 - [[core-tool_mastery_manager-coverage-py]] (120 lines) — Unified coverage evaluator for the Tool Mastery Manager.
 - [[core-tool_mastery_manager-discovery-py]] (333 lines) — Tool discovery for the Tool Mastery Manager.
 - [[core-tool_mastery_manager-ensure-py]] (173 lines) — ensure_mastery — the primary entry point of the Tool Mastery
 - [[core-tool_mastery_manager-maintenance-py]] (61 lines) — Maintenance flows for the Tool Mastery Manager.
+- [[core-tool_mastery_manager-mastery_assurance-py]] (266 lines) — Mastery Assurance Gate for the Tool Mastery Engine.
 - [[core-tool_mastery_manager-models-py]] (122 lines) — Data types for the Tool Mastery Manager.
 - [[core-tool_mastery_manager-paths-py]] (26 lines) — Path resolution for the Tool Mastery Manager.
+- [[core-tool_mastery_manager-tool_mastery_resolver-py]] (323 lines) — Natural Language Tool Mastery Resolver.
 - [[core-tool_mastery_research_agent-__main__-py]] (5 lines) *[entry]* — 
 - [[core-tool_mastery_research_agent-agent-py]] (199 lines) — Research Agent orchestrator.
 - [[core-tool_mastery_research_agent-artifact-py]] (609 lines) — Artifact writer for the Tool Mastery Research Agent.
@@ -91,4 +177,5 @@ generated: 2026-04-12
 - [[core-tool_mastery_research_agent-source_discovery-py]] (363 lines) — Source discovery for the Tool Mastery Research Agent.
 - [[core-tool_mastery_research_agent-source_quality-py]] (371 lines) — Source quality scoring for the Tool Mastery Research Agent.
 - [[core-tool_mastery_research_agent-structured_crawl-py]] (437 lines) — Structured crawl expansion for the Tool Mastery Research Age
+- [[core-transformer-py]] (338 lines) — Primitive Transformation Engine — restructures primitive com
 - [[core-wiki_navigation-py]] (326 lines) — Wiki Navigation Layer — bridges graph nodes and Obsidian wik

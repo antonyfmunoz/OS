@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/onboarding_engine.py
 line: 150
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # OnboardingEngine.store_answer
@@ -13,7 +13,3 @@ generated: 2026-04-12
 **Class:** [[eos_ai-onboarding_engine-py-OnboardingEngine]]
 
 Store the answer to session.pending_question and advance index.
-
-## Called By
-
-- [[services-discord_bot-py-on_message]]

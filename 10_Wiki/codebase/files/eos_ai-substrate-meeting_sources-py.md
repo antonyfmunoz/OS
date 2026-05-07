@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/meeting_sources.py
 module: eos_ai.substrate.meeting_sources
 lines: 174
-size: 5432
-generated: 2026-04-12
+size: 5605
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/meeting_sources.py
@@ -16,7 +16,7 @@ meeting surface. The MeetingTransport can attach one or more sources and
 periodically pump them; each utterance is then routed through the existing
 ...
 
-**Lines:** 174 | **Size:** 5,432 bytes
+**Lines:** 174 | **Size:** 5,605 bytes
 
 ## Used By
 

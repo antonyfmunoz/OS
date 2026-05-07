@@ -3,8 +3,8 @@ type: codebase-file
 path: core/observability.py
 module: core.observability
 lines: 408
-size: 15518
-generated: 2026-04-12
+size: 15925
+generated: 2026-05-07
 ---
 
 # core/observability.py
@@ -16,7 +16,7 @@ and state files — never touches the runtime. Safe to run when the
 orchestrator is not running.
 ...
 
-**Lines:** 408 | **Size:** 15,518 bytes
+**Lines:** 408 | **Size:** 15,925 bytes
 
 ## Used By
 

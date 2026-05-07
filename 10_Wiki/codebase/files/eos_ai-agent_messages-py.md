@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/agent_messages.py
 module: eos_ai.agent_messages
 lines: 141
-size: 4848
-generated: 2026-04-12
+size: 4988
+generated: 2026-05-07
 ---
 
 # eos_ai/agent_messages.py
@@ -16,7 +16,7 @@ Messages are directional (upward/downward/lateral) and typed
 (task/report/alert/query/result).
 ...
 
-**Lines:** 141 | **Size:** 4,848 bytes
+**Lines:** 141 | **Size:** 4,988 bytes
 
 ## Depends On
 

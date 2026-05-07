@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/wake_producer.py
 module: eos_ai.substrate.wake_producer
 lines: 491
-size: 17926
-generated: 2026-04-12
+size: 18416
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/wake_producer.py
@@ -16,7 +16,7 @@ Purpose
 Sits one level above `local_listener` and `voice_session`. A wake producer
 ...
 
-**Lines:** 491 | **Size:** 17,926 bytes
+**Lines:** 491 | **Size:** 18,416 bytes
 
 ## Depends On
 

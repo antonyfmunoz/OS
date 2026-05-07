@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/notion_seed.py
 module: scripts.notion_seed
 lines: 506
-size: 16612
+size: 17117
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/notion_seed.py
@@ -17,7 +17,7 @@ Run once after notion_setup.py has created all DBs.
 Idempotent in effect (creates rows, does not check for duplicates —
 safe to re-run on empty DBs, do not re-run on populated ones).
 
-**Lines:** 506 | **Size:** 16,612 bytes
+**Lines:** 506 | **Size:** 17,117 bytes
 
 ## Depends On
 

@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/scene_policy.py
 module: eos_ai.substrate.scene_policy
 lines: 244
-size: 7905
-generated: 2026-04-12
+size: 8148
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/scene_policy.py
@@ -16,7 +16,7 @@ fixed table so the substrate stays inspectable: any operator can read this
 file and know exactly which scene a ritual will pick.
 ...
 
-**Lines:** 244 | **Size:** 7,905 bytes
+**Lines:** 244 | **Size:** 8,148 bytes
 
 ## Depends On
 

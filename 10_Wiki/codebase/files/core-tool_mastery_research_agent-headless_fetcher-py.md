@@ -3,8 +3,8 @@ type: codebase-file
 path: core/tool_mastery_research_agent/headless_fetcher.py
 module: core.tool_mastery_research_agent.headless_fetcher
 lines: 367
-size: 13508
-generated: 2026-04-12
+size: 13874
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_research_agent/headless_fetcher.py
@@ -16,7 +16,7 @@ Docusaurus, Mintlify, Nuxt, etc.) return an empty shell to urllib.
 The prose lives in hydrated DOM, not the HTTP body. This module
 ...
 
-**Lines:** 367 | **Size:** 13,508 bytes
+**Lines:** 367 | **Size:** 13,874 bytes
 
 ## Contains
 

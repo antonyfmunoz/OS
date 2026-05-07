@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/gws_scanner.py
 module: eos_ai.gws_scanner
 lines: 700
-size: 27421
-generated: 2026-04-12
+size: 28120
+generated: 2026-05-07
 ---
 
 # eos_ai/gws_scanner.py
@@ -16,7 +16,7 @@ DEX knows everything written about the businesses.
 
 ...
 
-**Lines:** 700 | **Size:** 27,421 bytes
+**Lines:** 700 | **Size:** 28,120 bytes
 
 ## Depends On
 

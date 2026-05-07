@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/watch_graph.py
 line: 382
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # watch

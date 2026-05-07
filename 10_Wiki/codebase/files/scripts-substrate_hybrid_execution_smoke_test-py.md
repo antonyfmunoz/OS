@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_hybrid_execution_smoke_test.py
 module: scripts.substrate_hybrid_execution_smoke_test
 lines: 686
-size: 25307
+size: 25992
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_hybrid_execution_smoke_test.py
@@ -19,7 +19,7 @@ Proves that:
   2.  Product mode default target resolves to **vps**.
 ...
 
-**Lines:** 686 | **Size:** 25,307 bytes
+**Lines:** 686 | **Size:** 25,992 bytes
 
 ## Contains
 

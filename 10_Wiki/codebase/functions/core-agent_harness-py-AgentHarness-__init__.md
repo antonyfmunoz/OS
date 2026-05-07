@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/agent_harness.py
 line: 116
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # AgentHarness.__init__

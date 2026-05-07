@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/check_skill_staleness.py
 module: scripts.check_skill_staleness
 lines: 170
-size: 5411
+size: 5580
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/check_skill_staleness.py
@@ -19,7 +19,7 @@ window for its `speed_category` (fast=30d, medium=60d, stable=90d).
 Reports STALE, NEAR_STALE (>= 80% of window), MISSING_DATE, or FRESH.
 ...
 
-**Lines:** 170 | **Size:** 5,411 bytes
+**Lines:** 170 | **Size:** 5,580 bytes
 
 ## Depends On
 

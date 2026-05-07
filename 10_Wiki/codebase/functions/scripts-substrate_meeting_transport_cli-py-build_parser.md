@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/substrate_meeting_transport_cli.py
 line: 145
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # build_parser

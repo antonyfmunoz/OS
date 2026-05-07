@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/model_preferences.py
 line: 218
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ModelPreferences.resolve_model
@@ -27,5 +27,4 @@ Priority order (highest wins):
 
 ## Called By
 
-- [[eos_ai-agent_runtime-py-AgentRuntime-run]]
 - [[eos_ai-model_preferences-py-ModelPreferences-get_current_summary]]

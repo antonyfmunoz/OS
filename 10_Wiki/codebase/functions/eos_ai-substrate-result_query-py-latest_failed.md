@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/result_query.py
 line: 65
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # latest_failed

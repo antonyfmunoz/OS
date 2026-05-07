@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/founder_capture.py
 line: 35
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # should_capture

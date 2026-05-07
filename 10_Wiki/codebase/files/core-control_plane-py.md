@@ -3,9 +3,9 @@ type: codebase-file
 path: core/control_plane.py
 module: core.control_plane
 lines: 322
-size: 10798
+size: 11119
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # core/control_plane.py
@@ -19,7 +19,7 @@ Design:
   * We do NOT modify scripts/orchestrator.py. Instead, ControlPlane wraps
 ...
 
-**Lines:** 322 | **Size:** 10,798 bytes
+**Lines:** 322 | **Size:** 11,119 bytes
 
 ## Depends On
 

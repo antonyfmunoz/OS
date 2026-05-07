@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/memory_neon.py
 line: 188
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # search_memory_events

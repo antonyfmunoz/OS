@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_stt_workstation_readiness_smoke_test.py
 module: scripts.substrate_stt_workstation_readiness_smoke_test
 lines: 253
-size: 9113
+size: 9365
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_stt_workstation_readiness_smoke_test.py
@@ -19,7 +19,7 @@ Validates the additive workstation-enablement layer of
 
 ...
 
-**Lines:** 253 | **Size:** 9,113 bytes
+**Lines:** 253 | **Size:** 9,365 bytes
 
 ## Contains
 

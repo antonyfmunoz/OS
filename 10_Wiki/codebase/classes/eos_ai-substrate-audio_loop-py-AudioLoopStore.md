@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/substrate/audio_loop.py
 line: 253
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # AudioLoopStore

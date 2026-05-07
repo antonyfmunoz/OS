@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/advisor.py
 line: 463
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # run_with_advisor

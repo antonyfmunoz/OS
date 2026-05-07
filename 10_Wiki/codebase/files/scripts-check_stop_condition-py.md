@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/check_stop_condition.py
 module: scripts.check_stop_condition
 lines: 88
-size: 2130
+size: 2217
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/check_stop_condition.py
@@ -19,7 +19,7 @@ requires continuation before deciding.
 
 ...
 
-**Lines:** 88 | **Size:** 2,130 bytes
+**Lines:** 88 | **Size:** 2,217 bytes
 
 ## Contains
 

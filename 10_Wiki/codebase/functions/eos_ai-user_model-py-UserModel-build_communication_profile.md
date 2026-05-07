@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/user_model.py
 line: 129
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # UserModel.build_communication_profile
@@ -21,8 +21,6 @@ Returns:
 
 ## Calls
 
-- [[eos_ai-agent_runtime-py-AgentRuntime-run]]
-- [[eos_ai-cognitive_loop-py-CognitiveLoop-run]]
 - [[eos_ai-db-py-get_conn]]
 - [[eos_ai-user_model-py-UserModel-get_trust_level]]
 

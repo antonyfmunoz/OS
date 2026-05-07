@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/cost_tracker.py
 line: 370
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # get_cost_summary

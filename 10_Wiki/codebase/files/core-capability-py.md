@@ -3,8 +3,8 @@ type: codebase-file
 path: core/capability.py
 module: core.capability
 lines: 511
-size: 16289
-generated: 2026-04-12
+size: 16799
+generated: 2026-05-07
 ---
 
 # core/capability.py
@@ -16,7 +16,7 @@ perform. Every step or action is mapped to a required Capability + RiskLevel.
 The CapabilityEnforcer answers one question: `may(agent, operation) → bool`.
 ...
 
-**Lines:** 511 | **Size:** 16,289 bytes
+**Lines:** 511 | **Size:** 16,799 bytes
 
 ## Used By
 

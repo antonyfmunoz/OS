@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/sandbox_smoke_test.py
 module: scripts.sandbox_smoke_test
 lines: 293
-size: 9693
+size: 9985
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/sandbox_smoke_test.py
@@ -19,7 +19,7 @@ Runs, in order:
   1. Create a sandbox, write a file through ActionSystem, confirm
 ...
 
-**Lines:** 293 | **Size:** 9,693 bytes
+**Lines:** 293 | **Size:** 9,985 bytes
 
 ## Depends On
 

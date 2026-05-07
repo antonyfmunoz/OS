@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/knowledge_domains.py
 line: 912
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # KnowledgeDomainRegistry.get_relevant_domains

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/primitives.py
 line: 789
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # PrimitiveRegistry.__init__

@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_execution_trace_cli.py
 module: scripts.substrate_execution_trace_cli
 lines: 178
-size: 5194
+size: 5371
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_execution_trace_cli.py
@@ -19,7 +19,7 @@ Usage:
     python3 scripts/substrate_execution_trace_cli.py show --trace-id abc12345
 ...
 
-**Lines:** 178 | **Size:** 5,194 bytes
+**Lines:** 178 | **Size:** 5,371 bytes
 
 ## Contains
 

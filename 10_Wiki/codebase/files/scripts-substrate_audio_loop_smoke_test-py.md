@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_audio_loop_smoke_test.py
 module: scripts.substrate_audio_loop_smoke_test
 lines: 293
-size: 11744
+size: 12036
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_audio_loop_smoke_test.py
@@ -19,7 +19,7 @@ Proves the bounded local audio loop layer end-to-end:
   1. Reset all substrate stores (voice, wake, operator state, audio loop).
 ...
 
-**Lines:** 293 | **Size:** 11,744 bytes
+**Lines:** 293 | **Size:** 12,036 bytes
 
 ## Depends On
 

@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/resource_guard.py
 module: eos_ai.substrate.resource_guard
 lines: 273
-size: 8099
-generated: 2026-04-12
+size: 8371
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/resource_guard.py
@@ -16,7 +16,7 @@ Purpose
 Prevents VPS overload by checking system resources before execution.
 ...
 
-**Lines:** 273 | **Size:** 8,099 bytes
+**Lines:** 273 | **Size:** 8,371 bytes
 
 ## Used By
 

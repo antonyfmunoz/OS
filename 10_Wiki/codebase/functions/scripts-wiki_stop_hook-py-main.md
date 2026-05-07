@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/wiki_stop_hook.py
 line: 106
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # main

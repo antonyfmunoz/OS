@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/template_library.py
 line: 342
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # TemplateLibrary.detect_business_type

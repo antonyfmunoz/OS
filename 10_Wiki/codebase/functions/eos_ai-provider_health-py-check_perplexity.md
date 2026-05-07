@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: eos_ai/provider_health.py
-line: 128
-generated: 2026-04-12
+line: 104
+generated: 2026-05-07
 ---
 
 # check_perplexity
 
-**File:** [[eos_ai-provider_health-py]] | **Line:** 128
+**File:** [[eos_ai-provider_health-py]] | **Line:** 104
 **Signature:** `check_perplexity() → tuple[bool, str]`
 
 *No docstring.*

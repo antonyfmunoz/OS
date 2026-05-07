@@ -2,9 +2,9 @@
 type: codebase-file
 path: scripts/session_watcher_smoke_test.py
 module: scripts.session_watcher_smoke_test
-lines: 245
-size: 9051
-generated: 2026-04-12
+lines: 433
+size: 17440
+generated: 2026-05-07
 ---
 
 # scripts/session_watcher_smoke_test.py
@@ -16,7 +16,11 @@ Tests:
   2. Reply extraction from mock tmux output
 ...
 
-**Lines:** 245 | **Size:** 9,051 bytes
+**Lines:** 433 | **Size:** 17,440 bytes
+
+## Depends On
+
+- [[eos_ai-substrate-session_watcher-py]]
 
 ## Contains
 
@@ -28,4 +32,9 @@ Tests:
 import sys
 import threading
 import time
+from eos_ai.substrate.session_watcher import _STABLE_CYCLES_FOR_COMPLETE
+from eos_ai.substrate.session_watcher import _TOOL_CALL_PATTERNS
+from eos_ai.substrate.session_watcher import _IDLE_TIMEOUT_S
+from eos_ai.substrate.session_watcher import _WORKING_TIMEOUT_S
+from eos_ai.substrate.session_watcher import _TOOL_CALL_PATTERNS
 ```

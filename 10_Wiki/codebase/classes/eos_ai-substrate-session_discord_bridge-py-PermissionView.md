@@ -1,13 +1,13 @@
 ---
 type: codebase-class
 file: eos_ai/substrate/session_discord_bridge.py
-line: 98
-generated: 2026-04-12
+line: 142
+generated: 2026-05-07
 ---
 
 # PermissionView
 
-**File:** [[eos_ai-substrate-session_discord_bridge-py]] | **Line:** 98
+**File:** [[eos_ai-substrate-session_discord_bridge-py]] | **Line:** 142
 
 Buttons for allowing or denying a CC permission request.
 
@@ -18,5 +18,6 @@ Buttons for allowing or denying a CC permission request.
 ## Methods
 
 - [[eos_ai-substrate-session_discord_bridge-py-PermissionView-__init__]]`(session_name) → None` — 
+- [[eos_ai-substrate-session_discord_bridge-py-PermissionView-on_timeout]]`() → None` — 
 - [[eos_ai-substrate-session_discord_bridge-py-PermissionView-allow]]`(button, interaction) → None` — 
 - [[eos_ai-substrate-session_discord_bridge-py-PermissionView-deny]]`(button, interaction) → None` — 

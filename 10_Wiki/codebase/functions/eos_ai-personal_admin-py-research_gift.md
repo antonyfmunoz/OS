@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/personal_admin.py
 line: 105
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # research_gift

@@ -3,8 +3,8 @@ type: codebase-file
 path: services/handlers/voice_handler.py
 module: services.handlers.voice_handler
 lines: 23
-size: 674
-generated: 2026-04-12
+size: 696
+generated: 2026-05-07
 ---
 
 # services/handlers/voice_handler.py
@@ -16,4 +16,4 @@ and asyncio task management.
 
 ...
 
-**Lines:** 23 | **Size:** 674 bytes
+**Lines:** 23 | **Size:** 696 bytes

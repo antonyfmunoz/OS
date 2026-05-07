@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/ritual_body.py
 line: 255
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # run_close_day_body

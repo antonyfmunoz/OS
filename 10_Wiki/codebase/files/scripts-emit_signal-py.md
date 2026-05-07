@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/emit_signal.py
 module: scripts.emit_signal
 lines: 68
-size: 1873
+size: 1940
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/emit_signal.py
@@ -19,7 +19,7 @@ Usage:
     python3 scripts/emit_signal.py <signal_name> --payload-json '{"k":"v"}'
 ...
 
-**Lines:** 68 | **Size:** 1,873 bytes
+**Lines:** 68 | **Size:** 1,940 bytes
 
 ## Depends On
 

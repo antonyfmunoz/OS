@@ -3,8 +3,8 @@ type: codebase-file
 path: scripts/build_notion_workspace.py
 module: scripts.build_notion_workspace
 lines: 713
-size: 26458
-generated: 2026-04-12
+size: 27170
+generated: 2026-05-07
 ---
 
 # scripts/build_notion_workspace.py
@@ -13,7 +13,7 @@ Build EOS Notion Workspace
 Mirrors the end game UI structure exactly.
 Every section maps to a route in the SaaS UI.
 
-**Lines:** 713 | **Size:** 26,458 bytes
+**Lines:** 713 | **Size:** 27,170 bytes
 
 ## Contains
 

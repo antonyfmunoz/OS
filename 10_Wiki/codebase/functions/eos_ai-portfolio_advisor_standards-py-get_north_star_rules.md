@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/portfolio_advisor_standards.py
 line: 477
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # get_north_star_rules

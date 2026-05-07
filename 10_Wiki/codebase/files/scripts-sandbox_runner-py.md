@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/sandbox_runner.py
 module: scripts.sandbox_runner
 lines: 774
-size: 26633
+size: 27406
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/sandbox_runner.py
@@ -19,7 +19,7 @@ Every command here runs against an isolated environment (sandbox or
 playground), never against production. The runner is the *only*
 ...
 
-**Lines:** 774 | **Size:** 26,633 bytes
+**Lines:** 774 | **Size:** 27,406 bytes
 
 ## Depends On
 

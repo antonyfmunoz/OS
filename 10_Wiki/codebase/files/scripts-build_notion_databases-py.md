@@ -3,15 +3,15 @@ type: codebase-file
 path: scripts/build_notion_databases.py
 module: scripts.build_notion_databases
 lines: 117
-size: 4267
-generated: 2026-04-12
+size: 4383
+generated: 2026-05-07
 ---
 
 # scripts/build_notion_databases.py
 
 Create the 9 databases that failed in the first build pass.
 
-**Lines:** 117 | **Size:** 4,267 bytes
+**Lines:** 117 | **Size:** 4,383 bytes
 
 ## Contains
 

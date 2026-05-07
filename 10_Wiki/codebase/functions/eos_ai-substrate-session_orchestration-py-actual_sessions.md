@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/session_orchestration.py
 line: 99
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # actual_sessions

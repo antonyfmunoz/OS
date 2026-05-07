@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/verify_knowledge_system.py
 module: scripts.verify_knowledge_system
 lines: 353
-size: 11870
+size: 12222
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/verify_knowledge_system.py
@@ -19,7 +19,7 @@ the layer it breaks. Exit 0 = all checks pass. Exit 1 = at least one failure.
 
 ...
 
-**Lines:** 353 | **Size:** 11,870 bytes
+**Lines:** 353 | **Size:** 12,222 bytes
 
 ## Contains
 

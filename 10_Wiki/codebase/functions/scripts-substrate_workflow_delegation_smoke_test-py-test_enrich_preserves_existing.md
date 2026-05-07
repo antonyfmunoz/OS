@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: scripts/substrate_workflow_delegation_smoke_test.py
-line: 327
-generated: 2026-04-12
+line: 367
+generated: 2026-05-07
 ---
 
 # test_enrich_preserves_existing
 
-**File:** [[scripts-substrate_workflow_delegation_smoke_test-py]] | **Line:** 327
+**File:** [[scripts-substrate_workflow_delegation_smoke_test-py]] | **Line:** 367
 **Signature:** `test_enrich_preserves_existing() → None`
 
 *No docstring.*

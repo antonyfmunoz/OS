@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_meeting_attachment_smoke_test.py
 module: scripts.substrate_meeting_attachment_smoke_test
 lines: 204
-size: 7135
+size: 7338
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_meeting_attachment_smoke_test.py
@@ -18,7 +18,7 @@ Proves MeetingTransport.attach_source / pump_attached_sources / detach_source
 work end-to-end through the existing bounded inject_transcript seam, without
 touching the hot path or creating a parallel agent loop.
 
-**Lines:** 204 | **Size:** 7,135 bytes
+**Lines:** 204 | **Size:** 7,338 bytes
 
 ## Depends On
 

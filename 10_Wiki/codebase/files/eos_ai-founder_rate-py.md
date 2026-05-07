@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/founder_rate.py
 module: eos_ai.founder_rate
 lines: 299
-size: 9832
-generated: 2026-04-12
+size: 10130
+generated: 2026-05-07
 ---
 
 # eos_ai/founder_rate.py
@@ -13,7 +13,7 @@ Founder Rate — Dan Martell's framework for valuing
 founder time and making delegation decisions.
 Leverage Loop = Annual income / 2000 hours / 4
 
-**Lines:** 299 | **Size:** 9,832 bytes
+**Lines:** 299 | **Size:** 10,130 bytes
 
 ## Contains
 

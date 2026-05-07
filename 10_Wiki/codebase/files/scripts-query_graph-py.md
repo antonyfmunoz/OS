@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/query_graph.py
 module: scripts.query_graph
 lines: 328
-size: 13234
+size: 13561
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/query_graph.py
@@ -19,7 +19,7 @@ opening source files. Use this BEFORE grepping or reading implementations.
 
 ...
 
-**Lines:** 328 | **Size:** 13,234 bytes
+**Lines:** 328 | **Size:** 13,561 bytes
 
 ## Used By
 

@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/week_architect.py
 module: eos_ai.week_architect
 lines: 95
-size: 3176
-generated: 2026-04-12
+size: 3270
+generated: 2026-05-07
 ---
 
 # eos_ai/week_architect.py
@@ -12,7 +12,7 @@ generated: 2026-04-12
 WeekArchitect — designs the upcoming week using the Perfect Week
 template as baseline, overlaid with real calendar events.
 
-**Lines:** 95 | **Size:** 3,176 bytes
+**Lines:** 95 | **Size:** 3,270 bytes
 
 ## Contains
 

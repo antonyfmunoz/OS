@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/detemplatize_skills.py
 module: scripts.detemplatize_skills
 lines: 204
-size: 6440
+size: 6643
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/detemplatize_skills.py
@@ -17,7 +17,7 @@ Replaces with BIS injection !`command` block.
 Replaces inline hardcoded references with generic placeholders.
 Run once. Idempotent.
 
-**Lines:** 204 | **Size:** 6,440 bytes
+**Lines:** 204 | **Size:** 6,643 bytes
 
 ## Contains
 

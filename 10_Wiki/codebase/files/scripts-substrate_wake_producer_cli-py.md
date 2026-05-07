@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_wake_producer_cli.py
 module: scripts.substrate_wake_producer_cli
 lines: 110
-size: 3048
+size: 3157
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_wake_producer_cli.py
@@ -18,7 +18,7 @@ Bounded. No audio frameworks. No freeform commands. Mirrors the
 substrate_voice_session_cli.py idiom. Never raises — errors are printed
 as JSON with an "error" key.
 
-**Lines:** 110 | **Size:** 3,048 bytes
+**Lines:** 110 | **Size:** 3,157 bytes
 
 ## Depends On
 

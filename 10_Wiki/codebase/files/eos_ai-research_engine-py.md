@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/research_engine.py
 module: eos_ai.research_engine
 lines: 696
-size: 29629
-generated: 2026-04-12
+size: 30324
+generated: 2026-05-07
 ---
 
 # eos_ai/research_engine.py
@@ -16,7 +16,7 @@ them from first principles. Every solved problem becomes permanent capability
 stored in the Neon skills table — injected into future relevant agent calls.
 ...
 
-**Lines:** 696 | **Size:** 29,629 bytes
+**Lines:** 696 | **Size:** 30,324 bytes
 
 ## Depends On
 

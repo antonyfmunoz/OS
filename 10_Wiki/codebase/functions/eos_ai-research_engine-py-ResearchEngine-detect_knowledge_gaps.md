@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/research_engine.py
 line: 61
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ResearchEngine.detect_knowledge_gaps
@@ -21,8 +21,6 @@ exists yet (common in early-stage deployments).
 
 ## Calls
 
-- [[eos_ai-agent_runtime-py-AgentRuntime-run]]
-- [[eos_ai-cognitive_loop-py-CognitiveLoop-run]]
 - [[eos_ai-research_engine-py-ResearchEngine-_detect_foundational_gaps]]
 - [[eos_ai-research_engine-py-ResearchEngine-_query_local_interactions]]
 - [[eos_ai-research_engine-py-ResearchEngine-_query_neon_interactions]]

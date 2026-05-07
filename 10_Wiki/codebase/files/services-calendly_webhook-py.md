@@ -3,9 +3,9 @@ type: codebase-file
 path: services/calendly_webhook.py
 module: services.calendly_webhook
 lines: 445
-size: 16353
+size: 16797
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # services/calendly_webhook.py
@@ -14,7 +14,7 @@ generated: 2026-04-12
 
 *No docstring.*
 
-**Lines:** 445 | **Size:** 16,353 bytes
+**Lines:** 445 | **Size:** 16,797 bytes
 
 ## Depends On
 

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/strategy_engine.py
 line: 141
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # StrategyEngine.analyze_company_position
@@ -18,8 +18,6 @@ Returns structured dict with 6 strategic dimensions.
 
 ## Calls
 
-- [[eos_ai-agent_runtime-py-AgentRuntime-run]]
-- [[eos_ai-cognitive_loop-py-CognitiveLoop-run]]
 - [[eos_ai-strategy_engine-py-_parse_labeled_sections]]
 - [[eos_ai-strategy_engine-py-_query_30d_stats]]
 - [[eos_ai-venture_knowledge-py-VentureKnowledgeBase-get]]

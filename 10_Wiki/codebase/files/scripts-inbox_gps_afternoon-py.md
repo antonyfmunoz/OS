@@ -3,8 +3,8 @@ type: codebase-file
 path: scripts/inbox_gps_afternoon.py
 module: scripts.inbox_gps_afternoon
 lines: 30
-size: 795
-generated: 2026-04-12
+size: 824
+generated: 2026-05-07
 ---
 
 # scripts/inbox_gps_afternoon.py
@@ -13,7 +13,7 @@ Email GPS — 3pm afternoon inbox pass.
 Runs via cron at 15:00 daily.
 Posts report to Discord if there's anything to surface.
 
-**Lines:** 30 | **Size:** 795 bytes
+**Lines:** 30 | **Size:** 824 bytes
 
 ## Depends On
 

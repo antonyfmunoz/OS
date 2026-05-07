@@ -3,8 +3,8 @@ type: codebase-file
 path: core/tool_mastery_research_agent/fetcher.py
 module: core.tool_mastery_research_agent.fetcher
 lines: 164
-size: 5111
-generated: 2026-04-12
+size: 5274
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_research_agent/fetcher.py
@@ -16,7 +16,7 @@ browser emulation, no LLM calls. Writes raw captures to disk under
 the run directory for full provenance.
 ...
 
-**Lines:** 164 | **Size:** 5,111 bytes
+**Lines:** 164 | **Size:** 5,274 bytes
 
 ## Contains
 

@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/operator_transitions.py
 module: eos_ai.substrate.operator_transitions
 lines: 482
-size: 17484
-generated: 2026-04-12
+size: 17965
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/operator_transitions.py
@@ -16,7 +16,7 @@ This is the brain of the operator state engine. It is intentionally tiny:
   - one pure function `decide_transition(state, trigger)` that returns the
 ...
 
-**Lines:** 482 | **Size:** 17,484 bytes
+**Lines:** 482 | **Size:** 17,965 bytes
 
 ## Depends On
 

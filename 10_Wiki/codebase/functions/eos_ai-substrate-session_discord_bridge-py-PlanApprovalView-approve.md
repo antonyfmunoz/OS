@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: eos_ai/substrate/session_discord_bridge.py
-line: 62
-generated: 2026-04-12
+line: 88
+generated: 2026-05-07
 ---
 
 # PlanApprovalView.approve
 
-**File:** [[eos_ai-substrate-session_discord_bridge-py]] | **Line:** 62
+**File:** [[eos_ai-substrate-session_discord_bridge-py]] | **Line:** 88
 **Signature:** `approve(button, interaction) → None`
 
 **Class:** [[eos_ai-substrate-session_discord_bridge-py-PlanApprovalView]]

@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/scrapling_connector.py
 module: eos_ai.scrapling_connector
 lines: 148
-size: 4202
-generated: 2026-04-12
+size: 4349
+generated: 2026-05-07
 ---
 
 # eos_ai/scrapling_connector.py
@@ -16,7 +16,7 @@ clean, structured access to any public web page without triggering
 bot detection. Used by reality_engine and research_engine for
 ...
 
-**Lines:** 148 | **Size:** 4,202 bytes
+**Lines:** 148 | **Size:** 4,349 bytes
 
 ## Contains
 

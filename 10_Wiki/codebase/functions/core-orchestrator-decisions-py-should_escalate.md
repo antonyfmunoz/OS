@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/orchestrator/decisions.py
 line: 125
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # should_escalate

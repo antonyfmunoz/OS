@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/wiki_navigation.py
 line: 186
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # WikiIndex.get_wiki_for_node

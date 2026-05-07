@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_remote_executor_daemon.py
 module: scripts.substrate_remote_executor_daemon
 lines: 92
-size: 2665
+size: 2756
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_remote_executor_daemon.py
@@ -19,7 +19,7 @@ Subcommands:
     run-once  --node NODE_ID
 ...
 
-**Lines:** 92 | **Size:** 2,665 bytes
+**Lines:** 92 | **Size:** 2,756 bytes
 
 ## Depends On
 

@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/router_claude_runtime_debug.py
 module: scripts.router_claude_runtime_debug
 lines: 75
-size: 2771
+size: 2845
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/router_claude_runtime_debug.py
@@ -19,7 +19,7 @@ Run inside the target environment (host OR `docker exec os-discord python3
 scripts/router_claude_runtime_debug.py`) to prove:
 ...
 
-**Lines:** 75 | **Size:** 2,771 bytes
+**Lines:** 75 | **Size:** 2,845 bytes
 
 ## Contains
 

@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/coordination_engine.py
 module: eos_ai.coordination_engine
 lines: 400
-size: 14953
-generated: 2026-04-12
+size: 15352
+generated: 2026-05-07
 ---
 
 # eos_ai/coordination_engine.py
@@ -16,7 +16,7 @@ system. Agents and human team members share the same task queue.
 
 ...
 
-**Lines:** 400 | **Size:** 14,953 bytes
+**Lines:** 400 | **Size:** 15,352 bytes
 
 ## Depends On
 

@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/deferred.py
 module: scripts.deferred
 lines: 349
-size: 10691
+size: 11039
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/deferred.py
@@ -19,7 +19,7 @@ Commands:
     show <action_id>          print the full persisted action record
 ...
 
-**Lines:** 349 | **Size:** 10,691 bytes
+**Lines:** 349 | **Size:** 11,039 bytes
 
 ## Depends On
 

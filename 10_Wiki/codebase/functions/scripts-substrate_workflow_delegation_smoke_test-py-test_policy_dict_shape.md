@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: scripts/substrate_workflow_delegation_smoke_test.py
-line: 388
-generated: 2026-04-12
+line: 428
+generated: 2026-05-07
 ---
 
 # test_policy_dict_shape
 
-**File:** [[scripts-substrate_workflow_delegation_smoke_test-py]] | **Line:** 388
+**File:** [[scripts-substrate_workflow_delegation_smoke_test-py]] | **Line:** 428
 **Signature:** `test_policy_dict_shape() → None`
 
 *No docstring.*

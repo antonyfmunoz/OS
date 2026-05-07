@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/person_recognition.py
 module: eos_ai.person_recognition
 lines: 614
-size: 24177
-generated: 2026-04-12
+size: 24790
+generated: 2026-05-07
 ---
 
 # eos_ai/person_recognition.py
@@ -15,7 +15,7 @@ across all channels: email, Discord, Calendly, Calendar.
 The Martell Rule: never auto-respond to a recognized person with
 a template. Route to ANTONY immediately. Flag it.
 
-**Lines:** 614 | **Size:** 24,177 bytes
+**Lines:** 614 | **Size:** 24,790 bytes
 
 ## Contains
 

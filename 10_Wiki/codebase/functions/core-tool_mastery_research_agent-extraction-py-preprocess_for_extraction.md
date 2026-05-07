@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/tool_mastery_research_agent/extraction.py
 line: 87
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # preprocess_for_extraction

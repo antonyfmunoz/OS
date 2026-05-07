@@ -3,8 +3,8 @@ type: codebase-file
 path: core/tool_mastery_research_agent/extraction.py
 module: core.tool_mastery_research_agent.extraction
 lines: 1266
-size: 43005
-generated: 2026-04-12
+size: 44270
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_research_agent/extraction.py
@@ -16,7 +16,7 @@ fetch, render, filter), Phase 5 focuses on *understanding*: converting
 raw prose and rendered docs into structured, reusable mastery knowledge.
 ...
 
-**Lines:** 1266 | **Size:** 43,005 bytes
+**Lines:** 1266 | **Size:** 44,270 bytes
 
 ## Used By
 

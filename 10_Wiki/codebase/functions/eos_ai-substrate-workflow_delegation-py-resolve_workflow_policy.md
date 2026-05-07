@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: eos_ai/substrate/workflow_delegation.py
-line: 309
-generated: 2026-04-12
+line: 353
+generated: 2026-05-07
 ---
 
 # resolve_workflow_policy
 
-**File:** [[eos_ai-substrate-workflow_delegation-py]] | **Line:** 309
+**File:** [[eos_ai-substrate-workflow_delegation-py]] | **Line:** 353
 **Signature:** `resolve_workflow_policy(mode, intent_result) → dict[str, Any]`
 
 Decide whether a classified workflow intent is allowed in the current mode.

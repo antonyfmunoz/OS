@@ -1,13 +1,13 @@
 ---
 type: codebase-function
 file: eos_ai/substrate/workflow_delegation.py
-line: 398
-generated: 2026-04-12
+line: 442
+generated: 2026-05-07
 ---
 
 # enrich_metadata
 
-**File:** [[eos_ai-substrate-workflow_delegation-py]] | **Line:** 398
+**File:** [[eos_ai-substrate-workflow_delegation-py]] | **Line:** 442
 **Signature:** `enrich_metadata(meta, text, mode) → dict[str, Any]`
 
 Classify intent, resolve policy, and attach workflow metadata to *meta*.

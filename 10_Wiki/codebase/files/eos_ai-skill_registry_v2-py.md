@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/skill_registry_v2.py
 module: eos_ai.skill_registry_v2
 lines: 491
-size: 23222
-generated: 2026-04-12
+size: 23712
+generated: 2026-05-07
 ---
 
 # eos_ai/skill_registry_v2.py
@@ -16,7 +16,7 @@ Extends the file-based SkillRegistry (V1) with:
   - Trust levels that gate what the skill can do autonomously
 ...
 
-**Lines:** 491 | **Size:** 23,222 bytes
+**Lines:** 491 | **Size:** 23,712 bytes
 
 ## Contains
 

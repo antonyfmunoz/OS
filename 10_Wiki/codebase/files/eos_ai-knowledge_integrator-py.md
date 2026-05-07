@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/knowledge_integrator.py
 module: eos_ai.knowledge_integrator
 lines: 241
-size: 7905
-generated: 2026-04-12
+size: 8145
+generated: 2026-05-07
 ---
 
 # eos_ai/knowledge_integrator.py
@@ -16,7 +16,7 @@ conversations, outcomes, world events, creator content — gets permanently
 integrated into the knowledge base. Nothing is ever discarded.
 ...
 
-**Lines:** 241 | **Size:** 7,905 bytes
+**Lines:** 241 | **Size:** 8,145 bytes
 
 ## Depends On
 
@@ -27,7 +27,6 @@ integrated into the knowledge base. Nothing is ever discarded.
 ## Used By
 
 - [[eos_ai-world_pulse-py]]
-- [[services-discord_bot-py]]
 
 ## Contains
 

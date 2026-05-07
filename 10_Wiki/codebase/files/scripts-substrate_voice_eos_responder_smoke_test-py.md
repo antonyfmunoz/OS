@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_voice_eos_responder_smoke_test.py
 module: scripts.substrate_voice_eos_responder_smoke_test
 lines: 328
-size: 13040
+size: 13367
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_voice_eos_responder_smoke_test.py
@@ -19,7 +19,7 @@ Proves the bounded EOS-backed voice responder integration end-to-end:
      still works exactly as before.
 ...
 
-**Lines:** 328 | **Size:** 13,040 bytes
+**Lines:** 328 | **Size:** 13,367 bytes
 
 ## Depends On
 

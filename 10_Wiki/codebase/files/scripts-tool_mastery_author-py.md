@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/tool_mastery_author.py
 module: scripts.tool_mastery_author
 lines: 125
-size: 3817
+size: 3941
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/tool_mastery_author.py
@@ -19,7 +19,7 @@ artifact. This script is the target of `tool_mastery.author` actions
 queued by the Research Agent through the Control Plane.
 ...
 
-**Lines:** 125 | **Size:** 3,817 bytes
+**Lines:** 125 | **Size:** 3,941 bytes
 
 ## Depends On
 

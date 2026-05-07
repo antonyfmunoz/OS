@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/orchestrator_status.py
 module: scripts.orchestrator_status
 lines: 389
-size: 12290
+size: 12678
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/orchestrator_status.py
@@ -19,7 +19,7 @@ Prints five sections in a compact human-readable format:
   1. Pending signals (per signal name + count + oldest emission age)
 ...
 
-**Lines:** 389 | **Size:** 12,290 bytes
+**Lines:** 389 | **Size:** 12,678 bytes
 
 ## Depends On
 

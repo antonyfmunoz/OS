@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/tenant.py
 module: eos_ai.tenant
 lines: 146
-size: 5318
-generated: 2026-04-12
+size: 5463
+generated: 2026-05-07
 ---
 
 # eos_ai/tenant.py
@@ -16,7 +16,7 @@ Three-layer model:
   INSTANCE  — per-user context loaded from DB (org_id, ai_name, offer, ICP)
 ...
 
-**Lines:** 146 | **Size:** 5,318 bytes
+**Lines:** 146 | **Size:** 5,463 bytes
 
 ## Contains
 

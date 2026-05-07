@@ -3,8 +3,8 @@ type: codebase-file
 path: core/action_system/deferred.py
 module: core.action_system.deferred
 lines: 97
-size: 3086
-generated: 2026-04-12
+size: 3182
+generated: 2026-05-07
 ---
 
 # core/action_system/deferred.py
@@ -16,7 +16,7 @@ approval, the Control Plane defers it. Deferred actions are persisted
 as one JSON file per action under /opt/OS/logs/deferred/ so they can
 ...
 
-**Lines:** 97 | **Size:** 3,086 bytes
+**Lines:** 97 | **Size:** 3,182 bytes
 
 ## Used By
 

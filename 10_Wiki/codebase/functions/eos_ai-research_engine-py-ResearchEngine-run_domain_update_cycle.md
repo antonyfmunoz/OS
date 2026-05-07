@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/research_engine.py
 line: 602
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ResearchEngine.run_domain_update_cycle
@@ -21,6 +21,4 @@ Weekly domain update cycle. Horizontal-then-vertical methodology:
 
 ## Calls
 
-- [[eos_ai-agent_runtime-py-AgentRuntime-run]]
-- [[eos_ai-cognitive_loop-py-CognitiveLoop-run]]
 - [[eos_ai-venture_knowledge-py-VentureKnowledgeBase-get]]

@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/security/rbac.py
 line: 86
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # Role.as_dict

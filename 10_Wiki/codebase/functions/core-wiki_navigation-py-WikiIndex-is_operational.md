@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/wiki_navigation.py
 line: 203
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # WikiIndex.is_operational

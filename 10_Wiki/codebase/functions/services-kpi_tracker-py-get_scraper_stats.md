@@ -2,7 +2,7 @@
 type: codebase-function
 file: services/kpi_tracker.py
 line: 44
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # get_scraper_stats

@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/okr_tracker.py
 module: eos_ai.okr_tracker
 lines: 119
-size: 3919
-generated: 2026-04-12
+size: 4037
+generated: 2026-05-07
 ---
 
 # eos_ai/okr_tracker.py
@@ -12,7 +12,7 @@ generated: 2026-04-12
 OKR Tracker — tracks Objectives and Key Results per venture.
 Weekly check-in cadence. Stored in Neon events table.
 
-**Lines:** 119 | **Size:** 3,919 bytes
+**Lines:** 119 | **Size:** 4,037 bytes
 
 ## Contains
 

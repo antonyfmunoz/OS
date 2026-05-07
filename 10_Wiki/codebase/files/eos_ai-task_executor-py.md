@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/task_executor.py
 module: eos_ai.task_executor
 lines: 282
-size: 10177
-generated: 2026-04-12
+size: 10458
+generated: 2026-05-07
 ---
 
 # eos_ai/task_executor.py
@@ -16,7 +16,7 @@ Each task type has a handler. High-risk tasks require approval.
 All task executions are persisted to Neon for audit.
 ...
 
-**Lines:** 282 | **Size:** 10,177 bytes
+**Lines:** 282 | **Size:** 10,458 bytes
 
 ## Depends On
 

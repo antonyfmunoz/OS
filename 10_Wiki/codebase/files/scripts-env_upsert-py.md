@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/env_upsert.py
 module: scripts.env_upsert
 lines: 105
-size: 3088
+size: 3192
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/env_upsert.py
@@ -19,7 +19,7 @@ Usage:
 
 ...
 
-**Lines:** 105 | **Size:** 3,088 bytes
+**Lines:** 105 | **Size:** 3,192 bytes
 
 ## Contains
 

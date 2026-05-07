@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/notebooklm_sync.py
 line: 298
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # NotebookLMSync.check_and_update

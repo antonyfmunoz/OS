@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/proactive_engine.py
 module: eos_ai.proactive_engine
 lines: 432
-size: 16214
-generated: 2026-04-12
+size: 16645
+generated: 2026-05-07
 ---
 
 # eos_ai/proactive_engine.py
@@ -16,7 +16,7 @@ From PHILOSOPHY.md:
 
 ...
 
-**Lines:** 432 | **Size:** 16,214 bytes
+**Lines:** 432 | **Size:** 16,645 bytes
 
 ## Contains
 

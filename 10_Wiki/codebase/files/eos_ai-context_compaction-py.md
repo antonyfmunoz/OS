@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/context_compaction.py
 module: eos_ai.context_compaction
 lines: 224
-size: 8955
-generated: 2026-04-12
+size: 9178
+generated: 2026-05-07
 ---
 
 # eos_ai/context_compaction.py
@@ -16,7 +16,7 @@ compresses message history into a structured brief, persists it to Neon,
 and seeds the next context window. The user sees one continuous conversation;
 ...
 
-**Lines:** 224 | **Size:** 8,955 bytes
+**Lines:** 224 | **Size:** 9,178 bytes
 
 ## Depends On
 

@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/orchestrator.py
 module: scripts.orchestrator
 lines: 1122
-size: 44526
+size: 45647
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/orchestrator.py
@@ -19,7 +19,7 @@ self-driving system. Four internal agents cooperate:
 
 ...
 
-**Lines:** 1122 | **Size:** 44,526 bytes
+**Lines:** 1122 | **Size:** 45,647 bytes
 
 ## Depends On
 

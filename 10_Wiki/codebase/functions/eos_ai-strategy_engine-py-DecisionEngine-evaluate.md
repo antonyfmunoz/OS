@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/strategy_engine.py
 line: 411
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # DecisionEngine.evaluate
@@ -18,7 +18,5 @@ Returns all 6 steps + final recommendation.
 
 ## Calls
 
-- [[eos_ai-agent_runtime-py-AgentRuntime-run]]
-- [[eos_ai-cognitive_loop-py-CognitiveLoop-run]]
 - [[eos_ai-memory-py-AgentMemory-log_event]]
 - [[eos_ai-venture_knowledge-py-VentureKnowledgeBase-get]]

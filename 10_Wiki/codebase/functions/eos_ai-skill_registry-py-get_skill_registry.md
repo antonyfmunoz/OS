@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/skill_registry.py
 line: 237
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # get_skill_registry
@@ -18,5 +18,4 @@ reset_skill_registry() then get_skill_registry() again.
 
 ## Called By
 
-- [[eos_ai-agent_runtime-py-AgentRuntime-__init__]]
 - [[eos_ai-skill_improvement-py-SkillImprovementEngine-__init__]]

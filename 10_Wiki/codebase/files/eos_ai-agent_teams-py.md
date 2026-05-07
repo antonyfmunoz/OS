@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/agent_teams.py
 module: eos_ai.agent_teams
 lines: 396
-size: 14447
-generated: 2026-04-12
+size: 14842
+generated: 2026-05-07
 ---
 
 # eos_ai/agent_teams.py
@@ -16,7 +16,7 @@ Each team maps named sub-agents to a SubAgentConfig (task type + skill + token b
 The module-level route() function is the single entry point used by AgentRuntime.run_team_task().
 ...
 
-**Lines:** 396 | **Size:** 14,447 bytes
+**Lines:** 396 | **Size:** 14,842 bytes
 
 ## Depends On
 

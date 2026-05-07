@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/feedback_loop.py
 module: eos_ai.feedback_loop
 lines: 468
-size: 16041
-generated: 2026-04-12
+size: 16508
+generated: 2026-05-07
 ---
 
 # eos_ai/feedback_loop.py
@@ -16,7 +16,7 @@ what happened, the outcome is captured and tied to the recommendation.
 Over time this builds a signal of what actually works vs. what doesn't.
 ...
 
-**Lines:** 468 | **Size:** 16,041 bytes
+**Lines:** 468 | **Size:** 16,508 bytes
 
 ## Contains
 

@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/execution_trace.py
 line: 179
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # format_trace_compact

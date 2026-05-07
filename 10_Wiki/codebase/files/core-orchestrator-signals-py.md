@@ -3,8 +3,8 @@ type: codebase-file
 path: core/orchestrator/signals.py
 module: core.orchestrator.signals
 lines: 209
-size: 6341
-generated: 2026-04-12
+size: 6549
+generated: 2026-05-07
 ---
 
 # core/orchestrator/signals.py
@@ -16,7 +16,7 @@ signal is emitted, its payload is appended to a pending queue on disk.
 The orchestrator loop drains the queue, dispatching each pending
 ...
 
-**Lines:** 209 | **Size:** 6,341 bytes
+**Lines:** 209 | **Size:** 6,549 bytes
 
 ## Used By
 

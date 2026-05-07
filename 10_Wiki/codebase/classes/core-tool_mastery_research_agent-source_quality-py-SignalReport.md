@@ -2,7 +2,7 @@
 type: codebase-class
 file: core/tool_mastery_research_agent/source_quality.py
 line: 231
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # SignalReport

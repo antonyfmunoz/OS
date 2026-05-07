@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/control_commands.py
 module: eos_ai.substrate.control_commands
 lines: 104
-size: 3565
-generated: 2026-04-12
+size: 3668
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/control_commands.py
@@ -16,7 +16,11 @@ that flows VPS (brain) → Control Bridge → Local Agent (hands).
 
 ...
 
-**Lines:** 104 | **Size:** 3,565 bytes
+**Lines:** 104 | **Size:** 3,668 bytes
+
+## Used By
+
+- [[eos_ai-substrate-execution_adapter-py]]
 
 ## Contains
 

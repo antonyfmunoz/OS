@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/promote_to_wiki.py
 module: scripts.promote_to_wiki
 lines: 438
-size: 15267
+size: 15704
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/promote_to_wiki.py
@@ -19,7 +19,7 @@ following WIKI_RULES.md, updates index.md and log.md.
 Template-based — no LLM call required.
 ...
 
-**Lines:** 438 | **Size:** 15,267 bytes
+**Lines:** 438 | **Size:** 15,704 bytes
 
 ## Contains
 

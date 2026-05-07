@@ -3,8 +3,8 @@ type: codebase-file
 path: core/tool_mastery_research_agent/github_extractor.py
 module: core.tool_mastery_research_agent.github_extractor
 lines: 349
-size: 11960
-generated: 2026-04-12
+size: 12308
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_research_agent/github_extractor.py
@@ -16,7 +16,7 @@ URL, that URL alone is almost worthless — the landing page is a
 JS-heavy SPA shell that the signal gate correctly drops. The *actual*
 ...
 
-**Lines:** 349 | **Size:** 11,960 bytes
+**Lines:** 349 | **Size:** 12,308 bytes
 
 ## Contains
 

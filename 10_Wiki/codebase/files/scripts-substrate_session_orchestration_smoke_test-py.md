@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/substrate_session_orchestration_smoke_test.py
 module: scripts.substrate_session_orchestration_smoke_test
 lines: 369
-size: 10873
+size: 11241
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/substrate_session_orchestration_smoke_test.py
@@ -14,7 +14,7 @@ generated: 2026-04-12
 
 Session Orchestration Smoke Tests.
 
-**Lines:** 369 | **Size:** 10,873 bytes
+**Lines:** 369 | **Size:** 11,241 bytes
 
 ## Depends On
 

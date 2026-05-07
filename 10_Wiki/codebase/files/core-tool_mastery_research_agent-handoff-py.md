@@ -3,8 +3,8 @@ type: codebase-file
 path: core/tool_mastery_research_agent/handoff.py
 module: core.tool_mastery_research_agent.handoff
 lines: 124
-size: 3756
-generated: 2026-04-12
+size: 3879
+generated: 2026-05-07
 ---
 
 # core/tool_mastery_research_agent/handoff.py
@@ -16,7 +16,7 @@ frontmatter fields that can be derived unambiguously from the research
 run:
 ...
 
-**Lines:** 124 | **Size:** 3,756 bytes
+**Lines:** 124 | **Size:** 3,879 bytes
 
 ## Contains
 

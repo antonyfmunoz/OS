@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/agent_task_executor.py
 module: scripts.agent_task_executor
 lines: 346
-size: 11638
+size: 11983
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/agent_task_executor.py
@@ -19,7 +19,7 @@ marks complete, and surfaces results to Discord.
 
 ...
 
-**Lines:** 346 | **Size:** 11,638 bytes
+**Lines:** 346 | **Size:** 11,983 bytes
 
 ## Contains
 

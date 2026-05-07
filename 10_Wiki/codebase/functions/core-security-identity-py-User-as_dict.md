@@ -2,7 +2,7 @@
 type: codebase-function
 file: core/security/identity.py
 line: 87
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # User.as_dict

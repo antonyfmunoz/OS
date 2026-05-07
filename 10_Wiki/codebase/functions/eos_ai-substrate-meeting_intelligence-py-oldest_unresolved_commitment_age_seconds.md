@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/substrate/meeting_intelligence.py
 line: 974
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # oldest_unresolved_commitment_age_seconds

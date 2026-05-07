@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/benchmark_semantic_space.py
 line: 201
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # run_scenario

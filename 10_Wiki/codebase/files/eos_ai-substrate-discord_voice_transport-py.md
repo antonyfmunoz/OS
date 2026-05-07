@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/discord_voice_transport.py
 module: eos_ai.substrate.discord_voice_transport
 lines: 805
-size: 30582
-generated: 2026-04-12
+size: 31386
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/discord_voice_transport.py
@@ -16,7 +16,7 @@ Purpose
 This module is the FIRST Discord voice transport adapter. It exists so that
 ...
 
-**Lines:** 805 | **Size:** 30,582 bytes
+**Lines:** 805 | **Size:** 31,386 bytes
 
 ## Used By
 

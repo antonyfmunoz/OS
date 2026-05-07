@@ -2,7 +2,7 @@
 type: codebase-function
 file: scripts/build_skill_graph.py
 line: 180
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # main
@@ -14,6 +14,5 @@ generated: 2026-04-12
 
 ## Calls
 
-- [[scripts-_tme_common-py-load_all_skills]]
 - [[scripts-build_skill_graph-py-build_graph]]
 - [[scripts-build_skill_graph-py-render_markdown]]

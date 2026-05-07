@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/day_reminder.py
 module: scripts.day_reminder
 lines: 117
-size: 3450
+size: 3566
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/day_reminder.py
@@ -17,7 +17,7 @@ Runs every 5 minutes via cron.
 Checks for events starting in the next 10-15 minutes
 and fires a Discord alert if not already sent.
 
-**Lines:** 117 | **Size:** 3,450 bytes
+**Lines:** 117 | **Size:** 3,566 bytes
 
 ## Contains
 

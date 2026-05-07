@@ -2,7 +2,7 @@
 type: codebase-class
 file: eos_ai/browser_agent.py
 line: 461
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # ManusAgent
@@ -15,7 +15,7 @@ When Meta opens a native API, migrate to model_router MANUS provider.
 
 ## Inherits From
 
-- [[eos_ai-browser_agent-py-BrowserAgent]]
+- [[eos_ai-substrate-browser_agent-py-BrowserAgent]]
 
 ## Methods
 

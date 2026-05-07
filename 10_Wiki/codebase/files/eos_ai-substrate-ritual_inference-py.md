@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/substrate/ritual_inference.py
 module: eos_ai.substrate.ritual_inference
 lines: 199
-size: 7082
-generated: 2026-04-12
+size: 7280
+generated: 2026-05-07
 ---
 
 # eos_ai/substrate/ritual_inference.py
@@ -16,7 +16,7 @@ ritual history and node registry.
 Why this exists
 ...
 
-**Lines:** 199 | **Size:** 7,082 bytes
+**Lines:** 199 | **Size:** 7,280 bytes
 
 ## Depends On
 

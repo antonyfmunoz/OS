@@ -2,7 +2,7 @@
 type: codebase-function
 file: eos_ai/coordination_engine.py
 line: 87
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # CoordinationEngine.assign_task
@@ -22,7 +22,6 @@ Returns task_id (UUID string).
 - [[eos_ai-coordination_engine-py-_notify]]
 - [[eos_ai-db-py-get_conn]]
 - [[eos_ai-db-py-resolve_venture]]
-- [[eos_ai-event_bus-py-EventBus-publish_async]]
 
 ## Called By
 

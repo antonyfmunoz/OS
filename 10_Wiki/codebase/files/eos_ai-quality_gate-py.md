@@ -3,8 +3,8 @@ type: codebase-file
 path: eos_ai/quality_gate.py
 module: eos_ai.quality_gate
 lines: 526
-size: 16696
-generated: 2026-04-12
+size: 17221
+generated: 2026-05-07
 ---
 
 # eos_ai/quality_gate.py
@@ -16,7 +16,7 @@ From PHILOSOPHY.md Section VI:
    Every time. By architecture. Not by chance."
 ...
 
-**Lines:** 526 | **Size:** 16,696 bytes
+**Lines:** 526 | **Size:** 17,221 bytes
 
 ## Contains
 

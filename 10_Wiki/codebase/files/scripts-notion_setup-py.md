@@ -3,9 +3,9 @@ type: codebase-file
 path: scripts/notion_setup.py
 module: scripts.notion_setup
 lines: 1081
-size: 37473
+size: 38553
 tags: [entry-point]
-generated: 2026-04-12
+generated: 2026-05-07
 ---
 
 # scripts/notion_setup.py
@@ -19,7 +19,7 @@ UNIVERSAL (all roles, all stages):
   Goals/OKRs, Tasks, Meetings, Documents,
 ...
 
-**Lines:** 1081 | **Size:** 37,473 bytes
+**Lines:** 1081 | **Size:** 38,553 bytes
 
 ## Contains
 
