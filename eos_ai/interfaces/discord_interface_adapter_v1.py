@@ -1,11 +1,12 @@
 """Discord Interface Adapter v1.
 
-Minimal Discord bot that bridges Discord commands to filesystem
-work packets consumed by the Local Worker Runtime Daemon.
+Minimal Discord bot that bridges Discord commands to the
+ControlPlaneRouter via WorkPackets.
 
 This is an INTERFACE adapter only. It does not orchestrate, plan,
 reason, or make autonomous decisions. It translates Discord messages
-into work packets and relays RuntimeProof results back.
+into WorkPackets, submits them to the router, and formats the
+RouterResult for Discord reply.
 
 Supported commands:
   !ping    -- relay health check
@@ -22,6 +23,7 @@ import os
 import signal
 import sys
 import time
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -30,10 +32,20 @@ sys.path.insert(0, "/opt/OS")
 
 import discord
 
+from core.control_plane_router.control_plane_router_v1 import (
+    ControlPlaneRouterV1,
+    load_config as load_router_config,
+)
+from core.control_plane_router.router_contracts import (
+    RouterResult,
+    RouterStatus,
+    WorkPacket,
+)
 from core.environment_bridge.windows_desktop_request_builder import (
     build_ping_request,
     build_w0_chrome_open_request,
 )
+from core.runtime.adapter_registry_contracts import AdapterRegistry
 from core.runtime.worker_runtime_contracts import ProofStatus
 
 
@@ -60,6 +72,11 @@ DEFAULT_CONFIG_PATH = "/opt/OS/config/discord_interface_adapter_v1.json"
 
 SUPPORTED_COMMANDS = {"!ping", "!chrome", "!status"}
 
+COMMAND_ACTION_MAP: dict[str, str] = {
+    "!ping": "ping",
+    "!chrome": "open_application_url",
+}
+
 
 def load_config(config_path: str | Path = DEFAULT_CONFIG_PATH) -> dict[str, Any]:
     with open(config_path, encoding="utf-8-sig") as f:
@@ -67,7 +84,36 @@ def load_config(config_path: str | Path = DEFAULT_CONFIG_PATH) -> dict[str, Any]
 
 
 # ---------------------------------------------------------------------------
-# Work packet helpers
+# WorkPacket builders (interface → router)
+# ---------------------------------------------------------------------------
+
+
+def build_work_packet_for_router(command: str) -> WorkPacket | None:
+    """Build a WorkPacket from a Discord command for the router."""
+    action_type = COMMAND_ACTION_MAP.get(command)
+    if action_type is None:
+        return None
+
+    if command == "!ping":
+        req = build_ping_request()
+        payload = req.to_dict()
+    elif command == "!chrome":
+        req = build_w0_chrome_open_request()
+        payload = req.to_dict()
+    else:
+        return None
+
+    return WorkPacket(
+        packet_id=payload.get("request_id", f"PKT-{uuid.uuid4().hex[:8]}"),
+        action_type=action_type,
+        payload=payload,
+        source_interface="discord_interface_adapter_v1",
+        trace_id=payload.get("trace_id", ""),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Legacy helpers (retained for standalone/test use)
 # ---------------------------------------------------------------------------
 
 
@@ -120,8 +166,46 @@ def poll_for_proof(
     return None
 
 
+# ---------------------------------------------------------------------------
+# RouterResult formatting (router → Discord reply)
+# ---------------------------------------------------------------------------
+
+
+def format_router_result(result: RouterResult, command: str) -> str:
+    """Format a RouterResult into a compact Discord reply."""
+    status = result.router_status.value
+
+    if result.router_status == RouterStatus.TIMEOUT:
+        return f"**{command}** -- timeout, no proof received. Is the daemon running?"
+
+    if result.router_status == RouterStatus.INVALID_PACKET:
+        return f"**{command}** -- rejected: {result.error_message}"
+
+    if result.router_status in (RouterStatus.NO_ADAPTER, RouterStatus.REJECTED):
+        return f"**{command}** -- {status}: {result.error_message}"
+
+    lines = [f"**{command}** -- {status}"]
+
+    if result.router_decision:
+        lines.append(f"action: {result.router_decision.action_type}")
+        lines.append(f"adapter: {result.adapter_selected}")
+        lines.append(f"runtime: {result.runtime_target}")
+
+    if result.runtime_proof_reference:
+        ref = result.runtime_proof_reference
+        if ref.adapter_status:
+            lines.append(f"adapter_status: {ref.adapter_status}")
+        if ref.request_id:
+            lines.append(f"request_id: {ref.request_id}")
+
+    if result.error_message:
+        lines.append(f"error: {result.error_message}")
+
+    return "\n".join(lines)
+
+
 def format_proof_summary(proof: dict[str, Any] | None, command: str) -> str:
-    """Format a RuntimeProof into a compact Discord reply."""
+    """Format a RuntimeProof into a compact Discord reply (legacy)."""
     if proof is None:
         return f"**{command}** -- timeout, no proof received. Is the daemon running?"
 
@@ -156,26 +240,39 @@ def format_proof_summary(proof: dict[str, Any] | None, command: str) -> str:
 
 
 class DiscordInterfaceAdapter:
-    """Minimal Discord interface adapter."""
+    """Thin Discord interface adapter that delegates to ControlPlaneRouterV1."""
 
     def __init__(self, config: dict[str, Any], base_dir: Path = Path("/opt/OS")) -> None:
         self.config = config
         self.base_dir = base_dir
 
-        self.work_inbox = base_dir / config.get(
-            "work_inbox", "data/runtime/local_worker_runtime/inbox"
-        )
-        self.proof_dir = base_dir / config.get("proof_dir", "data/runtime/runtime_proofs")
         self.state_dir = base_dir / config.get(
             "state_dir", "data/runtime/discord_interface_adapter"
         )
-        self.poll_interval: float = config.get("poll_interval_seconds", 2)
-        self.request_timeout: int = config.get("request_timeout_seconds", 60)
 
         self.allowed_channels: list[int] = [int(c) for c in config.get("allowed_channel_ids", [])]
 
         token_var = config.get("discord_token_env_var", "DISCORD_BOT_TOKEN")
         self.token: str = os.getenv(token_var, "")
+
+        registry_path = base_dir / config.get(
+            "adapter_registry_path",
+            "data/registries/local_worker_adapter_registry_v1.json",
+        )
+        router_config_path = config.get("router_config_path", None)
+        if router_config_path:
+            r_config = load_router_config(router_config_path)
+        else:
+            r_config = load_router_config()
+
+        r_config["default_timeout_seconds"] = config.get("request_timeout_seconds", 60)
+
+        self.registry = AdapterRegistry.from_json_file(registry_path)
+        self.router = ControlPlaneRouterV1(
+            registry=self.registry,
+            config=r_config,
+            base_dir=base_dir,
+        )
 
         intents = discord.Intents.default()
         intents.message_content = True
@@ -210,9 +307,7 @@ class DiscordInterfaceAdapter:
         _log(f"command: {command} from {message.author} in #{message.channel}")
 
         if command == "!status":
-            await message.channel.send(
-                f"**status** -- adapter=running worker_inbox={self.work_inbox}"
-            )
+            await message.channel.send(f"**status** -- adapter=running router=control_plane_v1")
             return
 
         if command not in SUPPORTED_COMMANDS:
@@ -221,31 +316,23 @@ class DiscordInterfaceAdapter:
             )
             return
 
-        packet = build_work_packet(command)
-        if packet is None:
+        work_packet = build_work_packet_for_router(command)
+        if work_packet is None:
             await message.channel.send(f"**{command}** -- failed to build work packet")
             return
 
-        request_id = packet.get("request_id", "unknown")
-        _log(f"submitting packet: {request_id} for {command}")
-
-        write_work_packet(packet, self.work_inbox)
+        _log(f"routing via control plane: {work_packet.packet_id} for {command}")
         await message.channel.send(
-            f"**{command}** -- submitted ({request_id}), waiting for proof..."
+            f"**{command}** -- routing ({work_packet.packet_id}), waiting for proof..."
         )
 
-        proof = await asyncio.to_thread(
-            poll_for_proof,
-            request_id,
-            self.proof_dir,
-            self.request_timeout,
-            self.poll_interval,
-        )
+        result = await asyncio.to_thread(self.router.route_work_packet, work_packet)
 
-        summary = format_proof_summary(proof, command)
+        summary = format_router_result(result, command)
         await message.channel.send(summary)
         _log(
-            f"replied: {command} request_id={request_id} status={proof.get('proof_status') if proof else 'timeout'}"
+            f"replied: {command} packet_id={work_packet.packet_id} "
+            f"router_status={result.router_status.value}"
         )
 
     def _write_status(self, status: str) -> None:
@@ -276,10 +363,11 @@ class DiscordInterfaceAdapter:
         self.ensure_directories()
         self._write_status("starting")
         _log("=" * 50)
-        _log("Discord Interface Adapter v1")
-        _log(f"work_inbox: {self.work_inbox}")
-        _log(f"proof_dir: {self.proof_dir}")
-        _log(f"timeout: {self.request_timeout}s")
+        _log("Discord Interface Adapter v1 (routed)")
+        _log(f"router: control_plane_v1")
+        _log(f"router_inbox: {self.router.work_inbox}")
+        _log(f"router_proof_dir: {self.router.proof_dir}")
+        _log(f"router_timeout: {self.router.default_timeout}s")
         _log(f"allowed_channels: {self.allowed_channels or 'all'}")
         _log("=" * 50)
         self.client.run(self.token, log_handler=None)

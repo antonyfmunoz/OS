@@ -1,8 +1,8 @@
-"""Tests for Discord Interface Adapter v1 -- Phase 96.8M.
+"""Tests for Discord Interface Adapter v1 -- Phase 96.8M + 96.8O.
 
 Tests the interface adapter's command parsing, packet generation,
-proof formatting, and error handling. Does NOT require a live
-Discord connection.
+proof formatting, router integration, and error handling.
+Does NOT require a live Discord connection.
 """
 
 import sys
@@ -15,14 +15,24 @@ import unittest
 from pathlib import Path
 
 from eos_ai.interfaces.discord_interface_adapter_v1 import (
+    COMMAND_ACTION_MAP,
     SUPPORTED_COMMANDS,
     DiscordInterfaceAdapter,
     build_work_packet,
+    build_work_packet_for_router,
     format_proof_summary,
+    format_router_result,
     load_config,
     poll_for_proof,
     write_work_packet,
     DEFAULT_CONFIG_PATH,
+)
+from core.control_plane_router.router_contracts import (
+    RouterDecision,
+    RouterResult,
+    RouterStatus,
+    RuntimeProofReference,
+    WorkPacket,
 )
 
 
@@ -238,6 +248,176 @@ class TestNoArbitraryExecution(unittest.TestCase):
     def test_chrome_url_is_hardcoded(self):
         packet = build_work_packet("!chrome")
         self.assertEqual(packet["url"], "https://drive.google.com/drive/my-drive")
+
+
+class TestCommandActionMap(unittest.TestCase):
+    def test_ping_maps_to_ping(self):
+        self.assertEqual(COMMAND_ACTION_MAP["!ping"], "ping")
+
+    def test_chrome_maps_to_open_application_url(self):
+        self.assertEqual(COMMAND_ACTION_MAP["!chrome"], "open_application_url")
+
+    def test_status_not_in_map(self):
+        self.assertNotIn("!status", COMMAND_ACTION_MAP)
+
+    def test_unknown_not_in_map(self):
+        self.assertNotIn("!hack", COMMAND_ACTION_MAP)
+
+
+class TestWorkPacketForRouter(unittest.TestCase):
+    def test_ping_builds_work_packet(self):
+        wp = build_work_packet_for_router("!ping")
+        self.assertIsNotNone(wp)
+        self.assertIsInstance(wp, WorkPacket)
+        self.assertEqual(wp.action_type, "ping")
+        self.assertTrue(wp.packet_id.startswith("REQ-PING-"))
+        self.assertEqual(wp.source_interface, "discord_interface_adapter_v1")
+
+    def test_chrome_builds_work_packet(self):
+        wp = build_work_packet_for_router("!chrome")
+        self.assertIsNotNone(wp)
+        self.assertIsInstance(wp, WorkPacket)
+        self.assertEqual(wp.action_type, "open_application_url")
+        self.assertTrue(wp.packet_id.startswith("REQ-W0-"))
+
+    def test_chrome_payload_has_safe_url(self):
+        wp = build_work_packet_for_router("!chrome")
+        self.assertEqual(wp.payload["url"], "https://drive.google.com/drive/my-drive")
+
+    def test_unknown_command_returns_none(self):
+        self.assertIsNone(build_work_packet_for_router("!hack"))
+        self.assertIsNone(build_work_packet_for_router("!shell"))
+
+    def test_empty_command_returns_none(self):
+        self.assertIsNone(build_work_packet_for_router(""))
+
+    def test_status_command_returns_none(self):
+        self.assertIsNone(build_work_packet_for_router("!status"))
+
+
+class TestRouterResultFormatting(unittest.TestCase):
+    def test_completed_result(self):
+        decision = RouterDecision(
+            packet_id="PKT-001",
+            action_type="ping",
+            runtime_target="local_worker_runtime_daemon",
+            adapter_selected="windows_interactive_desktop_relay",
+            capability_matched="shell_execution",
+        )
+        proof_ref = RuntimeProofReference(
+            proof_id="PROOF-abc",
+            proof_status="completed",
+            adapter_status="pong",
+            request_id="PKT-001",
+        )
+        result = RouterResult(
+            router_status=RouterStatus.COMPLETED,
+            router_decision=decision,
+            runtime_target="local_worker_runtime_daemon",
+            adapter_selected="windows_interactive_desktop_relay",
+            runtime_proof_reference=proof_ref,
+        )
+        summary = format_router_result(result, "!ping")
+        self.assertIn("completed", summary)
+        self.assertIn("pong", summary)
+        self.assertIn("windows_interactive_desktop_relay", summary)
+
+    def test_timeout_result(self):
+        result = RouterResult(router_status=RouterStatus.TIMEOUT)
+        summary = format_router_result(result, "!ping")
+        self.assertIn("timeout", summary)
+        self.assertIn("daemon running", summary)
+
+    def test_invalid_packet_result(self):
+        result = RouterResult(
+            router_status=RouterStatus.INVALID_PACKET,
+            error_message="missing packet_id",
+        )
+        summary = format_router_result(result, "!bad")
+        self.assertIn("rejected", summary)
+        self.assertIn("missing packet_id", summary)
+
+    def test_no_adapter_result(self):
+        result = RouterResult(
+            router_status=RouterStatus.NO_ADAPTER,
+            error_message="no adapter registered",
+        )
+        summary = format_router_result(result, "!unknown")
+        self.assertIn("no_adapter", summary)
+
+    def test_failed_result_with_error(self):
+        decision = RouterDecision(
+            packet_id="PKT-F1",
+            action_type="ping",
+            runtime_target="local_worker_runtime_daemon",
+            adapter_selected="windows_interactive_desktop_relay",
+            capability_matched="shell_execution",
+        )
+        result = RouterResult(
+            router_status=RouterStatus.FAILED,
+            router_decision=decision,
+            error_message="adapter exception",
+        )
+        summary = format_router_result(result, "!ping")
+        self.assertIn("failed", summary)
+        self.assertIn("adapter exception", summary)
+
+
+def _write_test_registry(tmpdir: str) -> None:
+    """Write a minimal adapter registry fixture into a temp dir."""
+    reg_dir = Path(tmpdir) / "data" / "registries"
+    reg_dir.mkdir(parents=True, exist_ok=True)
+    registry = {
+        "workers": {},
+        "adapters": {
+            "windows_interactive_desktop_relay": {
+                "adapter_type": "gui_actuator",
+                "environment_type": "local_windows_desktop",
+                "authority_domain": "local_gui",
+                "message_bus": "filesystem_json",
+                "capabilities": [
+                    {
+                        "capability_id": "ping",
+                        "action_type": "ping",
+                        "requires_gui": False,
+                        "required_authority": "local_shell",
+                    }
+                ],
+            }
+        },
+    }
+    with open(reg_dir / "local_worker_adapter_registry_v1.json", "w") as f:
+        json.dump(registry, f)
+
+
+class TestAdapterInitializesWithRouter(unittest.TestCase):
+    def test_adapter_has_router(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            _write_test_registry(tmpdir)
+            config = {
+                "discord_token_env_var": "NONEXISTENT_VAR",
+                "allowed_channel_ids": [],
+                "state_dir": f"{tmpdir}/state",
+                "request_timeout_seconds": 5,
+            }
+            adapter = DiscordInterfaceAdapter(config, base_dir=Path(tmpdir))
+            self.assertIsNotNone(adapter.router)
+            self.assertIsInstance(adapter.router, ControlPlaneRouterV1)
+
+    def test_adapter_router_uses_config_timeout(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            _write_test_registry(tmpdir)
+            config = {
+                "discord_token_env_var": "NONEXISTENT_VAR",
+                "allowed_channel_ids": [],
+                "state_dir": f"{tmpdir}/state",
+                "request_timeout_seconds": 30,
+            }
+            adapter = DiscordInterfaceAdapter(config, base_dir=Path(tmpdir))
+            self.assertEqual(adapter.router.default_timeout, 30)
+
+
+from core.control_plane_router.control_plane_router_v1 import ControlPlaneRouterV1
 
 
 if __name__ == "__main__":
