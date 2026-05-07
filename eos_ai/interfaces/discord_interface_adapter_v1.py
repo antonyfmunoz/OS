@@ -341,8 +341,8 @@ class DiscordInterfaceAdapter:
         data = {
             "status": status,
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "work_inbox": str(self.work_inbox),
-            "proof_dir": str(self.proof_dir),
+            "work_inbox": str(self.router.work_inbox),
+            "proof_dir": str(self.router.proof_dir),
         }
         with open(status_path, "w") as f:
             json.dump(data, f, indent=2)

@@ -416,6 +416,24 @@ class TestAdapterInitializesWithRouter(unittest.TestCase):
             adapter = DiscordInterfaceAdapter(config, base_dir=Path(tmpdir))
             self.assertEqual(adapter.router.default_timeout, 30)
 
+    def test_write_status_no_attribute_error(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            _write_test_registry(tmpdir)
+            config = {
+                "discord_token_env_var": "NONEXISTENT_VAR",
+                "allowed_channel_ids": [],
+                "state_dir": f"{tmpdir}/state",
+                "request_timeout_seconds": 5,
+            }
+            adapter = DiscordInterfaceAdapter(config, base_dir=Path(tmpdir))
+            adapter._write_status("starting")
+            status_path = Path(tmpdir) / "state" / "adapter_status.json"
+            self.assertTrue(status_path.exists())
+            data = json.loads(status_path.read_text())
+            self.assertEqual(data["status"], "starting")
+            self.assertIn("work_inbox", data)
+            self.assertIn("proof_dir", data)
+
 
 from core.control_plane_router.control_plane_router_v1 import ControlPlaneRouterV1
 
