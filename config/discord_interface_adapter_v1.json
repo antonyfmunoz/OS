@@ -1,0 +1,11 @@
+{
+  "discord_token_env_var": "DISCORD_BOT_TOKEN",
+  "allowed_channel_ids": [],
+  "work_inbox": "data/runtime/local_worker_runtime/inbox",
+  "proof_dir": "data/runtime/runtime_proofs",
+  "state_dir": "data/runtime/discord_interface_adapter",
+  "poll_interval_seconds": 2,
+  "request_timeout_seconds": 60,
+  "relay_root": null,
+  "version": "v1"
+}
