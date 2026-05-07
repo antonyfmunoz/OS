@@ -1,0 +1,81 @@
+{
+  "_description": "Sanitized proof artifact for Discord !chrome through canonical routed path. Chrome visibly opened on Windows desktop. Founder confirmed. Phase 96.8Q.",
+  "_date": "2026-05-07",
+  "_phase": "96.8Q",
+  "command": "!chrome",
+  "interface": "discord_interface_adapter_v1",
+  "routing": {
+    "work_packet": {
+      "packet_id": "REQ-W0-EXAMPLE",
+      "action_type": "open_application_url",
+      "source_interface": "discord_interface_adapter_v1",
+      "capability_required": "windows_gui_execution",
+      "timeout_seconds": 60,
+      "payload_url": "https://drive.google.com/drive/my-drive",
+      "payload_launch_method": "direct_executable",
+      "payload_blocked_methods": ["default_browser", "explorer_url", "generic_start_url", "shell_url_open", "unknown_browser"]
+    },
+    "router_decision": {
+      "router_status": "routed",
+      "runtime_target": "local_worker_runtime_daemon",
+      "adapter_selected": "windows_interactive_desktop_relay",
+      "capability_matched": "windows_gui_execution",
+      "authority_satisfied": true
+    }
+  },
+  "execution": {
+    "daemon": {
+      "worker_id": "local_wsl_worker",
+      "environment": "local_wsl",
+      "message_bus": "filesystem_json",
+      "packet_written_to_relay_inbox": true
+    },
+    "relay": {
+      "adapter_id": "windows_interactive_desktop_relay",
+      "environment": "local_windows_desktop",
+      "action_performed": "open_application_url",
+      "executable_path": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+      "url_opened": "https://drive.google.com/drive/my-drive",
+      "launch_method": "direct_executable"
+    }
+  },
+  "proof": {
+    "proof_status": "completed",
+    "adapter_status": "completed",
+    "request_id": "REQ-W0-EXAMPLE",
+    "evidence": {
+      "process_detected": true,
+      "main_window_title": "My Drive - Google Drive - Google Chrome",
+      "launch_method_used": "direct_executable"
+    },
+    "notes": [
+      "Chrome opened via direct executable only",
+      "No explorer.exe or default-browser routing",
+      "Founder visual confirmation obtained"
+    ]
+  },
+  "result": {
+    "router_status": "completed",
+    "normalized_status": "completed",
+    "discord_reply_contained": ["completed", "open_application_url", "windows_interactive_desktop_relay"]
+  },
+  "founder_confirmation": {
+    "chrome_visibly_opened": true,
+    "drive_homepage_loaded": true,
+    "drive_contents_accessed": false,
+    "docs_contents_accessed": false
+  },
+  "safety": {
+    "chrome_opened": true,
+    "drive_homepage_visible": true,
+    "drive_contents_read": false,
+    "docs_contents_read": false,
+    "secrets_captured": false,
+    "tokens_captured": false,
+    "cookies_captured": false,
+    "screenshots_captured": false,
+    "memory_promoted": false,
+    "llm_calls": false,
+    "autonomous_planning": false
+  }
+}

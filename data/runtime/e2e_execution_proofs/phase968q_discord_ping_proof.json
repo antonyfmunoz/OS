@@ -1,0 +1,53 @@
+{
+  "_description": "Sanitized proof artifact for Discord !ping through canonical routed path. Phase 96.8Q.",
+  "_date": "2026-05-07",
+  "_phase": "96.8Q",
+  "command": "!ping",
+  "interface": "discord_interface_adapter_v1",
+  "routing": {
+    "work_packet": {
+      "packet_id": "REQ-PING-EXAMPLE",
+      "action_type": "ping",
+      "source_interface": "discord_interface_adapter_v1",
+      "capability_required": "shell_execution",
+      "timeout_seconds": 60
+    },
+    "router_decision": {
+      "router_status": "routed",
+      "runtime_target": "local_worker_runtime_daemon",
+      "adapter_selected": "windows_interactive_desktop_relay",
+      "capability_matched": "shell_execution",
+      "authority_satisfied": true
+    }
+  },
+  "execution": {
+    "daemon": {
+      "worker_id": "local_wsl_worker",
+      "environment": "local_wsl",
+      "message_bus": "filesystem_json"
+    },
+    "relay": {
+      "adapter_id": "windows_interactive_desktop_relay",
+      "environment": "local_windows_desktop",
+      "action_performed": "ping health check"
+    }
+  },
+  "proof": {
+    "proof_status": "completed",
+    "adapter_status": "pong",
+    "request_id": "REQ-PING-EXAMPLE",
+    "notes": ["Relay responded with pong"]
+  },
+  "result": {
+    "router_status": "completed",
+    "normalized_status": "completed",
+    "discord_reply_contained": ["completed", "pong", "ping"]
+  },
+  "safety": {
+    "chrome_opened": false,
+    "drive_accessed": false,
+    "secrets_captured": false,
+    "memory_promoted": false,
+    "llm_calls": false
+  }
+}
