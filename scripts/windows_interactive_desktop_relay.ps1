@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Windows Interactive Desktop Relay v1 — Phase 96.8H
+    Windows Interactive Desktop Relay v1 - Phase 96.8I
 
 .DESCRIPTION
     Watches a relay inbox for JSON action requests from the WSL worker.
@@ -8,29 +8,18 @@
     Writes structured result JSON to the relay outbox.
 
     This script MUST be run from the logged-in Windows user session
-    (not from WSL, not from a headless service). It has real desktop
-    access because it runs in the interactive session.
+    (not from WSL, not from a headless service).
+
+    Compatible with Windows PowerShell 5.1 (no -AsHashtable).
 
 .NOTES
-    - Run from PowerShell in the logged-in Windows session
-    - Do NOT run from WSL or tmux
-    - Do NOT run as a Windows service (Session 0 has no desktop)
-    - Founder starts this manually before any W0 execution
-
     Supported actions:
-    - ping                                → pong
-    - open_application_url                → launch Chrome directly
-    - focus_application                   → bring app to foreground
-    - request_founder_visual_confirmation → write confirmation request
+      ping                  - returns pong
+      open_application_url  - launches Chrome via direct executable
 
-    Blocked:
-    - explorer.exe URL routing
-    - default-browser routing
-    - generic shell URL open
-    - screenshot capture
-    - credential/token/cookie access
-    - page content reading
-    - any mutation action
+    Blocked methods:
+      explorer_url, default_browser, shell_url_open,
+      generic_start_url, unknown_browser
 #>
 
 param(
@@ -41,7 +30,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# Blocked launch methods — these must NEVER be used
+$CHROME_EXE = "C:\Program Files\Google\Chrome\Application\chrome.exe"
+$CHROME_EXE_X86 = "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
+
 $BLOCKED_LAUNCH_METHODS = @(
     "explorer_url",
     "default_browser",
@@ -50,8 +41,9 @@ $BLOCKED_LAUNCH_METHODS = @(
     "unknown_browser"
 )
 
-$CHROME_EXE = "C:\Program Files\Google\Chrome\Application\chrome.exe"
-$CHROME_EXE_X86 = "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 function ConvertTo-Hashtable {
     param([Parameter(ValueFromPipeline=$true)]$InputObject)
@@ -104,125 +96,149 @@ function Write-Result {
         [hashtable]$Result
     )
     $filename = "${RequestId}_result.json"
-    $path = Join-Path $OutboxPath $filename
-    $Result | ConvertTo-Json -Depth 10 | Out-File -FilePath $path -Encoding UTF8
-    Write-Log "Result written: $filename"
+    $outPath = Join-Path $OutboxPath $filename
+    Write-Log "Writing result: $outPath"
+    try {
+        $json = $Result | ConvertTo-Json -Depth 10
+        $json | Out-File -FilePath $outPath -Encoding UTF8
+        Write-Log "Result written OK: $filename ($(( Get-Item $outPath ).Length) bytes)"
+    }
+    catch {
+        Write-Log "ERROR writing result: $($_.Exception.Message)"
+    }
 }
 
 function Find-ChromeExe {
-    if (Test-Path $CHROME_EXE) { return $CHROME_EXE }
-    if (Test-Path $CHROME_EXE_X86) { return $CHROME_EXE_X86 }
+    Write-Log "Looking for Chrome..."
+    if (Test-Path $CHROME_EXE) {
+        Write-Log "Found Chrome at: $CHROME_EXE"
+        return $CHROME_EXE
+    }
+    if (Test-Path $CHROME_EXE_X86) {
+        Write-Log "Found Chrome at: $CHROME_EXE_X86"
+        return $CHROME_EXE_X86
+    }
+    Write-Log "Chrome not found at either standard path"
     return $null
 }
+
+# ---------------------------------------------------------------------------
+# Action handlers
+# ---------------------------------------------------------------------------
 
 function Handle-Ping {
     param([hashtable]$Request)
 
-    $requestId = $Request["request_id"]
-    Write-Log "PING received ($requestId)"
+    $rid = $Request["request_id"]
+    Write-Log "PING received: request_id=$rid"
 
-    Write-Result -RequestId $requestId -Result @{
-        request_id = $requestId
-        trace_id = $Request["trace_id"]
-        action_type = "ping"
+    Write-Result -RequestId $rid -Result @{
+        request_id     = $rid
+        trace_id       = $Request["trace_id"]
+        action_type    = "ping"
         adapter_status = "pong"
-        timestamp = Get-Timestamp
-        notes = @("Relay is alive and listening")
+        timestamp      = Get-Timestamp
+        notes          = @("Relay is alive and listening")
     }
+
+    Write-Log "PING handled OK for $rid"
 }
 
 function Handle-OpenApplicationUrl {
     param([hashtable]$Request)
 
-    $requestId = $Request["request_id"]
-    $traceId = $Request["trace_id"]
+    $rid         = $Request["request_id"]
+    $traceId     = $Request["trace_id"]
     $workOrderId = $Request["work_order_id"]
-    $appId = $Request["application_id"]
+    $appId       = $Request["application_id"]
     $launchMethod = $Request["launch_method"]
-    $url = $Request["url"]
-    $isDryRun = $Request["dry_run"] -eq $true
+    $url         = $Request["url"]
+    $isDryRun    = $Request["dry_run"] -eq $true
 
-    Write-Log "OPEN_APPLICATION_URL: app=$appId method=$launchMethod url=$url"
+    Write-Log "OPEN_APPLICATION_URL: rid=$rid app=$appId method=$launchMethod url=$url dry_run=$isDryRun"
 
-    # Validate launch method
+    # --- gate: blocked launch methods ---
     if ($BLOCKED_LAUNCH_METHODS -contains $launchMethod) {
-        Write-Log "REJECTED: launch method '$launchMethod' is blocked"
-        Write-Result -RequestId $requestId -Result @{
-            request_id = $requestId
-            trace_id = $traceId
-            work_order_id = $workOrderId
-            action_type = "open_application_url"
+        Write-Log "REJECTED: blocked launch method '$launchMethod'"
+        Write-Result -RequestId $rid -Result @{
+            request_id     = $rid
+            trace_id       = $traceId
+            work_order_id  = $workOrderId
+            action_type    = "open_application_url"
             adapter_status = "rejected"
-            error = "BLOCKED_LAUNCH_METHOD: $launchMethod"
-            timestamp = Get-Timestamp
+            error          = "BLOCKED_LAUNCH_METHOD: $launchMethod"
+            timestamp      = Get-Timestamp
         }
         return
     }
 
+    # --- gate: only direct_executable ---
     if ($launchMethod -ne "direct_executable") {
-        Write-Log "REJECTED: only direct_executable is allowed, got '$launchMethod'"
-        Write-Result -RequestId $requestId -Result @{
-            request_id = $requestId
-            trace_id = $traceId
-            work_order_id = $workOrderId
-            action_type = "open_application_url"
+        Write-Log "REJECTED: only direct_executable allowed, got '$launchMethod'"
+        Write-Result -RequestId $rid -Result @{
+            request_id     = $rid
+            trace_id       = $traceId
+            work_order_id  = $workOrderId
+            action_type    = "open_application_url"
             adapter_status = "rejected"
-            error = "INVALID_LAUNCH_METHOD: only direct_executable allowed"
-            timestamp = Get-Timestamp
+            error          = "INVALID_LAUNCH_METHOD: only direct_executable allowed"
+            timestamp      = Get-Timestamp
         }
         return
     }
 
+    # --- gate: only Chrome ---
     if ($appId -ne "google_chrome_windows") {
         Write-Log "REJECTED: unsupported application '$appId'"
-        Write-Result -RequestId $requestId -Result @{
-            request_id = $requestId
-            trace_id = $traceId
-            work_order_id = $workOrderId
-            action_type = "open_application_url"
+        Write-Result -RequestId $rid -Result @{
+            request_id     = $rid
+            trace_id       = $traceId
+            work_order_id  = $workOrderId
+            action_type    = "open_application_url"
             adapter_status = "rejected"
-            error = "UNSUPPORTED_APPLICATION: $appId"
-            timestamp = Get-Timestamp
+            error          = "UNSUPPORTED_APPLICATION: $appId"
+            timestamp      = Get-Timestamp
         }
         return
     }
 
-    # Find Chrome
+    # --- find Chrome executable ---
     $chromeExe = Find-ChromeExe
     if (-not $chromeExe) {
-        Write-Log "FAILED: Chrome executable not found"
-        Write-Result -RequestId $requestId -Result @{
-            request_id = $requestId
-            trace_id = $traceId
-            work_order_id = $workOrderId
-            action_type = "open_application_url"
+        Write-Log "FAILED: Chrome not found"
+        Write-Result -RequestId $rid -Result @{
+            request_id     = $rid
+            trace_id       = $traceId
+            work_order_id  = $workOrderId
+            action_type    = "open_application_url"
             adapter_status = "failed"
-            error = "CHROME_NOT_FOUND"
-            timestamp = Get-Timestamp
+            error          = "CHROME_NOT_FOUND"
+            timestamp      = Get-Timestamp
         }
         return
     }
 
+    # --- dry run ---
     if ($isDryRun) {
-        Write-Log "DRY RUN: would launch '$chromeExe --new-window $url'"
-        Write-Result -RequestId $requestId -Result @{
-            request_id = $requestId
-            trace_id = $traceId
-            work_order_id = $workOrderId
-            action_type = "open_application_url"
+        Write-Log "DRY RUN: would launch $chromeExe --new-window $url"
+        Write-Result -RequestId $rid -Result @{
+            request_id     = $rid
+            trace_id       = $traceId
+            work_order_id  = $workOrderId
+            action_type    = "open_application_url"
             adapter_status = "completed"
             command_issued = "$chromeExe --new-window $url"
             process_detected = $false
             visible_proof_status = "no_proof"
             founder_visual_confirmation_required = $true
-            timestamp = Get-Timestamp
-            notes = @("Dry run only — no Chrome launch")
+            timestamp      = Get-Timestamp
+            notes          = @("Dry run only - no Chrome launch")
         }
         return
     }
 
-    # Launch Chrome with direct executable
-    Write-Log "Launching: $chromeExe --new-window $url"
+    # --- actual launch ---
+    Write-Log "Launching Chrome: $chromeExe --new-window $url"
     $commandIssued = "$chromeExe --new-window $url"
 
     try {
@@ -231,6 +247,8 @@ function Handle-OpenApplicationUrl {
 
         $processDetected = -not $process.HasExited
         $processId = $process.Id
+
+        Write-Log "Chrome launched. PID=$processId running=$processDetected"
 
         # Collect window metadata as evidence (NOT proof)
         $windowMeta = @{}
@@ -241,69 +259,87 @@ function Handle-OpenApplicationUrl {
                 if ($mainProc) {
                     $windowMeta = @{
                         main_window_handle = $mainProc.MainWindowHandle.ToInt64()
-                        main_window_title = $mainProc.MainWindowTitle
-                        note = "Window metadata is EVIDENCE only, not proof"
+                        main_window_title  = $mainProc.MainWindowTitle
+                        note               = "Window metadata is EVIDENCE only, not proof"
                     }
+                    Write-Log "Window metadata collected: handle=$($windowMeta['main_window_handle'])"
                 }
             }
-        } catch {
+        }
+        catch {
+            Write-Log "WARNING: Could not collect window metadata: $($_.Exception.Message)"
             $windowMeta = @{ error = "Failed to collect window metadata" }
         }
 
-        Write-Log "Chrome launched. PID=$processId detected=$processDetected"
-
-        Write-Result -RequestId $requestId -Result @{
-            request_id = $requestId
-            trace_id = $traceId
-            work_order_id = $workOrderId
-            action_type = "open_application_url"
+        Write-Result -RequestId $rid -Result @{
+            request_id     = $rid
+            trace_id       = $traceId
+            work_order_id  = $workOrderId
+            action_type    = "open_application_url"
             adapter_status = "completed"
             command_issued = $commandIssued
             process_detected = $processDetected
-            process_id = $processId
+            process_id     = $processId
             window_metadata = $windowMeta
             visible_proof_status = "pending_founder_visual_confirmation"
             founder_visual_confirmation_required = $true
-            timestamp = Get-Timestamp
-            notes = @(
+            timestamp      = Get-Timestamp
+            notes          = @(
                 "Chrome launched via direct executable",
-                "Window metadata is evidence only — NOT proof",
+                "Window metadata is evidence only - NOT proof",
                 "Founder must visually confirm Chrome is visible"
             )
         }
     }
     catch {
-        Write-Log "FAILED: Chrome launch error — $_"
-        Write-Result -RequestId $requestId -Result @{
-            request_id = $requestId
-            trace_id = $traceId
-            work_order_id = $workOrderId
-            action_type = "open_application_url"
+        Write-Log "ERROR: Chrome launch failed: $($_.Exception.Message)"
+        Write-Result -RequestId $rid -Result @{
+            request_id     = $rid
+            trace_id       = $traceId
+            work_order_id  = $workOrderId
+            action_type    = "open_application_url"
             adapter_status = "failed"
             command_issued = $commandIssued
-            error = "CHROME_LAUNCH_FAILED: $_"
-            timestamp = Get-Timestamp
+            error          = "CHROME_LAUNCH_FAILED: $($_.Exception.Message)"
+            timestamp      = Get-Timestamp
         }
     }
 }
 
+# ---------------------------------------------------------------------------
+# Request processor
+# ---------------------------------------------------------------------------
+
 function Process-Request {
     param([string]$FilePath)
 
+    Write-Log "--- Begin processing: $FilePath ---"
+
+    # Step 1: Read and parse JSON
+    $request = $null
     try {
+        Write-Log "Reading file..."
         $content = Get-Content -Path $FilePath -Raw
-        $requestObj = $content | ConvertFrom-Json
-        $request = ConvertTo-Hashtable $requestObj
+        Write-Log "File read OK ($(($content).Length) chars)"
+
+        Write-Log "Parsing JSON (PS 5.1 compatible, no -AsHashtable)..."
+        $parsed = $content | ConvertFrom-Json
+        Write-Log "ConvertFrom-Json OK, converting PSCustomObject to hashtable..."
+        $request = ConvertTo-Hashtable $parsed
+        Write-Log "Hashtable conversion OK"
     }
     catch {
-        Write-Log "ERROR: Failed to parse request file '$FilePath': $($_.Exception.Message)"
-        Write-Log "ERROR: Exception type: $($_.Exception.GetType().FullName)"
+        Write-Log "ERROR: Failed to read/parse '$FilePath': $($_.Exception.Message)"
+        Write-Log "ERROR: Type: $($_.Exception.GetType().FullName)"
         return
     }
 
+    # Step 2: Extract action type
     $actionType = $request["action_type"]
-    Write-Log "  action_type=$actionType request_id=$($request['request_id'])"
+    $rid = $request["request_id"]
+    Write-Log "Parsed: action_type=$actionType request_id=$rid"
 
+    # Step 3: Dispatch to handler
     try {
         switch ($actionType) {
             "ping" {
@@ -313,56 +349,69 @@ function Process-Request {
                 Handle-OpenApplicationUrl -Request $request
             }
             default {
-                Write-Log "UNKNOWN action type: $actionType"
-                $requestId = $request["request_id"]
-                if ($requestId) {
-                    Write-Result -RequestId $requestId -Result @{
-                        request_id = $requestId
-                        action_type = $actionType
+                Write-Log "UNKNOWN action_type: $actionType"
+                if ($rid) {
+                    Write-Result -RequestId $rid -Result @{
+                        request_id     = $rid
+                        action_type    = $actionType
                         adapter_status = "rejected"
-                        error = "UNKNOWN_ACTION_TYPE: $actionType"
-                        timestamp = Get-Timestamp
+                        error          = "UNKNOWN_ACTION_TYPE: $actionType"
+                        timestamp      = Get-Timestamp
                     }
                 }
             }
         }
     }
     catch {
-        Write-Log "ERROR: Handler failed for '$actionType': $($_.Exception.Message)"
+        Write-Log "ERROR: Handler failed for action_type=$actionType : $($_.Exception.Message)"
         Write-Log "ERROR: Stack: $($_.ScriptStackTrace)"
-        $requestId = $request["request_id"]
-        if ($requestId) {
-            Write-Result -RequestId $requestId -Result @{
-                request_id = $requestId
-                action_type = $actionType
-                adapter_status = "failed"
-                error = "HANDLER_EXCEPTION: $($_.Exception.Message)"
-                timestamp = Get-Timestamp
+        if ($rid) {
+            try {
+                Write-Result -RequestId $rid -Result @{
+                    request_id     = $rid
+                    action_type    = $actionType
+                    adapter_status = "failed"
+                    error          = "HANDLER_EXCEPTION: $($_.Exception.Message)"
+                    timestamp      = Get-Timestamp
+                }
+            }
+            catch {
+                Write-Log "ERROR: Could not write error result: $($_.Exception.Message)"
             }
         }
     }
 
-    # Move processed request to avoid re-processing
-    $processedDir = Join-Path (Split-Path $InboxPath) "processed"
-    if (-not (Test-Path $processedDir)) {
-        New-Item -ItemType Directory -Path $processedDir -Force | Out-Null
+    # Step 4: Move to processed
+    try {
+        $processedDir = Join-Path (Split-Path $InboxPath) "processed"
+        if (-not (Test-Path $processedDir)) {
+            New-Item -ItemType Directory -Path $processedDir -Force | Out-Null
+        }
+        $destPath = Join-Path $processedDir (Split-Path $FilePath -Leaf)
+        Move-Item -Path $FilePath -Destination $destPath -Force
+        Write-Log "Moved to processed: $destPath"
     }
-    $destPath = Join-Path $processedDir (Split-Path $FilePath -Leaf)
-    Move-Item -Path $FilePath -Destination $destPath -Force
+    catch {
+        Write-Log "WARNING: Could not move to processed: $($_.Exception.Message)"
+    }
+
+    Write-Log "--- Done processing: $(Split-Path $FilePath -Leaf) ---"
 }
 
-# ── Main Loop ──────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Main loop
+# ---------------------------------------------------------------------------
 
 Write-Log "=========================================="
 Write-Log "Windows Interactive Desktop Relay v1"
-Write-Log "Phase 96.8H"
+Write-Log "Phase 96.8I (PS 5.1 compatible)"
 Write-Log "=========================================="
 Write-Log "Inbox:  $InboxPath"
 Write-Log "Outbox: $OutboxPath"
 Write-Log "Poll:   ${PollIntervalSeconds}s"
+Write-Log "PowerShell version: $($PSVersionTable.PSVersion)"
 Write-Log ""
-Write-Log "IMPORTANT: This relay runs in the logged-in"
-Write-Log "Windows session. It has real desktop access."
+Write-Log "This relay runs in the logged-in Windows session."
 Write-Log "WSL/tmux delegates GUI actions here."
 Write-Log ""
 Write-Log "Watching inbox for requests..."
@@ -374,7 +423,7 @@ while ($true) {
     $files = Get-ChildItem -Path $InboxPath -Filter "*.json" -ErrorAction SilentlyContinue
 
     foreach ($file in $files) {
-        Write-Log "Processing: $($file.Name)"
+        Write-Log "Found request file: $($file.Name)"
         Process-Request -FilePath $file.FullName
     }
 
