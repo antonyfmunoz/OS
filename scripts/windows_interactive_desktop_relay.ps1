@@ -53,6 +53,30 @@ $BLOCKED_LAUNCH_METHODS = @(
 $CHROME_EXE = "C:\Program Files\Google\Chrome\Application\chrome.exe"
 $CHROME_EXE_X86 = "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
 
+function ConvertTo-Hashtable {
+    param([Parameter(ValueFromPipeline=$true)]$InputObject)
+
+    if ($null -eq $InputObject) { return $null }
+
+    if ($InputObject -is [System.Collections.IEnumerable] -and $InputObject -isnot [string]) {
+        $list = @()
+        foreach ($item in $InputObject) {
+            $list += (ConvertTo-Hashtable $item)
+        }
+        return ,$list
+    }
+
+    if ($InputObject -is [PSCustomObject]) {
+        $hash = @{}
+        foreach ($prop in $InputObject.PSObject.Properties) {
+            $hash[$prop.Name] = ConvertTo-Hashtable $prop.Value
+        }
+        return $hash
+    }
+
+    return $InputObject
+}
+
 function Get-Timestamp {
     return (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
 }
@@ -268,33 +292,52 @@ function Process-Request {
 
     try {
         $content = Get-Content -Path $FilePath -Raw
-        $request = $content | ConvertFrom-Json -AsHashtable
+        $requestObj = $content | ConvertFrom-Json
+        $request = ConvertTo-Hashtable $requestObj
     }
     catch {
-        Write-Log "ERROR: Failed to parse request file '$FilePath': $_"
+        Write-Log "ERROR: Failed to parse request file '$FilePath': $($_.Exception.Message)"
+        Write-Log "ERROR: Exception type: $($_.Exception.GetType().FullName)"
         return
     }
 
     $actionType = $request["action_type"]
+    Write-Log "  action_type=$actionType request_id=$($request['request_id'])"
 
-    switch ($actionType) {
-        "ping" {
-            Handle-Ping -Request $request
-        }
-        "open_application_url" {
-            Handle-OpenApplicationUrl -Request $request
-        }
-        default {
-            Write-Log "UNKNOWN action type: $actionType"
-            $requestId = $request["request_id"]
-            if ($requestId) {
-                Write-Result -RequestId $requestId -Result @{
-                    request_id = $requestId
-                    action_type = $actionType
-                    adapter_status = "rejected"
-                    error = "UNKNOWN_ACTION_TYPE: $actionType"
-                    timestamp = Get-Timestamp
+    try {
+        switch ($actionType) {
+            "ping" {
+                Handle-Ping -Request $request
+            }
+            "open_application_url" {
+                Handle-OpenApplicationUrl -Request $request
+            }
+            default {
+                Write-Log "UNKNOWN action type: $actionType"
+                $requestId = $request["request_id"]
+                if ($requestId) {
+                    Write-Result -RequestId $requestId -Result @{
+                        request_id = $requestId
+                        action_type = $actionType
+                        adapter_status = "rejected"
+                        error = "UNKNOWN_ACTION_TYPE: $actionType"
+                        timestamp = Get-Timestamp
+                    }
                 }
+            }
+        }
+    }
+    catch {
+        Write-Log "ERROR: Handler failed for '$actionType': $($_.Exception.Message)"
+        Write-Log "ERROR: Stack: $($_.ScriptStackTrace)"
+        $requestId = $request["request_id"]
+        if ($requestId) {
+            Write-Result -RequestId $requestId -Result @{
+                request_id = $requestId
+                action_type = $actionType
+                adapter_status = "failed"
+                error = "HANDLER_EXCEPTION: $($_.Exception.Message)"
+                timestamp = Get-Timestamp
             }
         }
     }
