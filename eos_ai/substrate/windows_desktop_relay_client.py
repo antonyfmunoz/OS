@@ -177,7 +177,7 @@ def read_result_from_relay(
         if result_path.exists():
             _log(f"  result found: {result_path}")
             try:
-                with open(result_path) as f:
+                with open(result_path, encoding="utf-8-sig") as f:
                     return json.load(f)
             except (json.JSONDecodeError, OSError) as e:
                 _log(f"  parse error: {e}")

@@ -105,6 +105,17 @@ class TestResultReading(unittest.TestCase):
             self.assertIsNotNone(result)
             self.assertEqual(result["adapter_status"], "pong")
 
+    def test_reads_result_with_utf8_bom(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            outbox = Path(tmpdir)
+            request_id = "REQ-BOM-001"
+            result_file = outbox / f"{request_id}_result.json"
+            payload = json.dumps({"request_id": request_id, "adapter_status": "pong"})
+            result_file.write_bytes(b"\xef\xbb\xbf" + payload.encode("utf-8"))
+            result = read_result_from_relay(request_id, relay_outbox=outbox, timeout_seconds=1)
+            self.assertIsNotNone(result)
+            self.assertEqual(result["adapter_status"], "pong")
+
     def test_returns_none_on_timeout(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             outbox = Path(tmpdir)
