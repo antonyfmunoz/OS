@@ -1,18 +1,9 @@
-"""Tests for Windows Interactive Desktop relay client — Phase 96.8H + 96.8H.1.
+"""Tests for Windows Interactive Desktop relay client.
 
-Verifies:
-1. Dry-run writes request without executing GUI.
-2. Request file is written to inbox.
-3. Relay availability check works.
-4. Timeout handling when no result appears.
-5. Result reading from outbox works.
-6. Local worker fails closed if adapter unavailable.
-7. Local worker stops at founder confirmation if relay result pending.
-8. WSL default resolves to Windows-mounted relay root (path unification).
-9. VPS/Linux without /mnt/c returns Path.home() fallback.
-10. Explicit relay_root overrides default.
-11. Debug output includes full path trace (CLI --debug).
-12. No GUI action for PING dry-run.
+Phase 96.8H: core relay client
+Phase 96.8H.1: path unification
+Phase 96.8I: PS 5.1 compatibility (BOM tolerance)
+Phase 96.8J: runtime proof hardening
 """
 
 import sys
@@ -309,6 +300,120 @@ class TestCLIDebugOutput(unittest.TestCase):
             self.assertIn("relay_root=", result.stdout)
             self.assertIn("inbox=", result.stdout)
             self.assertIn("outbox=", result.stdout)
+
+
+# -- Phase 96.8J: Runtime Proof Hardening Tests ----------------------------------
+
+
+class TestResultFileNamingConvention(unittest.TestCase):
+    def test_result_filename_matches_request_id(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            outbox = Path(tmpdir)
+            request_id = "REQ-PING-NAMING-001"
+            expected_filename = f"{request_id}_result.json"
+            result_file = outbox / expected_filename
+            result_file.write_text(json.dumps({"adapter_status": "pong"}))
+            result = read_result_from_relay(request_id, relay_outbox=outbox, timeout_seconds=1)
+            self.assertIsNotNone(result)
+
+    def test_wrong_filename_not_found(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            outbox = Path(tmpdir)
+            (outbox / "WRONG_NAME.json").write_text(json.dumps({"adapter_status": "pong"}))
+            result = read_result_from_relay(
+                "REQ-PING-MISS", relay_outbox=outbox, timeout_seconds=1, poll_interval=1
+            )
+            self.assertIsNone(result)
+
+
+class TestPingResponseShape(unittest.TestCase):
+    def test_ping_result_has_pong_status(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            outbox = Path(tmpdir)
+            request_id = "REQ-PING-SHAPE-001"
+            result_file = outbox / f"{request_id}_result.json"
+            result_file.write_text(
+                json.dumps(
+                    {
+                        "request_id": request_id,
+                        "trace_id": "TRACE-PING-SHAPE-001",
+                        "action_type": "ping",
+                        "adapter_status": "pong",
+                        "timestamp": "2026-05-07T00:00:00.000Z",
+                        "notes": ["Relay is alive and listening"],
+                    }
+                )
+            )
+            result = read_result_from_relay(request_id, relay_outbox=outbox, timeout_seconds=1)
+            self.assertEqual(result["adapter_status"], "pong")
+            self.assertEqual(result["action_type"], "ping")
+            self.assertIn("timestamp", result)
+            self.assertIn("notes", result)
+
+    def test_ping_result_has_no_chrome_fields(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            outbox = Path(tmpdir)
+            request_id = "REQ-PING-NOCHROME-001"
+            result_file = outbox / f"{request_id}_result.json"
+            result_file.write_text(
+                json.dumps(
+                    {
+                        "request_id": request_id,
+                        "action_type": "ping",
+                        "adapter_status": "pong",
+                    }
+                )
+            )
+            result = read_result_from_relay(request_id, relay_outbox=outbox, timeout_seconds=1)
+            self.assertNotIn("process_id", result)
+            self.assertNotIn("command_issued", result)
+            self.assertNotIn("window_metadata", result)
+            self.assertNotIn("visible_proof_status", result)
+
+
+class TestRuntimeProofFixture(unittest.TestCase):
+    def test_fixture_file_is_valid_json(self):
+        fixture_path = Path("/opt/OS/data/runtime_proofs/windows_relay_ping_success_example.json")
+        self.assertTrue(fixture_path.exists(), "Runtime proof fixture missing")
+        data = json.loads(fixture_path.read_text())
+        self.assertEqual(data["adapter_status"], "pong")
+        self.assertEqual(data["action_type"], "ping")
+        self.assertIn("request_id", data)
+        self.assertIn("trace_id", data)
+
+    def test_fixture_contains_no_secrets(self):
+        fixture_path = Path("/opt/OS/data/runtime_proofs/windows_relay_ping_success_example.json")
+        content = fixture_path.read_text()
+        for keyword in ["password", "token", "secret", "cookie", "session_id", "api_key"]:
+            self.assertNotIn(keyword, content.lower())
+
+
+class TestPingDryRunNoGuiAccess(unittest.TestCase):
+    def test_ping_request_has_empty_gui_fields(self):
+        req = build_ping_request()
+        d = req.to_dict()
+        self.assertEqual(d["action_type"], "ping")
+        self.assertEqual(d.get("url", ""), "")
+        self.assertEqual(d.get("application_id", ""), "")
+
+    def test_ping_dry_run_does_not_produce_gui_result(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            inbox = Path(tmpdir) / "inbox"
+            outbox = Path(tmpdir) / "outbox"
+            inbox.mkdir()
+            outbox.mkdir()
+            req = build_ping_request()
+            result = send_request_and_wait(
+                req.to_dict(),
+                relay_inbox=inbox,
+                relay_outbox=outbox,
+                dry_run=True,
+            )
+            self.assertEqual(result["status"], "dry_run")
+            self.assertIsNone(result["result"])
+            request_path = result["request_path"]
+            request_data = json.loads(Path(request_path).read_text())
+            self.assertEqual(request_data["action_type"], "ping")
 
 
 if __name__ == "__main__":

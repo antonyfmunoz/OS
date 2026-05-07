@@ -1,0 +1,14 @@
+{
+  "_description": "Sanitized example of a successful PING relay result. Contains only safe sample data.",
+  "_phase": "96.8J",
+  "_date": "2026-05-07",
+  "_purpose": "Reference fixture for relay result shape validation",
+  "request_id": "REQ-PING-EXAMPLE-001",
+  "trace_id": "TRACE-PING-EXAMPLE-001",
+  "action_type": "ping",
+  "adapter_status": "pong",
+  "timestamp": "2026-05-07T00:00:00.000Z",
+  "notes": [
+    "Relay is alive and listening"
+  ]
+}
