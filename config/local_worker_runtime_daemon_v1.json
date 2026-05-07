@@ -1,0 +1,14 @@
+{
+  "worker_id": "local_wsl_worker",
+  "poll_interval_seconds": 3,
+  "heartbeat_interval_seconds": 30,
+  "relay_root": null,
+  "work_inbox": "data/runtime/local_worker_runtime/inbox",
+  "state_dir": "data/runtime/local_worker_runtime",
+  "proof_dir": "data/runtime/runtime_proofs",
+  "adapter_registry_path": "data/registries/local_worker_adapter_registry_v1.json",
+  "supported_capabilities": ["ping", "open_application_url"],
+  "enabled_adapters": ["windows_interactive_desktop_relay"],
+  "dry_run": false,
+  "version": "v1"
+}
