@@ -36,6 +36,7 @@ class CapabilityType(str, Enum):
     WINDOWS_GUI_EXECUTION = "windows_gui_execution"
     DOCUMENT_EXTRACTION = "document_extraction"
     INGESTION_CANDIDACY = "ingestion_candidacy"
+    MEMORY_PROMOTION = "memory_promotion"
 
 
 ALLOWED_ACTION_TYPES = frozenset(
@@ -45,6 +46,7 @@ ALLOWED_ACTION_TYPES = frozenset(
         "drive_open_safe_test_doc",
         "doc_extract_safe_test_doc",
         "doc_ingestion_candidate_safe_test_doc",
+        "promote_safe_memory_candidate",
     }
 )
 

@@ -86,6 +86,21 @@
             "No interpretation or summarization",
             "Candidate only — governance approval required before promotion"
           ]
+        },
+        {
+          "capability_id": "promote_safe_memory_candidate",
+          "action_type": "promote_safe_memory_candidate",
+          "requires_gui": false,
+          "requires_local_shell": false,
+          "required_authority": "local_shell",
+          "notes": [
+            "Promotes a governance-reviewed candidate to canonical memory",
+            "Requires explicit governance review approval",
+            "No autonomous promotion, no recursive promotion",
+            "No embeddings, no semantic interpretation",
+            "Audit artifact and rollback reference required",
+            "Bounded canonical write only"
+          ]
         }
       ],
       "notes": [

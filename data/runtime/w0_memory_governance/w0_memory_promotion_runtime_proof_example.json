@@ -1,0 +1,29 @@
+{
+  "proof_id": "PROOF-05b93874",
+  "worker_id": "local_wsl_worker",
+  "adapter_id": "windows_interactive_desktop_relay",
+  "action_type": "promote_safe_memory_candidate",
+  "proof_status": "completed",
+  "adapter_status": "completed",
+  "request_id": "REQ-W0-PROMOTE-b1afc88f",
+  "trace_id": "W0-promote-ec5faef69339",
+  "timestamp": "2026-05-08T18:51:30.069275+00:00",
+  "evidence": {
+    "governance_review_completed": true,
+    "canonical_memory_written": true,
+    "audit_artifact_created": true,
+    "rollback_reference_created": true,
+    "deterministic_promotion": true,
+    "autonomous_promotion": false,
+    "recursive_promotion": false,
+    "embeddings_generated": false,
+    "interpretation_performed": false
+  },
+  "notes": [
+    "Governed memory promotion completed",
+    "Explicit founder approval obtained",
+    "Canonical memory written with rollback reference",
+    "No autonomous or recursive promotion",
+    "No embeddings, no interpretation"
+  ]
+}

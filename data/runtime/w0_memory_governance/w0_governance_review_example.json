@@ -1,0 +1,22 @@
+{
+  "review_id": "GOV-REVIEW-93f31499",
+  "candidate_id": "CAND-89337cac",
+  "review_status": "approved",
+  "reviewer": "founder",
+  "decision_reason": "Safe test document \u2014 bounded extraction, known content, proof validation only",
+  "allowed_actions": [
+    "promote_to_canonical_memory",
+    "create_audit_artifact",
+    "create_rollback_reference"
+  ],
+  "blocked_actions": [
+    "autonomous_promotion",
+    "recursive_promotion",
+    "generate_embeddings",
+    "semantic_interpretation",
+    "self_modifying_rules"
+  ],
+  "promotion_allowed": true,
+  "rollback_required": true,
+  "timestamp": "2026-05-08T18:51:30.069135+00:00"
+}

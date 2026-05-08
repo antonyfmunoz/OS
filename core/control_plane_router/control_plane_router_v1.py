@@ -83,6 +83,13 @@ ACTION_CAPABILITY_MAP: dict[str, CapabilityRequirement] = {
         requires_local_shell=False,
         authority_required="local_shell",
     ),
+    "promote_safe_memory_candidate": CapabilityRequirement(
+        action_type="promote_safe_memory_candidate",
+        capability_type=CapabilityType.MEMORY_PROMOTION,
+        requires_gui=False,
+        requires_local_shell=False,
+        authority_required="local_shell",
+    ),
 }
 
 

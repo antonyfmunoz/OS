@@ -47,6 +47,7 @@ from core.environment_bridge.windows_desktop_request_builder import (
     build_w0_doc_extract_safe_test_doc_request,
     build_w0_doc_ingestion_candidate_request,
     build_w0_drive_safe_test_doc_request,
+    build_w0_promote_safe_memory_candidate_request,
 )
 from core.runtime.adapter_registry_contracts import AdapterRegistry
 from core.runtime.worker_runtime_contracts import ProofStatus
@@ -73,7 +74,15 @@ def _log_error(msg: str) -> None:
 
 DEFAULT_CONFIG_PATH = "/opt/OS/config/discord_interface_adapter_v1.json"
 
-SUPPORTED_COMMANDS = {"!ping", "!chrome", "!doc", "!extract", "!ingest-candidate", "!status"}
+SUPPORTED_COMMANDS = {
+    "!ping",
+    "!chrome",
+    "!doc",
+    "!extract",
+    "!ingest-candidate",
+    "!promote-memory",
+    "!status",
+}
 
 COMMAND_ACTION_MAP: dict[str, str] = {
     "!ping": "ping",
@@ -81,6 +90,7 @@ COMMAND_ACTION_MAP: dict[str, str] = {
     "!doc": "drive_open_safe_test_doc",
     "!extract": "doc_extract_safe_test_doc",
     "!ingest-candidate": "doc_ingestion_candidate_safe_test_doc",
+    "!promote-memory": "promote_safe_memory_candidate",
 }
 
 
@@ -99,6 +109,8 @@ def build_work_packet_for_router(
     safe_doc_url: str = "",
     safe_doc_title: str = "",
     extraction_reference_id: str = "",
+    candidate_id: str = "",
+    governance_review_id: str = "",
 ) -> WorkPacket | None:
     """Build a WorkPacket from a Discord command for the router."""
     action_type = COMMAND_ACTION_MAP.get(command)
@@ -125,6 +137,14 @@ def build_work_packet_for_router(
             safe_doc_url=safe_doc_url,
             safe_doc_title=safe_doc_title or "EOS W0 Test Document",
             extraction_reference_id=extraction_reference_id,
+        )
+        payload = req.to_dict()
+    elif command == "!promote-memory":
+        req = build_w0_promote_safe_memory_candidate_request(
+            candidate_id=candidate_id,
+            governance_review_id=governance_review_id,
+            safe_doc_url=safe_doc_url,
+            safe_doc_title=safe_doc_title or "EOS W0 Test Document",
         )
         payload = req.to_dict()
     else:

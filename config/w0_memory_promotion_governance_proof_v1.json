@@ -1,0 +1,37 @@
+{
+  "_description": "W0 memory promotion governance proof configuration. Governs the transition from ingestion candidate to canonical memory. Phase 96.8U.",
+  "_phase": "96.8U",
+  "_date": "2026-05-08",
+  "safe_test_doc_url": "https://docs.google.com/document/d/1_test_doc_placeholder/edit",
+  "safe_test_doc_title": "EOS W0 Test Document",
+  "safe_test_doc_id": "1_test_doc_placeholder",
+  "timeout_seconds": 90,
+  "promotion_rules": {
+    "governance_review_required": true,
+    "explicit_approval_required": true,
+    "approver": "founder",
+    "approval_method": "explicit_command",
+    "audit_artifact_required": true,
+    "rollback_reference_required": true,
+    "deterministic_promotion": true
+  },
+  "forbidden_actions": [
+    "autonomous_promotion",
+    "recursive_promotion",
+    "self_modifying_rules",
+    "generate_embeddings",
+    "semantic_interpretation",
+    "unbounded_world_model_mutation",
+    "drive_wide_promotion",
+    "arbitrary_candidate_promotion",
+    "take_screenshot",
+    "capture_ocr",
+    "mutate_drive",
+    "mutate_docs",
+    "extract_cookies",
+    "extract_tokens"
+  ],
+  "allowed_action_types": ["promote_safe_memory_candidate"],
+  "canonical_memory_target": "w0_safe_test_doc_knowledge",
+  "version": "v1"
+}

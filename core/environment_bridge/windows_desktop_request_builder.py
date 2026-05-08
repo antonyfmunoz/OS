@@ -204,6 +204,53 @@ def build_w0_doc_ingestion_candidate_request(
     )
 
 
+def build_w0_promote_safe_memory_candidate_request(
+    candidate_id: str = "",
+    governance_review_id: str = "",
+    safe_doc_url: str = "",
+    safe_doc_title: str = "EOS W0 Test Document",
+    trace_id: str = "",
+) -> WindowsDesktopActionRequest:
+    """Build a governed memory promotion request for a safe candidate."""
+    if not safe_doc_url:
+        safe_doc_url = GOOGLE_DRIVE_URL
+
+    if not trace_id:
+        trace_id = f"W0-promote-{uuid.uuid4().hex[:12]}"
+
+    return WindowsDesktopActionRequest(
+        request_id=f"REQ-W0-PROMOTE-{uuid.uuid4().hex[:8]}",
+        trace_id=trace_id,
+        work_order_id="WO-LOCAL-PILOT-GDRIVE-DOC-MEMORY-PROMOTION-001",
+        action_type="promote_safe_memory_candidate",
+        environment_id="local_windows_desktop",
+        execution_surface_id="windows_interactive_desktop_adapter",
+        application_id="google_chrome_windows",
+        executable_path=CHROME_EXECUTABLE_PATH_WINDOWS,
+        launch_method="direct_executable",
+        url=safe_doc_url,
+        blocked_launch_methods=sorted(BLOCKED_LAUNCH_METHODS),
+        proof_required="founder_visual_confirmation",
+        no_secret_capture=True,
+        no_mutation=False,
+        timestamp=datetime.now(timezone.utc).isoformat(),
+        notes=[
+            "Governed memory promotion from reviewed candidate",
+            "Requires explicit governance review approval",
+            "No autonomous promotion",
+            "No recursive promotion",
+            "No embeddings generation",
+            "No semantic interpretation",
+            "Bounded canonical write only",
+            "Audit artifact required",
+            "Rollback reference required",
+            f"Source document: {safe_doc_title}",
+            f"Candidate: {candidate_id or 'pending'}",
+            f"Governance review: {governance_review_id or 'pending'}",
+        ],
+    )
+
+
 def request_to_json(request: WindowsDesktopActionRequest) -> dict[str, Any]:
     """Convert request to JSON-serializable dict."""
     return request.to_dict()

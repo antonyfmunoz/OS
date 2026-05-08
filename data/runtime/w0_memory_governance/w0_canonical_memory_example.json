@@ -1,0 +1,16 @@
+{
+  "canonical_memory_id": "CMEM-14110dcf",
+  "source_candidate_id": "CAND-89337cac",
+  "source_document": "EOS W0 Test Document",
+  "memory_type": "document_knowledge",
+  "memory_scope": "safe_test_doc",
+  "normalized_content": "This is the EOS W0 Test Document. It exists solely for extraction proof validation. No sensitive content. No private data. This document is used to verify that the UMH substrate can perform bounded, policy-restricted document extraction through the canonical routed path.",
+  "content_hash": "4053488223f38bfb95c7936e6930194a1ffa5b1c7ebeb9f614797e6ce8dfc577",
+  "promotion_reason": "Safe test document \u2014 bounded extraction, known content, proof validation only",
+  "governance_review_id": "GOV-REVIEW-93f31499",
+  "approved_by": "founder",
+  "promotion_timestamp": "2026-05-08T18:51:30.069205+00:00",
+  "rollback_reference": "ROLLBACK-1b3150e4",
+  "canonical_version": 1,
+  "promotion_status": "promoted"
+}
