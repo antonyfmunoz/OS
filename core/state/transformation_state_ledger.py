@@ -36,6 +36,10 @@ class TransformationStage(str, Enum):
     CANONICAL_WORLD_MODEL = "canonical_world_model"
     EXECUTION_PLANNING_CANDIDATE = "execution_planning_candidate"
     WORLD_MODEL_MUTATION = "world_model_mutation"
+    AUTHORITY_APPROVED = "authority_approved"
+    EXECUTION_GATE_VALIDATED = "execution_gate_validated"
+    EXECUTION_GATE_DENIED = "execution_gate_denied"
+    RUNTIME_EXECUTION_READY = "runtime_execution_ready"
 
 
 GOVERNANCE_REQUIRED_STAGES = frozenset(
@@ -95,9 +99,17 @@ VALID_TRANSITIONS: dict[TransformationStage, frozenset[TransformationStage]] = {
         }
     ),
     TransformationStage.EXECUTION_PLANNING_CANDIDATE: frozenset(
-        {TransformationStage.GOVERNANCE_REVIEW}
+        {TransformationStage.GOVERNANCE_REVIEW, TransformationStage.AUTHORITY_APPROVED}
     ),
     TransformationStage.WORLD_MODEL_MUTATION: frozenset(),
+    TransformationStage.AUTHORITY_APPROVED: frozenset(
+        {TransformationStage.EXECUTION_GATE_VALIDATED, TransformationStage.EXECUTION_GATE_DENIED}
+    ),
+    TransformationStage.EXECUTION_GATE_VALIDATED: frozenset(
+        {TransformationStage.RUNTIME_EXECUTION_READY}
+    ),
+    TransformationStage.EXECUTION_GATE_DENIED: frozenset(),
+    TransformationStage.RUNTIME_EXECUTION_READY: frozenset(),
 }
 
 

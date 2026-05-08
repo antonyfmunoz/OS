@@ -1,0 +1,13 @@
+{
+  "_description": "Gate proof: GUI execution packet passes with supervised authority.",
+  "_phase": "96.8AD",
+  "result_id": "GATE-gui-001",
+  "packet_id": "WP-gui-001",
+  "verdict": "pass",
+  "denial_reasons": [],
+  "authority_class": "supervised_execute",
+  "action_type": "browser_execution",
+  "target_environment": "local_windows_desktop",
+  "target_runtime": "local-worker-01",
+  "timestamp": "2026-05-08T00:00:00Z"
+}
