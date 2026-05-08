@@ -1,0 +1,64 @@
+{
+  "state_id": "STATE-UNCERTAINTY-EXAMPLE-001",
+  "trace_id": "TRACE-INTERP-EXAMPLE-001",
+  "parent_state_id": "STATE-INTERP-EXAMPLE-001",
+  "stage": "uncertainty_analysis",
+  "confidence_envelope": {
+    "overall_confidence": 0.8719,
+    "observation_confidence": 0.8875,
+    "pattern_confidence": 0.8875,
+    "decomposition_confidence": 0.8875,
+    "hypothesis_confidence": 0.825,
+    "uncertainty_score": 0.1281,
+    "completeness_ratio": 0.4,
+    "assumptions_count": 2,
+    "unknowns_count": 3
+  },
+  "hypotheses": [
+    {
+      "hypothesis_id": "HYP-682e63db",
+      "statement": "This document was created primarily for system validation purposes",
+      "confidence": 0.8,
+      "supporting_observations": [
+        "OBS-d6a73f9e"
+      ],
+      "unsupported_assumptions": [
+        "inferred from keyword patterns, not explicit declaration"
+      ],
+      "contradicting_evidence": [],
+      "requires_governance_review": true,
+      "promotion_status": "hypothesis_only"
+    },
+    {
+      "hypothesis_id": "HYP-b3b01678",
+      "statement": "Document content is intentionally non-sensitive for safe testing",
+      "confidence": 0.85,
+      "supporting_observations": [
+        "OBS-ce940e3c"
+      ],
+      "unsupported_assumptions": [
+        "author's intent inferred from explicit safety declarations"
+      ],
+      "contradicting_evidence": [],
+      "requires_governance_review": true,
+      "promotion_status": "hypothesis_only"
+    }
+  ],
+  "unsupported_assumptions": [
+    "document content completeness assumed from extraction preview",
+    "keyword-based pattern detection may miss semantic nuance"
+  ],
+  "missing_information": [
+    "document creation date and author not available from extraction",
+    "document revision history not available"
+  ],
+  "explicit_unknowns": [
+    "whether document content has been modified since extraction",
+    "whether additional related documents exist",
+    "full semantic intent of document beyond keyword signals"
+  ],
+  "boundary_validation": [],
+  "output_hash": "0796a4d360b22381f945e43ec561e723c0c54afb41ba132a24e0ccc502c2232f",
+  "timestamp": "2026-05-08T19:40:17.716677+00:00",
+  "notes": "Uncertainty analysis example. All hypotheses flagged requires_governance_review=True."
+}

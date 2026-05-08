@@ -1,0 +1,47 @@
+{
+  "state_id": "STATE-INTERP-EXAMPLE-001",
+  "trace_id": "TRACE-INTERP-EXAMPLE-001",
+  "parent_state_id": "STATE-NORM-EXAMPLE-001",
+  "stage": "interpretation",
+  "input_artifact_ref": {
+    "artifact_id": "NORM-OUT-001",
+    "artifact_type": "normalized_content"
+  },
+  "output_artifact_ref": {
+    "artifact_id": "INTERP-e448bc3a",
+    "artifact_type": "interpretation_result"
+  },
+  "transformer_name": "InterpretationEngineV1",
+  "transformer_version": "v1",
+  "runtime_id": "runtime-example",
+  "adapter_id": "local_worker",
+  "policy_envelope": {
+    "no_mutation": true,
+    "no_canonical_writes": true,
+    "no_world_model_mutation": true,
+    "governance_required_for_promotion": true
+  },
+  "confidence": 0.8719,
+  "input_hash": "aaed5df53f723a3b8f6831bdf7464f19546898c12eacfafccfc1961dd34feebb",
+  "output_hash": "0796a4d360b22381f945e43ec561e723c0c54afb41ba132a24e0ccc502c2232f",
+  "timestamp": "2026-05-08T19:40:17.715082+00:00",
+  "allowed_next_actions": [
+    "create_primitive_decomposition",
+    "persist_interpretation_state"
+  ],
+  "blocked_next_actions": [
+    "recursive_self_expand",
+    "bypass_governance",
+    "mutate_canonical_memory",
+    "promote_to_canonical",
+    "generate_embeddings",
+    "silent_knowledge_creation",
+    "self_promote",
+    "autonomous_promotion",
+    "trigger_execution",
+    "update_world_model"
+  ],
+  "rollback_reference": "",
+  "governance_reference": "",
+  "notes": "Interpretation state example. Interpretation may generate hypotheses, never truth."
+}

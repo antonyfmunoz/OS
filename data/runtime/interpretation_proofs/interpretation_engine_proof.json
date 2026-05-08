@@ -1,0 +1,142 @@
+{
+  "proof_type": "W0_INTERPRETATION_ENGINE_PROOF",
+  "phase": "96.8W",
+  "passed": 20,
+  "failed": 0,
+  "total": 20,
+  "steps": [
+    {
+      "step": 1,
+      "name": "all_5_stages_complete",
+      "status": "PASS",
+      "detail": "5 stages"
+    },
+    {
+      "step": 2,
+      "name": "same_input_same_output_hash",
+      "status": "PASS",
+      "detail": "hash=6dd2dbe18ff8bb5c..."
+    },
+    {
+      "step": 3,
+      "name": "result_ids_match",
+      "status": "PASS",
+      "detail": "id=INTERP-e448bc3a"
+    },
+    {
+      "step": 4,
+      "name": "observations_nonempty",
+      "status": "PASS",
+      "detail": "4 observations"
+    },
+    {
+      "step": 5,
+      "name": "observation_ids_deterministic",
+      "status": "PASS",
+      "detail": "4 IDs match"
+    },
+    {
+      "step": 6,
+      "name": "relationships_nonempty",
+      "status": "PASS",
+      "detail": "2 relationships"
+    },
+    {
+      "step": 7,
+      "name": "decomposition_present",
+      "status": "PASS",
+      "detail": "id=DECOMP-c9e2e449"
+    },
+    {
+      "step": 8,
+      "name": "all_10_primitive_types_available",
+      "status": "PASS",
+      "detail": "ontology has 10 types, coverage has 4 types"
+    },
+    {
+      "step": 9,
+      "name": "hypotheses_require_governance",
+      "status": "PASS",
+      "detail": "2 hypotheses, all governance-flagged"
+    },
+    {
+      "step": 10,
+      "name": "hypothesis_ids_deterministic",
+      "status": "PASS",
+      "detail": "2 IDs match"
+    },
+    {
+      "step": 11,
+      "name": "confidence_envelope_present",
+      "status": "PASS",
+      "detail": "overall=0.8719"
+    },
+    {
+      "step": 12,
+      "name": "uncertainty_explicitly_tracked",
+      "status": "PASS",
+      "detail": "assumptions=2, unknowns=3"
+    },
+    {
+      "step": 13,
+      "name": "boundary_valid",
+      "status": "PASS",
+      "detail": "errors=[]"
+    },
+    {
+      "step": 14,
+      "name": "all_forbidden_actions_blocked",
+      "status": "PASS",
+      "detail": "10 blocked, 10 required"
+    },
+    {
+      "step": 15,
+      "name": "mutation_capabilities_false",
+      "status": "PASS",
+      "detail": "all 6 forbidden capabilities are False"
+    },
+    {
+      "step": 16,
+      "name": "transition_graph_enforced",
+      "status": "PASS",
+      "detail": "interpretation \u2192 primitive_decomposition: True, interpretation \u2192 canonical_memory: False"
+    },
+    {
+      "step": 17,
+      "name": "hashes_present",
+      "status": "PASS",
+      "detail": "input_hash_len=64, output_hash_len=64"
+    },
+    {
+      "step": 18,
+      "name": "result_validates",
+      "status": "PASS",
+      "detail": "errors=[]"
+    },
+    {
+      "step": 19,
+      "name": "example_artifacts_exist",
+      "status": "PASS",
+      "detail": "3/3"
+    },
+    {
+      "step": 20,
+      "name": "no_secrets_in_artifacts",
+      "status": "PASS",
+      "detail": "checked 5 keywords \u00d7 3 files"
+    }
+  ],
+  "deterministic_output_hash": "6dd2dbe18ff8bb5c714b632d514dfc792312c045f0bff113e0b8706c440030dc",
+  "stages_completed": [
+    "observation",
+    "pattern_detection",
+    "primitive_mapping",
+    "hypothesis_generation",
+    "uncertainty_analysis"
+  ],
+  "observations_count": 4,
+  "relationships_count": 2,
+  "hypotheses_count": 2,
+  "forbidden_actions_count": 10,
+  "primitive_types_in_ontology": 10
+}
