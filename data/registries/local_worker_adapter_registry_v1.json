@@ -58,6 +58,20 @@
             "Interaction proof only",
             "Founder visual confirmation required"
           ]
+        },
+        {
+          "capability_id": "doc_extract_safe_test_doc",
+          "action_type": "doc_extract_safe_test_doc",
+          "requires_gui": true,
+          "requires_local_shell": false,
+          "required_authority": "local_gui",
+          "notes": [
+            "Bounded extraction from one configured safe test document",
+            "No Drive-wide search, no arbitrary URLs",
+            "No screenshots, no mutation, no memory promotion",
+            "Extraction result bounded by configured preview length",
+            "Founder visual confirmation required"
+          ]
         }
       ],
       "notes": [

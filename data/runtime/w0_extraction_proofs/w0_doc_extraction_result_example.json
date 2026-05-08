@@ -1,0 +1,12 @@
+{
+  "request_id": "REQ-W0-EXTRACT-342f41b5",
+  "action_type": "doc_extract_safe_test_doc",
+  "target_doc_id_or_title": "EOS W0 Test Document",
+  "extraction_method": "google_docs_api_export_text",
+  "extracted_text_preview": "This is the EOS W0 Test Document. It exists solely for extraction proof validation. No sensitive content. No private data. This document is used to verify that the UMH substrate can perform bounded, policy-restricted document extraction through the canonical routed path.",
+  "extracted_character_count": 271,
+  "extraction_confidence": "high",
+  "proof_status": "completed",
+  "forbidden_actions_confirmed": true,
+  "timestamp": "2026-05-08T18:25:53.873101+00:00"
+}

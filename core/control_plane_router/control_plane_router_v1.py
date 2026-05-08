@@ -69,6 +69,13 @@ ACTION_CAPABILITY_MAP: dict[str, CapabilityRequirement] = {
         requires_local_shell=False,
         authority_required="local_gui",
     ),
+    "doc_extract_safe_test_doc": CapabilityRequirement(
+        action_type="doc_extract_safe_test_doc",
+        capability_type=CapabilityType.DOCUMENT_EXTRACTION,
+        requires_gui=True,
+        requires_local_shell=False,
+        authority_required="local_gui",
+    ),
 }
 
 

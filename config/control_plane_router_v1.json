@@ -5,7 +5,7 @@
   "default_runtime_target": "local_worker_runtime_daemon",
   "default_timeout_seconds": 60,
   "proof_required": true,
-  "allowed_action_types": ["ping", "open_application_url", "drive_open_safe_test_doc"],
+  "allowed_action_types": ["ping", "open_application_url", "drive_open_safe_test_doc", "doc_extract_safe_test_doc"],
   "enabled_adapters": ["windows_interactive_desktop_relay"],
   "runtime_targets": {
     "local_worker_runtime_daemon": {

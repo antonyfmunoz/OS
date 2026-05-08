@@ -44,6 +44,7 @@ from core.control_plane_router.router_contracts import (
 from core.environment_bridge.windows_desktop_request_builder import (
     build_ping_request,
     build_w0_chrome_open_request,
+    build_w0_doc_extract_safe_test_doc_request,
     build_w0_drive_safe_test_doc_request,
 )
 from core.runtime.adapter_registry_contracts import AdapterRegistry
@@ -71,12 +72,13 @@ def _log_error(msg: str) -> None:
 
 DEFAULT_CONFIG_PATH = "/opt/OS/config/discord_interface_adapter_v1.json"
 
-SUPPORTED_COMMANDS = {"!ping", "!chrome", "!doc", "!status"}
+SUPPORTED_COMMANDS = {"!ping", "!chrome", "!doc", "!extract", "!status"}
 
 COMMAND_ACTION_MAP: dict[str, str] = {
     "!ping": "ping",
     "!chrome": "open_application_url",
     "!doc": "drive_open_safe_test_doc",
+    "!extract": "doc_extract_safe_test_doc",
 }
 
 
@@ -90,7 +92,11 @@ def load_config(config_path: str | Path = DEFAULT_CONFIG_PATH) -> dict[str, Any]
 # ---------------------------------------------------------------------------
 
 
-def build_work_packet_for_router(command: str, safe_doc_url: str = "") -> WorkPacket | None:
+def build_work_packet_for_router(
+    command: str,
+    safe_doc_url: str = "",
+    safe_doc_title: str = "",
+) -> WorkPacket | None:
     """Build a WorkPacket from a Discord command for the router."""
     action_type = COMMAND_ACTION_MAP.get(command)
     if action_type is None:
@@ -104,6 +110,12 @@ def build_work_packet_for_router(command: str, safe_doc_url: str = "") -> WorkPa
         payload = req.to_dict()
     elif command == "!doc":
         req = build_w0_drive_safe_test_doc_request(safe_doc_url=safe_doc_url)
+        payload = req.to_dict()
+    elif command == "!extract":
+        req = build_w0_doc_extract_safe_test_doc_request(
+            safe_doc_url=safe_doc_url,
+            safe_doc_title=safe_doc_title or "EOS W0 Test Document",
+        )
         payload = req.to_dict()
     else:
         return None

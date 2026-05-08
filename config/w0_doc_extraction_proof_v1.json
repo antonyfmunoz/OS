@@ -1,0 +1,35 @@
+{
+  "_description": "W0 safe document extraction proof configuration. Constrains extraction to ONE configured safe test document. Phase 96.8S.",
+  "_phase": "96.8S",
+  "_date": "2026-05-08",
+  "safe_test_doc_url": "https://docs.google.com/document/d/1_test_doc_placeholder/edit",
+  "safe_test_doc_title": "EOS W0 Test Document",
+  "safe_test_doc_id": "1_test_doc_placeholder",
+  "extraction_preview_max_chars": 500,
+  "extraction_method": "google_docs_api_export_text",
+  "timeout_seconds": 90,
+  "proof_requirements": [
+    "extraction_result_schema_valid",
+    "preview_length_bounded",
+    "forbidden_actions_confirmed",
+    "founder_visual_confirmation"
+  ],
+  "forbidden_actions": [
+    "drive_wide_search",
+    "arbitrary_url_open",
+    "take_screenshot",
+    "capture_ocr",
+    "mutate_drive",
+    "mutate_docs",
+    "download_file",
+    "upload_file",
+    "extract_cookies",
+    "extract_tokens",
+    "promote_memory",
+    "ingest_to_memory",
+    "interpret_content",
+    "summarize_content"
+  ],
+  "allowed_action_types": ["doc_extract_safe_test_doc"],
+  "version": "v1"
+}

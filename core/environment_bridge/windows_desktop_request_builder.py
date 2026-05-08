@@ -117,6 +117,49 @@ def build_w0_drive_safe_test_doc_request(
     )
 
 
+def build_w0_doc_extract_safe_test_doc_request(
+    safe_doc_url: str = "",
+    safe_doc_title: str = "EOS W0 Test Document",
+    extraction_preview_max: int = 500,
+    trace_id: str = "",
+) -> WindowsDesktopActionRequest:
+    """Build a bounded extraction request for the safe test document."""
+    if not safe_doc_url:
+        safe_doc_url = GOOGLE_DRIVE_URL
+
+    if not trace_id:
+        trace_id = f"W0-extract-{uuid.uuid4().hex[:12]}"
+
+    return WindowsDesktopActionRequest(
+        request_id=f"REQ-W0-EXTRACT-{uuid.uuid4().hex[:8]}",
+        trace_id=trace_id,
+        work_order_id="WO-LOCAL-PILOT-GDRIVE-DOC-EXTRACTION-001",
+        action_type="doc_extract_safe_test_doc",
+        environment_id="local_windows_desktop",
+        execution_surface_id="windows_interactive_desktop_adapter",
+        application_id="google_chrome_windows",
+        executable_path=CHROME_EXECUTABLE_PATH_WINDOWS,
+        launch_method="direct_executable",
+        url=safe_doc_url,
+        blocked_launch_methods=sorted(BLOCKED_LAUNCH_METHODS),
+        proof_required="founder_visual_confirmation",
+        no_secret_capture=True,
+        no_mutation=True,
+        timestamp=datetime.now(timezone.utc).isoformat(),
+        notes=[
+            "Bounded extraction from one safe test document only",
+            "No Drive-wide search",
+            "No arbitrary URLs",
+            "No screenshots or OCR",
+            "No mutation",
+            "No memory promotion",
+            f"Preview bounded to {extraction_preview_max} characters",
+            f"Target document: {safe_doc_title}",
+            "Founder visual confirmation required",
+        ],
+    )
+
+
 def request_to_json(request: WindowsDesktopActionRequest) -> dict[str, Any]:
     """Convert request to JSON-serializable dict."""
     return request.to_dict()
