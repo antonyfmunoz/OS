@@ -1,0 +1,17 @@
+{
+  "_description": "Authority proof: financial execution structurally denied.",
+  "_phase": "96.8AC",
+  "proof_id": "AUTH-PROOF-financial-deny-001",
+  "decision_id": "AUTH-DEC-financial-deny-001",
+  "request_id": "AUTH-REQ-financial-001",
+  "authority_class": "deny",
+  "risk_class": "forbidden",
+  "approval_requirement": "blocked",
+  "workpacket_allowed": false,
+  "denial_reasons": ["structurally_denied_action: financial_execution"],
+  "environment_authority_met": false,
+  "capability_authority_met": false,
+  "action_type": "financial_execution",
+  "action_description": "Execute financial transaction",
+  "timestamp": "2026-05-08T00:00:00Z"
+}
