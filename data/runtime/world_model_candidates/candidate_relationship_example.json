@@ -1,0 +1,16 @@
+{
+  "relationship_id": "REL-b0a9a16d",
+  "from_entity_id": "ENT-0b0ab56e",
+  "to_entity_id": "ENT-ca354865",
+  "relationship_type": "enables",
+  "confidence": 0.8,
+  "evidence_observation_ids": [
+    "OBS-b4483217",
+    "OBS-c751b3ea"
+  ],
+  "references": [],
+  "is_causal": false,
+  "is_temporal": false,
+  "is_constraint": false,
+  "_example_note": "Candidate relationship \u2014 NOT canonical truth"
+}
