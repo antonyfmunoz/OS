@@ -76,6 +76,13 @@ ACTION_CAPABILITY_MAP: dict[str, CapabilityRequirement] = {
         requires_local_shell=False,
         authority_required="local_gui",
     ),
+    "doc_ingestion_candidate_safe_test_doc": CapabilityRequirement(
+        action_type="doc_ingestion_candidate_safe_test_doc",
+        capability_type=CapabilityType.INGESTION_CANDIDACY,
+        requires_gui=False,
+        requires_local_shell=False,
+        authority_required="local_shell",
+    ),
 }
 
 

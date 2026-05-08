@@ -35,10 +35,17 @@ class CapabilityType(str, Enum):
     SHELL_EXECUTION = "shell_execution"
     WINDOWS_GUI_EXECUTION = "windows_gui_execution"
     DOCUMENT_EXTRACTION = "document_extraction"
+    INGESTION_CANDIDACY = "ingestion_candidacy"
 
 
 ALLOWED_ACTION_TYPES = frozenset(
-    {"ping", "open_application_url", "drive_open_safe_test_doc", "doc_extract_safe_test_doc"}
+    {
+        "ping",
+        "open_application_url",
+        "drive_open_safe_test_doc",
+        "doc_extract_safe_test_doc",
+        "doc_ingestion_candidate_safe_test_doc",
+    }
 )
 
 

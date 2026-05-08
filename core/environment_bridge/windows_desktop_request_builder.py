@@ -160,6 +160,50 @@ def build_w0_doc_extract_safe_test_doc_request(
     )
 
 
+def build_w0_doc_ingestion_candidate_request(
+    safe_doc_url: str = "",
+    safe_doc_title: str = "EOS W0 Test Document",
+    extraction_reference_id: str = "",
+    trace_id: str = "",
+) -> WindowsDesktopActionRequest:
+    """Build an ingestion candidate request from a safe test doc extraction."""
+    if not safe_doc_url:
+        safe_doc_url = GOOGLE_DRIVE_URL
+
+    if not trace_id:
+        trace_id = f"W0-ingest-cand-{uuid.uuid4().hex[:12]}"
+
+    return WindowsDesktopActionRequest(
+        request_id=f"REQ-W0-INGEST-CAND-{uuid.uuid4().hex[:8]}",
+        trace_id=trace_id,
+        work_order_id="WO-LOCAL-PILOT-GDRIVE-DOC-INGESTION-CANDIDATE-001",
+        action_type="doc_ingestion_candidate_safe_test_doc",
+        environment_id="local_windows_desktop",
+        execution_surface_id="windows_interactive_desktop_adapter",
+        application_id="google_chrome_windows",
+        executable_path=CHROME_EXECUTABLE_PATH_WINDOWS,
+        launch_method="direct_executable",
+        url=safe_doc_url,
+        blocked_launch_methods=sorted(BLOCKED_LAUNCH_METHODS),
+        proof_required="founder_visual_confirmation",
+        no_secret_capture=True,
+        no_mutation=True,
+        timestamp=datetime.now(timezone.utc).isoformat(),
+        notes=[
+            "Ingestion candidate creation from bounded extraction only",
+            "No memory promotion",
+            "No canonical writes",
+            "No world-model updates",
+            "No embeddings",
+            "No interpretation or summarization",
+            "Candidate only — governance approval required before promotion",
+            f"Source document: {safe_doc_title}",
+            f"Extraction reference: {extraction_reference_id or 'pending'}",
+            "Founder visual confirmation required",
+        ],
+    )
+
+
 def request_to_json(request: WindowsDesktopActionRequest) -> dict[str, Any]:
     """Convert request to JSON-serializable dict."""
     return request.to_dict()

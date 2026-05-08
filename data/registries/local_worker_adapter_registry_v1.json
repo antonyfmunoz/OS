@@ -72,6 +72,20 @@
             "Extraction result bounded by configured preview length",
             "Founder visual confirmation required"
           ]
+        },
+        {
+          "capability_id": "doc_ingestion_candidate_safe_test_doc",
+          "action_type": "doc_ingestion_candidate_safe_test_doc",
+          "requires_gui": false,
+          "requires_local_shell": false,
+          "required_authority": "local_shell",
+          "notes": [
+            "Creates ingestion candidate from bounded extraction result",
+            "No memory promotion, no canonical writes",
+            "No world-model updates, no embeddings",
+            "No interpretation or summarization",
+            "Candidate only — governance approval required before promotion"
+          ]
         }
       ],
       "notes": [

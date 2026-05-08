@@ -1,0 +1,23 @@
+{
+  "router_status": "completed",
+  "router_decision": {
+    "packet_id": "REQ-W0-INGEST-CAND-fe6497ba",
+    "action_type": "doc_ingestion_candidate_safe_test_doc",
+    "runtime_target": "local_worker_runtime_daemon",
+    "adapter_selected": "windows_interactive_desktop_relay",
+    "capability_matched": "ingestion_candidacy",
+    "authority_satisfied": true,
+    "timestamp": "2026-05-08T18:39:35.280533+00:00"
+  },
+  "runtime_target": "local_worker_runtime_daemon",
+  "adapter_selected": "windows_interactive_desktop_relay",
+  "runtime_proof_reference": {
+    "proof_id": "PROOF-4d056a38",
+    "proof_status": "completed",
+    "adapter_status": "completed",
+    "request_id": "REQ-W0-INGEST-CAND-fe6497ba",
+    "trace_id": "W0-ingest-cand-475a8d018482"
+  },
+  "execution_trace_id": "REQ-W0-INGEST-CAND-fe6497ba",
+  "normalized_status": "completed"
+}

@@ -1,0 +1,28 @@
+{
+  "proof_id": "PROOF-4d056a38",
+  "worker_id": "local_wsl_worker",
+  "adapter_id": "windows_interactive_desktop_relay",
+  "action_type": "doc_ingestion_candidate_safe_test_doc",
+  "proof_status": "completed",
+  "adapter_status": "completed",
+  "request_id": "REQ-W0-INGEST-CAND-fe6497ba",
+  "trace_id": "W0-ingest-cand-475a8d018482",
+  "timestamp": "2026-05-08T18:39:35.278931+00:00",
+  "evidence": {
+    "ingestion_candidate_created": true,
+    "memory_candidate_created": true,
+    "content_hash_generated": true,
+    "promotion_status": "candidate_only",
+    "governance_boundary_enforced": true,
+    "canonical_memory_written": false,
+    "world_model_updated": false,
+    "embeddings_generated": false
+  },
+  "notes": [
+    "Ingestion candidate created from bounded extraction",
+    "Memory candidate created \u2014 awaiting governance approval",
+    "No canonical writes, no world-model updates",
+    "No memory promotion, no embeddings",
+    "Governance boundary enforced"
+  ]
+}

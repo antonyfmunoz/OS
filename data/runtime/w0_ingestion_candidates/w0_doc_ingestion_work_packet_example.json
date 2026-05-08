@@ -1,0 +1,43 @@
+{
+  "packet_id": "REQ-W0-INGEST-CAND-fe6497ba",
+  "action_type": "doc_ingestion_candidate_safe_test_doc",
+  "payload": {
+    "request_id": "REQ-W0-INGEST-CAND-fe6497ba",
+    "trace_id": "W0-ingest-cand-475a8d018482",
+    "work_order_id": "WO-LOCAL-PILOT-GDRIVE-DOC-INGESTION-CANDIDATE-001",
+    "action_type": "doc_ingestion_candidate_safe_test_doc",
+    "environment_id": "local_windows_desktop",
+    "execution_surface_id": "windows_interactive_desktop_adapter",
+    "application_id": "google_chrome_windows",
+    "executable_path": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "launch_method": "direct_executable",
+    "url": "https://docs.google.com/document/d/1_test_doc_placeholder/edit",
+    "blocked_launch_methods": [
+      "default_browser",
+      "explorer_url",
+      "generic_start_url",
+      "shell_url_open",
+      "unknown_browser"
+    ],
+    "proof_required": "founder_visual_confirmation",
+    "no_secret_capture": true,
+    "no_mutation": true,
+    "timestamp": "2026-05-08T18:39:35.278256+00:00",
+    "notes": [
+      "Ingestion candidate creation from bounded extraction only",
+      "No memory promotion",
+      "No canonical writes",
+      "No world-model updates",
+      "No embeddings",
+      "No interpretation or summarization",
+      "Candidate only \u2014 governance approval required before promotion",
+      "Source document: EOS W0 Test Document",
+      "Extraction reference: REQ-W0-EXTRACT-d908cb46",
+      "Founder visual confirmation required"
+    ]
+  },
+  "source_interface": "discord_interface_adapter_v1",
+  "trace_id": "W0-ingest-cand-475a8d018482",
+  "timeout_seconds": 60,
+  "timestamp": "2026-05-08T18:39:35.278285+00:00"
+}

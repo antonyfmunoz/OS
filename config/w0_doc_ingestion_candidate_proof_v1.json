@@ -1,0 +1,43 @@
+{
+  "_description": "W0 safe document ingestion candidate proof configuration. Creates governed candidates from bounded extraction — does NOT promote to memory. Phase 96.8T.",
+  "_phase": "96.8T",
+  "_date": "2026-05-08",
+  "safe_test_doc_url": "https://docs.google.com/document/d/1_test_doc_placeholder/edit",
+  "safe_test_doc_title": "EOS W0 Test Document",
+  "safe_test_doc_id": "1_test_doc_placeholder",
+  "extraction_preview_max_chars": 500,
+  "extraction_method": "google_docs_api_export_text",
+  "timeout_seconds": 90,
+  "proof_requirements": [
+    "ingestion_candidate_schema_valid",
+    "memory_candidate_schema_valid",
+    "content_hash_generated",
+    "promotion_status_candidate_only",
+    "governance_boundary_exists",
+    "forbidden_actions_confirmed"
+  ],
+  "forbidden_actions": [
+    "promote_memory",
+    "canonical_write",
+    "world_model_update",
+    "generate_embeddings",
+    "interpret_content",
+    "summarize_content",
+    "drive_wide_ingestion",
+    "arbitrary_url_open",
+    "recursive_crawl",
+    "take_screenshot",
+    "capture_ocr",
+    "mutate_drive",
+    "mutate_docs",
+    "extract_cookies",
+    "extract_tokens"
+  ],
+  "allowed_action_types": ["doc_ingestion_candidate_safe_test_doc"],
+  "governance_gate": {
+    "required_before_promotion": true,
+    "approver": "founder",
+    "approval_method": "explicit_command"
+  },
+  "version": "v1"
+}
