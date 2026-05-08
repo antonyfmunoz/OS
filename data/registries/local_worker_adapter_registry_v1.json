@@ -45,6 +45,19 @@
             "Requires logged-in Windows desktop session",
             "Founder visual confirmation required"
           ]
+        },
+        {
+          "capability_id": "drive_open_safe_test_doc",
+          "action_type": "drive_open_safe_test_doc",
+          "requires_gui": true,
+          "requires_local_shell": false,
+          "required_authority": "local_gui",
+          "notes": [
+            "Opens a configured safe test document URL in Chrome",
+            "No content extraction, no mutation",
+            "Interaction proof only",
+            "Founder visual confirmation required"
+          ]
         }
       ],
       "notes": [

@@ -36,7 +36,7 @@ class CapabilityType(str, Enum):
     WINDOWS_GUI_EXECUTION = "windows_gui_execution"
 
 
-ALLOWED_ACTION_TYPES = frozenset({"ping", "open_application_url"})
+ALLOWED_ACTION_TYPES = frozenset({"ping", "open_application_url", "drive_open_safe_test_doc"})
 
 
 @dataclass

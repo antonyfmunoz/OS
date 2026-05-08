@@ -7,7 +7,7 @@
   "state_dir": "data/runtime/local_worker_runtime",
   "proof_dir": "data/runtime/runtime_proofs",
   "adapter_registry_path": "data/registries/local_worker_adapter_registry_v1.json",
-  "supported_capabilities": ["ping", "open_application_url"],
+  "supported_capabilities": ["ping", "open_application_url", "drive_open_safe_test_doc"],
   "enabled_adapters": ["windows_interactive_desktop_relay"],
   "dry_run": false,
   "version": "v1"

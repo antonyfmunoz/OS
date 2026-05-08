@@ -1,0 +1,29 @@
+{
+  "_description": "W0 Drive/Docs interaction proof configuration. Constrains the safe test document target. Phase 96.8R.",
+  "_phase": "96.8R",
+  "_date": "2026-05-08",
+  "safe_drive_url": "https://drive.google.com/drive/my-drive",
+  "safe_test_doc_url": "https://docs.google.com/document/d/1_test_doc_placeholder/edit",
+  "safe_test_doc_title": "EOS W0 Test Document",
+  "timeout_seconds": 60,
+  "proof_requirements": [
+    "chrome_process_detected",
+    "main_window_title_reported",
+    "founder_visual_confirmation"
+  ],
+  "forbidden_actions": [
+    "read_document_contents",
+    "copy_text",
+    "download_file",
+    "upload_file",
+    "take_screenshot",
+    "capture_ocr",
+    "mutate_drive",
+    "mutate_docs",
+    "extract_cookies",
+    "extract_tokens",
+    "promote_memory"
+  ],
+  "allowed_action_types": ["drive_open_safe_test_doc"],
+  "version": "v1"
+}

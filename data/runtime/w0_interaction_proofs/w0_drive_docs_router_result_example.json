@@ -1,0 +1,23 @@
+{
+  "router_status": "completed",
+  "router_decision": {
+    "packet_id": "REQ-W0-DOC-8dae2edf",
+    "action_type": "drive_open_safe_test_doc",
+    "runtime_target": "local_worker_runtime_daemon",
+    "adapter_selected": "windows_interactive_desktop_relay",
+    "capability_matched": "windows_gui_execution",
+    "authority_satisfied": true,
+    "timestamp": "2026-05-08T18:00:52.896807+00:00"
+  },
+  "runtime_target": "local_worker_runtime_daemon",
+  "adapter_selected": "windows_interactive_desktop_relay",
+  "runtime_proof_reference": {
+    "proof_id": "PROOF-de969fda",
+    "proof_status": "completed",
+    "adapter_status": "completed",
+    "request_id": "REQ-W0-DOC-8dae2edf",
+    "trace_id": "W0-doc-82ad8a4e5561"
+  },
+  "execution_trace_id": "REQ-W0-DOC-8dae2edf",
+  "normalized_status": "completed"
+}
