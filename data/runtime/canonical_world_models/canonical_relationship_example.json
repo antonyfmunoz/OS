@@ -1,0 +1,9 @@
+{
+  "relationship_id": "CREL-decebcc9",
+  "from_entity_id": "CENT-d9c2fa33",
+  "to_entity_id": "CENT-f66bacb5",
+  "relationship_type": "enables",
+  "confidence": 0.8,
+  "source_candidate_relationship_id": "REL-390ff41f",
+  "governance_receipt_id": "GRCPT-ffd5548a"
+}

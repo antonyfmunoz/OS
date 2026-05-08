@@ -1,0 +1,52 @@
+{
+  "truth_id": "TRUTH-5a94ca11",
+  "source_candidate_id": "WMC-397a23f2",
+  "source_candidate_hash": "dec4c76159b4edd43aa4f08ec4d91ccaad2c2f416f4d5c484ae4960a24bb98d0",
+  "canonical_hash": "402c20b2a6d3ec7d43cd549e44d8b7f2645f533790be1abd21096502bcf8eb48",
+  "originating_observation_ids": [
+    "OBS-ff26412e",
+    "OBS-378503bc",
+    "OBS-8d49a21b"
+  ],
+  "originating_interpretation_id": "INTERP-9aa1f97a",
+  "originating_trace_id": "TRACE-EXAMPLE-001",
+  "governance_receipt": {
+    "receipt_id": "GRCPT-ffd5548a",
+    "governance_reference": "GOV-EXAMPLE-001",
+    "approved_by": "founder",
+    "approval_timestamp": "2026-05-08T20:28:27.719995+00:00",
+    "candidate_hash": "dec4c76159b4edd43aa4f08ec4d91ccaad2c2f416f4d5c484ae4960a24bb98d0",
+    "decision": "approved",
+    "review_notes": ""
+  },
+  "lineage": {
+    "extraction_state_id": "STATE-EXT-EXAMPLE",
+    "normalization_state_id": "STATE-NORM-EXAMPLE",
+    "interpretation_state_id": "INTERP-9aa1f97a",
+    "candidate_state_id": "WMC-397a23f2",
+    "governance_state_id": "GOV-EXAMPLE-001",
+    "trace_id": "TRACE-EXAMPLE-001"
+  },
+  "confidence": 0.8083,
+  "uncertainty_score": 0.1917,
+  "rollback_reference": "ROLLBACK-4bf8f820",
+  "allowed_next_actions": [
+    "retrieve_canonical_truth",
+    "traverse_lineage",
+    "audit_governance",
+    "initiate_rollback_review"
+  ],
+  "blocked_next_actions": [
+    "auto_promote_new_truths",
+    "self_mutate",
+    "silent_ontology_mutation",
+    "recursive_rewrite",
+    "circular_truth_reference",
+    "trigger_execution",
+    "reinterpret_observations",
+    "self_reinforcing_promotion",
+    "ungrounded_entity_generation",
+    "bypass_governance"
+  ],
+  "timestamp": "2026-05-08T20:28:27.720039+00:00"
+}

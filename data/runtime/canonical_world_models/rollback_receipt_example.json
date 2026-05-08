@@ -1,0 +1,12 @@
+{
+  "receipt_id": "RBRECEIPT-a11e7bdc",
+  "canonical_model_id": "CWM-d552fa04",
+  "rolled_back_truth_ids": [
+    "TRUTH-5a94ca11"
+  ],
+  "prior_canonical_hash": "ae9d6b136082c2482902caf3701a3b8e8a62b3dee697b4fceb04775059f3c343",
+  "new_canonical_hash": "",
+  "rollback_reason": "example rollback for demonstration",
+  "governance_reference": "GOV-ROLLBACK-EXAMPLE",
+  "timestamp": "2026-05-08T20:28:27.721451+00:00"
+}

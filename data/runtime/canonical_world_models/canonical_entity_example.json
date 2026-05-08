@@ -1,0 +1,11 @@
+{
+  "entity_id": "CENT-739f225f",
+  "entity_type": "state",
+  "label": "document_exists",
+  "confidence": 1.0,
+  "source_candidate_entity_id": "ENT-ab0c5e1c",
+  "source_observation_ids": [
+    "OBS-ff26412e"
+  ],
+  "governance_receipt_id": "GRCPT-ffd5548a"
+}

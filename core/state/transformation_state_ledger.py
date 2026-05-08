@@ -33,12 +33,14 @@ class TransformationStage(str, Enum):
     GOVERNANCE_REVIEW = "governance_review"
     WORLD_MODEL_CANDIDATE = "world_model_candidate"
     CANONICAL_MEMORY = "canonical_memory"
+    CANONICAL_WORLD_MODEL = "canonical_world_model"
     WORLD_MODEL_MUTATION = "world_model_mutation"
 
 
 GOVERNANCE_REQUIRED_STAGES = frozenset(
     {
         TransformationStage.CANONICAL_MEMORY,
+        TransformationStage.CANONICAL_WORLD_MODEL,
         TransformationStage.WORLD_MODEL_MUTATION,
     }
 )
@@ -77,8 +79,16 @@ VALID_TRANSITIONS: dict[TransformationStage, frozenset[TransformationStage]] = {
     TransformationStage.INGESTION_CANDIDATE: frozenset({TransformationStage.MEMORY_CANDIDATE}),
     TransformationStage.MEMORY_CANDIDATE: frozenset({TransformationStage.GOVERNANCE_REVIEW}),
     TransformationStage.WORLD_MODEL_CANDIDATE: frozenset({TransformationStage.GOVERNANCE_REVIEW}),
-    TransformationStage.GOVERNANCE_REVIEW: frozenset({TransformationStage.CANONICAL_MEMORY}),
+    TransformationStage.GOVERNANCE_REVIEW: frozenset(
+        {
+            TransformationStage.CANONICAL_MEMORY,
+            TransformationStage.CANONICAL_WORLD_MODEL,
+        }
+    ),
     TransformationStage.CANONICAL_MEMORY: frozenset({TransformationStage.WORLD_MODEL_MUTATION}),
+    TransformationStage.CANONICAL_WORLD_MODEL: frozenset(
+        {TransformationStage.WORLD_MODEL_MUTATION}
+    ),
     TransformationStage.WORLD_MODEL_MUTATION: frozenset(),
 }
 
