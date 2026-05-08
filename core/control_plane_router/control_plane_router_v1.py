@@ -90,6 +90,13 @@ ACTION_CAPABILITY_MAP: dict[str, CapabilityRequirement] = {
         requires_local_shell=False,
         authority_required="local_shell",
     ),
+    "query_safe_memory_reference": CapabilityRequirement(
+        action_type="query_safe_memory_reference",
+        capability_type=CapabilityType.CANONICAL_MEMORY_QUERY,
+        requires_gui=False,
+        requires_local_shell=False,
+        authority_required="local_shell",
+    ),
 }
 
 

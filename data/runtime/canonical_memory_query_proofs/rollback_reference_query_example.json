@@ -1,0 +1,25 @@
+{
+  "query_id": "QUERY-ROLLBACK-bd9e8993",
+  "scope": "rollback_traversal",
+  "result_count": 1,
+  "results": [
+    {
+      "rollback_id": "ROLLBACK-001",
+      "canonical_memory_id": "CMEM-001",
+      "rollback_status": "available"
+    }
+  ],
+  "lineage": [],
+  "rollback_chain": [
+    {
+      "state_id": "STATE-canon01",
+      "rollback_reference": "ROLLBACK-001"
+    }
+  ],
+  "query_hash": "e402c68f8b9453ec13ea74fa4e2d4dd19ea20285237579a3b0660efe7827e0ad",
+  "result_hash": "956a2a27083d13e98f1b918273925a2b48e24f99030e7a80f4f1e0ee5d0d31f9",
+  "no_mutation_confirmed": true,
+  "no_interpretation_confirmed": true,
+  "no_expansion_confirmed": true,
+  "timestamp": "2026-05-08T19:17:57.892192+00:00"
+}

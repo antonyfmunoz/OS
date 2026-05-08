@@ -1,0 +1,38 @@
+{
+  "state_id": "STATE-canon01",
+  "trace_id": "TRACE-w0-safe-doc-001",
+  "parent_state_id": "STATE-govrev01",
+  "stage": "canonical_memory",
+  "input_artifact_ref": {
+    "artifact_id": "GOV-REVIEW-93f31499",
+    "artifact_type": "governance_review",
+    "artifact_path": "data/runtime/w0_memory_governance/w0_governance_review_example.json",
+    "content_hash": ""
+  },
+  "output_artifact_ref": {
+    "artifact_id": "CMEM-14110dcf",
+    "artifact_type": "canonical_memory",
+    "artifact_path": "data/runtime/w0_memory_governance/w0_canonical_memory_example.json",
+    "content_hash": "4053488223f38bfb95c7936e6930194a1ffa5b1c7ebeb9f614797e6ce8dfc577"
+  },
+  "transformer_name": "w0_memory_promotion",
+  "transformer_version": "v1",
+  "runtime_id": "local_wsl_worker",
+  "adapter_id": "windows_interactive_desktop_relay",
+  "policy_envelope": {
+    "no_secret_capture": true,
+    "no_mutation": false,
+    "governance_approved": true,
+    "deterministic_promotion": true,
+    "rollback_available": true
+  },
+  "confidence": "high",
+  "input_hash": "4053488223f38bfb95c7936e6930194a1ffa5b1c7ebeb9f614797e6ce8dfc577",
+  "output_hash": "4053488223f38bfb95c7936e6930194a1ffa5b1c7ebeb9f614797e6ce8dfc577",
+  "timestamp": "2026-05-08T18:51:30.069205+00:00",
+  "allowed_next_actions": ["query_canonical_memory", "rollback_promotion"],
+  "blocked_next_actions": ["autonomous_promotion", "recursive_promotion", "generate_embeddings", "semantic_interpretation"],
+  "rollback_reference": "ROLLBACK-1b3150e4",
+  "governance_reference": "GOV-REVIEW-93f31499",
+  "notes": ["Governed canonical memory write with founder approval and rollback reference"]
+}

@@ -1,0 +1,11 @@
+{
+  "query_id": "QUERY-e5fd5034",
+  "scope": "exact_memory_lookup",
+  "lookup_key": "CMEM-001",
+  "trace_id": "",
+  "requester": "founder",
+  "timestamp": "2026-05-08T19:17:57.891716+00:00",
+  "no_mutation": true,
+  "no_interpretation": true,
+  "no_expansion": true
+}

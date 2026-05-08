@@ -48,6 +48,7 @@ from core.environment_bridge.windows_desktop_request_builder import (
     build_w0_doc_ingestion_candidate_request,
     build_w0_drive_safe_test_doc_request,
     build_w0_promote_safe_memory_candidate_request,
+    build_w0_query_safe_memory_reference_request,
 )
 from core.runtime.adapter_registry_contracts import AdapterRegistry
 from core.runtime.worker_runtime_contracts import ProofStatus
@@ -81,6 +82,7 @@ SUPPORTED_COMMANDS = {
     "!extract",
     "!ingest-candidate",
     "!promote-memory",
+    "!query-memory",
     "!status",
 }
 
@@ -91,6 +93,7 @@ COMMAND_ACTION_MAP: dict[str, str] = {
     "!extract": "doc_extract_safe_test_doc",
     "!ingest-candidate": "doc_ingestion_candidate_safe_test_doc",
     "!promote-memory": "promote_safe_memory_candidate",
+    "!query-memory": "query_safe_memory_reference",
 }
 
 
@@ -111,6 +114,8 @@ def build_work_packet_for_router(
     extraction_reference_id: str = "",
     candidate_id: str = "",
     governance_review_id: str = "",
+    query_scope: str = "",
+    query_lookup_key: str = "",
 ) -> WorkPacket | None:
     """Build a WorkPacket from a Discord command for the router."""
     action_type = COMMAND_ACTION_MAP.get(command)
@@ -145,6 +150,12 @@ def build_work_packet_for_router(
             governance_review_id=governance_review_id,
             safe_doc_url=safe_doc_url,
             safe_doc_title=safe_doc_title or "EOS W0 Test Document",
+        )
+        payload = req.to_dict()
+    elif command == "!query-memory":
+        req = build_w0_query_safe_memory_reference_request(
+            query_scope=query_scope or "exact_memory_lookup",
+            query_lookup_key=query_lookup_key,
         )
         payload = req.to_dict()
     else:

@@ -1,0 +1,40 @@
+{
+  "_description": "W0 canonical memory query proof configuration. Governs deterministic, lineage-aware, non-mutating retrieval of canonical memory. Phase 96.8V.",
+  "_phase": "96.8V",
+  "_date": "2026-05-08",
+  "safe_test_doc_url": "https://docs.google.com/document/d/1_test_doc_placeholder/edit",
+  "safe_test_doc_title": "EOS W0 Test Document",
+  "timeout_seconds": 90,
+  "query_rules": {
+    "deterministic_ordering": true,
+    "lineage_required": true,
+    "rollback_traversal_required": true,
+    "no_mutation": true,
+    "no_interpretation": true,
+    "no_expansion": true,
+    "explicit_scope_only": true,
+    "query_proof_required": true
+  },
+  "allowed_query_scopes": [
+    "exact_memory_lookup",
+    "lineage_traversal",
+    "rollback_traversal",
+    "trace_id_lookup",
+    "canonical_hash_lookup"
+  ],
+  "forbidden_actions": [
+    "semantic_interpretation",
+    "summarization",
+    "embedding_generation",
+    "autonomous_expansion",
+    "recursive_querying",
+    "hidden_memory_expansion",
+    "world_model_mutation",
+    "canonical_writes",
+    "cross_tenant_scans",
+    "drive_wide_scans",
+    "global_scans"
+  ],
+  "allowed_action_types": ["query_safe_memory_reference"],
+  "version": "v1"
+}

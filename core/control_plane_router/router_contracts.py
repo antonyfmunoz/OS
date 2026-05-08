@@ -37,6 +37,7 @@ class CapabilityType(str, Enum):
     DOCUMENT_EXTRACTION = "document_extraction"
     INGESTION_CANDIDACY = "ingestion_candidacy"
     MEMORY_PROMOTION = "memory_promotion"
+    CANONICAL_MEMORY_QUERY = "canonical_memory_query"
 
 
 ALLOWED_ACTION_TYPES = frozenset(
@@ -47,6 +48,7 @@ ALLOWED_ACTION_TYPES = frozenset(
         "doc_extract_safe_test_doc",
         "doc_ingestion_candidate_safe_test_doc",
         "promote_safe_memory_candidate",
+        "query_safe_memory_reference",
     }
 )
 

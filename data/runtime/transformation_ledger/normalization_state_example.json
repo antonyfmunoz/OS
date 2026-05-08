@@ -1,0 +1,37 @@
+{
+  "state_id": "STATE-norm01",
+  "trace_id": "TRACE-w0-safe-doc-001",
+  "parent_state_id": "STATE-extract01",
+  "stage": "normalization",
+  "input_artifact_ref": {
+    "artifact_id": "REQ-W0-EXTRACT-342f41b5",
+    "artifact_type": "extraction_result",
+    "artifact_path": "data/runtime/w0_extraction_proofs/w0_doc_extraction_result_example.json",
+    "content_hash": "4053488223f38bfb95c7936e6930194a1ffa5b1c7ebeb9f614797e6ce8dfc577"
+  },
+  "output_artifact_ref": {
+    "artifact_id": "CAND-4865aa88",
+    "artifact_type": "ingestion_candidate",
+    "artifact_path": "data/runtime/w0_ingestion_candidates/w0_doc_ingestion_candidate_example.json",
+    "content_hash": "4053488223f38bfb95c7936e6930194a1ffa5b1c7ebeb9f614797e6ce8dfc577"
+  },
+  "transformer_name": "w0_doc_normalization",
+  "transformer_version": "v1",
+  "runtime_id": "local_wsl_worker",
+  "adapter_id": "windows_interactive_desktop_relay",
+  "policy_envelope": {
+    "no_secret_capture": true,
+    "no_mutation": true,
+    "no_interpretation": true,
+    "no_embeddings": true
+  },
+  "confidence": "high",
+  "input_hash": "4053488223f38bfb95c7936e6930194a1ffa5b1c7ebeb9f614797e6ce8dfc577",
+  "output_hash": "4053488223f38bfb95c7936e6930194a1ffa5b1c7ebeb9f614797e6ce8dfc577",
+  "timestamp": "2026-05-08T18:39:35.278744+00:00",
+  "allowed_next_actions": ["create_ingestion_candidate"],
+  "blocked_next_actions": ["promote_memory", "canonical_write", "mutate_world_model", "generate_embeddings"],
+  "rollback_reference": "",
+  "governance_reference": "",
+  "notes": ["Content-preserving normalization, no transformation of meaning"]
+}

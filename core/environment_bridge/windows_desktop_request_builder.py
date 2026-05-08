@@ -251,6 +251,46 @@ def build_w0_promote_safe_memory_candidate_request(
     )
 
 
+def build_w0_query_safe_memory_reference_request(
+    query_scope: str = "exact_memory_lookup",
+    query_lookup_key: str = "",
+    trace_id: str = "",
+) -> WindowsDesktopActionRequest:
+    """Build a governed canonical memory query request."""
+    if not trace_id:
+        trace_id = f"W0-query-{uuid.uuid4().hex[:12]}"
+
+    return WindowsDesktopActionRequest(
+        request_id=f"REQ-W0-QUERY-{uuid.uuid4().hex[:8]}",
+        trace_id=trace_id,
+        work_order_id="WO-LOCAL-PILOT-CANONICAL-MEMORY-QUERY-001",
+        action_type="query_safe_memory_reference",
+        environment_id="local_windows_desktop",
+        execution_surface_id="windows_interactive_desktop_adapter",
+        application_id="canonical_memory_store",
+        launch_method="direct_executable",
+        url="",
+        blocked_launch_methods=sorted(BLOCKED_LAUNCH_METHODS),
+        proof_required="query_proof_artifact",
+        no_secret_capture=True,
+        no_mutation=True,
+        timestamp=datetime.now(timezone.utc).isoformat(),
+        notes=[
+            "Deterministic canonical memory query only",
+            "No writes or mutations allowed",
+            "No content reinterpretation or content summaries",
+            "No vector embeddings",
+            "No scope widening or auto-expansion",
+            "No chained re-queries",
+            "No multi-tenant or drive-scope scans",
+            "Lineage-aware with transformation state traversal",
+            "Query proof artifact required",
+            f"Query scope: {query_scope}",
+            f"Lookup key: {query_lookup_key or 'pending'}",
+        ],
+    )
+
+
 def request_to_json(request: WindowsDesktopActionRequest) -> dict[str, Any]:
     """Convert request to JSON-serializable dict."""
     return request.to_dict()

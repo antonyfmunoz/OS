@@ -101,6 +101,21 @@
             "Audit artifact and rollback reference required",
             "Bounded canonical write only"
           ]
+        },
+        {
+          "capability_id": "query_safe_memory_reference",
+          "action_type": "query_safe_memory_reference",
+          "requires_gui": false,
+          "requires_local_shell": false,
+          "required_authority": "local_shell",
+          "notes": [
+            "Deterministic query against canonical memory store",
+            "Lineage-aware with transformation state traversal",
+            "No mutation, no interpretation, no expansion",
+            "No embeddings, no summarization",
+            "No cross-tenant or drive-wide scans",
+            "Policy-bounded with query proof artifact"
+          ]
         }
       ],
       "notes": [

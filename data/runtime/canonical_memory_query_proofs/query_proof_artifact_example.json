@@ -1,0 +1,17 @@
+{
+  "proof_id": "QPROOF-68fd8536",
+  "query_id": "QUERY-e5fd5034",
+  "query_hash": "28cb7f925f195c81c741a4390d8b3d4920078f3a3085574750e7caf1f2198f47",
+  "result_hash": "30cfee7e62b7a0378a860e4177f1833cafcdca5834303259e993acfdc93e293b",
+  "scope": "exact_memory_lookup",
+  "result_count": 1,
+  "governance_lineage_verified": true,
+  "rollback_chain_available": true,
+  "mutation_attempted": false,
+  "interpretation_attempted": false,
+  "expansion_attempted": false,
+  "forbidden_actions_checked": 11,
+  "forbidden_actions_found": 0,
+  "passed": true,
+  "timestamp": "2026-05-08T19:17:57.892037+00:00"
+}
