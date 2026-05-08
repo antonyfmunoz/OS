@@ -1,0 +1,310 @@
+{
+  "plan_id": "EPLAN-9c920011",
+  "plan_type": "operational",
+  "description": "Example execution plan for Initiate Arena launch strategy",
+  "action_sequence": {
+    "sequence_id": "ASEQ-9fcba9e7",
+    "actions": [
+      {
+        "action_id": "ACT-b6484a50",
+        "action_type": "process_company",
+        "description": "Process entity: Lyfe Institute",
+        "rationale": "Derived from canonical entity CENT-aaa",
+        "supporting_truth_ids": [
+          "TRUTH-001",
+          "TRUTH-002"
+        ],
+        "supporting_entity_ids": [
+          "CENT-aaa"
+        ],
+        "resource_requirements": [],
+        "constraint_evaluations": [],
+        "expected_outcomes": [],
+        "risk_envelope": {
+          "financial_risk": 0.0,
+          "execution_risk": 0.1,
+          "uncertainty_risk": 0.09999999999999998,
+          "trust_boundary_risk": 0.0,
+          "external_dependency_risk": 0.0,
+          "recursive_autonomy_risk": 0.0,
+          "overall_risk": 0.1,
+          "escalation_tier": "none",
+          "escalation_reasons": []
+        },
+        "dependencies": [],
+        "rollback_reference": "ROLLBACK-21d6fea3",
+        "sequence_order": 0
+      },
+      {
+        "action_id": "ACT-d2fc3dd9",
+        "action_type": "process_product",
+        "description": "Process entity: Initiate Arena",
+        "rationale": "Derived from canonical entity CENT-bbb",
+        "supporting_truth_ids": [
+          "TRUTH-001",
+          "TRUTH-002"
+        ],
+        "supporting_entity_ids": [
+          "CENT-bbb"
+        ],
+        "resource_requirements": [],
+        "constraint_evaluations": [],
+        "expected_outcomes": [],
+        "risk_envelope": {
+          "financial_risk": 0.0,
+          "execution_risk": 0.15000000000000002,
+          "uncertainty_risk": 0.15000000000000002,
+          "trust_boundary_risk": 0.0,
+          "external_dependency_risk": 0.0,
+          "recursive_autonomy_risk": 0.0,
+          "overall_risk": 0.15000000000000002,
+          "escalation_tier": "none",
+          "escalation_reasons": []
+        },
+        "dependencies": [],
+        "rollback_reference": "ROLLBACK-a8529fb1",
+        "sequence_order": 1
+      },
+      {
+        "action_id": "ACT-682221b7",
+        "action_type": "process_market",
+        "description": "Process entity: Creator Economy",
+        "rationale": "Derived from canonical entity CENT-ccc",
+        "supporting_truth_ids": [
+          "TRUTH-001",
+          "TRUTH-002"
+        ],
+        "supporting_entity_ids": [
+          "CENT-ccc"
+        ],
+        "resource_requirements": [],
+        "constraint_evaluations": [],
+        "expected_outcomes": [],
+        "risk_envelope": {
+          "financial_risk": 0.0,
+          "execution_risk": 0.2,
+          "uncertainty_risk": 0.30000000000000004,
+          "trust_boundary_risk": 0.0,
+          "external_dependency_risk": 0.0,
+          "recursive_autonomy_risk": 0.0,
+          "overall_risk": 0.30000000000000004,
+          "escalation_tier": "none",
+          "escalation_reasons": []
+        },
+        "dependencies": [],
+        "rollback_reference": "ROLLBACK-31acfb10",
+        "sequence_order": 2
+      }
+    ],
+    "total_estimated_cost": 0,
+    "total_risk": 0.30000000000000004
+  },
+  "action_graph": {
+    "graph_id": "AGRAPH-aed8ae9d",
+    "nodes": [
+      {
+        "action_id": "ACT-b6484a50",
+        "action_type": "process_company",
+        "description": "Process entity: Lyfe Institute",
+        "rationale": "Derived from canonical entity CENT-aaa",
+        "supporting_truth_ids": [
+          "TRUTH-001",
+          "TRUTH-002"
+        ],
+        "supporting_entity_ids": [
+          "CENT-aaa"
+        ],
+        "resource_requirements": [],
+        "constraint_evaluations": [],
+        "expected_outcomes": [],
+        "risk_envelope": {
+          "financial_risk": 0.0,
+          "execution_risk": 0.1,
+          "uncertainty_risk": 0.09999999999999998,
+          "trust_boundary_risk": 0.0,
+          "external_dependency_risk": 0.0,
+          "recursive_autonomy_risk": 0.0,
+          "overall_risk": 0.1,
+          "escalation_tier": "none",
+          "escalation_reasons": []
+        },
+        "dependencies": [],
+        "rollback_reference": "ROLLBACK-21d6fea3",
+        "sequence_order": 0
+      },
+      {
+        "action_id": "ACT-d2fc3dd9",
+        "action_type": "process_product",
+        "description": "Process entity: Initiate Arena",
+        "rationale": "Derived from canonical entity CENT-bbb",
+        "supporting_truth_ids": [
+          "TRUTH-001",
+          "TRUTH-002"
+        ],
+        "supporting_entity_ids": [
+          "CENT-bbb"
+        ],
+        "resource_requirements": [],
+        "constraint_evaluations": [],
+        "expected_outcomes": [],
+        "risk_envelope": {
+          "financial_risk": 0.0,
+          "execution_risk": 0.15000000000000002,
+          "uncertainty_risk": 0.15000000000000002,
+          "trust_boundary_risk": 0.0,
+          "external_dependency_risk": 0.0,
+          "recursive_autonomy_risk": 0.0,
+          "overall_risk": 0.15000000000000002,
+          "escalation_tier": "none",
+          "escalation_reasons": []
+        },
+        "dependencies": [],
+        "rollback_reference": "ROLLBACK-a8529fb1",
+        "sequence_order": 1
+      },
+      {
+        "action_id": "ACT-682221b7",
+        "action_type": "process_market",
+        "description": "Process entity: Creator Economy",
+        "rationale": "Derived from canonical entity CENT-ccc",
+        "supporting_truth_ids": [
+          "TRUTH-001",
+          "TRUTH-002"
+        ],
+        "supporting_entity_ids": [
+          "CENT-ccc"
+        ],
+        "resource_requirements": [],
+        "constraint_evaluations": [],
+        "expected_outcomes": [],
+        "risk_envelope": {
+          "financial_risk": 0.0,
+          "execution_risk": 0.2,
+          "uncertainty_risk": 0.30000000000000004,
+          "trust_boundary_risk": 0.0,
+          "external_dependency_risk": 0.0,
+          "recursive_autonomy_risk": 0.0,
+          "overall_risk": 0.30000000000000004,
+          "escalation_tier": "none",
+          "escalation_reasons": []
+        },
+        "dependencies": [],
+        "rollback_reference": "ROLLBACK-31acfb10",
+        "sequence_order": 2
+      }
+    ],
+    "edges": [
+      {
+        "dependency_id": "DEP-79089d4f",
+        "from_action_id": "ACT-b6484a50",
+        "to_action_id": "ACT-d2fc3dd9",
+        "dependency_type": "produces",
+        "is_blocking": true
+      },
+      {
+        "dependency_id": "DEP-9dc9d67c",
+        "from_action_id": "ACT-d2fc3dd9",
+        "to_action_id": "ACT-682221b7",
+        "dependency_type": "targets",
+        "is_blocking": true
+      }
+    ],
+    "topological_order": [
+      "ACT-b6484a50",
+      "ACT-d2fc3dd9",
+      "ACT-682221b7"
+    ],
+    "rollback_chain": [
+      "ROLLBACK-21d6fea3",
+      "ROLLBACK-a8529fb1",
+      "ROLLBACK-31acfb10"
+    ]
+  },
+  "risk_envelope": {
+    "financial_risk": 0.0,
+    "execution_risk": 0.2,
+    "uncertainty_risk": 0.30000000000000004,
+    "trust_boundary_risk": 0.0,
+    "external_dependency_risk": 0.1,
+    "recursive_autonomy_risk": 0.0,
+    "overall_risk": 0.30000000000000004,
+    "escalation_tier": "none",
+    "escalation_reasons": []
+  },
+  "lineage": {
+    "source_canonical_model_id": "CWM-example001",
+    "source_canonical_memory_ids": [],
+    "source_governance_receipt_ids": [
+      "GRCPT-001"
+    ],
+    "source_world_model_hash": "a1b2c3d4e5f6",
+    "planning_trace_id": "PTRACE-324b0f82"
+  },
+  "boundary": {
+    "may_propose_actions": true,
+    "may_sequence_actions": true,
+    "may_model_dependencies": true,
+    "may_estimate_resources": true,
+    "may_estimate_risk": true,
+    "may_estimate_outcomes": true,
+    "may_attach_canonical_truths": true,
+    "may_invoke_runtime": false,
+    "may_use_wallet": false,
+    "may_execute_api": false,
+    "may_execute_shell": false,
+    "may_execute_browser": false,
+    "may_execute_financial": false,
+    "may_access_credentials": false,
+    "may_mutate_memory": false,
+    "may_mutate_canonical": false
+  },
+  "status": "assembled",
+  "governance_status": "",
+  "governance_receipt_id": "",
+  "source_canonical_model_id": "CWM-example001",
+  "source_truth_ids": [
+    "TRUTH-001",
+    "TRUTH-002"
+  ],
+  "input_sources": [
+    "deterministic_observation",
+    "constraint_system",
+    "canonical_world_model",
+    "governance_receipt",
+    "canonical_memory"
+  ],
+  "blocked_actions": [
+    "financial_execution",
+    "shell_execution",
+    "memory_mutation",
+    "autonomous_execution",
+    "runtime_invocation",
+    "credential_access",
+    "wallet_usage",
+    "adapter_invocation",
+    "browser_execution",
+    "trade_placement",
+    "money_allocation",
+    "api_execution",
+    "canonical_mutation",
+    "recursive_plan_consumption"
+  ],
+  "allowed_actions": [
+    "propose_action",
+    "sequence_actions",
+    "model_dependencies",
+    "estimate_resources",
+    "estimate_risk",
+    "estimate_outcomes",
+    "submit_for_governance"
+  ],
+  "forbidden_inputs": [
+    "hidden_runtime_state",
+    "recursive_self_generated_plan",
+    "ungoverned_interpretation",
+    "candidate_hypothesis"
+  ],
+  "rollback_reference": "ROLLBACK-2282eb1b",
+  "output_hash": "3b6a3ac648c26cb7ca83ef81c2d88f8323e07d941a9044feed399a29c2791b64",
+  "timestamp": "2026-05-08T20:40:44.512246+00:00"
+}
