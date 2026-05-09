@@ -160,6 +160,13 @@ ACTION_CAPABILITY_MAP: dict[str, CapabilityRequirement] = {
         requires_local_shell=False,
         authority_required="local_shell",
     ),
+    "orchestration_report": CapabilityRequirement(
+        action_type="orchestration_report",
+        capability_type=CapabilityType.ORCHESTRATION_GOVERNANCE,
+        requires_gui=False,
+        requires_local_shell=False,
+        authority_required="local_shell",
+    ),
 }
 
 

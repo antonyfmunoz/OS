@@ -502,7 +502,7 @@ class TestCanonicalRegistryInclusion:
         )
 
         reg = CanonicalCommandRegistryV1()
-        assert len(reg) == 16
+        assert len(reg) == 17
 
 
 class TestProofArtifactPersistence:
@@ -629,7 +629,7 @@ class TestRegressionIntegrity:
         )
 
         reg = get_canonical_registry()
-        assert len(reg) == 16
+        assert len(reg) == 17
         assert reg.contains("!ping")
         assert reg.contains("!chrome-proof")
         assert reg.contains("!actuator-proof")
