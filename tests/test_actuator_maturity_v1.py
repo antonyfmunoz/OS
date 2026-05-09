@@ -496,13 +496,13 @@ class TestCanonicalRegistryInclusion:
 
         assert "actuator_proof" in ACTION_CAPABILITY_MAP
 
-    def test_canonical_registry_now_has_14_commands(self) -> None:
+    def test_canonical_registry_now_has_15_commands(self) -> None:
         from core.registry.canonical_command_registry_v1 import (
             CanonicalCommandRegistryV1,
         )
 
         reg = CanonicalCommandRegistryV1()
-        assert len(reg) == 14
+        assert len(reg) == 15
 
 
 class TestProofArtifactPersistence:
@@ -629,7 +629,7 @@ class TestRegressionIntegrity:
         )
 
         reg = get_canonical_registry()
-        assert len(reg) == 14
+        assert len(reg) == 15
         assert reg.contains("!ping")
         assert reg.contains("!chrome-proof")
         assert reg.contains("!actuator-proof")

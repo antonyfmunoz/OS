@@ -39,10 +39,12 @@ class CapabilityType(str, Enum):
     MEMORY_PROMOTION = "memory_promotion"
     CANONICAL_MEMORY_QUERY = "canonical_memory_query"
     ENVIRONMENT_DISCOVERY = "environment_discovery"
+    ADAPTER_SYNTHESIS = "adapter_synthesis"
 
 
 ALLOWED_ACTION_TYPES = frozenset(
     {
+        "adapter_report",
         "actuator_proof",
         "ping",
         "open_application_url",

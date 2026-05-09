@@ -14,7 +14,8 @@
       "capabilities": [
         "ping",
         "relay_status",
-        "relay_to_windows_adapter"
+        "relay_to_windows_adapter",
+        "adapter_report"
       ]
     },
     "windows_interactive_desktop_relay": {
@@ -27,6 +28,7 @@
       "message_bus": "filesystem_json",
       "capabilities": [
         "ping",
+        "adapter_report",
         "actuator_proof",
         "relay_status",
         "open_application_url",
@@ -219,6 +221,21 @@
             "Plans ingestion lanes with extraction method selection",
             "NO ingestion, NO extraction, NO mutation",
             "Founder visual confirmation required"
+          ]
+        },
+        {
+          "capability_id": "adapter_report",
+          "action_type": "adapter_report",
+          "requires_gui": false,
+          "requires_local_shell": false,
+          "required_authority": "local_shell",
+          "notes": [
+            "Adapter autogeneration from environment topology",
+            "Analyzes existing environment mapping proofs",
+            "Generates adapter blueprints with replay contracts",
+            "Classifies maturity levels L0-L5",
+            "NO relay dispatch needed, runs VPS-side",
+            "Founder confirmation required for proof generation"
           ]
         },
         {

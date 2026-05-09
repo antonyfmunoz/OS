@@ -146,6 +146,13 @@ ACTION_CAPABILITY_MAP: dict[str, CapabilityRequirement] = {
         requires_local_shell=False,
         authority_required="local_gui",
     ),
+    "adapter_report": CapabilityRequirement(
+        action_type="adapter_report",
+        capability_type=CapabilityType.ADAPTER_SYNTHESIS,
+        requires_gui=False,
+        requires_local_shell=False,
+        authority_required="local_shell",
+    ),
 }
 
 

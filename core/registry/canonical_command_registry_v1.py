@@ -174,6 +174,16 @@ CANONICAL_COMMANDS: tuple[CommandEntry, ...] = (
         require_screenshot_proof=True,
     ),
     CommandEntry(
+        command_name="!adapter-report",
+        canonical_action="adapter_report",
+        routing_mode=RoutingMode.SPINE,
+        governance_policy="FOUNDER_APPROVAL",
+        execution_mode=ExecutionMode.SHELL,
+        foreground_required=False,
+        require_screenshot_proof=False,
+        capability_type="ADAPTER_SYNTHESIS",
+    ),
+    CommandEntry(
         command_name="!relay-status",
         canonical_action="relay_status",
         routing_mode=RoutingMode.ROUTER,

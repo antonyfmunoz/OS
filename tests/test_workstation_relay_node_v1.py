@@ -465,13 +465,13 @@ class TestRelayProof:
 
 
 class TestCanonicalRegistryRelayStatus:
-    def test_registry_has_14_commands(self) -> None:
+    def test_registry_has_15_commands(self) -> None:
         from core.registry.canonical_command_registry_v1 import (
             CanonicalCommandRegistryV1,
         )
 
         reg = CanonicalCommandRegistryV1()
-        assert len(reg) == 14
+        assert len(reg) == 15
 
     def test_relay_status_in_registry(self) -> None:
         from core.registry.canonical_command_registry_v1 import get_canonical_registry
