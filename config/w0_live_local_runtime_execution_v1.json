@@ -1,0 +1,36 @@
+{
+  "_description": "Configuration for W0 Live Local Runtime Execution v1.",
+  "_phase": "96.8AE",
+  "runtime_enabled": true,
+  "supervisor_autostart": true,
+  "default_worker_id": "local-worker-01",
+  "default_environment": "local_windows_desktop",
+  "default_runtime_mode": "supervised",
+  "heartbeat_timeout_seconds": 30,
+  "heartbeat_degraded_seconds": 15,
+  "max_retry_attempts": 3,
+  "default_timeout_seconds": 300,
+  "dispatch_idempotent": true,
+  "proof_persistence": true,
+  "ledger_integration": true,
+  "proof_output_dir": "data/runtime/live_execution_proofs",
+  "queue_dir": "data/runtime/local_worker_runtime",
+  "forbidden_actions": [
+    "wallet_execution",
+    "financial_execution",
+    "credential_access",
+    "recursive_runtime_spawning",
+    "canonical_mutation_without_governance",
+    "self_govern"
+  ],
+  "safe_execution_actions": [
+    "browser_execution",
+    "safe_doc_extraction",
+    "chrome_launch",
+    "safe_metadata_read",
+    "ping"
+  ],
+  "workstation_presence_tracking": true,
+  "session_registry_enabled": true,
+  "recovery_engine_enabled": true
+}

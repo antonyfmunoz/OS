@@ -40,6 +40,15 @@ class TransformationStage(str, Enum):
     EXECUTION_GATE_VALIDATED = "execution_gate_validated"
     EXECUTION_GATE_DENIED = "execution_gate_denied"
     RUNTIME_EXECUTION_READY = "runtime_execution_ready"
+    WORKPACKET_DISPATCHED = "workpacket_dispatched"
+    RUNTIME_ACCEPTED = "runtime_accepted"
+    RUNTIME_EXECUTING = "runtime_executing"
+    ADAPTER_BOUNDARY_ENTERED = "adapter_boundary_entered"
+    LOCAL_GUI_EXECUTED = "local_gui_executed"
+    PROOF_CAPTURED = "proof_captured"
+    RUNTIME_COMPLETED = "runtime_completed"
+    RUNTIME_FAILED = "runtime_failed"
+    RUNTIME_RECOVERED = "runtime_recovered"
 
 
 GOVERNANCE_REQUIRED_STAGES = frozenset(
@@ -109,7 +118,31 @@ VALID_TRANSITIONS: dict[TransformationStage, frozenset[TransformationStage]] = {
         {TransformationStage.RUNTIME_EXECUTION_READY}
     ),
     TransformationStage.EXECUTION_GATE_DENIED: frozenset(),
-    TransformationStage.RUNTIME_EXECUTION_READY: frozenset(),
+    TransformationStage.RUNTIME_EXECUTION_READY: frozenset(
+        {TransformationStage.WORKPACKET_DISPATCHED}
+    ),
+    TransformationStage.WORKPACKET_DISPATCHED: frozenset(
+        {TransformationStage.RUNTIME_ACCEPTED, TransformationStage.RUNTIME_FAILED}
+    ),
+    TransformationStage.RUNTIME_ACCEPTED: frozenset(
+        {TransformationStage.RUNTIME_EXECUTING, TransformationStage.RUNTIME_FAILED}
+    ),
+    TransformationStage.RUNTIME_EXECUTING: frozenset(
+        {
+            TransformationStage.ADAPTER_BOUNDARY_ENTERED,
+            TransformationStage.RUNTIME_FAILED,
+        }
+    ),
+    TransformationStage.ADAPTER_BOUNDARY_ENTERED: frozenset(
+        {TransformationStage.LOCAL_GUI_EXECUTED, TransformationStage.RUNTIME_FAILED}
+    ),
+    TransformationStage.LOCAL_GUI_EXECUTED: frozenset(
+        {TransformationStage.PROOF_CAPTURED, TransformationStage.RUNTIME_FAILED}
+    ),
+    TransformationStage.PROOF_CAPTURED: frozenset({TransformationStage.RUNTIME_COMPLETED}),
+    TransformationStage.RUNTIME_COMPLETED: frozenset(),
+    TransformationStage.RUNTIME_FAILED: frozenset({TransformationStage.RUNTIME_RECOVERED}),
+    TransformationStage.RUNTIME_RECOVERED: frozenset({TransformationStage.WORKPACKET_DISPATCHED}),
 }
 
 

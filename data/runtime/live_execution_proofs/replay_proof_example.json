@@ -1,0 +1,21 @@
+{
+  "_description": "Proof: Full execution trace is replayable.",
+  "_phase": "96.8AE",
+  "proof_id": "PROOF-replay-001",
+  "proof_type": "replay_proof",
+  "evidence": {
+    "trace_id": "SPINE-example-trace",
+    "stages": [
+      "WORKPACKET_DISPATCHED",
+      "RUNTIME_ACCEPTED",
+      "RUNTIME_EXECUTING",
+      "ADAPTER_BOUNDARY_ENTERED",
+      "LOCAL_GUI_EXECUTED",
+      "PROOF_CAPTURED",
+      "RUNTIME_COMPLETED"
+    ],
+    "total_proofs": 8,
+    "replayable": true
+  },
+  "timestamp": "2026-05-08T00:00:06Z"
+}

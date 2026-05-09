@@ -1,0 +1,13 @@
+{
+  "_description": "Proof: Adapter boundary entered for Chrome execution.",
+  "_phase": "96.8AE",
+  "proof_id": "PROOF-adapter-001",
+  "proof_type": "adapter_boundary_proof",
+  "evidence": {
+    "adapter_id": "chrome_drive_adapter",
+    "action_type": "browser_execution",
+    "environment": "local_windows_desktop",
+    "boundary_crossed": true
+  },
+  "timestamp": "2026-05-08T00:00:03Z"
+}
