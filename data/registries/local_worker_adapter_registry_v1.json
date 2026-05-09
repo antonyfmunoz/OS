@@ -29,7 +29,8 @@
         "open_application_url",
         "chrome_open_google_drive",
         "ingest_safe_doc",
-        "ingest_safe_doc_cu"
+        "ingest_safe_doc_cu",
+        "chrome_proof"
       ]
     }
   },
@@ -173,6 +174,20 @@
             "Founder must physically observe Chrome activity",
             "Identity-scoped artifacts",
             "No mutation, no auto-promotion"
+          ]
+        },
+        {
+          "capability_id": "chrome_proof",
+          "action_type": "chrome_proof",
+          "requires_gui": true,
+          "requires_local_shell": false,
+          "required_authority": "local_gui",
+          "notes": [
+            "Real Chrome GUI actuation proof",
+            "Launches Chrome, validates focus, captures screenshots",
+            "Observed desktop state required",
+            "NO ingestion, NO extraction",
+            "Founder must physically observe Chrome activity"
           ]
         }
       ],

@@ -118,6 +118,13 @@ ACTION_CAPABILITY_MAP: dict[str, CapabilityRequirement] = {
         requires_local_shell=False,
         authority_required="local_gui",
     ),
+    "chrome_proof": CapabilityRequirement(
+        action_type="chrome_proof",
+        capability_type=CapabilityType.WINDOWS_GUI_EXECUTION,
+        requires_gui=True,
+        requires_local_shell=False,
+        authority_required="local_gui",
+    ),
 }
 
 

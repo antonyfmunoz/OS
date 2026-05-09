@@ -336,6 +336,48 @@ def build_w0_query_safe_memory_reference_request(
     )
 
 
+def build_w0_chrome_proof_request(
+    url: str = "https://www.google.com",
+    proof_dir: str = "",
+    trace_id: str = "",
+) -> WindowsDesktopActionRequest:
+    """Build a Chrome GUI actuation proof request.
+
+    Launches real Chrome, captures screenshots, validates focus,
+    and collects observed desktop state. Pure GUI actuation proof —
+    no ingestion, no extraction.
+    """
+    if not trace_id:
+        trace_id = f"W0-chrome-proof-{uuid.uuid4().hex[:12]}"
+
+    return WindowsDesktopActionRequest(
+        request_id=f"REQ-W0-CHROME-PROOF-{uuid.uuid4().hex[:8]}",
+        trace_id=trace_id,
+        work_order_id="WO-LOCAL-PILOT-CHROME-GUI-PROOF-001",
+        action_type="chrome_proof",
+        environment_id="local_windows_desktop",
+        execution_surface_id="windows_interactive_desktop_adapter",
+        application_id="google_chrome_windows",
+        executable_path=CHROME_EXECUTABLE_PATH_WINDOWS,
+        launch_method="direct_executable",
+        url=url,
+        blocked_launch_methods=sorted(BLOCKED_LAUNCH_METHODS),
+        proof_required="screenshot_and_observed_state",
+        no_secret_capture=True,
+        no_mutation=True,
+        timestamp=datetime.now(timezone.utc).isoformat(),
+        notes=[
+            "Real Chrome GUI actuation proof ONLY",
+            "NO ingestion, NO extraction",
+            "Screenshot proof REQUIRED at each stage",
+            "Observed desktop state REQUIRED",
+            "Focus validation REQUIRED",
+            "Founder must physically observe Chrome activity",
+            "NO headless, NO API fallback, NO simulated state",
+        ],
+    )
+
+
 def build_w0_real_foreground_cu_ingestion_request(
     safe_doc_url: str = "",
     safe_doc_title: str = "EOS W0 Test Document",

@@ -44,6 +44,7 @@ from core.control_plane_router.router_contracts import (
 from core.environment_bridge.windows_desktop_request_builder import (
     build_ping_request,
     build_w0_chrome_open_request,
+    build_w0_chrome_proof_request,
     build_w0_doc_extract_safe_test_doc_request,
     build_w0_doc_ingestion_candidate_request,
     build_w0_drive_safe_test_doc_request,
@@ -88,6 +89,7 @@ SUPPORTED_COMMANDS = {
     "!ping",
     "!chrome",
     "!chrome-open-google-drive",
+    "!chrome-proof",
     "!doc",
     "!extract",
     "!ingest-candidate",
@@ -102,6 +104,7 @@ COMMAND_ACTION_MAP: dict[str, str] = {
     "!ping": "ping",
     "!chrome": "open_application_url",
     "!chrome-open-google-drive": "chrome_open_google_drive",
+    "!chrome-proof": "chrome_proof",
     "!doc": "drive_open_safe_test_doc",
     "!extract": "doc_extract_safe_test_doc",
     "!ingest-candidate": "doc_ingestion_candidate_safe_test_doc",
@@ -115,6 +118,7 @@ COMMAND_ACTION_MAP: dict[str, str] = {
 SPINE_ROUTED_COMMANDS = frozenset(
     {
         "!chrome-open-google-drive",
+        "!chrome-proof",
         "!ingest-safe-doc",
         "!ingest-safe-doc-cu",
     }
@@ -148,6 +152,17 @@ COMMAND_CONTRACT: dict[str, dict[str, Any]] = {
         "proof_required": True,
         "mutation_allowed": False,
         "require_foreground_cu": True,
+    },
+    "!chrome-proof": {
+        "command": "!chrome-proof",
+        "capability": "WINDOWS_GUI_EXECUTION",
+        "adapter": "windows_interactive_desktop_relay",
+        "environment": "local_windows_foreground",
+        "authority_required": "FOUNDER_APPROVAL",
+        "proof_required": True,
+        "mutation_allowed": False,
+        "require_foreground_gui": True,
+        "require_screenshot_proof": True,
     },
 }
 
@@ -185,6 +200,9 @@ def build_work_packet_for_router(
         payload = req.to_dict()
     elif command == "!chrome-open-google-drive":
         req = build_w0_chrome_open_request()
+        payload = req.to_dict()
+    elif command == "!chrome-proof":
+        req = build_w0_chrome_proof_request()
         payload = req.to_dict()
     elif command == "!doc":
         req = build_w0_drive_safe_test_doc_request(safe_doc_url=safe_doc_url)

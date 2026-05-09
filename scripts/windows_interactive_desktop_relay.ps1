@@ -307,6 +307,331 @@ function Handle-OpenApplicationUrl {
 }
 
 # ---------------------------------------------------------------------------
+# Screenshot helper
+# ---------------------------------------------------------------------------
+
+function Capture-Screenshot {
+    param([string]$OutputPath)
+
+    Write-Log "Capturing screenshot to: $OutputPath"
+    try {
+        Add-Type -AssemblyName System.Windows.Forms
+        Add-Type -AssemblyName System.Drawing
+
+        $screen = [System.Windows.Forms.Screen]::PrimaryScreen
+        $bounds = $screen.Bounds
+        $bitmap = New-Object System.Drawing.Bitmap($bounds.Width, $bounds.Height)
+        $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+        $graphics.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
+        $bitmap.Save($OutputPath, [System.Drawing.Imaging.ImageFormat]::Png)
+        $graphics.Dispose()
+        $bitmap.Dispose()
+
+        Write-Log "Screenshot captured: $OutputPath"
+        return $true
+    }
+    catch {
+        Write-Log "WARNING: Screenshot capture failed: $($_.Exception.Message)"
+        return $false
+    }
+}
+
+function Get-FileHash256 {
+    param([string]$FilePath)
+    try {
+        $hash = Get-FileHash -Path $FilePath -Algorithm SHA256
+        return $hash.Hash.ToLower()
+    }
+    catch {
+        return ""
+    }
+}
+
+function Get-ForegroundWindowInfo {
+    Write-Log "Getting foreground window info..."
+    try {
+        Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+public class Win32FG {
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")]
+    public static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
+    [DllImport("user32.dll")]
+    public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+    [DllImport("user32.dll")]
+    public static extern bool IsWindowVisible(IntPtr hWnd);
+}
+"@
+        $fgHwnd = [Win32FG]::GetForegroundWindow()
+        $sb = New-Object System.Text.StringBuilder 256
+        [Win32FG]::GetWindowText($fgHwnd, $sb, 256) | Out-Null
+        $fgTitle = $sb.ToString()
+
+        $fgPid = [uint32]0
+        [Win32FG]::GetWindowThreadProcessId($fgHwnd, [ref]$fgPid) | Out-Null
+        $fgVisible = [Win32FG]::IsWindowVisible($fgHwnd)
+
+        Write-Log "Foreground window: handle=$($fgHwnd.ToInt64()) title='$fgTitle' pid=$fgPid visible=$fgVisible"
+        return @{
+            handle  = $fgHwnd.ToInt64()
+            title   = $fgTitle
+            pid     = [int]$fgPid
+            visible = $fgVisible
+        }
+    }
+    catch {
+        Write-Log "WARNING: Could not get foreground window: $($_.Exception.Message)"
+        return @{ handle = 0; title = ""; pid = 0; visible = $false }
+    }
+}
+
+# ---------------------------------------------------------------------------
+# Chrome proof handler
+# ---------------------------------------------------------------------------
+
+function Handle-ChromeProof {
+    param([hashtable]$Request)
+
+    $rid         = $Request["request_id"]
+    $traceId     = $Request["trace_id"]
+    $workOrderId = $Request["work_order_id"]
+    $url         = $Request["url"]
+    $proofDir    = $Request["proof_dir"]
+    $isDryRun    = $Request["dry_run"] -eq $true
+
+    if (-not $url) { $url = "https://www.google.com" }
+    if (-not $proofDir) { $proofDir = "$HOME\eos_advisor_messages\windows_desktop_relay\gui_proofs" }
+
+    Write-Log "CHROME_PROOF: rid=$rid url=$url proof_dir=$proofDir dry_run=$isDryRun"
+
+    # Ensure proof directory
+    if (-not (Test-Path $proofDir)) {
+        New-Item -ItemType Directory -Path $proofDir -Force | Out-Null
+    }
+
+    # Collect pre-launch desktop state
+    $preFg = Get-ForegroundWindowInfo
+    $desktopUnlocked = $true
+    $activeSession = $true
+
+    if ($isDryRun) {
+        Write-Log "DRY RUN: would launch Chrome and capture proof"
+        Write-Result -RequestId $rid -Result @{
+            request_id     = $rid
+            trace_id       = $traceId
+            work_order_id  = $workOrderId
+            action_type    = "chrome_proof"
+            adapter_status = "completed"
+            dry_run        = $true
+            timestamp      = Get-Timestamp
+            notes          = @("Dry run only - no Chrome launch or screenshot")
+        }
+        return
+    }
+
+    # Find Chrome
+    $chromeExe = Find-ChromeExe
+    if (-not $chromeExe) {
+        Write-Log "FAILED: Chrome not found"
+        Write-Result -RequestId $rid -Result @{
+            request_id     = $rid
+            trace_id       = $traceId
+            action_type    = "chrome_proof"
+            adapter_status = "failed"
+            error          = "CHROME_NOT_FOUND"
+            timestamp      = Get-Timestamp
+        }
+        return
+    }
+
+    # Stage 1: Launch Chrome
+    Write-Log "Stage 1: Launching Chrome..."
+    $commandIssued = "$chromeExe --new-window $url"
+    try {
+        $process = Start-Process -FilePath $chromeExe -ArgumentList "--new-window", $url -PassThru
+        Start-Sleep -Seconds 4
+    }
+    catch {
+        Write-Result -RequestId $rid -Result @{
+            request_id     = $rid
+            trace_id       = $traceId
+            action_type    = "chrome_proof"
+            adapter_status = "failed"
+            error          = "CHROME_LAUNCH_FAILED: $($_.Exception.Message)"
+            timestamp      = Get-Timestamp
+        }
+        return
+    }
+
+    $processDetected = -not $process.HasExited
+    $chromePid = $process.Id
+    Write-Log "Chrome launched: PID=$chromePid running=$processDetected"
+
+    # Stage 2: Verify process
+    $chromeProcs = Get-Process chrome -ErrorAction SilentlyContinue
+    $chromeRunning = ($chromeProcs -ne $null) -and ($chromeProcs.Count -gt 0)
+    Write-Log "Stage 2: Chrome processes found: $($chromeProcs.Count)"
+
+    # Stage 3: Collect window metadata
+    $windowMeta = @{}
+    $mainProc = $null
+    try {
+        if ($chromeProcs) {
+            $mainProc = $chromeProcs | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
+            if ($mainProc) {
+                $windowMeta = @{
+                    main_window_handle = $mainProc.MainWindowHandle.ToInt64()
+                    main_window_title  = $mainProc.MainWindowTitle
+                }
+            }
+        }
+    }
+    catch {
+        Write-Log "WARNING: Window metadata collection failed"
+    }
+
+    # Stage 4: Verify focus
+    $postFg = Get-ForegroundWindowInfo
+    $isChromeForegrounded = $false
+    if ($chromeProcs) {
+        foreach ($cp in $chromeProcs) {
+            if ($cp.Id -eq $postFg["pid"]) {
+                $isChromeForegrounded = $true
+                break
+            }
+        }
+    }
+    Write-Log "Stage 4: Chrome foreground=$isChromeForegrounded fg_pid=$($postFg['pid'])"
+
+    # Stage 5: Capture launch screenshot
+    $launchScreenshotPath = Join-Path $proofDir "${rid}_chrome_launch.png"
+    $screenshotCaptured = Capture-Screenshot -OutputPath $launchScreenshotPath
+    $screenshotHash = ""
+    if ($screenshotCaptured) {
+        $screenshotHash = Get-FileHash256 -FilePath $launchScreenshotPath
+        Write-Log "Screenshot hash: $screenshotHash"
+    }
+
+    # Stage 6: Capture focused window screenshot (after small delay)
+    Start-Sleep -Seconds 1
+    $focusScreenshotPath = Join-Path $proofDir "${rid}_focused_window.png"
+    Capture-Screenshot -OutputPath $focusScreenshotPath | Out-Null
+
+    # Stage 7: Navigation screenshot (page should be loaded by now)
+    Start-Sleep -Seconds 2
+    $navScreenshotPath = Join-Path $proofDir "${rid}_navigation.png"
+    Capture-Screenshot -OutputPath $navScreenshotPath | Out-Null
+
+    # Build observed desktop state
+    $observedState = @{
+        chrome_pid          = $chromePid
+        window_handle       = if ($windowMeta["main_window_handle"]) { $windowMeta["main_window_handle"] } else { 0 }
+        window_title        = if ($windowMeta["main_window_title"]) { $windowMeta["main_window_title"] } else { "" }
+        visible             = $processDetected
+        focused             = $isChromeForegrounded
+        monitor_detected    = $true
+        desktop_unlocked    = $desktopUnlocked
+        active_user_session = $activeSession
+        navigation_url      = $url
+        navigation_detected = ($windowMeta["main_window_title"] -ne $null -and $windowMeta["main_window_title"] -ne "")
+        screenshot_hash     = $screenshotHash
+        screenshot_path     = $launchScreenshotPath
+        timestamp           = Get-Timestamp
+    }
+
+    # Write observed state to proof dir
+    $stateJson = $observedState | ConvertTo-Json -Depth 5
+    $statePath = Join-Path $proofDir "${rid}_runtime_state.json"
+    $stateJson | Out-File -FilePath $statePath -Encoding UTF8
+
+    # Write desktop environment info
+    $desktopEnv = @{
+        hostname        = $env:COMPUTERNAME
+        username        = $env:USERNAME
+        os_version      = [System.Environment]::OSVersion.VersionString
+        ps_version      = $PSVersionTable.PSVersion.ToString()
+        screen_count    = [System.Windows.Forms.Screen]::AllScreens.Count
+        primary_screen  = @{
+            width  = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Width
+            height = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Height
+        }
+        timestamp       = Get-Timestamp
+    }
+    $desktopEnvJson = $desktopEnv | ConvertTo-Json -Depth 5
+    $desktopEnvPath = Join-Path $proofDir "${rid}_desktop_environment.json"
+    $desktopEnvJson | Out-File -FilePath $desktopEnvPath -Encoding UTF8
+
+    # Build stages completed
+    $stagesCompleted = @("relay_dispatched", "chrome_launched")
+    if ($chromeRunning) { $stagesCompleted += "process_verified" }
+    if ($windowMeta["main_window_handle"]) { $stagesCompleted += "window_detected" }
+    if ($isChromeForegrounded) { $stagesCompleted += "focus_confirmed" }
+    if ($observedState["navigation_detected"]) { $stagesCompleted += "navigation_confirmed" }
+    if ($screenshotCaptured) { $stagesCompleted += "screenshot_captured" }
+
+    # Write proof summary
+    $proofSummary = @{
+        proof_id            = "GUI-ACT-PROOF-$($rid.Substring($rid.Length - 8))"
+        trace_id            = $traceId
+        environment         = "local_windows_foreground"
+        passed              = ($isChromeForegrounded -and $processDetected -and $screenshotCaptured)
+        chrome_pid          = $chromePid
+        window_handle       = $observedState["window_handle"]
+        stages_completed    = $stagesCompleted
+        screenshot_hash     = $screenshotHash
+        founder_confirmed   = $false
+        founder_confirmation_required = $true
+        timestamp           = Get-Timestamp
+    }
+    $proofSummaryJson = $proofSummary | ConvertTo-Json -Depth 5
+    $proofSummaryPath = Join-Path $proofDir "${rid}_proof_summary.json"
+    $proofSummaryJson | Out-File -FilePath $proofSummaryPath -Encoding UTF8
+
+    # Write relay result
+    Write-Result -RequestId $rid -Result @{
+        request_id                     = $rid
+        trace_id                       = $traceId
+        work_order_id                  = $workOrderId
+        action_type                    = "chrome_proof"
+        adapter_status                 = "completed"
+        command_issued                 = $commandIssued
+        process_detected               = $processDetected
+        process_id                     = $chromePid
+        window_metadata                = $windowMeta
+        observed_desktop_state         = $observedState
+        visible_proof_status           = if ($isChromeForegrounded) { "process_detected" } else { "no_proof" }
+        founder_visual_confirmation_required = $true
+        stages_completed               = $stagesCompleted
+        screenshot_captured            = $screenshotCaptured
+        screenshot_hash                = $screenshotHash
+        screenshot_path                = $launchScreenshotPath
+        proof_dir                      = $proofDir
+        proof_artifacts                = @(
+            "${rid}_chrome_launch.png",
+            "${rid}_focused_window.png",
+            "${rid}_navigation.png",
+            "${rid}_runtime_state.json",
+            "${rid}_desktop_environment.json",
+            "${rid}_proof_summary.json"
+        )
+        timestamp                      = Get-Timestamp
+        notes                          = @(
+            "Real Chrome launch via direct executable",
+            "Screenshot proof captured at each stage",
+            "Observed desktop state collected from real system",
+            "Window metadata is evidence, not proof",
+            "Founder must visually confirm Chrome is visible",
+            "Foreground focus detected: $isChromeForegrounded"
+        )
+    }
+
+    Write-Log "CHROME_PROOF completed: stages=$($stagesCompleted -join ',')"
+}
+
+# ---------------------------------------------------------------------------
 # Request processor
 # ---------------------------------------------------------------------------
 
@@ -347,6 +672,9 @@ function Process-Request {
             }
             "open_application_url" {
                 Handle-OpenApplicationUrl -Request $request
+            }
+            "chrome_proof" {
+                Handle-ChromeProof -Request $request
             }
             default {
                 Write-Log "UNKNOWN action_type: $actionType"

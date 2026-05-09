@@ -29,6 +29,7 @@ class WindowsDesktopActionType(str, Enum):
     PING = "ping"
     OPEN_APPLICATION_URL = "open_application_url"
     FOCUS_APPLICATION = "focus_application"
+    CHROME_PROOF = "chrome_proof"
     REQUEST_FOUNDER_VISUAL_CONFIRMATION = "request_founder_visual_confirmation"
 
 
