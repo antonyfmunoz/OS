@@ -40,12 +40,14 @@ class CapabilityType(str, Enum):
     CANONICAL_MEMORY_QUERY = "canonical_memory_query"
     ENVIRONMENT_DISCOVERY = "environment_discovery"
     ADAPTER_SYNTHESIS = "adapter_synthesis"
+    CAPABILITY_PLANNING = "capability_planning"
 
 
 ALLOWED_ACTION_TYPES = frozenset(
     {
         "adapter_report",
         "actuator_proof",
+        "capability_report",
         "ping",
         "open_application_url",
         "chrome_open_google_drive",

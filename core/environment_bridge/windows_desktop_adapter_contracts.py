@@ -33,6 +33,7 @@ class WindowsDesktopActionType(str, Enum):
     INGEST_SAFE_DOC_CU = "ingest_safe_doc_cu"
     EXPLORE_ENVIRONMENT = "explore_environment"
     ADAPTER_REPORT = "adapter_report"
+    CAPABILITY_REPORT = "capability_report"
     REQUEST_FOUNDER_VISUAL_CONFIRMATION = "request_founder_visual_confirmation"
 
 

@@ -153,6 +153,13 @@ ACTION_CAPABILITY_MAP: dict[str, CapabilityRequirement] = {
         requires_local_shell=False,
         authority_required="local_shell",
     ),
+    "capability_report": CapabilityRequirement(
+        action_type="capability_report",
+        capability_type=CapabilityType.CAPABILITY_PLANNING,
+        requires_gui=False,
+        requires_local_shell=False,
+        authority_required="local_shell",
+    ),
 }
 
 

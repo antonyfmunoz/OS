@@ -15,7 +15,8 @@
         "ping",
         "relay_status",
         "relay_to_windows_adapter",
-        "adapter_report"
+        "adapter_report",
+        "capability_report"
       ]
     },
     "windows_interactive_desktop_relay": {
@@ -29,6 +30,7 @@
       "capabilities": [
         "ping",
         "adapter_report",
+        "capability_report",
         "actuator_proof",
         "relay_status",
         "open_application_url",
@@ -234,6 +236,21 @@
             "Analyzes existing environment mapping proofs",
             "Generates adapter blueprints with replay contracts",
             "Classifies maturity levels L0-L5",
+            "NO relay dispatch needed, runs VPS-side",
+            "Founder confirmation required for proof generation"
+          ]
+        },
+        {
+          "capability_id": "capability_report",
+          "action_type": "capability_report",
+          "requires_gui": false,
+          "requires_local_shell": false,
+          "required_authority": "local_shell",
+          "notes": [
+            "Recursive capability planning and gap analysis",
+            "Analyzes substrate maturity across 21 capabilities",
+            "Identifies bottlenecks and generates upgrade proposals",
+            "Leverage scoring with 8-dimensional composite",
             "NO relay dispatch needed, runs VPS-side",
             "Founder confirmation required for proof generation"
           ]

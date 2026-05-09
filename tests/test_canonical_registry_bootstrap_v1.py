@@ -33,7 +33,7 @@ class TestCanonicalRegistrySingleSource:
         )
 
         reg = CanonicalCommandRegistryV1()
-        assert len(reg) == 15
+        assert len(reg) == 16
 
     def test_all_commands_present(self) -> None:
         from core.registry.canonical_command_registry_v1 import (
@@ -44,6 +44,7 @@ class TestCanonicalRegistrySingleSource:
         expected = {
             "!actuator-proof",
             "!adapter-report",
+            "!capability-report",
             "!ping",
             "!chrome",
             "!chrome-open-google-drive",
@@ -156,7 +157,7 @@ class TestRegistryHashDeterminism:
         data = reg.to_dict()
         serialized = json.dumps(data)
         assert len(serialized) > 0
-        assert data["command_count"] == 15
+        assert data["command_count"] == 16
 
 
 class TestBootstrapLifecycle:
@@ -283,11 +284,11 @@ class TestBootstrapDeniedExecution:
     def test_validation_to_dict(self) -> None:
         from core.runtime.runtime_bootstrap_state_v1 import BootstrapValidation
 
-        v = BootstrapValidation(valid=True, registry_hash="abc123", registry_count=15)
+        v = BootstrapValidation(valid=True, registry_hash="abc123", registry_count=16)
         d = v.to_dict()
         assert d["valid"] is True
         assert d["registry_hash"] == "abc123"
-        assert d["registry_count"] == 15
+        assert d["registry_count"] == 16
 
 
 class TestRouterConfigParity:
@@ -385,7 +386,7 @@ class TestLiveBootstrapOnVPS:
         v = bs.bootstrap(auto_heal=True)
         assert v.valid is True
         assert v.registry_loaded is True
-        assert v.registry_count == 15
+        assert v.registry_count == 16
 
     def test_real_bootstrap_registry_hash_matches(self) -> None:
         from core.registry.canonical_command_registry_v1 import get_canonical_registry
