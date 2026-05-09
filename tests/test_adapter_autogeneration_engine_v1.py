@@ -627,7 +627,7 @@ class TestRegistryIntegration:
         from core.registry.canonical_command_registry_v1 import CanonicalCommandRegistryV1
 
         reg = CanonicalCommandRegistryV1()
-        assert len(reg) == 24
+        assert len(reg) == 25
 
 
 class TestMaturityRequirements:

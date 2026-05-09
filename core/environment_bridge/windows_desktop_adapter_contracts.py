@@ -42,6 +42,7 @@ class WindowsDesktopActionType(str, Enum):
     ECONOMICS_REPORT = "economics_report"
     STRATEGY_REPORT = "strategy_report"
     EPISTEMIC_REPORT = "epistemic_report"
+    IDENTITY_REPORT = "identity_report"
     REQUEST_FOUNDER_VISUAL_CONFIRMATION = "request_founder_visual_confirmation"
 
 

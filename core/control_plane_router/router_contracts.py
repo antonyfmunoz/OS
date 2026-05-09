@@ -49,6 +49,7 @@ class CapabilityType(str, Enum):
     RESOURCE_ECONOMICS = "resource_economics"
     STRATEGIC_INTELLIGENCE = "strategic_intelligence"
     EPISTEMIC_INTELLIGENCE = "epistemic_intelligence"
+    IDENTITY_CONTINUITY = "identity_continuity"
 
 
 ALLOWED_ACTION_TYPES = frozenset(
@@ -64,6 +65,7 @@ ALLOWED_ACTION_TYPES = frozenset(
         "federation_report",
         "strategy_report",
         "epistemic_report",
+        "identity_report",
         "ping",
         "open_application_url",
         "chrome_open_google_drive",

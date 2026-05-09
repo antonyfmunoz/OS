@@ -29,7 +29,8 @@
     "query_safe_memory_reference",
     "relay_status",
     "strategy_report",
-    "epistemic_report"
+    "epistemic_report",
+    "identity_report"
   ],
   "enabled_adapters": [
     "windows_interactive_desktop_relay"

@@ -216,6 +216,13 @@ ACTION_CAPABILITY_MAP: dict[str, CapabilityRequirement] = {
         requires_local_shell=False,
         authority_required="local_shell",
     ),
+    "identity_report": CapabilityRequirement(
+        action_type="identity_report",
+        capability_type=CapabilityType.IDENTITY_CONTINUITY,
+        requires_gui=False,
+        requires_local_shell=False,
+        authority_required="local_shell",
+    ),
 }
 
 

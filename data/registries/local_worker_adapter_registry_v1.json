@@ -23,7 +23,8 @@
         "constitution_report",
         "federation_report",
         "economics_report",
-        "strategy_report"
+        "strategy_report",
+        "identity_report"
       ]
     },
     "windows_interactive_desktop_relay": {
@@ -413,6 +414,23 @@
             "Maturity classification L0-L5",
             "NO autonomous epistemic mutation allowed",
             "Full upstream proof chain required (11 layers deep)"
+          ]
+        },
+        {
+          "capability_id": "identity_report",
+          "action_type": "identity_report",
+          "requires_gui": false,
+          "requires_local_shell": false,
+          "required_authority": "local_shell",
+          "notes": [
+            "Constitutional identity continuity and sovereign memory architecture",
+            "10 identity primitives with sovereign memory analysis (8 layers)",
+            "8 narrative continuity dimensions, 8 identity drift types",
+            "6 historical reconciliation types, 7 temporal topology types",
+            "7 identity hard ceilings, 6 identity adaptation types",
+            "Maturity classification L0-L5",
+            "NO autonomous identity mutation allowed",
+            "Full upstream proof chain required (12 layers deep)"
           ]
         }
       ],

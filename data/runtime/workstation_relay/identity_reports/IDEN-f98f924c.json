@@ -1,0 +1,546 @@
+{
+  "proof_id": "IDEN-f98f924c",
+  "proof_type": "constitutional_identity_continuity",
+  "trace_id": "",
+  "maturity_level": "L5_CONSTITUTIONAL_IDENTITY_CONTINUITY",
+  "maturity_ceiling": "L5_CONSTITUTIONAL_IDENTITY_CONTINUITY",
+  "escalation_blocked": false,
+  "escalation_reason": "",
+  "evidence": {
+    "primitives_evaluated": true,
+    "primitive_count": 10,
+    "composite_confidence": 0.6805,
+    "composite_stability": 0.6583,
+    "composite_drift": 0.0168,
+    "memory_analyzed": true,
+    "memory_integrity": 0.7231,
+    "immutable_layers": 5,
+    "mutable_layers": 3,
+    "narrative_analyzed": true,
+    "narrative_coherence": 0.6166,
+    "intact_narratives": 8,
+    "divergent_narratives": 0,
+    "drift_analyzed": true,
+    "drift_count": 0,
+    "critical_drift_count": 0,
+    "reconciliation_analyzed": true,
+    "conflict_count": 0,
+    "reconciled_count": 0,
+    "unreconciled_count": 0,
+    "topology_generated": true,
+    "topology_types_covered": 7,
+    "topology_stability": 0.6977,
+    "adaptations_applied": true,
+    "preservations_applied": 0,
+    "quarantines_applied": 0,
+    "reconciliations_applied": 0,
+    "all_invariants_preserved": true,
+    "hard_ceilings_enforced": true,
+    "identity_constitutionally_safe": true,
+    "replay_safe_lineage": true,
+    "continuity_safe_memory": true,
+    "selfhood_stable": true,
+    "civilizational_continuity_score": 0.7246,
+    "founder_confirmed": true,
+    "is_dry_run": false,
+    "trace_id": "",
+    "request_id": ""
+  },
+  "primitives": {
+    "primitives": [
+      {
+        "primitive": "identity_lineage",
+        "confidence": 0.6469,
+        "stability": 0.782,
+        "drift_magnitude": 0.02,
+        "trend": "stable",
+        "risk_level": "low",
+        "notes": []
+      },
+      {
+        "primitive": "institutional_continuity",
+        "confidence": 0.32,
+        "stability": 0.288,
+        "drift_magnitude": 0.018,
+        "trend": "stable",
+        "risk_level": "low",
+        "notes": []
+      },
+      {
+        "primitive": "constitutional_lineage",
+        "confidence": 0.6997,
+        "stability": 0.7409,
+        "drift_magnitude": 0.01,
+        "trend": "stable",
+        "risk_level": "low",
+        "notes": []
+      },
+      {
+        "primitive": "narrative_continuity",
+        "confidence": 0.644,
+        "stability": 0.6997,
+        "drift_magnitude": 0.01,
+        "trend": "stable",
+        "risk_level": "low",
+        "notes": []
+      },
+      {
+        "primitive": "memory_coherence",
+        "confidence": 0.611,
+        "stability": 0.7244,
+        "drift_magnitude": 0.03,
+        "trend": "stable",
+        "risk_level": "low",
+        "notes": []
+      },
+      {
+        "primitive": "historical_consistency",
+        "confidence": 0.68,
+        "stability": 0.51,
+        "drift_magnitude": 0.02,
+        "trend": "stable",
+        "risk_level": "low",
+        "notes": []
+      },
+      {
+        "primitive": "selfhood_persistence",
+        "confidence": 0.8232,
+        "stability": 0.7573,
+        "drift_magnitude": 0.01,
+        "trend": "strengthening",
+        "risk_level": "low",
+        "notes": []
+      },
+      {
+        "primitive": "temporal_identity_integrity",
+        "confidence": 0.807,
+        "stability": 0.64,
+        "drift_magnitude": 0.008,
+        "trend": "strengthening",
+        "risk_level": "low",
+        "notes": []
+      },
+      {
+        "primitive": "recursive_identity_drift",
+        "confidence": 0.9344,
+        "stability": 0.7409,
+        "drift_magnitude": 0.0219,
+        "trend": "strengthening",
+        "risk_level": "low",
+        "notes": []
+      },
+      {
+        "primitive": "institutional_memory_confidence",
+        "confidence": 0.639,
+        "stability": 0.6997,
+        "drift_magnitude": 0.02,
+        "trend": "stable",
+        "risk_level": "low",
+        "notes": []
+      }
+    ],
+    "composite_confidence": 0.6805,
+    "composite_stability": 0.6583,
+    "composite_drift": 0.0168,
+    "timestamp": "2026-05-09T20:51:58.095591+00:00"
+  },
+  "memory": {
+    "layers": [
+      {
+        "layer": "immutable_historical_lineage",
+        "integrity_score": 0.7719,
+        "immutable": true,
+        "replay_safe": true,
+        "governance_safe": true,
+        "notes": []
+      },
+      {
+        "layer": "constitutional_memory_layers",
+        "integrity_score": 0.7313,
+        "immutable": true,
+        "replay_safe": true,
+        "governance_safe": true,
+        "notes": []
+      },
+      {
+        "layer": "replay_safe_historical_memory",
+        "integrity_score": 0.51,
+        "immutable": true,
+        "replay_safe": true,
+        "governance_safe": true,
+        "notes": []
+      },
+      {
+        "layer": "governance_safe_memory_evolution",
+        "integrity_score": 0.6906,
+        "immutable": false,
+        "replay_safe": true,
+        "governance_safe": true,
+        "notes": []
+      },
+      {
+        "layer": "federated_historical_synchronization",
+        "integrity_score": 0.8,
+        "immutable": false,
+        "replay_safe": true,
+        "governance_safe": true,
+        "notes": []
+      },
+      {
+        "layer": "temporal_continuity_preservation",
+        "integrity_score": 0.715,
+        "immutable": true,
+        "replay_safe": true,
+        "governance_safe": true,
+        "notes": []
+      },
+      {
+        "layer": "memory_reconciliation",
+        "integrity_score": 0.6663,
+        "immutable": false,
+        "replay_safe": true,
+        "governance_safe": true,
+        "notes": []
+      },
+      {
+        "layer": "historical_auditability",
+        "integrity_score": 0.9,
+        "immutable": true,
+        "replay_safe": true,
+        "governance_safe": true,
+        "notes": []
+      }
+    ],
+    "composite_integrity": 0.7231,
+    "immutable_count": 5,
+    "mutable_count": 3,
+    "timestamp": "2026-05-09T20:51:58.095609+00:00"
+  },
+  "narrative": {
+    "dimensions": [
+      {
+        "dimension": "mission_continuity",
+        "coherence_score": 0.6125,
+        "continuity_intact": true,
+        "divergence_detected": false,
+        "notes": []
+      },
+      {
+        "dimension": "governance_continuity",
+        "coherence_score": 0.5596,
+        "continuity_intact": true,
+        "divergence_detected": false,
+        "notes": []
+      },
+      {
+        "dimension": "strategic_continuity",
+        "coherence_score": 0.5444,
+        "continuity_intact": true,
+        "divergence_detected": false,
+        "notes": []
+      },
+      {
+        "dimension": "constitutional_continuity",
+        "coherence_score": 0.6508,
+        "continuity_intact": true,
+        "divergence_detected": false,
+        "notes": []
+      },
+      {
+        "dimension": "orchestration_continuity",
+        "coherence_score": 0.5793,
+        "continuity_intact": true,
+        "divergence_detected": false,
+        "notes": []
+      },
+      {
+        "dimension": "federation_continuity",
+        "coherence_score": 0.5104,
+        "continuity_intact": true,
+        "divergence_detected": false,
+        "notes": []
+      },
+      {
+        "dimension": "epistemic_continuity",
+        "coherence_score": 0.7888,
+        "continuity_intact": true,
+        "divergence_detected": false,
+        "notes": []
+      },
+      {
+        "dimension": "civilizational_continuity",
+        "coherence_score": 0.6873,
+        "continuity_intact": true,
+        "divergence_detected": false,
+        "notes": []
+      }
+    ],
+    "composite_coherence": 0.6166,
+    "intact_count": 8,
+    "divergent_count": 0,
+    "timestamp": "2026-05-09T20:51:58.095634+00:00"
+  },
+  "drift": {
+    "detections": [
+      {
+        "drift_type": "institutional_drift",
+        "drift_detected": false,
+        "drift_magnitude": 0.0168,
+        "severity": "low",
+        "recoverable": true,
+        "notes": []
+      },
+      {
+        "drift_type": "constitutional_drift",
+        "drift_detected": false,
+        "drift_magnitude": 0.0185,
+        "severity": "low",
+        "recoverable": true,
+        "notes": []
+      },
+      {
+        "drift_type": "mission_divergence",
+        "drift_detected": false,
+        "drift_magnitude": 0.0,
+        "severity": "low",
+        "recoverable": true,
+        "notes": []
+      },
+      {
+        "drift_type": "historical_fragmentation",
+        "drift_detected": false,
+        "drift_magnitude": 0.0,
+        "severity": "low",
+        "recoverable": true,
+        "notes": []
+      },
+      {
+        "drift_type": "memory_corruption",
+        "drift_detected": false,
+        "drift_magnitude": 0.04,
+        "severity": "low",
+        "recoverable": true,
+        "notes": []
+      },
+      {
+        "drift_type": "identity_bifurcation",
+        "drift_detected": false,
+        "drift_magnitude": 0.16,
+        "severity": "high",
+        "recoverable": true,
+        "notes": []
+      },
+      {
+        "drift_type": "federated_identity_conflicts",
+        "drift_detected": false,
+        "drift_magnitude": 0.12,
+        "severity": "medium",
+        "recoverable": true,
+        "notes": []
+      },
+      {
+        "drift_type": "recursive_selfhood_instability",
+        "drift_detected": false,
+        "drift_magnitude": 0.0408,
+        "severity": "low",
+        "recoverable": true,
+        "notes": []
+      }
+    ],
+    "total_drift_count": 0,
+    "critical_drift_count": 0,
+    "composite_drift": 0.0,
+    "timestamp": "2026-05-09T20:51:58.095694+00:00"
+  },
+  "reconciliation": {
+    "reconciliations": [
+      {
+        "reconciliation_type": "conflicting_historical_records",
+        "conflict_detected": false,
+        "reconciled": true,
+        "severity": 0.0,
+        "notes": []
+      },
+      {
+        "reconciliation_type": "divergent_memory_states",
+        "conflict_detected": false,
+        "reconciled": true,
+        "severity": 0.15,
+        "notes": []
+      },
+      {
+        "reconciliation_type": "federated_timeline_mismatches",
+        "conflict_detected": false,
+        "reconciled": true,
+        "severity": 0.0,
+        "notes": []
+      },
+      {
+        "reconciliation_type": "replay_history_contradictions",
+        "conflict_detected": false,
+        "reconciled": true,
+        "severity": 0.2,
+        "notes": []
+      },
+      {
+        "reconciliation_type": "constitutional_memory_conflicts",
+        "conflict_detected": false,
+        "reconciled": true,
+        "severity": 0.0,
+        "notes": []
+      },
+      {
+        "reconciliation_type": "strategic_narrative_divergence",
+        "conflict_detected": false,
+        "reconciled": true,
+        "severity": 0.0,
+        "notes": []
+      }
+    ],
+    "conflict_count": 0,
+    "reconciled_count": 0,
+    "unreconciled_count": 0,
+    "timestamp": "2026-05-09T20:51:58.095707+00:00"
+  },
+  "topology": {
+    "nodes": [
+      {
+        "node_id": "TTOP-e105dda9",
+        "topology_type": "institutional_lineage_graph",
+        "stability": 0.6583,
+        "connections": 10,
+        "coherence": 0.6805
+      },
+      {
+        "node_id": "TTOP-117aafb5",
+        "topology_type": "memory_dependency_graph",
+        "stability": 0.7231,
+        "connections": 8,
+        "coherence": 0.6508
+      },
+      {
+        "node_id": "TTOP-e46afe43",
+        "topology_type": "constitutional_evolution_map",
+        "stability": 0.5784,
+        "connections": 8,
+        "coherence": 0.5925
+      },
+      {
+        "node_id": "TTOP-191dd189",
+        "topology_type": "narrative_continuity_topology",
+        "stability": 0.6166,
+        "connections": 8,
+        "coherence": 0.5858
+      },
+      {
+        "node_id": "TTOP-fc20e30c",
+        "topology_type": "identity_coherence_map",
+        "stability": 0.7018,
+        "connections": 18,
+        "coherence": 0.5793
+      },
+      {
+        "node_id": "TTOP-2c99a1e3",
+        "topology_type": "timeline_divergence_graph",
+        "stability": 1.0,
+        "connections": 1,
+        "coherence": 1.0
+      },
+      {
+        "node_id": "TTOP-d5459607",
+        "topology_type": "historical_stability_topology",
+        "stability": 0.6056,
+        "connections": 16,
+        "coherence": 0.5925
+      }
+    ],
+    "topology_types_covered": 7,
+    "composite_stability": 0.6977,
+    "topology_hash": "840a3da23aba3d96",
+    "timestamp": "2026-05-09T20:51:58.095737+00:00"
+  },
+  "adaptations": {
+    "adaptations": [
+      {
+        "adaptation_type": "identity_preservation",
+        "description": "Preserve constitutional identity under drift conditions",
+        "applied": false,
+        "identity_preserved": true,
+        "memory_quarantined": false,
+        "timeline_reconciled": false,
+        "invariants_preserved": true,
+        "notes": [
+          "drift_count=0"
+        ]
+      },
+      {
+        "adaptation_type": "memory_quarantine",
+        "description": "Quarantine corrupted memory states",
+        "applied": false,
+        "identity_preserved": true,
+        "memory_quarantined": false,
+        "timeline_reconciled": false,
+        "invariants_preserved": true,
+        "notes": [
+          "corruption=none"
+        ]
+      },
+      {
+        "adaptation_type": "timeline_reconciliation",
+        "description": "Reconcile divergent timeline states",
+        "applied": false,
+        "identity_preserved": true,
+        "memory_quarantined": false,
+        "timeline_reconciled": true,
+        "invariants_preserved": true,
+        "notes": [
+          "unreconciled=0"
+        ]
+      },
+      {
+        "adaptation_type": "historical_integrity_restoration",
+        "description": "Restore historical integrity from verified sources",
+        "applied": true,
+        "identity_preserved": true,
+        "memory_quarantined": false,
+        "timeline_reconciled": false,
+        "invariants_preserved": true,
+        "notes": [
+          "historical integrity verified"
+        ]
+      },
+      {
+        "adaptation_type": "narrative_coherence_maintenance",
+        "description": "Maintain narrative coherence under evolution",
+        "applied": false,
+        "identity_preserved": true,
+        "memory_quarantined": false,
+        "timeline_reconciled": false,
+        "invariants_preserved": true,
+        "notes": [
+          "divergent_narratives=0"
+        ]
+      },
+      {
+        "adaptation_type": "recursive_collapse_prevention",
+        "description": "Prevent recursive identity collapse",
+        "applied": false,
+        "identity_preserved": true,
+        "memory_quarantined": false,
+        "timeline_reconciled": false,
+        "invariants_preserved": true,
+        "notes": [
+          "composite_drift=0.000",
+          "stability=0.658"
+        ]
+      }
+    ],
+    "preservations_applied": 0,
+    "quarantines_applied": 0,
+    "reconciliations_applied": 0,
+    "all_invariants_preserved": true,
+    "timestamp": "2026-05-09T20:51:58.095758+00:00"
+  },
+  "execution_strategy": "constitutional_identity_continuity_active",
+  "timestamp": "2026-05-09T20:51:58.095784+00:00"
+}
