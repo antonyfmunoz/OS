@@ -4,6 +4,9 @@ Intercepts UMH substrate commands (!chrome-proof, !ping, !chrome, etc.)
 in on_message and routes them through the governed execution spine or
 control plane router from discord_interface_adapter_v1.
 
+Also provides runtime identity commands (!version, !runtime, !commands)
+that report live process metadata for parity verification.
+
 This handler bridges the live bot (services/discord_bot.py) to the
 spine infrastructure (eos_ai/interfaces/discord_interface_adapter_v1.py).
 """
@@ -14,8 +17,10 @@ import asyncio
 import hashlib
 import json
 import os
+import platform
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -52,15 +57,42 @@ def _log(msg: str) -> None:
 
 SUBSTRATE_COMMANDS = frozenset(SUPPORTED_COMMANDS - {"!status"})
 
+META_COMMANDS = frozenset({"!commands", "!version", "!runtime"})
+
 _spine = None
 _router = None
 _initialized = False
 
+_BOOT_TIME = datetime.now(timezone.utc)
+_BOOT_PID = os.getpid()
 
-def _get_vps_commit_hash() -> str:
+
+def _get_vps_commit_hash(short: bool = True) -> str:
     try:
+        cmd = ["git", "rev-parse"]
+        if short:
+            cmd.append("--short")
+        cmd.append("HEAD")
         result = subprocess.run(
-            ["git", "rev-parse", "--short", "HEAD"],
+            cmd,
+            capture_output=True,
+            text=True,
+            cwd=_REPO_ROOT,
+            timeout=5,
+        )
+        return result.stdout.strip()
+    except Exception:
+        return "unknown"
+
+
+def _get_origin_commit_hash(short: bool = True) -> str:
+    try:
+        cmd = ["git", "rev-parse"]
+        if short:
+            cmd.append("--short")
+        cmd.append("origin/main")
+        result = subprocess.run(
+            cmd,
             capture_output=True,
             text=True,
             cwd=_REPO_ROOT,
@@ -74,6 +106,41 @@ def _get_vps_commit_hash() -> str:
 def _get_command_surface_hash() -> str:
     surface = sorted(SUPPORTED_COMMANDS)
     return hashlib.sha256(json.dumps(surface).encode()).hexdigest()[:12]
+
+
+def _get_router_contract_hash() -> str:
+    action_map = dict(sorted(COMMAND_ACTION_MAP.items()))
+    return hashlib.sha256(json.dumps(action_map).encode()).hexdigest()[:12]
+
+
+def _file_hash(path: str) -> str:
+    try:
+        data = Path(path).read_bytes()
+        return hashlib.sha256(data).hexdigest()[:12]
+    except Exception:
+        return "missing"
+
+
+def _container_id() -> str:
+    try:
+        cgroup = Path("/proc/self/cgroup").read_text()
+        for line in cgroup.splitlines():
+            if "docker" in line or "containerd" in line:
+                return line.rsplit("/", 1)[-1][:12]
+    except Exception:
+        pass
+    hostname = platform.node()
+    if len(hostname) == 12 and hostname.isalnum():
+        return hostname
+    return "not-container"
+
+
+def _is_stale_runtime() -> tuple[bool, str, str]:
+    vps = _get_vps_commit_hash()
+    origin = _get_origin_commit_hash()
+    if vps == "unknown" or origin == "unknown":
+        return False, vps, origin
+    return vps != origin, vps, origin
 
 
 def _ensure_infrastructure() -> tuple[Any, Any]:
@@ -104,7 +171,7 @@ def _ensure_infrastructure() -> tuple[Any, Any]:
 
 def is_substrate_command(text: str) -> bool:
     cmd = text.strip().split()[0].lower() if text.strip() else ""
-    return cmd in SUBSTRATE_COMMANDS or cmd == "!commands"
+    return cmd in SUBSTRATE_COMMANDS or cmd in META_COMMANDS
 
 
 async def handle_substrate_command(message: Any, text: str) -> bool:
@@ -115,8 +182,25 @@ async def handle_substrate_command(message: Any, text: str) -> bool:
         await _handle_commands_list(message)
         return True
 
+    if cmd == "!version":
+        await _handle_version(message)
+        return True
+
+    if cmd == "!runtime":
+        await _handle_runtime(message)
+        return True
+
     if cmd not in SUBSTRATE_COMMANDS:
         return False
+
+    stale, vps_hash, origin_hash = _is_stale_runtime()
+    if stale:
+        await message.channel.send(
+            f"**{cmd}** -- STALE_RUNTIME\n"
+            f"VPS HEAD: `{vps_hash}` != origin/main: `{origin_hash}`\n"
+            f"Run `git pull` on VPS then `docker restart os-discord`"
+        )
+        return True
 
     spine, router = await asyncio.to_thread(_ensure_infrastructure)
 
@@ -128,8 +212,50 @@ async def handle_substrate_command(message: Any, text: str) -> bool:
     return True
 
 
+async def _handle_version(message: Any) -> None:
+    vps_hash = _get_vps_commit_hash()
+    origin_hash = _get_origin_commit_hash()
+    surface_hash = _get_command_surface_hash()
+    contract_hash = _get_router_contract_hash()
+    stale = vps_hash != origin_hash and vps_hash != "unknown"
+
+    lines = [
+        f"**Live Runtime Version**",
+        f"VPS HEAD: `{vps_hash}`",
+        f"origin/main: `{origin_hash}`",
+        f"parity: {'SYNCED' if not stale else 'STALE'}",
+        f"command surface: `{surface_hash}`",
+        f"router contracts: `{contract_hash}`",
+        f"substrate handler: `{_file_hash(os.path.abspath(__file__))}`",
+        f"bot source: `{_file_hash(os.path.join(_REPO_ROOT, 'services/discord_bot.py'))}`",
+    ]
+    await message.channel.send("\n".join(lines))
+    _log(f"!version replied — VPS={vps_hash} origin={origin_hash}")
+
+
+async def _handle_runtime(message: Any) -> None:
+    uptime_s = (datetime.now(timezone.utc) - _BOOT_TIME).total_seconds()
+    uptime_h = uptime_s / 3600
+
+    lines = [
+        f"**Live Runtime Identity**",
+        f"PID: `{_BOOT_PID}`",
+        f"boot: `{_BOOT_TIME.strftime('%Y-%m-%d %H:%M:%S UTC')}`",
+        f"uptime: `{uptime_h:.1f}h`",
+        f"hostname: `{platform.node()}`",
+        f"container: `{_container_id()}`",
+        f"cwd: `{os.getcwd()}`",
+        f"python: `{sys.executable}`",
+        f"python version: `{platform.python_version()}`",
+        f"substrate handler: `active`",
+        f"commands loaded: `{len(SUBSTRATE_COMMANDS)}` substrate + `{len(META_COMMANDS)}` meta",
+        f"handler source: `{os.path.abspath(__file__)}`",
+    ]
+    await message.channel.send("\n".join(lines))
+    _log(f"!runtime replied — PID={_BOOT_PID} uptime={uptime_h:.1f}h")
+
+
 async def _handle_commands_list(message: Any) -> None:
-    """!commands — show all live registered commands with status."""
     vps_hash = _get_vps_commit_hash()
     surface_hash = _get_command_surface_hash()
 
@@ -155,11 +281,11 @@ async def _handle_commands_list(message: Any) -> None:
         lines.append(f"  `{cmd}` -> `{action}` ({route}){flag_str}")
 
     lines.append("")
+    lines.append("**Meta Commands:**")
+    lines.append("  `!commands` `!version` `!runtime`")
+    lines.append("")
     lines.append("**Bot Commands** (@bot.command):")
     lines.append("  `!brief` `!status` `!portfolio` `!join` `!leave` `!say` `!help` ...")
-    lines.append("")
-    lines.append("**Inline Commands** (cc_command_handler):")
-    lines.append("  `!followup` `!travel` `!nomeetings` `!documents` `!audit` ...")
 
     await message.channel.send("\n".join(lines))
     _log(f"!commands replied — {len(SUBSTRATE_COMMANDS)} substrate commands listed")
@@ -194,13 +320,37 @@ async def _handle_router_command(cmd: str, message: Any, router: Any) -> None:
 
 
 def get_command_surface_manifest() -> dict[str, Any]:
-    """Return the live command surface manifest for sync verification."""
     return {
         "substrate_commands": sorted(SUBSTRATE_COMMANDS),
+        "meta_commands": sorted(META_COMMANDS),
         "spine_routed": sorted(SPINE_ROUTED_COMMANDS),
         "action_map": dict(sorted(COMMAND_ACTION_MAP.items())),
         "contracts": {k: v for k, v in sorted(COMMAND_CONTRACT.items())},
         "surface_hash": _get_command_surface_hash(),
+        "contract_hash": _get_router_contract_hash(),
         "vps_commit": _get_vps_commit_hash(),
+        "origin_commit": _get_origin_commit_hash(),
+        "boot_time": _BOOT_TIME.isoformat(),
+        "boot_pid": _BOOT_PID,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+
+
+def log_startup() -> None:
+    vps_hash = _get_vps_commit_hash()
+    origin_hash = _get_origin_commit_hash()
+    surface_hash = _get_command_surface_hash()
+    stale = vps_hash != origin_hash and vps_hash != "unknown"
+
+    _log("=" * 50)
+    _log("Substrate Command Handler — ACTIVE")
+    _log(f"VPS HEAD: {vps_hash}")
+    _log(f"origin/main: {origin_hash}")
+    _log(f"parity: {'SYNCED' if not stale else 'STALE — commands may be blocked'}")
+    _log(f"substrate commands: {len(SUBSTRATE_COMMANDS)}")
+    _log(f"meta commands: {len(META_COMMANDS)}")
+    _log(f"surface hash: {surface_hash}")
+    _log(f"handler source: {os.path.abspath(__file__)}")
+    _log(f"PID: {_BOOT_PID}")
+    _log(f"commands: {', '.join(sorted(SUBSTRATE_COMMANDS))}")
+    _log("=" * 50)

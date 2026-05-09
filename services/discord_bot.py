@@ -164,6 +164,7 @@ from handlers.cc_command_handler import try_inline_commands
 from handlers.substrate_command_handler import (
     handle_substrate_command,
     is_substrate_command,
+    log_startup as _substrate_log_startup,
 )
 
 # ─── Initialise ───────────────────────────────────────────────────────────────
@@ -1063,6 +1064,8 @@ async def on_ready():
     except Exception as e:
         print(f"[Discord] Ambient refresh skipped: {e}")
 
+    _substrate_log_startup()
+
     # Set up EOS Discord structure (idempotent — only creates missing channels)
     for guild in bot.guilds:
         bot.loop.create_task(_setup_server_structure(guild))
@@ -1759,6 +1762,11 @@ async def on_message(message: discord.Message):
     except Exception:
         pass  # archive failure must never block message path
 
+    # ── Substrate commands (spine/router routed) ───────────────────────
+    if is_substrate_command(text):
+        await handle_substrate_command(message, text)
+        return
+
     # ── Orchestration ingress (mode-gated) ──────────────────────────────
     # When EOS_DISCORD_ORCHESTRATION_ENABLED=1, route through the substrate
     # orchestration layer instead of CC injection / PseudoLive / Gateway.
@@ -2333,11 +2341,6 @@ async def on_message(message: discord.Message):
             buf = _multipart_buffers.pop(ch_key, None)
             if buf:
                 text = _assemble_parts(buf)
-
-    # ── Substrate commands (spine/router routed) ─────────────────────────────
-    if is_substrate_command(text):
-        await handle_substrate_command(message, text)
-        return
 
     # ── Inline commands (delegated to handler) ──────────────────────────────
     if await try_inline_commands(message, text, _pending_events):
