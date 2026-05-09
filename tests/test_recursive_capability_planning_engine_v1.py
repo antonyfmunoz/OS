@@ -920,7 +920,7 @@ class TestInfrastructureAnalysis:
         result = analyze_registries()
         assert result["adapter_registry_exists"] is True
         assert result["router_config_exists"] is True
-        assert result["config_action_count"] == 25
+        assert result["config_action_count"] == 26
 
     def test_analyze_proof_artifacts(self) -> None:
         from core.workstation.recursive_capability_planning_engine_v1 import (
@@ -939,7 +939,7 @@ class TestInfrastructureAnalysis:
         )
 
         result = analyze_governance_surface()
-        assert result["total_commands"] == 25
+        assert result["total_commands"] == 26
         assert result["founder_approval_required"] > 0
         assert result["governance_coverage"] > 0.0
 
@@ -990,7 +990,7 @@ class TestRegistryIntegration:
         from core.registry.canonical_command_registry_v1 import CanonicalCommandRegistryV1
 
         reg = CanonicalCommandRegistryV1()
-        assert len(reg) == 25
+        assert len(reg) == 26
 
     def test_capability_report_in_registry(self) -> None:
         from core.registry.canonical_command_registry_v1 import CanonicalCommandRegistryV1

@@ -944,7 +944,7 @@ class TestEpistemicCommandRegistration:
         from core.registry.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
-        assert len(reg) == 25
+        assert len(reg) == 26
 
     def test_epistemic_report_in_registry(self) -> None:
         from core.registry.canonical_command_registry_v1 import get_canonical_registry
@@ -969,13 +969,13 @@ class TestEpistemicCommandRegistration:
 
         with open("/opt/OS/config/control_plane_router_v1.json") as f:
             config = json.load(f)
-        assert len(config["allowed_action_types"]) == 25
+        assert len(config["allowed_action_types"]) == 26
 
     def test_substrate_commands(self) -> None:
         from handlers.substrate_command_handler import SUBSTRATE_COMMANDS
 
         assert "!epistemic-report" in SUBSTRATE_COMMANDS
-        assert len(SUBSTRATE_COMMANDS) == 25
+        assert len(SUBSTRATE_COMMANDS) == 26
 
 
 # ---------------------------------------------------------------------------

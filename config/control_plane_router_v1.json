@@ -30,7 +30,8 @@
     "relay_status",
     "strategy_report",
     "epistemic_report",
-    "identity_report"
+    "identity_report",
+    "telos_report"
   ],
   "enabled_adapters": [
     "windows_interactive_desktop_relay"

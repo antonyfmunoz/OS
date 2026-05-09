@@ -996,7 +996,7 @@ class TestEconomicsCommandRegistration:
         )
 
         reg = CanonicalCommandRegistryV1()
-        assert len(reg) == 25
+        assert len(reg) == 26
 
     def test_economics_report_in_registry(self) -> None:
         from core.registry.canonical_command_registry_v1 import (
@@ -1017,7 +1017,7 @@ class TestEconomicsCommandRegistration:
     def test_allowed_action_types_count(self) -> None:
         from core.control_plane_router.router_contracts import ALLOWED_ACTION_TYPES
 
-        assert len(ALLOWED_ACTION_TYPES) == 25
+        assert len(ALLOWED_ACTION_TYPES) == 26
 
     def test_economics_report_in_action_map(self) -> None:
         from core.control_plane_router.control_plane_router_v1 import (
@@ -1028,7 +1028,7 @@ class TestEconomicsCommandRegistration:
 
     def test_config_has_22_actions(self) -> None:
         config = json.loads(Path("/opt/OS/config/control_plane_router_v1.json").read_text())
-        assert len(config["allowed_action_types"]) == 25
+        assert len(config["allowed_action_types"]) == 26
         assert "economics_report" in config["allowed_action_types"]
 
     def test_substrate_commands_has_economics(self) -> None:
@@ -1039,7 +1039,7 @@ class TestEconomicsCommandRegistration:
     def test_substrate_commands_count(self) -> None:
         from handlers.substrate_command_handler import SUBSTRATE_COMMANDS
 
-        assert len(SUBSTRATE_COMMANDS) == 25
+        assert len(SUBSTRATE_COMMANDS) == 26
 
 
 # ---------------------------------------------------------------------------

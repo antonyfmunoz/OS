@@ -223,6 +223,13 @@ ACTION_CAPABILITY_MAP: dict[str, CapabilityRequirement] = {
         requires_local_shell=False,
         authority_required="local_shell",
     ),
+    "telos_report": CapabilityRequirement(
+        action_type="telos_report",
+        capability_type=CapabilityType.TELOS_ALIGNMENT,
+        requires_gui=False,
+        requires_local_shell=False,
+        authority_required="local_shell",
+    ),
 }
 
 

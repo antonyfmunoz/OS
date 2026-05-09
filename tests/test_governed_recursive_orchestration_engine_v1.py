@@ -1464,7 +1464,7 @@ class TestRegistryIntegration:
         )
 
         reg = CanonicalCommandRegistryV1()
-        assert len(reg) == 25
+        assert len(reg) == 26
 
     def test_orchestration_report_in_registry(self) -> None:
         from core.registry.canonical_command_registry_v1 import (
@@ -1521,7 +1521,7 @@ class TestRegistryIntegration:
     def test_handler_exports_20_commands(self) -> None:
         from handlers.substrate_command_handler import SUBSTRATE_COMMANDS
 
-        assert len(SUBSTRATE_COMMANDS) == 25
+        assert len(SUBSTRATE_COMMANDS) == 26
         assert "!orchestration-report" in SUBSTRATE_COMMANDS
 
     def test_router_config_parity(self) -> None:

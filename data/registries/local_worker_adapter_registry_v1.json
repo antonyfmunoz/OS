@@ -24,7 +24,8 @@
         "federation_report",
         "economics_report",
         "strategy_report",
-        "identity_report"
+        "identity_report",
+        "telos_report"
       ]
     },
     "windows_interactive_desktop_relay": {
@@ -431,6 +432,23 @@
             "Maturity classification L0-L5",
             "NO autonomous identity mutation allowed",
             "Full upstream proof chain required (12 layers deep)"
+          ]
+        },
+        {
+          "capability_id": "telos_report",
+          "action_type": "telos_report",
+          "requires_gui": false,
+          "requires_local_shell": false,
+          "required_authority": "local_shell",
+          "notes": [
+            "Constitutional telos alignment and purpose governance",
+            "10 telos primitives with mission continuity analysis (8 dimensions)",
+            "8 optimization direction types, 8 value hierarchy types",
+            "7 purpose conflict types, 7 alignment topology types",
+            "7 telos hard ceilings, 6 telos adaptation types",
+            "Maturity classification L0-L5",
+            "NO autonomous telos mutation allowed",
+            "Full upstream proof chain required (13 layers deep)"
           ]
         }
       ],

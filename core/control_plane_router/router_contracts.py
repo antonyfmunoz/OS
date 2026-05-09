@@ -50,6 +50,7 @@ class CapabilityType(str, Enum):
     STRATEGIC_INTELLIGENCE = "strategic_intelligence"
     EPISTEMIC_INTELLIGENCE = "epistemic_intelligence"
     IDENTITY_CONTINUITY = "identity_continuity"
+    TELOS_ALIGNMENT = "telos_alignment"
 
 
 ALLOWED_ACTION_TYPES = frozenset(
@@ -66,6 +67,7 @@ ALLOWED_ACTION_TYPES = frozenset(
         "strategy_report",
         "epistemic_report",
         "identity_report",
+        "telos_report",
         "ping",
         "open_application_url",
         "chrome_open_google_drive",
