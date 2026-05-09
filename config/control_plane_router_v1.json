@@ -27,7 +27,8 @@
     "ping",
     "promote_safe_memory_candidate",
     "query_safe_memory_reference",
-    "relay_status"
+    "relay_status",
+    "strategy_report"
   ],
   "enabled_adapters": [
     "windows_interactive_desktop_relay"

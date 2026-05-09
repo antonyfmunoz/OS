@@ -47,6 +47,7 @@ class CapabilityType(str, Enum):
     CONSTITUTIONAL_GOVERNANCE = "constitutional_governance"
     DISTRIBUTED_FEDERATION = "distributed_federation"
     RESOURCE_ECONOMICS = "resource_economics"
+    STRATEGIC_INTELLIGENCE = "strategic_intelligence"
 
 
 ALLOWED_ACTION_TYPES = frozenset(
@@ -60,6 +61,7 @@ ALLOWED_ACTION_TYPES = frozenset(
         "constitution_report",
         "economics_report",
         "federation_report",
+        "strategy_report",
         "ping",
         "open_application_url",
         "chrome_open_google_drive",

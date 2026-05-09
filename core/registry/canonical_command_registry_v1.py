@@ -254,6 +254,16 @@ CANONICAL_COMMANDS: tuple[CommandEntry, ...] = (
         capability_type="RESOURCE_ECONOMICS",
     ),
     CommandEntry(
+        command_name="!strategy-report",
+        canonical_action="strategy_report",
+        routing_mode=RoutingMode.SPINE,
+        governance_policy="FOUNDER_APPROVAL",
+        execution_mode=ExecutionMode.SHELL,
+        foreground_required=False,
+        require_screenshot_proof=False,
+        capability_type="STRATEGIC_INTELLIGENCE",
+    ),
+    CommandEntry(
         command_name="!relay-status",
         canonical_action="relay_status",
         routing_mode=RoutingMode.ROUTER,

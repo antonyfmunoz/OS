@@ -22,7 +22,8 @@
         "governance_intelligence_report",
         "constitution_report",
         "federation_report",
-        "economics_report"
+        "economics_report",
+        "strategy_report"
       ]
     },
     "windows_interactive_desktop_relay": {
@@ -378,6 +379,22 @@
             "Maturity classification L0-L5",
             "NO autonomous economics mutation allowed",
             "Full upstream proof chain required (9 layers deep)"
+          ]
+        },
+        {
+          "capability_id": "strategy_report",
+          "action_type": "strategy_report",
+          "requires_gui": false,
+          "requires_local_shell": false,
+          "required_authority": "local_shell",
+          "notes": [
+            "Constitutional strategic intelligence and recursive leverage planning",
+            "9 forecasting primitives, 8 leverage dimensions, 8 bottleneck types",
+            "9 long-horizon simulation types, 7 sequencing priorities",
+            "7 topology types, 7 strategic hard ceilings, 6 adaptation types",
+            "Maturity classification L0-L5",
+            "NO autonomous strategic mutation allowed",
+            "Full upstream proof chain required (10 layers deep)"
           ]
         }
       ],
