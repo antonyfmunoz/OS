@@ -18,7 +18,8 @@
         "adapter_report",
         "capability_report",
         "orchestration_report",
-        "continuity_report"
+        "continuity_report",
+        "governance_intelligence_report"
       ]
     },
     "windows_interactive_desktop_relay": {
@@ -35,6 +36,7 @@
         "capability_report",
         "orchestration_report",
         "continuity_report",
+        "governance_intelligence_report",
         "actuator_proof",
         "relay_status",
         "open_application_url",
@@ -286,6 +288,23 @@
             "Temporal snapshots with continuity and replay hashes",
             "7-dimensional evolution scoring",
             "Governance ceiling enforcement (7 violations)",
+            "NO relay dispatch needed, runs VPS-side",
+            "Founder confirmation required for proof generation"
+          ]
+        },
+        {
+          "capability_id": "governance_intelligence_report",
+          "action_type": "governance_intelligence_report",
+          "requires_gui": false,
+          "requires_local_shell": false,
+          "required_authority": "local_shell",
+          "notes": [
+            "Adaptive governance intelligence analysis",
+            "4 intelligence layers with proposal generation",
+            "8-dimensional adaptive risk scoring",
+            "6 policy simulation types",
+            "Governance learning memory with evolution chains",
+            "NO autonomous governance mutation allowed",
             "NO relay dispatch needed, runs VPS-side",
             "Founder confirmation required for proof generation"
           ]

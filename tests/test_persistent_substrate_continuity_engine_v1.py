@@ -1138,13 +1138,13 @@ class TestCanonicalInstanceSeparation(unittest.TestCase):
 
 
 class TestRegistryIntegration(unittest.TestCase):
-    def test_registry_count_is_18(self) -> None:
+    def test_registry_count_is_19(self) -> None:
         from core.registry.canonical_command_registry_v1 import (
             get_canonical_registry,
         )
 
         reg = get_canonical_registry()
-        self.assertEqual(len(reg), 18)
+        self.assertEqual(len(reg), 19)
 
     def test_continuity_report_in_registry(self) -> None:
         from core.registry.canonical_command_registry_v1 import (
@@ -1197,7 +1197,7 @@ class TestRegistryIntegration(unittest.TestCase):
 
     def test_config_action_count(self) -> None:
         config = json.loads(Path("/opt/OS/config/control_plane_router_v1.json").read_text())
-        self.assertEqual(len(config["allowed_action_types"]), 18)
+        self.assertEqual(len(config["allowed_action_types"]), 19)
 
     def test_adapter_registry_workers(self) -> None:
         reg = json.loads(
@@ -1221,7 +1221,7 @@ class TestRegistryIntegration(unittest.TestCase):
             ALLOWED_ACTION_TYPES,
         )
 
-        self.assertEqual(len(ALLOWED_ACTION_TYPES), 18)
+        self.assertEqual(len(ALLOWED_ACTION_TYPES), 19)
 
 
 if __name__ == "__main__":

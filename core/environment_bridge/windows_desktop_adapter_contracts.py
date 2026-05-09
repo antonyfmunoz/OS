@@ -36,6 +36,7 @@ class WindowsDesktopActionType(str, Enum):
     CAPABILITY_REPORT = "capability_report"
     ORCHESTRATION_REPORT = "orchestration_report"
     CONTINUITY_REPORT = "continuity_report"
+    GOVERNANCE_INTELLIGENCE_REPORT = "governance_intelligence_report"
     REQUEST_FOUNDER_VISUAL_CONFIRMATION = "request_founder_visual_confirmation"
 
 
