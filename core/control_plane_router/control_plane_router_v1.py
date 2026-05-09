@@ -188,6 +188,13 @@ ACTION_CAPABILITY_MAP: dict[str, CapabilityRequirement] = {
         requires_local_shell=False,
         authority_required="local_shell",
     ),
+    "federation_report": CapabilityRequirement(
+        action_type="federation_report",
+        capability_type=CapabilityType.DISTRIBUTED_FEDERATION,
+        requires_gui=False,
+        requires_local_shell=False,
+        authority_required="local_shell",
+    ),
 }
 
 

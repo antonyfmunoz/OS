@@ -20,7 +20,8 @@
         "orchestration_report",
         "continuity_report",
         "governance_intelligence_report",
-        "constitution_report"
+        "constitution_report",
+        "federation_report"
       ]
     },
     "windows_interactive_desktop_relay": {
@@ -39,6 +40,7 @@
         "continuity_report",
         "governance_intelligence_report",
         "constitution_report",
+        "federation_report",
         "actuator_proof",
         "relay_status",
         "open_application_url",
@@ -325,6 +327,24 @@
             "Constitutional hard ceiling enforcement",
             "Constitutional migration contracts",
             "NO autonomous constitutional mutation allowed",
+            "NO relay dispatch needed, runs VPS-side",
+            "Founder confirmation required for proof generation"
+          ]
+        },
+        {
+          "capability_id": "federation_report",
+          "action_type": "federation_report",
+          "requires_gui": false,
+          "requires_local_shell": false,
+          "required_authority": "local_shell",
+          "notes": [
+            "Distributed constitutional substrate federation analysis",
+            "4 federation layers with trust scoring (7 dimensions)",
+            "7 drift types with detection and remediation",
+            "8 federation simulation types",
+            "Federation hard ceiling enforcement",
+            "Distributed emergency governance coordination",
+            "NO autonomous federation mutation allowed",
             "NO relay dispatch needed, runs VPS-side",
             "Founder confirmation required for proof generation"
           ]

@@ -234,6 +234,16 @@ CANONICAL_COMMANDS: tuple[CommandEntry, ...] = (
         capability_type="CONSTITUTIONAL_GOVERNANCE",
     ),
     CommandEntry(
+        command_name="!federation-report",
+        canonical_action="federation_report",
+        routing_mode=RoutingMode.SPINE,
+        governance_policy="FOUNDER_APPROVAL",
+        execution_mode=ExecutionMode.SHELL,
+        foreground_required=False,
+        require_screenshot_proof=False,
+        capability_type="DISTRIBUTED_FEDERATION",
+    ),
+    CommandEntry(
         command_name="!relay-status",
         canonical_action="relay_status",
         routing_mode=RoutingMode.ROUTER,
