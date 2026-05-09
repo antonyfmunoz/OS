@@ -317,9 +317,12 @@ async def _handle_commands_list(message: Any) -> None:
 
 async def _handle_relay_status(message: Any) -> None:
     from core.workstation.workstation_node_registry_v1 import WorkstationNodeRegistry
+    from core.workstation.workstation_relay_self_heal_v1 import assess_relay_health
 
-    registry = WorkstationNodeRegistry(Path(_REPO_ROOT))
+    base = Path(_REPO_ROOT)
+    registry = WorkstationNodeRegistry(base)
     status = registry.get_relay_status()
+    heal = assess_relay_health(base)
 
     health_emoji = {
         "alive": "ONLINE",
@@ -349,9 +352,20 @@ async def _handle_relay_status(message: Any) -> None:
     lines.append(f"chrome_available: `{status.get('chrome_available', False)}`")
     lines.append(f"monitor_detected: `{status.get('monitor_detected', False)}`")
 
+    lines.append(f"autostart: `{heal.autostart_installed}`")
+    if heal.autostart_task_name:
+        lines.append(f"autostart_task: `{heal.autostart_task_name}`")
+
     lines.append(f"maturity_ceiling: `{status.get('maturity_ceiling', 'L0_SIMULATED')}`")
     if status.get("maturity_ceiling_reason"):
         lines.append(f"ceiling_reason: `{status['maturity_ceiling_reason']}`")
+
+    if heal.heartbeat_age_seconds >= 0:
+        lines.append(f"heartbeat_age: `{heal.heartbeat_age_seconds:.0f}s`")
+    lines.append(f"heartbeat_fresh: `{heal.heartbeat_fresh}`")
+    lines.append(f"execution_allowed: `{heal.execution_allowed}`")
+    if heal.denial_reason:
+        lines.append(f"denial_reason: `{heal.denial_reason}`")
 
     if status.get("last_heartbeat"):
         lines.append(f"last_heartbeat: `{status['last_heartbeat']}`")
@@ -362,7 +376,10 @@ async def _handle_relay_status(message: Any) -> None:
         lines.append(f"capabilities: `{len(status['capabilities'])}`")
 
     await message.channel.send("\n".join(lines))
-    _log(f"!relay-status replied — online={status['online']} health={status.get('health')}")
+    _log(
+        f"!relay-status replied — online={status['online']} "
+        f"health={status.get('health')} autostart={heal.autostart_installed}"
+    )
 
 
 async def _handle_spine_command(cmd: str, message: Any, spine: Any) -> None:

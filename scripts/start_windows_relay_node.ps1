@@ -219,36 +219,107 @@ Write-Heartbeat
 Write-Host "[relay-node] Initial heartbeat written"
 
 # ---------------------------------------------------------------------------
+# Relay launcher (used by watchdog for restarts)
+# ---------------------------------------------------------------------------
+
+$maxRestarts = 10
+$restartCount = 0
+$restartCooldownSeconds = 15
+
+function Start-RelayJob {
+    return Start-Job -ScriptBlock {
+        param($ScriptPath, $Repo)
+        & $ScriptPath `
+            -InboxPath "$Repo\eos_advisor_messages\windows_desktop_relay\inbox" `
+            -OutboxPath "$Repo\eos_advisor_messages\windows_desktop_relay\outbox"
+    } -ArgumentList $relayScript, $repo
+}
+
+# ---------------------------------------------------------------------------
 # Start relay in background, heartbeat in foreground
 # ---------------------------------------------------------------------------
 
 Write-Host "[relay-node] Starting relay watcher..."
 
-$relayJob = Start-Job -ScriptBlock {
-    param($ScriptPath, $Repo)
-    & $ScriptPath `
-        -InboxPath "$Repo\eos_advisor_messages\windows_desktop_relay\inbox" `
-        -OutboxPath "$Repo\eos_advisor_messages\windows_desktop_relay\outbox"
-} -ArgumentList $relayScript, $repo
+$relayJob = Start-RelayJob
 
 Write-Host "[relay-node] Relay started as job $($relayJob.Id)"
 Write-Host "[relay-node] Node ONLINE — emitting heartbeats every ${HeartbeatIntervalSeconds}s"
 Write-Host "[relay-node] Press Ctrl+C to stop"
 Write-Host ""
 
-# Heartbeat loop
+# ---------------------------------------------------------------------------
+# Write boot proof
+# ---------------------------------------------------------------------------
+
+$bootProofDir = Join-Path $repo "data\runtime\workstation_relay\proofs"
+if (-not (Test-Path $bootProofDir)) {
+    New-Item -ItemType Directory -Path $bootProofDir -Force | Out-Null
+}
+
+$bootProof = @{
+    proof_type     = "relay_boot"
+    node_id        = $nodeId
+    machine_name   = $machineName
+    user_name      = $userName
+    relay_pid      = $relayPid
+    relay_version  = "v1"
+    chrome_available = $chromeAvailable
+    autostart      = (Test-Path (Join-Path $repo "data\runtime\workstation_relay\autostart_marker.json"))
+    boot_timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+}
+$bootProofPath = Join-Path $bootProofDir "BOOT-$($nodeId)-$(Get-Date -Format 'yyyyMMdd-HHmmss').json"
+$bootProof | ConvertTo-Json -Depth 3 | Out-File -FilePath $bootProofPath -Encoding UTF8
+Write-Host "[relay-node] Boot proof written: $bootProofPath"
+
+# ---------------------------------------------------------------------------
+# Heartbeat + watchdog loop
+# ---------------------------------------------------------------------------
+
 try {
     while ($true) {
         Write-Heartbeat
         $ts = (Get-Date).ToString("HH:mm:ss")
-        Write-Host "[$ts] [heartbeat] alive node=$nodeId pid=$relayPid chrome=$chromeAvailable"
+        Write-Host "[$ts] [heartbeat] alive node=$nodeId pid=$relayPid chrome=$chromeAvailable restarts=$restartCount"
 
-        # Check relay job health
+        # Watchdog: check relay job health and auto-restart
         if ($relayJob.State -ne "Running") {
-            Write-Host "[$ts] [relay-node] WARNING: Relay job state=$($relayJob.State)" -ForegroundColor Yellow
+            Write-Host "[$ts] [watchdog] Relay job state=$($relayJob.State)" -ForegroundColor Yellow
+
+            # Drain output from failed job
             $relayOutput = Receive-Job $relayJob -ErrorAction SilentlyContinue
             if ($relayOutput) {
                 $relayOutput | ForEach-Object { Write-Host "  [relay] $_" }
+            }
+
+            # Attempt restart if under limit
+            if ($restartCount -lt $maxRestarts) {
+                $restartCount++
+                Write-Host "[$ts] [watchdog] Restarting relay (attempt $restartCount/$maxRestarts)..." -ForegroundColor Cyan
+
+                # Clean up old job
+                Remove-Job $relayJob -Force -ErrorAction SilentlyContinue
+
+                Start-Sleep -Seconds $restartCooldownSeconds
+
+                $relayJob = Start-RelayJob
+                Write-Host "[$ts] [watchdog] Relay restarted as job $($relayJob.Id)" -ForegroundColor Green
+
+                # Write restart proof
+                $restartProof = @{
+                    proof_type      = "relay_restart"
+                    node_id         = $nodeId
+                    restart_count   = $restartCount
+                    max_restarts    = $maxRestarts
+                    new_job_id      = $relayJob.Id
+                    timestamp       = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+                }
+                $restartProofPath = Join-Path $bootProofDir "RESTART-$($nodeId)-$(Get-Date -Format 'yyyyMMdd-HHmmss').json"
+                $restartProof | ConvertTo-Json -Depth 3 | Out-File -FilePath $restartProofPath -Encoding UTF8
+            }
+            else {
+                Write-Host "[$ts] [watchdog] Max restarts ($maxRestarts) reached. Relay is DOWN." -ForegroundColor Red
+                # Continue heartbeating so VPS knows we're alive but relay is broken
             }
         }
 
