@@ -937,7 +937,7 @@ class TestRegistryIntegration(unittest.TestCase):
         from core.registry.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
-        self.assertEqual(len(reg), 21)
+        self.assertEqual(len(reg), 22)
 
     def test_gov_intel_report_in_registry(self) -> None:
         from core.registry.canonical_command_registry_v1 import get_canonical_registry
@@ -984,7 +984,7 @@ class TestRegistryIntegration(unittest.TestCase):
 
     def test_config_action_count(self) -> None:
         config = json.loads(Path("/opt/OS/config/control_plane_router_v1.json").read_text())
-        self.assertEqual(len(config["allowed_action_types"]), 21)
+        self.assertEqual(len(config["allowed_action_types"]), 22)
 
     def test_adapter_registry_workers(self) -> None:
         reg = json.loads(
@@ -1006,7 +1006,7 @@ class TestRegistryIntegration(unittest.TestCase):
     def test_allowed_action_types_count(self) -> None:
         from core.control_plane_router.router_contracts import ALLOWED_ACTION_TYPES
 
-        self.assertEqual(len(ALLOWED_ACTION_TYPES), 21)
+        self.assertEqual(len(ALLOWED_ACTION_TYPES), 22)
 
 
 if __name__ == "__main__":

@@ -21,7 +21,8 @@
         "continuity_report",
         "governance_intelligence_report",
         "constitution_report",
-        "federation_report"
+        "federation_report",
+        "economics_report"
       ]
     },
     "windows_interactive_desktop_relay": {
@@ -361,6 +362,22 @@
             "Reports maturity level L0-L7 based on observed evidence",
             "NO ingestion, NO extraction, NO mutation",
             "Founder must physically observe for L6+"
+          ]
+        },
+        {
+          "capability_id": "economics_report",
+          "action_type": "economics_report",
+          "requires_gui": false,
+          "requires_local_shell": false,
+          "required_authority": "local_shell",
+          "notes": [
+            "Constitutional resource economics and coordination analysis",
+            "9 resource primitives with execution economics scoring (8 dimensions)",
+            "Trust-weighted delegation with constrained-node reasoning",
+            "8 scarcity simulation types with 7 economics hard ceilings",
+            "Maturity classification L0-L5",
+            "NO autonomous economics mutation allowed",
+            "Full upstream proof chain required (9 layers deep)"
           ]
         }
       ],

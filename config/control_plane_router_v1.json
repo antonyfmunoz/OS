@@ -5,8 +5,33 @@
   "default_runtime_target": "local_worker_runtime_daemon",
   "default_timeout_seconds": 60,
   "proof_required": true,
-  "allowed_action_types": ["adapter_report", "actuator_proof", "capability_report", "continuity_report", "governance_intelligence_report", "constitution_report", "federation_report", "orchestration_report", "ping", "open_application_url", "chrome_open_google_drive", "chrome_proof", "drive_open_safe_test_doc", "doc_extract_safe_test_doc", "doc_ingestion_candidate_safe_test_doc", "explore_environment", "ingest_safe_doc", "ingest_safe_doc_cu", "promote_safe_memory_candidate", "query_safe_memory_reference", "relay_status"],
-  "enabled_adapters": ["windows_interactive_desktop_relay"],
+  "allowed_action_types": [
+    "actuator_proof",
+    "adapter_report",
+    "capability_report",
+    "chrome_open_google_drive",
+    "chrome_proof",
+    "constitution_report",
+    "continuity_report",
+    "doc_extract_safe_test_doc",
+    "doc_ingestion_candidate_safe_test_doc",
+    "drive_open_safe_test_doc",
+    "economics_report",
+    "explore_environment",
+    "federation_report",
+    "governance_intelligence_report",
+    "ingest_safe_doc",
+    "ingest_safe_doc_cu",
+    "open_application_url",
+    "orchestration_report",
+    "ping",
+    "promote_safe_memory_candidate",
+    "query_safe_memory_reference",
+    "relay_status"
+  ],
+  "enabled_adapters": [
+    "windows_interactive_desktop_relay"
+  ],
   "runtime_targets": {
     "local_worker_runtime_daemon": {
       "work_inbox": "data/runtime/local_worker_runtime/inbox",

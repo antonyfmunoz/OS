@@ -1239,7 +1239,7 @@ class TestRegistryIntegration(unittest.TestCase):
         from core.registry.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
-        self.assertEqual(len(reg), 21)
+        self.assertEqual(len(reg), 22)
 
     def test_federation_report_registered(self) -> None:
         from core.registry.canonical_command_registry_v1 import get_canonical_registry
@@ -1253,7 +1253,7 @@ class TestRegistryIntegration(unittest.TestCase):
     def test_action_types_count(self) -> None:
         from core.control_plane_router.router_contracts import ALLOWED_ACTION_TYPES
 
-        self.assertEqual(len(ALLOWED_ACTION_TYPES), 21)
+        self.assertEqual(len(ALLOWED_ACTION_TYPES), 22)
 
     def test_federation_report_in_action_types(self) -> None:
         from core.control_plane_router.router_contracts import ALLOWED_ACTION_TYPES
@@ -1263,7 +1263,7 @@ class TestRegistryIntegration(unittest.TestCase):
     def test_router_map_count(self) -> None:
         from core.control_plane_router.control_plane_router_v1 import ACTION_CAPABILITY_MAP
 
-        self.assertEqual(len(ACTION_CAPABILITY_MAP), 21)
+        self.assertEqual(len(ACTION_CAPABILITY_MAP), 22)
 
     def test_router_map_has_federation(self) -> None:
         from core.control_plane_router.control_plane_router_v1 import ACTION_CAPABILITY_MAP
@@ -1281,7 +1281,7 @@ class TestRegistryIntegration(unittest.TestCase):
         config_path = Path("/opt/OS/config/control_plane_router_v1.json")
         data = json.loads(config_path.read_text())
         self.assertIn("federation_report", data["allowed_action_types"])
-        self.assertEqual(len(data["allowed_action_types"]), 21)
+        self.assertEqual(len(data["allowed_action_types"]), 22)
 
     def test_adapter_registry_has_federation(self) -> None:
         reg_path = Path("/opt/OS/data/registries/local_worker_adapter_registry_v1.json")
@@ -1315,6 +1315,7 @@ class TestRegistryIntegration(unittest.TestCase):
             "!continuity-report",
             "!governance-intelligence-report",
             "!constitution-report",
+            "!economics-report",
             "!federation-report",
             "!relay-status",
         }
@@ -1324,7 +1325,7 @@ class TestRegistryIntegration(unittest.TestCase):
         from handlers.substrate_command_handler import SUBSTRATE_COMMANDS
 
         self.assertIn("!federation-report", SUBSTRATE_COMMANDS)
-        self.assertEqual(len(SUBSTRATE_COMMANDS), 21)
+        self.assertEqual(len(SUBSTRATE_COMMANDS), 22)
 
     def test_parity_registry_vs_router(self) -> None:
         from core.registry.canonical_command_registry_v1 import get_canonical_registry
