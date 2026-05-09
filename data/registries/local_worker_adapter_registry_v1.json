@@ -13,6 +13,7 @@
       "message_bus": "filesystem_json",
       "capabilities": [
         "ping",
+        "relay_status",
         "relay_to_windows_adapter"
       ]
     },
@@ -27,6 +28,7 @@
       "capabilities": [
         "ping",
         "actuator_proof",
+        "relay_status",
         "open_application_url",
         "chrome_open_google_drive",
         "ingest_safe_doc",
@@ -189,6 +191,18 @@
             "Observed desktop state required",
             "NO ingestion, NO extraction",
             "Founder must physically observe Chrome activity"
+          ]
+        },
+        {
+          "capability_id": "relay_status",
+          "action_type": "relay_status",
+          "requires_gui": false,
+          "requires_local_shell": false,
+          "required_authority": "local_shell",
+          "notes": [
+            "Reads VPS-side relay heartbeat file",
+            "Reports node online/offline, desktop state, maturity ceiling",
+            "No Windows relay dispatch needed"
           ]
         },
         {

@@ -203,6 +203,10 @@ async def handle_substrate_command(message: Any, text: str) -> bool:
         await _handle_runtime(message)
         return True
 
+    if cmd == "!relay-status":
+        await _handle_relay_status(message)
+        return True
+
     if cmd not in SUBSTRATE_COMMANDS:
         return False
 
@@ -309,6 +313,56 @@ async def _handle_commands_list(message: Any) -> None:
 
     await message.channel.send("\n".join(lines))
     _log(f"!commands replied — {len(SUBSTRATE_COMMANDS)} substrate commands listed")
+
+
+async def _handle_relay_status(message: Any) -> None:
+    from core.workstation.workstation_node_registry_v1 import WorkstationNodeRegistry
+
+    registry = WorkstationNodeRegistry(Path(_REPO_ROOT))
+    status = registry.get_relay_status()
+
+    health_emoji = {
+        "alive": "ONLINE",
+        "degraded": "DEGRADED",
+        "timeout": "STALE",
+        "dead": "OFFLINE",
+    }
+    health_label = health_emoji.get(status.get("health", "dead"), "UNKNOWN")
+
+    lines = [f"**!relay-status** -- {health_label}"]
+    lines.append(f"online: `{status['online']}`")
+    lines.append(f"health: `{status.get('health', 'dead')}`")
+
+    if status.get("node_id"):
+        lines.append(f"node_id: `{status['node_id']}`")
+    if status.get("machine_name"):
+        lines.append(f"machine: `{status['machine_name']}`")
+    if status.get("user_name"):
+        lines.append(f"user: `{status['user_name']}`")
+    if status.get("relay_version"):
+        lines.append(f"relay_version: `{status['relay_version']}`")
+    if status.get("relay_pid"):
+        lines.append(f"relay_pid: `{status['relay_pid']}`")
+
+    lines.append(f"desktop_active: `{status.get('desktop_active', False)}`")
+    lines.append(f"desktop_unlocked: `{status.get('desktop_unlocked', False)}`")
+    lines.append(f"chrome_available: `{status.get('chrome_available', False)}`")
+    lines.append(f"monitor_detected: `{status.get('monitor_detected', False)}`")
+
+    lines.append(f"maturity_ceiling: `{status.get('maturity_ceiling', 'L0_SIMULATED')}`")
+    if status.get("maturity_ceiling_reason"):
+        lines.append(f"ceiling_reason: `{status['maturity_ceiling_reason']}`")
+
+    if status.get("last_heartbeat"):
+        lines.append(f"last_heartbeat: `{status['last_heartbeat']}`")
+    elif status.get("reason"):
+        lines.append(f"reason: `{status['reason']}`")
+
+    if status.get("capabilities"):
+        lines.append(f"capabilities: `{len(status['capabilities'])}`")
+
+    await message.channel.send("\n".join(lines))
+    _log(f"!relay-status replied — online={status['online']} health={status.get('health')}")
 
 
 async def _handle_spine_command(cmd: str, message: Any, spine: Any) -> None:

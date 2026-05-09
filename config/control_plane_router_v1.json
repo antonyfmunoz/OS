@@ -5,7 +5,7 @@
   "default_runtime_target": "local_worker_runtime_daemon",
   "default_timeout_seconds": 60,
   "proof_required": true,
-  "allowed_action_types": ["actuator_proof", "ping", "open_application_url", "chrome_open_google_drive", "chrome_proof", "drive_open_safe_test_doc", "doc_extract_safe_test_doc", "doc_ingestion_candidate_safe_test_doc", "ingest_safe_doc", "ingest_safe_doc_cu", "promote_safe_memory_candidate", "query_safe_memory_reference"],
+  "allowed_action_types": ["actuator_proof", "ping", "open_application_url", "chrome_open_google_drive", "chrome_proof", "drive_open_safe_test_doc", "doc_extract_safe_test_doc", "doc_ingestion_candidate_safe_test_doc", "ingest_safe_doc", "ingest_safe_doc_cu", "promote_safe_memory_candidate", "query_safe_memory_reference", "relay_status"],
   "enabled_adapters": ["windows_interactive_desktop_relay"],
   "runtime_targets": {
     "local_worker_runtime_daemon": {

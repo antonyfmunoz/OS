@@ -54,6 +54,7 @@ ALLOWED_ACTION_TYPES = frozenset(
         "chrome_proof",
         "promote_safe_memory_candidate",
         "query_safe_memory_reference",
+        "relay_status",
     }
 )
 

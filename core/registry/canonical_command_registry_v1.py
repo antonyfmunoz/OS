@@ -163,6 +163,19 @@ CANONICAL_COMMANDS: tuple[CommandEntry, ...] = (
         foreground_required=True,
         require_screenshot_proof=True,
     ),
+    CommandEntry(
+        command_name="!relay-status",
+        canonical_action="relay_status",
+        routing_mode=RoutingMode.ROUTER,
+        governance_policy="local_shell",
+        execution_mode=ExecutionMode.SHELL,
+        foreground_required=False,
+        require_screenshot_proof=False,
+        required_environment="local_wsl",
+        required_worker="local_wsl_worker",
+        adapter_id="local_wsl_worker",
+        capability_type="SHELL_EXECUTION",
+    ),
 )
 
 

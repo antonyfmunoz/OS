@@ -132,6 +132,13 @@ ACTION_CAPABILITY_MAP: dict[str, CapabilityRequirement] = {
         requires_local_shell=False,
         authority_required="local_gui",
     ),
+    "relay_status": CapabilityRequirement(
+        action_type="relay_status",
+        capability_type=CapabilityType.SHELL_EXECUTION,
+        requires_gui=False,
+        requires_local_shell=False,
+        authority_required="local_shell",
+    ),
 }
 
 

@@ -33,7 +33,7 @@ class TestCanonicalRegistrySingleSource:
         )
 
         reg = CanonicalCommandRegistryV1()
-        assert len(reg) == 12
+        assert len(reg) == 13
 
     def test_all_commands_present(self) -> None:
         from core.registry.canonical_command_registry_v1 import (
@@ -54,6 +54,7 @@ class TestCanonicalRegistrySingleSource:
             "!ingest-safe-doc-cu",
             "!promote-memory",
             "!query-memory",
+            "!relay-status",
         }
         assert reg.commands == expected
 
@@ -153,7 +154,7 @@ class TestRegistryHashDeterminism:
         data = reg.to_dict()
         serialized = json.dumps(data)
         assert len(serialized) > 0
-        assert data["command_count"] == 12
+        assert data["command_count"] == 13
 
 
 class TestBootstrapLifecycle:
@@ -280,11 +281,11 @@ class TestBootstrapDeniedExecution:
     def test_validation_to_dict(self) -> None:
         from core.runtime.runtime_bootstrap_state_v1 import BootstrapValidation
 
-        v = BootstrapValidation(valid=True, registry_hash="abc123", registry_count=12)
+        v = BootstrapValidation(valid=True, registry_hash="abc123", registry_count=13)
         d = v.to_dict()
         assert d["valid"] is True
         assert d["registry_hash"] == "abc123"
-        assert d["registry_count"] == 12
+        assert d["registry_count"] == 13
 
 
 class TestRouterConfigParity:
@@ -382,7 +383,7 @@ class TestLiveBootstrapOnVPS:
         v = bs.bootstrap(auto_heal=True)
         assert v.valid is True
         assert v.registry_loaded is True
-        assert v.registry_count == 12
+        assert v.registry_count == 13
 
     def test_real_bootstrap_registry_hash_matches(self) -> None:
         from core.registry.canonical_command_registry_v1 import get_canonical_registry
