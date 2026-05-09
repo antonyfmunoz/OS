@@ -177,13 +177,14 @@ def build_spine_infrastructure(
     }
     sync_policy = policy_map.get(config.sync_policy, SyncPolicy.STRICT)
 
-    from eos_ai.interfaces.discord_interface_adapter_v1 import COMMAND_ACTION_MAP
+    from core.registry.canonical_command_registry_v1 import get_canonical_registry
 
+    _reg = get_canonical_registry()
     sync_gate = NodeSyncGate(
         vps_repo_path=base_dir,
         local_repo_path=Path(config.local_repo_path) if config.local_repo_path else None,
         relay_script_path=Path(config.relay_script_path) if config.relay_script_path else None,
-        command_registry=dict(COMMAND_ACTION_MAP),
+        command_registry=_reg.command_action_map,
         worker_capabilities=list(cap_auth.capabilities),
         config_path=gate_proof_dir / "config_marker.json",
         sync_policy=sync_policy,
@@ -213,9 +214,9 @@ def execute_spine_command(
     if not packet_id:
         packet_id = f"DISCORD-SPINE-{uuid.uuid4().hex[:8]}"
     if not action_type:
-        from eos_ai.interfaces.discord_interface_adapter_v1 import COMMAND_ACTION_MAP
+        from core.registry.canonical_command_registry_v1 import get_canonical_registry
 
-        action_type = COMMAND_ACTION_MAP.get(command, "")
+        action_type = get_canonical_registry().command_action_map.get(command, "")
     if not action_type:
         return SpineRoutedResult(
             command=command,

@@ -85,86 +85,14 @@ def _log_error(msg: str) -> None:
 
 DEFAULT_CONFIG_PATH = "/opt/OS/config/discord_interface_adapter_v1.json"
 
-SUPPORTED_COMMANDS = {
-    "!ping",
-    "!chrome",
-    "!chrome-open-google-drive",
-    "!chrome-proof",
-    "!doc",
-    "!extract",
-    "!ingest-candidate",
-    "!ingest-safe-doc",
-    "!ingest-safe-doc-cu",
-    "!promote-memory",
-    "!query-memory",
-    "!status",
-}
+from core.registry.canonical_command_registry_v1 import get_canonical_registry
 
-COMMAND_ACTION_MAP: dict[str, str] = {
-    "!ping": "ping",
-    "!chrome": "open_application_url",
-    "!chrome-open-google-drive": "chrome_open_google_drive",
-    "!chrome-proof": "chrome_proof",
-    "!doc": "drive_open_safe_test_doc",
-    "!extract": "doc_extract_safe_test_doc",
-    "!ingest-candidate": "doc_ingestion_candidate_safe_test_doc",
-    "!ingest-safe-doc": "ingest_safe_doc",
-    "!ingest-safe-doc-cu": "ingest_safe_doc_cu",
-    "!promote-memory": "promote_safe_memory_candidate",
-    "!query-memory": "query_safe_memory_reference",
-}
+_REGISTRY = get_canonical_registry()
 
-
-SPINE_ROUTED_COMMANDS = frozenset(
-    {
-        "!chrome-open-google-drive",
-        "!chrome-proof",
-        "!ingest-safe-doc",
-        "!ingest-safe-doc-cu",
-    }
-)
-
-COMMAND_CONTRACT: dict[str, dict[str, Any]] = {
-    "!chrome-open-google-drive": {
-        "command": "!chrome-open-google-drive",
-        "capability": "WINDOWS_GUI_EXECUTION",
-        "adapter": "windows_interactive_desktop_relay",
-        "environment": "local_windows_gui",
-        "authority_required": "FOUNDER_APPROVAL",
-        "proof_required": True,
-        "mutation_allowed": False,
-    },
-    "!ingest-safe-doc": {
-        "command": "!ingest-safe-doc",
-        "capability": "DOCUMENT_EXTRACTION",
-        "adapter": "windows_interactive_desktop_relay",
-        "environment": "local_windows_gui",
-        "authority_required": "FOUNDER_APPROVAL",
-        "proof_required": True,
-        "mutation_allowed": False,
-    },
-    "!ingest-safe-doc-cu": {
-        "command": "!ingest-safe-doc-cu",
-        "capability": "DOCUMENT_EXTRACTION",
-        "adapter": "windows_interactive_desktop_relay",
-        "environment": "local_windows_gui",
-        "authority_required": "FOUNDER_APPROVAL",
-        "proof_required": True,
-        "mutation_allowed": False,
-        "require_foreground_cu": True,
-    },
-    "!chrome-proof": {
-        "command": "!chrome-proof",
-        "capability": "WINDOWS_GUI_EXECUTION",
-        "adapter": "windows_interactive_desktop_relay",
-        "environment": "local_windows_foreground",
-        "authority_required": "FOUNDER_APPROVAL",
-        "proof_required": True,
-        "mutation_allowed": False,
-        "require_foreground_gui": True,
-        "require_screenshot_proof": True,
-    },
-}
+SUPPORTED_COMMANDS = _REGISTRY.commands | {"!status"}
+COMMAND_ACTION_MAP: dict[str, str] = _REGISTRY.command_action_map
+SPINE_ROUTED_COMMANDS = _REGISTRY.spine_routed_commands
+COMMAND_CONTRACT: dict[str, dict[str, Any]] = _REGISTRY.command_contracts
 
 
 def load_config(config_path: str | Path = DEFAULT_CONFIG_PATH) -> dict[str, Any]:

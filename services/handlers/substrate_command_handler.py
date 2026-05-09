@@ -29,6 +29,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__f
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
+from core.registry.canonical_command_registry_v1 import get_canonical_registry
 from eos_ai.interfaces.discord_interface_adapter_v1 import (
     COMMAND_ACTION_MAP,
     COMMAND_CONTRACT,
@@ -49,18 +50,21 @@ from core.control_plane_router.control_plane_router_v1 import (
 )
 from core.runtime.adapter_registry_contracts import AdapterRegistry
 
+_CANONICAL = get_canonical_registry()
+
 
 def _log(msg: str) -> None:
     ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
     print(f"[{ts}] [substrate-handler] {msg}", flush=True)
 
 
-SUBSTRATE_COMMANDS = frozenset(SUPPORTED_COMMANDS - {"!status"})
+SUBSTRATE_COMMANDS = _CANONICAL.commands
 
 META_COMMANDS = frozenset({"!commands", "!version", "!runtime"})
 
 _spine = None
 _router = None
+_bootstrap = None
 _initialized = False
 
 _BOOT_TIME = datetime.now(timezone.utc)
@@ -144,13 +148,22 @@ def _is_stale_runtime() -> tuple[bool, str, str]:
 
 
 def _ensure_infrastructure() -> tuple[Any, Any]:
-    global _spine, _router, _initialized
+    global _spine, _router, _bootstrap, _initialized
     if _initialized:
         return _spine, _router
 
     _log("initializing substrate infrastructure")
 
     base_dir = Path(_REPO_ROOT)
+
+    from core.runtime.runtime_bootstrap_state_v1 import RuntimeBootstrapStateV1
+
+    _bootstrap = RuntimeBootstrapStateV1(base_dir)
+    bv = _bootstrap.bootstrap(auto_heal=True)
+    _log(
+        f"bootstrap: {bv.stage.value} registry={bv.registry_hash} "
+        f"healed={len(bv.auto_healed)} missing={len(bv.denial_reasons)}"
+    )
 
     registry_path = base_dir / "data/registries/local_worker_adapter_registry_v1.json"
     registry = AdapterRegistry.from_json_file(registry_path)
@@ -237,6 +250,10 @@ async def _handle_runtime(message: Any) -> None:
     uptime_s = (datetime.now(timezone.utc) - _BOOT_TIME).total_seconds()
     uptime_h = uptime_s / 3600
 
+    bs_stage = _bootstrap.stage.value if _bootstrap else "not_initialized"
+    bs_valid = _bootstrap.is_ready if _bootstrap else False
+    bs_v = _bootstrap.validation if _bootstrap else None
+
     lines = [
         f"**Live Runtime Identity**",
         f"PID: `{_BOOT_PID}`",
@@ -244,13 +261,16 @@ async def _handle_runtime(message: Any) -> None:
         f"uptime: `{uptime_h:.1f}h`",
         f"hostname: `{platform.node()}`",
         f"container: `{_container_id()}`",
-        f"cwd: `{os.getcwd()}`",
-        f"python: `{sys.executable}`",
-        f"python version: `{platform.python_version()}`",
-        f"substrate handler: `active`",
+        f"runtime_ready: `{bs_valid}`",
+        f"bootstrap_state: `{bs_stage}`",
+        f"registry_hash: `{_CANONICAL.registry_hash()}`",
+        f"registry_count: `{len(_CANONICAL)}`",
         f"commands loaded: `{len(SUBSTRATE_COMMANDS)}` substrate + `{len(META_COMMANDS)}` meta",
-        f"handler source: `{os.path.abspath(__file__)}`",
     ]
+    if bs_v and bs_v.auto_healed:
+        lines.append(f"auto_healed: `{len(bs_v.auto_healed)}` dirs")
+    if bs_v and bs_v.denial_reasons:
+        lines.append(f"missing: `{', '.join(bs_v.denial_reasons)}`")
     await message.channel.send("\n".join(lines))
     _log(f"!runtime replied — PID={_BOOT_PID} uptime={uptime_h:.1f}h")
 
@@ -260,7 +280,7 @@ async def _handle_commands_list(message: Any) -> None:
     surface_hash = _get_command_surface_hash()
 
     lines = [
-        f"**Live Command Surface** (VPS: `{vps_hash}`, surface: `{surface_hash}`)",
+        f"**Live Command Surface** (VPS: `{vps_hash}`, surface: `{surface_hash}`, registry: `{_CANONICAL.registry_hash()}`)",
         "",
         "**Substrate Commands** (spine/router routed):",
     ]
@@ -328,10 +348,12 @@ def get_command_surface_manifest() -> dict[str, Any]:
         "contracts": {k: v for k, v in sorted(COMMAND_CONTRACT.items())},
         "surface_hash": _get_command_surface_hash(),
         "contract_hash": _get_router_contract_hash(),
+        "registry_hash": _CANONICAL.registry_hash(),
         "vps_commit": _get_vps_commit_hash(),
         "origin_commit": _get_origin_commit_hash(),
         "boot_time": _BOOT_TIME.isoformat(),
         "boot_pid": _BOOT_PID,
+        "bootstrap_ready": _bootstrap.is_ready if _bootstrap else False,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
@@ -350,6 +372,8 @@ def log_startup() -> None:
     _log(f"substrate commands: {len(SUBSTRATE_COMMANDS)}")
     _log(f"meta commands: {len(META_COMMANDS)}")
     _log(f"surface hash: {surface_hash}")
+    _log(f"registry hash: {_CANONICAL.registry_hash()}")
+    _log(f"registry source: canonical_command_registry_v1")
     _log(f"handler source: {os.path.abspath(__file__)}")
     _log(f"PID: {_BOOT_PID}")
     _log(f"commands: {', '.join(sorted(SUBSTRATE_COMMANDS))}")
