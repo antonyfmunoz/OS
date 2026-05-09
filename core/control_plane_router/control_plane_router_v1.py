@@ -167,6 +167,13 @@ ACTION_CAPABILITY_MAP: dict[str, CapabilityRequirement] = {
         requires_local_shell=False,
         authority_required="local_shell",
     ),
+    "continuity_report": CapabilityRequirement(
+        action_type="continuity_report",
+        capability_type=CapabilityType.SUBSTRATE_CONTINUITY,
+        requires_gui=False,
+        requires_local_shell=False,
+        authority_required="local_shell",
+    ),
 }
 
 

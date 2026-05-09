@@ -471,7 +471,7 @@ class TestCanonicalRegistryRelayStatus:
         )
 
         reg = CanonicalCommandRegistryV1()
-        assert len(reg) == 17
+        assert len(reg) == 18
 
     def test_relay_status_in_registry(self) -> None:
         from core.registry.canonical_command_registry_v1 import get_canonical_registry

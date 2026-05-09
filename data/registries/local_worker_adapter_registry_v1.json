@@ -17,7 +17,8 @@
         "relay_to_windows_adapter",
         "adapter_report",
         "capability_report",
-        "orchestration_report"
+        "orchestration_report",
+        "continuity_report"
       ]
     },
     "windows_interactive_desktop_relay": {
@@ -33,6 +34,7 @@
         "adapter_report",
         "capability_report",
         "orchestration_report",
+        "continuity_report",
         "actuator_proof",
         "relay_status",
         "open_application_url",
@@ -268,6 +270,22 @@
             "Builds 7 DAG types with blast radius analysis",
             "Simulates rollouts with 8 outcome types",
             "Safety-first sequencing with rollback planning",
+            "NO relay dispatch needed, runs VPS-side",
+            "Founder confirmation required for proof generation"
+          ]
+        },
+        {
+          "capability_id": "continuity_report",
+          "action_type": "continuity_report",
+          "requires_gui": false,
+          "requires_local_shell": false,
+          "required_authority": "local_shell",
+          "notes": [
+            "Persistent substrate continuity analysis",
+            "4 memory layers with drift detection (8 types)",
+            "Temporal snapshots with continuity and replay hashes",
+            "7-dimensional evolution scoring",
+            "Governance ceiling enforcement (7 violations)",
             "NO relay dispatch needed, runs VPS-side",
             "Founder confirmation required for proof generation"
           ]
