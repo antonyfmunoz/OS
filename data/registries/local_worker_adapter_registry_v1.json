@@ -26,6 +26,7 @@
       "message_bus": "filesystem_json",
       "capabilities": [
         "ping",
+        "actuator_proof",
         "open_application_url",
         "chrome_open_google_drive",
         "ingest_safe_doc",
@@ -188,6 +189,20 @@
             "Observed desktop state required",
             "NO ingestion, NO extraction",
             "Founder must physically observe Chrome activity"
+          ]
+        },
+        {
+          "capability_id": "actuator_proof",
+          "action_type": "actuator_proof",
+          "requires_gui": true,
+          "requires_local_shell": false,
+          "required_authority": "local_gui",
+          "notes": [
+            "Maturity-aware GUI actuation proof",
+            "Launches Chrome to safe URL, captures screenshot",
+            "Reports maturity level L0-L7 based on observed evidence",
+            "NO ingestion, NO extraction, NO mutation",
+            "Founder must physically observe for L6+"
           ]
         }
       ],

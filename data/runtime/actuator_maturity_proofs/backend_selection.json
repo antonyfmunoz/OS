@@ -1,0 +1,138 @@
+{
+  "selected_backend": "windows_interactive_desktop_relay",
+  "selection_reason": "Already deployed, zero integration time, full capability coverage (7/7)",
+  "evaluated_backends": {
+    "playwright_cdp": {
+      "backend_id": "playwright_cdp",
+      "display_name": "Playwright (CDP browser automation)",
+      "technology": "Chromium DevTools Protocol",
+      "environments": [
+        "native_windows",
+        "wsl"
+      ],
+      "capabilities": [
+        "browser_navigation",
+        "screenshot_capture"
+      ],
+      "install_difficulty": "low \u2014 pip install playwright",
+      "integration_hours": 2,
+      "security_risk": "low",
+      "requires_display_session": false,
+      "python_support": true,
+      "recommended_use": "Browser-internal automation when HWND not needed. Cannot observe window focus or desktop state.",
+      "notes": "Browser-only. No HWND, no desktop screenshot, no focus detection."
+    },
+    "pyautogui": {
+      "backend_id": "pyautogui",
+      "display_name": "PyAutoGUI",
+      "technology": "Cross-platform mouse/keyboard/screenshot",
+      "environments": [
+        "native_windows"
+      ],
+      "capabilities": [
+        "process_detection",
+        "screenshot_capture"
+      ],
+      "install_difficulty": "low \u2014 pip install pyautogui",
+      "integration_hours": 2,
+      "security_risk": "medium",
+      "requires_display_session": true,
+      "python_support": true,
+      "recommended_use": "Desktop screenshot fallback. Cannot reliably navigate Chrome.",
+      "notes": "Fragile for browser navigation (address bar focus race). No HWND support. No foreground detection."
+    },
+    "ui_automation": {
+      "backend_id": "ui_automation",
+      "display_name": "Windows UI Automation",
+      "technology": "Microsoft accessibility framework",
+      "environments": [
+        "native_windows"
+      ],
+      "capabilities": [
+        "foreground_detection",
+        "hwnd_observation",
+        "process_detection"
+      ],
+      "install_difficulty": "medium \u2014 pip install uiautomation",
+      "integration_hours": 4,
+      "security_risk": "low",
+      "requires_display_session": true,
+      "python_support": true,
+      "recommended_use": "UI element inspection for non-browser desktop apps.",
+      "notes": "No screenshot. No browser navigation. Overkill for Chrome proof."
+    },
+    "ui_tars_desktop": {
+      "backend_id": "ui_tars_desktop",
+      "display_name": "UI-TARS Desktop (ByteDance)",
+      "technology": "Vision-model agent with Electron wrapper",
+      "environments": [
+        "native_windows"
+      ],
+      "capabilities": [
+        "browser_navigation",
+        "chrome_launch",
+        "screenshot_capture"
+      ],
+      "install_difficulty": "high \u2014 model download 7GB+, Node, Electron",
+      "integration_hours": 12,
+      "security_risk": "high",
+      "requires_display_session": true,
+      "python_support": false,
+      "recommended_use": "Not recommended for deterministic proof. Non-deterministic vision agent.",
+      "notes": "Research-grade. No stable CLI. Non-deterministic actions."
+    },
+    "win32_api": {
+      "backend_id": "win32_api",
+      "display_name": "Win32 APIs (pywin32/ctypes)",
+      "technology": "Windows API via Python bindings",
+      "environments": [
+        "native_windows"
+      ],
+      "capabilities": [
+        "chrome_launch",
+        "foreground_detection",
+        "hwnd_observation",
+        "process_detection",
+        "window_focus"
+      ],
+      "install_difficulty": "low \u2014 pip install pywin32",
+      "integration_hours": 3,
+      "security_risk": "low",
+      "requires_display_session": true,
+      "python_support": true,
+      "recommended_use": "Window management when Python is preferred over PowerShell.",
+      "notes": "No browser navigation. No screenshot without additional libs."
+    },
+    "windows_interactive_desktop_relay": {
+      "backend_id": "windows_interactive_desktop_relay",
+      "display_name": "Windows Interactive Desktop Relay (PowerShell)",
+      "technology": "Win32 P/Invoke via PowerShell + System.Drawing",
+      "environments": [
+        "native_windows"
+      ],
+      "capabilities": [
+        "browser_navigation",
+        "chrome_launch",
+        "foreground_detection",
+        "hwnd_observation",
+        "process_detection",
+        "screenshot_capture",
+        "window_focus"
+      ],
+      "install_difficulty": "zero \u2014 already deployed",
+      "integration_hours": 0,
+      "security_risk": "low",
+      "requires_display_session": true,
+      "python_support": false,
+      "recommended_use": "Primary actuator backend. Already proven in Phase 96.8Q.",
+      "notes": "Uses Start-Process for Chrome, Get-Process for HWND, GetForegroundWindow for focus, System.Drawing for screenshots."
+    }
+  },
+  "required_capabilities": [
+    "chrome_launch",
+    "hwnd_observation",
+    "screenshot_capture",
+    "foreground_detection"
+  ],
+  "timestamp": "2026-05-09T05:25:45.137173+00:00"
+}

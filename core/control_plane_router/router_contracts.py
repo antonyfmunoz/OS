@@ -42,6 +42,7 @@ class CapabilityType(str, Enum):
 
 ALLOWED_ACTION_TYPES = frozenset(
     {
+        "actuator_proof",
         "ping",
         "open_application_url",
         "chrome_open_google_drive",

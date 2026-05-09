@@ -154,6 +154,15 @@ CANONICAL_COMMANDS: tuple[CommandEntry, ...] = (
         execution_mode=ExecutionMode.SHELL,
         capability_type="MEMORY_GOVERNANCE",
     ),
+    CommandEntry(
+        command_name="!actuator-proof",
+        canonical_action="actuator_proof",
+        routing_mode=RoutingMode.SPINE,
+        governance_policy="FOUNDER_APPROVAL",
+        execution_mode=ExecutionMode.GUI,
+        foreground_required=True,
+        require_screenshot_proof=True,
+    ),
 )
 
 

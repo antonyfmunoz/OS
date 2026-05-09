@@ -125,6 +125,13 @@ ACTION_CAPABILITY_MAP: dict[str, CapabilityRequirement] = {
         requires_local_shell=False,
         authority_required="local_gui",
     ),
+    "actuator_proof": CapabilityRequirement(
+        action_type="actuator_proof",
+        capability_type=CapabilityType.WINDOWS_GUI_EXECUTION,
+        requires_gui=True,
+        requires_local_shell=False,
+        authority_required="local_gui",
+    ),
 }
 
 

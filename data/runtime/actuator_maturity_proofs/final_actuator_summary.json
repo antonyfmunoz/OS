@@ -1,0 +1,23 @@
+{
+  "phase": "96.8AN",
+  "proof_type": "actuator_maturity",
+  "backend_used": "windows_interactive_desktop_relay",
+  "maturity_level": 0,
+  "maturity_label": "simulated",
+  "status": "SIMULATED",
+  "succeeded": false,
+  "chrome_pid": 0,
+  "window_handle": 0,
+  "window_title": "",
+  "visible": false,
+  "focused": false,
+  "screenshot_path": "",
+  "screenshot_hash": "",
+  "founder_confirmed": false,
+  "founder_confirmation_required": true,
+  "founder_confirmation_status": "pending",
+  "replay_hash": "4a87fc4854892729",
+  "is_dry_run": true,
+  "stages_completed": [],
+  "timestamp": "2026-05-09T05:25:45.137555+00:00"
+}

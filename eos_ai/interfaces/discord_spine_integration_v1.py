@@ -128,6 +128,7 @@ def build_spine_infrastructure(
     cap_auth = CapabilityAuthority(
         adapter_id="windows_interactive_desktop_relay",
         capabilities=[
+            "actuator_proof",
             "browser_execution",
             "chrome_launch",
             "chrome_open_google_drive",

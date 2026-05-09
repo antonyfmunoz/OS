@@ -1,0 +1,21 @@
+{
+  "chrome_pid": 0,
+  "window_handle": 0,
+  "window_title": "",
+  "visible": false,
+  "focused": false,
+  "monitor_detected": false,
+  "desktop_unlocked": false,
+  "active_user_session": false,
+  "navigation_url": "",
+  "navigation_detected": false,
+  "screenshot_path": "",
+  "screenshot_hash": "",
+  "founder_confirmed": false,
+  "replay_hash": "",
+  "backend_used": "windows_interactive_desktop_relay",
+  "is_dry_run": true,
+  "maturity_level": 0,
+  "maturity_label": "simulated",
+  "timestamp": "2026-05-09T05:25:45.137543+00:00"
+}
