@@ -31,6 +31,7 @@
         "relay_status",
         "open_application_url",
         "chrome_open_google_drive",
+        "explore_environment",
         "ingest_safe_doc",
         "ingest_safe_doc_cu",
         "chrome_proof"
@@ -203,6 +204,21 @@
             "Reads VPS-side relay heartbeat file",
             "Reports node online/offline, desktop state, maturity ceiling",
             "No Windows relay dispatch needed"
+          ]
+        },
+        {
+          "capability_id": "explore_environment",
+          "action_type": "explore_environment",
+          "requires_gui": true,
+          "requires_local_shell": false,
+          "required_authority": "local_gui",
+          "notes": [
+            "Pre-ingestion environment discovery and mapping",
+            "Enumerates processes, installed apps, Chrome profiles, browser sessions, workspaces",
+            "Builds topology graph with platform/account/workspace relationships",
+            "Plans ingestion lanes with extraction method selection",
+            "NO ingestion, NO extraction, NO mutation",
+            "Founder visual confirmation required"
           ]
         },
         {

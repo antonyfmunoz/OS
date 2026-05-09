@@ -223,6 +223,10 @@ async def handle_substrate_command(message: Any, text: str) -> bool:
 
     if cmd == "!chrome-proof":
         await _handle_chrome_proof(message, spine)
+    elif cmd == "!ingest-safe-doc-cu":
+        await _handle_ingest_safe_doc_cu(message, spine)
+    elif cmd == "!explore-environment":
+        await _handle_explore_environment(message, spine)
     elif cmd in SPINE_ROUTED_COMMANDS:
         await _handle_spine_command(cmd, message, spine)
     else:
@@ -534,6 +538,290 @@ async def _handle_chrome_proof(message: Any, spine: Any) -> None:
     await message.channel.send("\n".join(lines))
     _log(
         f"!chrome-proof classified: maturity={maturity_name} "
+        f"blocked={proof.escalation_blocked} founder={founder_answer} "
+        f"transport=real_relay"
+    )
+
+
+async def _handle_ingest_safe_doc_cu(message: Any, spine: Any) -> None:
+    from core.workstation.workstation_relay_self_heal_v1 import should_allow_chrome_proof
+    from core.workstation.relay_execution_transport_v1 import check_ssh_reachable
+    from core.workstation.foreground_cu_ingestion_execution_v1 import (
+        build_full_ingestion_proof,
+        extract_ingestion_evidence,
+        persist_cu_ingestion_proof,
+        send_ingest_safe_doc_request,
+    )
+    from core.workstation.visible_actuation_proof_v1 import (
+        FounderConfirmationArtifact,
+        persist_founder_confirmation,
+    )
+
+    base = Path(_REPO_ROOT)
+
+    # Gate 1: relay health (heartbeat, desktop, chrome)
+    allowed, reason = should_allow_chrome_proof(base)
+    if not allowed:
+        await message.channel.send(
+            f"**!ingest-safe-doc-cu** -- BLOCKED\nrelay gate: `{reason}`\nRun `!relay-status` for details"
+        )
+        _log(f"!ingest-safe-doc-cu blocked by relay gate: {reason}")
+        return
+
+    # Gate 2: SSH transport reachable
+    ssh_ok, ssh_reason = await asyncio.to_thread(check_ssh_reachable)
+    if not ssh_ok:
+        await message.channel.send(
+            f"**!ingest-safe-doc-cu** -- BLOCKED\n"
+            f"transport: SSH unreachable (`{ssh_reason}`)\n"
+            f"Windows workstation must be online via Tailscale"
+        )
+        _log(f"!ingest-safe-doc-cu blocked: SSH unreachable ({ssh_reason})")
+        return
+
+    await message.channel.send(
+        "**!ingest-safe-doc-cu** -- relay healthy, transport live\n"
+        "Dispatching foreground CU ingestion to Windows workstation...\n"
+        "Chrome will open to the safe test document."
+    )
+
+    # Real execution via relay transport
+    transport_result = await asyncio.to_thread(send_ingest_safe_doc_request)
+
+    if transport_result.status != "completed":
+        await message.channel.send(
+            f"**!ingest-safe-doc-cu** -- TRANSPORT FAILED\n"
+            f"status: `{transport_result.status}`\n"
+            f"error: `{transport_result.transport_error}`\n"
+            f"ssh: `{transport_result.ssh_reachable}` "
+            f"inbox: `{transport_result.inbox_written}` "
+            f"result: `{transport_result.result_received}`"
+        )
+        _log(
+            f"!ingest-safe-doc-cu transport failed: {transport_result.status} "
+            f"error={transport_result.transport_error}"
+        )
+        return
+
+    relay_data = transport_result.relay_result
+    adapter_status = relay_data.get("adapter_status", "unknown")
+    stages = relay_data.get("stages_completed", [])
+    extraction = relay_data.get("extraction_result", {})
+    extracted_len = extraction.get("content_length", 0)
+
+    await message.channel.send(
+        f"**!ingest-safe-doc-cu** -- relay executed\n"
+        f"adapter: `{adapter_status}`\n"
+        f"stages: `{', '.join(stages) if stages else 'none'}`\n"
+        f"extraction: `{extracted_len} chars` "
+        f"method=`{extraction.get('method', 'unknown')}`\n"
+        f"elapsed: `{transport_result.elapsed_seconds:.1f}s`"
+    )
+    _log(
+        f"!ingest-safe-doc-cu relay completed: adapter={adapter_status} "
+        f"extraction={extracted_len}chars elapsed={transport_result.elapsed_seconds:.1f}s"
+    )
+
+    # Founder confirmation
+    await message.channel.send(
+        "**Founder confirmation required.**\n"
+        "Did Chrome visibly open to the document and was content extracted?\n"
+        "Reply **YES** or **NO** within 60 seconds."
+    )
+
+    def check_response(m: Any) -> bool:
+        return (
+            m.author.id == message.author.id
+            and m.channel.id == message.channel.id
+            and m.content.strip().upper() in ("YES", "NO")
+        )
+
+    try:
+        client = message.channel._state._get_client()
+        response = await client.wait_for("message", check=check_response, timeout=60.0)
+        founder_answer = response.content.strip().upper()
+    except asyncio.TimeoutError:
+        founder_answer = "TIMEOUT"
+    except AttributeError:
+        await message.channel.send("Could not access bot for confirmation — skipping.")
+        founder_answer = "TIMEOUT"
+
+    confirmed = founder_answer == "YES"
+
+    confirmation = FounderConfirmationArtifact(
+        confirmed=confirmed,
+        trace_id=relay_data.get("trace_id", ""),
+        request_id=transport_result.request_id,
+        channel="discord",
+        founder_response=founder_answer,
+    )
+    persist_founder_confirmation(confirmation, base_dir=base)
+
+    # Build full ingestion proof with candidate generation
+    proof = build_full_ingestion_proof(relay_data, founder_confirmed=confirmed)
+    proof_path = persist_cu_ingestion_proof(proof, base_dir=base)
+
+    maturity_name = proof.maturity_level.name
+    lines = [
+        f"**!ingest-safe-doc-cu** -- PROOF CLASSIFIED",
+        f"maturity: `{maturity_name}` (level {proof.maturity_level.value})",
+        f"ceiling: `{proof.maturity_ceiling.name}`",
+        f"escalation_blocked: `{proof.escalation_blocked}`",
+    ]
+    if proof.escalation_reason:
+        lines.append(f"reason: `{proof.escalation_reason}`")
+    lines.append(f"founder: `{founder_answer}`")
+    lines.append(
+        f"candidates: `{len(proof.candidates)}` "
+        f"(canonical={proof.canonical_count}, instance={proof.instance_count})"
+    )
+    lines.append(f"proof_id: `{proof.proof_id}`")
+    lines.append(f"artifact: `{proof_path.name}`")
+    lines.append(f"transport: `real_relay` ({transport_result.elapsed_seconds:.1f}s)")
+
+    await message.channel.send("\n".join(lines))
+    _log(
+        f"!ingest-safe-doc-cu classified: maturity={maturity_name} "
+        f"blocked={proof.escalation_blocked} founder={founder_answer} "
+        f"candidates={len(proof.candidates)} transport=real_relay"
+    )
+
+
+async def _handle_explore_environment(message: Any, spine: Any) -> None:
+    from core.workstation.workstation_relay_self_heal_v1 import should_allow_chrome_proof
+    from core.workstation.relay_execution_transport_v1 import check_ssh_reachable
+    from core.workstation.environment_mapping_engine_v1 import (
+        build_full_environment_proof,
+        persist_environment_mapping_proof,
+        send_explore_environment_request,
+    )
+    from core.workstation.visible_actuation_proof_v1 import (
+        FounderConfirmationArtifact,
+        persist_founder_confirmation,
+    )
+
+    base = Path(_REPO_ROOT)
+
+    allowed, reason = should_allow_chrome_proof(base)
+    if not allowed:
+        await message.channel.send(
+            f"**!explore-environment** -- BLOCKED\nrelay gate: `{reason}`\nRun `!relay-status` for details"
+        )
+        _log(f"!explore-environment blocked by relay gate: {reason}")
+        return
+
+    ssh_ok, ssh_reason = await asyncio.to_thread(check_ssh_reachable)
+    if not ssh_ok:
+        await message.channel.send(
+            f"**!explore-environment** -- BLOCKED\n"
+            f"transport: SSH unreachable (`{ssh_reason}`)\n"
+            f"Windows workstation must be online via Tailscale"
+        )
+        _log(f"!explore-environment blocked: SSH unreachable ({ssh_reason})")
+        return
+
+    await message.channel.send(
+        "**!explore-environment** -- relay healthy, transport live\n"
+        "Dispatching environment exploration to Windows workstation...\n"
+        "Enumerating processes, apps, Chrome profiles, browser sessions, workspaces."
+    )
+
+    transport_result = await asyncio.to_thread(send_explore_environment_request)
+
+    if transport_result.status != "completed":
+        await message.channel.send(
+            f"**!explore-environment** -- TRANSPORT FAILED\n"
+            f"status: `{transport_result.status}`\n"
+            f"error: `{transport_result.transport_error}`"
+        )
+        _log(f"!explore-environment transport failed: {transport_result.status}")
+        return
+
+    relay_data = transport_result.relay_result
+    adapter_status = relay_data.get("adapter_status", "unknown")
+    stages = relay_data.get("stages_completed", [])
+    discovery = relay_data.get("discovery_result", {})
+
+    proc_count = len(discovery.get("processes", []))
+    app_count = len(discovery.get("installed_apps", []))
+    profile_count = len(discovery.get("chrome_profiles", []))
+    session_count = len(discovery.get("browser_sessions", []))
+    ws_count = len(discovery.get("workspaces", []))
+
+    await message.channel.send(
+        f"**!explore-environment** -- relay executed\n"
+        f"adapter: `{adapter_status}`\n"
+        f"stages: `{', '.join(stages) if stages else 'none'}`\n"
+        f"processes: `{proc_count}` | apps: `{app_count}` | "
+        f"profiles: `{profile_count}` | sessions: `{session_count}` | "
+        f"workspaces: `{ws_count}`\n"
+        f"elapsed: `{transport_result.elapsed_seconds:.1f}s`"
+    )
+
+    await message.channel.send(
+        "**Founder confirmation required.**\n"
+        "Did the environment exploration complete successfully on the workstation?\n"
+        "Reply **YES** or **NO** within 60 seconds."
+    )
+
+    def check_response(m: Any) -> bool:
+        return (
+            m.author.id == message.author.id
+            and m.channel.id == message.channel.id
+            and m.content.strip().upper() in ("YES", "NO")
+        )
+
+    try:
+        client = message.channel._state._get_client()
+        response = await client.wait_for("message", check=check_response, timeout=60.0)
+        founder_answer = response.content.strip().upper()
+    except asyncio.TimeoutError:
+        founder_answer = "TIMEOUT"
+    except AttributeError:
+        await message.channel.send("Could not access bot for confirmation — skipping.")
+        founder_answer = "TIMEOUT"
+
+    confirmed = founder_answer == "YES"
+
+    confirmation = FounderConfirmationArtifact(
+        confirmed=confirmed,
+        trace_id=relay_data.get("trace_id", ""),
+        request_id=transport_result.request_id,
+        channel="discord",
+        founder_response=founder_answer,
+    )
+    persist_founder_confirmation(confirmation, base_dir=base)
+
+    proof = build_full_environment_proof(relay_data, founder_confirmed=confirmed)
+    proof_path = persist_environment_mapping_proof(proof, base_dir=base)
+
+    topo = proof.topology
+    lines = [
+        f"**!explore-environment** -- PROOF CLASSIFIED",
+        f"maturity: `{proof.maturity_level}`",
+        f"ceiling: `{proof.maturity_ceiling}`",
+        f"escalation_blocked: `{proof.escalation_blocked}`",
+    ]
+    if proof.escalation_reason:
+        lines.append(f"reason: `{proof.escalation_reason}`")
+    lines.append(f"founder: `{founder_answer}`")
+    if topo:
+        lines.append(
+            f"topology: platforms=`{topo.platform_count}` accounts=`{topo.account_count}` "
+            f"workspaces=`{topo.workspace_count}` relationships=`{topo.relationship_count}` "
+            f"lanes=`{topo.lane_count}`"
+        )
+        lines.append(
+            f"separation: canonical=`{len(topo.canonical_candidates)}` "
+            f"instance=`{len(topo.instance_candidates)}`"
+        )
+    lines.append(f"proof_id: `{proof.proof_id}`")
+    lines.append(f"artifact: `{proof_path.name}`")
+    lines.append(f"transport: `real_relay` ({transport_result.elapsed_seconds:.1f}s)")
+
+    await message.channel.send("\n".join(lines))
+    _log(
+        f"!explore-environment classified: maturity={proof.maturity_level} "
         f"blocked={proof.escalation_blocked} founder={founder_answer} "
         f"transport=real_relay"
     )

@@ -139,6 +139,16 @@ CANONICAL_COMMANDS: tuple[CommandEntry, ...] = (
         capability_type="DOCUMENT_EXTRACTION",
     ),
     CommandEntry(
+        command_name="!explore-environment",
+        canonical_action="explore_environment",
+        routing_mode=RoutingMode.SPINE,
+        governance_policy="FOUNDER_APPROVAL",
+        execution_mode=ExecutionMode.GUI,
+        foreground_required=True,
+        require_screenshot_proof=True,
+        capability_type="ENVIRONMENT_DISCOVERY",
+    ),
+    CommandEntry(
         command_name="!promote-memory",
         canonical_action="promote_safe_memory_candidate",
         routing_mode=RoutingMode.ROUTER,

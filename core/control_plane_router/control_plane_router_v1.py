@@ -139,6 +139,13 @@ ACTION_CAPABILITY_MAP: dict[str, CapabilityRequirement] = {
         requires_local_shell=False,
         authority_required="local_shell",
     ),
+    "explore_environment": CapabilityRequirement(
+        action_type="explore_environment",
+        capability_type=CapabilityType.ENVIRONMENT_DISCOVERY,
+        requires_gui=True,
+        requires_local_shell=False,
+        authority_required="local_gui",
+    ),
 }
 
 

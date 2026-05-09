@@ -30,6 +30,8 @@ class WindowsDesktopActionType(str, Enum):
     OPEN_APPLICATION_URL = "open_application_url"
     FOCUS_APPLICATION = "focus_application"
     CHROME_PROOF = "chrome_proof"
+    INGEST_SAFE_DOC_CU = "ingest_safe_doc_cu"
+    EXPLORE_ENVIRONMENT = "explore_environment"
     REQUEST_FOUNDER_VISUAL_CONFIRMATION = "request_founder_visual_confirmation"
 
 
