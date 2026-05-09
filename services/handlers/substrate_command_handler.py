@@ -377,10 +377,26 @@ async def _handle_relay_status(message: Any) -> None:
     if status.get("capabilities"):
         lines.append(f"capabilities: `{len(status['capabilities'])}`")
 
+    # Registry hash parity
+    relay_hash = status.get("registry_hash", "")
+    vps_reg_hash = _CANONICAL.registry_hash()
+    if relay_hash:
+        parity = "MATCH" if relay_hash == vps_reg_hash else "MISMATCH"
+        lines.append(f"registry_parity: `{parity}` (relay=`{relay_hash}` vps=`{vps_reg_hash}`)")
+    else:
+        lines.append(f"vps_registry: `{vps_reg_hash}`")
+
+    # SSH transport check (non-blocking, short timeout)
+    from core.workstation.relay_execution_transport_v1 import check_ssh_reachable
+
+    ssh_ok, ssh_reason = await asyncio.to_thread(check_ssh_reachable)
+    lines.append(f"ssh_transport: `{'LIVE' if ssh_ok else 'UNREACHABLE'}` ({ssh_reason})")
+
     await message.channel.send("\n".join(lines))
     _log(
         f"!relay-status replied — online={status['online']} "
-        f"health={status.get('health')} autostart={heal.autostart_installed}"
+        f"health={status.get('health')} autostart={heal.autostart_installed} "
+        f"ssh={'ok' if ssh_ok else 'fail'}"
     )
 
 
@@ -393,8 +409,14 @@ async def _handle_chrome_proof(message: Any, spine: Any) -> None:
         persist_founder_confirmation,
         persist_visible_actuation_proof,
     )
+    from core.workstation.relay_execution_transport_v1 import (
+        check_ssh_reachable,
+        send_chrome_proof_request,
+    )
 
     base = Path(_REPO_ROOT)
+
+    # Gate 1: relay health (heartbeat, desktop, chrome)
     allowed, reason = should_allow_chrome_proof(base)
     if not allowed:
         await message.channel.send(
@@ -403,27 +425,59 @@ async def _handle_chrome_proof(message: Any, spine: Any) -> None:
         _log(f"!chrome-proof blocked by relay gate: {reason}")
         return
 
+    # Gate 2: SSH transport reachable
+    ssh_ok, ssh_reason = await asyncio.to_thread(check_ssh_reachable)
+    if not ssh_ok:
+        await message.channel.send(
+            f"**!chrome-proof** -- BLOCKED\n"
+            f"transport: SSH unreachable (`{ssh_reason}`)\n"
+            f"Windows workstation must be online via Tailscale"
+        )
+        _log(f"!chrome-proof blocked: SSH unreachable ({ssh_reason})")
+        return
+
     await message.channel.send(
-        "**!chrome-proof** -- relay healthy, spine routing (authority -> gate -> supervisor)..."
+        "**!chrome-proof** -- relay healthy, transport live\n"
+        "Dispatching real Chrome launch to Windows workstation..."
     )
 
-    from eos_ai.interfaces.discord_spine_integration_v1 import (
-        execute_spine_command,
-        format_spine_result,
+    # Real execution via relay transport (no simulation)
+    transport_result = await asyncio.to_thread(send_chrome_proof_request)
+
+    if transport_result.status != "completed":
+        await message.channel.send(
+            f"**!chrome-proof** -- TRANSPORT FAILED\n"
+            f"status: `{transport_result.status}`\n"
+            f"error: `{transport_result.transport_error}`\n"
+            f"ssh: `{transport_result.ssh_reachable}` "
+            f"inbox: `{transport_result.inbox_written}` "
+            f"result: `{transport_result.result_received}`"
+        )
+        _log(
+            f"!chrome-proof transport failed: {transport_result.status} "
+            f"error={transport_result.transport_error}"
+        )
+        return
+
+    relay_data = transport_result.relay_result
+    adapter_status = relay_data.get("adapter_status", "unknown")
+    stages = relay_data.get("stages_completed", [])
+
+    await message.channel.send(
+        f"**!chrome-proof** -- relay executed\n"
+        f"adapter: `{adapter_status}`\n"
+        f"stages: `{', '.join(stages) if stages else 'none'}`\n"
+        f"elapsed: `{transport_result.elapsed_seconds:.1f}s`"
+    )
+    _log(
+        f"!chrome-proof relay completed: adapter={adapter_status} "
+        f"elapsed={transport_result.elapsed_seconds:.1f}s"
     )
 
-    result = await asyncio.to_thread(execute_spine_command, spine, "!chrome-proof")
-    summary = format_spine_result(result)
-    await message.channel.send(summary)
-    _log(f"!chrome-proof spine completed: succeeded={result.succeeded}")
+    # Extract evidence from real relay result
+    evidence = extract_evidence_from_relay_result(relay_data, founder_confirmed=False)
 
-    spine_data: dict[str, Any] = {}
-    if result.spine_result and result.spine_result.execution_result:
-        exec_r = result.spine_result.execution_result
-        spine_data = exec_r.to_dict()
-
-    evidence = extract_evidence_from_relay_result(spine_data, founder_confirmed=False)
-
+    # Founder confirmation
     await message.channel.send(
         "**Founder confirmation required.**\n"
         "Did Chrome visibly open on the Windows desktop?\n"
@@ -451,13 +505,14 @@ async def _handle_chrome_proof(message: Any, spine: Any) -> None:
 
     confirmation = FounderConfirmationArtifact(
         confirmed=confirmed,
-        trace_id=result.spine_result.trace_id if result.spine_result else "",
-        request_id=result.spine_result.spine_id if result.spine_result else "",
+        trace_id=relay_data.get("trace_id", ""),
+        request_id=transport_result.request_id,
         channel="discord",
         founder_response=founder_answer,
     )
     persist_founder_confirmation(confirmation, base_dir=base)
 
+    # Classify visible actuation proof from real evidence
     evidence.founder_confirmed = confirmed
     proof = classify_visible_actuation(evidence)
     proof_path = persist_visible_actuation_proof(proof, base_dir=base)
@@ -474,11 +529,13 @@ async def _handle_chrome_proof(message: Any, spine: Any) -> None:
     lines.append(f"founder: `{founder_answer}`")
     lines.append(f"proof_id: `{proof.proof_id}`")
     lines.append(f"artifact: `{proof_path.name}`")
+    lines.append(f"transport: `real_relay` ({transport_result.elapsed_seconds:.1f}s)")
 
     await message.channel.send("\n".join(lines))
     _log(
         f"!chrome-proof classified: maturity={maturity_name} "
-        f"blocked={proof.escalation_blocked} founder={founder_answer}"
+        f"blocked={proof.escalation_blocked} founder={founder_answer} "
+        f"transport=real_relay"
     )
 
 
