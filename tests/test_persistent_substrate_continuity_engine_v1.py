@@ -1144,7 +1144,7 @@ class TestRegistryIntegration(unittest.TestCase):
         )
 
         reg = get_canonical_registry()
-        self.assertEqual(len(reg), 26)
+        self.assertEqual(len(reg), 27)
 
     def test_continuity_report_in_registry(self) -> None:
         from core.registry.canonical_command_registry_v1 import (
@@ -1197,7 +1197,7 @@ class TestRegistryIntegration(unittest.TestCase):
 
     def test_config_action_count(self) -> None:
         config = json.loads(Path("/opt/OS/config/control_plane_router_v1.json").read_text())
-        self.assertEqual(len(config["allowed_action_types"]), 26)
+        self.assertEqual(len(config["allowed_action_types"]), 27)
 
     def test_adapter_registry_workers(self) -> None:
         reg = json.loads(
@@ -1221,7 +1221,7 @@ class TestRegistryIntegration(unittest.TestCase):
             ALLOWED_ACTION_TYPES,
         )
 
-        self.assertEqual(len(ALLOWED_ACTION_TYPES), 26)
+        self.assertEqual(len(ALLOWED_ACTION_TYPES), 27)
 
 
 if __name__ == "__main__":

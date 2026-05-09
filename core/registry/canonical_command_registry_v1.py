@@ -294,6 +294,16 @@ CANONICAL_COMMANDS: tuple[CommandEntry, ...] = (
         capability_type="TELOS_ALIGNMENT",
     ),
     CommandEntry(
+        command_name="!resilience-report",
+        canonical_action="resilience_report",
+        routing_mode=RoutingMode.SPINE,
+        governance_policy="FOUNDER_APPROVAL",
+        execution_mode=ExecutionMode.SHELL,
+        foreground_required=False,
+        require_screenshot_proof=False,
+        capability_type="ANTIFRAGILITY_RESILIENCE",
+    ),
+    CommandEntry(
         command_name="!relay-status",
         canonical_action="relay_status",
         routing_mode=RoutingMode.ROUTER,

@@ -44,6 +44,7 @@ class WindowsDesktopActionType(str, Enum):
     EPISTEMIC_REPORT = "epistemic_report"
     IDENTITY_REPORT = "identity_report"
     TELOS_REPORT = "telos_report"
+    RESILIENCE_REPORT = "resilience_report"
     REQUEST_FOUNDER_VISUAL_CONFIRMATION = "request_founder_visual_confirmation"
 
 

@@ -1,0 +1,610 @@
+{
+  "proof_id": "RESIL-abed8e39",
+  "proof_type": "constitutional_antifragility_resilience",
+  "trace_id": "",
+  "maturity_level": "L4_RESILIENCE_RECONCILED",
+  "maturity_ceiling": "L5_CONSTITUTIONAL_ANTIFRAGILITY",
+  "escalation_blocked": true,
+  "escalation_reason": "existentially_unstable_orchestration",
+  "evidence": {
+    "primitives_evaluated": true,
+    "catastrophe_simulated": true,
+    "antifragility_measured": true,
+    "evolutionary_forecasted": true,
+    "existential_risks_analyzed": true,
+    "topology_generated": true,
+    "adaptations_applied": true,
+    "hard_ceilings_enforced": true,
+    "primitive_count": 10,
+    "composite_tolerance": 0.6725,
+    "composite_fragility": 0.3306,
+    "total_scenarios": 10,
+    "critical_scenarios": 1,
+    "mean_survivability": 0.5581,
+    "worst_case_scenario": "infrastructure_exhaustion",
+    "composite_antifragility": 0.0487,
+    "stress_positive_count": 6,
+    "stress_negative_count": 2,
+    "net_antifragility_gain": 0.0953,
+    "composite_survivability": 0.7175,
+    "composite_brittleness": 0.4554,
+    "long_horizon_stable": true,
+    "critical_risk_count": 2,
+    "total_risk_count": 8,
+    "existential_safe": false,
+    "composite_vulnerability": 0.1623,
+    "topology_types_covered": 7,
+    "composite_redundancy": 0.574,
+    "total_spof_count": 11,
+    "adaptations_count": 6,
+    "all_invariants_preserved": true,
+    "resilience_constitutionally_safe": false,
+    "is_dry_run": false,
+    "founder_confirmed": true,
+    "trace_id": "",
+    "request_id": "",
+    "upstream_telos_proof": "TELS-ac3dd082",
+    "resilience_maturity_score": 0.6159,
+    "resilience_maturity_level": "L4_RESILIENCE_RECONCILED",
+    "civilization_survivability_score": 0.6198
+  },
+  "primitives": {
+    "primitives": [
+      {
+        "primitive": "shock_tolerance",
+        "tolerance": 0.6962,
+        "redundancy": 0.6179,
+        "recovery_rate": 0.6706,
+        "fragility_score": 0.3273,
+        "notes": [
+          "baseline_tolerance=0.6739"
+        ]
+      },
+      {
+        "primitive": "continuity_resilience",
+        "tolerance": 0.6296,
+        "redundancy": 0.7317,
+        "recovery_rate": 0.7389,
+        "fragility_score": 0.3398,
+        "notes": [
+          "baseline_tolerance=0.6739"
+        ]
+      },
+      {
+        "primitive": "governance_resilience",
+        "tolerance": 0.7366,
+        "redundancy": 0.6278,
+        "recovery_rate": 0.6956,
+        "fragility_score": 0.2961,
+        "notes": [
+          "baseline_tolerance=0.6739"
+        ]
+      },
+      {
+        "primitive": "epistemic_resilience",
+        "tolerance": 0.5986,
+        "redundancy": 0.6488,
+        "recovery_rate": 0.7098,
+        "fragility_score": 0.3863,
+        "notes": [
+          "baseline_tolerance=0.6739"
+        ]
+      },
+      {
+        "primitive": "federation_resilience",
+        "tolerance": 0.5981,
+        "redundancy": 0.6457,
+        "recovery_rate": 0.7343,
+        "fragility_score": 0.3876,
+        "notes": [
+          "baseline_tolerance=0.6739"
+        ]
+      },
+      {
+        "primitive": "replay_survivability",
+        "tolerance": 0.681,
+        "redundancy": 0.6491,
+        "recovery_rate": 0.724,
+        "fragility_score": 0.3285,
+        "notes": [
+          "baseline_tolerance=0.6739"
+        ]
+      },
+      {
+        "primitive": "infrastructure_redundancy",
+        "tolerance": 0.7234,
+        "redundancy": 0.6149,
+        "recovery_rate": 0.7608,
+        "fragility_score": 0.3092,
+        "notes": [
+          "baseline_tolerance=0.6739"
+        ]
+      },
+      {
+        "primitive": "adaptive_recovery_capacity",
+        "tolerance": 0.7056,
+        "redundancy": 0.6683,
+        "recovery_rate": 0.6503,
+        "fragility_score": 0.3056,
+        "notes": [
+          "baseline_tolerance=0.6739"
+        ]
+      },
+      {
+        "primitive": "existential_vulnerability",
+        "tolerance": 0.747,
+        "redundancy": 0.6677,
+        "recovery_rate": 0.6396,
+        "fragility_score": 0.2768,
+        "notes": [
+          "baseline_tolerance=0.6739"
+        ]
+      },
+      {
+        "primitive": "antifragility_gain_potential",
+        "tolerance": 0.6093,
+        "redundancy": 0.7494,
+        "recovery_rate": 0.7265,
+        "fragility_score": 0.3486,
+        "notes": [
+          "baseline_tolerance=0.6739"
+        ]
+      }
+    ],
+    "composite_tolerance": 0.6725,
+    "composite_fragility": 0.3306,
+    "timestamp": "2026-05-09T21:42:03.407295+00:00"
+  },
+  "catastrophe": {
+    "scenarios": [
+      {
+        "scenario_type": "federation_collapse",
+        "severity": 0.3231,
+        "blast_radius": 0.6177,
+        "recovery_feasibility": 0.5657,
+        "survivability": 0.6102,
+        "cascading_failures": 3,
+        "notes": [
+          "simulated_with_base_tolerance=0.6725"
+        ]
+      },
+      {
+        "scenario_type": "node_extinction",
+        "severity": 0.5219,
+        "blast_radius": 0.6191,
+        "recovery_feasibility": 0.5514,
+        "survivability": 0.5221,
+        "cascading_failures": 4,
+        "notes": [
+          "simulated_with_base_tolerance=0.6725"
+        ]
+      },
+      {
+        "scenario_type": "continuity_corruption",
+        "severity": 0.599,
+        "blast_radius": 0.2115,
+        "recovery_feasibility": 0.6522,
+        "survivability": 0.5518,
+        "cascading_failures": 2,
+        "notes": [
+          "simulated_with_base_tolerance=0.6725"
+        ]
+      },
+      {
+        "scenario_type": "replay_invalidation",
+        "severity": 0.6747,
+        "blast_radius": 0.7683,
+        "recovery_feasibility": 0.7885,
+        "survivability": 0.6032,
+        "cascading_failures": 3,
+        "notes": [
+          "simulated_with_base_tolerance=0.6725"
+        ]
+      },
+      {
+        "scenario_type": "governance_fragmentation",
+        "severity": 0.5364,
+        "blast_radius": 0.2346,
+        "recovery_feasibility": 0.5547,
+        "survivability": 0.5183,
+        "cascading_failures": 0,
+        "notes": [
+          "simulated_with_base_tolerance=0.6725"
+        ]
+      },
+      {
+        "scenario_type": "epistemic_corruption",
+        "severity": 0.5255,
+        "blast_radius": 0.2574,
+        "recovery_feasibility": 0.6763,
+        "survivability": 0.5956,
+        "cascading_failures": 3,
+        "notes": [
+          "simulated_with_base_tolerance=0.6725"
+        ]
+      },
+      {
+        "scenario_type": "strategic_divergence",
+        "severity": 0.3772,
+        "blast_radius": 0.4321,
+        "recovery_feasibility": 0.816,
+        "survivability": 0.7387,
+        "cascading_failures": 2,
+        "notes": [
+          "simulated_with_base_tolerance=0.6725"
+        ]
+      },
+      {
+        "scenario_type": "mission_collapse",
+        "severity": 0.6451,
+        "blast_radius": 0.4262,
+        "recovery_feasibility": 0.5372,
+        "survivability": 0.4643,
+        "cascading_failures": 0,
+        "notes": [
+          "simulated_with_base_tolerance=0.6725"
+        ]
+      },
+      {
+        "scenario_type": "hostile_node_takeover",
+        "severity": 0.412,
+        "blast_radius": 0.2368,
+        "recovery_feasibility": 0.5722,
+        "survivability": 0.5786,
+        "cascading_failures": 2,
+        "notes": [
+          "simulated_with_base_tolerance=0.6725"
+        ]
+      },
+      {
+        "scenario_type": "infrastructure_exhaustion",
+        "severity": 0.8333,
+        "blast_radius": 0.5134,
+        "recovery_feasibility": 0.5534,
+        "survivability": 0.3988,
+        "cascading_failures": 4,
+        "notes": [
+          "simulated_with_base_tolerance=0.6725"
+        ]
+      }
+    ],
+    "total_scenarios": 10,
+    "critical_scenarios": 1,
+    "mean_survivability": 0.5581,
+    "worst_case_scenario": "infrastructure_exhaustion",
+    "timestamp": "2026-05-09T21:42:03.407370+00:00"
+  },
+  "antifragility": {
+    "dimensions": [
+      {
+        "dimension": "stress_adaptation",
+        "gain_from_stress": 0.0726,
+        "adaptation_rate": 0.708,
+        "compounding_factor": 0.31,
+        "notes": []
+      },
+      {
+        "dimension": "recovery_acceleration",
+        "gain_from_stress": 0.003,
+        "adaptation_rate": 0.6288,
+        "compounding_factor": 0.0106,
+        "notes": []
+      },
+      {
+        "dimension": "resilience_compounding",
+        "gain_from_stress": -0.015,
+        "adaptation_rate": 0.5747,
+        "compounding_factor": 0.0384,
+        "notes": []
+      },
+      {
+        "dimension": "adaptive_strengthening",
+        "gain_from_stress": 0.1041,
+        "adaptation_rate": 0.8199,
+        "compounding_factor": 0.2934,
+        "notes": []
+      },
+      {
+        "dimension": "governance_hardening",
+        "gain_from_stress": 0.0635,
+        "adaptation_rate": 0.6738,
+        "compounding_factor": 0.2502,
+        "notes": []
+      },
+      {
+        "dimension": "continuity_reinforcement",
+        "gain_from_stress": 0.0478,
+        "adaptation_rate": 0.5909,
+        "compounding_factor": 0.2807,
+        "notes": []
+      },
+      {
+        "dimension": "federation_stabilization",
+        "gain_from_stress": 0.1352,
+        "adaptation_rate": 0.6005,
+        "compounding_factor": 0.1022,
+        "notes": []
+      },
+      {
+        "dimension": "shock_derived_optimization_gains",
+        "gain_from_stress": -0.0216,
+        "adaptation_rate": 0.8123,
+        "compounding_factor": 0.0148,
+        "notes": []
+      }
+    ],
+    "composite_antifragility": 0.0487,
+    "stress_positive_count": 6,
+    "stress_negative_count": 2,
+    "net_antifragility_gain": 0.0953,
+    "timestamp": "2026-05-09T21:42:03.407430+00:00"
+  },
+  "evolutionary": {
+    "forecasts": [
+      {
+        "forecast_type": "long_horizon_survivability",
+        "horizon_score": 0.6541,
+        "brittleness": 0.5265,
+        "growth_trajectory": -0.0295,
+        "instability_risk": 0.2784,
+        "notes": []
+      },
+      {
+        "forecast_type": "civilization_scale_adaptation",
+        "horizon_score": 0.5942,
+        "brittleness": 0.6996,
+        "growth_trajectory": 0.021,
+        "instability_risk": 0.3034,
+        "notes": []
+      },
+      {
+        "forecast_type": "recursive_resilience_growth",
+        "horizon_score": 0.6658,
+        "brittleness": 0.444,
+        "growth_trajectory": -0.0411,
+        "instability_risk": 0.3026,
+        "notes": []
+      },
+      {
+        "forecast_type": "systemic_brittleness",
+        "horizon_score": 0.613,
+        "brittleness": 0.455,
+        "growth_trajectory": 0.1342,
+        "instability_risk": 0.2242,
+        "notes": []
+      },
+      {
+        "forecast_type": "instability_propagation",
+        "horizon_score": 0.827,
+        "brittleness": 0.3713,
+        "growth_trajectory": -0.0313,
+        "instability_risk": 0.2302,
+        "notes": []
+      },
+      {
+        "forecast_type": "resilience_topology_evolution",
+        "horizon_score": 0.7827,
+        "brittleness": 0.3318,
+        "growth_trajectory": -0.0069,
+        "instability_risk": 0.1831,
+        "notes": []
+      },
+      {
+        "forecast_type": "infrastructure_survivability",
+        "horizon_score": 0.8051,
+        "brittleness": 0.3087,
+        "growth_trajectory": -0.0266,
+        "instability_risk": 0.1414,
+        "notes": []
+      },
+      {
+        "forecast_type": "constitutional_durability",
+        "horizon_score": 0.7979,
+        "brittleness": 0.506,
+        "growth_trajectory": 0.0467,
+        "instability_risk": 0.3777,
+        "notes": []
+      }
+    ],
+    "composite_survivability": 0.7175,
+    "composite_brittleness": 0.4554,
+    "long_horizon_stable": true,
+    "timestamp": "2026-05-09T21:42:03.407471+00:00"
+  },
+  "existential_risks": {
+    "risks": [
+      {
+        "risk_type": "irreversible_drift",
+        "severity": "critical",
+        "probability": 0.312,
+        "reversibility": 0.54,
+        "cascade_depth": 4,
+        "mitigation_available": true,
+        "notes": []
+      },
+      {
+        "risk_type": "civilization_collapse_vectors",
+        "severity": "medium",
+        "probability": 0.2095,
+        "reversibility": 0.8326,
+        "cascade_depth": 4,
+        "mitigation_available": true,
+        "notes": []
+      },
+      {
+        "risk_type": "recursive_instability_cascades",
+        "severity": "low",
+        "probability": 0.0617,
+        "reversibility": 0.6228,
+        "cascade_depth": 0,
+        "mitigation_available": true,
+        "notes": []
+      },
+      {
+        "risk_type": "constitutional_erosion_risks",
+        "severity": "low",
+        "probability": 0.0203,
+        "reversibility": 0.7699,
+        "cascade_depth": 0,
+        "mitigation_available": true,
+        "notes": []
+      },
+      {
+        "risk_type": "alignment_extinction_scenarios",
+        "severity": "critical",
+        "probability": 0.2967,
+        "reversibility": 0.3812,
+        "cascade_depth": 2,
+        "mitigation_available": false,
+        "notes": []
+      },
+      {
+        "risk_type": "memory_collapse_scenarios",
+        "severity": "medium",
+        "probability": 0.1894,
+        "reversibility": 0.8807,
+        "cascade_depth": 0,
+        "mitigation_available": true,
+        "notes": []
+      },
+      {
+        "risk_type": "strategic_stagnation_traps",
+        "severity": "low",
+        "probability": 0.1453,
+        "reversibility": 0.7231,
+        "cascade_depth": 2,
+        "mitigation_available": true,
+        "notes": []
+      },
+      {
+        "risk_type": "brittle_optimization_loops",
+        "severity": "low",
+        "probability": 0.0631,
+        "reversibility": 0.5794,
+        "cascade_depth": 0,
+        "mitigation_available": true,
+        "notes": []
+      }
+    ],
+    "critical_risk_count": 2,
+    "total_risk_count": 8,
+    "existential_safe": false,
+    "composite_vulnerability": 0.1623,
+    "timestamp": "2026-05-09T21:42:03.407503+00:00"
+  },
+  "topology": {
+    "nodes": [
+      {
+        "topology_type": "survivability_graph",
+        "node_count": 9,
+        "edge_count": 11,
+        "redundancy_factor": 0.5581,
+        "single_points_of_failure": 3,
+        "notes": []
+      },
+      {
+        "topology_type": "catastrophe_propagation_map",
+        "node_count": 13,
+        "edge_count": 23,
+        "redundancy_factor": 0.4545,
+        "single_points_of_failure": 3,
+        "notes": []
+      },
+      {
+        "topology_type": "redundancy_topology",
+        "node_count": 10,
+        "edge_count": 29,
+        "redundancy_factor": 0.3245,
+        "single_points_of_failure": 3,
+        "notes": []
+      },
+      {
+        "topology_type": "resilience_dependency_graph",
+        "node_count": 14,
+        "edge_count": 14,
+        "redundancy_factor": 0.8744,
+        "single_points_of_failure": 0,
+        "notes": []
+      },
+      {
+        "topology_type": "antifragility_gain_topology",
+        "node_count": 8,
+        "edge_count": 23,
+        "redundancy_factor": 0.7343,
+        "single_points_of_failure": 0,
+        "notes": []
+      },
+      {
+        "topology_type": "recovery_pathway_graph",
+        "node_count": 9,
+        "edge_count": 27,
+        "redundancy_factor": 0.5566,
+        "single_points_of_failure": 1,
+        "notes": []
+      },
+      {
+        "topology_type": "existential_risk_topology",
+        "node_count": 12,
+        "edge_count": 28,
+        "redundancy_factor": 0.5154,
+        "single_points_of_failure": 1,
+        "notes": []
+      }
+    ],
+    "topology_hash": "d4b4a5cb0367002d",
+    "composite_redundancy": 0.574,
+    "total_spof_count": 11,
+    "timestamp": "2026-05-09T21:42:03.407533+00:00"
+  },
+  "adaptations": {
+    "adaptations": [
+      {
+        "adaptation_type": "fragile_strategy_reweighting",
+        "target": "high_fragility_primitives",
+        "applied": true,
+        "invariants_preserved": true,
+        "notes": []
+      },
+      {
+        "adaptation_type": "weak_topology_strengthening",
+        "target": "low_redundancy_zones",
+        "applied": true,
+        "invariants_preserved": true,
+        "notes": []
+      },
+      {
+        "adaptation_type": "catastrophic_pathway_quarantine",
+        "target": "critical_scenarios",
+        "applied": true,
+        "invariants_preserved": true,
+        "notes": []
+      },
+      {
+        "adaptation_type": "continuity_instability_preservation",
+        "target": "continuity_resilience",
+        "applied": true,
+        "invariants_preserved": true,
+        "notes": []
+      },
+      {
+        "adaptation_type": "survivability_priority_enforcement",
+        "target": "survivability_scores",
+        "applied": true,
+        "invariants_preserved": true,
+        "notes": []
+      },
+      {
+        "adaptation_type": "stress_exposure_evolution",
+        "target": "antifragility_gains",
+        "applied": true,
+        "invariants_preserved": true,
+        "notes": []
+      }
+    ],
+    "total_applied": 6,
+    "all_invariants_preserved": true,
+    "timestamp": "2026-05-09T21:42:03.407592+00:00"
+  },
+  "execution_strategy": "full_resilience_pipeline",
+  "timestamp": "2026-05-09T21:42:03.407638+00:00"
+}

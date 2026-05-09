@@ -230,6 +230,13 @@ ACTION_CAPABILITY_MAP: dict[str, CapabilityRequirement] = {
         requires_local_shell=False,
         authority_required="local_shell",
     ),
+    "resilience_report": CapabilityRequirement(
+        action_type="resilience_report",
+        capability_type=CapabilityType.ANTIFRAGILITY_RESILIENCE,
+        requires_gui=False,
+        requires_local_shell=False,
+        authority_required="local_shell",
+    ),
 }
 
 

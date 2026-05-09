@@ -25,7 +25,8 @@
         "economics_report",
         "strategy_report",
         "identity_report",
-        "telos_report"
+        "telos_report",
+        "resilience_report"
       ]
     },
     "windows_interactive_desktop_relay": {
@@ -449,6 +450,23 @@
             "Maturity classification L0-L5",
             "NO autonomous telos mutation allowed",
             "Full upstream proof chain required (13 layers deep)"
+          ]
+        },
+        {
+          "capability_id": "resilience_report",
+          "action_type": "resilience_report",
+          "requires_gui": false,
+          "requires_local_shell": false,
+          "required_authority": "local_shell",
+          "notes": [
+            "Constitutional antifragility and evolutionary resilience",
+            "10 resilience primitives with catastrophic scenario simulation (10 types)",
+            "8 antifragility dimensions, 8 evolutionary resilience forecasts",
+            "8 existential risk types, 7 resilience topology types",
+            "7 resilience hard ceilings, 6 resilience adaptation types",
+            "Maturity classification L0-L5",
+            "NO autonomous resilience mutation allowed",
+            "Full upstream proof chain required (14 layers deep)"
           ]
         }
       ],
