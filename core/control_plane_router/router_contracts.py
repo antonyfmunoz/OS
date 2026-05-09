@@ -44,6 +44,7 @@ class CapabilityType(str, Enum):
     ORCHESTRATION_GOVERNANCE = "orchestration_governance"
     SUBSTRATE_CONTINUITY = "substrate_continuity"
     GOVERNANCE_INTELLIGENCE = "governance_intelligence"
+    CONSTITUTIONAL_GOVERNANCE = "constitutional_governance"
 
 
 ALLOWED_ACTION_TYPES = frozenset(
@@ -54,6 +55,7 @@ ALLOWED_ACTION_TYPES = frozenset(
         "orchestration_report",
         "continuity_report",
         "governance_intelligence_report",
+        "constitution_report",
         "ping",
         "open_application_url",
         "chrome_open_google_drive",

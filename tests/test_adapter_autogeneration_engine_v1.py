@@ -623,11 +623,11 @@ class TestRegistryIntegration:
 
         assert "adapter_report" in ACTION_CAPABILITY_MAP
 
-    def test_registry_count_is_19(self) -> None:
+    def test_registry_count_is_20(self) -> None:
         from core.registry.canonical_command_registry_v1 import CanonicalCommandRegistryV1
 
         reg = CanonicalCommandRegistryV1()
-        assert len(reg) == 19
+        assert len(reg) == 20
 
 
 class TestMaturityRequirements:

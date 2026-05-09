@@ -15,7 +15,7 @@ Verifies:
   12. Full pipeline integration
   13. Proof persistence
   14. Canonical instance separation (no shared state)
-  15. Registry integration (19 commands, parity checks)
+  15. Registry integration (20 commands, parity checks)
 """
 
 import json
@@ -1453,18 +1453,18 @@ class TestCanonicalInstanceSeparation:
 
 
 # ---------------------------------------------------------------------------
-# Registry integration (19 commands)
+# Registry integration (20 commands)
 # ---------------------------------------------------------------------------
 
 
 class TestRegistryIntegration:
-    def test_registry_has_19_commands(self) -> None:
+    def test_registry_has_20_commands(self) -> None:
         from core.registry.canonical_command_registry_v1 import (
             CanonicalCommandRegistryV1,
         )
 
         reg = CanonicalCommandRegistryV1()
-        assert len(reg) == 19
+        assert len(reg) == 20
 
     def test_orchestration_report_in_registry(self) -> None:
         from core.registry.canonical_command_registry_v1 import (
@@ -1518,10 +1518,10 @@ class TestRegistryIntegration:
         win_caps = data["workers"]["windows_interactive_desktop_relay"]["capabilities"]
         assert "orchestration_report" in win_caps
 
-    def test_handler_exports_19_commands(self) -> None:
+    def test_handler_exports_20_commands(self) -> None:
         from handlers.substrate_command_handler import SUBSTRATE_COMMANDS
 
-        assert len(SUBSTRATE_COMMANDS) == 19
+        assert len(SUBSTRATE_COMMANDS) == 20
         assert "!orchestration-report" in SUBSTRATE_COMMANDS
 
     def test_router_config_parity(self) -> None:

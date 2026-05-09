@@ -19,7 +19,8 @@
         "capability_report",
         "orchestration_report",
         "continuity_report",
-        "governance_intelligence_report"
+        "governance_intelligence_report",
+        "constitution_report"
       ]
     },
     "windows_interactive_desktop_relay": {
@@ -37,6 +38,7 @@
         "orchestration_report",
         "continuity_report",
         "governance_intelligence_report",
+        "constitution_report",
         "actuator_proof",
         "relay_status",
         "open_application_url",
@@ -305,6 +307,24 @@
             "6 policy simulation types",
             "Governance learning memory with evolution chains",
             "NO autonomous governance mutation allowed",
+            "NO relay dispatch needed, runs VPS-side",
+            "Founder confirmation required for proof generation"
+          ]
+        },
+        {
+          "capability_id": "constitution_report",
+          "action_type": "constitution_report",
+          "requires_gui": false,
+          "requires_local_shell": false,
+          "required_authority": "local_shell",
+          "notes": [
+            "Constitutional substrate governance analysis",
+            "4 constitutional layers with invariant enforcement",
+            "7-dimensional constitutional risk scoring",
+            "8 constitutional simulation types",
+            "Constitutional hard ceiling enforcement",
+            "Constitutional migration contracts",
+            "NO autonomous constitutional mutation allowed",
             "NO relay dispatch needed, runs VPS-side",
             "Founder confirmation required for proof generation"
           ]
