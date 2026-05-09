@@ -221,7 +221,9 @@ async def handle_substrate_command(message: Any, text: str) -> bool:
 
     spine, router = await asyncio.to_thread(_ensure_infrastructure)
 
-    if cmd in SPINE_ROUTED_COMMANDS:
+    if cmd == "!chrome-proof":
+        await _handle_chrome_proof(message, spine)
+    elif cmd in SPINE_ROUTED_COMMANDS:
         await _handle_spine_command(cmd, message, spine)
     else:
         await _handle_router_command(cmd, message, router)
@@ -379,6 +381,104 @@ async def _handle_relay_status(message: Any) -> None:
     _log(
         f"!relay-status replied — online={status['online']} "
         f"health={status.get('health')} autostart={heal.autostart_installed}"
+    )
+
+
+async def _handle_chrome_proof(message: Any, spine: Any) -> None:
+    from core.workstation.workstation_relay_self_heal_v1 import should_allow_chrome_proof
+    from core.workstation.visible_actuation_proof_v1 import (
+        FounderConfirmationArtifact,
+        classify_visible_actuation,
+        extract_evidence_from_relay_result,
+        persist_founder_confirmation,
+        persist_visible_actuation_proof,
+    )
+
+    base = Path(_REPO_ROOT)
+    allowed, reason = should_allow_chrome_proof(base)
+    if not allowed:
+        await message.channel.send(
+            f"**!chrome-proof** -- BLOCKED\nrelay gate: `{reason}`\nRun `!relay-status` for details"
+        )
+        _log(f"!chrome-proof blocked by relay gate: {reason}")
+        return
+
+    await message.channel.send(
+        "**!chrome-proof** -- relay healthy, spine routing (authority -> gate -> supervisor)..."
+    )
+
+    from eos_ai.interfaces.discord_spine_integration_v1 import (
+        execute_spine_command,
+        format_spine_result,
+    )
+
+    result = await asyncio.to_thread(execute_spine_command, spine, "!chrome-proof")
+    summary = format_spine_result(result)
+    await message.channel.send(summary)
+    _log(f"!chrome-proof spine completed: succeeded={result.succeeded}")
+
+    spine_data: dict[str, Any] = {}
+    if result.spine_result and result.spine_result.execution_result:
+        exec_r = result.spine_result.execution_result
+        spine_data = exec_r.to_dict()
+
+    evidence = extract_evidence_from_relay_result(spine_data, founder_confirmed=False)
+
+    await message.channel.send(
+        "**Founder confirmation required.**\n"
+        "Did Chrome visibly open on the Windows desktop?\n"
+        "Reply **YES** or **NO** within 60 seconds."
+    )
+
+    def check_response(m: Any) -> bool:
+        return (
+            m.author.id == message.author.id
+            and m.channel.id == message.channel.id
+            and m.content.strip().upper() in ("YES", "NO")
+        )
+
+    try:
+        client = message.channel._state._get_client()
+        response = await client.wait_for("message", check=check_response, timeout=60.0)
+        founder_answer = response.content.strip().upper()
+    except asyncio.TimeoutError:
+        founder_answer = "TIMEOUT"
+    except AttributeError:
+        await message.channel.send("Could not access bot for confirmation — skipping.")
+        founder_answer = "TIMEOUT"
+
+    confirmed = founder_answer == "YES"
+
+    confirmation = FounderConfirmationArtifact(
+        confirmed=confirmed,
+        trace_id=result.spine_result.trace_id if result.spine_result else "",
+        request_id=result.spine_result.spine_id if result.spine_result else "",
+        channel="discord",
+        founder_response=founder_answer,
+    )
+    persist_founder_confirmation(confirmation, base_dir=base)
+
+    evidence.founder_confirmed = confirmed
+    proof = classify_visible_actuation(evidence)
+    proof_path = persist_visible_actuation_proof(proof, base_dir=base)
+
+    maturity_name = proof.maturity_level.name
+    lines = [
+        f"**!chrome-proof** -- PROOF CLASSIFIED",
+        f"maturity: `{maturity_name}` (level {proof.maturity_level.value})",
+        f"ceiling: `{proof.maturity_ceiling.name}`",
+        f"escalation_blocked: `{proof.escalation_blocked}`",
+    ]
+    if proof.escalation_reason:
+        lines.append(f"reason: `{proof.escalation_reason}`")
+    lines.append(f"founder: `{founder_answer}`")
+    lines.append(f"proof_id: `{proof.proof_id}`")
+    lines.append(f"artifact: `{proof_path.name}`")
+
+    await message.channel.send("\n".join(lines))
+    _log(
+        f"!chrome-proof classified: maturity={maturity_name} "
+        f"blocked={proof.escalation_blocked} founder={founder_answer}"
     )
 
 
