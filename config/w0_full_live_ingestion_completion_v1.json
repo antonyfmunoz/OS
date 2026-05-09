@@ -1,0 +1,30 @@
+{
+  "_description": "Configuration for the full live ingestion completion proof. Phase 96.8AG.",
+  "_phase": "96.8AG",
+  "_date": "2026-05-08",
+  "safe_doc_title": "EOS W0 Test Document",
+  "safe_doc_url_or_id": "https://docs.google.com/document/d/EOS-W0-SAFE-TEST-DOC/edit",
+  "safe_drive_url": "https://drive.google.com/drive/my-drive",
+  "google_account_identity": "antonyfm@empyreanstudios.co",
+  "adapter_instance_id": "gws-empyrean-primary-001",
+  "allow_cu_path": false,
+  "allow_api_path": true,
+  "require_parity": false,
+  "preview_char_limit": 500,
+  "max_extract_chars": 50000,
+  "autostart_workers": true,
+  "require_node_sync": true,
+  "governance_required_for_promotion": true,
+  "forbidden_actions": [
+    "broad_drive_ingestion",
+    "mutate_drive",
+    "mutate_docs",
+    "auto_promote_canonical_truth",
+    "mutate_world_model",
+    "invoke_execution_planning",
+    "recursively_ingest",
+    "autonomous_financial_action",
+    "arbitrary_url_access",
+    "screenshot_as_primary_extraction"
+  ]
+}

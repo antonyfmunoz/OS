@@ -47,6 +47,7 @@ from core.environment_bridge.windows_desktop_request_builder import (
     build_w0_doc_extract_safe_test_doc_request,
     build_w0_doc_ingestion_candidate_request,
     build_w0_drive_safe_test_doc_request,
+    build_w0_full_live_ingestion_request,
     build_w0_promote_safe_memory_candidate_request,
     build_w0_query_safe_memory_reference_request,
 )
@@ -89,6 +90,7 @@ SUPPORTED_COMMANDS = {
     "!doc",
     "!extract",
     "!ingest-candidate",
+    "!ingest-safe-doc",
     "!promote-memory",
     "!query-memory",
     "!status",
@@ -101,6 +103,7 @@ COMMAND_ACTION_MAP: dict[str, str] = {
     "!doc": "drive_open_safe_test_doc",
     "!extract": "doc_extract_safe_test_doc",
     "!ingest-candidate": "doc_ingestion_candidate_safe_test_doc",
+    "!ingest-safe-doc": "ingest_safe_doc",
     "!promote-memory": "promote_safe_memory_candidate",
     "!query-memory": "query_safe_memory_reference",
 }
@@ -109,6 +112,7 @@ COMMAND_ACTION_MAP: dict[str, str] = {
 SPINE_ROUTED_COMMANDS = frozenset(
     {
         "!chrome-open-google-drive",
+        "!ingest-safe-doc",
     }
 )
 
@@ -116,6 +120,15 @@ COMMAND_CONTRACT: dict[str, dict[str, Any]] = {
     "!chrome-open-google-drive": {
         "command": "!chrome-open-google-drive",
         "capability": "WINDOWS_GUI_EXECUTION",
+        "adapter": "windows_interactive_desktop_relay",
+        "environment": "local_windows_gui",
+        "authority_required": "FOUNDER_APPROVAL",
+        "proof_required": True,
+        "mutation_allowed": False,
+    },
+    "!ingest-safe-doc": {
+        "command": "!ingest-safe-doc",
+        "capability": "DOCUMENT_EXTRACTION",
         "adapter": "windows_interactive_desktop_relay",
         "environment": "local_windows_gui",
         "authority_required": "FOUNDER_APPROVAL",
@@ -164,6 +177,12 @@ def build_work_packet_for_router(
         payload = req.to_dict()
     elif command == "!extract":
         req = build_w0_doc_extract_safe_test_doc_request(
+            safe_doc_url=safe_doc_url,
+            safe_doc_title=safe_doc_title or "EOS W0 Test Document",
+        )
+        payload = req.to_dict()
+    elif command == "!ingest-safe-doc":
+        req = build_w0_full_live_ingestion_request(
             safe_doc_url=safe_doc_url,
             safe_doc_title=safe_doc_title or "EOS W0 Test Document",
         )

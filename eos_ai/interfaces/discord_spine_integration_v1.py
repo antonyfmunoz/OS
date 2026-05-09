@@ -131,6 +131,7 @@ def build_spine_infrastructure(
             "browser_execution",
             "chrome_launch",
             "chrome_open_google_drive",
+            "ingest_safe_doc",
             "open_application_url",
         ],
         is_configured=True,

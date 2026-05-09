@@ -48,6 +48,7 @@ ALLOWED_ACTION_TYPES = frozenset(
         "drive_open_safe_test_doc",
         "doc_extract_safe_test_doc",
         "doc_ingestion_candidate_safe_test_doc",
+        "ingest_safe_doc",
         "promote_safe_memory_candidate",
         "query_safe_memory_reference",
     }

@@ -27,7 +27,8 @@
       "capabilities": [
         "ping",
         "open_application_url",
-        "chrome_open_google_drive"
+        "chrome_open_google_drive",
+        "ingest_safe_doc"
       ]
     }
   },
@@ -143,6 +144,19 @@
             "No embeddings, no summarization",
             "No cross-tenant or drive-wide scans",
             "Policy-bounded with query proof artifact"
+          ]
+        },
+        {
+          "capability_id": "ingest_safe_doc",
+          "action_type": "ingest_safe_doc",
+          "requires_gui": true,
+          "requires_local_shell": false,
+          "required_authority": "local_gui",
+          "notes": [
+            "Full governed safe doc ingestion",
+            "Identity-scoped artifacts",
+            "No mutation",
+            "No auto-promotion"
           ]
         }
       ],
