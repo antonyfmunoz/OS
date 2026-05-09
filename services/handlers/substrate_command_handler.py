@@ -154,7 +154,7 @@ def _ensure_infrastructure() -> tuple[Any, Any]:
 
     registry_path = base_dir / "data/registries/local_worker_adapter_registry_v1.json"
     registry = AdapterRegistry.from_json_file(registry_path)
-    r_config = load_router_config()
+    r_config = load_router_config(base_dir / "config/control_plane_router_v1.json")
     _router = ControlPlaneRouterV1(
         registry=registry,
         config=r_config,
