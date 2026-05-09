@@ -190,6 +190,7 @@ def build_spine_infrastructure(
         sync_policy=sync_policy,
         ledger=ledger,
         proof_dir=base_dir / "data/runtime/sync_proofs",
+        registry_hash=_reg.registry_hash(),
     )
 
     return LiveLocalRuntimeExecution(

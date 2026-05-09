@@ -347,12 +347,15 @@ class NodeSyncGate:
         allow_dirty: bool = False,
         ledger: TransformationStateLedger | None = None,
         proof_dir: Path | None = None,
+        registry_hash: str = "",
     ) -> None:
         self._vps_repo = vps_repo_path
         self._local_repo = local_repo_path
         self._relay_script = relay_script_path
         self._command_registry = command_registry or {}
+        self._known_actions = set(self._command_registry.values())
         self._worker_capabilities = worker_capabilities or []
+        self._registry_hash = registry_hash
         self._config_path = config_path
         self._sync_policy = sync_policy
         self._allow_dirty = allow_dirty
@@ -532,7 +535,10 @@ class NodeSyncGate:
 
         cmd_match = True
         missing_commands: list[str] = []
-        if requested_command and requested_command not in self._command_registry:
+        if requested_command and (
+            requested_command not in self._command_registry
+            and requested_command not in self._known_actions
+        ):
             cmd_match = False
             missing_commands.append(requested_command)
             denial_reasons.append(f"command_not_in_registry: {requested_command}")
