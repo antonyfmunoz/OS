@@ -396,6 +396,24 @@
             "NO autonomous strategic mutation allowed",
             "Full upstream proof chain required (10 layers deep)"
           ]
+        },
+        {
+          "capability_id": "epistemic_report",
+          "action_type": "epistemic_report",
+          "requires_gui": false,
+          "requires_local_shell": false,
+          "required_authority": "local_shell",
+          "notes": [
+            "Constitutional epistemic intelligence and reality coherence",
+            "10 epistemic primitives with evidence confidence scoring",
+            "8 evidence integrity dimensions, 8 reality coherence detectors",
+            "7 probabilistic reasoning types, 7 contradiction types",
+            "7 epistemic topology types, 7 epistemic hard ceilings",
+            "6 epistemic adaptation types with hallucination prevention",
+            "Maturity classification L0-L5",
+            "NO autonomous epistemic mutation allowed",
+            "Full upstream proof chain required (11 layers deep)"
+          ]
         }
       ],
       "notes": [

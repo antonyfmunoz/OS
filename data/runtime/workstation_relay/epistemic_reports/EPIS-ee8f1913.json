@@ -1,0 +1,480 @@
+{
+  "proof_id": "EPIS-ee8f1913",
+  "proof_type": "constitutional_epistemic_intelligence",
+  "trace_id": "",
+  "maturity_level": "L5_CONSTITUTIONAL_EPISTEMIC_INTELLIGENCE",
+  "maturity_ceiling": "L5_CONSTITUTIONAL_EPISTEMIC_INTELLIGENCE",
+  "escalation_blocked": false,
+  "escalation_reason": "",
+  "evidence": {
+    "primitives_evaluated": true,
+    "primitive_count": 10,
+    "composite_confidence": 0.7188,
+    "composite_certainty": 0.6413,
+    "integrity_analyzed": true,
+    "integrity_score": 0.8125,
+    "corrupted_dimensions": 0,
+    "coherence_analyzed": true,
+    "coherence_score": 0.8765,
+    "drift_count": 0,
+    "hallucination_risk": 0.08,
+    "probabilistic_assessed": true,
+    "total_uncertainty": 0.3129,
+    "contradictions_analyzed": true,
+    "contradiction_count": 0,
+    "critical_contradiction_count": 0,
+    "quarantined_count": 0,
+    "contradiction_density": 0.0,
+    "topology_generated": true,
+    "topology_types_covered": 7,
+    "topology_stability": 0.7129,
+    "adaptations_applied": true,
+    "downgrades_applied": 0,
+    "quarantines_applied": 0,
+    "isolations_applied": 0,
+    "all_invariants_preserved": true,
+    "hard_ceilings_enforced": true,
+    "governance_epistemically_safe": true,
+    "replay_epistemically_valid": true,
+    "continuity_epistemically_stable": true,
+    "hallucination_prevented": true,
+    "epistemic_stability_score": 0.8232,
+    "founder_confirmed": true,
+    "is_dry_run": false,
+    "trace_id": "",
+    "request_id": ""
+  },
+  "primitives": {
+    "primitives": [
+      {
+        "primitive": "evidence_confidence",
+        "confidence": 0.5501,
+        "certainty": 0.4951,
+        "trend": "stable",
+        "risk_level": "low",
+        "notes": []
+      },
+      {
+        "primitive": "observation_lineage",
+        "confidence": 0.4401,
+        "certainty": 0.3851,
+        "trend": "stable",
+        "risk_level": "medium",
+        "notes": []
+      },
+      {
+        "primitive": "proof_integrity",
+        "confidence": 1.0,
+        "certainty": 0.95,
+        "trend": "improving",
+        "risk_level": "low",
+        "notes": []
+      },
+      {
+        "primitive": "replay_certainty",
+        "confidence": 0.6,
+        "certainty": 0.54,
+        "trend": "stable",
+        "risk_level": "low",
+        "notes": []
+      },
+      {
+        "primitive": "federation_trust_reliability",
+        "confidence": 0.8,
+        "certainty": 0.68,
+        "trend": "improving",
+        "risk_level": "low",
+        "notes": []
+      },
+      {
+        "primitive": "model_coherence",
+        "confidence": 0.4951,
+        "certainty": 0.4676,
+        "trend": "stable",
+        "risk_level": "medium",
+        "notes": []
+      },
+      {
+        "primitive": "continuity_confidence",
+        "confidence": 1.0,
+        "certainty": 1.0,
+        "trend": "improving",
+        "risk_level": "low",
+        "notes": []
+      },
+      {
+        "primitive": "probabilistic_uncertainty",
+        "confidence": 0.835,
+        "certainty": 0.5,
+        "trend": "improving",
+        "risk_level": "low",
+        "notes": []
+      },
+      {
+        "primitive": "truth_stability",
+        "confidence": 0.5226,
+        "certainty": 0.4951,
+        "trend": "stable",
+        "risk_level": "low",
+        "notes": []
+      },
+      {
+        "primitive": "contradiction_density",
+        "confidence": 0.945,
+        "certainty": 0.9,
+        "trend": "improving",
+        "risk_level": "low",
+        "notes": []
+      }
+    ],
+    "composite_confidence": 0.7188,
+    "composite_certainty": 0.6413,
+    "timestamp": "2026-05-09T19:56:10.273023+00:00"
+  },
+  "integrity": {
+    "results": [
+      {
+        "dimension": "replay_consistency",
+        "integrity_score": 0.6,
+        "consistent": true,
+        "divergence_detected": false,
+        "notes": []
+      },
+      {
+        "dimension": "observational_consistency",
+        "integrity_score": 0.8,
+        "consistent": true,
+        "divergence_detected": false,
+        "notes": []
+      },
+      {
+        "dimension": "screenshot_integrity",
+        "integrity_score": 0.7,
+        "consistent": true,
+        "divergence_detected": false,
+        "notes": []
+      },
+      {
+        "dimension": "relay_proof_consistency",
+        "integrity_score": 0.6,
+        "consistent": true,
+        "divergence_detected": false,
+        "notes": []
+      },
+      {
+        "dimension": "governance_proof_consistency",
+        "integrity_score": 1.0,
+        "consistent": true,
+        "divergence_detected": false,
+        "notes": []
+      },
+      {
+        "dimension": "continuity_proof_stability",
+        "integrity_score": 1.0,
+        "consistent": true,
+        "divergence_detected": false,
+        "notes": []
+      },
+      {
+        "dimension": "federation_proof_alignment",
+        "integrity_score": 1.0,
+        "consistent": true,
+        "divergence_detected": false,
+        "notes": []
+      },
+      {
+        "dimension": "simulation_reality_divergence",
+        "integrity_score": 0.8,
+        "consistent": true,
+        "divergence_detected": false,
+        "notes": []
+      }
+    ],
+    "composite_integrity": 0.8125,
+    "corrupted_dimensions": 0,
+    "timestamp": "2026-05-09T19:56:10.273041+00:00"
+  },
+  "coherence": {
+    "detections": [
+      {
+        "detector": "model_drift",
+        "drift_detected": false,
+        "divergence_magnitude": 0.2188,
+        "coherence_score": 0.7812,
+        "risk_level": "medium",
+        "notes": []
+      },
+      {
+        "detector": "federation_reality_divergence",
+        "drift_detected": false,
+        "divergence_magnitude": 0.4,
+        "coherence_score": 0.6,
+        "risk_level": "medium",
+        "notes": []
+      },
+      {
+        "detector": "conflicting_node_observations",
+        "drift_detected": false,
+        "divergence_magnitude": 0.0,
+        "coherence_score": 1.0,
+        "risk_level": "low",
+        "notes": []
+      },
+      {
+        "detector": "stale_epistemic_states",
+        "drift_detected": false,
+        "divergence_magnitude": 0.0,
+        "coherence_score": 1.0,
+        "risk_level": "low",
+        "notes": []
+      },
+      {
+        "detector": "continuity_truth_decay",
+        "drift_detected": false,
+        "divergence_magnitude": 0.3125,
+        "coherence_score": 0.6875,
+        "risk_level": "medium",
+        "notes": []
+      },
+      {
+        "detector": "orchestration_belief_divergence",
+        "drift_detected": false,
+        "divergence_magnitude": 0.0,
+        "coherence_score": 1.0,
+        "risk_level": "low",
+        "notes": []
+      },
+      {
+        "detector": "replay_reality_mismatch",
+        "drift_detected": false,
+        "divergence_magnitude": 0.0562,
+        "coherence_score": 0.9437,
+        "risk_level": "low",
+        "notes": []
+      },
+      {
+        "detector": "strategic_hallucination_risk",
+        "drift_detected": false,
+        "divergence_magnitude": 0.0,
+        "coherence_score": 1.0,
+        "risk_level": "low",
+        "notes": []
+      }
+    ],
+    "composite_coherence": 0.8765,
+    "drift_count": 0,
+    "hallucination_risk": 0.08,
+    "timestamp": "2026-05-09T19:56:10.273061+00:00"
+  },
+  "probabilistic": {
+    "assessments": [
+      {
+        "reasoning_type": "confidence_weighted_truth",
+        "confidence": 0.7188,
+        "uncertainty": 0.2812,
+        "propagated_uncertainty": 0.0,
+        "decay_rate": 0.02,
+        "notes": []
+      },
+      {
+        "reasoning_type": "uncertain_observations",
+        "confidence": 0.7313,
+        "uncertainty": 0.1875,
+        "propagated_uncertainty": 0.0813,
+        "decay_rate": 0.03,
+        "notes": []
+      },
+      {
+        "reasoning_type": "incomplete_evidence",
+        "confidence": 0.575,
+        "uncertainty": 0.425,
+        "propagated_uncertainty": 0.0359,
+        "decay_rate": 0.01,
+        "notes": []
+      },
+      {
+        "reasoning_type": "partially_trusted_nodes",
+        "confidence": 0.51,
+        "uncertainty": 0.4,
+        "propagated_uncertainty": 0.03,
+        "decay_rate": 0.02,
+        "notes": []
+      },
+      {
+        "reasoning_type": "probabilistic_replay_validation",
+        "confidence": 0.6,
+        "uncertainty": 0.4,
+        "propagated_uncertainty": 0.0,
+        "decay_rate": 0.01,
+        "notes": []
+      },
+      {
+        "reasoning_type": "uncertainty_propagation",
+        "confidence": 0.5032,
+        "uncertainty": 0.4968,
+        "propagated_uncertainty": 0.0422,
+        "decay_rate": 0.04,
+        "notes": []
+      },
+      {
+        "reasoning_type": "epistemic_confidence_decay",
+        "confidence": 0.9,
+        "uncertainty": 0.0,
+        "propagated_uncertainty": 0.03,
+        "decay_rate": 0.05,
+        "notes": []
+      }
+    ],
+    "composite_confidence": 0.6483,
+    "total_uncertainty": 0.3129,
+    "timestamp": "2026-05-09T19:56:10.273084+00:00"
+  },
+  "contradictions": {
+    "contradictions": [],
+    "total_count": 0,
+    "critical_count": 0,
+    "quarantined_count": 0,
+    "composite_density": 0.0,
+    "timestamp": "2026-05-09T19:56:10.273093+00:00"
+  },
+  "topology": {
+    "nodes": [
+      {
+        "node_id": "ETOP-ec1a14e0",
+        "topology_type": "truth_dependency_graph",
+        "confidence": 0.7188,
+        "connections": 10,
+        "stability": 0.6413
+      },
+      {
+        "node_id": "ETOP-9467a571",
+        "topology_type": "observation_lineage_graph",
+        "confidence": 0.8125,
+        "connections": 8,
+        "stability": 0.7313
+      },
+      {
+        "node_id": "ETOP-aaa42db1",
+        "topology_type": "contradiction_propagation_map",
+        "confidence": 1.0,
+        "connections": 0,
+        "stability": 1.0
+      },
+      {
+        "node_id": "ETOP-2090b835",
+        "topology_type": "federation_trust_topology",
+        "confidence": 0.575,
+        "connections": 8,
+        "stability": 0.5451
+      },
+      {
+        "node_id": "ETOP-01656815",
+        "topology_type": "uncertainty_propagation_map",
+        "confidence": 0.5032,
+        "connections": 10,
+        "stability": 0.513
+      },
+      {
+        "node_id": "ETOP-2b57a4e3",
+        "topology_type": "coherence_stability_topology",
+        "confidence": 0.8765,
+        "connections": 8,
+        "stability": 0.8327
+      },
+      {
+        "node_id": "ETOP-9c1f0da2",
+        "topology_type": "reality_alignment_graph",
+        "confidence": 0.7656,
+        "connections": 16,
+        "stability": 0.7269
+      }
+    ],
+    "topology_types_covered": 7,
+    "composite_stability": 0.7129,
+    "topology_hash": "d3146a8cb32cca6b",
+    "timestamp": "2026-05-09T19:56:10.273116+00:00"
+  },
+  "adaptations": {
+    "adaptations": [
+      {
+        "adaptation_type": "truth_downgrade",
+        "description": "Downgrade truth confidence for low-confidence observations",
+        "applied": false,
+        "truth_downgraded": false,
+        "evidence_quarantined": false,
+        "node_isolated": false,
+        "invariants_preserved": true,
+        "notes": [
+          "composite_confidence=0.719"
+        ]
+      },
+      {
+        "adaptation_type": "evidence_quarantine",
+        "description": "Quarantine corrupted or contradictory evidence",
+        "applied": false,
+        "truth_downgraded": false,
+        "evidence_quarantined": false,
+        "node_isolated": false,
+        "invariants_preserved": true,
+        "notes": [
+          "quarantined_contradictions=0"
+        ]
+      },
+      {
+        "adaptation_type": "node_isolation",
+        "description": "Isolate conflicting federation nodes",
+        "applied": false,
+        "truth_downgraded": false,
+        "evidence_quarantined": false,
+        "node_isolated": false,
+        "invariants_preserved": true,
+        "notes": [
+          "federation_conflicts=none"
+        ]
+      },
+      {
+        "adaptation_type": "observation_reweighting",
+        "description": "Reweight uncertain observations based on coherence analysis",
+        "applied": false,
+        "truth_downgraded": false,
+        "evidence_quarantined": false,
+        "node_isolated": false,
+        "invariants_preserved": true,
+        "notes": [
+          "drift_detections=0"
+        ]
+      },
+      {
+        "adaptation_type": "continuity_preservation",
+        "description": "Preserve continuity during epistemic instability",
+        "applied": true,
+        "truth_downgraded": false,
+        "evidence_quarantined": false,
+        "node_isolated": false,
+        "invariants_preserved": true,
+        "notes": [
+          "continuity invariants verified"
+        ]
+      },
+      {
+        "adaptation_type": "hallucination_prevention",
+        "description": "Prevent recursive hallucination propagation",
+        "applied": false,
+        "truth_downgraded": false,
+        "evidence_quarantined": false,
+        "node_isolated": false,
+        "invariants_preserved": true,
+        "notes": [
+          "hallucination_risk=0.080"
+        ]
+      }
+    ],
+    "downgrades_applied": 0,
+    "quarantines_applied": 0,
+    "isolations_applied": 0,
+    "all_invariants_preserved": true,
+    "timestamp": "2026-05-09T19:56:10.273135+00:00"
+  },
+  "execution_strategy": "constitutional_epistemic_intelligence_active",
+  "timestamp": "2026-05-09T19:56:10.273159+00:00"
+}
