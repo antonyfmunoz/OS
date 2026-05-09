@@ -28,7 +28,8 @@
         "ping",
         "open_application_url",
         "chrome_open_google_drive",
-        "ingest_safe_doc"
+        "ingest_safe_doc",
+        "ingest_safe_doc_cu"
       ]
     }
   },
@@ -157,6 +158,21 @@
             "Identity-scoped artifacts",
             "No mutation",
             "No auto-promotion"
+          ]
+        },
+        {
+          "capability_id": "ingest_safe_doc_cu",
+          "action_type": "ingest_safe_doc_cu",
+          "requires_gui": true,
+          "requires_local_shell": false,
+          "required_authority": "local_gui",
+          "notes": [
+            "Foreground Computer Use governed ingestion",
+            "NO API fallback, NO headless, NO background",
+            "Chrome must be visibly open on live Windows workstation",
+            "Founder must physically observe Chrome activity",
+            "Identity-scoped artifacts",
+            "No mutation, no auto-promotion"
           ]
         }
       ],

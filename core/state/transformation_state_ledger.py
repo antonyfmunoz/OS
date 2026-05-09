@@ -51,6 +51,12 @@ class TransformationStage(str, Enum):
     RUNTIME_RECOVERED = "runtime_recovered"
     NODE_SYNC_VALIDATED = "node_sync_validated"
     NODE_SYNC_DENIED = "node_sync_denied"
+    FOREGROUND_RUNTIME_VALIDATED = "foreground_runtime_validated"
+    CHROME_PROCESS_STARTED = "chrome_process_started"
+    WINDOW_FOCUS_CONFIRMED = "window_focus_confirmed"
+    VISIBLE_NAVIGATION_CONFIRMED = "visible_navigation_confirmed"
+    VISIBLE_EXTRACTION_CONFIRMED = "visible_extraction_confirmed"
+    FOREGROUND_CU_COMPLETED = "foreground_cu_completed"
 
 
 GOVERNANCE_REQUIRED_STAGES = frozenset(
@@ -136,6 +142,7 @@ VALID_TRANSITIONS: dict[TransformationStage, frozenset[TransformationStage]] = {
     TransformationStage.RUNTIME_EXECUTING: frozenset(
         {
             TransformationStage.ADAPTER_BOUNDARY_ENTERED,
+            TransformationStage.FOREGROUND_RUNTIME_VALIDATED,
             TransformationStage.RUNTIME_FAILED,
         }
     ),
@@ -149,6 +156,22 @@ VALID_TRANSITIONS: dict[TransformationStage, frozenset[TransformationStage]] = {
     TransformationStage.RUNTIME_COMPLETED: frozenset(),
     TransformationStage.RUNTIME_FAILED: frozenset({TransformationStage.RUNTIME_RECOVERED}),
     TransformationStage.RUNTIME_RECOVERED: frozenset({TransformationStage.WORKPACKET_DISPATCHED}),
+    TransformationStage.FOREGROUND_RUNTIME_VALIDATED: frozenset(
+        {TransformationStage.CHROME_PROCESS_STARTED, TransformationStage.RUNTIME_FAILED}
+    ),
+    TransformationStage.CHROME_PROCESS_STARTED: frozenset(
+        {TransformationStage.WINDOW_FOCUS_CONFIRMED, TransformationStage.RUNTIME_FAILED}
+    ),
+    TransformationStage.WINDOW_FOCUS_CONFIRMED: frozenset(
+        {TransformationStage.VISIBLE_NAVIGATION_CONFIRMED, TransformationStage.RUNTIME_FAILED}
+    ),
+    TransformationStage.VISIBLE_NAVIGATION_CONFIRMED: frozenset(
+        {TransformationStage.VISIBLE_EXTRACTION_CONFIRMED, TransformationStage.RUNTIME_FAILED}
+    ),
+    TransformationStage.VISIBLE_EXTRACTION_CONFIRMED: frozenset(
+        {TransformationStage.FOREGROUND_CU_COMPLETED, TransformationStage.RUNTIME_FAILED}
+    ),
+    TransformationStage.FOREGROUND_CU_COMPLETED: frozenset({TransformationStage.PROOF_CAPTURED}),
 }
 
 

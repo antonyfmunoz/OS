@@ -336,6 +336,56 @@ def build_w0_query_safe_memory_reference_request(
     )
 
 
+def build_w0_real_foreground_cu_ingestion_request(
+    safe_doc_url: str = "",
+    safe_doc_title: str = "EOS W0 Test Document",
+    google_account_identity: str = "",
+    adapter_instance_id: str = "",
+    trace_id: str = "",
+) -> WindowsDesktopActionRequest:
+    """Build a foreground Computer Use ingestion request.
+
+    Forces foreground CU execution. No API fallback, no headless,
+    no background execution, no simulated extraction.
+    """
+    if not safe_doc_url:
+        safe_doc_url = GOOGLE_DRIVE_URL
+
+    if not trace_id:
+        trace_id = f"W0-fgcu-ingest-{uuid.uuid4().hex[:12]}"
+
+    return WindowsDesktopActionRequest(
+        request_id=f"REQ-W0-FGCU-INGEST-{uuid.uuid4().hex[:8]}",
+        trace_id=trace_id,
+        work_order_id="WO-LOCAL-PILOT-FOREGROUND-CU-INGESTION-001",
+        action_type="ingest_safe_doc_cu",
+        environment_id="local_windows_desktop",
+        execution_surface_id="windows_interactive_desktop_adapter",
+        application_id="google_chrome_windows",
+        executable_path=CHROME_EXECUTABLE_PATH_WINDOWS,
+        launch_method="direct_executable",
+        url=safe_doc_url,
+        blocked_launch_methods=sorted(BLOCKED_LAUNCH_METHODS),
+        proof_required="foreground_cu_verification",
+        no_secret_capture=True,
+        no_mutation=True,
+        timestamp=datetime.now(timezone.utc).isoformat(),
+        notes=[
+            "Foreground Computer Use ingestion ONLY",
+            "NO API fallback allowed",
+            "NO headless browser allowed",
+            "NO background execution allowed",
+            "NO simulated extraction allowed",
+            "Chrome must be visibly open on live Windows workstation",
+            "Founder must physically observe Chrome activity",
+            "Identity-scoped artifacts",
+            f"Source document: {safe_doc_title}",
+            f"Google account: {google_account_identity or 'configured'}",
+            f"Adapter instance: {adapter_instance_id or 'configured'}",
+        ],
+    )
+
+
 def request_to_json(request: WindowsDesktopActionRequest) -> dict[str, Any]:
     """Convert request to JSON-serializable dict."""
     return request.to_dict()
