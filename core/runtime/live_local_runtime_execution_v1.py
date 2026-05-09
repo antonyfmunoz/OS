@@ -47,6 +47,11 @@ from core.runtime.runtime_execution_result_v1 import (
     ExecutionOutcome,
     RuntimeExecutionResult,
 )
+from core.runtime.node_sync_gate_v1 import (
+    NodeSyncGate,
+    NodeSyncGateResult,
+    SyncDecision,
+)
 from core.runtime.runtime_recovery_v1 import (
     FailureType,
     RuntimeRecoveryEngine,
@@ -65,6 +70,7 @@ class ExecutionSpineOutcome(str, Enum):
     SUCCESS = "success"
     AUTHORITY_DENIED = "authority_denied"
     GATE_DENIED = "gate_denied"
+    NODE_SYNC_DENIED = "node_sync_denied"
     SUPERVISOR_UNAVAILABLE = "supervisor_unavailable"
     EXECUTION_FAILED = "execution_failed"
     GOVERNANCE_BLOCKED = "governance_blocked"
@@ -92,6 +98,7 @@ class ExecutionSpineResult:
     outcome: ExecutionSpineOutcome
     authority_decision: AuthorityDecision | None = None
     gate_result: ExecutionGateResult | None = None
+    sync_gate_result: NodeSyncGateResult | None = None
     execution_result: RuntimeExecutionResult | None = None
     trace_id: str = ""
     timestamp: str = ""
@@ -119,6 +126,9 @@ class ExecutionSpineResult:
                 self.authority_decision.to_dict() if self.authority_decision else None
             ),
             "gate_result": self.gate_result.to_dict() if self.gate_result else None,
+            "sync_gate_result": (
+                self.sync_gate_result.to_dict() if self.sync_gate_result else None
+            ),
             "execution_result": (
                 self.execution_result.to_dict() if self.execution_result else None
             ),
@@ -152,12 +162,14 @@ class LiveLocalRuntimeExecution:
         supervisor: LocalRuntimeSupervisor,
         ledger: TransformationStateLedger | None = None,
         proof_dir: Path | None = None,
+        sync_gate: NodeSyncGate | None = None,
     ) -> None:
         self._authority = authority_engine
         self._gate = gate
         self._queue = queue
         self._supervisor = supervisor
         self._ledger = ledger
+        self._sync_gate = sync_gate
         self._proof_dir = proof_dir or Path("data/runtime/live_execution_proofs")
         self._proof_dir.mkdir(parents=True, exist_ok=True)
 
@@ -253,6 +265,27 @@ class LiveLocalRuntimeExecution:
                 denial_reasons=gate_result.denial_reasons,
             )
 
+        # Step 2b: Node sync gate (if configured)
+        sync_gate_result: NodeSyncGateResult | None = None
+        if self._sync_gate:
+            sync_gate_result = self._sync_gate.validate(
+                requested_command=action_type,
+                requested_capability=action_type,
+                trace_id=trace_id,
+            )
+            if not sync_gate_result.passed:
+                return ExecutionSpineResult(
+                    spine_id="",
+                    packet_id=packet_id,
+                    action_type=action_type,
+                    outcome=ExecutionSpineOutcome.NODE_SYNC_DENIED,
+                    authority_decision=auth_decision,
+                    gate_result=gate_result,
+                    sync_gate_result=sync_gate_result,
+                    trace_id=trace_id,
+                    denial_reasons=sync_gate_result.denial_reasons,
+                )
+
         # Step 3: Dispatch to queue
         dispatch = DispatchRecord(
             dispatch_id="",
@@ -314,6 +347,7 @@ class LiveLocalRuntimeExecution:
             ),
             authority_decision=auth_decision,
             gate_result=gate_result,
+            sync_gate_result=sync_gate_result,
             execution_result=exec_result,
             trace_id=trace_id,
         )

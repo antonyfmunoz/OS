@@ -49,6 +49,8 @@ class TransformationStage(str, Enum):
     RUNTIME_COMPLETED = "runtime_completed"
     RUNTIME_FAILED = "runtime_failed"
     RUNTIME_RECOVERED = "runtime_recovered"
+    NODE_SYNC_VALIDATED = "node_sync_validated"
+    NODE_SYNC_DENIED = "node_sync_denied"
 
 
 GOVERNANCE_REQUIRED_STAGES = frozenset(
@@ -115,9 +117,13 @@ VALID_TRANSITIONS: dict[TransformationStage, frozenset[TransformationStage]] = {
         {TransformationStage.EXECUTION_GATE_VALIDATED, TransformationStage.EXECUTION_GATE_DENIED}
     ),
     TransformationStage.EXECUTION_GATE_VALIDATED: frozenset(
-        {TransformationStage.RUNTIME_EXECUTION_READY}
+        {TransformationStage.NODE_SYNC_VALIDATED, TransformationStage.NODE_SYNC_DENIED}
     ),
     TransformationStage.EXECUTION_GATE_DENIED: frozenset(),
+    TransformationStage.NODE_SYNC_VALIDATED: frozenset(
+        {TransformationStage.RUNTIME_EXECUTION_READY}
+    ),
+    TransformationStage.NODE_SYNC_DENIED: frozenset(),
     TransformationStage.RUNTIME_EXECUTION_READY: frozenset(
         {TransformationStage.WORKPACKET_DISPATCHED}
     ),

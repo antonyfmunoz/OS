@@ -44,6 +44,7 @@ ALLOWED_ACTION_TYPES = frozenset(
     {
         "ping",
         "open_application_url",
+        "chrome_open_google_drive",
         "drive_open_safe_test_doc",
         "doc_extract_safe_test_doc",
         "doc_ingestion_candidate_safe_test_doc",

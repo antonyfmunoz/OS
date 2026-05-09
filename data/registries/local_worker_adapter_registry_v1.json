@@ -5,17 +5,30 @@
   "workers": {
     "local_wsl_worker": {
       "environment_type": "local_wsl",
-      "authority_domains": ["local_shell", "filesystem_relay"],
+      "authority_domains": [
+        "local_shell",
+        "filesystem_relay"
+      ],
       "can_own_gui": false,
       "message_bus": "filesystem_json",
-      "capabilities": ["ping", "relay_to_windows_adapter"]
+      "capabilities": [
+        "ping",
+        "relay_to_windows_adapter"
+      ]
     },
     "windows_interactive_desktop_relay": {
       "environment_type": "local_windows_desktop",
-      "authority_domains": ["local_gui", "local_shell"],
+      "authority_domains": [
+        "local_gui",
+        "local_shell"
+      ],
       "can_own_gui": true,
       "message_bus": "filesystem_json",
-      "capabilities": ["ping", "open_application_url"]
+      "capabilities": [
+        "ping",
+        "open_application_url",
+        "chrome_open_google_drive"
+      ]
     }
   },
   "adapters": {
@@ -32,7 +45,9 @@
           "requires_gui": false,
           "requires_local_shell": false,
           "required_authority": "local_shell",
-          "notes": ["Health check, no GUI needed"]
+          "notes": [
+            "Health check, no GUI needed"
+          ]
         },
         {
           "capability_id": "open_application_url",
@@ -42,6 +57,19 @@
           "required_authority": "local_gui",
           "notes": [
             "Launches Chrome via direct executable only",
+            "Requires logged-in Windows desktop session",
+            "Founder visual confirmation required"
+          ]
+        },
+        {
+          "capability_id": "chrome_open_google_drive",
+          "action_type": "chrome_open_google_drive",
+          "requires_gui": true,
+          "requires_local_shell": false,
+          "required_authority": "local_gui",
+          "notes": [
+            "Governed Chrome launch to Google Drive via execution spine",
+            "Full authority/gate/supervisor governance path",
             "Requires logged-in Windows desktop session",
             "Founder visual confirmation required"
           ]
@@ -84,7 +112,7 @@
             "No memory promotion, no canonical writes",
             "No world-model updates, no embeddings",
             "No interpretation or summarization",
-            "Candidate only — governance approval required before promotion"
+            "Candidate only \u2014 governance approval required before promotion"
           ]
         },
         {

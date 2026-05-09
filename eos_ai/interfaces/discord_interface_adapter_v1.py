@@ -52,6 +52,13 @@ from core.environment_bridge.windows_desktop_request_builder import (
 )
 from core.runtime.adapter_registry_contracts import AdapterRegistry
 from core.runtime.worker_runtime_contracts import ProofStatus
+from eos_ai.interfaces.discord_spine_integration_v1 import (
+    SpineExecutionConfig,
+    SpineRoutedResult,
+    build_spine_infrastructure,
+    execute_spine_command,
+    format_spine_result,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -78,6 +85,7 @@ DEFAULT_CONFIG_PATH = "/opt/OS/config/discord_interface_adapter_v1.json"
 SUPPORTED_COMMANDS = {
     "!ping",
     "!chrome",
+    "!chrome-open-google-drive",
     "!doc",
     "!extract",
     "!ingest-candidate",
@@ -89,11 +97,31 @@ SUPPORTED_COMMANDS = {
 COMMAND_ACTION_MAP: dict[str, str] = {
     "!ping": "ping",
     "!chrome": "open_application_url",
+    "!chrome-open-google-drive": "chrome_open_google_drive",
     "!doc": "drive_open_safe_test_doc",
     "!extract": "doc_extract_safe_test_doc",
     "!ingest-candidate": "doc_ingestion_candidate_safe_test_doc",
     "!promote-memory": "promote_safe_memory_candidate",
     "!query-memory": "query_safe_memory_reference",
+}
+
+
+SPINE_ROUTED_COMMANDS = frozenset(
+    {
+        "!chrome-open-google-drive",
+    }
+)
+
+COMMAND_CONTRACT: dict[str, dict[str, Any]] = {
+    "!chrome-open-google-drive": {
+        "command": "!chrome-open-google-drive",
+        "capability": "WINDOWS_GUI_EXECUTION",
+        "adapter": "windows_interactive_desktop_relay",
+        "environment": "local_windows_gui",
+        "authority_required": "FOUNDER_APPROVAL",
+        "proof_required": True,
+        "mutation_allowed": False,
+    },
 }
 
 
@@ -126,6 +154,9 @@ def build_work_packet_for_router(
         req = build_ping_request()
         payload = req.to_dict()
     elif command == "!chrome":
+        req = build_w0_chrome_open_request()
+        payload = req.to_dict()
+    elif command == "!chrome-open-google-drive":
         req = build_w0_chrome_open_request()
         payload = req.to_dict()
     elif command == "!doc":
@@ -332,6 +363,20 @@ class DiscordInterfaceAdapter:
             base_dir=base_dir,
         )
 
+        spine_config = SpineExecutionConfig(
+            queue_dir=Path(config.get("spine_queue_dir", "data/runtime/spine_dispatch_queue")),
+            ledger_dir=Path(
+                config.get("spine_ledger_dir", "data/runtime/transformation_ledger/spine")
+            ),
+            proof_dir=Path(config.get("spine_proof_dir", "data/runtime/spine_proofs")),
+            gate_proof_dir=Path(
+                config.get("spine_gate_proof_dir", "data/runtime/spine_gate_proofs")
+            ),
+            worker_id=config.get("spine_worker_id", "local-worker-01"),
+            environment_id=config.get("spine_environment_id", "local_windows_desktop"),
+        )
+        self._spine = build_spine_infrastructure(spine_config, base_dir)
+
         intents = discord.Intents.default()
         intents.message_content = True
         self.client = discord.Client(intents=intents)
@@ -374,6 +419,10 @@ class DiscordInterfaceAdapter:
             )
             return
 
+        if command in SPINE_ROUTED_COMMANDS:
+            await self._handle_spine_command(command, message)
+            return
+
         work_packet = build_work_packet_for_router(command)
         if work_packet is None:
             await message.channel.send(f"**{command}** -- failed to build work packet")
@@ -392,6 +441,19 @@ class DiscordInterfaceAdapter:
             f"replied: {command} packet_id={work_packet.packet_id} "
             f"router_status={result.router_status.value}"
         )
+
+    async def _handle_spine_command(self, command: str, message: discord.Message) -> None:
+        """Route a command through the full governed execution spine."""
+        _log(f"spine-routing: {command}")
+        await message.channel.send(
+            f"**{command}** -- spine routing (authority → gate → supervisor), waiting..."
+        )
+
+        result = await asyncio.to_thread(execute_spine_command, self._spine, command)
+
+        summary = format_spine_result(result)
+        await message.channel.send(summary)
+        _log(f"spine replied: {command} succeeded={result.succeeded}")
 
     def _write_status(self, status: str) -> None:
         self.state_dir.mkdir(parents=True, exist_ok=True)

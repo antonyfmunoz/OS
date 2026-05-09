@@ -17440,6 +17440,18 @@
     "source": "observed",
     "updated_at": "2026-04-27T02:25:05.552844+00:00"
   },
+  "worldmodel:instance:test_adaptive:strategy:a62bd18f-ed7c-44d4-8601-dd78833d7b33": {
+    "confidence": 0.7,
+    "content": "Interaction: What should I focus on? \u2192 Response: Send 20 DMs to prospects in your ICP and track reply rates [outcome=good]",
+    "created_at": "2026-05-09T00:38:44.547616+00:00",
+    "entry_type": "strategy",
+    "id": "a62bd18f-ed7c-44d4-8601-dd78833d7b33",
+    "layer": "instance",
+    "org_id": "test_adaptive",
+    "promotion_count": 0,
+    "source": "observed",
+    "updated_at": "2026-05-09T00:38:44.547640+00:00"
+  },
   "worldmodel:instance:test_org:strategy:02a1f70f-0601-4260-a84b-8d27a5944be9": {
     "confidence": 0.5,
     "content": "Interaction: What is my strategy approach for this plan? \u2192 Response: Your strategy approach will depend on the specifics of the plan you are referring to, so I can't give a direct answer without knowing more. [outcome=good]",
