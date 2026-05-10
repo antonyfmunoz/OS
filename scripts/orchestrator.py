@@ -70,8 +70,15 @@ from pathlib import Path
 from queue import Empty, Full, Queue
 from typing import Any, Callable
 
-# ── Repo root on sys.path (EOS convention) ────────────────────────────────
-_REPO_ROOT = "/opt/OS"
+# ── Repo root on sys.path ─────────────────────────────────────────────────
+import os as _os
+
+_REPO_ROOT = (
+    _os.environ.get("UMH_ROOT")
+    or _os.environ.get("OS_ROOT")
+    or _os.environ.get("EOS_ROOT")
+    or "/opt/OS"
+)
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
@@ -463,9 +470,7 @@ class ExecutionQueue:
                     consecutive_failures=job.consecutive_failures,
                 )
 
-        self._log.persist_to_memory(
-            job, result if ok else {"status": "failed", "ok": False}
-        )
+        self._log.persist_to_memory(job, result if ok else {"status": "failed", "ok": False})
 
         # Fire completion handlers (retry policy + event hooks live here)
         for handler in list(self._on_complete):
@@ -544,9 +549,7 @@ class SchedulerAgent:
                     if not job.conditions():
                         continue
                 except Exception as e:  # noqa: BLE001
-                    self.orch.log.emit(
-                        "job_condition_error", job_id=job.id, error=str(e)
-                    )
+                    self.orch.log.emit("job_condition_error", job_id=job.id, error=str(e))
                     continue
 
             if job.interval_sec is not None:

@@ -1,0 +1,192 @@
+{
+  "audit_date": "2026-05-10",
+  "audit_type": "root_semantic_migration",
+  "source_path": "/opt/OS",
+  "target_path": "/opt/UMH",
+  "status": "AUDIT_COMPLETE",
+  "summary": {
+    "total_references": 4695,
+    "total_files_impacted": 1444,
+    "archive_references": 646,
+    "archive_files": 271,
+    "live_references": 4695,
+    "live_files": 1444
+  },
+  "classification": {
+    "python_core": {
+      "files": 42,
+      "references": 90
+    },
+    "python_transport": {
+      "files": 19,
+      "references": 49
+    },
+    "python_substrate": {
+      "files": 62,
+      "references": 146
+    },
+    "shell_script": {
+      "files": 192,
+      "references": 486
+    },
+    "docker_deployment": {
+      "files": 8,
+      "references": 42
+    },
+    "test_fixture": {
+      "files": 195,
+      "references": 374
+    },
+    "dead_test": {
+      "files": 405,
+      "references": 991
+    },
+    "documentation": {
+      "files": 115,
+      "references": 953
+    },
+    "data_artifact": {
+      "files": 174,
+      "references": 822
+    },
+    "obsidian_vault": {
+      "files": 24,
+      "references": 26
+    },
+    "claude_config": {
+      "files": 33,
+      "references": 95
+    },
+    "skill_doc": {
+      "files": 154,
+      "references": 553
+    },
+    "parser": {
+      "files": 4,
+      "references": 4
+    },
+    "config": {
+      "files": 1,
+      "references": 1
+    },
+    "repo_root": {
+      "files": 12,
+      "references": 51
+    },
+    "other": {
+      "files": 4,
+      "references": 12
+    }
+  },
+  "blockers": {
+    "runtime_critical": {
+      "count": 5,
+      "files": [
+        "services/discord_bot.py (4 refs \u2014 subprocess + Path)",
+        "scripts/orchestrator.py (1 ref \u2014 _REPO_ROOT)",
+        "eos_ai/context_builder.py (5 refs \u2014 Path constants)",
+        "eos_ai/agent_hierarchy.py (7 refs \u2014 Path constants)",
+        "eos_ai/system_health.py (4 refs \u2014 Path constants)"
+      ],
+      "note": "Core eos_ai modules (cognitive_loop, agent_runtime, model_router, gateway, memory, db, context) have ZERO hardcoded /opt/OS references"
+    },
+    "docker_deployment": {
+      "count": 7,
+      "details": "5 volume mounts in docker-compose.yml (4 services + log mount), 2 log path refs",
+      "files": [
+        "docker-compose.yml"
+      ]
+    },
+    "cron_tmux": {
+      "cron_entries": 30,
+      "tmux_sessions": 5,
+      "details": "30 crontab entries with /opt/OS paths, 5 tmux sessions (umh_core, umh_tests, umh_worker, dex_main, dex_builder_main)"
+    },
+    "claude_config": {
+      "files": 33,
+      "references": 95,
+      "critical_file": ".claude/settings.json (17 refs \u2014 permissions, hooks, all hardcoded)",
+      "details": "30 skill/command files with /opt/OS paths"
+    },
+    "obsidian_vault": {
+      "files": 24,
+      "references": 26,
+      "details": "Vault navigation and config files"
+    },
+    "ingestion": false,
+    "discord_service": true
+  },
+  "existing_env_var_pattern": {
+    "EOS_ROOT": {
+      "files": [
+        "core/tool_mastery_manager/paths.py",
+        "core/tool_mastery_research_agent/paths.py",
+        "core/tool_mastery_author_agent/paths.py",
+        "tests/test_tme_umh_scope.py"
+      ],
+      "pattern": "Path(os.environ.get(\"EOS_ROOT\", \"/opt/OS\"))",
+      "note": "Already uses env var with /opt/OS fallback \u2014 natural migration vector"
+    }
+  },
+  "highest_risk_files": [
+    {
+      "file": "docker-compose.yml",
+      "refs": 7,
+      "risk": "CRITICAL",
+      "reason": "volume mounts for all services"
+    },
+    {
+      "file": ".claude/settings.json",
+      "refs": 17,
+      "risk": "CRITICAL",
+      "reason": "permissions + hooks"
+    },
+    {
+      "file": "services/discord_bot.py",
+      "refs": 4,
+      "risk": "HIGH",
+      "reason": "live service subprocess calls"
+    },
+    {
+      "file": "scripts/orchestrator.py",
+      "refs": 1,
+      "risk": "HIGH",
+      "reason": "orchestration root path"
+    },
+    {
+      "file": "crontab",
+      "refs": 30,
+      "risk": "HIGH",
+      "reason": "all scheduled tasks"
+    },
+    {
+      "file": "scripts/scheduled/nightly_maintenance.sh",
+      "refs": 16,
+      "risk": "MEDIUM",
+      "reason": "maintenance scripts"
+    },
+    {
+      "file": "eos_ai/agent_hierarchy.py",
+      "refs": 7,
+      "risk": "MEDIUM",
+      "reason": "skill/config paths"
+    }
+  ],
+  "zero_risk_core_modules": [
+    "eos_ai/cognitive_loop.py",
+    "eos_ai/agent_runtime.py",
+    "eos_ai/model_router.py",
+    "eos_ai/gateway.py",
+    "eos_ai/memory.py",
+    "eos_ai/db.py",
+    "eos_ai/context.py"
+  ],
+  "rollback_strategy": {
+    "method": "symlink /opt/OS \u2192 /opt/UMH or vice versa",
+    "instant_rollback": "ln -sfn /opt/OS /opt/UMH (or reverse)",
+    "full_rollback": "git revert per-wave commits",
+    "env_var_rollback": "unset UMH_ROOT, EOS_ROOT fallback activates"
+  },
+  "can_rename_now": false,
+  "recommended_first_wave": "R1"
+}
