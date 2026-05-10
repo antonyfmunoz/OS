@@ -10,8 +10,8 @@ networks:
 services:
   os-bot:
     build:
-      context: ..
-      dockerfile: runtime/Dockerfile
+      context: ../..
+      dockerfile: infra/docker/Dockerfile
     container_name: os-bot
     restart: always
     working_dir: /app
@@ -32,8 +32,8 @@ services:
 
   os-monitor:
     build:
-      context: ..
-      dockerfile: runtime/Dockerfile
+      context: ../..
+      dockerfile: infra/docker/Dockerfile
     container_name: os-monitor
     restart: always
     working_dir: /app
@@ -60,8 +60,8 @@ services:
 
   os-scraper:
     build:
-      context: ..
-      dockerfile: runtime/Dockerfile
+      context: ../..
+      dockerfile: infra/docker/Dockerfile
     container_name: os-scraper
     restart: "no"
     working_dir: /app
@@ -83,8 +83,8 @@ services:
 
   os-webhook:
     build:
-      context: ..
-      dockerfile: runtime/Dockerfile
+      context: ../..
+      dockerfile: infra/docker/Dockerfile
     container_name: os-webhook
     restart: always
     working_dir: /app
@@ -107,8 +107,8 @@ services:
 
   os-discord:
     build:
-      context: ..
-      dockerfile: runtime/Dockerfile
+      context: ../..
+      dockerfile: infra/docker/Dockerfile
     container_name: os-discord
     restart: on-failure
     working_dir: /app

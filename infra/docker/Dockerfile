@@ -12,7 +12,7 @@ RUN playwright install chromium --with-deps
 # Patch py-cord voice_client.py to guard poll_voice_ws against _MissingSentinel.
 # py-cord swallows the exception internally before asyncio/on_error handlers can
 # catch it, so we patch the source directly at build time.
-COPY runtime/patch_pycord.py .
+COPY infra/docker/patch_pycord.py .
 RUN python3 patch_pycord.py
 
 COPY . .
