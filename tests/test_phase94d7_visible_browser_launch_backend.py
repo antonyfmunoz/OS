@@ -5,7 +5,8 @@ from __future__ import annotations
 import sys
 from unittest.mock import patch
 
-sys.path.insert(0, "/opt/OS")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 from eos_ai.substrate.visible_browser_launch_backend import (
     ALLOWED_DOMAINS,

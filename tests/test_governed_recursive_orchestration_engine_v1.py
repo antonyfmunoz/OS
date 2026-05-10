@@ -24,8 +24,10 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, "/opt/OS")
-sys.path.insert(0, "/opt/OS/services")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS", "services"))
 
 
 # ---------------------------------------------------------------------------
@@ -1506,12 +1508,12 @@ class TestRegistryIntegration:
         assert WindowsDesktopActionType.ORCHESTRATION_REPORT.value == "orchestration_report"
 
     def test_orchestration_report_in_config_json(self) -> None:
-        config = json.loads(Path("/opt/OS/config/control_plane_router_v1.json").read_text())
+        config = json.loads((Path(_ROOT) / "config" / "control_plane_router_v1.json").read_text())
         assert "orchestration_report" in config["allowed_action_types"]
 
     def test_orchestration_report_in_adapter_registry(self) -> None:
         data = json.loads(
-            Path("/opt/OS/data/registries/local_worker_adapter_registry_v1.json").read_text()
+            (Path(_ROOT) / "data" / "registries" / "local_worker_adapter_registry_v1.json").read_text()
         )
         wsl_caps = data["workers"]["local_wsl_worker"]["capabilities"]
         assert "orchestration_report" in wsl_caps
@@ -1528,7 +1530,7 @@ class TestRegistryIntegration:
         from core.registry.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
-        config = json.loads(Path("/opt/OS/config/control_plane_router_v1.json").read_text())
+        config = json.loads((Path(_ROOT) / "config" / "control_plane_router_v1.json").read_text())
         allowed = set(config["allowed_action_types"])
         for action in reg.actions:
             assert action in allowed
@@ -1537,6 +1539,6 @@ class TestRegistryIntegration:
         from core.registry.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
-        config = json.loads(Path("/opt/OS/config/control_plane_router_v1.json").read_text())
+        config = json.loads((Path(_ROOT) / "config" / "control_plane_router_v1.json").read_text())
         for action in config["allowed_action_types"]:
             assert reg.contains_action(action)

@@ -10,7 +10,9 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, "/opt/OS")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 
 # ---------------------------------------------------------------------------
@@ -959,12 +961,12 @@ class TestResilienceCommandRegistration:
     def test_config_has_27_actions(self) -> None:
         import json
 
-        with open("/opt/OS/config/control_plane_router_v1.json") as f:
+        with open(f"{_ROOT}/config/control_plane_router_v1.json") as f:
             config = json.load(f)
         assert len(config["allowed_action_types"]) == 27
 
     def test_substrate_commands(self) -> None:
-        sys.path.insert(0, "/opt/OS/services")
+        sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS", "services"))
         from handlers.substrate_command_handler import SUBSTRATE_COMMANDS
 
         assert len(SUBSTRATE_COMMANDS) == 27

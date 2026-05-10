@@ -15,7 +15,8 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 from core.planning.execution_planning_candidate_v1 import (
     ALLOWED_PLAN_INPUTS,
@@ -923,7 +924,7 @@ class TestActionSequence:
 
 
 class TestExampleArtifacts:
-    ARTIFACT_DIR = Path("/opt/OS/data/runtime/execution_planning_candidates")
+    ARTIFACT_DIR = Path(_ROOT) / "data" / "runtime" / "execution_planning_candidates"
 
     def test_planning_candidate_example(self):
         path = self.ARTIFACT_DIR / "planning_candidate_example.json"

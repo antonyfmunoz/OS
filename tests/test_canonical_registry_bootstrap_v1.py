@@ -22,8 +22,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-sys.path.insert(0, "/opt/OS")
-sys.path.insert(0, "/opt/OS/services")
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS", "services"))
 
 
 class TestCanonicalRegistrySingleSource:
@@ -273,8 +274,8 @@ class TestBootstrapLifecycle:
     def test_bootstrap_runtime_id_deterministic_per_instance(self) -> None:
         from core.runtime.runtime_bootstrap_state_v1 import RuntimeBootstrapStateV1
 
-        bs1 = RuntimeBootstrapStateV1(Path("/opt/OS"))
-        bs2 = RuntimeBootstrapStateV1(Path("/opt/OS"))
+        bs1 = RuntimeBootstrapStateV1(Path(_ROOT))
+        bs2 = RuntimeBootstrapStateV1(Path(_ROOT))
         assert bs1.runtime_id != bs2.runtime_id
         assert bs1.runtime_id.startswith("RUNTIME-")
 
@@ -307,7 +308,7 @@ class TestRouterConfigParity:
         from core.registry.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
-        config = json.loads(Path("/opt/OS/config/control_plane_router_v1.json").read_text())
+        config = json.loads((Path(_ROOT) / "config" / "control_plane_router_v1.json").read_text())
         allowed = set(config["allowed_action_types"])
         for action in reg.actions:
             assert action in allowed, f"{action} missing from router config allowed_action_types"
@@ -316,7 +317,7 @@ class TestRouterConfigParity:
         from core.registry.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
-        config = json.loads(Path("/opt/OS/config/control_plane_router_v1.json").read_text())
+        config = json.loads((Path(_ROOT) / "config" / "control_plane_router_v1.json").read_text())
         for action in config["allowed_action_types"]:
             assert reg.contains_action(action), f"{action} in config but not in canonical registry"
 
@@ -393,7 +394,7 @@ class TestLiveBootstrapOnVPS:
     def test_real_bootstrap_succeeds(self) -> None:
         from core.runtime.runtime_bootstrap_state_v1 import RuntimeBootstrapStateV1
 
-        bs = RuntimeBootstrapStateV1(Path("/opt/OS"))
+        bs = RuntimeBootstrapStateV1(Path(_ROOT))
         v = bs.bootstrap(auto_heal=True)
         assert v.valid is True
         assert v.registry_loaded is True
@@ -403,7 +404,7 @@ class TestLiveBootstrapOnVPS:
         from core.registry.canonical_command_registry_v1 import get_canonical_registry
         from core.runtime.runtime_bootstrap_state_v1 import RuntimeBootstrapStateV1
 
-        bs = RuntimeBootstrapStateV1(Path("/opt/OS"))
+        bs = RuntimeBootstrapStateV1(Path(_ROOT))
         v = bs.bootstrap()
         reg = get_canonical_registry()
         assert v.registry_hash == reg.registry_hash()

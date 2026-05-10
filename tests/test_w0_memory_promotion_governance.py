@@ -11,7 +11,9 @@ import sys
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, "/opt/OS")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 from core.control_plane_router.control_plane_router_v1 import (
     ACTION_CAPABILITY_MAP,
@@ -30,9 +32,9 @@ from eos_ai.interfaces.discord_interface_adapter_v1 import (
     build_work_packet_for_router,
 )
 
-REGISTRY_PATH = Path("/opt/OS/data/registries/local_worker_adapter_registry_v1.json")
-GOVERNANCE_CONFIG_PATH = Path("/opt/OS/config/w0_memory_promotion_governance_proof_v1.json")
-PROOF_DIR = Path("/opt/OS/data/runtime/w0_memory_governance")
+REGISTRY_PATH = Path(_ROOT) / "data" / "registries" / "local_worker_adapter_registry_v1.json"
+GOVERNANCE_CONFIG_PATH = Path(_ROOT) / "config" / "w0_memory_promotion_governance_proof_v1.json"
+PROOF_DIR = Path(_ROOT) / "data" / "runtime" / "w0_memory_governance"
 
 SAFE_DOC_URL = "https://docs.google.com/document/d/1_test_doc_placeholder/edit"
 SAFE_DOC_TITLE = "EOS W0 Test Document"
@@ -228,7 +230,7 @@ class TestForbiddenActionsBlocked(unittest.TestCase):
 class TestRouterResolvesPromoteAction(unittest.TestCase):
     def setUp(self):
         self.registry = AdapterRegistry.from_json_file(REGISTRY_PATH)
-        self.router = ControlPlaneRouterV1(registry=self.registry, base_dir=Path("/opt/OS"))
+        self.router = ControlPlaneRouterV1(registry=self.registry, base_dir=Path(_ROOT))
 
     def test_dry_run_routes(self):
         wp = WorkPacket(

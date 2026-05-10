@@ -21,8 +21,10 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, "/opt/OS")
-sys.path.insert(0, "/opt/OS/services")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS", "services"))
 
 
 class TestCapabilityNode:
@@ -1002,7 +1004,7 @@ class TestRegistryIntegration:
         assert entry.capability_type == "CAPABILITY_PLANNING"
 
     def test_capability_report_in_router_config(self) -> None:
-        config = json.loads(Path("/opt/OS/config/control_plane_router_v1.json").read_text())
+        config = json.loads((Path(_ROOT) / "config" / "control_plane_router_v1.json").read_text())
         assert "capability_report" in config["allowed_action_types"]
 
     def test_capability_report_in_contracts(self) -> None:
@@ -1028,7 +1030,7 @@ class TestRegistryIntegration:
 
     def test_capability_report_in_adapter_registry(self) -> None:
         data = json.loads(
-            Path("/opt/OS/data/registries/local_worker_adapter_registry_v1.json").read_text()
+            (Path(_ROOT) / "data" / "registries" / "local_worker_adapter_registry_v1.json").read_text()
         )
         wsl_caps = data["workers"]["local_wsl_worker"]["capabilities"]
         assert "capability_report" in wsl_caps

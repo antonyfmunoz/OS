@@ -1,8 +1,9 @@
 """Tests for W0-001 CU document reader hardening plan."""
 
 import sys
+import os
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 from eos_ai.substrate.cu_document_reader_hardening_plan import (
     CUHardeningPlan,

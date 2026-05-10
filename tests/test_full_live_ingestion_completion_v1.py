@@ -36,7 +36,9 @@ import sys
 import uuid
 from pathlib import Path
 
-sys.path.insert(0, "/opt/OS")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 import pytest
 
@@ -280,7 +282,7 @@ class TestNodeSyncRequirement:
             proof_dir=Path("data/runtime/test_spine_proofs"),
             gate_proof_dir=Path("data/runtime/test_spine_gate_proofs"),
         )
-        spine = build_spine_infrastructure(config, Path("/opt/OS"))
+        spine = build_spine_infrastructure(config, Path(_ROOT))
         assert spine._sync_gate is not None
 
 
@@ -724,7 +726,7 @@ class TestSpineIntegration:
             proof_dir=Path("data/runtime/test_spine_proofs"),
             gate_proof_dir=Path("data/runtime/test_spine_gate_proofs"),
         )
-        spine = build_spine_infrastructure(config, Path("/opt/OS"))
+        spine = build_spine_infrastructure(config, Path(_ROOT))
         result = execute_spine_command(spine, "!ingest-safe-doc")
         assert result.command == "!ingest-safe-doc"
         assert result.spine_result is not None
@@ -736,7 +738,7 @@ class TestSpineIntegration:
             proof_dir=Path("data/runtime/test_spine_proofs"),
             gate_proof_dir=Path("data/runtime/test_spine_gate_proofs"),
         )
-        spine = build_spine_infrastructure(config, Path("/opt/OS"))
+        spine = build_spine_infrastructure(config, Path(_ROOT))
         result = execute_spine_command(spine, "!ingest-safe-doc")
         formatted = format_spine_result(result)
         assert "!ingest-safe-doc" in formatted

@@ -6,7 +6,8 @@ import os
 import sys
 import tempfile
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 from eos_ai.substrate.local_env_secret_backend import (
     DEFAULT_SECRET_PATH,
@@ -27,12 +28,12 @@ from eos_ai.substrate.secret_broker_contracts import (
 
 class TestValidateEnvPath:
     def test_repo_path_rejected(self) -> None:
-        errors = validate_env_path_is_outside_repo("/opt/OS/.env")
+        errors = validate_env_path_is_outside_repo(f"{_ROOT}/.env")
         assert len(errors) > 0
         assert "inside repository" in errors[0].lower()
 
     def test_repo_subdir_rejected(self) -> None:
-        errors = validate_env_path_is_outside_repo("/opt/OS/eos_ai/.env")
+        errors = validate_env_path_is_outside_repo(f"{_ROOT}/eos_ai/.env")
         assert len(errors) > 0
 
     def test_home_umh_path_allowed(self) -> None:
@@ -44,7 +45,7 @@ class TestValidateEnvPath:
         assert errors == []
 
     def test_reject_repo_env_files(self) -> None:
-        assert reject_repo_env_files("/opt/OS/.env") is True
+        assert reject_repo_env_files(f"{_ROOT}/.env") is True
         assert reject_repo_env_files("/root/.umh/secrets/.env") is False
 
 
@@ -72,7 +73,7 @@ class TestLoadKeysOnly:
         assert keys == []
 
     def test_repo_path_returns_empty(self) -> None:
-        keys = load_env_file_keys_only("/opt/OS/.env")
+        keys = load_env_file_keys_only(f"{_ROOT}/.env")
         assert keys == []
 
 
@@ -125,7 +126,7 @@ class TestGetSecretValue:
         assert value == ""
 
     def test_repo_path_returns_unavailable(self) -> None:
-        status, value = get_secret_value_for_local_action("/opt/OS/.env", "KEY")
+        status, value = get_secret_value_for_local_action(f"{_ROOT}/.env", "KEY")
         assert status == SecretUseStatus.UNAVAILABLE
         assert value == ""
 

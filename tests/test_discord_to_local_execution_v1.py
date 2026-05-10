@@ -21,7 +21,9 @@ import sys
 import tempfile
 import json
 
-sys.path.insert(0, "/opt/OS")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 import pytest
 from pathlib import Path
@@ -746,7 +748,7 @@ class TestRegressionExistingCommands:
 class TestAdapterRegistry:
     def test_production_registry_has_chrome_open_google_drive(self):
         registry = AdapterRegistry.from_json_file(
-            Path("/opt/OS/data/registries/local_worker_adapter_registry_v1.json")
+            Path(_ROOT) / "data" / "registries" / "local_worker_adapter_registry_v1.json"
         )
         adapter = registry.find_adapter_for_action("chrome_open_google_drive")
         assert adapter is not None
@@ -754,7 +756,7 @@ class TestAdapterRegistry:
 
     def test_production_registry_still_has_existing_capabilities(self):
         registry = AdapterRegistry.from_json_file(
-            Path("/opt/OS/data/registries/local_worker_adapter_registry_v1.json")
+            Path(_ROOT) / "data" / "registries" / "local_worker_adapter_registry_v1.json"
         )
         for action in ["ping", "open_application_url", "drive_open_safe_test_doc"]:
             adapter = registry.find_adapter_for_action(action)

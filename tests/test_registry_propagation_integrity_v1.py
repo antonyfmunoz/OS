@@ -18,8 +18,10 @@ from unittest.mock import patch
 
 import pytest
 
-sys.path.insert(0, "/opt/OS")
-sys.path.insert(0, "/opt/OS/services")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS", "services"))
 
 
 class TestNodeSyncAcceptsCanonicalActions:
@@ -155,7 +157,7 @@ class TestRegistryHashPropagation:
 
 class TestRouterConfigParity:
     def test_router_config_allows_all_canonical_actions(self) -> None:
-        config = json.loads(Path("/opt/OS/config/control_plane_router_v1.json").read_text())
+        config = json.loads((Path(_ROOT) / "config" / "control_plane_router_v1.json").read_text())
         from core.registry.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
@@ -184,33 +186,33 @@ class TestRouterConfigParity:
 
 class TestSpineExecutionPropagation:
     def test_spine_builder_passes_registry_hash(self) -> None:
-        source = Path("/opt/OS/eos_ai/interfaces/discord_spine_integration_v1.py").read_text()
+        source = (Path(_ROOT) / "eos_ai" / "interfaces" / "discord_spine_integration_v1.py").read_text()
         assert "registry_hash=_reg.registry_hash()" in source
 
     def test_spine_builder_uses_canonical_registry(self) -> None:
-        source = Path("/opt/OS/eos_ai/interfaces/discord_spine_integration_v1.py").read_text()
+        source = (Path(_ROOT) / "eos_ai" / "interfaces" / "discord_spine_integration_v1.py").read_text()
         assert "get_canonical_registry" in source
         assert "_reg.command_action_map" in source
 
     def test_spine_execution_passes_action_type_to_sync(self) -> None:
-        source = Path("/opt/OS/core/runtime/live_local_runtime_execution_v1.py").read_text()
+        source = (Path(_ROOT) / "core" / "runtime" / "live_local_runtime_execution_v1.py").read_text()
         assert "requested_command=action_type" in source
 
 
 class TestNoDuplicatedRegistries:
     def test_adapter_no_hardcoded_command_map(self) -> None:
-        source = Path("/opt/OS/eos_ai/interfaces/discord_interface_adapter_v1.py").read_text()
+        source = (Path(_ROOT) / "eos_ai" / "interfaces" / "discord_interface_adapter_v1.py").read_text()
         assert '"!ping": "ping"' not in source
         assert '"!chrome-proof": "chrome_proof"' not in source
 
     def test_adapter_derives_from_canonical(self) -> None:
-        source = Path("/opt/OS/eos_ai/interfaces/discord_interface_adapter_v1.py").read_text()
+        source = (Path(_ROOT) / "eos_ai" / "interfaces" / "discord_interface_adapter_v1.py").read_text()
         assert "_REGISTRY.command_action_map" in source
         assert "_REGISTRY.spine_routed_commands" in source
         assert "_REGISTRY.command_contracts" in source
 
     def test_handler_derives_from_canonical(self) -> None:
-        source = Path("/opt/OS/services/handlers/substrate_command_handler.py").read_text()
+        source = (Path(_ROOT) / "services" / "handlers" / "substrate_command_handler.py").read_text()
         assert "_CANONICAL.commands" in source
 
 
@@ -223,7 +225,7 @@ class TestFullSpineSimulation:
 
         reg = get_canonical_registry()
         gate = NodeSyncGate(
-            vps_repo_path=Path("/opt/OS"),
+            vps_repo_path=Path(_ROOT),
             command_registry=reg.command_action_map,
             worker_capabilities=[
                 "browser_execution",
@@ -234,7 +236,7 @@ class TestFullSpineSimulation:
                 "ingest_safe_doc_cu",
                 "open_application_url",
             ],
-            config_path=Path("/opt/OS/data/runtime/spine_gate_proofs/config_marker.json"),
+            config_path=Path(_ROOT) / "data" / "runtime" / "spine_gate_proofs" / "config_marker.json",
             sync_policy=SyncPolicy.WARN_ONLY,
             registry_hash=reg.registry_hash(),
         )
@@ -251,7 +253,7 @@ class TestFullSpineSimulation:
 
         reg = get_canonical_registry()
         gate = NodeSyncGate(
-            vps_repo_path=Path("/opt/OS"),
+            vps_repo_path=Path(_ROOT),
             command_registry=reg.command_action_map,
             worker_capabilities=[
                 "browser_execution",
@@ -262,7 +264,7 @@ class TestFullSpineSimulation:
                 "ingest_safe_doc_cu",
                 "open_application_url",
             ],
-            config_path=Path("/opt/OS/data/runtime/spine_gate_proofs/config_marker.json"),
+            config_path=Path(_ROOT) / "data" / "runtime" / "spine_gate_proofs" / "config_marker.json",
             sync_policy=SyncPolicy.WARN_ONLY,
             registry_hash=reg.registry_hash(),
         )
@@ -281,12 +283,12 @@ class TestRegressionIntegrity:
         import py_compile
 
         files = [
-            "/opt/OS/core/runtime/node_sync_gate_v1.py",
-            "/opt/OS/core/registry/canonical_command_registry_v1.py",
-            "/opt/OS/eos_ai/interfaces/discord_interface_adapter_v1.py",
-            "/opt/OS/eos_ai/interfaces/discord_spine_integration_v1.py",
-            "/opt/OS/services/handlers/substrate_command_handler.py",
-            "/opt/OS/services/discord_bot.py",
+            f"{_ROOT}/core/runtime/node_sync_gate_v1.py",
+            f"{_ROOT}/core/registry/canonical_command_registry_v1.py",
+            f"{_ROOT}/eos_ai/interfaces/discord_interface_adapter_v1.py",
+            f"{_ROOT}/eos_ai/interfaces/discord_spine_integration_v1.py",
+            f"{_ROOT}/services/handlers/substrate_command_handler.py",
+            f"{_ROOT}/services/discord_bot.py",
         ]
         for f in files:
             py_compile.compile(f, doraise=True)
@@ -294,4 +296,4 @@ class TestRegressionIntegrity:
     def test_bot_compiles(self) -> None:
         import py_compile
 
-        py_compile.compile("/opt/OS/services/discord_bot.py", doraise=True)
+        py_compile.compile(f"{_ROOT}/services/discord_bot.py", doraise=True)

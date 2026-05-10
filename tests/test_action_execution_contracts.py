@@ -1,8 +1,9 @@
 """Tests for execution/action_execution_contracts.py — Phase 96.8A.1."""
 
 import sys
+import os
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 import unittest
 from core.execution.action_execution_contracts import (

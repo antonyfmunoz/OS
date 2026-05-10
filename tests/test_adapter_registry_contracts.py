@@ -1,8 +1,10 @@
 """Tests for adapter registry contracts -- Phase 96.8K."""
 
 import sys
+import os
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 import unittest
 from pathlib import Path
@@ -17,7 +19,7 @@ from core.runtime.worker_runtime_contracts import (
     MessageBusType,
 )
 
-REGISTRY_FIXTURE = Path("/opt/OS/data/registries/local_worker_adapter_registry_v1.json")
+REGISTRY_FIXTURE = Path(_ROOT) / "data" / "registries" / "local_worker_adapter_registry_v1.json"
 
 
 class TestCapabilityDescriptor(unittest.TestCase):

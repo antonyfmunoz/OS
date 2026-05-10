@@ -20,8 +20,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-sys.path.insert(0, "/opt/OS")
-sys.path.insert(0, "/opt/OS/services")
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS", "services"))
 
 
 # ── Handler registration ────────────────────────────────────────────────────
@@ -265,25 +266,25 @@ class TestSyncProofPersistence:
 
 class TestLiveBotIntegration:
     def test_bot_imports_substrate_handler(self) -> None:
-        source = Path("/opt/OS/services/discord_bot.py").read_text()
+        source = (Path(_ROOT) / "services" / "discord_bot.py").read_text()
         assert "from handlers.substrate_command_handler import" in source
 
     def test_bot_calls_is_substrate_command(self) -> None:
-        source = Path("/opt/OS/services/discord_bot.py").read_text()
+        source = (Path(_ROOT) / "services" / "discord_bot.py").read_text()
         assert "is_substrate_command(text)" in source
 
     def test_bot_calls_handle_substrate_command(self) -> None:
-        source = Path("/opt/OS/services/discord_bot.py").read_text()
+        source = (Path(_ROOT) / "services" / "discord_bot.py").read_text()
         assert "handle_substrate_command(message, text)" in source
 
     def test_substrate_before_inline(self) -> None:
-        source = Path("/opt/OS/services/discord_bot.py").read_text()
+        source = (Path(_ROOT) / "services" / "discord_bot.py").read_text()
         substrate_pos = source.index("is_substrate_command(text)")
         inline_pos = source.index("try_inline_commands(message")
         assert substrate_pos < inline_pos
 
     def test_no_merge_conflict_markers(self) -> None:
-        source = Path("/opt/OS/services/discord_bot.py").read_text()
+        source = (Path(_ROOT) / "services" / "discord_bot.py").read_text()
         assert "<<<<<<<" not in source
         assert "=======" not in source
         assert ">>>>>>>" not in source
@@ -292,7 +293,7 @@ class TestLiveBotIntegration:
         import py_compile
 
         py_compile.compile(
-            "/opt/OS/services/discord_bot.py",
+            f"{_ROOT}/services/discord_bot.py",
             doraise=True,
         )
 

@@ -23,7 +23,9 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, "/opt/OS")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 import pytest
 
@@ -64,7 +66,7 @@ from core.environment_bridge.windows_desktop_request_builder import (
 )
 
 
-CONFIG_PATH = Path("/opt/OS/config/w0_real_windows_gui_actuation_v1.json")
+CONFIG_PATH = Path(_ROOT) / "config" / "w0_real_windows_gui_actuation_v1.json"
 
 
 def _load_config() -> dict:
@@ -724,39 +726,39 @@ class TestSpineIntegration:
 
 class TestPowerShellRelay:
     def test_relay_script_exists(self):
-        assert Path("/opt/OS/scripts/windows_interactive_desktop_relay.ps1").exists()
+        assert (Path(_ROOT) / "scripts" / "windows_interactive_desktop_relay.ps1").exists()
 
     def test_relay_handles_chrome_proof(self):
-        content = Path("/opt/OS/scripts/windows_interactive_desktop_relay.ps1").read_text()
+        content = (Path(_ROOT) / "scripts" / "windows_interactive_desktop_relay.ps1").read_text()
         assert "Handle-ChromeProof" in content
 
     def test_relay_dispatch_has_chrome_proof(self):
-        content = Path("/opt/OS/scripts/windows_interactive_desktop_relay.ps1").read_text()
+        content = (Path(_ROOT) / "scripts" / "windows_interactive_desktop_relay.ps1").read_text()
         assert '"chrome_proof"' in content
 
     def test_relay_captures_screenshots(self):
-        content = Path("/opt/OS/scripts/windows_interactive_desktop_relay.ps1").read_text()
+        content = (Path(_ROOT) / "scripts" / "windows_interactive_desktop_relay.ps1").read_text()
         assert "Capture-Screenshot" in content
 
     def test_relay_collects_foreground_info(self):
-        content = Path("/opt/OS/scripts/windows_interactive_desktop_relay.ps1").read_text()
+        content = (Path(_ROOT) / "scripts" / "windows_interactive_desktop_relay.ps1").read_text()
         assert "Get-ForegroundWindowInfo" in content
 
     def test_relay_uses_win32_apis(self):
-        content = Path("/opt/OS/scripts/windows_interactive_desktop_relay.ps1").read_text()
+        content = (Path(_ROOT) / "scripts" / "windows_interactive_desktop_relay.ps1").read_text()
         assert "GetForegroundWindow" in content
         assert "IsWindowVisible" in content
 
     def test_relay_writes_observed_state(self):
-        content = Path("/opt/OS/scripts/windows_interactive_desktop_relay.ps1").read_text()
+        content = (Path(_ROOT) / "scripts" / "windows_interactive_desktop_relay.ps1").read_text()
         assert "observed_desktop_state" in content
 
     def test_relay_writes_proof_summary(self):
-        content = Path("/opt/OS/scripts/windows_interactive_desktop_relay.ps1").read_text()
+        content = (Path(_ROOT) / "scripts" / "windows_interactive_desktop_relay.ps1").read_text()
         assert "proof_summary" in content
 
     def test_relay_writes_desktop_environment(self):
-        content = Path("/opt/OS/scripts/windows_interactive_desktop_relay.ps1").read_text()
+        content = (Path(_ROOT) / "scripts" / "windows_interactive_desktop_relay.ps1").read_text()
         assert "desktop_environment" in content
 
 

@@ -4,11 +4,13 @@ Run: python3 -m pytest /opt/OS/tests/test_ea_final.py -v
 """
 
 import sys
-sys.path.insert(0, '/opt/OS')
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 from dotenv import load_dotenv
-load_dotenv('/opt/OS/eos_ai/.env')
-load_dotenv('/opt/OS/services/.env')
+load_dotenv(f'{_ROOT}/eos_ai/.env')
+load_dotenv(f'{_ROOT}/services/.env')
 
 import pytest
 

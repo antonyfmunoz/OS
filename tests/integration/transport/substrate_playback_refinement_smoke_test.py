@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import sys
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 from eos_ai.substrate.discord_voice_playback import (  # noqa: E402
     PLAYBACK_REASONS,

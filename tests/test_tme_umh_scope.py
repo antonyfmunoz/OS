@@ -8,9 +8,10 @@ import sys
 import os
 import unittest
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-EOS_ROOT = "/opt/OS"
+EOS_ROOT = _ROOT
 
 
 def _read_file(path: str) -> str:

@@ -10,7 +10,9 @@ import sys
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, "/opt/OS")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 from core.control_plane_router.control_plane_router_v1 import (
     ACTION_CAPABILITY_MAP,
@@ -38,9 +40,9 @@ from eos_ai.interfaces.discord_interface_adapter_v1 import (
     build_work_packet_for_router,
 )
 
-REGISTRY_PATH = Path("/opt/OS/data/registries/local_worker_adapter_registry_v1.json")
-QUERY_CONFIG_PATH = Path("/opt/OS/config/w0_canonical_memory_query_proof_v1.json")
-PROOF_DIR = Path("/opt/OS/data/runtime/canonical_memory_query_proofs")
+REGISTRY_PATH = Path(_ROOT) / "data" / "registries" / "local_worker_adapter_registry_v1.json"
+QUERY_CONFIG_PATH = Path(_ROOT) / "config" / "w0_canonical_memory_query_proof_v1.json"
+PROOF_DIR = Path(_ROOT) / "data" / "runtime" / "canonical_memory_query_proofs"
 
 
 # ---------------------------------------------------------------------------
@@ -166,7 +168,7 @@ class TestArbitraryQueryCommandsRejected(unittest.TestCase):
 class TestRouterResolvesQueryAction(unittest.TestCase):
     def setUp(self):
         self.registry = AdapterRegistry.from_json_file(REGISTRY_PATH)
-        self.router = ControlPlaneRouterV1(registry=self.registry, base_dir=Path("/opt/OS"))
+        self.router = ControlPlaneRouterV1(registry=self.registry, base_dir=Path(_ROOT))
 
     def test_dry_run_routes(self):
         wp = WorkPacket(

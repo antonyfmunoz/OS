@@ -1,8 +1,9 @@
 """Tests for W0-001 packet routing fields — Phase 96.8D."""
 
 import sys
+import os
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 import unittest
 from core.environment_bridge.w0_packet_builder import (

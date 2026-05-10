@@ -11,7 +11,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, "/opt/OS")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 from core.workstation.adaptive_governance_intelligence_engine_v1 import (
     GOVERNANCE_INTELLIGENCE_HARD_CEILINGS,
@@ -979,16 +981,16 @@ class TestRegistryIntegration(unittest.TestCase):
         )
 
     def test_config_json(self) -> None:
-        config = json.loads(Path("/opt/OS/config/control_plane_router_v1.json").read_text())
+        config = json.loads((Path(_ROOT) / "config" / "control_plane_router_v1.json").read_text())
         self.assertIn("governance_intelligence_report", config["allowed_action_types"])
 
     def test_config_action_count(self) -> None:
-        config = json.loads(Path("/opt/OS/config/control_plane_router_v1.json").read_text())
+        config = json.loads((Path(_ROOT) / "config" / "control_plane_router_v1.json").read_text())
         self.assertEqual(len(config["allowed_action_types"]), 27)
 
     def test_adapter_registry_workers(self) -> None:
         reg = json.loads(
-            Path("/opt/OS/data/registries/local_worker_adapter_registry_v1.json").read_text()
+            (Path(_ROOT) / "data" / "registries" / "local_worker_adapter_registry_v1.json").read_text()
         )
         wsl = reg["workers"]["local_wsl_worker"]["capabilities"]
         win = reg["workers"]["windows_interactive_desktop_relay"]["capabilities"]
@@ -997,7 +999,7 @@ class TestRegistryIntegration(unittest.TestCase):
 
     def test_adapter_registry_capability_entry(self) -> None:
         reg = json.loads(
-            Path("/opt/OS/data/registries/local_worker_adapter_registry_v1.json").read_text()
+            (Path(_ROOT) / "data" / "registries" / "local_worker_adapter_registry_v1.json").read_text()
         )
         caps = reg["adapters"]["windows_interactive_desktop_relay"]["capabilities"]
         cap_ids = [c["capability_id"] for c in caps]

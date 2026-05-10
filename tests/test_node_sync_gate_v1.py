@@ -19,7 +19,9 @@ import tempfile
 import json
 import hashlib
 
-sys.path.insert(0, "/opt/OS")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 import pytest
 from pathlib import Path
@@ -94,7 +96,7 @@ def _make_gate(
             "ping",
         ]
     return NodeSyncGate(
-        vps_repo_path=Path("/opt/OS"),
+        vps_repo_path=Path(_ROOT),
         local_repo_path=None,
         relay_script_path=relay_script_path,
         command_registry=command_registry,
@@ -207,7 +209,7 @@ class TestLocalBehindBlocks:
             local_repo.mkdir()
             (local_repo / ".git").mkdir()
             gate = NodeSyncGate(
-                vps_repo_path=Path("/opt/OS"),
+                vps_repo_path=Path(_ROOT),
                 local_repo_path=local_repo,
                 command_registry={"!ping": "ping"},
                 worker_capabilities=["ping"],
@@ -234,7 +236,7 @@ class TestDirtyLocalTree:
             dirty_repo = Path(tmpdir) / "dirty_local"
             dirty_repo.mkdir()
             gate = NodeSyncGate(
-                vps_repo_path=Path("/opt/OS"),
+                vps_repo_path=Path(_ROOT),
                 local_repo_path=dirty_repo,
                 command_registry={"!ping": "ping"},
                 worker_capabilities=["ping"],
@@ -254,7 +256,7 @@ class TestDirtyLocalTree:
             dirty_repo = Path(tmpdir) / "dirty_local"
             dirty_repo.mkdir()
             gate = NodeSyncGate(
-                vps_repo_path=Path("/opt/OS"),
+                vps_repo_path=Path(_ROOT),
                 local_repo_path=dirty_repo,
                 command_registry={"!ping": "ping"},
                 worker_capabilities=["ping"],

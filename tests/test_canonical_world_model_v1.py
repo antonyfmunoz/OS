@@ -11,7 +11,9 @@ import sys
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, "/opt/OS")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 from core.interpretation.interpretation_engine_v1 import (
     InterpretationEngineV1,
@@ -47,7 +49,7 @@ from core.world_model.world_model_promotion_v1 import (
     WorldModelPromoter,
 )
 
-EXAMPLE_DIR = Path("/opt/OS/data/runtime/canonical_world_models")
+EXAMPLE_DIR = Path(_ROOT) / "data" / "runtime" / "canonical_world_models"
 
 
 def _make_interpretation():

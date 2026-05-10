@@ -16,7 +16,8 @@ import tempfile
 import pytest
 
 import sys
-sys.path.insert(0, "/opt/OS")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 from core.knowledge.knowledge_fabric_contracts_v1 import (
     CanonicalKnowledgeNode,

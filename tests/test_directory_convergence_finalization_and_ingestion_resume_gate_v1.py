@@ -10,7 +10,9 @@ import sys
 import tempfile
 from pathlib import Path
 
-sys.path.insert(0, "/opt/OS")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 import pytest
 
@@ -105,9 +107,9 @@ from core.convergence.canonical_repository_convergence_coordinator_v1 import (
 
 class TestContracts:
     def test_canonical_repository_topology(self):
-        t = CanonicalRepositoryTopology(root_path="/opt/OS")
+        t = CanonicalRepositoryTopology(root_path=_ROOT)
         d = t.to_dict()
-        assert d["root_path"] == "/opt/OS"
+        assert d["root_path"] == _ROOT
 
     def test_runtime_topology_state(self):
         s = RuntimeTopologyState(spine_count=1, single_spine=True)
@@ -271,18 +273,18 @@ class TestLifecycleEngine:
 
 class TestTopologyScanner:
     def test_scan_topology(self):
-        s = RepositoryTopologyScanner(root_path="/opt/OS")
+        s = RepositoryTopologyScanner(root_path=_ROOT)
         r = s.scan_topology()
         assert r["total_directories_scanned"] > 0
         assert r["topology_hash"] != ""
 
     def test_canonical_directories_found(self):
-        s = RepositoryTopologyScanner(root_path="/opt/OS")
+        s = RepositoryTopologyScanner(root_path=_ROOT)
         r = s.scan_topology()
         assert "core" in r["canonical_directories"]
 
     def test_detect_duplicate_domains(self):
-        s = RepositoryTopologyScanner(root_path="/opt/OS")
+        s = RepositoryTopologyScanner(root_path=_ROOT)
         dups = s.detect_duplicate_domains()
         assert isinstance(dups, list)
 
@@ -290,7 +292,7 @@ class TestTopologyScanner:
         assert len(CANONICAL_SCAN_DIRECTORIES) >= 5
 
     def test_get_stats(self):
-        s = RepositoryTopologyScanner(root_path="/opt/OS")
+        s = RepositoryTopologyScanner(root_path=_ROOT)
         st = s.get_stats()
         assert st["total_scans"] == 0
 
@@ -448,14 +450,14 @@ class TestFilesystemIntegrityEngine:
     def test_verify_integrity(self):
         with tempfile.TemporaryDirectory() as td:
             e = FilesystemIntegrityEngine(output_dir=td)
-            r = e.verify_integrity(root_path="/opt/OS")
+            r = e.verify_integrity(root_path=_ROOT)
             assert r["canonical_structure_valid"]
             assert r["layout_hash"] != ""
 
     def test_all_intact(self):
         with tempfile.TemporaryDirectory() as td:
             e = FilesystemIntegrityEngine(output_dir=td)
-            e.verify_integrity(root_path="/opt/OS")
+            e.verify_integrity(root_path=_ROOT)
             assert e.all_intact()
 
     def test_canonical_ownership_defined(self):
@@ -748,7 +750,7 @@ class TestContinuityBridges:
 class TestCoordinator:
     def _make(self):
         td = tempfile.mkdtemp()
-        return CanonicalRepositoryConvergenceCoordinator(state_dir=td, root_path="/opt/OS"), td
+        return CanonicalRepositoryConvergenceCoordinator(state_dir=td, root_path=_ROOT), td
 
     def test_start_convergence_run(self):
         c, _ = self._make()
@@ -787,7 +789,7 @@ class TestCoordinator:
 
     def test_verify_filesystem(self):
         c, _ = self._make()
-        r = c.verify_filesystem(root_path="/opt/OS")
+        r = c.verify_filesystem(root_path=_ROOT)
         assert r["canonical_structure_valid"]
 
     def test_verify_ingestion_readiness(self):
@@ -816,7 +818,7 @@ class TestCoordinator:
         c.check_namespace_convergence(namespaces_checked=4)
         c.verify_import_graph(total_modules=50)
         c.verify_entrypoints()
-        c.verify_filesystem(root_path="/opt/OS")
+        c.verify_filesystem(root_path=_ROOT)
         c.verify_ingestion_readiness()
         c.validate_replay_determinism()
         r = c.complete_convergence_run(run["run_id"])
@@ -850,7 +852,7 @@ class TestCoordinator:
         c.detect_duplicates("runtime", ["core/runtime"])
         c.verify_import_graph(total_modules=50)
         c.verify_entrypoints()
-        c.verify_filesystem(root_path="/opt/OS")
+        c.verify_filesystem(root_path=_ROOT)
         c.verify_ingestion_readiness()
         c.validate_replay_determinism()
         cvs = c.compute_converged_state()
@@ -915,11 +917,11 @@ class TestConstraintVerification:
     def test_filesystem_integrity_determinism(self):
         with tempfile.TemporaryDirectory() as td:
             e = FilesystemIntegrityEngine(output_dir=td)
-            r = e.verify_integrity(root_path="/opt/OS")
+            r = e.verify_integrity(root_path=_ROOT)
             assert r["layout_hash"] != ""
 
     def test_runtime_topology_determinism(self):
-        s = RepositoryTopologyScanner(root_path="/opt/OS")
+        s = RepositoryTopologyScanner(root_path=_ROOT)
         r = s.scan_topology()
         assert r["topology_hash"] != ""
 
@@ -976,14 +978,14 @@ class TestConstraintVerification:
 
     def test_full_convergence_flow_end_to_end(self):
         td = tempfile.mkdtemp()
-        c = CanonicalRepositoryConvergenceCoordinator(state_dir=td, root_path="/opt/OS")
+        c = CanonicalRepositoryConvergenceCoordinator(state_dir=td, root_path=_ROOT)
         run = c.start_convergence_run("e2e-test")
         c.scan_topology()
         c.check_namespace_convergence(namespaces_checked=4)
         c.detect_duplicates("runtime", ["core/runtime"])
         c.verify_import_graph(total_modules=50)
         c.verify_entrypoints()
-        c.verify_filesystem(root_path="/opt/OS")
+        c.verify_filesystem(root_path=_ROOT)
         c.verify_ingestion_readiness()
         c.validate_replay_determinism()
         receipt = c.complete_convergence_run("e2e-test")

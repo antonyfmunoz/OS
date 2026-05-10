@@ -29,7 +29,9 @@ import sys
 import uuid
 from pathlib import Path
 
-sys.path.insert(0, "/opt/OS")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 import pytest
 
@@ -78,7 +80,7 @@ from core.environment_bridge.windows_desktop_request_builder import (
 )
 
 
-CU_CONFIG_PATH = Path("/opt/OS/config/w0_real_foreground_cu_ingestion_v1.json")
+CU_CONFIG_PATH = Path(_ROOT) / "config" / "w0_real_foreground_cu_ingestion_v1.json"
 
 
 def _load_cu_config() -> dict:

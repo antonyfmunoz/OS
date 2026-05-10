@@ -38,8 +38,10 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, "/opt/OS")
-sys.path.insert(0, "/opt/OS/services")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS", "services"))
 
 
 class TestStrategyConstants:
@@ -890,7 +892,7 @@ class TestStrategyCommandRegistration:
         assert "strategy_report" in ACTION_CAPABILITY_MAP
 
     def test_config_has_23_actions(self) -> None:
-        config = json.loads(Path("/opt/OS/config/control_plane_router_v1.json").read_text())
+        config = json.loads((Path(_ROOT) / "config" / "control_plane_router_v1.json").read_text())
         assert len(config["allowed_action_types"]) == 27
         assert "strategy_report" in config["allowed_action_types"]
 
@@ -930,7 +932,7 @@ class TestLiveStrategyProof:
             build_full_capability_proof,
         )
 
-        base = Path("/opt/OS")
+        base = Path(_ROOT)
         cap = build_full_capability_proof(trace_id="live-strat")
         orch = build_full_orchestration_proof(capability_proof=cap, trace_id="live-strat")
         cont = build_full_continuity_proof(

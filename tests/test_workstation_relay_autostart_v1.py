@@ -20,8 +20,10 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, "/opt/OS")
-sys.path.insert(0, "/opt/OS/services")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS", "services"))
 
 
 class TestAutostartMarker:
@@ -428,7 +430,7 @@ class TestSelfHealIntegration:
             assess_relay_health,
         )
 
-        report = assess_relay_health(Path("/opt/OS"))
+        report = assess_relay_health(Path(_ROOT))
         assert isinstance(report.online, bool)
         assert report.health in ("alive", "degraded", "timeout", "dead")
         d = report.to_dict()

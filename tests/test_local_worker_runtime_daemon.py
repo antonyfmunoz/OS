@@ -1,8 +1,10 @@
 """Tests for Local Worker Runtime Daemon v1 -- Phase 96.8L."""
 
 import sys
+import os
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 import json
 import tempfile
@@ -38,7 +40,7 @@ def _make_test_config(tmpdir: str, **overrides: object) -> dict:
 
 def _make_daemon(tmpdir: str, **overrides: object) -> LocalWorkerRuntimeDaemon:
     config = _make_test_config(tmpdir, **overrides)
-    return LocalWorkerRuntimeDaemon(config, base_dir=Path("/opt/OS"))
+    return LocalWorkerRuntimeDaemon(config, base_dir=Path(_ROOT))
 
 
 class TestDaemonLoadsConfig(unittest.TestCase):

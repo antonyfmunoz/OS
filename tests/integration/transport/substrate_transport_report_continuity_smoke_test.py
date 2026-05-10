@@ -22,7 +22,8 @@ import json
 import subprocess
 import sys
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 from eos_ai.substrate.meet_caption_bridge import (  # noqa: E402
     BRIDGE_ROOT,
@@ -146,7 +147,7 @@ def test_pump_meet_source_cli_runs() -> None:
     result = subprocess.run(
         [
             "python3",
-            "/opt/OS/scripts/pump_meet_source.py",
+            f"{_ROOT}/scripts/pump_meet_source.py",
             "--meeting-code",
             "cli-test-pump",
             "--max",

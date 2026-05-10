@@ -11,7 +11,9 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-sys.path.insert(0, "/opt/OS")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 from core.state.transformation_state_ledger import (
     GOVERNANCE_REQUIRED_STAGES,
@@ -26,7 +28,7 @@ from core.state.transformation_state_ledger import (
     make_trace_id,
 )
 
-LEDGER_EXAMPLE_DIR = Path("/opt/OS/data/runtime/transformation_ledger")
+LEDGER_EXAMPLE_DIR = Path(_ROOT) / "data" / "runtime" / "transformation_ledger"
 
 
 def _make_record(

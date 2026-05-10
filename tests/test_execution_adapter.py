@@ -5,7 +5,9 @@ from __future__ import annotations
 import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
-sys.path.insert(0, "/opt/OS")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 from eos_ai.substrate.control_commands import ControlCommand
 from eos_ai.substrate.execution_adapter import (
@@ -105,7 +107,7 @@ def test_local_adapter_returns_execution_result() -> None:
         "action": "write_file",
         "node_id": "vps-primary",
         "executed_at": 1713225600.0,
-        "path": "/opt/OS/eos_ai/.substrate_sandbox/test.txt",
+        "path": f"{_ROOT}/eos_ai/.substrate_sandbox/test.txt",
         "bytes_written": 2,
     }
 

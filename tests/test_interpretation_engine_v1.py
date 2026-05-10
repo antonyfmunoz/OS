@@ -11,7 +11,9 @@ import sys
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, "/opt/OS")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 from core.interpretation.interpretation_engine_v1 import (
     FORBIDDEN_INTERPRETATION_ACTIONS,
@@ -39,7 +41,7 @@ from core.state.transformation_state_ledger import (
     compute_hash,
 )
 
-EXAMPLE_DIR = Path("/opt/OS/data/runtime/interpretation_states")
+EXAMPLE_DIR = Path(_ROOT) / "data" / "runtime" / "interpretation_states"
 
 
 def _make_input(

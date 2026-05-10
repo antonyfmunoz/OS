@@ -20,8 +20,10 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, "/opt/OS")
-sys.path.insert(0, "/opt/OS/services")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS", "services"))
 
 
 class TestRelayHeartbeatDataclass:
@@ -492,7 +494,7 @@ class TestCanonicalRegistryRelayStatus:
         assert "!relay-status" not in reg.spine_routed_commands
 
     def test_relay_status_in_router_config(self) -> None:
-        config = json.loads(Path("/opt/OS/config/control_plane_router_v1.json").read_text())
+        config = json.loads((Path(_ROOT) / "config" / "control_plane_router_v1.json").read_text())
         assert "relay_status" in config["allowed_action_types"]
 
     def test_relay_status_in_allowed_action_types(self) -> None:
@@ -510,7 +512,7 @@ class TestCanonicalRegistryRelayStatus:
         assert cap.requires_gui is False
 
     def test_relay_status_in_adapter_registry(self) -> None:
-        registry_path = Path("/opt/OS/data/registries/local_worker_adapter_registry_v1.json")
+        registry_path = Path(_ROOT) / "data" / "registries" / "local_worker_adapter_registry_v1.json"
         data = json.loads(registry_path.read_text())
         adapter = data["adapters"]["windows_interactive_desktop_relay"]
         action_types = [c["action_type"] for c in adapter["capabilities"]]
@@ -520,7 +522,7 @@ class TestCanonicalRegistryRelayStatus:
         from core.registry.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
-        config = json.loads(Path("/opt/OS/config/control_plane_router_v1.json").read_text())
+        config = json.loads((Path(_ROOT) / "config" / "control_plane_router_v1.json").read_text())
         allowed = set(config["allowed_action_types"])
         for action in reg.actions:
             assert action in allowed, f"{action} missing from router config"

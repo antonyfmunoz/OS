@@ -20,8 +20,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-sys.path.insert(0, "/opt/OS")
-sys.path.insert(0, "/opt/OS/services")
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS", "services"))
 
 
 class TestStaleRuntimeDetection:
@@ -152,19 +153,19 @@ class TestSubstrateInterceptOrder:
     """The substrate intercept MUST come before orchestration ingress."""
 
     def test_substrate_before_orchestration(self) -> None:
-        source = Path("/opt/OS/services/discord_bot.py").read_text()
+        source = (Path(_ROOT) / "services" / "discord_bot.py").read_text()
         substrate_pos = source.index("is_substrate_command(text)")
         orch_pos = source.index("Orchestration ingress (mode-gated)")
         assert substrate_pos < orch_pos
 
     def test_substrate_before_cc_injection(self) -> None:
-        source = Path("/opt/OS/services/discord_bot.py").read_text()
+        source = (Path(_ROOT) / "services" / "discord_bot.py").read_text()
         call_site = source.index("if is_substrate_command(text):")
         cc_pos = source.index("Session-first CC injection", call_site)
         assert call_site < cc_pos
 
     def test_substrate_after_archive(self) -> None:
-        source = Path("/opt/OS/services/discord_bot.py").read_text()
+        source = (Path(_ROOT) / "services" / "discord_bot.py").read_text()
         archive_pos = source.index("archive failure must never block message path")
         call_site = source.index("if is_substrate_command(text):")
         assert call_site > archive_pos
@@ -232,27 +233,27 @@ class TestLogStartup:
 
 class TestBotWiringIntegrity:
     def test_import_includes_log_startup(self) -> None:
-        source = Path("/opt/OS/services/discord_bot.py").read_text()
+        source = (Path(_ROOT) / "services" / "discord_bot.py").read_text()
         assert "log_startup as _substrate_log_startup" in source
 
     def test_log_startup_called_in_on_ready(self) -> None:
-        source = Path("/opt/OS/services/discord_bot.py").read_text()
+        source = (Path(_ROOT) / "services" / "discord_bot.py").read_text()
         assert "_substrate_log_startup()" in source
 
     def test_no_merge_conflict_markers(self) -> None:
-        source = Path("/opt/OS/services/discord_bot.py").read_text()
+        source = (Path(_ROOT) / "services" / "discord_bot.py").read_text()
         assert "<<<<<<<" not in source
         assert ">>>>>>>" not in source
 
     def test_bot_compiles(self) -> None:
         import py_compile
 
-        py_compile.compile("/opt/OS/services/discord_bot.py", doraise=True)
+        py_compile.compile(f"{_ROOT}/services/discord_bot.py", doraise=True)
 
     def test_handler_compiles(self) -> None:
         import py_compile
 
-        py_compile.compile("/opt/OS/services/handlers/substrate_command_handler.py", doraise=True)
+        py_compile.compile(f"{_ROOT}/services/handlers/substrate_command_handler.py", doraise=True)
 
 
 class TestContainerIdentity:

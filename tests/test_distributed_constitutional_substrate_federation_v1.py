@@ -26,8 +26,10 @@ import unittest
 from dataclasses import fields
 from pathlib import Path
 
-sys.path.insert(0, "/opt/OS")
-sys.path.insert(0, "/opt/OS/services")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS", "services"))
 
 
 # ---------------------------------------------------------------------------
@@ -1278,13 +1280,13 @@ class TestRegistryIntegration(unittest.TestCase):
         self.assertEqual(WindowsDesktopActionType.FEDERATION_REPORT.value, "federation_report")
 
     def test_config_has_federation(self) -> None:
-        config_path = Path("/opt/OS/config/control_plane_router_v1.json")
+        config_path = Path(_ROOT) / "config" / "control_plane_router_v1.json"
         data = json.loads(config_path.read_text())
         self.assertIn("federation_report", data["allowed_action_types"])
         self.assertEqual(len(data["allowed_action_types"]), 27)
 
     def test_adapter_registry_has_federation(self) -> None:
-        reg_path = Path("/opt/OS/data/registries/local_worker_adapter_registry_v1.json")
+        reg_path = Path(_ROOT) / "data" / "registries" / "local_worker_adapter_registry_v1.json"
         data = json.loads(reg_path.read_text())
         wsl_caps = data["workers"]["local_wsl_worker"]["capabilities"]
         win_caps = data["workers"]["windows_interactive_desktop_relay"]["capabilities"]
