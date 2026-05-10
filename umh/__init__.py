@@ -1,13 +1,6 @@
-"""UMH — Universal Meta Harness.
-
-Domain-independent intelligence substrate.
-
-Public API:
-    from umh import run
-    result = run("What should I focus on today?")
-    print(result.response)
-"""
-
-from umh.run import RunResult, RunTrace, run
-
-__all__ = ["run", "RunResult", "RunTrace"]
+raise ImportError(
+    "umh/ has been archived to archive/umh_reference/ "
+    "(Wave 2 convergence, 2026-05-10). "
+    "No live service depends on umh/. "
+    "If you need UMH reference code, see archive/umh_reference/."
+)
