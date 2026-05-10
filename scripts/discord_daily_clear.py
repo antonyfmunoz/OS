@@ -3,7 +3,7 @@ import discord
 import os
 from dotenv import load_dotenv
 
-load_dotenv('/opt/OS/services/.env')
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'services', '.env'))
 
 DISCORD_TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 

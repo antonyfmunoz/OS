@@ -12,7 +12,7 @@ import importlib
 import os
 import sys
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 
 FAILURES: list[str] = []

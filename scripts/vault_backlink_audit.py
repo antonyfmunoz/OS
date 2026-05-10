@@ -27,7 +27,8 @@ import re
 from pathlib import Path
 from datetime import datetime, timezone
 
-sys.path.insert(0, "/opt/OS")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 VAULT_ROOT = Path("/opt/OS")
 WIKI_DIR = VAULT_ROOT / "10_Wiki"

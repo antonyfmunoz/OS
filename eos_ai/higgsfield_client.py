@@ -20,8 +20,8 @@ import sys
 from dotenv import load_dotenv
 
 # /opt/OS on sys.path so we can import eos_ai.db
-sys.path.insert(0, "/opt/OS")
-load_dotenv("/opt/OS/eos_ai/.env")
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
 
 # Shim the verbose EOS env var names to the SDK's expected names BEFORE
 # importing the SDK (the SDK reads env vars at call time, not import time,

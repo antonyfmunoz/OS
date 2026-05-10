@@ -14,9 +14,9 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
-sys.path.insert(0, '/opt/OS')
-load_dotenv('/opt/OS/eos_ai/.env')
-load_dotenv('/opt/OS/services/.env')
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'services', '.env'))
 
 PDT = ZoneInfo('America/Los_Angeles')
 GENERAL_CHANNEL_ID = 1486289444830056540
@@ -74,7 +74,7 @@ def post_to_notion(brief: str, ventures: list) -> str | None:
 
 
 async def run_portfolio_brief():
-    sys.path.insert(0, '/opt/OS')
+    sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
     from eos_ai.context import load_context_from_env
     from eos_ai.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
 

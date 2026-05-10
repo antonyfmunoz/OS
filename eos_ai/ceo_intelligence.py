@@ -21,7 +21,7 @@ from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 
-load_dotenv('/opt/OS/eos_ai/.env')
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
 logger = logging.getLogger(__name__)
 PDT = ZoneInfo('America/Los_Angeles')
 

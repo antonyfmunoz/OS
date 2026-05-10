@@ -28,7 +28,8 @@ import argparse
 import json
 import sys
 
-sys.path.insert(0, "/opt/OS")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 from eos_ai.substrate import operator_interface as oi  # noqa: E402
 from eos_ai.substrate import control_bridge as cb  # noqa: E402

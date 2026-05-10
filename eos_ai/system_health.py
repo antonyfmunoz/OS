@@ -413,12 +413,12 @@ def get_system_health(ctx=None) -> EOSSystemHealth:
     """Get configured system health instance."""
     from dotenv import load_dotenv
 
-    load_dotenv("/opt/OS/eos_ai/.env")
+    load_dotenv(os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS", "eos_ai", ".env"))
     return EOSSystemHealth(ctx)
 
 
 if __name__ == "__main__":
-    sys.path.insert(0, "/opt/OS")
+    sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
     sh = get_system_health()
     print("=== EOS SYSTEM CHECK ===")
     print()

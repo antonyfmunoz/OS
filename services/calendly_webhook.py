@@ -148,7 +148,7 @@ def update_lead_file(filepath, new_stage, event_time=None, cancel_reason=None):
 def update_notion_lead_stage(name: str, email: str, new_stage: str) -> bool:
     """Find a lead in the Notion Pipeline database by name or email and update their stage."""
     from dotenv import load_dotenv
-    load_dotenv('/opt/OS/eos_ai/.env')
+    load_dotenv(os.path.join(_REPO_ROOT, 'eos_ai', '.env'))
 
     token = os.getenv('NOTION_API_KEY')
     db_id = os.getenv('NOTION_LYFE_PIPELINE_ID')

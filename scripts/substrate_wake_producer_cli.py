@@ -13,7 +13,8 @@ import argparse
 import json
 import sys
 
-sys.path.insert(0, "/opt/OS")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 from eos_ai.substrate.wake_producer import (  # noqa: E402
     get_wake_producer_runtime,

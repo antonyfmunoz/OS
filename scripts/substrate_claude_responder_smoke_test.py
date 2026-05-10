@@ -23,7 +23,7 @@ import os
 import sys
 import uuid
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 from eos_ai.substrate import claude_responder as cr  # noqa: E402
 from eos_ai.substrate import claude_session_bridge as csb  # noqa: E402

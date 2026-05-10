@@ -19,7 +19,8 @@ import re
 import sys
 from pathlib import Path
 
-sys.path.insert(0, "/opt/OS")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 WIKI_DIR = Path("/opt/OS/10_Wiki")
 VAULT_DIR = Path("/opt/OS/vault")

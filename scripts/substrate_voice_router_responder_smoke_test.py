@@ -34,7 +34,7 @@ from __future__ import annotations
 import os
 import sys
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 # Force ingress ON for this test, with wildcard allow-lists so the
 # Discord pseudo-live path runs end-to-end without real IDs.

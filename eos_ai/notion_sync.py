@@ -14,7 +14,7 @@ import requests
 from datetime import datetime
 from dotenv import load_dotenv
 
-load_dotenv('/opt/OS/eos_ai/.env')
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
 
 NOTION_VERSION = '2022-06-28'
 TOKEN = os.getenv('NOTION_API_KEY', '')

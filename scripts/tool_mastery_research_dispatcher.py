@@ -36,7 +36,8 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, "/opt/OS")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 from core.tool_mastery_manager.coverage import evaluate_coverage  # noqa: E402
 from core.tool_mastery_manager.paths import SKILLS_TOOLS_DIR  # noqa: E402

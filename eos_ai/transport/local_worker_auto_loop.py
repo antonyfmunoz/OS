@@ -577,7 +577,7 @@ def _execute_approved_action(packet: dict[str, Any], response: dict[str, Any]) -
     wo_id = packet["work_order_id"]
     drive_url = "https://drive.google.com/drive/my-drive"
 
-    sys.path.insert(0, "/opt/OS")
+    sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
     from core.environment_bridge.chrome_visible_launch import (
         ChromeLaunchMethod,
         ChromeVisibleLaunchStatus,

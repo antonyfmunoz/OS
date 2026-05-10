@@ -23,7 +23,8 @@ from __future__ import annotations
 import sys
 from datetime import date
 
-sys.path.insert(0, "/opt/OS")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 from scripts._tme_common import load_skill  # noqa: E402
 from scripts.check_skill_staleness import _assess  # noqa: E402

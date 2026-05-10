@@ -328,7 +328,7 @@ def _cli_main() -> None:
         sys.exit(0 if status["relay_available"] else 1)
 
     if args.action == "PING":
-        sys.path.insert(0, "/opt/OS")
+        sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
         from core.environment_bridge.windows_desktop_request_builder import (
             build_ping_request,
         )

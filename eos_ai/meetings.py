@@ -35,7 +35,7 @@ def create_meeting_record(
         from eos_ai.db import get_conn
         import requests
         from dotenv import load_dotenv
-        load_dotenv('/opt/OS/eos_ai/.env')
+        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
 
         ctx = ctx or load_context_from_env()
 
@@ -126,7 +126,7 @@ def update_meeting_outcome(
     try:
         import requests
         from dotenv import load_dotenv
-        load_dotenv('/opt/OS/eos_ai/.env')
+        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
 
         token = os.getenv('NOTION_API_KEY')
         db_id = os.getenv('NOTION_MEETINGS_ID')
@@ -336,7 +336,7 @@ def update_meeting_prep_notes(notion_id: str, prep_notes: str) -> bool:
     try:
         import requests
         from dotenv import load_dotenv
-        load_dotenv('/opt/OS/eos_ai/.env')
+        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
 
         token = os.getenv('NOTION_API_KEY')
         if not notion_id or not token:
@@ -367,7 +367,7 @@ def find_notion_meeting_by_person(person: str) -> str | None:
     try:
         import requests
         from dotenv import load_dotenv
-        load_dotenv('/opt/OS/eos_ai/.env')
+        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
 
         token = os.getenv('NOTION_API_KEY')
         db_id = os.getenv('NOTION_MEETINGS_ID')
@@ -401,7 +401,7 @@ def get_open_loop_meetings(days_back: int = 7, ctx=None) -> list[dict]:
     try:
         import requests
         from dotenv import load_dotenv
-        load_dotenv('/opt/OS/eos_ai/.env')
+        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
 
         token = os.getenv('NOTION_API_KEY')
         db_id = os.getenv('NOTION_MEETINGS_ID')
@@ -763,7 +763,7 @@ def calculate_meeting_roi(
     try:
         import requests as _req
         from dotenv import load_dotenv
-        load_dotenv('/opt/OS/eos_ai/.env')
+        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
         token = os.getenv('NOTION_API_KEY')
         db_id = os.getenv('NOTION_MEETINGS_ID')
         if not token or not db_id:

@@ -16,7 +16,7 @@ import sys
 import threading
 import time
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 os.environ.setdefault("EOS_DISCORD_TEXT_TRANSPORT_ENABLED", "1")
 os.environ.setdefault("EOS_DISCORD_TEXT_ALLOWED_GUILDS", "*")
 os.environ.setdefault("EOS_DISCORD_TEXT_ALLOWED_CHANNELS", "*")

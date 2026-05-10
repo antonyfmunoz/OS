@@ -10,7 +10,8 @@ from __future__ import annotations
 import ast
 import sys
 
-sys.path.insert(0, "/opt/OS")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 _passed = 0
 _failed = 0

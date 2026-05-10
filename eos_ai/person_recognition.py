@@ -155,7 +155,7 @@ def recognize_person(
             try:
                 import requests
                 from dotenv import load_dotenv
-                load_dotenv('/opt/OS/eos_ai/.env')
+                load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
                 token = os.getenv('NOTION_API_KEY')
                 db_id = os.getenv('NOTION_MEETINGS_ID')
                 if token and db_id:
@@ -350,7 +350,7 @@ def build_intelligence_profile(
         try:
             import requests as _req
             from dotenv import load_dotenv
-            load_dotenv('/opt/OS/eos_ai/.env')
+            load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
             token = os.getenv('NOTION_API_KEY')
             db_id = os.getenv('NOTION_MEETINGS_ID')
             if token and db_id:
@@ -499,7 +499,7 @@ def score_relationship_health(
     try:
         import requests as _req
         from dotenv import load_dotenv
-        load_dotenv('/opt/OS/eos_ai/.env')
+        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
         from eos_ai.context import load_context_from_env
         ctx = ctx or load_context_from_env()
 

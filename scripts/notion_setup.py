@@ -25,8 +25,8 @@ import json
 import requests
 from dotenv import load_dotenv, set_key
 
-sys.path.insert(0, '/opt/OS')
-load_dotenv('/opt/OS/eos_ai/.env')
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
 
 ENV_FILE = '/opt/OS/eos_ai/.env'
 NOTION_VERSION = '2022-06-28'

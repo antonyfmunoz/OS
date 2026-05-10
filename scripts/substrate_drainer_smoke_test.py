@@ -24,7 +24,8 @@ import sys
 import threading
 import time
 
-sys.path.insert(0, "/opt/OS")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 from eos_ai.event_bus import EventBus  # noqa: E402
 from eos_ai.substrate.actions import ActionResult, ActionStatus  # noqa: E402

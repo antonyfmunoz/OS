@@ -13,6 +13,7 @@ UMH substrate subsystem. Phase 96.8AR.
 
 from __future__ import annotations
 
+import os
 import json
 import subprocess
 import uuid
@@ -21,7 +22,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-SSH_HOST = "100.74.199.102"
+SSH_HOST = os.getenv("EOS_LOCAL_BRIDGE_IP", "100.74.199.102")
 SSH_USER = r"DESKTOP-LVGUIQ9\antonys beast pc"
 SSH_KEY = "/root/.ssh/id_ed25519"
 SSH_TIMEOUT = 8

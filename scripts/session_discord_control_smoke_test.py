@@ -12,11 +12,11 @@ import os
 import sys
 import time
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 from dotenv import load_dotenv
 
-load_dotenv("/opt/OS/eos_ai/.env", override=True)
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'), override=True)
 
 # Must import AFTER load_dotenv so module-level os.getenv picks up values
 from eos_ai.substrate.session_watcher import (  # noqa: E402

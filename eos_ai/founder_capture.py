@@ -125,7 +125,7 @@ def capture_to_notion(text: str, capture_type: str, venture_id: str = None) -> b
         import requests
         from datetime import date
         from dotenv import load_dotenv
-        load_dotenv('/opt/OS/eos_ai/.env')
+        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
 
         token = os.getenv('NOTION_API_KEY')
         # Route to the right venture database

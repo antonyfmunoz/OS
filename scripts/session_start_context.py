@@ -20,7 +20,7 @@ import fcntl
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 PDT = ZoneInfo("America/Los_Angeles")
 
 # ─── Singleton + timeout guard ───────────────────────────────────────────────
@@ -89,7 +89,7 @@ def get_pending_tasks() -> int:
     try:
         from dotenv import load_dotenv
 
-        load_dotenv("/opt/OS/eos_ai/.env")
+        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
         import psycopg2
 
         db_url = os.getenv("DATABASE_URL", "")
@@ -112,7 +112,7 @@ def get_venture_stage() -> str:
     try:
         from dotenv import load_dotenv
 
-        load_dotenv("/opt/OS/eos_ai/.env")
+        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
         from eos_ai.context import load_context_from_env
 
         ctx = load_context_from_env()

@@ -8,6 +8,7 @@ UMH substrate subsystem. EOS is one platform consumer.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -132,7 +133,7 @@ def build_local_worker_bootstrap_plan() -> BootstrapPlan:
                 step_id="optional-rsync-pull",
                 title="Configure rsync pull from VPS",
                 command=(
-                    "rsync -avz root@100.77.233.50:/opt/OS/data/work_queue/outbox/ "
+                    f"rsync -avz root@{os.getenv('EOS_VPS_TAILSCALE_IP', '100.77.233.50')}:/opt/OS/data/work_queue/outbox/ "
                     "~/eos_advisor_messages/inbox/"
                 ),
                 environment="local_wsl",

@@ -27,10 +27,11 @@ from pathlib import Path
 import requests
 from flask import Flask, jsonify, request
 
-sys.path.insert(0, "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+sys.path.insert(0, _ROOT)
 from eos_ai.db import get_conn  # noqa: E402
 
-MEDIA_ROOT = Path("/opt/OS/media/higgsfield")
+MEDIA_ROOT = Path(_ROOT) / "media" / "higgsfield"
 MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
 
 

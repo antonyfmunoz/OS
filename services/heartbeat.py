@@ -18,11 +18,12 @@ import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-sys.path.insert(0, "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+sys.path.insert(0, _ROOT)
 
 from dotenv import load_dotenv
 
-load_dotenv("/opt/OS/eos_ai/.env")
+load_dotenv(os.path.join(_ROOT, "eos_ai", ".env"))
 
 logging.basicConfig(
     level=logging.INFO,
@@ -47,13 +48,13 @@ def system_health_heartbeat() -> None:
 
     # Log full report for audit
     try:
-        os.makedirs("/opt/OS/logs", exist_ok=True)
+        os.makedirs(os.path.join(_ROOT, "logs"), exist_ok=True)
         report = {
             "timestamp": datetime.now(PDT).isoformat(),
             "quality_level": sh.quality_level(),
             "providers": sh.provider_status(),
         }
-        with open("/opt/OS/logs/heartbeat.log", "a") as f:
+        with open(os.path.join(_ROOT, "logs", "heartbeat.log"), "a") as f:
             f.write(json.dumps(report, default=str) + "\n")
     except Exception as e:
         logger.warning(f"Failed to write heartbeat log: {e}")

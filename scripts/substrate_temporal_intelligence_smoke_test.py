@@ -31,7 +31,8 @@ import subprocess
 import sys
 import time
 
-sys.path.insert(0, "/opt/OS")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 from eos_ai.substrate import meeting_intelligence as mi  # noqa: E402
 

@@ -6,11 +6,11 @@ Posts report to Discord if there's anything to surface.
 
 import sys
 import os
-sys.path.insert(0, '/opt/OS')
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 from dotenv import load_dotenv
-load_dotenv('/opt/OS/eos_ai/.env')
-load_dotenv('/opt/OS/services/.env')
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'services', '.env'))
 
 from eos_ai.email_gps import EmailGPS
 from eos_ai.context import load_context_from_env

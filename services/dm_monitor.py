@@ -684,8 +684,8 @@ def session_is_valid(page):
 def _screenshot_login_state(page, label="login"):
     """Save a screenshot to logs/ for diagnosing what Instagram is showing."""
     try:
-        os.makedirs("/opt/OS/logs", exist_ok=True)
-        path = f"/opt/OS/logs/instagram_{label}.png"
+        os.makedirs(os.path.join(_REPO_ROOT, "logs"), exist_ok=True)
+        path = os.path.join(_REPO_ROOT, "logs", f"instagram_{label}.png")
         page.screenshot(path=path)
         print(f"[dm_monitor] Screenshot saved: {path}")
     except Exception as _se:

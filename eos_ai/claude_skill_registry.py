@@ -23,149 +23,112 @@ from pathlib import Path
 
 # ─── Skill dataclass ──────────────────────────────────────────────────────────
 
+
 @dataclass
 class ClaudeSkill:
     id: str
     name: str
     file_path: str
     category: str
-    source_url: str          # official docs URL — empty for internal skills
+    source_url: str  # official docs URL — empty for internal skills
     last_updated: datetime = None
     version: int = 1
-    description: str = ''
+    description: str = ""
     auto_update: bool = True
 
 
 # ─── Registry ─────────────────────────────────────────────────────────────────
 
 CLAUDE_SKILL_REGISTRY: dict[str, ClaudeSkill] = {
-
     # ── SYSTEM SKILLS ─────────────────────────────────────────────────────────
-
-    'voice-pipeline': ClaudeSkill(
-        id='voice-pipeline',
-        name='Voice Pipeline',
-        file_path='.claude/skills/voice-pipeline.md',
-        category='system',
-        source_url='https://docs.pycord.dev/en/stable/',
-        auto_update=True,
-    ),
-    'agent-hierarchy': ClaudeSkill(
-        id='agent-hierarchy',
-        name='Agent Hierarchy',
-        file_path='.claude/skills/agent-hierarchy.md',
-        category='system',
-        source_url='',
-        auto_update=False,   # internal — not external docs
-    ),
-    'primitive-system': ClaudeSkill(
-        id='primitive-system',
-        name='Primitive System',
-        file_path='.claude/skills/primitive-system.md',
-        category='system',
-        source_url='',
+    "browser-control": ClaudeSkill(
+        id="browser-control",
+        name="Browser Control",
+        file_path=".claude/skills/browser-control.md",
+        category="system",
+        source_url="",
         auto_update=False,
     ),
-    'database-schema': ClaudeSkill(
-        id='database-schema',
-        name='Database Schema',
-        file_path='.claude/skills/database-schema.md',
-        category='system',
-        source_url='https://neon.tech/docs',
-        auto_update=True,
-    ),
-
     # ── WORKFLOW SKILLS ───────────────────────────────────────────────────────
-
-    'new-agent': ClaudeSkill(
-        id='new-agent',
-        name='New Agent Protocol',
-        file_path='.claude/skills/new-agent.md',
-        category='workflow',
-        source_url='',
+    "new-agent": ClaudeSkill(
+        id="new-agent",
+        name="New Agent Protocol",
+        file_path=".claude/skills/new-agent.md",
+        category="workflow",
+        source_url="",
         auto_update=False,
     ),
-    'new-skill': ClaudeSkill(
-        id='new-skill',
-        name='New Skill Protocol',
-        file_path='.claude/skills/new-skill.md',
-        category='workflow',
-        source_url='',
+    "new-skill": ClaudeSkill(
+        id="new-skill",
+        name="New Skill Protocol",
+        file_path=".claude/skills/new-skill.md",
+        category="workflow",
+        source_url="",
         auto_update=False,
     ),
-    'new-primitive': ClaudeSkill(
-        id='new-primitive',
-        name='New Primitive Protocol',
-        file_path='.claude/skills/new-primitive.md',
-        category='workflow',
-        source_url='',
+    "new-primitive": ClaudeSkill(
+        id="new-primitive",
+        name="New Primitive Protocol",
+        file_path=".claude/skills/new-primitive.md",
+        category="workflow",
+        source_url="",
         auto_update=False,
     ),
-    'debug-agent': ClaudeSkill(
-        id='debug-agent',
-        name='Debug Agent Protocol',
-        file_path='.claude/skills/debug-agent.md',
-        category='workflow',
-        source_url='',
+    "debug-agent": ClaudeSkill(
+        id="debug-agent",
+        name="Debug Agent Protocol",
+        file_path=".claude/skills/debug-agent.md",
+        category="workflow",
+        source_url="",
         auto_update=False,
     ),
-    'deploy-service': ClaudeSkill(
-        id='deploy-service',
-        name='Deploy Service Protocol',
-        file_path='.claude/skills/deploy-service.md',
-        category='workflow',
-        source_url='',
+    "deploy-service": ClaudeSkill(
+        id="deploy-service",
+        name="Deploy Service Protocol",
+        file_path=".claude/skills/deploy-service.md",
+        category="workflow",
+        source_url="",
         auto_update=False,
     ),
-
     # ── TOOL SKILLS (auto-update from official docs) ──────────────────────────
-
-    'notion-api': ClaudeSkill(
-        id='notion-api',
-        name='Notion API',
-        file_path='.claude/skills/notion-api.md',
-        category='tool',
-        source_url='https://developers.notion.com/docs',
+    "notion-api": ClaudeSkill(
+        id="notion-api",
+        name="Notion API",
+        file_path=".claude/skills/notion-api.md",
+        category="tool",
+        source_url="https://developers.notion.com/docs",
         auto_update=True,
     ),
-    'discord-admin': ClaudeSkill(
-        id='discord-admin',
-        name='Discord Admin',
-        file_path='.claude/skills/discord-admin.md',
-        category='tool',
-        source_url='https://docs.pycord.dev/en/stable/',
+    "discord-admin": ClaudeSkill(
+        id="discord-admin",
+        name="Discord Admin",
+        file_path=".claude/skills/discord-admin.md",
+        category="tool",
+        source_url="https://docs.pycord.dev/en/stable/",
         auto_update=True,
     ),
-    'groq-api': ClaudeSkill(
-        id='groq-api',
-        name='Groq API',
-        file_path='.claude/skills/groq-api.md',
-        category='tool',
-        source_url='https://console.groq.com/docs/openai',
+    "groq-api": ClaudeSkill(
+        id="groq-api",
+        name="Groq API",
+        file_path=".claude/skills/groq-api.md",
+        category="tool",
+        source_url="https://console.groq.com/docs/openai",
         auto_update=True,
     ),
-    'neon-db': ClaudeSkill(
-        id='neon-db',
-        name='Neon PostgreSQL',
-        file_path='.claude/skills/neon-db.md',
-        category='tool',
-        source_url='https://neon.tech/docs',
+    "neon-db": ClaudeSkill(
+        id="neon-db",
+        name="Neon PostgreSQL",
+        file_path=".claude/skills/neon-db.md",
+        category="tool",
+        source_url="https://neon.tech/docs",
         auto_update=True,
     ),
-    'ollama': ClaudeSkill(
-        id='ollama',
-        name='Ollama',
-        file_path='.claude/skills/ollama.md',
-        category='tool',
-        source_url='https://github.com/ollama/ollama/blob/main/docs/api.md',
-        auto_update=True,
-    ),
-    'claude-code-cli': ClaudeSkill(
-        id='claude-code-cli',
-        name='Claude Code CLI',
-        file_path='.claude/skills/claude-code-cli.md',
-        category='tool',
-        source_url='https://docs.anthropic.com/en/docs/claude-code/overview',
+    "claude-code-cli": ClaudeSkill(
+        id="claude-code-cli",
+        name="Claude Code CLI",
+        file_path=".claude/skills/claude-code-cli.md",
+        category="tool",
+        source_url="https://docs.anthropic.com/en/docs/claude-code/overview",
         auto_update=True,
     ),
 }
@@ -173,11 +136,11 @@ CLAUDE_SKILL_REGISTRY: dict[str, ClaudeSkill] = {
 
 # ─── Manager ──────────────────────────────────────────────────────────────────
 
-class ClaudeSkillRegistryManager:
 
-    def __init__(self, base_path: str = '/opt/OS'):
+class ClaudeSkillRegistryManager:
+    def __init__(self, base_path: str = "/opt/OS"):
         self.base_path = Path(base_path)
-        self.registry  = CLAUDE_SKILL_REGISTRY
+        self.registry = CLAUDE_SKILL_REGISTRY
 
     # ── Queries ───────────────────────────────────────────────────────────────
 
@@ -188,21 +151,18 @@ class ClaudeSkillRegistryManager:
         return [s for s in self.registry.values() if s.category == category]
 
     def get_auto_update_skills(self) -> list[ClaudeSkill]:
-        return [
-            s for s in self.registry.values()
-            if s.auto_update and s.source_url
-        ]
+        return [s for s in self.registry.values() if s.auto_update and s.source_url]
 
     # ── File I/O ──────────────────────────────────────────────────────────────
 
     def read_skill(self, skill_id: str) -> str:
         skill = self.registry.get(skill_id)
         if not skill:
-            return ''
+            return ""
         path = self.base_path / skill.file_path
         if path.exists():
             return path.read_text()
-        return ''
+        return ""
 
     def update_skill(self, skill_id: str, new_content: str) -> bool:
         skill = self.registry.get(skill_id)
@@ -212,7 +172,7 @@ class ClaudeSkillRegistryManager:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(new_content)
         skill.last_updated = datetime.now()
-        print(f'[SkillRegistry] Updated: {skill_id}')
+        print(f"[SkillRegistry] Updated: {skill_id}")
         return True
 
     # ── Neon sync ─────────────────────────────────────────────────────────────
@@ -234,7 +194,7 @@ class ClaudeSkillRegistryManager:
                     if not content:
                         continue
                     cur.execute(
-                        '''
+                        """
                         INSERT INTO skills (
                             id, org_id, name, content, version)
                         VALUES (%s, %s, %s, %s, %s)
@@ -242,7 +202,7 @@ class ClaudeSkillRegistryManager:
                         DO UPDATE SET
                             content = EXCLUDED.content,
                             version = EXCLUDED.version
-                        ''',
+                        """,
                         (
                             str(_uuid.uuid4()),
                             ctx.org_id,
@@ -252,9 +212,9 @@ class ClaudeSkillRegistryManager:
                         ),
                     )
                     synced += 1
-            print(f'[SkillRegistry] Synced {synced} Claude skills to Neon')
+            print(f"[SkillRegistry] Synced {synced} Claude skills to Neon")
         except Exception as e:
-            print(f'[SkillRegistry] Sync failed: {e}')
+            print(f"[SkillRegistry] Sync failed: {e}")
         return synced
 
     # ── Update check ──────────────────────────────────────────────────────────
@@ -278,20 +238,15 @@ class ClaudeSkillRegistryManager:
     # ── Status ────────────────────────────────────────────────────────────────
 
     def format_status(self) -> str:
-        lines = ['CLAUDE SKILL REGISTRY:']
-        for category in ('system', 'workflow', 'tool'):
+        lines = ["CLAUDE SKILL REGISTRY:"]
+        for category in ("system", "workflow", "tool"):
             skills = self.get_by_category(category)
             if not skills:
                 continue
-            lines.append(f'\n{category.upper()} SKILLS:')
+            lines.append(f"\n{category.upper()} SKILLS:")
             for s in skills:
-                updated = (
-                    s.last_updated.strftime('%Y-%m-%d')
-                    if s.last_updated else 'never'
-                )
-                auto    = '🔄' if s.auto_update else '📌'
-                exists  = '✓' if (self.base_path / s.file_path).exists() else '✗'
-                lines.append(
-                    f'  {auto} [{exists}] {s.name} (updated: {updated})'
-                )
-        return '\n'.join(lines)
+                updated = s.last_updated.strftime("%Y-%m-%d") if s.last_updated else "never"
+                auto = "🔄" if s.auto_update else "📌"
+                exists = "✓" if (self.base_path / s.file_path).exists() else "✗"
+                lines.append(f"  {auto} [{exists}] {s.name} (updated: {updated})")
+        return "\n".join(lines)

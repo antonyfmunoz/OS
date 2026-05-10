@@ -25,7 +25,8 @@ import sys
 from dataclasses import dataclass
 from datetime import date
 
-sys.path.insert(0, "/opt/OS")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 from scripts._tme_common import (  # noqa: E402
     NEAR_STALE_FRACTION,

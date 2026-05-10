@@ -6,7 +6,7 @@ as formal template instances with offer ladder rows in Neon.
 import sys
 import os
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 from eos_ai.template_registry import TemplateRegistry, TemplateInstance
 from eos_ai.db import get_conn

@@ -8,9 +8,9 @@ import sys
 import os
 from datetime import datetime, timezone, timedelta
 
-sys.path.insert(0, '/opt/OS')
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 from dotenv import load_dotenv
-load_dotenv('/opt/OS/eos_ai/.env')
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
 
 
 def get_upcoming_calls(window_start_mins: int = 25, window_end_mins: int = 45) -> list:

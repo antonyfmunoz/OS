@@ -27,7 +27,8 @@ import sys
 
 import numpy as np
 
-sys.path.insert(0, "/opt/OS")
+import os
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 PCA_META_PATH = "/opt/OS/data/semantic_space/pca_v1.json"
 EMBEDDING_STORE_PATH = "/opt/OS/data/semantic_space/embeddings_v1.json"

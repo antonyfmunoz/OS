@@ -1832,94 +1832,10 @@ async def on_message(message: discord.Message):
         return
 
     # ── Session-first CC injection ───────────────────────────────────────
-    # Registry is source of truth for session identity.
-    # tmux session name is derived from SessionRecord, never hardcoded.
-    # Local bridge tried first if node == "local"; failover updates registry.
+    # DORMANT: session_registry, session_router, surface_registry,
+    # live_loop, input_router modules do not exist yet.
+    # This block will activate when eos_ai/runtime/ is fully built.
     _cc_injected = False
-    try:
-        from eos_ai.substrate.discord_mode_routing import resolve_discord_mode
-        from eos_ai.runtime.session_registry import get_registry
-        from eos_ai.runtime.session_router import route_session_message
-        from eos_ai.runtime.surface_registry import get_surface_registry
-        from eos_ai.substrate.target_policy import resolve_execution_policy
-
-        _cc_gid = str(message.guild.id) if message.guild else None
-        _cc_cid = str(message.channel.id)
-        _cc_mode = resolve_discord_mode(_cc_gid, _cc_cid)
-
-        _cc_target_policy = resolve_execution_policy(_cc_mode)
-        _cc_node = _cc_target_policy["target"]
-
-        _cc_registry = get_registry()
-        _cc_session = _cc_registry.resolve_or_create(
-            session_name="",
-            mode=_cc_mode,
-            node=_cc_node,
-            channel_id=_cc_cid,
-            transport="discord",
-        )
-
-        _sf_registry = get_surface_registry()
-        _sf_registry.attach_surface(
-            session_id=_cc_session.session_id,
-            surface_type="discord",
-            transport="webhook",
-            config={
-                "channel_id": _cc_cid,
-                "session_name": _cc_session.tmux_name,
-            },
-        )
-
-        # ── LiveRuntime lifecycle pass ──────────────────────────────────
-        # Runs InputRouter → run_lifecycle() → continuity/objectives/progress
-        # alongside tmux routing. Failure here must NOT block message delivery.
-        try:
-            from eos_ai.runtime.live_loop import get_or_create_runtime
-            from eos_ai.runtime.input_router import InputEvent
-
-            _lr = get_or_create_runtime(_cc_session.session_id)
-            _lr_event = InputEvent(
-                transport="discord",
-                text=text,
-                metadata={
-                    "channel_id": _cc_cid,
-                    "author_id": str(message.author.id),
-                    "session_id": _cc_session.session_id,
-                },
-            )
-            _lr_result = _lr.handle_input(_lr_event)
-            print(
-                f"[LiveRuntime] {_lr_result['request_type']}: "
-                f"session={_cc_session.session_id} "
-                f"events={_lr_result['lifecycle_result'].get('events_count', 0)}",
-                flush=True,
-            )
-        except Exception as _lr_exc:  # noqa: BLE001
-            print(
-                f"[LiveRuntime] lifecycle pass failed (non-blocking): {_lr_exc}",
-                flush=True,
-            )
-
-        loop = asyncio.get_event_loop()
-        _cc_route_result = await loop.run_in_executor(
-            None, lambda: route_session_message(_cc_session, text)
-        )
-
-        if _cc_route_result.get("ok"):
-            _cc_injected = True
-            _cc_registry.update_activity(_cc_session.session_id)
-            print(
-                f"[CC] {_cc_route_result['method']}: {len(text)} chars → "
-                f"{_cc_route_result['session_name']} on {_cc_route_result['node']} "
-                f"(session={_cc_session.session_id})"
-            )
-        else:
-            print(
-                f"[CC] Injection failed for {_cc_session.session_id}: "
-                f"{_cc_route_result.get('reason', 'unknown')}"
-            )
-    except Exception as _cc_exc:  # noqa: BLE001
-        print(f"[CC] Injection error: {_cc_exc}")
 
     if _cc_injected:
         _ccm_gid = str(message.guild.id) if message.guild else None
@@ -2731,7 +2647,7 @@ async def cmd_portfolio(ctx: commands.Context):
     """Trigger the weekly portfolio brief on demand."""
     import subprocess
 
-    subprocess.Popen(["python3", "/opt/OS/scripts/portfolio_brief.py"])
+    subprocess.Popen(["python3", str(_REPO_ROOT / "scripts" / "portfolio_brief.py")])
     await ctx.reply("📊 Portfolio brief generating...")
 
 
@@ -2821,7 +2737,7 @@ async def cmd_eod(ctx: commands.Context):
     """Trigger EOD sync manually."""
     import subprocess
 
-    subprocess.Popen(["python3", "/opt/OS/scripts/eod_sync.py"])
+    subprocess.Popen(["python3", str(_REPO_ROOT / "scripts" / "eod_sync.py")])
     await ctx.reply("📊 EOD sync running...")
 
 
@@ -3314,7 +3230,7 @@ async def cmd_report(ctx: commands.Context, report_type: str = "profile"):
 
     if report_type == "profile":
         async with ctx.typing():
-            profile_path = Path("/opt/OS/data/founder_profile.md")
+            profile_path = _REPO_ROOT / "data" / "founder_profile.md"
             if not profile_path.exists():
                 await ctx.reply("No profile yet. Run a GWS scan first.")
                 return
@@ -3410,7 +3326,7 @@ async def cmd_draft(ctx: commands.Context):
             import json
             from pathlib import Path
 
-            PENDING_DIR = Path("/opt/OS/orchestrator/approvals/pending")
+            PENDING_DIR = _REPO_ROOT / "orchestrator" / "approvals" / "pending"
 
             drafts = []
             for f in sorted(PENDING_DIR.glob("*.json")):

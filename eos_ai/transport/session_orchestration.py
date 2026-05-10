@@ -385,7 +385,7 @@ def reconcile_sessions() -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    sys.path.insert(0, "/opt/OS")
+    sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
     print("=== Session Orchestration Self-Test ===")
     print(f"Layer: {LAYER_NAME} {LAYER_VERSION}")
     print()
