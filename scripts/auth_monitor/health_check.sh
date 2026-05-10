@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # health_check.sh — runs every 5 minutes, validates CC auth state
 # Now checks master + all isolated session credential files
-# Log: /opt/OS/logs/cc_auth_health.log
-# Cron: */5 * * * * bash /opt/OS/scripts/auth_monitor/health_check.sh
+# Log: ${UMH_ROOT:-/opt/OS}/logs/cc_auth_health.log
+# Cron: */5 * * * * bash ${UMH_ROOT:-/opt/OS}/scripts/auth_monitor/health_check.sh
 
 MASTER_CRED="$HOME/.claude/.credentials.json"
 SESSIONS_BASE="$HOME/.claude_sessions"
 SESSION_NAMES=("builder" "product" "adhoc")
-LOG_FILE="/opt/OS/logs/cc_auth_health.log"
+LOG_FILE="${UMH_ROOT:-/opt/OS}/logs/cc_auth_health.log"
 BACKUP_DIR="$HOME/.claude/.credentials_backups"
-DISCORD_WEBHOOK_ENV="/opt/OS/eos_ai/.env"
+DISCORD_WEBHOOK_ENV="${UMH_ROOT:-/opt/OS}/eos_ai/.env"
 
 mkdir -p "$BACKUP_DIR"
 

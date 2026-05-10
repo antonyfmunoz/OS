@@ -8,5 +8,5 @@ echo "UI: http://localhost:$PORT/ui/"
 echo "API: http://localhost:$PORT/"
 echo ""
 
-cd /opt/OS
+cd ${UMH_ROOT:-/opt/OS}
 python3 -m uvicorn umh.control.api:app --host 127.0.0.1 --port $PORT --reload

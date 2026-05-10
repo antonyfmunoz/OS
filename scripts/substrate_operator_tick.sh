@@ -22,8 +22,8 @@
 set -euo pipefail
 
 SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || echo "$0")"
-REPO_DIR="/opt/OS"
-LOG_DIR="${SUBSTRATE_TICK_LOG_DIR:-/opt/OS/logs}"
+REPO_DIR="${UMH_ROOT:-/opt/OS}"
+LOG_DIR="${SUBSTRATE_TICK_LOG_DIR:-${UMH_ROOT:-/opt/OS}/logs}"
 LOG_FILE="${LOG_DIR}/substrate_operator_tick.log"
 
 print_help() {
@@ -82,7 +82,7 @@ for n in "${NODES[@]}"; do
 done
 
 run_py() {
-    python3 /opt/OS/scripts/substrate_drain_station.py \
+    python3 ${UMH_ROOT:-/opt/OS}/scripts/substrate_drain_station.py \
         "${ARGS[@]}" \
         --reconcile \
         --reconcile-limit 20 \
@@ -95,7 +95,7 @@ print_readiness_banner() {
     python3 - "${NODES[@]}" <<'PY' 2>/dev/null || true
 import json
 import sys
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 try:
     from eos_ai.substrate.result_query import station_readiness_report
 except Exception as e:

@@ -4,16 +4,16 @@
 
 set -euo pipefail
 
-LOG="/opt/OS/logs/nightly_$(date +%Y%m%d).log"
+LOG="${UMH_ROOT:-/opt/OS}/logs/nightly_$(date +%Y%m%d).log"
 echo "=== EOS Nightly Maintenance: $(date) ===" >> "$LOG"
 
-cd /opt/OS
+cd ${UMH_ROOT:-/opt/OS}
 
 # Provider health gate — skip whole job if no LLM provider is reachable.
 # Exits 0 (success) so cron doesn't email failure noise.
 if ! python3 -c "
-import sys; sys.path.insert(0, '/opt/OS')
-from dotenv import load_dotenv; load_dotenv('/opt/OS/eos_ai/.env')
+import sys; import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS')
+from dotenv import load_dotenv; load_dotenv(os.path.join(os.environ.get('UMH_ROOT', '/opt/OS'), 'eos_ai/.env'))
 from eos_ai.provider_health import check_all
 h = check_all()
 sys.exit(0 if h.any_healthy else 1)
@@ -23,9 +23,9 @@ sys.exit(0 if h.any_healthy else 1)
 fi
 
 claude -p --allowedTools "Bash Read Write Edit Glob Grep" \
-  --add-dir /opt/OS \
+  --add-dir ${UMH_ROOT:-/opt/OS} \
   --max-budget-usd 0.50 \
-  "Read /opt/OS/.claude/CLAUDE.md and /opt/OS/CLAUDE.md.
+  "Read ${UMH_ROOT:-/opt/OS}/.claude/CLAUDE.md and ${UMH_ROOT:-/opt/OS}/CLAUDE.md.
 
 Run EOS nightly maintenance. Execute each step, report results.
 
@@ -33,9 +33,9 @@ Step 0 — GWS auth check:
   AUTH_STATUS=\$(npx @googleworkspace/cli auth status 2>&1)
   if echo \"\$AUTH_STATUS\" | grep -q \"invalid\|expired\|error\"; then
     python3 -c \"
-import os, sys; sys.path.insert(0, '/opt/OS')
+import os, sys; import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS')
 from dotenv import load_dotenv
-load_dotenv('/opt/OS/services/.env')
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT', '/opt/OS'), 'services/.env'))
 from eos_ai.discord_utils import post_to_webhook
 webhook = os.getenv('DISCORD_BRIEF_WEBHOOK', '')
 if webhook:
@@ -53,7 +53,7 @@ Step 1 — Service health check:
   If any container is not Up — restart it with docker compose restart [service].
 
 Step 2 — Import check:
-  python3 -c \"import sys; sys.path.insert(0,'/opt/OS'); import eos_ai; print('imports: clean')\"
+  python3 -c \"import sys; import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS'); import eos_ai; print('imports: clean')\"
 
 Step 3 — Memory compression:
   Read /root/.claude/projects/-opt-OS/memory/MEMORY.md
@@ -63,15 +63,15 @@ Step 3 — Memory compression:
   The MEMORY.md index must stay under 200 lines.
 
 Step 4 — Clean temp files:
-  find /opt/OS/logs -name '*.log' -mtime +7 -delete 2>/dev/null || true
+  find ${UMH_ROOT:-/opt/OS}/logs -name '*.log' -mtime +7 -delete 2>/dev/null || true
   find /tmp -name 'eos_*' -mtime +1 -delete 2>/dev/null || true
 
 Step 5 — Notion outcome sync:
-  python3 /opt/OS/scripts/notion_outcome_sync.py
+  python3 ${UMH_ROOT:-/opt/OS}/scripts/notion_outcome_sync.py
 
 Step 6 — Session state update:
   python3 -c \"
-import sys; sys.path.insert(0,'/opt/OS')
+import sys; import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS')
 from eos_ai.session_state import SessionState
 SessionState.save(
   phase='Nightly maintenance',
@@ -93,15 +93,15 @@ import sys, os, json, glob
 from datetime import datetime
 from pathlib import Path
 
-sys.path.insert(0, '/opt/OS')
+import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS')
 from dotenv import load_dotenv
-load_dotenv('/opt/OS/eos_ai/.env')
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT', '/opt/OS'), 'eos_ai/.env'))
 from eos_ai.gateway import EOSGateway
 
 gateway = EOSGateway()
 
-SIGNALS_DIR = Path('/opt/OS/01_Inbox/processed_signals')
-KNOWLEDGE_DIR = Path('/opt/OS/07_Knowledge')
+SIGNALS_DIR = Path('${UMH_ROOT:-/opt/OS}/01_Inbox/processed_signals')
+KNOWLEDGE_DIR = Path('${UMH_ROOT:-/opt/OS}/07_Knowledge')
 today = datetime.now().strftime('%Y-%m-%d')
 
 # Load recent processed signals — last 50 files by modification time

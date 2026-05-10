@@ -37,14 +37,14 @@ echo "✅ Prerequisites met"
 echo ""
 
 # Clone or update
-if [ -d "/opt/OS" ]; then
+if [ -d "${UMH_ROOT:-/opt/OS}" ]; then
   echo "→ Updating existing installation..."
-  cd /opt/OS
+  cd ${UMH_ROOT:-/opt/OS}
   git pull
 else
-  echo "→ Installing to /opt/OS..."
-  git clone https://github.com/[repo]/eos /opt/OS
-  cd /opt/OS
+  echo "→ Installing to ${UMH_ROOT:-/opt/OS}..."
+  git clone https://github.com/[repo]/eos ${UMH_ROOT:-/opt/OS}
+  cd ${UMH_ROOT:-/opt/OS}
 fi
 
 # Setup env files

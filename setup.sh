@@ -53,7 +53,7 @@ echo "→ Configuring your instance..."
 echo ""
 python3 -c "
 import sys
-sys.path.insert(0, '/opt/OS')
+import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS')
 from eos_ai.setup_wizard import run_setup
 run_setup()
 "

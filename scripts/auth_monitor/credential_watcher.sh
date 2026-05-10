@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # credential_watcher.sh — watches ~/.claude/.credentials.json for any change
-# Logs: /opt/OS/logs/cc_credential_watch.log
+# Logs: ${UMH_ROOT:-/opt/OS}/logs/cc_credential_watch.log
 # Run in tmux session "auth_monitor"
 
 CRED_FILE="$HOME/.claude/.credentials.json"
-LOG_FILE="/opt/OS/logs/cc_credential_watch.log"
-DISCORD_WEBHOOK_ENV="/opt/OS/eos_ai/.env"
+LOG_FILE="${UMH_ROOT:-/opt/OS}/logs/cc_credential_watch.log"
+DISCORD_WEBHOOK_ENV="${UMH_ROOT:-/opt/OS}/eos_ai/.env"
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"

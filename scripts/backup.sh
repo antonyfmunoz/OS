@@ -4,21 +4,21 @@
 # Runs daily at 6am via orchestrator.
 set -euo pipefail
 
-BACKUP_DIR="/opt/OS/backups"
+BACKUP_DIR="${UMH_ROOT:-/opt/OS}/backups"
 DATE=$(date +%Y%m%d)
 ARCHIVE="$BACKUP_DIR/eos_backup_$DATE.tar.gz"
 
 mkdir -p "$BACKUP_DIR"
 
 tar -czf "$ARCHIVE" \
-  /opt/OS/data/ \
-  /opt/OS/12_Agents/ \
-  /opt/OS/.claude/ \
-  /opt/OS/eos_ai/*.py \
-  /opt/OS/PHILOSOPHY.md \
-  /opt/OS/PROTOCOLS.md \
-  /opt/OS/CLAUDE.md \
-  /opt/OS/ARCHITECTURE.md \
+  ${UMH_ROOT:-/opt/OS}/data/ \
+  ${UMH_ROOT:-/opt/OS}/12_Agents/ \
+  ${UMH_ROOT:-/opt/OS}/.claude/ \
+  ${UMH_ROOT:-/opt/OS}/eos_ai/*.py \
+  ${UMH_ROOT:-/opt/OS}/PHILOSOPHY.md \
+  ${UMH_ROOT:-/opt/OS}/PROTOCOLS.md \
+  ${UMH_ROOT:-/opt/OS}/CLAUDE.md \
+  ${UMH_ROOT:-/opt/OS}/ARCHITECTURE.md \
   2>/dev/null
 
 echo "Backup created: $ARCHIVE"

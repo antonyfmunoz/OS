@@ -9,19 +9,19 @@
 
 set -euo pipefail
 
-cd /opt/OS
+cd ${UMH_ROOT:-/opt/OS}
 
 # Config
 PORT="${UMH_API_PORT:-8000}"
 HOST="${UMH_API_HOST:-127.0.0.1}"
-LOG_DIR="${UMH_LOG_DIR:-/opt/OS/data/logs}"
+LOG_DIR="${UMH_LOG_DIR:-${UMH_ROOT:-/opt/OS}/data/logs}"
 RESTART_DELAY=3
 MAX_RESTARTS=50
 RESTART_COUNT=0
 
 # Ensure dirs
 mkdir -p "$LOG_DIR"
-mkdir -p /opt/OS/data/runtime
+mkdir -p ${UMH_ROOT:-/opt/OS}/data/runtime
 
 echo "============================================"
 echo "UMH Production Server"

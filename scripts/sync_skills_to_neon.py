@@ -105,7 +105,7 @@ def main() -> int:
         slugs = [args.skill]
 
     if not slugs:
-        eprint("No skills found under /opt/OS/skills/tools/")
+        eprint(f"No skills found under {_ROOT}/skills/tools/")
         return 1
 
     ctx = load_context_from_env()

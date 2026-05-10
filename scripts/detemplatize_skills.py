@@ -13,7 +13,7 @@ _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.ge
 
 SKILLS_DIR = f"{_ROOT}/skills"
 
-BIS_BLOCK = """!`python3 /opt/OS/scripts/bis_context.py --fields name,icp,offer,stage,primary_channel,binding_constraint,north_star`"""
+BIS_BLOCK = f"""!`python3 {_ROOT}/scripts/bis_context.py --fields name,icp,offer,stage,primary_channel,binding_constraint,north_star`"""
 
 # Patterns to detect hardcoded data (case-sensitive where needed)
 HARDCODED_PATTERNS = [

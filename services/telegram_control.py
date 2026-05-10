@@ -1126,7 +1126,7 @@ async def gaps(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def domains_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/domains — list all knowledge domains with update status."""
     try:
-        import sys; sys.path.insert(0, '/opt/OS')
+        import sys, os; sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
         from eos_ai.knowledge_domains import KnowledgeDomainRegistry
         registry = KnowledgeDomainRegistry()
         text = registry.get_status_report()
@@ -1148,7 +1148,7 @@ async def domain_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     try:
-        import sys; sys.path.insert(0, '/opt/OS')
+        import sys, os; sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
         from eos_ai.knowledge_domains import KnowledgeDomainRegistry
         registry = KnowledgeDomainRegistry()
         domain = registry.get_domain(key)
@@ -1187,7 +1187,7 @@ async def domain_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def trinity_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/trinity — show OS Trinity status: connected products, permissions, harness profile."""
     try:
-        import sys; sys.path.insert(0, '/opt/OS')
+        import sys, os; sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
         from eos_ai.context import load_context_from_env
         from eos_ai.os_trinity import OSTrinity
         ctx = load_context_from_env()
@@ -1211,7 +1211,7 @@ async def connect_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     try:
-        import sys; sys.path.insert(0, '/opt/OS')
+        import sys, os; sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
         from eos_ai.context import load_context_from_env
         from eos_ai.os_trinity import OSTrinity, VALID_PRODUCTS
         ctx = load_context_from_env()
@@ -1245,7 +1245,7 @@ async def permit_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.args[2].lower(),
     )
     try:
-        import sys; sys.path.insert(0, '/opt/OS')
+        import sys, os; sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
         from eos_ai.context import load_context_from_env
         from eos_ai.os_trinity import OSTrinity
         ctx = load_context_from_env()
@@ -1275,7 +1275,7 @@ async def revoke_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.args[2].lower(),
     )
     try:
-        import sys; sys.path.insert(0, '/opt/OS')
+        import sys, os; sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
         from eos_ai.context import load_context_from_env
         from eos_ai.os_trinity import OSTrinity
         ctx = load_context_from_env()
@@ -1295,7 +1295,7 @@ async def aistate_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/aistate — run AI landscape scan and return frontier/cost-efficient model summary."""
     await update.message.reply_text("Running AI landscape scan... (30-60s)")
     try:
-        import sys; sys.path.insert(0, '/opt/OS')
+        import sys, os; sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
         from eos_ai.context import load_context_from_env
         from eos_ai.research_engine import ResearchEngine
         ctx = load_context_from_env()
@@ -1323,7 +1323,7 @@ async def aistate_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_errors(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/errors — show recent system errors from Neon."""
     try:
-        import sys; sys.path.insert(0, '/opt/OS')
+        import sys, os; sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
         from eos_ai.db import get_conn
         from eos_ai.context import load_context_from_env
         ctx = load_context_from_env()
@@ -1393,7 +1393,7 @@ async def handle_outcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
     notes = ' '.join(args[2:]) if len(args) > 2 else ''
 
     try:
-        import sys; sys.path.insert(0, '/opt/OS')
+        import sys, os; sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
         from eos_ai.memory import AgentMemory
         from eos_ai.event_bus import EventBus
         mem = AgentMemory()
@@ -1726,7 +1726,7 @@ async def calendar_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/calendar — today's events + this week."""
     try:
         import sys
-        sys.path.insert(0, "/opt/OS")
+        sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
         from eos_ai.gws_connector import GWSConnector
         gws = GWSConnector()
 
@@ -1761,7 +1761,7 @@ async def gtasks_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/gtasks — Google Tasks list."""
     try:
         import sys
-        sys.path.insert(0, "/opt/OS")
+        sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
         from eos_ai.gws_connector import GWSConnector
         gws   = GWSConnector()
         tasks = gws.get_tasks()
@@ -1782,7 +1782,7 @@ async def gmail_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/gmail — last 5 email subjects + senders."""
     try:
         import sys
-        sys.path.insert(0, "/opt/OS")
+        sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
         from eos_ai.gws_connector import GWSConnector
         gws    = GWSConnector()
         emails = gws.get_recent_emails(max_results=5)
@@ -2852,7 +2852,8 @@ async def _run_post_meeting_automation(
     # Step 8d — CRM update
     try:
         import glob as _glob
-        crm_pattern = f"/opt/OS/03_CRM/Leads/lead_{lead_name}_*.md"
+        _crm_root = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+        crm_pattern = f"{_crm_root}/03_CRM/Leads/lead_{lead_name}_*.md"
         matches = sorted(_glob.glob(crm_pattern))
         if matches:
             lead_file = matches[-1]

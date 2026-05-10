@@ -21,7 +21,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - /opt/OS:/app
+      - ${UMH_ROOT:-/opt/OS}:/app
     env_file:
       - ./services.env
     environment:
@@ -45,8 +45,8 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - /opt/OS:/app
-      - /opt/OS/logs:/opt/OS/logs
+      - ${UMH_ROOT:-/opt/OS}:/app
+      - ${UMH_ROOT:-/opt/OS}/logs:${UMH_ROOT:-/opt/OS}/logs
     env_file:
       - ./services.env
       - ./umh.env
@@ -71,7 +71,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - /opt/OS:/app
+      - ${UMH_ROOT:-/opt/OS}:/app
     env_file:
       - ./services.env
       - ./umh.env
@@ -94,7 +94,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - /opt/OS:/app
+      - ${UMH_ROOT:-/opt/OS}:/app
     env_file:
       - ./services.env
     environment:
@@ -121,8 +121,8 @@ services:
     ports:
       - "0.0.0.0:8765:8765"
     volumes:
-      - /opt/OS:/app
-      - /opt/OS/logs:/opt/OS/logs
+      - ${UMH_ROOT:-/opt/OS}:/app
+      - ${UMH_ROOT:-/opt/OS}/logs:${UMH_ROOT:-/opt/OS}/logs
       - /root/.config/gws:/root/.config/gws
       - /root/.config/@googleworkspace:/root/.config/@googleworkspace
       - /root/.claude:/root/.claude:ro

@@ -16,8 +16,8 @@ MASTER_CRED="/root/.claude/.credentials.json"
 SESSIONS_BASE="/root/.claude_sessions"
 SESSION_NAMES=("builder" "product" "adhoc")
 LOCK_FILE="/tmp/cc_credential.lock"
-LOG_FILE="/opt/OS/logs/cc_credential_coordinator.log"
-DISCORD_WEBHOOK_ENV="/opt/OS/eos_ai/.env"
+LOG_FILE="${UMH_ROOT:-/opt/OS}/logs/cc_credential_coordinator.log"
+DISCORD_WEBHOOK_ENV="${UMH_ROOT:-/opt/OS}/eos_ai/.env"
 BACKUP_DIR="/root/.claude/.credentials_backups"
 
 mkdir -p "$BACKUP_DIR" "$(dirname "$LOG_FILE")"

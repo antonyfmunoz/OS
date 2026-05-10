@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # session_resurrector.sh — checks CC session health in tmux, alerts if dead
 # Does NOT auto-restart CC (requires interactive auth) — alerts operator instead
-# Run: */5 * * * * bash /opt/OS/scripts/auth_monitor/session_resurrector.sh
+# Run: */5 * * * * bash ${UMH_ROOT:-/opt/OS}/scripts/auth_monitor/session_resurrector.sh
 
-LOG_FILE="/opt/OS/logs/cc_session_health.log"
-DISCORD_WEBHOOK_ENV="/opt/OS/eos_ai/.env"
+LOG_FILE="${UMH_ROOT:-/opt/OS}/logs/cc_session_health.log"
+DISCORD_WEBHOOK_ENV="${UMH_ROOT:-/opt/OS}/eos_ai/.env"
 
 WATCHED_SESSIONS=("dex_builder_main" "dex_product_main")
 

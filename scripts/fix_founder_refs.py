@@ -6,7 +6,7 @@ _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.ge
 
 
 SKILLS_DIR = f"{_ROOT}/skills"
-FOUNDER_BIS = "!" + "`python3 /opt/OS/scripts/bis_context.py --founder`"
+FOUNDER_BIS = "!" + f"`python3 {_ROOT}/scripts/bis_context.py --founder`"
 
 updated = 0
 for root, dirs, files in sorted(os.walk(SKILLS_DIR)):

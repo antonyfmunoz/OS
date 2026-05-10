@@ -4,10 +4,10 @@
 
 set -euo pipefail
 
-LOG="/opt/OS/logs/morning_$(date +%Y%m%d).log"
+LOG="${UMH_ROOT:-/opt/OS}/logs/morning_$(date +%Y%m%d).log"
 echo "=== EOS Morning Prep: $(date) ===" >> "$LOG"
 
-cd /opt/OS
+cd ${UMH_ROOT:-/opt/OS}
 
 # Substrate: start open_day ritual (additive, failures non-fatal).
 RITUAL_ID="$(python3 -m eos_ai.substrate.ritual_runner open_day start 2>>"$LOG" || true)"
@@ -15,8 +15,8 @@ echo "[$(date -Iseconds)] open_day ritual_id=${RITUAL_ID:-none}" >> "$LOG"
 
 # Provider health gate — skip if no LLM provider is reachable
 if ! python3 -c "
-import sys; sys.path.insert(0, '/opt/OS')
-from dotenv import load_dotenv; load_dotenv('/opt/OS/eos_ai/.env')
+import sys; import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS')
+from dotenv import load_dotenv; load_dotenv(os.path.join(os.environ.get('UMH_ROOT', '/opt/OS'), 'eos_ai/.env'))
 from eos_ai.provider_health import check_all
 sys.exit(0 if check_all().any_healthy else 1)
 " 2>/dev/null; then
@@ -25,9 +25,9 @@ sys.exit(0 if check_all().any_healthy else 1)
 fi
 
 claude -p --allowedTools "Bash Read Glob Grep" \
-  --add-dir /opt/OS \
+  --add-dir ${UMH_ROOT:-/opt/OS} \
   --max-budget-usd 0.30 \
-  "Read /opt/OS/.claude/CLAUDE.md.
+  "Read ${UMH_ROOT:-/opt/OS}/.claude/CLAUDE.md.
 
 Run EOS morning preparation. Fix anything broken. Report final status.
 
@@ -39,14 +39,14 @@ Step 2 — API key check:
   python3 -c \"
 import os; from pathlib import Path
 from dotenv import load_dotenv
-load_dotenv('/opt/OS/eos_ai/.env')
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT', '/opt/OS'), 'eos_ai/.env'))
 key = os.getenv('ANTHROPIC_API_KEY','')
 print('Anthropic key:', 'set' if key else 'MISSING')
 \"
 
 Step 3 — Neon connection check:
   python3 -c \"
-import sys; sys.path.insert(0,'/opt/OS')
+import sys; import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS')
 from eos_ai.db import get_conn
 from eos_ai.context import load_context_from_env
 ctx = load_context_from_env()
@@ -57,7 +57,7 @@ with get_conn(ctx.org_id) as cur:
 
 Step 4 — GWS auth check:
   python3 -c \"
-import sys; sys.path.insert(0,'/opt/OS')
+import sys; import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS')
 from eos_ai.gws_connector import GWSConnector
 gws = GWSConnector()
 status = 'ok' if gws else 'unavailable'

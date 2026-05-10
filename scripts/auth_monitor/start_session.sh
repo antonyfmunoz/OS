@@ -18,7 +18,7 @@ set -euo pipefail
 
 SESSIONS_BASE="/root/.claude_sessions"
 MASTER_DIR="/root/.claude"
-SETUP_SCRIPT="/opt/OS/scripts/auth_monitor/setup_isolation.sh"
+SETUP_SCRIPT="${UMH_ROOT:-/opt/OS}/scripts/auth_monitor/setup_isolation.sh"
 
 SESSION_NAME="${1:?Usage: start_session.sh <session_name> [claude_args...]}"
 shift

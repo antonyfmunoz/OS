@@ -46,8 +46,8 @@ from core.tool_mastery_manager.paths import SKILLS_TOOLS_DIR  # noqa: E402
 VALID_WORK_TYPES = ("research", "refresh", "repair")
 
 TME_DECISION_TREE = f"{_ROOT}/skills/meta/tool_mastery_engine/SKILL.md"
-VERIFY_CMD = "python3 /opt/OS/scripts/verify_tool_skill.py --skill {slug}"
-SYNC_CMD = "python3 /opt/OS/scripts/sync_skills_to_neon.py --skill {slug}"
+VERIFY_CMD = f"python3 {_ROOT}/scripts/verify_tool_skill.py --skill {{slug}}"
+SYNC_CMD = f"python3 {_ROOT}/scripts/sync_skills_to_neon.py --skill {{slug}}"
 
 
 def _plan_research(slug: str) -> dict:

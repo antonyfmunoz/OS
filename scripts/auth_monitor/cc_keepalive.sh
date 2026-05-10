@@ -3,7 +3,7 @@
 # Runs every 6 hours via cron. Sends a lightweight no-op to active
 # CC tmux sessions to trigger token refresh before the 8h TTL expires.
 
-LOG="/opt/OS/logs/cc_keepalive.log"
+LOG="${UMH_ROOT:-/opt/OS}/logs/cc_keepalive.log"
 SESSIONS=("dex_builder_main" "dex_product_main")
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$LOG"; }

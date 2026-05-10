@@ -296,8 +296,8 @@ def main() -> int:
 
     # Log files written:
     print("\nLog files written:")
-    print(f"  Execution log: /opt/OS/logs/execution/")
-    print(f"  Decision log:  /opt/OS/logs/decisions/")
+    print(f"  Execution log: {_ROOT}/logs/execution/")
+    print(f"  Decision log:  {_ROOT}/logs/decisions/")
     print(f"  Workflow log:  {WORKFLOW_LOG}")
     print(f"  Action log:    {ACTION_LOG}")
     print(f"  Optimizer:     {Path(_ROOT) / "data" / "optimizer_proposals.jsonl"}")
