@@ -4,6 +4,7 @@
 > Supersedes: R7 recommendation of `umh_runtime/`
 > Target namespace: `runtime/`
 > Type: Execution plan — no code changes in this commit
+> Revision: R8v2 — incorporates architectural tightening
 
 ---
 
@@ -17,6 +18,10 @@
 - Simpler import path: `from runtime.db import get_conn`
 - Cleaner long-term architecture: `core/` + `runtime/` + `services/`
 - Avoids redundant `umh_runtime` naming inside a UMH repo
+
+**Architectural stance:** This is topology surgery, not cosmetic refactoring.
+The migration produces one runtime with many temporary namespace entrypoints —
+never two parallel mutable implementations.
 
 ---
 
@@ -64,12 +69,12 @@ alternative/mirror last modified during R5.
 - The 6 internal refs in `runtime/docker-compose.yml` and
   `runtime/Dockerfile` update trivially
 
-### 1.3 `eos_ai/runtime/` — Merge Into New `runtime/`
+### 1.3 `eos_ai/runtime/` — Flatten Into New `runtime/`
 
 The 2 files in `eos_ai/runtime/` (`work_state.py`, `provider_state.py`)
-are CONFIRMED_RUNTIME with 16 import sites. They become
-`runtime/runtime_state/` or simply `runtime/work_state.py` and
-`runtime/provider_state.py` (flat, matching eos_ai/ structure).
+are CONFIRMED_RUNTIME with 16 import sites. They flatten to
+`runtime/work_state.py` and `runtime/provider_state.py` (matching
+eos_ai/ flat module pattern).
 
 ### 1.4 `core/runtime/` — No Collision
 
@@ -84,23 +89,28 @@ Data directory, not a Python package. No collision.
 
 ## 2. File Migration Map
 
-### 2.1 eos_ai/ → runtime/ (Source Code)
+### 2.1 eos_ai/ → runtime/ (Atomic Move, Not Copy)
+
+**INVARIANT:** At no point do two mutable implementations coexist.
+Each file is moved (not copied), then the source location becomes
+a compatibility shim. One runtime, many namespace entrypoints.
 
 | Source | Destination | Files | Notes |
 |--------|-------------|-------|-------|
 | `eos_ai/*.py` (123 files) | `runtime/*.py` | 123 | Top-level modules |
 | `eos_ai/transport/*.py` (164 files) | `runtime/transport/*.py` | 164 | Canonical transport subsystem |
-| `eos_ai/transport/__init__.py` | `runtime/transport/__init__.py` | 1 | 575-line init with lazy imports |
-| `eos_ai/substrate/*.py` (164 shims) | `runtime/substrate/*.py` | 164 | All are `from eos_ai.transport.X import *` → update to `from runtime.transport.X import *` |
+| `eos_ai/transport/__init__.py` | `runtime/transport/__init__.py` | 1 | 575-line init with deferred imports |
+| `eos_ai/substrate/*.py` (164 shims) | `runtime/substrate/*.py` | 164 | Currently `from eos_ai.transport.X import *` → update to `from runtime.transport.X import *` |
 | `eos_ai/substrate/__init__.py` | `runtime/substrate/__init__.py` | 1 | Update: `from eos_ai.transport import *` → `from runtime.transport import *` |
-| `eos_ai/runtime/*.py` (2 files) | `runtime/work_state.py`, `runtime/provider_state.py` | 2 | Flatten from subdirectory to top-level |
+| `eos_ai/runtime/work_state.py` | `runtime/work_state.py` | 1 | Flattened from subdirectory |
+| `eos_ai/runtime/provider_state.py` | `runtime/provider_state.py` | 1 | Flattened from subdirectory |
 | `eos_ai/interfaces/*.py` (2 files) | `runtime/interfaces/*.py` | 2 | Dormant |
-| `eos_ai/platforms/eos/*.py` (compiled only) | `runtime/platforms/eos/` | 0 | No source files remain, only `__pycache__` |
+| `eos_ai/platforms/eos/` | `runtime/platforms/eos/` | 0 | No source files remain, only `__pycache__` — skip |
 | `eos_ai/CLAUDE.md` | `runtime/CLAUDE.md` | 1 | Update identity |
 | `eos_ai/README_STATUS.md` | `runtime/README_STATUS.md` | 1 | Update identity |
-| `eos_ai/.env` | Decision in §5 | 1 | Env file |
+| `eos_ai/.env` | See §4 | 1 | Env file |
 
-**Total source files to migrate:** ~458 `.py` files + 2 `.md` files
+**Total source files to move:** ~458 `.py` files + 2 `.md` files
 
 ### 2.2 runtime/ → infra/docker/ (Deployment Config)
 
@@ -124,18 +134,26 @@ Data directory, not a Python package. No collision.
 
 ## 3. Compatibility Shim Design
 
-### 3.1 Shim Architecture
+### 3.1 Core Invariant
+
+**One runtime. Many entrypoints. Zero duplication.**
+
+After migration, `runtime/` contains the only mutable implementation.
+`eos_ai/` contains only generated shims — single-line re-exports that
+forward to `runtime/`. No logic, no state, no conditional behavior.
+
+### 3.2 Shim Architecture
 
 ```
-runtime/                       ← canonical location (NEW)
+runtime/                       ← canonical location (ONLY mutable code)
   db.py                        ← actual code
   context.py                   ← actual code
   model_router.py              ← actual code
   transport/                   ← canonical transport
-  substrate/                   ← shim → transport (preserved)
+  substrate/                   ← shim → transport (preserved behavior)
   ...
 
-eos_ai/                        ← compatibility shim (TEMPORARY)
+eos_ai/                        ← generated compatibility layer (IMMUTABLE)
   db.py                        ← from runtime.db import *
   context.py                   ← from runtime.context import *
   model_router.py              ← from runtime.model_router import *
@@ -146,25 +164,86 @@ eos_ai/                        ← compatibility shim (TEMPORARY)
   ...
 ```
 
-### 3.2 Shim Module Template
+### 3.3 Shim Generation Requirements
 
+Shims are generated by a deterministic script, never handwritten.
+
+**Generator responsibilities:**
+1. Walk `runtime/` to discover all `.py` modules
+2. For each module, emit the corresponding `eos_ai/` shim
+3. Handle special cases:
+   - `substrate/*.py` → target is `runtime.transport.{module}` (preserving
+     existing shim chain behavior)
+   - `runtime/work_state.py` → shim at `eos_ai/runtime/work_state.py`
+     (depth differs)
+   - `transport/__init__.py` → single `from runtime.transport import *`
+4. Produce a shim manifest (`data/migration/r8_shim_manifest.json`)
+5. Produce a diff report (expected vs actual shim count)
+6. Detect orphan shims (eos_ai/ files with no runtime/ counterpart)
+7. Detect missing shims (runtime/ files with no eos_ai/ shim)
+
+**Shim format (deterministic):**
+
+For top-level modules:
 ```python
-# eos_ai/{module}.py — compatibility shim
 from runtime.{module} import *  # noqa: F401,F403
 ```
 
-No deprecation warnings during shim period. Silent re-export only.
-Warnings add noise in a solo-founder project with no external consumers.
+For transport submodules:
+```python
+from runtime.transport.{module} import *  # noqa: F401,F403
+```
 
-### 3.3 eos_ai/runtime/ → runtime/ Shim (Special Case)
+For substrate submodules (preserving shim chain):
+```python
+from runtime.transport.{module} import *  # noqa: F401,F403
+```
 
-Current imports: `from eos_ai.runtime.work_state import ...`
-New location: `runtime/work_state.py` (flattened)
-Shim: `eos_ai/runtime/work_state.py` → `from runtime.work_state import *`
+For `__init__.py` files:
+```python
+from runtime.{package} import *  # noqa: F401,F403
+```
 
-This is a depth change (2 levels → 1 level). The shim handles it.
+### 3.4 Shim Manifest Schema
 
-### 3.4 eos_ai/substrate/ Shim Chain
+```json
+{
+  "generated_at": "2026-05-10T...",
+  "generator": "scripts/r8_generate_shims.py",
+  "runtime_modules": 458,
+  "shims_generated": 458,
+  "orphans": [],
+  "missing": [],
+  "special_cases": {
+    "depth_changes": ["eos_ai/runtime/work_state.py", "eos_ai/runtime/provider_state.py"],
+    "chain_preservations": ["eos_ai/substrate/*.py → runtime.transport.*"]
+  }
+}
+```
+
+### 3.5 Shim Validation
+
+After generation, verify:
+```bash
+# 1. Every runtime/ module has a corresponding eos_ai/ shim
+python3 scripts/r8_validate_shims.py --check-coverage
+
+# 2. No shim contains more than 1 line of executable code
+find eos_ai/ -name '*.py' -exec wc -l {} + | awk '$1 > 1 {print "OVERSIZED:", $0}'
+
+# 3. Every shim imports from runtime/, never from eos_ai/
+grep -rn "from eos_ai\." eos_ai/ --include='*.py' | wc -l  # expect: 0
+
+# 4. Replay test: import through shim, import canonical, compare identity
+python3 -c "
+from eos_ai.db import get_conn as shim_fn
+from runtime.db import get_conn as canon_fn
+assert shim_fn is canon_fn, 'identity mismatch'
+print('replay identity: PASS')
+"
+```
+
+### 3.6 eos_ai/substrate/ Shim Chain
 
 Current chain: `eos_ai.substrate.X` → `eos_ai.transport.X` (existing shim)
 New chain: `eos_ai.substrate.X` → `runtime.transport.X` (updated shim)
@@ -173,7 +252,7 @@ The `runtime/substrate/` directory preserves the existing shim behavior
 (`runtime.substrate.X` → `runtime.transport.X`), maintaining the same
 two-path import surface.
 
-### 3.5 transport/__init__.py Internal References
+### 3.7 transport/__init__.py Deferred Import Strings
 
 The 575-line `transport/__init__.py` uses deferred imports like:
 ```python
@@ -181,7 +260,7 @@ The 575-line `transport/__init__.py` uses deferred imports like:
 ```
 
 These string-based internal references (inside `_deferred_blocks`) must
-be updated to `"runtime.transport.nodes"` during the file migration.
+be updated to `"runtime.transport.nodes"` during the file move (R8b).
 This is an internal self-reference, not an external consumer.
 
 ---
@@ -202,18 +281,18 @@ This is an internal self-reference, not an external consumer.
 2. Create symlink: `eos_ai/.env` → `runtime/.env`
 3. Symlink ensures Docker compose `env_file: eos_ai/.env` continues working
 4. Migrate `load_dotenv` calls to `runtime/.env` during consumer update waves
-5. Remove symlink when `eos_ai/` directory is deleted (R8g)
+5. Remove symlink when `eos_ai/` directory is deleted (R8i)
 
 ### 4.3 eos_ai/.env Reference Sites (256 total)
 
 | Category | Count | Migration Wave |
 |----------|-------|----------------|
-| Docker compose `env_file:` | 3 | R8f (deploy) |
-| Shell scripts `source`/`check` | 6 | R8f (deploy) |
-| Python `load_dotenv()` | ~20 | R8e (strings) |
-| Claude Code skills/commands | 12 | R8f (deploy) |
-| Documentation/CLAUDE.md | 10+ | R8f (deploy) |
-| Test fixtures | 5 | R8d (tests) |
+| Docker compose `env_file:` | 3 | R8g (deploy) |
+| Shell scripts `source`/`check` | 6 | R8g (deploy) |
+| Python `load_dotenv()` | ~20 | R8f (strings) |
+| Claude Code skills/commands | 12 | R8g (deploy) |
+| Documentation/CLAUDE.md | 10+ | R8g (deploy) |
+| Test fixtures | 5 | R8e (tests) |
 
 ---
 
@@ -223,26 +302,26 @@ This is an internal self-reference, not an external consumer.
 
 | Consumer | `from eos_ai` | `import eos_ai` | Total | Wave |
 |----------|---------------|-----------------|-------|------|
-| `eos_ai/` (self) | 1,448 | 2 | 1,450 | R8c (internal) |
-| `scripts/` | 470 | 33 | 503 | R8d (scripts) |
-| `tests/` | 380 | 4 | 384 | R8d (tests) |
-| `services/` | 304 | 0 | 304 | R8d (services) |
+| `eos_ai/` (self) | 1,448 | 2 | 1,450 | R8b+R8c (move + internal topology) |
+| `scripts/` | 470 | 33 | 503 | R8e (external) |
+| `tests/` | 380 | 4 | 384 | R8e (external) |
+| `services/` | 304 | 0 | 304 | R8e (external) |
 | `archive/` | 65 | 0 | 65 | SKIP (frozen) |
-| `core/` | 16 | 0 | 16 | R8d (circular dep resolution) |
-| `saas/` | 3 | 0 | 3 | R8d (services) |
-| `templates/` | 1 | 0 | 1 | R8d (services) |
+| `core/` | 16 | 0 | 16 | R8e (circular dep resolution) |
+| `saas/` | 3 | 0 | 3 | R8e (external) |
+| `templates/` | 1 | 0 | 1 | R8e (external) |
 
 ### 5.2 Non-Python References (789 total)
 
 | Type | Count | Wave |
 |------|-------|------|
-| `mock.patch("eos_ai.X")` strings | 221 | R8e (strings) |
-| Filesystem path refs (`eos_ai/`) | 201 | R8e (strings) |
-| Shell script refs | 85 | R8f (deploy) |
-| `eos_ai/.env` refs | 256 | R8e + R8f |
-| Docker/config refs | 4 | R8f (deploy) |
-| `python3 -m eos_ai` | 20 | R8f (deploy) |
-| Crontab entries | 2 | R8f (deploy) |
+| `mock.patch("eos_ai.X")` strings | 221 | R8f (strings) |
+| Filesystem path refs (`eos_ai/`) | 201 | R8f (strings) |
+| Shell script refs | 85 | R8g (deploy) |
+| `eos_ai/.env` refs | 256 | R8f + R8g |
+| Docker/config refs | 4 | R8g (deploy) |
+| `python3 -m eos_ai` | 20 | R8g (deploy) |
+| Crontab entries | 2 | R8g (deploy) |
 
 ### 5.3 Circular Dependencies (41 cross-imports)
 
@@ -258,14 +337,14 @@ This is an internal self-reference, not an external consumer.
 | `core/action_system/policy.py` | `authority_engine` | Update to `from runtime.authority_engine` |
 
 **Strategy:** All 16 core/ → eos_ai/ imports are lazy (inside function bodies)
-or at module level in non-critical paths. During R8d, update them to
+or at module level in non-critical paths. During R8e, update them to
 `from runtime.X`. The circular dependency is architectural debt but does
 not cause import cycles because of lazy import patterns.
 
 **eos_ai/ → core/ (25 imports) — EXPECTED DIRECTION**
 
-These become `runtime/ → core/` imports. No change needed — they're
-already the correct dependency direction.
+These become `runtime/ → core/` imports. Updated during R8c as part
+of internal topology migration.
 
 ---
 
@@ -296,39 +375,138 @@ already the correct dependency direction.
 **Rollback:** `git mv infra/docker/* runtime/`
 **Commit:** `root-migration-r8a: relocate runtime/ docker config to infra/docker/`
 
-### Wave R8b — Create `runtime/` Package + Copy Code (LOW RISK)
+### Wave R8b — Create Canonical `runtime/` via Atomic Move (MEDIUM RISK)
 
-**Purpose:** Create the new canonical package with all eos_ai code.
+**Purpose:** Move eos_ai/ implementation into runtime/ atomically.
+No duplicated live implementations.
+
+**Core invariant:** After R8b, `runtime/` is the only location with
+mutable source code. `eos_ai/` is either empty or contains only
+generated shims. At no point do two parallel mutable implementations exist.
 
 **Actions:**
-1. Create `runtime/` directory (no `__init__.py` — implicit namespace, matching eos_ai)
-2. Copy all 123 top-level `.py` files from `eos_ai/` to `runtime/`
-3. Copy `eos_ai/transport/` → `runtime/transport/` (164 files + `__init__.py`)
-4. Copy `eos_ai/substrate/` → `runtime/substrate/` (164 shim files + `__init__.py`)
-5. Copy `eos_ai/runtime/work_state.py` → `runtime/work_state.py`
-6. Copy `eos_ai/runtime/provider_state.py` → `runtime/provider_state.py`
-7. Copy `eos_ai/interfaces/` → `runtime/interfaces/` (2 files)
-8. Copy `eos_ai/CLAUDE.md` → `runtime/CLAUDE.md`
-9. Copy `eos_ai/README_STATUS.md` → `runtime/README_STATUS.md`
-10. **DO NOT update any import statements yet** — both packages coexist
+
+1. **Capture pre-move import graph snapshot:**
+   ```bash
+   python3 scripts/r8_import_graph_snapshot.py --output data/migration/r8_pre_move_graph.json
+   ```
+   Records: every importable module, its dependencies, initialization order,
+   cycle membership. This is the baseline for R8c comparison.
+
+2. **Atomic move** of all eos_ai/ source into runtime/:
+   ```bash
+   # Move top-level modules
+   for f in eos_ai/*.py; do git mv "$f" "runtime/$(basename $f)"; done
+
+   # Move transport/ (canonical subsystem)
+   git mv eos_ai/transport runtime/transport
+
+   # Move substrate/ (shim layer)
+   git mv eos_ai/substrate runtime/substrate
+
+   # Flatten eos_ai/runtime/ into runtime/ top-level
+   git mv eos_ai/runtime/work_state.py runtime/work_state.py
+   git mv eos_ai/runtime/provider_state.py runtime/provider_state.py
+
+   # Move interfaces/ (dormant)
+   git mv eos_ai/interfaces runtime/interfaces
+
+   # Move docs
+   git mv eos_ai/CLAUDE.md runtime/CLAUDE.md
+   git mv eos_ai/README_STATUS.md runtime/README_STATUS.md
+   ```
+
+3. **Immediately install temporary re-export bridges** where atomic move
+   is unsafe (where external consumers would break before R8d/R8e):
+   - Create minimal `eos_ai/` directory with bridge modules that re-export
+     from `runtime/` — these are NOT the final shims (R8d generates those)
+   - These bridges exist solely to keep `from eos_ai.X` imports working
+     during the transition window between R8b and R8d
+   - Bridge modules are marked with a generation header so R8d can
+     safely overwrite them
+
+4. **Move .env:** `eos_ai/.env` → `runtime/.env`, create symlink
+   `eos_ai/.env → runtime/.env`
+
+**What remains in eos_ai/ after R8b:**
+- Temporary re-export bridges (overwritten by R8d generated shims)
+- `.env` symlink → `runtime/.env`
+- `__pycache__/` (stale, harmless)
 
 **Verification:**
 ```bash
-python3 -c "import sys; sys.path.insert(0,'/opt/OS'); from runtime.db import get_conn; print('runtime.db: ok')"
-python3 -c "import sys; sys.path.insert(0,'/opt/OS'); from runtime.context import load_context_from_env; print('runtime.context: ok')"
-python3 -c "import sys; sys.path.insert(0,'/opt/OS'); from eos_ai.db import get_conn; print('eos_ai.db: still ok')"
+# Canonical imports work
+python3 -c "from runtime.db import get_conn; print('runtime.db: ok')"
+python3 -c "from runtime.context import load_context_from_env; print('runtime.context: ok')"
+# Bridge imports work
+python3 -c "from eos_ai.db import get_conn; print('eos_ai.db bridge: ok')"
+# No duplicated source
+find runtime/ -name '*.py' | wc -l   # should be ~458
+find eos_ai/ -name '*.py' | wc -l    # should be ~458 (bridges only)
+# Bridge files are all single-line
+find eos_ai/ -name '*.py' -exec wc -l {} + | awk '$1 > 1 {print "WARNING:", $0}'
 ```
 
-**Files affected:** ~460 files copied (additive)
-**Rollback:** `rm -rf runtime/`
-**Commit:** `root-migration-r8b: create runtime/ package from eos_ai/ source`
+**Files affected:** ~458 moved + ~458 bridge files created
+**Rollback:** `git checkout HEAD -- eos_ai/ && rm -rf runtime/`
+**Commit:** `root-migration-r8b: move eos_ai/ implementation to runtime/ with re-export bridges`
 
-### Wave R8c — Update Internal Self-References (HIGH RISK)
+### Wave R8c — Internal Topology Migration (HIGHEST RISK)
 
-**Purpose:** Make `runtime/` self-consistent — all internal imports
-reference `runtime.*` instead of `eos_ai.*`.
+**Purpose:** Make `runtime/` internally self-consistent — all internal
+imports reference `runtime.*` instead of `eos_ai.*`.
+
+**Why this is the most dangerous step:**
+
+Updating 1,450 internal self-references alters:
+- Runtime import topology
+- Module initialization order
+- Implicit dependency resolution
+- Circular graph behavior
+- Lazy import timing
+- Deferred registration order
+- Singleton identity
+
+A "successful" sed replacement can still subtly corrupt bootstrap
+ordering, lazy import timing, or singleton identity. These are the
+hardest bugs to detect because tests pass but runtime behavior diverges.
+
+**Pre-flight requirements (MANDATORY):**
+
+1. **Import graph snapshot BEFORE:**
+   ```bash
+   python3 scripts/r8_import_graph_snapshot.py \
+     --root runtime/ \
+     --output data/migration/r8c_pre_graph.json
+   ```
+   Records for every module in `runtime/`:
+   - Direct imports (module-level)
+   - Lazy imports (inside function bodies)
+   - Cycle membership (which modules participate in circular imports)
+   - Init order (topological sort position)
+   - Singleton registrations (globals, registries)
+
+2. **Cold boot baseline timing:**
+   ```bash
+   python3 -c "
+   import time, sys
+   sys.path.insert(0, '/opt/OS')
+   t0 = time.monotonic()
+   from runtime.db import get_conn
+   from runtime.context import load_context_from_env
+   from runtime.model_router import get_router
+   from runtime.gateway import EOSGateway
+   from runtime.memory import AgentMemory
+   from runtime.agent_runtime import AgentRuntime
+   from runtime.cognitive_loop import CognitiveLoop
+   from runtime.transport.storage import get_storage
+   elapsed = time.monotonic() - t0
+   print(f'cold boot: {elapsed:.3f}s')
+   " 2>&1 | tee data/migration/r8c_pre_boot_timing.txt
+   ```
 
 **Actions:**
+
 1. In all `runtime/*.py` (top-level): `from eos_ai.` → `from runtime.`
 2. In all `runtime/transport/*.py`: `from eos_ai.` → `from runtime.`
 3. In `runtime/transport/__init__.py`: update deferred import strings
@@ -340,83 +518,185 @@ reference `runtime.*` instead of `eos_ai.*`.
 6. Flatten `eos_ai.runtime.X` refs within runtime/:
    `from eos_ai.runtime.work_state` → `from runtime.work_state`
    `from eos_ai.runtime.provider_state` → `from runtime.provider_state`
-7. Update `eos_ai/ → core/` refs to `runtime/ → core/` (25 sites, trivial)
+7. Update `from core.` imports — these stay as `from core.` (correct
+   direction, no change needed)
 
 **Estimated edits:** ~1,450 import statements across ~300 files
 
-**Verification:**
-```bash
-# Compile check all runtime/ files
-find runtime/ -name '*.py' -exec python3 -m py_compile {} +
-# Import check critical modules
-python3 -c "from runtime.db import get_conn; print('ok')"
-python3 -c "from runtime.model_router import get_router; print('ok')"
-python3 -c "from runtime.transport.storage import get_storage; print('ok')"
-python3 -c "from runtime.substrate.storage import get_storage; print('ok')"
-# Verify no eos_ai refs remain inside runtime/
-grep -rn "from eos_ai\|import eos_ai" runtime/ --include='*.py' | wc -l  # expect: 0
-```
+**Post-flight verification (MANDATORY):**
 
-**Rollback:** `rm -rf runtime/ && git checkout HEAD -- runtime/` (restores
-infra/docker version — wait, R8a already moved it. Rollback: `rm -rf runtime/`
-then re-copy from eos_ai/)
-**Commit:** `root-migration-r8c: update runtime/ internal self-references`
+1. **Compile check:**
+   ```bash
+   find runtime/ -name '*.py' -exec python3 -m py_compile {} +
+   ```
 
-### Wave R8d — Install Compatibility Shims in eos_ai/ (MEDIUM RISK)
+2. **Import graph snapshot AFTER:**
+   ```bash
+   python3 scripts/r8_import_graph_snapshot.py \
+     --root runtime/ \
+     --output data/migration/r8c_post_graph.json
+   ```
 
-**Purpose:** Replace eos_ai/ source files with shims that re-export
-from runtime/. All existing `from eos_ai.*` imports continue working.
+3. **Graph comparison:**
+   ```bash
+   python3 scripts/r8_compare_import_graphs.py \
+     data/migration/r8c_pre_graph.json \
+     data/migration/r8c_post_graph.json \
+     --output data/migration/r8c_graph_diff.json
+   ```
+   Validates:
+   - **Cycle count comparison:** same number of cycles, same members
+     (modulo `eos_ai` → `runtime` rename)
+   - **Module init order diff:** topological sort is isomorphic
+   - **Dependency count per module:** unchanged
+   - **New cycles introduced:** MUST be zero
+   - **Lost edges:** MUST be zero (every old dependency has a
+     corresponding new dependency)
+
+4. **Cold boot timing comparison:**
+   ```bash
+   python3 -c "
+   import time, sys
+   sys.path.insert(0, '/opt/OS')
+   t0 = time.monotonic()
+   from runtime.db import get_conn
+   from runtime.context import load_context_from_env
+   from runtime.model_router import get_router
+   from runtime.gateway import EOSGateway
+   from runtime.memory import AgentMemory
+   from runtime.agent_runtime import AgentRuntime
+   from runtime.cognitive_loop import CognitiveLoop
+   from runtime.transport.storage import get_storage
+   elapsed = time.monotonic() - t0
+   print(f'cold boot: {elapsed:.3f}s')
+   " 2>&1 | tee data/migration/r8c_post_boot_timing.txt
+   ```
+   **Acceptance:** post timing within 20% of pre timing.
+   Significant deviation indicates init order corruption.
+
+5. **Zero residual eos_ai refs:**
+   ```bash
+   grep -rn "from eos_ai\|import eos_ai" runtime/ --include='*.py' | wc -l
+   # MUST be 0
+   ```
+
+6. **Replay identity verification:**
+   ```bash
+   python3 -c "
+   import sys; sys.path.insert(0, '/opt/OS')
+   # Import through bridge (eos_ai/) and canonical (runtime/)
+   from eos_ai.db import get_conn as bridge_fn
+   from runtime.db import get_conn as canon_fn
+   assert bridge_fn is canon_fn, 'IDENTITY MISMATCH: db.get_conn'
+
+   from eos_ai.model_router import get_router as bridge_r
+   from runtime.model_router import get_router as canon_r
+   assert bridge_r is canon_r, 'IDENTITY MISMATCH: model_router.get_router'
+
+   from eos_ai.context import load_context_from_env as bridge_c
+   from runtime.context import load_context_from_env as canon_c
+   assert bridge_c is canon_c, 'IDENTITY MISMATCH: context.load_context_from_env'
+
+   print('replay identity: ALL PASS')
+   "
+   ```
+
+**If ANY post-flight check fails:** Do NOT proceed to R8d. Diagnose
+the topology corruption before continuing.
+
+**Rollback:** `rm -rf runtime/ && git checkout HEAD -- eos_ai/`
+**Commit:** `root-migration-r8c: internal topology migration with graph verification`
+
+### Wave R8d — Generate Compatibility Shims (MEDIUM RISK)
+
+**Purpose:** Replace temporary R8b bridges in eos_ai/ with
+deterministically generated, validated compatibility shims.
+
+**Why generated, not handwritten:**
+
+458 shims is large enough that manual work becomes a consistency risk.
+Handwritten shims produce:
+- Partial migration drift
+- Inconsistent exports
+- Hidden replay mismatches
+- Orphan detection failures
 
 **Actions:**
-1. For each `eos_ai/*.py` (123 files): replace contents with:
-   ```python
-   from runtime.{module} import *  # noqa: F401,F403
-   ```
-2. Replace `eos_ai/substrate/__init__.py` with:
-   ```python
-   from runtime.substrate import *  # noqa: F401,F403
-   ```
-3. Replace `eos_ai/substrate/*.py` shims (164 files) with:
-   ```python
-   from runtime.transport.{module} import *  # noqa: F401,F403
-   ```
-   (Same target as before, but via runtime/ instead of eos_ai.transport)
-4. Replace `eos_ai/transport/__init__.py` with:
-   ```python
-   from runtime.transport import *  # noqa: F401,F403
-   ```
-5. Replace `eos_ai/transport/*.py` (164 files) with:
-   ```python
-   from runtime.transport.{module} import *  # noqa: F401,F403
-   ```
-6. Create `eos_ai/runtime/work_state.py` shim:
-   ```python
-   from runtime.work_state import *  # noqa: F401,F403
-   ```
-7. Create `eos_ai/runtime/provider_state.py` shim:
-   ```python
-   from runtime.provider_state import *  # noqa: F401,F403
-   ```
-8. Move `eos_ai/.env` → `runtime/.env`, create symlink `eos_ai/.env → runtime/.env`
 
-**Verification — FULL TEST SUITE:**
-```bash
-cd /opt/OS && python3 -m pytest tests/ -x --tb=short -q
-# Expected: 8558 passed, 27 failed (pre-existing), 0 new regressions
+1. **Run shim generator:**
+   ```bash
+   python3 scripts/r8_generate_shims.py \
+     --source runtime/ \
+     --target eos_ai/ \
+     --manifest data/migration/r8_shim_manifest.json
+   ```
+
+   The generator:
+   - Walks `runtime/` to discover all importable `.py` modules
+   - For each module, emits the corresponding `eos_ai/` shim
+   - Handles special cases (substrate chain, depth flattening)
+   - Produces a manifest with counts, orphans, missing, special cases
+   - Produces a diff report comparing generated vs existing
+
+2. **Validate manifest:**
+   ```bash
+   python3 scripts/r8_validate_shims.py \
+     --manifest data/migration/r8_shim_manifest.json \
+     --check-coverage \
+     --check-identity \
+     --check-orphans
+   ```
+
+   Checks:
+   - **Coverage:** every runtime/ module has a shim
+   - **Identity:** importing through shim returns same object as canonical
+   - **Orphans:** no eos_ai/ shim without a runtime/ counterpart
+   - **Missing:** no runtime/ module without an eos_ai/ shim
+   - **Oversized:** no shim exceeds 1 line of executable code
+   - **Self-reference:** no shim imports from eos_ai/ (would create a loop)
+
+3. **Full test suite:**
+   ```bash
+   cd /opt/OS && python3 -m pytest tests/ -x --tb=short -q
+   # Expected: 8558 passed, 27 failed (pre-existing), 0 new regressions
+   ```
+
+4. **Critical import path check:**
+   ```bash
+   python3 -c "from eos_ai.db import get_conn; print('shim ok')"
+   python3 -c "from eos_ai.context import load_context_from_env; print('shim ok')"
+   python3 -c "from eos_ai.substrate.storage import get_storage; print('shim ok')"
+   python3 -c "from eos_ai.runtime.work_state import detect_work_state; print('shim ok')"
+   python3 -c "from runtime.db import get_conn; print('canonical ok')"
+   ```
+
+**Manifest output example:**
+```json
+{
+  "generated_at": "2026-05-10T...",
+  "generator": "scripts/r8_generate_shims.py",
+  "runtime_modules": 458,
+  "shims_generated": 458,
+  "orphans": [],
+  "missing": [],
+  "oversized": [],
+  "self_referencing": [],
+  "special_cases": {
+    "depth_changes": [
+      "eos_ai/runtime/work_state.py → runtime.work_state",
+      "eos_ai/runtime/provider_state.py → runtime.provider_state"
+    ],
+    "chain_preservations": [
+      "eos_ai/substrate/*.py → runtime.transport.*"
+    ]
+  },
+  "identity_checks_passed": true
+}
 ```
 
-**Verification — Critical Import Paths:**
-```bash
-python3 -c "from eos_ai.db import get_conn; print('shim ok')"
-python3 -c "from eos_ai.context import load_context_from_env; print('shim ok')"
-python3 -c "from eos_ai.substrate.storage import get_storage; print('shim ok')"
-python3 -c "from eos_ai.runtime.work_state import detect_work_state; print('shim ok')"
-python3 -c "from runtime.db import get_conn; print('canonical ok')"
-```
-
-**Files affected:** ~458 shim files + 1 .env move + 1 symlink
+**Files affected:** ~458 shim files (replacing temporary bridges)
 **Rollback:** `git checkout HEAD -- eos_ai/`
-**Commit:** `root-migration-r8d: install eos_ai/ compatibility shims`
+**Commit:** `root-migration-r8d: install generated compatibility shims with manifest`
 
 ### Wave R8e — Migrate External Consumers (MEDIUM RISK)
 
@@ -459,14 +739,14 @@ find services/ -name '*.py' -exec sed -i \
 - `services/discord_bot.py:882` — same
 - `services/discord_bot.py:3247` — `__import__("eos_ai.world_pulse")` → `__import__("runtime.world_pulse")`
 
-Verify: `python3 -c "import services.discord_bot; print('ok')"`
+Verify: `python3 -c "import sys; sys.path.insert(0,'/opt/OS'); import services.discord_bot; print('ok')"`
 
 #### R8e-4: core/ (16 imports — circular dep resolution)
 
 Manual update. Each of the 16 sites:
 `from eos_ai.X` → `from runtime.X`
 
-Verify: `python3 -c "from core.execution_contract import run_task; print('ok')"`
+Verify: `python3 -c "import sys; sys.path.insert(0,'/opt/OS'); from core.execution_contract import run_task; print('ok')"`
 
 #### R8e-5: saas/ + templates/ (4 imports)
 
@@ -489,8 +769,7 @@ find tests/ -name '*.py' -exec sed -i \
   's/"eos_ai\./"runtime./g' {} +
 ```
 
-**Careful:** Only replace inside `patch()` / `patch.object()` calls.
-The sed above is safe because `"eos_ai.` as a string literal only
+**Safe because:** `"eos_ai.` as a string literal in tests only
 appears in mock.patch contexts and importlib contexts.
 
 #### R8f-2: importlib / __import__ strings (8 sites)
@@ -507,19 +786,29 @@ Manual update in:
 ```bash
 # In Python files: "eos_ai/" → "runtime/" for path construction
 find . -name '*.py' -not -path './archive/*' -not -path './.git/*' \
+  -not -path './eos_ai/*' \
   -exec grep -l 'eos_ai/' {} + | \
   xargs sed -i 's|eos_ai/|runtime/|g'
 ```
 
-**Exceptions:** Docstrings and comments that document the migration
-itself should NOT be updated (they describe the old state).
+**Exclusions:**
+- `eos_ai/` (shims — don't modify)
+- `archive/` (frozen)
+- Docstrings/comments documenting the migration (describe old state)
 
-#### R8f-4: `eos_ai.runtime.X` → `runtime.X` (depth flattening)
+#### R8f-4: `eos_ai.runtime.X` → `runtime.X` (depth flattening in strings)
 
 The `eos_ai.runtime.work_state` and `eos_ai.runtime.provider_state`
-import paths lose one level. All 16 import sites become:
-- `from runtime.work_state import ...`
-- `from runtime.provider_state import ...`
+mock.patch paths lose one level. All string-based refs become:
+- `"runtime.work_state.*"`
+- `"runtime.provider_state.*"`
+
+#### R8f-5: load_dotenv path strings (~20 sites)
+
+```python
+# Old: load_dotenv('/opt/OS/eos_ai/.env')
+# New: load_dotenv(os.path.join(os.environ.get('UMH_ROOT', '/opt/OS'), 'runtime/.env'))
+```
 
 **Commit:** `root-migration-r8f: migrate string-based and path references`
 
@@ -561,7 +850,7 @@ env_file:
 
 #### R8g-5: CLAUDE.md / documentation
 
-- `CLAUDE.md`: `eos_ai/.env` → `runtime/.env`
+- `CLAUDE.md`: `eos_ai/.env` → `runtime/.env`, `eos_ai/` → `runtime/`
 - `.claude/CLAUDE.md`: `eos_ai/` references → `runtime/`
 - `services/CLAUDE.md`: `eos_ai/.env` → `runtime/.env`
 - `README.md`: `eos_ai/.env` → `runtime/.env`
@@ -572,10 +861,10 @@ All `python3 -m eos_ai.X` → `python3 -m runtime.X`
 
 **Commit:** `root-migration-r8g: migrate shell, config, and deployment references`
 
-### Wave R8h — Validation + Replay Equivalence (VERIFICATION ONLY)
+### Wave R8h — Epistemic Equivalence Proof (VERIFICATION ONLY)
 
-**Purpose:** Prove that the migration is functionally equivalent.
-No code changes — validation and reporting only.
+**Purpose:** Prove that the migration is functionally and topologically
+equivalent to the pre-migration state. No code changes.
 
 #### R8h-1: Discord Dry-Run
 
@@ -623,33 +912,60 @@ grep -rn "from eos_ai\.\|import eos_ai\." --include='*.py' \
 # Expected: 0
 ```
 
-#### R8h-5: Circular Dependency Report
+#### R8h-5: Final Circular Dependency Report
 
 ```bash
-# Verify core/ → runtime/ imports are all lazy (inside function bodies)
-grep -rn "from runtime\." --include='*.py' core/ | cat
-# Classify each as module-level vs function-level
+# core/ → runtime/ imports: classify each as lazy vs module-level
+python3 scripts/r8_circular_dep_report.py \
+  --output data/migration/r8h_circular_dep_report.json
 ```
+
+Report contains:
+- Every `core/ → runtime/` import site
+- Whether it's module-level or inside a function body
+- Whether it participates in a cycle
+- Risk classification
 
 #### R8h-6: Replay Identity Report
 
 ```bash
-# Verify runtime/ has no remaining eos_ai references
-grep -rn "eos_ai" --include='*.py' runtime/ | wc -l
-# Expected: 0 (or only in comments documenting the migration)
-
-# Verify eos_ai/ shims all point to runtime/
-grep -rn "from runtime\." --include='*.py' eos_ai/ | wc -l
-# Should equal number of shim files
-
-# Verify eos_ai/ has NO original code (only shim one-liners)
-find eos_ai/ -name '*.py' -exec wc -l {} + | sort -rn | head -10
-# Each file should be 1-2 lines
+python3 scripts/r8_replay_identity_report.py \
+  --output data/migration/r8h_replay_identity.json
 ```
 
-**Commit:** `root-migration-r8h: validation and replay equivalence proof`
+Validates for every shim module:
+- `eos_ai.X.func is runtime.X.func` (object identity)
+- `eos_ai.X.Class is runtime.X.Class` (class identity)
+- `id(sys.modules['eos_ai.X']) != id(sys.modules['runtime.X'])` (module
+  objects are different, but their contents point to same objects)
 
-### Wave R8i — Shim Removal (DEFERRED)
+#### R8h-7: Import Graph Final Snapshot
+
+```bash
+python3 scripts/r8_import_graph_snapshot.py \
+  --root runtime/ \
+  --output data/migration/r8h_final_graph.json
+
+python3 scripts/r8_compare_import_graphs.py \
+  data/migration/r8_pre_move_graph.json \
+  data/migration/r8h_final_graph.json \
+  --output data/migration/r8h_full_migration_diff.json
+```
+
+**Acceptance criteria for R8h:**
+- [ ] Discord import chain: PASS
+- [ ] Orchestrator import chain: PASS
+- [ ] Test suite: 8558 pass, 27 fail (pre-existing), 0 new
+- [ ] External eos_ai imports remaining: 0
+- [ ] New circular dependencies introduced: 0
+- [ ] Module init order: isomorphic to pre-migration
+- [ ] Cold boot timing: within 20% of pre-migration
+- [ ] Replay identity: all shim→canonical pairs verified
+- [ ] Shim manifest: 0 orphans, 0 missing
+
+**Commit:** `root-migration-r8h: epistemic equivalence proof`
+
+### Wave R8i — Shim Retirement (DEFERRED)
 
 **Purpose:** Remove `eos_ai/` directory entirely.
 **Status:** NOT part of this execution plan. Deferred until:
@@ -662,6 +978,7 @@ find eos_ai/ -name '*.py' -exec wc -l {} + | sort -rn | head -10
 ```bash
 rm -rf eos_ai/
 python3 -m pytest tests/legacy/unit/test_umh_wave9_wrapper_removal.py -v
+python3 -m pytest tests/ -x --tb=short -q
 ```
 
 ---
@@ -671,29 +988,84 @@ python3 -m pytest tests/legacy/unit/test_umh_wave9_wrapper_removal.py -v
 | Wave | Risk | Blast Radius | Rollback Complexity |
 |------|------|-------------|---------------------|
 | R8a — Relocate runtime/ | LOW | 0 (unused config) | `git mv infra/docker/* runtime/` |
-| R8b — Create package | NONE | 0 (additive) | `rm -rf runtime/` |
-| R8c — Internal refs | HIGH | runtime/ only | Re-copy from eos_ai/ |
-| R8d — Install shims | MEDIUM | All consumers | `git checkout HEAD -- eos_ai/` |
+| R8b — Atomic move + bridges | MEDIUM | All consumers (bridges maintain compat) | `git checkout HEAD -- eos_ai/ && rm -rf runtime/` |
+| R8c — Internal topology | **HIGHEST** | runtime/ bootstrap, init order, singletons | `rm -rf runtime/` + re-move from git |
+| R8d — Generated shims | MEDIUM | All consumers (replaces bridges) | `git checkout HEAD -- eos_ai/` |
 | R8e — External consumers | MEDIUM | tests, scripts, services | `git checkout HEAD -- <dir>` |
 | R8f — String refs | MEDIUM | tests (mock.patch) | `git checkout HEAD -- tests/` |
 | R8g — Shell/config/deploy | MEDIUM | Deployment | `git checkout HEAD -- <files>` |
-| R8h — Validation | NONE | 0 (read-only) | N/A |
-| R8i — Shim removal | LOW | None if validated | Restore shims from git |
+| R8h — Equivalence proof | NONE | 0 (read-only) | N/A |
+| R8i — Shim retirement | LOW | None if validated | Restore shims from git |
 
 ---
 
 ## 8. Execution Constraints
 
 1. **Each wave is an atomic commit** — pass or fail as a unit
-2. **Full test suite after R8d** (shim installation is the critical gate)
-3. **No Docker restart until R8g** — shims keep current containers working
-4. **archive/ is NEVER modified** — dead imports are expected
-5. **Stop after R8h** — shim removal (R8i) is a separate approval
-6. **Crontab updated last** (R8g-3) — after all Python imports validated
+2. **One runtime, many entrypoints** — no duplicated mutable code, ever
+3. **R8c requires pre/post graph snapshots** — do not skip
+4. **R8d shims are generated, not handwritten** — deterministic, validated
+5. **Full test suite after R8d** (shim installation is the critical gate)
+6. **No Docker restart until R8g** — shims keep current containers working
+7. **archive/ is NEVER modified** — dead imports are expected
+8. **Stop after R8h** — shim retirement (R8i) is a separate approval
+9. **Crontab updated last** (R8g-3) — after all Python imports validated
+10. **If R8c post-flight fails, STOP** — do not proceed to R8d
 
 ---
 
-## 9. Updated Migration Readiness Matrix
+## 9. Required Tooling (Built During Execution)
+
+| Script | Purpose | Used In |
+|--------|---------|---------|
+| `scripts/r8_import_graph_snapshot.py` | Capture module dependency graph, init order, cycles | R8b, R8c, R8h |
+| `scripts/r8_compare_import_graphs.py` | Diff two graph snapshots, detect new cycles | R8c, R8h |
+| `scripts/r8_generate_shims.py` | Deterministically generate eos_ai/ shim modules | R8d |
+| `scripts/r8_validate_shims.py` | Coverage, identity, orphan, oversized checks | R8d |
+| `scripts/r8_circular_dep_report.py` | Classify core/→runtime/ imports as lazy vs module-level | R8h |
+| `scripts/r8_replay_identity_report.py` | Verify object identity through shim vs canonical | R8h |
+
+These scripts are built as needed during execution, not pre-built.
+They are migration tooling, not permanent infrastructure.
+
+---
+
+## 10. Target Architecture
+
+After R8h (shims still present):
+
+```
+/opt/OS  (→ /opt/UMH after physical rename)
+  core/            ← substrate contracts, infrastructure
+  runtime/         ← canonical intelligence/runtime layer (was eos_ai/)
+  services/        ← live daemons, interface surfaces
+  scripts/         ← operational tooling, cron scripts
+  infra/docker/    ← deployment config (was runtime/)
+  eos_ai/          ← compatibility shims only (removed in R8i)
+  archive/         ← historical code (frozen)
+  saas/            ← SaaS product (EOS projection)
+  platforms/       ← future: EOS, LyfeOS, CreatorOS projections
+```
+
+After R8i (shims removed):
+
+```
+/opt/UMH
+  core/            ← substrate/contracts/infrastructure
+  runtime/         ← intelligence/runtime layer
+  services/        ← live daemons/interfaces
+  scripts/         ← operational tooling
+  infra/docker/    ← deployment config
+  platforms/       ← EOS, LyfeOS, CreatorOS projections
+```
+
+This is the first time the repository topology matches the
+philosophical architecture: UMH as substrate, with application
+projections as peers, not owners.
+
+---
+
+## 11. Updated Migration Readiness Matrix
 
 | Wave | Status | Files | Regressions |
 |------|--------|-------|-------------|
@@ -704,12 +1076,13 @@ python3 -m pytest tests/legacy/unit/test_umh_wave9_wrapper_removal.py -v
 | R5 — Deployment infrastructure | Complete | 27 files | 0 |
 | R6 — Semantic identity | Complete | 8 docs | 0 |
 | R7 — Namespace migration plan | Complete | 1 doc | 0 |
+| R8 — Execution plan (this) | Complete | 1 doc | 0 |
 | R8a — Relocate runtime/ config | Ready | 12 files | — |
-| R8b — Create runtime/ package | Ready | ~460 files | — |
-| R8c — Internal self-references | Ready | ~300 files | — |
-| R8d — Install eos_ai/ shims | Ready | ~460 files | — |
+| R8b — Atomic move + bridges | Ready | ~916 files | — |
+| R8c — Internal topology | Ready | ~300 files | — |
+| R8d — Generated shims | Ready | ~458 files | — |
 | R8e — External consumers | Ready | ~400 files | — |
 | R8f — String-based refs | Ready | ~100 files | — |
 | R8g — Shell/config/deploy | Ready | ~30 files | — |
-| R8h — Validation | Ready | 0 (read-only) | — |
-| R8i — Shim removal | DEFERRED | ~460 files deleted | — |
+| R8h — Equivalence proof | Ready | 0 (read-only) | — |
+| R8i — Shim retirement | DEFERRED | ~460 files deleted | — |
