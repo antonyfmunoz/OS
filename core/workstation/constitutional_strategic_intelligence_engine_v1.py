@@ -55,9 +55,14 @@ from core.workstation.persistent_substrate_continuity_engine_v1 import (
     build_full_continuity_proof,
 )
 from core.workstation.recursive_capability_planning_engine_v1 import (
+
     CapabilityPlanningProof,
     build_full_capability_proof,
 )
+
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 def _now_iso() -> str:
@@ -1733,7 +1738,7 @@ def build_full_strategy_proof(
     is_dry_run: bool = False,
     trace_id: str = "",
     request_id: str = "",
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> StrategyProof:
     """Full constitutional strategic intelligence pipeline."""
     forecasts = build_strategic_forecasts(
@@ -1837,7 +1842,7 @@ def build_full_strategy_proof(
 
 def persist_strategy_proof(
     proof: StrategyProof,
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> Path:
     """Persist strategy proof to disk."""
     report_dir = base_dir / STRATEGY_REPORT_DIR

@@ -17,11 +17,16 @@ from typing import Any
 
 from core.runtime.runtime_heartbeat_v1 import HeartbeatHealth
 from core.workstation.workstation_relay_heartbeat_v1 import (
+
     RELAY_HEARTBEAT_STALE_SECONDS,
     RelayHeartbeat,
     evaluate_relay_health,
     read_relay_heartbeat,
 )
+
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 AUTOSTART_MARKER_PATH = Path("data/runtime/workstation_relay/autostart_marker.json")
@@ -62,7 +67,7 @@ class RelayHealthReport:
 
 
 def read_autostart_marker(
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> dict[str, Any] | None:
     """Read the autostart marker if it exists."""
     path = base_dir / AUTOSTART_MARKER_PATH
@@ -92,7 +97,7 @@ def compute_heartbeat_age(
 
 
 def assess_relay_health(
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
     now: datetime | None = None,
     stale_seconds: float = RELAY_HEARTBEAT_STALE_SECONDS,
 ) -> RelayHealthReport:
@@ -139,7 +144,7 @@ def assess_relay_health(
 
 
 def should_allow_chrome_proof(
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> tuple[bool, str]:
     """Gate check for !chrome-proof dispatch.
 

@@ -46,8 +46,13 @@ from core.workstation.persistent_substrate_continuity_engine_v1 import (
     ContinuityProof,
 )
 from core.workstation.recursive_capability_planning_engine_v1 import (
+
     CapabilityPlanningProof,
 )
+
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 # ---------------------------------------------------------------------------
@@ -1374,7 +1379,7 @@ def build_full_identity_proof(
     is_dry_run: bool = False,
     trace_id: str = "",
     request_id: str = "",
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> IdentityProof:
     """Full constitutional identity continuity pipeline."""
     primitives = build_identity_primitives(
@@ -1479,7 +1484,7 @@ def build_full_identity_proof(
 
 def persist_identity_proof(
     proof: IdentityProof,
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> Path:
     """Persist identity proof to disk."""
     report_dir = base_dir / IDENTITY_REPORT_DIR

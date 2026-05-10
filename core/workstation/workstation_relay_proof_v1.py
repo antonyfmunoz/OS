@@ -21,9 +21,14 @@ from core.actuation.actuator_maturity_v1 import (
     maturity_ceiling,
 )
 from core.actuation.observed_desktop_state_v1 import (
+
     ObservedDesktopStateV1,
     from_relay_result,
 )
+
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 RELAY_PROOF_DIR = Path("data/runtime/workstation_relay/proofs")
@@ -61,7 +66,7 @@ def classify_relay_proof(
 
 def persist_relay_proof(
     relay_result: dict[str, Any],
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> Path:
     """Persist a relay proof artifact."""
     proof_dir = base_dir / RELAY_PROOF_DIR

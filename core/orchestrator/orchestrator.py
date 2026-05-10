@@ -32,8 +32,10 @@ from typing import Any, Callable, Union
 from core.action_system.logging import log_decision
 
 from .pipeline import Pipeline, PipelineResult, run_pipeline
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-STATE_PATH = "/opt/OS/logs/orchestrator_state.json"
+
+STATE_PATH = f"{_ROOT}/logs/orchestrator_state.json"
 
 # A workflow is either a Pipeline (preferred) or a callable taking a
 # context dict and returning a dict result. Callables must themselves

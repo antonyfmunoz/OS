@@ -20,14 +20,15 @@ import argparse
 import logging
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 from datetime import datetime, timezone
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
-WIKI_DIR = "/opt/OS/10_Wiki"
-SUMMARIES_DIR = "/opt/OS/vault/memory/summaries"
+WIKI_DIR = f"{_ROOT}/10_Wiki"
+SUMMARIES_DIR = f"{_ROOT}/vault/memory/summaries"
 WIKI_INDEX = os.path.join(WIKI_DIR, "index.md")
 WIKI_LOG = os.path.join(WIKI_DIR, "log.md")
 

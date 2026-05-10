@@ -51,9 +51,14 @@ from core.runtime.runtime_session_registry_v1 import (
     RuntimeSessionRegistry,
 )
 from core.state.transformation_state_ledger import (
+
     TransformationStateLedger,
     make_trace_id,
 )
+
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 def _log(msg: str) -> None:
@@ -106,7 +111,7 @@ class SpineRoutedResult:
 
 def build_spine_infrastructure(
     config: SpineExecutionConfig,
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> LiveLocalRuntimeExecution:
     """Build the full execution spine from configuration.
 

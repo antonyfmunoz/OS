@@ -7,6 +7,7 @@ a template. Route to ANTONY immediately. Flag it.
 """
 
 import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 import json
 import logging
 from datetime import datetime, timedelta
@@ -33,7 +34,7 @@ def create_lead_file(
 
         # Sanitize filename
         safe_name = re.sub(r'[^a-z0-9_]', '_', name.lower().replace(' ', '_'))
-        filename = f'/opt/OS/03_CRM/Leads/lead_{safe_name}.md'
+        filename = f'{_ROOT}/03_CRM/Leads/lead_{safe_name}.md'
 
         # Don't overwrite existing
         if os.path.exists(filename):
@@ -133,7 +134,7 @@ def recognize_person(
         if name or email:
             try:
                 import glob as _glob
-                lead_files = _glob.glob('/opt/OS/03_CRM/Leads/lead_*.md')
+                lead_files = _glob.glob(f'{_ROOT}/03_CRM/Leads/lead_*.md')
                 name_lower = name.lower()
                 email_lower = email.lower()
                 for lf in lead_files:
@@ -435,7 +436,7 @@ def build_intelligence_profile(
         try:
             import glob as _glob
             safe_name = name.lower().replace(' ', '_')
-            lead_files = _glob.glob(f'/opt/OS/03_CRM/Leads/lead_{safe_name}*.md')
+            lead_files = _glob.glob(f'{_ROOT}/03_CRM/Leads/lead_{safe_name}*.md')
             if lead_files:
                 lf = lead_files[0]
                 with open(lf) as f:

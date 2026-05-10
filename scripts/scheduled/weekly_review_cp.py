@@ -48,10 +48,11 @@ from datetime import datetime, timezone
 
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 from core.orchestrator.steps import ScriptWorkflowSpec, run_script_workflow
 
-SCRIPT_PATH = "/opt/OS/scripts/scheduled/weekly_review.sh"
+SCRIPT_PATH = f"{_ROOT}/scripts/scheduled/weekly_review.sh"
 IDEMPOTENCY_TTL_SECONDS = 6 * 24 * 3600  # 6 days — < 1 week
 
 

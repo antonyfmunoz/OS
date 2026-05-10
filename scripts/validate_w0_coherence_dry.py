@@ -15,6 +15,7 @@ from pathlib import Path
 
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 from core.coherence.coherence_gate import (
     coherence_gate_allows_execution,
@@ -31,7 +32,7 @@ from core.environment_bridge.execution_binding_validator import (
 from core.environment_bridge.packet_validator import validate_w0_packet_dict
 from core.environment_bridge.w0_packet_builder import build_w0_001_packet
 
-REPORT_DIR = Path("/opt/OS/data/dry_validation")
+REPORT_DIR = Path(_ROOT) / "data" / "dry_validation"
 REPORT_DIR.mkdir(parents=True, exist_ok=True)
 
 REQUIRED_STAGE_NAMES = [s.value for s in SpineStage]

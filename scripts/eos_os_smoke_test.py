@@ -28,7 +28,8 @@ import time
 import traceback
 from pathlib import Path
 
-_REPO_ROOT = "/opt/OS"
+import os
+_REPO_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 

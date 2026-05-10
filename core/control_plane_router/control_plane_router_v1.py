@@ -26,6 +26,7 @@ from core.runtime.adapter_registry_contracts import AdapterDescriptor, AdapterRe
 from core.runtime.worker_runtime_contracts import ProofStatus
 
 from .router_contracts import (
+
     ALLOWED_ACTION_TYPES,
     CapabilityRequirement,
     CapabilityType,
@@ -35,6 +36,10 @@ from .router_contracts import (
     RuntimeProofReference,
     WorkPacket,
 )
+
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 def _log(msg: str) -> None:
@@ -240,7 +245,7 @@ ACTION_CAPABILITY_MAP: dict[str, CapabilityRequirement] = {
 }
 
 
-DEFAULT_CONFIG_PATH = "/opt/OS/config/control_plane_router_v1.json"
+DEFAULT_CONFIG_PATH = f"{_ROOT}/config/control_plane_router_v1.json"
 
 
 def load_config(config_path: str | Path = DEFAULT_CONFIG_PATH) -> dict[str, Any]:
@@ -255,7 +260,7 @@ class ControlPlaneRouterV1:
         self,
         registry: AdapterRegistry,
         config: dict[str, Any] | None = None,
-        base_dir: Path = Path("/opt/OS"),
+        base_dir: Path = Path(_ROOT),
     ) -> None:
         self.registry = registry
         self.config = config or {}

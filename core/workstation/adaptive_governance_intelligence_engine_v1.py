@@ -60,11 +60,16 @@ from core.workstation.persistent_substrate_continuity_engine_v1 import (
     replay_orchestration_history,
 )
 from core.workstation.recursive_capability_planning_engine_v1 import (
+
     CAPABILITY_MATURITY_LEVELS,
     SUBSTRATE_CAPABILITIES,
     CapabilityPlanningProof,
     build_full_capability_proof,
 )
+
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 def _now_iso() -> str:
@@ -640,7 +645,7 @@ def build_governance_integrity(
 
 def build_orchestration_intelligence(
     orchestration_proof: OrchestrationProof | None = None,
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> OrchestrationIntelligence:
     """Build Layer 2 — Orchestration Intelligence."""
     intel = OrchestrationIntelligence()
@@ -705,7 +710,7 @@ def build_orchestration_intelligence(
 
 def build_continuity_intelligence(
     continuity_proof: ContinuityProof | None = None,
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> ContinuityIntelligence:
     """Build Layer 3 — Continuity Intelligence."""
     intel = ContinuityIntelligence()
@@ -1114,7 +1119,7 @@ def simulate_policy_changes(
 
 def build_governance_learning_memory(
     proposals: list[GovernanceProposal],
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> GovernanceLearningMemory:
     """Build governance learning memory from proposals and history."""
     memory = GovernanceLearningMemory(proposals=list(proposals))
@@ -1253,7 +1258,7 @@ def build_full_governance_intelligence_proof(
     is_dry_run: bool = False,
     trace_id: str = "",
     request_id: str = "",
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> GovernanceIntelligenceProof:
     """Full adaptive governance intelligence pipeline."""
     gov_integrity = build_governance_integrity(orchestration_proof, continuity_proof)
@@ -1333,7 +1338,7 @@ def build_full_governance_intelligence_proof(
 
 def persist_governance_intelligence_proof(
     proof: GovernanceIntelligenceProof,
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> Path:
     """Persist governance intelligence proof to disk."""
     out_dir = base_dir / GOVERNANCE_INTELLIGENCE_REPORT_DIR

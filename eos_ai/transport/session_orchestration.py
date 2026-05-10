@@ -14,6 +14,8 @@ from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Any
 
+_DEFAULT_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 LAYER_NAME = "session_orchestration"
 LAYER_VERSION = "v1"
 
@@ -53,7 +55,7 @@ class ExpectedSession:
     target: str  # "vps" or "local"
     mode: str  # "builder", "product", etc.
     role: str  # human-readable purpose
-    working_dir: str = "/opt/OS"
+    working_dir: str = _DEFAULT_ROOT
 
 
 _DEFAULT_SESSIONS: list[ExpectedSession] = [

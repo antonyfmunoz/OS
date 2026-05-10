@@ -29,6 +29,8 @@ import os
 import sys
 import threading
 from typing import Any
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 LAYER_NAME = "session_control"
 LAYER_VERSION = "v1"
@@ -173,7 +175,7 @@ def reset_session(
                 "version": LAYER_VERSION,
             }
 
-    wd = working_dir or "/opt/OS"
+    wd = working_dir or _ROOT
     ensure_result = ensure_session(
         target,
         session_name,

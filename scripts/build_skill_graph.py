@@ -34,15 +34,18 @@ from pathlib import Path
 
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 from scripts._tme_common import (  # noqa: E402
+
     SkillRecord,
     all_skill_slugs,
     load_all_skills,
     load_skill,
 )
 
-OUT_DIR = Path("/opt/OS/docs/system")
+
+OUT_DIR = Path(_ROOT) / "docs" / "system"
 OUT_MD = OUT_DIR / "skill_graph.md"
 OUT_JSON = OUT_DIR / "skill_graph.json"
 

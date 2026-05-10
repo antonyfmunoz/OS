@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Any
 
 from core.workstation.environment_mapping_engine_v1 import (
+
     CANDIDATE_TYPE_CANONICAL,
     CANDIDATE_TYPE_INSTANCE,
     LANE_EXTRACTION_METHODS,
@@ -39,6 +40,10 @@ from core.workstation.environment_mapping_engine_v1 import (
     EnvironmentTopology,
     IngestionLane,
 )
+
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 def _now_iso() -> str:
@@ -960,7 +965,7 @@ def build_full_adapter_proof(
 
 def persist_adapter_proof(
     proof: AdapterAutogenProof,
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> Path:
     """Persist adapter autogeneration proof to disk."""
     out_dir = base_dir / ADAPTER_REPORT_DIR
@@ -974,7 +979,7 @@ def persist_adapter_proof(
 
 def persist_blueprints(
     blueprints: list[AdapterBlueprint],
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> Path:
     """Persist all adapter blueprints to disk."""
     out_dir = base_dir / ADAPTER_BLUEPRINT_DIR

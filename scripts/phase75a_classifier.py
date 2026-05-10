@@ -5,7 +5,8 @@ import ast
 import json
 from pathlib import Path
 
-ROOT = Path("/opt/OS")
+import os
+ROOT = Path(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 UMH = ROOT / "umh"
 
 # Package -> PRD domain mapping

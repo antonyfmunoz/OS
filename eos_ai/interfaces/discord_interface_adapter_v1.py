@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 import discord
 
@@ -83,9 +84,10 @@ def _log_error(msg: str) -> None:
 # Config
 # ---------------------------------------------------------------------------
 
-DEFAULT_CONFIG_PATH = "/opt/OS/config/discord_interface_adapter_v1.json"
+DEFAULT_CONFIG_PATH = f"{_ROOT}/config/discord_interface_adapter_v1.json"
 
 from core.registry.canonical_command_registry_v1 import get_canonical_registry
+
 
 _REGISTRY = get_canonical_registry()
 
@@ -316,7 +318,7 @@ def format_proof_summary(proof: dict[str, Any] | None, command: str) -> str:
 class DiscordInterfaceAdapter:
     """Thin Discord interface adapter that delegates to ControlPlaneRouterV1."""
 
-    def __init__(self, config: dict[str, Any], base_dir: Path = Path("/opt/OS")) -> None:
+    def __init__(self, config: dict[str, Any], base_dir: Path = Path(_ROOT)) -> None:
         self.config = config
         self.base_dir = base_dir
 

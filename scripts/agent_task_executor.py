@@ -17,6 +17,8 @@ import uuid
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
@@ -30,47 +32,47 @@ GENERAL_CHANNEL_ID = int(
 # Map agent IDs to soul doc paths and task types
 AGENT_MAP = {
     'sales_agent': {
-        'soul_doc': '/opt/OS/agents/sales_agent.md',
+        'soul_doc': f'{_ROOT}/agents/sales_agent.md',
         'task_type': 'GENERATE',
         'display': 'Sales Agent',
     },
     'research_agent': {
-        'soul_doc': '/opt/OS/agents/research_agent.md',
+        'soul_doc': f'{_ROOT}/agents/research_agent.md',
         'task_type': 'ANALYZE',
         'display': 'Research Agent',
     },
     'content_agent': {
-        'soul_doc': '/opt/OS/agents/content_agent.md',
+        'soul_doc': f'{_ROOT}/agents/content_agent.md',
         'task_type': 'ANALYZE',
         'display': 'Content Agent',
     },
     'marketing_agent': {
-        'soul_doc': '/opt/OS/agents/marketing_agent.md',
+        'soul_doc': f'{_ROOT}/agents/marketing_agent.md',
         'task_type': 'GENERATE',
         'display': 'Marketing Agent',
     },
     'operations_agent': {
-        'soul_doc': '/opt/OS/agents/operations_agent.md',
+        'soul_doc': f'{_ROOT}/agents/operations_agent.md',
         'task_type': 'GENERATE',
         'display': 'Operations Agent',
     },
     'outreach_agent': {
-        'soul_doc': '/opt/OS/agents/outreach_agent.md',
+        'soul_doc': f'{_ROOT}/agents/outreach_agent.md',
         'task_type': 'GENERATE',
         'display': 'Outreach Agent',
     },
     'intelligence_agent': {
-        'soul_doc': '/opt/OS/agents/intelligence_agent.md',
+        'soul_doc': f'{_ROOT}/agents/intelligence_agent.md',
         'task_type': 'ANALYZE',
         'display': 'Intelligence Agent',
     },
     'finance_agent': {
-        'soul_doc': '/opt/OS/agents/finance_agent.md',
+        'soul_doc': f'{_ROOT}/agents/finance_agent.md',
         'task_type': 'ANALYZE',
         'display': 'Finance Agent',
     },
     'customer_success_agent': {
-        'soul_doc': '/opt/OS/agents/customer_success_agent.md',
+        'soul_doc': f'{_ROOT}/agents/customer_success_agent.md',
         'task_type': 'GENERATE',
         'display': 'Customer Success Agent',
     },

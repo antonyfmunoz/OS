@@ -1,3 +1,6 @@
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 """
 Agent hierarchy for EntrepreneurOS.
 
@@ -80,7 +83,7 @@ HIERARCHY: dict[str, dict] = {
             'department_execution': 'relevant_manager',
             'capital_allocation': 'portfolio_advisor',
         },
-        'soul_doc': '/opt/OS/agents/executive_assistant.md',
+        'soul_doc': f'{_ROOT}/agents/executive_assistant.md',
         'discord_bot_env': 'DISCORD_BOT_TOKEN',
         'emoji': '👁️',
     },
@@ -108,7 +111,7 @@ HIERARCHY: dict[str, dict] = {
         'escalate_to': {
             'founder_decision': 'executive_assistant',
         },
-        'soul_doc': '/opt/OS/agents/portfolio_advisor.md',
+        'soul_doc': f'{_ROOT}/agents/portfolio_advisor.md',
         'discord_bot_env': 'DISCORD_BOT_TOKEN_PORTFOLIO',
         'emoji': '📊',
     },
@@ -142,7 +145,7 @@ HIERARCHY: dict[str, dict] = {
             'founder_decision':   'executive_assistant',
         },
         'venture_id': 'lyfe_institute',
-        'soul_doc': '/opt/OS/agents/lyfe_institute_ceo.md',
+        'soul_doc': f'{_ROOT}/agents/lyfe_institute_ceo.md',
         'discord_bot_env': 'DISCORD_BOT_TOKEN_LYFE',
         'emoji': '🏢',
         # CEO decides own org structure based on founder direction.
@@ -174,7 +177,7 @@ HIERARCHY: dict[str, dict] = {
             'founder_decision':   'executive_assistant',
         },
         'venture_id': 'empyrean_creative',
-        'soul_doc': '/opt/OS/agents/empyrean_ceo.md',
+        'soul_doc': f'{_ROOT}/agents/empyrean_ceo.md',
         'discord_bot_env': 'DISCORD_BOT_TOKEN_EMPYREAN',
         'emoji': '⚡',
         'ceo_intelligence': True,
@@ -210,7 +213,7 @@ HIERARCHY: dict[str, dict] = {
         'operating_mode': 'hybrid',
         'domain': 'technical',
         'venture_id': 'lyfe_institute',
-        'soul_doc': '/opt/OS/.claude/CLAUDE.md',
+        'soul_doc': f'{_ROOT}/.claude/CLAUDE.md',
         'emoji': '⚙️',
         'is_developer_agent': True,
     },
@@ -229,7 +232,7 @@ HIERARCHY: dict[str, dict] = {
         ],
         'handle_directly': ['RESEARCH', 'ANALYZE', 'INTEL'],
         'escalate_to': {'strategy': 'lyfe_institute_ceo'},
-        'soul_doc': '/opt/OS/agents/research_agent.md',
+        'soul_doc': f'{_ROOT}/agents/research_agent.md',
         'emoji': '🔬',
     },
 
@@ -261,7 +264,7 @@ HIERARCHY: dict[str, dict] = {
         'operating_mode': 'hybrid',
         'domain': 'technical',
         'venture_id': 'empyrean_creative',
-        'soul_doc': '/opt/OS/.claude/CLAUDE.md',
+        'soul_doc': f'{_ROOT}/.claude/CLAUDE.md',
         'emoji': '⚙️',
         'is_developer_agent': True,
     },

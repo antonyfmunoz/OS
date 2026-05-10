@@ -32,10 +32,15 @@ from eos_ai.transport.work_order_contracts import (
     WorkOrderStatus,
 )
 from eos_ai.transport.work_order_factory import (
+
     create_google_workspace_discovery_work_order,
     validate_work_order,
     work_order_to_bridge_payload,
 )
+
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 class DispatchReadiness(str, Enum):
@@ -76,19 +81,19 @@ class DispatchPackage:
 
 
 _REQUIRED_VPS_FILES = [
-    Path("/opt/OS/services/local_bridge_client.py"),
-    Path("/opt/OS/services/local_bridge_server.py"),
-    Path("/opt/OS/services/cc_webhook_receiver.py"),
-    Path("/opt/OS/eos_ai/substrate/work_order_contracts.py"),
-    Path("/opt/OS/eos_ai/substrate/work_order_factory.py"),
-    Path("/opt/OS/docs/operations/local_google_workspace_ingestion_work_order_001.md"),
-    Path("/opt/OS/docs/operations/local_google_workspace_ingestion_result_schema_v1.md"),
-    Path("/opt/OS/docs/operations/existing_bridge_binding_plan_v1.md"),
+    Path(_ROOT) / "services" / "local_bridge_client.py",
+    Path(_ROOT) / "services" / "local_bridge_server.py",
+    Path(_ROOT) / "services" / "cc_webhook_receiver.py",
+    Path(_ROOT) / "eos_ai" / "substrate" / "work_order_contracts.py",
+    Path(_ROOT) / "eos_ai" / "substrate" / "work_order_factory.py",
+    Path(_ROOT) / "docs" / "operations" / "local_google_workspace_ingestion_work_order_001.md",
+    Path(_ROOT) / "docs" / "operations" / "local_google_workspace_ingestion_result_schema_v1.md",
+    Path(_ROOT) / "docs" / "operations" / "existing_bridge_binding_plan_v1.md",
 ]
 
 _REQUIRED_DOC_FILES = [
-    Path("/opt/OS/docs/operations/bridge_healthcheck_vps_checklist_v1.md"),
-    Path("/opt/OS/docs/operations/bridge_healthcheck_local_checklist_v1.md"),
+    Path(_ROOT) / "docs" / "operations" / "bridge_healthcheck_vps_checklist_v1.md",
+    Path(_ROOT) / "docs" / "operations" / "bridge_healthcheck_local_checklist_v1.md",
 ]
 
 
@@ -235,7 +240,7 @@ def build_dispatch_package(
 
 def save_dispatch_package(
     package: DispatchPackage,
-    directory: str | Path = "/opt/OS/eos_ai/.substrate_station/work_orders",
+    directory: str | Path = f"{_ROOT}/eos_ai/.substrate_station/work_orders",
 ) -> Path:
     """Write dispatch package to JSON file."""
     directory = Path(directory)

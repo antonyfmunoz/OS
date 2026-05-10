@@ -11,17 +11,20 @@ Idempotent in effect — safe on empty DBs, do not re-run on populated ones.
 import os
 import sys
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
 
 from eos_ai.notion_sync import (
+
     get_db_id,
     HEADERS, _title, _select, _text, _number,
     _date, _checkbox, _create_page,
     write_document, write_metric,
 )
+
 
 TODAY = datetime.now().strftime('%Y-%m-%d')
 
@@ -138,7 +141,7 @@ def seed_empyrean() -> None:
             'responsibilities': (
                 'Calendar, email, meetings, task coordination, daily ops.'
             ),
-            'soul_doc': '/opt/OS/agents/executive_assistant.md',
+            'soul_doc': f'{_ROOT}/agents/executive_assistant.md',
         },
         {
             'name': 'CEO Agent',
@@ -153,7 +156,7 @@ def seed_empyrean() -> None:
             'responsibilities': (
                 'Product strategy, org evolution, departmental delegation.'
             ),
-            'soul_doc': '/opt/OS/agents/ceo_agent.md',
+            'soul_doc': f'{_ROOT}/agents/ceo_agent.md',
         },
         {
             'name': 'Operations Agent',
@@ -607,7 +610,7 @@ def seed_personal_brand() -> None:
                 'Cross-venture coordination, '
                 'publishing reminders, collaboration scheduling.'
             ),
-            'soul_doc': '/opt/OS/agents/executive_assistant.md',
+            'soul_doc': f'{_ROOT}/agents/executive_assistant.md',
         },
     ]
     if roles_db:

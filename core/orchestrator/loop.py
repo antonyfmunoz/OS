@@ -44,6 +44,7 @@ from core.action_system.logging import (
 
 from .orchestrator import Orchestrator, default_orchestrator
 from .signals import (
+
     SignalEmission,
     emit_signal,
     get_handlers,
@@ -52,11 +53,14 @@ from .signals import (
     mark_processed,
 )
 
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
+
 # Bumped whenever the cycle contract or heartbeat schema changes.
 # Kept here (not in config) so a grep for LOOP_VERSION finds both
 # the producer and any consumer that pins a minimum version.
 LOOP_VERSION = "1.0.0"
-HEARTBEAT_PATH = "/opt/OS/logs/orchestrator_heartbeat.json"
+HEARTBEAT_PATH = f"{_ROOT}/logs/orchestrator_heartbeat.json"
 
 
 # ---------------------------------------------------------------------------

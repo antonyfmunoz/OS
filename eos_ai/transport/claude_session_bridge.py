@@ -54,6 +54,8 @@ import threading
 import time
 from dataclasses import asdict, dataclass, field
 from typing import Any
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 LAYER_NAME = "claude_session_bridge"
 LAYER_VERSION = "v1"
@@ -85,7 +87,7 @@ _MAX_POLL_INTERVAL_S = 5.0
 # Override at runtime with the env var:
 #   EOS_SESSION_SOUL_DOC__<session_name> = /absolute/path/to/doc.md
 _SESSION_SOUL_DOCS: dict[str, str] = {
-    "dex_product_main": "/opt/OS/agents/executive_assistant.md",
+    "dex_product_main": f"{_ROOT}/agents/executive_assistant.md",
 }
 
 _SOUL_DOC_ENV_PREFIX = "EOS_SESSION_SOUL_DOC__"

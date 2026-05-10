@@ -27,6 +27,8 @@ from datetime import datetime
 from pathlib import Path
 
 from eos_ai.context import EOSContext
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 @dataclass
@@ -173,11 +175,11 @@ class NotebookLMSync:
         Keeps NotebookLM current with latest context docs from /opt/OS/data/.
         """
         docs = [
-            '/opt/OS/data/founder_profile.md',
-            '/opt/OS/data/brand_identity.md',
-            '/opt/OS/data/funnel_strategy.md',
-            '/opt/OS/data/workbook_framework.md',
-            '/opt/OS/data/gws_context.md',
+            f'{_ROOT}/data/founder_profile.md',
+            f'{_ROOT}/data/brand_identity.md',
+            f'{_ROOT}/data/funnel_strategy.md',
+            f'{_ROOT}/data/workbook_framework.md',
+            f'{_ROOT}/data/gws_context.md',
         ]
 
         synced = 0

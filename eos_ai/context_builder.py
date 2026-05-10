@@ -16,9 +16,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_REPO_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
+_ROOT = Path(_REPO_ROOT)
 
 from eos_ai.context import EOSContext
 
@@ -158,7 +159,7 @@ class ContextBuilder:
 
         # Layer 1e: GWS document context
         try:
-            gws_path = Path("/opt/OS/data/gws_context.md")
+            gws_path = _ROOT / "data" / "gws_context.md"
             if gws_path.exists():
                 raw = gws_path.read_text()
                 preview = raw[:600].strip()
@@ -169,7 +170,7 @@ class ContextBuilder:
 
         # Layer 1e-ii: Founder profile
         try:
-            profile_path = Path("/opt/OS/data/founder_profile.md")
+            profile_path = _ROOT / "data" / "founder_profile.md"
             if profile_path.exists():
                 raw = profile_path.read_text()
                 preview = raw[:300].strip()
@@ -180,7 +181,7 @@ class ContextBuilder:
 
         # Layer 1e-iii: Brand identity
         try:
-            brand_path = Path("/opt/OS/data/brand_identity.md")
+            brand_path = _ROOT / "data" / "brand_identity.md"
             if brand_path.exists():
                 raw = brand_path.read_text()
                 preview = raw[:500].strip()
@@ -191,7 +192,7 @@ class ContextBuilder:
 
         # Layer 1e-iv: Funnel strategy
         try:
-            funnel_path = Path("/opt/OS/data/funnel_strategy.md")
+            funnel_path = _ROOT / "data" / "funnel_strategy.md"
             if funnel_path.exists():
                 raw = funnel_path.read_text()
                 preview = raw[:400].strip()
@@ -202,7 +203,7 @@ class ContextBuilder:
 
         # Layer 1e-v: Workbook framework
         try:
-            wb_path = Path("/opt/OS/data/workbook_framework.md")
+            wb_path = _ROOT / "data" / "workbook_framework.md"
             if wb_path.exists():
                 raw = wb_path.read_text()
                 preview = raw[:300].strip()

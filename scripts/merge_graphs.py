@@ -33,7 +33,7 @@ from typing import Any
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-ROOT = Path("/opt/OS")
+ROOT = Path(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 GRAPH_JSON = ROOT / "data" / "codebase_graph.json"
 OVERLAY_JSON = ROOT / "data" / "graphify_overlay.json"
 # Canonical merged path (matches spec). The legacy name

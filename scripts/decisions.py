@@ -35,8 +35,10 @@ import os
 import sys
 from datetime import datetime, timedelta, timezone
 from typing import Any, Iterable
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-DECISION_LOG_DIR = "/opt/OS/logs/decisions"
+
+DECISION_LOG_DIR = f"{_ROOT}/logs/decisions"
 
 
 def _iter_log_files(since: datetime) -> list[str]:

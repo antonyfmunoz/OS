@@ -16,11 +16,14 @@ Folders:
 """
 
 import asyncio
+import os
 import re
 import subprocess
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 class EmailFolder(Enum):
@@ -479,8 +482,8 @@ class EmailGPS:
             from pathlib import Path
             context_parts = []
             for path in (
-                Path('/opt/OS/data/founder_profile.md'),
-                Path('/opt/OS/data/brand_identity.md'),
+                Path(_ROOT) / "data" / "founder_profile.md",
+                Path(_ROOT) / "data" / "brand_identity.md",
             ):
                 if path.exists():
                     context_parts.append(path.read_text()[:400])

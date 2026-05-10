@@ -22,6 +22,9 @@ from core.workstation.workstation_relay_node_v1 import (
     load_relay_node_from_heartbeat,
 )
 from core.runtime.runtime_heartbeat_v1 import HeartbeatHealth
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 RELAY_HEARTBEAT_PATH = Path("data/runtime/workstation_relay/heartbeat.json")
@@ -30,7 +33,7 @@ RELAY_HEARTBEAT_PATH = Path("data/runtime/workstation_relay/heartbeat.json")
 class WorkstationNodeRegistry:
     """Registry of known workstation relay nodes."""
 
-    def __init__(self, base_dir: Path = Path("/opt/OS")) -> None:
+    def __init__(self, base_dir: Path = Path(_ROOT)) -> None:
         self._base_dir = base_dir
         self._heartbeat_path = base_dir / RELAY_HEARTBEAT_PATH
 

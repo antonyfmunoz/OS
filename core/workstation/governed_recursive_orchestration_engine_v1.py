@@ -41,8 +41,13 @@ from core.workstation.recursive_capability_planning_engine_v1 import (
     score_upgrade,
 )
 from core.workstation.environment_mapping_engine_v1 import (
+
     CANDIDATE_TYPE_CANONICAL,
 )
+
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 def _now_iso() -> str:
@@ -1447,7 +1452,7 @@ def build_full_orchestration_proof(
 
 def persist_orchestration_proof(
     proof: OrchestrationProof,
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> Path:
     """Persist orchestration proof to disk."""
     out_dir = base_dir / ORCHESTRATION_REPORT_DIR

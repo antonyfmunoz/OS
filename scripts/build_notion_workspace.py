@@ -5,6 +5,7 @@ Every section maps to a route in the SaaS UI.
 """
 import sys
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
 
@@ -684,7 +685,7 @@ page_ids['activity'] = activity_id
 # SAVE ALL PAGE IDs TO .env
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-env_path = '/opt/OS/eos_ai/.env'
+env_path = f'{_ROOT}/eos_ai/.env'
 
 # Read existing to avoid duplicate keys
 with open(env_path, 'r') as f:

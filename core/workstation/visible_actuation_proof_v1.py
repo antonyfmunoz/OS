@@ -19,11 +19,16 @@ from pathlib import Path
 from typing import Any
 
 from core.actuation.actuator_maturity_v1 import (
+
     MATURITY_LABELS,
     ActuatorMaturityLevel,
     maturity_ceiling,
     validate_maturity_claim,
 )
+
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 @dataclass
@@ -228,7 +233,7 @@ PROOF_DIR = Path("data/runtime/workstation_relay/actuation_proofs")
 
 def persist_visible_actuation_proof(
     proof: VisibleActuationProof,
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> Path:
     """Persist a visible actuation proof artifact."""
     proof_dir = base_dir / PROOF_DIR
@@ -270,7 +275,7 @@ class FounderConfirmationArtifact:
 
 def persist_founder_confirmation(
     artifact: FounderConfirmationArtifact,
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> Path:
     """Persist a founder confirmation artifact."""
     proof_dir = base_dir / PROOF_DIR

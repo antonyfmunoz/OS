@@ -1693,7 +1693,7 @@ class EOSOrchestrator:
             import subprocess as _sp
 
             _br = _sp.run(
-                ["bash", "/opt/OS/scripts/backup.sh"],
+                ["bash", f"{_REPO_ROOT}/scripts/backup.sh"],
                 capture_output=True,
                 text=True,
                 timeout=60,

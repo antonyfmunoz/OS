@@ -22,6 +22,8 @@ import json
 import os
 from typing import Optional
 from eos_ai.context import EOSContext
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 # ─── Stage → minimum viable role map (fallback when AI call fails) ────────────
@@ -180,7 +182,7 @@ class CEOAgent:
             from eos_ai.model_router import get_router, TaskType
 
             # Discover available agent templates from soul docs on disk
-            template_dir = '/opt/OS/agents'
+            template_dir = f'{_ROOT}/agents'
             excluded = {'ceo_agent.md', 'portfolio_advisor.md', 'CLAUDE.md'}
             available = [
                 f.replace('.md', '')

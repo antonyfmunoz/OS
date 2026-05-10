@@ -7,6 +7,8 @@ Discards the stashed portion (between ======= and >>>>>>> Stashed changes).
 
 import os
 import sys
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 FILES = [
     "eos_ai/cognitive_loop.py",
@@ -23,7 +25,7 @@ FILES = [
     "docker-compose.yml",
 ]
 
-os.chdir("/opt/OS")
+os.chdir(_ROOT)
 
 for filepath in FILES:
     if not os.path.exists(filepath):

@@ -9,6 +9,8 @@ import sys
 import os
 import json
 import time
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
@@ -47,9 +49,9 @@ def log_permission(tool_name: str,
                    tool_use_id: str,
                    safe: bool) -> None:
     try:
-        os.makedirs('/opt/OS/logs', exist_ok=True)
+        os.makedirs(f'{_ROOT}/logs', exist_ok=True)
         with open(
-            '/opt/OS/logs/permissions.log', 'a'
+            f'{_ROOT}/logs/permissions.log', 'a'
         ) as f:
             f.write(
                 f"{time.strftime('%Y-%m-%dT%H:%M:%S')} "

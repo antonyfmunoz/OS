@@ -16,14 +16,17 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 _DEFAULT_SEARCH_ROOTS = [
-    "/opt/OS/.claude/skills/",
-    "/opt/OS/.claude/rules/",
-    "/opt/OS/.claude/commands/",
-    "/opt/OS/docs/operations/",
-    "/opt/OS/skills/tools/",
+    f"{_ROOT}/.claude/skills/",
+    f"{_ROOT}/.claude/rules/",
+    f"{_ROOT}/.claude/commands/",
+    f"{_ROOT}/docs/operations/",
+    f"{_ROOT}/skills/tools/",
 ]
 
 _SKILL_FILENAMES = [

@@ -34,7 +34,7 @@ from scripts.query_graph import GraphQuery
 
 STALE_GRAPH_HOURS = 24
 
-ROOT = Path("/opt/OS")
+ROOT = Path(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 PALACE_DIR = ROOT / "10_Wiki" / "palace"
 WINGS_DIR = PALACE_DIR / "wings"
 ROOMS_DIR = PALACE_DIR / "rooms"

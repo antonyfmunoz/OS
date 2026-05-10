@@ -24,8 +24,11 @@ from __future__ import annotations
 
 import subprocess
 from typing import Any
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-QUERY_SKILLS_CLI = "/opt/OS/scripts/query_skills.py"
+
+QUERY_SKILLS_CLI = f"{_ROOT}/scripts/query_skills.py"
 
 
 def query_relevant_skills(term: str, *, timeout: int = 10) -> dict:

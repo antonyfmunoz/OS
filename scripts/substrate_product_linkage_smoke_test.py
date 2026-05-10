@@ -37,6 +37,7 @@ import time
 
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 from eos_ai.substrate import meeting_intelligence as mi  # noqa: E402
 
@@ -342,7 +343,7 @@ def test_09_hot_path_files_clean() -> None:
     for f in HOT_PATH_FILES:
         try:
             out = subprocess.run(
-                ["grep", "-l", "LINKAGE_SCHEMA_VERSION", f"/opt/OS/{f}"],
+                ["grep", "-l", "LINKAGE_SCHEMA_VERSION", f"{_ROOT}/{f}"],
                 capture_output=True,
                 text=True,
             )

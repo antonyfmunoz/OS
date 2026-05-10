@@ -13,6 +13,8 @@ import sys
 import os
 import json
 import time
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
@@ -33,9 +35,9 @@ def main():
     if tool_name == 'Bash':
         cmd = tool_input.get('command', '')
         try:
-            os.makedirs('/opt/OS/logs', exist_ok=True)
+            os.makedirs(f'{_ROOT}/logs', exist_ok=True)
             with open(
-                '/opt/OS/logs/bash_commands.log',
+                f'{_ROOT}/logs/bash_commands.log',
                 'a'
             ) as f:
                 f.write(

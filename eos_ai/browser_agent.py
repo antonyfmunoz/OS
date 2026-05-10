@@ -375,7 +375,7 @@ class BrowserAgent:
 
         except Exception as exc:
             # Screenshot only on failure
-            shot_path = f'/opt/OS/logs/browser_error_{len(action_log)}.png'
+            shot_path = f'{_ROOT}/logs/browser_error_{len(action_log)}.png'
             await self.screenshot(shot_path)
             action_log.append(f"ERROR: {exc} — screenshot saved to {shot_path}")
             return {
@@ -510,7 +510,7 @@ class InstagramAgent(BrowserAgent):
         # Wait for home feed or challenge screen
         found = await self.wait_for('svg[aria-label="Home"]', timeout=15000)
         if not found:
-            shot = '/opt/OS/logs/instagram_login_error.png'
+            shot = f'{_ROOT}/logs/instagram_login_error.png'
             await self.screenshot(shot)
             print(f'[InstagramAgent] Login may have failed — screenshot: {shot}')
         return found

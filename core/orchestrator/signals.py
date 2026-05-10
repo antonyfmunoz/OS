@@ -26,8 +26,10 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-SIGNALS_ROOT = "/opt/OS/logs/signals"
+
+SIGNALS_ROOT = f"{_ROOT}/logs/signals"
 BINDINGS_PATH = os.path.join(SIGNALS_ROOT, "bindings.json")
 
 

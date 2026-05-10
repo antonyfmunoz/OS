@@ -72,7 +72,7 @@ from core.capability import (  # noqa: E402
     operation_for_action_type,
 )
 
-ROOT = Path("/opt/OS")
+ROOT = Path(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 DATA_DIR = ROOT / "data"
 LOG_PATH = DATA_DIR / "action_log.jsonl"
 SNAPSHOT_DIR = DATA_DIR / "action_snapshots"

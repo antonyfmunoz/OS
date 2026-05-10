@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 from core.runtime.adapter_registry_contracts import AdapterRegistry
 from core.runtime.worker_runtime_contracts import (
@@ -40,9 +41,11 @@ from core.runtime.worker_runtime_contracts import (
     WSL_AUTHORITY,
 )
 from eos_ai.transport.windows_desktop_relay_client import (
+
     resolve_relay_paths,
     send_request_and_wait,
 )
+
 
 
 # ---------------------------------------------------------------------------
@@ -64,7 +67,7 @@ def _log_error(msg: str) -> None:
 # Config
 # ---------------------------------------------------------------------------
 
-DEFAULT_CONFIG_PATH = "/opt/OS/config/local_worker_runtime_daemon_v1.json"
+DEFAULT_CONFIG_PATH = f"{_ROOT}/config/local_worker_runtime_daemon_v1.json"
 
 
 def load_config(config_path: str | Path = DEFAULT_CONFIG_PATH) -> dict[str, Any]:
@@ -80,7 +83,7 @@ def load_config(config_path: str | Path = DEFAULT_CONFIG_PATH) -> dict[str, Any]
 class LocalWorkerRuntimeDaemon:
     """Minimal persistent worker runtime daemon."""
 
-    def __init__(self, config: dict[str, Any], base_dir: Path = Path("/opt/OS")) -> None:
+    def __init__(self, config: dict[str, Any], base_dir: Path = Path(_ROOT)) -> None:
         self.config = config
         self.base_dir = base_dir
         self.worker_id: str = config["worker_id"]

@@ -11,6 +11,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 @dataclass
@@ -34,7 +37,7 @@ class QueuePaths:
 
 
 def build_vps_queue_paths() -> QueuePaths:
-    root = "/opt/OS/data/work_queue"
+    root = f"{_ROOT}/data/work_queue"
     return QueuePaths(
         root=root,
         outbox=f"{root}/outbox",

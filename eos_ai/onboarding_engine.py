@@ -22,6 +22,9 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Optional
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 # ─── Session state ────────────────────────────────────────────────────────────
@@ -293,7 +296,7 @@ class OnboardingEngine:
             )
 
             if soul_doc:
-                path = Path(f'/opt/OS/agents/{ai_name.lower()}_ea.md')
+                path = Path(f'{_ROOT}/agents/{ai_name.lower()}_ea.md')
                 path.write_text(soul_doc, encoding='utf-8')
                 results['soul_doc'] = 'created'
                 print(f'[Onboarding] Soul doc: {path}')

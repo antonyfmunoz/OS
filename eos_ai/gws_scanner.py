@@ -22,6 +22,7 @@ Usage:
 """
 
 import json
+import os
 import re
 import subprocess
 import time
@@ -30,6 +31,8 @@ from datetime import datetime
 from pathlib import Path
 
 from eos_ai.context import EOSContext
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 @dataclass
@@ -646,7 +649,7 @@ class GWSDocumentScanner:
             + '\n\n'.join(sections)
         )
 
-        profile_path = Path('/opt/OS/data/founder_profile.md')
+        profile_path = Path(_ROOT) / "data" / "founder_profile.md"
         profile_path.parent.mkdir(parents=True, exist_ok=True)
         profile_path.write_text(profile)
         print(f'[GWS] Full profile saved: {profile_path}')
@@ -670,7 +673,7 @@ class GWSDocumentScanner:
         Save a markdown summary of all scanned docs.
         Written to /opt/OS/data/gws_context.md — injected into cognitive loop.
         """
-        summary_path = Path('/opt/OS/data/gws_context.md')
+        summary_path = Path(_ROOT) / "data" / "gws_context.md"
         summary_path.parent.mkdir(parents=True, exist_ok=True)
 
         lines = [

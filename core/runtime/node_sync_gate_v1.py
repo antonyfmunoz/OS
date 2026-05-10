@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Any
 
 from core.state.transformation_state_ledger import (
+
     StateArtifactReference,
     StateLedgerRecord,
     TransformationStage,
@@ -39,6 +40,10 @@ from core.state.transformation_state_ledger import (
     make_state_id,
     make_trace_id,
 )
+
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 class SyncStatus(str, Enum):
@@ -337,7 +342,7 @@ class NodeSyncGate:
 
     def __init__(
         self,
-        vps_repo_path: Path = Path("/opt/OS"),
+        vps_repo_path: Path = Path(_ROOT),
         local_repo_path: Path | None = None,
         relay_script_path: Path | None = None,
         command_registry: dict[str, str] | None = None,

@@ -21,7 +21,10 @@ Used by:
 """
 
 import re
+import os
 from dataclasses import dataclass, field
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 # ─── Score weights ──────────────────────────────────────────────────────────
 # Each signal contributes points. Max theoretical ~200+ but typical range 0-100.
@@ -487,7 +490,7 @@ def _find_repeated(
 def score_cross_session(
     parsed: dict,
     body_text: str = "",
-    summaries_dir: str = "/opt/OS/vault/memory/summaries",
+    summaries_dir: str = f"{_ROOT}/vault/memory/summaries",
     exclude_session: str = "",
 ) -> CrossSessionResult:
     """Score cross-session salience by detecting repeated themes.

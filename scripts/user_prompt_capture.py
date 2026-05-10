@@ -17,9 +17,11 @@ import os
 import json
 from datetime import datetime, timezone
 from typing import Any
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 
-CONVERSATIONS_DIR = "/opt/OS/vault/memory/conversations"
+
+CONVERSATIONS_DIR = f"{_ROOT}/vault/memory/conversations"
 # Skip capturing very short prompts (single-word commands, etc.)
 MIN_PROMPT_LENGTH = 5
 
@@ -67,7 +69,7 @@ def main() -> None:
 
     now = datetime.now(timezone.utc).astimezone()
     iso_ts = now.isoformat(timespec="seconds")
-    cwd = hook_input.get("cwd", "/opt/OS")
+    cwd = hook_input.get("cwd", _ROOT)
 
     filepath = os.path.join(CONVERSATIONS_DIR, f"{session_id}.md")
     os.makedirs(CONVERSATIONS_DIR, exist_ok=True)

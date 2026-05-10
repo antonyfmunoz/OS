@@ -11,6 +11,9 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from typing import Any
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 KNOWN_TOOLS: dict[str, list[str]] = {
@@ -235,7 +238,7 @@ def infer_required_mastery_packs(
                 ResolvedMasteryPack(
                     pack_id=f"pack:{tool.normalized_tool_name}",
                     tool_name=tool.normalized_tool_name,
-                    pack_path=f"/opt/OS/skills/tools/{tool.normalized_tool_name}/SKILL.md",
+                    pack_path=f"{_ROOT}/skills/tools/{tool.normalized_tool_name}/SKILL.md",
                     scope="tool",
                     required=True,
                     reason=f"tool '{tool.raw_mention}' detected in user intent",

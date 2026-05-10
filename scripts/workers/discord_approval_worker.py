@@ -52,10 +52,12 @@ import sys
 import time
 import urllib.request
 from datetime import datetime, timezone
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-NOTIFICATION_QUEUE = "/opt/OS/logs/deferred/notifications.jsonl"
-DEFERRED_DIR = "/opt/OS/logs/deferred"
-OFFSET_FILE = "/opt/OS/logs/deferred/.worker_offset"
+
+NOTIFICATION_QUEUE = f"{_ROOT}/logs/deferred/notifications.jsonl"
+DEFERRED_DIR = f"{_ROOT}/logs/deferred"
+OFFSET_FILE = f"{_ROOT}/logs/deferred/.worker_offset"
 
 DEFAULT_POLL_SECONDS = 15
 

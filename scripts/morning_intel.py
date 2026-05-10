@@ -12,6 +12,8 @@ import discord
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
@@ -72,8 +74,8 @@ async def build_intel_brief():
     try:
         import glob
 
-        report_files = glob.glob("/opt/OS/07_Knowledge/Reports/Market_Reports/*.md")
-        report_files += glob.glob("/opt/OS/07_Knowledge/ICP/*.md")
+        report_files = glob.glob(f"{_ROOT}/07_Knowledge/Reports/Market_Reports/*.md")
+        report_files += glob.glob(f"{_ROOT}/07_Knowledge/ICP/*.md")
         report_files = sorted(report_files, key=os.path.getmtime, reverse=True)[:3]
         for rf in report_files:
             with open(rf) as f:

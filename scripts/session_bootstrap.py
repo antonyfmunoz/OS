@@ -29,7 +29,7 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 from scripts.query_graph import GraphQuery
 
-ROOT = Path("/opt/OS")
+ROOT = Path(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 LOAD_ORDER = [
     ROOT / "cloud.md",
     ROOT / "10_Wiki" / "palace" / "index.md",

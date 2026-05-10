@@ -33,6 +33,8 @@ from __future__ import annotations
 
 import os
 import sys
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
@@ -447,7 +449,7 @@ def test_no_hot_path_imports_target_policy() -> None:
     _header("E1. target_policy.py has no hot-path imports")
     import ast
 
-    with open("/opt/OS/eos_ai/substrate/target_policy.py") as f:
+    with open(f"{_ROOT}/eos_ai/substrate/target_policy.py") as f:
         tree = ast.parse(f.read())
 
     imports = set()
@@ -472,7 +474,7 @@ def test_no_hot_path_imports_mode_routing() -> None:
     _header("E2. discord_mode_routing.py top-level has no hot-path imports")
     import ast
 
-    with open("/opt/OS/eos_ai/substrate/discord_mode_routing.py") as f:
+    with open(f"{_ROOT}/eos_ai/substrate/discord_mode_routing.py") as f:
         tree = ast.parse(f.read())
 
     # Only check top-level imports, not function-level (late-bound is fine)
@@ -507,8 +509,8 @@ def test_one_router_invariant() -> None:
     import ast
 
     for path in (
-        "/opt/OS/eos_ai/substrate/target_policy.py",
-        "/opt/OS/eos_ai/substrate/discord_mode_routing.py",
+        f"{_ROOT}/eos_ai/substrate/target_policy.py",
+        f"{_ROOT}/eos_ai/substrate/discord_mode_routing.py",
     ):
         with open(path) as f:
             tree = ast.parse(f.read())

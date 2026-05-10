@@ -14,11 +14,13 @@ import argparse
 import json
 import os
 import sys
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-GRAPH_PATH = "/opt/OS/data/codebase_graph.json"
-PCA_PATH = "/opt/OS/data/semantic_space/pca_v1.json"
+GRAPH_PATH = f"{_ROOT}/data/codebase_graph.json"
+PCA_PATH = f"{_ROOT}/data/semantic_space/pca_v1.json"
 
 _GRAPH_SECTIONS = ("files", "classes", "functions")
 
@@ -64,7 +66,7 @@ def _load_embedding_store(graph: dict) -> dict[str, list[float]] | None:
     rel_path = meta.get("embedding_store_path")
     if not rel_path:
         return None
-    full_path = os.path.join("/opt/OS", rel_path)
+    full_path = os.path.join(_ROOT, rel_path)
     if not os.path.exists(full_path):
         return None
     return load_embedding_store(full_path)

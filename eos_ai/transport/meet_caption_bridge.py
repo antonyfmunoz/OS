@@ -21,13 +21,14 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 import re
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
-BRIDGE_ROOT: Path = Path("/opt/OS/eos_ai/.substrate_station/meet_captions")
+BRIDGE_ROOT: Path = Path(_ROOT) / "eos_ai" / ".substrate_station" / "meet_captions"
 SCHEMA_VERSION = 1
 SOURCE_TAG = "google_meet"
 

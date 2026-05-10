@@ -6,6 +6,8 @@ from __future__ import annotations
 import sys
 
 import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 _passed = 0
@@ -141,7 +143,7 @@ def main() -> None:
     def test_no_second_router():
         import ast
 
-        with open("/opt/OS/eos_ai/substrate/workflow_execution.py") as f:
+        with open(f"{_ROOT}/eos_ai/substrate/workflow_execution.py") as f:
             source = f.read()
         tree = ast.parse(source)
         for node in ast.walk(tree):
@@ -173,7 +175,7 @@ def main() -> None:
         import tokenize
         import io
 
-        with open("/opt/OS/eos_ai/substrate/workflow_execution.py") as f:
+        with open(f"{_ROOT}/eos_ai/substrate/workflow_execution.py") as f:
             source = f.read()
         # Strip comments and docstrings: check only executable code
         # Use AST to extract all string literals (docstrings) and remove them

@@ -43,6 +43,8 @@ from __future__ import annotations
 
 import os
 import sys
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
@@ -472,9 +474,9 @@ def test_no_hot_path_imports() -> None:
     }
 
     for modpath in (
-        "/opt/OS/eos_ai/substrate/workload_policy.py",
-        "/opt/OS/eos_ai/substrate/resource_guard.py",
-        "/opt/OS/eos_ai/substrate/context_lifecycle.py",
+        f"{_ROOT}/eos_ai/substrate/workload_policy.py",
+        f"{_ROOT}/eos_ai/substrate/resource_guard.py",
+        f"{_ROOT}/eos_ai/substrate/context_lifecycle.py",
     ):
         basename = os.path.basename(modpath)
         with open(modpath) as f:
@@ -506,9 +508,9 @@ def test_no_daemon_or_background_thread() -> None:
     import ast
 
     for modpath in (
-        "/opt/OS/eos_ai/substrate/workload_policy.py",
-        "/opt/OS/eos_ai/substrate/resource_guard.py",
-        "/opt/OS/eos_ai/substrate/context_lifecycle.py",
+        f"{_ROOT}/eos_ai/substrate/workload_policy.py",
+        f"{_ROOT}/eos_ai/substrate/resource_guard.py",
+        f"{_ROOT}/eos_ai/substrate/context_lifecycle.py",
     ):
         basename = os.path.basename(modpath)
         with open(modpath) as f:
@@ -548,9 +550,9 @@ def test_one_router_no_new_class() -> None:
     import ast
 
     for modpath in (
-        "/opt/OS/eos_ai/substrate/workload_policy.py",
-        "/opt/OS/eos_ai/substrate/resource_guard.py",
-        "/opt/OS/eos_ai/substrate/context_lifecycle.py",
+        f"{_ROOT}/eos_ai/substrate/workload_policy.py",
+        f"{_ROOT}/eos_ai/substrate/resource_guard.py",
+        f"{_ROOT}/eos_ai/substrate/context_lifecycle.py",
     ):
         basename = os.path.basename(modpath)
         with open(modpath) as f:
@@ -577,9 +579,9 @@ def test_no_second_cognition_pipeline() -> None:
     import ast
 
     for modpath in (
-        "/opt/OS/eos_ai/substrate/workload_policy.py",
-        "/opt/OS/eos_ai/substrate/resource_guard.py",
-        "/opt/OS/eos_ai/substrate/context_lifecycle.py",
+        f"{_ROOT}/eos_ai/substrate/workload_policy.py",
+        f"{_ROOT}/eos_ai/substrate/resource_guard.py",
+        f"{_ROOT}/eos_ai/substrate/context_lifecycle.py",
     ):
         basename = os.path.basename(modpath)
         with open(modpath) as f:

@@ -8,6 +8,9 @@ Principles are injected universally so skills stay focused on execution logic on
 from __future__ import annotations
 
 from eos_ai.context import EOSContext
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 # ─── Root Rule ────────────────────────────────────────────────────────────────
@@ -461,7 +464,7 @@ class PrincipleEngine:
         lines.append(
             "TOOL MASTERY ENGINE: "
             "When utilizing any external tool — check for tool skill at "
-            "/opt/OS/skills/tools/{toolname}/. Load if present and current. "
+            f"{_ROOT}/skills/tools/{toolname}/. Load if present and current. "
             "Research official docs and create if absent. "
             "EOS operates at creator-level expertise with every tool. "
             "Skill: /tool-mastery-engine"

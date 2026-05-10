@@ -19,6 +19,8 @@ import subprocess
 import fcntl
 from datetime import datetime
 from zoneinfo import ZoneInfo
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 PDT = ZoneInfo("America/Los_Angeles")
@@ -68,7 +70,7 @@ def get_cc_version() -> str:
 
 def check_version_change(current: str) -> bool:
     """Returns True if version changed."""
-    version_file = "/opt/OS/.claude/last_cc_version"
+    version_file = f"{_ROOT}/.claude/last_cc_version"
     try:
         if os.path.exists(version_file):
             with open(version_file) as f:
@@ -161,8 +163,8 @@ def main():
 
     # Also log to sessions file
     try:
-        os.makedirs("/opt/OS/logs", exist_ok=True)
-        with open("/opt/OS/logs/sessions.log", "a") as f:
+        os.makedirs(f"{_ROOT}/logs", exist_ok=True)
+        with open(f"{_ROOT}/logs/sessions.log", "a") as f:
             f.write(f"{now.isoformat()} CC:{cc_version} Stage:{stage} Pending:{pending}\n")
     except Exception:
         pass
@@ -186,7 +188,7 @@ def main():
         import datetime
         import re as _re
 
-        _tools_dir = "/opt/OS/skills/tools"
+        _tools_dir = f"{_ROOT}/skills/tools"
         _today = datetime.date.today()
         _stale = []
         _WINDOWS = {"fast": 14, "medium": 45, "stable": 90, "slow": 120}

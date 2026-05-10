@@ -36,6 +36,7 @@ import time
 
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 from eos_ai.substrate import meeting_intelligence as mi  # noqa: E402
 
@@ -225,7 +226,7 @@ def check_hot_path_clean() -> None:
     for f in HOT_PATH_FILES:
         out = subprocess.run(
             ["grep", "-n", "coordination_intelligence\\|ownership_distribution", f],
-            cwd="/opt/OS",
+            cwd=_ROOT,
             capture_output=True,
             text=True,
         )

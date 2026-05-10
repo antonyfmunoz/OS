@@ -19,6 +19,7 @@ from typing import Any
 
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 from core.tool_mastery_author_agent.loader import (
     LoadedArtifact,
@@ -34,16 +35,18 @@ from core.tool_mastery_author_agent.mapping import (
 from core.tool_mastery_author_agent.draft import build_drafts
 from core.tool_mastery_research_agent.artifact import TME_SECTIONS
 from core.tool_mastery_research_agent.extraction import (
+
     extract_from_source,
     merge_extractions,
 )
+
 
 TOOLS = [
     "notion", "stripe", "posthog", "drizzle_orm",
     "remotion", "higgsfield", "clo3d", "shadcn_ui",
 ]
 
-LOG_ROOT = Path("/opt/OS/logs/tool_mastery_research")
+LOG_ROOT = Path(_ROOT) / "logs" / "tool_mastery_research"
 
 
 @dataclass
@@ -327,7 +330,7 @@ def main():
         "aggregate_grounding": agg_grounding,
         "aggregate_pattern_kinds": agg_kinds,
     }
-    out_path = Path("/opt/OS/logs/tool_mastery_research/phase8_batch_results.json")
+    out_path = Path(_ROOT) / "logs" / "tool_mastery_research" / "phase8_batch_results.json"
     out_path.write_text(json.dumps(output, indent=2))
     print(f"\nResults written to {out_path}")
 

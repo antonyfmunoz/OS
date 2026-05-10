@@ -29,6 +29,7 @@ from pathlib import Path
 
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 from core.control_plane_router.control_plane_router_v1 import ControlPlaneRouterV1
 from core.control_plane_router.router_contracts import (
@@ -41,12 +42,14 @@ from core.control_plane_router.router_contracts import (
 from core.runtime.adapter_registry_contracts import AdapterRegistry
 from core.runtime.worker_runtime_contracts import ProofStatus, RuntimeProofRecord
 from eos_ai.interfaces.discord_interface_adapter_v1 import (
+
     build_work_packet_for_router,
     format_router_result,
 )
 
 
-BASE_DIR = Path("/opt/OS")
+
+BASE_DIR = Path(_ROOT)
 PROOF_OUTPUT_DIR = BASE_DIR / "data" / "runtime" / "w0_interaction_proofs"
 REGISTRY_PATH = BASE_DIR / "data" / "registries" / "local_worker_adapter_registry_v1.json"
 ROUTER_CONFIG_PATH = BASE_DIR / "config" / "control_plane_router_v1.json"

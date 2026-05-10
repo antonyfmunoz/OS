@@ -52,7 +52,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Iterator
 
-_REPO_ROOT = Path("/opt/OS")
+_REPO_ROOT = Path(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
@@ -66,21 +66,21 @@ PLAYGROUND_ROOT = PRODUCTION_DATA / "playgrounds"
 # Paths that sandbox environments are NEVER allowed to write to, even if
 # someone tries to hand-craft a path. This is the last line of defense.
 FORBIDDEN_WRITE_PREFIXES: tuple[str, ...] = (
-    "/opt/OS/data/action_log.jsonl",
-    "/opt/OS/data/workflow_log.jsonl",
-    "/opt/OS/data/orchestrator_log.jsonl",
-    "/opt/OS/data/harness_log.jsonl",
-    "/opt/OS/data/persistent_agents_log.jsonl",
-    "/opt/OS/data/optimizer_proposals.jsonl",
-    "/opt/OS/data/optimizer_state.json",
-    "/opt/OS/data/orchestrator_state.json",
-    "/opt/OS/data/workflow_state",
-    "/opt/OS/data/agent_state",
-    "/opt/OS/data/action_snapshots",
-    "/opt/OS/eos_ai",
-    "/opt/OS/core",
-    "/opt/OS/scripts",
-    "/opt/OS/services",
+    str(_REPO_ROOT / "data" / "action_log.jsonl"),
+    str(_REPO_ROOT / "data" / "workflow_log.jsonl"),
+    str(_REPO_ROOT / "data" / "orchestrator_log.jsonl"),
+    str(_REPO_ROOT / "data" / "harness_log.jsonl"),
+    str(_REPO_ROOT / "data" / "persistent_agents_log.jsonl"),
+    str(_REPO_ROOT / "data" / "optimizer_proposals.jsonl"),
+    str(_REPO_ROOT / "data" / "optimizer_state.json"),
+    str(_REPO_ROOT / "data" / "orchestrator_state.json"),
+    str(_REPO_ROOT / "data" / "workflow_state"),
+    str(_REPO_ROOT / "data" / "agent_state"),
+    str(_REPO_ROOT / "data" / "action_snapshots"),
+    str(_REPO_ROOT / "eos_ai"),
+    str(_REPO_ROOT / "core"),
+    str(_REPO_ROOT / "scripts"),
+    str(_REPO_ROOT / "services"),
 )
 
 

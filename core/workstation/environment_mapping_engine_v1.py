@@ -33,6 +33,9 @@ from core.actuation.actuator_maturity_v1 import (
     ActuatorMaturityLevel,
 )
 from eos_ai.substrate.memory_scope_contracts import MemoryScope
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 def _now_iso() -> str:
@@ -1082,7 +1085,7 @@ def build_full_environment_proof(
 
 def persist_environment_mapping_proof(
     proof: EnvironmentMappingProof,
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> Path:
     """Persist environment mapping proof to disk."""
     proof_dir = base_dir / ENVIRONMENT_MAP_DIR

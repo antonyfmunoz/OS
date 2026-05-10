@@ -20,10 +20,12 @@ import sys
 from pathlib import Path
 
 import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-WIKI_DIR = Path("/opt/OS/10_Wiki")
-VAULT_DIR = Path("/opt/OS/vault")
+WIKI_DIR = Path(_ROOT) / "10_Wiki"
+VAULT_DIR = Path(_ROOT) / "vault"
 SUMMARIES_DIR = VAULT_DIR / "memory" / "summaries"
 
 # Wiki knowledge subdirs (not codebase/ or palace/)
@@ -92,7 +94,7 @@ class WikiIndex:
                 continue
             for md in d.glob("*.md"):
                 slug = md.stem
-                rel_path = str(md.relative_to(Path("/opt/OS")))
+                rel_path = str(md.relative_to(Path(_ROOT)))
                 self.slug_to_path[slug] = rel_path
                 self.slug_to_nodes.setdefault(slug, [])
 

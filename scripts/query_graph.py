@@ -37,7 +37,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
-ROOT = Path("/opt/OS")
+import os
+ROOT = Path(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 GRAPH_JSON = ROOT / "data" / "codebase_graph.json"
 STALE_HOURS = 24
 

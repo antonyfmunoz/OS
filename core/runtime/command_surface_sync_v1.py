@@ -14,11 +14,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+_DEFAULT_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 
 @dataclass
@@ -59,7 +62,7 @@ class CommandSurfaceSyncResult:
         }
 
 
-def _git_commit(ref: str, repo_dir: str = "/opt/OS") -> str:
+def _git_commit(ref: str, repo_dir: str = _DEFAULT_ROOT) -> str:
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--short", ref],
@@ -99,7 +102,7 @@ def verify_command_surface(
     source_commands: set[str],
     live_commands: set[str] | None = None,
     container_name: str = "os-discord",
-    repo_dir: str = "/opt/OS",
+    repo_dir: str = _DEFAULT_ROOT,
 ) -> CommandSurfaceSyncResult:
     """Verify the command surface is in sync."""
     result = CommandSurfaceSyncResult()
@@ -145,7 +148,7 @@ def verify_command_surface(
 
 def persist_sync_proof(
     result: CommandSurfaceSyncResult,
-    proof_dir: Path = Path("/opt/OS/data/runtime/command_surface_proofs"),
+    proof_dir: Path = Path(_DEFAULT_ROOT) / "data" / "runtime" / "command_surface_proofs",
 ) -> Path:
     """Write sync verification result to disk."""
     proof_dir.mkdir(parents=True, exist_ok=True)

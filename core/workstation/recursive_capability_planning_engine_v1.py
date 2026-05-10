@@ -32,12 +32,17 @@ from core.workstation.adapter_autogeneration_engine_v1 import (
     AdapterBlueprint,
 )
 from core.workstation.environment_mapping_engine_v1 import (
+
     CANDIDATE_TYPE_CANONICAL,
     CANDIDATE_TYPE_INSTANCE,
     ENVIRONMENT_MAP_DIR,
     EnvironmentMappingProof,
     EnvironmentTopology,
 )
+
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 def _now_iso() -> str:
@@ -925,7 +930,7 @@ def generate_upgrade_proposals(
 # ---------------------------------------------------------------------------
 
 
-def analyze_registries(base_dir: Path = Path("/opt/OS")) -> dict[str, Any]:
+def analyze_registries(base_dir: Path = Path(_ROOT)) -> dict[str, Any]:
     """Analyze substrate registries."""
     registry_path = base_dir / "data/registries/local_worker_adapter_registry_v1.json"
     config_path = base_dir / "config/control_plane_router_v1.json"
@@ -956,7 +961,7 @@ def analyze_registries(base_dir: Path = Path("/opt/OS")) -> dict[str, Any]:
     return result
 
 
-def analyze_proof_artifacts(base_dir: Path = Path("/opt/OS")) -> dict[str, Any]:
+def analyze_proof_artifacts(base_dir: Path = Path(_ROOT)) -> dict[str, Any]:
     """Analyze existing proof artifacts."""
     proof_dirs = {
         "runtime_proofs": base_dir / "data/runtime/runtime_proofs",
@@ -978,7 +983,7 @@ def analyze_proof_artifacts(base_dir: Path = Path("/opt/OS")) -> dict[str, Any]:
     return result
 
 
-def analyze_governance_surface(base_dir: Path = Path("/opt/OS")) -> dict[str, Any]:
+def analyze_governance_surface(base_dir: Path = Path(_ROOT)) -> dict[str, Any]:
     """Analyze governance surface coverage."""
     from core.registry.canonical_command_registry_v1 import get_canonical_registry
 
@@ -1296,7 +1301,7 @@ def build_full_capability_proof(
 
 def persist_capability_proof(
     proof: CapabilityPlanningProof,
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> Path:
     """Persist capability planning proof to disk."""
     out_dir = base_dir / CAPABILITY_REPORT_DIR

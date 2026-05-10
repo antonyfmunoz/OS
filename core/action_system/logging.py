@@ -13,9 +13,11 @@ from datetime import datetime, timezone
 from typing import Any
 
 from .actions import Action
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-EXECUTION_LOG_DIR = "/opt/OS/logs/execution"
-DECISION_LOG_DIR = "/opt/OS/logs/decisions"
+
+EXECUTION_LOG_DIR = f"{_ROOT}/logs/execution"
+DECISION_LOG_DIR = f"{_ROOT}/logs/decisions"
 
 
 def _today_path(directory: str, stem: str) -> str:

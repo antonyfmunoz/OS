@@ -39,9 +39,11 @@ from typing import Any, Optional
 
 from eos_ai.transport.actions import SafeAction, ActionResult, ActionStatus
 from eos_ai.transport.station import StationEvent
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 
-_BUS_DIR = Path("/opt/OS/eos_ai/.substrate_station")
+
+_BUS_DIR = Path(_ROOT) / "eos_ai" / ".substrate_station"
 
 
 def _log(msg: str) -> None:

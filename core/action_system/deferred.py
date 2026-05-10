@@ -18,8 +18,10 @@ from datetime import datetime, timezone
 from typing import Any
 
 from .actions import Action
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-DEFERRED_DIR = "/opt/OS/logs/deferred"
+
+DEFERRED_DIR = f"{_ROOT}/logs/deferred"
 
 
 def _path_for(action_id: str) -> str:

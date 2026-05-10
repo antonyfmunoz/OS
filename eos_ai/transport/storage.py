@@ -30,8 +30,10 @@ import sys
 import threading
 from pathlib import Path
 from typing import Any, Optional, Protocol
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-_JSON_PATH = Path("/opt/OS/eos_ai/.substrate_state.json")
+
+_JSON_PATH = Path(_ROOT) / "eos_ai" / ".substrate_state.json"
 
 
 def _log(msg: str) -> None:

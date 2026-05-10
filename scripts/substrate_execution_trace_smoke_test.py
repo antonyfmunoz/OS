@@ -11,6 +11,8 @@ from __future__ import annotations
 import importlib
 import os
 import sys
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
@@ -244,7 +246,7 @@ def main() -> int:
 
     # ── 15. No second router ─────────────────────────────────────────────
     _header("15. no second router")
-    router_path = os.path.join("/opt/OS", "eos_ai", "model_router.py")
+    router_path = os.path.join(_ROOT, "eos_ai", "model_router.py")
     with open(router_path) as f:
         router_lines = f.readlines()
     # Count module-level call_with_fallback (not indented = not a method)
@@ -259,7 +261,7 @@ def main() -> int:
 
     # ── 16. No daemon in execution_trace ─────────────────────────────────
     _header("16. no daemon")
-    trace_path = os.path.join("/opt/OS", "eos_ai", "substrate", "execution_trace.py")
+    trace_path = os.path.join(_ROOT, "eos_ai", "substrate", "execution_trace.py")
     with open(trace_path) as f:
         trace_src = f.read()
     has_subprocess = "subprocess" in trace_src
@@ -376,7 +378,7 @@ def main() -> int:
     # ── 24. No second cognition pipeline ────────────────────────────────
     _header("24. no second cognition pipeline")
     transport_path = os.path.join(
-        "/opt/OS", "eos_ai", "substrate", "discord_text_transport.py"
+        _ROOT, "eos_ai", "substrate", "discord_text_transport.py"
     )
     with open(transport_path) as f:
         transport_src = f.read()

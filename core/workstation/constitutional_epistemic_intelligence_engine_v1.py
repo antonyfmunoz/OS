@@ -43,8 +43,13 @@ from core.workstation.persistent_substrate_continuity_engine_v1 import (
     ContinuityProof,
 )
 from core.workstation.recursive_capability_planning_engine_v1 import (
+
     CapabilityPlanningProof,
 )
+
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 # ---------------------------------------------------------------------------
@@ -1389,7 +1394,7 @@ def build_full_epistemic_proof(
     is_dry_run: bool = False,
     trace_id: str = "",
     request_id: str = "",
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> EpistemicProof:
     """Full constitutional epistemic intelligence pipeline."""
     primitives = build_epistemic_primitives(
@@ -1497,7 +1502,7 @@ def build_full_epistemic_proof(
 
 def persist_epistemic_proof(
     proof: EpistemicProof,
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> Path:
     """Persist epistemic proof to disk."""
     report_dir = base_dir / EPISTEMIC_REPORT_DIR

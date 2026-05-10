@@ -21,6 +21,9 @@ from .models import (
 )
 from .paths import RESEARCH_LOG_DIR
 from .source_discovery import discover_sources
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 def _run_stamp() -> str:
@@ -37,7 +40,7 @@ def _derive_status(fetched_count: int, ok_count: int) -> ResearchStatus:
     return ResearchStatus.OK
 
 
-AUTHOR_DISPATCHER_SCRIPT = "/opt/OS/scripts/tool_mastery_author.py"
+AUTHOR_DISPATCHER_SCRIPT = f"{_ROOT}/scripts/tool_mastery_author.py"
 
 
 def _queue_author_action(*, tool_slug: str, artifact_path: str) -> dict[str, object]:

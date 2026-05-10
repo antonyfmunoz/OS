@@ -2,8 +2,10 @@
 """Replace hardcoded 'Antony' founder references with generic 'the founder' in skills."""
 import os
 import re
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-SKILLS_DIR = "/opt/OS/skills"
+
+SKILLS_DIR = f"{_ROOT}/skills"
 FOUNDER_BIS = "!" + "`python3 /opt/OS/scripts/bis_context.py --founder`"
 
 updated = 0

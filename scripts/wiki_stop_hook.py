@@ -20,9 +20,11 @@ import os
 import json
 from datetime import datetime, timezone
 from typing import Any
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 
-CONVERSATIONS_DIR = '/opt/OS/vault/memory/conversations'
+
+CONVERSATIONS_DIR = f'{_ROOT}/vault/memory/conversations'
 # Skip writing if assistant text is shorter than this
 MIN_CONTENT_LENGTH = 20
 
@@ -108,7 +110,7 @@ def main() -> None:
 
     session_id = hook_input.get('session_id', 'unknown')
     stop_reason = hook_input.get('stop_reason', '')
-    cwd = hook_input.get('cwd', '/opt/OS')
+    cwd = hook_input.get('cwd', _ROOT)
     transcript_path = hook_input.get('transcript_path', '')
 
     assistant_text = _extract_assistant_text(hook_input)

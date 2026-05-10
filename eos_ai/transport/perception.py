@@ -18,6 +18,7 @@ Design rules (mirror substrate conventions):
 from __future__ import annotations
 
 import hashlib
+import os
 import subprocess
 import sys
 import threading
@@ -26,6 +27,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
 from enum import Enum
 from typing import Any, Optional
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -631,7 +634,7 @@ def collect_git_perception() -> list[PerceptionRecord]:
             capture_output=True,
             text=True,
             timeout=5,
-            cwd="/opt/OS",
+            cwd=_ROOT,
         )
         if result.returncode == 0:
             lines = [ln for ln in result.stdout.strip().splitlines() if ln.strip()]
@@ -652,7 +655,7 @@ def collect_git_perception() -> list[PerceptionRecord]:
             capture_output=True,
             text=True,
             timeout=5,
-            cwd="/opt/OS",
+            cwd=_ROOT,
         )
         if result.returncode == 0:
             commit_lines = [
@@ -687,7 +690,7 @@ def collect_runtime_log_perception() -> list[PerceptionRecord]:
         import os
         from pathlib import Path
 
-        logs_dir = Path("/opt/OS/logs")
+        logs_dir = Path(_ROOT) / "logs"
         if not logs_dir.is_dir():
             return records
 

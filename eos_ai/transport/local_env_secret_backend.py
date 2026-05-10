@@ -28,7 +28,7 @@ from eos_ai.transport.secret_broker_contracts import (
 
 
 DEFAULT_SECRET_PATH = os.path.expanduser("~/.umh/secrets/.env")
-REPO_ROOT = "/opt/OS"
+REPO_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 SCOPE_PREFIX_MAP: dict[str, SecretScope] = {
     "GOOGLE_": SecretScope.GOOGLE_WORKSPACE,

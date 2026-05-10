@@ -24,6 +24,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
@@ -328,7 +330,7 @@ def assign_semantic_coords(graph: dict) -> dict:
     # Step 2: Build PCA model
     print("[coord_assignment] Fitting PCA-1D...")
     pca_model = _build_pca_model(embeddings)
-    _write_json(os.path.join("/opt/OS", PCA_META_PATH), pca_model, indent=2)
+    _write_json(os.path.join(_ROOT, PCA_META_PATH), pca_model, indent=2)
     print(f"[coord_assignment] PCA model saved to {PCA_META_PATH}")
 
     # Step 3: Assign coordinates and collect embedding store
@@ -348,7 +350,7 @@ def assign_semantic_coords(graph: dict) -> dict:
 
     # Step 4: Persist embedding store (sorted keys for determinism)
     _write_json(
-        os.path.join("/opt/OS", EMBEDDING_STORE_PATH),
+        os.path.join(_ROOT, EMBEDDING_STORE_PATH),
         embedding_store,
         sort_keys=True,
     )
@@ -386,7 +388,7 @@ def assign_semantic_coords(graph: dict) -> dict:
 
 def _load_summaries() -> dict:
     """Load node summaries from data/node_summaries.json."""
-    path = "/opt/OS/data/node_summaries.json"
+    path = f"{_ROOT}/data/node_summaries.json"
     if not os.path.exists(path):
         return {}
     with open(path) as f:

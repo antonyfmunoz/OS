@@ -44,7 +44,7 @@ except Exception:  # pragma: no cover — allow running before parsers/ exists
 
 # ─── Configuration ────────────────────────────────────────────────────────────
 
-ROOT = Path("/opt/OS")
+ROOT = Path(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 WIKI_DIR = ROOT / "10_Wiki" / "codebase"
 JSON_OUT = ROOT / "data" / "codebase_graph.json"
 CLOUD_MD = WIKI_DIR / "cloud.md"

@@ -11,6 +11,8 @@ import ast
 import sys
 
 import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 _passed = 0
@@ -207,7 +209,7 @@ def main() -> None:
 
     # ── 13. no hot-path imports (import check) ───────────────────────────
     def test_no_hot_path_imports():
-        with open("/opt/OS/eos_ai/substrate/workflow_execution.py") as f:
+        with open(f"{_ROOT}/eos_ai/substrate/workflow_execution.py") as f:
             source = f.read()
         tree = ast.parse(source)
         for node in ast.walk(tree):
@@ -230,7 +232,7 @@ def main() -> None:
 
     # ── 14. no forbidden patterns in executable code ─────────────────────
     def test_no_forbidden_patterns():
-        with open("/opt/OS/eos_ai/substrate/workflow_execution.py") as f:
+        with open(f"{_ROOT}/eos_ai/substrate/workflow_execution.py") as f:
             source = f.read()
         tree = ast.parse(source)
         docstring_lines: set[int] = set()
@@ -372,7 +374,7 @@ def main() -> None:
         result = subprocess.run(
             [
                 sys.executable,
-                "/opt/OS/scripts/substrate_workflow_execution_smoke_test.py",
+                f"{_ROOT}/scripts/substrate_workflow_execution_smoke_test.py",
             ],
             capture_output=True,
             text=True,

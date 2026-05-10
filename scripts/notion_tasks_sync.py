@@ -15,11 +15,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
 
 NOTION_TOKEN = os.getenv('NOTION_API_KEY')
-STATE_FILE = Path('/opt/OS/scripts/notion_tasks_sync_state.json')
+STATE_FILE = Path(_ROOT) / "scripts" / "notion_tasks_sync_state.json"
 
 DATABASES = {
     'lyfe_institute':    os.getenv('NOTION_YOUR_LIST_LYFE'),

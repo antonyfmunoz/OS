@@ -36,11 +36,16 @@ from core.workstation.governed_recursive_orchestration_engine_v1 import (
     build_full_orchestration_proof,
 )
 from core.workstation.recursive_capability_planning_engine_v1 import (
+
     CAPABILITY_MATURITY_LEVELS,
     SUBSTRATE_CAPABILITIES,
     CapabilityPlanningProof,
     build_full_capability_proof,
 )
+
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 def _now_iso() -> str:
@@ -644,7 +649,7 @@ CONTINUITY_REJECTION_TRIGGERS = frozenset(
 
 def build_execution_continuity(
     orchestration_proof: OrchestrationProof | None = None,
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> ExecutionContinuityMemory:
     """Build Layer 1 — Execution Continuity Memory."""
     memory = ExecutionContinuityMemory()
@@ -709,7 +714,7 @@ def build_execution_continuity(
 
 def build_capability_continuity(
     orchestration_proof: OrchestrationProof | None = None,
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> CapabilityContinuityMemory:
     """Build Layer 2 — Capability Continuity Memory."""
     memory = CapabilityContinuityMemory()
@@ -744,7 +749,7 @@ def build_capability_continuity(
 
 def build_topology_continuity(
     orchestration_proof: OrchestrationProof | None = None,
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> TopologyContinuityMemory:
     """Build Layer 3 — Topology Continuity Memory."""
     memory = TopologyContinuityMemory()
@@ -825,7 +830,7 @@ def build_substrate_snapshot(
     orchestration_proof: OrchestrationProof | None = None,
     capability_proof: CapabilityPlanningProof | None = None,
     continuity_maturity: str = "L0_NO_CONTINUITY",
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> SubstrateSnapshot:
     """Build a point-in-time substrate snapshot."""
     from core.registry.canonical_command_registry_v1 import (
@@ -891,7 +896,7 @@ def build_substrate_snapshot(
 def detect_drift(
     orchestration_proof: OrchestrationProof | None = None,
     previous_snapshot: SubstrateSnapshot | None = None,
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> list[DriftSignal]:
     """Detect substrate drift signals."""
     signals: list[DriftSignal] = []
@@ -1011,7 +1016,7 @@ def detect_drift(
 def build_continuity_lineage(
     orchestration_proof: OrchestrationProof | None = None,
     previous_continuity_id: str = "",
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> list[ContinuityLineageEntry]:
     """Build the recursive continuity lineage chain."""
     chain: list[ContinuityLineageEntry] = []
@@ -1055,7 +1060,7 @@ def build_continuity_lineage(
 
 
 def replay_orchestration_history(
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> list[dict[str, Any]]:
     """Replay orchestration history from persisted proofs."""
     history: list[dict[str, Any]] = []
@@ -1081,7 +1086,7 @@ def replay_orchestration_history(
 
 
 def replay_maturity_evolution(
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> list[dict[str, str]]:
     """Replay maturity level evolution across all proof types."""
     evolution: list[dict[str, str]] = []
@@ -1120,7 +1125,7 @@ def replay_maturity_evolution(
 
 
 def replay_drift_emergence(
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> list[dict[str, Any]]:
     """Replay drift emergence from continuity reports."""
     drifts: list[dict[str, Any]] = []
@@ -1358,7 +1363,7 @@ def build_full_continuity_proof(
     is_dry_run: bool = False,
     trace_id: str = "",
     request_id: str = "",
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> ContinuityProof:
     """Full persistent substrate continuity pipeline."""
     exec_memory = build_execution_continuity(orchestration_proof, base_dir)
@@ -1452,7 +1457,7 @@ def build_full_continuity_proof(
 
 def persist_continuity_proof(
     proof: ContinuityProof,
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> Path:
     """Persist continuity proof to disk."""
     out_dir = base_dir / CONTINUITY_REPORT_DIR

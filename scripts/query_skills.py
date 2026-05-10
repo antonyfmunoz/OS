@@ -35,6 +35,7 @@ from pathlib import Path
 
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 from scripts._tme_common import (  # noqa: E402
     SkillRecord,
@@ -44,7 +45,7 @@ from scripts._tme_common import (  # noqa: E402
 )
 from scripts.check_skill_staleness import _assess  # noqa: E402
 
-GRAPH_JSON = Path("/opt/OS/docs/system/skill_graph.json")
+GRAPH_JSON = Path(_ROOT) / "docs" / "system" / "skill_graph.json"
 
 
 def _matches(rec: SkillRecord, needle: str) -> bool:
@@ -140,7 +141,7 @@ def cmd_unverified(_: argparse.Namespace) -> int:
     res = subprocess.run(
         [
             sys.executable,
-            "/opt/OS/scripts/verify_tool_skill.py",
+            f"{_ROOT}/scripts/verify_tool_skill.py",
             "--all",
             "--json",
         ],

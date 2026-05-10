@@ -39,8 +39,10 @@ from pathlib import Path
 
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 from scripts._tme_common import (  # noqa: E402
+
     MIN_BP_CHARS,
     MIN_SKILL_CHARS,
     REQUIRED_BP_SECTIONS,
@@ -50,6 +52,7 @@ from scripts._tme_common import (  # noqa: E402
     load_skill,
     section_present,
 )
+
 
 SNAKE_CASE_RE = re.compile(r"^[a-z0-9][a-z0-9_]*$")
 REQUIRED_FM_KEYS = ("name", "description", "last_researched", "source_url")
@@ -172,7 +175,7 @@ def main() -> int:
     args = ap.parse_args()
 
     slugs = all_skill_slugs() if args.all else [args.skill]
-    if not slugs or (args.skill and not (Path("/opt/OS/skills/tools") / args.skill).is_dir()):
+    if not slugs or (args.skill and not (Path(_ROOT) / "skills" / "tools" / args.skill).is_dir()):
         print(f"No such skill: {args.skill}", file=sys.stderr)
         return 2
 

@@ -19,12 +19,14 @@ import os
 import sys
 import time
 from datetime import datetime, timezone
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-GRAPH_PATH = "/opt/OS/data/codebase_graph.json"
-PCA_PATH = "/opt/OS/data/semantic_space/pca_v1.json"
-RESULTS_PATH = "/opt/OS/data/semantic_space/benchmark_results.json"
+GRAPH_PATH = f"{_ROOT}/data/codebase_graph.json"
+PCA_PATH = f"{_ROOT}/data/semantic_space/pca_v1.json"
+RESULTS_PATH = f"{_ROOT}/data/semantic_space/benchmark_results.json"
 
 _GRAPH_SECTIONS = ("files", "classes", "functions")
 
@@ -360,7 +362,7 @@ def main() -> None:
 
     # Load embedding store for v1.1
     embed_path = meta.get("embedding_store_path", "")
-    embed_full = os.path.join("/opt/OS", embed_path) if embed_path else ""
+    embed_full = os.path.join(_ROOT, embed_path) if embed_path else ""
     if embed_full and os.path.exists(embed_full):
         print(f"[benchmark] Loading embedding store...")
         with open(embed_full) as f:

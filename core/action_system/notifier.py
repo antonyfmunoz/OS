@@ -21,8 +21,10 @@ from datetime import datetime, timezone
 from typing import Protocol
 
 from .actions import Action
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-NOTIFICATION_QUEUE = "/opt/OS/logs/deferred/notifications.jsonl"
+
+NOTIFICATION_QUEUE = f"{_ROOT}/logs/deferred/notifications.jsonl"
 
 
 class Notifier(Protocol):

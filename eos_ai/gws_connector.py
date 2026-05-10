@@ -719,7 +719,7 @@ class GWSConnector:
 
     def audit_inbox(
         self,
-        save_path: str = '/opt/OS/data/gmail_audit.json',
+        save_path: str = f'{_ROOT}/data/gmail_audit.json',
     ) -> dict:
         """
         Read-only audit of current Gmail state.

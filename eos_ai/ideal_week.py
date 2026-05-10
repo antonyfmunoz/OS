@@ -10,6 +10,9 @@ from datetime import datetime
 from pathlib import Path as _Path
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 load_dotenv(_Path(__file__).parent / '.env')
 logger = logging.getLogger(__name__)
@@ -163,7 +166,7 @@ as Antony would, without asking questions."""
         playbook = router.call(model, prompt, max_tokens=1500).strip()
 
         safe_name = re.sub(r'[^a-z0-9_]', '_', task_name.lower().replace(' ', '_'))
-        filepath = f'/opt/OS/skills/Ops/process_capture_{safe_name}.md'
+        filepath = f'{_ROOT}/skills/Ops/process_capture_{safe_name}.md'
         with open(filepath, 'w') as f:
             f.write(playbook)
 

@@ -25,6 +25,8 @@ import sys
 import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 logger = logging.getLogger(__name__)
 PDT = ZoneInfo("America/Los_Angeles")
@@ -371,8 +373,8 @@ class EOSSystemHealth:
 
         # Fallback: audit log
         try:
-            os.makedirs("/opt/OS/logs", exist_ok=True)
-            with open("/opt/OS/logs/audit.log", "a") as f:
+            os.makedirs(f"{_ROOT}/logs", exist_ok=True)
+            with open(f"{_ROOT}/logs/audit.log", "a") as f:
                 f.write(
                     f"{time.strftime('%Y-%m-%dT%H:%M:%S')} "
                     f"SYSTEM_HEALTH_ALERT: {quality}\n"

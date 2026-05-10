@@ -21,6 +21,7 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 from eos_ai.substrate import claude_session_bridge as csb  # noqa: E402
 
@@ -37,7 +38,7 @@ def main() -> int:
     print("=== substrate session soul-doc smoke test ===\n")
 
     # ─── Sanity: the real EA soul doc must exist ────────────────────────
-    ea_path = "/opt/OS/agents/executive_assistant.md"
+    ea_path = f"{_ROOT}/agents/executive_assistant.md"
     check(
         "ea_soul_doc_exists",
         os.path.isfile(ea_path),

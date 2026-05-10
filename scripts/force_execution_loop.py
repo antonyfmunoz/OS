@@ -22,6 +22,7 @@ from pathlib import Path
 
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 from core.action_system.control_plane import run_action
 from core.action_system.logging import log_decision
@@ -29,8 +30,8 @@ from core.optimizer import Optimizer
 from eos_ai.workflow_engine import WorkflowEngine, WorkflowState, WORKFLOWS
 
 # Log files the optimizer reads
-WORKFLOW_LOG = Path("/opt/OS/data/workflow_log.jsonl")
-ACTION_LOG = Path("/opt/OS/data/action_log.jsonl")
+WORKFLOW_LOG = Path(_ROOT) / "data" / "workflow_log.jsonl"
+ACTION_LOG = Path(_ROOT) / "data" / "action_log.jsonl"
 
 
 def _append_jsonl(path: Path, record: dict) -> None:
@@ -80,7 +81,7 @@ def step_generate_outreach_message() -> tuple[bool, dict]:
 
 def step_save_outreach_to_file(message_data: dict) -> tuple[bool, dict]:
     """Step 2: Persist the outreach message to a file via the action system."""
-    output_path = "/opt/OS/data/playgrounds/outreach_proof.json"
+    output_path = f"{_ROOT}/data/playgrounds/outreach_proof.json"
     content = json.dumps(
         {
             "generated_at": _ts(),
@@ -299,7 +300,7 @@ def main() -> int:
     print(f"  Decision log:  /opt/OS/logs/decisions/")
     print(f"  Workflow log:  {WORKFLOW_LOG}")
     print(f"  Action log:    {ACTION_LOG}")
-    print(f"  Optimizer:     {Path('/opt/OS/data/optimizer_proposals.jsonl')}")
+    print(f"  Optimizer:     {Path(_ROOT) / "data" / "optimizer_proposals.jsonl"}")
     print(f"  Proof file:    {all_outputs.get('saved_path', 'N/A')}")
 
     return 0 if all(r["ok"] for r in step_results) else 1

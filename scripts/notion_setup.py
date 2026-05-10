@@ -24,11 +24,13 @@ import sys
 import json
 import requests
 from dotenv import load_dotenv, set_key
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
 
-ENV_FILE = '/opt/OS/eos_ai/.env'
+ENV_FILE = f'{_ROOT}/eos_ai/.env'
 NOTION_VERSION = '2022-06-28'
 TOKEN = os.getenv('NOTION_API_KEY', '')
 HEADERS = {

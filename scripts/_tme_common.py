@@ -19,9 +19,12 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-TOOLS_DIR = Path("/opt/OS/skills/tools")
-META_TME_DIR = Path("/opt/OS/skills/meta/tool_mastery_engine")
+
+TOOLS_DIR = Path(_ROOT) / "skills" / "tools"
+META_TME_DIR = Path(_ROOT) / "skills" / "meta" / "tool_mastery_engine"
 
 # Best-practices sections required by TME v3.0
 REQUIRED_BP_SECTIONS = [

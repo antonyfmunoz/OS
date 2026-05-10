@@ -626,7 +626,7 @@ class SelfAwarenessEngine:
                     )
                     if soul_doc:
                         ai_name = getattr(bis, 'ai_name', 'dex').lower()
-                        path = Path(f'/opt/OS/agents/{ai_name}_ea.md')
+                        path = Path(f'{_REPO_ROOT}/agents/{ai_name}_ea.md')
                         path.write_text(soul_doc)
             except Exception as e:
                 print(f'[SelfAwareness] regenerate_ea_soul_doc failed: {e}')

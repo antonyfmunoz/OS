@@ -40,6 +40,8 @@ import json
 import os
 import sys
 from pathlib import Path
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
@@ -69,7 +71,7 @@ def _log(msg: str) -> None:
 
 def _load_token() -> str:
     # Pull env from both common locations
-    for envfile in ("/opt/OS/services/.env", "/opt/OS/eos_ai/.env"):
+    for envfile in (f"{_ROOT}/services/.env", f"{_ROOT}/eos_ai/.env"):
         if Path(envfile).exists():
             load_dotenv(envfile, override=False)
     token = (

@@ -37,6 +37,7 @@ import time
 
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 from eos_ai.substrate import meeting_intelligence as mi  # noqa: E402
 from eos_ai.substrate import operator_interface as oi  # noqa: E402
@@ -265,7 +266,7 @@ def test_13_degrades_on_empty_and_malformed() -> None:
 
 def test_14_cli_subcommands_execute() -> None:
     _fresh_populated()
-    cli = "/opt/OS/scripts/substrate_operator_cli.py"
+    cli = f"{_ROOT}/scripts/substrate_operator_cli.py"
     cases = [
         ["summary", "--node", NODE, "--meeting-id", MEET],
         ["actionable", "--node", NODE, "--meeting-id", MEET],
@@ -294,7 +295,7 @@ def test_14_cli_subcommands_execute() -> None:
 def test_15_hot_path_untouched() -> None:
     # grep-guard: our new module name must not appear in hot-path files
     for hp in HOT_PATH_FILES:
-        path = f"/opt/OS/{hp}"
+        path = f"{_ROOT}/{hp}"
         try:
             with open(path, "r", encoding="utf-8") as f:
                 body = f.read()

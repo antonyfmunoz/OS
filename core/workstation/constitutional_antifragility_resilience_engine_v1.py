@@ -52,8 +52,13 @@ from core.workstation.persistent_substrate_continuity_engine_v1 import (
     ContinuityProof,
 )
 from core.workstation.recursive_capability_planning_engine_v1 import (
+
     CapabilityPlanningProof,
 )
+
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 # ---------------------------------------------------------------------------
@@ -1127,7 +1132,7 @@ def build_full_resilience_proof(
     is_dry_run: bool = False,
     trace_id: str = "",
     request_id: str = "",
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> ResilienceProof:
     """Full constitutional antifragility and resilience pipeline."""
     primitives = build_resilience_primitives(
@@ -1226,7 +1231,7 @@ def build_full_resilience_proof(
 
 def persist_resilience_proof(
     proof: ResilienceProof,
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> Path:
     """Persist resilience proof to disk."""
     report_dir = base_dir / RESILIENCE_REPORT_DIR

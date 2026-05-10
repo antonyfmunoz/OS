@@ -16,9 +16,12 @@ Usage:
     print(csrm.format_status())
 """
 
+import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+
+_DEFAULT_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 
 # ─── Skill dataclass ──────────────────────────────────────────────────────────
@@ -138,7 +141,7 @@ CLAUDE_SKILL_REGISTRY: dict[str, ClaudeSkill] = {
 
 
 class ClaudeSkillRegistryManager:
-    def __init__(self, base_path: str = "/opt/OS"):
+    def __init__(self, base_path: str = _DEFAULT_ROOT):
         self.base_path = Path(base_path)
         self.registry = CLAUDE_SKILL_REGISTRY
 

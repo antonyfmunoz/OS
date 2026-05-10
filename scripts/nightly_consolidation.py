@@ -27,14 +27,15 @@ import argparse
 import logging
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 from datetime import datetime, timezone
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
-CONVERSATIONS_DIR = "/opt/OS/vault/memory/conversations"
-SUMMARIES_DIR = "/opt/OS/vault/memory/summaries"
+CONVERSATIONS_DIR = f"{_ROOT}/vault/memory/conversations"
+SUMMARIES_DIR = f"{_ROOT}/vault/memory/summaries"
 
 
 def _parse_frontmatter(text: str) -> tuple[dict, str]:

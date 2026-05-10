@@ -16,9 +16,14 @@ from pathlib import Path
 from typing import Any
 
 from core.runtime.runtime_heartbeat_v1 import (
+
     HEARTBEAT_TIMEOUT_SECONDS,
     HeartbeatHealth,
 )
+
+import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 
 
 RELAY_HEARTBEAT_PATH = Path("data/runtime/workstation_relay/heartbeat.json")
@@ -70,7 +75,7 @@ class RelayHeartbeat:
 
 def write_relay_heartbeat(
     heartbeat: RelayHeartbeat,
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> Path:
     """Write relay heartbeat to the canonical path."""
     path = base_dir / RELAY_HEARTBEAT_PATH
@@ -80,7 +85,7 @@ def write_relay_heartbeat(
 
 
 def read_relay_heartbeat(
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
 ) -> RelayHeartbeat | None:
     """Read relay heartbeat from the canonical path."""
     path = base_dir / RELAY_HEARTBEAT_PATH
@@ -136,7 +141,7 @@ def evaluate_relay_health(
 
 
 def is_relay_online(
-    base_dir: Path = Path("/opt/OS"),
+    base_dir: Path = Path(_ROOT),
     stale_seconds: float = RELAY_HEARTBEAT_STALE_SECONDS,
 ) -> tuple[bool, str]:
     """Check if the relay is online. Returns (online, reason)."""

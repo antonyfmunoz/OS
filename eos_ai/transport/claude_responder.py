@@ -28,9 +28,12 @@ Design invariants
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from eos_ai.substrate import claude_session_bridge as csb
+
+_DEFAULT_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 LAYER_NAME = "claude_responder"
 LAYER_VERSION = "v1"
@@ -74,7 +77,7 @@ def respond_via_claude_session(
     *,
     target: str = DEFAULT_TARGET,
     session_name: str = DEFAULT_SESSION_NAME,
-    working_dir: str | None = "/opt/OS",
+    working_dir: str | None = _DEFAULT_ROOT,
     poll_interval_s: float | None = None,
     max_polls: int | None = None,
 ) -> dict[str, Any]:

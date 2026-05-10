@@ -17,6 +17,7 @@ from pathlib import Path
 
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 from core.interpretation.interpretation_engine_v1 import (
     FORBIDDEN_INTERPRETATION_ACTIONS,
@@ -37,12 +38,14 @@ from core.ontology.primitive_decomposition_v1 import (
     RelationshipType,
 )
 from core.state.transformation_state_ledger import (
+
     VALID_TRANSITIONS,
     TransformationStage,
     compute_hash,
 )
 
-PROOF_DIR = Path("/opt/OS/data/runtime/interpretation_proofs")
+
+PROOF_DIR = Path(_ROOT) / "data" / "runtime" / "interpretation_proofs"
 PROOF_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -253,7 +256,7 @@ step(18, "result_validates", len(val_errors) == 0, f"errors={val_errors}")
 
 # Step 19: Example artifacts exist
 print("\n19. Example artifacts")
-example_dir = Path("/opt/OS/data/runtime/interpretation_states")
+example_dir = Path(_ROOT) / "data" / "runtime" / "interpretation_states"
 example_files = [
     "interpretation_state_example.json",
     "primitive_decomposition_example.json",

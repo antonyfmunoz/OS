@@ -9,9 +9,12 @@ UMH substrate subsystem. EOS is one platform consumer.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
+
+_DEFAULT_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 
 class TmuxSurfaceStatus(str, Enum):
@@ -80,7 +83,7 @@ def build_tmux_surface(
     host: str = "DESKTOP-LVGUIQ9",
     session_name: str = "eos-worker",
     window_name: str = "main",
-    working_directory: str = "/opt/OS",
+    working_directory: str = _DEFAULT_ROOT,
     allowed_commands: list[str] | None = None,
     blocked_commands: list[str] | None = None,
 ) -> TmuxSurface:

@@ -28,10 +28,12 @@ import sys
 import numpy as np
 
 import os
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-PCA_META_PATH = "/opt/OS/data/semantic_space/pca_v1.json"
-EMBEDDING_STORE_PATH = "/opt/OS/data/semantic_space/embeddings_v1.json"
+PCA_META_PATH = f"{_ROOT}/data/semantic_space/pca_v1.json"
+EMBEDDING_STORE_PATH = f"{_ROOT}/data/semantic_space/embeddings_v1.json"
 
 _GRAPH_SECTIONS = ("files", "classes", "functions")
 

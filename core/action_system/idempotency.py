@@ -45,8 +45,10 @@ import os
 from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta, timezone
 from typing import Any
+_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-IDEMPOTENCY_DIR = "/opt/OS/logs/idempotency"
+
+IDEMPOTENCY_DIR = f"{_ROOT}/logs/idempotency"
 
 VALID_STATUSES: tuple[str, ...] = ("in_flight", "executed", "failed", "deferred")
 
