@@ -18,6 +18,7 @@ No Playwright. No credential capture. No Gmail.
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 
@@ -28,7 +29,7 @@ WO_001_ID = "WO-LOCAL-PILOT-GDRIVE-GDOCS-001"
 
 SSH_KEY = "/root/.ssh/id_ed25519"
 SSH_USER = r"DESKTOP-LVGUIQ9\antonys beast pc"
-SSH_HOST = "100.74.199.102"
+SSH_HOST = os.getenv("EOS_LOCAL_BRIDGE_IP", "100.74.199.102")
 
 
 def build_create_scheduled_task_command(
@@ -45,8 +46,8 @@ def build_create_scheduled_task_command(
     """
     return (
         f'schtasks /create /tn "{task_name}" '
-        f'/tr "\\\"{chrome_path}\\\" {url}" '
-        f'/sc once /st 00:00 /f /rl highest /it'
+        f'/tr "\\"{chrome_path}\\" {url}" '
+        f"/sc once /st 00:00 /f /rl highest /it"
     )
 
 

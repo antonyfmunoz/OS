@@ -179,7 +179,7 @@ def resolve_mode_session(
         }
 
     # ── target resolution via target_policy ──────────────────────────────
-    from eos_ai.substrate.target_policy import resolve_execution_policy
+    from eos_ai.transport.target_policy import resolve_execution_policy
 
     policy = resolve_execution_policy(mode, metadata=metadata)
     target = policy["target"]

@@ -35,7 +35,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
-from eos_ai.substrate.operator_state import (
+from eos_ai.transport.operator_state import (
     OperatorMode,
     OperatorState,
     OperatorTransition,
@@ -260,7 +260,7 @@ def _emit_presence_if_needed(
     the same (from_mode, to_mode) does not produce spoken duplicates.
     """
     try:
-        from eos_ai.substrate.operator_presence import intro_for_transition
+        from eos_ai.transport.operator_presence import intro_for_transition
 
         line = intro_for_transition(transition)
         if not line:
@@ -271,7 +271,7 @@ def _emit_presence_if_needed(
 
     # Cooldown / dedupe via audio_loop.
     try:
-        from eos_ai.substrate.audio_loop import (
+        from eos_ai.transport.audio_loop import (
             record_spoken_line,
             should_speak_presence_line,
         )
@@ -289,7 +289,7 @@ def _emit_presence_if_needed(
     # Dispatch through the canonical SPEAK_TEXT seam. Hot path is not
     # imported — station_helpers is part of substrate.
     try:
-        from eos_ai.substrate.station_helpers import propose_speak_text
+        from eos_ai.transport.station_helpers import propose_speak_text
 
         propose_speak_text(
             state.node_id,

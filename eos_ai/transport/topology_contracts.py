@@ -11,6 +11,7 @@ Topology is discovered during onboarding, not prescribed.
 
 from __future__ import annotations
 
+import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -205,7 +206,7 @@ def build_founder_current_topology() -> TopologyProfile:
         ],
         hostname="srv1500858",
         os="linux",
-        ip="100.77.233.50",
+        ip=os.getenv("EOS_VPS_TAILSCALE_IP", "100.77.233.50"),
         online=True,
     )
     local_pc = NodeProfile(
@@ -226,7 +227,7 @@ def build_founder_current_topology() -> TopologyProfile:
         ],
         hostname="desktop-lvguiq9",
         os="windows_wsl",
-        ip="100.74.199.102",
+        ip=os.getenv("EOS_LOCAL_BRIDGE_IP", "100.74.199.102"),
         online=True,
     )
     return TopologyProfile(

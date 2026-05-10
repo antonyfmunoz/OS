@@ -112,7 +112,7 @@ class RitualRegistry:
     # ─── Persistence ──────────────────────────────────────────────────────
     def _load(self) -> None:
         try:
-            from eos_ai.substrate.storage import get_storage
+            from eos_ai.transport.storage import get_storage
             raw = get_storage().get(self._STORAGE_KEY, default={}) or {}
             for rid, data in raw.items():
                 self._rituals[rid] = Ritual(
@@ -133,7 +133,7 @@ class RitualRegistry:
         if not self._persist:
             return
         try:
-            from eos_ai.substrate.storage import get_storage
+            from eos_ai.transport.storage import get_storage
             payload = {
                 rid: {
                     "ritual_id": r.ritual_id,

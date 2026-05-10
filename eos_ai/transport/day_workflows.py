@@ -22,12 +22,12 @@ import sys
 from datetime import datetime, timezone
 from typing import Optional
 
-from eos_ai.substrate.operator_session import (
+from eos_ai.transport.operator_session import (
     OperatorDayMode,
     OperatorSession,
     OperatorSessionStore,
 )
-from eos_ai.substrate.rituals import RitualKind, RitualRegistry, RitualState
+from eos_ai.transport.rituals import RitualKind, RitualRegistry, RitualState
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -192,7 +192,7 @@ def open_day(
 
     # ── Best-effort: update station presence from open_day ──────────────────
     try:
-        from eos_ai.substrate.station_presence import (
+        from eos_ai.transport.station_presence import (
             StationPresenceMode,
             set_presence_mode,
         )
@@ -207,13 +207,13 @@ def open_day(
     # ── Task system summary (best-effort, v2-enhanced when available) ──────
     task_summary: dict = {}
     try:
-        from eos_ai.substrate.task_queue import get_enhanced_task_summary
+        from eos_ai.transport.task_queue import get_enhanced_task_summary
 
         task_summary = get_enhanced_task_summary()
     except Exception:  # noqa: BLE001
         # v2 unavailable — fall back to v1 summary
         try:
-            from eos_ai.substrate.task_system import get_task_summary
+            from eos_ai.transport.task_system import get_task_summary
 
             task_summary = get_task_summary()
         except Exception as exc:  # noqa: BLE001
@@ -222,7 +222,7 @@ def open_day(
     # ── Pipeline summary (best-effort) ──────────────────────────────────────
     pipeline_summary: dict = {}
     try:
-        from eos_ai.substrate.pipeline_execution import get_pipeline_summary
+        from eos_ai.transport.pipeline_execution import get_pipeline_summary
 
         pipeline_summary = get_pipeline_summary()
     except Exception as exc:  # noqa: BLE001
@@ -231,7 +231,7 @@ def open_day(
     # ── Perception summary (v4, best-effort) ──────────────────────────────
     perception_summary: dict = {}
     try:
-        from eos_ai.substrate.auto_task_generation import get_perception_summary
+        from eos_ai.transport.auto_task_generation import get_perception_summary
 
         perception_summary = get_perception_summary()
     except Exception as exc:  # noqa: BLE001
@@ -240,7 +240,7 @@ def open_day(
     # ── Live session summary (v4, best-effort) ─────────────────────────────
     live_session_summary: dict = {}
     try:
-        from eos_ai.substrate.live_sessions import get_live_session_summary
+        from eos_ai.transport.live_sessions import get_live_session_summary
 
         live_session_summary = get_live_session_summary()
     except Exception as exc:  # noqa: BLE001
@@ -249,7 +249,7 @@ def open_day(
     # ── Station summary (v5, unified via station_presence) ──────────────────
     station_summary: dict = {}
     try:
-        from eos_ai.substrate.station_presence import get_station_summary
+        from eos_ai.transport.station_presence import get_station_summary
 
         station_summary = get_station_summary()
     except Exception as exc:  # noqa: BLE001
@@ -258,7 +258,7 @@ def open_day(
     # ── Node health summary (v6, via node_controller) ─────────────────────
     node_health: dict = {}
     try:
-        from eos_ai.substrate.node_controller import get_node_health_summary
+        from eos_ai.transport.node_controller import get_node_health_summary
 
         node_health = get_node_health_summary()
     except Exception as exc:  # noqa: BLE001
@@ -267,7 +267,7 @@ def open_day(
     # ── Apply default scene based on workspace (v6, best-effort) ──────────
     active_scene: Optional[str] = None
     try:
-        from eos_ai.substrate.scenes import get_scene
+        from eos_ai.transport.scenes import get_scene
 
         default_scene = (
             "builder_mode" if resolved_workspace == "builder" else "operator_mode"
@@ -285,7 +285,7 @@ def open_day(
     # ── Blocked operator items (v4, best-effort) ──────────────────────────
     blocked_operator_items: list = []
     try:
-        from eos_ai.substrate.task_queue import get_waiting_on_operator_tasks
+        from eos_ai.transport.task_queue import get_waiting_on_operator_tasks
 
         waiting_tasks = get_waiting_on_operator_tasks()
         for t in waiting_tasks[:5]:
@@ -429,7 +429,7 @@ def close_day(
 
     # ── Best-effort: update station presence from close_day ─────────────────
     try:
-        from eos_ai.substrate.station_presence import (
+        from eos_ai.transport.station_presence import (
             StationPresenceMode,
             set_presence_mode,
         )
@@ -444,7 +444,7 @@ def close_day(
     # ── Apply close scene (v6, best-effort) ───────────────────────────────
     close_scene: Optional[str] = None
     try:
-        from eos_ai.substrate.scenes import get_scene as _get_scene
+        from eos_ai.transport.scenes import get_scene as _get_scene
 
         scene_name = "overnight" if day_mode == OperatorDayMode.OVERNIGHT else "idle"
         scene = _get_scene(scene_name)
@@ -458,7 +458,7 @@ def close_day(
     # ── Node health for close summary (v6, best-effort) ───────────────────
     node_health_close: dict = {}
     try:
-        from eos_ai.substrate.node_controller import get_node_health_summary
+        from eos_ai.transport.node_controller import get_node_health_summary
 
         node_health_close = get_node_health_summary()
     except Exception as exc:  # noqa: BLE001
@@ -468,7 +468,7 @@ def close_day(
     overnight_queue_prep: Optional[dict] = None
     if day_mode == OperatorDayMode.OVERNIGHT:
         try:
-            from eos_ai.substrate.task_queue import prepare_overnight_queue
+            from eos_ai.transport.task_queue import prepare_overnight_queue
 
             overnight_queue_prep = prepare_overnight_queue()
         except Exception as exc:  # noqa: BLE001
@@ -478,7 +478,7 @@ def close_day(
     overnight_completed: list = []
     if day_mode == OperatorDayMode.OVERNIGHT:
         try:
-            from eos_ai.substrate.task_system import run_overnight_tasks
+            from eos_ai.transport.task_system import run_overnight_tasks
 
             executed = run_overnight_tasks()
             overnight_completed = [t.task_id for t in executed]
@@ -488,7 +488,7 @@ def close_day(
     # ── Pipeline summary for close (best-effort) ────────────────────────────
     blocked_pipeline_count = 0
     try:
-        from eos_ai.substrate.pipeline_execution import get_pipeline_summary
+        from eos_ai.transport.pipeline_execution import get_pipeline_summary
 
         pipe_summary = get_pipeline_summary()
         blocked_pipeline_count = pipe_summary.get("waiting_on_operator", 0)
@@ -498,7 +498,7 @@ def close_day(
     # ── Live session count for close (v4, best-effort) ────────────────────
     active_live_sessions = 0
     try:
-        from eos_ai.substrate.live_sessions import get_live_session_summary
+        from eos_ai.transport.live_sessions import get_live_session_summary
 
         ls_summary = get_live_session_summary()
         active_live_sessions = ls_summary.get("total_active", 0)
@@ -508,7 +508,7 @@ def close_day(
     # ── Local control mode for close (v4, best-effort) ─────────────────────
     local_control_mode = "passive"
     try:
-        from eos_ai.substrate.local_control import LocalControlStore
+        from eos_ai.transport.local_control import LocalControlStore
 
         local_control_mode = LocalControlStore.default().get_mode().value
     except Exception:  # noqa: BLE001
@@ -517,7 +517,7 @@ def close_day(
     # ── Station presence mode for close (v5, best-effort) ──────────────────
     station_presence_mode = "away"
     try:
-        from eos_ai.substrate.station_presence import get_station_presence
+        from eos_ai.transport.station_presence import get_station_presence
 
         sp = get_station_presence()
         station_presence_mode = sp.mode.value

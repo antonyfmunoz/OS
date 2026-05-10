@@ -26,7 +26,7 @@ Operator entrypoint:
     python3 -m eos_ai.substrate.station_daemon --node-id antony-workstation
 
 Library entrypoint:
-    from eos_ai.substrate.station_daemon import StationDaemon
+    from eos_ai.transport.station_daemon import StationDaemon
     StationDaemon(node_id="antony-workstation").run()
 """
 
@@ -47,17 +47,17 @@ from datetime import datetime, timezone
 from typing import Callable, Optional
 from urllib.parse import urlparse
 
-from eos_ai.substrate.actions import (
+from eos_ai.transport.actions import (
     ActionKind,
     ActionResult,
     ActionStatus,
     SafeAction,
 )
-from eos_ai.substrate.app_allowlist import resolve_app
-from eos_ai.substrate.nodes import Node, NodeRegistry, NodeStatus, NodeType
-from eos_ai.substrate.scenes import Scene, SceneStep, get_scene
-from eos_ai.substrate.station import StationEvent
-from eos_ai.substrate.station_bus import StationBus, get_station_bus
+from eos_ai.transport.app_allowlist import resolve_app
+from eos_ai.transport.nodes import Node, NodeRegistry, NodeStatus, NodeType
+from eos_ai.transport.scenes import Scene, SceneStep, get_scene
+from eos_ai.transport.station import StationEvent
+from eos_ai.transport.station_bus import StationBus, get_station_bus
 
 
 DEFAULT_NODE_ID = "antony-workstation"
@@ -187,7 +187,7 @@ class StationDaemon:
             return
         try:
             import asyncio
-            from eos_ai.substrate.node_transport import NodeTransportServer
+            from eos_ai.transport.node_transport import NodeTransportServer
 
             self._http_server = NodeTransportServer(self)
 

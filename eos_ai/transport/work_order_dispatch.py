@@ -26,12 +26,12 @@ from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 
-from eos_ai.substrate.work_order_contracts import (
+from eos_ai.transport.work_order_contracts import (
     UNIVERSAL_BLOCKED_ACTIONS,
     WorkOrder,
     WorkOrderStatus,
 )
-from eos_ai.substrate.work_order_factory import (
+from eos_ai.transport.work_order_factory import (
     create_google_workspace_discovery_work_order,
     validate_work_order,
     work_order_to_bridge_payload,

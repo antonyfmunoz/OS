@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from eos_ai.substrate.secret_broker_contracts import SecretRef
+from eos_ai.transport.secret_broker_contracts import SecretRef
 
 
 SECRET_KEY_PATTERNS: tuple[str, ...] = (

@@ -45,12 +45,12 @@ from enum import Enum
 from threading import RLock
 from typing import Optional
 
-from eos_ai.substrate.nodes import NodeRegistry
-from eos_ai.substrate.ritual_body import RitualPolicy
-from eos_ai.substrate.ritual_runner import start_open_day
-from eos_ai.substrate.rituals import RitualRegistry
-from eos_ai.substrate.station_readiness import UNAVAILABLE, station_readiness
-from eos_ai.substrate.storage import get_storage
+from eos_ai.transport.nodes import NodeRegistry
+from eos_ai.transport.ritual_body import RitualPolicy
+from eos_ai.transport.ritual_runner import start_open_day
+from eos_ai.transport.rituals import RitualRegistry
+from eos_ai.transport.station_readiness import UNAVAILABLE, station_readiness
+from eos_ai.transport.storage import get_storage
 
 STORAGE_KEY = "local_listener_triggers"
 RETENTION_MAX = 200
@@ -265,14 +265,14 @@ class LocalListener:
         with the flag are safe and only install once.
         """
         try:
-            from eos_ai.substrate.voice_session import VoiceSessionRuntime
+            from eos_ai.transport.voice_session import VoiceSessionRuntime
         except Exception as e:  # noqa: BLE001
             _log(f"voice_session module unavailable: {e}")
             return None
 
         if use_eos_responder:
             try:
-                from eos_ai.substrate.voice_eos_responder import (
+                from eos_ai.transport.voice_eos_responder import (
                     install_default_eos_voice_responder,
                 )
 
@@ -313,7 +313,7 @@ class LocalListener:
         #    node. Active rituals are global; the registry tracks the few that
         #    matter, and re-entering would corrupt outputs.
         try:
-            from eos_ai.substrate.rituals import (
+            from eos_ai.transport.rituals import (
                 RitualKind,
             )  # local import: keep top-level minimal
 

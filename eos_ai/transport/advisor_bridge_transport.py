@@ -14,6 +14,7 @@ No computer use. No Google Drive. No browser automation.
 
 from __future__ import annotations
 
+import os
 import json
 import uuid
 from dataclasses import asdict, dataclass, field
@@ -21,7 +22,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from eos_ai.substrate.message_bus_contracts import (
+from eos_ai.transport.message_bus_contracts import (
     MessageEnvelope,
     MessagePriority,
     MessageType,
@@ -43,18 +44,18 @@ ADVISOR_MESSAGES_DIR = Path.home() / "eos_advisor_messages"
 VPS_STATION_DIR = Path("/opt/OS/eos_ai/.substrate_station")
 VPS_ADVISOR_INBOX = VPS_STATION_DIR / "advisor_inbox"
 
-BRIDGE_IP = "100.74.199.102"
+BRIDGE_IP = os.getenv("EOS_LOCAL_BRIDGE_IP", "100.74.199.102")
 BRIDGE_PORT = 8766
 BRIDGE_HEALTH_URL = f"http://{BRIDGE_IP}:{BRIDGE_PORT}/health"
 BRIDGE_MESSAGE_URL = f"http://{BRIDGE_IP}:{BRIDGE_PORT}/message"
 BRIDGE_STATUS_URL = f"http://{BRIDGE_IP}:{BRIDGE_PORT}/status"
 
-VPS_WEBHOOK_IP = "100.77.233.50"
+VPS_WEBHOOK_IP = os.getenv("EOS_VPS_TAILSCALE_IP", "100.77.233.50")
 VPS_WEBHOOK_PORT = 8765
 VPS_CC_REPLY_URL = f"http://{VPS_WEBHOOK_IP}:{VPS_WEBHOOK_PORT}/cc-reply"
 
 SSH_USER = r"DESKTOP-LVGUIQ9\antonys beast pc"
-SSH_HOST = "100.74.199.102"
+SSH_HOST = os.getenv("EOS_LOCAL_BRIDGE_IP", "100.74.199.102")
 SSH_KEY = "/root/.ssh/id_ed25519"
 
 

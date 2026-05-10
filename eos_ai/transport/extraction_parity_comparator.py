@@ -17,8 +17,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from eos_ai.substrate.canonical_source_record import DocumentSourceRecord, TabSourceRecord
-from eos_ai.substrate.extraction_backend_contracts import (
+from eos_ai.transport.canonical_source_record import DocumentSourceRecord, TabSourceRecord
+from eos_ai.transport.extraction_backend_contracts import (
     ExtractionBackendType,
     ExtractionCoverageStatus,
 )

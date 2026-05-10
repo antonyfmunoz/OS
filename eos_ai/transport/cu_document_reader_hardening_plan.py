@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from eos_ai.substrate.extraction_backend_contracts import (
+from eos_ai.transport.extraction_backend_contracts import (
     ExtractionBackendType,
     ExtractionCapability,
     ExtractionCoverageStatus,

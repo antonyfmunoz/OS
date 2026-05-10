@@ -23,8 +23,8 @@ import time
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from eos_ai.substrate.control_commands import ControlCommand
-from eos_ai.substrate.execution_contract import (
+from eos_ai.transport.control_commands import ControlCommand
+from eos_ai.transport.execution_contract import (
     ExecutionRequest,
     ExecutionResult,
     ExecutionStatus,
@@ -315,7 +315,7 @@ class WorkstationAdapter:
             }
 
             # Call the async transport synchronously
-            from eos_ai.substrate.node_transport import send_task_via_http
+            from eos_ai.transport.node_transport import send_task_via_http
 
             timeout_s = float(request.constraints.timeout_s)
             response = asyncio.run(
@@ -376,7 +376,7 @@ class WorkstationAdapter:
     def health(self) -> AdapterHealth:
         """Check workstation health via HTTP. Never raises."""
         try:
-            from eos_ai.substrate.node_transport import check_http_health
+            from eos_ai.transport.node_transport import check_http_health
 
             is_healthy = asyncio.run(
                 check_http_health(host=self._host, port=self._port)

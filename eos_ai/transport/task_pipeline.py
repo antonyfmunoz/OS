@@ -358,7 +358,7 @@ class PipelineStore:
             if self._loaded:
                 return
             try:
-                from eos_ai.substrate.storage import get_storage
+                from eos_ai.transport.storage import get_storage
 
                 raw = get_storage().get(_STORAGE_KEY, default=None)
             except Exception as e:  # noqa: BLE001
@@ -375,7 +375,7 @@ class PipelineStore:
 
     def _flush(self) -> None:
         try:
-            from eos_ai.substrate.storage import get_storage
+            from eos_ai.transport.storage import get_storage
 
             payload = {pid: p.to_dict() for pid, p in self._pipelines.items()}
             get_storage().put(_STORAGE_KEY, payload)

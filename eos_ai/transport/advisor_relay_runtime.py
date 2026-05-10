@@ -13,13 +13,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from eos_ai.substrate.message_bus_contracts import (
+from eos_ai.transport.message_bus_contracts import (
     MessageEnvelope,
     MessagePriority,
     MessageStatus,
     MessageType,
 )
-from eos_ai.substrate.worker_node_contracts import (
+from eos_ai.transport.worker_node_contracts import (
     WorkerAction,
     WorkerRuntimeState,
     WorkerState,

@@ -58,7 +58,7 @@ def _handle_builder_dev(
 ) -> dict[str, Any]:
     """Execute a builder/dev workflow request."""
     if session_name:
-        from eos_ai.substrate.claude_session_bridge import ask_session
+        from eos_ai.transport.claude_session_bridge import ask_session
 
         reply = ask_session(target, session_name, text)
         return {
@@ -82,7 +82,7 @@ def _handle_product_runtime(
 ) -> dict[str, Any]:
     """Execute a product runtime workflow request."""
     if session_name:
-        from eos_ai.substrate.claude_session_bridge import ask_session
+        from eos_ai.transport.claude_session_bridge import ask_session
 
         reply = ask_session(target, session_name, text)
         return {
@@ -122,7 +122,7 @@ def _handle_content_ops(
 ) -> dict[str, Any]:
     """Execute a content ops workflow request via session."""
     if session_name:
-        from eos_ai.substrate.claude_session_bridge import ask_session
+        from eos_ai.transport.claude_session_bridge import ask_session
 
         prefixed = _content_ops_prefix(mode) + text
         reply = ask_session(target, session_name, prefixed)
@@ -163,7 +163,7 @@ def _handle_analysis(
 ) -> dict[str, Any]:
     """Execute an analysis workflow request via session."""
     if session_name:
-        from eos_ai.substrate.claude_session_bridge import ask_session
+        from eos_ai.transport.claude_session_bridge import ask_session
 
         prefixed = _analysis_prefix(mode) + text
         reply = ask_session(target, session_name, prefixed)
@@ -188,7 +188,7 @@ def _handle_system_ops(
 ) -> dict[str, Any]:
     """Execute a system ops workflow request."""
     if session_name:
-        from eos_ai.substrate.claude_session_bridge import ask_session
+        from eos_ai.transport.claude_session_bridge import ask_session
 
         reply = ask_session(target, session_name, text)
         return {
@@ -207,7 +207,7 @@ def _handle_system_ops(
 
 # Lazy import constants at module level is safe — workflow_delegation has no
 # hot-path imports itself.
-from eos_ai.substrate.workflow_delegation import (
+from eos_ai.transport.workflow_delegation import (
     KIND_ANALYSIS,
     KIND_BUILDER_DEV,
     KIND_CONTENT_OPS,
@@ -272,7 +272,7 @@ def execute_workflow_if_allowed(
     meta = metadata if metadata is not None else {}
 
     # 1. Classify intent (lazy import)
-    from eos_ai.substrate.workflow_delegation import (
+    from eos_ai.transport.workflow_delegation import (
         INTENT_WORKFLOW,
         classify_workflow_intent,
         resolve_workflow_policy,
@@ -312,7 +312,7 @@ def execute_workflow_if_allowed(
     # 4. Resolve execution target if not provided
     resolved_target = target
     if resolved_target is None:
-        from eos_ai.substrate.target_policy import resolve_execution_target
+        from eos_ai.transport.target_policy import resolve_execution_target
 
         resolved_target = resolve_execution_target(mode, meta)
 

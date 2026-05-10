@@ -32,8 +32,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Callable, Protocol
 
-from eos_ai.substrate.event_log_runtime import EventLogRuntime
-from eos_ai.substrate.runtime_state_store import RuntimeStateStore
+from eos_ai.transport.event_log_runtime import EventLogRuntime
+from eos_ai.transport.runtime_state_store import RuntimeStateStore
 
 # Lazy import to avoid circular dependency; set by register_event_schema_source().
 _event_schema_source: Any | None = None

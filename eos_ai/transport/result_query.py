@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from eos_ai.substrate.result_store import (
+from eos_ai.transport.result_store import (
     IngestedResult,
     ResultStore,
     get_result_store,
@@ -149,7 +149,7 @@ def unresolved_rituals(limit: int = 20) -> list[dict]:
     has no matching result yet. Bounded, read-only, never raises.
     """
     try:
-        from eos_ai.substrate.rituals import RitualRegistry
+        from eos_ai.transport.rituals import RitualRegistry
     except Exception:
         return []
     s = get_result_store()
@@ -194,8 +194,8 @@ def station_readiness_report(node_id: str) -> dict[str, Any]:
     Bounded, JSON-friendly, never raises. Safe to embed in operator reports.
     """
     try:
-        from eos_ai.substrate.scene_policy import select_scene
-        from eos_ai.substrate.station_readiness import station_readiness
+        from eos_ai.transport.scene_policy import select_scene
+        from eos_ai.transport.station_readiness import station_readiness
     except Exception as e:
         return {
             "node_id": node_id,
@@ -218,7 +218,7 @@ def station_readiness_report(node_id: str) -> dict[str, Any]:
     # Inference trace (what WOULD the ritual layer pick if no hint?)
     inferred_payload: Optional[dict] = None
     try:
-        from eos_ai.substrate.ritual_inference import infer_open_scene_hint
+        from eos_ai.transport.ritual_inference import infer_open_scene_hint
 
         inferred_payload = infer_open_scene_hint(node_id).to_dict()
     except Exception as e:
@@ -247,7 +247,7 @@ def station_readiness_report(node_id: str) -> dict[str, Any]:
     # Scene capability requirements inventory — small, static, helps the
     # operator understand WHY a scene was downgraded.
     try:
-        from eos_ai.substrate.scene_capabilities import scene_requirements_inventory
+        from eos_ai.transport.scene_capabilities import scene_requirements_inventory
 
         scene_reqs = scene_requirements_inventory()
     except Exception:
@@ -267,7 +267,7 @@ def recent_open_close_summaries(limit: int = 5) -> list[dict]:
     body_action_count). JSON-friendly, bounded.
     """
     try:
-        from eos_ai.substrate.rituals import RitualKind, RitualRegistry
+        from eos_ai.transport.rituals import RitualKind, RitualRegistry
     except Exception:
         return []
     try:
@@ -312,7 +312,7 @@ def recent_voice_sessions(
     can pull all "what happened recently" lookups from one module.
     """
     try:
-        from eos_ai.substrate.voice_session import get_voice_session_store
+        from eos_ai.transport.voice_session import get_voice_session_store
     except Exception:
         return []
     try:
@@ -333,7 +333,7 @@ def recent_wake_producer_events(
     JSON-friendly. Bounded. Read-only view over WakeProducerHistory.
     """
     try:
-        from eos_ai.substrate.wake_producer import get_wake_producer_history
+        from eos_ai.transport.wake_producer import get_wake_producer_history
     except Exception:
         return []
     try:
@@ -351,7 +351,7 @@ def operator_state_snapshot(
     so callers don't need to wrap.
     """
     try:
-        from eos_ai.substrate.operator_state import get_operator_state_store
+        from eos_ai.transport.operator_state import get_operator_state_store
     except Exception:
         return {"node_id": node_id, "states": [], "stats": {}}
     try:
@@ -386,7 +386,7 @@ def audio_loop_snapshot(
     spoken presence line, and the node's transcript ring buffer.
     """
     try:
-        from eos_ai.substrate.audio_loop import snapshot as _audio_snapshot
+        from eos_ai.transport.audio_loop import snapshot as _audio_snapshot
     except Exception:
         return {"node_id": node_id, "count": 0, "states": [], "stats": {}}
     try:
@@ -405,7 +405,7 @@ def recent_audio_loop_transcripts(
     buffer held on AudioLoopState.
     """
     try:
-        from eos_ai.substrate.audio_loop import get_audio_loop_store
+        from eos_ai.transport.audio_loop import get_audio_loop_store
     except Exception:
         return []
     try:
@@ -429,7 +429,7 @@ def ritual_outcomes_summary(limit: int = 10) -> list[dict]:
     open_day / close_day rituals actually land on the workstation?"
     """
     try:
-        from eos_ai.substrate.rituals import RitualRegistry
+        from eos_ai.transport.rituals import RitualRegistry
     except Exception:
         return []
 

@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from eos_ai.substrate.extraction_backend_contracts import (
+from eos_ai.transport.extraction_backend_contracts import (
     BackendCapabilityReport,
     BackendIndependenceLevel,
     CanonicalExtractionContract,

@@ -270,7 +270,7 @@ class TaskStore:
             if self._loaded:
                 return
             try:
-                from eos_ai.substrate.storage import get_storage
+                from eos_ai.transport.storage import get_storage
 
                 raw = get_storage().get(_STORAGE_KEY, default=None)
             except Exception as e:  # noqa: BLE001
@@ -287,7 +287,7 @@ class TaskStore:
 
     def _flush(self) -> None:
         try:
-            from eos_ai.substrate.storage import get_storage
+            from eos_ai.transport.storage import get_storage
 
             payload = {tid: t.to_dict() for tid, t in self._tasks.items()}
             get_storage().put(_STORAGE_KEY, payload)
@@ -449,7 +449,7 @@ def process_task(
 
     # Assign priority and queue if not already set
     try:
-        from eos_ai.substrate.task_queue import prioritize_and_queue
+        from eos_ai.transport.task_queue import prioritize_and_queue
 
         prioritize_and_queue(task, session=session, is_day_open=is_day_open)
     except Exception:  # noqa: BLE001
@@ -460,7 +460,7 @@ def process_task(
             if use_v2_execution:
                 # v2: real execution via task_execution pipeline
                 try:
-                    from eos_ai.substrate.task_execution import execute_task
+                    from eos_ai.transport.task_execution import execute_task
 
                     task = execute_task(
                         task, session=session, local_available=local_available
@@ -508,7 +508,7 @@ def run_overnight_tasks(
     """
     if use_v2_execution:
         try:
-            from eos_ai.substrate.task_execution import run_overnight_execution
+            from eos_ai.transport.task_execution import run_overnight_execution
 
             result = run_overnight_execution(
                 session=session,

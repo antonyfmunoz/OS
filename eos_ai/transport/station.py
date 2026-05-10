@@ -32,7 +32,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
-from eos_ai.substrate.actions import SafeAction, ActionResult, ActionKind, ActionStatus
+from eos_ai.transport.actions import SafeAction, ActionResult, ActionKind, ActionStatus
 
 
 # ─── Policy ───────────────────────────────────────────────────────────────────
@@ -207,7 +207,7 @@ class StationContract:
         self._inflight[action.action_id] = action
 
         try:
-            from eos_ai.substrate.station_bus import get_station_bus
+            from eos_ai.transport.station_bus import get_station_bus
             get_station_bus().dispatch(self.node_id, action)
         except Exception as e:
             # Never hard-fail propose() on transport problems. The action

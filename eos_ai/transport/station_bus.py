@@ -37,8 +37,8 @@ import threading
 from pathlib import Path
 from typing import Any, Optional
 
-from eos_ai.substrate.actions import SafeAction, ActionResult, ActionStatus
-from eos_ai.substrate.station import StationEvent
+from eos_ai.transport.actions import SafeAction, ActionResult, ActionStatus
+from eos_ai.transport.station import StationEvent
 
 
 _BUS_DIR = Path("/opt/OS/eos_ai/.substrate_station")

@@ -1324,7 +1324,7 @@ def maybe_emit_intervention(
             live.last_followup_prompt_ts = _now
 
         try:
-            from eos_ai.substrate.station_helpers import propose_speak_text
+            from eos_ai.transport.station_helpers import propose_speak_text
 
             propose_speak_text(
                 node_id=node_id,

@@ -60,14 +60,14 @@ from enum import Enum
 from threading import RLock
 from typing import Any, Optional
 
-from eos_ai.substrate.local_listener import (
+from eos_ai.transport.local_listener import (
     LocalListener,
     LocalTrigger,
     TriggerKind,
     TriggerStatus,
 )
-from eos_ai.substrate.storage import get_storage
-from eos_ai.substrate.voice_session import (
+from eos_ai.transport.storage import get_storage
+from eos_ai.transport.voice_session import (
     VoiceSession,
     VoiceSessionRuntime,
     VoiceSessionStatus,
@@ -289,7 +289,7 @@ class WakeProducerRuntime:
             self._history.record(event)
             # Operator state engine: best-effort observation. Never raises.
             try:
-                from eos_ai.substrate.operator_transitions import apply_wake_event
+                from eos_ai.transport.operator_transitions import apply_wake_event
 
                 apply_wake_event(event)
             except Exception as e:  # noqa: BLE001
@@ -302,7 +302,7 @@ class WakeProducerRuntime:
                     "resume_voice_session",
                     "open_day",
                 ):
-                    from eos_ai.substrate.audio_loop import mark_primed
+                    from eos_ai.transport.audio_loop import mark_primed
 
                     mark_primed(
                         event.node_id,

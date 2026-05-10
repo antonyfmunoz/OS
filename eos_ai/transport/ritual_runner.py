@@ -26,12 +26,12 @@ from __future__ import annotations
 import sys
 from datetime import date
 
-from eos_ai.substrate.ritual_body import (
+from eos_ai.transport.ritual_body import (
     RitualPolicy,
     run_close_day_body,
     run_open_day_body,
 )
-from eos_ai.substrate.rituals import (
+from eos_ai.transport.rituals import (
     RitualKind,
     RitualRegistry,
     RitualState,
@@ -69,7 +69,7 @@ def _apply_ritual_state(
         except Exception:
             pass
 
-        from eos_ai.substrate.operator_transitions import apply_ritual
+        from eos_ai.transport.operator_transitions import apply_ritual
 
         apply_ritual(
             node_id,

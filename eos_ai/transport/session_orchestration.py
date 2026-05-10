@@ -103,7 +103,7 @@ def actual_sessions(target: str = "vps") -> list[dict[str, Any]]:
     sessions). On import or call failure returns an empty list.
     """
     try:
-        from eos_ai.substrate.claude_session_bridge import list_sessions
+        from eos_ai.transport.claude_session_bridge import list_sessions
     except Exception as exc:  # noqa: BLE001
         _log(f"import list_sessions failed: {exc}")
         return []
@@ -144,7 +144,7 @@ def session_health(target: str, session_name: str) -> dict[str, Any]:
     """
     checked_at = _now_iso()
     try:
-        from eos_ai.substrate.claude_session_bridge import session_status
+        from eos_ai.transport.claude_session_bridge import session_status
     except Exception as exc:  # noqa: BLE001
         return {
             "session_name": session_name,
@@ -236,7 +236,7 @@ def ensure_expected_sessions() -> dict[str, Any]:
     ``"failed"``.
     """
     try:
-        from eos_ai.substrate.claude_session_bridge import ensure_session
+        from eos_ai.transport.claude_session_bridge import ensure_session
     except Exception as exc:  # noqa: BLE001
         _log(f"import ensure_session failed: {exc}")
         return {
@@ -307,7 +307,7 @@ def recover_session(
 
     if strategy == "recreate":
         try:
-            from eos_ai.substrate.session_control import reset_session
+            from eos_ai.transport.session_control import reset_session
         except Exception as exc:  # noqa: BLE001
             return {**base, "ok": False, "detail": f"import error: {exc}"}
         try:
@@ -322,7 +322,7 @@ def recover_session(
 
     elif strategy == "ensure":
         try:
-            from eos_ai.substrate.claude_session_bridge import ensure_session
+            from eos_ai.transport.claude_session_bridge import ensure_session
         except Exception as exc:  # noqa: BLE001
             return {**base, "ok": False, "detail": f"import error: {exc}"}
         try:

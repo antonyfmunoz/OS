@@ -13,7 +13,7 @@ Design rules (substrate conventions):
 - Reversible. Removing this file leaves the substrate intact.
 
 Usage:
-    from eos_ai.substrate.browser_agent import execute_browser_action, BrowserActionType
+    from eos_ai.transport.browser_agent import execute_browser_action, BrowserActionType
     result = execute_browser_action(BrowserActionType.OPEN_URL, {"url": "https://example.com"})
 """
 

@@ -33,9 +33,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Optional, Union
 
-from eos_ai.substrate.scene_capabilities import node_supports, requirements_for
-from eos_ai.substrate.scenes import get_scene
-from eos_ai.substrate.station_readiness import (
+from eos_ai.transport.scene_capabilities import node_supports, requirements_for
+from eos_ai.transport.scenes import get_scene
+from eos_ai.transport.station_readiness import (
     DEGRADED,
     READY,
     UNAVAILABLE,
@@ -46,7 +46,7 @@ from eos_ai.substrate.station_readiness import (
 def _lookup_node(node_id: str):
     """Best-effort node fetch for capability checks. Never raises."""
     try:
-        from eos_ai.substrate.nodes import NodeRegistry
+        from eos_ai.transport.nodes import NodeRegistry
         return NodeRegistry.default().get(node_id)
     except Exception:
         return None

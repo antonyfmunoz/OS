@@ -39,7 +39,7 @@ from core.runtime.worker_runtime_contracts import (
     WorkerRuntimeDescriptor,
     WSL_AUTHORITY,
 )
-from eos_ai.substrate.windows_desktop_relay_client import (
+from eos_ai.transport.windows_desktop_relay_client import (
     resolve_relay_paths,
     send_request_and_wait,
 )

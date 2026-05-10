@@ -36,10 +36,10 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
-from eos_ai.substrate.decision_engine import DecisionOutput
-from eos_ai.substrate.event_scheduler import EventScheduler, SchedulerEvent
-from eos_ai.substrate.intent_models import IntentType, get_active_intents_from_state
-from eos_ai.substrate.llm_decision_events import (
+from eos_ai.transport.decision_engine import DecisionOutput
+from eos_ai.transport.event_scheduler import EventScheduler, SchedulerEvent
+from eos_ai.transport.intent_models import IntentType, get_active_intents_from_state
+from eos_ai.transport.llm_decision_events import (
     build_llm_decision_accepted_event,
     build_llm_decision_received_event,
     build_llm_decision_rejected_event,
@@ -47,7 +47,7 @@ from eos_ai.substrate.llm_decision_events import (
     build_llm_decision_skipped_event,
     build_llm_response_drift_event,
 )
-from eos_ai.substrate.llm_planner import (
+from eos_ai.transport.llm_planner import (
     EventTypeRegistry,
     LLMEventProposal,
     LLMPlannerConfig,

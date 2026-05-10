@@ -50,7 +50,7 @@ from collections import deque
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional
 
-from eos_ai.substrate.meeting_sources import is_meeting_source
+from eos_ai.transport.meeting_sources import is_meeting_source
 
 PROVIDER = "google_meet"
 
@@ -303,7 +303,7 @@ class GoogleMeetSource:
         exist yet, the hook simply returns None on each ``read_utterance``
         call and the source stays in its existing mode.
         """
-        from eos_ai.substrate.meet_caption_bridge import (  # local to avoid cycles
+        from eos_ai.transport.meet_caption_bridge import (  # local to avoid cycles
             make_bridge_hook,
         )
 
@@ -324,7 +324,7 @@ class GoogleMeetSource:
         meeting_code is unknown. Used by reporting surfaces to expose
         backlog/last-ingress info.
         """
-        from eos_ai.substrate.meet_caption_bridge import bridge_path_for
+        from eos_ai.transport.meet_caption_bridge import bridge_path_for
 
         if self.meeting_code is None:
             return None

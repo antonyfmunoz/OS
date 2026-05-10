@@ -45,7 +45,7 @@ from typing import Optional
 
 # These imports are intentionally late-bound where possible so importing
 # this module never breaks the substrate even if model_router is sick.
-from eos_ai.substrate.voice_session import (
+from eos_ai.transport.voice_session import (
     VoiceResponder,
     VoiceSession,
     set_voice_responder,
@@ -127,7 +127,7 @@ def _build_prompt(session: VoiceSession, utterance: str) -> str:
     scrubbed of CLI chrome (tmux/Claude Code UI artifacts) before inclusion.
     Pure-string output.
     """
-    from eos_ai.substrate.claude_session_bridge import _scrub_cli_chrome
+    from eos_ai.transport.claude_session_bridge import _scrub_cli_chrome
 
     clean_utt = (utterance or "").strip()
     if len(clean_utt) > _MAX_UTTERANCE_CHARS:

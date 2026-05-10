@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from eos_ai.substrate.visible_gui_success_criteria import VisibleGuiStatus
+from eos_ai.transport.visible_gui_success_criteria import VisibleGuiStatus
 
 
 CHROME_PATH_CONFIRMED = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
@@ -49,7 +49,7 @@ def build_send_open_drive_to_tmux_command(tmux_target: str) -> str:
 
     Uses 'bash ~/umh_local_worker/open_drive_chrome.sh' as the dispatched command.
     """
-    from eos_ai.substrate.tmux_environment_manager import build_tmux_send_keys_command
+    from eos_ai.transport.tmux_environment_manager import build_tmux_send_keys_command
 
     return build_tmux_send_keys_command(
         target=tmux_target,

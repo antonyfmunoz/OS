@@ -188,7 +188,7 @@ def build_tool_mastery_pack_from_skill(
     This is the bridge between skill files on disk and the Adapter Engine's
     Tool Mastery layer. The returned pack becomes part of the adapter package.
     """
-    from eos_ai.substrate.adapter_engine_contracts import ToolMasteryPack
+    from eos_ai.transport.adapter_engine_contracts import ToolMasteryPack
 
     skill_text = load_best_practices_skill(skill_path)
     policy = build_adapter_policy_from_skill(skill_text)

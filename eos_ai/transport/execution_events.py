@@ -6,7 +6,7 @@ execution lifecycle transition. Centralising construction here prevents
 payload-schema drift across the worker, authority, and result handler.
 
 Usage:
-    from eos_ai.substrate.execution_events import (
+    from eos_ai.transport.execution_events import (
         build_execution_requested_event,
         build_execution_completed_event,
         build_execution_failed_event,
@@ -18,8 +18,8 @@ Usage:
 
 from __future__ import annotations
 
-from eos_ai.substrate.execution_contract import ExecutionRequest, ExecutionResult
-from eos_ai.substrate.event_scheduler import SchedulerEvent
+from eos_ai.transport.execution_contract import ExecutionRequest, ExecutionResult
+from eos_ai.transport.event_scheduler import SchedulerEvent
 
 
 def build_execution_requested_event(

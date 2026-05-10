@@ -27,8 +27,8 @@ import sys
 from dataclasses import dataclass, asdict, field
 from typing import Optional
 
-from eos_ai.substrate.result_store import ResultStore, get_result_store
-from eos_ai.substrate.rituals import RitualRegistry
+from eos_ai.transport.result_store import ResultStore, get_result_store
+from eos_ai.transport.rituals import RitualRegistry
 
 
 def _log(msg: str) -> None:

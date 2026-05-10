@@ -32,9 +32,9 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
-from eos_ai.substrate.decision_events import build_decision_made_event
-from eos_ai.substrate.event_scheduler import SchedulerEvent
-from eos_ai.substrate.runtime_state_store import RuntimeStateStore
+from eos_ai.transport.decision_events import build_decision_made_event
+from eos_ai.transport.event_scheduler import SchedulerEvent
+from eos_ai.transport.runtime_state_store import RuntimeStateStore
 
 _LOG_PREFIX = "[substrate.decision_engine]"
 
@@ -301,7 +301,7 @@ def evaluate_and_emit(
     Returns the DecisionOutput if a decision was made, None otherwise.
     This is the standard integration point for the post-drain hook.
     """
-    from eos_ai.substrate.event_scheduler import EventScheduler
+    from eos_ai.transport.event_scheduler import EventScheduler
 
     output = engine.evaluate(store)
     if output is not None:

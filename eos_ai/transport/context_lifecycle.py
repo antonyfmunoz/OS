@@ -280,7 +280,7 @@ def maybe_clear_and_restore(
 
     # Lazy import to avoid circular dependency
     try:
-        from eos_ai.substrate.session_control import clear_session
+        from eos_ai.transport.session_control import clear_session
     except Exception as exc:  # noqa: BLE001
         _log(f"session_control import failed: {exc}")
         restore = restore_from_checkpoint(checkpoint)

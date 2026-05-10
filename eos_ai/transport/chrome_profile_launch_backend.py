@@ -13,6 +13,7 @@ No credential capture. No cookies. No Gmail.
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 
@@ -26,7 +27,7 @@ WO_001_ACCOUNT = "antonyfm@empyreanstudios.co"
 
 SSH_KEY = "/root/.ssh/id_ed25519"
 SSH_USER = r"DESKTOP-LVGUIQ9\antonys beast pc"
-SSH_HOST = "100.74.199.102"
+SSH_HOST = os.getenv("EOS_LOCAL_BRIDGE_IP", "100.74.199.102")
 
 ALLOWED_DOMAINS: frozenset[str] = frozenset({"drive.google.com"})
 
@@ -105,11 +106,7 @@ def build_chrome_profile_drive_launch_command(
     This opens Chrome with the specified profile directly.
     No account switching UI. No credential entry.
     """
-    return (
-        f'"{chrome_path}" '
-        f'--profile-directory="{profile_directory}" '
-        f'"{url}"'
-    )
+    return f'"{chrome_path}" --profile-directory="{profile_directory}" "{url}"'
 
 
 def build_task_scheduler_profile_launch(
@@ -126,9 +123,7 @@ def build_task_scheduler_profile_launch(
     tr_value = f'\\"{chrome_path}\\" --profile-directory=\\"{profile_directory}\\" {url}'
 
     create_cmd = (
-        f'schtasks /create /tn "{task_name}" '
-        f'/tr "{tr_value}" '
-        f'/sc once /st 00:00 /f /rl highest /it'
+        f'schtasks /create /tn "{task_name}" /tr "{tr_value}" /sc once /st 00:00 /f /rl highest /it'
     )
 
     run_cmd = f'schtasks /run /tn "{task_name}"'

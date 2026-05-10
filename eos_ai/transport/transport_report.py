@@ -103,7 +103,7 @@ def unified_transport_report(
     # ── Discord transport ───────────────────────────────────────────────
     discord_status: dict[str, Any] = {}
     try:
-        from eos_ai.substrate.discord_voice_transport import (
+        from eos_ai.transport.discord_voice_transport import (
             get_default_discord_voice_transport,
         )
 
@@ -122,7 +122,7 @@ def unified_transport_report(
     # ── Meeting transport ───────────────────────────────────────────────
     meeting_status: dict[str, Any] = {}
     try:
-        from eos_ai.substrate.meeting_transport import (
+        from eos_ai.transport.meeting_transport import (
             get_default_meeting_transport,
         )
 
@@ -253,7 +253,7 @@ def unified_transport_report(
         "memory_extracted_count": 0,
     }
     try:
-        from eos_ai.substrate.meeting_intelligence import (
+        from eos_ai.transport.meeting_intelligence import (
             intelligence_report_block,
         )
 
@@ -319,7 +319,7 @@ def _empty_pseudo_live() -> dict:
 
 def _pseudo_live_block() -> dict:
     try:
-        from eos_ai.substrate.discord_text_transport import pseudo_live_status
+        from eos_ai.transport.discord_text_transport import pseudo_live_status
 
         return pseudo_live_status()
     except Exception as e:  # noqa: BLE001
@@ -496,7 +496,7 @@ def _attached_meeting_codes(report: dict) -> set[str]:
     """
     codes: set[str] = set()
     try:
-        from eos_ai.substrate.meeting_transport import (
+        from eos_ai.transport.meeting_transport import (
             get_default_meeting_transport,
         )
 
@@ -514,7 +514,7 @@ def _attached_meeting_codes(report: dict) -> set[str]:
             if isinstance(mc, str) and mc:
                 # sanitize to match on-disk filename
                 try:
-                    from eos_ai.substrate.meet_caption_bridge import (
+                    from eos_ai.transport.meet_caption_bridge import (
                         sanitize_meeting_code,
                     )
 
@@ -529,7 +529,7 @@ def _attached_meeting_codes(report: dict) -> set[str]:
 def _meet_bridges_block(report: dict) -> list[dict]:
     out: list[dict] = []
     try:
-        from eos_ai.substrate.meet_caption_bridge import BRIDGE_ROOT
+        from eos_ai.transport.meet_caption_bridge import BRIDGE_ROOT
 
         if not BRIDGE_ROOT.exists():
             return out

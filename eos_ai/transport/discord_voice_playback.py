@@ -473,7 +473,7 @@ class DiscordVoicePlayback:
         to this adapter's node_id. Never raises.
         """
         try:
-            from eos_ai.substrate.playback_status import (
+            from eos_ai.transport.playback_status import (
                 aggregate_by_status,
                 make_playback_status_snapshot,
             )

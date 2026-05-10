@@ -101,7 +101,7 @@ class NodeRegistry:
     # ─── Persistence ──────────────────────────────────────────────────────
     def _load(self) -> None:
         try:
-            from eos_ai.substrate.storage import get_storage
+            from eos_ai.transport.storage import get_storage
 
             raw = get_storage().get(self._STORAGE_KEY, default={}) or {}
             for node_id, data in raw.items():
@@ -123,7 +123,7 @@ class NodeRegistry:
         if not self._persist:
             return
         try:
-            from eos_ai.substrate.storage import get_storage
+            from eos_ai.transport.storage import get_storage
 
             payload = {
                 nid: {

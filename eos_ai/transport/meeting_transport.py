@@ -51,7 +51,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from eos_ai.substrate.meeting_sources import is_meeting_source
+from eos_ai.transport.meeting_sources import is_meeting_source
 
 
 def _log(msg: str) -> None:
@@ -412,7 +412,7 @@ class MeetingTransport:
                     # never raises. Summary/intervention/memory on each
                     # successful inject.
                     try:
-                        from eos_ai.substrate.meeting_intelligence import (
+                        from eos_ai.transport.meeting_intelligence import (
                             on_utterance_injected,
                         )
 
@@ -464,7 +464,7 @@ class MeetingTransport:
         """
         # Lazy import to keep hot path clean.
         try:
-            from eos_ai.substrate.discord_voice_playback import (
+            from eos_ai.transport.discord_voice_playback import (
                 normalize_playback_result,
             )
         except Exception:  # noqa: BLE001
@@ -540,7 +540,7 @@ class MeetingTransport:
     def playback_status_snapshot(self) -> dict[str, Any]:
         """Shared PlaybackStatusSnapshot dict for this meeting transport."""
         try:
-            from eos_ai.substrate.playback_status import (
+            from eos_ai.transport.playback_status import (
                 make_playback_status_snapshot,
             )
 
@@ -592,7 +592,7 @@ class MeetingTransport:
         describing the bounded transport — same posture Discord uses.
         """
         try:
-            from eos_ai.substrate.nodes import (
+            from eos_ai.transport.nodes import (
                 Node,
                 NodeRegistry,
                 NodeStatus,
@@ -625,7 +625,7 @@ class MeetingTransport:
     def start_session(self, role_slug: Optional[str] = None) -> dict[str, Any]:
         """Start (or resume) a bounded voice session for this meeting node."""
         try:
-            from eos_ai.substrate.voice_session import (
+            from eos_ai.transport.voice_session import (
                 VoiceSessionRuntime,
                 get_voice_session_store,
             )
@@ -665,7 +665,7 @@ class MeetingTransport:
 
     def end_session(self, *, reason: Optional[str] = None) -> dict[str, Any]:
         try:
-            from eos_ai.substrate.voice_session import (
+            from eos_ai.transport.voice_session import (
                 VoiceSessionRuntime,
                 get_voice_session_store,
             )
@@ -731,7 +731,7 @@ class MeetingTransport:
             return {"status": "empty_text", "event": ev.as_dict()}
 
         try:
-            from eos_ai.substrate.transcript_inject import inject_transcript
+            from eos_ai.transport.transcript_inject import inject_transcript
         except Exception as e:  # noqa: BLE001
             return {"status": "import_failed", "detail": str(e)}
 
@@ -806,7 +806,7 @@ class MeetingTransport:
         if not session_id:
             return None
         try:
-            from eos_ai.substrate.voice_session import (
+            from eos_ai.transport.voice_session import (
                 VoiceTurnSource,
                 get_voice_session_store,
             )
@@ -830,7 +830,7 @@ class MeetingTransport:
         active_count = 0
         recent_sessions: list[dict] = []
         try:
-            from eos_ai.substrate.voice_session import get_voice_session_store
+            from eos_ai.transport.voice_session import get_voice_session_store
 
             store = get_voice_session_store()
             active_count = len(store.active(node_id=self.node_id))
@@ -842,7 +842,7 @@ class MeetingTransport:
 
         audio_loop: Optional[dict] = None
         try:
-            from eos_ai.substrate.result_query import audio_loop_snapshot
+            from eos_ai.transport.result_query import audio_loop_snapshot
 
             audio_loop = audio_loop_snapshot(node_id=self.node_id)
         except Exception as e:  # noqa: BLE001

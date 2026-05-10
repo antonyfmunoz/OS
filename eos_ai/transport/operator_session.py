@@ -228,7 +228,7 @@ class OperatorSessionStore:
             if self._loaded:
                 return
             try:
-                from eos_ai.substrate.storage import get_storage
+                from eos_ai.transport.storage import get_storage
 
                 raw = get_storage().get(_STORAGE_KEY, default=None)
             except Exception as e:  # noqa: BLE001
@@ -244,7 +244,7 @@ class OperatorSessionStore:
 
     def _flush(self) -> None:
         try:
-            from eos_ai.substrate.storage import get_storage
+            from eos_ai.transport.storage import get_storage
 
             payload = self._session.to_dict() if self._session is not None else None
             get_storage().put(_STORAGE_KEY, payload)

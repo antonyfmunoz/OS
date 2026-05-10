@@ -30,7 +30,7 @@ if _REPO_ROOT not in sys.path:
 
 import discord
 
-from eos_ai.substrate.session_watcher import (
+from eos_ai.transport.session_watcher import (
     SessionState,
     WatcherEvent,
     get_watcher,

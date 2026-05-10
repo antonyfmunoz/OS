@@ -12,7 +12,7 @@ calls `resolve_role()` with an agent_hierarchy id and gets back the
 corresponding AgentRole without touching agent_hierarchy itself.
 
 Usage:
-    from eos_ai.substrate.role_resolver import resolve_role
+    from eos_ai.transport.role_resolver import resolve_role
 
     role = resolve_role("executive_assistant")
     assert role.slug == "ea_orchestrator"
@@ -27,7 +27,7 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Optional
 
-from eos_ai.substrate.roles import AgentRole, RoleRegistry
+from eos_ai.transport.roles import AgentRole, RoleRegistry
 
 
 # Hierarchy agent id → substrate role slug. Any id not in this map resolves

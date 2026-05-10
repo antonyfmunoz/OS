@@ -10,12 +10,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from eos_ai.substrate.extraction_backend_contracts import (
+from eos_ai.transport.extraction_backend_contracts import (
     BackendIndependenceLevel,
     MCPSubtype,
 )
-from eos_ai.substrate.mcp_backend_contracts import MCPToolProfile
-from eos_ai.substrate.mcp_backend_classifier import (
+from eos_ai.transport.mcp_backend_contracts import MCPToolProfile
+from eos_ai.transport.mcp_backend_classifier import (
     classify_mcp_tool,
     evaluate_mcp_against_extraction_contract,
     mcp_counts_as_independent_backend,
@@ -120,7 +120,7 @@ def classify_available_mcp_tool(tool_manifest: dict[str, Any]) -> MCPToolProfile
 
 def evaluate_mcp_tool_for_google_docs(tool_profile: MCPToolProfile) -> dict[str, Any]:
     """Evaluate an MCP tool specifically for Google Docs extraction."""
-    from eos_ai.substrate.extraction_backend_contracts import (
+    from eos_ai.transport.extraction_backend_contracts import (
         ExtractionBackendType,
         build_google_docs_contract,
     )

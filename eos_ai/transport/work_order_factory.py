@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from eos_ai.substrate.work_order_contracts import (
+from eos_ai.transport.work_order_contracts import (
     UNIVERSAL_BLOCKED_ACTIONS,
     AuthorityMode,
     SensitivityLevel,

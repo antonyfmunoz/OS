@@ -159,7 +159,7 @@ class VoiceWakeStore:
             if self._loaded:
                 return
             try:
-                from eos_ai.substrate.storage import get_storage
+                from eos_ai.transport.storage import get_storage
 
                 raw = get_storage().get(_STORAGE_KEY, default=None)
             except Exception as e:  # noqa: BLE001
@@ -176,7 +176,7 @@ class VoiceWakeStore:
 
     def _flush(self) -> None:
         try:
-            from eos_ai.substrate.storage import get_storage
+            from eos_ai.transport.storage import get_storage
 
             if self._state is not None:
                 get_storage().put(_STORAGE_KEY, self._state.to_dict())

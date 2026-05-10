@@ -854,7 +854,7 @@ def call_with_fallback(
     )
     if cli_enabled:
         try:
-            from eos_ai.substrate.claude_responder import (
+            from eos_ai.transport.claude_responder import (
                 DEFAULT_SESSION_NAME,
                 DEFAULT_TARGET,
                 respond_via_claude_session,
@@ -875,7 +875,7 @@ def call_with_fallback(
             # and product contexts isolated without forking the pipeline.
             mode_label = None
             try:
-                from eos_ai.substrate.discord_mode_routing import (
+                from eos_ai.transport.discord_mode_routing import (
                     current_mode_context,
                 )
 
@@ -1162,7 +1162,7 @@ def _stamp_trace(provider: str, model: str, latency_ms: int, result: str) -> Non
     if "fail" not in result:
         _circuit_record_success()
     try:
-        from eos_ai.substrate.execution_trace import get_current_trace, finalize_trace
+        from eos_ai.transport.execution_trace import get_current_trace, finalize_trace
 
         trace = get_current_trace()
         if trace is not None:

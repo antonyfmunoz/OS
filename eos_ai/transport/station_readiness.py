@@ -26,9 +26,9 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from eos_ai.substrate.nodes import NodeRegistry, NodeStatus
-from eos_ai.substrate.result_query import node_health_summary
-from eos_ai.substrate.result_store import ResultStore, get_result_store
+from eos_ai.transport.nodes import NodeRegistry, NodeStatus
+from eos_ai.transport.result_query import node_health_summary
+from eos_ai.transport.result_store import ResultStore, get_result_store
 
 
 # ─── Tunables (deliberately conservative) ────────────────────────────────────
@@ -107,7 +107,7 @@ def _age_seconds(value: Optional[str]) -> Optional[float]:
 def _count_unresolved_for_node(node_id: str, store: ResultStore) -> int:
     """Best-effort scan of recent rituals for unresolved actions on this node."""
     try:
-        from eos_ai.substrate.rituals import RitualRegistry
+        from eos_ai.transport.rituals import RitualRegistry
     except Exception:
         return 0
     try:
@@ -224,7 +224,7 @@ def station_readiness(
     capability_mismatch = False
     missing_capabilities: list[str] = []
     try:
-        from eos_ai.substrate.scene_capabilities import node_supports
+        from eos_ai.transport.scene_capabilities import node_supports
         ok_default, missing_default = node_supports(node, "operator_mode")
         if not ok_default:
             capability_mismatch = True

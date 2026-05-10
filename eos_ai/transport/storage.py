@@ -15,7 +15,7 @@ registries (nodes, rituals) survive across processes without dragging in a
 migration framework.
 
 Usage:
-    from eos_ai.substrate.storage import get_storage
+    from eos_ai.transport.storage import get_storage
 
     st = get_storage()
     st.put("nodes", {"vps-primary": {...}})

@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from eos_ai.substrate.memory_scope_contracts import MemoryScope
+from eos_ai.transport.memory_scope_contracts import MemoryScope
 
 
 @dataclass

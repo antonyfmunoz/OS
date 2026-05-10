@@ -925,7 +925,7 @@ def ask_session(
     """
     # ── Watcher-aware fast path ──────────────────────────────────────────
     try:
-        from eos_ai.substrate.session_watcher import get_watcher
+        from eos_ai.transport.session_watcher import get_watcher
 
         watcher = get_watcher(session_name)
         if watcher:

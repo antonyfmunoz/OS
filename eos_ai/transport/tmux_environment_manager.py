@@ -13,10 +13,11 @@ Key rules:
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import Any
 
-from eos_ai.substrate.environment_contracts import (
+from eos_ai.transport.environment_contracts import (
     EnvironmentBinding,
     EnvironmentCapability,
     EnvironmentProfile,
@@ -27,7 +28,7 @@ from eos_ai.substrate.environment_contracts import (
 
 SSH_KEY = "/root/.ssh/id_ed25519"
 SSH_USER = r"DESKTOP-LVGUIQ9\antonys beast pc"
-SSH_HOST = "100.74.199.102"
+SSH_HOST = os.getenv("EOS_LOCAL_BRIDGE_IP", "100.74.199.102")
 
 SHELL_COMMANDS: frozenset[str] = frozenset({"bash", "zsh", "sh", "fish", "pwsh", "powershell"})
 
@@ -151,11 +152,11 @@ def choose_best_shell_pane(panes: list[TmuxPane]) -> TmuxPane | None:
 
 def build_tmux_list_panes_command() -> str:
     """Build the SSH command to list all tmux panes on the local PC."""
-    format_str = '#{session_name}:#{window_index}.#{pane_index} | cmd=#{pane_current_command} | path=#{pane_current_path}'
+    format_str = "#{session_name}:#{window_index}.#{pane_index} | cmd=#{pane_current_command} | path=#{pane_current_path}"
     return (
         f"ssh -i {SSH_KEY} -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=8 "
         f"'{SSH_USER}'@{SSH_HOST} "
-        f"'wsl -e bash -lc \"tmux list-panes -a -F \\\"{format_str}\\\"\"'"
+        f'\'wsl -e bash -lc "tmux list-panes -a -F \\"{format_str}\\""\''
     )
 
 
@@ -168,7 +169,7 @@ def build_tmux_send_keys_command(target: str, command: str) -> str:
     return (
         f"ssh -i {SSH_KEY} -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=8 "
         f"'{SSH_USER}'@{SSH_HOST} "
-        f"'wsl -e bash -lc \"tmux send-keys -t {target} \\\"{command}\\\" Enter\"'"
+        f'\'wsl -e bash -lc "tmux send-keys -t {target} \\"{command}\\" Enter"\''
     )
 
 
@@ -190,7 +191,9 @@ def build_tmux_capture_pane_command(target: str) -> str:
     )
 
 
-def panes_to_environment_profiles(panes: list[TmuxPane], node_id: str = "local_pc") -> list[EnvironmentProfile]:
+def panes_to_environment_profiles(
+    panes: list[TmuxPane], node_id: str = "local_pc"
+) -> list[EnvironmentProfile]:
     """Convert parsed tmux panes to EnvironmentProfile objects."""
     return [
         build_environment_from_tmux_pane(

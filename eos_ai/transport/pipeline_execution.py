@@ -19,7 +19,7 @@ import sys
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
-from eos_ai.substrate.task_pipeline import (
+from eos_ai.transport.task_pipeline import (
     PipelineStatus,
     PipelineStore,
     PipelineStep,
@@ -29,7 +29,7 @@ from eos_ai.substrate.task_pipeline import (
 )
 
 if TYPE_CHECKING:
-    from eos_ai.substrate.operator_session import OperatorSession
+    from eos_ai.transport.operator_session import OperatorSession
 
 
 def _log(msg: str) -> None:
@@ -204,7 +204,7 @@ def _execute_local_control_step(
         return step
 
     try:
-        from eos_ai.substrate.local_control import (
+        from eos_ai.transport.local_control import (
             LocalControlAction,
             RequestStatus,
             execute_control_request,
@@ -274,8 +274,8 @@ def _execute_step(
 
     # ── Route the step ──────────────────────────────────────────────────────
     try:
-        from eos_ai.substrate.capability_routing import choose_execution_target
-        from eos_ai.substrate.task_system import Task, TaskExecutionPolicy, TaskStatus
+        from eos_ai.transport.capability_routing import choose_execution_target
+        from eos_ai.transport.task_system import Task, TaskExecutionPolicy, TaskStatus
 
         # Build a lightweight proxy Task for routing — reuses existing
         # capability_routing infrastructure without modification
@@ -315,11 +315,11 @@ def _execute_step(
         dispatch_text += f"\n{step.description}"
 
     try:
-        from eos_ai.substrate.task_execution import _resolve_tmux_target
+        from eos_ai.transport.task_execution import _resolve_tmux_target
 
         tmux_target, session_name = _resolve_tmux_target(step.chosen_target)
 
-        from eos_ai.substrate.claude_session_bridge import ask_session
+        from eos_ai.transport.claude_session_bridge import ask_session
 
         result = ask_session(
             tmux_target,
@@ -339,7 +339,7 @@ def _execute_step(
         step.execution_result = reply_text or "completed (no output)"
 
         # Check for human-block signals
-        from eos_ai.substrate.task_execution import detect_human_block
+        from eos_ai.transport.task_execution import detect_human_block
 
         block_signal = detect_human_block(reply_text)
         if block_signal:

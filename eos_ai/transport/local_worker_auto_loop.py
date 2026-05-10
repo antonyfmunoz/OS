@@ -221,7 +221,7 @@ def check_windows_desktop_adapter_available() -> dict[str, Any]:
     Returns a status dict.
     """
     try:
-        from eos_ai.substrate.windows_desktop_relay_client import (
+        from eos_ai.transport.windows_desktop_relay_client import (
             check_relay_available,
         )
 
@@ -254,7 +254,7 @@ def route_to_windows_desktop_adapter(
         from core.environment_bridge.windows_desktop_request_builder import (
             build_w0_chrome_open_request,
         )
-        from eos_ai.substrate.windows_desktop_relay_client import (
+        from eos_ai.transport.windows_desktop_relay_client import (
             send_request_and_wait,
         )
 

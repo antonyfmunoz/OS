@@ -30,19 +30,19 @@ import sys
 from dataclasses import dataclass, field
 from typing import Optional
 
-from eos_ai.substrate.actions import SafeAction
-from eos_ai.substrate.nodes import NodeRegistry, NodeStatus
-from eos_ai.substrate.result_query import node_health_summary
-from eos_ai.substrate.ritual_inference import InferredHint, infer_open_scene_hint
-from eos_ai.substrate.rituals import Ritual, RitualKind, RitualRegistry
-from eos_ai.substrate.scene_policy import select_scene
-from eos_ai.substrate.scenes import get_scene
-from eos_ai.substrate.station_helpers import (
+from eos_ai.transport.actions import SafeAction
+from eos_ai.transport.nodes import NodeRegistry, NodeStatus
+from eos_ai.transport.result_query import node_health_summary
+from eos_ai.transport.ritual_inference import InferredHint, infer_open_scene_hint
+from eos_ai.transport.rituals import Ritual, RitualKind, RitualRegistry
+from eos_ai.transport.scene_policy import select_scene
+from eos_ai.transport.scenes import get_scene
+from eos_ai.transport.station_helpers import (
     propose_open_scene,
     propose_play_sound,
     propose_speak_text,
 )
-from eos_ai.substrate.station_readiness import (
+from eos_ai.transport.station_readiness import (
     DEGRADED,
     READY,
     UNAVAILABLE,

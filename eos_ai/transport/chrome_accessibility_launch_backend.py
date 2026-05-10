@@ -13,6 +13,7 @@ Backend class: VISIBLE_CHROME_ACCESSIBILITY_LAUNCH
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 
@@ -22,7 +23,7 @@ DRIVE_URL = "https://drive.google.com/drive/my-drive"
 
 SSH_KEY = "/root/.ssh/id_ed25519"
 SSH_USER = r"DESKTOP-LVGUIQ9\antonys beast pc"
-SSH_HOST = "100.74.199.102"
+SSH_HOST = os.getenv("EOS_LOCAL_BRIDGE_IP", "100.74.199.102")
 TASK_NAME = "UMH_ChromeA11yLaunch"
 
 ALLOWED_FLAGS: frozenset[str] = frozenset(
@@ -77,7 +78,7 @@ def build_chrome_accessibility_launch_command(
     return (
         f'"{chrome_path}" '
         f'--profile-directory="{profile_directory}" '
-        f'--force-renderer-accessibility '
+        f"--force-renderer-accessibility "
         f'"{url}"'
     )
 
@@ -92,14 +93,12 @@ def build_task_scheduler_accessibility_launch(
     tr_value = (
         f'\\"{chrome_path}\\" '
         f'--profile-directory=\\"{profile_directory}\\" '
-        f'--force-renderer-accessibility '
-        f'{url}'
+        f"--force-renderer-accessibility "
+        f"{url}"
     )
 
     create_cmd = (
-        f'schtasks /create /tn "{task_name}" '
-        f'/tr "{tr_value}" '
-        f'/sc once /st 00:00 /f /rl highest /it'
+        f'schtasks /create /tn "{task_name}" /tr "{tr_value}" /sc once /st 00:00 /f /rl highest /it'
     )
 
     run_cmd = f'schtasks /run /tn "{task_name}"'

@@ -23,7 +23,7 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # avoid runtime cycle
-    from eos_ai.substrate.nodes import Node, NodeRegistry
+    from eos_ai.transport.nodes import Node, NodeRegistry
 
 
 class Capability(str, Enum):

@@ -20,9 +20,9 @@ from enum import IntEnum
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from eos_ai.substrate.operator_session import OperatorSession
+    from eos_ai.transport.operator_session import OperatorSession
 
-from eos_ai.substrate.task_system import (
+from eos_ai.transport.task_system import (
     Task,
     TaskExecutionPolicy,
     TaskStatus,
@@ -176,7 +176,7 @@ def get_enhanced_task_summary(store: Optional[TaskStore] = None) -> dict:
     - queued_autonomous: count of READY + OVERNIGHT_QUEUED autonomous tasks
     - top_priority_task_title: title of the highest-priority executable task
     """
-    from eos_ai.substrate.task_system import get_task_summary
+    from eos_ai.transport.task_system import get_task_summary
 
     summary = get_task_summary()
     s = store or TaskStore.default()

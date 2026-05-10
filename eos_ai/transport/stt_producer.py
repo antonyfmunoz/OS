@@ -608,7 +608,7 @@ class SttCaptureHistory:
         if self._loaded:
             return
         try:
-            from eos_ai.substrate.storage import get_storage
+            from eos_ai.transport.storage import get_storage
 
             raw = get_storage().get(_STORAGE_KEY, default=[]) or []
             if isinstance(raw, list):
@@ -622,7 +622,7 @@ class SttCaptureHistory:
 
     def _flush(self) -> None:
         try:
-            from eos_ai.substrate.storage import get_storage
+            from eos_ai.transport.storage import get_storage
 
             get_storage().put(_STORAGE_KEY, [e.as_dict() for e in self._events])
         except Exception as e:  # noqa: BLE001
@@ -675,7 +675,7 @@ def reset_stt_capture_history_for_tests() -> None:
     with _history_lock:
         _history_singleton = SttCaptureHistory()
         try:
-            from eos_ai.substrate.storage import get_storage
+            from eos_ai.transport.storage import get_storage
 
             get_storage().put(_STORAGE_KEY, [])
         except Exception as e:  # noqa: BLE001
@@ -1012,7 +1012,7 @@ class LocalSttRuntime:
     ) -> SttCaptureEvent:
         """Push event.text into the voice loop via inject_transcript."""
         try:
-            from eos_ai.substrate.transcript_inject import inject_transcript
+            from eos_ai.transport.transcript_inject import inject_transcript
 
             result = inject_transcript(
                 event.node_id,

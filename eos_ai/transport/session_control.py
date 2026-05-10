@@ -96,7 +96,7 @@ def clear_session(target: str, session_name: str) -> dict[str, Any]:
     the tmux session, which clears its conversation context.
     """
     try:
-        from eos_ai.substrate.claude_session_bridge import send_message
+        from eos_ai.transport.claude_session_bridge import send_message
     except Exception as e:  # noqa: BLE001
         _log(f"claude_session_bridge import failed: {e}")
         return {
@@ -141,7 +141,7 @@ def reset_session(
     2. Re-run ensure_session to create a fresh one with Claude launched
     """
     try:
-        from eos_ai.substrate.claude_session_bridge import (
+        from eos_ai.transport.claude_session_bridge import (
             _run_tmux,
             _tmux_has_session,
             ensure_session,

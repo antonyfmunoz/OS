@@ -31,7 +31,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable
 
-from eos_ai.substrate.intent_models import IntentType
+from eos_ai.transport.intent_models import IntentType
 
 _LOG_PREFIX = "[substrate.llm_planner]"
 

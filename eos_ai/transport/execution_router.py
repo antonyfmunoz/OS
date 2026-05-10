@@ -6,8 +6,8 @@ RoutingDecision. Consults the NodeRegistry for node health and capabilities.
 NEVER invokes execution — only decides WHERE.
 
 Usage:
-    from eos_ai.substrate.execution_router import ExecutionRouter
-    from eos_ai.substrate.execution_contract import (
+    from eos_ai.transport.execution_router import ExecutionRouter
+    from eos_ai.transport.execution_contract import (
         ExecutionClass, RoutingContext,
     )
 
@@ -21,14 +21,14 @@ Usage:
 
 from __future__ import annotations
 
-from eos_ai.substrate.execution_contract import (
+from eos_ai.transport.execution_contract import (
     ExecutionClass,
     ExecutionTarget,
     RoutingContext,
     RoutingDecision,
     RoutingReasonCode,
 )
-from eos_ai.substrate.nodes import (
+from eos_ai.transport.nodes import (
     Node,
     NodeRegistry,
     NodeRole,

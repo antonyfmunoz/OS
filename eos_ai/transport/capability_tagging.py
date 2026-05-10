@@ -15,7 +15,7 @@ Why this is valuable before capability-aware routing exists:
     tells us the classifier is wrong, not the router.
 
 Usage:
-    from eos_ai.substrate.capability_tagging import tag_request
+    from eos_ai.transport.capability_tagging import tag_request
 
     caps = tag_request(request)   # returns list[str], also mutates request
 """
@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from eos_ai.substrate.capabilities import Capability
+from eos_ai.transport.capabilities import Capability
 
 
 # ─── Classifier rules ────────────────────────────────────────────────────────

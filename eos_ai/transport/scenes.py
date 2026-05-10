@@ -25,7 +25,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-from eos_ai.substrate.actions import ActionKind
+from eos_ai.transport.actions import ActionKind
 
 
 @dataclass(frozen=True)

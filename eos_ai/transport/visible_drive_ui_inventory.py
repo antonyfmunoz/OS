@@ -15,7 +15,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from eos_ai.substrate.local_gui_control_contracts import (
+from eos_ai.transport.local_gui_control_contracts import (
     GUIInventoryItem,
     GUIObservationMethod,
     GUIObservationResult,

@@ -25,7 +25,7 @@ import sys
 from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
-    from eos_ai.substrate.station_daemon import StationDaemon
+    from eos_ai.transport.station_daemon import StationDaemon
 
 # ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -189,7 +189,7 @@ class NodeTransportServer:
         from aiohttp import web
 
         try:
-            from eos_ai.substrate.nodes import NodeRegistry
+            from eos_ai.transport.nodes import NodeRegistry
 
             registry = NodeRegistry.default()
             node = registry.get(self._daemon.node_id)

@@ -9,7 +9,7 @@ These types are the foundation every other fabric module depends on:
 routing, scheduling, checkpoint, and replay all speak this vocabulary.
 
 Usage:
-    from eos_ai.substrate.execution_contract import (
+    from eos_ai.transport.execution_contract import (
         ExecutionRequest, ExecutionResult, ExecutionClass,
         ExecutionStatus, ExecutionConstraints, RoutingDecision,
     )
