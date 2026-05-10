@@ -1,28 +1,30 @@
-# EntrepreneurOS
+# UMH — Universal Mastery Hierarchy
 
-AI operating system for entrepreneurs.
-You name it. It learns your business.
-It runs alongside you — always on,
-always aware, always applying the right
-knowledge at the right moment.
+Governed intelligence substrate for autonomous business operations.
+
+UMH is the runtime intelligence layer. Applications like
+EntrepreneurOS (EOS), CreatorOS, and LyfeOS are projections
+built on top of UMH — they consume its intelligence, they
+do not own it.
 
 ## What it is
 
 The complete philosophy is in PHILOSOPHY.md.
 
-EntrepreneurOS is a meta-orchestrator harness.
-It takes any LLM and adds:
+UMH is a governed intelligence substrate that takes any LLM and adds:
 - Venture context and stage awareness
 - Agent hierarchy (EA, CEO agents, departments)
 - 13 business primitives with validity matrices
 - Continuous learning from every interaction
 - Reality-grounded ambient intelligence
 - Voice interface (Discord + local client)
+- Constitutional governance and execution spine
+- Substrate memory, continuity, and replay
 
 The AI filters advice by what actually applies
 at your current stage. What works at Stage 3
-can destroy a Stage 1 founder. EOS knows the
-difference.
+can destroy a Stage 1 founder. The substrate knows
+the difference.
 
 ## Quick install
 
@@ -105,11 +107,15 @@ Advice inappropriate for your current stage is blocked automatically.
 ## Structure
 
 ```
-eos_ai/          Intelligence layer (Python)
-saas/            SaaS product (TypeScript)
-services/        Bots and automation
+core/            Canonical substrate contracts + infrastructure
+eos_ai/          Runtime intelligence layer (legacy name)
+  transport/     Canonical transport subsystem
+  substrate/     Shim layer → transport
+services/        Live entrypoints (bots, webhooks)
+scripts/         Operations layer (cron, utilities)
 agents/          Agent soul documents
 skills/          Agent runtime skills
+saas/            EOS application projection (TypeScript)
 orchestrator/    Scheduled tasks
 ```
 

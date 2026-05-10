@@ -1,9 +1,16 @@
-# services — Bots and services
+# services — Live Entrypoints
+
+## Identity
+Live daemon processes that serve as UMH's interface surfaces.
+These are entrypoints, not intelligence — intelligence lives
+in `eos_ai/` (the runtime layer).
 
 ## Services
-discord_bot.py       — DEX Discord bot
-telegram_control.py  — Telegram bot
+discord_bot.py       — DEX Discord bot (primary UMH interface)
+telegram_control.py  — Telegram bot (dormant)
 dm_monitor.py        — Instagram DM monitor
+calendly_webhook.py  — booking webhook receiver
+higgsfield_webhook.py — media generation webhook
 
 ## Discord bot
 - Library: py-cord 2.6.1
@@ -15,7 +22,7 @@ dm_monitor.py        — Instagram DM monitor
 
 ## Env files
 services/.env — bot tokens + Discord IDs
-eos_ai/.env     — Anthropic + Neon keys
+eos_ai/.env   — Anthropic + Neon keys
 
 ## Never do
 - Never hardcode AI name

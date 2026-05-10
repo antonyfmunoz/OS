@@ -1,7 +1,28 @@
-# Current System Status
+# UMH — Current System Status
 
+> System: Universal Mastery Hierarchy (UMH)
+> Applications: EntrepreneurOS (EOS) — primary projection
+> Repository: /opt/OS (pending rename to /opt/UMH)
 > Last updated: Phase 96.8CO — 2026-05-10
 > UPDATE THIS AFTER EVERY MAJOR PHASE
+
+### System Identity
+UMH is the governed intelligence substrate. EOS (EntrepreneurOS)
+is one application projection that consumes UMH intelligence.
+The `eos_ai/` directory is the runtime layer (legacy name).
+The `core/` directory is the canonical substrate contracts layer.
+See `docs/system/canonical_terminology.md` for authoritative definitions.
+
+### Directory Architecture
+| Directory | Role | Layer |
+|-----------|------|-------|
+| `core/` | Canonical substrate contracts + infrastructure | Substrate |
+| `eos_ai/` | Runtime intelligence (legacy name) | Runtime |
+| `eos_ai/transport/` | Canonical transport subsystem | Transport |
+| `eos_ai/substrate/` | Shim layer → transport | Compatibility |
+| `services/` | Live entrypoints (bots, webhooks) | Interface |
+| `scripts/` | Operations layer (cron, utilities) | Operations |
+| `saas/` | EOS application projection (TypeScript) | Application |
 
 ---
 
@@ -283,10 +304,10 @@
 
 | Component | Status | Value |
 |-----------|--------|-------|
-| /umh (870 files) | DORMANT_REFERENCE | Architecture patterns for future migration |
-| eos_ai/platforms/eos/ (12 files) | DORMANT_PROTOTYPE | Platform layer patterns |
-| eos_ai/interfaces/ | DORMANT | Interface contracts |
-| Telegram bot | DORMANT | Service disabled |
+| /umh (870 files) | DORMANT_REFERENCE | Prior UMH architecture — patterns for future migration |
+| eos_ai/platforms/eos/ (12 files) | DORMANT_PROTOTYPE | EOS application projection prototype |
+| eos_ai/interfaces/ | DORMANT | Interface contracts (not connected to runtime) |
+| Telegram bot | DORMANT | Service disabled in Docker |
 | tools/ directory | DUPLICATE | 140+ files duplicated from scripts/ |
 
 ---
@@ -812,8 +833,9 @@ Hard repository convergence — turns substrate verification machinery inward on
 |------|---------|
 | Full substrate/ package migration | Requires Stage 2 — not until cleanup done |
 | New ingestion framework | Existing pipeline works — extend, don't replace |
-| EOS platform activation | Dormant — requires stable substrate first |
-| /umh archival | Not until substrate is mature enough to replace it |
+| EOS application activation | Dormant — requires stable UMH substrate first |
+| /umh archival | Not until canonical substrate is mature enough to replace it |
+| eos_ai/ → umh_runtime/ rename | Blocked until physical rename /opt/OS → /opt/UMH is complete |
 | Constitutional enforcement | Report generators work — enforcement is a separate concern |
 | Semantic search / embeddings | Requires batch ingestion and Neon migration first |
 | Workstation actuation | Requires verified relay — not priority |

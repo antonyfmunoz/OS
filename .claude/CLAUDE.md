@@ -1,6 +1,6 @@
 # Developer Agent — .claude Context
 
-You are operating as the Developer Agent for EOS.
+You are operating as the Developer Agent for UMH (Universal Mastery Hierarchy).
 See /opt/OS/CLAUDE.md for your full soul document and identity.
 
 This file contains .claude-specific context: session protocols,
@@ -9,7 +9,8 @@ risk classes, confirmed working components, and project structure.
 ---
 
 ## What this project is
-EntrepreneurOS is a production AI business operating system.
+UMH is a production AI intelligence substrate.
+EntrepreneurOS (EOS) is one application/projection built on UMH.
 You are modifying a live system that a founder depends on daily.
 Every change is real. Every deploy affects a running service.
 
@@ -75,17 +76,28 @@ CRITICAL: Schema migrations, removing working features, changing
   both loop.run() calls at lines 537 and 555 already use input=prompt.
   Verified 2026-03-26.)
 
-## Confirmed working components (do not break)
-- eos_ai/db.py                 — Neon connection with RLS
-- eos_ai/memory.py             — all writes go to Neon
-- eos_ai/agent_runtime.py      — multi-model router live
-- eos_ai/cognitive_loop.py     — 8-stage loop working, param=input
-- eos_ai/authority_engine.py   — 4 risk classes working
-- eos_ai/portfolio_advisor.py  — board view working
-- eos_ai/orchestrator.py       — 6am cron + morning cycle
-- eos_ai/model_preferences.py  — business context routing
-- eos_ai/media_processor.py    — voice synthesis 303KB confirmed
-- services/telegram_control.py — natural language + media routing
+## Component status (phase 96.8BI truth correction)
+Status taxonomy:
+  CONFIRMED_RUNTIME  — imports clean, used by running services, verified
+  PARTIALLY_VERIFIED — imports clean, logic present, no runtime proof
+  UNVERIFIED         — exists, compiles, never tested end-to-end
+  PROOF_ONLY         — generates reports/proofs, not wired into runtime
+  DORMANT            — code exists, modules not imported by anything live
+  DEPRECATED         — scheduled for removal
+
+- eos_ai/db.py                 — CONFIRMED_RUNTIME (Neon conn, used by all services)
+- eos_ai/memory.py             — CONFIRMED_RUNTIME (AgentMemory + ConversationMemory, Neon writes)
+- eos_ai/agent_runtime.py      — CONFIRMED_RUNTIME (multi-model router, discord bot uses it)
+- eos_ai/cognitive_loop.py     — PARTIALLY_VERIFIED (imports clean, 8-stage loop, param=input)
+- eos_ai/authority_engine.py   — PARTIALLY_VERIFIED (imports clean, 4 risk classes)
+- eos_ai/portfolio_advisor.py  — PARTIALLY_VERIFIED (imports clean, board view logic)
+- eos_ai/orchestrator.py       — PARTIALLY_VERIFIED (EOSOrchestrator class, cron logic present)
+- eos_ai/model_preferences.py  — CONFIRMED_RUNTIME (ModelPreferences, used by model_router)
+- eos_ai/media_processor.py    — PARTIALLY_VERIFIED (imports clean, voice synthesis logic)
+- services/telegram_control.py — DORMANT (not running in Docker, service disabled)
+- services/discord_bot.py      — CONFIRMED_RUNTIME (os-discord container, daily use)
+- eos_ai/runtime/work_state.py — CONFIRMED_RUNTIME (pressure tracking, used by discord bot)
+- core/workstation/constitutional_*_v1.py — PROOF_ONLY (report generators, not runtime-enforced)
 
 ## Current build phase
 Single-user validation phase — one org, multiple ventures.
@@ -93,12 +105,14 @@ Org and venture IDs loaded from BIS at runtime.
 Focus: proving the system works before UI layer.
 
 ## Project structure
-/opt/OS/
-  eos_ai/          — AI intelligence layer (Python)
-  saas/        — SaaS product (TypeScript/React)
-  services/      — automation scripts
-  03_CRM/          — pipeline and lead management
-  orchestrator/ — scheduled tasks and approvals
+/opt/OS/  (repository root — pending rename to /opt/UMH)
+  core/            — canonical substrate + infrastructure contracts
+  eos_ai/          — runtime intelligence layer (legacy name, canonical transport lives here)
+  services/        — live entrypoints (discord_bot.py, etc.)
+  scripts/         — operations layer (cron scripts, utilities)
+  saas/            — SaaS product (TypeScript/React) — EOS application projection
+  03_CRM/          — pipeline and lead management — EOS application data
+  orchestrator/    — scheduled tasks and approvals
   .claude/         — Claude Code project config (this file)
 
 ## Docker restart: use `docker restart`, not `docker compose restart`
