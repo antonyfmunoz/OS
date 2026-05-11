@@ -42,7 +42,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Optional
 
-from eos_ai.transport.nodes import Node, NodeRegistry
+from runtime.transport.nodes import Node, NodeRegistry
 
 
 # How many recent rituals to scan when looking for "last successful scene".
@@ -75,7 +75,7 @@ def _last_successful_scene_for_node(node_id: str) -> Optional[str]:
     Best-effort; never raises; bounded scan.
     """
     try:
-        from eos_ai.transport.rituals import RitualKind, RitualRegistry
+        from runtime.transport.rituals import RitualKind, RitualRegistry
     except Exception:
         return None
     try:

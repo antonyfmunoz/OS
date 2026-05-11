@@ -197,7 +197,7 @@ class PerceptionStore:
             if self._loaded:
                 return
             try:
-                from eos_ai.transport.storage import get_storage
+                from runtime.transport.storage import get_storage
 
                 raw = get_storage().get(_STORAGE_KEY, default=None)
             except Exception as e:  # noqa: BLE001
@@ -214,7 +214,7 @@ class PerceptionStore:
 
     def _flush(self) -> None:
         try:
-            from eos_ai.transport.storage import get_storage
+            from runtime.transport.storage import get_storage
 
             payload = {rid: r.to_dict() for rid, r in self._records.items()}
             get_storage().put(_STORAGE_KEY, payload)
@@ -335,7 +335,7 @@ def collect_task_perception() -> list[PerceptionRecord]:
     """
     records: list[PerceptionRecord] = []
     try:
-        from eos_ai.transport.task_system import TaskStore, TaskStatus
+        from runtime.transport.task_system import TaskStore, TaskStatus
 
         store = TaskStore.default()
         now = _now()
@@ -406,7 +406,7 @@ def collect_pipeline_perception() -> list[PerceptionRecord]:
     """
     records: list[PerceptionRecord] = []
     try:
-        from eos_ai.transport.task_pipeline import PipelineStore, PipelineStatus
+        from runtime.transport.task_pipeline import PipelineStore, PipelineStatus
 
         store = PipelineStore.default()
         now = _now()
@@ -472,7 +472,7 @@ def collect_operator_session_perception() -> list[PerceptionRecord]:
     """
     records: list[PerceptionRecord] = []
     try:
-        from eos_ai.transport.operator_session import (
+        from runtime.transport.operator_session import (
             OperatorSessionStore,
             OperatorDayMode,
         )
@@ -527,7 +527,7 @@ def collect_operator_session_perception() -> list[PerceptionRecord]:
         # Unfinished priorities with no active tasks
         if session.unfinished_priorities and session.is_day_open:
             try:
-                from eos_ai.transport.task_system import TaskStore, TaskStatus
+                from runtime.transport.task_system import TaskStore, TaskStatus
 
                 task_store = TaskStore.default()
                 in_progress = task_store.by_status(TaskStatus.IN_PROGRESS)
@@ -560,7 +560,7 @@ def collect_node_status_perception() -> list[PerceptionRecord]:
     """
     records: list[PerceptionRecord] = []
     try:
-        from eos_ai.transport.nodes import NodeRegistry, NodeStatus, NodeType
+        from runtime.transport.nodes import NodeRegistry, NodeStatus, NodeType
 
         registry = NodeRegistry.default()
         now = _now()
@@ -761,14 +761,14 @@ def collect_station_presence_perception() -> list[PerceptionRecord]:
     """
     records: list[PerceptionRecord] = []
     try:
-        from eos_ai.transport.station_presence import get_station_presence, StationPresenceMode
+        from runtime.transport.station_presence import get_station_presence, StationPresenceMode
 
         state = get_station_presence()
 
         # Station AWAY while blocked work exists
         if state.mode == StationPresenceMode.AWAY:
             try:
-                from eos_ai.transport.task_system import TaskStore, TaskStatus
+                from runtime.transport.task_system import TaskStore, TaskStatus
 
                 blocked = TaskStore.default().by_status(TaskStatus.WAITING_ON_OPERATOR)
                 if blocked:
@@ -790,7 +790,7 @@ def collect_station_presence_perception() -> list[PerceptionRecord]:
         # Overnight mode with unfinished priorities
         if state.mode == StationPresenceMode.OVERNIGHT:
             try:
-                from eos_ai.transport.operator_session import OperatorSessionStore
+                from runtime.transport.operator_session import OperatorSessionStore
 
                 session = OperatorSessionStore.default().get()
                 if session and session.unfinished_priorities:
@@ -822,7 +822,7 @@ def collect_local_control_perception() -> list[PerceptionRecord]:
     """
     records: list[PerceptionRecord] = []
     try:
-        from eos_ai.transport.local_control import (
+        from runtime.transport.local_control import (
             LocalControlStore,
             RequestStatus,
         )
@@ -881,7 +881,7 @@ def collect_live_session_perception() -> list[PerceptionRecord]:
     """
     records: list[PerceptionRecord] = []
     try:
-        from eos_ai.transport.live_sessions import (
+        from runtime.transport.live_sessions import (
             LiveSessionStore,
             LiveSessionState,
         )

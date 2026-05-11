@@ -10,7 +10,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 logger = logging.getLogger(__name__)
 PDT = ZoneInfo('America/Los_Angeles')
 
@@ -31,8 +31,8 @@ def add_stakeholder(
     status: active/inactive/prospect/client/partner/investor
     """
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -64,8 +64,8 @@ def add_stakeholder(
 def get_stakeholders(venture: str = None, ctx=None) -> list[dict]:
     """Get all stakeholders, optionally filtered by venture."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -105,8 +105,8 @@ def get_stakeholders(venture: str = None, ctx=None) -> list[dict]:
 def generate_stakeholder_brief(venture: str, ctx=None) -> str:
     """Generate a stakeholder map brief for a venture."""
     try:
-        from eos_ai.model_router import get_router, TaskType
-        from eos_ai.person_recognition import score_relationship_health
+        from runtime.model_router import get_router, TaskType
+        from runtime.person_recognition import score_relationship_health
         router = get_router()
         model = router.route(TaskType.FAST_RESPONSE) or router.route(TaskType.ANALYSIS)
 
@@ -193,9 +193,9 @@ def generate_board_update_brief(venture_id: str, ctx=None) -> str:
     """Generate a concise board/advisor update for a venture."""
     import json as _j
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
-        from eos_ai.model_router import get_router, TaskType
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
+        from runtime.model_router import get_router, TaskType
         ctx = ctx or load_context_from_env()
         router = get_router()
         model = router.route(TaskType.ANALYSIS)

@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 import os
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 logger = logging.getLogger(__name__)
 PDT = ZoneInfo('America/Los_Angeles')
 
@@ -36,7 +36,7 @@ def extract_expense_from_email(
 ) -> dict:
     """Extract expense details from a receipt email using LLM."""
     try:
-        from eos_ai.model_router import get_router, TaskType
+        from runtime.model_router import get_router, TaskType
         router = get_router()
 
         prompt = f"""Extract expense details from this receipt email.
@@ -74,8 +74,8 @@ Return JSON only:
 def store_expense(expense: dict, ctx=None) -> bool:
     """Store expense in Neon events table."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -98,8 +98,8 @@ def store_expense(expense: dict, ctx=None) -> bool:
 def get_monthly_summary(ctx=None) -> dict:
     """Get expense summary for current month."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -143,8 +143,8 @@ def process_receipt_emails(ctx=None) -> int:
     Returns count of processed expenses.
     """
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.gws_connector import GWSConnector
+        from runtime.context import load_context_from_env
+        from runtime.gws_connector import GWSConnector
         ctx = ctx or load_context_from_env()
         gws = GWSConnector()
 
@@ -205,8 +205,8 @@ def create_invoice(
     Returns invoice dict with id, total, due_date.
     """
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         from datetime import datetime, timedelta
         import uuid as _uuid
         ctx = ctx or load_context_from_env()
@@ -251,8 +251,8 @@ def create_invoice(
 def get_invoices(status: str = None, ctx=None) -> list[dict]:
     """Get invoices, optionally filtered by status."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -327,8 +327,8 @@ def generate_expense_report(
     month: 'YYYY-MM' format, defaults to current month.
     """
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         from datetime import datetime
         ctx = ctx or load_context_from_env()
 
@@ -402,8 +402,8 @@ def generate_budget_vs_actual(
     """Generate a budget vs actual report."""
     try:
         from datetime import datetime
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
 
         if not month:

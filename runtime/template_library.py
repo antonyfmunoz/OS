@@ -5,7 +5,7 @@ World-class defaults. Founder customizes the 20% specific to them.
 Injected into CognitiveLoop PERCEIVE step alongside stage primitives.
 
 Usage:
-    from eos_ai.template_library import TemplateLibrary
+    from runtime.template_library import TemplateLibrary
 
     tl = TemplateLibrary()
     guidance = tl.get_stage_guidance('coaching_program', 1)

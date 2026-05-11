@@ -26,12 +26,12 @@ from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 
-from eos_ai.transport.work_order_contracts import (
+from runtime.transport.work_order_contracts import (
     UNIVERSAL_BLOCKED_ACTIONS,
     WorkOrder,
     WorkOrderStatus,
 )
-from eos_ai.transport.work_order_factory import (
+from runtime.transport.work_order_factory import (
 
     create_google_workspace_discovery_work_order,
     validate_work_order,
@@ -84,8 +84,8 @@ _REQUIRED_VPS_FILES = [
     Path(_ROOT) / "services" / "local_bridge_client.py",
     Path(_ROOT) / "services" / "local_bridge_server.py",
     Path(_ROOT) / "services" / "cc_webhook_receiver.py",
-    Path(_ROOT) / "eos_ai" / "substrate" / "work_order_contracts.py",
-    Path(_ROOT) / "eos_ai" / "substrate" / "work_order_factory.py",
+    Path(_ROOT) / "runtime" / "transport" / "work_order_contracts.py",
+    Path(_ROOT) / "runtime" / "transport" / "work_order_factory.py",
     Path(_ROOT) / "docs" / "operations" / "local_google_workspace_ingestion_work_order_001.md",
     Path(_ROOT) / "docs" / "operations" / "local_google_workspace_ingestion_result_schema_v1.md",
     Path(_ROOT) / "docs" / "operations" / "existing_bridge_binding_plan_v1.md",
@@ -240,7 +240,7 @@ def build_dispatch_package(
 
 def save_dispatch_package(
     package: DispatchPackage,
-    directory: str | Path = f"{_ROOT}/eos_ai/.substrate_station/work_orders",
+    directory: str | Path = f"{_ROOT}/runtime/.substrate_station/work_orders",
 ) -> Path:
     """Write dispatch package to JSON file."""
     directory = Path(directory)

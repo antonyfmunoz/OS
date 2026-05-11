@@ -6,7 +6,7 @@ the offer, ICP, and channels. Injected into agent prompts
 to give context-aware guidance at every stage.
 
 Usage:
-    from eos_ai.business_instance import BusinessInstance, BusinessInstanceManager
+    from runtime.business_instance import BusinessInstance, BusinessInstanceManager
     ctx = load_context_from_env()
     bim = BusinessInstanceManager(ctx)
     bis = bim.get_bis('lyfe_institute')
@@ -214,7 +214,7 @@ class BusinessInstanceManager:
 
     def save_bis(self, bis: BusinessInstance) -> bool:
         """Persist BIS to ventures.config_json. Creates venture row if needed."""
-        from eos_ai.db import get_conn, resolve_venture
+        from runtime.db import get_conn, resolve_venture
         import uuid as _uuid
         data = asdict(bis)
 
@@ -257,7 +257,7 @@ class BusinessInstanceManager:
         if env_default:
             return env_default
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     """
@@ -277,7 +277,7 @@ class BusinessInstanceManager:
 
     def get_bis(self, venture_id: str) -> Optional[BusinessInstance]:
         """Load BIS from ventures.config_json. Returns None if not found."""
-        from eos_ai.db import get_conn, resolve_venture
+        from runtime.db import get_conn, resolve_venture
         with get_conn(self.ctx.org_id) as cur:
             # resolve_venture inside get_conn so cache is populated
             venture_uuid = resolve_venture(venture_id)
@@ -372,8 +372,8 @@ class BusinessInstanceManager:
 
         if gaps:
             try:
-                from eos_ai.cognitive_loop import CognitiveLoop
-                from eos_ai.agent_runtime import TaskType
+                from runtime.cognitive_loop import CognitiveLoop
+                from runtime.agent_runtime import TaskType
                 loop = CognitiveLoop(self.ctx)
                 gap_prompt = (
                     f"For a {bis.business_model} business called '{bis.name}' "

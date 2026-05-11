@@ -6,7 +6,7 @@ Each task type has a handler. High-risk tasks require approval.
 All task executions are persisted to Neon for audit.
 
 Usage:
-    from eos_ai.task_executor import TaskExecutor, AgentTask
+    from runtime.task_executor import TaskExecutor, AgentTask
     import uuid
 
     executor = TaskExecutor(ctx)
@@ -28,7 +28,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from eos_ai.context import EOSContext
+from runtime.context import EOSContext
 
 
 class TaskStatus(Enum):
@@ -112,7 +112,7 @@ class TaskExecutor:
 
     def _handle_research(self, task: AgentTask) -> AgentTask:
         query = task.inputs.get('query', task.description)
-        from eos_ai.model_router import get_router, TaskType
+        from runtime.model_router import get_router, TaskType
         router = get_router(self.ctx)
         model  = router.route(TaskType.ANALYSIS)
         if model:
@@ -131,7 +131,7 @@ class TaskExecutor:
     def _handle_draft(self, task: AgentTask) -> AgentTask:
         recipient = task.inputs.get('recipient', 'prospect')
         context   = task.inputs.get('context', '')
-        from eos_ai.model_router import get_router, TaskType
+        from runtime.model_router import get_router, TaskType
         router = get_router(self.ctx)
         model  = router.route(TaskType.CONVERSATION)
         if model:
@@ -151,7 +151,7 @@ class TaskExecutor:
     def _handle_analyze(self, task: AgentTask) -> AgentTask:
         subject = task.inputs.get('subject', task.description)
         context = task.inputs.get('context', '')
-        from eos_ai.model_router import get_router, TaskType
+        from runtime.model_router import get_router, TaskType
         router = get_router(self.ctx)
         model  = router.route(TaskType.ANALYSIS)
         if model:
@@ -170,7 +170,7 @@ class TaskExecutor:
     def _handle_pipeline(self, task: AgentTask) -> AgentTask:
         import json as _json
         venture_id = task.inputs.get('venture_id', task.venture_id)
-        from eos_ai.db import get_conn
+        from runtime.db import get_conn
         with get_conn(self.ctx.org_id) as cur:
             cur.execute(
                 """
@@ -198,7 +198,7 @@ class TaskExecutor:
         return task
 
     def _handle_brief(self, task: AgentTask) -> AgentTask:
-        from eos_ai.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
+        from runtime.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
         pa       = PortfolioAgent(self.ctx)
         ventures = pa.scan_all_ventures()
         task.outputs['brief'] = pa.generate_portfolio_brief(ventures)
@@ -206,7 +206,7 @@ class TaskExecutor:
 
     def _handle_search(self, task: AgentTask) -> AgentTask:
         query = task.inputs.get('query', task.description)
-        from eos_ai.model_router import get_router, TaskType
+        from runtime.model_router import get_router, TaskType
         router = get_router(self.ctx)
         model  = router.route(TaskType.ANALYSIS)
         if model:
@@ -216,7 +216,7 @@ class TaskExecutor:
 
     def _handle_log_lead(self, task: AgentTask) -> AgentTask:
         import json as _json
-        from eos_ai.db import get_conn
+        from runtime.db import get_conn
         lead_data = task.inputs.get('lead', task.inputs)
         with get_conn(self.ctx.org_id) as cur:
             cur.execute(
@@ -251,7 +251,7 @@ class TaskExecutor:
     def _save_task(self, task: AgentTask) -> None:
         try:
             import json as _json
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     """

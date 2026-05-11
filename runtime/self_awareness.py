@@ -13,7 +13,7 @@ Change types:
     os_subscription
 
 Usage:
-    from eos_ai.self_awareness import SelfAwarenessEngine, SystemChange, ChangeType
+    from runtime.self_awareness import SelfAwarenessEngine, SystemChange, ChangeType
     sae = SelfAwarenessEngine(ctx)
     change = sae.detect_change_from_text("I closed my first client today", "lyfe_institute")
     if change:
@@ -197,7 +197,7 @@ class SelfAwarenessEngine:
             # Validate any Discord-bound content for notify consequences
             if 'notify' in consequence or 'discord' in consequence:
                 try:
-                    from eos_ai.output_validator import get_validator
+                    from runtime.output_validator import get_validator
                     validator = get_validator(self.ctx)
                     val_result = validator.validate_discord_message(
                         str(change.new_value),
@@ -309,7 +309,7 @@ class SelfAwarenessEngine:
         # ── NOTION UPDATES ────────────────────────────────────────────────────
 
         if consequence == 'update_notion_stage_guidance':
-            from eos_ai.primitives import PRIMITIVE_LIBRARY
+            from runtime.primitives import PRIMITIVE_LIBRARY
 
             stage = (
                 change.new_value
@@ -488,8 +488,8 @@ class SelfAwarenessEngine:
         # ── SYSTEM UPDATES ─────────────────────────────────────────────────────
 
         elif consequence == 'advance_stage':
-            from eos_ai.stage_manager import StageManager
-            from eos_ai.evolution_engine import EvolutionEngine
+            from runtime.stage_manager import StageManager
+            from runtime.evolution_engine import EvolutionEngine
             sm      = StageManager(self.ctx)
             ee      = EvolutionEngine(self.ctx)
             current = ee.get_current_stage(change.venture_id)
@@ -510,7 +510,7 @@ class SelfAwarenessEngine:
             return True
 
         elif consequence == 'check_stage_transition':
-            from eos_ai.stage_manager import StageManager, detect_stage_transition
+            from runtime.stage_manager import StageManager, detect_stage_transition
             stage_hint = f'advance to stage based on revenue milestone {change.new_value}'
             detected   = detect_stage_transition(stage_hint)
             if detected.get('detected'):
@@ -522,7 +522,7 @@ class SelfAwarenessEngine:
             return True
 
         elif consequence == 'update_bis':
-            from eos_ai.business_instance import BusinessInstanceManager
+            from runtime.business_instance import BusinessInstanceManager
             bim = BusinessInstanceManager(self.ctx)
             bis = bim.get_bis(change.venture_id)
             if not bis:
@@ -541,7 +541,7 @@ class SelfAwarenessEngine:
             return True
 
         elif consequence == 'create_bis':
-            from eos_ai.business_instance import (
+            from runtime.business_instance import (
                 BusinessInstance, BusinessInstanceManager,
             )
             bim = BusinessInstanceManager(self.ctx)
@@ -560,7 +560,7 @@ class SelfAwarenessEngine:
 
         elif consequence == 'register_agent_neon':
             import uuid
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     '''
@@ -582,7 +582,7 @@ class SelfAwarenessEngine:
 
         elif consequence in ('register_ceo_agent', 'register_dev_agent'):
             import uuid
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             agent_name = (
                 f'{change.venture_id}_ceo'
                 if consequence == 'register_ceo_agent'
@@ -609,8 +609,8 @@ class SelfAwarenessEngine:
 
         elif consequence == 'regenerate_ea_soul_doc':
             try:
-                from eos_ai.setup_wizard import generate_ea_soul_doc
-                from eos_ai.business_instance import BusinessInstanceManager
+                from runtime.setup_wizard import generate_ea_soul_doc
+                from runtime.business_instance import BusinessInstanceManager
                 from pathlib import Path
 
                 bim = BusinessInstanceManager(self.ctx)
@@ -649,7 +649,7 @@ class SelfAwarenessEngine:
             return True
 
         elif consequence == 'notify_founder_primitive_unlocked':
-            from eos_ai.primitives import PRIMITIVE_LIBRARY
+            from runtime.primitives import PRIMITIVE_LIBRARY
             primitive = PRIMITIVE_LIBRARY.get(str(change.new_value))
             msg = (
                 f'✅ Primitive unlocked: {change.new_value}'
@@ -676,7 +676,7 @@ class SelfAwarenessEngine:
         """Write activity event to Neon events table."""
         import json
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     '''

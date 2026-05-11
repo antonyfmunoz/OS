@@ -260,8 +260,8 @@ class InputIntelligence:
         Uses Haiku with full venture context — fast and cheap.
         """
         try:
-            from eos_ai.agent_runtime import AgentRuntime, TaskType
-            from eos_ai.context import load_context_from_env
+            from runtime.agent_runtime import AgentRuntime, TaskType
+            from runtime.context import load_context_from_env
 
             ctx = self.ctx or load_context_from_env()
             runtime = AgentRuntime(ctx)
@@ -314,7 +314,7 @@ Produce the enhanced execution prompt:"""
         """Build a compact venture context string for the enhancement prompt."""
         try:
             if venture_id:
-                from eos_ai.business_instance import BusinessInstanceManager
+                from runtime.business_instance import BusinessInstanceManager
                 bim = BusinessInstanceManager(self.ctx)
                 bis = bim.get_bis(venture_id)
                 if bis:

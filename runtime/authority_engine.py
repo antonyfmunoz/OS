@@ -1,5 +1,5 @@
-from eos_ai.context import EOSContext
-from eos_ai.db import get_conn
+from runtime.context import EOSContext
+from runtime.db import get_conn
 import json, uuid
 from datetime import datetime, timezone
 

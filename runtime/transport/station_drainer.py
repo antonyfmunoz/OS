@@ -37,13 +37,13 @@ import sys
 from dataclasses import dataclass, field, asdict
 from typing import Optional
 
-from eos_ai.transport.result_store import (
+from runtime.transport.result_store import (
     IngestedResult,
     ResultStore,
     get_result_store,
 )
-from eos_ai.transport.station import StationContract, StationEvent
-from eos_ai.transport.station_bus import StationBus, get_station_bus
+from runtime.transport.station import StationContract, StationEvent
+from runtime.transport.station_bus import StationBus, get_station_bus
 
 
 def _log(msg: str) -> None:

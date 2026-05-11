@@ -19,8 +19,8 @@ from enum import Enum
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from eos_ai.transport.operator_session import OperatorSession
-    from eos_ai.transport.task_system import Task
+    from runtime.transport.operator_session import OperatorSession
+    from runtime.transport.task_system import Task
 
 
 # ─── Enums ───────────────────────────────────────────────────────────────────
@@ -81,7 +81,7 @@ def infer_task_capabilities(task: "Task") -> set[TaskCapability]:
     - Otherwise → LIGHTWEIGHT_REASONING
     - Autonomous tasks without local-specific keywords → VPS_COMPUTE allowed
     """
-    from eos_ai.transport.task_system import TaskExecutionPolicy
+    from runtime.transport.task_system import TaskExecutionPolicy
 
     text = f"{task.title} {task.description or ''}"
     caps: set[TaskCapability] = set()

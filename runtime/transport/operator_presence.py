@@ -16,7 +16,7 @@ Hybrid tone rules:
   - Premium. Sparse, intentional. No emoji. No exclamation marks.
 
 Use:
-    from eos_ai.transport.operator_presence import intro_for_transition
+    from runtime.transport.operator_presence import intro_for_transition
 
     line = intro_for_transition(decision)
     if line:
@@ -30,7 +30,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from eos_ai.transport.operator_state import OperatorMode
+from runtime.transport.operator_state import OperatorMode
 
 # Bounded template table. Keyed by (from_mode_or_None, to_mode). Tiny.
 # When more than one line exists, callers can rotate by index — but the

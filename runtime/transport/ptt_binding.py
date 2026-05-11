@@ -147,7 +147,7 @@ def reset_validation_history_for_tests() -> None:
 
 def _safe_readiness() -> dict[str, Any]:
     try:
-        from eos_ai.transport.stt_producer import stt_workstation_readiness
+        from runtime.transport.stt_producer import stt_workstation_readiness
 
         return stt_workstation_readiness()
     except Exception as e:  # noqa: BLE001
@@ -245,7 +245,7 @@ def validate_real_capture(
 
     # ── Perform exactly one bounded capture (real or simulated) ──────────
     try:
-        from eos_ai.transport.stt_producer import get_local_stt_runtime
+        from runtime.transport.stt_producer import get_local_stt_runtime
     except Exception as e:  # noqa: BLE001
         row.degradation_reason = f"stt_producer import failed: {e}"
         get_validation_history().record(row)
@@ -333,7 +333,7 @@ def validate_real_capture(
 
     # ── Audio loop snapshot ──────────────────────────────────────────────
     try:
-        from eos_ai.transport.audio_loop import snapshot as audio_snapshot
+        from runtime.transport.audio_loop import snapshot as audio_snapshot
 
         row.audio_loop = audio_snapshot(node_id=node_id)
     except Exception as e:  # noqa: BLE001

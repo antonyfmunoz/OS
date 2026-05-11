@@ -20,7 +20,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from eos_ai.transport.adapter_engine_contracts import (
+from runtime.transport.adapter_engine_contracts import (
     AdapterRegistryEntry,
     ToolMasteryPack,
     tool_mastery_is_mature,

@@ -5,7 +5,7 @@ Lightweight keyword routing layer. Runs before the cognitive loop
 so the right agent gets context injected before it responds.
 
 Usage:
-    from eos_ai.intent_router import IntentRouter, IntentDomain
+    from runtime.intent_router import IntentRouter, IntentDomain
     ir = IntentRouter(ctx)
     domain = ir.route("How is my portfolio doing?")
     agent  = ir.get_agent(domain)
@@ -13,7 +13,7 @@ Usage:
 
 from enum import Enum
 
-from eos_ai.context import EOSContext
+from runtime.context import EOSContext
 
 
 class IntentDomain(Enum):

@@ -5,7 +5,7 @@ Provides a single inventory of all integration points with their
 status, required context layers, and env key for availability checks.
 
 Usage:
-    from eos_ai.harness_registry import HarnessRegistryManager, HarnessType
+    from runtime.harness_registry import HarnessRegistryManager, HarnessType
     hrm = HarnessRegistryManager()
     print(hrm.format_status())
     models = hrm.get_active_models()

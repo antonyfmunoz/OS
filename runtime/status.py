@@ -2,7 +2,7 @@
 EOS Status Dashboard — daily health check for the AI system.
 
 Usage:
-    python3 /opt/OS/eos_ai/status.py
+    python3 /opt/OS/runtime/status.py
 """
 
 import json
@@ -18,10 +18,10 @@ if _REPO_ROOT not in sys.path:
 from dotenv import load_dotenv
 load_dotenv(os.path.join(_REPO_ROOT, "services", ".env"))
 
-from eos_ai.db import get_conn, ORG_ID
-from eos_ai.memory import AgentMemory
-from eos_ai.venture_knowledge import VentureKnowledgeBase
-from eos_ai.skill_registry import SkillRegistry
+from runtime.db import get_conn, ORG_ID
+from runtime.memory import AgentMemory
+from runtime.venture_knowledge import VentureKnowledgeBase
+from runtime.skill_registry import SkillRegistry
 
 # Model pricing (per token) — mirrors cost_tracker.py
 _PRICING = {

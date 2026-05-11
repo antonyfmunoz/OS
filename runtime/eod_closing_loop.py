@@ -13,11 +13,11 @@ Cron:
   0 18 * * * python3 -c "
   import sys; sys.path.insert(0, '/opt/OS')
   from dotenv import load_dotenv
-  load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+  load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
   load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'services', '.env'))
-  from eos_ai.eod_closing_loop import EODClosingLoop
-  from eos_ai.context import load_context_from_env
-  from eos_ai.discord_utils import post_to_webhook
+  from runtime.eod_closing_loop import EODClosingLoop
+  from runtime.context import load_context_from_env
+  from runtime.discord_utils import post_to_webhook
   import os
   ctx = load_context_from_env()
   eod = EODClosingLoop(ctx)
@@ -59,7 +59,7 @@ class EODClosingLoop:
 
         # ── Overdue invoice check ─────────────────────────────────────────
         try:
-            from eos_ai.expense_tracker import get_overdue_invoices
+            from runtime.expense_tracker import get_overdue_invoices
 
             overdue = get_overdue_invoices()
             if overdue:
@@ -92,7 +92,7 @@ class EODClosingLoop:
 
         # Next day preview
         try:
-            from eos_ai.gws_connector import GWSConnector
+            from runtime.gws_connector import GWSConnector
             from datetime import timedelta
             from zoneinfo import ZoneInfo
             from dateutil.parser import parse as _parse
@@ -149,7 +149,7 @@ class EODClosingLoop:
         # Write to Notion
         notion_url = ""
         try:
-            from eos_ai.notion_publisher import get_publisher
+            from runtime.notion_publisher import get_publisher
 
             publisher = get_publisher(self.ctx)
             notion_url = publisher.publish_eod_sync(
@@ -164,7 +164,7 @@ class EODClosingLoop:
 
         # Post to Discord
         try:
-            from eos_ai.discord_utils import post_to_webhook
+            from runtime.discord_utils import post_to_webhook
 
             webhook = os.getenv("DISCORD_BRIEF_WEBHOOK", "")
             if webhook:
@@ -182,7 +182,7 @@ class EODClosingLoop:
 
     def _get_todays_meetings(self) -> list[str]:
         try:
-            from eos_ai.gws_connector import GWSConnector
+            from runtime.gws_connector import GWSConnector
 
             gws = GWSConnector()
             events = gws.get_today_events()
@@ -207,7 +207,7 @@ class EODClosingLoop:
     def _get_todays_purchases(self) -> list[str]:
         """Pull receipts/financials from GPS RECEIPTS label for today."""
         try:
-            from eos_ai.gws_connector import GWSConnector
+            from runtime.gws_connector import GWSConnector
 
             gws = GWSConnector()
             label_id = gws.get_or_create_label("Receipts-Financials")
@@ -258,7 +258,7 @@ class EODClosingLoop:
 
     def _get_todays_project_updates(self) -> list[str]:
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
 
             since = (datetime.now(timezone.utc) - timedelta(hours=12)).isoformat()
             with get_conn(self.ctx.org_id) as cur:
@@ -309,7 +309,7 @@ class EODClosingLoop:
     def _get_todays_decisions(self) -> list[str]:
         """Decisions = dex_question events answered today."""
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
 
             since = (datetime.now(timezone.utc) - timedelta(hours=12)).isoformat()
             with get_conn(self.ctx.org_id) as cur:

@@ -5,8 +5,8 @@ Gives every task a visible, auditable lifecycle:
   queued → assigned → in_progress → blocked → completed → outcome_logged
 
 Usage:
-    from eos_ai.execution_engine import ExecutionEngine
-    from eos_ai.context import load_context_from_env
+    from runtime.execution_engine import ExecutionEngine
+    from runtime.context import load_context_from_env
 
     ctx = load_context_from_env()
     ee = ExecutionEngine(ctx)
@@ -27,8 +27,8 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / ".env")
 
-from eos_ai.context import EOSContext
-from eos_ai.db import get_conn
+from runtime.context import EOSContext
+from runtime.db import get_conn
 
 
 # ─── Telegram alert helper ────────────────────────────────────────────────────
@@ -36,7 +36,7 @@ from eos_ai.db import get_conn
 def _notify(text: str) -> None:
     """Send notification via channel router."""
     try:
-        from eos_ai.channel import get_channel_router
+        from runtime.channel import get_channel_router
 
         router = get_channel_router()
         router.notify(text)

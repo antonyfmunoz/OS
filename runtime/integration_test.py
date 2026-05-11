@@ -5,7 +5,7 @@ Drives the complete signal → analysis → lead → outreach pipeline
 through every layer: gateway → event bus → agent teams → memory.
 
 Usage:
-    cd /opt/OS && python3 eos_ai/integration_test.py
+    cd /opt/OS && python3 runtime/integration_test.py
 """
 
 import datetime
@@ -19,7 +19,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from eos_ai.memory import DB_PATH
+from runtime.memory import DB_PATH
 
 SEP  = "─" * 60
 SEP2 = "═" * 60
@@ -71,8 +71,8 @@ def main() -> None:
     print(f"  {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(SEP2)
 
-    from eos_ai.gateway import EOSGateway
-    from eos_ai.event_bus import EventBus, EventRegistry
+    from runtime.gateway import EOSGateway
+    from runtime.event_bus import EventBus, EventRegistry
 
     gw  = EOSGateway()
     bus = EventBus()
@@ -165,7 +165,7 @@ def main() -> None:
     print(f"  Lead file written → {lead_file.name}")
 
     # Also log to memory.db via AgentMemory so outcome linking works
-    from eos_ai.memory import AgentMemory
+    from runtime.memory import AgentMemory
     mem = AgentMemory()
     mem_id = mem.log_lead_scored(
         username=TEST_USERNAME,

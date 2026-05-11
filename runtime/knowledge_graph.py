@@ -14,8 +14,8 @@ Table: entity_links
 import json
 from datetime import datetime, timezone
 
-from eos_ai.context import EOSContext
-from eos_ai.db import get_conn, resolve_venture, ORG_ID
+from runtime.context import EOSContext
+from runtime.db import get_conn, resolve_venture, ORG_ID
 
 
 def _utcnow() -> str:
@@ -446,7 +446,7 @@ class KnowledgeGraph:
         high_patterns = [p for p in patterns if p.get("signal_tier") == "HIGH"]
         if high_patterns:
             try:
-                from eos_ai.memory import AgentMemory
+                from runtime.memory import AgentMemory
                 mem = AgentMemory()
                 for p in high_patterns[:5]:
                     mem.log_event(

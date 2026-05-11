@@ -16,8 +16,8 @@ import json
 import uuid
 from datetime import datetime, timezone
 
-from eos_ai.context import EOSContext
-from eos_ai.db import get_conn
+from runtime.context import EOSContext
+from runtime.db import get_conn
 
 
 def _utcnow() -> str:
@@ -69,8 +69,8 @@ class ContextCompactor:
         Compress a message list into a structured brief.
         Stores brief to Neon. Returns the brief dict.
         """
-        from eos_ai.cognitive_loop import CognitiveLoop
-        from eos_ai.agent_runtime import TaskType
+        from runtime.cognitive_loop import CognitiveLoop
+        from runtime.agent_runtime import TaskType
 
         tokens_before = self.estimate_tokens(messages)
 

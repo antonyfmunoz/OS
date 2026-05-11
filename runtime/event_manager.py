@@ -31,9 +31,9 @@ def create_event(
     event_type: conference|offsite|client_dinner|team_event|speaking|podcast|media
     """
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
-        from eos_ai.model_router import get_router, TaskType
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
+        from runtime.model_router import get_router, TaskType
         ctx = ctx or load_context_from_env()
         router = get_router()
 
@@ -91,8 +91,8 @@ Return JSON only:
 def get_events(upcoming_only: bool = True, ctx=None) -> list:
     """Get managed events, ordered by date ascending."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -137,8 +137,8 @@ def log_speaking_engagement(
     status: inquired|confirmed|preparing|completed|declined
     """
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -176,8 +176,8 @@ def draft_talking_points(
 ) -> str:
     """Draft talking points for a speaking engagement."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.model_router import get_router, TaskType
+        from runtime.context import load_context_from_env
+        from runtime.model_router import get_router, TaskType
         ctx = ctx or load_context_from_env()
         router = get_router()
 
@@ -236,8 +236,8 @@ def log_pr_media_inquiry(
     inquiry_type: interview|quote|feature|podcast|press_release
     """
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:

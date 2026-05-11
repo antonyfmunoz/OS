@@ -12,8 +12,8 @@ Wired into CognitiveLoop._enhance_prompt():
   # user model expansion takes priority over generic Haiku enhancement
 
 Usage:
-    from eos_ai.context import load_context_from_env
-    from eos_ai.user_model import UserModel
+    from runtime.context import load_context_from_env
+    from runtime.user_model import UserModel
 
     ctx = load_context_from_env()
     um  = UserModel(ctx)
@@ -37,10 +37,10 @@ if _REPO_ROOT not in sys.path:
 
 load_dotenv(Path(__file__).parent / ".env")
 
-from eos_ai.context import EOSContext
-from eos_ai.cognitive_loop import CognitiveLoop
-from eos_ai.agent_runtime import AgentRuntime, TaskType
-from eos_ai.db import get_conn
+from runtime.context import EOSContext
+from runtime.cognitive_loop import CognitiveLoop
+from runtime.agent_runtime import AgentRuntime, TaskType
+from runtime.db import get_conn
 
 
 # ─── Trust level thresholds ───────────────────────────────────────────────────
@@ -401,7 +401,7 @@ class UserModel:
 
         # Sync up to harness-level intelligence profile
         try:
-            from eos_ai.os_trinity import OSTrinity
+            from runtime.os_trinity import OSTrinity
 
             trinity = OSTrinity(self.ctx)
             trinity.sync_from_user_model(self.ctx.user_id)

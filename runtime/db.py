@@ -7,7 +7,7 @@ matching the saas pattern exactly — one Postgres instance, one RLS
 firewall, Python and TypeScript layers unified.
 
 Usage:
-    from eos_ai.db import get_conn, resolve_venture, resolve_skill, ORG_ID, USER_ID
+    from runtime.db import get_conn, resolve_venture, resolve_skill, ORG_ID, USER_ID
 
     with get_conn() as cur:
         cur.execute("SELECT id FROM interactions LIMIT 5")

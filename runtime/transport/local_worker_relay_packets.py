@@ -22,11 +22,11 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
-from eos_ai.transport.computer_use_backend_contracts import ComputerUseBackend
-from eos_ai.transport.governance_gate_contracts import (
+from runtime.transport.computer_use_backend_contracts import ComputerUseBackend
+from runtime.transport.governance_gate_contracts import (
     ALWAYS_BLOCKED_ACTIONS,
 )
-from eos_ai.transport.worker_node_contracts import WorkerMode
+from runtime.transport.worker_node_contracts import WorkerMode
 
 
 def _now_iso() -> str:

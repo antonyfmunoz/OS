@@ -7,7 +7,7 @@ periodically pump them; each utterance is then routed through the existing
 bounded seam (transcript_inject → voice_session → responder → SPEAK_TEXT).
 
 This file intentionally:
-  - imports nothing from eos_ai's hot path
+  - imports nothing from runtime's hot path
   - imports nothing from any real meeting SDK
   - defines a tiny duck-typed protocol so any future bridge can plug in
   - provides a deterministic FakeMeetingSource for tests

@@ -11,7 +11,7 @@ Everything that needs to change on a stage transition happens here:
   - Event fired for Discord bot to create new channels + announce
 
 Usage:
-    from eos_ai.stage_manager import StageManager, detect_stage_transition
+    from runtime.stage_manager import StageManager, detect_stage_transition
     ctx = load_context_from_env()
     sm = StageManager(ctx)
     result = sm.advance_stage('lyfe_institute', 2)
@@ -32,7 +32,7 @@ if _REPO_ROOT not in sys.path:
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent / '.env')
 
-from eos_ai.context import EOSContext
+from runtime.context import EOSContext
 
 
 # ─── Stage transition detection ───────────────────────────────────────────────
@@ -111,8 +111,8 @@ class StageManager:
         Handle full stage transition. Updates BIS, Notion, fires Discord event.
         Synchronous — safe to call from gateway.py.
         """
-        from eos_ai.business_instance import BusinessInstanceManager
-        from eos_ai.primitives import PRIMITIVE_LIBRARY
+        from runtime.business_instance import BusinessInstanceManager
+        from runtime.primitives import PRIMITIVE_LIBRARY
 
         bim = BusinessInstanceManager(self.ctx)
         bis = bim.get_bis(venture_id)
@@ -187,7 +187,7 @@ class StageManager:
     ) -> None:
         """Update Notion Stage Guidance and Morning Brief pages."""
         from notion_client import Client
-        from eos_ai.primitives import PRIMITIVE_LIBRARY
+        from runtime.primitives import PRIMITIVE_LIBRARY
 
         client = Client(auth=os.getenv('NOTION_API_KEY'))
         date = datetime.now().strftime('%Y-%m-%d %H:%M')
@@ -273,7 +273,7 @@ class StageManager:
         Log stage transition event to Neon for Discord bot to surface.
         Discord bot picks this up on next interaction.
         """
-        from eos_ai.db import get_conn
+        from runtime.db import get_conn
         import json
 
         with get_conn(self.ctx.org_id) as cur:

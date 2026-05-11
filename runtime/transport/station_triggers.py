@@ -143,7 +143,7 @@ class StationTriggerStore:
             if self._loaded:
                 return
             try:
-                from eos_ai.transport.storage import get_storage
+                from runtime.transport.storage import get_storage
 
                 raw = get_storage().get(_STORAGE_KEY, default=None)
             except Exception as e:  # noqa: BLE001
@@ -160,7 +160,7 @@ class StationTriggerStore:
 
     def _flush(self) -> None:
         try:
-            from eos_ai.transport.storage import get_storage
+            from runtime.transport.storage import get_storage
 
             payload = {eid: e.to_dict() for eid, e in self._events.items()}
             get_storage().put(_STORAGE_KEY, payload)
@@ -238,7 +238,7 @@ def register_station_trigger(
 
     # Best-effort: update station presence with trigger info
     try:
-        from eos_ai.transport.station_presence import update_station_presence
+        from runtime.transport.station_presence import update_station_presence
 
         update_station_presence(
             last_trigger_type=trigger_type.value,
@@ -249,7 +249,7 @@ def register_station_trigger(
 
     # Best-effort: update voice_wake for backward compat
     try:
-        from eos_ai.transport.voice_wake import WakeTrigger, register_trigger
+        from runtime.transport.voice_wake import WakeTrigger, register_trigger
 
         wake_map = {
             StationTriggerType.WAKE_WORD: WakeTrigger.WAKE_WORD,
@@ -296,7 +296,7 @@ def handle_station_trigger(
         # Check if day is already open
         day_is_open = False
         try:
-            from eos_ai.transport.operator_session import OperatorSessionStore
+            from runtime.transport.operator_session import OperatorSessionStore
 
             session = OperatorSessionStore.default().get()
             if session is not None and session.is_day_open:
@@ -311,7 +311,7 @@ def handle_station_trigger(
             if scene_name:
                 result["scene_name"] = scene_name
                 try:
-                    from eos_ai.transport.local_control import open_scene
+                    from runtime.transport.local_control import open_scene
 
                     req = open_scene(scene_name, requested_by="trigger")
                     result["request_id"] = req.request_id
@@ -328,7 +328,7 @@ def handle_station_trigger(
             else:
                 result["action"] = "open_day"
                 try:
-                    from eos_ai.transport.day_workflows import open_day
+                    from runtime.transport.day_workflows import open_day
 
                     day_result = open_day()
                     result["day_status"] = day_result.get("status")
@@ -341,7 +341,7 @@ def handle_station_trigger(
             result["status"] = "already_active"
             result["action"] = "activate_station"
             try:
-                from eos_ai.transport.station_presence import (
+                from runtime.transport.station_presence import (
                     StationPresenceMode,
                     set_presence_mode,
                 )
@@ -354,7 +354,7 @@ def handle_station_trigger(
             # Default: open day
             result["action"] = "open_day"
             try:
-                from eos_ai.transport.day_workflows import open_day
+                from runtime.transport.day_workflows import open_day
 
                 day_result = open_day()
                 result["day_status"] = day_result.get("status")

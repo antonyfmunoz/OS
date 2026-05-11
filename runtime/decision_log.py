@@ -9,8 +9,8 @@ The stored decisions are surfaced back into the cognitive loop so DEX always
 knows what has been decided, and why.
 
 Usage:
-    from eos_ai.context import load_context_from_env
-    from eos_ai.decision_log import DecisionLog
+    from runtime.context import load_context_from_env
+    from runtime.decision_log import DecisionLog
 
     ctx = load_context_from_env()
     dl = DecisionLog(ctx)
@@ -26,7 +26,7 @@ import re
 import uuid
 from dataclasses import dataclass, field
 
-from eos_ai.context import EOSContext
+from runtime.context import EOSContext
 
 
 @dataclass
@@ -78,7 +78,7 @@ class DecisionLog:
         """
         decision_id = str(uuid.uuid4())[:8]
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     '''
@@ -116,7 +116,7 @@ class DecisionLog:
         Uses LLM to extract structured decision data. Returns decision_id or None.
         """
         try:
-            from eos_ai.model_router import get_router, TaskType as RouterTaskType
+            from runtime.model_router import get_router, TaskType as RouterTaskType
             router  = get_router()
             model   = router.route(RouterTaskType.ANALYSIS)
             if not model:
@@ -161,7 +161,7 @@ class DecisionLog:
     ) -> list[dict]:
         """Retrieve recent decisions from Neon, optionally filtered by venture."""
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 if venture_id:
                     cur.execute(

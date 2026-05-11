@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from eos_ai.transport.extraction_backend_contracts import (
+from runtime.transport.extraction_backend_contracts import (
     BackendIndependenceLevel,
     CanonicalExtractionContract,
     ExtractionBackendType,
@@ -23,7 +23,7 @@ from eos_ai.transport.extraction_backend_contracts import (
     MCPSubtype,
     independence_counts_as_fallback,
 )
-from eos_ai.transport.mcp_backend_contracts import (
+from runtime.transport.mcp_backend_contracts import (
     MCPBackendEvaluation,
     MCPToolProfile,
 )

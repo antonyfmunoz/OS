@@ -20,7 +20,7 @@ import re
 import sys
 from typing import TYPE_CHECKING
 
-from eos_ai.transport.task_pipeline import (
+from runtime.transport.task_pipeline import (
     PipelineAgentRole,
     PipelineStep,
     PipelineStatus,
@@ -29,7 +29,7 @@ from eos_ai.transport.task_pipeline import (
 )
 
 if TYPE_CHECKING:
-    from eos_ai.transport.task_system import Task
+    from runtime.transport.task_system import Task
 
 
 def _log(msg: str) -> None:

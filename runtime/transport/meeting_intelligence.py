@@ -496,7 +496,7 @@ def update_meeting_summary(
 
         parsed: Optional[dict] = None
         try:
-            from eos_ai.model_router import call_with_fallback
+            from runtime.model_router import call_with_fallback
 
             system, prompt = _build_prompt(previous, recent)
             result = call_with_fallback(
@@ -1225,7 +1225,7 @@ def derive_active_role(node_id: Optional[str] = None) -> Optional[str]:
     any failure so the caller can fall back to role-agnostic phrasing.
     """
     try:
-        from eos_ai.substrate import voice_session as vs  # noqa: F401
+        from runtime.substrate import voice_session as vs  # noqa: F401
 
         getter = getattr(vs, "get_active_role_slug", None)
         if callable(getter):
@@ -1260,7 +1260,7 @@ def refine_intervention_message(
     static = (_ROLE_STATIC_PREFIX.get(role, "") + raw)[:MAX_REFINED_MESSAGE_CHARS]
 
     try:
-        from eos_ai.model_router import call_with_fallback
+        from runtime.model_router import call_with_fallback
 
         style = _ROLE_STYLE_HINT.get(role, "")
         pressure = getattr(summary, "decision_pressure_score", 0) if summary else 0
@@ -1324,7 +1324,7 @@ def maybe_emit_intervention(
             live.last_followup_prompt_ts = _now
 
         try:
-            from eos_ai.transport.station_helpers import propose_speak_text
+            from runtime.transport.station_helpers import propose_speak_text
 
             propose_speak_text(
                 node_id=node_id,

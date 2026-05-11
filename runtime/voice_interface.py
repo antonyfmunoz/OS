@@ -7,8 +7,8 @@ Wraps MediaProcessor synthesis/transcription into a clean interface for:
   - Meeting analysis (structured extraction via CognitiveLoop ANALYZE)
 
 Usage:
-    from eos_ai.context import load_context_from_env
-    from eos_ai.voice_interface import VoiceInterface
+    from runtime.context import load_context_from_env
+    from runtime.voice_interface import VoiceInterface
 
     ctx = load_context_from_env()
     vi  = VoiceInterface(ctx)
@@ -28,10 +28,10 @@ import re
 import time
 import uuid
 
-from eos_ai.context import EOSContext
-from eos_ai.media_processor import MediaProcessor
-from eos_ai.cognitive_loop import CognitiveLoop
-from eos_ai.agent_runtime import TaskType
+from runtime.context import EOSContext
+from runtime.media_processor import MediaProcessor
+from runtime.cognitive_loop import CognitiveLoop
+from runtime.agent_runtime import TaskType
 
 
 class VoiceInterface:
@@ -307,7 +307,7 @@ class VoiceInterface:
 
         duration_ms = int(time.monotonic() * 1000) - start_ms
 
-        from eos_ai.agent_runtime import calculate_cost
+        from runtime.agent_runtime import calculate_cost
         cost_usd = calculate_cost(
             cognitive_result.model_used,
             cognitive_result.tokens_used,
@@ -341,7 +341,7 @@ class VoiceInterface:
         # BIS context injection
         bis_context = ''
         try:
-            from eos_ai.business_instance import BusinessInstanceManager
+            from runtime.business_instance import BusinessInstanceManager
             bim = BusinessInstanceManager(self.ctx)
             bis_context = bim.get_context_for_agents(venture_id) or ''
         except Exception:
@@ -392,7 +392,7 @@ class VoiceInterface:
         # Fast non-AI shortcuts
         if q in ('score', 'icp score', 'icp'):
             try:
-                from eos_ai.business_instance import BusinessInstanceManager
+                from runtime.business_instance import BusinessInstanceManager
                 bim = BusinessInstanceManager(self.ctx)
                 bis = bim.get_bis(venture_id)
                 return f'ICP target: {bis.icp_description}' if bis else 'No BIS loaded'
@@ -401,7 +401,7 @@ class VoiceInterface:
 
         if q in ('stage', 'current stage'):
             try:
-                from eos_ai.business_instance import BusinessInstanceManager
+                from runtime.business_instance import BusinessInstanceManager
                 bim = BusinessInstanceManager(self.ctx)
                 g = bim.get_stage_guidance(venture_id)
                 return f'Stage {g["current_stage"]}/6 — {g["stage_name"]}\nFocus: {g["focus"]}'
@@ -410,7 +410,7 @@ class VoiceInterface:
 
         if q in ('numbers', 'kpis', 'metrics', 'revenue'):
             try:
-                from eos_ai.business_instance import BusinessInstanceManager
+                from runtime.business_instance import BusinessInstanceManager
                 bim = BusinessInstanceManager(self.ctx)
                 bis = bim.get_bis(venture_id)
                 if bis:
@@ -425,7 +425,7 @@ class VoiceInterface:
 
         if q in ('price', 'offer', 'anchor'):
             try:
-                from eos_ai.business_instance import BusinessInstanceManager
+                from runtime.business_instance import BusinessInstanceManager
                 bim = BusinessInstanceManager(self.ctx)
                 bis = bim.get_bis(venture_id)
                 if bis:
@@ -440,7 +440,7 @@ class VoiceInterface:
 
         if q in ('constraint', 'bottleneck', 'binding'):
             try:
-                from eos_ai.business_instance import BusinessInstanceManager
+                from runtime.business_instance import BusinessInstanceManager
                 bim = BusinessInstanceManager(self.ctx)
                 g = bim.get_stage_guidance(venture_id)
                 return (
@@ -453,7 +453,7 @@ class VoiceInterface:
 
         if q in ('tasks', 'todo', 'action items'):
             try:
-                from eos_ai.db import get_conn
+                from runtime.db import get_conn
                 with get_conn(self.ctx.org_id) as cur:
                     cur.execute(
                         """
@@ -477,7 +477,7 @@ class VoiceInterface:
 
         if q in ('signals', 'intel', 'market'):
             try:
-                from eos_ai.memory import AgentMemory
+                from runtime.memory import AgentMemory
                 mem = AgentMemory()
                 events = mem.get_recent_events(
                     org_id=self.ctx.org_id,
@@ -568,12 +568,12 @@ class VoiceInterface:
         if meeting_type == 'finance_review' and result.get('decisions'):
             # Update BIS financial data from decisions
             try:
-                from eos_ai.business_instance import BusinessInstanceManager
+                from runtime.business_instance import BusinessInstanceManager
                 bim = BusinessInstanceManager(self.ctx)
                 bis = bim.get_bis(venture_id)
                 if bis:
                     # Log meeting as a venture event
-                    from eos_ai.memory import AgentMemory
+                    from runtime.memory import AgentMemory
                     mem = AgentMemory()
                     mem.log_event(
                         org_id=self.ctx.org_id,
@@ -605,7 +605,7 @@ class VoiceInterface:
         self.clear_session()
 
         try:
-            from eos_ai.memory import AgentMemory
+            from runtime.memory import AgentMemory
             mem = AgentMemory()
             mem.log_event(
                 org_id=self.ctx.org_id,
@@ -718,7 +718,7 @@ class VoiceInterface:
 
         # Log to Neon as 'meeting' event
         try:
-            from eos_ai.memory import AgentMemory
+            from runtime.memory import AgentMemory
             mem = AgentMemory()
             mem.log_event(
                 org_id=self.ctx.org_id,
@@ -738,7 +738,7 @@ class VoiceInterface:
         # Create tasks in Neon for all action items via CoordinationEngine
         if action_items:
             try:
-                from eos_ai.coordination_engine import CoordinationEngine
+                from runtime.coordination_engine import CoordinationEngine
                 ce = CoordinationEngine(self.ctx)
                 action_text = '\n'.join(
                     f"- {a['owner']}: {a['action']}"

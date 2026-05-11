@@ -15,7 +15,7 @@ need to coexist without becoming disconnected systems. A role here is the
 operationally.
 
 Usage:
-    from eos_ai.substrate import RoleRegistry, AgentRole, RoleScope
+    from runtime.substrate import RoleRegistry, AgentRole, RoleScope
 
     reg = RoleRegistry.default()
     ea = reg.get("ea_orchestrator")
@@ -33,7 +33,7 @@ class RoleScope(str, Enum):
     """
     Coarse permission tags. Not a full ACL — just enough to make handoff
     and escalation decisions legible at the substrate level. Finer-grained
-    authority lives in eos_ai/authority_engine.py and is NOT duplicated here.
+    authority lives in runtime/authority_engine.py and is NOT duplicated here.
     """
 
     ROUTE_ALL = "route_all"                  # can receive any founder message

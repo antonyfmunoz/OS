@@ -37,8 +37,8 @@ behavior, no surprise browser sessions.
 
 Hot path
 --------
-This module imports nothing from eos_ai's hot path. It only depends on
-``eos_ai.substrate.meeting_sources`` (the bounded protocol module).
+This module imports nothing from runtime's hot path. It only depends on
+``runtime.transport.meeting_sources`` (the bounded protocol module).
 """
 
 from __future__ import annotations
@@ -50,7 +50,7 @@ from collections import deque
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional
 
-from eos_ai.transport.meeting_sources import is_meeting_source
+from runtime.transport.meeting_sources import is_meeting_source
 
 PROVIDER = "google_meet"
 
@@ -303,7 +303,7 @@ class GoogleMeetSource:
         exist yet, the hook simply returns None on each ``read_utterance``
         call and the source stays in its existing mode.
         """
-        from eos_ai.transport.meet_caption_bridge import (  # local to avoid cycles
+        from runtime.transport.meet_caption_bridge import (  # local to avoid cycles
             make_bridge_hook,
         )
 
@@ -324,7 +324,7 @@ class GoogleMeetSource:
         meeting_code is unknown. Used by reporting surfaces to expose
         backlog/last-ingress info.
         """
-        from eos_ai.transport.meet_caption_bridge import bridge_path_for
+        from runtime.transport.meet_caption_bridge import bridge_path_for
 
         if self.meeting_code is None:
             return None

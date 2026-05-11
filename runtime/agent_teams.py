@@ -6,7 +6,7 @@ Each team maps named sub-agents to a SubAgentConfig (task type + skill + token b
 The module-level route() function is the single entry point used by AgentRuntime.run_team_task().
 
 Usage:
-    from eos_ai.agent_teams import route, run_team_task
+    from runtime.agent_teams import route, run_team_task
     config = route("sales", "icp_qualifier")
     # config.task_type, config.skill_name, config.max_tokens
 
@@ -15,7 +15,7 @@ Usage:
 
 from dataclasses import dataclass
 
-from eos_ai.agent_runtime import TaskType
+from runtime.agent_runtime import TaskType
 
 
 # ─── Sub-agent config ─────────────────────────────────────────────────────────
@@ -335,8 +335,8 @@ def run_team_task(
         dict with keys: output, model_used, tokens_used, skill_used,
         interaction_id, cost_usd, duration_ms.
     """
-    from eos_ai.agent_runtime import AgentRuntime
-    from eos_ai.context import load_context_from_env
+    from runtime.agent_runtime import AgentRuntime
+    from runtime.context import load_context_from_env
 
     runtime = AgentRuntime(ctx or load_context_from_env())
     result = runtime.run_team_task(
@@ -378,7 +378,7 @@ async def run_browser_action(
     Returns:
         {success, steps_taken, page_states, findings, final_url}
     """
-    from eos_ai.browser_agent import run_browser_task
+    from runtime.browser_agent import run_browser_task
     print(f"[AgentTeams] {team} → browser_action: {task[:60]} @ {url}")
     return await run_browser_task(url, task, ctx)
 

@@ -7,7 +7,7 @@ Three-layer model:
   PERSONAL  — emerges from usage over time (preferences, patterns)
 
 Usage:
-    from eos_ai.tenant import TenantManager, TenantLayer
+    from runtime.tenant import TenantManager, TenantLayer
     ctx = load_context_from_env()
     tm = TenantManager(ctx)
     tc = tm.get_tenant_context()
@@ -57,7 +57,7 @@ class TenantManager:
     def get_tenant_context(self) -> TenantContext:
         """Load full tenant context from DB via BIS."""
         try:
-            from eos_ai.business_instance import BusinessInstanceManager
+            from runtime.business_instance import BusinessInstanceManager
             bim = BusinessInstanceManager(self.ctx)
             default_venture = bim.get_default_venture_id()
             bis = bim.get_bis(default_venture) if default_venture else None

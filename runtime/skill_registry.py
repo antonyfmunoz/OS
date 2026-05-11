@@ -80,7 +80,7 @@ class SkillRegistry:
         name collision. Called automatically on init when org_id is provided.
         """
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             with get_conn(org_id) as cur:
                 cur.execute(
                     "SELECT name, content FROM skills WHERE org_id = %s",
@@ -114,7 +114,7 @@ class SkillRegistry:
         Cached in-memory — no DB required. Silently skips if fastembed unavailable.
         """
         try:
-            from eos_ai.embedder import embed
+            from runtime.embedder import embed
             for skill in self._skills.values():
                 text = f"{skill.name}\n\n{skill.content[:800]}"
                 self._skill_embeddings[skill.skill_id] = embed(text)
@@ -191,7 +191,7 @@ class SkillRegistry:
         # ── Semantic path ─────────────────────────────────────────────────────
         if self._skill_embeddings:
             try:
-                from eos_ai.embedder import embed, cosine_similarity
+                from runtime.embedder import embed, cosine_similarity
                 query_vec = embed(task_description)
                 scored: list[tuple[float, Skill]] = []
                 for skill_id, skill_vec in self._skill_embeddings.items():

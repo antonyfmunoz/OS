@@ -23,10 +23,10 @@ Not in scope (deferred):
   - Capability-aware model routing.
 
 Operator entrypoint:
-    python3 -m eos_ai.substrate.station_daemon --node-id antony-workstation
+    python3 -m runtime.transport.station_daemon --node-id antony-workstation
 
 Library entrypoint:
-    from eos_ai.transport.station_daemon import StationDaemon
+    from runtime.transport.station_daemon import StationDaemon
     StationDaemon(node_id="antony-workstation").run()
 """
 
@@ -47,17 +47,17 @@ from datetime import datetime, timezone
 from typing import Callable, Optional
 from urllib.parse import urlparse
 
-from eos_ai.transport.actions import (
+from runtime.transport.actions import (
     ActionKind,
     ActionResult,
     ActionStatus,
     SafeAction,
 )
-from eos_ai.transport.app_allowlist import resolve_app
-from eos_ai.transport.nodes import Node, NodeRegistry, NodeStatus, NodeType
-from eos_ai.transport.scenes import Scene, SceneStep, get_scene
-from eos_ai.transport.station import StationEvent
-from eos_ai.transport.station_bus import StationBus, get_station_bus
+from runtime.transport.app_allowlist import resolve_app
+from runtime.transport.nodes import Node, NodeRegistry, NodeStatus, NodeType
+from runtime.transport.scenes import Scene, SceneStep, get_scene
+from runtime.transport.station import StationEvent
+from runtime.transport.station_bus import StationBus, get_station_bus
 
 
 DEFAULT_NODE_ID = "antony-workstation"
@@ -187,7 +187,7 @@ class StationDaemon:
             return
         try:
             import asyncio
-            from eos_ai.transport.node_transport import NodeTransportServer
+            from runtime.transport.node_transport import NodeTransportServer
 
             self._http_server = NodeTransportServer(self)
 

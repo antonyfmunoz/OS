@@ -69,7 +69,7 @@ class DailySync:
         # dex_task events only — questions go to S7.
         try:
             import json
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute('''
                     SELECT payload_json
@@ -96,7 +96,7 @@ class DailySync:
         # ── Section 2: Calendar review ────────────────────────────────────
         # Mondays: 6 weeks out. Other days: 2 weeks out.
         try:
-            from eos_ai.gws_connector import GWSConnector
+            from runtime.gws_connector import GWSConnector
             gws  = GWSConnector()
             days = 42 if is_monday else 14
             events = gws.get_upcoming_events(days=days)
@@ -135,7 +135,7 @@ class DailySync:
         # ── Section 3: Past meetings — open loops ────────────────────────
         # Completed calls with unresolved follow-ups from Notion Meetings DB.
         try:
-            from eos_ai.meetings import get_open_loop_meetings
+            from runtime.meetings import get_open_loop_meetings
             _open_loops = get_open_loop_meetings(days_back=7)
             if _open_loops:
                 for m in _open_loops:
@@ -156,7 +156,7 @@ class DailySync:
         # Normalized dedup: strip "TASK:" prefix, case-insensitive.
         try:
             import json
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute('''
                     SELECT payload_json FROM events
@@ -194,8 +194,8 @@ class DailySync:
         # ── Section 4b: Prioritize action items ─────────────────────────
         if len(agenda.action_items) > 1:
             try:
-                from eos_ai.model_router import get_router, TaskType
-                from eos_ai.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
+                from runtime.model_router import get_router, TaskType
+                from runtime.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
                 import json as _pjson
                 router = get_router()
                 model = router.route(TaskType.FAST_RESPONSE)
@@ -232,8 +232,8 @@ class DailySync:
 
         # ── Section 4c: Goal alignment — does today's top item move the needle?
         try:
-            from eos_ai.model_router import get_router, TaskType
-            from eos_ai.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
+            from runtime.model_router import get_router, TaskType
+            from runtime.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
             _router = get_router()
             _model = _router.route(TaskType.FAST_RESPONSE)
 
@@ -258,14 +258,14 @@ class DailySync:
 
         # ── Quarterly rocks from preloaded year ─────────────────────────
         try:
-            from eos_ai.ideal_week import get_current_quarter_rocks
+            from runtime.ideal_week import get_current_quarter_rocks
             agenda.quarterly_rocks = get_current_quarter_rocks(self.ctx)
         except Exception:
             agenda.quarterly_rocks = []
 
         # ── 3-3-3 Framework (Dan Martell) ────────────────────────────────────
         try:
-            from eos_ai.model_router import get_router, TaskType
+            from runtime.model_router import get_router, TaskType
             import json as _pjson333
             _router333 = get_router()
             _model333 = _router333.route(TaskType.FAST_RESPONSE)
@@ -301,7 +301,7 @@ Return JSON only:
 
         # ── DRIP split — filter delegate tasks to dex_items ─────────────
         try:
-            from eos_ai.task_yield_matrix import classify_task_yield
+            from runtime.task_yield_matrix import classify_task_yield
             antony_items = []
             dex_items = []
             for item in agenda.action_items[:10]:
@@ -363,7 +363,7 @@ Return JSON only:
         # ── Section 6: Emails ────────────────────────────────────────────
         # TO_RESPOND + REVIEW from GPS labels.
         try:
-            from eos_ai.email_gps import EmailGPS
+            from runtime.email_gps import EmailGPS
             gps            = EmailGPS(self.ctx)
             review_emails  = gps.get_emails_for_review(limit=5)
             respond_emails = gps.get_emails_to_respond(limit=5)
@@ -410,7 +410,7 @@ Return JSON only:
         # Only populated if there are real questions DEX cannot resolve alone.
         try:
             import json as _json
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute('''
                     SELECT payload_json FROM events
@@ -433,7 +433,7 @@ Return JSON only:
 
         # Subscription renewal alerts
         try:
-            from eos_ai.subscription_tracker import get_upcoming_renewals
+            from runtime.subscription_tracker import get_upcoming_renewals
             renewals = get_upcoming_renewals(days=7)
             if renewals:
                 agenda.subscription_alerts = [
@@ -445,7 +445,7 @@ Return JSON only:
 
         # ── Upcoming important dates (next 14 days) ──────────────────────
         try:
-            from eos_ai.personal_admin import get_upcoming_dates
+            from runtime.personal_admin import get_upcoming_dates
             upcoming = get_upcoming_dates(days=14, ctx=self.ctx)
             if upcoming:
                 agenda.important_dates = [
@@ -462,7 +462,7 @@ Return JSON only:
     def _get_closing_line(self) -> str:
         """Return the binding constraint recommendation for the lowest health venture."""
         try:
-            from eos_ai.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
+            from runtime.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
             pa       = PortfolioAgent(self.ctx)
             ventures = pa.scan_all_ventures()
             binding  = pa.identify_binding_constraint(ventures)

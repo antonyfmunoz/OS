@@ -235,7 +235,7 @@ class LiveSessionStore:
             if self._loaded:
                 return
             try:
-                from eos_ai.transport.storage import get_storage
+                from runtime.transport.storage import get_storage
 
                 raw = get_storage().get(_STORAGE_KEY, default=None)
             except Exception as e:  # noqa: BLE001
@@ -253,7 +253,7 @@ class LiveSessionStore:
     def _flush(self) -> None:
         """Persist in-memory state to substrate storage. Caller holds lock."""
         try:
-            from eos_ai.transport.storage import get_storage
+            from runtime.transport.storage import get_storage
 
             payload = {sid: s.to_dict() for sid, s in self._sessions.items()}
             get_storage().put(_STORAGE_KEY, payload)
@@ -349,7 +349,7 @@ def _get_current_day_session_id() -> Optional[str]:
     Returns None if no day session is open or import fails. Never raises.
     """
     try:
-        from eos_ai.transport.operator_session import OperatorSessionStore
+        from runtime.transport.operator_session import OperatorSessionStore
 
         session = OperatorSessionStore.default().get()
         if session is not None and session.is_day_open:

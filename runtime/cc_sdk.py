@@ -8,7 +8,7 @@ This is NOT a replacement for model_router — it is a provider that
 model_router can call, alongside Gemini, Ollama, etc.
 
 Usage:
-    from eos_ai.cc_sdk import query_cc_sync
+    from runtime.cc_sdk import query_cc_sync
 
     result = query_cc_sync("Analyze this business situation")
     if result:

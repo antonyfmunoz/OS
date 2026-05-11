@@ -63,12 +63,12 @@ class EOSSystemHealth:
         caused zombie processes when providers were down.
         """
         try:
-            from eos_ai.model_router import (
+            from runtime.model_router import (
                 get_router,
                 MODEL_REGISTRY,
                 ModelProvider,
             )
-            from eos_ai.cc_sdk import query_cc_sync
+            from runtime.cc_sdk import query_cc_sync
 
             # Check cc_sdk availability (cheapest check — just import)
             if query_cc_sync is not None:
@@ -139,7 +139,7 @@ class EOSSystemHealth:
 
         # Foundation — BIS context loads
         try:
-            from eos_ai.context import load_context_from_env
+            from runtime.context import load_context_from_env
 
             ctx = load_context_from_env()
             ventures = ctx.ventures or []
@@ -156,7 +156,7 @@ class EOSSystemHealth:
 
         # Gateway singleton
         try:
-            from eos_ai.gateway import get_gateway
+            from runtime.gateway import get_gateway
 
             gw = get_gateway()
             health["gateway"] = {
@@ -171,7 +171,7 @@ class EOSSystemHealth:
 
         # Model router — availability check only (no real LLM call)
         try:
-            from eos_ai.model_router import get_router, MODEL_REGISTRY
+            from runtime.model_router import get_router, MODEL_REGISTRY
 
             router = get_router()
             router._check_availability()
@@ -362,7 +362,7 @@ class EOSSystemHealth:
         )
 
         try:
-            from eos_ai.channel import get_channel_router
+            from runtime.channel import get_channel_router
 
             router = get_channel_router()
             router.notify(message)
@@ -415,7 +415,7 @@ def get_system_health(ctx=None) -> EOSSystemHealth:
     """Get configured system health instance."""
     from dotenv import load_dotenv
 
-    load_dotenv(os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS", "eos_ai", ".env"))
+    load_dotenv(os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS", "runtime", ".env"))
     return EOSSystemHealth(ctx)
 
 

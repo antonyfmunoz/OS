@@ -13,8 +13,8 @@ Layer 2 injection order (after Layer 1 step 1h):
   - Inject relevant cross-OS insight when multiple modules active
 
 Usage:
-    from eos_ai.trinity import TrinityEngine
-    from eos_ai.context import load_context_from_env
+    from runtime.trinity import TrinityEngine
+    from runtime.context import load_context_from_env
 
     ctx = load_context_from_env()
     te  = TrinityEngine(ctx)
@@ -22,8 +22,8 @@ Usage:
     print(te.get_cross_os_insight('I am exhausted and have a sales call'))
 """
 
-from eos_ai.context import EOSContext
-from eos_ai.os_registry import OSRegistryManager
+from runtime.context import EOSContext
+from runtime.os_registry import OSRegistryManager
 
 
 class TrinityEngine:
@@ -45,7 +45,7 @@ class TrinityEngine:
         Defaults to EntrepreneurOS if not set or on any error.
         """
         try:
-            from eos_ai.business_instance import BusinessInstanceManager
+            from runtime.business_instance import BusinessInstanceManager
             bim = BusinessInstanceManager(self.ctx)
             bis = bim.get_bis('lyfe_institute')
             subs = getattr(bis, 'os_subscriptions', [])

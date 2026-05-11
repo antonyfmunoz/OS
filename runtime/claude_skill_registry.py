@@ -8,8 +8,8 @@ Every skill Claude Code uses to build and operate EOS lives here:
   - Checked every 7 days against source docs via world_pulse
 
 Usage:
-    from eos_ai.claude_skill_registry import ClaudeSkillRegistryManager
-    from eos_ai.context import load_context_from_env
+    from runtime.claude_skill_registry import ClaudeSkillRegistryManager
+    from runtime.context import load_context_from_env
     ctx = load_context_from_env()
     csrm = ClaudeSkillRegistryManager()
     csrm.sync_to_neon(ctx)
@@ -186,7 +186,7 @@ class ClaudeSkillRegistryManager:
         Skills without files are skipped silently.
         Returns count of skills synced.
         """
-        from eos_ai.db import get_conn
+        from runtime.db import get_conn
         import uuid as _uuid
 
         synced = 0

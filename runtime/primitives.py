@@ -14,8 +14,8 @@ Stage 1 (Validation) primitives reject premature advice about hiring, scaling,
 paid ads, and outsourcing — the system corrects itself before returning output.
 
 Usage:
-    from eos_ai.context import load_context_from_env
-    from eos_ai.primitives import (
+    from runtime.context import load_context_from_env
+    from runtime.primitives import (
         PrimitiveRegistry, ContextualReasoningEngine,
         PRIMITIVE_LIBRARY, KnowledgePrimitive,
     )
@@ -33,7 +33,7 @@ Usage:
 """
 
 from dataclasses import dataclass, field
-from eos_ai.context import EOSContext
+from runtime.context import EOSContext
 
 
 # ─── KnowledgePrimitive ───────────────────────────────────────────────────────
@@ -792,7 +792,7 @@ class PrimitiveRegistry:
     def _get_stage(self, venture_id: str) -> int:
         """Read BIS stage. Returns 1 on any failure (safe default)."""
         try:
-            from eos_ai.business_instance import BusinessInstanceManager
+            from runtime.business_instance import BusinessInstanceManager
             bim     = BusinessInstanceManager(self.ctx)
             ctx_str = bim.get_context_for_agents(venture_id)
             for line in ctx_str.split('\n'):
@@ -852,7 +852,7 @@ class ContextualReasoningEngine:
         # Resolve default venture from BIM if not passed — no hardcoded venture
         if not venture_id:
             try:
-                from eos_ai.business_instance import BusinessInstanceManager as _BIM
+                from runtime.business_instance import BusinessInstanceManager as _BIM
                 venture_id = _BIM(self.ctx).get_default_venture_id()
             except Exception:
                 venture_id = None
@@ -897,7 +897,7 @@ class ContextualReasoningEngine:
             # Pre-check: look up matching primitive by keyword in principle text
             # This gives richer, structured responses before any AI call
             try:
-                from eos_ai.evolution_engine import EvolutionEngine
+                from runtime.evolution_engine import EvolutionEngine
                 _ee = EvolutionEngine(self.ctx)
                 _venture = context.get('venture_id')  # may be None — substrate-neutral
                 _adv_lower = advice.lower()

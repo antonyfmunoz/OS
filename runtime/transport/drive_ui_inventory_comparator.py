@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from eos_ai.transport.local_gui_control_contracts import GUIInventoryItem
+from runtime.transport.local_gui_control_contracts import GUIInventoryItem
 
 
 def normalize_name_for_comparison(name: str) -> str:

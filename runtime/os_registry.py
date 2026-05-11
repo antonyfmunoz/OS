@@ -9,7 +9,7 @@ injects context only when the user is subscribed. OS modules share
 the Layer 0 and Layer 1 substrate but do not interfere with each other.
 
 Usage:
-    from eos_ai.os_registry import OSRegistryManager, OSModule
+    from runtime.os_registry import OSRegistryManager, OSModule
 
     orm = OSRegistryManager()
     active = orm.get_active_modules()

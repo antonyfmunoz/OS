@@ -16,8 +16,8 @@ from __future__ import annotations
 import threading
 from typing import Any
 
-from eos_ai.substrate import control_commands as cc
-from eos_ai.transport.storage import get_storage
+from runtime.substrate import control_commands as cc
+from runtime.transport.storage import get_storage
 
 LAYER_NAME = "control_bridge"
 LAYER_VERSION = "v1"

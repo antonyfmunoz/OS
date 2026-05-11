@@ -51,8 +51,8 @@ class ExecutionSpine:
 
         # 1. Authority validation
         try:
-            from eos_ai.context import load_context_from_env
-            from eos_ai.authority_engine import AuthorityEngine
+            from runtime.context import load_context_from_env
+            from runtime.authority_engine import AuthorityEngine
 
             ctx = load_context_from_env()
             ae = AuthorityEngine(ctx)
@@ -79,7 +79,7 @@ class ExecutionSpine:
 
         response = ""
         try:
-            from eos_ai.model_router import call_with_fallback
+            from runtime.model_router import call_with_fallback
 
             routing_result = call_with_fallback(
                 prompt=message,
@@ -98,10 +98,10 @@ class ExecutionSpine:
         # 3a. ConversationMemory — messages table
         try:
             if ctx is None:
-                from eos_ai.context import load_context_from_env
+                from runtime.context import load_context_from_env
                 ctx = load_context_from_env()
 
-            from eos_ai.memory import ConversationMemory
+            from runtime.memory import ConversationMemory
             cm = ConversationMemory(ctx)
             cm.store(
                 session_id=session_id,
@@ -122,8 +122,8 @@ class ExecutionSpine:
 
         # 3b. AgentMemory — interactions table
         try:
-            from eos_ai.memory import AgentMemory
-            from eos_ai.agent_runtime import AgentResult
+            from runtime.memory import AgentMemory
+            from runtime.agent_runtime import AgentResult
 
             _agent_result = AgentResult(
                 output=response[:2000],
@@ -145,7 +145,7 @@ class ExecutionSpine:
         # 4. Session persistence — channel_id → session_id mapping
         if channel_id:
             try:
-                from eos_ai.transport.storage import get_storage
+                from runtime.transport.storage import get_storage
                 store = get_storage()
                 store.put(f"session:{channel_id}", session_id)
             except Exception as e:

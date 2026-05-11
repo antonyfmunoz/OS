@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from eos_ai.transport.message_bus_contracts import (
+from runtime.transport.message_bus_contracts import (
 
     MessageEnvelope,
     MessagePriority,
@@ -45,7 +45,7 @@ LOCAL_INBOX_DIR = Path.home() / "eos_inbox"
 LOCAL_OUTBOX_DIR = Path.home() / "eos_outbox"
 ADVISOR_MESSAGES_DIR = Path.home() / "eos_advisor_messages"
 
-VPS_STATION_DIR = Path(_ROOT) / "eos_ai" / ".substrate_station"
+VPS_STATION_DIR = Path(_ROOT) / "runtime" / ".substrate_station"
 VPS_ADVISOR_INBOX = VPS_STATION_DIR / "advisor_inbox"
 
 BRIDGE_IP = os.getenv("EOS_LOCAL_BRIDGE_IP", "100.74.199.102")

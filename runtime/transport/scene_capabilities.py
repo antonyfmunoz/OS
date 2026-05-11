@@ -35,12 +35,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Iterable, Optional
 
-from eos_ai.transport.actions import ActionKind
-from eos_ai.transport.capabilities import Capability
-from eos_ai.transport.scenes import SCENE_REGISTRY, Scene
+from runtime.transport.actions import ActionKind
+from runtime.transport.capabilities import Capability
+from runtime.transport.scenes import SCENE_REGISTRY, Scene
 
 if TYPE_CHECKING:  # avoid runtime cycle
-    from eos_ai.transport.nodes import Node
+    from runtime.transport.nodes import Node
 
 
 # ─── Action kind → required capability (equivalence sets) ──────────────────

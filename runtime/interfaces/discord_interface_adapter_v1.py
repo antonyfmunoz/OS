@@ -56,7 +56,7 @@ from core.environment_bridge.windows_desktop_request_builder import (
 )
 from core.runtime.adapter_registry_contracts import AdapterRegistry
 from core.runtime.worker_runtime_contracts import ProofStatus
-from eos_ai.interfaces.discord_spine_integration_v1 import (
+from runtime.interfaces.discord_spine_integration_v1 import (
     SpineExecutionConfig,
     SpineRoutedResult,
     build_spine_infrastructure,

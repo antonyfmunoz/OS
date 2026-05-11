@@ -1,7 +1,7 @@
 """
 Claude Responder v1 — thin adapter that turns a text prompt into a reply by
 routing it through a persistent Claude Code tmux session via
-`eos_ai.substrate.claude_session_bridge`.
+`runtime.transport.claude_session_bridge`.
 
 Purpose
 -------
@@ -31,7 +31,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from eos_ai.substrate import claude_session_bridge as csb
+from runtime.substrate import claude_session_bridge as csb
 
 _DEFAULT_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 

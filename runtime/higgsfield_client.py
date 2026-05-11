@@ -2,7 +2,7 @@
 
 Thin layer over the first-party `higgsfield-client` Python SDK that:
 
-- reads `HIGGSFIELD_API_KEY` + `HIGGSFIELD_API_KEY_SECRET` from /opt/OS/eos_ai/.env
+- reads `HIGGSFIELD_API_KEY` + `HIGGSFIELD_API_KEY_SECRET` from /opt/OS/runtime/.env
 - shims them to the env var names the SDK actually wants (`HF_API_KEY`,
   `HF_API_SECRET`) so the rest of EOS can use the verbose names
 - inserts a `higgsfield_jobs` row in Neon on every submit so the webhook
@@ -19,9 +19,9 @@ import os
 import sys
 from dotenv import load_dotenv
 
-# /opt/OS on sys.path so we can import eos_ai.db
+# /opt/OS on sys.path so we can import runtime.db
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 
 # Shim the verbose EOS env var names to the SDK's expected names BEFORE
 # importing the SDK (the SDK reads env vars at call time, not import time,
@@ -34,7 +34,7 @@ if _EOS_KEY and _EOS_SECRET:
 
 import higgsfield_client as hf  # noqa: E402
 
-from eos_ai.db import get_conn  # noqa: E402
+from runtime.db import get_conn  # noqa: E402
 
 WEBHOOK_URL = os.getenv(
     "HIGGSFIELD_WEBHOOK_URL",

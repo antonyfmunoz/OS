@@ -1,5 +1,5 @@
 """
-eos_ai.substrate — Bridging layer between current VPS-centric EOS and the
+runtime.transport — Bridging layer between current VPS-centric EOS and the
 target distributed, capability-aware AI operating system.
 
 This package is ADDITIVE. It does not modify the hot path
@@ -19,7 +19,7 @@ without changing call sites.
 
 Import surface (stable):
 
-    from eos_ai.substrate import (
+    from runtime.substrate import (
         Node, NodeType, NodeStatus, NodeRegistry,
         Capability, CapabilityRegistry,
         StationContract, StationHeartbeat, StationEvent,
@@ -29,77 +29,77 @@ Import surface (stable):
     )
 """
 
-from eos_ai.transport.nodes import (
+from runtime.transport.nodes import (
     Node,
     NodeRole,
     NodeType,
     NodeStatus,
     NodeRegistry,
 )
-from eos_ai.transport.capabilities import (
+from runtime.transport.capabilities import (
     Capability,
     CapabilityRegistry,
 )
-from eos_ai.transport.station import (
+from runtime.transport.station import (
     StationContract,
     StationHeartbeat,
     StationEvent,
     ControlMode,
 )
-from eos_ai.transport.actions import (
+from runtime.transport.actions import (
     SafeAction,
     ActionKind,
     ActionResult,
     ActionStatus,
 )
-from eos_ai.transport.rituals import (
+from runtime.transport.rituals import (
     Ritual,
     RitualKind,
     RitualState,
     RitualRegistry,
 )
-from eos_ai.transport.roles import (
+from runtime.transport.roles import (
     AgentRole,
     RoleScope,
     RoleRegistry,
 )
-from eos_ai.transport.storage import (
+from runtime.transport.storage import (
     SubstrateStorage,
     JSONFileStorage,
     NeonStorage,
     get_storage,
 )
-from eos_ai.transport.station_bus import (
+from runtime.transport.station_bus import (
     StationBus,
     get_station_bus,
 )
-from eos_ai.transport.capability_tagging import tag_request
-from eos_ai.transport.station_daemon import StationDaemon
-from eos_ai.transport.station_helpers import (
+from runtime.transport.capability_tagging import tag_request
+from runtime.transport.station_daemon import StationDaemon
+from runtime.transport.station_helpers import (
     propose_play_sound,
     propose_speak_text,
     propose_open_url,
     propose_launch_app,
     propose_open_scene,
 )
-from eos_ai.transport.scenes import (
+from runtime.transport.scenes import (
     Scene,
     SceneStep,
     SCENE_REGISTRY,
     get_scene,
     list_scenes,
 )
-from eos_ai.transport.app_allowlist import APP_ALLOWLIST, AllowedApp, resolve_app
-from eos_ai.transport.ritual_body import (
+from runtime.transport.app_allowlist import APP_ALLOWLIST, AllowedApp, resolve_app
+from runtime.transport.ritual_body import (
     RitualPolicy,
     run_close_day_body,
     run_open_day_body,
 )
-from eos_ai.transport.role_resolver import (
+from runtime.transport.role_resolver import (
     resolve_role,
     substrate_slug_for,
 )
-from eos_ai.transport.task_system import (
+from runtime.transport.task_system import (
     Task,
     TaskExecutionPolicy,
     TaskStatus,
@@ -110,14 +110,14 @@ from eos_ai.transport.task_system import (
     process_task,
     run_overnight_tasks,
 )
-from eos_ai.transport.capability_routing import (
+from runtime.transport.capability_routing import (
     TaskCapability,
     ExecutionTarget,
     infer_task_capabilities,
     choose_execution_target,
     route_task,
 )
-from eos_ai.transport.task_queue import (
+from runtime.transport.task_queue import (
     TaskPriority,
     QUEUE_OPERATOR_BLOCKED,
     QUEUE_AUTONOMOUS_DAY,
@@ -133,12 +133,12 @@ from eos_ai.transport.task_queue import (
     get_enhanced_task_summary,
     prepare_overnight_queue,
 )
-from eos_ai.transport.task_execution import (
+from runtime.transport.task_execution import (
     execute_task,
     detect_human_block,
     run_overnight_execution,
 )
-from eos_ai.transport.task_pipeline import (
+from runtime.transport.task_pipeline import (
     PipelineStatus,
     StepStatus,
     PipelineAgentRole,
@@ -146,11 +146,11 @@ from eos_ai.transport.task_pipeline import (
     TaskPipeline,
     PipelineStore,
 )
-from eos_ai.transport.task_decomposition import (
+from runtime.transport.task_decomposition import (
     infer_agent_role,
     decompose_task,
 )
-from eos_ai.transport.pipeline_execution import (
+from runtime.transport.pipeline_execution import (
     execute_pipeline,
     retry_step,
     resume_pipeline,
@@ -158,7 +158,7 @@ from eos_ai.transport.pipeline_execution import (
     format_blocked_summary,
     format_pipeline_summary,
 )
-from eos_ai.transport.voice_session import (
+from runtime.transport.voice_session import (
     VoiceSession,
     VoiceSessionStatus,
     VoiceSessionRuntime,
@@ -171,7 +171,7 @@ from eos_ai.transport.voice_session import (
 )
 
 # v4: perception + auto task generation
-from eos_ai.transport.perception import (
+from runtime.transport.perception import (
     PerceptionSource,
     PerceptionSeverity,
     PerceptionRecord,
@@ -187,14 +187,14 @@ from eos_ai.transport.perception import (
     collect_live_session_perception,
     collect_all_perceptions,
 )
-from eos_ai.transport.auto_task_generation import (
+from runtime.transport.auto_task_generation import (
     generate_tasks_from_perceptions,
     run_perception_cycle,
     get_perception_summary,
 )
 
 # v4: station presence + triggers
-from eos_ai.transport.station_presence import (
+from runtime.transport.station_presence import (
     StationPresenceMode,
     StationPresence,
     StationPresenceStore,
@@ -205,7 +205,7 @@ from eos_ai.transport.station_presence import (
     mark_local_unavailable,
     get_station_summary,
 )
-from eos_ai.transport.station_triggers import (
+from runtime.transport.station_triggers import (
     StationTriggerType,
     StationTriggerEvent,
     StationTriggerStore,
@@ -214,7 +214,7 @@ from eos_ai.transport.station_triggers import (
 )
 
 # v4: voice / wake layer
-from eos_ai.transport.voice_wake import (
+from runtime.transport.voice_wake import (
     WakeTrigger,
     StationMode,
     VoiceWakeState,
@@ -232,7 +232,7 @@ from eos_ai.transport.voice_wake import (
 )
 
 # v4: local machine control
-from eos_ai.transport.local_control import (
+from runtime.transport.local_control import (
     LocalControlAction,
     LocalControlMode,
     RequestStatus,
@@ -246,7 +246,7 @@ from eos_ai.transport.local_control import (
 )
 
 # v4: live agent sessions
-from eos_ai.transport.live_sessions import (
+from runtime.transport.live_sessions import (
     LiveSessionState,
     LiveSessionType,
     LiveSession,
@@ -289,7 +289,7 @@ def _safe_import(mod_path: str, names: list[str]) -> dict:
 
 _deferred_blocks = [
     (
-        "eos_ai.substrate.execution_contract",
+        "runtime.transport.execution_contract",
         [
             "ExecutionClass",
             "ExecutionConstraints",
@@ -306,7 +306,7 @@ _deferred_blocks = [
         ],
     ),
     (
-        "eos_ai.substrate.execution_adapter",
+        "runtime.transport.execution_adapter",
         [
             "ExecutionAdapter",
             "AdapterHealth",
@@ -314,9 +314,9 @@ _deferred_blocks = [
             "WorkstationAdapter",
         ],
     ),
-    ("eos_ai.substrate.execution_router", ["ExecutionRouter"]),
+    ("runtime.transport.execution_router", ["ExecutionRouter"]),
     (
-        "eos_ai.substrate.execution_events",
+        "runtime.transport.execution_events",
         [
             "build_execution_requested_event",
             "build_execution_completed_event",
@@ -326,11 +326,11 @@ _deferred_blocks = [
             "build_execution_retried_event",
         ],
     ),
-    ("eos_ai.substrate.execution_worker", ["ExecutionWorker"]),
-    ("eos_ai.substrate.execution_authority", ["ExecutionAuthority"]),
-    ("eos_ai.substrate.execution_result_handler", ["ExecutionResultHandler"]),
+    ("runtime.transport.execution_worker", ["ExecutionWorker"]),
+    ("runtime.transport.execution_authority", ["ExecutionAuthority"]),
+    ("runtime.transport.execution_result_handler", ["ExecutionResultHandler"]),
     (
-        "eos_ai.substrate.decision_engine",
+        "runtime.transport.decision_engine",
         [
             "DecisionEngine",
             "DecisionOutput",
@@ -341,7 +341,7 @@ _deferred_blocks = [
         ],
     ),
     (
-        "eos_ai.substrate.planner",
+        "runtime.transport.planner",
         [
             "IntentAwareStrategy",
             "PlannerStrategy",
@@ -353,14 +353,14 @@ _deferred_blocks = [
         ],
     ),
     (
-        "eos_ai.substrate.event_scheduler",
+        "runtime.transport.event_scheduler",
         [
             "NonMutatingEventViolation",
             "register_event_schema_source",
         ],
     ),
     (
-        "eos_ai.substrate.llm_planner",
+        "runtime.transport.llm_planner",
         [
             "EventSchema",
             "EventTypeRegistry",
@@ -374,7 +374,7 @@ _deferred_blocks = [
         ],
     ),
     (
-        "eos_ai.substrate.llm_decision_events",
+        "runtime.transport.llm_decision_events",
         [
             "build_llm_decision_accepted_event",
             "build_llm_decision_received_event",
@@ -385,7 +385,7 @@ _deferred_blocks = [
         ],
     ),
     (
-        "eos_ai.substrate.llm_replay",
+        "runtime.transport.llm_replay",
         [
             "LLMDecisionRecord",
             "ReplayableStrategy",
@@ -393,7 +393,7 @@ _deferred_blocks = [
     ),
     # Not-yet-implemented modules — will silently skip
     (
-        "eos_ai.substrate.interaction_archive",
+        "runtime.transport.interaction_archive",
         [
             "Direction",
             "Interface",
@@ -406,7 +406,7 @@ _deferred_blocks = [
         ],
     ),
     (
-        "eos_ai.substrate.task_record",
+        "runtime.transport.task_record",
         [
             "TaskRecordStatus",
             "TaskRecord",
@@ -418,7 +418,7 @@ _deferred_blocks = [
         ],
     ),
     (
-        "eos_ai.substrate.query_brain",
+        "runtime.transport.query_brain",
         [
             "QueryIntent",
             "QueryResult",
@@ -429,7 +429,7 @@ _deferred_blocks = [
         ],
     ),
     (
-        "eos_ai.substrate.conversation_router",
+        "runtime.transport.conversation_router",
         [
             "route_message",
             "detect_high_context_risk",
@@ -437,7 +437,7 @@ _deferred_blocks = [
         ],
     ),
     (
-        "eos_ai.substrate.browser_policy",
+        "runtime.transport.browser_policy",
         [
             "BrowserTarget",
             "FallbackReason",
@@ -446,7 +446,7 @@ _deferred_blocks = [
         ],
     ),
     (
-        "eos_ai.substrate.task_checkpoint",
+        "runtime.transport.task_checkpoint",
         [
             "AutoClearPolicy",
             "TaskCheckpointResult",
@@ -456,7 +456,7 @@ _deferred_blocks = [
         ],
     ),
     (
-        "eos_ai.substrate.presence_runtime",
+        "runtime.transport.presence_runtime",
         [
             "PresenceMode",
             "PresenceBehavior",
@@ -475,7 +475,7 @@ _deferred_blocks = [
         ],
     ),
     (
-        "eos_ai.substrate.plan_executor",
+        "runtime.transport.plan_executor",
         [
             "ExecutionOutcome",
             "PhaseResult",
@@ -486,9 +486,9 @@ _deferred_blocks = [
             "execute_planner_executor_verifier",
         ],
     ),
-    ("eos_ai.substrate.decision_events", ["build_decision_made_event"]),
+    ("runtime.transport.decision_events", ["build_decision_made_event"]),
     (
-        "eos_ai.substrate.intent_models",
+        "runtime.transport.intent_models",
         [
             "Intent",
             "IntentStatus",
@@ -505,7 +505,7 @@ _deferred_blocks = [
         ],
     ),
     (
-        "eos_ai.substrate.planner_events",
+        "runtime.transport.planner_events",
         [
             "build_intent_completed_event",
             "build_intent_created_event",

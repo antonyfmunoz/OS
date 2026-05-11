@@ -21,13 +21,13 @@ import time
 from pathlib import Path
 from typing import Any
 
-from eos_ai.substrate import control_bridge as bridge
-from eos_ai.substrate import control_commands as cc
+from runtime.substrate import control_bridge as bridge
+from runtime.substrate import control_commands as cc
 
 LAYER_NAME = "local_executor"
 LAYER_VERSION = "v1"
 
-SANDBOX_ROOT = (Path(_ROOT) / "eos_ai" / ".substrate_sandbox").resolve()
+SANDBOX_ROOT = (Path(_ROOT) / "runtime" / ".substrate_sandbox").resolve()
 SHELL_WHITELIST = ("ls", "pwd", "echo", "cat")
 SHELL_TIMEOUT_SEC = 5
 MAX_OUTPUT_CHARS = 4_000

@@ -20,10 +20,10 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent / ".env")
 load_dotenv(Path(__file__).parent.parent / "services" / ".env")
 
-from eos_ai.context import EOSContext
-from eos_ai.db import get_conn, resolve_venture
-from eos_ai.event_bus import EventBus
-from eos_ai.authority_engine import AuthorityEngine
+from runtime.context import EOSContext
+from runtime.db import get_conn, resolve_venture
+from runtime.event_bus import EventBus
+from runtime.authority_engine import AuthorityEngine
 
 
 def _utcnow() -> str:
@@ -33,7 +33,7 @@ def _utcnow() -> str:
 def _notify(text: str) -> None:
     """Send notification via channel router."""
     try:
-        from eos_ai.channel import get_channel_router
+        from runtime.channel import get_channel_router
 
         router = get_channel_router()
         router.notify(text)
@@ -137,7 +137,7 @@ class CoordinationEngine:
             )
             # Lifecycle tracking: mark in_progress immediately for agent tasks
             try:
-                from eos_ai.execution_engine import ExecutionEngine
+                from runtime.execution_engine import ExecutionEngine
 
                 ExecutionEngine(self.ctx).start_execution(task_id, assignee_id)
             except Exception as _ee_err:
@@ -153,7 +153,7 @@ class CoordinationEngine:
                 f"Reply /done {task_id[:8]} when complete."
             )
             try:
-                from eos_ai.gws_connector import GWSConnector
+                from runtime.gws_connector import GWSConnector
 
                 gws = GWSConnector()
                 gws.create_task(
@@ -277,7 +277,7 @@ class CoordinationEngine:
             return {"error": f"task {task_id} not found"}
 
         try:
-            from eos_ai.memory import AgentMemory
+            from runtime.memory import AgentMemory
 
             AgentMemory().log_event(
                 org_id=self.ctx.org_id,
@@ -310,8 +310,8 @@ class CoordinationEngine:
         CEO Agent breaks down a company objective into specific tasks
         and assigns each one. Returns a delegation summary.
         """
-        from eos_ai.cognitive_loop import CognitiveLoop
-        from eos_ai.agent_runtime import TaskType
+        from runtime.cognitive_loop import CognitiveLoop
+        from runtime.agent_runtime import TaskType
 
         loop = CognitiveLoop(self.ctx)
         result = loop.run(

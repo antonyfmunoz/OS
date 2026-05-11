@@ -21,8 +21,8 @@ All findings are permanently integrated into the knowledge base via
 KnowledgeIntegrator so the system compounds intelligence over time.
 
 Usage:
-    from eos_ai.context import load_context_from_env
-    from eos_ai.world_pulse import WorldPulse
+    from runtime.context import load_context_from_env
+    from runtime.world_pulse import WorldPulse
 
     ctx = load_context_from_env()
     wp = WorldPulse(ctx)
@@ -36,8 +36,8 @@ Usage:
     print(f"{pulse['total_integrated']} items integrated")
 """
 
-from eos_ai.context import EOSContext
-from eos_ai.knowledge_integrator import KnowledgeIntegrator
+from runtime.context import EOSContext
+from runtime.knowledge_integrator import KnowledgeIntegrator
 
 
 # ─── Perplexity market intel queries ──────────────────────────────────────────
@@ -178,7 +178,7 @@ class WorldPulse:
         """
         signals: list[dict] = []
         try:
-            from eos_ai.model_router import get_router, TaskType as RouterTaskType
+            from runtime.model_router import get_router, TaskType as RouterTaskType
             router = get_router()
 
             # Build a substrate-neutral venture context string from ctx.ventures
@@ -237,7 +237,7 @@ class WorldPulse:
                 'sources_scanned':  list[str],
             }
         """
-        from eos_ai.scrapling_connector import ScraplingConnector
+        from runtime.scrapling_connector import ScraplingConnector
         sc = ScraplingConnector()
 
         results_summary: list[str] = []
@@ -303,7 +303,7 @@ class WorldPulse:
         # Check Claude skills for source doc updates
         skills_needing_review: list[str] = []
         try:
-            from eos_ai.claude_skill_registry import ClaudeSkillRegistryManager
+            from runtime.claude_skill_registry import ClaudeSkillRegistryManager
             csrm = ClaudeSkillRegistryManager()
             skills_needing_review = csrm.check_for_updates()
             if skills_needing_review:
@@ -327,7 +327,7 @@ class WorldPulse:
         # Post compact report to Discord
         try:
             from datetime import datetime as _dt
-            from eos_ai.discord_utils import post_to_webhook
+            from runtime.discord_utils import post_to_webhook
             now = _dt.now().strftime('%Y-%m-%d %H:%M')
             market_lines = [
                 s for s in results_summary
@@ -369,7 +369,7 @@ class WorldPulse:
                 'sources_scanned': list[str],  # one line per source
             }
         """
-        from eos_ai.scrapling_connector import ScraplingConnector
+        from runtime.scrapling_connector import ScraplingConnector
         sc = ScraplingConnector()
 
         results_summary: list[str] = []
@@ -435,7 +435,7 @@ class WorldPulse:
         # Check Claude skills for source doc updates
         skills_needing_review: list[str] = []
         try:
-            from eos_ai.claude_skill_registry import ClaudeSkillRegistryManager
+            from runtime.claude_skill_registry import ClaudeSkillRegistryManager
             csrm = ClaudeSkillRegistryManager()
             skills_needing_review = csrm.check_for_updates()
             if skills_needing_review:
@@ -455,7 +455,7 @@ class WorldPulse:
         gws_ingested = 0
         gws_skipped  = 0
         try:
-            from eos_ai.gws_scanner import GWSDocumentScanner
+            from runtime.gws_scanner import GWSDocumentScanner
             gws = GWSDocumentScanner(self.ctx)
             docs = gws.scan_all(limit=200, incremental=True)
             gws_skipped = gws._scan_skipped
@@ -486,7 +486,7 @@ class WorldPulse:
                 skills_needing_review=skills_needing_review,
                 sources_scanned=results_summary,
             )
-            from eos_ai.discord_utils import post_to_webhook
+            from runtime.discord_utils import post_to_webhook
             post_to_webhook(
                 report,
                 title='🌍 WORLD PULSE REPORT',
@@ -498,7 +498,7 @@ class WorldPulse:
 
         # Sync pulse report to NotebookLM
         try:
-            from eos_ai.notebooklm_sync import NotebookLMSync
+            from runtime.notebooklm_sync import NotebookLMSync
             nls = NotebookLMSync(self.ctx)
             nls.sync_world_pulse_to_notebook(report)
         except Exception as e:
@@ -508,7 +508,7 @@ class WorldPulse:
         try:
             from datetime import datetime as _dt
             if _dt.now().weekday() == 5:  # Saturday
-                from eos_ai.notebooklm_sync import NotebookLMSync
+                from runtime.notebooklm_sync import NotebookLMSync
                 nls = NotebookLMSync(self.ctx)
                 nls.check_and_update()
         except Exception as e:

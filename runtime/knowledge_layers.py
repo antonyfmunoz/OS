@@ -8,7 +8,7 @@ Complements KnowledgeDomainRegistry (which handles domain state) —
 knowledge_layers handles timeless behavioral principles.
 
 Usage:
-    from eos_ai.knowledge_layers import KnowledgeLayerEngine
+    from runtime.knowledge_layers import KnowledgeLayerEngine
     kle = KnowledgeLayerEngine()
     context = kle.get_relevant_layer('outreach', 'closing a DM conversation')
     # Returns: "BEHAVIORAL CONTEXT:\n• The real objection is never the stated one..."

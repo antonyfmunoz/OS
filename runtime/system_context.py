@@ -20,7 +20,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from eos_ai.context import EOSContext
+from runtime.context import EOSContext
 
 INTERFACE_CONTEXTS = {
     'telegram': {
@@ -43,7 +43,7 @@ INTERFACE_CONTEXTS = {
     },
 }
 
-_ARCH_PATH = Path(_REPO_ROOT) / 'eos_ai' / 'ARCHITECTURE.md'
+_ARCH_PATH = Path(_REPO_ROOT) / 'runtime' / 'ARCHITECTURE.md'
 
 _MINIMAL_SPEC = """
 EntrepreneurOS Architecture — Minimal Spec (ARCHITECTURE.md not yet written)
@@ -127,7 +127,7 @@ class SystemContext:
         )
 
         try:
-            from eos_ai.agent_runtime import AgentRuntime, TaskType
+            from runtime.agent_runtime import AgentRuntime, TaskType
             runtime = AgentRuntime(self.ctx)
             result = runtime.run(
                 task_type=TaskType.ANALYZE,

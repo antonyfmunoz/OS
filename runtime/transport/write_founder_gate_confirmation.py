@@ -1,13 +1,13 @@
 """Write a founder visual confirmation file to the local inbox.
 
 Usage:
-    python3 /opt/OS/eos_ai/substrate/write_founder_gate_confirmation.py \
+    python3 /opt/OS/runtime/transport/write_founder_gate_confirmation.py \
         --work-order-id WO-LOCAL-PILOT-GDRIVE-GDOCS-001 \
         --gate VISIBLE_CHROME_LAUNCH \
         --confirmed true \
         --notes "Chrome visibly open on desktop"
 
-    python3 /opt/OS/eos_ai/substrate/write_founder_gate_confirmation.py \
+    python3 /opt/OS/runtime/transport/write_founder_gate_confirmation.py \
         --work-order-id WO-LOCAL-PILOT-GDRIVE-GDOCS-001 \
         --gate VISIBLE_CHROME_LAUNCH \
         --confirmed false \

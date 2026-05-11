@@ -16,7 +16,7 @@ import os
 import socket
 from typing import Any
 
-from eos_ai.substrate import control_commands as cc
+from runtime.substrate import control_commands as cc
 
 LAYER_NAME = "remote_identity"
 LAYER_VERSION = "v2"

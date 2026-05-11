@@ -190,7 +190,7 @@ class OnboardingEngine:
         # ── Step 1: LLM extracts structured data ─────────────────────────────
         data: dict = {}
         try:
-            from eos_ai.agent_runtime import AgentRuntime, TaskType
+            from runtime.agent_runtime import AgentRuntime, TaskType
 
             rt     = AgentRuntime(self.ctx)
             loop   = asyncio.get_event_loop()
@@ -244,7 +244,7 @@ class OnboardingEngine:
 
         # ── Step 2: Create BIS in Neon ────────────────────────────────────────
         try:
-            from eos_ai.business_instance import BusinessInstanceManager
+            from runtime.business_instance import BusinessInstanceManager
 
             bim = BusinessInstanceManager(self.ctx)
 
@@ -283,7 +283,7 @@ class OnboardingEngine:
 
         # ── Step 3: Generate EA soul doc ──────────────────────────────────────
         try:
-            from eos_ai.setup_wizard import generate_ea_soul_doc
+            from runtime.setup_wizard import generate_ea_soul_doc
 
             ai_name = data.get('ai_name', 'DEX') or 'DEX'
             soul_doc = generate_ea_soul_doc(

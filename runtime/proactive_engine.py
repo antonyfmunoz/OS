@@ -114,7 +114,7 @@ class ProactiveIntelligenceEngine:
             print(f'[Proactive] Reality scan failed: {e}')
 
         try:
-            from eos_ai.accountability import AccountabilityEngine
+            from runtime.accountability import AccountabilityEngine
             ae = AccountabilityEngine(self.ctx)
             pending = ae.get_pending_follow_ups()
             for commitment in pending:
@@ -144,9 +144,9 @@ class ProactiveIntelligenceEngine:
         """
         signals: list[ProactiveSignal] = []
 
-        from eos_ai.memory import ConversationMemory
-        from eos_ai.evolution_engine import EvolutionEngine
-        from eos_ai.primitives import PRIMITIVE_LIBRARY
+        from runtime.memory import ConversationMemory
+        from runtime.evolution_engine import EvolutionEngine
+        from runtime.primitives import PRIMITIVE_LIBRARY
 
         cm = ConversationMemory(self.ctx)
         ee = EvolutionEngine(self.ctx)
@@ -216,8 +216,8 @@ class ProactiveIntelligenceEngine:
         """
         signals: list[ProactiveSignal] = []
 
-        from eos_ai.evolution_engine import EvolutionEngine
-        from eos_ai.memory import ConversationMemory
+        from runtime.evolution_engine import EvolutionEngine
+        from runtime.memory import ConversationMemory
 
         ee = EvolutionEngine(self.ctx)
         cm = ConversationMemory(self.ctx)
@@ -268,8 +268,8 @@ class ProactiveIntelligenceEngine:
         """
         signals: list[ProactiveSignal] = []
 
-        from eos_ai.memory import ConversationMemory
-        from eos_ai.evolution_engine import EvolutionEngine
+        from runtime.memory import ConversationMemory
+        from runtime.evolution_engine import EvolutionEngine
 
         cm = ConversationMemory(self.ctx)
         ee = EvolutionEngine(self.ctx)
@@ -319,8 +319,8 @@ class ProactiveIntelligenceEngine:
         """
         signals: list[ProactiveSignal] = []
 
-        from eos_ai.memory import ConversationMemory
-        from eos_ai.business_instance import BusinessInstanceManager
+        from runtime.memory import ConversationMemory
+        from runtime.business_instance import BusinessInstanceManager
 
         cm  = ConversationMemory(self.ctx)
         bim = BusinessInstanceManager(self.ctx)

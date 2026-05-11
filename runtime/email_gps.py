@@ -99,7 +99,7 @@ class EmailGPS:
         """Seed default GPS folder definitions into Neon on first run.
         Safe to run multiple times — uses INSERT ... ON CONFLICT DO NOTHING."""
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
 
             defaults = [
                 {
@@ -244,7 +244,7 @@ class EmailGPS:
     def _load_folder_definitions(self) -> list:
         """Load folder definitions from Neon. Used to build AI classification prompt."""
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     '''
@@ -278,7 +278,7 @@ class EmailGPS:
         """Update a folder's purpose in Neon based on founder instruction.
         Future classifications use the updated definition."""
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
 
             # Load current purpose
             with get_conn(self.ctx.org_id) as cur:
@@ -293,7 +293,7 @@ class EmailGPS:
                 current_purpose = row['purpose'] if row else ''
 
             # Use AI to update purpose
-            from eos_ai.model_router import get_router, TaskType
+            from runtime.model_router import get_router, TaskType
             router = get_router(self.ctx)
 
             new_purpose = router.call_with_fallback(
@@ -434,7 +434,7 @@ class EmailGPS:
 
         # 3. Central person recognition — checks CRM, meetings, memory, Neon
         try:
-            from eos_ai.person_recognition import recognize_person
+            from runtime.person_recognition import recognize_person
             result = recognize_person(
                 name=email.from_name or '',
                 email=email.from_address,
@@ -514,7 +514,7 @@ class EmailGPS:
     ) -> EmailFolder:
         """AI classifies with full business context and judgment criteria."""
         try:
-            from eos_ai.model_router import get_router, TaskType
+            from runtime.model_router import get_router, TaskType
             router = get_router(self.ctx)
 
             definitions = self._load_folder_definitions()
@@ -594,7 +594,7 @@ class EmailGPS:
     def draft_response(self, email: ProcessedEmail) -> str:
         """Generate DEX response draft for TO_RESPOND emails."""
         try:
-            from eos_ai.model_router import get_router, TaskType
+            from runtime.model_router import get_router, TaskType
             router = get_router(self.ctx)
 
             body = router.call_with_fallback(
@@ -629,7 +629,7 @@ class EmailGPS:
     ) -> list[str]:
         """Extract action items and commitments from email."""
         try:
-            from eos_ai.model_router import get_router, TaskType
+            from runtime.model_router import get_router, TaskType
             import json as _json
             router = get_router(self.ctx)
 
@@ -666,7 +666,7 @@ Return JSON only:
             return 0
 
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             import json as _json
             stored = 0
             with get_conn(self.ctx.org_id) as cur:
@@ -706,7 +706,7 @@ Return JSON only:
         across ALL existing emails (not just unread).
         """
         try:
-            from eos_ai.gws_connector import GWSConnector
+            from runtime.gws_connector import GWSConnector
             gws = GWSConnector()
 
             fetch_limit = 500 if process_all else limit
@@ -763,7 +763,7 @@ Return JSON only:
                     # Queue draft for approval — writes to orchestrator/approvals/pending/
                     if email.draft_response:
                         try:
-                            from eos_ai.gateway import EOSGateway
+                            from runtime.gateway import EOSGateway
                             gw = EOSGateway()
                             approval_id = gw.queue_for_approval({
                                 "type":       "email_draft",
@@ -810,7 +810,7 @@ Return JSON only:
                         if p.get('filename') and '.' in p.get('filename', '')
                     ]
                     if _df_attachments:
-                        from eos_ai.document_filer import process_email_attachments
+                        from runtime.document_filer import process_email_attachments
                         _df_results = process_email_attachments(
                             subject=email.subject,
                             sender=email.from_address,
@@ -850,7 +850,7 @@ Return JSON only:
         Most reliable method — no browser needed.
         """
         try:
-            from eos_ai.gws_connector import GWSConnector
+            from runtime.gws_connector import GWSConnector
             gws = GWSConnector()
             headers = gws.get_message_headers(
                 email_id,
@@ -898,7 +898,7 @@ Return JSON only:
     def _browser_unsubscribe(self, url: str) -> bool:
         """Click unsubscribe link via headless browser."""
         try:
-            from eos_ai.browser_agent import BrowserAgent
+            from runtime.browser_agent import BrowserAgent
 
             async def do_unsub(u: str) -> bool:
                 agent = BrowserAgent(headless=True)
@@ -968,7 +968,7 @@ Return JSON only:
     def _delete_email(self, email_id: str) -> None:
         """Move email to trash via Gmail API labels."""
         try:
-            from eos_ai.gws_connector import GWSConnector
+            from runtime.gws_connector import GWSConnector
             gws = GWSConnector()
             gws.apply_label_to_message(
                 email_id,
@@ -1035,7 +1035,7 @@ Return JSON only:
     def get_emails_to_respond(self, limit: int = 5) -> list[dict]:
         """Get emails currently in the TO_RESPOND Gmail label."""
         try:
-            from eos_ai.gws_connector import GWSConnector
+            from runtime.gws_connector import GWSConnector
             gws = GWSConnector()
             label_id = gws.get_or_create_label('To Respond')
             if not label_id:
@@ -1071,7 +1071,7 @@ Return JSON only:
     def get_emails_for_review(self, limit: int = 5) -> list[dict]:
         """Get emails currently in the REVIEW Gmail label."""
         try:
-            from eos_ai.gws_connector import GWSConnector
+            from runtime.gws_connector import GWSConnector
             gws = GWSConnector()
             label_id = gws.get_or_create_label('Review')
             if not label_id:
@@ -1158,7 +1158,7 @@ Return JSON only:
         Logs an email_classified event to Neon for the nightly reviewer.
         """
         try:
-            from eos_ai.gws_connector import GWSConnector
+            from runtime.gws_connector import GWSConnector
             gws = GWSConnector()
             label_name = folder.value
             label_id   = gws.get_or_create_label(label_name)
@@ -1193,7 +1193,7 @@ Return JSON only:
         try:
             import uuid
             import json
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     '''
@@ -1228,7 +1228,7 @@ Return JSON only:
         Returns: {moved: N, stayed: N, errors: N}
         """
         try:
-            from eos_ai.gws_connector import GWSConnector
+            from runtime.gws_connector import GWSConnector
             gws = GWSConnector()
 
             label_name = source_folder.value
@@ -1326,7 +1326,7 @@ Return JSON only:
         Returns: {migrated: N, deleted: N, errors: []}
         """
         try:
-            from eos_ai.gws_connector import GWSConnector
+            from runtime.gws_connector import GWSConnector
             gws = GWSConnector()
 
             # Build a map of label name → label id from Gmail
@@ -1406,7 +1406,7 @@ Return JSON only:
         Triggered via !verify-inbox in Discord.
         """
         try:
-            from eos_ai.gws_connector import GWSConnector
+            from runtime.gws_connector import GWSConnector
             gws = GWSConnector()
 
             # Build name → id map in one call

@@ -91,7 +91,7 @@ class SkillRegistryV2:
         """
         try:
             import uuid
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             content = skill.to_markdown()
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
@@ -124,7 +124,7 @@ class SkillRegistryV2:
         Returns total executions, successes, and success_rate.
         """
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 # Total executions where this skill was used
                 cur.execute(

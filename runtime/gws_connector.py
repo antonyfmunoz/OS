@@ -5,7 +5,7 @@ Provides calendar, tasks, drive, and gmail access for EOS agents.
 All methods are safe — they log warnings on error and never crash.
 
 Usage:
-    from eos_ai.gws_connector import GWSConnector
+    from runtime.gws_connector import GWSConnector
     gws = GWSConnector()
     events = gws.get_today_events()
     tasks  = gws.get_tasks()
@@ -20,7 +20,7 @@ from pathlib import Path as _Path
 from dotenv import load_dotenv as _load_dotenv
 _ROOT = _Path(__file__).parent.parent
 _load_dotenv(_ROOT / 'services' / '.env')
-_load_dotenv(_ROOT / 'eos_ai' / '.env', override=True)
+_load_dotenv(_ROOT / 'runtime' / '.env', override=True)
 
 # Circuit breaker: if the CLI times out, skip further calls for this long.
 # File-based so cron-spawned processes see each other's failures.

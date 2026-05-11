@@ -11,7 +11,7 @@ report results via events. The control plane (result handler) is the
 only thing that writes state.
 
 Usage:
-    from eos_ai.transport.execution_worker import ExecutionWorker
+    from runtime.transport.execution_worker import ExecutionWorker
 
     worker = ExecutionWorker(store)
     worker.register_adapter(my_adapter)
@@ -34,23 +34,23 @@ import threading
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from eos_ai.transport.event_scheduler import (
+from runtime.transport.event_scheduler import (
     ExecutionResult as SchedulerExecutionResult,
     SchedulerEvent,
 )
-from eos_ai.transport.execution_adapter import ExecutionAdapter
-from eos_ai.transport.execution_contract import (
+from runtime.transport.execution_adapter import ExecutionAdapter
+from runtime.transport.execution_contract import (
     ExecutionRequest,
     ExecutionResult,
     ExecutionStatus,
 )
-from eos_ai.transport.execution_events import (
+from runtime.transport.execution_events import (
     build_execution_completed_event,
     build_execution_failed_event,
     build_execution_rejected_event,
     build_execution_timed_out_event,
 )
-from eos_ai.transport.runtime_state_store import RuntimeStateStore
+from runtime.transport.runtime_state_store import RuntimeStateStore
 
 _LOG_PREFIX = "[substrate.execution_worker]"
 

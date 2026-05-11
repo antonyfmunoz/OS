@@ -45,7 +45,7 @@ from __future__ import annotations
 import sys
 from typing import Any, Optional
 
-from eos_ai.transport.voice_session import (
+from runtime.transport.voice_session import (
     VoiceSessionRuntime,
     VoiceSessionStatus,
     VoiceTurnSource,
@@ -177,7 +177,7 @@ def inject_transcript(
     #    carries that tag explicitly.
     if source != "voice_turn":
         try:
-            from eos_ai.transport.audio_loop import record_transcript
+            from runtime.transport.audio_loop import record_transcript
 
             record_transcript(
                 node_id,
@@ -191,7 +191,7 @@ def inject_transcript(
 
     # 4. Snapshot audio loop state for the caller's convenience.
     try:
-        from eos_ai.transport.audio_loop import snapshot as audio_snapshot
+        from runtime.transport.audio_loop import snapshot as audio_snapshot
 
         result["audio_loop"] = audio_snapshot(node_id=node_id)
     except Exception as e:  # noqa: BLE001

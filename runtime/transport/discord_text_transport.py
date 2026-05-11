@@ -56,9 +56,9 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from eos_ai.transport.workload_policy import classify_workload
-from eos_ai.transport.resource_guard import evaluate_resource_guard
-from eos_ai.transport.context_lifecycle import (
+from runtime.transport.workload_policy import classify_workload
+from runtime.transport.resource_guard import evaluate_resource_guard
+from runtime.transport.context_lifecycle import (
     detect_context_pressure,
     maybe_clear_and_restore,
 )
@@ -356,7 +356,7 @@ def ingest_text_message(
     # Reuse the SAME DiscordVoiceTransport for this (guild, channel), so a
     # single shared voice session carries both voice and text turns.
     try:
-        from eos_ai.transport.discord_voice_transport import (
+        from runtime.transport.discord_voice_transport import (
             get_default_discord_voice_transport,
         )
     except Exception as e:  # noqa: BLE001
@@ -401,7 +401,7 @@ def ingest_text_message(
     # that rides the existing shared substrate/router path — it never forks
     # the pipeline. Unknown mode is a no-op (router uses its env defaults).
     try:
-        from eos_ai.transport.discord_mode_routing import (
+        from runtime.transport.discord_mode_routing import (
             MODE_UNKNOWN,
             mode_context,
             resolve_discord_mode,
@@ -428,7 +428,7 @@ def ingest_text_message(
 
     # ── Execution Trace v1 — create per-request trace ─────────────────
     try:
-        from eos_ai.transport.execution_trace import (
+        from runtime.transport.execution_trace import (
             new_trace,
             update_trace as _ut,
             finalize_trace as _ft,
@@ -465,7 +465,7 @@ def ingest_text_message(
 
     # ── workflow delegation (classification + policy) ────────────────────
     try:
-        from eos_ai.transport.workflow_delegation import enrich_metadata
+        from runtime.transport.workflow_delegation import enrich_metadata
 
         enrich_metadata(meta, clean, discord_mode)
     except Exception:  # noqa: BLE001
@@ -552,7 +552,7 @@ def ingest_text_message(
         and meta.get("workflow_allowed") is True
     ):
         try:
-            from eos_ai.transport.workflow_execution import (
+            from runtime.transport.workflow_execution import (
                 execute_workflow_if_allowed,
             )
 
@@ -745,7 +745,7 @@ def _latest_agent_reply(session_id: Optional[str]) -> Optional[str]:
     if not session_id:
         return None
     try:
-        from eos_ai.transport.voice_session import (
+        from runtime.transport.voice_session import (
             VoiceTurnSource,
             get_voice_session_store,
         )
@@ -826,7 +826,7 @@ def build_tts_reply_envelope(
     # Spoken text is the sanitized body — footer/meta/skill/provider lines
     # are stripped so TTS NEVER reads them aloud. Bounded length.
     try:
-        from eos_ai.transport.tts_sanitize import sanitize_tts_reply
+        from runtime.transport.tts_sanitize import sanitize_tts_reply
 
         spoken_raw = sanitize_tts_reply(clean, max_chars=cap)
     except Exception as e:  # noqa: BLE001 — never raise from envelope build
@@ -928,7 +928,7 @@ def _handle_session_command(
     """
     preview = command
     try:
-        from eos_ai.transport.discord_mode_routing import (
+        from runtime.transport.discord_mode_routing import (
             resolve_discord_mode,
             resolve_mode_session,
         )
@@ -979,7 +979,7 @@ def _handle_session_command(
         }
 
     try:
-        from eos_ai.transport.session_control import clear_session, reset_session
+        from runtime.transport.session_control import clear_session, reset_session
 
         if command == "/clear":
             result = clear_session(target, session_name)
@@ -1042,7 +1042,7 @@ def _handle_trace_command(
     product mode gets a denial message. No TTS for trace output.
     """
     try:
-        from eos_ai.transport.discord_mode_routing import resolve_discord_mode
+        from runtime.transport.discord_mode_routing import resolve_discord_mode
 
         mode = resolve_discord_mode(guild_id, channel_id)
     except Exception:  # noqa: BLE001
@@ -1078,7 +1078,7 @@ def _handle_trace_command(
             pass
 
     try:
-        from eos_ai.transport.execution_trace import (
+        from runtime.transport.execution_trace import (
             format_trace_compact,
             get_trace_history,
         )
@@ -1189,7 +1189,7 @@ def maybe_mirror_discord_text_message(
 
     # Router-backed path (v2). There is no longer a Discord-only hard switch.
     # All Discord pseudo-live replies now flow through the shared voice
-    # substrate → broader router (eos_ai.model_router.call_with_fallback),
+    # substrate → broader router (runtime.model_router.call_with_fallback),
     # where Claude CLI tmux is registered as backend #0. If Claude CLI is
     # unavailable the router falls through to the existing provider chain.
     # The legacy EOS_DISCORD_CLAUDE_RESPONDER_ENABLED flag is accepted for
@@ -1236,8 +1236,8 @@ def maybe_mirror_discord_text_message(
     # layer — it never changes routing or capability.
     reply_text = ingress.get("reply_text")
     try:
-        from eos_ai.transport.discord_mode_routing import resolve_discord_mode
-        from eos_ai.transport.mode_behavior import shape_reply
+        from runtime.transport.discord_mode_routing import resolve_discord_mode
+        from runtime.transport.mode_behavior import shape_reply
 
         discord_mode = resolve_discord_mode(gid, cid)
         if reply_text and discord_mode in ("builder", "product"):
@@ -1255,8 +1255,8 @@ def maybe_mirror_discord_text_message(
     ctx_cleared = False
     ctx_checkpoint_used = False
     try:
-        from eos_ai.transport.discord_mode_routing import resolve_discord_mode as _rdm
-        from eos_ai.transport.discord_mode_routing import resolve_mode_session as _rms
+        from runtime.transport.discord_mode_routing import resolve_discord_mode as _rdm
+        from runtime.transport.discord_mode_routing import resolve_mode_session as _rms
 
         _ac_mode = _rdm(gid, cid)
         _ac_session = _rms(_ac_mode, guild_id=gid, channel_id=cid)
@@ -1265,7 +1265,7 @@ def maybe_mirror_discord_text_message(
 
         if _ac_session_name:
             # Get message count for pressure signal
-            from eos_ai.transport.session_control import (
+            from runtime.transport.session_control import (
                 get_message_count,
                 maybe_auto_clear as _maybe_auto_clear,
             )
@@ -1321,7 +1321,7 @@ def maybe_mirror_discord_text_message(
     _ingress_trace = ingress.get("_trace")
     if _ingress_trace is not None:
         try:
-            from eos_ai.transport.execution_trace import (
+            from runtime.transport.execution_trace import (
                 update_trace as _ut_final,
                 finalize_trace as _ft_final,
                 get_trace_history as _gth,
@@ -1503,7 +1503,7 @@ def _claude_responder_ingest(
         }
 
     try:
-        from eos_ai.transport.claude_responder import (
+        from runtime.transport.claude_responder import (
             DEFAULT_SESSION_NAME,
             DEFAULT_TARGET,
             respond_via_claude_session,
@@ -1653,7 +1653,7 @@ def pseudo_live_status() -> dict[str, Any]:
 def _hybrid_execution_status() -> dict[str, Any]:
     """Snapshot of the hybrid execution target policy layer."""
     try:
-        from eos_ai.transport.target_policy import (
+        from runtime.transport.target_policy import (
             POLICY_VERSION,
             resolve_execution_policy,
         )

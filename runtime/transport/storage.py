@@ -3,7 +3,7 @@ Substrate storage — minimal persistence for NodeRegistry and RitualRegistry.
 
 Design rules:
   - Keep the schema TINY. One key/value surface, JSON blobs as values.
-  - Safe default: JSON file at /opt/OS/eos_ai/.substrate_state.json.
+  - Safe default: JSON file at /opt/OS/runtime/.substrate_state.json.
     Always writable, zero migration risk.
   - Optional upgrade: Neon-backed key/value using the existing get_conn() +
     RLS pattern. Creates a single `substrate_state` table on first use.
@@ -15,7 +15,7 @@ registries (nodes, rituals) survive across processes without dragging in a
 migration framework.
 
 Usage:
-    from eos_ai.transport.storage import get_storage
+    from runtime.transport.storage import get_storage
 
     st = get_storage()
     st.put("nodes", {"vps-primary": {...}})
@@ -33,7 +33,7 @@ from typing import Any, Optional, Protocol
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 
-_JSON_PATH = Path(_ROOT) / "eos_ai" / ".substrate_state.json"
+_JSON_PATH = Path(_ROOT) / "runtime" / ".substrate_state.json"
 
 
 def _log(msg: str) -> None:
@@ -122,7 +122,7 @@ class NeonStorage:
     """
 
     def __init__(self) -> None:
-        from eos_ai.db import get_conn, ORG_ID  # import here so module-level fails are caught
+        from runtime.db import get_conn, ORG_ID  # import here so module-level fails are caught
         self._get_conn = get_conn
         self._org_id = ORG_ID
         self._ensure_table()

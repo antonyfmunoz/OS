@@ -13,7 +13,7 @@ import time
 
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'services', '.env'))
 
 DISCORD_MAX_CHARS = 1800
@@ -109,7 +109,7 @@ def post_to_webhook(
     # chunk_message() is the actual fix; validator provides awareness.
     # Never replace content here — that would corrupt the chunking.
     try:
-        from eos_ai.output_validator import OutputValidator
+        from runtime.output_validator import OutputValidator
         validator = OutputValidator()
         result = validator.validate_discord_message(content, 'webhook')
         if result.violations:

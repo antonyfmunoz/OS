@@ -9,8 +9,8 @@ Notebook IDs are stored in .env after manual creation:
     nlm notebook create "Lyfe Institute"
 
 Usage:
-    from eos_ai.context import load_context_from_env
-    from eos_ai.notebooklm_sync import NotebookLMSync
+    from runtime.context import load_context_from_env
+    from runtime.notebooklm_sync import NotebookLMSync
 
     ctx = load_context_from_env()
     nls = NotebookLMSync(ctx)
@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-from eos_ai.context import EOSContext
+from runtime.context import EOSContext
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 
@@ -85,7 +85,7 @@ class NotebookLMSync:
         Called manually or via check_and_update() on Saturdays.
         """
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
 
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
@@ -217,7 +217,7 @@ class NotebookLMSync:
             answer = result.stdout.strip() if result.returncode == 0 else ''
 
             if answer:
-                from eos_ai.db import get_conn
+                from runtime.db import get_conn
                 with get_conn(self.ctx.org_id) as cur:
                     cur.execute(
                         '''
@@ -254,7 +254,7 @@ class NotebookLMSync:
         Retrieve recent NotebookLM insights from Neon for DEX context injection.
         """
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 if venture_id:
                     cur.execute(

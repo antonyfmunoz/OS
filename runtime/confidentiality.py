@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 import os
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 logger = logging.getLogger(__name__)
 PDT = ZoneInfo('America/Los_Angeles')
 
@@ -82,8 +82,8 @@ def create_confidential_session(
     Logs metadata only — no content stored.
     """
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
         now = datetime.now(PDT)
 

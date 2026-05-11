@@ -17,7 +17,7 @@ import os
 from dataclasses import dataclass
 from typing import Any
 
-from eos_ai.transport.environment_contracts import (
+from runtime.transport.environment_contracts import (
     EnvironmentBinding,
     EnvironmentCapability,
     EnvironmentProfile,

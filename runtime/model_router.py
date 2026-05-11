@@ -9,7 +9,7 @@ Used directly by WorldPulse and other modules that need a simple
 "give me the best model for this task" API.
 
 Usage:
-    from eos_ai.model_router import get_router, TaskType
+    from runtime.model_router import get_router, TaskType
 
     router = get_router()
     print(router.get_status())
@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
-from eos_ai.cc_sdk import query_cc_sync, CCResult
+from runtime.cc_sdk import query_cc_sync, CCResult
 
 # Load .env so GEMINI_API_KEY is available when model_router is used standalone
 # (agent_runtime does this too — safe to call twice, dotenv is idempotent)
@@ -854,7 +854,7 @@ def call_with_fallback(
     )
     if cli_enabled:
         try:
-            from eos_ai.transport.claude_responder import (
+            from runtime.transport.claude_responder import (
                 DEFAULT_SESSION_NAME,
                 DEFAULT_TARGET,
                 respond_via_claude_session,
@@ -875,7 +875,7 @@ def call_with_fallback(
             # and product contexts isolated without forking the pipeline.
             mode_label = None
             try:
-                from eos_ai.transport.discord_mode_routing import (
+                from runtime.transport.discord_mode_routing import (
                     current_mode_context,
                 )
 
@@ -1162,7 +1162,7 @@ def _stamp_trace(provider: str, model: str, latency_ms: int, result: str) -> Non
     if "fail" not in result:
         _circuit_record_success()
     try:
-        from eos_ai.transport.execution_trace import get_current_trace, finalize_trace
+        from runtime.transport.execution_trace import get_current_trace, finalize_trace
 
         trace = get_current_trace()
         if trace is not None:

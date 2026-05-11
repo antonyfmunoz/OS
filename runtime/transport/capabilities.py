@@ -10,7 +10,7 @@ for querying which nodes offer a given capability. It is ADDITIVE — it does
 not alter current routing.
 
 Usage:
-    from eos_ai.substrate import Capability, CapabilityRegistry, NodeRegistry
+    from runtime.substrate import Capability, CapabilityRegistry, NodeRegistry
 
     nodes = NodeRegistry.default()
     caps = CapabilityRegistry(nodes)
@@ -23,7 +23,7 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # avoid runtime cycle
-    from eos_ai.transport.nodes import Node, NodeRegistry
+    from runtime.transport.nodes import Node, NodeRegistry
 
 
 class Capability(str, Enum):

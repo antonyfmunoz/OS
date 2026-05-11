@@ -10,7 +10,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 logger = logging.getLogger(__name__)
 PDT = ZoneInfo('America/Los_Angeles')
 
@@ -41,8 +41,8 @@ def log_competitor_signal(
 ) -> bool:
     """Log a competitor signal to Neon."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -71,8 +71,8 @@ def log_competitor_signal(
 def get_recent_signals(venture: str = None, days: int = 7, ctx=None) -> list[dict]:
     """Get recent competitor signals."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -115,7 +115,7 @@ def synthesize_competitive_landscape(venture: str, ctx=None) -> str:
     Pulls from signals + knowledge files.
     """
     try:
-        from eos_ai.model_router import get_router, TaskType
+        from runtime.model_router import get_router, TaskType
         router = get_router()
         model = router.route(TaskType.ANALYSIS) or router.route(TaskType.FAST_RESPONSE)
 

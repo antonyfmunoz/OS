@@ -5,7 +5,7 @@ These are the 10 fundamental building blocks that compose all templates,
 world models, and system behaviors. They are domain-agnostic — they apply
 to business, personal development, and any future domain.
 
-Distinct from eos_ai/primitives.py which contains domain-specific
+Distinct from runtime/primitives.py which contains domain-specific
 business rules (KnowledgePrimitive / PRIMITIVE_LIBRARY).
 """
 

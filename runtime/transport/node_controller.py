@@ -32,8 +32,8 @@ from enum import Enum
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from eos_ai.transport.operator_session import OperatorSession
-    from eos_ai.transport.task_system import Task
+    from runtime.transport.operator_session import OperatorSession
+    from runtime.transport.task_system import Task
 
 
 # ─── Enums ───────────────────────────────────────────────────────────────────
@@ -117,7 +117,7 @@ def _log(msg: str) -> None:
 def _is_local_node_online() -> bool:
     """Check if the local workstation node is registered and online."""
     try:
-        from eos_ai.transport.nodes import NodeRegistry, NodeStatus
+        from runtime.transport.nodes import NodeRegistry, NodeStatus
 
         node = NodeRegistry.default().get(LOCAL_NODE_ID)
         return node is not None and node.status == NodeStatus.ONLINE
@@ -145,7 +145,7 @@ def _is_http_transport_available() -> bool:
 def _is_local_available_via_presence() -> bool:
     """Check station_presence for local availability."""
     try:
-        from eos_ai.transport.station_presence import StationPresenceStore
+        from runtime.transport.station_presence import StationPresenceStore
 
         presence = StationPresenceStore.default().get()
         return presence.local_available
@@ -166,7 +166,7 @@ def get_node_health_summary() -> dict:
         "nodes": [],
     }
     try:
-        from eos_ai.transport.nodes import NodeRegistry, NodeStatus
+        from runtime.transport.nodes import NodeRegistry, NodeStatus
 
         registry = NodeRegistry.default()
         all_nodes = registry.all()
@@ -227,7 +227,7 @@ def route(
     caps: set[str] = set(required_capabilities or set())
     if task is not None and not caps:
         try:
-            from eos_ai.transport.capability_routing import infer_task_capabilities
+            from runtime.transport.capability_routing import infer_task_capabilities
 
             inferred = infer_task_capabilities(task)
             caps = {c.value for c in inferred}

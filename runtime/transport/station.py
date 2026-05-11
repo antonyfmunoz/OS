@@ -7,14 +7,14 @@ contains NO daemon implementation — only the protocol/schema both sides will
 eventually speak.
 
 Design rules:
-  - No raw remote shell. Only SafeAction intents (see eos_ai.substrate.actions).
+  - No raw remote shell. Only SafeAction intents (see runtime.transport.actions).
   - Local node is the trust boundary. The VPS proposes; the station decides.
   - Station advertises capabilities on connect; EOS may not assume any.
   - All messages are JSON-serializable dicts so transport is pluggable
     (WebSocket, HTTP long-poll, SSH tunnel, etc. — chosen later).
 
 Usage (contract consumer side — substrate, not daemon):
-    from eos_ai.substrate import StationContract, StationHeartbeat
+    from runtime.substrate import StationContract, StationHeartbeat
 
     contract = StationContract(node_id="antony-workstation")
     heartbeat = StationHeartbeat(
@@ -32,7 +32,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
-from eos_ai.transport.actions import SafeAction, ActionResult, ActionKind, ActionStatus
+from runtime.transport.actions import SafeAction, ActionResult, ActionKind, ActionStatus
 
 
 # ─── Policy ───────────────────────────────────────────────────────────────────
@@ -153,7 +153,7 @@ class StationContract:
         # namespace so existing subscribers are unaffected until they
         # explicitly subscribe.
         try:
-            from eos_ai.event_bus import EventBus
+            from runtime.event_bus import EventBus
             EventBus().publish_async(
                 f"station.{evt.event_type}",
                 {
@@ -183,7 +183,7 @@ class StationContract:
 
         Accepted actions are written to the in-process inflight table and,
         if a StationBus is available, handed to it for local transport
-        (see eos_ai.substrate.station_bus). Never raises on transport errors —
+        (see runtime.transport.station_bus). Never raises on transport errors —
         actions that cannot be delivered stay inflight for retry/inspection.
         """
         if self.control_mode == ControlMode.OBSERVE:
@@ -207,7 +207,7 @@ class StationContract:
         self._inflight[action.action_id] = action
 
         try:
-            from eos_ai.transport.station_bus import get_station_bus
+            from runtime.transport.station_bus import get_station_bus
             get_station_bus().dispatch(self.node_id, action)
         except Exception as e:
             # Never hard-fail propose() on transport problems. The action

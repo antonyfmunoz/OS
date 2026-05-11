@@ -61,9 +61,9 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Callable, Optional
 
-from eos_ai.transport.nodes import NodeRegistry
-from eos_ai.transport.roles import AgentRole, RoleRegistry
-from eos_ai.transport.station_helpers import propose_speak_text
+from runtime.transport.nodes import NodeRegistry
+from runtime.transport.roles import AgentRole, RoleRegistry
+from runtime.transport.station_helpers import propose_speak_text
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -276,7 +276,7 @@ class VoiceSessionStore:
             if self._loaded:
                 return
             try:
-                from eos_ai.transport.storage import get_storage
+                from runtime.transport.storage import get_storage
 
                 raw = get_storage().get(_STORAGE_KEY, default={}) or {}
             except Exception as e:  # noqa: BLE001
@@ -296,7 +296,7 @@ class VoiceSessionStore:
     def _flush(self) -> None:
         # Caller holds the lock.
         try:
-            from eos_ai.transport.storage import get_storage
+            from runtime.transport.storage import get_storage
 
             payload = {
                 "rows": {sid: s.as_dict() for sid, s in self._by_id.items()},
@@ -446,7 +446,7 @@ def _apply_operator_state(session: "VoiceSession", lifecycle: str) -> None:
     dependency, and the try/except keeps the substrate fully reversible.
     """
     try:
-        from eos_ai.transport.operator_transitions import apply_voice_session
+        from runtime.transport.operator_transitions import apply_voice_session
 
         apply_voice_session(session, lifecycle=lifecycle)
     except Exception as e:  # noqa: BLE001
@@ -566,7 +566,7 @@ class VoiceSessionRuntime:
 
         # Audio loop: close the interaction window. Best-effort.
         try:
-            from eos_ai.transport.audio_loop import mark_inactive
+            from runtime.transport.audio_loop import mark_inactive
 
             mark_inactive(session.node_id)
         except Exception as e:  # noqa: BLE001
@@ -624,7 +624,7 @@ class VoiceSessionRuntime:
         # Audio loop: enter LISTENING_WINDOW + append transcript entry.
         # Best-effort, never raises.
         try:
-            from eos_ai.transport.audio_loop import (
+            from runtime.transport.audio_loop import (
                 mark_listening,
                 record_transcript,
             )
@@ -648,7 +648,7 @@ class VoiceSessionRuntime:
 
         # Audio loop: enter RESPONDING window. Best-effort.
         try:
-            from eos_ai.transport.audio_loop import mark_responding
+            from runtime.transport.audio_loop import mark_responding
 
             mark_responding(session.node_id, voice_session_id=session.session_id)
         except Exception as e:  # noqa: BLE001
@@ -682,7 +682,7 @@ class VoiceSessionRuntime:
 
         # Audio loop: response emitted — enter COOLING_DOWN. Best-effort.
         try:
-            from eos_ai.transport.audio_loop import mark_cooling_down
+            from runtime.transport.audio_loop import mark_cooling_down
 
             mark_cooling_down(session.node_id)
         except Exception as e:  # noqa: BLE001

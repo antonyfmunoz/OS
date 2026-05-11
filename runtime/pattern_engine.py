@@ -6,8 +6,8 @@ across multiple sessions. Surfaces avoidance behaviors, building-over-selling
 tendencies, low follow-through, and late working habits.
 
 Usage:
-    from eos_ai.context import load_context_from_env
-    from eos_ai.pattern_engine import PatternEngine
+    from runtime.context import load_context_from_env
+    from runtime.pattern_engine import PatternEngine
 
     ctx = load_context_from_env()
     pe = PatternEngine(ctx)
@@ -18,7 +18,7 @@ Usage:
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
-from eos_ai.context import EOSContext
+from runtime.context import EOSContext
 
 
 @dataclass
@@ -45,7 +45,7 @@ class PatternEngine:
         """
         patterns: list[Pattern] = []
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             cutoff = (datetime.now() - timedelta(days=days_back)).isoformat()
 
             with get_conn(self.ctx.org_id) as cur:

@@ -8,8 +8,8 @@ stored in the Neon skills table — injected into future relevant agent calls.
 Runs weekly on Wednesdays via orchestrator cron.
 
 Usage:
-    from eos_ai.context import load_context_from_env
-    from eos_ai.research_engine import ResearchEngine
+    from runtime.context import load_context_from_env
+    from runtime.research_engine import ResearchEngine
 
     ctx = load_context_from_env()
     re  = ResearchEngine(ctx)
@@ -33,12 +33,12 @@ if _REPO_ROOT not in sys.path:
 
 load_dotenv(Path(__file__).parent / ".env")
 
-from eos_ai.context import EOSContext
-from eos_ai.cognitive_loop import CognitiveLoop
-from eos_ai.agent_runtime import TaskType
-from eos_ai.db import get_conn
-from eos_ai.memory import AgentMemory
-from eos_ai.venture_knowledge import VentureKnowledgeBase
+from runtime.context import EOSContext
+from runtime.cognitive_loop import CognitiveLoop
+from runtime.agent_runtime import TaskType
+from runtime.db import get_conn
+from runtime.memory import AgentMemory
+from runtime.venture_knowledge import VentureKnowledgeBase
 from runtime.strategy_engine import _parse_labeled_sections
 
 
@@ -236,7 +236,7 @@ class ResearchEngine:
             topic, venture_id, summary, confidence, sources_quality,
             knowledge_object, raw_output, researched_at
         """
-        from eos_ai.scrapling_connector import ScraplingConnector
+        from runtime.scrapling_connector import ScraplingConnector
 
         venture_context = ""
         if venture_id:
@@ -273,7 +273,7 @@ class ResearchEngine:
         # Permanently integrate scraped pages into knowledge base
         if _scraped_pages:
             try:
-                from eos_ai.knowledge_integrator import KnowledgeIntegrator
+                from runtime.knowledge_integrator import KnowledgeIntegrator
                 ki = KnowledgeIntegrator(self.ctx)
                 ki.integrate_search_result(topic, _scraped_pages)
             except Exception as _ki_e:
@@ -484,8 +484,8 @@ class ResearchEngine:
         Updates COST_PER_MILLION_TOKENS in-memory for this session.
         """
         import os as _os
-        from eos_ai.model_preferences import PROVIDER_CONFIGS
-        from eos_ai.knowledge_domains import KnowledgeDomainRegistry
+        from runtime.model_preferences import PROVIDER_CONFIGS
+        from runtime.knowledge_domains import KnowledgeDomainRegistry
 
         use_perplexity = bool(_os.getenv('PERPLEXITY_API_KEY'))
 
@@ -527,7 +527,7 @@ class ResearchEngine:
 
         # Permanently integrate into knowledge base
         try:
-            from eos_ai.knowledge_integrator import KnowledgeIntegrator
+            from runtime.knowledge_integrator import KnowledgeIntegrator
             from datetime import datetime as _dt
             ki = KnowledgeIntegrator(self.ctx)
             ki.integrate(
@@ -542,7 +542,7 @@ class ResearchEngine:
         # Parse and update COST_PER_MILLION_TOKENS in-memory
         updated_costs = self._parse_model_costs(result.output or '')
         if updated_costs:
-            import eos_ai.agent_runtime as _ar
+            import runtime.agent_runtime as _ar
             _ar.COST_PER_MILLION_TOKENS.update(updated_costs)
 
         return {
@@ -610,7 +610,7 @@ class ResearchEngine:
 
         Returns summary dict with scores and updated domain keys.
         """
-        from eos_ai.knowledge_domains import KnowledgeDomainRegistry
+        from runtime.knowledge_domains import KnowledgeDomainRegistry
 
         print("[ResearchEngine] ── Domain update cycle start ──")
         registry = KnowledgeDomainRegistry()

@@ -8,11 +8,11 @@ Cron:
     0 23 * * * python3 -c "
     import sys; sys.path.insert(0, '/opt/OS')
     from dotenv import load_dotenv
-    load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+    load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
     load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'services', '.env'))
-    from eos_ai.email_reviewer import EmailReviewer
-    from eos_ai.context import load_context_from_env
-    from eos_ai.discord_utils import post_to_webhook
+    from runtime.email_reviewer import EmailReviewer
+    from runtime.context import load_context_from_env
+    from runtime.discord_utils import post_to_webhook
     import os
     ctx = load_context_from_env()
     er = EmailReviewer(ctx)
@@ -37,7 +37,7 @@ class EmailReviewer:
 
     def run_nightly_review(self) -> str:
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
 
             since = (datetime.now() - timedelta(hours=24)).isoformat()
 
@@ -144,7 +144,7 @@ class EmailReviewer:
     def _store_report(self, report: str) -> None:
         """Persist report to Neon so morning sync can include it."""
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
 
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(

@@ -94,7 +94,7 @@ class ResultStore:
             if self._loaded:
                 return
             try:
-                from eos_ai.transport.storage import get_storage
+                from runtime.transport.storage import get_storage
 
                 raw = get_storage().get(_STORAGE_KEY, default={}) or {}
             except Exception as e:
@@ -117,7 +117,7 @@ class ResultStore:
     def _flush(self) -> None:
         # Caller holds the lock.
         try:
-            from eos_ai.transport.storage import get_storage
+            from runtime.transport.storage import get_storage
 
             payload = {
                 "rows": {aid: r.as_dict() for aid, r in self._by_action.items()},

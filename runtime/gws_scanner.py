@@ -11,8 +11,8 @@ Features:
   - Venture routing — maps each doc to the right company
 
 Usage:
-    from eos_ai.context import load_context_from_env
-    from eos_ai.gws_scanner import GWSDocumentScanner
+    from runtime.context import load_context_from_env
+    from runtime.gws_scanner import GWSDocumentScanner
 
     ctx = load_context_from_env()
     scanner = GWSDocumentScanner(ctx)
@@ -30,7 +30,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-from eos_ai.context import EOSContext
+from runtime.context import EOSContext
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 
@@ -155,7 +155,7 @@ class GWSDocumentScanner:
         Queries the events table where KnowledgeIntegrator logs metadata.
         """
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     """
@@ -212,7 +212,7 @@ class GWSDocumentScanner:
             }
 
         try:
-            from eos_ai.agent_runtime import AgentRuntime, TaskType
+            from runtime.agent_runtime import AgentRuntime, TaskType
             rt = AgentRuntime(self.ctx)
 
             result = rt.run(
@@ -402,7 +402,7 @@ class GWSDocumentScanner:
         """
         ingested = 0
         try:
-            from eos_ai.knowledge_integrator import KnowledgeIntegrator
+            from runtime.knowledge_integrator import KnowledgeIntegrator
             ki = KnowledgeIntegrator(self.ctx)
 
             for doc in documents:
@@ -476,7 +476,7 @@ class GWSDocumentScanner:
 
         if not ends_complete:
             try:
-                from eos_ai.agent_runtime import TaskType
+                from runtime.agent_runtime import TaskType
                 continuation = rt.run(
                     task_type=TaskType.GENERATE,
                     prompt=(
@@ -529,7 +529,7 @@ class GWSDocumentScanner:
                 )
                 by_venture.setdefault(doc.venture_id, []).append(entry)
 
-        from eos_ai.agent_runtime import AgentRuntime, TaskType
+        from runtime.agent_runtime import AgentRuntime, TaskType
         rt = AgentRuntime(self.ctx)
         sections: list[str] = []
 
@@ -656,7 +656,7 @@ class GWSDocumentScanner:
 
         # Post to Discord
         try:
-            from eos_ai.discord_utils import post_to_webhook
+            from runtime.discord_utils import post_to_webhook
             post_to_webhook(
                 profile,
                 title='📊 EOS LEARNING REPORT',

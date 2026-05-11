@@ -8,11 +8,11 @@ remote GPU box, future mobile companion) without hardcoding machine names.
 
 This is SCAFFOLDING. It does not replace current routing. The model_router
 continues to make its own decisions. Eventually capability-aware routing
-(see eos_ai.substrate.capabilities) will consult the node registry to pick
+(see runtime.transport.capabilities) will consult the node registry to pick
 a target, but that integration is intentionally deferred.
 
 Usage:
-    from eos_ai.substrate import NodeRegistry, Node, NodeType, NodeStatus
+    from runtime.substrate import NodeRegistry, Node, NodeType, NodeStatus
 
     reg = NodeRegistry.default()
     reg.upsert(Node(
@@ -60,7 +60,7 @@ class Node:
     A single execution target the substrate can reason about.
 
     `capabilities` is a list of capability slugs — kept as plain strings so
-    this module has no import-cycle with eos_ai.substrate.capabilities.
+    this module has no import-cycle with runtime.transport.capabilities.
     Callers can validate against `Capability` from that module when needed.
     """
 
@@ -85,7 +85,7 @@ class NodeRegistry:
     Persistent node registry.
 
     State is held in memory for fast access and flushed through
-    eos_ai.substrate.storage on every upsert/remove, so nodes survive across
+    runtime.transport.storage on every upsert/remove, so nodes survive across
     processes. Storage falls back to a JSON file if Neon is unavailable.
     """
 
@@ -101,7 +101,7 @@ class NodeRegistry:
     # ─── Persistence ──────────────────────────────────────────────────────
     def _load(self) -> None:
         try:
-            from eos_ai.transport.storage import get_storage
+            from runtime.transport.storage import get_storage
 
             raw = get_storage().get(self._STORAGE_KEY, default={}) or {}
             for node_id, data in raw.items():
@@ -123,7 +123,7 @@ class NodeRegistry:
         if not self._persist:
             return
         try:
-            from eos_ai.transport.storage import get_storage
+            from runtime.transport.storage import get_storage
 
             payload = {
                 nid: {

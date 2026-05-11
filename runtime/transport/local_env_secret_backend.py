@@ -19,7 +19,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from eos_ai.transport.secret_broker_contracts import (
+from runtime.transport.secret_broker_contracts import (
     SecretBackendType,
     SecretRef,
     SecretScope,

@@ -221,7 +221,7 @@ def check_windows_desktop_adapter_available() -> dict[str, Any]:
     Returns a status dict.
     """
     try:
-        from eos_ai.transport.windows_desktop_relay_client import (
+        from runtime.transport.windows_desktop_relay_client import (
             check_relay_available,
         )
 
@@ -254,7 +254,7 @@ def route_to_windows_desktop_adapter(
         from core.environment_bridge.windows_desktop_request_builder import (
             build_w0_chrome_open_request,
         )
-        from eos_ai.transport.windows_desktop_relay_client import (
+        from runtime.transport.windows_desktop_relay_client import (
             send_request_and_wait,
         )
 
@@ -662,12 +662,12 @@ def _execute_approved_action(packet: dict[str, Any], response: dict[str, Any]) -
             "metadata_evidence": proof.metadata_evidence,
             "process_count": len(processes),
             "how_to_confirm": (
-                "python3 /opt/OS/eos_ai/substrate/write_founder_gate_confirmation.py "
+                "python3 /opt/OS/runtime/transport/write_founder_gate_confirmation.py "
                 f"--work-order-id {wo_id} --gate VISIBLE_CHROME_LAUNCH "
                 "--confirmed true --notes 'Chrome visibly open'"
             ),
             "how_to_deny": (
-                "python3 /opt/OS/eos_ai/substrate/write_founder_gate_confirmation.py "
+                "python3 /opt/OS/runtime/transport/write_founder_gate_confirmation.py "
                 f"--work-order-id {wo_id} --gate VISIBLE_CHROME_LAUNCH "
                 "--confirmed false --notes 'Chrome not visible'"
             ),

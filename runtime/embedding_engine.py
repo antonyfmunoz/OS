@@ -20,10 +20,10 @@ from dotenv import load_dotenv
 
 # Load env vars from all known .env locations so GEMINI_API_KEY is available
 # regardless of which entry point started the process.
-# services/.env first (operational keys), eos_ai/.env second (AI keys, wins on conflict).
+# services/.env first (operational keys), runtime/.env second (AI keys, wins on conflict).
 _REPO_ROOT = Path(__file__).parent.parent
 load_dotenv(_REPO_ROOT / 'services' / '.env')
-load_dotenv(_REPO_ROOT / 'eos_ai' / '.env', override=True)
+load_dotenv(_REPO_ROOT / 'runtime' / '.env', override=True)
 
 
 class EmbeddingEngine:
@@ -217,7 +217,7 @@ class EmbeddingEngine:
             return False
 
         # DB write stage
-        from eos_ai.db import get_conn
+        from runtime.db import get_conn
         try:
             with get_conn(org_id) as cur:
                 cur.execute(
@@ -271,7 +271,7 @@ class EmbeddingEngine:
         if not query_vector:
             return self._recent_fallback(org_id, limit, venture_id)
 
-        from eos_ai.db import get_conn
+        from runtime.db import get_conn
         import json
         try:
             with get_conn(org_id) as cur:
@@ -354,7 +354,7 @@ class EmbeddingEngine:
             }
 
         import time
-        from eos_ai.db import get_conn
+        from runtime.db import get_conn
 
         with get_conn(org_id) as cur:
             cur.execute(
@@ -410,6 +410,6 @@ class EmbeddingEngine:
         venture_id: str | None,
     ) -> list[dict]:
         """Recency-based fallback when all embedding tiers fail."""
-        from eos_ai.memory import AgentMemory
+        from runtime.memory import AgentMemory
         mem = AgentMemory()
         return mem.get_recent(venture_id=venture_id, limit=limit)

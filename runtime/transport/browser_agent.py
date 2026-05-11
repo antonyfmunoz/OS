@@ -2,7 +2,7 @@
 Browser agent — real Playwright execution surface for the substrate.
 
 Generic browser automation layer using headless Chromium via Playwright.
-NOT EOS-specific. Does not import anything from eos_ai.platforms.
+NOT EOS-specific. Does not import anything from runtime.platforms.
 
 Design rules (substrate conventions):
 - Additive only. Hot path never imported.
@@ -13,7 +13,7 @@ Design rules (substrate conventions):
 - Reversible. Removing this file leaves the substrate intact.
 
 Usage:
-    from eos_ai.transport.browser_agent import execute_browser_action, BrowserActionType
+    from runtime.transport.browser_agent import execute_browser_action, BrowserActionType
     result = execute_browser_action(BrowserActionType.OPEN_URL, {"url": "https://example.com"})
 """
 
@@ -61,7 +61,7 @@ def _stream_browser_event(
 ) -> None:
     """Best-effort streaming event for browser actions."""
     try:
-        from eos_ai.platforms.eos.streaming_bridge import StreamEventType, stream_event
+        from runtime.platforms.eos.streaming_bridge import StreamEventType, stream_event
 
         narration = _BROWSER_ACTION_NARRATION.get(
             action.value, f"Browser: {action.value}..."
@@ -90,7 +90,7 @@ def _stream_browser_result(
 ) -> None:
     """Best-effort streaming event for browser action results."""
     try:
-        from eos_ai.platforms.eos.streaming_bridge import StreamEventType, stream_event
+        from runtime.platforms.eos.streaming_bridge import StreamEventType, stream_event
 
         if result.ok:
             msg = f"Done: {result.data[:80]}" if result.data else "Done."

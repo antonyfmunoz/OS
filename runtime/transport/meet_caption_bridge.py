@@ -28,7 +28,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
-BRIDGE_ROOT: Path = Path(_ROOT) / "eos_ai" / ".substrate_station" / "meet_captions"
+BRIDGE_ROOT: Path = Path(_ROOT) / "runtime" / ".substrate_station" / "meet_captions"
 SCHEMA_VERSION = 1
 SOURCE_TAG = "google_meet"
 

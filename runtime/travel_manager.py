@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 logger = logging.getLogger(__name__)
 PDT = ZoneInfo('America/Los_Angeles')
 
@@ -48,8 +48,8 @@ def build_travel_brief(
 ) -> str:
     """Build a complete travel logistics brief."""
     try:
-        from eos_ai.model_router import get_router, TaskType
-        from eos_ai.context import load_context_from_env as _lctx
+        from runtime.model_router import get_router, TaskType
+        from runtime.context import load_context_from_env as _lctx
         router = get_router()
 
         # Substrate-neutral traveler/home base framing from ctx.
@@ -118,8 +118,8 @@ def log_trip(
 ) -> bool:
     """Log a trip to Neon."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -153,7 +153,7 @@ def research_flights(
 ) -> str:
     """Research flight options (informational — no booking)."""
     try:
-        from eos_ai.model_router import get_router, TaskType
+        from runtime.model_router import get_router, TaskType
         router = get_router()
 
         return router.call_with_fallback(TaskType.FAST_RESPONSE, f"""Research flight options.
@@ -186,7 +186,7 @@ def research_hotels(
 ) -> str:
     """Research hotel options (informational — no booking)."""
     try:
-        from eos_ai.model_router import get_router, TaskType
+        from runtime.model_router import get_router, TaskType
         router = get_router()
 
         return router.call_with_fallback(TaskType.FAST_RESPONSE, f"""Research hotel options.
@@ -217,7 +217,7 @@ def research_restaurants(
 ) -> str:
     """Research restaurant options for a city and occasion."""
     try:
-        from eos_ai.model_router import get_router, TaskType
+        from runtime.model_router import get_router, TaskType
         router = get_router()
 
         return router.call_with_fallback(TaskType.FAST_RESPONSE, f"""Research restaurant options.
@@ -250,8 +250,8 @@ def generate_trip_itinerary(
 ) -> str:
     """Generate a day-by-day trip itinerary document and save to Drive."""
     try:
-        from eos_ai.model_router import get_router, TaskType
-        from eos_ai.gws_connector import GWSConnector
+        from runtime.model_router import get_router, TaskType
+        from runtime.gws_connector import GWSConnector
         router = get_router()
 
         meetings_text = '\n'.join(f'- {m}' for m in (meetings or [])) if meetings else 'No meetings confirmed yet'
@@ -302,8 +302,8 @@ def log_loyalty_program(
 ) -> bool:
     """Track a travel loyalty program membership."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -340,7 +340,7 @@ def reconcile_trip_expenses(
     expenses: [{"description": str, "amount": float, "category": str}]
     """
     try:
-        from eos_ai.expense_tracker import store_expense
+        from runtime.expense_tracker import store_expense
         total = 0.0
         stored = 0
         for exp in expenses:

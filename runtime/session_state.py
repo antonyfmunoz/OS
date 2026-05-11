@@ -2,7 +2,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-STATE_FILE = Path(__file__).parent.parent / 'eos_ai' / 'session_state.json'
+STATE_FILE = Path(__file__).parent / 'session_state.json'
 
 
 class SessionState:

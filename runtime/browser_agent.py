@@ -6,7 +6,7 @@ Same pattern as gws_connector.py — a clean wrapper that agents call,
 it executes in the browser, returns results.
 
 Usage:
-    from eos_ai.browser_agent import BrowserAgent, run_browser_task
+    from runtime.browser_agent import BrowserAgent, run_browser_task
 
     # Full control
     agent = BrowserAgent()
@@ -30,7 +30,7 @@ from dotenv import load_dotenv
 
 _ROOT = Path(__file__).parent.parent
 load_dotenv(_ROOT / 'services' / '.env')
-load_dotenv(_ROOT / 'eos_ai' / '.env', override=True)
+load_dotenv(_ROOT / 'runtime' / '.env', override=True)
 
 
 class BrowserAgent:
@@ -287,10 +287,10 @@ class BrowserAgent:
             final_url:    str,
           }
         """
-        from eos_ai.agent_runtime import AgentRuntime, TaskType
+        from runtime.agent_runtime import AgentRuntime, TaskType
 
         if not ctx:
-            from eos_ai.context import load_context_from_env
+            from runtime.context import load_context_from_env
             ctx = load_context_from_env()
 
         # Capture initial page state to give the planner real context

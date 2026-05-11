@@ -9,8 +9,8 @@ Also absorbs single-user venture health scanning (formerly PortfolioAgent).
 One class — full portfolio intelligence.
 
 Usage:
-    from eos_ai.context import load_context_from_env
-    from eos_ai.portfolio_advisor import PortfolioAdvisor, VentureHealth
+    from runtime.context import load_context_from_env
+    from runtime.portfolio_advisor import PortfolioAdvisor, VentureHealth
 
     ctx = load_context_from_env()
     pa  = PortfolioAdvisor(ctx)
@@ -25,9 +25,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
-from eos_ai.context import EOSContext, load_context_from_env
-from eos_ai.db import get_conn
-from eos_ai.agent_runtime import AgentRuntime, TaskType
+from runtime.context import EOSContext, load_context_from_env
+from runtime.db import get_conn
+from runtime.agent_runtime import AgentRuntime, TaskType
 
 
 # ─── VentureHealth ────────────────────────────────────────────────────────────
@@ -212,7 +212,7 @@ class PortfolioAdvisor:
         # Ground the advisory in real strategy analysis
         strategy_context = ""
         try:
-            from eos_ai.strategy_engine import StrategyEngine
+            from runtime.strategy_engine import StrategyEngine
             se       = StrategyEngine(self.ctx)
             position = se.analyze_company_position(self.ctx.org_id)
             strategy_context = (
@@ -375,9 +375,9 @@ trajectory of the next 90 days.]"""
         # Append DRIP scan and Drive health to weekly output
         _extra: list[str] = []
         try:
-            from eos_ai.task_yield_matrix import run_yield_audit
+            from runtime.task_yield_matrix import run_yield_audit
             import json as _json
-            from eos_ai.db import get_conn as _get_conn
+            from runtime.db import get_conn as _get_conn
             with _get_conn(self.ctx.org_id) as _cur:
                 _cur.execute(
                     """SELECT payload_json FROM events
@@ -415,7 +415,7 @@ trajectory of the next 90 days.]"""
             pass
 
         try:
-            from eos_ai.gws_connector import GWSConnector
+            from runtime.gws_connector import GWSConnector
             _gws = GWSConnector()
             _issues = _gws.audit_drive()
             _root_count = len(_issues.get('root_files', []))
@@ -538,8 +538,8 @@ trajectory of the next 90 days.]"""
         # If no events-based ventures, fall back to VentureKnowledgeBase
         if not ventures:
             try:
-                from eos_ai.venture_knowledge import VentureKnowledgeBase
-                from eos_ai.business_instance import BusinessInstanceManager
+                from runtime.venture_knowledge import VentureKnowledgeBase
+                from runtime.business_instance import BusinessInstanceManager
 
                 bim = BusinessInstanceManager(self.ctx)
                 for vid in VentureKnowledgeBase.list_ventures():

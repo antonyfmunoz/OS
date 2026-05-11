@@ -5,8 +5,8 @@ Purpose
 -------
 This is the first real intelligence adapter for the bounded voice session
 substrate. It plugs into the existing `set_voice_responder(...)` seam in
-`eos_ai.substrate.voice_session` and routes utterances into EOS via the
-safest available entrypoint: `eos_ai.model_router.call_with_fallback`.
+`runtime.transport.voice_session` and routes utterances into EOS via the
+safest available entrypoint: `runtime.model_router.call_with_fallback`.
 
 Design rules
 ------------
@@ -45,7 +45,7 @@ from typing import Optional
 
 # These imports are intentionally late-bound where possible so importing
 # this module never breaks the substrate even if model_router is sick.
-from eos_ai.transport.voice_session import (
+from runtime.transport.voice_session import (
     VoiceResponder,
     VoiceSession,
     set_voice_responder,
@@ -226,7 +226,7 @@ def _eos_voice_responder(session: VoiceSession, utterance: str) -> str:
 
     # Late import so a router import error never poisons module load.
     try:
-        from eos_ai.model_router import call_with_fallback
+        from runtime.model_router import call_with_fallback
     except Exception as e:  # noqa: BLE001
         _log(f"model_router import failed: {e}")
         _record_responder_meta(

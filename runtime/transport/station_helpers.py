@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from typing import Optional
 
-from eos_ai.transport.actions import ActionKind, SafeAction
-from eos_ai.transport.station import ControlMode, StationContract
+from runtime.transport.actions import ActionKind, SafeAction
+from runtime.transport.station import ControlMode, StationContract
 
 
 def _contract_in_drive(node_id: str) -> StationContract:

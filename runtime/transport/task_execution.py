@@ -22,9 +22,9 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from eos_ai.transport.operator_session import OperatorSession
+    from runtime.transport.operator_session import OperatorSession
 
-from eos_ai.transport.task_system import (
+from runtime.transport.task_system import (
     Task,
     TaskExecutionPolicy,
     TaskStatus,
@@ -182,12 +182,12 @@ def _execute_via_pipeline(
     Creates or loads the task's pipeline, executes it, and mirrors the
     pipeline state back to the task.
     """
-    from eos_ai.transport.task_pipeline import (
+    from runtime.transport.task_pipeline import (
         PipelineStatus,
         PipelineStore,
     )
-    from eos_ai.transport.task_decomposition import decompose_task
-    from eos_ai.transport.pipeline_execution import execute_pipeline
+    from runtime.transport.task_decomposition import decompose_task
+    from runtime.transport.pipeline_execution import execute_pipeline
 
     store = TaskStore.default()
     pipe_store = PipelineStore.default()
@@ -230,7 +230,7 @@ def _sync_pipeline_to_task(task: Task, pipeline: "TaskPipeline") -> None:
     routing_reason, execution_result) stay populated for backward
     compatibility with code that reads tasks but not pipelines.
     """
-    from eos_ai.transport.task_pipeline import PipelineStatus
+    from runtime.transport.task_pipeline import PipelineStatus
 
     status_map = {
         PipelineStatus.COMPLETED: TaskStatus.COMPLETED,
@@ -255,7 +255,7 @@ def _sync_pipeline_to_task(task: Task, pipeline: "TaskPipeline") -> None:
     # ── Sync required_capabilities from routing ──────────────────────────
     if not task.required_capabilities:
         try:
-            from eos_ai.transport.capability_routing import infer_task_capabilities
+            from runtime.transport.capability_routing import infer_task_capabilities
 
             caps = infer_task_capabilities(task)
             task.required_capabilities = [
@@ -289,7 +289,7 @@ def _execute_legacy(
     store = TaskStore.default()
 
     # ── Route the task ──────────────────────────────────────────────────────
-    from eos_ai.transport.capability_routing import route_task
+    from runtime.transport.capability_routing import route_task
 
     route_task(task, session, local_available)
 
@@ -312,7 +312,7 @@ def _execute_legacy(
     dispatch_text = _build_dispatch_text(task)
 
     try:
-        from eos_ai.transport.claude_session_bridge import ask_session
+        from runtime.transport.claude_session_bridge import ask_session
 
         result = ask_session(
             tmux_target,
@@ -408,7 +408,7 @@ def run_overnight_execution(
             "task_results": [{"task_id": str, "status": str, "target": str}, ...],
         }
     """
-    from eos_ai.transport.task_queue import get_tasks_sorted_for_execution
+    from runtime.transport.task_queue import get_tasks_sorted_for_execution
 
     tasks = get_tasks_sorted_for_execution()[:max_tasks]
 

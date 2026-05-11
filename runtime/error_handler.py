@@ -9,7 +9,7 @@ Principle:
   5. All error events logged to Neon events table
 
 Usage:
-    from eos_ai.error_handler import ErrorHandler, with_retry
+    from runtime.error_handler import ErrorHandler, with_retry
 
     eh = ErrorHandler('dm_monitor', ctx)
 
@@ -100,7 +100,7 @@ ERROR_POLICIES: dict[str, dict] = {
         'alert_message': (
             '🔴 Neon database connection failed.\n'
             'All AI operations paused.\n'
-            'Action: check DATABASE_URL in eos_ai/.env\n'
+            'Action: check DATABASE_URL in runtime/.env\n'
             'Resume: docker restart os-bot os-monitor'
         ),
     },
@@ -278,7 +278,7 @@ class ErrorHandler:
         )
 
         try:
-            from eos_ai.channel import get_channel_router
+            from runtime.channel import get_channel_router
             get_channel_router().notify(full_msg)
         except Exception:
             pass  # never let alerting crash the service
@@ -294,7 +294,7 @@ class ErrorHandler:
         """Log error to Neon events table. Silent on all failures."""
         try:
             if self.ctx:
-                from eos_ai.memory import AgentMemory
+                from runtime.memory import AgentMemory
                 AgentMemory().log_event(
                     org_id=self.ctx.org_id,
                     event_type='system_error',

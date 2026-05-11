@@ -10,7 +10,7 @@ Used by CognitiveLoop (PERCEIVE injection) and Gateway (routing) to ensure
 unnecessary escalation.
 
 Usage:
-    from eos_ai.agent_hierarchy import AgentHierarchy, HIERARCHY
+    from runtime.agent_hierarchy import AgentHierarchy, HIERARCHY
 
     ah = AgentHierarchy()
     print(ah.get_org_chart())

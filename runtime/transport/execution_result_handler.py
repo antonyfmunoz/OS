@@ -8,7 +8,7 @@ state, and emits lifecycle follow-up events.
 This is the ONLY path for execution results to affect runtime state.
 
 Usage:
-    from eos_ai.transport.execution_result_handler import ExecutionResultHandler
+    from runtime.transport.execution_result_handler import ExecutionResultHandler
 
     handler = ExecutionResultHandler(
         primitive_emission_map={"extract_response": ["response_extracted"]},
@@ -25,18 +25,18 @@ import sys
 from datetime import datetime, timezone
 from typing import Any
 
-from eos_ai.transport.execution_contract import (
+from runtime.transport.execution_contract import (
     ExecutionClass,
     ExecutionRequest,
     ExecutionResult,
     ExecutionStatus,
 )
-from eos_ai.transport.execution_events import build_execution_retried_event
-from eos_ai.transport.event_scheduler import (
+from runtime.transport.execution_events import build_execution_retried_event
+from runtime.transport.event_scheduler import (
     ExecutionResult as SchedulerExecutionResult,
     SchedulerEvent,
 )
-from eos_ai.transport.runtime_state_store import RuntimeStateStore
+from runtime.transport.runtime_state_store import RuntimeStateStore
 
 _LOG_PREFIX = "[substrate.execution_result_handler]"
 

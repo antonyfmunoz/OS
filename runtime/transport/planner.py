@@ -32,8 +32,8 @@ import json
 import sys
 from typing import Any, Callable
 
-from eos_ai.transport.decision_engine import DecisionOutput, _compute_state_hash
-from eos_ai.transport.intent_models import (
+from runtime.transport.decision_engine import DecisionOutput, _compute_state_hash
+from runtime.transport.intent_models import (
     Intent,
     IntentStatus,
     IntentType,

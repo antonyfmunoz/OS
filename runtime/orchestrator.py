@@ -5,10 +5,10 @@ Reads venture KPIs, queries 7-day memory stats, identifies the binding
 constraint, and dispatches the morning brief via Telegram.
 
 Usage (manual):
-    python3 eos_ai/orchestrator.py
+    python3 runtime/orchestrator.py
 
 Cron (6am daily):
-    0 6 * * * cd /opt/OS && python3 eos_ai/orchestrator.py >> logs/orchestrator.log 2>&1
+    0 6 * * * cd /opt/OS && python3 runtime/orchestrator.py >> logs/orchestrator.log 2>&1
 """
 
 import json
@@ -27,11 +27,11 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from eos_ai.agent_runtime import AgentRuntime, TaskType
-from eos_ai.context import EOSContext
-from eos_ai.db import get_conn, resolve_venture
-from eos_ai.memory import AgentMemory
-from eos_ai.venture_knowledge import VentureKnowledgeBase
+from runtime.agent_runtime import AgentRuntime, TaskType
+from runtime.context import EOSContext
+from runtime.db import get_conn, resolve_venture
+from runtime.memory import AgentMemory
+from runtime.venture_knowledge import VentureKnowledgeBase
 
 VAULT = Path(_REPO_ROOT)
 DAILY_DIR = VAULT / "orchestrator" / "daily"
@@ -44,7 +44,7 @@ POSTMORTEM_DIR = VAULT / "orchestrator" / "postmortems"
 def _notify(text: str) -> None:
     """Send notification via channel router."""
     try:
-        from eos_ai.channel import get_channel_router
+        from runtime.channel import get_channel_router
 
         router = get_channel_router()
         router.notify(text)
@@ -56,7 +56,7 @@ def _send_discord_webhook(
     env_var: str, content: str, title: str = "", username: str = "DEX"
 ) -> None:
     """Post to a Discord channel via incoming webhook URL stored in env."""
-    from eos_ai.discord_utils import post_to_webhook
+    from runtime.discord_utils import post_to_webhook
 
     webhook_url = os.getenv(env_var, "")
     if not webhook_url:
@@ -94,8 +94,8 @@ class CEOAgent:
         human_tasks counts.
         """
         import json
-        from eos_ai.coordination_engine import CoordinationEngine
-        from eos_ai.gateway import get_gateway as _get_gw
+        from runtime.coordination_engine import CoordinationEngine
+        from runtime.gateway import get_gateway as _get_gw
 
         # Step 1: break objective into department-level sub-objectives via gateway
         _gw = _get_gw()
@@ -363,7 +363,7 @@ def run_full_morning_cycle(ctx: EOSContext, return_content: bool = False):
 
     # 0. Sync Claude skills to Neon on startup
     try:
-        from eos_ai.claude_skill_registry import ClaudeSkillRegistryManager
+        from runtime.claude_skill_registry import ClaudeSkillRegistryManager
 
         csrm = ClaudeSkillRegistryManager()
         csrm.sync_to_neon(ctx)
@@ -374,7 +374,7 @@ def run_full_morning_cycle(ctx: EOSContext, return_content: bool = False):
     board_view = ""
     pa = None
     try:
-        from eos_ai.portfolio_advisor import PortfolioAdvisor
+        from runtime.portfolio_advisor import PortfolioAdvisor
 
         pa = PortfolioAdvisor(ctx)
         board_view = pa.morning_advisory()
@@ -410,7 +410,7 @@ def run_full_morning_cycle(ctx: EOSContext, return_content: bool = False):
 
     # 2b. CEO Agent evolution check — stage transitions + org chart
     try:
-        from eos_ai.ceo_agent import CEOAgent as _CEOEvolutionAgent
+        from runtime.ceo_agent import CEOAgent as _CEOEvolutionAgent
 
         _ceo_evo = _CEOEvolutionAgent(ctx)
         _evo_changes = _ceo_evo.check_and_evolve()
@@ -431,7 +431,7 @@ def run_full_morning_cycle(ctx: EOSContext, return_content: bool = False):
     # 2c. Portfolio Agent — venture health scan
     portfolio_brief = ""
     try:
-        from eos_ai.portfolio_advisor import PortfolioAdvisor
+        from runtime.portfolio_advisor import PortfolioAdvisor
 
         pa_agent = PortfolioAdvisor(ctx)
         _ventures = pa_agent.scan_all_ventures()
@@ -444,7 +444,7 @@ def run_full_morning_cycle(ctx: EOSContext, return_content: bool = False):
     # 3. Strategy Engine binding constraint
     binding = ""
     try:
-        from eos_ai.strategy_engine import StrategyEngine
+        from runtime.strategy_engine import StrategyEngine
 
         se = StrategyEngine(ctx)
         pulse = se.analyze_portfolio_strategy()
@@ -457,7 +457,7 @@ def run_full_morning_cycle(ctx: EOSContext, return_content: bool = False):
     # 4. Reality signals — overnight scan
     critical_signals: list[dict] = []
     try:
-        from eos_ai.reality_engine import RealityIntelligenceEngine
+        from runtime.reality_engine import RealityIntelligenceEngine
 
         rie = RealityIntelligenceEngine(ctx)
         signals = rie.process_signal_queue()
@@ -473,7 +473,7 @@ def run_full_morning_cycle(ctx: EOSContext, return_content: bool = False):
     # 5. Pending approvals across all companies
     pending: list = []
     try:
-        from eos_ai.authority_engine import AuthorityEngine
+        from runtime.authority_engine import AuthorityEngine
 
         ae = AuthorityEngine(ctx)
         pending = ae.get_pending()
@@ -484,7 +484,7 @@ def run_full_morning_cycle(ctx: EOSContext, return_content: bool = False):
     # 6. Knowledge graph patterns
     patterns: list[dict] = []
     try:
-        from eos_ai.knowledge_graph import KnowledgeGraph
+        from runtime.knowledge_graph import KnowledgeGraph
 
         kg = KnowledgeGraph(ctx)
         for vid in VentureKnowledgeBase.list_ventures():
@@ -500,7 +500,7 @@ def run_full_morning_cycle(ctx: EOSContext, return_content: bool = False):
     calendar_section = "📅 TODAY\nNo events scheduled"
     tasks_section = "✅ TASKS\nNo pending tasks"
     try:
-        from eos_ai.gws_connector import GWSConnector
+        from runtime.gws_connector import GWSConnector
 
         gws = GWSConnector()
 
@@ -538,7 +538,7 @@ def run_full_morning_cycle(ctx: EOSContext, return_content: bool = False):
     # Write to Notion
     notion_url = ""
     try:
-        from eos_ai.notion_publisher import get_publisher
+        from runtime.notion_publisher import get_publisher
 
         publisher = get_publisher(ctx)
         notion_url = publisher.publish_morning_brief(content=brief_content)
@@ -595,7 +595,7 @@ def run_full_morning_cycle(ctx: EOSContext, return_content: bool = False):
 
     # 8c. World pulse — daily market intel; full GWS rescan on Saturdays only
     try:
-        from eos_ai.world_pulse import WorldPulse
+        from runtime.world_pulse import WorldPulse
 
         wp = WorldPulse(ctx)
         if datetime.datetime.now().weekday() == 5:  # Saturday
@@ -662,9 +662,9 @@ def run_ceo_morning_delegation(
 
     _PDT = _ZI("America/Los_Angeles")
 
-    from eos_ai.ceo_agent import CEOAgent as _EvoCEO
-    from eos_ai.coordination_engine import CoordinationEngine as _CE
-    from eos_ai.portfolio_advisor import PortfolioAdvisor as _PA
+    from runtime.ceo_agent import CEOAgent as _EvoCEO
+    from runtime.coordination_engine import CoordinationEngine as _CE
+    from runtime.portfolio_advisor import PortfolioAdvisor as _PA
 
     # Get binding constraint from portfolio
     binding_constraint = "Grow revenue"
@@ -683,7 +683,7 @@ def run_ceo_morning_delegation(
     venture_list = ventures or getattr(ctx, "ventures", [])
     if not venture_list:
         try:
-            from eos_ai.business_instance import BusinessInstanceManager
+            from runtime.business_instance import BusinessInstanceManager
 
             _default_vid = BusinessInstanceManager(ctx).get_default_venture_id()
             if _default_vid:
@@ -700,7 +700,7 @@ def run_ceo_morning_delegation(
 
         try:
             # Scope context to this venture
-            from eos_ai.context import EOSContext as _EC
+            from runtime.context import EOSContext as _EC
 
             venture_ctx = _EC(
                 org_id=ctx.org_id,
@@ -716,7 +716,7 @@ def run_ceo_morning_delegation(
                 results.append(f"🚀 **{venture_name}:** {changes['message']}")
 
             # Determine today's objective for this venture
-            from eos_ai.gateway import get_gateway as _get_gw
+            from runtime.gateway import get_gateway as _get_gw
 
             primitives = evo_ceo.detect_primitives()
             stage = primitives.get("stage", 1)
@@ -732,7 +732,7 @@ def run_ceo_morning_delegation(
             offer_data = {}
             constraint_context = ""
             try:
-                from eos_ai.ceo_intelligence import (
+                from runtime.ceo_intelligence import (
                     diagnose_constraint as _dc,
                     get_offer_stage as _gos,
                 )
@@ -837,7 +837,7 @@ def run_ceo_morning_delegation(
     if results:
         notion_url = ""
         try:
-            from eos_ai.notion_publisher import get_publisher
+            from runtime.notion_publisher import get_publisher
 
             publisher = get_publisher(ctx)
             notion_url = publisher.publish_ceo_delegation(content={"results": results})
@@ -996,8 +996,8 @@ async def generate_morning_brief(ctx: EOSContext) -> str:
         _ctx_ventures = []
     if not _ctx_ventures:
         try:
-            from eos_ai.context import load_context_from_env as _lctx
-            from eos_ai.business_instance import BusinessInstanceManager as _BIM
+            from runtime.context import load_context_from_env as _lctx
+            from runtime.business_instance import BusinessInstanceManager as _BIM
 
             _c = _lctx()
             _ctx_ventures = getattr(_c, "ventures", []) or []
@@ -1021,9 +1021,9 @@ async def generate_morning_brief(ctx: EOSContext) -> str:
 
     for venture_id, name, icon in companies:
         try:
-            from eos_ai.business_instance import BusinessInstanceManager
-            from eos_ai.evolution_engine import EvolutionEngine
-            from eos_ai.primitives import PRIMITIVE_LIBRARY
+            from runtime.business_instance import BusinessInstanceManager
+            from runtime.evolution_engine import EvolutionEngine
+            from runtime.primitives import PRIMITIVE_LIBRARY
 
             bim = BusinessInstanceManager(ctx)
             ee = EvolutionEngine(ctx)
@@ -1052,7 +1052,7 @@ async def generate_morning_brief(ctx: EOSContext) -> str:
     # Pull reality signals
     reality_section = ""
     try:
-        from eos_ai.reality_context import RealityContextEngine
+        from runtime.reality_context import RealityContextEngine
 
         rce = RealityContextEngine(ctx)
         reality = rce.get_ambient_state()
@@ -1064,7 +1064,7 @@ async def generate_morning_brief(ctx: EOSContext) -> str:
     # Build data-first brief
     # Try Daily Sync first — Dan Martell's 7-section format
     try:
-        from eos_ai.daily_sync import DailySyncEngine
+        from runtime.daily_sync import DailySyncEngine
 
         dse = DailySyncEngine(ctx)
         brief = dse.run_sync()
@@ -1095,7 +1095,7 @@ async def generate_morning_brief(ctx: EOSContext) -> str:
     # Add today's calendar
     calendar_section = ""
     try:
-        from eos_ai.gws_connector import GWSConnector
+        from runtime.gws_connector import GWSConnector
 
         gws = GWSConnector()
         events = gws.get_today_events()
@@ -1118,7 +1118,7 @@ async def generate_morning_brief(ctx: EOSContext) -> str:
 
     # Add AI insight on top of data — route through gateway
     try:
-        from eos_ai.gateway import get_gateway as _get_gw_brief
+        from runtime.gateway import get_gateway as _get_gw_brief
 
         _gw_brief = _get_gw_brief()
         _insight_result = _gw_brief.handle(
@@ -1302,8 +1302,8 @@ class EOSOrchestrator:
         # Behavioral patterns — inject into brief for pattern-aware recommendations
         pattern_context = ""
         try:
-            from eos_ai.context import load_context_from_env as _lctx
-            from eos_ai.pattern_engine import PatternEngine as _PE
+            from runtime.context import load_context_from_env as _lctx
+            from runtime.pattern_engine import PatternEngine as _PE
 
             _ctx_pe = _lctx()
             _patterns = _PE(_ctx_pe).analyze(days_back=7)
@@ -1435,8 +1435,8 @@ class EOSOrchestrator:
 
         # Email GPS — 6am inbox processing pass (DEX handles email before Antony)
         try:
-            from eos_ai.email_gps import EmailGPS
-            from eos_ai.context import load_context_from_env as _lcfe
+            from runtime.email_gps import EmailGPS
+            from runtime.context import load_context_from_env as _lcfe
 
             _ctx = _lcfe()
             gps = EmailGPS(_ctx)
@@ -1452,7 +1452,7 @@ class EOSOrchestrator:
         # Skill improvement cycle
         improvement_summary = ""
         try:
-            from eos_ai.skill_improvement import SkillImprovementEngine
+            from runtime.skill_improvement import SkillImprovementEngine
 
             engine = SkillImprovementEngine()
             summary = engine.run_improvement_cycle()
@@ -1471,7 +1471,7 @@ class EOSOrchestrator:
         # Human intelligence profile cycle
         profile_summary = ""
         try:
-            from eos_ai.human_intelligence import HumanIntelligenceEngine
+            from runtime.human_intelligence import HumanIntelligenceEngine
 
             hi_engine = HumanIntelligenceEngine()
             hi_result = hi_engine.run_profile_cycle()
@@ -1489,8 +1489,8 @@ class EOSOrchestrator:
         strategy_summary = ""
         if datetime.date.today().weekday() == 6:  # Sunday = 6
             try:
-                from eos_ai.strategy_engine import StrategyEngine
-                from eos_ai.context import load_context_from_env
+                from runtime.strategy_engine import StrategyEngine
+                from runtime.context import load_context_from_env
 
                 ctx = load_context_from_env()
                 se = StrategyEngine(ctx)
@@ -1505,7 +1505,7 @@ class EOSOrchestrator:
         self_org_summary = ""
         if datetime.date.today().weekday() == 0:  # Monday = 0
             try:
-                from eos_ai.skill_improvement import SkillImprovementEngine
+                from runtime.skill_improvement import SkillImprovementEngine
 
                 si_engine = SkillImprovementEngine()
                 created = si_engine.run_self_organization_cycle()
@@ -1524,8 +1524,8 @@ class EOSOrchestrator:
         # Reality intelligence signal scan — runs every morning (6am pass)
         reality_summary = ""
         try:
-            from eos_ai.reality_engine import RealityIntelligenceEngine
-            from eos_ai.context import load_context_from_env
+            from runtime.reality_engine import RealityIntelligenceEngine
+            from runtime.context import load_context_from_env
 
             ctx = load_context_from_env()
             rie = RealityIntelligenceEngine(ctx)
@@ -1551,8 +1551,8 @@ class EOSOrchestrator:
         research_summary = ""
         if datetime.date.today().weekday() == 2:  # Wednesday = 2
             try:
-                from eos_ai.research_engine import ResearchEngine
-                from eos_ai.context import load_context_from_env
+                from runtime.research_engine import ResearchEngine
+                from runtime.context import load_context_from_env
 
                 ctx = load_context_from_env()
                 re_engine = ResearchEngine(ctx)
@@ -1570,8 +1570,8 @@ class EOSOrchestrator:
         evolution_summary = ""
         if datetime.date.today().weekday() == 5:  # Saturday = 5
             try:
-                from eos_ai.evolution_engine import EvolutionEngine
-                from eos_ai.context import load_context_from_env
+                from runtime.evolution_engine import EvolutionEngine
+                from runtime.context import load_context_from_env
 
                 ctx = load_context_from_env()
                 ee = EvolutionEngine(ctx)
@@ -1585,8 +1585,8 @@ class EOSOrchestrator:
         domain_summary = ""
         if datetime.date.today().weekday() == 5:  # Saturday = 5
             try:
-                from eos_ai.context import load_context_from_env
-                from eos_ai.research_engine import ResearchEngine
+                from runtime.context import load_context_from_env
+                from runtime.research_engine import ResearchEngine
 
                 ctx_d = load_context_from_env()
                 re_d = ResearchEngine(ctx_d)
@@ -1604,8 +1604,8 @@ class EOSOrchestrator:
         ai_scan_summary = ""
         if datetime.date.today().weekday() == 5:  # Saturday = 5
             try:
-                from eos_ai.context import load_context_from_env
-                from eos_ai.research_engine import ResearchEngine
+                from runtime.context import load_context_from_env
+                from runtime.research_engine import ResearchEngine
 
                 ctx_ai = load_context_from_env()
                 re_ai = ResearchEngine(ctx_ai)
@@ -1624,8 +1624,8 @@ class EOSOrchestrator:
         # Embedding backfill — runs weekly on Saturdays
         if datetime.date.today().weekday() == 5:  # Saturday = 5
             try:
-                from eos_ai.embedding_engine import EmbeddingEngine
-                from eos_ai.context import load_context_from_env
+                from runtime.embedding_engine import EmbeddingEngine
+                from runtime.context import load_context_from_env
 
                 ctx_ee = load_context_from_env()
                 ee = EmbeddingEngine()
@@ -1639,8 +1639,8 @@ class EOSOrchestrator:
         world_pulse_summary = ""
         if datetime.date.today().weekday() == 5:  # Saturday = 5
             try:
-                from eos_ai.context import load_context_from_env
-                from eos_ai.world_pulse import WorldPulse
+                from runtime.context import load_context_from_env
+                from runtime.world_pulse import WorldPulse
 
                 ctx_wp = load_context_from_env()
                 wp = WorldPulse(ctx_wp)
@@ -1663,8 +1663,8 @@ class EOSOrchestrator:
         # Pattern detection cycle — runs every morning
         pattern_summary = ""
         try:
-            from eos_ai.context import load_context_from_env
-            from eos_ai.knowledge_graph import KnowledgeGraph
+            from runtime.context import load_context_from_env
+            from runtime.knowledge_graph import KnowledgeGraph
 
             ctx_kg = load_context_from_env()
             kg = KnowledgeGraph(ctx_kg)
@@ -1746,8 +1746,8 @@ def refresh_ambient_state(ctx: EOSContext) -> None:
     reality context is always available without a fresh LLM call per message.
     """
     try:
-        from eos_ai.reality_context import RealityContext
-        from eos_ai.session_state import SessionState
+        from runtime.reality_context import RealityContext
+        from runtime.session_state import SessionState
 
         rc = RealityContext(ctx)
         reality = rc.get_current_reality()
@@ -1813,7 +1813,7 @@ def start_ambient_refresh_loop(ctx: EOSContext) -> None:
 
             # Proactive intelligence scan
             try:
-                from eos_ai.proactive_engine import ProactiveIntelligenceEngine
+                from runtime.proactive_engine import ProactiveIntelligenceEngine
 
                 _pie = ProactiveIntelligenceEngine(ctx)
                 _signals = _pie.scan()
@@ -1838,9 +1838,9 @@ def start_ambient_refresh_loop(ctx: EOSContext) -> None:
 # ─── CLI entry point ─────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    from eos_ai.context import load_context_from_env
-    from eos_ai.knowledge_domains import KnowledgeDomainRegistry
-    from eos_ai.research_engine import ResearchEngine
+    from runtime.context import load_context_from_env
+    from runtime.knowledge_domains import KnowledgeDomainRegistry
+    from runtime.research_engine import ResearchEngine
 
     _ctx = load_context_from_env()
 
@@ -1857,7 +1857,7 @@ if __name__ == "__main__":
 
     run_full_morning_cycle(_ctx)
     try:
-        from eos_ai.context import load_ventures_from_env
+        from runtime.context import load_ventures_from_env
 
         _ventures = load_ventures_from_env()
         run_ceo_morning_delegation(_ctx, _ventures)

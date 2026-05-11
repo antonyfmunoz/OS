@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
-from eos_ai.transport.topology_contracts import NodeProfile, TopologyProfile
+from runtime.transport.topology_contracts import NodeProfile, TopologyProfile
 
 
 class Capability(str, Enum):

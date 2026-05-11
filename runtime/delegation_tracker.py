@@ -20,8 +20,8 @@ def log_delegation(
 ) -> bool:
     """Log a delegated task for follow-up tracking."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
         now = datetime.now(PDT)
         due_at = (now + timedelta(hours=due_hours)).isoformat()
@@ -52,8 +52,8 @@ def log_delegation(
 def get_overdue_delegations(ctx=None) -> list[dict]:
     """Get delegated tasks that are overdue."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -84,8 +84,8 @@ def get_overdue_delegations(ctx=None) -> list[dict]:
 def mark_delegation_complete(event_id: str, ctx=None) -> bool:
     """Mark a delegation as completed."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:

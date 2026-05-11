@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from eos_ai.transport.visible_gui_success_criteria import (
+from runtime.transport.visible_gui_success_criteria import (
     LaunchContext,
     VisibleGuiStatus,
 )

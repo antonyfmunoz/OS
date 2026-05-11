@@ -2,7 +2,7 @@
 EOSGateway — single control plane for all AI operations.
 
 Every AI request enters here. Nothing calls agent_runtime, event_bus,
-orchestrator, or agent_teams directly from outside eos_ai.
+orchestrator, or agent_teams directly from outside runtime.
 
 Request schema:
     {
@@ -21,7 +21,7 @@ Request schema:
     }
 
 Usage:
-    from eos_ai.gateway import EOSGateway
+    from runtime.gateway import EOSGateway
     gw = EOSGateway()
     result = gw.handle({"type": "brief", "prompt": "", "venture_id": "lyfe_institute"})
 """
@@ -39,7 +39,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from eos_ai.db import get_conn, ORG_ID
+from runtime.db import get_conn, ORG_ID
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -339,8 +339,8 @@ class EOSGateway:
         if not prompt or rtype not in ("agent_task", "brief"):
             return None, session_id, channel
         try:
-            from eos_ai.memory import ConversationMemory
-            from eos_ai.context import load_context_from_env
+            from runtime.memory import ConversationMemory
+            from runtime.context import load_context_from_env
 
             ctx = load_context_from_env()
             cm = ConversationMemory(ctx)
@@ -377,8 +377,8 @@ class EOSGateway:
             if match:
                 new_name = match.group(1).upper()
                 try:
-                    from eos_ai.context import load_context_from_env
-                    from eos_ai.business_instance import BusinessInstanceManager
+                    from runtime.context import load_context_from_env
+                    from runtime.business_instance import BusinessInstanceManager
 
                     ctx = load_context_from_env()
                     bim = BusinessInstanceManager(ctx)
@@ -419,9 +419,9 @@ class EOSGateway:
             return None
 
         try:
-            from eos_ai.context import load_context_from_env
-            from eos_ai.email_gps import EmailGPS
-            from eos_ai.model_router import get_router, TaskType
+            from runtime.context import load_context_from_env
+            from runtime.email_gps import EmailGPS
+            from runtime.model_router import get_router, TaskType
 
             ctx_eos = load_context_from_env()
             gps = EmailGPS(ctx_eos)
@@ -619,7 +619,7 @@ class EOSGateway:
         # and future capability-aware routing can see what was needed.
         # NEVER raises — tag_request swallows and logs internally.
         try:
-            from eos_ai.transport.capability_tagging import tag_request
+            from runtime.transport.capability_tagging import tag_request
 
             tag_request(request)
         except Exception as _cap_e:
@@ -690,8 +690,8 @@ class EOSGateway:
         stage_context = ""
         if prompt and request.get("type") in ("agent_task", "brief"):
             try:
-                from eos_ai.stage_manager import detect_stage_transition, StageManager
-                from eos_ai.context import load_context_from_env as _load_ctx
+                from runtime.stage_manager import detect_stage_transition, StageManager
+                from runtime.context import load_context_from_env as _load_ctx
 
                 transition = detect_stage_transition(prompt)
                 if transition.get("detected"):
@@ -701,7 +701,7 @@ class EOSGateway:
                     # Venture from request, then BIM default. Text-keyword routing
                     # was venture-specific leakage and has been removed — venture
                     # selection must come from explicit request or BIM lookup.
-                    from eos_ai.business_instance import BusinessInstanceManager as _BIM
+                    from runtime.business_instance import BusinessInstanceManager as _BIM
 
                     _bim_st = _BIM(ctx_eos)
                     venture_id = (
@@ -725,12 +725,12 @@ class EOSGateway:
         # 2d. Self-awareness — detect any non-stage business change and process it
         if prompt and request.get("type") in ("agent_task", "brief"):
             try:
-                from eos_ai.self_awareness import SelfAwarenessEngine, ChangeType
-                from eos_ai.context import load_context_from_env as _load_ctx_sa
+                from runtime.self_awareness import SelfAwarenessEngine, ChangeType
+                from runtime.context import load_context_from_env as _load_ctx_sa
 
                 ctx_sa = _load_ctx_sa()
                 sae = SelfAwarenessEngine(ctx_sa)
-                from eos_ai.business_instance import BusinessInstanceManager as _BIM_sa
+                from runtime.business_instance import BusinessInstanceManager as _BIM_sa
 
                 _bim_sa = _BIM_sa(ctx_sa)
                 venture_id_sa = (
@@ -771,8 +771,8 @@ class EOSGateway:
                 # Input Intelligence Layer — elevate underpowered inputs
                 # before they reach the cognitive loop
                 try:
-                    from eos_ai.input_intelligence import InputIntelligence
-                    from eos_ai.context import load_context_from_env as _load_ii_ctx
+                    from runtime.input_intelligence import InputIntelligence
+                    from runtime.context import load_context_from_env as _load_ii_ctx
 
                     _prompt = request.get("prompt", "")
                     _venture_id = request.get("venture_id")
@@ -831,7 +831,7 @@ class EOSGateway:
     # ─── Route: event ─────────────────────────────────────────────────────────
 
     def _route_event(self, request: dict) -> dict:
-        from eos_ai.event_bus import EventBus
+        from runtime.event_bus import EventBus
 
         event_type = request["event_type"]
         payload = request.get("payload") or {}
@@ -867,7 +867,7 @@ class EOSGateway:
 
     def _web_search(self, query: str) -> str:
         try:
-            from eos_ai.model_router import get_router, TaskType as RouterTaskType
+            from runtime.model_router import get_router, TaskType as RouterTaskType
 
             router = get_router()
             result = router.call_with_fallback(
@@ -913,9 +913,9 @@ class EOSGateway:
                 break
 
         try:
-            from eos_ai.quality_gate import QualityTransformationGate
+            from runtime.quality_gate import QualityTransformationGate
 
-            from eos_ai.context import load_context_from_env
+            from runtime.context import load_context_from_env
 
             ctx = load_context_from_env()
             gate = QualityTransformationGate(ctx)
@@ -953,7 +953,7 @@ class EOSGateway:
         Returns agent_id string.
         """
         try:
-            from eos_ai.agent_hierarchy import AgentHierarchy
+            from runtime.agent_hierarchy import AgentHierarchy
 
             return AgentHierarchy().route_request(text)
         except Exception:
@@ -962,9 +962,9 @@ class EOSGateway:
     # ─── Route: agent_task ────────────────────────────────────────────────────
 
     def _route_agent_task(self, request: dict, session_id: str = None, cm=None) -> dict:
-        from eos_ai.agent_runtime import AgentRuntime, TaskType
-        from eos_ai.cognitive_loop import CognitiveLoop
-        from eos_ai.context import load_context_from_env
+        from runtime.agent_runtime import AgentRuntime, TaskType
+        from runtime.cognitive_loop import CognitiveLoop
+        from runtime.context import load_context_from_env
 
         prompt = request["prompt"]
         # Preserve the true raw user message before any gateway augmentation.
@@ -989,8 +989,8 @@ class EOSGateway:
         # Attempts the new spine. On ANY failure, falls back to the existing
         # CognitiveLoop branches below. This is the Phase 2 transition layer.
         try:
-            from eos_ai.context_builder import ContextBuilder
-            from eos_ai.execution_spine import ExecutionSpine
+            from runtime.context_builder import ContextBuilder
+            from runtime.execution_spine import ExecutionSpine
 
             _spine_agent = sub_agent or "executive_assistant"
             if team and not sub_agent:
@@ -1201,7 +1201,7 @@ class EOSGateway:
             # CEO deep standards — try skill first, fall back to Python module
             if agent_id in _CEO_AGENTS:
                 try:
-                    from eos_ai.skill_registry import get_skill_registry
+                    from runtime.skill_registry import get_skill_registry
 
                     _sr = get_skill_registry()
                     _ceo_skill = _sr.get_skill("ceo_framework")
@@ -1218,7 +1218,7 @@ class EOSGateway:
                 except Exception:
                     # Fallback to Python module
                     try:
-                        from eos_ai.ceo_operational_standards import (
+                        from runtime.ceo_operational_standards import (
                             get_constraint_rules,
                             get_offer_rules,
                             get_delegation_rules,
@@ -1257,7 +1257,7 @@ class EOSGateway:
             # Portfolio advisor deep standards — try skill first, fall back to Python module
             if agent_id == "portfolio_advisor":
                 try:
-                    from eos_ai.skill_registry import get_skill_registry
+                    from runtime.skill_registry import get_skill_registry
 
                     _sr_pa = get_skill_registry()
                     _pa_skill = _sr_pa.get_skill("portfolio_framework")
@@ -1272,7 +1272,7 @@ class EOSGateway:
                         raise ValueError("portfolio_framework skill not found")
                 except Exception:
                     try:
-                        from eos_ai.portfolio_advisor_standards import (
+                        from runtime.portfolio_advisor_standards import (
                             get_all_standards as get_pa_standards,
                         )
 
@@ -1289,7 +1289,7 @@ class EOSGateway:
 
             # Universal agent standards
             try:
-                from eos_ai.principle_engine import PrincipleEngine
+                from runtime.principle_engine import PrincipleEngine
 
                 _pe = PrincipleEngine(ctx)
                 _standards = _pe.format_agent_standards(agent_id)
@@ -1301,7 +1301,7 @@ class EOSGateway:
 
             # Domain-specific principles
             try:
-                from eos_ai.principle_engine import PrincipleEngine
+                from runtime.principle_engine import PrincipleEngine
 
                 _pe_d = PrincipleEngine(ctx)
                 _domain = _AGENT_DOMAIN_MAP.get(agent_id, "ops")
@@ -1325,7 +1325,7 @@ class EOSGateway:
             if agent_id == "executive_assistant":
                 # DEX — inject EA operational standards + Martell leverage detection
                 try:
-                    from eos_ai.martell_patterns import detect_leverage_killer
+                    from runtime.martell_patterns import detect_leverage_killer
 
                     leverage = detect_leverage_killer(prompt)
                     if leverage:
@@ -1334,7 +1334,7 @@ class EOSGateway:
                     pass
 
                 try:
-                    from eos_ai.skill_registry import get_skill_registry
+                    from runtime.skill_registry import get_skill_registry
 
                     _sr_ea = get_skill_registry()
                     _ea_skill = _sr_ea.get_skill("ea_framework")
@@ -1345,7 +1345,7 @@ class EOSGateway:
                         raise ValueError("ea_framework skill not found")
                 except Exception:
                     try:
-                        from eos_ai.ea_operational_standards import get_all_standards
+                        from runtime.ea_operational_standards import get_all_standards
 
                         ea_standards = get_all_standards()
                         prompt = (
@@ -1358,7 +1358,7 @@ class EOSGateway:
             elif agent_id == "portfolio_advisor":
                 # Portfolio Advisor — inject live portfolio data
                 try:
-                    from eos_ai.portfolio_advisor import (
+                    from runtime.portfolio_advisor import (
                         PortfolioAdvisor as PortfolioAgent,
                     )
 
@@ -1385,7 +1385,7 @@ class EOSGateway:
 
         elif team:
             # Team task — resolve via agent_teams then run through cognitive loop
-            from eos_ai.agent_teams import route as team_route
+            from runtime.agent_teams import route as team_route
 
             config = team_route(team, sub_agent)
             result = loop.run(
@@ -1412,7 +1412,7 @@ class EOSGateway:
 
             if not agent_to_use:
                 try:
-                    from eos_ai.intent_router import IntentRouter, IntentDomain
+                    from runtime.intent_router import IntentRouter, IntentDomain
 
                     ir = IntentRouter(ctx)
                     domain = ir.route(prompt)
@@ -1422,7 +1422,7 @@ class EOSGateway:
                     # Portfolio domain — inject live portfolio data into prompt
                     if domain == IntentDomain.PORTFOLIO:
                         try:
-                            from eos_ai.portfolio_advisor import (
+                            from runtime.portfolio_advisor import (
                                 PortfolioAdvisor as PortfolioAgent,
                             )
 
@@ -1436,7 +1436,7 @@ class EOSGateway:
                     # CEO domain — inject company primitives into prompt
                     elif domain == IntentDomain.CEO:
                         try:
-                            from eos_ai.ceo_agent import CEOAgent
+                            from runtime.ceo_agent import CEOAgent
 
                             _ceo = CEOAgent(ctx)
                             _prims = _ceo.detect_primitives()
@@ -1460,7 +1460,7 @@ class EOSGateway:
             # Log delegation if routing to a CEO agent
             if agent_to_use in _CEO_AGENTS:
                 try:
-                    from eos_ai.delegation_tracker import log_delegation
+                    from runtime.delegation_tracker import log_delegation
 
                     log_delegation(
                         task=prompt[:200],
@@ -1496,7 +1496,7 @@ class EOSGateway:
 
         # Permanently integrate this exchange into the knowledge base
         try:
-            from eos_ai.knowledge_integrator import KnowledgeIntegrator
+            from runtime.knowledge_integrator import KnowledgeIntegrator
 
             _ki = KnowledgeIntegrator(ctx)
             if prompt and result.output:
@@ -1515,7 +1515,7 @@ class EOSGateway:
 
         # Feedback loop — log advice as recommendation; detect outcome reports
         try:
-            from eos_ai.feedback_loop import FeedbackLoop
+            from runtime.feedback_loop import FeedbackLoop
 
             fl = FeedbackLoop(ctx)
             if any(
@@ -1542,7 +1542,7 @@ class EOSGateway:
 
         # Accountability — detect and log commitments in founder's message
         try:
-            from eos_ai.accountability import AccountabilityEngine
+            from runtime.accountability import AccountabilityEngine
 
             ae = AccountabilityEngine(ctx)
             commitment = ae.detect_commitment(prompt, venture_id or "")
@@ -1553,7 +1553,7 @@ class EOSGateway:
 
         # Decision log — detect and permanently record decisions
         try:
-            from eos_ai.decision_log import DecisionLog
+            from runtime.decision_log import DecisionLog
 
             _dl = DecisionLog(ctx)
             if _dl.detect_decision(prompt):
@@ -1614,13 +1614,13 @@ class EOSGateway:
     # ─── Route: status ────────────────────────────────────────────────────────
 
     def _route_status(self, request: dict) -> dict:
-        from eos_ai.status import (
+        from runtime.status import (
             _fetch_7d_raw,
             _fetch_total_interactions,
             _fetch_last_orchestrator_run,
             _cost_est,
         )
-        from eos_ai.venture_knowledge import VentureKnowledgeBase
+        from runtime.venture_knowledge import VentureKnowledgeBase
 
         rows_7d = _fetch_7d_raw()
         total_interactions = _fetch_total_interactions()
@@ -1703,8 +1703,8 @@ class EOSGateway:
     def _route_brief(self, request: dict) -> dict:
         """Notion-first brief: run morning cycle, write to Notion, return URL."""
         try:
-            from eos_ai.orchestrator import run_full_morning_cycle
-            from eos_ai.context import load_context_from_env
+            from runtime.orchestrator import run_full_morning_cycle
+            from runtime.context import load_context_from_env
 
             ctx = load_context_from_env()
             result = run_full_morning_cycle(ctx, return_content=True)
@@ -1892,7 +1892,7 @@ class EOSGateway:
             "UNKNOWN",
         }
         try:
-            from eos_ai.model_router import call_with_fallback, TaskType
+            from runtime.model_router import call_with_fallback, TaskType
 
             result = call_with_fallback(
                 prompt=text,
@@ -1952,8 +1952,8 @@ def ingest_external_context(
 
     Returns the interaction_id (UUID).
     """
-    from eos_ai.memory import AgentMemory
-    from eos_ai.agent_runtime import AgentResult
+    from runtime.memory import AgentMemory
+    from runtime.agent_runtime import AgentResult
 
     result = AgentResult(
         output=content[:500],

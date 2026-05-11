@@ -169,7 +169,7 @@ def require_llm_or_skip(job_name: str, log_path: Optional[str] = None) -> Provid
     If none are up, prints a clear skip line and exits with status 0.
 
     Usage in a cron script:
-        from eos_ai.provider_health import require_llm_or_skip
+        from runtime.provider_health import require_llm_or_skip
         health = require_llm_or_skip("nightly_consolidation")
         # ... continue with LLM work ...
     """

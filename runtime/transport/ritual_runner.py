@@ -4,17 +4,17 @@ Ritual runner — shell-callable entry points for open_day / close_day.
 Wires the RitualRegistry into existing cron scripts with the smallest
 possible surface: a module that can be invoked as
 
-    python3 -m eos_ai.substrate.ritual_runner open_day start
-    python3 -m eos_ai.substrate.ritual_runner open_day finish <ritual_id>
-    python3 -m eos_ai.substrate.ritual_runner close_day start
-    python3 -m eos_ai.substrate.ritual_runner close_day finish <ritual_id>
-    python3 -m eos_ai.substrate.ritual_runner status
+    python3 -m runtime.transport.ritual_runner open_day start
+    python3 -m runtime.transport.ritual_runner open_day finish <ritual_id>
+    python3 -m runtime.transport.ritual_runner close_day start
+    python3 -m runtime.transport.ritual_runner close_day finish <ritual_id>
+    python3 -m runtime.transport.ritual_runner status
 
 `start` prints the new ritual_id to stdout so bash callers can capture it:
 
-    RID=$(python3 -m eos_ai.substrate.ritual_runner open_day start)
+    RID=$(python3 -m runtime.transport.ritual_runner open_day start)
     ...
-    python3 -m eos_ai.substrate.ritual_runner open_day finish "$RID"
+    python3 -m runtime.transport.ritual_runner open_day finish "$RID"
 
 This is deliberately additive — existing cron scripts keep running exactly
 as they do today. Ritual capture is a one-line prepend/append that can be
@@ -26,12 +26,12 @@ from __future__ import annotations
 import sys
 from datetime import date
 
-from eos_ai.transport.ritual_body import (
+from runtime.transport.ritual_body import (
     RitualPolicy,
     run_close_day_body,
     run_open_day_body,
 )
-from eos_ai.transport.rituals import (
+from runtime.transport.rituals import (
     RitualKind,
     RitualRegistry,
     RitualState,
@@ -69,7 +69,7 @@ def _apply_ritual_state(
         except Exception:
             pass
 
-        from eos_ai.transport.operator_transitions import apply_ritual
+        from runtime.transport.operator_transitions import apply_ritual
 
         apply_ritual(
             node_id,
@@ -160,7 +160,7 @@ def fail_ritual(ritual_id: str, reason: str) -> None:
 # ─── CLI ─────────────────────────────────────────────────────────────────────
 
 _USAGE = (
-    "usage: python3 -m eos_ai.substrate.ritual_runner "
+    "usage: python3 -m runtime.transport.ritual_runner "
     "{open_day|close_day} {start|finish <ritual_id>} "
     "| status"
 )

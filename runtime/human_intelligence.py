@@ -30,9 +30,9 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from eos_ai.agent_runtime import AgentRuntime, TaskType
-from eos_ai.context import EOSContext, load_context_from_env
-from eos_ai.db import get_conn, resolve_venture, ORG_ID, USER_ID
+from runtime.agent_runtime import AgentRuntime, TaskType
+from runtime.context import EOSContext, load_context_from_env
+from runtime.db import get_conn, resolve_venture, ORG_ID, USER_ID
 
 LEADS_DIR      = Path(_REPO_ROOT) / "03_CRM" / "Leads"
 PROFILE_TTL_H  = 48  # hours before a profile is considered stale
@@ -257,7 +257,7 @@ class HumanIntelligenceEngine:
         # Enrich with any Gmail threads from this lead
         email_context = ""
         try:
-            from eos_ai.gws_connector import GWSConnector
+            from runtime.gws_connector import GWSConnector
             gws    = GWSConnector()
             emails = gws.search_emails_from(username)
             if emails:

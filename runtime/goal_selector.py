@@ -19,7 +19,7 @@ Sits above strategy (8B/8C) and attention (9A).
 Feeds task_executor and downstream execution layers.
 
 Usage:
-    from eos_ai.goal_selector import (
+    from runtime.goal_selector import (
         GoalSelector, Goal, GoalState, OutcomeTracker, OpportunityCostLayer,
     )
 
@@ -59,7 +59,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from eos_ai.db import get_conn, ORG_ID
+from runtime.db import get_conn, ORG_ID
 
 
 # ─── Goal states ─────────────────────────────────────────────────────────────
@@ -1077,7 +1077,7 @@ class GoalSelector:
     ) -> None:
         """Publish goal state change to EventBus."""
         try:
-            from eos_ai.event_bus import get_bus
+            from runtime.event_bus import get_bus
 
             bus = get_bus()
             payload: dict = {
@@ -1277,7 +1277,7 @@ class OutcomeTracker:
     ) -> None:
         """Emit goal_priority_decayed event via EventBus."""
         try:
-            from eos_ai.event_bus import get_bus
+            from runtime.event_bus import get_bus
 
             bus = get_bus()
             bus.publish(

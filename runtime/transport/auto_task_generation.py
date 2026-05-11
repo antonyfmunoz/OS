@@ -18,7 +18,7 @@ import sys
 from datetime import datetime, timezone
 from typing import Optional
 
-from eos_ai.transport.perception import (
+from runtime.transport.perception import (
     PerceptionRecord,
     PerceptionSeverity,
     PerceptionStore,
@@ -74,7 +74,7 @@ def generate_tasks_from_perceptions(
         List of newly created Task objects.
     """
     try:
-        from eos_ai.transport.task_system import (
+        from runtime.transport.task_system import (
             Task,
             TaskStore,
             TaskStatus,
@@ -259,7 +259,7 @@ def get_perception_summary() -> dict:
 
         # Auto-generated task count
         try:
-            from eos_ai.transport.task_system import TaskStore
+            from runtime.transport.task_system import TaskStore
 
             tstore = TaskStore.default()
             all_tasks = tstore.all()

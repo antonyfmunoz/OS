@@ -59,7 +59,7 @@ def should_capture(text: str) -> tuple[bool, str]:
 def _classify_venture(text: str) -> str:
     """Classify which venture a capture belongs to using the model router."""
     try:
-        from eos_ai.model_router import get_router
+        from runtime.model_router import get_router
         router = get_router()
         prompt = f"""Classify which venture this task belongs to.
 
@@ -72,7 +72,7 @@ Task: "{text}"
 
 Reply with exactly one of: lyfe_institute | empyrean_creative | personal_brand"""
 
-        from eos_ai.model_router import TaskType
+        from runtime.model_router import TaskType
         model = router.route(TaskType.FAST_RESPONSE)
         result = router.call(model, prompt).strip().lower()
         if result in ('lyfe_institute', 'empyrean_creative', 'personal_brand'):
@@ -86,8 +86,8 @@ Reply with exactly one of: lyfe_institute | empyrean_creative | personal_brand""
 def capture_to_neon(text: str, capture_type: str, ctx=None) -> bool:
     """Write a captured task/idea to the Neon events table."""
     try:
-        from eos_ai.db import get_conn
-        from eos_ai.context import load_context_from_env
+        from runtime.db import get_conn
+        from runtime.context import load_context_from_env
 
         ctx = ctx or load_context_from_env()
 
@@ -125,7 +125,7 @@ def capture_to_notion(text: str, capture_type: str, venture_id: str = None) -> b
         import requests
         from datetime import date
         from dotenv import load_dotenv
-        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 
         token = os.getenv('NOTION_API_KEY')
         # Route to the right venture database
@@ -209,8 +209,8 @@ def capture(text: str, ctx=None, venture_id: str = None) -> dict:
 
     # BBR check — should DEX handle this without flagging Antony?
     try:
-        from eos_ai.founder_rate import get_current_founder_rate
-        from eos_ai.task_yield_matrix import classify_task_yield
+        from runtime.founder_rate import get_current_founder_rate
+        from runtime.task_yield_matrix import classify_task_yield
         rate = get_current_founder_rate()
         if rate:
             drip = classify_task_yield(text)

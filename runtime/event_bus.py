@@ -8,7 +8,7 @@ event; registered handlers fire synchronously or in a background thread.
 All events are persisted to Neon → events table for audit and replay.
 
 Usage:
-    from eos_ai.event_bus import EventBus, EventRegistry
+    from runtime.event_bus import EventBus, EventRegistry
 
     bus = EventBus()                         # singleton
     EventRegistry(bus).register_defaults()   # wire standard handlers
@@ -33,7 +33,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from eos_ai.db import get_conn, ORG_ID
+from runtime.db import get_conn, ORG_ID
 
 
 def _utcnow() -> str:
@@ -180,7 +180,7 @@ def _handle_new_lead(payload: dict) -> dict:
     Generates a personalized outreach strategy for the lead.
     Logs the result to memory.db via AgentRuntime.
     """
-    from eos_ai.agent_runtime import AgentRuntime, TaskType
+    from runtime.agent_runtime import AgentRuntime, TaskType
 
     username = payload.get("username", "unknown")
     score = payload.get("score", 0)
@@ -218,7 +218,7 @@ def _handle_lead_replied(payload: dict) -> dict:
     lead_replied → run objection_handler skill.
     Analyzes the reply and returns the best next response.
     """
-    from eos_ai.agent_runtime import AgentRuntime, TaskType
+    from runtime.agent_runtime import AgentRuntime, TaskType
 
     username = payload.get("username", "unknown")
     message = payload.get("message", "")
@@ -255,7 +255,7 @@ def _handle_lead_booked(payload: dict) -> dict:
     """
     lead_booked → log 'booked' outcome to memory.db + notify orchestrator.
     """
-    from eos_ai.memory import AgentMemory
+    from runtime.memory import AgentMemory
 
     username = payload.get("username", "unknown")
     booking_time = payload.get("booking_time", "")
@@ -287,7 +287,7 @@ def _handle_lead_closed(payload: dict) -> dict:
     """
     lead_closed → log 'closed' outcome + run human profile update.
     """
-    from eos_ai.memory import AgentMemory
+    from runtime.memory import AgentMemory
 
     username = payload.get("username", "unknown")
     venture_id = payload.get("venture_id", "lyfe_institute")
@@ -314,8 +314,8 @@ def _handle_lead_closed(payload: dict) -> dict:
 
     # Run human profile update
     try:
-        from eos_ai.human_intelligence import HumanIntelligenceEngine
-        from eos_ai.context import load_context_from_env
+        from runtime.human_intelligence import HumanIntelligenceEngine
+        from runtime.context import load_context_from_env
 
         engine = HumanIntelligenceEngine(load_context_from_env())
         profiles = engine.run_profile_cycle()
@@ -330,7 +330,7 @@ def _handle_lead_lost(payload: dict) -> dict:
     """
     lead_lost → log 'no_reply' outcome + store objection data for RLHF.
     """
-    from eos_ai.memory import AgentMemory
+    from runtime.memory import AgentMemory
 
     username = payload.get("username", "unknown")
     objection = payload.get("objection", "")
@@ -364,7 +364,7 @@ def _handle_signal_captured(payload: dict) -> dict:
     signal_captured → run research.signal_analyzer.
     Analyzes the signal for ICP relevance and recommended action.
     """
-    from eos_ai.agent_runtime import AgentRuntime, TaskType
+    from runtime.agent_runtime import AgentRuntime, TaskType
 
     signal_text = payload.get("signal_text", "")
     source = payload.get("source", "unknown")
@@ -394,7 +394,7 @@ def _handle_content_needed(payload: dict) -> dict:
     content_needed → trigger content.hook_generator.
     Generates a hook and content angle for the given topic.
     """
-    from eos_ai.agent_runtime import AgentRuntime, TaskType
+    from runtime.agent_runtime import AgentRuntime, TaskType
 
     topic = payload.get("topic", "")
     platform = payload.get("platform", "instagram")
@@ -424,7 +424,7 @@ def _handle_morning_cycle(payload: dict) -> dict:
     """
     morning_cycle → trigger orchestrator.run_morning_cycle().
     """
-    from eos_ai.orchestrator import EOSOrchestrator
+    from runtime.orchestrator import EOSOrchestrator
 
     print("[EventBus:morning_cycle] firing orchestrator.run_morning_cycle()")
     orchestrator = EOSOrchestrator()
@@ -437,7 +437,7 @@ def _handle_skill_threshold(payload: dict) -> dict:
     skill_threshold → trigger skill_improvement.check_and_improve.
     Runs the improvement cycle for the named skill (or all if not specified).
     """
-    from eos_ai.skill_improvement import SkillImprovementEngine
+    from runtime.skill_improvement import SkillImprovementEngine
 
     skill_id = payload.get("skill_id")
     print(
@@ -474,7 +474,7 @@ def _handle_goal_completed(payload: dict) -> dict:
     title = payload.get("title", "")
     print(f"[EventBus:goal_completed] [{goal_id}] {title} → triggering re-selection")
     try:
-        from eos_ai.goal_selector import GoalSelector
+        from runtime.goal_selector import GoalSelector
 
         selector = GoalSelector()
         active = selector.run_selection_cycle()
@@ -491,7 +491,7 @@ def _handle_goal_dropped(payload: dict) -> dict:
     title = payload.get("title", "")
     print(f"[EventBus:goal_dropped] [{goal_id}] {title} → triggering re-selection")
     try:
-        from eos_ai.goal_selector import GoalSelector
+        from runtime.goal_selector import GoalSelector
 
         selector = GoalSelector()
         active = selector.run_selection_cycle()
@@ -508,7 +508,7 @@ def _handle_goal_task_completed(payload: dict) -> dict:
     if not goal_id:
         return {"error": "no goal_id"}
     try:
-        from eos_ai.goal_selector import OutcomeTracker
+        from runtime.goal_selector import OutcomeTracker
 
         tracker = OutcomeTracker()
         tracker.record_outcome(
@@ -531,7 +531,7 @@ def _handle_goal_task_failed(payload: dict) -> dict:
     if not goal_id:
         return {"error": "no goal_id"}
     try:
-        from eos_ai.goal_selector import OutcomeTracker
+        from runtime.goal_selector import OutcomeTracker
 
         tracker = OutcomeTracker()
         tracker.record_outcome(

@@ -11,7 +11,7 @@ until the node/capability layer is consumed by routing. For now, orchestrator
 scripts and scheduled jobs can register and advance rituals through this API.
 
 Usage:
-    from eos_ai.substrate import RitualRegistry, RitualKind, RitualState
+    from runtime.substrate import RitualRegistry, RitualKind, RitualState
 
     reg = RitualRegistry.default()
     ritual = reg.start(RitualKind.OPEN_DAY, inputs={"date": "2026-04-06"})
@@ -94,7 +94,7 @@ class RitualRegistry:
     """
     Persistent ritual tracker.
 
-    Rituals are flushed through eos_ai.substrate.storage on every lifecycle
+    Rituals are flushed through runtime.transport.storage on every lifecycle
     transition so cron scripts running in separate processes can share state
     (morning cron starts an open_day ritual; a later EA interaction can find
     and reference it). Storage falls back to JSON file if Neon is unavailable.
@@ -112,7 +112,7 @@ class RitualRegistry:
     # ─── Persistence ──────────────────────────────────────────────────────
     def _load(self) -> None:
         try:
-            from eos_ai.transport.storage import get_storage
+            from runtime.transport.storage import get_storage
             raw = get_storage().get(self._STORAGE_KEY, default={}) or {}
             for rid, data in raw.items():
                 self._rituals[rid] = Ritual(
@@ -133,7 +133,7 @@ class RitualRegistry:
         if not self._persist:
             return
         try:
-            from eos_ai.transport.storage import get_storage
+            from runtime.transport.storage import get_storage
             payload = {
                 rid: {
                     "ritual_id": r.ritual_id,

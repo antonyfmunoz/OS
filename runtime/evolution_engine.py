@@ -12,8 +12,8 @@ Combines two concerns:
      Results sent to Telegram.
 
 Usage:
-    from eos_ai.context import load_context_from_env
-    from eos_ai.evolution_engine import EvolutionEngine
+    from runtime.context import load_context_from_env
+    from runtime.evolution_engine import EvolutionEngine
 
     ctx = load_context_from_env()
     ee  = EvolutionEngine(ctx)
@@ -44,12 +44,12 @@ if _REPO_ROOT not in sys.path:
 
 load_dotenv(Path(__file__).parent / ".env")
 
-from eos_ai.context import EOSContext
-from eos_ai.cognitive_loop import CognitiveLoop
-from eos_ai.agent_runtime import AgentRuntime, TaskType
-from eos_ai.skill_improvement import SkillImprovementEngine
-from eos_ai.research_engine import ResearchEngine
-from eos_ai.db import get_conn
+from runtime.context import EOSContext
+from runtime.cognitive_loop import CognitiveLoop
+from runtime.agent_runtime import AgentRuntime, TaskType
+from runtime.skill_improvement import SkillImprovementEngine
+from runtime.research_engine import ResearchEngine
+from runtime.db import get_conn
 
 
 # ─── Primitive composition rules ─────────────────────────────────────────────
@@ -151,7 +151,7 @@ class EvolutionEngine:
     def _get_stage(self, venture_id: str) -> int:
         """Read BIS stage for venture. Returns 1 on any failure (safe default)."""
         try:
-            from eos_ai.business_instance import BusinessInstanceManager
+            from runtime.business_instance import BusinessInstanceManager
             bim     = BusinessInstanceManager(self.ctx)
             ctx_str = bim.get_context_for_agents(venture_id)
             for line in ctx_str.split('\n'):
@@ -173,7 +173,7 @@ class EvolutionEngine:
         Return list of primitive IDs that are active (applies=True) at the
         venture's current stage.
         """
-        from eos_ai.primitives import PRIMITIVE_LIBRARY
+        from runtime.primitives import PRIMITIVE_LIBRARY
         stage  = self._get_stage(venture_id)
         return [
             pid for pid, prim in PRIMITIVE_LIBRARY.items()
@@ -191,7 +191,7 @@ class EvolutionEngine:
                 'what_applies_instead': str,
             }
         """
-        from eos_ai.primitives import PRIMITIVE_LIBRARY, STAGE_PRIMITIVES
+        from runtime.primitives import PRIMITIVE_LIBRARY, STAGE_PRIMITIVES
         prim  = PRIMITIVE_LIBRARY.get(primitive_id)
         stage = self._get_stage(venture_id)
 

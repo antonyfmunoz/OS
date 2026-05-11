@@ -23,9 +23,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from eos_ai.agent_runtime import AgentResult
+    from runtime.agent_runtime import AgentResult
 
-from eos_ai.db import get_conn, resolve_venture, resolve_skill, ORG_ID, USER_ID
+from runtime.db import get_conn, resolve_venture, resolve_skill, ORG_ID, USER_ID
 
 # SQLite path — still used by event_bus, gateway, and human_intelligence
 # for local-first event persistence and human profiles.
@@ -130,7 +130,7 @@ class AgentMemory:
         ).strip()
         if content_to_embed:
             import threading
-            from eos_ai.embedding_engine import EmbeddingEngine
+            from runtime.embedding_engine import EmbeddingEngine
 
             def _embed_async(iid: str, content: str, oid: str) -> None:
                 EmbeddingEngine().embed_interaction(iid, content, oid)
@@ -143,8 +143,8 @@ class AgentMemory:
 
         # Auto-link interaction into knowledge graph
         try:
-            from eos_ai.context import load_context_from_env
-            from eos_ai.knowledge_graph import KnowledgeGraph
+            from runtime.context import load_context_from_env
+            from runtime.knowledge_graph import KnowledgeGraph
             kg = KnowledgeGraph(load_context_from_env())
             kg.auto_link_interaction(interaction_id)
         except Exception:
@@ -163,8 +163,8 @@ class AgentMemory:
 
                 def _refresh_user_profile() -> None:
                     try:
-                        from eos_ai.context import load_context_from_env as _lctx
-                        from eos_ai.user_model import UserModel as _UM
+                        from runtime.context import load_context_from_env as _lctx
+                        from runtime.user_model import UserModel as _UM
                         _UM(_lctx()).update_profile()
                     except Exception:
                         pass
@@ -232,8 +232,8 @@ class AgentMemory:
 
         def _alert() -> None:
             try:
-                from eos_ai.orchestrator import check_outcome_milestone
-                from eos_ai.context import load_context_from_env
+                from runtime.orchestrator import check_outcome_milestone
+                from runtime.context import load_context_from_env
                 check_outcome_milestone(load_context_from_env(), outcome_count)
             except Exception:
                 pass
@@ -338,8 +338,8 @@ class AgentMemory:
                 import threading
                 def _refresh_profile(uname: str) -> None:
                     try:
-                        from eos_ai.human_intelligence import HumanIntelligenceEngine
-                        from eos_ai.context import load_context_from_env
+                        from runtime.human_intelligence import HumanIntelligenceEngine
+                        from runtime.context import load_context_from_env
                         ctx = load_context_from_env()
                         hie = HumanIntelligenceEngine(ctx)
                         hie.build_profile(uname)
@@ -386,8 +386,8 @@ class AgentMemory:
         import threading
         def _refresh_orphaned_profile(uname: str) -> None:
             try:
-                from eos_ai.human_intelligence import HumanIntelligenceEngine
-                from eos_ai.context import load_context_from_env
+                from runtime.human_intelligence import HumanIntelligenceEngine
+                from runtime.context import load_context_from_env
                 ctx = load_context_from_env()
                 hie = HumanIntelligenceEngine(ctx)
                 hie.build_profile(uname)
@@ -552,7 +552,7 @@ class AgentMemory:
         write path. Schema is vector(384); fastembed BAAI/bge-small-en-v1.5
         produces matching 384-dim vectors. Returns True on success.
         """
-        from eos_ai.embedding_engine import EmbeddingEngine
+        from runtime.embedding_engine import EmbeddingEngine
         return EmbeddingEngine().embed_interaction(interaction_id, text, ORG_ID)
 
     def semantic_search(
@@ -568,7 +568,7 @@ class AgentMemory:
         Returns ranked results — most similar first.
         """
         try:
-            from eos_ai.embedding_engine import EmbeddingEngine
+            from runtime.embedding_engine import EmbeddingEngine
             engine = EmbeddingEngine()
             query_vec = engine.embed(query)
             if not query_vec:
@@ -730,7 +730,7 @@ class ConversationMemory:
                 )
                 # Embed and store
                 try:
-                    from eos_ai.embedder import embed
+                    from runtime.embedder import embed
                     vec = embed(content)
                     cur.execute(
                         'UPDATE messages SET embedding = %s WHERE id = %s',
@@ -940,7 +940,7 @@ class ConversationMemory:
             with get_conn(self.ctx.org_id) as cur:
                 if query:
                     try:
-                        from eos_ai.embedder import embed
+                        from runtime.embedder import embed
                         vec = embed(query)
                         cur.execute(
                             '''

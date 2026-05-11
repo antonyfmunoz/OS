@@ -94,7 +94,7 @@ def recognize_person(
     }
     """
     try:
-        from eos_ai.context import load_context_from_env
+        from runtime.context import load_context_from_env
         ctx = ctx or load_context_from_env()
 
         results = {
@@ -111,7 +111,7 @@ def recognize_person(
         # 1. Semantic memory search
         if name or email:
             try:
-                from eos_ai.memory import AgentMemory
+                from runtime.memory import AgentMemory
                 mem = AgentMemory()
                 query = f'{name} {email}'.strip()
                 hits = mem.semantic_search(query=query, limit=5, min_similarity=0.5)
@@ -156,7 +156,7 @@ def recognize_person(
             try:
                 import requests
                 from dotenv import load_dotenv
-                load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+                load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
                 token = os.getenv('NOTION_API_KEY')
                 db_id = os.getenv('NOTION_MEETINGS_ID')
                 if token and db_id:
@@ -201,7 +201,7 @@ def recognize_person(
         # 4. Neon pipeline events
         if name or email:
             try:
-                from eos_ai.db import get_conn
+                from runtime.db import get_conn
                 with get_conn(ctx.org_id) as cur:
                     cur.execute('''
                         SELECT payload_json, created_at
@@ -336,7 +336,7 @@ def build_intelligence_profile(
     all available data sources and using LLM to synthesize.
     """
     try:
-        from eos_ai.context import load_context_from_env
+        from runtime.context import load_context_from_env
         ctx = ctx or load_context_from_env()
 
         profile = HumanIntelligenceProfile(name=name, email=email, company=company)
@@ -351,7 +351,7 @@ def build_intelligence_profile(
         try:
             import requests as _req
             from dotenv import load_dotenv
-            load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+            load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
             token = os.getenv('NOTION_API_KEY')
             db_id = os.getenv('NOTION_MEETINGS_ID')
             if token and db_id:
@@ -396,7 +396,7 @@ def build_intelligence_profile(
         # 3. LLM synthesis from all available context
         if raw_context or profile.relationship_history:
             try:
-                from eos_ai.model_router import get_router, TaskType
+                from runtime.model_router import get_router, TaskType
                 router = get_router()
                 model = router.route(TaskType.ANALYSIS)
 
@@ -500,8 +500,8 @@ def score_relationship_health(
     try:
         import requests as _req
         from dotenv import load_dotenv
-        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
-        from eos_ai.context import load_context_from_env
+        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
+        from runtime.context import load_context_from_env
         ctx = ctx or load_context_from_env()
 
         now = datetime.now(PDT)

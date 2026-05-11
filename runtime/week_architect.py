@@ -21,8 +21,8 @@ def architect_week(ctx=None) -> str:
     Returns a formatted week plan string for Discord or file output.
     """
     try:
-        from eos_ai.ideal_week import get_ideal_week
-        from eos_ai.model_router import get_router, TaskType
+        from runtime.ideal_week import get_ideal_week
+        from runtime.model_router import get_router, TaskType
 
         ideal_week = get_ideal_week(ctx)
 
@@ -36,7 +36,7 @@ def architect_week(ctx=None) -> str:
         # Get real calendar events for the week if available
         calendar_context = ""
         try:
-            from eos_ai.gws_connector import GWSConnector
+            from runtime.gws_connector import GWSConnector
 
             gws = GWSConnector()
             upcoming = gws.get_upcoming_events(days=7)

@@ -274,7 +274,7 @@ class OperatorStateStore:
             if self._loaded:
                 return
             try:
-                from eos_ai.transport.storage import get_storage
+                from runtime.transport.storage import get_storage
 
                 raw = get_storage().get(_STORAGE_KEY, default={}) or {}
             except Exception as e:  # noqa: BLE001
@@ -293,7 +293,7 @@ class OperatorStateStore:
 
     def _flush(self) -> None:
         try:
-            from eos_ai.transport.storage import get_storage
+            from runtime.transport.storage import get_storage
 
             payload = {
                 "rows": {nid: s.as_dict() for nid, s in self._by_node.items()},

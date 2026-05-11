@@ -7,7 +7,7 @@ bot detection. Used by reality_engine and research_engine for
 competitor monitoring, trend research, and market intelligence.
 
 Usage:
-    from eos_ai.scrapling_connector import ScraplingConnector
+    from runtime.scrapling_connector import ScraplingConnector
     sc = ScraplingConnector()
 
     page = sc.fetch('https://hamza.social')

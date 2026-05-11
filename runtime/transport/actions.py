@@ -9,7 +9,7 @@ local OS, and it only accepts a fixed vocabulary of actions.
 This module defines that vocabulary. It is a contract, not an executor.
 
 Usage:
-    from eos_ai.substrate import SafeAction, ActionKind
+    from runtime.substrate import SafeAction, ActionKind
 
     action = SafeAction(
         kind=ActionKind.OPEN_SCENE,

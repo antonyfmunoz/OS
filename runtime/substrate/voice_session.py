@@ -1,1 +1,1 @@
-from eos_ai.transport.voice_session import *  # noqa: F401,F403
+from runtime.transport.voice_session import *  # noqa: F401,F403

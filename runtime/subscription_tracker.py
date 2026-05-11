@@ -15,8 +15,8 @@ PDT = ZoneInfo('America/Los_Angeles')
 def get_subscriptions(ctx=None) -> list[dict]:
     """Get all tracked subscriptions from Neon (most recent per vendor)."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -55,8 +55,8 @@ def add_subscription(
 ) -> bool:
     """Add or update a subscription record."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:

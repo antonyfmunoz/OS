@@ -22,8 +22,8 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from eos_ai.agent_runtime import AgentRuntime, TaskType
-from eos_ai.skill_registry import SkillRegistry, get_skill_registry, reset_skill_registry
+from runtime.agent_runtime import AgentRuntime, TaskType
+from runtime.skill_registry import SkillRegistry, get_skill_registry, reset_skill_registry
 
 MIN_OUTCOMES          = 5      # minimum scored outcomes before improvement runs
 REPLY_THRESHOLD       = 0.30   # reply_rate below this → rewrite
@@ -46,7 +46,7 @@ class SkillImprovementEngine:
         Uses outcome_label (Python label) as outcome_type for compatibility.
         """
         try:
-            from eos_ai.db import get_conn, ORG_ID, resolve_skill
+            from runtime.db import get_conn, ORG_ID, resolve_skill
             with get_conn(ORG_ID) as cur:
                 skill_uuid = resolve_skill(skill_id)
                 if not skill_uuid:
@@ -202,7 +202,7 @@ class SkillImprovementEngine:
         # Sync improved content to Neon skills table so DB overrides
         # the old file-based version on next SkillRegistry load.
         try:
-            from eos_ai.db import get_conn, ORG_ID
+            from runtime.db import get_conn, ORG_ID
             with get_conn(ORG_ID) as cur:
                 cur.execute(
                     """
@@ -266,7 +266,7 @@ class SkillImprovementEngine:
         Returns list of dicts:
             {task_type, agent, count, example_inputs, pattern_description}
         """
-        from eos_ai.db import get_conn, ORG_ID
+        from runtime.db import get_conn, ORG_ID
         cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
 
         try:
@@ -329,7 +329,7 @@ class SkillImprovementEngine:
     # ─── Self-organization: propose new skill ────────────────────────────────
 
     def _log_skill_created(self, skill_id: str, file_path: str, pattern: dict) -> None:
-        from eos_ai.db import get_conn, ORG_ID
+        from runtime.db import get_conn, ORG_ID
         try:
             with get_conn(ORG_ID) as cur:
                 cur.execute(

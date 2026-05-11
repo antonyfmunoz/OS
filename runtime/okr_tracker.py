@@ -27,8 +27,8 @@ def set_okr(
     key_results: [{"kr": str, "target": float, "unit": str, "current": float}]
     """
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
         now = datetime.now(PDT)
         if not quarter:
@@ -61,8 +61,8 @@ def set_okr(
 def get_okrs(venture_id: str = None, ctx=None) -> list:
     """Get current quarter OKRs, optionally filtered by venture."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
         now = datetime.now(PDT)
         current_quarter = f'Q{(now.month - 1) // 3 + 1} {now.year}'

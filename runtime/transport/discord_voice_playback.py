@@ -13,7 +13,7 @@ module handles the OUTPUT side: bounded TTS playback.
 Design rules
 ------------
 1. Never raises. Every entry point returns a `PlaybackResult` dict.
-2. Reuses `eos_ai.voice_engine.VoiceEngine.speak()` (lazy import) — no
+2. Reuses `runtime.voice_engine.VoiceEngine.speak()` (lazy import) — no
    parallel TTS pipeline. If voice_engine isn't importable or returns
    nothing, we degrade to a structured "tts_unavailable" result.
 3. Bounded queue: at most ONE item plays at a time per VoiceClient. New
@@ -90,7 +90,7 @@ def probe_playback_capability() -> dict[str, Any]:
     try:
         import importlib
 
-        importlib.import_module("eos_ai.voice_engine")
+        importlib.import_module("runtime.voice_engine")
         out["voice_engine_importable"] = True
     except Exception:
         out["voice_engine_importable"] = False
@@ -182,7 +182,7 @@ def _render_tts_to_wav(text: str) -> Optional[str]:
     """Render `text` to a WAV file. Returns path or None.
 
     Strategy:
-      1. Try `eos_ai.voice_engine.VoiceEngine.speak()` (Coqui TTS → espeak).
+      1. Try `runtime.voice_engine.VoiceEngine.speak()` (Coqui TTS → espeak).
       2. If that fails, try a direct espeak shell-out as a final fallback.
       3. Otherwise return None.
 
@@ -194,7 +194,7 @@ def _render_tts_to_wav(text: str) -> Optional[str]:
 
     # Primary: VoiceEngine.speak()
     try:
-        from eos_ai.voice_engine import VoiceEngine  # type: ignore
+        from runtime.voice_engine import VoiceEngine  # type: ignore
 
         ve = VoiceEngine()
         path = ve.speak(clean)
@@ -473,7 +473,7 @@ class DiscordVoicePlayback:
         to this adapter's node_id. Never raises.
         """
         try:
-            from eos_ai.transport.playback_status import (
+            from runtime.transport.playback_status import (
                 aggregate_by_status,
                 make_playback_status_snapshot,
             )

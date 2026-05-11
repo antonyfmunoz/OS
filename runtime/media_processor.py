@@ -14,7 +14,7 @@ from pathlib import Path
 from dotenv import load_dotenv as _load_dotenv
 _ROOT = Path(__file__).parent.parent
 _load_dotenv(_ROOT / 'services' / '.env')
-_load_dotenv(_ROOT / 'eos_ai' / '.env', override=True)
+_load_dotenv(_ROOT / 'runtime' / '.env', override=True)
 
 try:
     import google.genai as genai
@@ -127,7 +127,7 @@ class MediaProcessor:
             if user_prompt and 'transcri' not in user_prompt.lower():
                 # user wants analysis not just transcript
                 full = f'Transcript: {transcript}\n\n{user_prompt}'
-                from eos_ai.model_router import call_with_fallback
+                from runtime.model_router import call_with_fallback
                 _routing = call_with_fallback(prompt=full, task_type="fast_response")
                 _analysis = _routing.output if _routing else ""
                 return (
@@ -139,7 +139,7 @@ class MediaProcessor:
         if not self.available:
             return (
                 'GEMINI_API_KEY not set. '
-                'Add to /opt/OS/eos_ai/.env to enable '
+                'Add to /opt/OS/runtime/.env to enable '
                 'image, video, and document processing.'
             )
 

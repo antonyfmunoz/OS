@@ -12,18 +12,18 @@ from __future__ import annotations
 
 from typing import Any
 
-from eos_ai.transport.governance_gate_contracts import (
+from runtime.transport.governance_gate_contracts import (
     GateDecision,
     GovernancePolicy,
     evaluate_action_gate,
 )
-from eos_ai.transport.message_bus_contracts import (
+from runtime.transport.message_bus_contracts import (
     MessageEnvelope,
     MessagePriority,
     MessageType,
 )
-from eos_ai.transport.work_order_contracts import WorkOrder
-from eos_ai.transport.worker_node_contracts import (
+from runtime.transport.work_order_contracts import WorkOrder
+from runtime.transport.worker_node_contracts import (
     WorkerAction,
     WorkerFeedbackEvent,
     WorkerMode,

@@ -9,7 +9,7 @@ Model: BAAI/bge-small-en-v1.5 via fastembed
   - Real semantic embeddings, not heuristics
 
 Usage:
-    from eos_ai.embedder import embed, cosine_similarity, DIMS
+    from runtime.embedder import embed, cosine_similarity, DIMS
 
     vec = embed("analyze this lead who feels stuck")
     sim = cosine_similarity(vec_a, vec_b)   # float in [-1, 1]

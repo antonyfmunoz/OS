@@ -6,7 +6,7 @@ Routes calls to the correct Claude model based on task type:
   - Sonnet (claude-sonnet-4-6)           — generation, deep analysis, content creation
 
 Usage:
-    from eos_ai.agent_runtime import AgentRuntime, TaskType
+    from runtime.agent_runtime import AgentRuntime, TaskType
 
     runtime = AgentRuntime()
     result = runtime.run(
@@ -26,15 +26,15 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Load eos_ai/.env so DATABASE_URL, EOS_ORG_ID, EOS_USER_ID are available
+# Load runtime/.env so DATABASE_URL, EOS_ORG_ID, EOS_USER_ID are available
 # before any import that touches db.py (memory, human_intelligence, etc.)
 load_dotenv(Path(__file__).parent / ".env")
 
-from eos_ai.context import EOSContext, load_context_from_env
-from eos_ai.venture_knowledge import VentureKnowledgeBase
-from eos_ai.skill_registry import SkillRegistry, get_skill_registry
-from eos_ai.authority_engine import AuthorityEngine
-from eos_ai.model_preferences import ModelPreferences
+from runtime.context import EOSContext, load_context_from_env
+from runtime.venture_knowledge import VentureKnowledgeBase
+from runtime.skill_registry import SkillRegistry, get_skill_registry
+from runtime.authority_engine import AuthorityEngine
+from runtime.model_preferences import ModelPreferences
 
 
 # ─── Models ──────────────────────────────────────────────────────────────────
@@ -149,7 +149,7 @@ class AgentRuntime:
         self._prefs = ModelPreferences(ctx or load_context_from_env())
 
         # Import here to avoid circular imports if memory imports runtime
-        from eos_ai.memory import AgentMemory
+        from runtime.memory import AgentMemory
 
         self._memory = AgentMemory()
 
@@ -236,7 +236,7 @@ class AgentRuntime:
         # When no agent specified, default to executive_assistant.
         if agent == "default":
             try:
-                from eos_ai.agent_hierarchy import AgentHierarchy
+                from runtime.agent_hierarchy import AgentHierarchy
 
                 agent = AgentHierarchy().get_primary_interface()
             except Exception:
@@ -248,7 +248,7 @@ class AgentRuntime:
         # Every user gets their own AI name and identity — loaded from BIS.
         if agent == "executive_assistant":
             try:
-                from eos_ai.business_instance import BusinessInstanceManager
+                from runtime.business_instance import BusinessInstanceManager
 
                 _bim = BusinessInstanceManager(ctx)
                 # Try primary venture — EA soul doc is stored on the first venture
@@ -345,7 +345,7 @@ class AgentRuntime:
 
         # 3. Call the API — single path through model_router fallback chain:
         #    cc_sdk → Anthropic → Gemini → Ollama
-        from eos_ai.model_router import call_with_fallback as _router_call
+        from runtime.model_router import call_with_fallback as _router_call
 
         _start = time.time()
 
@@ -430,7 +430,7 @@ class AgentRuntime:
         Returns:
             AgentResult with output, model, token counts, skill used, and interaction_id.
         """
-        from eos_ai.agent_teams import route as team_route
+        from runtime.agent_teams import route as team_route
 
         config = team_route(team, sub_agent)
         agent_label = f"{team}.{sub_agent}"
@@ -439,7 +439,7 @@ class AgentRuntime:
         system_extra: str | None = None
         if username and config.task_type in (TaskType.GENERATE, TaskType.ANALYZE):
             try:
-                from eos_ai.human_intelligence import HumanIntelligenceEngine
+                from runtime.human_intelligence import HumanIntelligenceEngine
 
                 engine = HumanIntelligenceEngine()
                 profile = engine.get_profile(username)
@@ -496,7 +496,7 @@ class AgentRuntime:
         system_extra: str | None = None
         if username and task_type in (TaskType.GENERATE, TaskType.ANALYZE):
             try:
-                from eos_ai.human_intelligence import HumanIntelligenceEngine
+                from runtime.human_intelligence import HumanIntelligenceEngine
 
                 engine = HumanIntelligenceEngine()
                 profile = engine.get_profile(username)

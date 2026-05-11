@@ -12,7 +12,7 @@ Domain state (current research) is persisted to the Neon skills table
 under the naming convention: domain_{key}.
 
 Usage:
-    from eos_ai.knowledge_domains import KnowledgeDomainRegistry
+    from runtime.knowledge_domains import KnowledgeDomainRegistry
 
     registry = KnowledgeDomainRegistry()
 
@@ -833,8 +833,8 @@ class KnowledgeDomainRegistry:
     def _load_state(self) -> dict:
         """Load domain current_state from Neon skills table (domain_ prefix)."""
         try:
-            from eos_ai.db import get_conn
-            from eos_ai.context import load_context_from_env
+            from runtime.db import get_conn
+            from runtime.context import load_context_from_env
             ctx = load_context_from_env()
             state: dict = {}
             with get_conn(ctx.org_id) as cur:
@@ -868,7 +868,7 @@ class KnowledgeDomainRegistry:
             'domain_key': domain_key,
         }
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             with get_conn(ctx.org_id) as cur:
                 cur.execute(
                     'SELECT id FROM skills WHERE org_id = %s AND name = %s',

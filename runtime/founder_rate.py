@@ -41,8 +41,8 @@ def calculate_founder_rate(
 def store_founder_rate(annual_income: float, ctx=None) -> bool:
     """Store Founder Rate in Neon for use across the system."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
         rate = calculate_founder_rate(annual_income)
 
@@ -66,8 +66,8 @@ def store_founder_rate(annual_income: float, ctx=None) -> bool:
 def get_current_founder_rate(ctx=None) -> dict:
     """Get the most recently set Founder Rate."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -102,8 +102,8 @@ def log_time_block(
     energy: -2 (drain) to +2 (gain)
     """
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -132,8 +132,8 @@ def log_time_block(
 def get_time_audit_summary(days: int = 7, ctx=None) -> dict:
     """Summarize time and energy data for the week."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -189,8 +189,8 @@ def get_time_audit_summary(days: int = 7, ctx=None) -> dict:
 def add_to_no_list(item: str, reason: str = '', ctx=None) -> bool:
     """Add something to Antony's No List."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
         with get_conn(ctx.org_id) as cur:
             cur.execute('''
@@ -216,8 +216,8 @@ def add_to_no_list(item: str, reason: str = '', ctx=None) -> bool:
 def get_no_list(ctx=None) -> list[dict]:
     """Get Antony's No List (deduplicated, newest-first)."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
         with get_conn(ctx.org_id) as cur:
             cur.execute('''
@@ -261,8 +261,8 @@ def detect_delegation_threshold(ctx=None) -> list[dict]:
     Looks for dex_task events appearing 3+ times in 30 days.
     """
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:

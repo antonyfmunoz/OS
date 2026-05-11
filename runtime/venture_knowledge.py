@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Literal
 
-from eos_ai.db import get_conn
+from runtime.db import get_conn
 
 
 @dataclass

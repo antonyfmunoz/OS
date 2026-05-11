@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
-from eos_ai.transport.work_order_contracts import WorkOrderTaskType
+from runtime.transport.work_order_contracts import WorkOrderTaskType
 
 
 class ComputerUseBackend(str, Enum):

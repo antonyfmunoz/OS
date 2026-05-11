@@ -9,13 +9,13 @@ Core rule: ONLY the Executor can act. Everything else selects, plans,
 or observes.
 
 Usage:
-    from eos_ai.execution_loop import ExecutionLoop
+    from runtime.execution_loop import ExecutionLoop
 
     loop = ExecutionLoop()
     loop.run(cycles=10)
 
 CLI:
-    python3 -m eos_ai.execution_loop --cycles 10
+    python3 -m runtime.execution_loop --cycles 10
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ _REPO_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.envir
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from eos_ai.goal_selector import Goal, GoalSelector, GoalState, OutcomeTracker
+from runtime.goal_selector import Goal, GoalSelector, GoalState, OutcomeTracker
 
 
 # ─── ExecutionResult ─────────────────────────────────────────────────────────
@@ -151,7 +151,7 @@ class ExecutionLoop:
     @staticmethod
     def _default_publish(event_type: str, payload: dict) -> None:
         try:
-            from eos_ai.event_bus import get_bus
+            from runtime.event_bus import get_bus
 
             get_bus().publish(event_type, payload)
         except Exception as e:

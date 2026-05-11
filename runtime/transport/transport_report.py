@@ -14,13 +14,13 @@ question and get one answer:
 It is intentionally NOT a new abstraction. It just joins existing read-only
 views from:
 
-    eos_ai.substrate.stt_producer.stt_workstation_readiness
-    eos_ai.substrate.ptt_binding.real_capture_report
-    eos_ai.substrate.discord_voice_transport.get_default_discord_voice_transport
-    eos_ai.substrate.result_query.audio_loop_snapshot
-    eos_ai.substrate.result_query.recent_audio_loop_transcripts
-    eos_ai.substrate.result_query.recent_voice_sessions
-    eos_ai.substrate.result_query.operator_state_snapshot
+    runtime.transport.stt_producer.stt_workstation_readiness
+    runtime.transport.ptt_binding.real_capture_report
+    runtime.transport.discord_voice_transport.get_default_discord_voice_transport
+    runtime.transport.result_query.audio_loop_snapshot
+    runtime.transport.result_query.recent_audio_loop_transcripts
+    runtime.transport.result_query.recent_voice_sessions
+    runtime.transport.result_query.operator_state_snapshot
 
 Best-effort. Never raises. JSON-friendly.
 """
@@ -89,13 +89,13 @@ def unified_transport_report(
     workstation: dict[str, Any] = {}
     workstation["readiness"] = _safe(
         lambda: __import__(
-            "eos_ai.substrate.stt_producer", fromlist=["stt_workstation_readiness"]
+            "runtime.transport.stt_producer", fromlist=["stt_workstation_readiness"]
         ).stt_workstation_readiness(),
         default={"classification": "unknown", "reason": "stt_producer unavailable"},
     )
     workstation["real_capture_report"] = _safe(
         lambda: __import__(
-            "eos_ai.substrate.ptt_binding", fromlist=["real_capture_report"]
+            "runtime.transport.ptt_binding", fromlist=["real_capture_report"]
         ).real_capture_report(node_id=node_id, limit=5),
         default={"history": [], "history_count": 0, "by_classification": {}},
     )
@@ -103,7 +103,7 @@ def unified_transport_report(
     # ── Discord transport ───────────────────────────────────────────────
     discord_status: dict[str, Any] = {}
     try:
-        from eos_ai.transport.discord_voice_transport import (
+        from runtime.transport.discord_voice_transport import (
             get_default_discord_voice_transport,
         )
 
@@ -122,7 +122,7 @@ def unified_transport_report(
     # ── Meeting transport ───────────────────────────────────────────────
     meeting_status: dict[str, Any] = {}
     try:
-        from eos_ai.transport.meeting_transport import (
+        from runtime.transport.meeting_transport import (
             get_default_meeting_transport,
         )
 
@@ -141,19 +141,19 @@ def unified_transport_report(
     # ── Shared voice substrate (read-only joins) ────────────────────────
     voice_sessions = _safe(
         lambda: __import__(
-            "eos_ai.substrate.result_query", fromlist=["recent_voice_sessions"]
+            "runtime.transport.result_query", fromlist=["recent_voice_sessions"]
         ).recent_voice_sessions(limit=5, node_id=node_id),
         default=[],
     )
     audio_loop = _safe(
         lambda: __import__(
-            "eos_ai.substrate.result_query", fromlist=["audio_loop_snapshot"]
+            "runtime.transport.result_query", fromlist=["audio_loop_snapshot"]
         ).audio_loop_snapshot(node_id=node_id),
         default={"node_id": node_id, "count": 0, "states": [], "stats": {}},
     )
     operator_state = _safe(
         lambda: __import__(
-            "eos_ai.substrate.result_query", fromlist=["operator_state_snapshot"]
+            "runtime.transport.result_query", fromlist=["operator_state_snapshot"]
         ).operator_state_snapshot(node_id=node_id),
         default={"node_id": node_id, "count": 0, "states": [], "stats": {}},
     )
@@ -163,7 +163,7 @@ def unified_transport_report(
     if node_id:
         local_transcripts = _safe(
             lambda: __import__(
-                "eos_ai.substrate.result_query",
+                "runtime.transport.result_query",
                 fromlist=["recent_audio_loop_transcripts"],
             ).recent_audio_loop_transcripts(node_id, limit=transcript_limit),
             default=[],
@@ -178,7 +178,7 @@ def unified_transport_report(
     if discord_node_id:
         discord_transcripts = _safe(
             lambda: __import__(
-                "eos_ai.substrate.result_query",
+                "runtime.transport.result_query",
                 fromlist=["recent_audio_loop_transcripts"],
             ).recent_audio_loop_transcripts(discord_node_id, limit=transcript_limit),
             default=[],
@@ -193,7 +193,7 @@ def unified_transport_report(
     if meeting_node_id:
         meeting_transcripts = _safe(
             lambda: __import__(
-                "eos_ai.substrate.result_query",
+                "runtime.transport.result_query",
                 fromlist=["recent_audio_loop_transcripts"],
             ).recent_audio_loop_transcripts(meeting_node_id, limit=transcript_limit),
             default=[],
@@ -253,7 +253,7 @@ def unified_transport_report(
         "memory_extracted_count": 0,
     }
     try:
-        from eos_ai.transport.meeting_intelligence import (
+        from runtime.transport.meeting_intelligence import (
             intelligence_report_block,
         )
 
@@ -319,7 +319,7 @@ def _empty_pseudo_live() -> dict:
 
 def _pseudo_live_block() -> dict:
     try:
-        from eos_ai.transport.discord_text_transport import pseudo_live_status
+        from runtime.transport.discord_text_transport import pseudo_live_status
 
         return pseudo_live_status()
     except Exception as e:  # noqa: BLE001
@@ -496,7 +496,7 @@ def _attached_meeting_codes(report: dict) -> set[str]:
     """
     codes: set[str] = set()
     try:
-        from eos_ai.transport.meeting_transport import (
+        from runtime.transport.meeting_transport import (
             get_default_meeting_transport,
         )
 
@@ -514,7 +514,7 @@ def _attached_meeting_codes(report: dict) -> set[str]:
             if isinstance(mc, str) and mc:
                 # sanitize to match on-disk filename
                 try:
-                    from eos_ai.transport.meet_caption_bridge import (
+                    from runtime.transport.meet_caption_bridge import (
                         sanitize_meeting_code,
                     )
 
@@ -529,7 +529,7 @@ def _attached_meeting_codes(report: dict) -> set[str]:
 def _meet_bridges_block(report: dict) -> list[dict]:
     out: list[dict] = []
     try:
-        from eos_ai.transport.meet_caption_bridge import BRIDGE_ROOT
+        from runtime.transport.meet_caption_bridge import BRIDGE_ROOT
 
         if not BRIDGE_ROOT.exists():
             return out

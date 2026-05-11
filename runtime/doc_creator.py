@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 import os
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 logger = logging.getLogger(__name__)
 PDT = ZoneInfo('America/Los_Angeles')
 
@@ -30,8 +30,8 @@ def create_briefing_doc(
     Returns dict with content, drive_file, title, type.
     """
     try:
-        from eos_ai.model_router import get_router, TaskType
-        from eos_ai.gws_connector import GWSConnector
+        from runtime.model_router import get_router, TaskType
+        from runtime.gws_connector import GWSConnector
         router = get_router()
 
         templates = {
@@ -162,8 +162,8 @@ Keep it under 500 words. Client-facing quality.""",
 
         # Log to Neon
         try:
-            from eos_ai.context import load_context_from_env
-            from eos_ai.db import get_conn
+            from runtime.context import load_context_from_env
+            from runtime.db import get_conn
             ctx = ctx or load_context_from_env()
             with get_conn(ctx.org_id) as cur:
                 cur.execute('''
@@ -207,8 +207,8 @@ def create_presentation_outline(
     Returns dict with slides (structured data) and drive_file.
     """
     try:
-        from eos_ai.model_router import get_router, TaskType
-        from eos_ai.gws_connector import GWSConnector
+        from runtime.model_router import get_router, TaskType
+        from runtime.gws_connector import GWSConnector
         import json as _json
         router = get_router()
 
@@ -275,7 +275,7 @@ def fact_check(claim: str, ctx=None) -> dict:
     Returns dict with verdict, explanation, confidence, verify.
     """
     try:
-        from eos_ai.model_router import get_router, TaskType
+        from runtime.model_router import get_router, TaskType
         import json as _json
         router = get_router()
 
@@ -309,7 +309,7 @@ def draft_announcement(
     announcement_type: internal|team|public|press_release
     """
     try:
-        from eos_ai.model_router import get_router, TaskType
+        from runtime.model_router import get_router, TaskType
         router = get_router()
 
         templates = {
@@ -343,7 +343,7 @@ def draft_crisis_communication(
 ) -> str:
     """Draft crisis communication following acknowledge-factual-action structure."""
     try:
-        from eos_ai.model_router import get_router, TaskType
+        from runtime.model_router import get_router, TaskType
         router = get_router()
 
         return router.call_with_fallback(TaskType.FAST_RESPONSE, f"""Draft a crisis communication.

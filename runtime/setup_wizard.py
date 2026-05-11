@@ -5,10 +5,10 @@ Collects founder and venture info, creates a BusinessInstance,
 and generates a personalised EA soul doc from the master template.
 
 Usage (interactive):
-    python3 -m eos_ai.setup_wizard
+    python3 -m runtime.setup_wizard
 
 Usage (programmatic):
-    from eos_ai.setup_wizard import generate_ea_soul_doc
+    from runtime.setup_wizard import generate_ea_soul_doc
     soul_doc = generate_ea_soul_doc(
         ai_name='ARIA',
         founder_name='Jane Smith',
@@ -127,8 +127,8 @@ def run_setup() -> None:
 
     # Build and save BIS
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.business_instance import (
+        from runtime.context import load_context_from_env
+        from runtime.business_instance import (
             BusinessInstance, BusinessInstanceManager, STAGE_NAMES
         )
 

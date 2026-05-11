@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 import os
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 logger = logging.getLogger(__name__)
 PDT = ZoneInfo('America/Los_Angeles')
 
@@ -28,8 +28,8 @@ def add_important_date(
     date format: MM-DD (recurring yearly) or YYYY-MM-DD (one-time)
     """
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
         with get_conn(ctx.org_id) as cur:
             cur.execute('''
@@ -57,8 +57,8 @@ def add_important_date(
 def get_upcoming_dates(days: int = 30, ctx=None) -> list[dict]:
     """Get important dates coming up in the next N days, sorted by days_until."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
         with get_conn(ctx.org_id) as cur:
             cur.execute('''
@@ -114,8 +114,8 @@ def research_gift(
     Returns formatted list of 5 specific gift suggestions.
     """
     try:
-        from eos_ai.model_router import get_router, TaskType
-        from eos_ai.person_recognition import build_intelligence_profile
+        from runtime.model_router import get_router, TaskType
+        from runtime.person_recognition import build_intelligence_profile
         router = get_router()
         model = router.route(TaskType.FAST_RESPONSE)
 

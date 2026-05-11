@@ -7,8 +7,8 @@ populates: Drive docs, Gmail contacts, Calendar patterns, Google Tasks,
 CRM lead profiles, and a synthesized business intelligence summary.
 
 Usage:
-    from eos_ai.context import load_context_from_env
-    from eos_ai.onboarding_backfill import OnboardingBackfill
+    from runtime.context import load_context_from_env
+    from runtime.onboarding_backfill import OnboardingBackfill
 
     ctx = load_context_from_env()
     ob  = OnboardingBackfill(ctx)
@@ -19,12 +19,12 @@ Usage:
 import re
 from datetime import datetime, timezone, timedelta
 
-from eos_ai.context import EOSContext
-from eos_ai.gws_connector import GWSConnector
-from eos_ai.cognitive_loop import CognitiveLoop
-from eos_ai.human_intelligence import HumanIntelligenceEngine
-from eos_ai.knowledge_graph import KnowledgeGraph
-from eos_ai.embedding_engine import EmbeddingEngine
+from runtime.context import EOSContext
+from runtime.gws_connector import GWSConnector
+from runtime.cognitive_loop import CognitiveLoop
+from runtime.human_intelligence import HumanIntelligenceEngine
+from runtime.knowledge_graph import KnowledgeGraph
+from runtime.embedding_engine import EmbeddingEngine
 
 
 class OnboardingBackfill:
@@ -81,7 +81,7 @@ class OnboardingBackfill:
             if not content or len(content) < 100:
                 continue
 
-            from eos_ai.memory import AgentMemory
+            from runtime.memory import AgentMemory
             mem = AgentMemory()
             mem.log_event(
                 org_id=self.ctx.org_id,
@@ -200,7 +200,7 @@ class OnboardingBackfill:
 
         if events:
             try:
-                from eos_ai.os_trinity import OSTrinity
+                from runtime.os_trinity import OSTrinity
                 trinity = OSTrinity(self.ctx)
                 trinity.update_intelligence_profile(
                     self.ctx.user_id,
@@ -234,7 +234,7 @@ class OnboardingBackfill:
             if not title:
                 continue
             try:
-                from eos_ai.coordination_engine import CoordinationEngine
+                from runtime.coordination_engine import CoordinationEngine
                 ce = CoordinationEngine(self.ctx)
                 ce.assign_task(
                     task_description=title,
@@ -265,7 +265,7 @@ class OnboardingBackfill:
         Synthesize all gathered data into a structured business intelligence
         summary. Stored as an event and logged for future retrieval.
         """
-        from eos_ai.agent_runtime import TaskType
+        from runtime.agent_runtime import TaskType
 
         summary_prompt = (
             f"Based on the following sources that were just analyzed for "
@@ -295,7 +295,7 @@ class OnboardingBackfill:
             print(f"[Backfill] Knowledge synthesis failed: {e}")
             knowledge_summary = ""
 
-        from eos_ai.memory import AgentMemory
+        from runtime.memory import AgentMemory
         mem = AgentMemory()
         try:
             mem.log_event(

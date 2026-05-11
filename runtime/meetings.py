@@ -31,11 +31,11 @@ def create_meeting_record(
     Returns dict with neon_id, notion_id, success.
     """
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         import requests
         from dotenv import load_dotenv
-        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 
         ctx = ctx or load_context_from_env()
 
@@ -126,7 +126,7 @@ def update_meeting_outcome(
     try:
         import requests
         from dotenv import load_dotenv
-        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 
         token = os.getenv('NOTION_API_KEY')
         db_id = os.getenv('NOTION_MEETINGS_ID')
@@ -178,9 +178,9 @@ def update_meeting_outcome(
             # Part 1 — Auto-draft follow-up email after meeting
             if status == 'Completed' and (outcomes or open_loops):
                 try:
-                    from eos_ai.model_router import get_router, TaskType
-                    from eos_ai.context import load_context_from_env
-                    from eos_ai.db import get_conn
+                    from runtime.model_router import get_router, TaskType
+                    from runtime.context import load_context_from_env
+                    from runtime.db import get_conn
                     import json as _json
                     _ctx = ctx or load_context_from_env()
                     _router = get_router()
@@ -245,7 +245,7 @@ On behalf of Antony Munoz"""
             # Part 2 — Auto-update pipeline stage based on outcome
             if outcomes and status == 'Completed':
                 try:
-                    from eos_ai.model_router import get_router, TaskType
+                    from runtime.model_router import get_router, TaskType
                     import json as _json
                     _router = get_router()
                     _model = _router.route(TaskType.FAST_RESPONSE)
@@ -336,7 +336,7 @@ def update_meeting_prep_notes(notion_id: str, prep_notes: str) -> bool:
     try:
         import requests
         from dotenv import load_dotenv
-        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 
         token = os.getenv('NOTION_API_KEY')
         if not notion_id or not token:
@@ -367,7 +367,7 @@ def find_notion_meeting_by_person(person: str) -> str | None:
     try:
         import requests
         from dotenv import load_dotenv
-        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 
         token = os.getenv('NOTION_API_KEY')
         db_id = os.getenv('NOTION_MEETINGS_ID')
@@ -401,7 +401,7 @@ def get_open_loop_meetings(days_back: int = 7, ctx=None) -> list[dict]:
     try:
         import requests
         from dotenv import load_dotenv
-        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 
         token = os.getenv('NOTION_API_KEY')
         db_id = os.getenv('NOTION_MEETINGS_ID')
@@ -449,8 +449,8 @@ def queue_follow_up_tasks(
 ) -> bool:
     """Auto-queue follow-up tasks after a meeting."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         ctx = ctx or load_context_from_env()
 
         tasks = []
@@ -501,8 +501,8 @@ def build_prep_brief(
     Pulls intelligence profile + semantic memory + structures talking points.
     """
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.person_recognition import (
+        from runtime.context import load_context_from_env
+        from runtime.person_recognition import (
             build_intelligence_profile,
             format_intelligence_profile,
         )
@@ -529,7 +529,7 @@ def build_prep_brief(
 
         # Semantic memory hits
         try:
-            from eos_ai.memory import AgentMemory
+            from runtime.memory import AgentMemory
             mem = AgentMemory(ctx)
             query = f'{person} {company}'.strip()
             results = mem.semantic_search(query=query, limit=5, min_similarity=0.5)
@@ -568,7 +568,7 @@ def build_prep_brief(
         # Add timezone context if attendee email is known
         if email:
             try:
-                from eos_ai.gws_connector import GWSConnector
+                from runtime.gws_connector import GWSConnector
                 _tz_gws = GWSConnector()
                 _tz = _tz_gws.detect_timezone_from_email(email)
                 from zoneinfo import ZoneInfo
@@ -607,9 +607,9 @@ def draft_meeting_agenda(
     Returns formatted agenda as string.
     """
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.model_router import get_router, TaskType
-        from eos_ai.person_recognition import build_intelligence_profile
+        from runtime.context import load_context_from_env
+        from runtime.model_router import get_router, TaskType
+        from runtime.person_recognition import build_intelligence_profile
         ctx = ctx or load_context_from_env()
         router = get_router()
         model = router.route(TaskType.FAST_RESPONSE)
@@ -667,10 +667,10 @@ def draft_meeting_minutes(
     """
     import json as _j
     try:
-        from eos_ai.model_router import get_router, TaskType
-        from eos_ai.gws_connector import GWSConnector
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.model_router import get_router, TaskType
+        from runtime.gws_connector import GWSConnector
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         from datetime import datetime
         from zoneinfo import ZoneInfo
         router = get_router()
@@ -763,7 +763,7 @@ def calculate_meeting_roi(
     try:
         import requests as _req
         from dotenv import load_dotenv
-        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
         token = os.getenv('NOTION_API_KEY')
         db_id = os.getenv('NOTION_MEETINGS_ID')
         if not token or not db_id:

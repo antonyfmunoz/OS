@@ -23,7 +23,7 @@ It does NOT:
 The adapter runs in TRANSCRIPT-ONLY mode by default. A live
 `discord.VoiceClient` can OPTIONALLY be attached via
 `attach_voice_client(vc)`, which switches the adapter into ATTACHED mode
-and enables bounded TTS playback through `eos_ai.substrate.discord_voice_playback`.
+and enables bounded TTS playback through `runtime.transport.discord_voice_playback`.
 
 Modes
 -----
@@ -218,7 +218,7 @@ class DiscordVoiceTransport:
 
     def _ensure_playback(self):
         if self._playback is None:
-            from eos_ai.transport.discord_voice_playback import (
+            from runtime.transport.discord_voice_playback import (
                 DiscordVoicePlayback,
             )
 
@@ -303,7 +303,7 @@ class DiscordVoiceTransport:
         StationDaemon uses for the workstation node.
         """
         try:
-            from eos_ai.transport.nodes import (
+            from runtime.transport.nodes import (
                 Node,
                 NodeRegistry,
                 NodeStatus,
@@ -336,7 +336,7 @@ class DiscordVoiceTransport:
     def start_session(self, role_slug: Optional[str] = None) -> dict[str, Any]:
         """Start (or resume) a bounded voice session for this transport node."""
         try:
-            from eos_ai.transport.voice_session import (
+            from runtime.transport.voice_session import (
                 VoiceSessionRuntime,
                 get_voice_session_store,
             )
@@ -376,7 +376,7 @@ class DiscordVoiceTransport:
 
     def end_session(self, *, reason: Optional[str] = None) -> dict[str, Any]:
         try:
-            from eos_ai.transport.voice_session import (
+            from runtime.transport.voice_session import (
                 VoiceSessionRuntime,
                 get_voice_session_store,
             )
@@ -438,7 +438,7 @@ class DiscordVoiceTransport:
             return {"status": "empty_text", "event": ev.as_dict()}
 
         try:
-            from eos_ai.transport.transcript_inject import inject_transcript
+            from runtime.transport.transcript_inject import inject_transcript
         except Exception as e:  # noqa: BLE001
             return {"status": "import_failed", "detail": str(e)}
 
@@ -512,7 +512,7 @@ class DiscordVoiceTransport:
         if not session_id:
             return None
         try:
-            from eos_ai.transport.voice_session import (
+            from runtime.transport.voice_session import (
                 VoiceTurnSource,
                 get_voice_session_store,
             )
@@ -537,7 +537,7 @@ class DiscordVoiceTransport:
                 if isinstance(snap, dict):
                     snap["mode"] = mode
                 return snap
-            from eos_ai.transport.playback_status import (
+            from runtime.transport.playback_status import (
                 make_playback_status_snapshot,
             )
 
@@ -571,7 +571,7 @@ class DiscordVoiceTransport:
         active_count = 0
         recent_sessions: list[dict] = []
         try:
-            from eos_ai.transport.voice_session import get_voice_session_store
+            from runtime.transport.voice_session import get_voice_session_store
 
             store = get_voice_session_store()
             active_count = len(store.active(node_id=self.node_id))
@@ -584,7 +584,7 @@ class DiscordVoiceTransport:
         # Audio loop snapshot for this node (best-effort).
         audio_loop: Optional[dict] = None
         try:
-            from eos_ai.transport.result_query import audio_loop_snapshot
+            from runtime.transport.result_query import audio_loop_snapshot
 
             audio_loop = audio_loop_snapshot(node_id=self.node_id)
         except Exception as e:  # noqa: BLE001
@@ -607,7 +607,7 @@ class DiscordVoiceTransport:
             except Exception as e:  # noqa: BLE001
                 _log(f"playback snapshot failed: {e}")
             try:
-                from eos_ai.transport.discord_voice_playback import (
+                from runtime.transport.discord_voice_playback import (
                     get_playback_history,
                     probe_playback_capability,
                 )

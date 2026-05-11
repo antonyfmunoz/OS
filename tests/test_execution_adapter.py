@@ -75,7 +75,7 @@ def test_local_adapter_wraps_executor() -> None:
     }
 
     with patch(
-        "eos_ai.substrate.local_executor.execute_command",
+        "runtime.substrate.local_executor.execute_command",
         return_value=mock_result,
     ) as mock_exec:
         result = adapter.execute(request)
@@ -112,7 +112,7 @@ def test_local_adapter_returns_execution_result() -> None:
     }
 
     with patch(
-        "eos_ai.substrate.local_executor.execute_command",
+        "runtime.substrate.local_executor.execute_command",
         return_value=mock_result,
     ):
         result = adapter.execute(request)
@@ -159,7 +159,7 @@ def test_local_adapter_returns_failed_on_executor_error() -> None:
     }
 
     with patch(
-        "eos_ai.substrate.local_executor.execute_command",
+        "runtime.substrate.local_executor.execute_command",
         return_value=mock_result,
     ):
         result = adapter.execute(request)
@@ -183,7 +183,7 @@ def test_local_adapter_returns_timed_out() -> None:
     }
 
     with patch(
-        "eos_ai.substrate.local_executor.execute_command",
+        "runtime.substrate.local_executor.execute_command",
         return_value=mock_result,
     ):
         result = adapter.execute(request)
@@ -198,7 +198,7 @@ def test_local_adapter_catches_exception() -> None:
     request = _make_request()
 
     with patch(
-        "eos_ai.substrate.local_executor.execute_command",
+        "runtime.substrate.local_executor.execute_command",
         side_effect=RuntimeError("boom"),
     ):
         result = adapter.execute(request)
@@ -236,7 +236,7 @@ def test_workstation_adapter_calls_http() -> None:
     mock_response = {"status": "ok", "detail": "spoken", "data": {}}
 
     with patch(
-        "eos_ai.substrate.node_transport.send_task_via_http",
+        "runtime.substrate.node_transport.send_task_via_http",
         new_callable=AsyncMock,
         return_value=mock_response,
     ) as mock_http:
@@ -267,7 +267,7 @@ def test_workstation_adapter_falls_back_on_http_failure() -> None:
     )
 
     with patch(
-        "eos_ai.substrate.node_transport.send_task_via_http",
+        "runtime.substrate.node_transport.send_task_via_http",
         new_callable=AsyncMock,
         return_value=None,
     ):
@@ -298,7 +298,7 @@ def test_workstation_adapter_catches_exception() -> None:
     )
 
     with patch(
-        "eos_ai.substrate.node_transport.send_task_via_http",
+        "runtime.substrate.node_transport.send_task_via_http",
         new_callable=AsyncMock,
         side_effect=ConnectionError("refused"),
     ):
@@ -323,7 +323,7 @@ def test_workstation_adapter_error_response() -> None:
     }
 
     with patch(
-        "eos_ai.substrate.node_transport.send_task_via_http",
+        "runtime.substrate.node_transport.send_task_via_http",
         new_callable=AsyncMock,
         return_value=mock_response,
     ):
@@ -338,7 +338,7 @@ def test_workstation_adapter_health_healthy() -> None:
     adapter = WorkstationAdapter()
 
     with patch(
-        "eos_ai.substrate.node_transport.check_http_health",
+        "runtime.substrate.node_transport.check_http_health",
         new_callable=AsyncMock,
         return_value=True,
     ):
@@ -353,7 +353,7 @@ def test_workstation_adapter_health_unhealthy() -> None:
     adapter = WorkstationAdapter()
 
     with patch(
-        "eos_ai.substrate.node_transport.check_http_health",
+        "runtime.substrate.node_transport.check_http_health",
         new_callable=AsyncMock,
         return_value=False,
     ):

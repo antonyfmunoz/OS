@@ -1,5 +1,5 @@
-"""Compatibility shim — eos_ai.substrate moved to eos_ai.transport (Wave 4, 2026-05-10).
+"""Compatibility shim — runtime.substrate moved to runtime.transport (Wave 4, 2026-05-10).
 
-All imports transparently re-export from eos_ai.transport.
+All imports transparently re-export from runtime.transport.
 """
-from eos_ai.transport import *  # noqa: F401,F403
+from runtime.transport import *  # noqa: F401,F403

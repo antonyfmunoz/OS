@@ -202,7 +202,7 @@ class LocalControlStore:
             if self._loaded:
                 return
             try:
-                from eos_ai.transport.storage import get_storage
+                from runtime.transport.storage import get_storage
 
                 raw = get_storage().get(_STORAGE_KEY_REQUESTS, default={}) or {}
             except Exception as e:
@@ -221,7 +221,7 @@ class LocalControlStore:
 
             # Load mode
             try:
-                from eos_ai.transport.storage import get_storage
+                from runtime.transport.storage import get_storage
 
                 mode_raw = get_storage().get(_STORAGE_KEY_MODE, default=None)
             except Exception as e:
@@ -245,7 +245,7 @@ class LocalControlStore:
     def _flush(self) -> None:
         """Persist current state to storage. Caller holds the lock."""
         try:
-            from eos_ai.transport.storage import get_storage
+            from runtime.transport.storage import get_storage
 
             payload = {
                 "rows": {rid: r.to_dict() for rid, r in self._requests.items()},
@@ -258,7 +258,7 @@ class LocalControlStore:
     def _flush_mode(self) -> None:
         """Persist mode to storage. Caller holds the lock."""
         try:
-            from eos_ai.transport.storage import get_storage
+            from runtime.transport.storage import get_storage
 
             get_storage().put(
                 _STORAGE_KEY_MODE,
@@ -509,7 +509,7 @@ def execute_control_request(request_id: str) -> LocalControlRequest:
 
 def _dispatch_browser_open_url(req: LocalControlRequest) -> LocalControlRequest:
     """Open a URL via browser_agent."""
-    from eos_ai.transport.browser_agent import BrowserActionType, execute_browser_action
+    from runtime.transport.browser_agent import BrowserActionType, execute_browser_action
 
     url = req.payload.get("url", "")
     result = execute_browser_action(BrowserActionType.OPEN_URL, {"url": url})
@@ -525,7 +525,7 @@ def _dispatch_browser_open_url(req: LocalControlRequest) -> LocalControlRequest:
 
 def _dispatch_browser_click(req: LocalControlRequest) -> LocalControlRequest:
     """Click an element via browser_agent."""
-    from eos_ai.transport.browser_agent import BrowserActionType, execute_browser_action
+    from runtime.transport.browser_agent import BrowserActionType, execute_browser_action
 
     selector = req.payload.get("selector", "")
     result = execute_browser_action(BrowserActionType.CLICK, {"selector": selector})
@@ -541,7 +541,7 @@ def _dispatch_browser_click(req: LocalControlRequest) -> LocalControlRequest:
 
 def _dispatch_browser_type(req: LocalControlRequest) -> LocalControlRequest:
     """Type text into an element via browser_agent."""
-    from eos_ai.transport.browser_agent import BrowserActionType, execute_browser_action
+    from runtime.transport.browser_agent import BrowserActionType, execute_browser_action
 
     selector = req.payload.get("selector", "")
     text = req.payload.get("text", "")
@@ -560,7 +560,7 @@ def _dispatch_browser_type(req: LocalControlRequest) -> LocalControlRequest:
 
 def _dispatch_browser_press_keys(req: LocalControlRequest) -> LocalControlRequest:
     """Press keyboard keys via browser_agent page.keyboard.press."""
-    from eos_ai.transport.browser_agent import get_browser_agent
+    from runtime.transport.browser_agent import get_browser_agent
 
     keys = req.payload.get("keys", "")
     agent = get_browser_agent()
@@ -583,7 +583,7 @@ def _dispatch_browser_press_keys(req: LocalControlRequest) -> LocalControlReques
 
 def _dispatch_browser_screenshot(req: LocalControlRequest) -> LocalControlRequest:
     """Take a screenshot via browser_agent."""
-    from eos_ai.transport.browser_agent import BrowserActionType, execute_browser_action
+    from runtime.transport.browser_agent import BrowserActionType, execute_browser_action
 
     result = execute_browser_action(BrowserActionType.SCREENSHOT, {})
     if result.ok:
@@ -774,7 +774,7 @@ def _dispatch_open_scene(req: LocalControlRequest) -> LocalControlRequest:
     """Resolve a scene and execute each step recursively as a control request."""
     scene_name = req.payload.get("scene_name", "")
     try:
-        from eos_ai.transport.scenes import get_scene
+        from runtime.transport.scenes import get_scene
 
         scene = get_scene(scene_name)
     except Exception as e:  # noqa: BLE001
@@ -856,7 +856,7 @@ def open_scene(
     found, the request is immediately marked FAILED.
     """
     try:
-        from eos_ai.transport.scenes import get_scene
+        from runtime.transport.scenes import get_scene
 
         scene = get_scene(scene_name)
     except Exception as e:

@@ -7,8 +7,8 @@ Monitors for stage transitions and evolves the org chart.
 Reports to Portfolio Agent.
 
 Usage:
-    from eos_ai.ceo_agent import CEOAgent
-    from eos_ai.context import load_context_from_env
+    from runtime.ceo_agent import CEOAgent
+    from runtime.context import load_context_from_env
 
     ctx = load_context_from_env()
     ceo = CEOAgent(ctx)
@@ -21,7 +21,7 @@ Usage:
 import json
 import os
 from typing import Optional
-from eos_ai.context import EOSContext
+from runtime.context import EOSContext
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 
@@ -59,7 +59,7 @@ class CEOAgent:
         primitives: dict = {}
 
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
 
             with get_conn(self.ctx.org_id) as cur:
 
@@ -129,8 +129,8 @@ class CEOAgent:
         # Fill stage from BIS manager if not in events
         if 'stage' not in primitives or 'current_revenue' not in primitives:
             try:
-                from eos_ai.business_instance import BusinessInstanceManager
-                from eos_ai.db import get_conn, resolve_venture
+                from runtime.business_instance import BusinessInstanceManager
+                from runtime.db import get_conn, resolve_venture
                 with get_conn(self.ctx.org_id) as cur:
                     venture_id = self.ctx.active_venture_id or 'lyfe_institute'
                     resolve_venture(venture_id)
@@ -179,7 +179,7 @@ class CEOAgent:
             primitives = self.detect_primitives()
 
         try:
-            from eos_ai.model_router import get_router, TaskType
+            from runtime.model_router import get_router, TaskType
 
             # Discover available agent templates from soul docs on disk
             template_dir = f'{_ROOT}/agents'
@@ -283,8 +283,8 @@ class CEOAgent:
 
             # Write new stage to BIS
             try:
-                from eos_ai.business_instance import BusinessInstanceManager
-                from eos_ai.db import get_conn, resolve_venture
+                from runtime.business_instance import BusinessInstanceManager
+                from runtime.db import get_conn, resolve_venture
                 venture_id = self.ctx.active_venture_id or 'lyfe_institute'
                 with get_conn(self.ctx.org_id) as cur:
                     resolve_venture(venture_id)
@@ -325,7 +325,7 @@ class CEOAgent:
     ) -> dict:
         """Active constraint from live data."""
         try:
-            from eos_ai.ceo_intelligence import (
+            from runtime.ceo_intelligence import (
                 diagnose_constraint,
             )
             vid = (
@@ -358,7 +358,7 @@ class CEOAgent:
     ) -> str:
         """Generate CEO intelligence brief."""
         try:
-            from eos_ai.ceo_intelligence import (
+            from runtime.ceo_intelligence import (
                 generate_ceo_brief,
             )
             vid = (

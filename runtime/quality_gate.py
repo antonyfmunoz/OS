@@ -172,7 +172,7 @@ class QualityTransformationGate:
         Reality lens: is this grounded in what is actually true?
         Penalizes generic patterns. Rewards situation-specific reference.
         """
-        from eos_ai.signal_hierarchy import SignalTier
+        from runtime.signal_hierarchy import SignalTier
 
         transformations: list[str] = []
         score = 0.7  # baseline
@@ -345,7 +345,7 @@ class QualityTransformationGate:
         Intelligence without execution is philosophy.
         Every output must move the north star.
         """
-        from eos_ai.signal_hierarchy import SignalTier
+        from runtime.signal_hierarchy import SignalTier
 
         transformations: list[str] = []
         score = 0.6  # lower baseline — action must be earned
@@ -425,7 +425,7 @@ def quality_check(
     issues (list[str]), suggestions (list[str]), revised_version (str).
     """
     try:
-        from eos_ai.model_router import get_router, TaskType
+        from runtime.model_router import get_router, TaskType
 
         router = get_router()
         model = router.route(TaskType.FAST_RESPONSE)
@@ -493,8 +493,8 @@ def gate_outgoing_email(
     )
 
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
 
         ctx = ctx or load_context_from_env()
         with get_conn(ctx.org_id) as cur:

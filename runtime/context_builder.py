@@ -21,7 +21,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 _ROOT = Path(_REPO_ROOT)
 
-from eos_ai.context import EOSContext
+from runtime.context import EOSContext
 
 
 @dataclass
@@ -97,7 +97,7 @@ class ContextBuilder:
 
         # Layer 0: AI Identity
         try:
-            from eos_ai.ai_identity import AIIdentityEngine
+            from runtime.ai_identity import AIIdentityEngine
             uc.ai_identity = AIIdentityEngine().get_foundation_prompt()
         except Exception as e:
             uc.failed_sources.append(f"ai_identity: {e}")
@@ -106,7 +106,7 @@ class ContextBuilder:
         _ea_agents = ("executive_assistant", "dex", "ea", None)
         if agent in _ea_agents or (agent and "ea" in agent.lower()):
             try:
-                from eos_ai.ea_operational_standards import get_all_standards
+                from runtime.ea_operational_standards import get_all_standards
                 standards = get_all_standards()
                 uc.ea_standards = f"## Operating Standards\n{standards}"
             except Exception as e:
@@ -114,7 +114,7 @@ class ContextBuilder:
 
         # Layer 0b: Signal classification
         try:
-            from eos_ai.signal_hierarchy import SignalHierarchyEngine
+            from runtime.signal_hierarchy import SignalHierarchyEngine
             she = SignalHierarchyEngine(ctx=ctx)
             uc.signal_classification = she.classify_input(message or "", channel="unknown")
             prompt = she.format_for_prompt(uc.signal_classification)
@@ -125,7 +125,7 @@ class ContextBuilder:
 
         # Layer 0c: Quality requirements
         try:
-            from eos_ai.quality_gate import QualityTransformationGate, TransformationResult
+            from runtime.quality_gate import QualityTransformationGate, TransformationResult
             qtg = QualityTransformationGate(ctx)
             pre_result = TransformationResult(
                 original="", transformed="",
@@ -144,7 +144,7 @@ class ContextBuilder:
 
         # Layer 1d: BIS / TenantManager
         try:
-            from eos_ai.tenant import TenantManager
+            from runtime.tenant import TenantManager
             tm = TenantManager(ctx)
             bis_prompt = tm.format_for_prompt()
             if bis_prompt and bis_prompt.strip():
@@ -214,7 +214,7 @@ class ContextBuilder:
 
         # Layer 1e-vi: Cross-session behavioral patterns
         try:
-            from eos_ai.pattern_engine import PatternEngine
+            from runtime.pattern_engine import PatternEngine
             pe = PatternEngine(ctx)
             patterns = pe.analyze(days_back=14)
             if patterns:
@@ -224,7 +224,7 @@ class ContextBuilder:
 
         # Layer 1e-vii: Decision log
         try:
-            from eos_ai.decision_log import DecisionLog
+            from runtime.decision_log import DecisionLog
             dl = DecisionLog(ctx)
             decisions = dl.get_recent_decisions(
                 venture_id=venture_id or "", limit=5,
@@ -236,7 +236,7 @@ class ContextBuilder:
 
         # Layer 1e-vii-b: DEX learnings
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             with get_conn(ctx.org_id) as cur:
                 cur.execute(
                     """
@@ -266,7 +266,7 @@ class ContextBuilder:
 
         # Layer 1e-viii: NotebookLM insights
         try:
-            from eos_ai.notebooklm_sync import NotebookLMSync
+            from runtime.notebooklm_sync import NotebookLMSync
             nls = NotebookLMSync(ctx)
             insights = nls.get_recent_insights(
                 venture_id=venture_id or "", limit=3,
@@ -285,7 +285,7 @@ class ContextBuilder:
 
         # Layer 1f: Primitives
         try:
-            from eos_ai.primitives import PrimitiveRegistry
+            from runtime.primitives import PrimitiveRegistry
             pr = PrimitiveRegistry(ctx)
             prim_ctx = pr.compose_business_context(
                 venture_id or getattr(ctx, "active_venture_id", "") or ""
@@ -298,7 +298,7 @@ class ContextBuilder:
 
         # Layer 1d (north star): BIS north star + stage
         try:
-            from eos_ai.business_instance import BusinessInstanceManager
+            from runtime.business_instance import BusinessInstanceManager
             bim = BusinessInstanceManager(ctx)
             bis = bim.get_bis(
                 venture_id or getattr(ctx, "active_venture_id", "") or ""
@@ -313,7 +313,7 @@ class ContextBuilder:
 
         # Layer 1h: Hierarchy
         try:
-            from eos_ai.agent_hierarchy import AgentHierarchy
+            from runtime.agent_hierarchy import AgentHierarchy
             ah = AgentHierarchy()
             skip_agents = ("default", "gateway.direct", "prompt_engine", "quality_checker")
             if agent and agent not in skip_agents:
@@ -326,7 +326,7 @@ class ContextBuilder:
 
         # Calendar context
         try:
-            from eos_ai.gws_connector import GWSConnector
+            from runtime.gws_connector import GWSConnector
             gws = GWSConnector()
             events = gws.get_today_events()
             if events:
@@ -343,8 +343,8 @@ class ContextBuilder:
 
         # Human intelligence
         try:
-            from eos_ai.human_intelligence import HumanIntelligenceEngine
-            from eos_ai.db import get_conn
+            from runtime.human_intelligence import HumanIntelligenceEngine
+            from runtime.db import get_conn
             hi = HumanIntelligenceEngine(ctx)
             text_lower = (message or "").lower()
             with get_conn(ctx.org_id) as hi_cur:
@@ -364,7 +364,7 @@ class ContextBuilder:
 
         # Semantic memory
         try:
-            from eos_ai.memory import AgentMemory
+            from runtime.memory import AgentMemory
             mem = AgentMemory()
             if message and len(message.split()) >= 3:
                 hits = mem.semantic_search(
@@ -406,7 +406,7 @@ class ContextBuilder:
 
         # Confidentiality
         try:
-            from eos_ai.confidentiality import detect_confidential_context
+            from runtime.confidentiality import detect_confidential_context
             conf = detect_confidential_context(message)
             if conf.get("is_confidential"):
                 level = conf.get("level", "restricted")
@@ -421,7 +421,7 @@ class ContextBuilder:
 
         # Martell patterns
         try:
-            from eos_ai.martell_patterns import (
+            from runtime.martell_patterns import (
                 detect_leverage_killer, check_solution_standard,
             )
             assassin = detect_leverage_killer(message)
@@ -446,7 +446,7 @@ class ContextBuilder:
 
         # No List enforcement
         try:
-            from eos_ai.founder_rate import check_against_no_list
+            from runtime.founder_rate import check_against_no_list
             violations = check_against_no_list(message)
             if violations:
                 uc.no_list = (
@@ -460,7 +460,7 @@ class ContextBuilder:
 
         # Intent detection
         try:
-            from eos_ai.cognitive_loop import (
+            from runtime.cognitive_loop import (
                 detect_intent_and_inject, _format_intent_context,
             )
             intent_data = detect_intent_and_inject(
@@ -476,7 +476,7 @@ class ContextBuilder:
 
         # World model context — canonical + instance entries relevant to this message
         try:
-            from eos_ai.world_model import WorldModel
+            from runtime.world_model import WorldModel
             _wm = WorldModel(org_id=str(ctx.org_id))
             _wm_ctx = _wm.get_context_for_prompt(message)
             if _wm_ctx:
@@ -489,7 +489,7 @@ class ContextBuilder:
         uc.estimated_tokens = len(system_prompt) // 4
         if uc.estimated_tokens > 140_000:
             try:
-                from eos_ai.context_compaction import ContextCompactor
+                from runtime.context_compaction import ContextCompactor
                 compactor = ContextCompactor(ctx)
                 messages = [{"role": "system", "content": system_prompt}]
                 brief = compactor.compact(messages, session_id)
@@ -504,7 +504,7 @@ class ContextBuilder:
 
 
 if __name__ == "__main__":
-    from eos_ai.context import EOSContext
+    from runtime.context import EOSContext
     import os
 
     ctx = EOSContext(

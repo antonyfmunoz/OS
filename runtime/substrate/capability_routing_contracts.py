@@ -1,1 +1,1 @@
-from eos_ai.transport.capability_routing_contracts import *  # noqa: F401,F403
+from runtime.transport.capability_routing_contracts import *  # noqa: F401,F403

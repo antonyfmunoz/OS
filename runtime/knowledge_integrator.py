@@ -20,8 +20,8 @@ Categories:
   world_pulse      — continuous monitoring of market sources
 
 Usage:
-    from eos_ai.context import load_context_from_env
-    from eos_ai.knowledge_integrator import KnowledgeIntegrator
+    from runtime.context import load_context_from_env
+    from runtime.knowledge_integrator import KnowledgeIntegrator
 
     ctx = load_context_from_env()
     ki = KnowledgeIntegrator(ctx)
@@ -39,9 +39,9 @@ Usage:
 import uuid
 from typing import Optional
 
-from eos_ai.context import EOSContext
-from eos_ai.memory import AgentMemory
-from eos_ai.embedding_engine import EmbeddingEngine
+from runtime.context import EOSContext
+from runtime.memory import AgentMemory
+from runtime.embedding_engine import EmbeddingEngine
 
 VALID_CATEGORIES = {
     'web_search',
@@ -99,7 +99,7 @@ class KnowledgeIntegrator:
 
         # Store as interaction — satisfies embeddings FK and enables semantic search
         try:
-            from eos_ai.db import get_conn, ORG_ID, USER_ID
+            from runtime.db import get_conn, ORG_ID, USER_ID
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     """

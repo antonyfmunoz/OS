@@ -29,7 +29,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from eos_ai.transport.claude_session_bridge import (
+from runtime.transport.claude_session_bridge import (
     capture_output,
     send_message,
 )

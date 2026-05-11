@@ -21,7 +21,7 @@ from __future__ import annotations
 import time
 from typing import Any, Callable, Iterable, Optional
 
-from eos_ai.substrate import meeting_intelligence as mi
+from runtime.substrate import meeting_intelligence as mi
 
 LAYER_NAME = "operator_interface"
 LAYER_VERSION = "v1"

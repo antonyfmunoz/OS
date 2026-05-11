@@ -10,7 +10,7 @@ The founder's sovereignty is always preserved — the system never judges,
 it simply asks what happened.
 
 Usage:
-    from eos_ai.accountability import AccountabilityEngine
+    from runtime.accountability import AccountabilityEngine
     ae = AccountabilityEngine(ctx)
     commitment = ae.detect_commitment('I will send 20 DMs today', 'lyfe_institute')
     pending = ae.get_pending_follow_ups()
@@ -94,7 +94,7 @@ class AccountabilityEngine:
 
     def _save_commitment(self, commitment: Commitment) -> None:
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     '''
@@ -126,7 +126,7 @@ class AccountabilityEngine:
         followed up yet.
         """
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             now = datetime.now().isoformat()
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
@@ -168,7 +168,7 @@ class AccountabilityEngine:
 
     def mark_follow_up_sent(self, event_id: str) -> None:
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     'SELECT payload_json FROM events WHERE id = %s',

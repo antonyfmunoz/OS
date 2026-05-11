@@ -10,8 +10,8 @@ Refreshed every 30 minutes via orchestrator background cycle.
 Stored in SessionState.set_ambient() for zero-latency PERCEIVE injection.
 
 Usage:
-    from eos_ai.context import load_context_from_env
-    from eos_ai.reality_context import RealityContext
+    from runtime.context import load_context_from_env
+    from runtime.reality_context import RealityContext
 
     ctx     = load_context_from_env()
     rc      = RealityContext(ctx)
@@ -19,7 +19,7 @@ Usage:
     # {'lyfe_institute': [{'content': '...', 'tier': 'HIGH', ...}, ...]}
 """
 
-from eos_ai.context import EOSContext
+from runtime.context import EOSContext
 
 
 class RealityContext:
@@ -49,7 +49,7 @@ class RealityContext:
             'avg_active_hour':     17.0,
         }
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     """
@@ -99,8 +99,8 @@ class RealityContext:
             Empty dict on any failure (never blocks callers).
         """
         try:
-            from eos_ai.reality_engine import RealityIntelligenceEngine
-            from eos_ai.venture_knowledge import VentureKnowledgeBase
+            from runtime.reality_engine import RealityIntelligenceEngine
+            from runtime.venture_knowledge import VentureKnowledgeBase
 
             rie   = RealityIntelligenceEngine(self.ctx)
             result: dict = {}

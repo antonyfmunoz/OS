@@ -14,7 +14,7 @@ Runtime must enforce that handlers for these events cannot return
 mutations.  These are diagnostic events for tracing and auditing.
 
 Usage:
-    from eos_ai.transport.llm_decision_events import (
+    from runtime.transport.llm_decision_events import (
         build_llm_decision_requested_event,
         build_llm_decision_received_event,
         build_llm_decision_accepted_event,
@@ -26,7 +26,7 @@ Usage:
 
 from __future__ import annotations
 
-from eos_ai.transport.event_scheduler import SchedulerEvent
+from runtime.transport.event_scheduler import SchedulerEvent
 
 
 def build_llm_decision_requested_event(

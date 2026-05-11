@@ -6,7 +6,7 @@ what happened, the outcome is captured and tied to the recommendation.
 Over time this builds a signal of what actually works vs. what doesn't.
 
 Usage:
-    from eos_ai.feedback_loop import FeedbackLoop
+    from runtime.feedback_loop import FeedbackLoop
     fl = FeedbackLoop(ctx)
     rec_id = fl.log_recommendation('Send 20 DMs today', 'lyfe_institute', 'asked for focus')
     fl.log_outcome('I sent the DMs, got 3 replies', 'lyfe_institute')
@@ -61,7 +61,7 @@ class FeedbackLoop:
 
         rec_id = str(uuid.uuid4())[:8]
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
 
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
@@ -182,7 +182,7 @@ class FeedbackLoop:
         Returns: 'success', 'failure', 'partial', or 'unknown'.
         """
         try:
-            from eos_ai.model_router import call_with_fallback, TaskType
+            from runtime.model_router import call_with_fallback, TaskType
 
             result = call_with_fallback(
                 prompt=(
@@ -260,7 +260,7 @@ class FeedbackLoop:
     def _get_pending_recs(self) -> list[dict]:
         """Get pending recommendations from Neon."""
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
 
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
@@ -300,7 +300,7 @@ class FeedbackLoop:
     ) -> bool:
         """Update a recommendation's outcome in Neon."""
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
 
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
@@ -334,7 +334,7 @@ class FeedbackLoop:
         What percentage are succeeding? What percentage failing?
         """
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
 
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
@@ -374,7 +374,7 @@ class FeedbackLoop:
 
         closed = 0
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
 
             with get_conn(self.ctx.org_id) as cur:
                 for rec in pending:

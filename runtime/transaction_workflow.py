@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.db import get_conn
+from runtime.db import get_conn
 
 ORG_ID = "72727be3-e24d-48f2-bcea-de760ecb4c23"
 

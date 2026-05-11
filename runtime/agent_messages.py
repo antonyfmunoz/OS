@@ -6,7 +6,7 @@ Messages are directional (upward/downward/lateral) and typed
 (task/report/alert/query/result).
 
 Usage:
-    from eos_ai.agent_messages import AgentMessageBus, AgentMessage, MessageType, MessageDirection
+    from runtime.agent_messages import AgentMessageBus, AgentMessage, MessageType, MessageDirection
     bus = AgentMessageBus(ctx)
     bus.send(AgentMessage(
         from_agent='portfolio_agent',
@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
-from eos_ai.context import EOSContext
+from runtime.context import EOSContext
 
 
 class MessageDirection(Enum):
@@ -65,7 +65,7 @@ class AgentMessageBus:
 
     def send(self, message: AgentMessage) -> bool:
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     """
@@ -101,7 +101,7 @@ class AgentMessageBus:
         limit: int = 10,
     ) -> list[dict]:
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     """

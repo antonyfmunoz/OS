@@ -10,8 +10,8 @@ Default posture: all products are siloed. Zero data flows between products
 without an explicit, revocable user grant.
 
 Usage:
-    from eos_ai.context import load_context_from_env
-    from eos_ai.os_trinity import OSTrinity
+    from runtime.context import load_context_from_env
+    from runtime.os_trinity import OSTrinity
 
     ctx     = load_context_from_env()
     trinity = OSTrinity(ctx)
@@ -25,7 +25,7 @@ import json
 import uuid
 from datetime import datetime, timezone
 
-from eos_ai.context import EOSContext
+from runtime.context import EOSContext
 
 
 VALID_PRODUCTS: list[str] = ['lyfeos', 'creatorOS', 'eos']
@@ -63,7 +63,7 @@ class OSTrinity:
         Upserts to cross_product_permissions. Clears revoked_at on re-grant.
         Returns True on success.
         """
-        from eos_ai.db import get_conn
+        from runtime.db import get_conn
         try:
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
@@ -105,7 +105,7 @@ class OSTrinity:
         Sets permitted=false and stamps revoked_at.
         Returns True on success.
         """
-        from eos_ai.db import get_conn
+        from runtime.db import get_conn
         try:
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
@@ -142,7 +142,7 @@ class OSTrinity:
         Returns True ONLY if an explicit, un-revoked permission exists.
         Default is always DENIED — no implicit cross-product data access.
         """
-        from eos_ai.db import get_conn
+        from runtime.db import get_conn
         try:
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
@@ -167,7 +167,7 @@ class OSTrinity:
         """
         Return all permission records for this user (active and revoked).
         """
-        from eos_ai.db import get_conn
+        from runtime.db import get_conn
         try:
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
@@ -213,7 +213,7 @@ class OSTrinity:
 
         Returns True on success.
         """
-        from eos_ai.db import get_conn
+        from runtime.db import get_conn
 
         def _j(val):
             """Serialize to JSON string for JSONB columns, or None to skip."""
@@ -313,7 +313,7 @@ class OSTrinity:
         Load the harness-level intelligence profile for a user.
         Returns None if no profile has been created yet.
         """
-        from eos_ai.db import get_conn
+        from runtime.db import get_conn
         try:
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
@@ -367,7 +367,7 @@ class OSTrinity:
         Syncs: communication_style, north_star, decision_patterns.
         Returns True if sync succeeded (even partially).
         """
-        from eos_ai.db import get_conn
+        from runtime.db import get_conn
         try:
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
@@ -419,7 +419,7 @@ class OSTrinity:
         Safe to call repeatedly — does not create duplicates.
         Returns True on success.
         """
-        from eos_ai.db import get_conn
+        from runtime.db import get_conn
         try:
             with get_conn(self.ctx.org_id) as cur:
                 # Check if already connected
@@ -464,7 +464,7 @@ class OSTrinity:
 
     def get_connected_products(self, user_id: str) -> list[str]:
         """Return list of product names currently connected for this user."""
-        from eos_ai.db import get_conn
+        from runtime.db import get_conn
         try:
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(

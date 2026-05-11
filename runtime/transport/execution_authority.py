@@ -27,13 +27,13 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Callable
 
-from eos_ai.transport.event_scheduler import (
+from runtime.transport.event_scheduler import (
     EventScheduler,
     ExecutionResult as SchedulerExecutionResult,
     RunResult,
     SchedulerEvent,
 )
-from eos_ai.transport.execution_contract import (
+from runtime.transport.execution_contract import (
     ExecutionClass,
     ExecutionConstraints,
     ExecutionRequest,
@@ -41,10 +41,10 @@ from eos_ai.transport.execution_contract import (
     _compute_idempotency_key,
     _new_execution_id,
 )
-from eos_ai.transport.execution_events import build_execution_requested_event
-from eos_ai.transport.execution_router import ExecutionRouter
-from eos_ai.transport.lifecycle_handlers import create_lifecycle_scheduler
-from eos_ai.transport.runtime_state_store import RuntimeStateStore
+from runtime.transport.execution_events import build_execution_requested_event
+from runtime.transport.execution_router import ExecutionRouter
+from runtime.transport.lifecycle_handlers import create_lifecycle_scheduler
+from runtime.transport.runtime_state_store import RuntimeStateStore
 
 _LOG_PREFIX = "[substrate.execution_authority]"
 
@@ -88,7 +88,7 @@ def _get_primary_scheduler() -> tuple[EventScheduler, RuntimeStateStore]:
     if _primary_scheduler is not None and _primary_store is not None:
         return _primary_scheduler, _primary_store
 
-    from eos_ai.transport.runtime_bootstrap import (
+    from runtime.transport.runtime_bootstrap import (
         get_event_log_runtime,
         get_runtime_state_store,
     )

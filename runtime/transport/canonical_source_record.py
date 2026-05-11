@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
-from eos_ai.transport.extraction_backend_contracts import (
+from runtime.transport.extraction_backend_contracts import (
     ExtractionBackendType,
     ExtractionCoverageStatus,
 )

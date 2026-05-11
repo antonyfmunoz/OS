@@ -105,7 +105,7 @@ def classify_component_boundary(
 
     if path:
         path_lower = path.lower()
-        if "eos_ai/substrate/" in path_lower:
+        if "eos_ai/substrate/" in path_lower or "runtime/substrate/" in path_lower or "runtime/transport/" in path_lower:
             return BoundaryClassification(
                 name=name,
                 boundary=ComponentBoundary.UMH_SUBSTRATE,

@@ -8,11 +8,11 @@ caller API.
 
 How it works:
   - EOS writes dispatched SafeActions to a per-node JSON outbox file:
-        /opt/OS/eos_ai/.substrate_station/<node_id>.outbox.json
+        /opt/OS/runtime/.substrate_station/<node_id>.outbox.json
   - The local Station Daemon (running on the founder's workstation, either
     on the same host for development or shuttled via `tailscale file cp`
     in production) polls the outbox, executes, writes results/events to:
-        /opt/OS/eos_ai/.substrate_station/<node_id>.inbox.json
+        /opt/OS/runtime/.substrate_station/<node_id>.inbox.json
   - EOS polls the inbox to collect ActionResults + StationEvents.
 
 Design properties:
@@ -37,13 +37,13 @@ import threading
 from pathlib import Path
 from typing import Any, Optional
 
-from eos_ai.transport.actions import SafeAction, ActionResult, ActionStatus
-from eos_ai.transport.station import StationEvent
+from runtime.transport.actions import SafeAction, ActionResult, ActionStatus
+from runtime.transport.station import StationEvent
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 
 
-_BUS_DIR = Path(_ROOT) / "eos_ai" / ".substrate_station"
+_BUS_DIR = Path(_ROOT) / "runtime" / ".substrate_station"
 
 
 def _log(msg: str) -> None:

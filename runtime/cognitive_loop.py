@@ -8,8 +8,8 @@ in the system should enter through here rather than calling
 AgentRuntime directly.
 
 Usage:
-    from eos_ai.cognitive_loop import CognitiveLoop, CognitiveResult
-    from eos_ai.agent_runtime import TaskType
+    from runtime.cognitive_loop import CognitiveLoop, CognitiveResult
+    from runtime.agent_runtime import TaskType
 
     ctx  = load_context_from_env()
     loop = CognitiveLoop(ctx)
@@ -39,11 +39,11 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from eos_ai.context import EOSContext, load_context_from_env
-from eos_ai.agent_runtime import AgentRuntime, TaskType
-from eos_ai.memory import AgentMemory
-from eos_ai.authority_engine import AuthorityEngine
-from eos_ai.venture_knowledge import VentureKnowledgeBase
+from runtime.context import EOSContext, load_context_from_env
+from runtime.agent_runtime import AgentRuntime, TaskType
+from runtime.memory import AgentMemory
+from runtime.authority_engine import AuthorityEngine
+from runtime.venture_knowledge import VentureKnowledgeBase
 
 
 @dataclass
@@ -92,8 +92,8 @@ def _get_neon_spend(org_id: str) -> dict:
     if _spend_cache and (now - _spend_cache_ts) < _SPEND_CACHE_TTL:
         return _spend_cache
 
-    from eos_ai.db import get_conn
-    from eos_ai.agent_runtime import COST_PER_MILLION_TOKENS
+    from runtime.db import get_conn
+    from runtime.agent_runtime import COST_PER_MILLION_TOKENS
 
     fallback = {"today": 0.0, "month": 0.0, "all_time": 0.0}
     try:
@@ -164,7 +164,7 @@ def format_response_footer(
     Telegram or the gateway carries model, cost, latency, and (when
     the prompt was enhanced) the optimized version.
     """
-    from eos_ai.agent_runtime import calculate_cost
+    from runtime.agent_runtime import calculate_cost
 
     model = getattr(result, "model_used", None) or "unknown"
     cost = getattr(result, "cost_usd", 0.0) or calculate_cost(
@@ -294,7 +294,7 @@ class CognitiveLoop:
                 or input.document_bytes
                 or input.video_path
             ):
-                from eos_ai.media_processor import MediaProcessor
+                from runtime.media_processor import MediaProcessor
 
                 # write bytes to temp file if no path given
                 tmp_path = None
@@ -364,7 +364,7 @@ class CognitiveLoop:
         self._maybe_compact()
 
         # 1. PERCEIVE + 2. UNDERSTAND — unified context assembly via ContextBuilder
-        from eos_ai.context_builder import ContextBuilder
+        from runtime.context_builder import ContextBuilder
 
         _ctx_builder = ContextBuilder()
         _unified = _ctx_builder.build(
@@ -455,7 +455,7 @@ class CognitiveLoop:
         # 5b. STAGE FILTER — prepend stage-appropriate correction if needed
         _output_str = result.output or ""
         try:
-            from eos_ai.primitives import ContextualReasoningEngine
+            from runtime.primitives import ContextualReasoningEngine
 
             _cre = ContextualReasoningEngine(self.ctx)
             _stage_ctx = _cre.get_current_context(
@@ -515,7 +515,7 @@ class CognitiveLoop:
 
         # 7b. LEARN — permanently integrate conversation into knowledge base
         try:
-            from eos_ai.knowledge_integrator import KnowledgeIntegrator
+            from runtime.knowledge_integrator import KnowledgeIntegrator
             from datetime import datetime, timezone as _tz
 
             _ki = KnowledgeIntegrator(self.ctx)
@@ -540,7 +540,7 @@ class CognitiveLoop:
         # 7c. FEEDBACK — auto-check if user message closes pending recommendations
         try:
             if text and modality == "text":
-                from eos_ai.feedback_loop import FeedbackLoop
+                from runtime.feedback_loop import FeedbackLoop
 
                 _fl = FeedbackLoop(self.ctx)
                 _fl.log_outcome(
@@ -591,7 +591,7 @@ class CognitiveLoop:
         User never sees the reset — conversation continues seamlessly.
         """
         try:
-            from eos_ai.context_compaction import ContextCompactor
+            from runtime.context_compaction import ContextCompactor
 
             compactor = ContextCompactor(self.ctx)
             if compactor.should_compact(self._messages):
@@ -655,7 +655,7 @@ class CognitiveLoop:
             return prompt  # Never enhance greetings
 
         try:
-            from eos_ai.user_model import UserModel
+            from runtime.user_model import UserModel
 
             _um = UserModel(self.ctx)
             _trust = _um.get_trust_level()
@@ -691,7 +691,7 @@ class CognitiveLoop:
 
         # 1. User model expansion (profile-aware, higher fidelity)
         try:
-            from eos_ai.user_model import UserModel
+            from runtime.user_model import UserModel
 
             um = UserModel(self.ctx)
             expanded = um.get_intent_expansion(prompt)
@@ -998,7 +998,7 @@ def detect_intent_and_inject(
         injections["intent"] = "meeting_minutes"
         injections["capability"] = "draft_meeting_minutes"
         try:
-            from eos_ai.meetings import draft_meeting_minutes  # noqa: F401
+            from runtime.meetings import draft_meeting_minutes  # noqa: F401
 
             injections["capability_available"] = True
         except Exception:
@@ -1019,7 +1019,7 @@ def detect_intent_and_inject(
     ):
         injections["intent"] = "okr_check"
         try:
-            from eos_ai.okr_tracker import generate_okr_report
+            from runtime.okr_tracker import generate_okr_report
 
             report = generate_okr_report(ctx)
             injections["okr_data"] = report
@@ -1043,7 +1043,7 @@ def detect_intent_and_inject(
     ):
         injections["intent"] = "send_email"
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             import json as _j
 
             with get_conn(ctx.org_id) as cur:
@@ -1094,7 +1094,7 @@ def detect_intent_and_inject(
     ):
         injections["intent"] = "calendar"
         try:
-            from eos_ai.gws_connector import GWSConnector
+            from runtime.gws_connector import GWSConnector
 
             gws = GWSConnector()
             events = gws.get_upcoming_events(days=7)
@@ -1141,7 +1141,7 @@ def detect_intent_and_inject(
     ):
         injections["intent"] = "financial"
         try:
-            from eos_ai.expense_tracker import get_monthly_summary
+            from runtime.expense_tracker import get_monthly_summary
 
             summary = get_monthly_summary(ctx)
             injections["expense_summary"] = summary
@@ -1173,7 +1173,7 @@ def detect_intent_and_inject(
                 name = name_part.split("?")[0].strip().title()
                 if name:
                     try:
-                        from eos_ai.person_recognition import (
+                        from runtime.person_recognition import (
                             build_intelligence_profile,
                             format_intelligence_profile,
                         )
@@ -1202,7 +1202,7 @@ def detect_intent_and_inject(
     ):
         injections["intent"] = "tasks"
         try:
-            from eos_ai.db import get_conn
+            from runtime.db import get_conn
             import json as _j
 
             with get_conn(ctx.org_id) as cur:

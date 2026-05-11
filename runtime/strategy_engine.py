@@ -8,8 +8,8 @@ position, competitive dynamics, resource allocation, and what
 not to do — grounded in real data from Neon, not templates.
 
 Usage:
-    from eos_ai.context import load_context_from_env
-    from eos_ai.strategy_engine import StrategyEngine, DecisionEngine
+    from runtime.context import load_context_from_env
+    from runtime.strategy_engine import StrategyEngine, DecisionEngine
 
     ctx = load_context_from_env()
     se  = StrategyEngine(ctx)
@@ -36,12 +36,12 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from eos_ai.context import EOSContext, load_context_from_env
-from eos_ai.cognitive_loop import CognitiveLoop
-from eos_ai.agent_runtime import TaskType
-from eos_ai.db import get_conn, resolve_venture
-from eos_ai.memory import AgentMemory
-from eos_ai.venture_knowledge import VentureKnowledgeBase
+from runtime.context import EOSContext, load_context_from_env
+from runtime.cognitive_loop import CognitiveLoop
+from runtime.agent_runtime import TaskType
+from runtime.db import get_conn, resolve_venture
+from runtime.memory import AgentMemory
+from runtime.venture_knowledge import VentureKnowledgeBase
 
 STRATEGY_DIR = Path(_REPO_ROOT) / "orchestrator" / "strategy"
 

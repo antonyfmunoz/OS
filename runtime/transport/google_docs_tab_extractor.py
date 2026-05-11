@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from eos_ai.transport.google_docs_tab_audit import extract_text_from_body
+from runtime.transport.google_docs_tab_audit import extract_text_from_body
 
 
 @dataclass

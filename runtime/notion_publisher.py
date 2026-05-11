@@ -7,7 +7,7 @@ Never build a custom Notion writer from scratch.
 Operationalization: built once, improved from outcomes.
 
 Usage:
-    from eos_ai.notion_publisher import get_publisher
+    from runtime.notion_publisher import get_publisher
 
     publisher = get_publisher(ctx)
     url = publisher.publish_morning_brief(
