@@ -1,0 +1,2306 @@
+{
+  "generated_at": "2026-05-10T17:08:01",
+  "generator": "scripts/r8b_generate_bridges.py",
+  "total_bridges": 457,
+  "by_type": {
+    "top_level": 125,
+    "transport_init": 1,
+    "transport": 163,
+    "substrate_init": 1,
+    "substrate_chain": 163,
+    "depth_flattened": 2,
+    "interfaces": 2
+  },
+  "special_cases": [
+    "eos_ai/runtime/work_state.py -> runtime.work_state (depth change)",
+    "eos_ai/runtime/provider_state.py -> runtime.provider_state (depth change)"
+  ],
+  "errors": [],
+  "bridges": [
+    {
+      "bridge": "eos_ai/accountability.py",
+      "target": "runtime.accountability",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/agent_hierarchy.py",
+      "target": "runtime.agent_hierarchy",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/agent_messages.py",
+      "target": "runtime.agent_messages",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/agent_runtime.py",
+      "target": "runtime.agent_runtime",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/agent_teams.py",
+      "target": "runtime.agent_teams",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/ai_identity.py",
+      "target": "runtime.ai_identity",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/authority_engine.py",
+      "target": "runtime.authority_engine",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/browser_agent.py",
+      "target": "runtime.browser_agent",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/business_instance.py",
+      "target": "runtime.business_instance",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/cc_sdk.py",
+      "target": "runtime.cc_sdk",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/ceo_agent.py",
+      "target": "runtime.ceo_agent",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/ceo_intelligence.py",
+      "target": "runtime.ceo_intelligence",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/ceo_operational_standards.py",
+      "target": "runtime.ceo_operational_standards",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/channel.py",
+      "target": "runtime.channel",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/claude_skill_registry.py",
+      "target": "runtime.claude_skill_registry",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/cognitive_loop.py",
+      "target": "runtime.cognitive_loop",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/company_instantiator.py",
+      "target": "runtime.company_instantiator",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/competitive_intel.py",
+      "target": "runtime.competitive_intel",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/confidentiality.py",
+      "target": "runtime.confidentiality",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/context.py",
+      "target": "runtime.context",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/context_builder.py",
+      "target": "runtime.context_builder",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/context_compaction.py",
+      "target": "runtime.context_compaction",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/coordination_engine.py",
+      "target": "runtime.coordination_engine",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/daily_sync.py",
+      "target": "runtime.daily_sync",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/db.py",
+      "target": "runtime.db",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/decision_log.py",
+      "target": "runtime.decision_log",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/delegation_tracker.py",
+      "target": "runtime.delegation_tracker",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/discord_utils.py",
+      "target": "runtime.discord_utils",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/doc_creator.py",
+      "target": "runtime.doc_creator",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/document_filer.py",
+      "target": "runtime.document_filer",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/ea_operational_standards.py",
+      "target": "runtime.ea_operational_standards",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/email_gps.py",
+      "target": "runtime.email_gps",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/email_reviewer.py",
+      "target": "runtime.email_reviewer",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/embedder.py",
+      "target": "runtime.embedder",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/embedding_engine.py",
+      "target": "runtime.embedding_engine",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/eod_closing_loop.py",
+      "target": "runtime.eod_closing_loop",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/error_handler.py",
+      "target": "runtime.error_handler",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/event_bus.py",
+      "target": "runtime.event_bus",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/event_manager.py",
+      "target": "runtime.event_manager",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/evolution_engine.py",
+      "target": "runtime.evolution_engine",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/execution_engine.py",
+      "target": "runtime.execution_engine",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/execution_loop.py",
+      "target": "runtime.execution_loop",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/execution_spine.py",
+      "target": "runtime.execution_spine",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/expense_tracker.py",
+      "target": "runtime.expense_tracker",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/feedback_loop.py",
+      "target": "runtime.feedback_loop",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/founder_capture.py",
+      "target": "runtime.founder_capture",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/founder_rate.py",
+      "target": "runtime.founder_rate",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/gateway.py",
+      "target": "runtime.gateway",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/goal_selector.py",
+      "target": "runtime.goal_selector",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/gws_connector.py",
+      "target": "runtime.gws_connector",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/gws_scanner.py",
+      "target": "runtime.gws_scanner",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/harness_registry.py",
+      "target": "runtime.harness_registry",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/higgsfield_client.py",
+      "target": "runtime.higgsfield_client",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/human_intelligence.py",
+      "target": "runtime.human_intelligence",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/ideal_week.py",
+      "target": "runtime.ideal_week",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/input_intelligence.py",
+      "target": "runtime.input_intelligence",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/integration_test.py",
+      "target": "runtime.integration_test",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/intent_router.py",
+      "target": "runtime.intent_router",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/knowledge_domains.py",
+      "target": "runtime.knowledge_domains",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/knowledge_graph.py",
+      "target": "runtime.knowledge_graph",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/knowledge_integrator.py",
+      "target": "runtime.knowledge_integrator",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/knowledge_layers.py",
+      "target": "runtime.knowledge_layers",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/martell_patterns.py",
+      "target": "runtime.martell_patterns",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/media_processor.py",
+      "target": "runtime.media_processor",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/meetings.py",
+      "target": "runtime.meetings",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/memory.py",
+      "target": "runtime.memory",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/model_preferences.py",
+      "target": "runtime.model_preferences",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/model_router.py",
+      "target": "runtime.model_router",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/notebooklm_sync.py",
+      "target": "runtime.notebooklm_sync",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/notion_publisher.py",
+      "target": "runtime.notion_publisher",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/notion_sync.py",
+      "target": "runtime.notion_sync",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/okr_tracker.py",
+      "target": "runtime.okr_tracker",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/onboarding_backfill.py",
+      "target": "runtime.onboarding_backfill",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/onboarding_engine.py",
+      "target": "runtime.onboarding_engine",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/orchestrator.py",
+      "target": "runtime.orchestrator",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/os_registry.py",
+      "target": "runtime.os_registry",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/os_trinity.py",
+      "target": "runtime.os_trinity",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/output_validator.py",
+      "target": "runtime.output_validator",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/pattern_engine.py",
+      "target": "runtime.pattern_engine",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/person_recognition.py",
+      "target": "runtime.person_recognition",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/personal_admin.py",
+      "target": "runtime.personal_admin",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/portfolio_advisor.py",
+      "target": "runtime.portfolio_advisor",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/portfolio_advisor_standards.py",
+      "target": "runtime.portfolio_advisor_standards",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/primitive_registry.py",
+      "target": "runtime.primitive_registry",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/primitives.py",
+      "target": "runtime.primitives",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/principle_engine.py",
+      "target": "runtime.principle_engine",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/proactive_engine.py",
+      "target": "runtime.proactive_engine",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/provider_health.py",
+      "target": "runtime.provider_health",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/provider_state.py",
+      "target": "runtime.provider_state",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/quality_gate.py",
+      "target": "runtime.quality_gate",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/reality_context.py",
+      "target": "runtime.reality_context",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/reality_engine.py",
+      "target": "runtime.reality_engine",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/research_engine.py",
+      "target": "runtime.research_engine",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/scrapling_connector.py",
+      "target": "runtime.scrapling_connector",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/self_awareness.py",
+      "target": "runtime.self_awareness",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/session_state.py",
+      "target": "runtime.session_state",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/setup_wizard.py",
+      "target": "runtime.setup_wizard",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/signal_hierarchy.py",
+      "target": "runtime.signal_hierarchy",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/skill_improvement.py",
+      "target": "runtime.skill_improvement",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/skill_registry.py",
+      "target": "runtime.skill_registry",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/skill_registry_v2.py",
+      "target": "runtime.skill_registry_v2",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/stage_manager.py",
+      "target": "runtime.stage_manager",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/stakeholder_map.py",
+      "target": "runtime.stakeholder_map",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/status.py",
+      "target": "runtime.status",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/strategy_engine.py",
+      "target": "runtime.strategy_engine",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/subscription_tracker.py",
+      "target": "runtime.subscription_tracker",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/system_context.py",
+      "target": "runtime.system_context",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/system_health.py",
+      "target": "runtime.system_health",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/task_executor.py",
+      "target": "runtime.task_executor",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/task_yield_matrix.py",
+      "target": "runtime.task_yield_matrix",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/template_library.py",
+      "target": "runtime.template_library",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/template_registry.py",
+      "target": "runtime.template_registry",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/tenant.py",
+      "target": "runtime.tenant",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/transaction_workflow.py",
+      "target": "runtime.transaction_workflow",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/travel_manager.py",
+      "target": "runtime.travel_manager",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/trinity.py",
+      "target": "runtime.trinity",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/user_model.py",
+      "target": "runtime.user_model",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/venture_knowledge.py",
+      "target": "runtime.venture_knowledge",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/voice_engine.py",
+      "target": "runtime.voice_engine",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/voice_interface.py",
+      "target": "runtime.voice_interface",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/week_architect.py",
+      "target": "runtime.week_architect",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/work_state.py",
+      "target": "runtime.work_state",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/workflow_engine.py",
+      "target": "runtime.workflow_engine",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/world_model.py",
+      "target": "runtime.world_model",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/world_pulse.py",
+      "target": "runtime.world_pulse",
+      "type": "top_level"
+    },
+    {
+      "bridge": "eos_ai/transport/__init__.py",
+      "target": "runtime.transport",
+      "type": "transport_init"
+    },
+    {
+      "bridge": "eos_ai/transport/actions.py",
+      "target": "runtime.transport.actions",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/adapter_best_practices_loader.py",
+      "target": "runtime.transport.adapter_best_practices_loader",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/adapter_engine_contracts.py",
+      "target": "runtime.transport.adapter_engine_contracts",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/adapter_generation_contracts.py",
+      "target": "runtime.transport.adapter_generation_contracts",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/adapter_quality_gate.py",
+      "target": "runtime.transport.adapter_quality_gate",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/advisor_bridge_transport.py",
+      "target": "runtime.transport.advisor_bridge_transport",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/advisor_relay_runtime.py",
+      "target": "runtime.transport.advisor_relay_runtime",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/advisor_session_contracts.py",
+      "target": "runtime.transport.advisor_session_contracts",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/app_allowlist.py",
+      "target": "runtime.transport.app_allowlist",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/approved_action_executor.py",
+      "target": "runtime.transport.approved_action_executor",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/audio_loop.py",
+      "target": "runtime.transport.audio_loop",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/auth_layer_contracts.py",
+      "target": "runtime.transport.auth_layer_contracts",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/auto_task_generation.py",
+      "target": "runtime.transport.auto_task_generation",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/backend_registry_contracts.py",
+      "target": "runtime.transport.backend_registry_contracts",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/backend_selection_engine.py",
+      "target": "runtime.transport.backend_selection_engine",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/browser_agent.py",
+      "target": "runtime.transport.browser_agent",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/canonical_source_record.py",
+      "target": "runtime.transport.canonical_source_record",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/capabilities.py",
+      "target": "runtime.transport.capabilities",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/capability_routing.py",
+      "target": "runtime.transport.capability_routing",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/capability_routing_contracts.py",
+      "target": "runtime.transport.capability_routing_contracts",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/capability_tagging.py",
+      "target": "runtime.transport.capability_tagging",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/chrome_accessibility_launch_backend.py",
+      "target": "runtime.transport.chrome_accessibility_launch_backend",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/chrome_profile_launch_backend.py",
+      "target": "runtime.transport.chrome_profile_launch_backend",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/chrome_profile_resolver.py",
+      "target": "runtime.transport.chrome_profile_resolver",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/claude_responder.py",
+      "target": "runtime.transport.claude_responder",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/claude_session_bridge.py",
+      "target": "runtime.transport.claude_session_bridge",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/computer_use_backend_contracts.py",
+      "target": "runtime.transport.computer_use_backend_contracts",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/context_lifecycle.py",
+      "target": "runtime.transport.context_lifecycle",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/control_bridge.py",
+      "target": "runtime.transport.control_bridge",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/control_commands.py",
+      "target": "runtime.transport.control_commands",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/cu_document_reader_hardening_plan.py",
+      "target": "runtime.transport.cu_document_reader_hardening_plan",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/day_workflows.py",
+      "target": "runtime.transport.day_workflows",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/decision_engine.py",
+      "target": "runtime.transport.decision_engine",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/discord_mode_routing.py",
+      "target": "runtime.transport.discord_mode_routing",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/discord_text_transport.py",
+      "target": "runtime.transport.discord_text_transport",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/discord_voice_playback.py",
+      "target": "runtime.transport.discord_voice_playback",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/discord_voice_transport.py",
+      "target": "runtime.transport.discord_voice_transport",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/doc_cu_vs_api_comparator.py",
+      "target": "runtime.transport.doc_cu_vs_api_comparator",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/drive_ui_inventory_comparator.py",
+      "target": "runtime.transport.drive_ui_inventory_comparator",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/environment_contracts.py",
+      "target": "runtime.transport.environment_contracts",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/event_scheduler.py",
+      "target": "runtime.transport.event_scheduler",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/event_spine.py",
+      "target": "runtime.transport.event_spine",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/execution_adapter.py",
+      "target": "runtime.transport.execution_adapter",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/execution_authority.py",
+      "target": "runtime.transport.execution_authority",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/execution_contract.py",
+      "target": "runtime.transport.execution_contract",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/execution_events.py",
+      "target": "runtime.transport.execution_events",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/execution_result_handler.py",
+      "target": "runtime.transport.execution_result_handler",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/execution_router.py",
+      "target": "runtime.transport.execution_router",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/execution_trace.py",
+      "target": "runtime.transport.execution_trace",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/execution_worker.py",
+      "target": "runtime.transport.execution_worker",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/extraction_backend_contracts.py",
+      "target": "runtime.transport.extraction_backend_contracts",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/extraction_parity_comparator.py",
+      "target": "runtime.transport.extraction_parity_comparator",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/google_docs_backend_parity_matrix.py",
+      "target": "runtime.transport.google_docs_backend_parity_matrix",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/google_docs_tab_audit.py",
+      "target": "runtime.transport.google_docs_tab_audit",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/google_docs_tab_extractor.py",
+      "target": "runtime.transport.google_docs_tab_extractor",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/google_meet_source.py",
+      "target": "runtime.transport.google_meet_source",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/google_workspace_backend_options.py",
+      "target": "runtime.transport.google_workspace_backend_options",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/governance_gate_contracts.py",
+      "target": "runtime.transport.governance_gate_contracts",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/gui_backend_healthcheck.py",
+      "target": "runtime.transport.gui_backend_healthcheck",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/instance_ingestion_contracts.py",
+      "target": "runtime.transport.instance_ingestion_contracts",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/interactive_gui_worker_contracts.py",
+      "target": "runtime.transport.interactive_gui_worker_contracts",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/interactive_shell_executor.py",
+      "target": "runtime.transport.interactive_shell_executor",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/interface_projection_contracts.py",
+      "target": "runtime.transport.interface_projection_contracts",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/live_sessions.py",
+      "target": "runtime.transport.live_sessions",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/llm_decision_events.py",
+      "target": "runtime.transport.llm_decision_events",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/llm_planner.py",
+      "target": "runtime.transport.llm_planner",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/llm_replay.py",
+      "target": "runtime.transport.llm_replay",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/local_control.py",
+      "target": "runtime.transport.local_control",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/local_env_secret_backend.py",
+      "target": "runtime.transport.local_env_secret_backend",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/local_executor.py",
+      "target": "runtime.transport.local_executor",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/local_gui_control_contracts.py",
+      "target": "runtime.transport.local_gui_control_contracts",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/local_listener.py",
+      "target": "runtime.transport.local_listener",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/local_worker_auto_loop.py",
+      "target": "runtime.transport.local_worker_auto_loop",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/local_worker_relay_packets.py",
+      "target": "runtime.transport.local_worker_relay_packets",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/local_worker_runtime_daemon.py",
+      "target": "runtime.transport.local_worker_runtime_daemon",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/mcp_backend_classifier.py",
+      "target": "runtime.transport.mcp_backend_classifier",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/mcp_backend_contracts.py",
+      "target": "runtime.transport.mcp_backend_contracts",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/mcp_backend_discovery.py",
+      "target": "runtime.transport.mcp_backend_discovery",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/meet_caption_bridge.py",
+      "target": "runtime.transport.meet_caption_bridge",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/meeting_intelligence.py",
+      "target": "runtime.transport.meeting_intelligence",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/meeting_sources.py",
+      "target": "runtime.transport.meeting_sources",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/meeting_transport.py",
+      "target": "runtime.transport.meeting_transport",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/memory_scope_contracts.py",
+      "target": "runtime.transport.memory_scope_contracts",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/message_bus_contracts.py",
+      "target": "runtime.transport.message_bus_contracts",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/mode_behavior.py",
+      "target": "runtime.transport.mode_behavior",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/node_controller.py",
+      "target": "runtime.transport.node_controller",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/node_transport.py",
+      "target": "runtime.transport.node_transport",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/nodes.py",
+      "target": "runtime.transport.nodes",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/operator_interface.py",
+      "target": "runtime.transport.operator_interface",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/operator_presence.py",
+      "target": "runtime.transport.operator_presence",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/operator_session.py",
+      "target": "runtime.transport.operator_session",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/operator_state.py",
+      "target": "runtime.transport.operator_state",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/operator_transitions.py",
+      "target": "runtime.transport.operator_transitions",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/os_controller.py",
+      "target": "runtime.transport.os_controller",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/perception.py",
+      "target": "runtime.transport.perception",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/pipeline_execution.py",
+      "target": "runtime.transport.pipeline_execution",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/planner.py",
+      "target": "runtime.transport.planner",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/playback_status.py",
+      "target": "runtime.transport.playback_status",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/ptt_binding.py",
+      "target": "runtime.transport.ptt_binding",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/remote_executor.py",
+      "target": "runtime.transport.remote_executor",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/remote_identity.py",
+      "target": "runtime.transport.remote_identity",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/resource_guard.py",
+      "target": "runtime.transport.resource_guard",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/result_query.py",
+      "target": "runtime.transport.result_query",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/result_store.py",
+      "target": "runtime.transport.result_store",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/ritual_body.py",
+      "target": "runtime.transport.ritual_body",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/ritual_inference.py",
+      "target": "runtime.transport.ritual_inference",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/ritual_reconciler.py",
+      "target": "runtime.transport.ritual_reconciler",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/ritual_runner.py",
+      "target": "runtime.transport.ritual_runner",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/rituals.py",
+      "target": "runtime.transport.rituals",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/role_resolver.py",
+      "target": "runtime.transport.role_resolver",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/roles.py",
+      "target": "runtime.transport.roles",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/scene_capabilities.py",
+      "target": "runtime.transport.scene_capabilities",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/scene_policy.py",
+      "target": "runtime.transport.scene_policy",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/scenes.py",
+      "target": "runtime.transport.scenes",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/secret_broker_contracts.py",
+      "target": "runtime.transport.secret_broker_contracts",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/secret_redaction.py",
+      "target": "runtime.transport.secret_redaction",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/session_control.py",
+      "target": "runtime.transport.session_control",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/session_discord_bridge.py",
+      "target": "runtime.transport.session_discord_bridge",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/session_orchestration.py",
+      "target": "runtime.transport.session_orchestration",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/session_watcher.py",
+      "target": "runtime.transport.session_watcher",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/source_lifecycle_contracts.py",
+      "target": "runtime.transport.source_lifecycle_contracts",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/station.py",
+      "target": "runtime.transport.station",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/station_bus.py",
+      "target": "runtime.transport.station_bus",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/station_daemon.py",
+      "target": "runtime.transport.station_daemon",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/station_drainer.py",
+      "target": "runtime.transport.station_drainer",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/station_helpers.py",
+      "target": "runtime.transport.station_helpers",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/station_presence.py",
+      "target": "runtime.transport.station_presence",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/station_readiness.py",
+      "target": "runtime.transport.station_readiness",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/station_triggers.py",
+      "target": "runtime.transport.station_triggers",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/storage.py",
+      "target": "runtime.transport.storage",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/stt_producer.py",
+      "target": "runtime.transport.stt_producer",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/substrate_projection_boundaries.py",
+      "target": "runtime.transport.substrate_projection_boundaries",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/target_policy.py",
+      "target": "runtime.transport.target_policy",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/task_decomposition.py",
+      "target": "runtime.transport.task_decomposition",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/task_execution.py",
+      "target": "runtime.transport.task_execution",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/task_pipeline.py",
+      "target": "runtime.transport.task_pipeline",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/task_queue.py",
+      "target": "runtime.transport.task_queue",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/task_system.py",
+      "target": "runtime.transport.task_system",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/template_promotion_contracts.py",
+      "target": "runtime.transport.template_promotion_contracts",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/tmux_environment_manager.py",
+      "target": "runtime.transport.tmux_environment_manager",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/topology_contracts.py",
+      "target": "runtime.transport.topology_contracts",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/transcript_inject.py",
+      "target": "runtime.transport.transcript_inject",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/transport_report.py",
+      "target": "runtime.transport.transport_report",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/tts_sanitize.py",
+      "target": "runtime.transport.tts_sanitize",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/visible_browser_launch_backend.py",
+      "target": "runtime.transport.visible_browser_launch_backend",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/visible_drive_ui_inventory.py",
+      "target": "runtime.transport.visible_drive_ui_inventory",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/visible_google_doc_reader.py",
+      "target": "runtime.transport.visible_google_doc_reader",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/visible_gui_success_criteria.py",
+      "target": "runtime.transport.visible_gui_success_criteria",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/voice_eos_responder.py",
+      "target": "runtime.transport.voice_eos_responder",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/voice_session.py",
+      "target": "runtime.transport.voice_session",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/voice_wake.py",
+      "target": "runtime.transport.voice_wake",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/wake_producer.py",
+      "target": "runtime.transport.wake_producer",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/windows_desktop_relay_client.py",
+      "target": "runtime.transport.windows_desktop_relay_client",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/windows_user_session_launcher.py",
+      "target": "runtime.transport.windows_user_session_launcher",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/work_order_contracts.py",
+      "target": "runtime.transport.work_order_contracts",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/work_order_dispatch.py",
+      "target": "runtime.transport.work_order_dispatch",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/work_order_factory.py",
+      "target": "runtime.transport.work_order_factory",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/worker_node_contracts.py",
+      "target": "runtime.transport.worker_node_contracts",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/worker_node_runtime.py",
+      "target": "runtime.transport.worker_node_runtime",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/workflow_delegation.py",
+      "target": "runtime.transport.workflow_delegation",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/workflow_execution.py",
+      "target": "runtime.transport.workflow_execution",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/workload_policy.py",
+      "target": "runtime.transport.workload_policy",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/transport/write_founder_gate_confirmation.py",
+      "target": "runtime.transport.write_founder_gate_confirmation",
+      "type": "transport"
+    },
+    {
+      "bridge": "eos_ai/substrate/__init__.py",
+      "target": "runtime.substrate",
+      "type": "substrate_init"
+    },
+    {
+      "bridge": "eos_ai/substrate/actions.py",
+      "target": "runtime.transport.actions",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/adapter_best_practices_loader.py",
+      "target": "runtime.transport.adapter_best_practices_loader",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/adapter_engine_contracts.py",
+      "target": "runtime.transport.adapter_engine_contracts",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/adapter_generation_contracts.py",
+      "target": "runtime.transport.adapter_generation_contracts",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/adapter_quality_gate.py",
+      "target": "runtime.transport.adapter_quality_gate",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/advisor_bridge_transport.py",
+      "target": "runtime.transport.advisor_bridge_transport",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/advisor_relay_runtime.py",
+      "target": "runtime.transport.advisor_relay_runtime",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/advisor_session_contracts.py",
+      "target": "runtime.transport.advisor_session_contracts",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/app_allowlist.py",
+      "target": "runtime.transport.app_allowlist",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/approved_action_executor.py",
+      "target": "runtime.transport.approved_action_executor",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/audio_loop.py",
+      "target": "runtime.transport.audio_loop",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/auth_layer_contracts.py",
+      "target": "runtime.transport.auth_layer_contracts",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/auto_task_generation.py",
+      "target": "runtime.transport.auto_task_generation",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/backend_registry_contracts.py",
+      "target": "runtime.transport.backend_registry_contracts",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/backend_selection_engine.py",
+      "target": "runtime.transport.backend_selection_engine",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/browser_agent.py",
+      "target": "runtime.transport.browser_agent",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/canonical_source_record.py",
+      "target": "runtime.transport.canonical_source_record",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/capabilities.py",
+      "target": "runtime.transport.capabilities",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/capability_routing.py",
+      "target": "runtime.transport.capability_routing",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/capability_routing_contracts.py",
+      "target": "runtime.transport.capability_routing_contracts",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/capability_tagging.py",
+      "target": "runtime.transport.capability_tagging",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/chrome_accessibility_launch_backend.py",
+      "target": "runtime.transport.chrome_accessibility_launch_backend",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/chrome_profile_launch_backend.py",
+      "target": "runtime.transport.chrome_profile_launch_backend",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/chrome_profile_resolver.py",
+      "target": "runtime.transport.chrome_profile_resolver",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/claude_responder.py",
+      "target": "runtime.transport.claude_responder",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/claude_session_bridge.py",
+      "target": "runtime.transport.claude_session_bridge",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/computer_use_backend_contracts.py",
+      "target": "runtime.transport.computer_use_backend_contracts",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/context_lifecycle.py",
+      "target": "runtime.transport.context_lifecycle",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/control_bridge.py",
+      "target": "runtime.transport.control_bridge",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/control_commands.py",
+      "target": "runtime.transport.control_commands",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/cu_document_reader_hardening_plan.py",
+      "target": "runtime.transport.cu_document_reader_hardening_plan",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/day_workflows.py",
+      "target": "runtime.transport.day_workflows",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/decision_engine.py",
+      "target": "runtime.transport.decision_engine",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/discord_mode_routing.py",
+      "target": "runtime.transport.discord_mode_routing",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/discord_text_transport.py",
+      "target": "runtime.transport.discord_text_transport",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/discord_voice_playback.py",
+      "target": "runtime.transport.discord_voice_playback",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/discord_voice_transport.py",
+      "target": "runtime.transport.discord_voice_transport",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/doc_cu_vs_api_comparator.py",
+      "target": "runtime.transport.doc_cu_vs_api_comparator",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/drive_ui_inventory_comparator.py",
+      "target": "runtime.transport.drive_ui_inventory_comparator",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/environment_contracts.py",
+      "target": "runtime.transport.environment_contracts",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/event_scheduler.py",
+      "target": "runtime.transport.event_scheduler",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/event_spine.py",
+      "target": "runtime.transport.event_spine",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/execution_adapter.py",
+      "target": "runtime.transport.execution_adapter",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/execution_authority.py",
+      "target": "runtime.transport.execution_authority",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/execution_contract.py",
+      "target": "runtime.transport.execution_contract",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/execution_events.py",
+      "target": "runtime.transport.execution_events",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/execution_result_handler.py",
+      "target": "runtime.transport.execution_result_handler",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/execution_router.py",
+      "target": "runtime.transport.execution_router",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/execution_trace.py",
+      "target": "runtime.transport.execution_trace",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/execution_worker.py",
+      "target": "runtime.transport.execution_worker",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/extraction_backend_contracts.py",
+      "target": "runtime.transport.extraction_backend_contracts",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/extraction_parity_comparator.py",
+      "target": "runtime.transport.extraction_parity_comparator",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/google_docs_backend_parity_matrix.py",
+      "target": "runtime.transport.google_docs_backend_parity_matrix",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/google_docs_tab_audit.py",
+      "target": "runtime.transport.google_docs_tab_audit",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/google_docs_tab_extractor.py",
+      "target": "runtime.transport.google_docs_tab_extractor",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/google_meet_source.py",
+      "target": "runtime.transport.google_meet_source",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/google_workspace_backend_options.py",
+      "target": "runtime.transport.google_workspace_backend_options",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/governance_gate_contracts.py",
+      "target": "runtime.transport.governance_gate_contracts",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/gui_backend_healthcheck.py",
+      "target": "runtime.transport.gui_backend_healthcheck",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/instance_ingestion_contracts.py",
+      "target": "runtime.transport.instance_ingestion_contracts",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/interactive_gui_worker_contracts.py",
+      "target": "runtime.transport.interactive_gui_worker_contracts",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/interactive_shell_executor.py",
+      "target": "runtime.transport.interactive_shell_executor",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/interface_projection_contracts.py",
+      "target": "runtime.transport.interface_projection_contracts",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/live_sessions.py",
+      "target": "runtime.transport.live_sessions",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/llm_decision_events.py",
+      "target": "runtime.transport.llm_decision_events",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/llm_planner.py",
+      "target": "runtime.transport.llm_planner",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/llm_replay.py",
+      "target": "runtime.transport.llm_replay",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/local_control.py",
+      "target": "runtime.transport.local_control",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/local_env_secret_backend.py",
+      "target": "runtime.transport.local_env_secret_backend",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/local_executor.py",
+      "target": "runtime.transport.local_executor",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/local_gui_control_contracts.py",
+      "target": "runtime.transport.local_gui_control_contracts",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/local_listener.py",
+      "target": "runtime.transport.local_listener",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/local_worker_auto_loop.py",
+      "target": "runtime.transport.local_worker_auto_loop",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/local_worker_relay_packets.py",
+      "target": "runtime.transport.local_worker_relay_packets",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/local_worker_runtime_daemon.py",
+      "target": "runtime.transport.local_worker_runtime_daemon",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/mcp_backend_classifier.py",
+      "target": "runtime.transport.mcp_backend_classifier",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/mcp_backend_contracts.py",
+      "target": "runtime.transport.mcp_backend_contracts",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/mcp_backend_discovery.py",
+      "target": "runtime.transport.mcp_backend_discovery",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/meet_caption_bridge.py",
+      "target": "runtime.transport.meet_caption_bridge",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/meeting_intelligence.py",
+      "target": "runtime.transport.meeting_intelligence",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/meeting_sources.py",
+      "target": "runtime.transport.meeting_sources",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/meeting_transport.py",
+      "target": "runtime.transport.meeting_transport",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/memory_scope_contracts.py",
+      "target": "runtime.transport.memory_scope_contracts",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/message_bus_contracts.py",
+      "target": "runtime.transport.message_bus_contracts",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/mode_behavior.py",
+      "target": "runtime.transport.mode_behavior",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/node_controller.py",
+      "target": "runtime.transport.node_controller",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/node_transport.py",
+      "target": "runtime.transport.node_transport",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/nodes.py",
+      "target": "runtime.transport.nodes",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/operator_interface.py",
+      "target": "runtime.transport.operator_interface",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/operator_presence.py",
+      "target": "runtime.transport.operator_presence",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/operator_session.py",
+      "target": "runtime.transport.operator_session",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/operator_state.py",
+      "target": "runtime.transport.operator_state",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/operator_transitions.py",
+      "target": "runtime.transport.operator_transitions",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/os_controller.py",
+      "target": "runtime.transport.os_controller",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/perception.py",
+      "target": "runtime.transport.perception",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/pipeline_execution.py",
+      "target": "runtime.transport.pipeline_execution",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/planner.py",
+      "target": "runtime.transport.planner",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/playback_status.py",
+      "target": "runtime.transport.playback_status",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/ptt_binding.py",
+      "target": "runtime.transport.ptt_binding",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/remote_executor.py",
+      "target": "runtime.transport.remote_executor",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/remote_identity.py",
+      "target": "runtime.transport.remote_identity",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/resource_guard.py",
+      "target": "runtime.transport.resource_guard",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/result_query.py",
+      "target": "runtime.transport.result_query",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/result_store.py",
+      "target": "runtime.transport.result_store",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/ritual_body.py",
+      "target": "runtime.transport.ritual_body",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/ritual_inference.py",
+      "target": "runtime.transport.ritual_inference",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/ritual_reconciler.py",
+      "target": "runtime.transport.ritual_reconciler",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/ritual_runner.py",
+      "target": "runtime.transport.ritual_runner",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/rituals.py",
+      "target": "runtime.transport.rituals",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/role_resolver.py",
+      "target": "runtime.transport.role_resolver",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/roles.py",
+      "target": "runtime.transport.roles",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/scene_capabilities.py",
+      "target": "runtime.transport.scene_capabilities",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/scene_policy.py",
+      "target": "runtime.transport.scene_policy",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/scenes.py",
+      "target": "runtime.transport.scenes",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/secret_broker_contracts.py",
+      "target": "runtime.transport.secret_broker_contracts",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/secret_redaction.py",
+      "target": "runtime.transport.secret_redaction",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/session_control.py",
+      "target": "runtime.transport.session_control",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/session_discord_bridge.py",
+      "target": "runtime.transport.session_discord_bridge",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/session_orchestration.py",
+      "target": "runtime.transport.session_orchestration",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/session_watcher.py",
+      "target": "runtime.transport.session_watcher",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/source_lifecycle_contracts.py",
+      "target": "runtime.transport.source_lifecycle_contracts",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/station.py",
+      "target": "runtime.transport.station",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/station_bus.py",
+      "target": "runtime.transport.station_bus",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/station_daemon.py",
+      "target": "runtime.transport.station_daemon",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/station_drainer.py",
+      "target": "runtime.transport.station_drainer",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/station_helpers.py",
+      "target": "runtime.transport.station_helpers",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/station_presence.py",
+      "target": "runtime.transport.station_presence",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/station_readiness.py",
+      "target": "runtime.transport.station_readiness",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/station_triggers.py",
+      "target": "runtime.transport.station_triggers",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/storage.py",
+      "target": "runtime.transport.storage",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/stt_producer.py",
+      "target": "runtime.transport.stt_producer",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/substrate_projection_boundaries.py",
+      "target": "runtime.transport.substrate_projection_boundaries",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/target_policy.py",
+      "target": "runtime.transport.target_policy",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/task_decomposition.py",
+      "target": "runtime.transport.task_decomposition",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/task_execution.py",
+      "target": "runtime.transport.task_execution",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/task_pipeline.py",
+      "target": "runtime.transport.task_pipeline",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/task_queue.py",
+      "target": "runtime.transport.task_queue",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/task_system.py",
+      "target": "runtime.transport.task_system",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/template_promotion_contracts.py",
+      "target": "runtime.transport.template_promotion_contracts",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/tmux_environment_manager.py",
+      "target": "runtime.transport.tmux_environment_manager",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/topology_contracts.py",
+      "target": "runtime.transport.topology_contracts",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/transcript_inject.py",
+      "target": "runtime.transport.transcript_inject",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/transport_report.py",
+      "target": "runtime.transport.transport_report",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/tts_sanitize.py",
+      "target": "runtime.transport.tts_sanitize",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/visible_browser_launch_backend.py",
+      "target": "runtime.transport.visible_browser_launch_backend",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/visible_drive_ui_inventory.py",
+      "target": "runtime.transport.visible_drive_ui_inventory",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/visible_google_doc_reader.py",
+      "target": "runtime.transport.visible_google_doc_reader",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/visible_gui_success_criteria.py",
+      "target": "runtime.transport.visible_gui_success_criteria",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/voice_eos_responder.py",
+      "target": "runtime.transport.voice_eos_responder",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/voice_session.py",
+      "target": "runtime.transport.voice_session",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/voice_wake.py",
+      "target": "runtime.transport.voice_wake",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/wake_producer.py",
+      "target": "runtime.transport.wake_producer",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/windows_desktop_relay_client.py",
+      "target": "runtime.transport.windows_desktop_relay_client",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/windows_user_session_launcher.py",
+      "target": "runtime.transport.windows_user_session_launcher",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/work_order_contracts.py",
+      "target": "runtime.transport.work_order_contracts",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/work_order_dispatch.py",
+      "target": "runtime.transport.work_order_dispatch",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/work_order_factory.py",
+      "target": "runtime.transport.work_order_factory",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/worker_node_contracts.py",
+      "target": "runtime.transport.worker_node_contracts",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/worker_node_runtime.py",
+      "target": "runtime.transport.worker_node_runtime",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/workflow_delegation.py",
+      "target": "runtime.transport.workflow_delegation",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/workflow_execution.py",
+      "target": "runtime.transport.workflow_execution",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/workload_policy.py",
+      "target": "runtime.transport.workload_policy",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/substrate/write_founder_gate_confirmation.py",
+      "target": "runtime.transport.write_founder_gate_confirmation",
+      "type": "substrate_chain"
+    },
+    {
+      "bridge": "eos_ai/runtime/work_state.py",
+      "target": "runtime.work_state",
+      "type": "depth_flattened"
+    },
+    {
+      "bridge": "eos_ai/runtime/provider_state.py",
+      "target": "runtime.provider_state",
+      "type": "depth_flattened"
+    },
+    {
+      "bridge": "eos_ai/interfaces/discord_interface_adapter_v1.py",
+      "target": "runtime.interfaces.discord_interface_adapter_v1",
+      "type": "interfaces"
+    },
+    {
+      "bridge": "eos_ai/interfaces/discord_spine_integration_v1.py",
+      "target": "runtime.interfaces.discord_spine_integration_v1",
+      "type": "interfaces"
+    }
+  ]
+}

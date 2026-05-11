@@ -1,1 +1,2 @@
-from eos_ai.transport.wake_producer import *  # noqa: F401,F403
+# R8b bridge — replaced by R8d generated shim
+from runtime.transport.wake_producer import *  # noqa: F401,F403

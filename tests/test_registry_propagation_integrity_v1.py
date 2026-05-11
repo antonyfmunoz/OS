@@ -186,11 +186,11 @@ class TestRouterConfigParity:
 
 class TestSpineExecutionPropagation:
     def test_spine_builder_passes_registry_hash(self) -> None:
-        source = (Path(_ROOT) / "eos_ai" / "interfaces" / "discord_spine_integration_v1.py").read_text()
+        source = (Path(_ROOT) / "runtime" / "interfaces" / "discord_spine_integration_v1.py").read_text()
         assert "registry_hash=_reg.registry_hash()" in source
 
     def test_spine_builder_uses_canonical_registry(self) -> None:
-        source = (Path(_ROOT) / "eos_ai" / "interfaces" / "discord_spine_integration_v1.py").read_text()
+        source = (Path(_ROOT) / "runtime" / "interfaces" / "discord_spine_integration_v1.py").read_text()
         assert "get_canonical_registry" in source
         assert "_reg.command_action_map" in source
 
@@ -201,12 +201,12 @@ class TestSpineExecutionPropagation:
 
 class TestNoDuplicatedRegistries:
     def test_adapter_no_hardcoded_command_map(self) -> None:
-        source = (Path(_ROOT) / "eos_ai" / "interfaces" / "discord_interface_adapter_v1.py").read_text()
+        source = (Path(_ROOT) / "runtime" / "interfaces" / "discord_interface_adapter_v1.py").read_text()
         assert '"!ping": "ping"' not in source
         assert '"!chrome-proof": "chrome_proof"' not in source
 
     def test_adapter_derives_from_canonical(self) -> None:
-        source = (Path(_ROOT) / "eos_ai" / "interfaces" / "discord_interface_adapter_v1.py").read_text()
+        source = (Path(_ROOT) / "runtime" / "interfaces" / "discord_interface_adapter_v1.py").read_text()
         assert "_REGISTRY.command_action_map" in source
         assert "_REGISTRY.spine_routed_commands" in source
         assert "_REGISTRY.command_contracts" in source
