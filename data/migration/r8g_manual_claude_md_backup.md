@@ -18,14 +18,14 @@ Every change is real. Every deploy affects a running service.
 At the start of EVERY Claude Code session run:
   python3 -c "
   import sys; sys.path.insert(0, '/opt/OS')
-  from runtime.session_state import SessionState
+  from eos_ai.session_state import SessionState
   print(SessionState.get_resume_context())
   "
 
 At the END of every significant build run:
   python3 -c "
   import sys; sys.path.insert(0, '/opt/OS')
-  from runtime.session_state import SessionState
+  from eos_ai.session_state import SessionState
   SessionState.save(
     phase='[current phase]',
     last_completed='[what just finished]',
@@ -43,8 +43,8 @@ At the END of every significant build run:
 3. For HIGH/CRITICAL changes, call the validator:
    python3 -c "
    import sys; sys.path.insert(0, '/opt/OS')
-   from runtime.context import load_context_from_env
-   from runtime.system_context import SystemContext
+   from eos_ai.context import load_context_from_env
+   from eos_ai.system_context import SystemContext
    ctx = load_context_from_env()
    sc = SystemContext(ctx, 'claude_code')
    result = sc.validate_architectural_change(
@@ -64,7 +64,7 @@ CRITICAL: Schema migrations, removing working features, changing
 - Never modify a confirmed-working component without reading it first
 - Never run migrations without checking row counts first
 - Always test after changes:
-  python3 -c "from runtime.[module] import [Class]; print('import ok')"
+  python3 -c "from eos_ai.[module] import [Class]; print('import ok')"
 - If the app crashes mid-build, run the audit pattern to check
   what was completed
 - Telegram bot restarts require:
@@ -85,18 +85,18 @@ Status taxonomy:
   DORMANT            — code exists, modules not imported by anything live
   DEPRECATED         — scheduled for removal
 
-- runtime/db.py                 — CONFIRMED_RUNTIME (Neon conn, used by all services)
-- runtime/memory.py             — CONFIRMED_RUNTIME (AgentMemory + ConversationMemory, Neon writes)
-- runtime/agent_runtime.py      — CONFIRMED_RUNTIME (multi-model router, discord bot uses it)
-- runtime/cognitive_loop.py     — PARTIALLY_VERIFIED (imports clean, 8-stage loop, param=input)
-- runtime/authority_engine.py   — PARTIALLY_VERIFIED (imports clean, 4 risk classes)
-- runtime/portfolio_advisor.py  — PARTIALLY_VERIFIED (imports clean, board view logic)
-- runtime/orchestrator.py       — PARTIALLY_VERIFIED (EOSOrchestrator class, cron logic present)
-- runtime/model_preferences.py  — CONFIRMED_RUNTIME (ModelPreferences, used by model_router)
-- runtime/media_processor.py    — PARTIALLY_VERIFIED (imports clean, voice synthesis logic)
+- eos_ai/db.py                 — CONFIRMED_RUNTIME (Neon conn, used by all services)
+- eos_ai/memory.py             — CONFIRMED_RUNTIME (AgentMemory + ConversationMemory, Neon writes)
+- eos_ai/agent_runtime.py      — CONFIRMED_RUNTIME (multi-model router, discord bot uses it)
+- eos_ai/cognitive_loop.py     — PARTIALLY_VERIFIED (imports clean, 8-stage loop, param=input)
+- eos_ai/authority_engine.py   — PARTIALLY_VERIFIED (imports clean, 4 risk classes)
+- eos_ai/portfolio_advisor.py  — PARTIALLY_VERIFIED (imports clean, board view logic)
+- eos_ai/orchestrator.py       — PARTIALLY_VERIFIED (EOSOrchestrator class, cron logic present)
+- eos_ai/model_preferences.py  — CONFIRMED_RUNTIME (ModelPreferences, used by model_router)
+- eos_ai/media_processor.py    — PARTIALLY_VERIFIED (imports clean, voice synthesis logic)
 - services/telegram_control.py — DORMANT (not running in Docker, service disabled)
 - services/discord_bot.py      — CONFIRMED_RUNTIME (os-discord container, daily use)
-- runtime/work_state.py         — CONFIRMED_RUNTIME (pressure tracking, used by discord bot)
+- eos_ai/runtime/work_state.py — CONFIRMED_RUNTIME (pressure tracking, used by discord bot)
 - core/workstation/constitutional_*_v1.py — PROOF_ONLY (report generators, not runtime-enforced)
 
 ## Current build phase
@@ -107,8 +107,7 @@ Focus: proving the system works before UI layer.
 ## Project structure
 /opt/OS/  (repository root — pending rename to /opt/UMH)
   core/            — canonical substrate + infrastructure contracts
-  runtime/         — canonical runtime intelligence layer
-  eos_ai/          — shim layer (re-exports from runtime/ for backward compatibility)
+  eos_ai/          — runtime intelligence layer (legacy name, canonical transport lives here)
   services/        — live entrypoints (discord_bot.py, etc.)
   scripts/         — operations layer (cron scripts, utilities)
   saas/            — SaaS product (TypeScript/React) — EOS application projection
