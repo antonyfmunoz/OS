@@ -14,7 +14,7 @@ tar -czf "$ARCHIVE" \
   ${UMH_ROOT:-/opt/OS}/data/ \
   ${UMH_ROOT:-/opt/OS}/12_Agents/ \
   ${UMH_ROOT:-/opt/OS}/.claude/ \
-  ${UMH_ROOT:-/opt/OS}/eos_ai/*.py \
+  ${UMH_ROOT:-/opt/OS}/runtime/*.py \
   ${UMH_ROOT:-/opt/OS}/PHILOSOPHY.md \
   ${UMH_ROOT:-/opt/OS}/PROTOCOLS.md \
   ${UMH_ROOT:-/opt/OS}/CLAUDE.md \

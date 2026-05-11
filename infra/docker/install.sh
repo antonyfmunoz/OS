@@ -48,18 +48,18 @@ else
 fi
 
 # Setup env files
-if [ ! -f "eos/.env" ]; then
-  mkdir -p eos_ai services
-  cp .env.example eos/.env
+if [ ! -f "runtime/.env" ]; then
+  mkdir -p runtime services
+  cp .env.example runtime/.env
   cp .env.example services/.env
   echo "✅ Environment files created"
   echo ""
-  echo "┌─────────────────────────────────────┐"
-  echo "│  Next steps:                        │"
-  echo "│  1. Edit eos/.env with your keys │"
-  echo "│  2. Run: bash setup.sh              │"
-  echo "│  3. Run: docker compose up -d       │"
-  echo "└─────────────────────────────────────┘"
+  echo "┌─────────────────────────────────────────┐"
+  echo "│  Next steps:                            │"
+  echo "│  1. Edit runtime/.env with your keys    │"
+  echo "│  2. Run: bash setup.sh                  │"
+  echo "│  3. Run: docker compose up -d           │"
+  echo "└─────────────────────────────────────────┘"
 else
   echo "✅ Environment files already exist"
   echo "→ Run: bash setup.sh to configure"

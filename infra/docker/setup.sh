@@ -13,19 +13,19 @@ echo "╚═══════════════════════�
 echo ""
 
 # Verify .env exists
-if [ ! -f "eos/.env" ]; then
-  echo "✗ eos/.env not found"
+if [ ! -f "runtime/.env" ]; then
+  echo "✗ runtime/.env not found"
   echo "  Run install.sh first"
   exit 1
 fi
 
 # Check for required keys
-source eos/.env 2>/dev/null || true
+source runtime/.env 2>/dev/null || true
 
 if [ -z "$DATABASE_URL" ]; then
-  echo "⚠ DATABASE_URL not set in eos/.env"
+  echo "⚠ DATABASE_URL not set in runtime/.env"
   echo "  Get a free database at neon.tech"
-  echo "  Then add DATABASE_URL to eos/.env"
+  echo "  Then add DATABASE_URL to runtime/.env"
   exit 1
 fi
 
@@ -54,7 +54,7 @@ echo ""
 python3 -c "
 import sys
 import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS')
-from eos_ai.setup_wizard import run_setup
+from runtime.setup_wizard import run_setup
 run_setup()
 "
 

@@ -13,8 +13,8 @@ cd ${UMH_ROOT:-/opt/OS}
 # Provider health gate — skip if no LLM provider is reachable
 if ! python3 -c "
 import sys; import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS')
-from dotenv import load_dotenv; load_dotenv(os.path.join(os.environ.get('UMH_ROOT', '/opt/OS'), 'eos_ai/.env'))
-from eos_ai.provider_health import check_all
+from dotenv import load_dotenv; load_dotenv(os.path.join(os.environ.get('UMH_ROOT', '/opt/OS'), 'runtime/.env'))
+from runtime.provider_health import check_all
 sys.exit(0 if check_all().any_healthy else 1)
 " 2>/dev/null; then
   echo "[$(date -Iseconds)] SKIP weekly_review: no healthy LLM provider" >> "$LOG"
@@ -31,12 +31,12 @@ Run the full weekly EOS health review. Write a concise report to $REPORT.
 Step 1 — Run core imports test:
   python3 -c \"
 import sys; import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS')
-import eos_ai
-from eos_ai.cognitive_loop import CognitiveLoop
-from eos_ai.agent_runtime import AgentRuntime
-from eos_ai.authority_engine import AuthorityEngine
-from eos_ai.memory import MemoryEngine
-from eos_ai.primitives import PRIMITIVE_LIBRARY
+import runtime
+from runtime.cognitive_loop import CognitiveLoop
+from runtime.agent_runtime import AgentRuntime
+from runtime.authority_engine import AuthorityEngine
+from runtime.memory import MemoryEngine
+from runtime.primitives import PRIMITIVE_LIBRARY
 print('Core imports: PASS')
 print(f'Primitives: {len(PRIMITIVE_LIBRARY)}')
 \"
@@ -47,7 +47,7 @@ Step 2 — Service uptime:
 Step 3 — Skill count:
   python3 -c \"
 import sys; import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS')
-from eos_ai.skill_registry import get_skill_registry
+from runtime.skill_registry import get_skill_registry
 sr = get_skill_registry()
 print(f'Skills in registry: {len(sr._skills)}')
 \"
@@ -69,7 +69,7 @@ Step 5 — Write report to $REPORT:
 Step 6 — Post to Discord:
   python3 -c \"
 import sys; import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS')
-from eos_ai.discord_utils import post_to_webhook
+from runtime.discord_utils import post_to_webhook
 report = open('$REPORT').read()
 post_to_webhook(report, title='Weekly EOS Health Report')
 print('Posted to Discord')

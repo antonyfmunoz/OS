@@ -37,14 +37,14 @@ echo "[$(date -Iseconds)] START: nightly consolidation ${ARGS}" >> "$LOG_FILE"
 cd ${UMH_ROOT:-/opt/OS}
 
 # Substrate: start close_day ritual (additive, failures non-fatal).
-RITUAL_ID="$(python3 -m eos_ai.substrate.ritual_runner close_day start 2>>"$LOG_FILE" || true)"
+RITUAL_ID="$(python3 -m runtime.substrate.ritual_runner close_day start 2>>"$LOG_FILE" || true)"
 echo "[$(date -Iseconds)] close_day ritual_id=${RITUAL_ID:-none}" >> "$LOG_FILE"
 
 # Provider health gate — consolidation requires LLMs for summarization
 if ! python3 -c "
 import sys; import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS')
-from dotenv import load_dotenv; load_dotenv(os.path.join(os.environ.get('UMH_ROOT', '/opt/OS'), 'eos_ai/.env'))
-from eos_ai.provider_health import check_all
+from dotenv import load_dotenv; load_dotenv(os.path.join(os.environ.get('UMH_ROOT', '/opt/OS'), 'runtime/.env'))
+from runtime.provider_health import check_all
 sys.exit(0 if check_all().any_healthy else 1)
 " 2>/dev/null; then
   echo "[$(date -Iseconds)] SKIP nightly_consolidation: no healthy LLM provider" >> "$LOG_FILE"
@@ -59,11 +59,11 @@ echo "[$(date -Iseconds)] END: exit code ${EXIT_CODE}" >> "$LOG_FILE"
 # Substrate: finish close_day ritual (additive, failures non-fatal).
 if [ -n "${RITUAL_ID:-}" ]; then
   if [ "$EXIT_CODE" -eq 0 ]; then
-    python3 -m eos_ai.substrate.ritual_runner close_day finish "$RITUAL_ID" 2>>"$LOG_FILE" || true
+    python3 -m runtime.substrate.ritual_runner close_day finish "$RITUAL_ID" 2>>"$LOG_FILE" || true
   else
     python3 -c "
 import sys; import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS')
-from eos_ai.substrate.ritual_runner import fail_ritual
+from runtime.substrate.ritual_runner import fail_ritual
 fail_ritual('$RITUAL_ID', 'nightly_consolidation exit=$EXIT_CODE')
 " 2>>"$LOG_FILE" || true
   fi

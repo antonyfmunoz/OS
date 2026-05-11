@@ -13,8 +13,8 @@ cd ${UMH_ROOT:-/opt/OS}
 # Exits 0 (success) so cron doesn't email failure noise.
 if ! python3 -c "
 import sys; import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS')
-from dotenv import load_dotenv; load_dotenv(os.path.join(os.environ.get('UMH_ROOT', '/opt/OS'), 'eos_ai/.env'))
-from eos_ai.provider_health import check_all
+from dotenv import load_dotenv; load_dotenv(os.path.join(os.environ.get('UMH_ROOT', '/opt/OS'), 'runtime/.env'))
+from runtime.provider_health import check_all
 h = check_all()
 sys.exit(0 if h.any_healthy else 1)
 " 2>/dev/null; then
@@ -36,7 +36,7 @@ Step 0 — GWS auth check:
 import os, sys; import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS')
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT', '/opt/OS'), 'services/.env'))
-from eos_ai.discord_utils import post_to_webhook
+from runtime.discord_utils import post_to_webhook
 webhook = os.getenv('DISCORD_BRIEF_WEBHOOK', '')
 if webhook:
   post_to_webhook(
@@ -53,7 +53,7 @@ Step 1 — Service health check:
   If any container is not Up — restart it with docker compose restart [service].
 
 Step 2 — Import check:
-  python3 -c \"import sys; import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS'); import eos_ai; print('imports: clean')\"
+  python3 -c \"import sys; import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS'); import runtime; print('imports: clean')\"
 
 Step 3 — Memory compression:
   Read /root/.claude/projects/-opt-OS/memory/MEMORY.md
@@ -72,7 +72,7 @@ Step 5 — Notion outcome sync:
 Step 6 — Session state update:
   python3 -c \"
 import sys; import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS')
-from eos_ai.session_state import SessionState
+from runtime.session_state import SessionState
 SessionState.save(
   phase='Nightly maintenance',
   last_completed='Nightly cycle completed: $(date +%Y-%m-%d)',
@@ -95,8 +95,8 @@ from pathlib import Path
 
 import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS')
 from dotenv import load_dotenv
-load_dotenv(os.path.join(os.environ.get('UMH_ROOT', '/opt/OS'), 'eos_ai/.env'))
-from eos_ai.gateway import EOSGateway
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT', '/opt/OS'), 'runtime/.env'))
+from runtime.gateway import EOSGateway
 
 gateway = EOSGateway()
 

@@ -156,7 +156,7 @@ Before declaring done:
   Deployment command provided
 
 Before any deploy:
-  python3 -c "import sys; sys.path.insert(0,'/opt/OS'); import eos_ai"
+  python3 -c "import sys; sys.path.insert(0,'/opt/OS'); import runtime"
   Use deploy-service skill decision tree
   Never restart all services simultaneously
 
@@ -167,11 +167,11 @@ LLM: Gemini 2.5 Flash (primary), Ollama gemma3:4b (fallback)
 Stage: loaded from BIS at runtime
 
 ## Key files
-eos_ai/cognitive_loop.py  — core loop
-eos_ai/agent_hierarchy.py — org chart
-eos_ai/ai_identity.py     — step 0 principles
-eos_ai/primitives.py      — 13 primitives
-eos_ai/agent_runtime.py   — LLM dispatch
+runtime/cognitive_loop.py  — core loop
+runtime/agent_hierarchy.py — org chart
+runtime/ai_identity.py     — step 0 principles
+runtime/primitives.py      — 13 primitives
+runtime/agent_runtime.py   — LLM dispatch
 services/discord_bot.py — primary interface
 
 ## Obsidian Backlinks
@@ -209,7 +209,7 @@ deploy-service, new-agent, new-skill,
 new-primitive, debug-agent
 
 ## Intelligence Routing
-- All agent calls route through eos_ai/model_router.py
+- All agent calls route through runtime/model_router.py
 - call_with_fallback() is the single module-level entry point
 - CEO/strategic agents always use best available (pass agent_type='ceo' or force_opus=True)
 - Current routing chain: Gemini 2.5 Flash → Ollama (Anthropic credits depleted)
@@ -252,7 +252,7 @@ new-primitive, debug-agent
 - gemini-2.0-flash deprecated for new users → use gemini-2.5-flash
 - Codex exec requires stdin pipe and has reconnect issues → not in fallback chain
 - Business stage pre_revenue → economy mode → forces Haiku. Override: pass agent_type='ceo' to call_with_fallback
-- GROQ + PERPLEXITY keys in eos_ai/.env and services/.env — both in fallback chain
+- GROQ + PERPLEXITY keys in runtime/.env and services/.env — both in fallback chain
 - gemini binary not installed — Gemini via Python SDK only
 - .claude/agents/ subagents require CC auth to run (blocked until Anthropic credits restored)
 - CC_MODEL_MAP exists in model_router.py — used when Anthropic comes back online

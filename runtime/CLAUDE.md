@@ -1,14 +1,13 @@
-# eos_ai — Runtime Intelligence Layer
+# runtime — Runtime Intelligence Layer
 
 ## Identity
 This is the UMH runtime intelligence layer.
-The name `eos_ai` is a legacy artifact — it predates the UMH/substrate
-architecture. The canonical transport subsystem lives here at
-`eos_ai/transport/`. The shim layer at `eos_ai/substrate/` routes
-to transport.
+The canonical transport subsystem lives here at
+`runtime/transport/`. The shim layer at `eos_ai/substrate/` routes
+to transport for backward compatibility.
 
-Future rename target: `umh_runtime/` or `substrate/`
-(blocked until all external imports are migrated).
+The `eos_ai/` directory is a shim layer that re-exports from `runtime/`.
+All new code should import from `runtime.*` directly.
 
 ## Purpose
 Core intelligence substrate. All runtime AI lives here:
@@ -39,8 +38,8 @@ platforms/eos/ — EOS platform prototype (dormant)
 ## Conventions
 - Import: sys.path.insert(0, os.environ.get("UMH_ROOT") or "/opt/OS")
 - Context: load_context_from_env()
-- DB: from eos_ai.db import get_conn
-- Test: python3 -c "from eos_ai.X import Y"
+- DB: from runtime.db import get_conn
+- Test: python3 -c "from runtime.X import Y"
 - LLM: Gemini 2.5 Flash primary, Ollama fallback
 
 ## Cognitive loop injection order

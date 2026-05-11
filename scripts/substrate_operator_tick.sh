@@ -97,7 +97,7 @@ import json
 import sys
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 try:
-    from eos_ai.substrate.result_query import station_readiness_report
+    from runtime.substrate.result_query import station_readiness_report
 except Exception as e:
     print(f"[readiness] import failed: {e}")
     raise SystemExit(0)
