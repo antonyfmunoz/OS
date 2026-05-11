@@ -2,7 +2,7 @@
 Voice-session router responder smoke test.
 
 Proves that the live Discord pseudo-live path wires the router-backed
-voice responder (eos_ai.substrate.voice_eos_responder._eos_voice_responder)
+voice responder (runtime.substrate.voice_eos_responder._eos_voice_responder)
 as the global responder for voice sessions, replacing the substrate's
 default "[role] heard: ..." echo stub.
 
@@ -60,7 +60,7 @@ def _assert(cond: bool, msg: str) -> None:
 
 _section("install router-backed voice responder")
 
-from eos_ai.substrate.voice_eos_responder import (
+from runtime.substrate.voice_eos_responder import (
     install_default_eos_voice_responder,
     is_eos_voice_responder_installed,
     uninstall_eos_voice_responder,
@@ -73,7 +73,7 @@ _assert(is_eos_voice_responder_installed(), "install_default_eos_voice_responder
 
 _section("monkey-patch model_router.call_with_fallback")
 
-import eos_ai.model_router as _mr
+import runtime.model_router as _mr
 
 _calls: list[dict] = []
 
@@ -102,7 +102,7 @@ try:
 
     _section("drive maybe_mirror_discord_text_message (happy path)")
 
-    from eos_ai.substrate.discord_text_transport import (
+    from runtime.substrate.discord_text_transport import (
         maybe_mirror_discord_text_message,
     )
 
@@ -177,7 +177,7 @@ finally:
 
 _section("default responder still returns stub when installed alone")
 
-from eos_ai.substrate.voice_session import (
+from runtime.substrate.voice_session import (
     VoiceSession,
     VoiceSessionStatus,
     _default_responder,

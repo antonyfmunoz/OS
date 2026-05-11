@@ -15,7 +15,7 @@ import sys as _sys
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in _sys.path:
     _sys.path.insert(0, _REPO_ROOT)
-from eos_ai.memory import AgentMemory
+from runtime.memory import AgentMemory
 _mem = AgentMemory()
 
 
@@ -148,7 +148,7 @@ def update_lead_file(filepath, new_stage, event_time=None, cancel_reason=None):
 def update_notion_lead_stage(name: str, email: str, new_stage: str) -> bool:
     """Find a lead in the Notion Pipeline database by name or email and update their stage."""
     from dotenv import load_dotenv
-    load_dotenv(os.path.join(_REPO_ROOT, 'eos_ai', '.env'))
+    load_dotenv(os.path.join(_REPO_ROOT, 'runtime', '.env'))
 
     token = os.getenv('NOTION_API_KEY')
     db_id = os.getenv('NOTION_LYFE_PIPELINE_ID')
@@ -238,7 +238,7 @@ def calendly_webhook():
                               notes=f"Calendly invitee.created — {event_time}")
         # Publish lead_booked event — triggers handler async (non-blocking)
         try:
-            from eos_ai.event_bus import EventBus
+            from runtime.event_bus import EventBus
             EventBus().publish_async("lead_booked", {
                 "username":     username,
                 "booking_time": event_time,
@@ -257,7 +257,7 @@ def calendly_webhook():
 
         # Person recognition — Martell rule check before anything else
         try:
-            from eos_ai.person_recognition import recognize_person, format_person_context
+            from runtime.person_recognition import recognize_person, format_person_context
             _recognition = recognize_person(name=name, email=email)
             _person_context = format_person_context(_recognition, name=name)
             if _recognition.get('warning'):
@@ -269,7 +269,7 @@ def calendly_webhook():
 
         # Create meeting record (Neon + Notion)
         try:
-            from eos_ai.meetings import create_meeting_record, build_prep_brief
+            from runtime.meetings import create_meeting_record, build_prep_brief
             _invitee = payload.get('invitee', {})
             _event_obj = payload.get('event', {})
             _questions = _invitee.get('questions_and_answers', [])
@@ -305,7 +305,7 @@ def calendly_webhook():
         # Auto-create lead file if no existing one found
         if not lead_file:
             try:
-                from eos_ai.person_recognition import create_lead_file
+                from runtime.person_recognition import create_lead_file
                 create_lead_file(
                     name=name,
                     email=email,
@@ -368,7 +368,7 @@ def calendly_webhook():
 
         # Cancellation recovery flow
         try:
-            from eos_ai.model_router import get_router, TaskType
+            from runtime.model_router import get_router, TaskType
             import os as _os
             _router = get_router()
             _model = _router.route(TaskType.FAST_RESPONSE)
@@ -394,8 +394,8 @@ Subject: [subject]
 DEX
 On behalf of Antony Munoz""").strip()
 
-            from eos_ai.context import load_context_from_env
-            from eos_ai.db import get_conn
+            from runtime.context import load_context_from_env
+            from runtime.db import get_conn
             import json as _json
             _ctx = load_context_from_env()
             with get_conn(_ctx.org_id) as _cur:

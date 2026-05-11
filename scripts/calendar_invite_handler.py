@@ -14,7 +14,7 @@ from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'services', '.env'))
 
 PDT = ZoneInfo('America/Los_Angeles')
@@ -38,7 +38,7 @@ def save_state(state):
 def get_pending_invites() -> list[dict]:
     """Get calendar events where Antony hasn't responded yet."""
     try:
-        from eos_ai.gws_connector import GWSConnector
+        from runtime.gws_connector import GWSConnector
         gws = GWSConnector()
 
         now = datetime.now(timezone.utc)
@@ -86,8 +86,8 @@ def get_pending_invites() -> list[dict]:
 def assess_invite(invite: dict) -> dict:
     """Use LLM to assess invite and recommend accept/decline."""
     try:
-        from eos_ai.model_router import ModelRouter, TaskType
-        from eos_ai.context import load_context_from_env
+        from runtime.model_router import ModelRouter, TaskType
+        from runtime.context import load_context_from_env
         ctx = load_context_from_env()
         router = ModelRouter(ctx)
         model = router.route(TaskType.FAST_RESPONSE)
@@ -121,7 +121,7 @@ Respond with JSON only:
 def respond_to_invite(event_id: str, response: str) -> bool:
     """Accept or decline a calendar invite. response: 'accepted' or 'declined'"""
     try:
-        from eos_ai.gws_connector import GWSConnector
+        from runtime.gws_connector import GWSConnector
         gws = GWSConnector()
 
         event = gws._run(
@@ -180,8 +180,8 @@ async def process_invites():
             # Check if event falls on a protected day
             _is_protected = False
             try:
-                from eos_ai.context import load_context_from_env
-                from eos_ai.db import get_conn
+                from runtime.context import load_context_from_env
+                from runtime.db import get_conn
                 import json as _pjson
                 _ctx = load_context_from_env()
                 _event_date = invite.get('start', '')[:10]
@@ -237,7 +237,7 @@ async def process_invites():
                    and 'teams' not in _location.lower() \
                    and 'http' not in _location.lower():
                     try:
-                        from eos_ai.gws_connector import GWSConnector
+                        from runtime.gws_connector import GWSConnector
                         _gws = GWSConnector()
                         _travel = _gws.block_travel_time(
                             event_id=invite['id'],
@@ -272,7 +272,7 @@ async def process_invites():
                 await channel.send(msg)
 
                 try:
-                    from eos_ai.meetings import create_meeting_record
+                    from runtime.meetings import create_meeting_record
                     create_meeting_record(
                         title=invite['title'],
                         person=invite['organizer_name'],

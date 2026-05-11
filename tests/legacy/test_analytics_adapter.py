@@ -1,5 +1,5 @@
 """
-Tests for eos_ai.analytics_adapter — Analytics Adapter Layer.
+Tests for runtime.analytics_adapter — Analytics Adapter Layer.
 
 Verifies: bounded outputs, deterministic behavior, no regressions,
 disabled flag = no effect, stress test (repeated runs stable).

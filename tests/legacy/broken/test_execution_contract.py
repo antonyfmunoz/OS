@@ -1,4 +1,4 @@
-"""Tests for eos_ai.substrate.execution_contract."""
+"""Tests for runtime.substrate.execution_contract."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ sys.path.insert(0, "/opt/OS")
 
 import pytest
 
-from eos_ai.substrate.execution_contract import (
+from runtime.substrate.execution_contract import (
     ExecutionClass,
     ExecutionConstraints,
     ExecutionRequest,

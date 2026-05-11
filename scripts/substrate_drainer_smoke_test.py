@@ -27,11 +27,11 @@ import time
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.event_bus import EventBus  # noqa: E402
-from eos_ai.substrate.actions import ActionResult, ActionStatus  # noqa: E402
-from eos_ai.substrate.station import StationContract, StationEvent  # noqa: E402
-from eos_ai.substrate.station_bus import get_station_bus  # noqa: E402
-from eos_ai.substrate.station_drainer import drain_node  # noqa: E402
+from runtime.event_bus import EventBus  # noqa: E402
+from runtime.substrate.actions import ActionResult, ActionStatus  # noqa: E402
+from runtime.substrate.station import StationContract, StationEvent  # noqa: E402
+from runtime.substrate.station_bus import get_station_bus  # noqa: E402
+from runtime.substrate.station_drainer import drain_node  # noqa: E402
 
 
 TEST_NODE = "drainer-smoketest"

@@ -2,7 +2,7 @@
 System behavior stress test — adversarial, long-run, and edge case validation.
 
 Exercises both goal systems:
-  1. GoalSelector (eos_ai/) — portfolio-level selection with multi-horizon scoring
+  1. GoalSelector (runtime/) — portfolio-level selection with multi-horizon scoring
   2. UMH GoalArbitrator/GoalEvaluator/MetaGoalEngine — per-turn arbitration
 
 Tests cover:
@@ -28,7 +28,7 @@ from typing import Optional
 
 sys.path.insert(0, "/opt/OS")
 
-from eos_ai.goal_selector import (
+from runtime.goal_selector import (
     DEFAULT_FOCUS_BUDGET,
     DEFAULT_WEIGHTS,
     Goal,

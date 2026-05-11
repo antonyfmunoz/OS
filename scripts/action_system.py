@@ -16,16 +16,16 @@ without a full rebuild.
 Audit trail:
   - data/action_log.jsonl      — local append-only JSONL, authoritative
   - data/action_snapshots/<id> — pre-mutation file snapshots for rollback
-  - eos_ai.memory.AgentMemory  — best-effort Neon log_event call, never
+  - runtime.memory.AgentMemory  — best-effort Neon log_event call, never
                                   blocks or fails the action
 
 CLI
 ---
-    python3 scripts/action_system.py query-graph --target eos_ai/memory.py
+    python3 scripts/action_system.py query-graph --target runtime/memory.py
     python3 scripts/action_system.py edit-file \\
-        --target eos_ai/memory.py --payload-file /tmp/new.py --dry-run
+        --target runtime/memory.py --payload-file /tmp/new.py --dry-run
     python3 scripts/action_system.py edit-file \\
-        --target eos_ai/memory.py --payload-file /tmp/new.py --approve
+        --target runtime/memory.py --payload-file /tmp/new.py --approve
     python3 scripts/action_system.py run-command --payload "ls -la" --approve
     python3 scripts/action_system.py history --limit 20
     python3 scripts/action_system.py rollback <action_id>
@@ -36,7 +36,7 @@ Python API
     sys = ActionSystem()
     action = sys.propose(
         action_type=ActionType.EDIT_FILE,
-        target="eos_ai/memory.py",
+        target="runtime/memory.py",
         payload={"content": new_text},
         reason="fix typo in docstring",
     )
@@ -1019,7 +1019,7 @@ class ActionSystem:
         if not self.env.is_production:
             return
         try:
-            from eos_ai.memory import AgentMemory
+            from runtime.memory import AgentMemory
         except Exception:
             return
         try:

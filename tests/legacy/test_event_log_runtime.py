@@ -1,4 +1,4 @@
-"""Tests for eos_ai.substrate.event_log_runtime."""
+"""Tests for runtime.substrate.event_log_runtime."""
 
 from __future__ import annotations
 

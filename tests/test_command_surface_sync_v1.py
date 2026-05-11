@@ -303,27 +303,27 @@ class TestLiveBotIntegration:
 
 class TestSpineRouting:
     def test_chrome_proof_spine_routed(self) -> None:
-        from eos_ai.interfaces.discord_interface_adapter_v1 import SPINE_ROUTED_COMMANDS
+        from runtime.interfaces.discord_interface_adapter_v1 import SPINE_ROUTED_COMMANDS
 
         assert "!chrome-proof" in SPINE_ROUTED_COMMANDS
 
     def test_ping_not_spine_routed(self) -> None:
-        from eos_ai.interfaces.discord_interface_adapter_v1 import SPINE_ROUTED_COMMANDS
+        from runtime.interfaces.discord_interface_adapter_v1 import SPINE_ROUTED_COMMANDS
 
         assert "!ping" not in SPINE_ROUTED_COMMANDS
 
     def test_chrome_not_spine_routed(self) -> None:
-        from eos_ai.interfaces.discord_interface_adapter_v1 import SPINE_ROUTED_COMMANDS
+        from runtime.interfaces.discord_interface_adapter_v1 import SPINE_ROUTED_COMMANDS
 
         assert "!chrome" not in SPINE_ROUTED_COMMANDS
 
     def test_ingest_safe_doc_spine_routed(self) -> None:
-        from eos_ai.interfaces.discord_interface_adapter_v1 import SPINE_ROUTED_COMMANDS
+        from runtime.interfaces.discord_interface_adapter_v1 import SPINE_ROUTED_COMMANDS
 
         assert "!ingest-safe-doc" in SPINE_ROUTED_COMMANDS
 
     def test_ingest_safe_doc_cu_spine_routed(self) -> None:
-        from eos_ai.interfaces.discord_interface_adapter_v1 import SPINE_ROUTED_COMMANDS
+        from runtime.interfaces.discord_interface_adapter_v1 import SPINE_ROUTED_COMMANDS
 
         assert "!ingest-safe-doc-cu" in SPINE_ROUTED_COMMANDS
 
@@ -334,7 +334,7 @@ class TestSpineRouting:
 class TestSourceParity:
     def test_all_supported_are_substrate_or_status(self) -> None:
         from handlers.substrate_command_handler import SUBSTRATE_COMMANDS
-        from eos_ai.interfaces.discord_interface_adapter_v1 import SUPPORTED_COMMANDS
+        from runtime.interfaces.discord_interface_adapter_v1 import SUPPORTED_COMMANDS
 
         for cmd in SUPPORTED_COMMANDS:
             if cmd == "!status":
@@ -343,14 +343,14 @@ class TestSourceParity:
 
     def test_all_action_map_keys_are_substrate(self) -> None:
         from handlers.substrate_command_handler import SUBSTRATE_COMMANDS
-        from eos_ai.interfaces.discord_interface_adapter_v1 import COMMAND_ACTION_MAP
+        from runtime.interfaces.discord_interface_adapter_v1 import COMMAND_ACTION_MAP
 
         for cmd in COMMAND_ACTION_MAP:
             assert cmd in SUBSTRATE_COMMANDS, f"{cmd} in ACTION_MAP but not SUBSTRATE"
 
     def test_every_substrate_has_action_mapping(self) -> None:
         from handlers.substrate_command_handler import SUBSTRATE_COMMANDS
-        from eos_ai.interfaces.discord_interface_adapter_v1 import COMMAND_ACTION_MAP
+        from runtime.interfaces.discord_interface_adapter_v1 import COMMAND_ACTION_MAP
 
         for cmd in SUBSTRATE_COMMANDS:
             assert cmd in COMMAND_ACTION_MAP, f"{cmd} in SUBSTRATE but not ACTION_MAP"

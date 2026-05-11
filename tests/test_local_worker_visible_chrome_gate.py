@@ -25,7 +25,7 @@ from core.environment_bridge.chrome_visible_launch import (
     visible_launch_proof_allows_next_gate,
     CHROME_EXECUTABLE_PATHS_WSL,
 )
-from eos_ai.substrate.local_worker_auto_loop import (
+from runtime.substrate.local_worker_auto_loop import (
     validate_wo_001_packet,
     WO_001_ID,
     WO_001_ACCOUNT,

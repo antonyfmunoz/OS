@@ -34,7 +34,7 @@ if str(_REPO_ROOT) not in sys.path:
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / ".env")
-load_dotenv(_REPO_ROOT / "eos_ai" / ".env")
+load_dotenv(_REPO_ROOT / "runtime" / ".env")
 
 # Port for the webhook receiver
 CC_WEBHOOK_PORT = int(os.getenv("CC_WEBHOOK_PORT", "8765"))
@@ -189,8 +189,8 @@ async def start_webhook_server(
 
         # Build a WatcherEvent and format it through the bridge
         try:
-            from eos_ai.substrate.session_watcher import SessionState, WatcherEvent
-            from eos_ai.substrate.session_discord_bridge import format_event
+            from runtime.substrate.session_watcher import SessionState, WatcherEvent
+            from runtime.substrate.session_discord_bridge import format_event
 
             state_map = {
                 "plan": SessionState.PLAN_MODE,

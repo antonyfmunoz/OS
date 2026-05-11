@@ -26,7 +26,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from flask import Flask, request, jsonify
-from eos_ai.goal_selector import GoalSelector, GoalState
+from runtime.goal_selector import GoalSelector, GoalState
 
 app = Flask(__name__)
 

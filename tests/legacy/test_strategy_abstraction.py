@@ -1,4 +1,4 @@
-"""Tests for eos_ai.strategy_abstraction — strategy abstraction + transfer layer.
+"""Tests for runtime.strategy_abstraction — strategy abstraction + transfer layer.
 
 Validates: context bucketing, prototype extraction, clustering, EMA updates,
 transfer matching, safety gating, bias bounds, conflicting prototype

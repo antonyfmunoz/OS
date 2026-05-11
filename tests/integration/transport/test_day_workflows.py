@@ -1,4 +1,4 @@
-"""Smoke tests for eos_ai.substrate.day_workflows.
+"""Smoke tests for runtime.substrate.day_workflows.
 
 Validates:
   1. test_open_day_fresh        — first open_day with no prior session returns ok + empty briefing
@@ -19,12 +19,12 @@ import sys
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.day_workflows import close_day, open_day  # noqa: E402
-from eos_ai.substrate.operator_session import (  # noqa: E402
+from runtime.substrate.day_workflows import close_day, open_day  # noqa: E402
+from runtime.substrate.operator_session import (  # noqa: E402
     OperatorDayMode,
     OperatorSessionStore,
 )
-from eos_ai.substrate.rituals import RitualRegistry, RitualState  # noqa: E402
+from runtime.substrate.rituals import RitualRegistry, RitualState  # noqa: E402
 
 _PASS = 0
 _FAIL = 0
@@ -50,7 +50,7 @@ def _reset_all() -> None:
     # Clear session storage before tearing down singletons so the next
     # OperatorSessionStore.default() does not reload a stale open session.
     try:
-        from eos_ai.substrate.storage import get_storage
+        from runtime.substrate.storage import get_storage
 
         get_storage().put("operator_session", None)
         get_storage().put("rituals", {})
@@ -417,13 +417,13 @@ def test_open_day_station_summary() -> None:
     _reset_all()
     # Also reset station_presence
     try:
-        from eos_ai.substrate.storage import get_storage
+        from runtime.substrate.storage import get_storage
 
         get_storage().put("station_presence", None)
     except Exception:  # noqa: BLE001
         pass
     try:
-        from eos_ai.substrate.station_presence import StationPresenceStore
+        from runtime.substrate.station_presence import StationPresenceStore
 
         StationPresenceStore.reset_default_for_tests()
     except Exception:  # noqa: BLE001
@@ -450,13 +450,13 @@ def test_close_day_new_keys() -> None:
     _reset_all()
     # Also reset station_presence
     try:
-        from eos_ai.substrate.storage import get_storage
+        from runtime.substrate.storage import get_storage
 
         get_storage().put("station_presence", None)
     except Exception:  # noqa: BLE001
         pass
     try:
-        from eos_ai.substrate.station_presence import StationPresenceStore
+        from runtime.substrate.station_presence import StationPresenceStore
 
         StationPresenceStore.reset_default_for_tests()
     except Exception:  # noqa: BLE001

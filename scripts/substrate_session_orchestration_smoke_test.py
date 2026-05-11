@@ -9,7 +9,7 @@ import sys
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.session_orchestration import (
+from runtime.substrate.session_orchestration import (
     LAYER_NAME,
     LAYER_VERSION,
     ExpectedSession,
@@ -240,7 +240,7 @@ def test_architecture() -> int:
     print("\n--- Architecture Tripwires ---")
     passed = 0
 
-    import eos_ai.substrate.session_orchestration as mod
+    import runtime.substrate.session_orchestration as mod
 
     src_path = mod.__file__
     assert src_path is not None
@@ -315,8 +315,8 @@ def test_integration_guard() -> int:
     ok = True
     detail = ""
     try:
-        from eos_ai.substrate.session_control import clear_session, reset_session
-        from eos_ai.substrate.claude_session_bridge import list_sessions
+        from runtime.substrate.session_control import clear_session, reset_session
+        from runtime.substrate.claude_session_bridge import list_sessions
 
         if not callable(clear_session):
             ok = False

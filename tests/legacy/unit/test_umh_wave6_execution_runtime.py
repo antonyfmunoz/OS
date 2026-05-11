@@ -2,12 +2,12 @@
 
 Verifies:
 1. UMH runtime imports standalone with no eos_ai import.
-2. UMH runtime uses UMH model_router/adapters, not eos_ai.model_router.
+2. UMH runtime uses UMH model_router/adapters, not runtime.model_router.
 3. Fallback chain works through UMH.
 4. Errors return normalized failure results, not raised exceptions.
-5. eos_ai.agent_runtime public API still imports.
-6. eos_ai.agent_runtime delegates rate limiting and cost to UMH.
-7. eos_ai.execution_spine still imports and run_via_umh path remains valid.
+5. runtime.agent_runtime public API still imports.
+6. runtime.agent_runtime delegates rate limiting and cost to UMH.
+7. runtime.execution_spine still imports and run_via_umh path remains valid.
 8. No new forbidden UMH imports exist.
 """
 
@@ -380,7 +380,7 @@ class TestNoNewForbiddenImports:
                     if isinstance(node, ast.ImportFrom) and node.module:
                         if (
                             node.module.startswith(
-                                ("services.", "interfaces.", "scripts.", "eos.", "eos_ai.")
+                                ("services.", "interfaces.", "scripts.", "eos.", "runtime.")
                             )
                             and node.module not in allowed_mods
                         ):
@@ -389,7 +389,7 @@ class TestNoNewForbiddenImports:
                         for alias in node.names:
                             if (
                                 alias.name.startswith(
-                                    ("services.", "interfaces.", "scripts.", "eos.", "eos_ai.")
+                                    ("services.", "interfaces.", "scripts.", "eos.", "runtime.")
                                 )
                                 and alias.name not in allowed_mods
                             ):

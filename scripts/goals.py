@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CLI entry points for goal management. Wraps eos_ai/goal_selector.py."""
+"""CLI entry points for goal management. Wraps runtime/goal_selector.py."""
 
 import os
 import sys
@@ -8,7 +8,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from eos_ai.goal_selector import GoalSelector, GoalState
+from runtime.goal_selector import GoalSelector, GoalState
 import json
 
 

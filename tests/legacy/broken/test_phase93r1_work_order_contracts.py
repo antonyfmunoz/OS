@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, "/opt/OS")
 
-from eos_ai.substrate.work_order_contracts import (
+from runtime.substrate.work_order_contracts import (
     ALLOWED_TRANSITIONS,
     UNIVERSAL_BLOCKED_ACTIONS,
     AuthorityMode,
@@ -23,7 +23,7 @@ from eos_ai.substrate.work_order_contracts import (
     WorkOrderStatus,
     WorkOrderTaskType,
 )
-from eos_ai.substrate.work_order_factory import (
+from runtime.substrate.work_order_factory import (
     create_google_docs_read_export_work_order,
     create_google_workspace_discovery_work_order,
     load_work_order,

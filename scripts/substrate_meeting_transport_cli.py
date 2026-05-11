@@ -38,7 +38,7 @@ def _print_json(obj) -> None:
 
 
 def _transport(args: argparse.Namespace):
-    from eos_ai.substrate.meeting_transport import get_default_meeting_transport
+    from runtime.substrate.meeting_transport import get_default_meeting_transport
 
     return get_default_meeting_transport(
         platform=args.platform,
@@ -199,8 +199,8 @@ def _run_source_ops(args: argparse.Namespace) -> None:
     if not needs_transport:
         return
 
-    from eos_ai.substrate.google_meet_source import GoogleMeetSource
-    from eos_ai.substrate.meeting_sources import FakeMeetingSource
+    from runtime.substrate.google_meet_source import GoogleMeetSource
+    from runtime.substrate.meeting_sources import FakeMeetingSource
 
     transport = _transport(args)
 

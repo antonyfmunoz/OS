@@ -7,11 +7,11 @@ import os
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.local_gui_control_contracts import (
+from runtime.substrate.local_gui_control_contracts import (
     GUIInventoryItem,
     GUIObservationMethod,
 )
-from eos_ai.substrate.visible_drive_ui_inventory import (
+from runtime.substrate.visible_drive_ui_inventory import (
     build_inventory_result,
     build_scroll_plan,
     dedupe_inventory_items,

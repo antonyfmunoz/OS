@@ -12,7 +12,7 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 import pytest
 
-from eos_ai.substrate.os_controller import (
+from runtime.substrate.os_controller import (
     OSAction,
     OSActionResult,
     OSController,

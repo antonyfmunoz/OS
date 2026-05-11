@@ -132,7 +132,7 @@ def run_gateway(
     if channel_name not in channel_sessions:
         channel_sessions[channel_name] = str(_uuid_mod.uuid4())
         try:
-            from eos_ai.substrate.storage import get_storage
+            from runtime.substrate.storage import get_storage
             get_storage().put(f"session:{channel_name}", channel_sessions[channel_name])
         except Exception:
             pass
@@ -146,8 +146,8 @@ def run_gateway(
     # Used by bypass paths that already handled the response (pipeline updates, etc).
     if memory_only:
         try:
-            from eos_ai.context import load_context_from_env
-            from eos_ai.memory import ConversationMemory
+            from runtime.context import load_context_from_env
+            from runtime.memory import ConversationMemory
 
             _mo_ctx = load_context_from_env()
             _mo_cm = ConversationMemory(_mo_ctx)
@@ -186,7 +186,7 @@ def run_gateway(
     try:
         _names = re.findall(r"\b[A-Z][a-z]+ [A-Z][a-z]+\b", text)
         if _names:
-            from eos_ai.person_recognition import recognize_person
+            from runtime.person_recognition import recognize_person
 
             for _name in _names[:2]:
                 _rec = recognize_person(name=_name)
@@ -200,8 +200,8 @@ def run_gateway(
 
     # Cloning loop — detect when text answers an open DEX question
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
 
         _cl_ctx = load_context_from_env()
 
@@ -227,7 +227,7 @@ def run_gateway(
                 _q_payload = json.loads(_q_payload)
             _question = _q_payload.get("question", "")
 
-            from eos_ai.model_router import call_with_fallback as _cl_cwf
+            from runtime.model_router import call_with_fallback as _cl_cwf
 
             _cl_result = _cl_cwf(
                 prompt=f"""Does this message answer this question?
@@ -289,7 +289,7 @@ Return JSON: {{"answers": true, "answer_summary": "brief summary"}}""",
 
     # No List enforcement
     try:
-        from eos_ai.founder_rate import check_against_no_list
+        from runtime.founder_rate import check_against_no_list
 
         _nl_violations = check_against_no_list(text)
         if _nl_violations:
@@ -302,11 +302,11 @@ Return JSON: {{"answers": true, "answer_summary": "brief summary"}}""",
     # so model_router's Claude CLI backend targets the correct session.
     _mode_cm = None
     try:
-        from eos_ai.substrate.discord_mode_routing import (
+        from runtime.substrate.discord_mode_routing import (
             mode_context as _mc,
             resolve_discord_mode,
         )
-        from eos_ai.runtime.session_registry import get_registry
+        from runtime.session_registry import get_registry
 
         _discord_mode = resolve_discord_mode(guild_id, channel_id)
 
@@ -326,7 +326,7 @@ Return JSON: {{"answers": true, "answer_summary": "brief summary"}}""",
                 policy_version=None,
             )
         else:
-            from eos_ai.substrate.discord_mode_routing import resolve_mode_session
+            from runtime.substrate.discord_mode_routing import resolve_mode_session
 
             _mode_session = resolve_mode_session(
                 _discord_mode, guild_id=guild_id, channel_id=channel_id

@@ -31,7 +31,7 @@ from core.environment_bridge.execution_binding_contracts import (
 from core.environment_bridge.execution_binding_validator import (
     validate_execution_binding_dict,
 )
-from eos_ai.substrate.local_worker_auto_loop import (
+from runtime.substrate.local_worker_auto_loop import (
     validate_wo_001_packet,
     validate_execution_binding_from_packet,
 )

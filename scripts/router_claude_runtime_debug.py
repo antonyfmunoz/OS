@@ -23,9 +23,9 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 
 def main() -> int:
-    from eos_ai import model_router as mr
-    from eos_ai.substrate import claude_responder as cr
-    from eos_ai.substrate import claude_session_bridge as csb
+    from runtime import model_router as mr
+    from runtime.substrate import claude_responder as cr
+    from runtime.substrate import claude_session_bridge as csb
 
     def k(d: dict) -> dict:
         return {getattr(k, "value", str(k)): v for k, v in d.items()}

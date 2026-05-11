@@ -9,7 +9,7 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 from dotenv import load_dotenv
-load_dotenv(f'{_ROOT}/eos_ai/.env')
+load_dotenv(f'{_ROOT}/runtime/.env')
 load_dotenv(f'{_ROOT}/services/.env')
 
 import pytest
@@ -20,25 +20,25 @@ import pytest
 class TestEmbeddingEngine:
 
     def test_available(self):
-        from eos_ai.embedding_engine import EmbeddingEngine
+        from runtime.embedding_engine import EmbeddingEngine
         ee = EmbeddingEngine()
         assert ee.is_available()
 
     def test_embed_returns_384_dims(self):
-        from eos_ai.embedding_engine import EmbeddingEngine
+        from runtime.embedding_engine import EmbeddingEngine
         ee = EmbeddingEngine()
         result = ee.embed('test text')
         assert result is not None
         assert len(result) == 384
 
     def test_embed_empty_returns_none(self):
-        from eos_ai.embedding_engine import EmbeddingEngine
+        from runtime.embedding_engine import EmbeddingEngine
         ee = EmbeddingEngine()
         assert ee.embed('') is None
         assert ee.embed('   ') is None
 
     def test_active_tier(self):
-        from eos_ai.embedding_engine import EmbeddingEngine
+        from runtime.embedding_engine import EmbeddingEngine
         ee = EmbeddingEngine()
         tier = ee.get_active_tier()
         assert tier in [
@@ -48,8 +48,8 @@ class TestEmbeddingEngine:
         ]
 
     def test_semantic_search_returns_results(self):
-        from eos_ai.embedding_engine import EmbeddingEngine
-        from eos_ai.context import load_context_from_env
+        from runtime.embedding_engine import EmbeddingEngine
+        from runtime.context import load_context_from_env
         ctx = load_context_from_env()
         ee = EmbeddingEngine()
         results = ee.semantic_search('focus today', ctx.org_id, limit=3)
@@ -65,7 +65,7 @@ class TestEmbeddingEngine:
 class TestDiscordUtils:
 
     def test_chunk_message_under_discord_limit(self):
-        from eos_ai.discord_utils import chunk_message
+        from runtime.discord_utils import chunk_message
         long = 'x ' * 1000
         chunks = chunk_message(long)
         # Discord's hard limit is 2000. DISCORD_MAX_CHARS=1800 is the content
@@ -74,7 +74,7 @@ class TestDiscordUtils:
         assert all(len(c) <= 2000 for c in chunks)
 
     def test_chunk_preserves_all_content(self):
-        from eos_ai.discord_utils import chunk_message
+        from runtime.discord_utils import chunk_message
         text = 'word ' * 400
         chunks = chunk_message(text)
         rejoined = ''.join(chunks)
@@ -82,7 +82,7 @@ class TestDiscordUtils:
         assert len(rejoined) >= len(text.strip())
 
     def test_short_message_returns_single_chunk(self):
-        from eos_ai.discord_utils import chunk_message
+        from runtime.discord_utils import chunk_message
         text = 'short message'
         chunks = chunk_message(text)
         assert len(chunks) == 1
@@ -94,14 +94,14 @@ class TestDiscordUtils:
 class TestOutputValidator:
 
     def test_catches_long_discord_message(self):
-        from eos_ai.output_validator import OutputValidator
+        from runtime.output_validator import OutputValidator
         v = OutputValidator()
         result = v.validate_discord_message('x ' * 1000)
         violation_types = [viol.violation_type.value for viol in result.violations]
         assert 'discord_chunk_limit' in violation_types
 
     def test_catches_generic_response(self):
-        from eos_ai.output_validator import OutputValidator
+        from runtime.output_validator import OutputValidator
         v = OutputValidator()
         result = v.validate_discord_message(
             'Great question! How can I help?', 'agent_response'
@@ -109,7 +109,7 @@ class TestOutputValidator:
         assert len(result.violations) > 0
 
     def test_clean_message_passes(self):
-        from eos_ai.output_validator import OutputValidator
+        from runtime.output_validator import OutputValidator
         v = OutputValidator()
         result = v.validate_discord_message(
             'Morning. Zero pipeline. 20 DMs today.'
@@ -121,7 +121,7 @@ class TestOutputValidator:
         assert len(critical) == 0
 
     def test_result_has_expected_fields(self):
-        from eos_ai.output_validator import OutputValidator
+        from runtime.output_validator import OutputValidator
         v = OutputValidator()
         result = v.validate_discord_message('test')
         assert hasattr(result, 'passed')
@@ -134,24 +134,24 @@ class TestOutputValidator:
 class TestSignalHierarchy:
 
     def test_classifies_business_domain(self):
-        from eos_ai.signal_hierarchy import SignalHierarchyEngine
-        from eos_ai.context import load_context_from_env
+        from runtime.signal_hierarchy import SignalHierarchyEngine
+        from runtime.context import load_context_from_env
         ctx = load_context_from_env()
         she = SignalHierarchyEngine(ctx)
         result = she.classify_input('I closed my first client today')
         assert result['domain'] == 'business'
 
     def test_classifies_reality_tier(self):
-        from eos_ai.signal_hierarchy import SignalHierarchyEngine, SignalTier
-        from eos_ai.context import load_context_from_env
+        from runtime.signal_hierarchy import SignalHierarchyEngine, SignalTier
+        from runtime.context import load_context_from_env
         ctx = load_context_from_env()
         she = SignalHierarchyEngine(ctx)
         result = she.classify_input('revenue is down this week')
         assert result['primary_tier'] == SignalTier.REALITY
 
     def test_returns_required_keys(self):
-        from eos_ai.signal_hierarchy import SignalHierarchyEngine
-        from eos_ai.context import load_context_from_env
+        from runtime.signal_hierarchy import SignalHierarchyEngine
+        from runtime.context import load_context_from_env
         ctx = load_context_from_env()
         she = SignalHierarchyEngine(ctx)
         result = she.classify_input('test input')
@@ -164,8 +164,8 @@ class TestSignalHierarchy:
 class TestKnowledgeIntegrator:
 
     def test_integrate_returns_bool(self):
-        from eos_ai.knowledge_integrator import KnowledgeIntegrator
-        from eos_ai.context import load_context_from_env
+        from runtime.knowledge_integrator import KnowledgeIntegrator
+        from runtime.context import load_context_from_env
         ctx = load_context_from_env()
         ki = KnowledgeIntegrator(ctx)
         result = ki.integrate(
@@ -176,16 +176,16 @@ class TestKnowledgeIntegrator:
         assert isinstance(result, bool)
 
     def test_query_knowledge_returns_list(self):
-        from eos_ai.knowledge_integrator import KnowledgeIntegrator
-        from eos_ai.context import load_context_from_env
+        from runtime.knowledge_integrator import KnowledgeIntegrator
+        from runtime.context import load_context_from_env
         ctx = load_context_from_env()
         ki = KnowledgeIntegrator(ctx)
         results = ki.query_knowledge('test')
         assert isinstance(results, list)
 
     def test_empty_content_handled(self):
-        from eos_ai.knowledge_integrator import KnowledgeIntegrator
-        from eos_ai.context import load_context_from_env
+        from runtime.knowledge_integrator import KnowledgeIntegrator
+        from runtime.context import load_context_from_env
         ctx = load_context_from_env()
         ki = KnowledgeIntegrator(ctx)
         # Should not raise — graceful handling

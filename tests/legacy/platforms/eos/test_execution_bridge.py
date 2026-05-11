@@ -1,24 +1,24 @@
-"""Tests for eos_ai.platforms.eos.execution_bridge."""
+"""Tests for runtime.platforms.eos.execution_bridge."""
 
 import sys
 
 sys.path.insert(0, "/opt/OS")
 
 import pytest
-from eos_ai.platforms.eos.execution_bridge import (
+from runtime.platforms.eos.execution_bridge import (
     ExecutionBridgeResult,
     execute_created_work_immediately,
 )
-from eos_ai.substrate.task_system import (
+from runtime.substrate.task_system import (
     Task,
     TaskExecutionPolicy,
     TaskStatus,
     TaskStore,
     create_task,
 )
-from eos_ai.substrate.task_pipeline import PipelineStore
-from eos_ai.substrate.station_presence import StationPresenceStore
-from eos_ai.substrate.operator_session import OperatorSessionStore
+from runtime.substrate.task_pipeline import PipelineStore
+from runtime.substrate.station_presence import StationPresenceStore
+from runtime.substrate.operator_session import OperatorSessionStore
 
 
 class TestExecutionBridge:

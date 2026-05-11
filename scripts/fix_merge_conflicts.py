@@ -11,13 +11,13 @@ _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.ge
 
 
 FILES = [
-    "eos_ai/cognitive_loop.py",
-    "eos_ai/agent_runtime.py",
-    "eos_ai/model_router.py",
-    "eos_ai/cc_sdk.py",
-    "eos_ai/media_processor.py",
-    "eos_ai/event_bus.py",
-    "eos_ai/orchestrator.py",
+    "runtime/cognitive_loop.py",
+    "runtime/agent_runtime.py",
+    "runtime/model_router.py",
+    "runtime/cc_sdk.py",
+    "runtime/media_processor.py",
+    "runtime/event_bus.py",
+    "runtime/orchestrator.py",
     "services/handlers/intent_handler.py",
     "services/dm_monitor.py",
     "scripts/_tme_common.py",

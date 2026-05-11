@@ -59,7 +59,7 @@ from core.state.transformation_state_ledger import (
     make_state_id,
     make_trace_id,
 )
-from eos_ai.interfaces.discord_interface_adapter_v1 import (
+from runtime.interfaces.discord_interface_adapter_v1 import (
 
     build_work_packet_for_router,
     format_router_result,

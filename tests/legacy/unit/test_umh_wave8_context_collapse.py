@@ -4,7 +4,7 @@ Proves that:
 1. All LLM calls go through the execution engine (no direct adapter calls)
 2. utility_llm_call routes through lightweight_execute → execute()
 3. ContextBuilder is used for BOTH full runs and lightweight runs
-4. No eos_ai.context_builder imports in UMH
+4. No runtime.context_builder imports in UMH
 5. LightweightTaskType enum defines canonical task types
 6. No new eos_ai imports leaked into UMH
 """
@@ -213,7 +213,7 @@ class TestNoEosContextBuilderInUMH:
                 filepath = os.path.join(dirpath, f)
                 with open(filepath) as fh:
                     source = fh.read()
-                if "from eos.context_builder" in source or "from eos_ai.context_builder" in source:
+                if "from eos.context_builder" in source or "from runtime.context_builder" in source:
                     violations.append(filepath)
         assert violations == [], "Legacy context_builder refs:\n" + "\n".join(violations)
 
@@ -285,7 +285,7 @@ class TestNoNewEosImportsInUMH:
                 for node in ast.walk(tree):
                     if isinstance(node, ast.ImportFrom) and node.module:
                         if (
-                            node.module.startswith(("services.", "interfaces.", "scripts.", "eos.", "eos_ai."))
+                            node.module.startswith(("services.", "interfaces.", "scripts.", "eos.", "runtime."))
                             and node.module not in allowed_mods
                         ):
                             violations.append(
@@ -294,7 +294,7 @@ class TestNoNewEosImportsInUMH:
                     if isinstance(node, ast.Import):
                         for alias in node.names:
                             if (
-                                alias.name.startswith(("services.", "interfaces.", "scripts.", "eos.", "eos_ai."))
+                                alias.name.startswith(("services.", "interfaces.", "scripts.", "eos.", "runtime."))
                                 and alias.name not in allowed_mods
                             ):
                                 violations.append(

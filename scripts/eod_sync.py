@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'services', '.env'))
 
 PDT = ZoneInfo('America/Los_Angeles')
@@ -24,7 +24,7 @@ MORNING_BRIEF_CHANNEL_ID = 1485765524766982234
 
 def _get_todays_meetings() -> list[str]:
     try:
-        from eos_ai.gws_connector import GWSConnector
+        from runtime.gws_connector import GWSConnector
         gws = GWSConnector()
         events = gws.get_today_events()
         result = []
@@ -49,7 +49,7 @@ def _get_todays_meetings() -> list[str]:
 def _get_todays_purchases() -> list[str]:
     """Pull receipts from expense tracker — processes new emails and returns monthly summary."""
     try:
-        from eos_ai.expense_tracker import (
+        from runtime.expense_tracker import (
             process_receipt_emails,
             get_monthly_summary,
         )
@@ -71,7 +71,7 @@ def _get_todays_purchases() -> list[str]:
 
 def _get_todays_project_updates(ctx) -> list[str]:
     try:
-        from eos_ai.db import get_conn
+        from runtime.db import get_conn
         since = (datetime.now(timezone.utc) - timedelta(hours=12)).isoformat()
         with get_conn(ctx.org_id) as cur:
             cur.execute('''
@@ -117,7 +117,7 @@ def _get_todays_project_updates(ctx) -> list[str]:
 def _get_todays_decisions(ctx) -> list[str]:
     """Decisions = dex_question events answered today."""
     try:
-        from eos_ai.db import get_conn
+        from runtime.db import get_conn
         since = (datetime.now(timezone.utc) - timedelta(hours=12)).isoformat()
         with get_conn(ctx.org_id) as cur:
             cur.execute('''
@@ -148,7 +148,7 @@ def _get_todays_decisions(ctx) -> list[str]:
 
 
 def build_eod_message() -> str:
-    from eos_ai.context import load_context_from_env
+    from runtime.context import load_context_from_env
     ctx = load_context_from_env()
 
     now = datetime.now(PDT)
@@ -185,7 +185,7 @@ def build_eod_message() -> str:
 
     # Overdue delegations
     try:
-        from eos_ai.delegation_tracker import get_overdue_delegations
+        from runtime.delegation_tracker import get_overdue_delegations
         overdue_dels = get_overdue_delegations(ctx)
         if overdue_dels:
             section = [f'**🔄 Overdue delegations ({len(overdue_dels)}):**']

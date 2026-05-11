@@ -5,12 +5,12 @@ import os
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.extraction_backend_contracts import (
+from runtime.substrate.extraction_backend_contracts import (
     ExtractionBackendType,
     ExtractionCapability,
     ExtractionCoverageStatus,
 )
-from eos_ai.substrate.google_docs_backend_parity_matrix import (
+from runtime.substrate.google_docs_backend_parity_matrix import (
     build_google_docs_backend_matrix,
     mark_api_capabilities,
     mark_cli_capabilities,

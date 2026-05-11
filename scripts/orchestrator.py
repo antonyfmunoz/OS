@@ -25,7 +25,7 @@ Integration:
   * scripts.workflow_engine.WorkflowEngine    — actual execution
   * scripts.workflow_engine.build_*_workflow  — built-in workflow factories
   * scripts.action_system.ActionSystem        — used by EXECUTE workflow steps
-  * eos_ai.memory.AgentMemory                  — logging outcomes
+  * runtime.memory.AgentMemory                  — logging outcomes
   * watchdog.Observer                          — file-change events (same
                                                  lib scripts/watch_graph uses)
 
@@ -269,8 +269,8 @@ class ActivityLog:
     def persist_to_memory(self, job: Job, result: dict[str, Any]) -> None:
         """Best-effort — never raises, never blocks the scheduler."""
         try:
-            from eos_ai.agent_runtime import AgentResult
-            from eos_ai.memory import AgentMemory
+            from runtime.agent_runtime import AgentResult
+            from runtime.memory import AgentMemory
 
             summary = (
                 f"job={job.id} status={result.get('status', '?')} "
@@ -605,7 +605,7 @@ class EventAgent:
 
     Two event families:
       1. Filesystem changes — via watchdog. Jobs can register a glob pattern
-         (e.g. "eos_ai/*.py"). The first match in a debounce window submits
+         (e.g. "runtime/*.py"). The first match in a debounce window submits
          the job. watchdog is optional — if it's not installed, FS events
          are silently disabled and the orchestrator still runs.
       2. Workflow-completion hooks — a job can subscribe to "after job X
@@ -624,7 +624,7 @@ class EventAgent:
     ) -> None:
         self.orch = orchestrator
         self.verbose = verbose
-        self.watch_dirs = watch_dirs or ["eos_ai", "services", "scripts", "core"]
+        self.watch_dirs = watch_dirs or ["runtime", "services", "scripts", "core"]
         self._observer: Any = None
         self._last_fire: dict[str, float] = {}
         self._completion_hooks: dict[str, list[str]] = {}  # source_job → [target_jobs]

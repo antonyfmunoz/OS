@@ -18,15 +18,15 @@ import sys
 
 sys.path.insert(0, "/opt/OS")
 
-from eos_ai.substrate.decision_engine import DecisionOutput, Rule, RuleBasedStrategy
-from eos_ai.substrate.event_scheduler import EventScheduler, SchedulerEvent
-from eos_ai.substrate.intent_models import (
+from runtime.substrate.decision_engine import DecisionOutput, Rule, RuleBasedStrategy
+from runtime.substrate.event_scheduler import EventScheduler, SchedulerEvent
+from runtime.substrate.intent_models import (
     Intent,
     IntentStatus,
     IntentType,
     intent_store_key,
 )
-from eos_ai.substrate.llm_planner import (
+from runtime.substrate.llm_planner import (
     EventSchema,
     EventTypeRegistry,
     LLMPlannerConfig,
@@ -36,9 +36,9 @@ from eos_ai.substrate.llm_planner import (
     _canonical_json,
     _sha256_prefix,
 )
-from eos_ai.substrate.llm_replay import LLMDecisionRecord, ReplayableStrategy
-from eos_ai.substrate.planner import IntentAwareStrategy, PlannerStrategy
-from eos_ai.substrate.runtime_state_store import RuntimeStateStore
+from runtime.substrate.llm_replay import LLMDecisionRecord, ReplayableStrategy
+from runtime.substrate.planner import IntentAwareStrategy, PlannerStrategy
+from runtime.substrate.runtime_state_store import RuntimeStateStore
 
 
 # ─── Fixtures ────────────────────────────────────────────────────────
@@ -458,7 +458,7 @@ class TestImports:
     """Verify all LLM planning layer symbols are importable from __init__."""
 
     def test_public_api_importable(self):
-        from eos_ai.substrate import (
+        from runtime.substrate import (
             EventSchema,
             EventTypeRegistry,
             LLMDecisionRecord,
@@ -485,7 +485,7 @@ class TestImports:
         assert ValidationResult is not None
 
     def test_event_builders_importable(self):
-        from eos_ai.substrate import (
+        from runtime.substrate import (
             build_llm_decision_accepted_event,
             build_llm_decision_received_event,
             build_llm_decision_rejected_event,

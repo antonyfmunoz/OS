@@ -1,4 +1,4 @@
-"""Smoke tests for eos_ai.substrate.voice_wake.
+"""Smoke tests for runtime.substrate.voice_wake.
 
 Validates:
   1.  test_default_state          — fresh state has expected defaults
@@ -22,7 +22,7 @@ import sys
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.voice_wake import (  # noqa: E402
+from runtime.substrate.voice_wake import (  # noqa: E402
     ClapAdapter,
     StationMode,
     VoiceWakeState,
@@ -57,7 +57,7 @@ def _report(name: str, passed: bool, detail: str = "") -> None:
 def _reset_all() -> None:
     """Reset singleton and underlying storage so each test starts clean."""
     try:
-        from eos_ai.substrate.storage import get_storage
+        from runtime.substrate.storage import get_storage
 
         get_storage().put("voice_wake_state", None)
     except Exception:  # noqa: BLE001

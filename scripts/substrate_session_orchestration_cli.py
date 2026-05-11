@@ -22,7 +22,7 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 try:
-    from eos_ai.substrate.session_orchestration import (
+    from runtime.substrate.session_orchestration import (
         actual_sessions,
         ensure_expected_sessions,
         expected_sessions,

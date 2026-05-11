@@ -1,4 +1,4 @@
-"""Smoke tests for eos_ai.substrate.auto_task_generation.
+"""Smoke tests for runtime.substrate.auto_task_generation.
 
 Validates:
   1.  test_generate_from_warning    — WARNING perception generates a task
@@ -18,18 +18,18 @@ import sys
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.perception import (  # noqa: E402
+from runtime.substrate.perception import (  # noqa: E402
     PerceptionRecord,
     PerceptionSeverity,
     PerceptionSource,
     PerceptionStore,
 )
-from eos_ai.substrate.auto_task_generation import (  # noqa: E402
+from runtime.substrate.auto_task_generation import (  # noqa: E402
     generate_tasks_from_perceptions,
     get_perception_summary,
     run_perception_cycle,
 )
-from eos_ai.substrate.task_system import TaskStore  # noqa: E402
+from runtime.substrate.task_system import TaskStore  # noqa: E402
 
 _PASS = 0
 _FAIL = 0
@@ -49,7 +49,7 @@ def _report(name: str, passed: bool, detail: str = "") -> None:
 def _reset_all() -> None:
     """Reset perception and task store singletons and clear storage keys."""
     try:
-        from eos_ai.substrate.storage import get_storage
+        from runtime.substrate.storage import get_storage
 
         get_storage().put("perception_records", None)
         get_storage().put("task_system", None)

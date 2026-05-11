@@ -1,4 +1,4 @@
-"""Tests for eos_ai/substrate/backend_selection_engine.py (Phase 96.3)."""
+"""Tests for runtime/substrate/backend_selection_engine.py (Phase 96.3)."""
 
 import sys
 import os
@@ -7,13 +7,13 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 import unittest
 
-from eos_ai.substrate.backend_registry_contracts import (
+from runtime.substrate.backend_registry_contracts import (
     BackendCategory,
     BackendImplementationType,
     BackendProfile,
     BackendStatus,
 )
-from eos_ai.substrate.backend_selection_engine import (
+from runtime.substrate.backend_selection_engine import (
     SelectionResult,
     SelectionTask,
     detect_when_backend_is_interface_only,

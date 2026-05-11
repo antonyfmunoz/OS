@@ -4,7 +4,7 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 import unittest
-from eos_ai.substrate.adapter_engine_contracts import (
+from runtime.substrate.adapter_engine_contracts import (
     AdapterProfile,
     AdapterType,
     AdapterSafetyPolicy,
@@ -16,7 +16,7 @@ from eos_ai.substrate.adapter_engine_contracts import (
     tool_mastery_has_validation_checklist,
     tool_mastery_is_mature,
 )
-from eos_ai.substrate.adapter_quality_gate import (
+from runtime.substrate.adapter_quality_gate import (
     adapter_tool_mastery_is_mature,
     evaluate_adapter_maturity,
     adapter_is_promotable,
@@ -158,7 +158,7 @@ class TestMaturityScoreAndGaps(unittest.TestCase):
         self.assertAlmostEqual(report.maturity_score, 85.7, places=1)
 
     def test_base_quality_report_also_has_score(self):
-        from eos_ai.substrate.adapter_quality_gate import evaluate_adapter_quality
+        from runtime.substrate.adapter_quality_gate import evaluate_adapter_quality
         entry = _make_full_entry(pack=_make_mature_pack(), has_mastery=True)
         report = evaluate_adapter_quality(entry)
         self.assertEqual(report.maturity_score, 100.0)
@@ -175,7 +175,7 @@ class TestMaturityScoreAndGaps(unittest.TestCase):
         self.assertGreater(len(d["gaps_to_100"]), 0)
 
     def test_adapter_package_has_maturity_fields(self):
-        from eos_ai.substrate.adapter_engine_contracts import AdapterPackage
+        from runtime.substrate.adapter_engine_contracts import AdapterPackage
         pkg = AdapterPackage(
             adapter_profile=AdapterProfile(adapter_id="pkg", adapter_type=AdapterType.API),
             maturity_score=85.7,

@@ -25,7 +25,7 @@ import sys
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate import meeting_intelligence as mi  # noqa: E402
+from runtime.substrate import meeting_intelligence as mi  # noqa: E402
 
 
 class _FakeResult:
@@ -35,7 +35,7 @@ class _FakeResult:
 
 def _patch_model(outputs: list[str]) -> list[dict]:
     """Replace call_with_fallback with a stub that returns queued outputs."""
-    import eos_ai.model_router as mr
+    import runtime.model_router as mr
 
     calls: list[dict] = []
     queue = list(outputs)
@@ -53,7 +53,7 @@ def _patch_model(outputs: list[str]) -> list[dict]:
 
 
 def _force_model_failure() -> None:
-    import eos_ai.model_router as mr
+    import runtime.model_router as mr
 
     def _boom(*a, **kw):
         raise RuntimeError("forced failure for upgrade smoke test")
@@ -62,7 +62,7 @@ def _force_model_failure() -> None:
 
 
 def _stub_speak() -> list[dict]:
-    import eos_ai.substrate.station_helpers as sh
+    import runtime.substrate.station_helpers as sh
 
     calls: list[dict] = []
 

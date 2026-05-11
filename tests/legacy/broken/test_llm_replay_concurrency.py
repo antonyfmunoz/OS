@@ -30,8 +30,8 @@ import time
 
 sys.path.insert(0, "/opt/OS")
 
-from eos_ai.substrate.event_scheduler import EventScheduler, SchedulerEvent
-from eos_ai.substrate.llm_planner import (
+from runtime.substrate.event_scheduler import EventScheduler, SchedulerEvent
+from runtime.substrate.llm_planner import (
     EventSchema,
     EventTypeRegistry,
     LLMPlannerConfig,
@@ -40,8 +40,8 @@ from eos_ai.substrate.llm_planner import (
     _canonical_json,
     _sha256_prefix,
 )
-from eos_ai.substrate.llm_replay import ReplayableStrategy
-from eos_ai.substrate.runtime_state_store import RuntimeStateStore
+from runtime.substrate.llm_replay import ReplayableStrategy
+from runtime.substrate.runtime_state_store import RuntimeStateStore
 
 
 # ─── Fixtures ────────────────────────────────────────────────────────
@@ -427,7 +427,7 @@ class TestHighContentionChaos:
     def test_non_mutating_event_enforcement(self):
         """Verify NonMutatingEventViolation is raised when handlers
         for non-mutating events return mutations."""
-        from eos_ai.substrate.event_scheduler import (
+        from runtime.substrate.event_scheduler import (
             EventScheduler,
             ExecutionResult,
             NonMutatingEventViolation,
@@ -474,7 +474,7 @@ class TestHighContentionChaos:
 
     def test_mutation_allowed_for_mutating_events(self):
         """Verify normal mutating events still work with registry registered."""
-        from eos_ai.substrate.event_scheduler import (
+        from runtime.substrate.event_scheduler import (
             EventScheduler,
             ExecutionResult,
             register_event_schema_source,

@@ -25,28 +25,28 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 from dotenv import load_dotenv  # noqa: E402
 
-load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 
-from eos_ai.substrate.audio_loop import (  # noqa: E402
+from runtime.substrate.audio_loop import (  # noqa: E402
     get_audio_loop_store,
     reset_audio_loop_store_for_tests,
 )
-from eos_ai.substrate.google_meet_source import (  # noqa: E402
+from runtime.substrate.google_meet_source import (  # noqa: E402
     LIVE_ENV_VAR,
     PROVIDER,
     GoogleMeetSource,
     is_google_meet_source,
     parse_meet_url,
 )
-from eos_ai.substrate.meeting_sources import is_meeting_source  # noqa: E402
-from eos_ai.substrate.meeting_transport import (  # noqa: E402
+from runtime.substrate.meeting_sources import is_meeting_source  # noqa: E402
+from runtime.substrate.meeting_transport import (  # noqa: E402
     MeetingTransport,
     reset_default_meeting_transports_for_tests,
     reset_meeting_transport_history_for_tests,
 )
-from eos_ai.substrate.station_bus import get_station_bus  # noqa: E402
-from eos_ai.substrate.station_daemon import StationDaemon  # noqa: E402
-from eos_ai.substrate.voice_session import (  # noqa: E402
+from runtime.substrate.station_bus import get_station_bus  # noqa: E402
+from runtime.substrate.station_daemon import StationDaemon  # noqa: E402
+from runtime.substrate.voice_session import (  # noqa: E402
     VoiceTurnSource,
     get_voice_session_store,
     reset_voice_session_store_for_tests,
@@ -263,11 +263,11 @@ def main() -> int:
     import importlib
 
     for mod in (
-        "eos_ai.gateway",
-        "eos_ai.cognitive_loop",
-        "eos_ai.model_router",
-        "eos_ai.agent_runtime",
-        "eos_ai.primitives",
+        "runtime.gateway",
+        "runtime.cognitive_loop",
+        "runtime.model_router",
+        "runtime.agent_runtime",
+        "runtime.primitives",
     ):
         try:
             importlib.import_module(mod)

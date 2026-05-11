@@ -1,4 +1,4 @@
-"""Tests for eos_ai.world_reasoning — deterministic derived understanding."""
+"""Tests for runtime.world_reasoning — deterministic derived understanding."""
 
 from __future__ import annotations
 

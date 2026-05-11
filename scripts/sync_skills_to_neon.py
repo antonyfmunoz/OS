@@ -40,8 +40,8 @@ from scripts._tme_common import (  # noqa: E402
     load_skill,
 )
 
-from eos_ai.context import load_context_from_env  # noqa: E402
-from eos_ai.db import get_conn  # noqa: E402
+from runtime.context import load_context_from_env  # noqa: E402
+from runtime.db import get_conn  # noqa: E402
 
 
 def _raw_text(rec: SkillRecord) -> str:

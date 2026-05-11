@@ -316,7 +316,7 @@ class TestCandidateLeakageBlocked:
         assert c.memory_scope == "instance_memory"
 
     def test_instance_context_blocks_global_canon(self) -> None:
-        from eos_ai.substrate.instance_ingestion_contracts import (
+        from runtime.substrate.instance_ingestion_contracts import (
             build_w0_001_instance_context,
         )
 

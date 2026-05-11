@@ -22,14 +22,14 @@ import time
 
 sys.path.insert(0, "/opt/OS")
 
-from eos_ai.substrate.event_scheduler import EventScheduler, SchedulerEvent
-from eos_ai.substrate.intent_models import (
+from runtime.substrate.event_scheduler import EventScheduler, SchedulerEvent
+from runtime.substrate.intent_models import (
     Intent,
     IntentStatus,
     IntentType,
     intent_store_key,
 )
-from eos_ai.substrate.llm_planner import (
+from runtime.substrate.llm_planner import (
     EventSchema,
     EventTypeRegistry,
     LLMPlannerConfig,
@@ -38,8 +38,8 @@ from eos_ai.substrate.llm_planner import (
     SelectionPolicy,
     _canonical_json,
 )
-from eos_ai.substrate.llm_replay import LLMDecisionRecord, ReplayableStrategy
-from eos_ai.substrate.runtime_state_store import RuntimeStateStore
+from runtime.substrate.llm_replay import LLMDecisionRecord, ReplayableStrategy
+from runtime.substrate.runtime_state_store import RuntimeStateStore
 
 
 # ─── Fixtures ────────────────────────────────────────────────────────
@@ -74,7 +74,7 @@ def _make_config(**overrides) -> LLMPlannerConfig:
 
 
 def _make_scheduler() -> tuple[EventScheduler, RuntimeStateStore]:
-    from eos_ai.substrate.event_log_runtime import EventLogRuntime
+    from runtime.substrate.event_log_runtime import EventLogRuntime
 
     store = RuntimeStateStore()
     scheduler = EventScheduler(store=store)
@@ -259,7 +259,7 @@ class TestCacheMiss:
         strategy.evaluate(state)
         # Verify store has record
         canonical = _canonical_json(state)
-        from eos_ai.substrate.llm_planner import _sha256_prefix
+        from runtime.substrate.llm_planner import _sha256_prefix
 
         state_hash = _sha256_prefix(canonical)
         record = strategy._store_get(state_hash)
@@ -677,7 +677,7 @@ class TestConcurrency:
         # All records should exist and be valid
         for s in states:
             canonical = _canonical_json(s)
-            from eos_ai.substrate.llm_planner import _sha256_prefix
+            from runtime.substrate.llm_planner import _sha256_prefix
 
             h = _sha256_prefix(canonical)
             record = strategy._store_get(h)
@@ -718,7 +718,7 @@ class TestReplayRoundTrip:
 
         # Tamper with selected_event_indices (it's frozen, but test the principle)
         canonical = _canonical_json(state)
-        from eos_ai.substrate.llm_planner import _sha256_prefix
+        from runtime.substrate.llm_planner import _sha256_prefix
 
         h = _sha256_prefix(canonical)
         record = strategy._store_get(h)

@@ -15,12 +15,12 @@ from unittest.mock import patch
 
 sys.path.insert(0, "/opt/OS")
 
-from eos_ai.substrate.work_order_contracts import (
+from runtime.substrate.work_order_contracts import (
     UNIVERSAL_BLOCKED_ACTIONS,
     WorkOrderStatus,
     WorkOrderTaskType,
 )
-from eos_ai.substrate.work_order_dispatch import (
+from runtime.substrate.work_order_dispatch import (
     DispatchPackage,
     DispatchReadiness,
     ReadinessCheck,

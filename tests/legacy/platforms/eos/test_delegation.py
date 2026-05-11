@@ -1,16 +1,16 @@
-"""Tests for eos_ai.platforms.eos.delegation."""
+"""Tests for runtime.platforms.eos.delegation."""
 
 import sys
 
 sys.path.insert(0, "/opt/OS")
 
 import pytest
-from eos_ai.platforms.eos.delegation import choose_delegate, should_delegate
-from eos_ai.platforms.eos.intent_routing import (
+from runtime.platforms.eos.delegation import choose_delegate, should_delegate
+from runtime.platforms.eos.intent_routing import (
     FounderIntentType,
     parse_founder_intent,
 )
-from eos_ai.platforms.eos.roles import EOSRole
+from runtime.platforms.eos.roles import EOSRole
 
 
 class TestShouldDelegate:

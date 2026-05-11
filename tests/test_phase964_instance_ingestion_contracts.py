@@ -7,11 +7,11 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 import unittest
 
-from eos_ai.substrate.instance_ingestion_contracts import (
+from runtime.substrate.instance_ingestion_contracts import (
     InstanceSourceContext,
     build_w0_001_instance_context,
 )
-from eos_ai.substrate.memory_scope_contracts import MemoryScope
+from runtime.substrate.memory_scope_contracts import MemoryScope
 
 
 class TestInstanceSourceContext(unittest.TestCase):

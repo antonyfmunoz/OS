@@ -18,12 +18,12 @@ CLI:
 Programmatic:
     from scripts.query_graph import GraphQuery
     q = GraphQuery.load()
-    q.dependents("eos_ai/memory.py")
-    q.path("services/discord_bot.py", "eos_ai/db.py")
+    q.dependents("runtime/memory.py")
+    q.path("services/discord_bot.py", "runtime/db.py")
 
-A node can be a file path (eos_ai/memory.py), a module
-(eos_ai.memory), a class id (eos_ai/memory.py::Memory), or
-a function id (eos_ai/memory.py::Memory.remember).
+A node can be a file path (runtime/memory.py), a module
+(runtime.memory), a class id (runtime/memory.py::Memory), or
+a function id (runtime/memory.py::Memory.remember).
 """
 
 from __future__ import annotations

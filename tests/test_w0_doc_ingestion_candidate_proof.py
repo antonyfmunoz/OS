@@ -27,7 +27,7 @@ from core.control_plane_router.router_contracts import (
     WorkPacket,
 )
 from core.runtime.adapter_registry_contracts import AdapterRegistry
-from eos_ai.interfaces.discord_interface_adapter_v1 import (
+from runtime.interfaces.discord_interface_adapter_v1 import (
     COMMAND_ACTION_MAP,
     SUPPORTED_COMMANDS,
     build_work_packet_for_router,

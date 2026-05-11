@@ -1,4 +1,4 @@
-"""Tests for eos_ai.environment_router + eos_ai.execution_adapters."""
+"""Tests for runtime.environment_router + runtime.execution_adapters."""
 
 import sys
 

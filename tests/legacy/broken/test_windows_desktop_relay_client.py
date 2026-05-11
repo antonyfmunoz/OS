@@ -21,7 +21,7 @@ from core.environment_bridge.windows_desktop_request_builder import (
     build_ping_request,
     build_w0_chrome_open_request,
 )
-from eos_ai.substrate.windows_desktop_relay_client import (
+from runtime.substrate.windows_desktop_relay_client import (
     RELAY_DIR_NAME,
     _default_relay_root,
     _is_windows_relay_environment,
@@ -32,7 +32,7 @@ from eos_ai.substrate.windows_desktop_relay_client import (
     send_request_and_wait,
     write_request_to_relay,
 )
-from eos_ai.substrate.local_worker_auto_loop import (
+from runtime.substrate.local_worker_auto_loop import (
     packet_requires_windows_desktop_adapter,
     check_windows_desktop_adapter_available,
 )
@@ -199,18 +199,18 @@ class TestResolveWindowsHome(unittest.TestCase):
 
 
 class TestDefaultRelayRoot(unittest.TestCase):
-    @patch("eos_ai.substrate.windows_desktop_relay_client._resolve_windows_home")
+    @patch("runtime.substrate.windows_desktop_relay_client._resolve_windows_home")
     def test_wsl_uses_windows_home(self, mock_resolve):
         mock_resolve.return_value = Path("/mnt/c/Users/testuser")
-        with patch("eos_ai.substrate.windows_desktop_relay_client.os.name", "posix"):
+        with patch("runtime.substrate.windows_desktop_relay_client.os.name", "posix"):
             root = _default_relay_root()
         expected = Path("/mnt/c/Users/testuser") / RELAY_DIR_NAME
         self.assertEqual(root, expected)
 
-    @patch("eos_ai.substrate.windows_desktop_relay_client._resolve_windows_home")
+    @patch("runtime.substrate.windows_desktop_relay_client._resolve_windows_home")
     def test_vps_without_mnt_c_returns_home_fallback(self, mock_resolve):
         mock_resolve.return_value = None
-        with patch("eos_ai.substrate.windows_desktop_relay_client.os.name", "posix"):
+        with patch("runtime.substrate.windows_desktop_relay_client.os.name", "posix"):
             root = _default_relay_root()
         expected = Path.home() / RELAY_DIR_NAME
         self.assertEqual(root, expected)
@@ -223,20 +223,20 @@ class TestDefaultRelayRoot(unittest.TestCase):
         we get Path.home() / RELAY_DIR_NAME — the same fallback Windows native would use.
         """
         with patch(
-            "eos_ai.substrate.windows_desktop_relay_client._resolve_windows_home",
+            "runtime.substrate.windows_desktop_relay_client._resolve_windows_home",
             return_value=None,
         ):
-            with patch("eos_ai.substrate.windows_desktop_relay_client.os.name", "posix"):
+            with patch("runtime.substrate.windows_desktop_relay_client.os.name", "posix"):
                 root = _default_relay_root()
         self.assertEqual(root, Path.home() / RELAY_DIR_NAME)
 
 
 class TestIsWindowsRelayEnvironment(unittest.TestCase):
-    @patch("eos_ai.substrate.windows_desktop_relay_client.os.name", "nt")
+    @patch("runtime.substrate.windows_desktop_relay_client.os.name", "nt")
     def test_true_on_windows(self):
         self.assertTrue(_is_windows_relay_environment())
 
-    @patch("eos_ai.substrate.windows_desktop_relay_client.os.name", "posix")
+    @patch("runtime.substrate.windows_desktop_relay_client.os.name", "posix")
     def test_false_on_vps_without_mnt_c(self):
         with patch.object(Path, "exists", return_value=False):
             self.assertFalse(_is_windows_relay_environment())
@@ -285,7 +285,7 @@ class TestCLIDebugOutput(unittest.TestCase):
                 [
                     sys.executable,
                     "-m",
-                    "eos_ai.substrate.windows_desktop_relay_client",
+                    "runtime.substrate.windows_desktop_relay_client",
                     "--action",
                     "CHECK",
                     "--relay-root",

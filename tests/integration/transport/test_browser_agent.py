@@ -1,4 +1,4 @@
-"""Smoke tests for eos_ai.substrate.browser_agent.
+"""Smoke tests for runtime.substrate.browser_agent.
 
 Uses REAL Playwright headless Chromium — no mocks.
 
@@ -25,7 +25,7 @@ import sys
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.browser_agent import (  # noqa: E402
+from runtime.substrate.browser_agent import (  # noqa: E402
     BrowserActionResult,
     BrowserActionType,
     BrowserAgent,

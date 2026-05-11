@@ -31,7 +31,7 @@ respect the env thanks to phase 3 + 4 of this pass.
 
 Usage examples:
     python3 scripts/sandbox_runner.py run workflow research --goal "graph layer"
-    python3 scripts/sandbox_runner.py run action edit-file --target eos_ai/memory.py --content-file /tmp/new.py
+    python3 scripts/sandbox_runner.py run action edit-file --target runtime/memory.py --content-file /tmp/new.py
     python3 scripts/sandbox_runner.py playground
     python3 scripts/sandbox_runner.py orchestrator-tick
     python3 scripts/sandbox_runner.py replay wf-research-abc12345

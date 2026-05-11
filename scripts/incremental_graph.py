@@ -40,7 +40,7 @@ CLI
 Programmatic
 ------------
     from scripts.incremental_graph import update
-    report = update(["eos_ai/memory.py"])
+    report = update(["runtime/memory.py"])
     # {'mode': 'incremental', 'dirty_files': 3, 'edges_added': 8, ...}
 """
 

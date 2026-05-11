@@ -30,31 +30,31 @@ import sys
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.local_listener import (  # noqa: E402
+from runtime.substrate.local_listener import (  # noqa: E402
     get_trigger_history,
 )
-from eos_ai.substrate.operator_presence import line_for_transition  # noqa: E402
-from eos_ai.substrate.operator_state import (  # noqa: E402
+from runtime.substrate.operator_presence import line_for_transition  # noqa: E402
+from runtime.substrate.operator_state import (  # noqa: E402
     OperatorMode,
     get_operator_state_store,
     reset_operator_state_store_for_tests,
 )
-from eos_ai.substrate.result_query import operator_state_snapshot  # noqa: E402
-from eos_ai.substrate.ritual_body import RitualPolicy  # noqa: E402
-from eos_ai.substrate.ritual_runner import (  # noqa: E402
+from runtime.substrate.result_query import operator_state_snapshot  # noqa: E402
+from runtime.substrate.ritual_body import RitualPolicy  # noqa: E402
+from runtime.substrate.ritual_runner import (  # noqa: E402
     finish_close_day,
     finish_open_day,
     start_close_day,
     start_open_day,
 )
-from eos_ai.substrate.station_bus import get_station_bus  # noqa: E402
-from eos_ai.substrate.station_daemon import StationDaemon  # noqa: E402
-from eos_ai.substrate.voice_session import (  # noqa: E402
+from runtime.substrate.station_bus import get_station_bus  # noqa: E402
+from runtime.substrate.station_daemon import StationDaemon  # noqa: E402
+from runtime.substrate.voice_session import (  # noqa: E402
     VoiceSessionRuntime,
     get_voice_session_store,
     reset_voice_session_store_for_tests,
 )
-from eos_ai.substrate.wake_producer import (  # noqa: E402
+from runtime.substrate.wake_producer import (  # noqa: E402
     get_wake_producer_history,
     get_wake_producer_runtime,
     reset_wake_producer_runtime_for_tests,
@@ -219,11 +219,11 @@ def main() -> int:
     import importlib
 
     for mod in (
-        "eos_ai.gateway",
-        "eos_ai.cognitive_loop",
-        "eos_ai.model_router",
-        "eos_ai.agent_runtime",
-        "eos_ai.primitives",
+        "runtime.gateway",
+        "runtime.cognitive_loop",
+        "runtime.model_router",
+        "runtime.agent_runtime",
+        "runtime.primitives",
     ):
         try:
             importlib.import_module(mod)

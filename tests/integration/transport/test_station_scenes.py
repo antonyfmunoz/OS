@@ -1,4 +1,4 @@
-"""Smoke tests for enhanced eos_ai.substrate.scenes.
+"""Smoke tests for enhanced runtime.substrate.scenes.
 
 Validates:
   1.  test_scene_registry          — all 3 scenes exist
@@ -17,7 +17,7 @@ import sys
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.scenes import (  # noqa: E402
+from runtime.substrate.scenes import (  # noqa: E402
     SCENE_REGISTRY,
     Scene,
     get_scene,

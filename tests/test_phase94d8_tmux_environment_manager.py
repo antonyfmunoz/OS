@@ -8,7 +8,7 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-from eos_ai.substrate.tmux_environment_manager import (
+from runtime.substrate.tmux_environment_manager import (
     TmuxPane,
     build_tmux_list_panes_command,
     build_tmux_new_shell_session_command,

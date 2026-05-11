@@ -48,7 +48,7 @@ def _print_json(obj) -> None:
 
 
 def cmd_report(args: argparse.Namespace) -> int:
-    from eos_ai.substrate.stt_producer import (
+    from runtime.substrate.stt_producer import (
         recent_stt_captures,
         stt_capture_snapshot,
         stt_runtime_status,
@@ -69,7 +69,7 @@ def cmd_readiness(args: argparse.Namespace) -> int:
     Exits 0 if the workstation can do REAL push-to-talk right now,
     1 otherwise. The JSON payload always includes actionable next steps.
     """
-    from eos_ai.substrate.stt_producer import stt_workstation_readiness
+    from runtime.substrate.stt_producer import stt_workstation_readiness
 
     payload = stt_workstation_readiness()
     _print_json(payload)
@@ -78,7 +78,7 @@ def cmd_readiness(args: argparse.Namespace) -> int:
 
 def cmd_devices(args: argparse.Namespace) -> int:
     """List enumerable input audio devices (lazy sounddevice import)."""
-    from eos_ai.substrate.stt_producer import _enumerate_input_devices  # noqa: WPS450
+    from runtime.substrate.stt_producer import _enumerate_input_devices  # noqa: WPS450
 
     devices = _enumerate_input_devices()
     _print_json({"count": len(devices), "devices": devices})
@@ -86,7 +86,7 @@ def cmd_devices(args: argparse.Namespace) -> int:
 
 
 def cmd_capture(args: argparse.Namespace) -> int:
-    from eos_ai.substrate.stt_producer import get_local_stt_runtime
+    from runtime.substrate.stt_producer import get_local_stt_runtime
 
     rt = get_local_stt_runtime()
     event = rt.capture_once(
@@ -105,7 +105,7 @@ def cmd_capture(args: argparse.Namespace) -> int:
 
 
 def cmd_inject(args: argparse.Namespace) -> int:
-    from eos_ai.substrate.stt_producer import get_local_stt_runtime
+    from runtime.substrate.stt_producer import get_local_stt_runtime
 
     rt = get_local_stt_runtime()
     event = rt.capture_once(
@@ -121,7 +121,7 @@ def cmd_inject(args: argparse.Namespace) -> int:
 
 
 def cmd_recent(args: argparse.Namespace) -> int:
-    from eos_ai.substrate.stt_producer import recent_stt_captures
+    from runtime.substrate.stt_producer import recent_stt_captures
 
     _print_json(recent_stt_captures(limit=args.limit, node_id=args.node))
     return 0

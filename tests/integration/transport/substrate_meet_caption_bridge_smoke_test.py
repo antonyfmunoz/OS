@@ -1,4 +1,4 @@
-"""Smoke tests for eos_ai.substrate.meet_caption_bridge.
+"""Smoke tests for runtime.substrate.meet_caption_bridge.
 
 Writer tests are owned by Subagent A. Reader tests are appended below
 by Subagent B. Run directly:
@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.meet_caption_bridge import (  # noqa: E402
+from runtime.substrate.meet_caption_bridge import (  # noqa: E402
     BRIDGE_ROOT,
     SOURCE_TAG,
     CaptionWriter,
@@ -211,7 +211,7 @@ def run_all() -> int:
 # === READER TESTS (Subagent B) — appended below ===
 
 
-from eos_ai.substrate.meet_caption_bridge import (  # noqa: E402
+from runtime.substrate.meet_caption_bridge import (  # noqa: E402
     CaptionReader,
     make_bridge_hook,
 )

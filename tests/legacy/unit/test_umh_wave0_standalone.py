@@ -90,13 +90,13 @@ class TestNoEosAiImports:
             tree = ast.parse(source, filename=filepath)
             for node in ast.walk(tree):
                 if isinstance(node, ast.ImportFrom) and node.module:
-                    if (node.module.startswith("eos.") or node.module.startswith("eos_ai.")) and node.module not in allowed_mods:
+                    if (node.module.startswith("eos.") or node.module.startswith("runtime.")) and node.module not in allowed_mods:
                         violations.append(
                             f"{filepath}:{node.lineno} from {node.module}"
                         )
                 if isinstance(node, ast.Import):
                     for alias in node.names:
-                        if (alias.name.startswith("eos.") or alias.name.startswith("eos_ai.")) and alias.name not in allowed_mods:
+                        if (alias.name.startswith("eos.") or alias.name.startswith("runtime.")) and alias.name not in allowed_mods:
                             violations.append(
                                 f"{filepath}:{node.lineno} import {alias.name}"
                             )

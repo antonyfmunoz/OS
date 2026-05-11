@@ -25,13 +25,13 @@ import sys
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-from eos_ai.substrate.meet_caption_bridge import (  # noqa: E402
+from runtime.substrate.meet_caption_bridge import (  # noqa: E402
     BRIDGE_ROOT,
     CaptionWriter,
     bridge_path_for,
     sanitize_meeting_code,
 )
-from eos_ai.substrate.transport_report import unified_transport_report  # noqa: E402
+from runtime.substrate.transport_report import unified_transport_report  # noqa: E402
 
 TEST_CODE = "report-test-continuity"
 OLD_KEYS = (

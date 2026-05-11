@@ -70,7 +70,7 @@ def _reset_env() -> None:
 
 def test_classification() -> None:
     _header("1. resolve_discord_mode classification")
-    from eos_ai.substrate import discord_mode_routing as dmr
+    from runtime.substrate import discord_mode_routing as dmr
 
     _reset_env()
     os.environ["EOS_DISCORD_BUILDER_CHANNELS"] = "111,222"
@@ -111,7 +111,7 @@ def test_classification() -> None:
 
 def test_session_mapping() -> None:
     _header("2. resolve_mode_session mapping")
-    from eos_ai.substrate import discord_mode_routing as dmr
+    from runtime.substrate import discord_mode_routing as dmr
 
     _reset_env()
     os.environ["EOS_DISCORD_BUILDER_TARGET"] = "local"
@@ -172,7 +172,7 @@ def test_session_mapping() -> None:
 
 def test_thread_local_context() -> None:
     _header("3. mode_context thread-local binding")
-    from eos_ai.substrate import discord_mode_routing as dmr
+    from runtime.substrate import discord_mode_routing as dmr
 
     dmr.clear_mode_context_for_tests()
     check(
@@ -211,15 +211,15 @@ def test_thread_local_context() -> None:
 
 def test_hotpath_clean() -> None:
     _header("4. hot-path hygiene on discord_mode_routing")
-    from eos_ai.substrate import discord_mode_routing as dmr
+    from runtime.substrate import discord_mode_routing as dmr
 
     src = open(dmr.__file__).read()
     forbidden = (
-        "eos_ai.gateway",
-        "eos_ai.cognitive_loop",
-        "eos_ai.model_router",
-        "eos_ai.agent_runtime",
-        "eos_ai.primitives",
+        "runtime.gateway",
+        "runtime.cognitive_loop",
+        "runtime.model_router",
+        "runtime.agent_runtime",
+        "runtime.primitives",
     )
     leaked = [f for f in forbidden if f in src]
     check(
@@ -233,11 +233,11 @@ def test_end_to_end_router_override() -> None:
     """Simulate the full ingress→router path with a stubbed CLI backend."""
     _header("5. end-to-end: router sees builder/product/unknown overrides")
 
-    from eos_ai.substrate import discord_mode_routing as dmr
+    from runtime.substrate import discord_mode_routing as dmr
 
     dmr.clear_mode_context_for_tests()
 
-    import eos_ai.model_router as mr
+    import runtime.model_router as mr
 
     captured: list[dict] = []
 
@@ -252,7 +252,7 @@ def test_end_to_end_router_override() -> None:
         return {"ok": True, "reply": f"[stub/{session_name}] ack"}
 
     # Monkeypatch the responder the router imports locally
-    import eos_ai.substrate.claude_responder as cr
+    import runtime.substrate.claude_responder as cr
 
     real_respond = cr.respond_via_claude_session
     cr.respond_via_claude_session = _fake_cli  # type: ignore[assignment]
@@ -352,9 +352,9 @@ def test_ingest_adds_mode_metadata() -> None:
     os.environ["EOS_DISCORD_BUILDER_TARGET"] = "vps"
     os.environ["EOS_DISCORD_PRODUCT_TARGET"] = "vps"
 
-    from eos_ai.substrate import discord_mode_routing as dmr
-    from eos_ai.substrate import discord_text_transport as dtt
-    from eos_ai.substrate import transcript_inject as ti
+    from runtime.substrate import discord_mode_routing as dmr
+    from runtime.substrate import discord_text_transport as dtt
+    from runtime.substrate import transcript_inject as ti
 
     captured_meta: list[dict] = []
     captured_mode_during_inject: list = []
@@ -375,7 +375,7 @@ def test_ingest_adds_mode_metadata() -> None:
     ti.inject_transcript = _fake_inject_transcript  # type: ignore[assignment]
 
     # Also stub the transport initializer so no real voice transport is built
-    import eos_ai.substrate.discord_voice_transport as dvt
+    import runtime.substrate.discord_voice_transport as dvt
 
     class _StubTransport:
         node_id = "stub-node"
@@ -467,7 +467,7 @@ def test_tts_footer_untouched() -> None:
     os.environ["EOS_DISCORD_TEXT_TRANSPORT_ENABLED"] = "1"
     os.environ["EOS_DISCORD_TEXT_REPLY_TTS_ENABLED"] = "1"
 
-    from eos_ai.substrate import discord_text_transport as dtt
+    from runtime.substrate import discord_text_transport as dtt
 
     env = dtt.build_tts_reply_envelope(
         "hello world 🎉\n— footer debug info",
@@ -494,11 +494,11 @@ def test_shared_router_tripwire() -> None:
 
     We assert the mode router module does not import or call
     respond_via_claude_session directly — the ONLY path to claude_cli
-    is through eos_ai.model_router.call_with_fallback.
+    is through runtime.model_router.call_with_fallback.
     """
     _header("8. tripwire: no mode router bypass of shared router")
 
-    from eos_ai.substrate import discord_mode_routing as dmr
+    from runtime.substrate import discord_mode_routing as dmr
 
     src = open(dmr.__file__).read()
     check(
@@ -511,8 +511,8 @@ def test_shared_router_tripwire() -> None:
     )
     check(
         "discord_mode_routing does not import model_router",
-        "from eos_ai.model_router" not in src
-        and "import eos_ai.model_router" not in src,
+        "from runtime.model_router" not in src
+        and "import runtime.model_router" not in src,
     )
 
 

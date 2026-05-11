@@ -1,4 +1,4 @@
-"""Smoke tests for eos_ai.substrate.pipeline_execution.
+"""Smoke tests for runtime.substrate.pipeline_execution.
 
 Validates:
   1.  test_pipeline_dry_run_completes       — full pipeline dry_run → COMPLETED
@@ -25,11 +25,11 @@ import sys
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.operator_session import (  # noqa: E402
+from runtime.substrate.operator_session import (  # noqa: E402
     OperatorSession,
     OperatorSessionStore,
 )
-from eos_ai.substrate.pipeline_execution import (  # noqa: E402
+from runtime.substrate.pipeline_execution import (  # noqa: E402
     execute_pipeline,
     format_blocked_summary,
     format_pipeline_summary,
@@ -37,10 +37,10 @@ from eos_ai.substrate.pipeline_execution import (  # noqa: E402
     resume_pipeline,
     retry_step,
 )
-from eos_ai.substrate.rituals import RitualRegistry  # noqa: E402
-from eos_ai.substrate.task_decomposition import decompose_task  # noqa: E402
-from eos_ai.substrate.task_execution import execute_task  # noqa: E402
-from eos_ai.substrate.task_pipeline import (  # noqa: E402
+from runtime.substrate.rituals import RitualRegistry  # noqa: E402
+from runtime.substrate.task_decomposition import decompose_task  # noqa: E402
+from runtime.substrate.task_execution import execute_task  # noqa: E402
+from runtime.substrate.task_pipeline import (  # noqa: E402
     PipelineAgentRole,
     PipelineStatus,
     PipelineStep,
@@ -48,7 +48,7 @@ from eos_ai.substrate.task_pipeline import (  # noqa: E402
     StepStatus,
     TaskPipeline,
 )
-from eos_ai.substrate.task_system import (  # noqa: E402
+from runtime.substrate.task_system import (  # noqa: E402
     TaskStatus,
     TaskStore,
     create_task,
@@ -71,7 +71,7 @@ def _report(name: str, passed: bool, detail: str = "") -> None:
 
 def _reset_all() -> None:
     try:
-        from eos_ai.substrate.storage import get_storage
+        from runtime.substrate.storage import get_storage
 
         get_storage().put("task_system", None)
         get_storage().put("task_pipelines", None)
@@ -350,7 +350,7 @@ def test_overnight_pipelines_priority() -> None:
     TaskStore.default().put(t_mid)
 
     # Execute via the overnight path
-    from eos_ai.substrate.task_execution import run_overnight_execution
+    from runtime.substrate.task_execution import run_overnight_execution
 
     result = run_overnight_execution(dry_run=True)
 

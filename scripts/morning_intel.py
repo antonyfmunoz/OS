@@ -16,7 +16,7 @@ _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.ge
 
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'services', '.env'))
 
 PDT = ZoneInfo("America/Los_Angeles")
@@ -24,10 +24,10 @@ GENERAL_CHANNEL_ID = 1486289444830056540
 
 
 async def build_intel_brief():
-    from eos_ai.context import load_context_from_env
-    from eos_ai.db import get_conn
-    from eos_ai.model_router import get_router, TaskType
-    from eos_ai.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
+    from runtime.context import load_context_from_env
+    from runtime.db import get_conn
+    from runtime.model_router import get_router, TaskType
+    from runtime.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
     import json as _json
 
     ctx = load_context_from_env()
@@ -140,7 +140,7 @@ No fluff. If there's nothing meaningful, say so briefly."""
     # Write to Notion first, send link to Discord
     notion_url = ""
     try:
-        from eos_ai.notion_publisher import get_publisher
+        from runtime.notion_publisher import get_publisher
 
         publisher = get_publisher()
         notion_url = publisher.publish_intel_brief(

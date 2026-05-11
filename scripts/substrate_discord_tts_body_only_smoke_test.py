@@ -26,15 +26,15 @@ import sys
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate import discord_text_transport as dtt  # noqa: E402
-from eos_ai.substrate.discord_text_transport import (  # noqa: E402
+from runtime.substrate import discord_text_transport as dtt  # noqa: E402
+from runtime.substrate.discord_text_transport import (  # noqa: E402
     build_tts_reply_envelope,
     maybe_mirror_discord_text_message,
     pseudo_live_status,
     reset_backend_state_for_tests,
     reset_text_history_for_tests,
 )
-from eos_ai.substrate.tts_sanitize import sanitize_tts_reply  # noqa: E402
+from runtime.substrate.tts_sanitize import sanitize_tts_reply  # noqa: E402
 
 TEST_GUILD = "bo-guild"
 TEST_CHANNEL = "bo-channel"
@@ -117,7 +117,7 @@ class _FakeResponderOK:
 
 
 def _install_fake_responder(reply: str) -> None:
-    import eos_ai.substrate.claude_responder as cr
+    import runtime.substrate.claude_responder as cr
 
     cr.respond_via_claude_session = _FakeResponderOK(reply)  # type: ignore[assignment]
 
@@ -277,11 +277,11 @@ def main() -> int:
     import importlib
 
     for mod in (
-        "eos_ai.gateway",
-        "eos_ai.cognitive_loop",
-        "eos_ai.model_router",
-        "eos_ai.agent_runtime",
-        "eos_ai.primitives",
+        "runtime.gateway",
+        "runtime.cognitive_loop",
+        "runtime.model_router",
+        "runtime.agent_runtime",
+        "runtime.primitives",
     ):
         try:
             importlib.import_module(mod)

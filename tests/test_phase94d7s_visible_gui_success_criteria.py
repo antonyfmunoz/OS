@@ -7,7 +7,7 @@ import os
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.interactive_gui_worker_contracts import (
+from runtime.substrate.interactive_gui_worker_contracts import (
     build_action_attempted_outbox,
     build_interactive_chrome_launch_command,
     build_interactive_launch_intent,
@@ -15,7 +15,7 @@ from eos_ai.substrate.interactive_gui_worker_contracts import (
     classify_current_ssh_path,
     get_recommended_mvp_path,
 )
-from eos_ai.substrate.visible_gui_success_criteria import (
+from runtime.substrate.visible_gui_success_criteria import (
     LaunchContext,
     VisibleGuiStatus,
     build_action_attempted_status,

@@ -2,7 +2,7 @@
 """
 Router Claude-CLI Primary Backend — smoke test.
 
-Proves the broader router (eos_ai.model_router.call_with_fallback) now:
+Proves the broader router (runtime.model_router.call_with_fallback) now:
 
   1. Tries Claude CLI (persistent tmux session) FIRST when available.
   2. Returns provider="claude_cli" on success and does NOT fall through to
@@ -25,8 +25,8 @@ import sys
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai import model_router as mr  # noqa: E402
-from eos_ai.model_router import (  # noqa: E402
+from runtime import model_router as mr  # noqa: E402
+from runtime.model_router import (  # noqa: E402
     ModelProvider,
     PROVIDER_PRIORITY,
     PROVIDER_PRIORITY_FAST,
@@ -44,7 +44,7 @@ def _header(msg: str) -> None:
 
 
 class _FakeClaudeResponder:
-    """Stand-in for eos_ai.substrate.claude_responder.respond_via_claude_session."""
+    """Stand-in for runtime.substrate.claude_responder.respond_via_claude_session."""
 
     def __init__(self, *, ok: bool, reply: str = "", reason: str = "ok") -> None:
         self.ok = ok
@@ -98,7 +98,7 @@ class _CCSDKFake:
 def _install_claude_responder(fake) -> None:
     # The router imports claude_responder lazily inside call_with_fallback,
     # so patching via sys.modules works. Easiest: inject a shim module.
-    import eos_ai.substrate.claude_responder as cr
+    import runtime.substrate.claude_responder as cr
 
     cr.respond_via_claude_session = fake  # type: ignore[assignment]
     cr.DEFAULT_TARGET = "vps"
@@ -218,11 +218,11 @@ def main() -> int:
     import importlib
 
     for mod in (
-        "eos_ai.gateway",
-        "eos_ai.cognitive_loop",
-        "eos_ai.model_router",
-        "eos_ai.agent_runtime",
-        "eos_ai.primitives",
+        "runtime.gateway",
+        "runtime.cognitive_loop",
+        "runtime.model_router",
+        "runtime.agent_runtime",
+        "runtime.primitives",
     ):
         importlib.import_module(mod)
         print(f"  ok: {mod}")

@@ -1,4 +1,4 @@
-"""Tests for eos_ai.intent_compiler — intent → system compilation layer."""
+"""Tests for runtime.intent_compiler — intent → system compilation layer."""
 
 import sys
 

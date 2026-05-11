@@ -328,7 +328,7 @@ class TestNoNewEosImportsInUMH:
                 for node in ast.walk(tree):
                     if isinstance(node, ast.ImportFrom) and node.module:
                         if (
-                            node.module.startswith(("services.", "interfaces.", "scripts.", "eos.", "eos_ai."))
+                            node.module.startswith(("services.", "interfaces.", "scripts.", "eos.", "runtime."))
                             and node.module not in allowed_mods
                         ):
                             violations.append(
@@ -337,7 +337,7 @@ class TestNoNewEosImportsInUMH:
                     if isinstance(node, ast.Import):
                         for alias in node.names:
                             if (
-                                alias.name.startswith(("services.", "interfaces.", "scripts.", "eos.", "eos_ai."))
+                                alias.name.startswith(("services.", "interfaces.", "scripts.", "eos.", "runtime."))
                                 and alias.name not in allowed_mods
                             ):
                                 violations.append(

@@ -8,7 +8,7 @@ from unittest.mock import patch
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.visible_browser_launch_backend import (
+from runtime.substrate.visible_browser_launch_backend import (
     ALLOWED_DOMAINS,
     BACKEND_CLASS,
     BLOCKED_DOMAINS,
@@ -179,7 +179,7 @@ class TestExecuteChromeLaunch:
 
     def test_chrome_found_launches(self) -> None:
         mock_result = type("R", (), {"returncode": 0, "stdout": r"C:\Program Files\Google\Chrome\Application\chrome.exe", "stderr": ""})()
-        with patch("eos_ai.substrate.visible_browser_launch_backend.subprocess.run", return_value=mock_result):
+        with patch("runtime.substrate.visible_browser_launch_backend.subprocess.run", return_value=mock_result):
             result = execute_chrome_launch(DRIVE_URL)
             assert result["success"] is True
             assert result["backend"] == "VISIBLE_CHROME_LAUNCH"
@@ -187,7 +187,7 @@ class TestExecuteChromeLaunch:
 
     def test_chrome_not_found_returns_backend_missing(self) -> None:
         mock_result = type("R", (), {"returncode": 1, "stdout": "CHROME_NOT_FOUND", "stderr": ""})()
-        with patch("eos_ai.substrate.visible_browser_launch_backend.subprocess.run", return_value=mock_result):
+        with patch("runtime.substrate.visible_browser_launch_backend.subprocess.run", return_value=mock_result):
             result = execute_chrome_launch(DRIVE_URL)
             assert result["success"] is False
             assert result["detail"] == "CHROME_NOT_FOUND"
@@ -195,7 +195,7 @@ class TestExecuteChromeLaunch:
 
     def test_chrome_not_found_does_not_silently_fallback(self) -> None:
         mock_result = type("R", (), {"returncode": 1, "stdout": "CHROME_NOT_FOUND", "stderr": ""})()
-        with patch("eos_ai.substrate.visible_browser_launch_backend.subprocess.run", return_value=mock_result):
+        with patch("runtime.substrate.visible_browser_launch_backend.subprocess.run", return_value=mock_result):
             result = execute_chrome_launch(DRIVE_URL)
             assert result.get("backend_missing") is not None
             missing = result["backend_missing"]

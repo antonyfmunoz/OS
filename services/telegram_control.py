@@ -23,8 +23,8 @@ if _REPO_ROOT not in sys.path:
 
 # Resolve AI name — DEX by default, user-configurable via BIS or AI_NAME env
 try:
-    from eos_ai.context import load_context_from_env as _load_ctx
-    from eos_ai.business_instance import get_ai_name as _get_ai_name
+    from runtime.context import load_context_from_env as _load_ctx
+    from runtime.business_instance import get_ai_name as _get_ai_name
     _AI_NAME = _get_ai_name(_load_ctx())
 except Exception:
     _AI_NAME = os.getenv('AI_NAME', 'DEX')
@@ -162,8 +162,8 @@ async def scheduled_morning_briefing(context: ContextTypes.DEFAULT_TYPE):
 async def scheduled_signal_scan(context: ContextTypes.DEFAULT_TYPE):
     """Scheduled reality intelligence scan — fires at 12pm and 6pm."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.reality_engine import RealityIntelligenceEngine
+        from runtime.context import load_context_from_env
+        from runtime.reality_engine import RealityIntelligenceEngine
         ctx     = load_context_from_env()
         rie     = RealityIntelligenceEngine(ctx)
         summary = rie.process_signal_queue()
@@ -241,8 +241,8 @@ async def run_command(command, update: Update):
 
 async def research(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Signal research started...")
-    from eos_ai.context import load_context_from_env
-    from eos_ai.gateway import EOSGateway
+    from runtime.context import load_context_from_env
+    from runtime.gateway import EOSGateway
     ctx = load_context_from_env()
     gw = EOSGateway(ctx)
     result = gw.handle({
@@ -263,8 +263,8 @@ async def research(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def market(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Market report generating...")
-    from eos_ai.context import load_context_from_env
-    from eos_ai.gateway import EOSGateway
+    from runtime.context import load_context_from_env
+    from runtime.gateway import EOSGateway
     ctx = load_context_from_env()
     gw = EOSGateway(ctx)
     result = gw.handle({
@@ -285,8 +285,8 @@ async def market(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def content(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Content engine running...")
-    from eos_ai.context import load_context_from_env
-    from eos_ai.gateway import EOSGateway
+    from runtime.context import load_context_from_env
+    from runtime.gateway import EOSGateway
     ctx = load_context_from_env()
     gw = EOSGateway(ctx)
     result = gw.handle({
@@ -307,8 +307,8 @@ async def content(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def outreach(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Outreach messages generating...")
-    from eos_ai.context import load_context_from_env
-    from eos_ai.gateway import EOSGateway
+    from runtime.context import load_context_from_env
+    from runtime.gateway import EOSGateway
     ctx = load_context_from_env()
     gw = EOSGateway(ctx)
     result = gw.handle({
@@ -329,8 +329,8 @@ async def outreach(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def leads(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Lead signals generating...")
-    from eos_ai.context import load_context_from_env
-    from eos_ai.gateway import EOSGateway
+    from runtime.context import load_context_from_env
+    from runtime.gateway import EOSGateway
     ctx = load_context_from_env()
     gw = EOSGateway(ctx)
     result = gw.handle({
@@ -772,7 +772,7 @@ async def brief(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/brief — AI morning brief via gateway → orchestrator."""
     await update.message.reply_text("Generating morning brief...")
     try:
-        from eos_ai.gateway import EOSGateway
+        from runtime.gateway import EOSGateway
         gw     = EOSGateway()
         result = gw.handle({"type": "brief", "prompt": ""})
         if result.get("status") == "ok":
@@ -792,7 +792,7 @@ async def gateway_research(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = " ".join(context.args).strip() if context.args else "analyze recent ICP signals"
     await update.message.reply_text(f"Researching: {query[:60]}...")
     try:
-        from eos_ai.gateway import EOSGateway
+        from runtime.gateway import EOSGateway
         gw     = EOSGateway()
         result = gw.handle({
             "type":       "agent_task",
@@ -824,7 +824,7 @@ async def capture_context(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     content = ' '.join(context.args).strip()
     try:
-        from eos_ai.gateway import ingest_external_context
+        from runtime.gateway import ingest_external_context
         iid = ingest_external_context(
             source='telegram_manual',
             content=content,
@@ -848,7 +848,7 @@ async def gateway_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     approval_id = context.args[0].strip()
     try:
-        from eos_ai.gateway import EOSGateway
+        from runtime.gateway import EOSGateway
         gw     = EOSGateway()
         result = gw.approve(approval_id)
         if result.get("status") == "ok":
@@ -867,8 +867,8 @@ async def strategy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/strategy — portfolio-level strategic analysis across all companies."""
     await update.message.reply_text("Running portfolio strategy analysis...")
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.strategy_engine import StrategyEngine
+        from runtime.context import load_context_from_env
+        from runtime.strategy_engine import StrategyEngine
         ctx  = load_context_from_env()
         se   = StrategyEngine(ctx)
         data = se.analyze_portfolio_strategy()
@@ -900,8 +900,8 @@ async def decide(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     await update.message.reply_text(f"Evaluating: {question[:80]}...")
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.strategy_engine import DecisionEngine
+        from runtime.context import load_context_from_env
+        from runtime.strategy_engine import DecisionEngine
         ctx  = load_context_from_env()
         de   = DecisionEngine(ctx)
         data = de.evaluate(
@@ -936,8 +936,8 @@ async def gateway_reject(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     approval_id = context.args[0].strip()
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.authority_engine import AuthorityEngine
+        from runtime.context import load_context_from_env
+        from runtime.authority_engine import AuthorityEngine
         ctx    = load_context_from_env()
         ae     = AuthorityEngine(ctx)
         result = ae.reject(approval_id)
@@ -954,8 +954,8 @@ async def portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/portfolio — board-level morning advisory across all portfolio companies."""
     await update.message.reply_text("Generating portfolio advisory...")
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.portfolio_advisor import PortfolioAdvisor
+        from runtime.context import load_context_from_env
+        from runtime.portfolio_advisor import PortfolioAdvisor
         ctx  = load_context_from_env()
         pa   = PortfolioAdvisor(ctx)
         text = pa.morning_advisory()
@@ -974,8 +974,8 @@ async def board(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     await update.message.reply_text(f"Analyzing across portfolio: {question[:60]}...")
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.portfolio_advisor import PortfolioAdvisor
+        from runtime.context import load_context_from_env
+        from runtime.portfolio_advisor import PortfolioAdvisor
         ctx  = load_context_from_env()
         pa   = PortfolioAdvisor(ctx)
         text = pa.cross_company_intelligence(question)
@@ -990,8 +990,8 @@ async def intel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/intel — run signal scan across all ventures, return tier summary."""
     await update.message.reply_text("Scanning market signals...")
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.reality_engine import RealityIntelligenceEngine
+        from runtime.context import load_context_from_env
+        from runtime.reality_engine import RealityIntelligenceEngine
         ctx     = load_context_from_env()
         rie     = RealityIntelligenceEngine(ctx)
         summary = rie.process_signal_queue()
@@ -1027,8 +1027,8 @@ async def competitor_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     await update.message.reply_text(f"Analyzing competitor: {competitor[:60]}...")
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.reality_engine import RealityIntelligenceEngine
+        from runtime.context import load_context_from_env
+        from runtime.reality_engine import RealityIntelligenceEngine
         ctx  = load_context_from_env()
         rie  = RealityIntelligenceEngine(ctx)
         data = rie.run_competitor_analysis("lyfe_institute", competitor)
@@ -1056,8 +1056,8 @@ async def truth(update: Update, context: ContextTypes.DEFAULT_TYPE):
     venture_id = (context.args[0] if context.args else "lyfe_institute").lower().replace(" ", "_")
     await update.message.reply_text(f"Generating truth report for {venture_id}...")
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.reality_engine import RealityIntelligenceEngine
+        from runtime.context import load_context_from_env
+        from runtime.reality_engine import RealityIntelligenceEngine
         ctx  = load_context_from_env()
         rie  = RealityIntelligenceEngine(ctx)
         text = rie.generate_truth_report(venture_id)
@@ -1079,8 +1079,8 @@ async def research_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     await update.message.reply_text(f"Researching: {topic[:80]}...")
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.research_engine import ResearchEngine
+        from runtime.context import load_context_from_env
+        from runtime.research_engine import ResearchEngine
         ctx  = load_context_from_env()
         re   = ResearchEngine(ctx)
         data = re.research_topic(topic, venture_id="lyfe_institute")
@@ -1104,8 +1104,8 @@ async def gaps(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/gaps — detect current knowledge gaps from interaction history."""
     await update.message.reply_text("Detecting knowledge gaps...")
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.research_engine import ResearchEngine
+        from runtime.context import load_context_from_env
+        from runtime.research_engine import ResearchEngine
         ctx      = load_context_from_env()
         re       = ResearchEngine(ctx)
         gap_list = re.detect_knowledge_gaps()
@@ -1127,7 +1127,7 @@ async def domains_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/domains — list all knowledge domains with update status."""
     try:
         import sys, os; sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-        from eos_ai.knowledge_domains import KnowledgeDomainRegistry
+        from runtime.knowledge_domains import KnowledgeDomainRegistry
         registry = KnowledgeDomainRegistry()
         text = registry.get_status_report()
         if len(text) > 4000:
@@ -1149,7 +1149,7 @@ async def domain_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     try:
         import sys, os; sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-        from eos_ai.knowledge_domains import KnowledgeDomainRegistry
+        from runtime.knowledge_domains import KnowledgeDomainRegistry
         registry = KnowledgeDomainRegistry()
         domain = registry.get_domain(key)
         if not domain:
@@ -1188,8 +1188,8 @@ async def trinity_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/trinity — show OS Trinity status: connected products, permissions, harness profile."""
     try:
         import sys, os; sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-        from eos_ai.context import load_context_from_env
-        from eos_ai.os_trinity import OSTrinity
+        from runtime.context import load_context_from_env
+        from runtime.os_trinity import OSTrinity
         ctx = load_context_from_env()
         trinity = OSTrinity(ctx)
         text = trinity.format_permissions_summary(ctx.user_id)
@@ -1212,8 +1212,8 @@ async def connect_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     try:
         import sys, os; sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-        from eos_ai.context import load_context_from_env
-        from eos_ai.os_trinity import OSTrinity, VALID_PRODUCTS
+        from runtime.context import load_context_from_env
+        from runtime.os_trinity import OSTrinity, VALID_PRODUCTS
         ctx = load_context_from_env()
         if product not in VALID_PRODUCTS:
             await update.message.reply_text(
@@ -1246,8 +1246,8 @@ async def permit_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     try:
         import sys, os; sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-        from eos_ai.context import load_context_from_env
-        from eos_ai.os_trinity import OSTrinity
+        from runtime.context import load_context_from_env
+        from runtime.os_trinity import OSTrinity
         ctx = load_context_from_env()
         trinity = OSTrinity(ctx)
         ok = trinity.grant_permission(ctx.user_id, source, target, category)
@@ -1276,8 +1276,8 @@ async def revoke_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     try:
         import sys, os; sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-        from eos_ai.context import load_context_from_env
-        from eos_ai.os_trinity import OSTrinity
+        from runtime.context import load_context_from_env
+        from runtime.os_trinity import OSTrinity
         ctx = load_context_from_env()
         trinity = OSTrinity(ctx)
         ok = trinity.revoke_permission(ctx.user_id, source, target, category)
@@ -1296,8 +1296,8 @@ async def aistate_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Running AI landscape scan... (30-60s)")
     try:
         import sys, os; sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-        from eos_ai.context import load_context_from_env
-        from eos_ai.research_engine import ResearchEngine
+        from runtime.context import load_context_from_env
+        from runtime.research_engine import ResearchEngine
         ctx = load_context_from_env()
         re_engine = ResearchEngine(ctx)
         result = re_engine.scan_ai_landscape()
@@ -1324,8 +1324,8 @@ async def handle_errors(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/errors — show recent system errors from Neon."""
     try:
         import sys, os; sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-        from eos_ai.db import get_conn
-        from eos_ai.context import load_context_from_env
+        from runtime.db import get_conn
+        from runtime.context import load_context_from_env
         ctx = load_context_from_env()
         with get_conn(ctx.org_id) as cur:
             cur.execute(
@@ -1394,8 +1394,8 @@ async def handle_outcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         import sys, os; sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-        from eos_ai.memory import AgentMemory
-        from eos_ai.event_bus import EventBus
+        from runtime.memory import AgentMemory
+        from runtime.event_bus import EventBus
         mem = AgentMemory()
         outcome_id = mem.log_standalone_outcome(
             outcome_type=outcome_type,
@@ -1436,8 +1436,8 @@ async def evolve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/evolve — run the weekly evolution cycle manually."""
     await update.message.reply_text("Running evolution cycle — this may take a minute...")
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.evolution_engine import EvolutionEngine
+        from runtime.context import load_context_from_env
+        from runtime.evolution_engine import EvolutionEngine
         ctx     = load_context_from_env()
         ee      = EvolutionEngine(ctx)
         summary = ee.run_weekly_evolution_cycle()
@@ -1453,8 +1453,8 @@ async def performance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/performance — analyze system performance metrics."""
     await update.message.reply_text("Analyzing system performance...")
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.evolution_engine import EvolutionEngine
+        from runtime.context import load_context_from_env
+        from runtime.evolution_engine import EvolutionEngine
         ctx  = load_context_from_env()
         ee   = EvolutionEngine(ctx)
         perf = ee.analyze_system_performance()
@@ -1474,8 +1474,8 @@ async def journey(update: Update, context: ContextTypes.DEFAULT_TYPE):
     username = context.args[0].lstrip("@")
     await update.message.reply_text(f"Loading journey for @{username}...")
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.knowledge_graph import KnowledgeGraph
+        from runtime.context import load_context_from_env
+        from runtime.knowledge_graph import KnowledgeGraph
         ctx  = load_context_from_env()
         kg   = KnowledgeGraph(ctx)
         data = kg.get_lead_journey(username)
@@ -1514,9 +1514,9 @@ async def patterns(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/patterns — detect high-signal patterns from the knowledge graph."""
     await update.message.reply_text("Running pattern detection...")
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.knowledge_graph import KnowledgeGraph
-        from eos_ai.venture_knowledge import VentureKnowledgeBase
+        from runtime.context import load_context_from_env
+        from runtime.knowledge_graph import KnowledgeGraph
+        from runtime.venture_knowledge import VentureKnowledgeBase
         ctx          = load_context_from_env()
         kg           = KnowledgeGraph(ctx)
         all_patterns = []
@@ -1544,8 +1544,8 @@ async def patterns(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def tasks_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/tasks — show your pending task queue."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.coordination_engine import CoordinationEngine
+        from runtime.context import load_context_from_env
+        from runtime.coordination_engine import CoordinationEngine
         ctx   = load_context_from_env()
         ce    = CoordinationEngine(ctx)
         queue = ce.get_task_queue()
@@ -1576,8 +1576,8 @@ async def done_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     task_id = context.args[0].strip()
     result_note = " ".join(context.args[1:]).strip() if len(context.args) > 1 else None
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.coordination_engine import CoordinationEngine
+        from runtime.context import load_context_from_env
+        from runtime.coordination_engine import CoordinationEngine
         ctx    = load_context_from_env()
         ce     = CoordinationEngine(ctx)
         result = ce.complete_task(task_id, result=result_note)
@@ -1602,8 +1602,8 @@ async def assign_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     objective = " ".join(context.args).strip()
     await update.message.reply_text(f"CEO Agent delegating: {objective[:60]}...")
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.coordination_engine import CoordinationEngine
+        from runtime.context import load_context_from_env
+        from runtime.coordination_engine import CoordinationEngine
         ctx    = load_context_from_env()
         ce     = CoordinationEngine(ctx)
         result = ce.ceo_delegate(
@@ -1636,8 +1636,8 @@ async def assign_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def model_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/model — view or change model routing. Usage: /model [auto|economy|performance|local|<model_name>]"""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.model_preferences import ModelPreferences
+        from runtime.context import load_context_from_env
+        from runtime.model_preferences import ModelPreferences
         ctx   = load_context_from_env()
         prefs = ModelPreferences(ctx)
     except Exception as e:
@@ -1677,7 +1677,7 @@ async def model_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def gateway_pending(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/pending — list all queued approval requests."""
     try:
-        from eos_ai.gateway import EOSGateway
+        from runtime.gateway import EOSGateway
         gw      = EOSGateway()
         pending = gw.get_pending_approvals()
         if not pending:
@@ -1715,7 +1715,7 @@ def _get_vi(ctx) -> 'VoiceInterface':
     """Lazy-init VoiceInterface singleton for meeting sessions."""
     global _vi
     if _vi is None:
-        from eos_ai.voice_interface import VoiceInterface
+        from runtime.voice_interface import VoiceInterface
         _vi = VoiceInterface(ctx)
     return _vi
 
@@ -1727,7 +1727,7 @@ async def calendar_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         import sys
         sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-        from eos_ai.gws_connector import GWSConnector
+        from runtime.gws_connector import GWSConnector
         gws = GWSConnector()
 
         today   = gws.get_today_events()
@@ -1762,7 +1762,7 @@ async def gtasks_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         import sys
         sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-        from eos_ai.gws_connector import GWSConnector
+        from runtime.gws_connector import GWSConnector
         gws   = GWSConnector()
         tasks = gws.get_tasks()
         if tasks:
@@ -1783,7 +1783,7 @@ async def gmail_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         import sys
         sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-        from eos_ai.gws_connector import GWSConnector
+        from runtime.gws_connector import GWSConnector
         gws    = GWSConnector()
         emails = gws.get_recent_emails(max_results=5)
         if emails:
@@ -1827,7 +1827,7 @@ async def meeting_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         await update.message.reply_text('Processing meeting transcript...')
         try:
-            from eos_ai.context import load_context_from_env
+            from runtime.context import load_context_from_env
             ctx = load_context_from_env()
             vi  = _get_vi(ctx)
 
@@ -1915,7 +1915,7 @@ async def meeting_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Start the meeting
     _meeting_type = meeting_type
-    from eos_ai.context import load_context_from_env
+    from runtime.context import load_context_from_env
     ctx = load_context_from_env()
     vi  = _get_vi(ctx)
     _meeting_session_id = vi.start_meeting_session(
@@ -1936,7 +1936,7 @@ async def meeting_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Pre-meeting brief
     try:
-        from eos_ai.voice_interface import VoiceInterface
+        from runtime.voice_interface import VoiceInterface
         brief = vi.get_meeting_brief(
             meeting_type=meeting_type,
             venture_id='lyfe_institute',
@@ -1971,8 +1971,8 @@ async def handle_backfill(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Will take 30-60 seconds."
     )
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.onboarding_backfill import OnboardingBackfill
+        from runtime.context import load_context_from_env
+        from runtime.onboarding_backfill import OnboardingBackfill
         ctx = load_context_from_env()
         ob  = OnboardingBackfill(ctx)
         ob.run_full_backfill(venture)
@@ -1988,7 +1988,7 @@ async def handle_sync(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 1. Reload skill registry
     try:
-        from eos_ai.skill_registry import SkillRegistry
+        from runtime.skill_registry import SkillRegistry
         SkillRegistry._instance = None
         sr = SkillRegistry()
         results.append(f"Skills: {len(sr._skills)} loaded")
@@ -1997,8 +1997,8 @@ async def handle_sync(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 2. Update user model
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.user_model import UserModel
+        from runtime.context import load_context_from_env
+        from runtime.user_model import UserModel
         ctx = load_context_from_env()
         um = UserModel(ctx)
         um.maybe_update_profile()
@@ -2009,7 +2009,7 @@ async def handle_sync(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 3. Sync user model to harness
     try:
-        from eos_ai.os_trinity import OSTrinity
+        from runtime.os_trinity import OSTrinity
         trinity = OSTrinity(ctx)
         synced = trinity.sync_from_user_model(ctx.user_id)
         results.append(f"Harness profile: {'synced' if synced else 'no change'}")
@@ -2018,7 +2018,7 @@ async def handle_sync(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 4. Refresh domain registry
     try:
-        from eos_ai.knowledge_domains import KnowledgeDomainRegistry
+        from runtime.knowledge_domains import KnowledgeDomainRegistry
         registry = KnowledgeDomainRegistry()
         due = registry.get_update_schedule()
         results.append(f"Domains: {len(due)} due for update")
@@ -2027,7 +2027,7 @@ async def handle_sync(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 5. Reload human profiles for all CRM leads
     try:
-        from eos_ai.human_intelligence import HumanIntelligenceEngine
+        from runtime.human_intelligence import HumanIntelligenceEngine
         hie = HumanIntelligenceEngine(ctx)
         profile_result = hie.profile_all_crm_leads()
         results.append(
@@ -2047,9 +2047,9 @@ async def handle_media_message(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ):
     """Handle voice, video, photo, audio, and document messages."""
-    from eos_ai.context import load_context_from_env
-    from eos_ai.cognitive_loop import CognitiveLoop, MultimodalInput
-    from eos_ai.agent_runtime import TaskType
+    from runtime.context import load_context_from_env
+    from runtime.cognitive_loop import CognitiveLoop, MultimodalInput
+    from runtime.agent_runtime import TaskType
 
     msg     = update.message
     chat_id = msg.chat_id
@@ -2085,7 +2085,7 @@ async def handle_media_message(
         fname = doc.file_name or 'file.bin'
         suffix = Path(fname).suffix or '.bin'
         file_obj = await doc.get_file()
-        from eos_ai.media_processor import MediaProcessor
+        from runtime.media_processor import MediaProcessor
         modality = MediaProcessor().detect_modality(f'file{suffix}')
         if modality == 'unknown':
             lock.release()
@@ -2151,7 +2151,7 @@ async def handle_media_message(
                 )
             else:
                 # Normal voice turn — full process_voice_turn
-                from eos_ai.voice_interface import VoiceInterface
+                from runtime.voice_interface import VoiceInterface
                 vi   = VoiceInterface(ctx)
                 turn = vi.process_voice_turn(final_path)
 
@@ -2293,9 +2293,9 @@ async def handle_natural_message(
     await lock.acquire()
     try:
 
-        from eos_ai.context import load_context_from_env
-        from eos_ai.model_preferences import ModelPreferences
-        from eos_ai.gateway import EOSGateway
+        from runtime.context import load_context_from_env
+        from runtime.model_preferences import ModelPreferences
+        from runtime.gateway import EOSGateway
 
         ctx   = load_context_from_env()
         prefs = ModelPreferences(ctx)
@@ -2409,7 +2409,7 @@ async def handle_natural_message(
             })
 
         elif intent == 'DECISION':
-            from eos_ai.strategy_engine import DecisionEngine
+            from runtime.strategy_engine import DecisionEngine
             de   = DecisionEngine(ctx)
             data = de.evaluate(
                 decision=text,
@@ -2423,7 +2423,7 @@ async def handle_natural_message(
             )
 
         elif intent == 'TASK':
-            from eos_ai.coordination_engine import CoordinationEngine
+            from runtime.coordination_engine import CoordinationEngine
             ce         = CoordinationEngine(ctx)
             delegation = ce.ceo_delegate(text, 'lyfe_institute')
             tasks      = delegation.get('tasks_created', [])
@@ -2440,7 +2440,7 @@ async def handle_natural_message(
             result = '\n'.join(lines)
 
         elif intent == 'INTEL':
-            from eos_ai.reality_engine import RealityIntelligenceEngine
+            from runtime.reality_engine import RealityIntelligenceEngine
             rie     = RealityIntelligenceEngine(ctx)
             summary = rie.process_signal_queue()
             lines   = ["INTEL SCAN\n"]
@@ -2455,13 +2455,13 @@ async def handle_natural_message(
             result = '\n'.join(lines) if len(lines) > 1 else "No critical/high signals."
 
         elif intent == 'PORTFOLIO':
-            from eos_ai.portfolio_advisor import PortfolioAdvisor
+            from runtime.portfolio_advisor import PortfolioAdvisor
             pa     = PortfolioAdvisor(ctx)
             result = pa.morning_advisory()
 
         elif intent == 'JOURNAL':
             try:
-                from eos_ai.memory import AgentMemory
+                from runtime.memory import AgentMemory
                 mem = AgentMemory()
                 mem.log_event(
                     org_id=ctx.org_id,
@@ -2526,7 +2526,7 @@ async def handle_natural_message(
         result = result[:4000] + '\n\n[truncated]'
 
     if wants_voice_response(text):
-        from eos_ai.media_processor import MediaProcessor
+        from runtime.media_processor import MediaProcessor
         mp = MediaProcessor()
         audio_path = mp.synthesize_speech(result)
         if audio_path:
@@ -2548,8 +2548,8 @@ async def handle_natural_message(
 async def executions_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/executions — show all in-progress tasks with runtime and stuck flag."""
     try:
-        from eos_ai.execution_engine import ExecutionEngine
-        from eos_ai.context import load_context_from_env
+        from runtime.execution_engine import ExecutionEngine
+        from runtime.context import load_context_from_env
         ctx = load_context_from_env()
         ee  = ExecutionEngine(ctx)
         active = ee.get_active_executions()
@@ -2583,9 +2583,9 @@ async def trace_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     task_prefix = args[0].strip()
     try:
-        from eos_ai.db import get_conn
-        from eos_ai.execution_engine import ExecutionEngine
-        from eos_ai.context import load_context_from_env
+        from runtime.db import get_conn
+        from runtime.execution_engine import ExecutionEngine
+        from runtime.context import load_context_from_env
         ctx = load_context_from_env()
 
         # Resolve partial task_id to full UUID
@@ -2628,8 +2628,8 @@ async def trace_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def stage_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/stage — current venture stage, focus, and next actions."""
     try:
-        from eos_ai.business_instance import BusinessInstanceManager
-        from eos_ai.context import load_context_from_env
+        from runtime.business_instance import BusinessInstanceManager
+        from runtime.context import load_context_from_env
         ctx = load_context_from_env()
         bim = BusinessInstanceManager(ctx)
         g = bim.get_stage_guidance('lyfe_institute')
@@ -2648,8 +2648,8 @@ async def stage_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def bis_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/bis — full Business Instance summary for Lyfe Institute."""
     try:
-        from eos_ai.business_instance import BusinessInstanceManager
-        from eos_ai.context import load_context_from_env
+        from runtime.business_instance import BusinessInstanceManager
+        from runtime.context import load_context_from_env
         ctx = load_context_from_env()
         bim = BusinessInstanceManager(ctx)
         text = bim.format_full_summary('lyfe_institute')
@@ -2664,8 +2664,8 @@ async def pulse_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/pulse — run a live world pulse scan and integrate findings."""
     await update.message.reply_text("Scanning world pulse...")
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.world_pulse import WorldPulse
+        from runtime.context import load_context_from_env
+        from runtime.world_pulse import WorldPulse
         ctx   = load_context_from_env()
         wp    = WorldPulse(ctx)
         pulse = wp.run_pulse_scan()
@@ -2693,8 +2693,8 @@ async def advance_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     try:
-        from eos_ai.business_instance import BusinessInstanceManager
-        from eos_ai.context import load_context_from_env
+        from runtime.business_instance import BusinessInstanceManager
+        from runtime.context import load_context_from_env
         ctx = load_context_from_env()
         bim = BusinessInstanceManager(ctx)
         result = bim.advance_stage('lyfe_institute', {'proof': proof_text})
@@ -2732,7 +2732,7 @@ async def _run_pre_meeting_automation(
 
     # Step 0a — Calendar event
     try:
-        from eos_ai.gws_connector import GWSConnector
+        from runtime.gws_connector import GWSConnector
         gws   = GWSConnector()
         event = gws.create_calendar_event(
             title=f"Sales Call — {lead_name}",
@@ -2746,7 +2746,7 @@ async def _run_pre_meeting_automation(
 
     # Pull lead data from knowledge graph
     try:
-        from eos_ai.knowledge_graph import KnowledgeGraph
+        from runtime.knowledge_graph import KnowledgeGraph
         kg      = KnowledgeGraph(ctx)
         journey = kg.get_lead_journey(lead_name)
         if journey.get("icp_score"):
@@ -2760,7 +2760,7 @@ async def _run_pre_meeting_automation(
     # Step 0b — Generate agenda via sales closer agent
     call_guidance = ""
     try:
-        from eos_ai.agent_teams import run_team_task
+        from runtime.agent_teams import run_team_task
         prompt = (
             f"Lead: @{lead_name}\n"
             f"ICP Score: {icp_score}\n"
@@ -2827,7 +2827,7 @@ async def _run_post_meeting_automation(
 
     # Step 8c — Follow-up draft
     try:
-        from eos_ai.agent_teams import run_team_task
+        from runtime.agent_teams import run_team_task
         fu_prompt = (
             f"Lead: @{lead_name}\n"
             f"Meeting summary: {summary[:300]}\n"
@@ -2881,11 +2881,11 @@ async def standup_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/standup — AI-generated structured team standup across all active systems."""
     await update.message.reply_text("Running standup...")
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.coordination_engine import CoordinationEngine
-        from eos_ai.cognitive_loop import CognitiveLoop
-        from eos_ai.agent_runtime import TaskType
-        from eos_ai.memory import AgentMemory
+        from runtime.context import load_context_from_env
+        from runtime.coordination_engine import CoordinationEngine
+        from runtime.cognitive_loop import CognitiveLoop
+        from runtime.agent_runtime import TaskType
+        from runtime.memory import AgentMemory
 
         ctx   = load_context_from_env()
         ce    = CoordinationEngine(ctx)
@@ -2947,11 +2947,11 @@ async def review_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lines = ["WEEKLY BUSINESS REVIEW\n"]
 
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.portfolio_advisor import PortfolioAdvisor
-        from eos_ai.strategy_engine import StrategyEngine
-        from eos_ai.coordination_engine import CoordinationEngine
-        from eos_ai.memory import AgentMemory
+        from runtime.context import load_context_from_env
+        from runtime.portfolio_advisor import PortfolioAdvisor
+        from runtime.strategy_engine import StrategyEngine
+        from runtime.coordination_engine import CoordinationEngine
+        from runtime.memory import AgentMemory
 
         ctx = load_context_from_env()
 
@@ -3041,7 +3041,7 @@ async def handle_browser_command(
         f'\U0001f310 Browser agent starting...\nURL: {url}\nTask: {task}'
     )
     try:
-        from eos_ai.browser_agent import run_browser_task
+        from runtime.browser_agent import run_browser_task
         result = await run_browser_task(url, task)
         steps  = '\n'.join(
             f'  \u2022 {s}' for s in result.get('steps_taken', [])
@@ -3139,8 +3139,8 @@ schedule_morning_briefing(app)
 
 # Start ambient reality refresh — 30-min background loop
 try:
-    from eos_ai.orchestrator import start_ambient_refresh_loop
-    from eos_ai.context import load_context_from_env as _lcfe
+    from runtime.orchestrator import start_ambient_refresh_loop
+    from runtime.context import load_context_from_env as _lcfe
     start_ambient_refresh_loop(_lcfe())
 except Exception as _amb_err:
     print(f'[Telegram] Ambient refresh start failed: {_amb_err}')

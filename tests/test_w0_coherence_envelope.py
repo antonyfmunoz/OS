@@ -31,7 +31,7 @@ from core.coherence.spine_lineage_contracts import (
     SpineStage,
     SpineStageStatus,
 )
-from eos_ai.substrate.local_worker_auto_loop import (
+from runtime.substrate.local_worker_auto_loop import (
     validate_wo_001_packet,
     validate_coherence_from_packet,
 )

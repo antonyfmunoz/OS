@@ -9,7 +9,7 @@ import json
 
 import pytest
 
-from eos_ai.substrate.advisor_bridge_transport import (
+from runtime.substrate.advisor_bridge_transport import (
     BRIDGE_HEALTH_URL,
     BRIDGE_MESSAGE_URL,
     AdvisorMessageFile,
@@ -24,7 +24,7 @@ from eos_ai.substrate.advisor_bridge_transport import (
     create_advisor_response_file,
     create_worker_approval_request_file,
 )
-from eos_ai.substrate.message_bus_contracts import (
+from runtime.substrate.message_bus_contracts import (
     MessageEnvelope,
     MessagePriority,
     MessageType,

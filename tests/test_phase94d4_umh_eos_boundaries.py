@@ -7,7 +7,7 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 import pytest
 
-from eos_ai.substrate.substrate_projection_boundaries import (
+from runtime.substrate.substrate_projection_boundaries import (
     BoundaryClassification,
     ComponentBoundary,
     EOS_PROJECTION_TERMS,
@@ -21,7 +21,7 @@ from eos_ai.substrate.substrate_projection_boundaries import (
 
 class TestComponentClassification:
     def test_substrate_path_classified_as_umh(self):
-        result = classify_component_boundary("MessageBus", path="eos_ai/substrate/message_bus.py")
+        result = classify_component_boundary("MessageBus", path="runtime/substrate/message_bus.py")
         assert result.boundary == ComponentBoundary.UMH_SUBSTRATE
 
     def test_saas_path_classified_as_projection(self):
@@ -49,7 +49,7 @@ class TestComponentClassification:
         assert result.boundary == ComponentBoundary.AMBIGUOUS
 
     def test_classification_returns_reason(self):
-        result = classify_component_boundary("CognitiveLoop", path="eos_ai/substrate/loop.py")
+        result = classify_component_boundary("CognitiveLoop", path="runtime/substrate/loop.py")
         assert result.reason != ""
 
 

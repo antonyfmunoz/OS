@@ -44,7 +44,7 @@ def check(name: str, condition: bool, detail: str = "") -> None:
 
 print("\n── 1. Mode routing → session name resolution ──")
 
-from eos_ai.substrate.discord_mode_routing import (
+from runtime.substrate.discord_mode_routing import (
     resolve_discord_mode,
     resolve_mode_session,
 )
@@ -103,7 +103,7 @@ else:
 
 print("\n── 2. Watcher detection ──")
 
-from eos_ai.substrate.session_watcher import get_watcher, start_watcher
+from runtime.substrate.session_watcher import get_watcher, start_watcher
 
 # Check for running watchers
 for sname in ("dex_builder_main", "dex_product_main", "dex_main"):
@@ -118,7 +118,7 @@ for sname in ("dex_builder_main", "dex_product_main", "dex_main"):
 
 print("\n── 3. ask_session_watched return shape ──")
 
-from eos_ai.substrate.session_watcher import ask_session_watched
+from runtime.substrate.session_watcher import ask_session_watched
 
 # Test with non-existent session → should return no_watcher fallback
 result = ask_session_watched("vps", "smoke_test_nonexistent", "hello")
@@ -143,7 +143,7 @@ check(
 
 print("\n── 4. _scrub_cli_chrome output cleaning ──")
 
-from eos_ai.substrate.claude_session_bridge import _scrub_cli_chrome
+from runtime.substrate.claude_session_bridge import _scrub_cli_chrome
 
 # Simulated CC tmux output with markers and chrome
 sample_output = """╭───────────────────────────────╮
@@ -228,7 +228,7 @@ _test_tokens = max(1, len(_test_reply) // 4)
 
 # Use get_ai_name for the footer
 try:
-    from eos_ai.business_instance import get_ai_name
+    from runtime.business_instance import get_ai_name
 
     ai_name = get_ai_name()
 except Exception:

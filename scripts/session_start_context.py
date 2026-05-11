@@ -91,7 +91,7 @@ def get_pending_tasks() -> int:
     try:
         from dotenv import load_dotenv
 
-        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
         import psycopg2
 
         db_url = os.getenv("DATABASE_URL", "")
@@ -114,8 +114,8 @@ def get_venture_stage() -> str:
     try:
         from dotenv import load_dotenv
 
-        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
-        from eos_ai.context import load_context_from_env
+        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
+        from runtime.context import load_context_from_env
 
         ctx = load_context_from_env()
         return getattr(ctx, "stage", "unknown")
@@ -126,7 +126,7 @@ def get_venture_stage() -> str:
 def get_system_health_summary() -> str:
     """Quick system health for SessionStart context."""
     try:
-        from eos_ai.system_health import get_system_health
+        from runtime.system_health import get_system_health
 
         sh = get_system_health()
         return sh.system_check()

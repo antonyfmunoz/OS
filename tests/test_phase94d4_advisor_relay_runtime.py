@@ -7,7 +7,7 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 import pytest
 
-from eos_ai.substrate.advisor_relay_runtime import (
+from runtime.substrate.advisor_relay_runtime import (
     apply_human_response_to_worker_state,
     build_worker_result_message,
     build_worker_status_message,
@@ -17,12 +17,12 @@ from eos_ai.substrate.advisor_relay_runtime import (
     route_message_to_interface,
     route_message_to_worker,
 )
-from eos_ai.substrate.message_bus_contracts import (
+from runtime.substrate.message_bus_contracts import (
     MessageEnvelope,
     MessagePriority,
     MessageType,
 )
-from eos_ai.substrate.worker_node_contracts import (
+from runtime.substrate.worker_node_contracts import (
     WorkerAction,
     WorkerMode,
     WorkerRuntimeState,

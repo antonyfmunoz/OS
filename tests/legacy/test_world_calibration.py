@@ -1,4 +1,4 @@
-"""Tests for eos_ai.world_calibration — prediction vs reality error measurement."""
+"""Tests for runtime.world_calibration — prediction vs reality error measurement."""
 
 from __future__ import annotations
 

@@ -31,7 +31,7 @@ async def handle_followup(message, text: str) -> bool:
 
     email_id = text[9:].strip()
     try:
-        from eos_ai.model_router import get_router, TaskType
+        from runtime.model_router import get_router, TaskType
 
         router = get_router()
         model = router.route(TaskType.FAST_RESPONSE)
@@ -63,7 +63,7 @@ async def handle_travel(message, text: str) -> bool:
         )
         return True
     try:
-        from eos_ai.gws_connector import GWSConnector
+        from runtime.gws_connector import GWSConnector
 
         _event_id = parts[0].strip()
         _location = parts[1].strip()
@@ -88,12 +88,12 @@ async def handle_nomeetings(message, text: str) -> bool:
 
     _parts = text.split()
     try:
-        from eos_ai.gws_connector import GWSConnector
+        from runtime.gws_connector import GWSConnector
 
         _gws = GWSConnector()
 
         if len(_parts) > 1:
-            from eos_ai.model_router import get_router, TaskType
+            from runtime.model_router import get_router, TaskType
 
             _router = get_router()
             _model = _router.route(TaskType.FAST_RESPONSE)
@@ -118,8 +118,8 @@ async def handle_nomeetings(message, text: str) -> bool:
             description="Focus day. No meetings. DEX will decline all invites.",
         )
 
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
 
         _ctx = load_context_from_env()
         with get_conn(_ctx.org_id) as _cur:
@@ -162,7 +162,7 @@ async def handle_confirm_event(message, text: str, pending_events: dict) -> bool
     if _ch_id in pending_events:
         _ev_data = pending_events.pop(_ch_id)
         try:
-            from eos_ai.gws_connector import GWSConnector
+            from runtime.gws_connector import GWSConnector
 
             _gws = GWSConnector()
             _event = _gws.create_calendar_event(
@@ -195,7 +195,7 @@ async def handle_meetingroi(message, text: str) -> bool:
     _parts = text.split()
     _venture = _parts[1] if len(_parts) > 1 else None
     try:
-        from eos_ai.meetings import calculate_meeting_roi
+        from runtime.meetings import calculate_meeting_roi
 
         _roi = calculate_meeting_roi(venture=_venture, days=30)
         if not _roi or not _roi.get("total"):
@@ -234,7 +234,7 @@ async def handle_competitive(message, text: str) -> bool:
     _parts = text.split()
     _venture = _parts[1] if len(_parts) > 1 else "empyrean_creative"
     try:
-        from eos_ai.competitive_intel import synthesize_competitive_landscape
+        from runtime.competitive_intel import synthesize_competitive_landscape
 
         _analysis = synthesize_competitive_landscape(_venture)
         await message.channel.send(
@@ -251,8 +251,8 @@ async def handle_documents(message, text: str) -> bool:
         return False
 
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
 
         _ctx = load_context_from_env()
         with get_conn(_ctx.org_id) as _cur:
@@ -297,8 +297,8 @@ async def handle_audit(message, text: str) -> bool:
     _parts = text.split()
     _days = int(_parts[1]) if len(_parts) > 1 and _parts[1].isdigit() else 1
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
 
         _ctx = load_context_from_env()
         with get_conn(_ctx.org_id) as cur:
@@ -364,7 +364,7 @@ async def handle_stakeholders(message, text: str) -> bool:
     _parts = text.split()
     _venture = _parts[1] if len(_parts) > 1 else None
     try:
-        from eos_ai.stakeholder_map import (
+        from runtime.stakeholder_map import (
             get_stakeholders,
             generate_stakeholder_brief,
         )
@@ -411,7 +411,7 @@ async def handle_add_stakeholder(message, text: str) -> bool:
         )
         return True
     try:
-        from eos_ai.stakeholder_map import add_stakeholder
+        from runtime.stakeholder_map import add_stakeholder
 
         _name = _parts[0].strip()
         _venture = _parts[1].strip()
@@ -452,10 +452,10 @@ async def handle_calendar_write(message, text: str, pending_events: dict) -> boo
         return False
 
     try:
-        from eos_ai.gws_connector import GWSConnector
+        from runtime.gws_connector import GWSConnector
 
         _gws = GWSConnector()
-        from eos_ai.model_router import call_with_fallback
+        from runtime.model_router import call_with_fallback
 
         _cal_prompt = (
             "Extract calendar event details from this message. "

@@ -4,7 +4,7 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 import unittest
-from eos_ai.substrate.adapter_engine_contracts import (
+from runtime.substrate.adapter_engine_contracts import (
     InterfaceType,
     AccessPathType,
     ExecutionEnvironmentType,

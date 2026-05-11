@@ -33,7 +33,7 @@ def _header(msg: str) -> None:
 
 
 def main() -> int:
-    from eos_ai.substrate.execution_trace import (
+    from runtime.substrate.execution_trace import (
         _TraceHistory,
         clear_current_trace,
         finalize_trace,
@@ -246,7 +246,7 @@ def main() -> int:
 
     # ── 15. No second router ─────────────────────────────────────────────
     _header("15. no second router")
-    router_path = os.path.join(_ROOT, "eos_ai", "model_router.py")
+    router_path = os.path.join(_ROOT, "runtime", "model_router.py")
     with open(router_path) as f:
         router_lines = f.readlines()
     # Count module-level call_with_fallback (not indented = not a method)
@@ -261,7 +261,7 @@ def main() -> int:
 
     # ── 16. No daemon in execution_trace ─────────────────────────────────
     _header("16. no daemon")
-    trace_path = os.path.join(_ROOT, "eos_ai", "substrate", "execution_trace.py")
+    trace_path = os.path.join(_ROOT, "runtime", "substrate", "execution_trace.py")
     with open(trace_path) as f:
         trace_src = f.read()
     has_subprocess = "subprocess" in trace_src
@@ -275,7 +275,7 @@ def main() -> int:
     # ── 17. Hot-path import clean ────────────────────────────────────────
     _header("17. hot-path import")
     try:
-        mod = importlib.import_module("eos_ai.substrate.execution_trace")
+        mod = importlib.import_module("runtime.substrate.execution_trace")
         import_ok = mod is not None
     except Exception as exc:
         import_ok = False
@@ -378,14 +378,14 @@ def main() -> int:
     # ── 24. No second cognition pipeline ────────────────────────────────
     _header("24. no second cognition pipeline")
     transport_path = os.path.join(
-        _ROOT, "eos_ai", "substrate", "discord_text_transport.py"
+        _ROOT, "runtime", "substrate", "discord_text_transport.py"
     )
     with open(transport_path) as f:
         transport_src = f.read()
     # Must not import cognitive_loop directly
-    has_cognitive_import = "from eos_ai.cognitive_loop" in transport_src
+    has_cognitive_import = "from runtime.cognitive_loop" in transport_src
     # Must not import gateway directly
-    has_gateway_import = "from eos_ai.gateway" in transport_src
+    has_gateway_import = "from runtime.gateway" in transport_src
     check(
         "24. discord_text_transport does not import cognitive_loop or gateway",
         not has_cognitive_import and not has_gateway_import,

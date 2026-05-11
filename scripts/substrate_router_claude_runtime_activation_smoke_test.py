@@ -32,14 +32,14 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 def _reload_router():
     import importlib
 
-    import eos_ai.model_router as mr
+    import runtime.model_router as mr
 
     return importlib.reload(mr)
 
 
 def _install_bridge_stub(*, ok: bool, reason: str = "ok", reply: str = "hi"):
     """Replace respond_via_claude_session with a deterministic stub."""
-    import eos_ai.substrate.claude_responder as cr
+    import runtime.substrate.claude_responder as cr
 
     calls: list[dict] = []
 
@@ -149,18 +149,18 @@ def main() -> int:
     # voice_eos_responder is the shared responder invoked by the voice
     # substrate that ingest_text_message feeds into. The invariant we need
     # to lock in is "this module imports call_with_fallback from
-    # eos_ai.model_router" — NOT a second router or a bypass path. If that
+    # runtime.model_router" — NOT a second router or a bypass path. If that
     # import ever drifts (e.g. someone copies the router or adds a
     # discord-only shortcut), this test will catch it.
-    print("\n[5] discord shared path is wired to eos_ai.model_router")
+    print("\n[5] discord shared path is wired to runtime.model_router")
     import inspect
 
-    from eos_ai.substrate import voice_eos_responder as ver
+    from runtime.substrate import voice_eos_responder as ver
 
     src = inspect.getsource(ver._eos_voice_responder)
     check(
         "voice_eos_responder imports call_with_fallback",
-        "from eos_ai.model_router import call_with_fallback" in src,
+        "from runtime.model_router import call_with_fallback" in src,
     )
     check(
         "voice_eos_responder calls call_with_fallback",
@@ -169,7 +169,7 @@ def main() -> int:
 
     # And prove that discord_text_transport routes into the same voice
     # substrate (ingest_text_message), not a private bypass.
-    from eos_ai.substrate import discord_text_transport as dtt
+    from runtime.substrate import discord_text_transport as dtt
 
     mirror_src = inspect.getsource(dtt.maybe_mirror_discord_text_message)
     check(

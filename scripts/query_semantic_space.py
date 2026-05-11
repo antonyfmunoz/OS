@@ -5,8 +5,8 @@ Query the semantic space — inspect coordinates, run queries, explore regions.
 Usage:
     python3 scripts/query_semantic_space.py query "how does memory work"
     python3 scripts/query_semantic_space.py query "what breaks if I change memory" --show-scores
-    python3 scripts/query_semantic_space.py coord eos_ai/memory.py
-    python3 scripts/query_semantic_space.py neighbors eos_ai/memory.py
+    python3 scripts/query_semantic_space.py coord runtime/memory.py
+    python3 scripts/query_semantic_space.py neighbors runtime/memory.py
     python3 scripts/query_semantic_space.py region --x 0.1 --y 0.6 --z 0.8
 """
 

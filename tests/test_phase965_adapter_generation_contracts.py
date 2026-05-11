@@ -7,7 +7,7 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 import unittest
 
-from eos_ai.substrate.adapter_generation_contracts import (
+from runtime.substrate.adapter_generation_contracts import (
     AdapterGenerationPlan,
     AdapterGenerationRequest,
     AdapterGenerationResult,

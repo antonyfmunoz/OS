@@ -7,7 +7,7 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 import pytest
 
-from eos_ai.substrate.governance_gate_contracts import (
+from runtime.substrate.governance_gate_contracts import (
     ALLOWED_SCOPED_ACTIONS,
     ALWAYS_BLOCKED_ACTIONS,
     APPROVAL_REQUIRED_ACTIONS,

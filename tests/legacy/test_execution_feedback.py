@@ -1,4 +1,4 @@
-"""Tests for eos_ai.execution_feedback — execution feedback normalization layer.
+"""Tests for runtime.execution_feedback — execution feedback normalization layer.
 
 Validates: outcome mapping, signal strength computation, feedback_signals dict,
 observation text format, combined normalization, round-trip serialization,

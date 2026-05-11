@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'services', '.env'))
 
 PDT = ZoneInfo('America/Los_Angeles')
@@ -21,10 +21,10 @@ GENERAL_CHANNEL_ID = 1486289444830056540
 
 
 async def run_weekly_review():
-    from eos_ai.context import load_context_from_env
-    from eos_ai.db import get_conn
-    from eos_ai.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
-    from eos_ai.model_router import get_router, TaskType
+    from runtime.context import load_context_from_env
+    from runtime.db import get_conn
+    from runtime.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
+    from runtime.model_router import get_router, TaskType
     import json as _json
 
     ctx = load_context_from_env()
@@ -127,7 +127,7 @@ async def run_weekly_review():
 
     # Meeting ROI
     try:
-        from eos_ai.meetings import calculate_meeting_roi
+        from runtime.meetings import calculate_meeting_roi
         _wr_roi = calculate_meeting_roi(days=7)
         if _wr_roi and _wr_roi.get('total', 0) > 0:
             sections.append('**📊 Meeting ROI this week:**')
@@ -147,7 +147,7 @@ async def run_weekly_review():
     # Energy trend
     try:
         import json as _etjson
-        from eos_ai.db import get_conn as _et_conn
+        from runtime.db import get_conn as _et_conn
         with _et_conn(ctx.org_id) as cur:
             cur.execute('''
                 SELECT payload_json FROM events
@@ -182,7 +182,7 @@ async def run_weekly_review():
 
     # Pain Line — recurring delegate tasks
     try:
-        from eos_ai.buyback_rate import detect_pain_line
+        from runtime.buyback_rate import detect_pain_line
         _pain = detect_pain_line(ctx)
         if _pain:
             sections.append('**⚠️ Pain Line — recurring tasks to delegate:**')

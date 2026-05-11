@@ -7,14 +7,14 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 import unittest
 
-from eos_ai.substrate.adapter_engine_contracts import (
+from runtime.substrate.adapter_engine_contracts import (
     AdapterProfile,
     AdapterRegistryEntry,
     AdapterSafetyPolicy,
     AdapterType,
     ToolMasteryPack,
 )
-from eos_ai.substrate.adapter_quality_gate import (
+from runtime.substrate.adapter_quality_gate import (
     adapter_has_docs,
     adapter_has_no_secret_policy,
     adapter_has_required_contracts,

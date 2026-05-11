@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """watch_graph.py — Near real-time file watcher for the codebase graph.
 
-Watches SCAN_DIRS (eos_ai, services, scripts, core) via watchdog/inotify and
+Watches SCAN_DIRS (runtime, services, scripts, core) via watchdog/inotify and
 triggers incremental graph updates as files are edited, created, or deleted.
 Keeps the cognition stack fresh without manual rebuilds or git-hook latency.
 
@@ -18,7 +18,7 @@ Usage
     python3 scripts/watch_graph.py
     python3 scripts/watch_graph.py --debounce 2000 --verbose
     python3 scripts/watch_graph.py --with-overlay
-    python3 scripts/watch_graph.py --once eos_ai/memory.py   # smoke-test path
+    python3 scripts/watch_graph.py --once runtime/memory.py   # smoke-test path
 
 CLI flags
 ---------

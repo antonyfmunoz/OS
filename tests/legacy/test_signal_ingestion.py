@@ -1,4 +1,4 @@
-"""Tests for eos_ai.signal_ingestion — raw signal → structured observation."""
+"""Tests for runtime.signal_ingestion — raw signal → structured observation."""
 
 from __future__ import annotations
 

@@ -37,7 +37,7 @@ def check(label: str, condition: bool, detail: str = "") -> None:
 
 print("\n1. Imports")
 try:
-    from eos_ai.substrate.session_watcher import (
+    from runtime.substrate.session_watcher import (
         SessionState,
         SessionWatcher,
         WatcherEvent,
@@ -53,7 +53,7 @@ except Exception as e:
     check("session_watcher imports", False, str(e))
 
 try:
-    from eos_ai.substrate.session_discord_bridge import (
+    from runtime.substrate.session_discord_bridge import (
         SessionDiscordBridge,
         PlanApprovalView,
         PermissionView,
@@ -311,7 +311,7 @@ new_output = "● Let me check that.\n⎿ Bash(python3 -c 'print(1)')\n  1"
 w_work._state = SessionState.WORKING  # simulate transition
 check("WORKING state reachable", w_work.state == SessionState.WORKING)
 
-from eos_ai.substrate.session_watcher import _STABLE_CYCLES_FOR_COMPLETE
+from runtime.substrate.session_watcher import _STABLE_CYCLES_FOR_COMPLETE
 
 # WORKING stays while output changes
 w_work._stable_count = 0
@@ -326,7 +326,7 @@ check(
 )
 
 # Verify _TOOL_CALL_PATTERNS matches expected patterns
-from eos_ai.substrate.session_watcher import _TOOL_CALL_PATTERNS
+from runtime.substrate.session_watcher import _TOOL_CALL_PATTERNS
 
 check("detects Bash(", bool(_TOOL_CALL_PATTERNS.search("⎿ Bash(ls -la)")))
 check("detects python3", bool(_TOOL_CALL_PATTERNS.search("python3 -c 'test'")))
@@ -338,7 +338,7 @@ check(
 )
 
 # Verify adaptive timeout constants exist
-from eos_ai.substrate.session_watcher import _IDLE_TIMEOUT_S, _WORKING_TIMEOUT_S
+from runtime.substrate.session_watcher import _IDLE_TIMEOUT_S, _WORKING_TIMEOUT_S
 
 check("idle timeout is 30s", _IDLE_TIMEOUT_S == 30.0)
 check("working timeout is 120s", _WORKING_TIMEOUT_S == 120.0)
@@ -375,7 +375,7 @@ check("windowed extract finds new reply", "No issues found" in reply)
 check("windowed extract ignores old reply", "file is fixed" not in reply)
 
 # Test: tool call patterns should NOT trigger on old content
-from eos_ai.substrate.session_watcher import _TOOL_CALL_PATTERNS
+from runtime.substrate.session_watcher import _TOOL_CALL_PATTERNS
 
 new_content = full_output[w_win._before_len :]
 has_tool_in_new = bool(_TOOL_CALL_PATTERNS.search(new_content))

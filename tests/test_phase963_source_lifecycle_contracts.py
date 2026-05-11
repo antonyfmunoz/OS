@@ -1,4 +1,4 @@
-"""Tests for eos_ai/substrate/source_lifecycle_contracts.py (Phase 96.3)."""
+"""Tests for runtime/substrate/source_lifecycle_contracts.py (Phase 96.3)."""
 
 import sys
 import os
@@ -7,7 +7,7 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 import unittest
 
-from eos_ai.substrate.source_lifecycle_contracts import (
+from runtime.substrate.source_lifecycle_contracts import (
     SourceIngestionRule,
     SourceLifecycleRecord,
     SourceLifecycleStage,

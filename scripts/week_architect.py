@@ -14,7 +14,7 @@ from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'services', '.env'))
 
 PDT = ZoneInfo('America/Los_Angeles')
@@ -22,10 +22,10 @@ GENERAL_CHANNEL_ID = 1486289444830056540
 
 
 async def architect_week():
-    from eos_ai.gws_connector import GWSConnector
-    from eos_ai.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
-    from eos_ai.context import load_context_from_env
-    from eos_ai.model_router import get_router, TaskType
+    from runtime.gws_connector import GWSConnector
+    from runtime.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
+    from runtime.context import load_context_from_env
+    from runtime.model_router import get_router, TaskType
 
     ctx = load_context_from_env()
     gws = GWSConnector()

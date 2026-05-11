@@ -9,7 +9,7 @@ import json
 
 import pytest
 
-from eos_ai.substrate.gui_backend_healthcheck import (
+from runtime.substrate.gui_backend_healthcheck import (
     BackendCandidate,
     BackendCheck,
     BackendStatus,

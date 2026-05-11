@@ -1,11 +1,11 @@
-"""Tests for eos_ai.platforms.eos.response_formatter."""
+"""Tests for runtime.platforms.eos.response_formatter."""
 
 import sys
 
 sys.path.insert(0, "/opt/OS")
 
 import pytest
-from eos_ai.platforms.eos.response_formatter import (
+from runtime.platforms.eos.response_formatter import (
     format_blocked_decision_summary,
     format_briefing,
     format_ea_response,
@@ -13,7 +13,7 @@ from eos_ai.platforms.eos.response_formatter import (
     format_portfolio_recommendation,
     format_strategic_recommendation,
 )
-from eos_ai.platforms.eos.roles import EOSRole
+from runtime.platforms.eos.roles import EOSRole
 
 
 def _make_ea_context(**overrides):

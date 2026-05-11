@@ -1,4 +1,4 @@
-"""Tests for eos_ai.meta_generalization — cross-scenario meta-learning.
+"""Tests for runtime.meta_generalization — cross-scenario meta-learning.
 
 Covers:
 1. Signature computation and bounds

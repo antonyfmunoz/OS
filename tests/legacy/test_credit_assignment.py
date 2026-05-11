@@ -1,4 +1,4 @@
-"""Tests for eos_ai.credit_assignment — temporal credit assignment layer."""
+"""Tests for runtime.credit_assignment — temporal credit assignment layer."""
 
 from __future__ import annotations
 

@@ -8,19 +8,19 @@ import pytest
 
 sys.path.insert(0, "/opt/OS")
 
-from eos_ai.substrate.execution_contract import (
+from runtime.substrate.execution_contract import (
     ExecutionClass,
     ExecutionConstraints,
     ExecutionResult,
     ExecutionStatus,
     ExecutionTarget,
 )
-from eos_ai.substrate.execution_result_handler import ExecutionResultHandler
-from eos_ai.substrate.event_scheduler import (
+from runtime.substrate.execution_result_handler import ExecutionResultHandler
+from runtime.substrate.event_scheduler import (
     ExecutionResult as SchedulerExecutionResult,
     SchedulerEvent,
 )
-from eos_ai.substrate.runtime_state_store import RuntimeStateStore
+from runtime.substrate.runtime_state_store import RuntimeStateStore
 
 
 # ---------------------------------------------------------------------------

@@ -3,7 +3,7 @@
 STT workstation readiness smoke test.
 
 Validates the additive workstation-enablement layer of
-``eos_ai.substrate.stt_producer``:
+``runtime.substrate.stt_producer``:
 
   * ``stt_workstation_readiness()`` returns a JSON-friendly classification
     that matches the current environment.
@@ -37,7 +37,7 @@ def _rule(title: str) -> None:
 
 
 def main() -> int:
-    from eos_ai.substrate.stt_producer import (
+    from runtime.substrate.stt_producer import (
         SttCaptureStatus,
         SttWorkstationReadiness,
         _detect_environment,
@@ -226,11 +226,11 @@ def main() -> int:
         import importlib
 
         for mod in (
-            "eos_ai.gateway",
-            "eos_ai.cognitive_loop",
-            "eos_ai.model_router",
-            "eos_ai.agent_runtime",
-            "eos_ai.primitives",
+            "runtime.gateway",
+            "runtime.cognitive_loop",
+            "runtime.model_router",
+            "runtime.agent_runtime",
+            "runtime.primitives",
         ):
             importlib.import_module(mod)
             print(f"  import ok: {mod}")

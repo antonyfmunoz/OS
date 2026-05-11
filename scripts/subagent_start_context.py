@@ -25,8 +25,8 @@ def main():
 
     try:
         from dotenv import load_dotenv
-        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
-        from eos_ai.context import (
+        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
+        from runtime.context import (
             load_context_from_env
         )
         ctx = load_context_from_env()

@@ -28,7 +28,7 @@ _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.ge
 import pytest
 from pathlib import Path
 
-from eos_ai.interfaces.discord_interface_adapter_v1 import (
+from runtime.interfaces.discord_interface_adapter_v1 import (
     COMMAND_ACTION_MAP,
     COMMAND_CONTRACT,
     SPINE_ROUTED_COMMANDS,
@@ -37,7 +37,7 @@ from eos_ai.interfaces.discord_interface_adapter_v1 import (
     build_work_packet_for_router,
     format_router_result,
 )
-from eos_ai.interfaces.discord_spine_integration_v1 import (
+from runtime.interfaces.discord_spine_integration_v1 import (
     SpineExecutionConfig,
     SpineRoutedResult,
     build_spine_infrastructure,

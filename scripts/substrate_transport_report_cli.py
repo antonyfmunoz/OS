@@ -91,7 +91,7 @@ def _print_summary(report: dict) -> None:
 
 
 def cmd_unified(args: argparse.Namespace) -> int:
-    from eos_ai.substrate.transport_report import unified_transport_report
+    from runtime.substrate.transport_report import unified_transport_report
 
     payload = unified_transport_report(
         node_id=args.node,

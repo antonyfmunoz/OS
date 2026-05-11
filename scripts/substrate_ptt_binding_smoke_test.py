@@ -33,24 +33,24 @@ import sys
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.audio_loop import (  # noqa: E402
+from runtime.substrate.audio_loop import (  # noqa: E402
     get_audio_loop_store,
     reset_audio_loop_store_for_tests,
 )
-from eos_ai.substrate.nodes import NodeRegistry, NodeStatus  # noqa: E402
-from eos_ai.substrate.ptt_binding import (  # noqa: E402
+from runtime.substrate.nodes import NodeRegistry, NodeStatus  # noqa: E402
+from runtime.substrate.ptt_binding import (  # noqa: E402
     real_capture_report,
     reset_validation_history_for_tests,
     validate_real_capture,
 )
-from eos_ai.substrate.station_bus import get_station_bus  # noqa: E402
-from eos_ai.substrate.station_daemon import StationDaemon  # noqa: E402
-from eos_ai.substrate.stt_producer import (  # noqa: E402
+from runtime.substrate.station_bus import get_station_bus  # noqa: E402
+from runtime.substrate.station_daemon import StationDaemon  # noqa: E402
+from runtime.substrate.stt_producer import (  # noqa: E402
     reset_local_stt_runtime_for_tests,
     reset_stt_capture_history_for_tests,
     stt_workstation_readiness,
 )
-from eos_ai.substrate.voice_session import (  # noqa: E402
+from runtime.substrate.voice_session import (  # noqa: E402
     get_voice_session_store,
     reset_voice_session_store_for_tests,
 )
@@ -158,11 +158,11 @@ def main() -> int:
     import importlib
 
     for mod in (
-        "eos_ai.gateway",
-        "eos_ai.cognitive_loop",
-        "eos_ai.model_router",
-        "eos_ai.agent_runtime",
-        "eos_ai.primitives",
+        "runtime.gateway",
+        "runtime.cognitive_loop",
+        "runtime.model_router",
+        "runtime.agent_runtime",
+        "runtime.primitives",
     ):
         try:
             importlib.import_module(mod)

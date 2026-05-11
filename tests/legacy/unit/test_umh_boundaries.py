@@ -224,7 +224,7 @@ class TestAllowedTransitionalImports:
             rel = str(filepath.relative_to(Path("/opt/OS")))
             imports = _extract_imports(filepath)
             for lineno, module in imports:
-                if module.startswith(("eos.", "eos_ai.")):
+                if module.startswith(("eos.", "runtime.")):
                     violations.append(f"{rel}:{lineno} imports {module}")
         assert violations == [], f"Legacy eos/eos_ai imports in UMH:\n" + "\n".join(
             violations

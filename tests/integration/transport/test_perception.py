@@ -1,4 +1,4 @@
-"""Smoke tests for eos_ai.substrate.perception.
+"""Smoke tests for runtime.substrate.perception.
 
 Validates:
   1.  test_perception_record_create   — PerceptionRecord.new() creates correctly
@@ -22,7 +22,7 @@ import sys
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.perception import (  # noqa: E402
+from runtime.substrate.perception import (  # noqa: E402
     PerceptionRecord,
     PerceptionSeverity,
     PerceptionSource,
@@ -49,7 +49,7 @@ def _report(name: str, passed: bool, detail: str = "") -> None:
 def _reset_all() -> None:
     """Reset perception store singleton and clear storage key between tests."""
     try:
-        from eos_ai.substrate.storage import get_storage
+        from runtime.substrate.storage import get_storage
 
         get_storage().put("perception_records", None)
     except Exception:  # noqa: BLE001
@@ -448,7 +448,7 @@ def test_prune_oldest_info() -> None:
 
     # Use a small store to test pruning without creating 1000+ records.
     # Temporarily monkey-patch _MAX_RECORDS.
-    import eos_ai.substrate.perception as perc_mod
+    import runtime.substrate.perception as perc_mod
 
     original_max = perc_mod._MAX_RECORDS
     perc_mod._MAX_RECORDS = 5
@@ -553,7 +553,7 @@ def test_new_sources_in_enum() -> None:
 
 def test_collect_station_presence_perception() -> None:
     print("\n── Test 12: collect_station_presence_perception ──")
-    from eos_ai.substrate.perception import collect_station_presence_perception
+    from runtime.substrate.perception import collect_station_presence_perception
 
     result = collect_station_presence_perception()
     _report("returns a list", isinstance(result, list))
@@ -568,7 +568,7 @@ def test_collect_station_presence_perception() -> None:
 
 def test_collect_local_control_perception() -> None:
     print("\n── Test 13: collect_local_control_perception ──")
-    from eos_ai.substrate.perception import collect_local_control_perception
+    from runtime.substrate.perception import collect_local_control_perception
 
     result = collect_local_control_perception()
     _report("returns a list", isinstance(result, list))
@@ -583,7 +583,7 @@ def test_collect_local_control_perception() -> None:
 
 def test_collect_live_session_perception() -> None:
     print("\n── Test 14: collect_live_session_perception ──")
-    from eos_ai.substrate.perception import collect_live_session_perception
+    from runtime.substrate.perception import collect_live_session_perception
 
     result = collect_live_session_perception()
     _report("returns a list", isinstance(result, list))

@@ -47,8 +47,8 @@ def main() -> int:
     args = ap.parse_args()
 
     try:
-        from eos_ai.substrate.google_meet_source import GoogleMeetSource
-        from eos_ai.substrate.meeting_transport import MeetingTransport
+        from runtime.substrate.google_meet_source import GoogleMeetSource
+        from runtime.substrate.meeting_transport import MeetingTransport
     except Exception as e:  # noqa: BLE001
         print(json.dumps({"status": "import_error", "detail": str(e)}))
         return 1
@@ -94,7 +94,7 @@ def main() -> int:
 
     if args.show_report:
         try:
-            from eos_ai.substrate.transport_report import unified_transport_report
+            from runtime.substrate.transport_report import unified_transport_report
 
             report = unified_transport_report(
                 meeting_platform=args.platform,

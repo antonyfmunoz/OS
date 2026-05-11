@@ -22,12 +22,12 @@ import time
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate import meeting_intelligence as mi  # noqa: E402
+from runtime.substrate import meeting_intelligence as mi  # noqa: E402
 
 
 def _force_model_failure():
     """Monkey-patch call_with_fallback to raise — exercises fallback path."""
-    import eos_ai.model_router as mr
+    import runtime.model_router as mr
 
     def _boom(*a, **kw):
         raise RuntimeError("forced failure for smoke test")
@@ -67,7 +67,7 @@ def main() -> int:
     mi.get_meeting_summary_store().put(live)
 
     # Monkey-patch propose_speak_text to avoid real station dispatch.
-    import eos_ai.substrate.station_helpers as sh
+    import runtime.substrate.station_helpers as sh
 
     calls: list[dict] = []
 

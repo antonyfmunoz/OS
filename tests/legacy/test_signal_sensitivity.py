@@ -1,4 +1,4 @@
-"""Tests for eos_ai.signal_sensitivity — adaptive signal sensitivity layer."""
+"""Tests for runtime.signal_sensitivity — adaptive signal sensitivity layer."""
 
 from __future__ import annotations
 

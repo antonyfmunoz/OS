@@ -61,7 +61,7 @@ from core.state.transformation_state_ledger import (
     TransformationStage,
     VALID_TRANSITIONS,
 )
-from eos_ai.interfaces.discord_interface_adapter_v1 import (
+from runtime.interfaces.discord_interface_adapter_v1 import (
     COMMAND_ACTION_MAP,
     COMMAND_CONTRACT,
     SPINE_ROUTED_COMMANDS,
@@ -878,7 +878,7 @@ class TestSpineIntegration:
 
     def test_spine_integration_source_has_cu(self):
         import inspect
-        from eos_ai.interfaces import discord_spine_integration_v1
+        from runtime.interfaces import discord_spine_integration_v1
 
         src = inspect.getsource(discord_spine_integration_v1.build_spine_infrastructure)
         assert "ingest_safe_doc_cu" in src

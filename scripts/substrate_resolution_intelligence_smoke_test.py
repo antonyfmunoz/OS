@@ -30,11 +30,11 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-from eos_ai.substrate import meeting_intelligence as mi  # noqa: E402
+from runtime.substrate import meeting_intelligence as mi  # noqa: E402
 
 
 def _force_model_failure() -> None:
-    import eos_ai.model_router as mr
+    import runtime.model_router as mr
 
     def _boom(*a, **kw):
         raise RuntimeError("forced failure for resolution smoke test")
@@ -43,7 +43,7 @@ def _force_model_failure() -> None:
 
 
 def _stub_speak() -> list[dict]:
-    import eos_ai.substrate.station_helpers as sh
+    import runtime.substrate.station_helpers as sh
 
     calls: list[dict] = []
 
@@ -220,11 +220,11 @@ def main() -> int:
 
     # 12. hot-path guard — none of the untouchable files mention resolution
     hot = [
-        "eos_ai/gateway.py",
-        "eos_ai/cognitive_loop.py",
-        "eos_ai/model_router.py",
-        "eos_ai/agent_runtime.py",
-        "eos_ai/primitives.py",
+        "runtime/gateway.py",
+        "runtime/cognitive_loop.py",
+        "runtime/model_router.py",
+        "runtime/agent_runtime.py",
+        "runtime/primitives.py",
     ]
     out = subprocess.run(
         ["grep", "-l", "resolve_commitments", *hot],

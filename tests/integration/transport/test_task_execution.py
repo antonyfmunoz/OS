@@ -1,4 +1,4 @@
-"""Smoke tests for eos_ai.substrate.task_execution.
+"""Smoke tests for runtime.substrate.task_execution.
 
 Validates:
   1.  test_execute_autonomous_dry_run      — dry_run routes + completes without tmux
@@ -23,17 +23,17 @@ import sys
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.operator_session import (  # noqa: E402
+from runtime.substrate.operator_session import (  # noqa: E402
     OperatorSession,
     OperatorSessionStore,
 )
-from eos_ai.substrate.rituals import RitualRegistry  # noqa: E402
-from eos_ai.substrate.task_execution import (  # noqa: E402
+from runtime.substrate.rituals import RitualRegistry  # noqa: E402
+from runtime.substrate.task_execution import (  # noqa: E402
     detect_human_block,
     execute_task,
     run_overnight_execution,
 )
-from eos_ai.substrate.task_system import (  # noqa: E402
+from runtime.substrate.task_system import (  # noqa: E402
     Task,
     TaskExecutionPolicy,
     TaskStatus,
@@ -58,7 +58,7 @@ def _report(name: str, passed: bool, detail: str = "") -> None:
 
 def _reset_all() -> None:
     try:
-        from eos_ai.substrate.storage import get_storage
+        from runtime.substrate.storage import get_storage
 
         get_storage().put("task_system", None)
         get_storage().put("operator_session", None)

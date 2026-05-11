@@ -191,7 +191,7 @@ def main():
         batch_size = count_new_leads_today() - total_leads
         try:
             sys.path.insert(0, VAULT)
-            from eos_ai.gateway import EOSGateway
+            from runtime.gateway import EOSGateway
             EOSGateway().handle({
                 "type":       "event",
                 "event_type": "signal_captured",

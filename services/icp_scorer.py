@@ -9,13 +9,13 @@ from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
-# Add repo root to path so eos_ai is importable regardless of working directory
+# Add repo root to path so runtime is importable regardless of working directory
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from eos_ai.agent_runtime import AgentRuntime
-from eos_ai.memory import AgentMemory
+from runtime.agent_runtime import AgentRuntime
+from runtime.memory import AgentMemory
 
 _mem = AgentMemory()
 
@@ -460,7 +460,7 @@ kanban_stage: New
 
     # Publish new_lead event — triggers icp_qualifier handler async (non-blocking)
     try:
-        from eos_ai.event_bus import EventBus
+        from runtime.event_bus import EventBus
         EventBus().publish_async("new_lead", {
             "username":   username,
             "score":      result["score"],

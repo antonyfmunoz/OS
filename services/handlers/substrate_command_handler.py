@@ -8,7 +8,7 @@ Also provides runtime identity commands (!version, !runtime, !commands)
 that report live process metadata for parity verification.
 
 This handler bridges the live bot (services/discord_bot.py) to the
-spine infrastructure (eos_ai/interfaces/discord_interface_adapter_v1.py).
+spine infrastructure (runtime/interfaces/discord_interface_adapter_v1.py).
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from core.registry.canonical_command_registry_v1 import get_canonical_registry
-from eos_ai.interfaces.discord_interface_adapter_v1 import (
+from runtime.interfaces.discord_interface_adapter_v1 import (
     COMMAND_ACTION_MAP,
     COMMAND_CONTRACT,
     SPINE_ROUTED_COMMANDS,
@@ -39,7 +39,7 @@ from eos_ai.interfaces.discord_interface_adapter_v1 import (
     build_work_packet_for_router,
     format_router_result,
 )
-from eos_ai.interfaces.discord_spine_integration_v1 import (
+from runtime.interfaces.discord_spine_integration_v1 import (
     SpineExecutionConfig,
     build_spine_infrastructure,
     execute_spine_command,

@@ -38,14 +38,14 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-from eos_ai.substrate import meeting_intelligence as mi  # noqa: E402
+from runtime.substrate import meeting_intelligence as mi  # noqa: E402
 
 HOT_PATH_FILES = (
-    "eos_ai/gateway.py",
-    "eos_ai/cognitive_loop.py",
-    "eos_ai/model_router.py",
-    "eos_ai/agent_runtime.py",
-    "eos_ai/primitives.py",
+    "runtime/gateway.py",
+    "runtime/cognitive_loop.py",
+    "runtime/model_router.py",
+    "runtime/agent_runtime.py",
+    "runtime/primitives.py",
 )
 
 

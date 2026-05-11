@@ -1,4 +1,4 @@
-"""Tests for eos_ai.goal_engine — goal formation + self-directed optimization."""
+"""Tests for runtime.goal_engine — goal formation + self-directed optimization."""
 
 from __future__ import annotations
 

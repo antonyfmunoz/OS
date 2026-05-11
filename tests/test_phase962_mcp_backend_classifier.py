@@ -5,15 +5,15 @@ import os
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.extraction_backend_contracts import (
+from runtime.substrate.extraction_backend_contracts import (
     BackendIndependenceLevel,
     ExtractionBackendType,
     ExtractionCoverageStatus,
     MCPSubtype,
     build_google_docs_contract,
 )
-from eos_ai.substrate.mcp_backend_contracts import MCPToolProfile
-from eos_ai.substrate.mcp_backend_classifier import (
+from runtime.substrate.mcp_backend_contracts import MCPToolProfile
+from runtime.substrate.mcp_backend_classifier import (
     build_mcp_backend_matrix_row,
     classify_mcp_tool,
     evaluate_mcp_against_extraction_contract,

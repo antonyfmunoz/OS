@@ -16,15 +16,15 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 from dotenv import load_dotenv
-load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'services', '.env'))
 
 from collections import Counter
 from pathlib import Path
 
-from eos_ai.email_gps import EmailGPS, EmailFolder, ProcessedEmail
-from eos_ai.gws_connector import GWSConnector
-from eos_ai.context import load_context_from_env
+from runtime.email_gps import EmailGPS, EmailFolder, ProcessedEmail
+from runtime.gws_connector import GWSConnector
+from runtime.context import load_context_from_env
 
 ctx = load_context_from_env()
 gps = EmailGPS(ctx)

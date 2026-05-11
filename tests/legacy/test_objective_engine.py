@@ -1,5 +1,5 @@
 """
-Tests for eos_ai.objective_engine — Unified Value Function.
+Tests for runtime.objective_engine — Unified Value Function.
 
 Verifies: deterministic outputs, bounded values [0,1],
 stability under repeated runs, monotonic improvement behavior.

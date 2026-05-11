@@ -1,4 +1,4 @@
-"""Tests for eos_ai/substrate/mcp_backend_discovery.py (Phase 96.3)."""
+"""Tests for runtime/substrate/mcp_backend_discovery.py (Phase 96.3)."""
 
 import sys
 import os
@@ -7,12 +7,12 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 import unittest
 
-from eos_ai.substrate.extraction_backend_contracts import (
+from runtime.substrate.extraction_backend_contracts import (
     BackendIndependenceLevel,
     MCPSubtype,
 )
-from eos_ai.substrate.mcp_backend_contracts import MCPToolProfile
-from eos_ai.substrate.mcp_backend_discovery import (
+from runtime.substrate.mcp_backend_contracts import MCPToolProfile
+from runtime.substrate.mcp_backend_discovery import (
     build_mcp_discovery_plan,
     build_mcp_discovery_report,
     classify_available_mcp_tool,

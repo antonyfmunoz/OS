@@ -1,4 +1,4 @@
-"""Tests for eos_ai.causal_memory — causal transition memory.
+"""Tests for runtime.causal_memory — causal transition memory.
 
 Covers:
 1. Determinism

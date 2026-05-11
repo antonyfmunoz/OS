@@ -1,4 +1,4 @@
-"""Smoke tests for eos_ai.substrate.station_triggers.
+"""Smoke tests for runtime.substrate.station_triggers.
 
 Validates:
   1.  test_register_trigger          — creates a trigger event with correct fields
@@ -19,7 +19,7 @@ import sys
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.station_triggers import (  # noqa: E402
+from runtime.substrate.station_triggers import (  # noqa: E402
     StationTriggerEvent,
     StationTriggerStore,
     StationTriggerType,
@@ -45,7 +45,7 @@ def _report(name: str, passed: bool, detail: str = "") -> None:
 def _reset_all() -> None:
     """Reset all singletons and storage keys relevant to triggers."""
     try:
-        from eos_ai.substrate.storage import get_storage
+        from runtime.substrate.storage import get_storage
 
         get_storage().put("station_triggers", None)
         get_storage().put("station_presence", None)
@@ -56,25 +56,25 @@ def _reset_all() -> None:
         pass
     StationTriggerStore.reset_default_for_tests()
     try:
-        from eos_ai.substrate.station_presence import StationPresenceStore
+        from runtime.substrate.station_presence import StationPresenceStore
 
         StationPresenceStore.reset_default_for_tests()
     except Exception:  # noqa: BLE001
         pass
     try:
-        from eos_ai.substrate.operator_session import OperatorSessionStore
+        from runtime.substrate.operator_session import OperatorSessionStore
 
         OperatorSessionStore.reset_default_for_tests()
     except Exception:  # noqa: BLE001
         pass
     try:
-        from eos_ai.substrate.rituals import RitualRegistry
+        from runtime.substrate.rituals import RitualRegistry
 
         RitualRegistry.reset_default_for_tests()
     except Exception:  # noqa: BLE001
         pass
     try:
-        from eos_ai.substrate.voice_wake import VoiceWakeStore
+        from runtime.substrate.voice_wake import VoiceWakeStore
 
         VoiceWakeStore.reset_default_for_tests()
     except Exception:  # noqa: BLE001
@@ -133,7 +133,7 @@ def test_handle_trigger_ignored() -> None:
     _reset_all()
     # Open a day session first
     try:
-        from eos_ai.substrate.day_workflows import open_day
+        from runtime.substrate.day_workflows import open_day
 
         open_day()
     except Exception:  # noqa: BLE001

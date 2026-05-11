@@ -1,4 +1,4 @@
-"""Tests for eos_ai.system_registry + eos_ai.system_selector."""
+"""Tests for runtime.system_registry + runtime.system_selector."""
 
 import sys
 

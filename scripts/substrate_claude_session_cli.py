@@ -2,7 +2,7 @@
 """
 Claude Code Session Bridge CLI.
 
-Operator-facing wrapper over eos_ai.substrate.claude_session_bridge. Provides
+Operator-facing wrapper over runtime.substrate.claude_session_bridge. Provides
 explicit, bounded control over persistent Claude Code tmux sessions on either
 the VPS node or the local node.
 
@@ -35,7 +35,7 @@ import sys
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate import claude_session_bridge as csb  # noqa: E402
+from runtime.substrate import claude_session_bridge as csb  # noqa: E402
 
 
 def _print_json(obj) -> None:

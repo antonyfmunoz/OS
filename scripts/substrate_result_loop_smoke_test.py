@@ -27,18 +27,18 @@ import sys
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.result_store import (  # noqa: E402
+from runtime.substrate.result_store import (  # noqa: E402
     get_result_store,
     reset_result_store_for_tests,
 )
-from eos_ai.substrate.ritual_body import RitualPolicy  # noqa: E402
-from eos_ai.substrate.ritual_reconciler import reconcile_ritual  # noqa: E402
-from eos_ai.substrate.ritual_runner import start_open_day  # noqa: E402
-from eos_ai.substrate.rituals import RitualRegistry  # noqa: E402
-from eos_ai.substrate.station_bus import get_station_bus  # noqa: E402
-from eos_ai.substrate.station_daemon import StationDaemon  # noqa: E402
-from eos_ai.substrate.station_drainer import drain_all  # noqa: E402
-from eos_ai.substrate.station_helpers import propose_focus_app  # noqa: E402
+from runtime.substrate.ritual_body import RitualPolicy  # noqa: E402
+from runtime.substrate.ritual_reconciler import reconcile_ritual  # noqa: E402
+from runtime.substrate.ritual_runner import start_open_day  # noqa: E402
+from runtime.substrate.rituals import RitualRegistry  # noqa: E402
+from runtime.substrate.station_bus import get_station_bus  # noqa: E402
+from runtime.substrate.station_daemon import StationDaemon  # noqa: E402
+from runtime.substrate.station_drainer import drain_all  # noqa: E402
+from runtime.substrate.station_helpers import propose_focus_app  # noqa: E402
 
 
 TEST_NODE = "result-loop-smoketest"

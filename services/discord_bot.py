@@ -83,39 +83,39 @@ if str(_SCRIPT_DIR) not in sys.path:
 from dotenv import load_dotenv
 
 load_dotenv(_SCRIPT_DIR / ".env")
-load_dotenv(_REPO_ROOT / "eos_ai" / ".env")
+load_dotenv(_REPO_ROOT / "runtime" / ".env")
 
 # ─── EOS imports ──────────────────────────────────────────────────────────────
 
-from eos_ai.gateway import EOSGateway
-from eos_ai.context import load_context_from_env
-from eos_ai.knowledge_integrator import KnowledgeIntegrator
-from eos_ai.voice_engine import VoiceEngine
-from eos_ai.business_instance import get_ai_name
-from eos_ai.discord_utils import chunk_message, post_to_webhook
-from eos_ai.substrate.session_discord_bridge import send_reply as _send_reply
-from eos_ai.substrate.discord_text_transport import (
+from runtime.gateway import EOSGateway
+from runtime.context import load_context_from_env
+from runtime.knowledge_integrator import KnowledgeIntegrator
+from runtime.voice_engine import VoiceEngine
+from runtime.business_instance import get_ai_name
+from runtime.discord_utils import chunk_message, post_to_webhook
+from runtime.substrate.session_discord_bridge import send_reply as _send_reply
+from runtime.substrate.discord_text_transport import (
     maybe_mirror_discord_text_message as _maybe_pseudo_live_text,
 )
 
 # Graceful import for substrate modules that may not exist yet
 try:
-    from eos_ai.substrate.message_framing import get_inbound_buffer
+    from runtime.substrate.message_framing import get_inbound_buffer
 except ImportError:
     get_inbound_buffer = None
 
-from eos_ai.substrate.event_spine import (
+from runtime.substrate.event_spine import (
     EventType as _FrameEventType,
     create_event as _frame_create_event,
 )
 
 try:
-    from eos_ai.substrate.event_store import get_event_store as _frame_get_event_store
+    from runtime.substrate.event_store import get_event_store as _frame_get_event_store
 except ImportError:
     _frame_get_event_store = None
 
 try:
-    from eos_ai.substrate.interaction_archive import (
+    from runtime.substrate.interaction_archive import (
         archive_inbound as _archive_inbound,
         Interface as _ArchiveInterface,
     )
@@ -126,12 +126,12 @@ except ImportError:
 # Install the router-backed voice-session responder at import time so that
 # every Discord pseudo-live text ingress (which flows through
 # inject_transcript → VoiceSessionRuntime.submit_utterance → global responder)
-# routes through eos_ai.model_router.call_with_fallback instead of the
+# routes through runtime.model_router.call_with_fallback instead of the
 # substrate's default "[role] heard: ..." stub. Idempotent; safe to call
 # multiple times. The substrate architecture is preserved — we are only
 # replacing the pluggable responder hook the substrate already exposes.
 try:
-    from eos_ai.substrate.voice_eos_responder import (
+    from runtime.substrate.voice_eos_responder import (
         install_default_eos_voice_responder as _install_voice_router_responder,
         is_eos_voice_responder_installed as _is_voice_router_responder_installed,
     )
@@ -140,7 +140,7 @@ try:
         _install_voice_router_responder()
         print(
             "[Discord] voice-session responder = router-backed "
-            "(eos_ai.voice_eos_responder → model_router.call_with_fallback)",
+            "(runtime.voice_eos_responder → model_router.call_with_fallback)",
             flush=True,
         )
     else:
@@ -174,7 +174,7 @@ _gateway = EOSGateway()  # singleton — no ctx arg
 _ki = KnowledgeIntegrator(_ctx_eos)
 _ve = VoiceEngine()
 
-from eos_ai.onboarding_engine import OnboardingEngine as _OnboardingEngine
+from runtime.onboarding_engine import OnboardingEngine as _OnboardingEngine
 
 _onboarding = _OnboardingEngine(_ctx_eos)
 
@@ -392,7 +392,7 @@ def _run_day_command(
     continuity_text: str | None = None,
 ) -> dict:
     try:
-        from eos_ai.substrate.day_workflows import close_day, open_day
+        from runtime.substrate.day_workflows import close_day, open_day
 
         if cmd == "open_day":
             return open_day(
@@ -784,7 +784,7 @@ async def handle_meeting_voice(
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
             None,
-            lambda: __import__("eos_ai.agent_teams", fromlist=["run_team_task"]).run_team_task(
+            lambda: __import__("runtime.agent_teams", fromlist=["run_team_task"]).run_team_task(
                 team="sales",
                 sub_agent="objection_handler",
                 prompt=f"Objection on call: {text}",
@@ -870,7 +870,7 @@ async def start_meeting_mode(
     _active_meeting["notes"] = []
     _active_meeting["key_points"] = []
     try:
-        from eos_ai.substrate.storage import get_storage
+        from runtime.substrate.storage import get_storage
 
         get_storage().put("active_meeting", dict(_active_meeting))
     except Exception:
@@ -879,7 +879,7 @@ async def start_meeting_mode(
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(
         None,
-        lambda: __import__("eos_ai.agent_teams", fromlist=["run_team_task"]).run_team_task(
+        lambda: __import__("runtime.agent_teams", fromlist=["run_team_task"]).run_team_task(
             team="sales",
             sub_agent="closer",
             prompt=(
@@ -945,7 +945,7 @@ async def end_active_meeting(channel=None) -> None:
     _active_meeting["notes"] = []
     _active_meeting["key_points"] = []
     try:
-        from eos_ai.substrate.storage import get_storage
+        from runtime.substrate.storage import get_storage
 
         get_storage().put("active_meeting", dict(_active_meeting))
     except Exception:
@@ -963,14 +963,14 @@ async def _warmup_cc_sdk():
     """
     await asyncio.sleep(10)
     try:
-        from eos_ai.runtime.work_state import _measure_pressure, Pressure
+        from runtime.work_state import _measure_pressure, Pressure
 
         p = _measure_pressure()
         if p in (Pressure.HIGH, Pressure.CRITICAL):
             logger.info("[Startup] cc_sdk warmup skipped — pressure=%s", p.value)
             return
 
-        from eos_ai.cc_sdk import query_cc_sync
+        from runtime.cc_sdk import query_cc_sync
 
         result = query_cc_sync(
             prompt="Ready.",
@@ -1024,7 +1024,7 @@ async def on_ready():
 
     # ── Restore persisted session state from SubstrateStorage ──────────
     try:
-        from eos_ai.substrate.storage import get_storage
+        from runtime.substrate.storage import get_storage
 
         _store = get_storage()
         _restored = 0
@@ -1057,7 +1057,7 @@ async def on_ready():
 
     # Start ambient refresh (same as Telegram bot)
     try:
-        from eos_ai.orchestrator import start_ambient_refresh_loop
+        from runtime.orchestrator import start_ambient_refresh_loop
 
         start_ambient_refresh_loop(_ctx_eos)
         print("[Discord] Ambient refresh started")
@@ -1088,8 +1088,8 @@ async def on_ready():
     # permission requests, questions).  SessionDiscordBridge renders them
     # as interactive Discord messages with buttons.
     try:
-        from eos_ai.substrate.session_discord_bridge import get_bridge
-        from eos_ai.substrate.session_watcher import start_watcher
+        from runtime.substrate.session_discord_bridge import get_bridge
+        from runtime.substrate.session_watcher import start_watcher
 
         bridge = get_bridge()
         bridge.set_bot(bot)
@@ -1102,7 +1102,7 @@ async def on_ready():
 
     # ── Start Station Daemon (background heartbeat loop) ─────────────────
     try:
-        from eos_ai.substrate.station_daemon import start_station_daemon
+        from runtime.substrate.station_daemon import start_station_daemon
 
         start_station_daemon()
         print("[Discord] Station daemon started")
@@ -1289,7 +1289,7 @@ async def _listen_loop(
             # voice_session / audio_loop / SPEAK_TEXT alongside the existing
             # gateway routing. Never raises. Returns None when disabled.
             try:
-                from eos_ai.substrate.discord_voice_transport import (
+                from runtime.substrate.discord_voice_transport import (
                     maybe_mirror_discord_utterance,
                 )
 
@@ -1465,7 +1465,7 @@ async def on_message(message: discord.Message):
 
     # Wake idle system — a real user message is a work signal
     try:
-        from eos_ai.runtime.work_state import record_signal, reset_idle_counter
+        from runtime.work_state import record_signal, reset_idle_counter
 
         record_signal()
         reset_idle_counter()
@@ -1774,7 +1774,7 @@ async def on_message(message: discord.Message):
     # When disabled (default), falls through to the existing CC/PseudoLive chain.
     _orch_handled = False
     try:
-        from eos_ai.substrate.discord_ingress_adapter import ingest_and_emit
+        from runtime.substrate.discord_ingress_adapter import ingest_and_emit
 
         _orch_result = ingest_and_emit(
             text=text,
@@ -1792,7 +1792,7 @@ async def on_message(message: discord.Message):
             )
             # Structured trace reply (best-effort)
             try:
-                from eos_ai.substrate.operator_trace import (
+                from runtime.substrate.operator_trace import (
                     OperatorTrace,
                     format_trace_for_discord,
                 )
@@ -1834,7 +1834,7 @@ async def on_message(message: discord.Message):
     # ── Session-first CC injection ───────────────────────────────────────
     # DORMANT: session_registry, session_router, surface_registry,
     # live_loop, input_router modules do not exist yet.
-    # This block will activate when eos_ai/runtime/ is fully built.
+    # This block will activate when runtime/ is fully built.
     _cc_injected = False
 
     if _cc_injected:
@@ -1907,7 +1907,7 @@ async def on_message(message: discord.Message):
                     # Hard guard: drop if lifecycle is sealed
                     _pl_terminal = False
                     try:
-                        from eos_ai.substrate.run_lifecycle import (
+                        from runtime.substrate.run_lifecycle import (
                             is_run_terminally_finalized as _pl_term_check,
                         )
 
@@ -1924,7 +1924,7 @@ async def on_message(message: discord.Message):
                     if not _pl_terminal:
                         try:
                             _pl_session = _pl_fin.get("source_session", "")
-                            from eos_ai.substrate.run_lifecycle import (
+                            from runtime.substrate.run_lifecycle import (
                                 propose_run_completion as _pl_propose,
                             )
 
@@ -1939,7 +1939,7 @@ async def on_message(message: discord.Message):
                             if not _pl_proposal.accepted:
                                 print(f"[PseudoLive] Proposal rejected: {_pl_proposal.reason}")
                             else:
-                                from eos_ai.substrate.task_finalization import (
+                                from runtime.substrate.task_finalization import (
                                     finalize_completed_task as _pl_finalize,
                                 )
 
@@ -1965,7 +1965,7 @@ async def on_message(message: discord.Message):
                 _tts_role = _deferred.get("role_slug") or "ea_orchestrator"
                 if _tts_node and _tts_text:
                     try:
-                        from eos_ai.substrate.station_helpers import propose_speak_text
+                        from runtime.substrate.station_helpers import propose_speak_text
 
                         propose_speak_text(
                             _tts_node,
@@ -2069,7 +2069,7 @@ async def on_message(message: discord.Message):
             text.strip().replace("\ufe0f\u20e3", ""), _DEFAULT_VENTURE_ID
         )
         try:
-            from eos_ai.founder_capture import capture
+            from runtime.founder_capture import capture
 
             capture(_pending["text"], venture_id=_venture_id)
             _icon = "💡" if _pending["type"] == "idea" else "✅"
@@ -2112,7 +2112,7 @@ async def on_message(message: discord.Message):
 
     # ── Founder capture — detect tasks/ideas, write to Your list + Notion ────
     try:
-        from eos_ai.founder_capture import should_capture, capture
+        from runtime.founder_capture import should_capture, capture
 
         _should, _ctype = should_capture(text)
         if _should:
@@ -2561,7 +2561,7 @@ async def cmd_answer(ctx: commands.Context, session_name: str, *, text: str):
         await ctx.reply("Founder only.")
         return
     try:
-        from eos_ai.substrate.session_discord_bridge import get_bridge
+        from runtime.substrate.session_discord_bridge import get_bridge
 
         result = await get_bridge().handle_answer_command(session_name, text)
         await ctx.reply(result)
@@ -2578,13 +2578,13 @@ async def cmd_watcher_status(ctx: commands.Context):
     try:
         import time as _time
 
-        from eos_ai.substrate.session_watcher import _WATCHERS, _WATCHERS_LOCK
+        from runtime.substrate.session_watcher import _WATCHERS, _WATCHERS_LOCK
 
         with _WATCHERS_LOCK:
             if not _WATCHERS:
                 await ctx.reply("No watchers running.")
                 return
-            from eos_ai.substrate.discord_output_policy import get_display_name
+            from runtime.substrate.discord_output_policy import get_display_name
 
             lines = []
             for name, w in _WATCHERS.items():
@@ -2629,7 +2629,7 @@ async def cmd_status(ctx: commands.Context):
 
         def _portfolio_scan():
             try:
-                from eos_ai.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
+                from runtime.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
 
                 pa = PortfolioAgent(_ctx_eos)
                 ventures = pa.scan_all_ventures()
@@ -2716,7 +2716,7 @@ async def cmd_outcome(ctx: commands.Context, *, args: str = ""):
         outcomes_text = " ".join(left_tokens[1:]) if len(left_tokens) > 1 else ""
         open_loops_text = parts[1].strip() if len(parts) > 1 else ""
 
-        from eos_ai.meetings import update_meeting_outcome
+        from runtime.meetings import update_meeting_outcome
 
         ok = update_meeting_outcome(
             calendly_event_id=event_id,
@@ -2838,10 +2838,10 @@ async def cmd_approve(ctx: commands.Context, approval_id: str = ""):
 async def cmd_approve_followup(ctx: commands.Context):
     """Approve and send the most recent pending follow-up email draft."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
-        from eos_ai.gws_connector import GWSConnector
-        from eos_ai.quality_gate import gate_outgoing_email
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
+        from runtime.gws_connector import GWSConnector
+        from runtime.quality_gate import gate_outgoing_email
         import json as _json
 
         _ctx = load_context_from_env()
@@ -2971,9 +2971,9 @@ async def cmd_approve_followup(ctx: commands.Context):
 async def cmd_force_send(ctx: commands.Context):
     """Force-send an email that failed the quality gate."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
-        from eos_ai.gws_connector import GWSConnector
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
+        from runtime.gws_connector import GWSConnector
         import json as _json
 
         _ctx = load_context_from_env()
@@ -3044,7 +3044,7 @@ async def cmd_confidential(ctx: commands.Context, *, args: str = ""):
         )
         return
     try:
-        from eos_ai.confidentiality import create_confidential_session
+        from runtime.confidentiality import create_confidential_session
 
         topic = parts[0]
         parties = [p.strip() for p in parts[1].split(",")] if len(parts) > 1 else ["Antony"]
@@ -3065,8 +3065,8 @@ async def cmd_confidential(ctx: commands.Context, *, args: str = ""):
 async def cmd_pending(ctx: commands.Context):
     """Show all pending approval emails."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
         import json as _json
 
         _ctx = load_context_from_env()
@@ -3110,7 +3110,7 @@ async def cmd_relationship(ctx: commands.Context, *, name: str = ""):
         await ctx.reply("Usage: `!relationship [contact name]`")
         return
     try:
-        from eos_ai.person_recognition import (
+        from runtime.person_recognition import (
             score_relationship_health,
             build_intelligence_profile,
         )
@@ -3144,8 +3144,8 @@ async def cmd_nurture(ctx: commands.Context, *, name: str = ""):
         await ctx.reply("Usage: `!nurture [contact name]`")
         return
     try:
-        from eos_ai.model_router import get_router, TaskType
-        from eos_ai.person_recognition import build_intelligence_profile
+        from runtime.model_router import get_router, TaskType
+        from runtime.person_recognition import build_intelligence_profile
 
         _router = get_router()
         _model = _router.route(TaskType.FAST_RESPONSE)
@@ -3177,7 +3177,7 @@ Subject: [subject]
 async def cmd_expenses(ctx: commands.Context):
     """Show month-to-date expenses. Usage: !expenses"""
     try:
-        from eos_ai.expense_tracker import get_monthly_summary
+        from runtime.expense_tracker import get_monthly_summary
 
         summary = get_monthly_summary()
         if not summary.get("total"):
@@ -3244,7 +3244,7 @@ async def cmd_report(ctx: commands.Context, report_type: str = "profile"):
         results = await loop.run_in_executor(
             None,
             lambda: (
-                __import__("eos_ai.world_pulse", fromlist=["WorldPulse"])
+                __import__("runtime.world_pulse", fromlist=["WorldPulse"])
                 .WorldPulse(_ctx_eos)
                 .run_pulse_scan()
             ),
@@ -3285,7 +3285,7 @@ async def cmd_sync(ctx: commands.Context):
 
         def _run():
             try:
-                from eos_ai.daily_sync import DailySyncEngine
+                from runtime.daily_sync import DailySyncEngine
 
                 dse = DailySyncEngine(_ctx_eos)
                 return dse.run_sync()
@@ -3304,7 +3304,7 @@ async def cmd_inbox(ctx: commands.Context):
 
         def _run():
             try:
-                from eos_ai.email_gps import EmailGPS
+                from runtime.email_gps import EmailGPS
 
                 gps = EmailGPS(_ctx_eos)
                 processed = gps.process_inbox(limit=20)
@@ -3372,7 +3372,7 @@ async def cmd_cal(ctx: commands.Context, period: str = "today"):
 
         def _run():
             try:
-                from eos_ai.gws_connector import GWSConnector
+                from runtime.gws_connector import GWSConnector
 
                 gws = GWSConnector()
                 if period == "week":
@@ -3425,7 +3425,7 @@ async def cmd_focus(ctx: commands.Context, hours: str = "2"):
         def _run():
             try:
                 h = int(hours) if hours.isdigit() else 2
-                from eos_ai.gws_connector import GWSConnector
+                from runtime.gws_connector import GWSConnector
                 from datetime import datetime, timezone, timedelta
 
                 gws = GWSConnector()
@@ -3458,7 +3458,7 @@ async def cmd_waiting(ctx: commands.Context):
 
         def _run():
             try:
-                from eos_ai.email_gps import EmailGPS
+                from runtime.email_gps import EmailGPS
 
                 gps = EmailGPS(_ctx_eos)
                 processed = gps.process_inbox(limit=30)
@@ -3484,7 +3484,7 @@ async def cmd_verify_inbox(ctx: commands.Context):
 
         def _run():
             try:
-                from eos_ai.email_gps import EmailGPS
+                from runtime.email_gps import EmailGPS
 
                 gps = EmailGPS(_ctx_eos)
                 return gps.verify_existing_labels(sample=5)
@@ -3511,7 +3511,7 @@ async def cmd_folder_update(ctx: commands.Context, folder: str = "", *, instruct
 
         def _run():
             try:
-                from eos_ai.email_gps import EmailGPS
+                from runtime.email_gps import EmailGPS
 
                 gps = EmailGPS(_ctx_eos)
                 new_purpose = gps.update_folder_purpose(folder, instruction)
@@ -3536,7 +3536,7 @@ async def cmd_delegated(ctx: commands.Context):
 
     def _run():
         try:
-            from eos_ai.delegation_tracker import get_overdue_delegations
+            from runtime.delegation_tracker import get_overdue_delegations
 
             overdue = get_overdue_delegations()
             if not overdue:
@@ -3562,7 +3562,7 @@ async def cmd_subscriptions(ctx: commands.Context):
 
     def _run():
         try:
-            from eos_ai.subscription_tracker import (
+            from runtime.subscription_tracker import (
                 get_subscriptions,
                 get_upcoming_renewals,
                 get_monthly_subscription_total,
@@ -3608,7 +3608,7 @@ async def cmd_add_sub(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from eos_ai.subscription_tracker import add_subscription
+            from runtime.subscription_tracker import add_subscription
 
             vendor = parts[0]
             amount = float(parts[1])
@@ -3728,7 +3728,7 @@ async def cmd_drip(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from eos_ai.task_yield_matrix import run_drip_audit, format_drip_report
+            from runtime.task_yield_matrix import run_drip_audit, format_drip_report
 
             tasks = [t.strip() for t in args.replace("\n", ",").split(",") if t.strip()]
             if not tasks:
@@ -3751,7 +3751,7 @@ async def cmd_buyback(ctx: commands.Context, income: str = ""):
 
         def _run():
             try:
-                from eos_ai.founder_rate import (
+                from runtime.founder_rate import (
                     calculate_buyback_rate,
                     store_buyback_rate,
                 )
@@ -3775,7 +3775,7 @@ async def cmd_buyback(ctx: commands.Context, income: str = ""):
 
         def _get():
             try:
-                from eos_ai.founder_rate import get_current_buyback_rate
+                from runtime.founder_rate import get_current_buyback_rate
 
                 rate = get_current_buyback_rate()
                 if rate:
@@ -3808,7 +3808,7 @@ async def cmd_logtime(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from eos_ai.founder_rate import log_time_block
+            from runtime.founder_rate import log_time_block
 
             parts = args.split("|")
             activity = parts[0].strip()
@@ -3840,7 +3840,7 @@ async def cmd_timeaudit(ctx: commands.Context):
 
     def _run():
         try:
-            from eos_ai.founder_rate import get_time_audit_summary
+            from runtime.founder_rate import get_time_audit_summary
 
             summary = get_time_audit_summary(days=7)
             if not summary.get("total_hours"):
@@ -3870,7 +3870,7 @@ async def cmd_perfectweek(ctx: commands.Context):
 
     def _run():
         try:
-            from eos_ai.ideal_week import get_perfect_week
+            from runtime.ideal_week import get_perfect_week
 
             week = get_perfect_week()
             lines = ["**📅 Your Perfect Week:**", ""]
@@ -3910,7 +3910,7 @@ async def cmd_camcorder(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from eos_ai.ideal_week import create_camcorder_playbook
+            from runtime.ideal_week import create_camcorder_playbook
 
             playbook = create_camcorder_playbook(task_name, description)
             if playbook:
@@ -3935,7 +3935,7 @@ async def cmd_drive(ctx: commands.Context):
 
     def _run():
         try:
-            from eos_ai.gws_connector import GWSConnector
+            from runtime.gws_connector import GWSConnector
 
             gws = GWSConnector()
             structure = gws.get_drive_structure()
@@ -3960,7 +3960,7 @@ async def cmd_driveaudit(ctx: commands.Context):
 
     def _run():
         try:
-            from eos_ai.gws_connector import GWSConnector
+            from runtime.gws_connector import GWSConnector
 
             gws = GWSConnector()
             issues = gws.audit_drive()
@@ -3995,7 +3995,7 @@ async def cmd_createfolder(ctx: commands.Context, *, name: str = ""):
 
     def _run():
         try:
-            from eos_ai.gws_connector import GWSConnector
+            from runtime.gws_connector import GWSConnector
 
             gws = GWSConnector()
             result = gws.create_folder(name.strip())
@@ -4023,7 +4023,7 @@ async def cmd_trip(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from eos_ai.travel_manager import build_travel_brief, log_trip
+            from runtime.travel_manager import build_travel_brief, log_trip
 
             parts = [p.strip() for p in args.split("|")]
             title = parts[0]
@@ -4048,7 +4048,7 @@ async def cmd_nolist(ctx: commands.Context):
 
     def _run():
         try:
-            from eos_ai.founder_rate import get_no_list
+            from runtime.founder_rate import get_no_list
 
             items = get_no_list()
             if not items:
@@ -4078,7 +4078,7 @@ async def cmd_noadd(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from eos_ai.founder_rate import add_to_no_list
+            from runtime.founder_rate import add_to_no_list
 
             parts = args.split("|", 1)
             item = parts[0].strip()
@@ -4108,8 +4108,8 @@ async def cmd_energy(ctx: commands.Context, *, args: str = ""):
     def _run():
         try:
             import json as _ej
-            from eos_ai.context import load_context_from_env
-            from eos_ai.db import get_conn
+            from runtime.context import load_context_from_env
+            from runtime.db import get_conn
             from zoneinfo import ZoneInfo as _ZI
             from datetime import datetime as _dt
 
@@ -4170,7 +4170,7 @@ async def cmd_year(ctx: commands.Context):
 
     def _run():
         try:
-            from eos_ai.ideal_week import get_preloaded_year
+            from runtime.ideal_week import get_preloaded_year
 
             plan = get_preloaded_year()
             if not plan:
@@ -4209,7 +4209,7 @@ async def cmd_rocks(ctx: commands.Context):
 
     def _run():
         try:
-            from eos_ai.ideal_week import get_current_quarter_rocks
+            from runtime.ideal_week import get_current_quarter_rocks
             from datetime import datetime as _rdt
 
             rocks = get_current_quarter_rocks()
@@ -4238,7 +4238,7 @@ async def cmd_invoices(ctx: commands.Context):
 
     def _run():
         try:
-            from eos_ai.expense_tracker import get_invoices, get_overdue_invoices
+            from runtime.expense_tracker import get_invoices, get_overdue_invoices
 
             all_inv = get_invoices()
             overdue = get_overdue_invoices()
@@ -4285,7 +4285,7 @@ async def cmd_invoice(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from eos_ai.expense_tracker import create_invoice, generate_invoice_text
+            from runtime.expense_tracker import create_invoice, generate_invoice_text
 
             parts = [p.strip() for p in args.split("|")]
             inv = create_invoice(
@@ -4322,7 +4322,7 @@ async def cmd_expensereport(ctx: commands.Context, month: str = ""):
 
     def _run():
         try:
-            from eos_ai.expense_tracker import generate_expense_report
+            from runtime.expense_tracker import generate_expense_report
 
             return generate_expense_report(month or None)
         except Exception as e:
@@ -4339,7 +4339,7 @@ async def cmd_budget(ctx: commands.Context, target: str = "10000"):
 
     def _run():
         try:
-            from eos_ai.expense_tracker import generate_budget_vs_actual
+            from runtime.expense_tracker import generate_budget_vs_actual
 
             t = float(target.replace("$", "").replace(",", ""))
             return generate_budget_vs_actual(revenue_target=t)
@@ -4363,7 +4363,7 @@ async def cmd_briefdoc(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from eos_ai.doc_creator import create_briefing_doc
+            from runtime.doc_creator import create_briefing_doc
 
             parts = [p.strip() for p in args.split("|")]
             title = parts[0]
@@ -4393,9 +4393,9 @@ async def cmd_board(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from eos_ai.doc_creator import create_briefing_doc
-            from eos_ai.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
-            from eos_ai.context import load_context_from_env
+            from runtime.doc_creator import create_briefing_doc
+            from runtime.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
+            from runtime.context import load_context_from_env
 
             ctx_eos = load_context_from_env()
             pa = PortfolioAgent(ctx_eos)
@@ -4425,7 +4425,7 @@ async def cmd_investor(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from eos_ai.doc_creator import create_briefing_doc
+            from runtime.doc_creator import create_briefing_doc
 
             result = create_briefing_doc(
                 title="Investor Update",
@@ -4454,7 +4454,7 @@ async def cmd_slides(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from eos_ai.doc_creator import create_presentation_outline
+            from runtime.doc_creator import create_presentation_outline
 
             parts = [p.strip() for p in args.split("|")]
             title = parts[0]
@@ -4491,7 +4491,7 @@ async def cmd_factcheck(ctx: commands.Context, *, claim: str = ""):
 
     def _run():
         try:
-            from eos_ai.doc_creator import fact_check
+            from runtime.doc_creator import fact_check
 
             result = fact_check(claim)
             verdict_emoji = {
@@ -4522,7 +4522,7 @@ async def cmd_dates(ctx: commands.Context):
 
     def _run():
         try:
-            from eos_ai.personal_admin import get_upcoming_dates
+            from runtime.personal_admin import get_upcoming_dates
 
             dates = get_upcoming_dates(days=60)
             if not dates:
@@ -4564,7 +4564,7 @@ async def cmd_adddate(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from eos_ai.personal_admin import add_important_date
+            from runtime.personal_admin import add_important_date
 
             parts = [p.strip() for p in args.split("|")]
             ok = add_important_date(
@@ -4596,7 +4596,7 @@ async def cmd_gift(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from eos_ai.personal_admin import research_gift
+            from runtime.personal_admin import research_gift
 
             parts = [p.strip() for p in args.split("|")]
             person = parts[0]
@@ -4625,7 +4625,7 @@ async def cmd_flights(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from eos_ai.travel_manager import research_flights
+            from runtime.travel_manager import research_flights
 
             parts = [p.strip() for p in args.split("|")]
             result = research_flights(
@@ -4655,7 +4655,7 @@ async def cmd_hotels(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from eos_ai.travel_manager import research_hotels
+            from runtime.travel_manager import research_hotels
 
             parts = [p.strip() for p in args.split("|")]
             city = parts[0]
@@ -4682,7 +4682,7 @@ async def cmd_restaurants(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from eos_ai.travel_manager import research_restaurants
+            from runtime.travel_manager import research_restaurants
 
             parts = [p.strip() for p in args.split("|")]
             city = parts[0]
@@ -4706,7 +4706,7 @@ async def cmd_proofread(ctx: commands.Context, *, content: str = ""):
         await ctx.reply("Usage: `!proofread [paste your email or message here]`")
         return
     try:
-        from eos_ai.quality_gate import quality_check
+        from runtime.quality_gate import quality_check
 
         await ctx.reply("🔍 Running quality check...")
         result = quality_check(content)
@@ -4744,7 +4744,7 @@ async def cmd_minutes(ctx: commands.Context, *, args: str = ""):
         )
         return
     try:
-        from eos_ai.meetings import draft_meeting_minutes
+        from runtime.meetings import draft_meeting_minutes
 
         parts = [p.strip() for p in args.split("|")]
         result = draft_meeting_minutes(
@@ -4768,7 +4768,7 @@ async def cmd_okr(ctx: commands.Context, subcommand: str = "report", *, args: st
     """OKR tracking. Usage: !okr report | !okr set [venture] | [objective] | [KR, target, unit]"""
     if subcommand == "report":
         try:
-            from eos_ai.okr_tracker import generate_okr_report
+            from runtime.okr_tracker import generate_okr_report
 
             report = generate_okr_report()
             await _send_reply(ctx.channel, report)
@@ -4783,7 +4783,7 @@ async def cmd_okr(ctx: commands.Context, subcommand: str = "report", *, args: st
             )
             return
         try:
-            from eos_ai.okr_tracker import set_okr
+            from runtime.okr_tracker import set_okr
 
             parts = [p.strip() for p in args.split("|")]
             venture_id = parts[0]
@@ -4820,7 +4820,7 @@ async def cmd_event(ctx: commands.Context, *, args: str = ""):
     """Manage events. Usage: !event list | !event [name] | [type] | [date] | [location] | [budget]"""
     if not args or args.strip() == "list":
         try:
-            from eos_ai.event_manager import get_events
+            from runtime.event_manager import get_events
 
             events = get_events()
             if not events:
@@ -4846,7 +4846,7 @@ async def cmd_event(ctx: commands.Context, *, args: str = ""):
     if "|" in args:
         parts = [p.strip() for p in args.split("|")]
         try:
-            from eos_ai.event_manager import create_event
+            from runtime.event_manager import create_event
 
             budget = 0.0
             if len(parts) > 4:
@@ -4891,7 +4891,7 @@ async def cmd_talkingpoints(ctx: commands.Context, *, args: str = ""):
         )
         return
     try:
-        from eos_ai.event_manager import draft_talking_points
+        from runtime.event_manager import draft_talking_points
 
         await ctx.reply("📝 Drafting talking points...")
         topic = parts[0]
@@ -4914,7 +4914,7 @@ async def cmd_pr(ctx: commands.Context, *, args: str = ""):
         )
         return
     try:
-        from eos_ai.event_manager import log_pr_media_inquiry
+        from runtime.event_manager import log_pr_media_inquiry
 
         parts = [p.strip() for p in args.split("|")]
         ok = log_pr_media_inquiry(
@@ -4944,7 +4944,7 @@ async def cmd_board_update(ctx: commands.Context, venture_id: str = ""):
         )
         return
     try:
-        from eos_ai.stakeholder_map import generate_board_update_brief
+        from runtime.stakeholder_map import generate_board_update_brief
 
         await ctx.reply("📋 Generating board update...")
         brief = generate_board_update_brief(venture_id)
@@ -4965,7 +4965,7 @@ async def cmd_announce(ctx: commands.Context, *, args: str = ""):
         )
         return
     try:
-        from eos_ai.doc_creator import draft_announcement
+        from runtime.doc_creator import draft_announcement
 
         draft = draft_announcement(
             topic=parts[0],
@@ -4988,7 +4988,7 @@ async def cmd_crisis(ctx: commands.Context, *, args: str = ""):
         )
         return
     try:
-        from eos_ai.doc_creator import draft_crisis_communication
+        from runtime.doc_creator import draft_crisis_communication
 
         draft = draft_crisis_communication(
             situation=parts[0],
@@ -5012,7 +5012,7 @@ async def cmd_itinerary(ctx: commands.Context, *, args: str = ""):
         )
         return
     try:
-        from eos_ai.travel_manager import generate_trip_itinerary
+        from runtime.travel_manager import generate_trip_itinerary
 
         await ctx.reply("✈️ Generating itinerary...")
         itinerary = generate_trip_itinerary(
@@ -5037,8 +5037,8 @@ async def cmd_approve_task(ctx: commands.Context, task_id: str = ""):
         return
     try:
         import json as _json
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
 
         _ctx = load_context_from_env()
 
@@ -5091,8 +5091,8 @@ async def cmd_approve_task(ctx: commands.Context, task_id: str = ""):
 async def cmd_tasks(ctx: commands.Context):
     """Show pending task queue split by human vs AI."""
     try:
-        from eos_ai.context import load_context_from_env
-        from eos_ai.coordination_engine import CoordinationEngine
+        from runtime.context import load_context_from_env
+        from runtime.coordination_engine import CoordinationEngine
 
         _ctx = load_context_from_env()
         coordination = CoordinationEngine(_ctx)
@@ -5126,8 +5126,8 @@ async def cmd_agent_results(ctx: commands.Context):
     """Show last 24h agent task results."""
     try:
         import json as _json
-        from eos_ai.context import load_context_from_env
-        from eos_ai.db import get_conn
+        from runtime.context import load_context_from_env
+        from runtime.db import get_conn
 
         _ctx = load_context_from_env()
 
@@ -5167,7 +5167,7 @@ async def cmd_agent_results(ctx: commands.Context):
 async def cmd_trace(ctx: commands.Context, limit: int = 5):
     """Show recent execution traces (builder mode only)."""
     try:
-        from eos_ai.substrate.discord_mode_routing import resolve_discord_mode
+        from runtime.substrate.discord_mode_routing import resolve_discord_mode
 
         gid = str(ctx.guild.id) if ctx.guild else None
         cid = str(ctx.channel.id)
@@ -5177,7 +5177,7 @@ async def cmd_trace(ctx: commands.Context, limit: int = 5):
             await ctx.reply("Trace output is not available in product mode.")
             return
 
-        from eos_ai.substrate.execution_trace import (
+        from runtime.substrate.execution_trace import (
             format_trace_compact,
             get_trace_history,
         )

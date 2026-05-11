@@ -5,7 +5,7 @@ import os
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.cu_document_reader_hardening_plan import (
+from runtime.substrate.cu_document_reader_hardening_plan import (
     CUHardeningPlan,
     ForegroundFixOption,
     HardeningPhase,
@@ -14,7 +14,7 @@ from eos_ai.substrate.cu_document_reader_hardening_plan import (
     build_hardening_plan,
     evaluate_foreground_fix_options,
 )
-from eos_ai.substrate.extraction_backend_contracts import ExtractionCapability
+from runtime.substrate.extraction_backend_contracts import ExtractionCapability
 
 
 def test_build_hardening_plan_has_5_phases():

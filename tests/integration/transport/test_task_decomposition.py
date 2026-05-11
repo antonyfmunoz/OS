@@ -1,4 +1,4 @@
-"""Smoke tests for eos_ai.substrate.task_decomposition.
+"""Smoke tests for runtime.substrate.task_decomposition.
 
 Validates:
   1.  test_infer_builder_role       — builder keywords → BUILDER
@@ -23,23 +23,23 @@ import sys
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.task_decomposition import (  # noqa: E402
+from runtime.substrate.task_decomposition import (  # noqa: E402
     decompose_task,
     infer_agent_role,
 )
-from eos_ai.substrate.task_pipeline import (  # noqa: E402
+from runtime.substrate.task_pipeline import (  # noqa: E402
     PipelineAgentRole,
     PipelineStatus,
     PipelineStore,
     StepStatus,
 )
-from eos_ai.substrate.task_system import (  # noqa: E402
+from runtime.substrate.task_system import (  # noqa: E402
     Task,
     TaskStore,
     create_task,
 )
-from eos_ai.substrate.operator_session import OperatorSessionStore  # noqa: E402
-from eos_ai.substrate.rituals import RitualRegistry  # noqa: E402
+from runtime.substrate.operator_session import OperatorSessionStore  # noqa: E402
+from runtime.substrate.rituals import RitualRegistry  # noqa: E402
 
 _PASS = 0
 _FAIL = 0
@@ -58,7 +58,7 @@ def _report(name: str, passed: bool, detail: str = "") -> None:
 
 def _reset_all() -> None:
     try:
-        from eos_ai.substrate.storage import get_storage
+        from runtime.substrate.storage import get_storage
 
         get_storage().put("task_system", None)
         get_storage().put("task_pipelines", None)

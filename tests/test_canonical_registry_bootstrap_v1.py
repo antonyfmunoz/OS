@@ -86,21 +86,21 @@ class TestCanonicalRegistrySingleSource:
 
     def test_action_map_matches_canonical(self) -> None:
         from core.registry.canonical_command_registry_v1 import get_canonical_registry
-        from eos_ai.interfaces.discord_interface_adapter_v1 import COMMAND_ACTION_MAP
+        from runtime.interfaces.discord_interface_adapter_v1 import COMMAND_ACTION_MAP
 
         reg = get_canonical_registry()
         assert COMMAND_ACTION_MAP == reg.command_action_map
 
     def test_spine_routed_matches_canonical(self) -> None:
         from core.registry.canonical_command_registry_v1 import get_canonical_registry
-        from eos_ai.interfaces.discord_interface_adapter_v1 import SPINE_ROUTED_COMMANDS
+        from runtime.interfaces.discord_interface_adapter_v1 import SPINE_ROUTED_COMMANDS
 
         reg = get_canonical_registry()
         assert SPINE_ROUTED_COMMANDS == reg.spine_routed_commands
 
     def test_supported_commands_matches_canonical(self) -> None:
         from core.registry.canonical_command_registry_v1 import get_canonical_registry
-        from eos_ai.interfaces.discord_interface_adapter_v1 import SUPPORTED_COMMANDS
+        from runtime.interfaces.discord_interface_adapter_v1 import SUPPORTED_COMMANDS
 
         reg = get_canonical_registry()
         assert SUPPORTED_COMMANDS == reg.commands | {"!status"}
@@ -269,7 +269,7 @@ class TestBootstrapLifecycle:
         bs = RuntimeBootstrapStateV1(base)
         v = bs.bootstrap(auto_heal=True)
         assert not (base / "config/control_plane_router_v1.json").exists()
-        assert not (base / "eos_ai/.env").exists()
+        assert not (base / "runtime/.env").exists()
 
     def test_bootstrap_runtime_id_deterministic_per_instance(self) -> None:
         from core.runtime.runtime_bootstrap_state_v1 import RuntimeBootstrapStateV1

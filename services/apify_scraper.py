@@ -34,8 +34,8 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from eos_ai.agent_runtime import AgentRuntime
-from eos_ai.context import load_context_from_env
+from runtime.agent_runtime import AgentRuntime
+from runtime.context import load_context_from_env
 
 APIFY_API_TOKEN = os.getenv("APIFY_API_TOKEN")
 

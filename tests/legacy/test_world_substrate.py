@@ -1,4 +1,4 @@
-"""Tests for eos_ai.world_substrate — deterministic world model engine."""
+"""Tests for runtime.world_substrate — deterministic world model engine."""
 
 from __future__ import annotations
 

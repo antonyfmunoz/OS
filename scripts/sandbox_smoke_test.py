@@ -6,7 +6,7 @@ Runs, in order:
 
   1. Create a sandbox, write a file through ActionSystem, confirm
      production is untouched.
-  2. Edit an existing production hub (eos_ai/memory.py) through a
+  2. Edit an existing production hub (runtime/memory.py) through a
      sandbox — CoW must land in the sandbox workspace and prod bytes
      must not change.
   3. Run a dry-run workflow in the sandbox — workflow logs must land
@@ -89,20 +89,20 @@ def step_write_file_in_sandbox() -> None:
 
 
 def step_edit_production_hub_in_sandbox() -> None:
-    prod = _REPO_ROOT / "eos_ai" / "memory.py"
+    prod = _REPO_ROOT / "runtime" / "memory.py"
     before = prod.read_bytes()
     env = make_sandbox(name="smoke-edit", ephemeral=True)
     try:
         a = ActionSystem(env=env)
         action = a.propose(
             action_type=ActionType.EDIT_FILE,
-            target="eos_ai/memory.py",
+            target="runtime/memory.py",
             payload={"content": "# stubbed in smoke\n"},
             reason="smoke test",
         )
         result = a.execute(action, approve=True)
         after = prod.read_bytes()
-        sbx_copy = env.workspace / "eos_ai" / "memory.py"
+        sbx_copy = env.workspace / "runtime" / "memory.py"
         ok = (
             result.status.value == "succeeded"
             and before == after

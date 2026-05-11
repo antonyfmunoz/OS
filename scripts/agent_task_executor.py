@@ -21,7 +21,7 @@ _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.ge
 
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'services', '.env'))
 
 PDT = ZoneInfo('America/Los_Angeles')
@@ -103,8 +103,8 @@ def execute_agent_task(task: dict, ctx) -> dict:
     Execute a single agent task through the cognitive loop.
     Returns a result dict with status, output, agent_id, display_name, tokens.
     """
-    from eos_ai.cognitive_loop import CognitiveLoop
-    from eos_ai.agent_runtime import TaskType
+    from runtime.cognitive_loop import CognitiveLoop
+    from runtime.agent_runtime import TaskType
 
     agent_id = task.get('assignee_id', 'default_agent')
     description = task.get('description', '')
@@ -176,9 +176,9 @@ def requires_approval(task: dict, result: dict) -> bool:
 
 async def run_executor():
     """Main executor loop — poll, execute, mark complete, surface to Discord."""
-    from eos_ai.context import load_context_from_env
-    from eos_ai.coordination_engine import CoordinationEngine
-    from eos_ai.db import get_conn
+    from runtime.context import load_context_from_env
+    from runtime.coordination_engine import CoordinationEngine
+    from runtime.db import get_conn
 
     print(f'[Executor] Starting — {datetime.now(PDT).strftime("%Y-%m-%d %H:%M:%S %Z")}')
 
@@ -217,8 +217,8 @@ async def run_executor():
 
         # Write task result to Notion
         try:
-            from eos_ai.notion_sync import write_task
-            from eos_ai.db import get_conn
+            from runtime.notion_sync import write_task
+            from runtime.db import get_conn
             venture_id = task.get('venture_id') or 'lyfe_institute'
             needs_approval = requires_approval(task, exec_result)
             notion_status = 'In review' if needs_approval else 'Done'

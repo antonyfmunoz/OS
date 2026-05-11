@@ -1,5 +1,5 @@
 """
-Tests for eos_ai.runtime.work_state — idle detection + adaptive throttling.
+Tests for runtime.work_state — idle detection + adaptive throttling.
 
 Simulates:
   - No work → system idles with exponential backoff
@@ -14,7 +14,7 @@ import time
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-import eos_ai.runtime.work_state as ws
+import runtime.work_state as ws
 
 
 def _reset_module_state():
@@ -141,7 +141,7 @@ def test_max_idle_cap():
 
 def test_provider_state_pressure_delegation():
     """provider_state._check_resource_pressure delegates to work_state."""
-    from eos_ai.runtime.provider_state import SystemProviderState
+    from runtime.provider_state import SystemProviderState
 
     sps = SystemProviderState()
     result = sps._check_resource_pressure()

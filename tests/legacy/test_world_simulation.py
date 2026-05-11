@@ -1,4 +1,4 @@
-"""Tests for eos_ai.world_simulation — bounded deterministic forward model."""
+"""Tests for runtime.world_simulation — bounded deterministic forward model."""
 
 from __future__ import annotations
 

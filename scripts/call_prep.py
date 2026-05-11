@@ -10,7 +10,7 @@ from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 from dotenv import load_dotenv
-load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 
 
 def get_upcoming_calls(window_start_mins: int = 25, window_end_mins: int = 45) -> list:
@@ -19,7 +19,7 @@ def get_upcoming_calls(window_start_mins: int = 25, window_end_mins: int = 45) -
     Returns list of event dicts (GWSConnector format).
     """
     try:
-        from eos_ai.gws_connector import GWSConnector
+        from runtime.gws_connector import GWSConnector
 
         gws = GWSConnector()
 
@@ -54,8 +54,8 @@ def get_upcoming_calls(window_start_mins: int = 25, window_end_mins: int = 45) -
 
 def build_prep_brief(event: dict, ctx) -> str:
     """Build a concise pre-call brief for a calendar event."""
-    from eos_ai.meetings import build_prep_brief as _meetings_brief
-    from eos_ai.meetings import find_notion_meeting_by_person, update_meeting_prep_notes
+    from runtime.meetings import build_prep_brief as _meetings_brief
+    from runtime.meetings import find_notion_meeting_by_person, update_meeting_prep_notes
 
     title     = event.get('title', 'Untitled event')
     start_str = event.get('start', '')
@@ -152,7 +152,7 @@ def main():
         print("[CallPrep] No calls in the next 25-45 minutes")
         return
 
-    from eos_ai.context import load_context_from_env
+    from runtime.context import load_context_from_env
     ctx = load_context_from_env()
 
     for event in upcoming:
@@ -168,7 +168,7 @@ def main():
         is_recurring = bool(event.get('recurrence') or event.get('recurringEventId'))
         if is_recurring:
             try:
-                from eos_ai.model_router import get_router, TaskType as _CPTaskType
+                from runtime.model_router import get_router, TaskType as _CPTaskType
                 import json as _cpjson
 
                 _cp_router = get_router()
@@ -251,7 +251,7 @@ Under 100 words. Direct format.""").strip()
         import json as _json
         from datetime import timezone
         from dateutil.parser import parse as _parse
-        from eos_ai.gws_connector import GWSConnector
+        from runtime.gws_connector import GWSConnector
 
         _gws = GWSConnector()
         _all_events = _gws.get_upcoming_events(days=2)
@@ -294,8 +294,8 @@ Under 100 words. Direct format.""").strip()
                 if not _attendee_email:
                     continue
 
-                from eos_ai.meetings import draft_meeting_agenda
-                from eos_ai.db import get_conn
+                from runtime.meetings import draft_meeting_agenda
+                from runtime.db import get_conn
 
                 _agenda = draft_meeting_agenda(
                     title=_event.get('title', _event.get('summary', 'Our call')),
@@ -353,9 +353,9 @@ Under 100 words. Direct format.""").strip()
         import json as _tj
         from datetime import timezone as _tz
         from dateutil.parser import parse as _tparse
-        from eos_ai.gws_connector import GWSConnector as _TGWS
-        from eos_ai.context import load_context_from_env as _tctx
-        from eos_ai.travel_manager import detect_travel_event, build_travel_brief, log_trip
+        from runtime.gws_connector import GWSConnector as _TGWS
+        from runtime.context import load_context_from_env as _tctx
+        from runtime.travel_manager import detect_travel_event, build_travel_brief, log_trip
 
         _t_ctx = _tctx()
         _t_gws = _TGWS()  # GWSConnector takes no args

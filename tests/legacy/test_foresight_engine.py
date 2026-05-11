@@ -1,4 +1,4 @@
-"""Tests for eos_ai.foresight_engine — forward rollout (foresight) layer."""
+"""Tests for runtime.foresight_engine — forward rollout (foresight) layer."""
 
 from __future__ import annotations
 

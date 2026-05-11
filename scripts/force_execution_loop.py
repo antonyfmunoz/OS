@@ -27,7 +27,7 @@ _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.ge
 from core.action_system.control_plane import run_action
 from core.action_system.logging import log_decision
 from core.optimizer import Optimizer
-from eos_ai.workflow_engine import WorkflowEngine, WorkflowState, WORKFLOWS
+from runtime.workflow_engine import WorkflowEngine, WorkflowState, WORKFLOWS
 
 # Log files the optimizer reads
 WORKFLOW_LOG = Path(_ROOT) / "data" / "workflow_log.jsonl"

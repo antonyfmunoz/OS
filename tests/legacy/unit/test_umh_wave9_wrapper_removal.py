@@ -27,7 +27,7 @@ class TestEosDirectoryDeleted:
         assert not os.path.exists("/opt/OS/eos"), "eos/ directory still exists"
 
     def test_eos_ai_directory_gone(self):
-        assert not os.path.exists("/opt/OS/eos_ai"), "eos_ai/ directory still exists"
+        assert not os.path.exists("/opt/OS/eos_ai"), "runtime/ directory still exists"
 
 
 class TestNoLegacyImportsInUMH:
@@ -48,7 +48,7 @@ class TestNoLegacyImportsInUMH:
             tree = ast.parse(open(filepath).read())
             for node in ast.walk(tree):
                 if isinstance(node, ast.ImportFrom) and node.module:
-                    if node.module.startswith(("eos.", "eos_ai.")):
+                    if node.module.startswith(("eos.", "runtime.")):
                         rel = filepath.replace("/opt/OS/", "")
                         violations.append(f"{rel}:{node.lineno} → {node.module}")
         assert violations == [], "Legacy imports found:\n" + "\n".join(violations)

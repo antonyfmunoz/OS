@@ -9,13 +9,13 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-from eos_ai.substrate.control_commands import ControlCommand
-from eos_ai.substrate.execution_adapter import (
+from runtime.substrate.control_commands import ControlCommand
+from runtime.substrate.execution_adapter import (
     AdapterHealth,
     LocalRuntimeAdapter,
     WorkstationAdapter,
 )
-from eos_ai.substrate.execution_contract import (
+from runtime.substrate.execution_contract import (
     ExecutionClass,
     ExecutionConstraints,
     ExecutionRequest,
@@ -107,7 +107,7 @@ def test_local_adapter_returns_execution_result() -> None:
         "action": "write_file",
         "node_id": "vps-primary",
         "executed_at": 1713225600.0,
-        "path": f"{_ROOT}/eos_ai/.substrate_sandbox/test.txt",
+        "path": f"{_ROOT}/runtime/.substrate_sandbox/test.txt",
         "bytes_written": 2,
     }
 
@@ -375,7 +375,7 @@ def test_adapter_does_not_mutate_state() -> None:
     """
     import inspect
 
-    from eos_ai.substrate import execution_adapter
+    from runtime.substrate import execution_adapter
 
     source = inspect.getsource(execution_adapter)
 

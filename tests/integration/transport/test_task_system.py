@@ -1,4 +1,4 @@
-"""Smoke tests for eos_ai.substrate.task_system.
+"""Smoke tests for runtime.substrate.task_system.
 
 Validates:
   1. test_classify_autonomous       — default classification is autonomous
@@ -25,10 +25,10 @@ import sys
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.day_workflows import close_day, open_day  # noqa: E402
-from eos_ai.substrate.operator_session import OperatorSessionStore  # noqa: E402
-from eos_ai.substrate.rituals import RitualRegistry  # noqa: E402
-from eos_ai.substrate.task_system import (  # noqa: E402
+from runtime.substrate.day_workflows import close_day, open_day  # noqa: E402
+from runtime.substrate.operator_session import OperatorSessionStore  # noqa: E402
+from runtime.substrate.rituals import RitualRegistry  # noqa: E402
+from runtime.substrate.task_system import (  # noqa: E402
     Task,
     TaskExecutionPolicy,
     TaskStatus,
@@ -58,7 +58,7 @@ def _report(name: str, passed: bool, detail: str = "") -> None:
 def _reset_all() -> None:
     """Reset all singletons and clear storage keys between tests."""
     try:
-        from eos_ai.substrate.storage import get_storage
+        from runtime.substrate.storage import get_storage
 
         get_storage().put("operator_session", None)
         get_storage().put("rituals", {})

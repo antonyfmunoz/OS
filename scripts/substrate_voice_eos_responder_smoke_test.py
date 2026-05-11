@@ -29,19 +29,19 @@ import sys
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.result_store import (  # noqa: E402
+from runtime.substrate.result_store import (  # noqa: E402
     get_result_store,
     reset_result_store_for_tests,
 )
-from eos_ai.substrate.station_bus import get_station_bus  # noqa: E402
-from eos_ai.substrate.station_daemon import StationDaemon  # noqa: E402
-from eos_ai.substrate.voice_eos_responder import (  # noqa: E402
+from runtime.substrate.station_bus import get_station_bus  # noqa: E402
+from runtime.substrate.station_daemon import StationDaemon  # noqa: E402
+from runtime.substrate.voice_eos_responder import (  # noqa: E402
     EOS_VOICE_ROLES,
     install_default_eos_voice_responder,
     is_eos_voice_responder_installed,
     uninstall_eos_voice_responder,
 )
-from eos_ai.substrate.voice_session import (  # noqa: E402
+from runtime.substrate.voice_session import (  # noqa: E402
     VoiceSessionRuntime,
     VoiceSessionStatus,
     VoiceTurnSource,
@@ -118,11 +118,11 @@ class _MockRouter:
 def _install_mock_router(mock: _MockRouter) -> None:
     """Patch the lazily-imported call_with_fallback inside the adapter.
 
-    The adapter imports `from eos_ai.model_router import call_with_fallback`
+    The adapter imports `from runtime.model_router import call_with_fallback`
     INSIDE its responder function (to avoid module-load coupling), so the
     canonical patch point is the source module.
     """
-    import eos_ai.model_router as mr
+    import runtime.model_router as mr
 
     mr.call_with_fallback = mock  # type: ignore[assignment]
 
@@ -131,7 +131,7 @@ def _restore_real_router() -> None:
     """Reload model_router to restore the real call_with_fallback."""
     import importlib
 
-    import eos_ai.model_router as mr
+    import runtime.model_router as mr
 
     importlib.reload(mr)
 
@@ -299,11 +299,11 @@ def main() -> int:
     import importlib
 
     for mod in (
-        "eos_ai.gateway",
-        "eos_ai.cognitive_loop",
-        "eos_ai.model_router",
-        "eos_ai.agent_runtime",
-        "eos_ai.primitives",
+        "runtime.gateway",
+        "runtime.cognitive_loop",
+        "runtime.model_router",
+        "runtime.agent_runtime",
+        "runtime.primitives",
     ):
         try:
             importlib.import_module(mod)

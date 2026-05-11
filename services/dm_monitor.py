@@ -18,10 +18,10 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from eos_ai.agent_runtime import AgentRuntime
-from eos_ai.context import load_context_from_env
-from eos_ai.memory import AgentMemory
-from eos_ai.error_handler import ErrorHandler
+from runtime.agent_runtime import AgentRuntime
+from runtime.context import load_context_from_env
+from runtime.memory import AgentMemory
+from runtime.error_handler import ErrorHandler
 
 _ctx = load_context_from_env()
 _runtime = AgentRuntime(_ctx)
@@ -545,7 +545,7 @@ def generate_reply(conversation_text):
 
     _prompt = f"Here is the conversation so far. Suggest the best next reply (1-3 sentences max):\n\n{conversation_text}"
     try:
-        from eos_ai.model_router import call_with_fallback
+        from runtime.model_router import call_with_fallback
         _result = call_with_fallback(
             prompt=_prompt,
             system=system,
@@ -640,7 +640,7 @@ def send_telegram_alert(text):
 
 def send_discord_webhook(env_var: str, content: str) -> None:
     """Post to a Discord channel via incoming webhook URL stored in env."""
-    from eos_ai.discord_utils import post_to_webhook
+    from runtime.discord_utils import post_to_webhook
 
     webhook_url = os.getenv(env_var)
     if not webhook_url:
@@ -1232,7 +1232,7 @@ def check_inbox(page, context):
 
             # Publish lead_replied event — triggers objection_handler async
             try:
-                from eos_ai.event_bus import EventBus
+                from runtime.event_bus import EventBus
 
                 interaction_row = _mem.get_interaction_for_lead(
                     username, venture_id="lyfe_institute"

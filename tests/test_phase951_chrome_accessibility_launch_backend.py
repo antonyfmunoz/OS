@@ -7,7 +7,7 @@ import os
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.chrome_accessibility_launch_backend import (
+from runtime.substrate.chrome_accessibility_launch_backend import (
     BACKEND_CLASS,
     build_chrome_accessibility_launch_command,
     build_task_scheduler_accessibility_launch,

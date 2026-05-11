@@ -15,7 +15,7 @@ Usage:
     python3 scripts/codebase_graph.py                # full rebuild
     python3 scripts/codebase_graph.py --json-only    # emit JSON, skip markdown
     python3 scripts/codebase_graph.py --stats        # print stats only
-    python3 scripts/codebase_graph.py --module eos_ai.gateway  # single module
+    python3 scripts/codebase_graph.py --module runtime.gateway  # single module
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ INDEX_MD = WIKI_DIR / "index.md"
 
 # Directories to scan (relative to ROOT)
 SCAN_DIRS = [
-    "eos_ai",
+    "runtime",
     "services",
     "scripts",
     "core",
@@ -81,16 +81,16 @@ SKIP_FILES = {
 
 # Files that are critical entry points
 CRITICAL_FILES = {
-    "eos_ai/cognitive_loop.py",
-    "eos_ai/gateway.py",
-    "eos_ai/agent_runtime.py",
-    "eos_ai/model_router.py",
-    "eos_ai/orchestrator.py",
-    "eos_ai/db.py",
-    "eos_ai/memory.py",
-    "eos_ai/agent_hierarchy.py",
-    "eos_ai/ai_identity.py",
-    "eos_ai/primitives.py",
+    "runtime/cognitive_loop.py",
+    "runtime/gateway.py",
+    "runtime/agent_runtime.py",
+    "runtime/model_router.py",
+    "runtime/orchestrator.py",
+    "runtime/db.py",
+    "runtime/memory.py",
+    "runtime/agent_hierarchy.py",
+    "runtime/ai_identity.py",
+    "runtime/primitives.py",
     "services/discord_bot.py",
     "services/telegram_control.py",
 }
@@ -434,7 +434,7 @@ def scan_codebase(target_module: str | None = None) -> CodebaseGraph:
             if mod in module_to_path:
                 resolved = module_to_path[mod]
             else:
-                # Try parent module (from eos_ai.db import get_conn)
+                # Try parent module (from runtime.db import get_conn)
                 for known_mod, known_path in module_to_path.items():
                     if mod.startswith(known_mod) or known_mod.startswith(mod):
                         resolved = known_path
@@ -642,7 +642,7 @@ def export_json(graph: CodebaseGraph) -> Path:
 
 def _slug(name: str) -> str:
     """Convert a node ID to an Obsidian-safe filename slug."""
-    # eos_ai/gateway.py::GatewayRouter.classify → eos_ai-gateway-GatewayRouter-classify
+    # runtime/gateway.py::GatewayRouter.classify → runtime-gateway-GatewayRouter-classify
     return re.sub(r"[/:.\s]+", "-", name).strip("-")
 
 
@@ -1110,7 +1110,7 @@ def _generate_cloud(graph: CodebaseGraph) -> None:
     10_Wiki/codebase/
       index.md          ← Start here. Module list, critical files, entry points.
       cloud.md          ← This file. AI instructions.
-      modules/          ← One page per top-level directory (eos_ai, services, etc.)
+      modules/          ← One page per top-level directory (runtime, services, etc.)
       files/            ← One page per Python file with full dependency map
       classes/          ← One page per class with methods and inheritance
       functions/        ← One page per public function with call graph
@@ -1130,7 +1130,7 @@ def _generate_cloud(graph: CodebaseGraph) -> None:
        what will be affected.
 
     4. **Start from modules, drill into files.**
-       `modules/eos_ai.md` gives you the full module overview.
+       `modules/runtime.md` gives you the full module overview.
        Follow wikilinks to specific files.
 
     5. **Critical files require extra care.**
@@ -1181,7 +1181,7 @@ def main() -> None:
         "--module",
         type=str,
         default=None,
-        help="Scan a single module (e.g., eos_ai.gateway)",
+        help="Scan a single module (e.g., runtime.gateway)",
     )
     args = parser.parse_args()
 

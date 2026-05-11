@@ -86,7 +86,7 @@ def _reset_env() -> None:
 
 def test_target_policy_defaults() -> None:
     _header("A1. resolve_execution_target defaults")
-    from eos_ai.substrate.target_policy import resolve_execution_target
+    from runtime.substrate.target_policy import resolve_execution_target
 
     _reset_env()
 
@@ -114,7 +114,7 @@ def test_target_policy_defaults() -> None:
 
 def test_target_policy_env_overrides() -> None:
     _header("A2. resolve_execution_target env overrides")
-    from eos_ai.substrate.target_policy import resolve_execution_target
+    from runtime.substrate.target_policy import resolve_execution_target
 
     _reset_env()
 
@@ -148,7 +148,7 @@ def test_target_policy_env_overrides() -> None:
 
 def test_target_policy_invalid_clamps() -> None:
     _header("A3. invalid target values clamp safely")
-    from eos_ai.substrate.target_policy import resolve_execution_target
+    from runtime.substrate.target_policy import resolve_execution_target
 
     _reset_env()
     os.environ["EOS_BUILDER_DEFAULT_TARGET"] = ""
@@ -166,7 +166,7 @@ def test_target_policy_invalid_clamps() -> None:
 
 def test_target_policy_full_dict() -> None:
     _header("A4. resolve_execution_policy returns full dict")
-    from eos_ai.substrate.target_policy import resolve_execution_policy
+    from runtime.substrate.target_policy import resolve_execution_policy
 
     _reset_env()
 
@@ -188,7 +188,7 @@ def test_target_policy_full_dict() -> None:
 
 def test_delegation_off() -> None:
     _header("C1. product delegation OFF → stays vps")
-    from eos_ai.substrate.target_policy import (
+    from runtime.substrate.target_policy import (
         resolve_execution_target,
         should_delegate_product_to_local,
     )
@@ -209,7 +209,7 @@ def test_delegation_off() -> None:
 
 def test_delegation_on_no_match() -> None:
     _header("C2. product delegation ON + no keyword match → stays vps")
-    from eos_ai.substrate.target_policy import resolve_execution_target
+    from runtime.substrate.target_policy import resolve_execution_target
 
     _reset_env()
     os.environ["EOS_PRODUCT_ALLOW_LOCAL_DELEGATION"] = "1"
@@ -224,7 +224,7 @@ def test_delegation_on_no_match() -> None:
 
 def test_delegation_on_keyword_match() -> None:
     _header("C3. product delegation ON + keyword match → local")
-    from eos_ai.substrate.target_policy import (
+    from runtime.substrate.target_policy import (
         resolve_execution_target,
         resolve_execution_policy,
     )
@@ -248,7 +248,7 @@ def test_delegation_on_keyword_match() -> None:
 
 def test_delegation_force_local() -> None:
     _header("C4. product delegation via metadata force_local")
-    from eos_ai.substrate.target_policy import resolve_execution_target
+    from runtime.substrate.target_policy import resolve_execution_target
 
     _reset_env()
     os.environ["EOS_PRODUCT_ALLOW_LOCAL_DELEGATION"] = "1"
@@ -260,7 +260,7 @@ def test_delegation_force_local() -> None:
 
 def test_mode_preserved_during_delegation() -> None:
     _header("C5. mode remains product even when target=local")
-    from eos_ai.substrate.target_policy import resolve_execution_policy
+    from runtime.substrate.target_policy import resolve_execution_policy
 
     _reset_env()
     os.environ["EOS_PRODUCT_ALLOW_LOCAL_DELEGATION"] = "1"
@@ -280,7 +280,7 @@ def test_mode_preserved_during_delegation() -> None:
 
 def test_resolve_mode_session_builder_local() -> None:
     _header("B1. resolve_mode_session builder → target=local")
-    from eos_ai.substrate.discord_mode_routing import resolve_mode_session
+    from runtime.substrate.discord_mode_routing import resolve_mode_session
 
     _reset_env()
 
@@ -301,7 +301,7 @@ def test_resolve_mode_session_builder_local() -> None:
 
 def test_resolve_mode_session_product_vps() -> None:
     _header("B2. resolve_mode_session product → target=vps")
-    from eos_ai.substrate.discord_mode_routing import resolve_mode_session
+    from runtime.substrate.discord_mode_routing import resolve_mode_session
 
     _reset_env()
 
@@ -320,7 +320,7 @@ def test_resolve_mode_session_product_vps() -> None:
 
 def test_resolve_mode_session_delegation_carries() -> None:
     _header("B3. resolve_mode_session carries delegation metadata")
-    from eos_ai.substrate.discord_mode_routing import resolve_mode_session
+    from runtime.substrate.discord_mode_routing import resolve_mode_session
 
     _reset_env()
     os.environ["EOS_PRODUCT_ALLOW_LOCAL_DELEGATION"] = "1"
@@ -344,7 +344,7 @@ def test_resolve_mode_session_delegation_carries() -> None:
 
 def test_resolve_mode_session_unknown_noop() -> None:
     _header("B4. resolve_mode_session unknown → no override")
-    from eos_ai.substrate.discord_mode_routing import resolve_mode_session
+    from runtime.substrate.discord_mode_routing import resolve_mode_session
 
     _reset_env()
 
@@ -357,7 +357,7 @@ def test_resolve_mode_session_unknown_noop() -> None:
 
 def test_resolve_mode_session_env_override() -> None:
     _header("B5. resolve_mode_session respects EOS_DISCORD_BUILDER_TARGET override")
-    from eos_ai.substrate.discord_mode_routing import resolve_mode_session
+    from runtime.substrate.discord_mode_routing import resolve_mode_session
 
     _reset_env()
     # Policy says builder→local, but env override says vps
@@ -380,7 +380,7 @@ def test_resolve_mode_session_env_override() -> None:
 
 def test_mode_context_carries_policy_metadata() -> None:
     _header("D1. mode_context thread-local carries policy metadata")
-    from eos_ai.substrate.discord_mode_routing import (
+    from runtime.substrate.discord_mode_routing import (
         clear_mode_context_for_tests,
         current_mode_context,
         mode_context,
@@ -413,7 +413,7 @@ def test_mode_context_carries_policy_metadata() -> None:
 
 def test_mode_context_delegation_metadata() -> None:
     _header("D2. mode_context carries delegation info for product→local")
-    from eos_ai.substrate.discord_mode_routing import (
+    from runtime.substrate.discord_mode_routing import (
         clear_mode_context_for_tests,
         current_mode_context,
         mode_context,
@@ -449,7 +449,7 @@ def test_no_hot_path_imports_target_policy() -> None:
     _header("E1. target_policy.py has no hot-path imports")
     import ast
 
-    with open(f"{_ROOT}/eos_ai/substrate/target_policy.py") as f:
+    with open(f"{_ROOT}/runtime/substrate/target_policy.py") as f:
         tree = ast.parse(f.read())
 
     imports = set()
@@ -460,11 +460,11 @@ def test_no_hot_path_imports_target_policy() -> None:
         elif isinstance(node, ast.ImportFrom) and node.module:
             imports.add(node.module.split(".")[0])
 
-    hot_path = {"eos_ai"}
+    hot_path = {"runtime"}
     # target_policy should only import os and typing
     violation = imports & hot_path
     check(
-        "no eos_ai imports in target_policy",
+        "no runtime imports in target_policy",
         not violation,
         f"found: {violation}",
     )
@@ -474,7 +474,7 @@ def test_no_hot_path_imports_mode_routing() -> None:
     _header("E2. discord_mode_routing.py top-level has no hot-path imports")
     import ast
 
-    with open(f"{_ROOT}/eos_ai/substrate/discord_mode_routing.py") as f:
+    with open(f"{_ROOT}/runtime/substrate/discord_mode_routing.py") as f:
         tree = ast.parse(f.read())
 
     # Only check top-level imports, not function-level (late-bound is fine)
@@ -509,8 +509,8 @@ def test_one_router_invariant() -> None:
     import ast
 
     for path in (
-        f"{_ROOT}/eos_ai/substrate/target_policy.py",
-        f"{_ROOT}/eos_ai/substrate/discord_mode_routing.py",
+        f"{_ROOT}/runtime/substrate/target_policy.py",
+        f"{_ROOT}/runtime/substrate/discord_mode_routing.py",
     ):
         with open(path) as f:
             tree = ast.parse(f.read())
@@ -531,7 +531,7 @@ def test_one_router_invariant() -> None:
 
 def test_target_resolution_deterministic() -> None:
     _header("E4. target resolution is deterministic (same input → same output)")
-    from eos_ai.substrate.target_policy import resolve_execution_target
+    from runtime.substrate.target_policy import resolve_execution_target
 
     _reset_env()
     results = [resolve_execution_target("builder") for _ in range(10)]
@@ -543,7 +543,7 @@ def test_target_resolution_deterministic() -> None:
 
 def test_builder_product_distinct() -> None:
     _header("E5. builder and product remain distinct from target selection")
-    from eos_ai.substrate.target_policy import resolve_execution_policy
+    from runtime.substrate.target_policy import resolve_execution_policy
 
     _reset_env()
     os.environ["EOS_PRODUCT_ALLOW_LOCAL_DELEGATION"] = "1"
@@ -567,7 +567,7 @@ def test_builder_product_distinct() -> None:
 
 def test_session_names_preserved() -> None:
     _header("E6. session names remain correct after policy integration")
-    from eos_ai.substrate.discord_mode_routing import resolve_mode_session
+    from runtime.substrate.discord_mode_routing import resolve_mode_session
 
     _reset_env()
 
@@ -586,7 +586,7 @@ def test_session_names_preserved() -> None:
 
 def test_per_channel_session_preserved() -> None:
     _header("E7. per-channel session suffix still works")
-    from eos_ai.substrate.discord_mode_routing import resolve_mode_session
+    from runtime.substrate.discord_mode_routing import resolve_mode_session
 
     _reset_env()
     os.environ["EOS_DISCORD_MODE_PER_CHANNEL"] = "1"
@@ -606,7 +606,7 @@ def test_pseudo_live_status_reports_policy() -> None:
     # Set minimum env for transport to load
     os.environ["EOS_DISCORD_TEXT_TRANSPORT_ENABLED"] = "0"
     try:
-        from eos_ai.substrate.discord_text_transport import pseudo_live_status
+        from runtime.substrate.discord_text_transport import pseudo_live_status
 
         status = pseudo_live_status()
         check("hybrid_execution key present", "hybrid_execution" in status)

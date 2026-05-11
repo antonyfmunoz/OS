@@ -1,4 +1,4 @@
-"""Tests for eos_ai.substrate.execution_router — data-driven routing decisions."""
+"""Tests for runtime.substrate.execution_router — data-driven routing decisions."""
 
 from __future__ import annotations
 
@@ -10,14 +10,14 @@ import pytest
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.execution_contract import (
+from runtime.substrate.execution_contract import (
     ExecutionClass,
     RoutingContext,
     RoutingDecision,
     RoutingReasonCode,
 )
-from eos_ai.substrate.execution_router import ExecutionRouter
-from eos_ai.substrate.nodes import (
+from runtime.substrate.execution_router import ExecutionRouter
+from runtime.substrate.nodes import (
     Node,
     NodeRegistry,
     NodeRole,

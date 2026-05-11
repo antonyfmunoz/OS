@@ -1,5 +1,5 @@
 """
-Tests for eos_ai.objective_decision_adapter — Decision Adaptation Layer.
+Tests for runtime.objective_decision_adapter — Decision Adaptation Layer.
 
 Verifies: bounded outputs, stable ordering, monotonic behavior,
 no oscillation, disabled = no effect.

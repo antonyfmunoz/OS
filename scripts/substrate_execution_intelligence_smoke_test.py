@@ -31,7 +31,7 @@ import time
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate import meeting_intelligence as mi  # noqa: E402
+from runtime.substrate import meeting_intelligence as mi  # noqa: E402
 
 
 class _FakeResult:
@@ -40,7 +40,7 @@ class _FakeResult:
 
 
 def _force_model_failure() -> None:
-    import eos_ai.model_router as mr
+    import runtime.model_router as mr
 
     def _boom(*a, **kw):
         raise RuntimeError("forced failure for execution smoke test")
@@ -49,7 +49,7 @@ def _force_model_failure() -> None:
 
 
 def _stub_speak() -> list[dict]:
-    import eos_ai.substrate.station_helpers as sh
+    import runtime.substrate.station_helpers as sh
 
     calls: list[dict] = []
 
@@ -291,11 +291,11 @@ def main() -> int:
     assert len(res2["commitments"]) <= mi.MAX_COMMITMENTS
 
     # ── 14. Hot path imports remain clean ─────────────────────────────
-    import eos_ai.gateway  # noqa: F401
-    import eos_ai.cognitive_loop  # noqa: F401
-    import eos_ai.model_router  # noqa: F401
-    import eos_ai.agent_runtime  # noqa: F401
-    import eos_ai.primitives  # noqa: F401
+    import runtime.gateway  # noqa: F401
+    import runtime.cognitive_loop  # noqa: F401
+    import runtime.model_router  # noqa: F401
+    import runtime.agent_runtime  # noqa: F401
+    import runtime.primitives  # noqa: F401
 
     print("EXECUTION INTELLIGENCE SMOKE TEST PASSED")
     return 0

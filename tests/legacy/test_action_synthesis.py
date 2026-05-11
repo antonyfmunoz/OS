@@ -1,4 +1,4 @@
-"""Tests for eos_ai.action_synthesis — action space shaping layer."""
+"""Tests for runtime.action_synthesis — action space shaping layer."""
 
 from __future__ import annotations
 

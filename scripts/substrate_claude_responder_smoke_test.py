@@ -25,9 +25,9 @@ import uuid
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate import claude_responder as cr  # noqa: E402
-from eos_ai.substrate import claude_session_bridge as csb  # noqa: E402
-from eos_ai.substrate import discord_text_transport as dtt  # noqa: E402
+from runtime.substrate import claude_responder as cr  # noqa: E402
+from runtime.substrate import claude_session_bridge as csb  # noqa: E402
+from runtime.substrate import discord_text_transport as dtt  # noqa: E402
 
 FAILURES: list[str] = []
 
@@ -43,11 +43,11 @@ def check(name: str, cond: bool, detail: str = "") -> None:
 def _hotpath_clean() -> bool:
     src = open(cr.__file__).read()
     forbidden = (
-        "eos_ai.gateway",
-        "eos_ai.cognitive_loop",
-        "eos_ai.model_router",
-        "eos_ai.agent_runtime",
-        "eos_ai.primitives",
+        "runtime.gateway",
+        "runtime.cognitive_loop",
+        "runtime.model_router",
+        "runtime.agent_runtime",
+        "runtime.primitives",
     )
     return not any(f in src for f in forbidden)
 
@@ -132,7 +132,7 @@ def main() -> int:
                 json.dumps({k: v for k, v in live.items() if k != "ask"}),
             )
         finally:
-            from eos_ai.substrate.claude_session_bridge import _run_tmux
+            from runtime.substrate.claude_session_bridge import _run_tmux
             _run_tmux(["kill-session", "-t", scratch])
 
     # 6. Discord wiring — responder flag OFF → legacy substrate path (or
@@ -192,7 +192,7 @@ def main() -> int:
         )
     finally:
         if csb.detect_tmux_available().get("available"):
-            from eos_ai.substrate.claude_session_bridge import _run_tmux
+            from runtime.substrate.claude_session_bridge import _run_tmux
             _run_tmux(["kill-session", "-t", scratch2])
         for key in (
             "EOS_DISCORD_TEXT_TRANSPORT_ENABLED",

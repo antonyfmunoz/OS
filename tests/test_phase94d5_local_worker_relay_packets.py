@@ -9,15 +9,15 @@ import json
 
 import pytest
 
-from eos_ai.substrate.computer_use_backend_contracts import ComputerUseBackend
-from eos_ai.substrate.local_worker_relay_packets import (
+from runtime.substrate.computer_use_backend_contracts import ComputerUseBackend
+from runtime.substrate.local_worker_relay_packets import (
     WO_001_ACCOUNT,
     WO_001_ID,
     WorkerRelayPacket,
     build_wo_001_relay_packet,
     validate_relay_packet,
 )
-from eos_ai.substrate.worker_node_contracts import WorkerMode
+from runtime.substrate.worker_node_contracts import WorkerMode
 
 
 class TestWO001Packet:

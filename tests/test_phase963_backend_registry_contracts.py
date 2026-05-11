@@ -1,4 +1,4 @@
-"""Tests for eos_ai/substrate/backend_registry_contracts.py (Phase 96.3)."""
+"""Tests for runtime/substrate/backend_registry_contracts.py (Phase 96.3)."""
 
 import sys
 import os
@@ -7,7 +7,7 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 import unittest
 
-from eos_ai.substrate.backend_registry_contracts import (
+from runtime.substrate.backend_registry_contracts import (
     BackendCategory,
     BackendImplementationType,
     BackendProfile,

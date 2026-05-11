@@ -77,14 +77,14 @@ from core.state.transformation_state_ledger import (
     TransformationStateLedger,
     compute_hash,
 )
-from eos_ai.interfaces.discord_interface_adapter_v1 import (
+from runtime.interfaces.discord_interface_adapter_v1 import (
     COMMAND_ACTION_MAP,
     COMMAND_CONTRACT,
     SPINE_ROUTED_COMMANDS,
     SUPPORTED_COMMANDS,
     build_work_packet_for_router,
 )
-from eos_ai.interfaces.discord_spine_integration_v1 import (
+from runtime.interfaces.discord_spine_integration_v1 import (
     SpineExecutionConfig,
     build_spine_infrastructure,
     execute_spine_command,

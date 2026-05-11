@@ -1,13 +1,13 @@
-"""Tests for eos_ai.platforms.eos.ea_orchestrator."""
+"""Tests for runtime.platforms.eos.ea_orchestrator."""
 
 import sys
 
 sys.path.insert(0, "/opt/OS")
 
 import pytest
-from eos_ai.platforms.eos.ea_orchestrator import EAResponse, handle_founder_message
-from eos_ai.platforms.eos.decision_log import DecisionLog
-from eos_ai.platforms.eos.roles import EOSRole
+from runtime.platforms.eos.ea_orchestrator import EAResponse, handle_founder_message
+from runtime.platforms.eos.decision_log import DecisionLog
+from runtime.platforms.eos.roles import EOSRole
 
 
 @pytest.fixture(autouse=True)

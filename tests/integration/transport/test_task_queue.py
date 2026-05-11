@@ -1,4 +1,4 @@
-"""Smoke tests for eos_ai.substrate.task_queue.
+"""Smoke tests for runtime.substrate.task_queue.
 
 Validates:
   1.  test_priority_urgent_keywords    — urgency keywords → CRITICAL
@@ -27,9 +27,9 @@ import time
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.operator_session import OperatorSessionStore  # noqa: E402
-from eos_ai.substrate.rituals import RitualRegistry  # noqa: E402
-from eos_ai.substrate.task_queue import (  # noqa: E402
+from runtime.substrate.operator_session import OperatorSessionStore  # noqa: E402
+from runtime.substrate.rituals import RitualRegistry  # noqa: E402
+from runtime.substrate.task_queue import (  # noqa: E402
     QUEUE_APPROVAL_WAITING,
     QUEUE_AUTONOMOUS_DAY,
     QUEUE_AUTONOMOUS_OVERNIGHT,
@@ -44,7 +44,7 @@ from eos_ai.substrate.task_queue import (  # noqa: E402
     prepare_overnight_queue,
     prioritize_and_queue,
 )
-from eos_ai.substrate.task_system import (  # noqa: E402
+from runtime.substrate.task_system import (  # noqa: E402
     Task,
     TaskExecutionPolicy,
     TaskStatus,
@@ -70,7 +70,7 @@ def _report(name: str, passed: bool, detail: str = "") -> None:
 
 def _reset_all() -> None:
     try:
-        from eos_ai.substrate.storage import get_storage
+        from runtime.substrate.storage import get_storage
 
         get_storage().put("task_system", None)
         get_storage().put("operator_session", None)

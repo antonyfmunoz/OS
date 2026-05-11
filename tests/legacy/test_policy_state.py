@@ -1,4 +1,4 @@
-"""Tests for eos_ai.policy_state — behavioral memory / decision discipline layer."""
+"""Tests for runtime.policy_state — behavioral memory / decision discipline layer."""
 
 import sys
 

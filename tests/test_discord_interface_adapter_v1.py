@@ -15,7 +15,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from eos_ai.interfaces.discord_interface_adapter_v1 import (
+from runtime.interfaces.discord_interface_adapter_v1 import (
     COMMAND_ACTION_MAP,
     SUPPORTED_COMMANDS,
     DiscordInterfaceAdapter,

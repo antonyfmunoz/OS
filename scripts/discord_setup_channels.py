@@ -9,7 +9,7 @@ Idempotent operator automation:
         - eos-builder
         - eos-product
      Reuse existing channels with the same name (no duplicates).
-  4. Print their IDs so the caller can wire them into eos_ai/.env.
+  4. Print their IDs so the caller can wire them into runtime/.env.
 
 Does NOT edit env, ensure Claude sessions, or restart containers — those
 are separate steps in the setup pipeline so they remain composable.
@@ -71,7 +71,7 @@ def _log(msg: str) -> None:
 
 def _load_token() -> str:
     # Pull env from both common locations
-    for envfile in (f"{_ROOT}/services/.env", f"{_ROOT}/eos_ai/.env"):
+    for envfile in (f"{_ROOT}/services/.env", f"{_ROOT}/runtime/.env"):
         if Path(envfile).exists():
             load_dotenv(envfile, override=False)
     token = (

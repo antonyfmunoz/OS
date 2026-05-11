@@ -9,7 +9,7 @@ import tempfile
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-from eos_ai.substrate.local_env_secret_backend import (
+from runtime.substrate.local_env_secret_backend import (
     DEFAULT_SECRET_PATH,
     build_secret_ref_from_key,
     get_secret_value_for_local_action,
@@ -19,7 +19,7 @@ from eos_ai.substrate.local_env_secret_backend import (
     reject_repo_env_files,
     validate_env_path_is_outside_repo,
 )
-from eos_ai.substrate.secret_broker_contracts import (
+from runtime.substrate.secret_broker_contracts import (
     SecretBackendType,
     SecretScope,
     SecretUseStatus,
@@ -33,7 +33,7 @@ class TestValidateEnvPath:
         assert "inside repository" in errors[0].lower()
 
     def test_repo_subdir_rejected(self) -> None:
-        errors = validate_env_path_is_outside_repo(f"{_ROOT}/eos_ai/.env")
+        errors = validate_env_path_is_outside_repo(f"{_ROOT}/runtime/.env")
         assert len(errors) > 0
 
     def test_home_umh_path_allowed(self) -> None:

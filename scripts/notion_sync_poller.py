@@ -13,14 +13,14 @@ from zoneinfo import ZoneInfo
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 from dotenv import load_dotenv
-load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 
 PDT = ZoneInfo('America/Los_Angeles')
 
 
 def run():
-    from eos_ai.context import load_context_from_env
-    from eos_ai.notion_sync import push_all_ventures
+    from runtime.context import load_context_from_env
+    from runtime.notion_sync import push_all_ventures
     from scripts.notion_tasks_sync import sync_neon_to_notion
 
     ctx = load_context_from_env()

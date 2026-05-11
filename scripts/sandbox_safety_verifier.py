@@ -107,14 +107,14 @@ def check_absolute_path_outside_repo_is_rejected() -> None:
 def check_sandbox_edit_does_not_touch_production() -> None:
     """Edit a file through ActionSystem in a sandbox, confirm prod is
     byte-for-byte identical afterward."""
-    prod_path = _REPO_ROOT / "eos_ai" / "memory.py"
+    prod_path = _REPO_ROOT / "runtime" / "memory.py"
     before = prod_path.read_bytes()
     env = make_sandbox(name="verify-edit-isolation", ephemeral=True)
     try:
         a = ActionSystem(env=env)
         action = a.propose(
             action_type=ActionType.EDIT_FILE,
-            target="eos_ai/memory.py",
+            target="runtime/memory.py",
             payload={"content": "# sandbox stub\n"},
             reason="safety verifier",
         )
@@ -126,7 +126,7 @@ def check_sandbox_edit_does_not_touch_production() -> None:
         after = prod_path.read_bytes()
         _assert(before == after, "production file bytes changed after sandbox edit")
         # Confirm the sandbox workspace has the stub
-        sbx_copy = env.workspace / "eos_ai" / "memory.py"
+        sbx_copy = env.workspace / "runtime" / "memory.py"
         _assert(sbx_copy.exists(), "sandbox copy missing")
         _assert(
             sbx_copy.read_bytes() == b"# sandbox stub\n",
@@ -143,7 +143,7 @@ def check_sandbox_write_blocked_if_target_outside_workspace() -> None:
     try:
         # Force-resolve the target to the production path and bypass
         # _resolve_target by constructing the action manually.
-        prod_target = _REPO_ROOT / "eos_ai" / "memory.py"
+        prod_target = _REPO_ROOT / "runtime" / "memory.py"
         # guard_write should raise because this path is outside the
         # sandbox workspace.
         try:
@@ -216,12 +216,12 @@ def check_cleanup_refuses_random_directories() -> None:
     env = Environment(
         mode=__import__("core.environment", fromlist=["EnvMode"]).EnvMode.SANDBOX,
         name="evil",
-        root=_REPO_ROOT / "eos_ai",  # production path!
-        workspace=_REPO_ROOT / "eos_ai",
-        data_dir=_REPO_ROOT / "eos_ai",
-        log_dir=_REPO_ROOT / "eos_ai",
-        state_dir=_REPO_ROOT / "eos_ai",
-        snapshot_dir=_REPO_ROOT / "eos_ai",
+        root=_REPO_ROOT / "runtime",  # production path!
+        workspace=_REPO_ROOT / "runtime",
+        data_dir=_REPO_ROOT / "runtime",
+        log_dir=_REPO_ROOT / "runtime",
+        state_dir=_REPO_ROOT / "runtime",
+        snapshot_dir=_REPO_ROOT / "runtime",
     )
     try:
         env.cleanup()
@@ -237,7 +237,7 @@ def check_graph_refresh_disabled_in_sandbox() -> None:
     env = make_sandbox(name="verify-no-graph-refresh", ephemeral=True)
     try:
         a = ActionSystem(env=env)
-        res = a._refresh_graph(["eos_ai/memory.py"])
+        res = a._refresh_graph(["runtime/memory.py"])
         _assert(
             res.get("mode") == "skipped",
             f"graph refresh ran in sandbox: {res}",

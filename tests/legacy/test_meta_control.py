@@ -1,4 +1,4 @@
-"""Tests for eos_ai.meta_control — governance layer for intelligence subsystem activation."""
+"""Tests for runtime.meta_control — governance layer for intelligence subsystem activation."""
 
 import sys
 

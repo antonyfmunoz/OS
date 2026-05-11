@@ -7,7 +7,7 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 import pytest
 
-from eos_ai.substrate.capability_routing_contracts import (
+from runtime.substrate.capability_routing_contracts import (
     Capability,
     RoutingDecision,
     RoutingOutcome,
@@ -15,7 +15,7 @@ from eos_ai.substrate.capability_routing_contracts import (
     choose_best_node,
     score_node_for_requirement,
 )
-from eos_ai.substrate.topology_contracts import (
+from runtime.substrate.topology_contracts import (
     NodeProfile,
     NodeRole,
     NodeType,
@@ -23,13 +23,13 @@ from eos_ai.substrate.topology_contracts import (
     build_founder_current_topology,
     build_single_local_topology,
 )
-from eos_ai.substrate.work_order_contracts import (
+from runtime.substrate.work_order_contracts import (
     AuthorityMode,
     SensitivityLevel,
     WorkOrder,
     WorkOrderTaskType,
 )
-from eos_ai.substrate.worker_node_contracts import (
+from runtime.substrate.worker_node_contracts import (
     WorkerAction,
     WorkerMode,
     WorkerProfile,
@@ -38,7 +38,7 @@ from eos_ai.substrate.worker_node_contracts import (
     WorkerState,
     WORKER_STATE_TRANSITIONS,
 )
-from eos_ai.substrate.worker_node_runtime import (
+from runtime.substrate.worker_node_runtime import (
     apply_advisor_response,
     build_approval_request_for_action,
     create_worker_execution_plan,
@@ -47,8 +47,8 @@ from eos_ai.substrate.worker_node_runtime import (
     should_request_advisor_approval,
     validate_worker_can_claim,
 )
-from eos_ai.substrate.governance_gate_contracts import GovernancePolicy
-from eos_ai.substrate.message_bus_contracts import MessageEnvelope, MessageType
+from runtime.substrate.governance_gate_contracts import GovernancePolicy
+from runtime.substrate.message_bus_contracts import MessageEnvelope, MessageType
 
 
 class TestCapabilityRouting:

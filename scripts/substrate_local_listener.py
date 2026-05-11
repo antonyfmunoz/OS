@@ -33,7 +33,7 @@ import sys
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.local_listener import (  # noqa: E402
+from runtime.substrate.local_listener import (  # noqa: E402
     LocalListener,
     TriggerKind,
     get_trigger_history,
@@ -82,7 +82,7 @@ def main() -> int:
 
     listener = LocalListener()
     kind = TriggerKind(args.trigger)
-    from eos_ai.substrate.local_listener import LocalTrigger
+    from runtime.substrate.local_listener import LocalTrigger
 
     trigger = listener.emit(
         LocalTrigger(node_id=args.node, kind=kind, requested_mode=args.mode)

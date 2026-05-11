@@ -3,7 +3,7 @@ WorkflowEngine — goal-driven, graph-aware, agent-executed workflows.
 
 Built on top of the existing EOS cognition + execution stack. This engine does
 NOT replace:
-  - eos_ai/workflow_engine.py (skill-sequence + AgentWorkflow/Run model)
+  - runtime/workflow_engine.py (skill-sequence + AgentWorkflow/Run model)
   - core/execution_contract.py (single-message execution pipeline)
   - scripts/action_system.py  (propose → assess → execute → log for actions)
 
@@ -436,7 +436,7 @@ class StepExecutor:
 
     # ── Lazy imports so `--help` and dry-run don't require full env ──────
     def _router_call(self) -> Callable[..., Any]:
-        from eos_ai.model_router import call_with_fallback
+        from runtime.model_router import call_with_fallback
 
         return call_with_fallback
 
@@ -913,8 +913,8 @@ class WorkflowEngine:
         if not self.env.is_production:
             return
         try:
-            from eos_ai.agent_runtime import AgentResult
-            from eos_ai.memory import AgentMemory
+            from runtime.agent_runtime import AgentResult
+            from runtime.memory import AgentMemory
 
             summary_bits = []
             for s in wf.steps:

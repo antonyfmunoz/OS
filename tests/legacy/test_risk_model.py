@@ -1,4 +1,4 @@
-"""Tests for eos_ai.risk_model — counterfactual risk + irreversibility layer."""
+"""Tests for runtime.risk_model — counterfactual risk + irreversibility layer."""
 
 from __future__ import annotations
 

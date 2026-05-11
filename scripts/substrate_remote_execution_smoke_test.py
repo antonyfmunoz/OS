@@ -27,10 +27,10 @@ import uuid
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate import control_bridge as bridge  # noqa: E402
-from eos_ai.substrate import control_commands as cc  # noqa: E402
-from eos_ai.substrate.remote_executor import RemoteExecutor  # noqa: E402
-from eos_ai.substrate import remote_identity  # noqa: E402
+from runtime.substrate import control_bridge as bridge  # noqa: E402
+from runtime.substrate import control_commands as cc  # noqa: E402
+from runtime.substrate.remote_executor import RemoteExecutor  # noqa: E402
+from runtime.substrate import remote_identity  # noqa: E402
 
 
 RESULTS: list[tuple[str, bool, str]] = []
@@ -179,11 +179,11 @@ def test_hot_path_imports() -> None:
         import importlib
 
         for mod in (
-            "eos_ai.gateway",
-            "eos_ai.cognitive_loop",
-            "eos_ai.model_router",
-            "eos_ai.agent_runtime",
-            "eos_ai.primitives",
+            "runtime.gateway",
+            "runtime.cognitive_loop",
+            "runtime.model_router",
+            "runtime.agent_runtime",
+            "runtime.primitives",
         ):
             importlib.import_module(mod)
         check("hot-path imports clean", True)

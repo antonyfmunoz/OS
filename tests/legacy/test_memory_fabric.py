@@ -1,4 +1,4 @@
-"""Tests for eos_ai.memory_fabric — unified append-only memory."""
+"""Tests for runtime.memory_fabric — unified append-only memory."""
 
 import sys
 

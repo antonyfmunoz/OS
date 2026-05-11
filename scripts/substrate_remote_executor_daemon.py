@@ -19,8 +19,8 @@ import sys
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.remote_executor import RemoteExecutor  # noqa: E402
-from eos_ai.substrate import remote_identity  # noqa: E402
+from runtime.substrate.remote_executor import RemoteExecutor  # noqa: E402
+from runtime.substrate import remote_identity  # noqa: E402
 
 
 def _emit(payload: dict) -> int:

@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'services', '.env'))
-load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 
 PDT = ZoneInfo('America/Los_Angeles')
 STATE_FILE = '/tmp/post_meeting_state.json'
@@ -37,7 +37,7 @@ def save_state(state: dict) -> None:
 
 
 async def check_and_prompt() -> None:
-    from eos_ai.gws_connector import GWSConnector
+    from runtime.gws_connector import GWSConnector
 
     state = load_state()
     gws = GWSConnector()

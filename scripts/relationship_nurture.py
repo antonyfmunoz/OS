@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'services', '.env'))
 
 PDT = ZoneInfo('America/Los_Angeles')
@@ -20,7 +20,7 @@ GENERAL_CHANNEL_ID = 1486289444830056540
 
 
 async def check_relationships():
-    from eos_ai.context import load_context_from_env
+    from runtime.context import load_context_from_env
     ctx = load_context_from_env()
 
     import requests as _req
@@ -83,7 +83,7 @@ async def check_relationships():
 
     # Score and sort by relationship health (lowest first)
     try:
-        from eos_ai.person_recognition import score_relationship_health
+        from runtime.person_recognition import score_relationship_health
         for c in cold_contacts:
             h = score_relationship_health(name=c['person'], ctx=ctx)
             c['health_score'] = h.get('score', 0.5)

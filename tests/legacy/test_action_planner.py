@@ -1,4 +1,4 @@
-"""Tests for eos_ai.action_planner — multi-trajectory action selection layer."""
+"""Tests for runtime.action_planner — multi-trajectory action selection layer."""
 
 from __future__ import annotations
 

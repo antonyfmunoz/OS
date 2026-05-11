@@ -1,5 +1,5 @@
 """
-Tests for eos_ai.objective_optimizer — Objective Optimizer Layer.
+Tests for runtime.objective_optimizer — Objective Optimizer Layer.
 
 Verifies: bounded outputs, stability over 1000 turns, no oscillation,
 correct trend detection, disabled = no effect.

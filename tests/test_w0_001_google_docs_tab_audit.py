@@ -7,7 +7,7 @@ import os
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.google_docs_tab_audit import (
+from runtime.substrate.google_docs_tab_audit import (
     DocTabAuditResult,
     TabCoverageStatus,
     TabInfo,

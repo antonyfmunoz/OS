@@ -1,4 +1,4 @@
-"""Tests for eos_ai.execution_credit — credit assignment and policy learning.
+"""Tests for runtime.execution_credit — credit assignment and policy learning.
 
 Validates: credit assignment, attribution scaling, confidence weighting,
 effective credit bounds, unknown outcome safety, learning signal generation,

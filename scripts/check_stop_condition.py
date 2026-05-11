@@ -26,7 +26,7 @@ def should_continue() -> bool:
     """
     try:
         from dotenv import load_dotenv
-        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 
         import psycopg2
         db_url = os.getenv('DATABASE_URL', '')

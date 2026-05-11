@@ -1,4 +1,4 @@
-"""Smoke tests for eos_ai.substrate.station_presence.
+"""Smoke tests for runtime.substrate.station_presence.
 
 Validates:
   1.  test_default_state           — fresh presence has expected defaults
@@ -20,7 +20,7 @@ import sys
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.station_presence import (  # noqa: E402
+from runtime.substrate.station_presence import (  # noqa: E402
     StationPresence,
     StationPresenceMode,
     StationPresenceStore,
@@ -50,7 +50,7 @@ def _report(name: str, passed: bool, detail: str = "") -> None:
 def _reset_all() -> None:
     """Reset singleton and underlying storage so each test starts clean."""
     try:
-        from eos_ai.substrate.storage import get_storage
+        from runtime.substrate.storage import get_storage
 
         get_storage().put("station_presence", None)
     except Exception:  # noqa: BLE001

@@ -1,4 +1,4 @@
-"""Smoke tests for eos_ai.substrate.session_watcher.
+"""Smoke tests for runtime.substrate.session_watcher.
 
 Validates two critical bug fixes:
   1. Conversational replies ending with '?' are NOT classified as waiting_question
@@ -16,7 +16,7 @@ import time
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.session_watcher import (  # noqa: E402
+from runtime.substrate.session_watcher import (  # noqa: E402
     SessionState,
     SessionWatcher,
     WatcherEvent,

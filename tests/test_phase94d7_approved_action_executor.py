@@ -7,7 +7,7 @@ import os
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.approved_action_executor import (
+from runtime.substrate.approved_action_executor import (
     BLOCKED_ACTIONS,
     SUPPORTED_ACTIONS,
     WO_001_ACCOUNT,

@@ -1,4 +1,4 @@
-"""Tests for eos_ai.system_graph — multi-step execution graph."""
+"""Tests for runtime.system_graph — multi-step execution graph."""
 
 import sys
 

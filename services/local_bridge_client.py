@@ -30,7 +30,7 @@ if str(_REPO_ROOT) not in sys.path:
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / ".env")
-load_dotenv(_REPO_ROOT / "eos_ai" / ".env")
+load_dotenv(_REPO_ROOT / "runtime" / ".env")
 
 logger = logging.getLogger(__name__)
 

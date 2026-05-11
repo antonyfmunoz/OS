@@ -1,4 +1,4 @@
-"""Tests for eos_ai.fabric_analytics — read-only intelligence over MemoryFabric."""
+"""Tests for runtime.fabric_analytics — read-only intelligence over MemoryFabric."""
 
 import sys
 import time

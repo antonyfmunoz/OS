@@ -1,4 +1,4 @@
-"""Smoke tests for eos_ai.substrate.capability_routing.
+"""Smoke tests for runtime.substrate.capability_routing.
 
 Validates:
   1.  test_builder_context_keywords    — builder keywords → BUILDER_CONTEXT
@@ -23,18 +23,18 @@ import sys
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.capability_routing import (  # noqa: E402
+from runtime.substrate.capability_routing import (  # noqa: E402
     ExecutionTarget,
     TaskCapability,
     choose_execution_target,
     infer_task_capabilities,
     route_task,
 )
-from eos_ai.substrate.operator_session import (  # noqa: E402
+from runtime.substrate.operator_session import (  # noqa: E402
     OperatorSession,
     OperatorSessionStore,
 )
-from eos_ai.substrate.task_system import (  # noqa: E402
+from runtime.substrate.task_system import (  # noqa: E402
     Task,
     TaskExecutionPolicy,
     TaskStatus,
@@ -58,7 +58,7 @@ def _report(name: str, passed: bool, detail: str = "") -> None:
 
 def _reset_all() -> None:
     try:
-        from eos_ai.substrate.storage import get_storage
+        from runtime.substrate.storage import get_storage
 
         get_storage().put("task_system", None)
         get_storage().put("operator_session", None)

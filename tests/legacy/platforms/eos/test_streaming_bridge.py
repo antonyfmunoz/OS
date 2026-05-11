@@ -9,7 +9,7 @@ sys.path.insert(0, "/opt/OS")
 
 import pytest
 
-from eos_ai.platforms.eos.streaming_bridge import (
+from runtime.platforms.eos.streaming_bridge import (
     StreamEvent,
     StreamEventType,
     StreamingBridge,

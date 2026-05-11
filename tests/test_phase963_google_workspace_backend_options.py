@@ -1,4 +1,4 @@
-"""Tests for eos_ai/substrate/google_workspace_backend_options.py (Phase 96.3)."""
+"""Tests for runtime/substrate/google_workspace_backend_options.py (Phase 96.3)."""
 
 import sys
 import os
@@ -7,8 +7,8 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 import unittest
 
-from eos_ai.substrate.backend_registry_contracts import BackendStatus
-from eos_ai.substrate.google_workspace_backend_options import (
+from runtime.substrate.backend_registry_contracts import BackendStatus
+from runtime.substrate.google_workspace_backend_options import (
     build_google_workspace_backend_options,
     get_candidate_backends,
     get_complete_backends,

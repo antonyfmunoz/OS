@@ -37,26 +37,26 @@ import sys
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.audio_loop import (  # noqa: E402
+from runtime.substrate.audio_loop import (  # noqa: E402
     reset_audio_loop_store_for_tests,
 )
-from eos_ai.substrate.discord_voice_playback import (  # noqa: E402
+from runtime.substrate.discord_voice_playback import (  # noqa: E402
     DiscordVoicePlayback,
     get_playback_history,
     playback_env_enabled,
     probe_playback_capability,
     reset_playback_history_for_tests,
 )
-from eos_ai.substrate.discord_voice_transport import (  # noqa: E402
+from runtime.substrate.discord_voice_transport import (  # noqa: E402
     DiscordVoiceTransport,
     get_transport_history,
     maybe_attach_discord_voice_client,
     reset_default_discord_voice_transports_for_tests,
     reset_transport_history_for_tests,
 )
-from eos_ai.substrate.station_bus import get_station_bus  # noqa: E402
-from eos_ai.substrate.station_daemon import StationDaemon  # noqa: E402
-from eos_ai.substrate.voice_session import (  # noqa: E402
+from runtime.substrate.station_bus import get_station_bus  # noqa: E402
+from runtime.substrate.station_daemon import StationDaemon  # noqa: E402
+from runtime.substrate.voice_session import (  # noqa: E402
     get_voice_session_store,
     reset_voice_session_store_for_tests,
 )
@@ -265,11 +265,11 @@ def main() -> int:
     import importlib
 
     for mod in (
-        "eos_ai.gateway",
-        "eos_ai.cognitive_loop",
-        "eos_ai.model_router",
-        "eos_ai.agent_runtime",
-        "eos_ai.primitives",
+        "runtime.gateway",
+        "runtime.cognitive_loop",
+        "runtime.model_router",
+        "runtime.agent_runtime",
+        "runtime.primitives",
     ):
         try:
             importlib.import_module(mod)

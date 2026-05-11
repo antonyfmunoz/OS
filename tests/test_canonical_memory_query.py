@@ -34,7 +34,7 @@ from core.memory.canonical_memory_query_contracts import (
 )
 from core.runtime.adapter_registry_contracts import AdapterRegistry
 from core.state.transformation_state_ledger import compute_hash
-from eos_ai.interfaces.discord_interface_adapter_v1 import (
+from runtime.interfaces.discord_interface_adapter_v1 import (
     COMMAND_ACTION_MAP,
     SUPPORTED_COMMANDS,
     build_work_packet_for_router,

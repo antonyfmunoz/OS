@@ -1,11 +1,11 @@
-"""Tests for eos_ai.platforms.eos.roles."""
+"""Tests for runtime.platforms.eos.roles."""
 
 import sys
 
 sys.path.insert(0, "/opt/OS")
 
 import pytest
-from eos_ai.platforms.eos.roles import (
+from runtime.platforms.eos.roles import (
     EOSRole,
     get_all_roles,
     get_role_meta,

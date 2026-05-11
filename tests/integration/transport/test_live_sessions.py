@@ -1,4 +1,4 @@
-"""Smoke tests for eos_ai.substrate.live_sessions.
+"""Smoke tests for runtime.substrate.live_sessions.
 
 Validates:
   1.  test_live_session_create        — LiveSession.new() creates with correct defaults
@@ -25,7 +25,7 @@ import sys
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.live_sessions import (  # noqa: E402
+from runtime.substrate.live_sessions import (  # noqa: E402
     LiveSession,
     LiveSessionState,
     LiveSessionStore,
@@ -61,7 +61,7 @@ def _report(name: str, passed: bool, detail: str = "") -> None:
 def _reset_all() -> None:
     """Reset all singletons and clear storage keys between tests."""
     try:
-        from eos_ai.substrate.storage import get_storage
+        from runtime.substrate.storage import get_storage
 
         get_storage().put("live_sessions", None)
     except Exception:  # noqa: BLE001

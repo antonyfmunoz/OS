@@ -1,4 +1,4 @@
-"""Tests for the unified commit pipeline (eos_ai.commit_pipeline).
+"""Tests for the unified commit pipeline (runtime.commit_pipeline).
 
 Proves:
     1. commit_winner calls all 5 persistence stages in order

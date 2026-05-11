@@ -17,7 +17,7 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 import logging
 
-from eos_ai.db import get_conn, ORG_ID
+from runtime.db import get_conn, ORG_ID
 
 logger = logging.getLogger(__name__)
 

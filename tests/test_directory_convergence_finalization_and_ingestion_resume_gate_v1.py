@@ -334,7 +334,7 @@ class TestDuplicateDetectionEngine:
 
     def test_detect_multiple_instances(self):
         e = DuplicateSubsystemDetectionEngine()
-        e.detect_duplicate("runtime", ["core/runtime", "eos_ai/runtime"])
+        e.detect_duplicate("runtime", ["core/runtime", "runtime/runtime"])
         dups = e.get_duplicates()
         assert len(dups) == 1
 

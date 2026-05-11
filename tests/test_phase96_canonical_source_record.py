@@ -5,7 +5,7 @@ import os
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.canonical_source_record import (
+from runtime.substrate.canonical_source_record import (
     DocumentSourceRecord,
     ProvenanceRecord,
     TabSourceRecord,
@@ -13,7 +13,7 @@ from eos_ai.substrate.canonical_source_record import (
     build_cli_source_record,
     build_cu_source_record,
 )
-from eos_ai.substrate.extraction_backend_contracts import (
+from runtime.substrate.extraction_backend_contracts import (
     ExtractionBackendType,
     ExtractionCoverageStatus,
 )

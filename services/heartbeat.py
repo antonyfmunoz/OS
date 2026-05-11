@@ -23,7 +23,7 @@ sys.path.insert(0, _ROOT)
 
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(_ROOT, "eos_ai", ".env"))
+load_dotenv(os.path.join(_ROOT, "runtime", ".env"))
 
 logging.basicConfig(
     level=logging.INFO,
@@ -35,7 +35,7 @@ PDT = ZoneInfo("America/Los_Angeles")
 
 def system_health_heartbeat() -> None:
     """EOS monitors its own operational state every 30 minutes."""
-    from eos_ai.system_health import get_system_health
+    from runtime.system_health import get_system_health
 
     sh = get_system_health()
 

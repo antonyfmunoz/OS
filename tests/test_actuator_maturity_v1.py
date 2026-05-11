@@ -618,7 +618,7 @@ class TestRegressionIntegrity:
             f"{_ROOT}/core/runtime/node_sync_gate_v1.py",
             f"{_ROOT}/core/control_plane_router/router_contracts.py",
             f"{_ROOT}/core/control_plane_router/control_plane_router_v1.py",
-            f"{_ROOT}/eos_ai/interfaces/discord_spine_integration_v1.py",
+            f"{_ROOT}/runtime/interfaces/discord_spine_integration_v1.py",
             f"{_ROOT}/services/handlers/substrate_command_handler.py",
             f"{_ROOT}/services/discord_bot.py",
         ]

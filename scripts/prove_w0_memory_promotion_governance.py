@@ -41,7 +41,7 @@ from core.control_plane_router.router_contracts import (
 )
 from core.runtime.adapter_registry_contracts import AdapterRegistry
 from core.runtime.worker_runtime_contracts import ProofStatus, RuntimeProofRecord
-from eos_ai.interfaces.discord_interface_adapter_v1 import (
+from runtime.interfaces.discord_interface_adapter_v1 import (
 
     build_work_packet_for_router,
     format_router_result,

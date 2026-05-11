@@ -1,11 +1,11 @@
-"""Tests for eos_ai.platforms.eos.live_runtime."""
+"""Tests for runtime.platforms.eos.live_runtime."""
 
 import sys
 
 sys.path.insert(0, "/opt/OS")
 
 import pytest
-from eos_ai.platforms.eos.live_runtime import (
+from runtime.platforms.eos.live_runtime import (
     EALiveRuntime,
     LiveRuntimeResult,
     RuntimeState,
@@ -13,9 +13,9 @@ from eos_ai.platforms.eos.live_runtime import (
     get_live_runtime,
     handle_live_user_utterance,
 )
-from eos_ai.substrate.live_sessions import LiveSessionStore
-from eos_ai.substrate.task_system import TaskStore
-from eos_ai.substrate.task_pipeline import PipelineStore
+from runtime.substrate.live_sessions import LiveSessionStore
+from runtime.substrate.task_system import TaskStore
+from runtime.substrate.task_pipeline import PipelineStore
 
 
 def _reset_all_singletons() -> None:

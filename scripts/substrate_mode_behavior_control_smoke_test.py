@@ -50,7 +50,7 @@ def section(title: str) -> None:
 
 section("1. Product mode — internal leakage detection")
 
-from eos_ai.substrate.mode_behavior import shape_reply, detect_internal_leakage
+from runtime.substrate.mode_behavior import shape_reply, detect_internal_leakage
 
 # Text with internal references
 internal_text = (
@@ -116,7 +116,7 @@ _result(
 
 section("3. /clear — session clear via bridge")
 
-from eos_ai.substrate.session_control import clear_session
+from runtime.substrate.session_control import clear_session
 
 # This will fail if tmux is not available or session doesn't exist —
 # that's expected in CI. We validate the function exists, is callable,
@@ -142,7 +142,7 @@ _result(
 
 section("4. /reset — session reset via bridge")
 
-from eos_ai.substrate.session_control import reset_session
+from runtime.substrate.session_control import reset_session
 
 result = reset_session("vps", "dex_smoke_test_nonexistent")
 _result(
@@ -165,7 +165,7 @@ _result(
 
 section("5. Auto-clear — message counting + threshold trigger")
 
-from eos_ai.substrate.session_control import (
+from runtime.substrate.session_control import (
     get_message_count,
     maybe_auto_clear,
     reset_counters_for_tests,
@@ -213,15 +213,15 @@ reset_counters_for_tests()
 section("6. Tripwire — shared router, no bypass")
 
 # Verify mode_behavior does NOT import any hot-path modules
-import eos_ai.substrate.mode_behavior as mb
+import runtime.substrate.mode_behavior as mb
 
 mb_source = inspect.getsource(mb)
 hot_path_imports = [
-    "from eos_ai.gateway",
-    "from eos_ai.cognitive_loop",
-    "from eos_ai.model_router",
-    "from eos_ai.agent_runtime",
-    "from eos_ai.primitives",
+    "from runtime.gateway",
+    "from runtime.cognitive_loop",
+    "from runtime.model_router",
+    "from runtime.agent_runtime",
+    "from runtime.primitives",
 ]
 for hp in hot_path_imports:
     _result(
@@ -231,7 +231,7 @@ for hp in hot_path_imports:
     )
 
 # Verify session_control does NOT import hot-path modules
-import eos_ai.substrate.session_control as sc
+import runtime.substrate.session_control as sc
 
 sc_source = inspect.getsource(sc)
 for hp in hot_path_imports:
@@ -242,7 +242,7 @@ for hp in hot_path_imports:
     )
 
 # Verify maybe_mirror still calls ingest_text_message (router path)
-from eos_ai.substrate import discord_text_transport as dtt
+from runtime.substrate import discord_text_transport as dtt
 
 dtt_source = inspect.getsource(dtt.maybe_mirror_discord_text_message)
 _result(
@@ -255,7 +255,7 @@ _result(
 
 section("7. TTS — body-only behavior preserved")
 
-from eos_ai.substrate.discord_text_transport import build_tts_reply_envelope
+from runtime.substrate.discord_text_transport import build_tts_reply_envelope
 
 os.environ["EOS_DISCORD_TEXT_TRANSPORT_ENABLED"] = "true"
 os.environ["EOS_DISCORD_TEXT_REPLY_TTS_ENABLED"] = "true"
@@ -301,11 +301,11 @@ else:
 section("8. No hot-path regressions — import verification")
 
 modules_to_check = [
-    "eos_ai.substrate.mode_behavior",
-    "eos_ai.substrate.session_control",
-    "eos_ai.substrate.discord_text_transport",
-    "eos_ai.substrate.discord_mode_routing",
-    "eos_ai.substrate.claude_session_bridge",
+    "runtime.substrate.mode_behavior",
+    "runtime.substrate.session_control",
+    "runtime.substrate.discord_text_transport",
+    "runtime.substrate.discord_mode_routing",
+    "runtime.substrate.claude_session_bridge",
 ]
 
 for mod_name in modules_to_check:

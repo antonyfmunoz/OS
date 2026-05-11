@@ -15,7 +15,7 @@ import json
 
 import pytest
 
-from eos_ai.substrate.message_bus_contracts import (
+from runtime.substrate.message_bus_contracts import (
     ADVISOR_MESSAGE_TYPES,
     FOUNDER_MESSAGE_TYPES,
     NODE_MESSAGE_TYPES,
@@ -26,7 +26,7 @@ from eos_ai.substrate.message_bus_contracts import (
     MessageType,
     SourceInterface,
 )
-from eos_ai.substrate.interface_projection_contracts import (
+from runtime.substrate.interface_projection_contracts import (
     ApprovalMode,
     InterfaceCapability,
     InterfaceProjection,
@@ -35,14 +35,14 @@ from eos_ai.substrate.interface_projection_contracts import (
     DISCORD_CHANNEL,
     WORKSTATION_JARVIS,
 )
-from eos_ai.substrate.advisor_session_contracts import (
+from runtime.substrate.advisor_session_contracts import (
     AdvisorEventKind,
     AdvisorSessionCommand,
     AdvisorSessionEvent,
     AdvisorSessionState,
     PendingApproval,
 )
-from eos_ai.substrate.computer_use_backend_contracts import (
+from runtime.substrate.computer_use_backend_contracts import (
     BackendPolicy,
     BackendSelectionReason,
     ComputerUseBackend,
@@ -50,7 +50,7 @@ from eos_ai.substrate.computer_use_backend_contracts import (
     requires_approval_for_browser_automation,
     select_backend,
 )
-from eos_ai.substrate.work_order_contracts import WorkOrderTaskType
+from runtime.substrate.work_order_contracts import WorkOrderTaskType
 
 
 class TestMessageBusContracts:

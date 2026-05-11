@@ -7,7 +7,7 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 import pytest
 
-from eos_ai.substrate.topology_contracts import (
+from runtime.substrate.topology_contracts import (
     InterfaceProfile,
     InterfaceRole,
     NodeProfile,

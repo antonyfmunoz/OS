@@ -8,7 +8,7 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 import tempfile
 import unittest
 
-from eos_ai.substrate.adapter_best_practices_loader import (
+from runtime.substrate.adapter_best_practices_loader import (
     AdapterBestPracticesPolicy,
     build_adapter_policy_from_skill,
     build_tool_mastery_pack_from_skill,
@@ -157,7 +157,7 @@ class TestBuildToolMasteryPackFromSkill(unittest.TestCase):
         os.rmdir(self.tmpdir)
 
     def test_returns_tool_mastery_pack(self) -> None:
-        from eos_ai.substrate.adapter_engine_contracts import ToolMasteryPack
+        from runtime.substrate.adapter_engine_contracts import ToolMasteryPack
 
         pack = build_tool_mastery_pack_from_skill(
             adapter_id="claude_code",

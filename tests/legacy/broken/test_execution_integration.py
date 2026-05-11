@@ -13,9 +13,9 @@ import sys
 
 sys.path.insert(0, "/opt/OS")
 
-from eos_ai.substrate.runtime_state_store import RuntimeStateStore
-from eos_ai.substrate.event_scheduler import EventScheduler, SchedulerEvent
-from eos_ai.substrate.execution_contract import (
+from runtime.substrate.runtime_state_store import RuntimeStateStore
+from runtime.substrate.event_scheduler import EventScheduler, SchedulerEvent
+from runtime.substrate.execution_contract import (
     ExecutionClass,
     ExecutionConstraints,
     ExecutionRequest,
@@ -24,11 +24,11 @@ from eos_ai.substrate.execution_contract import (
     ExecutionTarget,
     _compute_idempotency_key,
 )
-from eos_ai.substrate.execution_authority import ExecutionAuthority
-from eos_ai.substrate.execution_router import ExecutionRouter
-from eos_ai.substrate.execution_worker import ExecutionWorker
-from eos_ai.substrate.execution_result_handler import ExecutionResultHandler
-from eos_ai.substrate.nodes import Node, NodeRegistry, NodeRole, NodeStatus, NodeType
+from runtime.substrate.execution_authority import ExecutionAuthority
+from runtime.substrate.execution_router import ExecutionRouter
+from runtime.substrate.execution_worker import ExecutionWorker
+from runtime.substrate.execution_result_handler import ExecutionResultHandler
+from runtime.substrate.nodes import Node, NodeRegistry, NodeRole, NodeStatus, NodeType
 
 
 # ---------------------------------------------------------------------------
@@ -436,7 +436,7 @@ def test_multiple_runs_same_result():
 
 def _noop_handler(collector: list, event: SchedulerEvent):
     """No-op handler that records the event it was called with."""
-    from eos_ai.substrate.event_scheduler import (
+    from runtime.substrate.event_scheduler import (
         ExecutionResult as SchedulerExecutionResult,
     )
 

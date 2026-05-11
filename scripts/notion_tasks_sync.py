@@ -17,7 +17,7 @@ from pathlib import Path
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 from dotenv import load_dotenv
-load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 
 NOTION_TOKEN = os.getenv('NOTION_API_KEY')
 STATE_FILE = Path(_ROOT) / "scripts" / "notion_tasks_sync_state.json"
@@ -115,8 +115,8 @@ def extract_task(page: dict) -> dict:
 
 def write_to_neon(task: dict, venture_id: str) -> bool:
     try:
-        from eos_ai.db import get_conn
-        from eos_ai.context import load_context_from_env
+        from runtime.db import get_conn
+        from runtime.context import load_context_from_env
 
         ctx = load_context_from_env()
         payload = json.dumps({
@@ -192,8 +192,8 @@ def sync_neon_to_notion() -> int:
     Finds dex_task events flagged with needs_notion_sync and syncs them back.
     """
     try:
-        from eos_ai.db import get_conn
-        from eos_ai.context import load_context_from_env
+        from runtime.db import get_conn
+        from runtime.context import load_context_from_env
 
         ctx = load_context_from_env()
         updated = 0

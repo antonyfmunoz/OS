@@ -20,8 +20,8 @@ import time
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.db import get_conn  # noqa: E402
-from eos_ai.higgsfield_client import generate, get_status  # noqa: E402
+from runtime.db import get_conn  # noqa: E402
+from runtime.higgsfield_client import generate, get_status  # noqa: E402
 
 VENTURE = "personal_brand"
 MODEL_ID = "higgsfield-ai/soul/standard"

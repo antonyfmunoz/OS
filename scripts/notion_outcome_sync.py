@@ -23,7 +23,7 @@ from pathlib import Path
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 from dotenv import load_dotenv
-load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'eos_ai', '.env'))
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 
 NOTION_API_KEY = os.getenv('NOTION_API_KEY')
 NOTION_PIPELINE_ID = os.getenv('NOTION_LYFE_PIPELINE_ID')
@@ -128,7 +128,7 @@ def extract_page_data(page: dict) -> dict:
 def fire_outcome(page_data: dict, outcome_type: str):
     """Log outcome signal to Neon via AgentMemory."""
     try:
-        from eos_ai.memory import AgentMemory
+        from runtime.memory import AgentMemory
         mem = AgentMemory()
         mem.log_standalone_outcome(
             outcome_type=outcome_type,

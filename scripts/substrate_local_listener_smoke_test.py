@@ -23,7 +23,7 @@ import sys
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.local_listener import (  # noqa: E402
+from runtime.substrate.local_listener import (  # noqa: E402
     LocalListener,
     LocalTrigger,
     TriggerKind,
@@ -31,10 +31,10 @@ from eos_ai.substrate.local_listener import (  # noqa: E402
     get_trigger_history,
     listener_report,
 )
-from eos_ai.substrate.nodes import NodeRegistry, NodeStatus  # noqa: E402
-from eos_ai.substrate.rituals import RitualKind, RitualRegistry  # noqa: E402
-from eos_ai.substrate.station_bus import get_station_bus  # noqa: E402
-from eos_ai.substrate.station_daemon import StationDaemon  # noqa: E402
+from runtime.substrate.nodes import NodeRegistry, NodeStatus  # noqa: E402
+from runtime.substrate.rituals import RitualKind, RitualRegistry  # noqa: E402
+from runtime.substrate.station_bus import get_station_bus  # noqa: E402
+from runtime.substrate.station_daemon import StationDaemon  # noqa: E402
 
 TEST_NODE = "smoketest-local-listener"
 GHOST_NODE = "smoketest-ghost-never-registered"

@@ -11,7 +11,7 @@ sys.path.insert(0, "/opt/OS")
 
 import pytest
 
-from eos_ai.platforms.eos.voice_runtime import (
+from runtime.platforms.eos.voice_runtime import (
     STTProvider,
     VoiceLoopState,
     VoiceRuntime,
@@ -28,7 +28,7 @@ def _reset_runtime():
     VoiceRuntime.reset_default_for_tests()
     # Also reset streaming bridge to avoid TTS calls
     try:
-        from eos_ai.platforms.eos.streaming_bridge import StreamingBridge
+        from runtime.platforms.eos.streaming_bridge import StreamingBridge
 
         StreamingBridge.reset_default_for_tests()
     except Exception:
@@ -36,7 +36,7 @@ def _reset_runtime():
     yield
     VoiceRuntime.reset_default_for_tests()
     try:
-        from eos_ai.platforms.eos.streaming_bridge import StreamingBridge
+        from runtime.platforms.eos.streaming_bridge import StreamingBridge
 
         StreamingBridge.reset_default_for_tests()
     except Exception:
@@ -115,7 +115,7 @@ def test_start_stop():
 
     # Mock audio capture to return None (no mic)
     with patch(
-        "eos_ai.platforms.eos.voice_runtime._capture_audio_chunk", return_value=None
+        "runtime.platforms.eos.voice_runtime._capture_audio_chunk", return_value=None
     ):
         rt.start()
         assert rt.is_running
@@ -128,7 +128,7 @@ def test_start_stop():
 def test_double_start():
     rt = get_voice_runtime()
     with patch(
-        "eos_ai.platforms.eos.voice_runtime._capture_audio_chunk", return_value=None
+        "runtime.platforms.eos.voice_runtime._capture_audio_chunk", return_value=None
     ):
         rt.start()
         rt.start()  # Should not crash
@@ -149,7 +149,7 @@ def test_interrupt_sets_flag():
     rt._state.is_speaking = True
 
     with patch(
-        "eos_ai.platforms.eos.streaming_bridge.StreamingBridge.default"
+        "runtime.platforms.eos.streaming_bridge.StreamingBridge.default"
     ) as mock_bridge:
         mock_bridge.return_value = MagicMock()
         rt.interrupt()
@@ -167,10 +167,10 @@ def test_interrupt_with_text_processes_utterance():
     mock_result.spoken_text = "Got it."
 
     with patch(
-        "eos_ai.platforms.eos.live_runtime.handle_live_user_utterance",
+        "runtime.platforms.eos.live_runtime.handle_live_user_utterance",
         return_value=mock_result,
     ):
-        with patch("eos_ai.platforms.eos.streaming_bridge.stream_event"):
+        with patch("runtime.platforms.eos.streaming_bridge.stream_event"):
             rt.interrupt("do something else")
 
     assert rt.state.last_response == "Got it."
@@ -200,10 +200,10 @@ def test_on_utterance_callback():
     mock_result.spoken_text = "response"
 
     with patch(
-        "eos_ai.platforms.eos.live_runtime.handle_live_user_utterance",
+        "runtime.platforms.eos.live_runtime.handle_live_user_utterance",
         return_value=mock_result,
     ):
-        with patch("eos_ai.platforms.eos.streaming_bridge.stream_event"):
+        with patch("runtime.platforms.eos.streaming_bridge.stream_event"):
             # Directly call _process_utterance
             rt._state.last_utterance = "test input"
             if rt._on_utterance:
@@ -221,10 +221,10 @@ def test_on_response_callback():
     mock_result.spoken_text = "I'll do that."
 
     with patch(
-        "eos_ai.platforms.eos.live_runtime.handle_live_user_utterance",
+        "runtime.platforms.eos.live_runtime.handle_live_user_utterance",
         return_value=mock_result,
     ):
-        with patch("eos_ai.platforms.eos.streaming_bridge.stream_event"):
+        with patch("runtime.platforms.eos.streaming_bridge.stream_event"):
             rt._process_utterance("hello")
 
     assert received == ["I'll do that."]

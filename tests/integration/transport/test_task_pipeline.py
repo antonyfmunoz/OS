@@ -1,4 +1,4 @@
-"""Smoke tests for eos_ai.substrate.task_pipeline.
+"""Smoke tests for runtime.substrate.task_pipeline.
 
 Validates:
   1.  test_pipeline_step_create         — PipelineStep.new() creates with correct defaults
@@ -22,7 +22,7 @@ import sys
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.task_pipeline import (  # noqa: E402
+from runtime.substrate.task_pipeline import (  # noqa: E402
     PipelineAgentRole,
     PipelineStatus,
     PipelineStep,
@@ -48,7 +48,7 @@ def _report(name: str, passed: bool, detail: str = "") -> None:
 
 def _reset_all() -> None:
     try:
-        from eos_ai.substrate.storage import get_storage
+        from runtime.substrate.storage import get_storage
 
         get_storage().put("task_pipelines", None)
     except Exception:

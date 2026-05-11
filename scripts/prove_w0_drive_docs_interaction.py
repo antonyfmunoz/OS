@@ -41,7 +41,7 @@ from core.control_plane_router.router_contracts import (
 )
 from core.runtime.adapter_registry_contracts import AdapterRegistry
 from core.runtime.worker_runtime_contracts import ProofStatus, RuntimeProofRecord
-from eos_ai.interfaces.discord_interface_adapter_v1 import (
+from runtime.interfaces.discord_interface_adapter_v1 import (
 
     build_work_packet_for_router,
     format_router_result,
@@ -298,10 +298,10 @@ def main() -> None:
         _log("")
         _log("To run live:")
         _log(
-            "  1. Start daemon:  python3 eos_ai/substrate/local_worker_runtime_daemon.py --config config/local_worker_runtime_daemon_v1.json"
+            "  1. Start daemon:  python3 runtime/substrate/local_worker_runtime_daemon.py --config config/local_worker_runtime_daemon_v1.json"
         )
         _log("  2. Start relay:   .\\scripts\\windows_interactive_desktop_relay.ps1")
-        _log("  3. Start Discord: python3 eos_ai/interfaces/discord_interface_adapter_v1.py")
+        _log("  3. Start Discord: python3 runtime/interfaces/discord_interface_adapter_v1.py")
         _log("  4. Send !doc in Discord")
         _log("  5. Confirm test document visible in Chrome")
     _log("=" * 60)

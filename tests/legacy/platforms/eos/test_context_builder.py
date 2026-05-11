@@ -1,17 +1,17 @@
-"""Tests for eos_ai.platforms.eos.context_builder."""
+"""Tests for runtime.platforms.eos.context_builder."""
 
 import sys
 
 sys.path.insert(0, "/opt/OS")
 
 import pytest
-from eos_ai.platforms.eos.context_builder import (
+from runtime.platforms.eos.context_builder import (
     build_ceo_context,
     build_context_for_role,
     build_ea_context,
     build_portfolio_context,
 )
-from eos_ai.platforms.eos.roles import EOSRole
+from runtime.platforms.eos.roles import EOSRole
 
 
 class TestContextSchema:

@@ -1,4 +1,4 @@
-"""Tests for eos_ai.substrate.checkpoint_runtime."""
+"""Tests for runtime.substrate.checkpoint_runtime."""
 
 from __future__ import annotations
 

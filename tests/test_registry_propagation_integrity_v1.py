@@ -129,7 +129,7 @@ class TestRegistryHashPropagation:
 
     def test_adapter_and_canonical_same_source(self) -> None:
         from core.registry.canonical_command_registry_v1 import get_canonical_registry
-        from eos_ai.interfaces.discord_interface_adapter_v1 import COMMAND_ACTION_MAP
+        from runtime.interfaces.discord_interface_adapter_v1 import COMMAND_ACTION_MAP
 
         reg = get_canonical_registry()
         assert COMMAND_ACTION_MAP == reg.command_action_map
@@ -285,8 +285,8 @@ class TestRegressionIntegrity:
         files = [
             f"{_ROOT}/core/runtime/node_sync_gate_v1.py",
             f"{_ROOT}/core/registry/canonical_command_registry_v1.py",
-            f"{_ROOT}/eos_ai/interfaces/discord_interface_adapter_v1.py",
-            f"{_ROOT}/eos_ai/interfaces/discord_spine_integration_v1.py",
+            f"{_ROOT}/runtime/interfaces/discord_interface_adapter_v1.py",
+            f"{_ROOT}/runtime/interfaces/discord_spine_integration_v1.py",
             f"{_ROOT}/services/handlers/substrate_command_handler.py",
             f"{_ROOT}/services/discord_bot.py",
         ]

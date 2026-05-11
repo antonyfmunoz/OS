@@ -5,18 +5,18 @@ import os
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.canonical_source_record import (
+from runtime.substrate.canonical_source_record import (
     DocumentSourceRecord,
     ProvenanceRecord,
     TabSourceRecord,
     build_api_source_record,
     build_cu_source_record,
 )
-from eos_ai.substrate.extraction_backend_contracts import (
+from runtime.substrate.extraction_backend_contracts import (
     ExtractionBackendType,
     ExtractionCoverageStatus,
 )
-from eos_ai.substrate.extraction_parity_comparator import (
+from runtime.substrate.extraction_parity_comparator import (
     compare_document_records,
     compare_tab_coverage,
     compare_text_coverage,

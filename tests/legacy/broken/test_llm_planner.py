@@ -16,7 +16,7 @@ import sys
 
 sys.path.insert(0, "/opt/OS")
 
-from eos_ai.substrate.llm_planner import (
+from runtime.substrate.llm_planner import (
     EventSchema,
     EventTypeRegistry,
     LLMEventProposal,
@@ -505,7 +505,7 @@ class TestPromptConstruction:
         assert len({h1, h2, h3, h4, h5}) == 5
 
     def test_truncation_within_budget(self):
-        from eos_ai.substrate.llm_planner import _truncate_state
+        from runtime.substrate.llm_planner import _truncate_state
 
         state = '{"a":1}'
         cfg = _make_config(max_prompt_tokens=1000)
@@ -513,7 +513,7 @@ class TestPromptConstruction:
         assert result == state
 
     def test_truncation_drops_keys_by_tier(self):
-        from eos_ai.substrate.llm_planner import _truncate_state
+        from runtime.substrate.llm_planner import _truncate_state
 
         state = _canonical_json(
             {

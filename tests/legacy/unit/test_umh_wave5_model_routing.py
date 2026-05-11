@@ -5,8 +5,8 @@ Verifies:
 2. Null/standalone fallback works
 3. Provider failure normalizes to empty string
 4. Fallback chain attempts next provider
-5. eos_ai.model_router old import path works
-6. eos_ai.agent_runtime old import path works
+5. runtime.model_router old import path works
+6. runtime.agent_runtime old import path works
 7. Quality estimation and escalation logic
 8. No hard eos_ai imports inside umh/adapters/model_router.py
 """

@@ -5,21 +5,21 @@ import os
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.canonical_source_record import (
+from runtime.substrate.canonical_source_record import (
     DocumentSourceRecord,
     ProvenanceRecord,
     TabSourceRecord,
     build_api_source_record,
 )
-from eos_ai.substrate.extraction_backend_contracts import (
+from runtime.substrate.extraction_backend_contracts import (
     ExtractionBackendType,
     ExtractionCoverageStatus,
 )
-from eos_ai.substrate.google_docs_tab_audit import (
+from runtime.substrate.google_docs_tab_audit import (
     extract_tabs_from_doc_json,
     extract_text_from_body,
 )
-from eos_ai.substrate.google_docs_tab_extractor import extract_all_tabs
+from runtime.substrate.google_docs_tab_extractor import extract_all_tabs
 
 
 def _make_tab_aware_doc(tabs_data: list[dict]) -> dict:

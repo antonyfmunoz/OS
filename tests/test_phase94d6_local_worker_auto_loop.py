@@ -13,7 +13,7 @@ import pytest
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.local_worker_auto_loop import (
+from runtime.substrate.local_worker_auto_loop import (
     WO_001_ACCOUNT,
     WO_001_ID,
     build_backend_health_status,
@@ -165,7 +165,7 @@ class TestSafePreflight:
 
 class TestOutboxInbox:
     def test_write_outbox_message(self, tmp_path: Path) -> None:
-        with patch("eos_ai.substrate.local_worker_auto_loop.OUTBOX_DIR", tmp_path):
+        with patch("runtime.substrate.local_worker_auto_loop.OUTBOX_DIR", tmp_path):
             msg = {"test": True}
             path = write_outbox_message("test.json", msg)
             assert path.exists()
@@ -173,7 +173,7 @@ class TestOutboxInbox:
             assert loaded["test"] is True
 
     def test_scan_inbox_finds_match(self, tmp_path: Path) -> None:
-        with patch("eos_ai.substrate.local_worker_auto_loop.INBOX_DIR", tmp_path):
+        with patch("runtime.substrate.local_worker_auto_loop.INBOX_DIR", tmp_path):
             resp = {
                 "work_order_id": WO_001_ID,
                 "payload": {"decision": "APPROVE"},
@@ -184,7 +184,7 @@ class TestOutboxInbox:
             assert found["payload"]["decision"] == "APPROVE"
 
     def test_scan_inbox_no_match(self, tmp_path: Path) -> None:
-        with patch("eos_ai.substrate.local_worker_auto_loop.INBOX_DIR", tmp_path):
+        with patch("runtime.substrate.local_worker_auto_loop.INBOX_DIR", tmp_path):
             resp = {
                 "work_order_id": "OTHER-WO",
                 "payload": {"decision": "APPROVE"},
@@ -228,8 +228,8 @@ class TestRunAutoLoop:
         pkt["work_order_id"] = "WRONG"
         f = tmp_path / "bad.json"
         f.write_text(json.dumps(pkt))
-        with patch("eos_ai.substrate.local_worker_auto_loop.OUTBOX_DIR", tmp_path / "out"):
-            with patch("eos_ai.substrate.local_worker_auto_loop.INBOX_DIR", tmp_path / "in"):
+        with patch("runtime.substrate.local_worker_auto_loop.OUTBOX_DIR", tmp_path / "out"):
+            with patch("runtime.substrate.local_worker_auto_loop.INBOX_DIR", tmp_path / "in"):
                 result = run_auto_loop(f)
         assert result["status"] == "failed"
         assert result["validation_passed"] is False
@@ -250,10 +250,10 @@ class TestRunAutoLoop:
         (inbox / "deny.json").write_text(json.dumps(deny_response))
 
         with (
-            patch("eos_ai.substrate.local_worker_auto_loop.OUTBOX_DIR", outbox),
-            patch("eos_ai.substrate.local_worker_auto_loop.INBOX_DIR", inbox),
+            patch("runtime.substrate.local_worker_auto_loop.OUTBOX_DIR", outbox),
+            patch("runtime.substrate.local_worker_auto_loop.INBOX_DIR", inbox),
             patch(
-                "eos_ai.substrate.local_worker_auto_loop.run_gui_backend_healthcheck",
+                "runtime.substrate.local_worker_auto_loop.run_gui_backend_healthcheck",
                 return_value={
                     "visible_display": "DISPLAY",
                     "pyautogui": "pyautogui OK",
@@ -290,10 +290,10 @@ class TestRunAutoLoop:
         }
 
         with (
-            patch("eos_ai.substrate.local_worker_auto_loop.OUTBOX_DIR", outbox),
-            patch("eos_ai.substrate.local_worker_auto_loop.INBOX_DIR", inbox),
+            patch("runtime.substrate.local_worker_auto_loop.OUTBOX_DIR", outbox),
+            patch("runtime.substrate.local_worker_auto_loop.INBOX_DIR", inbox),
             patch(
-                "eos_ai.substrate.local_worker_auto_loop.run_gui_backend_healthcheck",
+                "runtime.substrate.local_worker_auto_loop.run_gui_backend_healthcheck",
                 return_value={
                     "visible_display": "DISPLAY",
                     "pyautogui": "pyautogui OK",
@@ -302,7 +302,7 @@ class TestRunAutoLoop:
                 },
             ),
             patch(
-                "eos_ai.substrate.local_worker_auto_loop._execute_approved_action",
+                "runtime.substrate.local_worker_auto_loop._execute_approved_action",
                 return_value=mock_action_result,
             ),
         ):

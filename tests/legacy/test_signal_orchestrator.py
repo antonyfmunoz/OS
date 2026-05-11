@@ -1,4 +1,4 @@
-"""Tests for eos_ai.signal_orchestrator — signal coordination layer."""
+"""Tests for runtime.signal_orchestrator — signal coordination layer."""
 
 from __future__ import annotations
 

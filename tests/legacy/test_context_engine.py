@@ -1,4 +1,4 @@
-"""Tests for eos_ai.context_engine — context disambiguation layer."""
+"""Tests for runtime.context_engine — context disambiguation layer."""
 
 import sys
 

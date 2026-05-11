@@ -1,4 +1,4 @@
-"""Smoke tests for eos_ai.substrate.local_control.
+"""Smoke tests for runtime.substrate.local_control.
 
 Validates:
   1.  test_request_create            — LocalControlRequest.new() creates correctly
@@ -25,7 +25,7 @@ import sys
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from eos_ai.substrate.local_control import (  # noqa: E402
+from runtime.substrate.local_control import (  # noqa: E402
     LocalControlAction,
     LocalControlMode,
     LocalControlRequest,
@@ -56,7 +56,7 @@ def _report(name: str, passed: bool, detail: str = "") -> None:
 def _reset_all() -> None:
     """Reset storage keys and singleton so each test starts clean."""
     try:
-        from eos_ai.substrate.storage import get_storage
+        from runtime.substrate.storage import get_storage
 
         get_storage().put("local_control_requests", None)
         get_storage().put("local_control_mode", None)
@@ -370,7 +370,7 @@ def test_open_scene_known() -> None:
     store.set_mode(LocalControlMode.ASSISTED)
 
     # Verify builder_mode exists in scene registry
-    from eos_ai.substrate.scenes import get_scene
+    from runtime.substrate.scenes import get_scene
 
     scene = get_scene("builder_mode")
     _report(
@@ -534,7 +534,7 @@ def test_real_open_url_dispatch() -> None:
 
     _reset_all()
     # Also reset BrowserAgent singleton
-    from eos_ai.substrate.browser_agent import BrowserAgent
+    from runtime.substrate.browser_agent import BrowserAgent
 
     BrowserAgent.reset_default_for_tests()
 
@@ -576,7 +576,7 @@ def test_real_click_dispatch() -> None:
     print("\n── Test 15: CLICK_MOUSE dispatch (open URL then click) ──")
 
     _reset_all()
-    from eos_ai.substrate.browser_agent import BrowserAgent
+    from runtime.substrate.browser_agent import BrowserAgent
 
     BrowserAgent.reset_default_for_tests()
 
@@ -620,7 +620,7 @@ def test_real_type_text_dispatch() -> None:
     print("\n── Test 16: TYPE_TEXT dispatch (open URL then type) ──")
 
     _reset_all()
-    from eos_ai.substrate.browser_agent import BrowserAgent
+    from runtime.substrate.browser_agent import BrowserAgent
 
     BrowserAgent.reset_default_for_tests()
 
