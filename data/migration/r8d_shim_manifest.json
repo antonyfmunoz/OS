@@ -1,0 +1,3722 @@
+{
+  "generated_at": "2026-05-10T19:38:26",
+  "generator": "scripts/r8d_generate_shims.py",
+  "total_shims": 459,
+  "by_type": {
+    "depth_flat_init": 1,
+    "depth_flattened": 2,
+    "interfaces": 2,
+    "interfaces_init": 1,
+    "substrate": 163,
+    "substrate_init": 1,
+    "top_level": 125,
+    "transport": 163,
+    "transport_init": 1
+  },
+  "by_pattern": {
+    "empty_marker": 1,
+    "import_star": 2,
+    "package_marker": 1,
+    "sys.modules": 455
+  },
+  "canonical_module_count": 455,
+  "covered_modules": 910,
+  "uncovered_modules": 0,
+  "orphan_count": 0,
+  "oversized_count": 0,
+  "private_consumer_count": 14,
+  "errors": [],
+  "shims": [
+    {
+      "shim": "eos_ai/accountability.py",
+      "target": "runtime.accountability",
+      "eos_module": "eos_ai.accountability",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/agent_hierarchy.py",
+      "target": "runtime.agent_hierarchy",
+      "eos_module": "eos_ai.agent_hierarchy",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/agent_messages.py",
+      "target": "runtime.agent_messages",
+      "eos_module": "eos_ai.agent_messages",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/agent_runtime.py",
+      "target": "runtime.agent_runtime",
+      "eos_module": "eos_ai.agent_runtime",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/agent_teams.py",
+      "target": "runtime.agent_teams",
+      "eos_module": "eos_ai.agent_teams",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/ai_identity.py",
+      "target": "runtime.ai_identity",
+      "eos_module": "eos_ai.ai_identity",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/authority_engine.py",
+      "target": "runtime.authority_engine",
+      "eos_module": "eos_ai.authority_engine",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/browser_agent.py",
+      "target": "runtime.browser_agent",
+      "eos_module": "eos_ai.browser_agent",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/business_instance.py",
+      "target": "runtime.business_instance",
+      "eos_module": "eos_ai.business_instance",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/cc_sdk.py",
+      "target": "runtime.cc_sdk",
+      "eos_module": "eos_ai.cc_sdk",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/ceo_agent.py",
+      "target": "runtime.ceo_agent",
+      "eos_module": "eos_ai.ceo_agent",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/ceo_intelligence.py",
+      "target": "runtime.ceo_intelligence",
+      "eos_module": "eos_ai.ceo_intelligence",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/ceo_operational_standards.py",
+      "target": "runtime.ceo_operational_standards",
+      "eos_module": "eos_ai.ceo_operational_standards",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/channel.py",
+      "target": "runtime.channel",
+      "eos_module": "eos_ai.channel",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/claude_skill_registry.py",
+      "target": "runtime.claude_skill_registry",
+      "eos_module": "eos_ai.claude_skill_registry",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/cognitive_loop.py",
+      "target": "runtime.cognitive_loop",
+      "eos_module": "eos_ai.cognitive_loop",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/company_instantiator.py",
+      "target": "runtime.company_instantiator",
+      "eos_module": "eos_ai.company_instantiator",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/competitive_intel.py",
+      "target": "runtime.competitive_intel",
+      "eos_module": "eos_ai.competitive_intel",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/confidentiality.py",
+      "target": "runtime.confidentiality",
+      "eos_module": "eos_ai.confidentiality",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/context.py",
+      "target": "runtime.context",
+      "eos_module": "eos_ai.context",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/context_builder.py",
+      "target": "runtime.context_builder",
+      "eos_module": "eos_ai.context_builder",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/context_compaction.py",
+      "target": "runtime.context_compaction",
+      "eos_module": "eos_ai.context_compaction",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/coordination_engine.py",
+      "target": "runtime.coordination_engine",
+      "eos_module": "eos_ai.coordination_engine",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/daily_sync.py",
+      "target": "runtime.daily_sync",
+      "eos_module": "eos_ai.daily_sync",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/db.py",
+      "target": "runtime.db",
+      "eos_module": "eos_ai.db",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/decision_log.py",
+      "target": "runtime.decision_log",
+      "eos_module": "eos_ai.decision_log",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/delegation_tracker.py",
+      "target": "runtime.delegation_tracker",
+      "eos_module": "eos_ai.delegation_tracker",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/discord_utils.py",
+      "target": "runtime.discord_utils",
+      "eos_module": "eos_ai.discord_utils",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/doc_creator.py",
+      "target": "runtime.doc_creator",
+      "eos_module": "eos_ai.doc_creator",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/document_filer.py",
+      "target": "runtime.document_filer",
+      "eos_module": "eos_ai.document_filer",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/ea_operational_standards.py",
+      "target": "runtime.ea_operational_standards",
+      "eos_module": "eos_ai.ea_operational_standards",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/email_gps.py",
+      "target": "runtime.email_gps",
+      "eos_module": "eos_ai.email_gps",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/email_reviewer.py",
+      "target": "runtime.email_reviewer",
+      "eos_module": "eos_ai.email_reviewer",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/embedder.py",
+      "target": "runtime.embedder",
+      "eos_module": "eos_ai.embedder",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/embedding_engine.py",
+      "target": "runtime.embedding_engine",
+      "eos_module": "eos_ai.embedding_engine",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/eod_closing_loop.py",
+      "target": "runtime.eod_closing_loop",
+      "eos_module": "eos_ai.eod_closing_loop",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/error_handler.py",
+      "target": "runtime.error_handler",
+      "eos_module": "eos_ai.error_handler",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/event_bus.py",
+      "target": "runtime.event_bus",
+      "eos_module": "eos_ai.event_bus",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/event_manager.py",
+      "target": "runtime.event_manager",
+      "eos_module": "eos_ai.event_manager",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/evolution_engine.py",
+      "target": "runtime.evolution_engine",
+      "eos_module": "eos_ai.evolution_engine",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/execution_engine.py",
+      "target": "runtime.execution_engine",
+      "eos_module": "eos_ai.execution_engine",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/execution_loop.py",
+      "target": "runtime.execution_loop",
+      "eos_module": "eos_ai.execution_loop",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/execution_spine.py",
+      "target": "runtime.execution_spine",
+      "eos_module": "eos_ai.execution_spine",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/expense_tracker.py",
+      "target": "runtime.expense_tracker",
+      "eos_module": "eos_ai.expense_tracker",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/feedback_loop.py",
+      "target": "runtime.feedback_loop",
+      "eos_module": "eos_ai.feedback_loop",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/founder_capture.py",
+      "target": "runtime.founder_capture",
+      "eos_module": "eos_ai.founder_capture",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/founder_rate.py",
+      "target": "runtime.founder_rate",
+      "eos_module": "eos_ai.founder_rate",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/gateway.py",
+      "target": "runtime.gateway",
+      "eos_module": "eos_ai.gateway",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/goal_selector.py",
+      "target": "runtime.goal_selector",
+      "eos_module": "eos_ai.goal_selector",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": true
+    },
+    {
+      "shim": "eos_ai/gws_connector.py",
+      "target": "runtime.gws_connector",
+      "eos_module": "eos_ai.gws_connector",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/gws_scanner.py",
+      "target": "runtime.gws_scanner",
+      "eos_module": "eos_ai.gws_scanner",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/harness_registry.py",
+      "target": "runtime.harness_registry",
+      "eos_module": "eos_ai.harness_registry",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/higgsfield_client.py",
+      "target": "runtime.higgsfield_client",
+      "eos_module": "eos_ai.higgsfield_client",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/human_intelligence.py",
+      "target": "runtime.human_intelligence",
+      "eos_module": "eos_ai.human_intelligence",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/ideal_week.py",
+      "target": "runtime.ideal_week",
+      "eos_module": "eos_ai.ideal_week",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/input_intelligence.py",
+      "target": "runtime.input_intelligence",
+      "eos_module": "eos_ai.input_intelligence",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/integration_test.py",
+      "target": "runtime.integration_test",
+      "eos_module": "eos_ai.integration_test",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/intent_router.py",
+      "target": "runtime.intent_router",
+      "eos_module": "eos_ai.intent_router",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/knowledge_domains.py",
+      "target": "runtime.knowledge_domains",
+      "eos_module": "eos_ai.knowledge_domains",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/knowledge_graph.py",
+      "target": "runtime.knowledge_graph",
+      "eos_module": "eos_ai.knowledge_graph",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/knowledge_integrator.py",
+      "target": "runtime.knowledge_integrator",
+      "eos_module": "eos_ai.knowledge_integrator",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/knowledge_layers.py",
+      "target": "runtime.knowledge_layers",
+      "eos_module": "eos_ai.knowledge_layers",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/martell_patterns.py",
+      "target": "runtime.martell_patterns",
+      "eos_module": "eos_ai.martell_patterns",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/media_processor.py",
+      "target": "runtime.media_processor",
+      "eos_module": "eos_ai.media_processor",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/meetings.py",
+      "target": "runtime.meetings",
+      "eos_module": "eos_ai.meetings",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/memory.py",
+      "target": "runtime.memory",
+      "eos_module": "eos_ai.memory",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/model_preferences.py",
+      "target": "runtime.model_preferences",
+      "eos_module": "eos_ai.model_preferences",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/model_router.py",
+      "target": "runtime.model_router",
+      "eos_module": "eos_ai.model_router",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/notebooklm_sync.py",
+      "target": "runtime.notebooklm_sync",
+      "eos_module": "eos_ai.notebooklm_sync",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/notion_publisher.py",
+      "target": "runtime.notion_publisher",
+      "eos_module": "eos_ai.notion_publisher",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/notion_sync.py",
+      "target": "runtime.notion_sync",
+      "eos_module": "eos_ai.notion_sync",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/okr_tracker.py",
+      "target": "runtime.okr_tracker",
+      "eos_module": "eos_ai.okr_tracker",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/onboarding_backfill.py",
+      "target": "runtime.onboarding_backfill",
+      "eos_module": "eos_ai.onboarding_backfill",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/onboarding_engine.py",
+      "target": "runtime.onboarding_engine",
+      "eos_module": "eos_ai.onboarding_engine",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/orchestrator.py",
+      "target": "runtime.orchestrator",
+      "eos_module": "eos_ai.orchestrator",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/os_registry.py",
+      "target": "runtime.os_registry",
+      "eos_module": "eos_ai.os_registry",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/os_trinity.py",
+      "target": "runtime.os_trinity",
+      "eos_module": "eos_ai.os_trinity",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/output_validator.py",
+      "target": "runtime.output_validator",
+      "eos_module": "eos_ai.output_validator",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/pattern_engine.py",
+      "target": "runtime.pattern_engine",
+      "eos_module": "eos_ai.pattern_engine",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/person_recognition.py",
+      "target": "runtime.person_recognition",
+      "eos_module": "eos_ai.person_recognition",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/personal_admin.py",
+      "target": "runtime.personal_admin",
+      "eos_module": "eos_ai.personal_admin",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/portfolio_advisor.py",
+      "target": "runtime.portfolio_advisor",
+      "eos_module": "eos_ai.portfolio_advisor",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/portfolio_advisor_standards.py",
+      "target": "runtime.portfolio_advisor_standards",
+      "eos_module": "eos_ai.portfolio_advisor_standards",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/primitive_registry.py",
+      "target": "runtime.primitive_registry",
+      "eos_module": "eos_ai.primitive_registry",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/primitives.py",
+      "target": "runtime.primitives",
+      "eos_module": "eos_ai.primitives",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/principle_engine.py",
+      "target": "runtime.principle_engine",
+      "eos_module": "eos_ai.principle_engine",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/proactive_engine.py",
+      "target": "runtime.proactive_engine",
+      "eos_module": "eos_ai.proactive_engine",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/provider_health.py",
+      "target": "runtime.provider_health",
+      "eos_module": "eos_ai.provider_health",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/provider_state.py",
+      "target": "runtime.provider_state",
+      "eos_module": "eos_ai.provider_state",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/quality_gate.py",
+      "target": "runtime.quality_gate",
+      "eos_module": "eos_ai.quality_gate",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/reality_context.py",
+      "target": "runtime.reality_context",
+      "eos_module": "eos_ai.reality_context",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/reality_engine.py",
+      "target": "runtime.reality_engine",
+      "eos_module": "eos_ai.reality_engine",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/research_engine.py",
+      "target": "runtime.research_engine",
+      "eos_module": "eos_ai.research_engine",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/scrapling_connector.py",
+      "target": "runtime.scrapling_connector",
+      "eos_module": "eos_ai.scrapling_connector",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/self_awareness.py",
+      "target": "runtime.self_awareness",
+      "eos_module": "eos_ai.self_awareness",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/session_state.py",
+      "target": "runtime.session_state",
+      "eos_module": "eos_ai.session_state",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/setup_wizard.py",
+      "target": "runtime.setup_wizard",
+      "eos_module": "eos_ai.setup_wizard",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/signal_hierarchy.py",
+      "target": "runtime.signal_hierarchy",
+      "eos_module": "eos_ai.signal_hierarchy",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/skill_improvement.py",
+      "target": "runtime.skill_improvement",
+      "eos_module": "eos_ai.skill_improvement",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/skill_registry.py",
+      "target": "runtime.skill_registry",
+      "eos_module": "eos_ai.skill_registry",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/skill_registry_v2.py",
+      "target": "runtime.skill_registry_v2",
+      "eos_module": "eos_ai.skill_registry_v2",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/stage_manager.py",
+      "target": "runtime.stage_manager",
+      "eos_module": "eos_ai.stage_manager",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/stakeholder_map.py",
+      "target": "runtime.stakeholder_map",
+      "eos_module": "eos_ai.stakeholder_map",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/status.py",
+      "target": "runtime.status",
+      "eos_module": "eos_ai.status",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/strategy_engine.py",
+      "target": "runtime.strategy_engine",
+      "eos_module": "eos_ai.strategy_engine",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/subscription_tracker.py",
+      "target": "runtime.subscription_tracker",
+      "eos_module": "eos_ai.subscription_tracker",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/system_context.py",
+      "target": "runtime.system_context",
+      "eos_module": "eos_ai.system_context",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/system_health.py",
+      "target": "runtime.system_health",
+      "eos_module": "eos_ai.system_health",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/task_executor.py",
+      "target": "runtime.task_executor",
+      "eos_module": "eos_ai.task_executor",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/task_yield_matrix.py",
+      "target": "runtime.task_yield_matrix",
+      "eos_module": "eos_ai.task_yield_matrix",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/template_library.py",
+      "target": "runtime.template_library",
+      "eos_module": "eos_ai.template_library",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/template_registry.py",
+      "target": "runtime.template_registry",
+      "eos_module": "eos_ai.template_registry",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/tenant.py",
+      "target": "runtime.tenant",
+      "eos_module": "eos_ai.tenant",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transaction_workflow.py",
+      "target": "runtime.transaction_workflow",
+      "eos_module": "eos_ai.transaction_workflow",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/travel_manager.py",
+      "target": "runtime.travel_manager",
+      "eos_module": "eos_ai.travel_manager",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/trinity.py",
+      "target": "runtime.trinity",
+      "eos_module": "eos_ai.trinity",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/user_model.py",
+      "target": "runtime.user_model",
+      "eos_module": "eos_ai.user_model",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/venture_knowledge.py",
+      "target": "runtime.venture_knowledge",
+      "eos_module": "eos_ai.venture_knowledge",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/voice_engine.py",
+      "target": "runtime.voice_engine",
+      "eos_module": "eos_ai.voice_engine",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/voice_interface.py",
+      "target": "runtime.voice_interface",
+      "eos_module": "eos_ai.voice_interface",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/week_architect.py",
+      "target": "runtime.week_architect",
+      "eos_module": "eos_ai.week_architect",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/work_state.py",
+      "target": "runtime.work_state",
+      "eos_module": "eos_ai.work_state",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/workflow_engine.py",
+      "target": "runtime.workflow_engine",
+      "eos_module": "eos_ai.workflow_engine",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/world_model.py",
+      "target": "runtime.world_model",
+      "eos_module": "eos_ai.world_model",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/world_pulse.py",
+      "target": "runtime.world_pulse",
+      "eos_module": "eos_ai.world_pulse",
+      "type": "top_level",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/__init__.py",
+      "target": "runtime.transport",
+      "eos_module": "eos_ai.transport",
+      "type": "transport_init",
+      "pattern": "import_star",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/actions.py",
+      "target": "runtime.transport.actions",
+      "eos_module": "eos_ai.transport.actions",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/adapter_best_practices_loader.py",
+      "target": "runtime.transport.adapter_best_practices_loader",
+      "eos_module": "eos_ai.transport.adapter_best_practices_loader",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/adapter_engine_contracts.py",
+      "target": "runtime.transport.adapter_engine_contracts",
+      "eos_module": "eos_ai.transport.adapter_engine_contracts",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/adapter_generation_contracts.py",
+      "target": "runtime.transport.adapter_generation_contracts",
+      "eos_module": "eos_ai.transport.adapter_generation_contracts",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/adapter_quality_gate.py",
+      "target": "runtime.transport.adapter_quality_gate",
+      "eos_module": "eos_ai.transport.adapter_quality_gate",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/advisor_bridge_transport.py",
+      "target": "runtime.transport.advisor_bridge_transport",
+      "eos_module": "eos_ai.transport.advisor_bridge_transport",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/advisor_relay_runtime.py",
+      "target": "runtime.transport.advisor_relay_runtime",
+      "eos_module": "eos_ai.transport.advisor_relay_runtime",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/advisor_session_contracts.py",
+      "target": "runtime.transport.advisor_session_contracts",
+      "eos_module": "eos_ai.transport.advisor_session_contracts",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/app_allowlist.py",
+      "target": "runtime.transport.app_allowlist",
+      "eos_module": "eos_ai.transport.app_allowlist",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/approved_action_executor.py",
+      "target": "runtime.transport.approved_action_executor",
+      "eos_module": "eos_ai.transport.approved_action_executor",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/audio_loop.py",
+      "target": "runtime.transport.audio_loop",
+      "eos_module": "eos_ai.transport.audio_loop",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/auth_layer_contracts.py",
+      "target": "runtime.transport.auth_layer_contracts",
+      "eos_module": "eos_ai.transport.auth_layer_contracts",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/auto_task_generation.py",
+      "target": "runtime.transport.auto_task_generation",
+      "eos_module": "eos_ai.transport.auto_task_generation",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/backend_registry_contracts.py",
+      "target": "runtime.transport.backend_registry_contracts",
+      "eos_module": "eos_ai.transport.backend_registry_contracts",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/backend_selection_engine.py",
+      "target": "runtime.transport.backend_selection_engine",
+      "eos_module": "eos_ai.transport.backend_selection_engine",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/browser_agent.py",
+      "target": "runtime.transport.browser_agent",
+      "eos_module": "eos_ai.transport.browser_agent",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/canonical_source_record.py",
+      "target": "runtime.transport.canonical_source_record",
+      "eos_module": "eos_ai.transport.canonical_source_record",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/capabilities.py",
+      "target": "runtime.transport.capabilities",
+      "eos_module": "eos_ai.transport.capabilities",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/capability_routing.py",
+      "target": "runtime.transport.capability_routing",
+      "eos_module": "eos_ai.transport.capability_routing",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/capability_routing_contracts.py",
+      "target": "runtime.transport.capability_routing_contracts",
+      "eos_module": "eos_ai.transport.capability_routing_contracts",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/capability_tagging.py",
+      "target": "runtime.transport.capability_tagging",
+      "eos_module": "eos_ai.transport.capability_tagging",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/chrome_accessibility_launch_backend.py",
+      "target": "runtime.transport.chrome_accessibility_launch_backend",
+      "eos_module": "eos_ai.transport.chrome_accessibility_launch_backend",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/chrome_profile_launch_backend.py",
+      "target": "runtime.transport.chrome_profile_launch_backend",
+      "eos_module": "eos_ai.transport.chrome_profile_launch_backend",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/chrome_profile_resolver.py",
+      "target": "runtime.transport.chrome_profile_resolver",
+      "eos_module": "eos_ai.transport.chrome_profile_resolver",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/claude_responder.py",
+      "target": "runtime.transport.claude_responder",
+      "eos_module": "eos_ai.transport.claude_responder",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/claude_session_bridge.py",
+      "target": "runtime.transport.claude_session_bridge",
+      "eos_module": "eos_ai.transport.claude_session_bridge",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": true
+    },
+    {
+      "shim": "eos_ai/transport/computer_use_backend_contracts.py",
+      "target": "runtime.transport.computer_use_backend_contracts",
+      "eos_module": "eos_ai.transport.computer_use_backend_contracts",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/context_lifecycle.py",
+      "target": "runtime.transport.context_lifecycle",
+      "eos_module": "eos_ai.transport.context_lifecycle",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/control_bridge.py",
+      "target": "runtime.transport.control_bridge",
+      "eos_module": "eos_ai.transport.control_bridge",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/control_commands.py",
+      "target": "runtime.transport.control_commands",
+      "eos_module": "eos_ai.transport.control_commands",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/cu_document_reader_hardening_plan.py",
+      "target": "runtime.transport.cu_document_reader_hardening_plan",
+      "eos_module": "eos_ai.transport.cu_document_reader_hardening_plan",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/day_workflows.py",
+      "target": "runtime.transport.day_workflows",
+      "eos_module": "eos_ai.transport.day_workflows",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/decision_engine.py",
+      "target": "runtime.transport.decision_engine",
+      "eos_module": "eos_ai.transport.decision_engine",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/discord_mode_routing.py",
+      "target": "runtime.transport.discord_mode_routing",
+      "eos_module": "eos_ai.transport.discord_mode_routing",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/discord_text_transport.py",
+      "target": "runtime.transport.discord_text_transport",
+      "eos_module": "eos_ai.transport.discord_text_transport",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/discord_voice_playback.py",
+      "target": "runtime.transport.discord_voice_playback",
+      "eos_module": "eos_ai.transport.discord_voice_playback",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/discord_voice_transport.py",
+      "target": "runtime.transport.discord_voice_transport",
+      "eos_module": "eos_ai.transport.discord_voice_transport",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/doc_cu_vs_api_comparator.py",
+      "target": "runtime.transport.doc_cu_vs_api_comparator",
+      "eos_module": "eos_ai.transport.doc_cu_vs_api_comparator",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/drive_ui_inventory_comparator.py",
+      "target": "runtime.transport.drive_ui_inventory_comparator",
+      "eos_module": "eos_ai.transport.drive_ui_inventory_comparator",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/environment_contracts.py",
+      "target": "runtime.transport.environment_contracts",
+      "eos_module": "eos_ai.transport.environment_contracts",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/event_scheduler.py",
+      "target": "runtime.transport.event_scheduler",
+      "eos_module": "eos_ai.transport.event_scheduler",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/event_spine.py",
+      "target": "runtime.transport.event_spine",
+      "eos_module": "eos_ai.transport.event_spine",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/execution_adapter.py",
+      "target": "runtime.transport.execution_adapter",
+      "eos_module": "eos_ai.transport.execution_adapter",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/execution_authority.py",
+      "target": "runtime.transport.execution_authority",
+      "eos_module": "eos_ai.transport.execution_authority",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/execution_contract.py",
+      "target": "runtime.transport.execution_contract",
+      "eos_module": "eos_ai.transport.execution_contract",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/execution_events.py",
+      "target": "runtime.transport.execution_events",
+      "eos_module": "eos_ai.transport.execution_events",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/execution_result_handler.py",
+      "target": "runtime.transport.execution_result_handler",
+      "eos_module": "eos_ai.transport.execution_result_handler",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/execution_router.py",
+      "target": "runtime.transport.execution_router",
+      "eos_module": "eos_ai.transport.execution_router",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/execution_trace.py",
+      "target": "runtime.transport.execution_trace",
+      "eos_module": "eos_ai.transport.execution_trace",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/execution_worker.py",
+      "target": "runtime.transport.execution_worker",
+      "eos_module": "eos_ai.transport.execution_worker",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/extraction_backend_contracts.py",
+      "target": "runtime.transport.extraction_backend_contracts",
+      "eos_module": "eos_ai.transport.extraction_backend_contracts",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/extraction_parity_comparator.py",
+      "target": "runtime.transport.extraction_parity_comparator",
+      "eos_module": "eos_ai.transport.extraction_parity_comparator",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/google_docs_backend_parity_matrix.py",
+      "target": "runtime.transport.google_docs_backend_parity_matrix",
+      "eos_module": "eos_ai.transport.google_docs_backend_parity_matrix",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/google_docs_tab_audit.py",
+      "target": "runtime.transport.google_docs_tab_audit",
+      "eos_module": "eos_ai.transport.google_docs_tab_audit",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/google_docs_tab_extractor.py",
+      "target": "runtime.transport.google_docs_tab_extractor",
+      "eos_module": "eos_ai.transport.google_docs_tab_extractor",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/google_meet_source.py",
+      "target": "runtime.transport.google_meet_source",
+      "eos_module": "eos_ai.transport.google_meet_source",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/google_workspace_backend_options.py",
+      "target": "runtime.transport.google_workspace_backend_options",
+      "eos_module": "eos_ai.transport.google_workspace_backend_options",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/governance_gate_contracts.py",
+      "target": "runtime.transport.governance_gate_contracts",
+      "eos_module": "eos_ai.transport.governance_gate_contracts",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/gui_backend_healthcheck.py",
+      "target": "runtime.transport.gui_backend_healthcheck",
+      "eos_module": "eos_ai.transport.gui_backend_healthcheck",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/instance_ingestion_contracts.py",
+      "target": "runtime.transport.instance_ingestion_contracts",
+      "eos_module": "eos_ai.transport.instance_ingestion_contracts",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/interactive_gui_worker_contracts.py",
+      "target": "runtime.transport.interactive_gui_worker_contracts",
+      "eos_module": "eos_ai.transport.interactive_gui_worker_contracts",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/interactive_shell_executor.py",
+      "target": "runtime.transport.interactive_shell_executor",
+      "eos_module": "eos_ai.transport.interactive_shell_executor",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/interface_projection_contracts.py",
+      "target": "runtime.transport.interface_projection_contracts",
+      "eos_module": "eos_ai.transport.interface_projection_contracts",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/live_sessions.py",
+      "target": "runtime.transport.live_sessions",
+      "eos_module": "eos_ai.transport.live_sessions",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/llm_decision_events.py",
+      "target": "runtime.transport.llm_decision_events",
+      "eos_module": "eos_ai.transport.llm_decision_events",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/llm_planner.py",
+      "target": "runtime.transport.llm_planner",
+      "eos_module": "eos_ai.transport.llm_planner",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": true
+    },
+    {
+      "shim": "eos_ai/transport/llm_replay.py",
+      "target": "runtime.transport.llm_replay",
+      "eos_module": "eos_ai.transport.llm_replay",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/local_control.py",
+      "target": "runtime.transport.local_control",
+      "eos_module": "eos_ai.transport.local_control",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/local_env_secret_backend.py",
+      "target": "runtime.transport.local_env_secret_backend",
+      "eos_module": "eos_ai.transport.local_env_secret_backend",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/local_executor.py",
+      "target": "runtime.transport.local_executor",
+      "eos_module": "eos_ai.transport.local_executor",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/local_gui_control_contracts.py",
+      "target": "runtime.transport.local_gui_control_contracts",
+      "eos_module": "eos_ai.transport.local_gui_control_contracts",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/local_listener.py",
+      "target": "runtime.transport.local_listener",
+      "eos_module": "eos_ai.transport.local_listener",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/local_worker_auto_loop.py",
+      "target": "runtime.transport.local_worker_auto_loop",
+      "eos_module": "eos_ai.transport.local_worker_auto_loop",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/local_worker_relay_packets.py",
+      "target": "runtime.transport.local_worker_relay_packets",
+      "eos_module": "eos_ai.transport.local_worker_relay_packets",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/local_worker_runtime_daemon.py",
+      "target": "runtime.transport.local_worker_runtime_daemon",
+      "eos_module": "eos_ai.transport.local_worker_runtime_daemon",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/mcp_backend_classifier.py",
+      "target": "runtime.transport.mcp_backend_classifier",
+      "eos_module": "eos_ai.transport.mcp_backend_classifier",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/mcp_backend_contracts.py",
+      "target": "runtime.transport.mcp_backend_contracts",
+      "eos_module": "eos_ai.transport.mcp_backend_contracts",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/mcp_backend_discovery.py",
+      "target": "runtime.transport.mcp_backend_discovery",
+      "eos_module": "eos_ai.transport.mcp_backend_discovery",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/meet_caption_bridge.py",
+      "target": "runtime.transport.meet_caption_bridge",
+      "eos_module": "eos_ai.transport.meet_caption_bridge",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/meeting_intelligence.py",
+      "target": "runtime.transport.meeting_intelligence",
+      "eos_module": "eos_ai.transport.meeting_intelligence",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/meeting_sources.py",
+      "target": "runtime.transport.meeting_sources",
+      "eos_module": "eos_ai.transport.meeting_sources",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/meeting_transport.py",
+      "target": "runtime.transport.meeting_transport",
+      "eos_module": "eos_ai.transport.meeting_transport",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/memory_scope_contracts.py",
+      "target": "runtime.transport.memory_scope_contracts",
+      "eos_module": "eos_ai.transport.memory_scope_contracts",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/message_bus_contracts.py",
+      "target": "runtime.transport.message_bus_contracts",
+      "eos_module": "eos_ai.transport.message_bus_contracts",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/mode_behavior.py",
+      "target": "runtime.transport.mode_behavior",
+      "eos_module": "eos_ai.transport.mode_behavior",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/node_controller.py",
+      "target": "runtime.transport.node_controller",
+      "eos_module": "eos_ai.transport.node_controller",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/node_transport.py",
+      "target": "runtime.transport.node_transport",
+      "eos_module": "eos_ai.transport.node_transport",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/nodes.py",
+      "target": "runtime.transport.nodes",
+      "eos_module": "eos_ai.transport.nodes",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/operator_interface.py",
+      "target": "runtime.transport.operator_interface",
+      "eos_module": "eos_ai.transport.operator_interface",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/operator_presence.py",
+      "target": "runtime.transport.operator_presence",
+      "eos_module": "eos_ai.transport.operator_presence",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/operator_session.py",
+      "target": "runtime.transport.operator_session",
+      "eos_module": "eos_ai.transport.operator_session",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/operator_state.py",
+      "target": "runtime.transport.operator_state",
+      "eos_module": "eos_ai.transport.operator_state",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/operator_transitions.py",
+      "target": "runtime.transport.operator_transitions",
+      "eos_module": "eos_ai.transport.operator_transitions",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/os_controller.py",
+      "target": "runtime.transport.os_controller",
+      "eos_module": "eos_ai.transport.os_controller",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/perception.py",
+      "target": "runtime.transport.perception",
+      "eos_module": "eos_ai.transport.perception",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/pipeline_execution.py",
+      "target": "runtime.transport.pipeline_execution",
+      "eos_module": "eos_ai.transport.pipeline_execution",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/planner.py",
+      "target": "runtime.transport.planner",
+      "eos_module": "eos_ai.transport.planner",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/playback_status.py",
+      "target": "runtime.transport.playback_status",
+      "eos_module": "eos_ai.transport.playback_status",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/ptt_binding.py",
+      "target": "runtime.transport.ptt_binding",
+      "eos_module": "eos_ai.transport.ptt_binding",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/remote_executor.py",
+      "target": "runtime.transport.remote_executor",
+      "eos_module": "eos_ai.transport.remote_executor",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/remote_identity.py",
+      "target": "runtime.transport.remote_identity",
+      "eos_module": "eos_ai.transport.remote_identity",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/resource_guard.py",
+      "target": "runtime.transport.resource_guard",
+      "eos_module": "eos_ai.transport.resource_guard",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/result_query.py",
+      "target": "runtime.transport.result_query",
+      "eos_module": "eos_ai.transport.result_query",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/result_store.py",
+      "target": "runtime.transport.result_store",
+      "eos_module": "eos_ai.transport.result_store",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/ritual_body.py",
+      "target": "runtime.transport.ritual_body",
+      "eos_module": "eos_ai.transport.ritual_body",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/ritual_inference.py",
+      "target": "runtime.transport.ritual_inference",
+      "eos_module": "eos_ai.transport.ritual_inference",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/ritual_reconciler.py",
+      "target": "runtime.transport.ritual_reconciler",
+      "eos_module": "eos_ai.transport.ritual_reconciler",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/ritual_runner.py",
+      "target": "runtime.transport.ritual_runner",
+      "eos_module": "eos_ai.transport.ritual_runner",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/rituals.py",
+      "target": "runtime.transport.rituals",
+      "eos_module": "eos_ai.transport.rituals",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/role_resolver.py",
+      "target": "runtime.transport.role_resolver",
+      "eos_module": "eos_ai.transport.role_resolver",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/roles.py",
+      "target": "runtime.transport.roles",
+      "eos_module": "eos_ai.transport.roles",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/scene_capabilities.py",
+      "target": "runtime.transport.scene_capabilities",
+      "eos_module": "eos_ai.transport.scene_capabilities",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/scene_policy.py",
+      "target": "runtime.transport.scene_policy",
+      "eos_module": "eos_ai.transport.scene_policy",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/scenes.py",
+      "target": "runtime.transport.scenes",
+      "eos_module": "eos_ai.transport.scenes",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/secret_broker_contracts.py",
+      "target": "runtime.transport.secret_broker_contracts",
+      "eos_module": "eos_ai.transport.secret_broker_contracts",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/secret_redaction.py",
+      "target": "runtime.transport.secret_redaction",
+      "eos_module": "eos_ai.transport.secret_redaction",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/session_control.py",
+      "target": "runtime.transport.session_control",
+      "eos_module": "eos_ai.transport.session_control",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/session_discord_bridge.py",
+      "target": "runtime.transport.session_discord_bridge",
+      "eos_module": "eos_ai.transport.session_discord_bridge",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/session_orchestration.py",
+      "target": "runtime.transport.session_orchestration",
+      "eos_module": "eos_ai.transport.session_orchestration",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/session_watcher.py",
+      "target": "runtime.transport.session_watcher",
+      "eos_module": "eos_ai.transport.session_watcher",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": true
+    },
+    {
+      "shim": "eos_ai/transport/source_lifecycle_contracts.py",
+      "target": "runtime.transport.source_lifecycle_contracts",
+      "eos_module": "eos_ai.transport.source_lifecycle_contracts",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/station.py",
+      "target": "runtime.transport.station",
+      "eos_module": "eos_ai.transport.station",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/station_bus.py",
+      "target": "runtime.transport.station_bus",
+      "eos_module": "eos_ai.transport.station_bus",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/station_daemon.py",
+      "target": "runtime.transport.station_daemon",
+      "eos_module": "eos_ai.transport.station_daemon",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/station_drainer.py",
+      "target": "runtime.transport.station_drainer",
+      "eos_module": "eos_ai.transport.station_drainer",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/station_helpers.py",
+      "target": "runtime.transport.station_helpers",
+      "eos_module": "eos_ai.transport.station_helpers",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/station_presence.py",
+      "target": "runtime.transport.station_presence",
+      "eos_module": "eos_ai.transport.station_presence",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/station_readiness.py",
+      "target": "runtime.transport.station_readiness",
+      "eos_module": "eos_ai.transport.station_readiness",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/station_triggers.py",
+      "target": "runtime.transport.station_triggers",
+      "eos_module": "eos_ai.transport.station_triggers",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/storage.py",
+      "target": "runtime.transport.storage",
+      "eos_module": "eos_ai.transport.storage",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/stt_producer.py",
+      "target": "runtime.transport.stt_producer",
+      "eos_module": "eos_ai.transport.stt_producer",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": true
+    },
+    {
+      "shim": "eos_ai/transport/substrate_projection_boundaries.py",
+      "target": "runtime.transport.substrate_projection_boundaries",
+      "eos_module": "eos_ai.transport.substrate_projection_boundaries",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/target_policy.py",
+      "target": "runtime.transport.target_policy",
+      "eos_module": "eos_ai.transport.target_policy",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/task_decomposition.py",
+      "target": "runtime.transport.task_decomposition",
+      "eos_module": "eos_ai.transport.task_decomposition",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/task_execution.py",
+      "target": "runtime.transport.task_execution",
+      "eos_module": "eos_ai.transport.task_execution",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/task_pipeline.py",
+      "target": "runtime.transport.task_pipeline",
+      "eos_module": "eos_ai.transport.task_pipeline",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/task_queue.py",
+      "target": "runtime.transport.task_queue",
+      "eos_module": "eos_ai.transport.task_queue",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/task_system.py",
+      "target": "runtime.transport.task_system",
+      "eos_module": "eos_ai.transport.task_system",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/template_promotion_contracts.py",
+      "target": "runtime.transport.template_promotion_contracts",
+      "eos_module": "eos_ai.transport.template_promotion_contracts",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/tmux_environment_manager.py",
+      "target": "runtime.transport.tmux_environment_manager",
+      "eos_module": "eos_ai.transport.tmux_environment_manager",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/topology_contracts.py",
+      "target": "runtime.transport.topology_contracts",
+      "eos_module": "eos_ai.transport.topology_contracts",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/transcript_inject.py",
+      "target": "runtime.transport.transcript_inject",
+      "eos_module": "eos_ai.transport.transcript_inject",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/transport_report.py",
+      "target": "runtime.transport.transport_report",
+      "eos_module": "eos_ai.transport.transport_report",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/tts_sanitize.py",
+      "target": "runtime.transport.tts_sanitize",
+      "eos_module": "eos_ai.transport.tts_sanitize",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/visible_browser_launch_backend.py",
+      "target": "runtime.transport.visible_browser_launch_backend",
+      "eos_module": "eos_ai.transport.visible_browser_launch_backend",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/visible_drive_ui_inventory.py",
+      "target": "runtime.transport.visible_drive_ui_inventory",
+      "eos_module": "eos_ai.transport.visible_drive_ui_inventory",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/visible_google_doc_reader.py",
+      "target": "runtime.transport.visible_google_doc_reader",
+      "eos_module": "eos_ai.transport.visible_google_doc_reader",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/visible_gui_success_criteria.py",
+      "target": "runtime.transport.visible_gui_success_criteria",
+      "eos_module": "eos_ai.transport.visible_gui_success_criteria",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/voice_eos_responder.py",
+      "target": "runtime.transport.voice_eos_responder",
+      "eos_module": "eos_ai.transport.voice_eos_responder",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/voice_session.py",
+      "target": "runtime.transport.voice_session",
+      "eos_module": "eos_ai.transport.voice_session",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/voice_wake.py",
+      "target": "runtime.transport.voice_wake",
+      "eos_module": "eos_ai.transport.voice_wake",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/wake_producer.py",
+      "target": "runtime.transport.wake_producer",
+      "eos_module": "eos_ai.transport.wake_producer",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/windows_desktop_relay_client.py",
+      "target": "runtime.transport.windows_desktop_relay_client",
+      "eos_module": "eos_ai.transport.windows_desktop_relay_client",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/windows_user_session_launcher.py",
+      "target": "runtime.transport.windows_user_session_launcher",
+      "eos_module": "eos_ai.transport.windows_user_session_launcher",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/work_order_contracts.py",
+      "target": "runtime.transport.work_order_contracts",
+      "eos_module": "eos_ai.transport.work_order_contracts",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": true
+    },
+    {
+      "shim": "eos_ai/transport/work_order_dispatch.py",
+      "target": "runtime.transport.work_order_dispatch",
+      "eos_module": "eos_ai.transport.work_order_dispatch",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/work_order_factory.py",
+      "target": "runtime.transport.work_order_factory",
+      "eos_module": "eos_ai.transport.work_order_factory",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/worker_node_contracts.py",
+      "target": "runtime.transport.worker_node_contracts",
+      "eos_module": "eos_ai.transport.worker_node_contracts",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/worker_node_runtime.py",
+      "target": "runtime.transport.worker_node_runtime",
+      "eos_module": "eos_ai.transport.worker_node_runtime",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/workflow_delegation.py",
+      "target": "runtime.transport.workflow_delegation",
+      "eos_module": "eos_ai.transport.workflow_delegation",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/workflow_execution.py",
+      "target": "runtime.transport.workflow_execution",
+      "eos_module": "eos_ai.transport.workflow_execution",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": true
+    },
+    {
+      "shim": "eos_ai/transport/workload_policy.py",
+      "target": "runtime.transport.workload_policy",
+      "eos_module": "eos_ai.transport.workload_policy",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/transport/write_founder_gate_confirmation.py",
+      "target": "runtime.transport.write_founder_gate_confirmation",
+      "eos_module": "eos_ai.transport.write_founder_gate_confirmation",
+      "type": "transport",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/__init__.py",
+      "target": "runtime.substrate",
+      "eos_module": "eos_ai.substrate",
+      "type": "substrate_init",
+      "pattern": "import_star",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/actions.py",
+      "target": "runtime.substrate.actions",
+      "eos_module": "eos_ai.substrate.actions",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/adapter_best_practices_loader.py",
+      "target": "runtime.substrate.adapter_best_practices_loader",
+      "eos_module": "eos_ai.substrate.adapter_best_practices_loader",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/adapter_engine_contracts.py",
+      "target": "runtime.substrate.adapter_engine_contracts",
+      "eos_module": "eos_ai.substrate.adapter_engine_contracts",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/adapter_generation_contracts.py",
+      "target": "runtime.substrate.adapter_generation_contracts",
+      "eos_module": "eos_ai.substrate.adapter_generation_contracts",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/adapter_quality_gate.py",
+      "target": "runtime.substrate.adapter_quality_gate",
+      "eos_module": "eos_ai.substrate.adapter_quality_gate",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/advisor_bridge_transport.py",
+      "target": "runtime.substrate.advisor_bridge_transport",
+      "eos_module": "eos_ai.substrate.advisor_bridge_transport",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/advisor_relay_runtime.py",
+      "target": "runtime.substrate.advisor_relay_runtime",
+      "eos_module": "eos_ai.substrate.advisor_relay_runtime",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/advisor_session_contracts.py",
+      "target": "runtime.substrate.advisor_session_contracts",
+      "eos_module": "eos_ai.substrate.advisor_session_contracts",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/app_allowlist.py",
+      "target": "runtime.substrate.app_allowlist",
+      "eos_module": "eos_ai.substrate.app_allowlist",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/approved_action_executor.py",
+      "target": "runtime.substrate.approved_action_executor",
+      "eos_module": "eos_ai.substrate.approved_action_executor",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/audio_loop.py",
+      "target": "runtime.substrate.audio_loop",
+      "eos_module": "eos_ai.substrate.audio_loop",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/auth_layer_contracts.py",
+      "target": "runtime.substrate.auth_layer_contracts",
+      "eos_module": "eos_ai.substrate.auth_layer_contracts",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/auto_task_generation.py",
+      "target": "runtime.substrate.auto_task_generation",
+      "eos_module": "eos_ai.substrate.auto_task_generation",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/backend_registry_contracts.py",
+      "target": "runtime.substrate.backend_registry_contracts",
+      "eos_module": "eos_ai.substrate.backend_registry_contracts",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/backend_selection_engine.py",
+      "target": "runtime.substrate.backend_selection_engine",
+      "eos_module": "eos_ai.substrate.backend_selection_engine",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/browser_agent.py",
+      "target": "runtime.substrate.browser_agent",
+      "eos_module": "eos_ai.substrate.browser_agent",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/canonical_source_record.py",
+      "target": "runtime.substrate.canonical_source_record",
+      "eos_module": "eos_ai.substrate.canonical_source_record",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/capabilities.py",
+      "target": "runtime.substrate.capabilities",
+      "eos_module": "eos_ai.substrate.capabilities",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/capability_routing.py",
+      "target": "runtime.substrate.capability_routing",
+      "eos_module": "eos_ai.substrate.capability_routing",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/capability_routing_contracts.py",
+      "target": "runtime.substrate.capability_routing_contracts",
+      "eos_module": "eos_ai.substrate.capability_routing_contracts",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/capability_tagging.py",
+      "target": "runtime.substrate.capability_tagging",
+      "eos_module": "eos_ai.substrate.capability_tagging",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/chrome_accessibility_launch_backend.py",
+      "target": "runtime.substrate.chrome_accessibility_launch_backend",
+      "eos_module": "eos_ai.substrate.chrome_accessibility_launch_backend",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/chrome_profile_launch_backend.py",
+      "target": "runtime.substrate.chrome_profile_launch_backend",
+      "eos_module": "eos_ai.substrate.chrome_profile_launch_backend",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/chrome_profile_resolver.py",
+      "target": "runtime.substrate.chrome_profile_resolver",
+      "eos_module": "eos_ai.substrate.chrome_profile_resolver",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/claude_responder.py",
+      "target": "runtime.substrate.claude_responder",
+      "eos_module": "eos_ai.substrate.claude_responder",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/claude_session_bridge.py",
+      "target": "runtime.substrate.claude_session_bridge",
+      "eos_module": "eos_ai.substrate.claude_session_bridge",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": true
+    },
+    {
+      "shim": "eos_ai/substrate/computer_use_backend_contracts.py",
+      "target": "runtime.substrate.computer_use_backend_contracts",
+      "eos_module": "eos_ai.substrate.computer_use_backend_contracts",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/context_lifecycle.py",
+      "target": "runtime.substrate.context_lifecycle",
+      "eos_module": "eos_ai.substrate.context_lifecycle",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/control_bridge.py",
+      "target": "runtime.substrate.control_bridge",
+      "eos_module": "eos_ai.substrate.control_bridge",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/control_commands.py",
+      "target": "runtime.substrate.control_commands",
+      "eos_module": "eos_ai.substrate.control_commands",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/cu_document_reader_hardening_plan.py",
+      "target": "runtime.substrate.cu_document_reader_hardening_plan",
+      "eos_module": "eos_ai.substrate.cu_document_reader_hardening_plan",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/day_workflows.py",
+      "target": "runtime.substrate.day_workflows",
+      "eos_module": "eos_ai.substrate.day_workflows",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/decision_engine.py",
+      "target": "runtime.substrate.decision_engine",
+      "eos_module": "eos_ai.substrate.decision_engine",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/discord_mode_routing.py",
+      "target": "runtime.substrate.discord_mode_routing",
+      "eos_module": "eos_ai.substrate.discord_mode_routing",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/discord_text_transport.py",
+      "target": "runtime.substrate.discord_text_transport",
+      "eos_module": "eos_ai.substrate.discord_text_transport",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/discord_voice_playback.py",
+      "target": "runtime.substrate.discord_voice_playback",
+      "eos_module": "eos_ai.substrate.discord_voice_playback",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/discord_voice_transport.py",
+      "target": "runtime.substrate.discord_voice_transport",
+      "eos_module": "eos_ai.substrate.discord_voice_transport",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/doc_cu_vs_api_comparator.py",
+      "target": "runtime.substrate.doc_cu_vs_api_comparator",
+      "eos_module": "eos_ai.substrate.doc_cu_vs_api_comparator",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/drive_ui_inventory_comparator.py",
+      "target": "runtime.substrate.drive_ui_inventory_comparator",
+      "eos_module": "eos_ai.substrate.drive_ui_inventory_comparator",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/environment_contracts.py",
+      "target": "runtime.substrate.environment_contracts",
+      "eos_module": "eos_ai.substrate.environment_contracts",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/event_scheduler.py",
+      "target": "runtime.substrate.event_scheduler",
+      "eos_module": "eos_ai.substrate.event_scheduler",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/event_spine.py",
+      "target": "runtime.substrate.event_spine",
+      "eos_module": "eos_ai.substrate.event_spine",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/execution_adapter.py",
+      "target": "runtime.substrate.execution_adapter",
+      "eos_module": "eos_ai.substrate.execution_adapter",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/execution_authority.py",
+      "target": "runtime.substrate.execution_authority",
+      "eos_module": "eos_ai.substrate.execution_authority",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/execution_contract.py",
+      "target": "runtime.substrate.execution_contract",
+      "eos_module": "eos_ai.substrate.execution_contract",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/execution_events.py",
+      "target": "runtime.substrate.execution_events",
+      "eos_module": "eos_ai.substrate.execution_events",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/execution_result_handler.py",
+      "target": "runtime.substrate.execution_result_handler",
+      "eos_module": "eos_ai.substrate.execution_result_handler",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/execution_router.py",
+      "target": "runtime.substrate.execution_router",
+      "eos_module": "eos_ai.substrate.execution_router",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/execution_trace.py",
+      "target": "runtime.substrate.execution_trace",
+      "eos_module": "eos_ai.substrate.execution_trace",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/execution_worker.py",
+      "target": "runtime.substrate.execution_worker",
+      "eos_module": "eos_ai.substrate.execution_worker",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/extraction_backend_contracts.py",
+      "target": "runtime.substrate.extraction_backend_contracts",
+      "eos_module": "eos_ai.substrate.extraction_backend_contracts",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/extraction_parity_comparator.py",
+      "target": "runtime.substrate.extraction_parity_comparator",
+      "eos_module": "eos_ai.substrate.extraction_parity_comparator",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/google_docs_backend_parity_matrix.py",
+      "target": "runtime.substrate.google_docs_backend_parity_matrix",
+      "eos_module": "eos_ai.substrate.google_docs_backend_parity_matrix",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/google_docs_tab_audit.py",
+      "target": "runtime.substrate.google_docs_tab_audit",
+      "eos_module": "eos_ai.substrate.google_docs_tab_audit",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/google_docs_tab_extractor.py",
+      "target": "runtime.substrate.google_docs_tab_extractor",
+      "eos_module": "eos_ai.substrate.google_docs_tab_extractor",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/google_meet_source.py",
+      "target": "runtime.substrate.google_meet_source",
+      "eos_module": "eos_ai.substrate.google_meet_source",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/google_workspace_backend_options.py",
+      "target": "runtime.substrate.google_workspace_backend_options",
+      "eos_module": "eos_ai.substrate.google_workspace_backend_options",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/governance_gate_contracts.py",
+      "target": "runtime.substrate.governance_gate_contracts",
+      "eos_module": "eos_ai.substrate.governance_gate_contracts",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/gui_backend_healthcheck.py",
+      "target": "runtime.substrate.gui_backend_healthcheck",
+      "eos_module": "eos_ai.substrate.gui_backend_healthcheck",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/instance_ingestion_contracts.py",
+      "target": "runtime.substrate.instance_ingestion_contracts",
+      "eos_module": "eos_ai.substrate.instance_ingestion_contracts",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/interactive_gui_worker_contracts.py",
+      "target": "runtime.substrate.interactive_gui_worker_contracts",
+      "eos_module": "eos_ai.substrate.interactive_gui_worker_contracts",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/interactive_shell_executor.py",
+      "target": "runtime.substrate.interactive_shell_executor",
+      "eos_module": "eos_ai.substrate.interactive_shell_executor",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/interface_projection_contracts.py",
+      "target": "runtime.substrate.interface_projection_contracts",
+      "eos_module": "eos_ai.substrate.interface_projection_contracts",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/live_sessions.py",
+      "target": "runtime.substrate.live_sessions",
+      "eos_module": "eos_ai.substrate.live_sessions",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/llm_decision_events.py",
+      "target": "runtime.substrate.llm_decision_events",
+      "eos_module": "eos_ai.substrate.llm_decision_events",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/llm_planner.py",
+      "target": "runtime.substrate.llm_planner",
+      "eos_module": "eos_ai.substrate.llm_planner",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": true
+    },
+    {
+      "shim": "eos_ai/substrate/llm_replay.py",
+      "target": "runtime.substrate.llm_replay",
+      "eos_module": "eos_ai.substrate.llm_replay",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/local_control.py",
+      "target": "runtime.substrate.local_control",
+      "eos_module": "eos_ai.substrate.local_control",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/local_env_secret_backend.py",
+      "target": "runtime.substrate.local_env_secret_backend",
+      "eos_module": "eos_ai.substrate.local_env_secret_backend",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/local_executor.py",
+      "target": "runtime.substrate.local_executor",
+      "eos_module": "eos_ai.substrate.local_executor",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/local_gui_control_contracts.py",
+      "target": "runtime.substrate.local_gui_control_contracts",
+      "eos_module": "eos_ai.substrate.local_gui_control_contracts",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/local_listener.py",
+      "target": "runtime.substrate.local_listener",
+      "eos_module": "eos_ai.substrate.local_listener",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/local_worker_auto_loop.py",
+      "target": "runtime.substrate.local_worker_auto_loop",
+      "eos_module": "eos_ai.substrate.local_worker_auto_loop",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/local_worker_relay_packets.py",
+      "target": "runtime.substrate.local_worker_relay_packets",
+      "eos_module": "eos_ai.substrate.local_worker_relay_packets",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/local_worker_runtime_daemon.py",
+      "target": "runtime.substrate.local_worker_runtime_daemon",
+      "eos_module": "eos_ai.substrate.local_worker_runtime_daemon",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/mcp_backend_classifier.py",
+      "target": "runtime.substrate.mcp_backend_classifier",
+      "eos_module": "eos_ai.substrate.mcp_backend_classifier",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/mcp_backend_contracts.py",
+      "target": "runtime.substrate.mcp_backend_contracts",
+      "eos_module": "eos_ai.substrate.mcp_backend_contracts",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/mcp_backend_discovery.py",
+      "target": "runtime.substrate.mcp_backend_discovery",
+      "eos_module": "eos_ai.substrate.mcp_backend_discovery",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/meet_caption_bridge.py",
+      "target": "runtime.substrate.meet_caption_bridge",
+      "eos_module": "eos_ai.substrate.meet_caption_bridge",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/meeting_intelligence.py",
+      "target": "runtime.substrate.meeting_intelligence",
+      "eos_module": "eos_ai.substrate.meeting_intelligence",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/meeting_sources.py",
+      "target": "runtime.substrate.meeting_sources",
+      "eos_module": "eos_ai.substrate.meeting_sources",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/meeting_transport.py",
+      "target": "runtime.substrate.meeting_transport",
+      "eos_module": "eos_ai.substrate.meeting_transport",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/memory_scope_contracts.py",
+      "target": "runtime.substrate.memory_scope_contracts",
+      "eos_module": "eos_ai.substrate.memory_scope_contracts",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/message_bus_contracts.py",
+      "target": "runtime.substrate.message_bus_contracts",
+      "eos_module": "eos_ai.substrate.message_bus_contracts",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/mode_behavior.py",
+      "target": "runtime.substrate.mode_behavior",
+      "eos_module": "eos_ai.substrate.mode_behavior",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/node_controller.py",
+      "target": "runtime.substrate.node_controller",
+      "eos_module": "eos_ai.substrate.node_controller",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/node_transport.py",
+      "target": "runtime.substrate.node_transport",
+      "eos_module": "eos_ai.substrate.node_transport",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/nodes.py",
+      "target": "runtime.substrate.nodes",
+      "eos_module": "eos_ai.substrate.nodes",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/operator_interface.py",
+      "target": "runtime.substrate.operator_interface",
+      "eos_module": "eos_ai.substrate.operator_interface",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/operator_presence.py",
+      "target": "runtime.substrate.operator_presence",
+      "eos_module": "eos_ai.substrate.operator_presence",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/operator_session.py",
+      "target": "runtime.substrate.operator_session",
+      "eos_module": "eos_ai.substrate.operator_session",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/operator_state.py",
+      "target": "runtime.substrate.operator_state",
+      "eos_module": "eos_ai.substrate.operator_state",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/operator_transitions.py",
+      "target": "runtime.substrate.operator_transitions",
+      "eos_module": "eos_ai.substrate.operator_transitions",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/os_controller.py",
+      "target": "runtime.substrate.os_controller",
+      "eos_module": "eos_ai.substrate.os_controller",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/perception.py",
+      "target": "runtime.substrate.perception",
+      "eos_module": "eos_ai.substrate.perception",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/pipeline_execution.py",
+      "target": "runtime.substrate.pipeline_execution",
+      "eos_module": "eos_ai.substrate.pipeline_execution",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/planner.py",
+      "target": "runtime.substrate.planner",
+      "eos_module": "eos_ai.substrate.planner",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/playback_status.py",
+      "target": "runtime.substrate.playback_status",
+      "eos_module": "eos_ai.substrate.playback_status",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/ptt_binding.py",
+      "target": "runtime.substrate.ptt_binding",
+      "eos_module": "eos_ai.substrate.ptt_binding",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/remote_executor.py",
+      "target": "runtime.substrate.remote_executor",
+      "eos_module": "eos_ai.substrate.remote_executor",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/remote_identity.py",
+      "target": "runtime.substrate.remote_identity",
+      "eos_module": "eos_ai.substrate.remote_identity",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/resource_guard.py",
+      "target": "runtime.substrate.resource_guard",
+      "eos_module": "eos_ai.substrate.resource_guard",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/result_query.py",
+      "target": "runtime.substrate.result_query",
+      "eos_module": "eos_ai.substrate.result_query",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/result_store.py",
+      "target": "runtime.substrate.result_store",
+      "eos_module": "eos_ai.substrate.result_store",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/ritual_body.py",
+      "target": "runtime.substrate.ritual_body",
+      "eos_module": "eos_ai.substrate.ritual_body",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/ritual_inference.py",
+      "target": "runtime.substrate.ritual_inference",
+      "eos_module": "eos_ai.substrate.ritual_inference",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/ritual_reconciler.py",
+      "target": "runtime.substrate.ritual_reconciler",
+      "eos_module": "eos_ai.substrate.ritual_reconciler",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/ritual_runner.py",
+      "target": "runtime.substrate.ritual_runner",
+      "eos_module": "eos_ai.substrate.ritual_runner",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/rituals.py",
+      "target": "runtime.substrate.rituals",
+      "eos_module": "eos_ai.substrate.rituals",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/role_resolver.py",
+      "target": "runtime.substrate.role_resolver",
+      "eos_module": "eos_ai.substrate.role_resolver",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/roles.py",
+      "target": "runtime.substrate.roles",
+      "eos_module": "eos_ai.substrate.roles",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/scene_capabilities.py",
+      "target": "runtime.substrate.scene_capabilities",
+      "eos_module": "eos_ai.substrate.scene_capabilities",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/scene_policy.py",
+      "target": "runtime.substrate.scene_policy",
+      "eos_module": "eos_ai.substrate.scene_policy",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/scenes.py",
+      "target": "runtime.substrate.scenes",
+      "eos_module": "eos_ai.substrate.scenes",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/secret_broker_contracts.py",
+      "target": "runtime.substrate.secret_broker_contracts",
+      "eos_module": "eos_ai.substrate.secret_broker_contracts",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/secret_redaction.py",
+      "target": "runtime.substrate.secret_redaction",
+      "eos_module": "eos_ai.substrate.secret_redaction",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/session_control.py",
+      "target": "runtime.substrate.session_control",
+      "eos_module": "eos_ai.substrate.session_control",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/session_discord_bridge.py",
+      "target": "runtime.substrate.session_discord_bridge",
+      "eos_module": "eos_ai.substrate.session_discord_bridge",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/session_orchestration.py",
+      "target": "runtime.substrate.session_orchestration",
+      "eos_module": "eos_ai.substrate.session_orchestration",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/session_watcher.py",
+      "target": "runtime.substrate.session_watcher",
+      "eos_module": "eos_ai.substrate.session_watcher",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": true
+    },
+    {
+      "shim": "eos_ai/substrate/source_lifecycle_contracts.py",
+      "target": "runtime.substrate.source_lifecycle_contracts",
+      "eos_module": "eos_ai.substrate.source_lifecycle_contracts",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/station.py",
+      "target": "runtime.substrate.station",
+      "eos_module": "eos_ai.substrate.station",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/station_bus.py",
+      "target": "runtime.substrate.station_bus",
+      "eos_module": "eos_ai.substrate.station_bus",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/station_daemon.py",
+      "target": "runtime.substrate.station_daemon",
+      "eos_module": "eos_ai.substrate.station_daemon",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/station_drainer.py",
+      "target": "runtime.substrate.station_drainer",
+      "eos_module": "eos_ai.substrate.station_drainer",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/station_helpers.py",
+      "target": "runtime.substrate.station_helpers",
+      "eos_module": "eos_ai.substrate.station_helpers",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/station_presence.py",
+      "target": "runtime.substrate.station_presence",
+      "eos_module": "eos_ai.substrate.station_presence",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/station_readiness.py",
+      "target": "runtime.substrate.station_readiness",
+      "eos_module": "eos_ai.substrate.station_readiness",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/station_triggers.py",
+      "target": "runtime.substrate.station_triggers",
+      "eos_module": "eos_ai.substrate.station_triggers",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/storage.py",
+      "target": "runtime.substrate.storage",
+      "eos_module": "eos_ai.substrate.storage",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/stt_producer.py",
+      "target": "runtime.substrate.stt_producer",
+      "eos_module": "eos_ai.substrate.stt_producer",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": true
+    },
+    {
+      "shim": "eos_ai/substrate/substrate_projection_boundaries.py",
+      "target": "runtime.substrate.substrate_projection_boundaries",
+      "eos_module": "eos_ai.substrate.substrate_projection_boundaries",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/target_policy.py",
+      "target": "runtime.substrate.target_policy",
+      "eos_module": "eos_ai.substrate.target_policy",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/task_decomposition.py",
+      "target": "runtime.substrate.task_decomposition",
+      "eos_module": "eos_ai.substrate.task_decomposition",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/task_execution.py",
+      "target": "runtime.substrate.task_execution",
+      "eos_module": "eos_ai.substrate.task_execution",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/task_pipeline.py",
+      "target": "runtime.substrate.task_pipeline",
+      "eos_module": "eos_ai.substrate.task_pipeline",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/task_queue.py",
+      "target": "runtime.substrate.task_queue",
+      "eos_module": "eos_ai.substrate.task_queue",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/task_system.py",
+      "target": "runtime.substrate.task_system",
+      "eos_module": "eos_ai.substrate.task_system",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/template_promotion_contracts.py",
+      "target": "runtime.substrate.template_promotion_contracts",
+      "eos_module": "eos_ai.substrate.template_promotion_contracts",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/tmux_environment_manager.py",
+      "target": "runtime.substrate.tmux_environment_manager",
+      "eos_module": "eos_ai.substrate.tmux_environment_manager",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/topology_contracts.py",
+      "target": "runtime.substrate.topology_contracts",
+      "eos_module": "eos_ai.substrate.topology_contracts",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/transcript_inject.py",
+      "target": "runtime.substrate.transcript_inject",
+      "eos_module": "eos_ai.substrate.transcript_inject",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/transport_report.py",
+      "target": "runtime.substrate.transport_report",
+      "eos_module": "eos_ai.substrate.transport_report",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/tts_sanitize.py",
+      "target": "runtime.substrate.tts_sanitize",
+      "eos_module": "eos_ai.substrate.tts_sanitize",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/visible_browser_launch_backend.py",
+      "target": "runtime.substrate.visible_browser_launch_backend",
+      "eos_module": "eos_ai.substrate.visible_browser_launch_backend",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/visible_drive_ui_inventory.py",
+      "target": "runtime.substrate.visible_drive_ui_inventory",
+      "eos_module": "eos_ai.substrate.visible_drive_ui_inventory",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/visible_google_doc_reader.py",
+      "target": "runtime.substrate.visible_google_doc_reader",
+      "eos_module": "eos_ai.substrate.visible_google_doc_reader",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/visible_gui_success_criteria.py",
+      "target": "runtime.substrate.visible_gui_success_criteria",
+      "eos_module": "eos_ai.substrate.visible_gui_success_criteria",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/voice_eos_responder.py",
+      "target": "runtime.substrate.voice_eos_responder",
+      "eos_module": "eos_ai.substrate.voice_eos_responder",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/voice_session.py",
+      "target": "runtime.substrate.voice_session",
+      "eos_module": "eos_ai.substrate.voice_session",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/voice_wake.py",
+      "target": "runtime.substrate.voice_wake",
+      "eos_module": "eos_ai.substrate.voice_wake",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/wake_producer.py",
+      "target": "runtime.substrate.wake_producer",
+      "eos_module": "eos_ai.substrate.wake_producer",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/windows_desktop_relay_client.py",
+      "target": "runtime.substrate.windows_desktop_relay_client",
+      "eos_module": "eos_ai.substrate.windows_desktop_relay_client",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/windows_user_session_launcher.py",
+      "target": "runtime.substrate.windows_user_session_launcher",
+      "eos_module": "eos_ai.substrate.windows_user_session_launcher",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/work_order_contracts.py",
+      "target": "runtime.substrate.work_order_contracts",
+      "eos_module": "eos_ai.substrate.work_order_contracts",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/work_order_dispatch.py",
+      "target": "runtime.substrate.work_order_dispatch",
+      "eos_module": "eos_ai.substrate.work_order_dispatch",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/work_order_factory.py",
+      "target": "runtime.substrate.work_order_factory",
+      "eos_module": "eos_ai.substrate.work_order_factory",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/worker_node_contracts.py",
+      "target": "runtime.substrate.worker_node_contracts",
+      "eos_module": "eos_ai.substrate.worker_node_contracts",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/worker_node_runtime.py",
+      "target": "runtime.substrate.worker_node_runtime",
+      "eos_module": "eos_ai.substrate.worker_node_runtime",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/workflow_delegation.py",
+      "target": "runtime.substrate.workflow_delegation",
+      "eos_module": "eos_ai.substrate.workflow_delegation",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/workflow_execution.py",
+      "target": "runtime.substrate.workflow_execution",
+      "eos_module": "eos_ai.substrate.workflow_execution",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": true
+    },
+    {
+      "shim": "eos_ai/substrate/workload_policy.py",
+      "target": "runtime.substrate.workload_policy",
+      "eos_module": "eos_ai.substrate.workload_policy",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/substrate/write_founder_gate_confirmation.py",
+      "target": "runtime.substrate.write_founder_gate_confirmation",
+      "eos_module": "eos_ai.substrate.write_founder_gate_confirmation",
+      "type": "substrate",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/interfaces/__init__.py",
+      "target": "runtime.interfaces (no __init__.py)",
+      "eos_module": "eos_ai.interfaces",
+      "type": "interfaces_init",
+      "pattern": "empty_marker",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/interfaces/discord_interface_adapter_v1.py",
+      "target": "runtime.interfaces.discord_interface_adapter_v1",
+      "eos_module": "eos_ai.interfaces.discord_interface_adapter_v1",
+      "type": "interfaces",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/interfaces/discord_spine_integration_v1.py",
+      "target": "runtime.interfaces.discord_spine_integration_v1",
+      "eos_module": "eos_ai.interfaces.discord_spine_integration_v1",
+      "type": "interfaces",
+      "pattern": "sys.modules",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/runtime/__init__.py",
+      "target": "N/A (package marker)",
+      "eos_module": "eos_ai.runtime",
+      "type": "depth_flat_init",
+      "pattern": "package_marker",
+      "private_consumers": false
+    },
+    {
+      "shim": "eos_ai/runtime/work_state.py",
+      "target": "runtime.work_state",
+      "eos_module": "eos_ai.runtime.work_state",
+      "type": "depth_flattened",
+      "pattern": "sys.modules",
+      "private_consumers": true
+    },
+    {
+      "shim": "eos_ai/runtime/provider_state.py",
+      "target": "runtime.provider_state",
+      "eos_module": "eos_ai.runtime.provider_state",
+      "type": "depth_flattened",
+      "pattern": "sys.modules",
+      "private_consumers": true
+    }
+  ],
+  "orphans": [],
+  "oversized": [],
+  "uncovered": [],
+  "private_name_consumers": {
+    "eos_ai.goal_selector": "runtime.goal_selector",
+    "eos_ai.runtime.provider_state": "runtime.provider_state",
+    "eos_ai.runtime.work_state": "runtime.work_state",
+    "eos_ai.substrate.claude_session_bridge": "runtime.transport.claude_session_bridge",
+    "eos_ai.substrate.llm_planner": "runtime.transport.llm_planner",
+    "eos_ai.substrate.session_watcher": "runtime.transport.session_watcher",
+    "eos_ai.substrate.stt_producer": "runtime.transport.stt_producer",
+    "eos_ai.substrate.workflow_execution": "runtime.transport.workflow_execution",
+    "eos_ai.transport.claude_session_bridge": "runtime.transport.claude_session_bridge",
+    "eos_ai.transport.llm_planner": "runtime.transport.llm_planner",
+    "eos_ai.transport.session_watcher": "runtime.transport.session_watcher",
+    "eos_ai.transport.stt_producer": "runtime.transport.stt_producer",
+    "eos_ai.transport.work_order_contracts": "runtime.transport.work_order_contracts",
+    "eos_ai.transport.workflow_execution": "runtime.transport.workflow_execution"
+  }
+}
