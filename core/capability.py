@@ -6,7 +6,7 @@ perform. Every step or action is mapped to a required Capability + RiskLevel.
 The CapabilityEnforcer answers one question: `may(agent, operation) → bool`.
 
 This module is intentionally pure. No I/O, no LLM calls, no imports from
-eos_ai.*. It is safe to import from anywhere in the stack, including the
+runtime.*. It is safe to import from anywhere in the stack, including the
 harness and the action system.
 
 Usage:

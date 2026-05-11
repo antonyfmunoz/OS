@@ -35,7 +35,7 @@ from core.actuation.actuator_maturity_v1 import (
     MATURITY_LABELS,
     ActuatorMaturityLevel,
 )
-from eos_ai.substrate.memory_scope_contracts import MemoryScope
+from runtime.substrate.memory_scope_contracts import MemoryScope
 import os
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 

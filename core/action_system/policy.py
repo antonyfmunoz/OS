@@ -1,8 +1,8 @@
-"""Policy bridge between the Control Plane and `eos_ai.authority_engine`.
+"""Policy bridge between the Control Plane and `runtime.authority_engine`.
 
 Two governance systems coexist in EOS and they speak different dialects:
 
-- `eos_ai/authority_engine.py` governs *business* actions (`send_dm`,
+- `runtime/authority_engine.py` governs *business* actions (`send_dm`,
   `publish_content`, `execute_payment`) in uppercase risk classes
   (`LOW/MEDIUM/HIGH/CRITICAL`) and persists approvals to Neon.
 - `core/action_system/` governs *runtime* actions (`run_script`,
@@ -10,13 +10,13 @@ Two governance systems coexist in EOS and they speak different dialects:
   (`low/medium/high`) and persists deferrals to disk.
 
 Collapsing them into one module would create a circular dependency
-(authority_engine imports `eos_ai.db`, which is a heavy dependency we
+(authority_engine imports `runtime.db`, which is a heavy dependency we
 do not want to drag into the Control Plane's hot path) and would
 conflate two *different* governance domains. Instead, this module is
 the smallest correct adapter:
 
     - one canonical vocabulary (lowercase `low/medium/high/critical`)
-    - pure functions, no DB access, no imports from `eos_ai.*` at module load
+    - pure functions, no DB access, no imports from `runtime.*` at module load
     - authority_engine is consulted *lazily* via `authority_classify()`,
       which catches ImportError and returns None so runtime governance
       never blocks on the business layer being importable
@@ -121,7 +121,7 @@ def authority_classify(business_action_type: str) -> Optional[RiskLevel]:
     unavailable.
     """
     try:
-        from eos_ai.authority_engine import RISK_CLASSES  # lazy import
+        from runtime.authority_engine import RISK_CLASSES  # lazy import
     except Exception:
         return None
     for upper_class, actions in RISK_CLASSES.items():

@@ -260,7 +260,7 @@ def project_query(
     Returns (x, y, z, embedding) — the embedding is reusable for cosine
     reranking so callers never need to embed the query a second time.
     """
-    from eos_ai.embedder import embed
+    from runtime.embedder import embed
 
     embedding = embed(query)
     x = _project_x(embedding, pca_model)

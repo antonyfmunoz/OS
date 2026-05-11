@@ -27,9 +27,9 @@ _REPO_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.envir
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from eos_ai.context import load_context_from_env, EOSContext
-from eos_ai.db import get_conn, ORG_ID
-from eos_ai.substrate.execution_trace import (
+from runtime.context import load_context_from_env, EOSContext
+from runtime.db import get_conn, ORG_ID
+from runtime.substrate.execution_trace import (
     new_trace,
     update_trace,
     finalize_trace,
@@ -138,7 +138,7 @@ def run_task(
 
         # ── 3. ROUTE ─────────────────────────────────────────────────
         # Call gateway.classify_intent() to determine path.
-        from eos_ai.gateway import EOSGateway
+        from runtime.gateway import EOSGateway
 
         gw = EOSGateway()
         intent = gw.classify_intent(clean_text)
@@ -175,7 +175,7 @@ def run_task(
         action = request.get("action")
         if action:
             try:
-                from eos_ai.authority_engine import AuthorityEngine
+                from runtime.authority_engine import AuthorityEngine
 
                 ctx = load_context_from_env()
                 ae = AuthorityEngine(ctx)
@@ -224,7 +224,7 @@ def run_task(
         # Write user message + assistant response to memory.py messages table.
         # Non-blocking — DB failure never breaks response.
         try:
-            from eos_ai.memory import ConversationMemory
+            from runtime.memory import ConversationMemory
 
             ctx = load_context_from_env()
             cm = ConversationMemory(ctx)
@@ -361,8 +361,8 @@ def _learn_async(
 
     def _do() -> None:
         try:
-            from eos_ai.memory import AgentMemory
-            from eos_ai.agent_runtime import AgentResult
+            from runtime.memory import AgentMemory
+            from runtime.agent_runtime import AgentResult
 
             ar = AgentResult(
                 output=response or "",

@@ -29,8 +29,8 @@ Usage
     with make_playground() as pg:
         ...  # auto-cleanup
 
-    sbx.resolve("eos_ai/memory.py")    # → /opt/OS/data/sandboxes/.../workspace/eos_ai/memory.py
-    sbx.ensure_copied("eos_ai/memory.py")  # copies from production on demand
+    sbx.resolve("runtime/memory.py")    # → /opt/OS/data/sandboxes/.../workspace/runtime/memory.py
+    sbx.ensure_copied("runtime/memory.py")  # copies from production on demand
     sbx.action_log_path                # → .../logs/action_log.jsonl
     sbx.is_production                  # → False
 
@@ -77,7 +77,7 @@ FORBIDDEN_WRITE_PREFIXES: tuple[str, ...] = (
     str(_REPO_ROOT / "data" / "workflow_state"),
     str(_REPO_ROOT / "data" / "agent_state"),
     str(_REPO_ROOT / "data" / "action_snapshots"),
-    str(_REPO_ROOT / "eos_ai"),
+    str(_REPO_ROOT / "runtime"),
     str(_REPO_ROOT / "core"),
     str(_REPO_ROOT / "scripts"),
     str(_REPO_ROOT / "services"),

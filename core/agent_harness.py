@@ -4,10 +4,10 @@ agent_harness.py — Unified execution surface for every agent in EOS.
 Every agent call flows through AgentHarness. The harness owns:
 
   * Tools         → scripts.action_system.ActionSystem
-  * Memory        → eos_ai.memory.AgentMemory + ConversationMemory
+  * Memory        → runtime.memory.AgentMemory + ConversationMemory
   * Graph access  → scripts.query_graph.GraphQuery
   * Permissions   → core.capability.CapabilityEnforcer
-  * Model routing → eos_ai.model_router.call_with_fallback
+  * Model routing → runtime.model_router.call_with_fallback
 
 The harness never raises from its public methods; it always returns a
 HarnessResult with ok=True/False. Failures are logged; nothing bubbles up
@@ -27,14 +27,14 @@ Usage:
     out = harness.run_action(
         agent="executor",
         action_type="query_graph",
-        target="eos_ai/memory.py",
+        target="runtime/memory.py",
         payload={"question": "dependents"},
         reason="pre-refactor impact",
     )
     print(out.output)
 
 Design constraints:
-  * Lazy-import everything heavy (eos_ai.*, scripts.action_system) so
+  * Lazy-import everything heavy (runtime.*, scripts.action_system) so
     importing this module is cheap enough to use in CLIs and unit tests.
   * No global state beyond a single HARNESS singleton factory.
   * Every public method takes an `agent` name — always validated against
@@ -174,7 +174,7 @@ class AgentHarness:
         with self._lock:
             if self._agent_memory is None:
                 try:
-                    from eos_ai.memory import AgentMemory
+                    from runtime.memory import AgentMemory
 
                     self._agent_memory = AgentMemory()
                 except Exception as e:
@@ -187,7 +187,7 @@ class AgentHarness:
         with self._lock:
             if self._model_router is None:
                 try:
-                    from eos_ai.model_router import call_with_fallback
+                    from runtime.model_router import call_with_fallback
 
                     self._model_router = call_with_fallback
                 except Exception as e:
@@ -591,7 +591,7 @@ class AgentHarness:
             )
 
         try:
-            from eos_ai.agent_runtime import AgentResult
+            from runtime.agent_runtime import AgentResult
 
             ar = AgentResult(
                 output=content[:2000],

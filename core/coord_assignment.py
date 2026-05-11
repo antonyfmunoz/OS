@@ -307,7 +307,7 @@ def assign_semantic_coords(graph: dict) -> dict:
     Writes PCA model and embedding store to data/semantic_space/.
     Modifies graph in-place and returns it.
     """
-    from eos_ai.embedder import embed
+    from runtime.embedder import embed
 
     summaries = _load_summaries()
     edge_stats = _compute_edge_stats(graph)

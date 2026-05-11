@@ -55,7 +55,7 @@ REQUIRED_CONFIG_FILES = [
 ]
 
 NEVER_AUTO_HEAL = [
-    "eos_ai/.env",
+    "runtime/.env",
     "services/.env",
     "config/control_plane_router_v1.json",
     "data/registries/local_worker_adapter_registry_v1.json",

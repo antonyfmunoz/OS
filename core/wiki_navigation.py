@@ -147,7 +147,7 @@ class WikiIndex:
 
         for slug, outgoing in self.slug_outgoing.items():
             for link in outgoing:
-                # Direct file reference: [[eos_ai/memory.py]] or similar
+                # Direct file reference: [[runtime/memory.py]] or similar
                 normalized = link.replace("/", "/")
                 if normalized in graph_files:
                     if normalized not in self.node_to_slug:
@@ -162,7 +162,7 @@ class WikiIndex:
             if not keywords:
                 continue
             for node_id in graph_files:
-                # Node ID is a file path like eos_ai/memory.py
+                # Node ID is a file path like runtime/memory.py
                 node_lower = node_id.lower()
                 if any(kw in node_lower for kw in keywords):
                     if node_id not in self.node_to_slug:

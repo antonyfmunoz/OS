@@ -91,7 +91,7 @@ def build_local_worker_bootstrap_plan() -> BootstrapPlan:
                 title="Start local worker auto-loop in tmux",
                 command=(
                     "tmux send-keys -t eos-worker:main "
-                    "'python3 /opt/OS/eos_ai/substrate/local_worker_auto_loop.py "
+                    "'python3 /opt/OS/runtime/substrate/local_worker_auto_loop.py "
                     "~/eos_advisor_messages/inbox/w0_001_cu_rerun_while_present.json' Enter"
                 ),
                 environment="local_wsl",
