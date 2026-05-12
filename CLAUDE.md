@@ -261,13 +261,18 @@ new-primitive, debug-agent
 - After Ollama model change: `docker restart` services to pick up new code (Python files are bind-mounted)
 - Never hardcode `anthropic.Anthropic()` in services — always use model_router.call_with_fallback
 
-## Ingestion pipeline status
-PROOF_OF_LIFE — one real document completed full cycle on 2026-05-12.
-Proof: data/runtime/canonical_memory_store/proofs/2026-05-12_ingestion_e2e/
-Single proof; not yet production volume.
+## Ingestion (canonical path)
+CANONICAL — runtime.ingestion.GenericIngestionOrchestrator is the
+single ingestion path. Sources:
+  - LocalFileSource (runtime.ingestion.local_file_source)
+  - GWSSource       (runtime.ingestion.gws_source)
 
-## Generic ingestion orchestrator
-AVAILABLE — runtime.ingestion.GenericIngestionOrchestrator +
-LocalFileSource. First non-GWS ingestion path. Proof:
-data/runtime/canonical_memory_store/proofs/2026-05-12_orchestrator_e2e/
-FullLiveIngestionSpine remains the GWS-specific path.
+FullLiveIngestionSpine (core/runtime/full_live_ingestion_spine_v1.py)
+is a separate GWS-specific pipeline with its own ledger, replay, and
+governance contracts. It is NOT a wrapper — it uses different stages
+and output shapes. No production callers; tests only.
+
+Proofs:
+  data/runtime/canonical_memory_store/proofs/2026-05-12_ingestion_e2e/
+  data/runtime/canonical_memory_store/proofs/2026-05-12_orchestrator_e2e/
+  data/runtime/canonical_memory_store/proofs/2026-05-12_orchestrator_unification/

@@ -41,6 +41,12 @@
       "receipt_id": "receipt-de68e536f4c44958",
       "label": "Document has 46 sections",
       "type": "state"
+    },
+    {
+      "memory_id": "mem-11bec8e549454d5c",
+      "receipt_id": "receipt-c0b1bf9e9d884212",
+      "label": "Domain coverage: architecture",
+      "type": "resource"
     }
   ],
   "promoted_instance": [

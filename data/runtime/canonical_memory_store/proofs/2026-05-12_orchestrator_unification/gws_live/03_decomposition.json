@@ -1,0 +1,105 @@
+{
+  "decomposition_id": "decomp-35a9b996920e4116",
+  "source_content_hash": "7d453aee481be18ea7dcfc43d5fd2ac1a3a05d35523ce81964742652c824ddc8",
+  "observations": [
+    {
+      "observation_id": "obs-31ff2451",
+      "primitive_type": "resource",
+      "label": "Domain coverage: architecture",
+      "description": "Document covers the architecture domain based on keyword analysis.",
+      "confidence": 0.95,
+      "source_reference": "https://docs.google.com/document/d/1R2SFSESihPqR-NMeb8IbV10RFhFitmlxNuGkb7QbVJI/edit?usp=drivesdk:domain:architecture",
+      "evidence": "Domain architecture detected via keyword overlap",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-0007fed1",
+      "primitive_type": "resource",
+      "label": "Domain coverage: runtime",
+      "description": "Document covers the runtime domain based on keyword analysis.",
+      "confidence": 0.95,
+      "source_reference": "https://docs.google.com/document/d/1R2SFSESihPqR-NMeb8IbV10RFhFitmlxNuGkb7QbVJI/edit?usp=drivesdk:domain:runtime",
+      "evidence": "Domain runtime detected via keyword overlap",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-9cd36da5",
+      "primitive_type": "resource",
+      "label": "Domain coverage: governance",
+      "description": "Document covers the governance domain based on keyword analysis.",
+      "confidence": 0.95,
+      "source_reference": "https://docs.google.com/document/d/1R2SFSESihPqR-NMeb8IbV10RFhFitmlxNuGkb7QbVJI/edit?usp=drivesdk:domain:governance",
+      "evidence": "Domain governance detected via keyword overlap",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-771f64cd",
+      "primitive_type": "constraint",
+      "label": "name: leverage-principle description: Apply the OST leverage principle when reas",
+      "description": "name: leverage-principle description: Apply the OST leverage principle when reasoning about any build, architecture, dependency, sequencing, or strategy decision. Use this skill whenever the user is m",
+      "confidence": 0.85,
+      "source_reference": "https://docs.google.com/document/d/1R2SFSESihPqR-NMeb8IbV10RFhFitmlxNuGkb7QbVJI/edit?usp=drivesdk:constraint",
+      "evidence": "name: leverage-principle description: Apply the OST leverage principle when reasoning about any build, architecture, dependency, sequencing, or strategy decision. Use this skill whenever the user is m",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-eeb127fe",
+      "primitive_type": "constraint",
+      "label": "Never build from zero. Sit above the best existing system, capture the data, int",
+      "description": "Never build from zero. Sit above the best existing system, capture the data, internalize only what becomes load-bearing.",
+      "confidence": 0.85,
+      "source_reference": "https://docs.google.com/document/d/1R2SFSESihPqR-NMeb8IbV10RFhFitmlxNuGkb7QbVJI/edit?usp=drivesdk:constraint",
+      "evidence": "Never build from zero. Sit above the best existing system, capture the data, internalize only what becomes load-bearing.",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-7b88a035",
+      "primitive_type": "constraint",
+      "label": "Intelligence lives above the model, not inside it. Infrastructure lives above th",
+      "description": "Intelligence lives above the model, not inside it. Infrastructure lives above the OS, not inside it. Workflow lives above the tool, not inside it. The leverage move is always to wrap, govern, and obse",
+      "confidence": 0.85,
+      "source_reference": "https://docs.google.com/document/d/1R2SFSESihPqR-NMeb8IbV10RFhFitmlxNuGkb7QbVJI/edit?usp=drivesdk:constraint",
+      "evidence": "Intelligence lives above the model, not inside it. Infrastructure lives above the OS, not inside it. Workflow lives above the tool, not inside it. The leverage move is always to wrap, govern, and obse",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-da5882d7",
+      "primitive_type": "goal",
+      "label": "Document intent: protocol_or_policy \u2014 contains prescriptive directives",
+      "description": "protocol_or_policy \u2014 contains prescriptive directives",
+      "confidence": 0.8,
+      "source_reference": "https://docs.google.com/document/d/1R2SFSESihPqR-NMeb8IbV10RFhFitmlxNuGkb7QbVJI/edit?usp=drivesdk:intent",
+      "evidence": "protocol_or_policy \u2014 contains prescriptive directives",
+      "is_inferred": true
+    }
+  ],
+  "relationships": [
+    {
+      "from_observation_id": "obs-31ff2451",
+      "to_observation_id": "obs-0007fed1",
+      "relationship_type": "enables",
+      "confidence": 0.8,
+      "description": "Document structure enables domain coverage identification."
+    }
+  ],
+  "decomposition_confidence": 0.89,
+  "unsupported_assumptions": [],
+  "missing_information": [],
+  "explicit_unknowns": [],
+  "primitive_type_coverage": {
+    "resource": 3,
+    "constraint": 3,
+    "goal": 1
+  },
+  "signal_id": "SIG-9013c2846674",
+  "decompose_duration_ms": 0.77,
+  "counts": {
+    "entities": 7,
+    "concepts": 3,
+    "relationships": 1
+  },
+  "entry_point_invoked": {
+    "module": "runtime.ingestion.orchestrator",
+    "function": "GenericIngestionOrchestrator._decompose"
+  }
+}

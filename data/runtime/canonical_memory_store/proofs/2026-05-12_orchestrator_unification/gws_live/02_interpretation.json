@@ -1,0 +1,26 @@
+{
+  "signal_id": "SIG-9013c2846674",
+  "inferred_document_type": "plain_text",
+  "inferred_domains": [
+    "architecture",
+    "runtime",
+    "governance",
+    "transport",
+    "identity"
+  ],
+  "confidence": 0.95,
+  "structural_features": {
+    "has_yaml_frontmatter": false,
+    "heading_count": 0,
+    "has_code_blocks": false,
+    "has_wikilinks": false
+  },
+  "intent_candidates": [
+    "protocol_or_policy \u2014 contains prescriptive directives"
+  ],
+  "interpret_duration_ms": 0.8,
+  "entry_point_invoked": {
+    "module": "runtime.ingestion.orchestrator",
+    "function": "GenericIngestionOrchestrator._interpret"
+  }
+}

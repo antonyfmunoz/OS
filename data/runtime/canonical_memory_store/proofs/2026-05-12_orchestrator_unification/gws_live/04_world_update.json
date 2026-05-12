@@ -1,0 +1,126 @@
+{
+  "signal_id": "SIG-9013c2846674",
+  "entities_added": [
+    {
+      "entity_id": "ent-43b94a49",
+      "observation_id": "obs-31ff2451",
+      "primitive_type": "resource",
+      "label": "Domain coverage: architecture",
+      "status": "added"
+    },
+    {
+      "entity_id": "ent-bc001747",
+      "observation_id": "obs-0007fed1",
+      "primitive_type": "resource",
+      "label": "Domain coverage: runtime",
+      "status": "added"
+    },
+    {
+      "entity_id": "ent-70cc2e9d",
+      "observation_id": "obs-9cd36da5",
+      "primitive_type": "resource",
+      "label": "Domain coverage: governance",
+      "status": "added"
+    },
+    {
+      "entity_id": "ent-b5ae66d3",
+      "observation_id": "obs-771f64cd",
+      "primitive_type": "constraint",
+      "label": "name: leverage-principle description: Apply the OST leverage principle when reas",
+      "status": "added"
+    },
+    {
+      "entity_id": "ent-ba0cd07c",
+      "observation_id": "obs-eeb127fe",
+      "primitive_type": "constraint",
+      "label": "Never build from zero. Sit above the best existing system, capture the data, int",
+      "status": "added"
+    },
+    {
+      "entity_id": "ent-599c92a1",
+      "observation_id": "obs-7b88a035",
+      "primitive_type": "constraint",
+      "label": "Intelligence lives above the model, not inside it. Infrastructure lives above th",
+      "status": "added"
+    },
+    {
+      "entity_id": "ent-aa02f4dd",
+      "observation_id": "obs-da5882d7",
+      "primitive_type": "goal",
+      "label": "Document intent: protocol_or_policy \u2014 contains prescriptive directives",
+      "status": "added"
+    }
+  ],
+  "entities_updated": [],
+  "facts_written": [
+    {
+      "fact_id": "fact-4f261842",
+      "entity_id": "ent-43b94a49",
+      "statement": "Document covers the architecture domain based on keyword analysis.",
+      "source": "https://docs.google.com/document/d/1R2SFSESihPqR-NMeb8IbV10RFhFitmlxNuGkb7QbVJI/edit?usp=drivesdk via SIG-9013c2846674",
+      "timestamp": "2026-05-12T23:11:05.166442+00:00",
+      "confidence": 0.95,
+      "evidence": "Domain architecture detected via keyword overlap"
+    },
+    {
+      "fact_id": "fact-36297c71",
+      "entity_id": "ent-bc001747",
+      "statement": "Document covers the runtime domain based on keyword analysis.",
+      "source": "https://docs.google.com/document/d/1R2SFSESihPqR-NMeb8IbV10RFhFitmlxNuGkb7QbVJI/edit?usp=drivesdk via SIG-9013c2846674",
+      "timestamp": "2026-05-12T23:11:05.166442+00:00",
+      "confidence": 0.95,
+      "evidence": "Domain runtime detected via keyword overlap"
+    },
+    {
+      "fact_id": "fact-9a87c1a9",
+      "entity_id": "ent-70cc2e9d",
+      "statement": "Document covers the governance domain based on keyword analysis.",
+      "source": "https://docs.google.com/document/d/1R2SFSESihPqR-NMeb8IbV10RFhFitmlxNuGkb7QbVJI/edit?usp=drivesdk via SIG-9013c2846674",
+      "timestamp": "2026-05-12T23:11:05.166442+00:00",
+      "confidence": 0.95,
+      "evidence": "Domain governance detected via keyword overlap"
+    },
+    {
+      "fact_id": "fact-2ea1714d",
+      "entity_id": "ent-b5ae66d3",
+      "statement": "name: leverage-principle description: Apply the OST leverage principle when reasoning about any build, architecture, dependency, sequencing, or strategy decision. Use this skill whenever the user is m",
+      "source": "https://docs.google.com/document/d/1R2SFSESihPqR-NMeb8IbV10RFhFitmlxNuGkb7QbVJI/edit?usp=drivesdk via SIG-9013c2846674",
+      "timestamp": "2026-05-12T23:11:05.166442+00:00",
+      "confidence": 0.85,
+      "evidence": "name: leverage-principle description: Apply the OST leverage principle when reasoning about any build, architecture, dependency, sequencing, or strategy decision. Use this skill whenever the user is m"
+    },
+    {
+      "fact_id": "fact-87115d38",
+      "entity_id": "ent-ba0cd07c",
+      "statement": "Never build from zero. Sit above the best existing system, capture the data, internalize only what becomes load-bearing.",
+      "source": "https://docs.google.com/document/d/1R2SFSESihPqR-NMeb8IbV10RFhFitmlxNuGkb7QbVJI/edit?usp=drivesdk via SIG-9013c2846674",
+      "timestamp": "2026-05-12T23:11:05.166442+00:00",
+      "confidence": 0.85,
+      "evidence": "Never build from zero. Sit above the best existing system, capture the data, internalize only what becomes load-bearing."
+    },
+    {
+      "fact_id": "fact-621bcbdb",
+      "entity_id": "ent-599c92a1",
+      "statement": "Intelligence lives above the model, not inside it. Infrastructure lives above the OS, not inside it. Workflow lives above the tool, not inside it. The leverage move is always to wrap, govern, and obse",
+      "source": "https://docs.google.com/document/d/1R2SFSESihPqR-NMeb8IbV10RFhFitmlxNuGkb7QbVJI/edit?usp=drivesdk via SIG-9013c2846674",
+      "timestamp": "2026-05-12T23:11:05.166442+00:00",
+      "confidence": 0.85,
+      "evidence": "Intelligence lives above the model, not inside it. Infrastructure lives above the OS, not inside it. Workflow lives above the tool, not inside it. The leverage move is always to wrap, govern, and obse"
+    },
+    {
+      "fact_id": "fact-2877bf8c",
+      "entity_id": "ent-aa02f4dd",
+      "statement": "protocol_or_policy \u2014 contains prescriptive directives",
+      "source": "https://docs.google.com/document/d/1R2SFSESihPqR-NMeb8IbV10RFhFitmlxNuGkb7QbVJI/edit?usp=drivesdk via SIG-9013c2846674",
+      "timestamp": "2026-05-12T23:11:05.166442+00:00",
+      "confidence": 0.8,
+      "evidence": "protocol_or_policy \u2014 contains prescriptive directives"
+    }
+  ],
+  "conflicts_with_existing_state": [],
+  "map_duration_ms": 0.06,
+  "entry_point_invoked": {
+    "module": "runtime.ingestion.orchestrator",
+    "function": "GenericIngestionOrchestrator._map"
+  }
+}

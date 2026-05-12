@@ -83,6 +83,13 @@
       "label": "Document has 46 sections",
       "source_document_id": "local-a1d1cf2ba90fc5f0",
       "timestamp": "2026-05-12T18:33:11.487294+00:00"
+    },
+    "mem-11bec8e549454d5c": {
+      "memory_type": "canonical",
+      "primitive_type": "resource",
+      "label": "Domain coverage: architecture",
+      "source_document_id": "local-7d453aee481be18e",
+      "timestamp": "2026-05-12T23:11:05.166442+00:00"
     }
   },
   "by_type": {
