@@ -10,7 +10,7 @@ Output (stdout): {"success": bool, "output": ..., "model_used": ..., ...}
 import sys
 import json
 
-# Stdout isolation — must happen before any eos_ai imports
+# Stdout isolation — must happen before any runtime imports
 # so diagnostic prints never corrupt the JSON response stream
 _stdout = sys.stdout
 sys.stdout = sys.stderr
@@ -32,7 +32,7 @@ def _emit(obj: dict) -> None:
 
 
 def _run_agent(payload: dict) -> dict:
-    from eos_ai.gateway import EOSGateway
+    from runtime.gateway import EOSGateway
     gateway = EOSGateway()
     request = {
         "type":       "agent_task",
@@ -61,7 +61,7 @@ def _run_agent(payload: dict) -> dict:
 
 
 def _run_team(payload: dict) -> dict:
-    from eos_ai.gateway import EOSGateway
+    from runtime.gateway import EOSGateway
     gateway = EOSGateway()
     request = {
         "type":       "agent_task",
@@ -92,7 +92,7 @@ def _run_team(payload: dict) -> dict:
 
 
 def _run_brief() -> dict:
-    from eos_ai.orchestrator import EOSOrchestrator
+    from runtime.orchestrator import EOSOrchestrator
     orch       = EOSOrchestrator()
     brief      = orch.morning_brief()
     north_star = orch.get_north_star_status()

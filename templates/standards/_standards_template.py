@@ -14,7 +14,7 @@ Naming convention:
 
 Inject in gateway.py:
   if agent_to_use == '[agent_id]':
-      from eos_ai.[agent]_operational_standards import get_all_[agent]_standards
+      from runtime.[agent]_operational_standards import get_all_[agent]_standards
       standards = get_all_[agent]_standards()
       prompt = f'{standards}\\n\\n{prompt}'
 
