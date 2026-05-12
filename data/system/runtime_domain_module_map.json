@@ -1,0 +1,368 @@
+{
+  "metadata": {
+    "generated": "2026-05-11",
+    "phase": "runtime-capability-stabilization",
+    "status": "plan",
+    "total_top_level": 125,
+    "total_substrate": 164,
+    "total_transport": 164,
+    "domains": 11
+  },
+  "domains": {
+    "cognition": {
+      "description": "Reasoning, LLM dispatch, context assembly, strategic analysis",
+      "top_level": [
+        "cognitive_loop.py",
+        "context_builder.py",
+        "context_compaction.py",
+        "input_intelligence.py",
+        "signal_hierarchy.py",
+        "quality_gate.py",
+        "model_router.py",
+        "model_preferences.py",
+        "strategy_engine.py",
+        "ceo_intelligence.py",
+        "portfolio_advisor.py",
+        "proactive_engine.py",
+        "user_model.py",
+        "martell_patterns.py"
+      ],
+      "substrate": [
+        "claude_responder.py",
+        "mode_behavior.py",
+        "scene_policy.py",
+        "operator_transitions.py",
+        "planner.py",
+        "decision_engine.py",
+        "llm_planner.py",
+        "ritual_inference.py",
+        "context_assembler.py",
+        "parallel_context.py",
+        "session_context.py",
+        "cognition_bus.py",
+        "cognitive_bridge.py"
+      ]
+    },
+    "orchestration": {
+      "description": "Scheduling, workflow, delegation, task coordination",
+      "top_level": [
+        "orchestrator.py",
+        "coordination_engine.py",
+        "delegation_tracker.py",
+        "daily_sync.py",
+        "eod_closing_loop.py",
+        "week_architect.py",
+        "goal_selector.py",
+        "workflow_engine.py"
+      ],
+      "substrate": [
+        "day_workflows.py",
+        "local_worker_auto_loop.py",
+        "event_scheduler.py",
+        "session_orchestration.py",
+        "station_drainer.py",
+        "station_triggers.py",
+        "os_controller.py",
+        "pipeline_execution.py",
+        "task_decomposition.py",
+        "task_execution.py",
+        "task_queue.py",
+        "task_system.py",
+        "auto_task_generation.py",
+        "ritual_body.py",
+        "ritual_reconciler.py",
+        "ritual_runner.py",
+        "rituals.py",
+        "workflow_delegation.py",
+        "workflow_execution.py",
+        "scheduling.py"
+      ]
+    },
+    "execution": {
+      "description": "Action execution, spine, lifecycle tracking, provider state",
+      "top_level": [
+        "execution_spine.py",
+        "execution_engine.py",
+        "execution_loop.py",
+        "task_executor.py",
+        "agent_runtime.py",
+        "provider_state.py",
+        "work_state.py",
+        "integration_test.py"
+      ],
+      "substrate": [
+        "approved_action_executor.py",
+        "browser_agent.py",
+        "control_bridge.py",
+        "control_commands.py",
+        "execution_adapter.py",
+        "execution_contract.py",
+        "execution_events.py",
+        "execution_result_handler.py",
+        "execution_trace.py",
+        "execution_worker.py",
+        "interactive_shell_executor.py",
+        "local_control.py",
+        "local_executor.py",
+        "remote_executor.py",
+        "visible_gui_success_criteria.py",
+        "work_order.py",
+        "work_order_binding.py"
+      ]
+    },
+    "transport": {
+      "description": "Messaging, events, session management, buses, voice pipelines",
+      "top_level": [
+        "event_bus.py",
+        "event_manager.py",
+        "agent_messages.py",
+        "session_state.py",
+        "gateway.py",
+        "channel.py",
+        "discord_utils.py"
+      ],
+      "substrate": [
+        "discord_text_transport.py",
+        "event_spine.py",
+        "message_bus.py",
+        "session_discord_bridge.py",
+        "session_lifecycle.py",
+        "session_manager.py",
+        "session_transport.py",
+        "audio_pipeline.py",
+        "audio_recorder.py",
+        "audio_transport.py",
+        "voice_activity.py",
+        "voice_handler.py",
+        "voice_session.py",
+        "voice_transport.py",
+        "websocket_bridge.py",
+        "webhook_bridge.py",
+        "notification_bus.py",
+        "relay_client.py",
+        "relay_protocol.py",
+        "relay_server.py",
+        "relay_transport.py",
+        "signal_relay.py",
+        "stream_handler.py",
+        "stream_transport.py",
+        "transport_adapter.py"
+      ]
+    },
+    "topology": {
+      "description": "Agent hierarchy, capability routing, teams, nodes",
+      "top_level": [
+        "agent_hierarchy.py",
+        "agent_teams.py",
+        "ceo_agent.py",
+        "intent_router.py",
+        "person_recognition.py"
+      ],
+      "substrate": [
+        "station_manager.py",
+        "station_registry.py",
+        "station_health.py",
+        "node_manager.py",
+        "node_registry.py",
+        "node_topology.py",
+        "capability_router.py",
+        "capability_discovery.py",
+        "capability_registry.py",
+        "agent_dispatcher.py",
+        "agent_registry.py",
+        "topology_bridge.py",
+        "topology_manager.py",
+        "worker_registry.py",
+        "worker_topology.py"
+      ]
+    },
+    "world_model": {
+      "description": "Knowledge, reality, environment state, entities",
+      "top_level": [
+        "world_model.py",
+        "world_pulse.py",
+        "reality_engine.py",
+        "reality_context.py",
+        "knowledge_graph.py",
+        "knowledge_integrator.py",
+        "knowledge_domains.py",
+        "knowledge_layers.py",
+        "venture_knowledge.py",
+        "research_engine.py",
+        "evolution_engine.py",
+        "system_context.py"
+      ],
+      "substrate": [
+        "canonical_source_record.py",
+        "instance_ingestion_contracts.py",
+        "knowledge_base.py",
+        "perception_engine.py",
+        "scene_manager.py",
+        "meeting_intelligence.py",
+        "meeting_contracts.py"
+      ]
+    },
+    "memory": {
+      "description": "Persistence, state tracking, embeddings, skill registries",
+      "top_level": [
+        "memory.py",
+        "db.py",
+        "decision_log.py",
+        "feedback_loop.py",
+        "pattern_engine.py",
+        "skill_registry.py",
+        "skill_registry_v2.py",
+        "skill_improvement.py",
+        "claude_skill_registry.py",
+        "embedding_engine.py",
+        "harness_registry.py"
+      ],
+      "substrate": [
+        "storage.py",
+        "session_store.py",
+        "result_store.py",
+        "memory_scope_contracts.py",
+        "memory_manager.py",
+        "state_manager.py",
+        "checkpoint_manager.py",
+        "cache_manager.py",
+        "ledger.py"
+      ]
+    },
+    "governance": {
+      "description": "Authority, policy, approval gates, health monitoring",
+      "top_level": [
+        "authority_engine.py",
+        "principle_engine.py",
+        "output_validator.py",
+        "confidentiality.py",
+        "ceo_operational_standards.py",
+        "portfolio_advisor_standards.py",
+        "ea_operational_standards.py",
+        "system_health.py",
+        "status.py",
+        "error_handler.py"
+      ],
+      "substrate": [
+        "approval_gate.py",
+        "authority_bridge.py",
+        "governance_engine.py",
+        "policy_engine.py",
+        "resource_guard.py",
+        "secret_broker.py",
+        "security_manager.py",
+        "workload_policy.py",
+        "compliance_checker.py",
+        "audit_trail.py",
+        "risk_classifier.py"
+      ]
+    },
+    "identity": {
+      "description": "AI identity, primitives, templates, tenancy, context",
+      "top_level": [
+        "ai_identity.py",
+        "primitives.py",
+        "primitive_registry.py",
+        "template_library.py",
+        "template_registry.py",
+        "os_registry.py",
+        "os_trinity.py",
+        "trinity.py",
+        "business_instance.py",
+        "company_instantiator.py",
+        "onboarding_engine.py",
+        "onboarding_backfill.py",
+        "setup_wizard.py",
+        "tenant.py",
+        "context.py"
+      ],
+      "substrate": [
+        "role_manager.py",
+        "operator_registry.py",
+        "presence_tracker.py",
+        "identity_bridge.py",
+        "operator_identity.py"
+      ]
+    },
+    "integration": {
+      "description": "External service connectors (GWS, Notion, voice, browser)",
+      "top_level": [
+        "gws_connector.py",
+        "gws_scanner.py",
+        "browser_agent.py",
+        "notion_sync.py",
+        "notion_publisher.py",
+        "scrapling_connector.py",
+        "higgsfield_client.py",
+        "notebooklm_sync.py",
+        "cc_sdk.py",
+        "voice_engine.py",
+        "voice_interface.py"
+      ],
+      "substrate": [
+        "chrome_backend.py",
+        "chrome_controller.py",
+        "chrome_session.py",
+        "computer_use_backend.py",
+        "computer_use_controller.py",
+        "drive_backend.py",
+        "drive_connector.py",
+        "docs_backend.py",
+        "docs_connector.py",
+        "meet_backend.py",
+        "meet_connector.py",
+        "gmail_backend.py",
+        "calendar_backend.py",
+        "mcp_backend.py",
+        "mcp_bridge.py",
+        "mcp_connector.py",
+        "mcp_transport.py",
+        "tmux_backend.py",
+        "tmux_controller.py",
+        "windows_backend.py",
+        "windows_relay.py",
+        "gui_backend.py"
+      ]
+    },
+    "platform": {
+      "description": "EOS-specific application logic (not platform-agnostic)",
+      "top_level": [
+        "personal_admin.py",
+        "email_gps.py",
+        "email_reviewer.py",
+        "meetings.py",
+        "founder_capture.py",
+        "founder_rate.py",
+        "document_filer.py",
+        "doc_creator.py",
+        "media_processor.py",
+        "expense_tracker.py",
+        "subscription_tracker.py",
+        "okr_tracker.py",
+        "competitive_intel.py",
+        "stakeholder_map.py",
+        "stage_manager.py",
+        "ideal_week.py",
+        "travel_manager.py",
+        "task_yield_matrix.py",
+        "human_intelligence.py"
+      ],
+      "substrate": [
+        "substrate_projection_boundaries.py",
+        "local_daemon.py",
+        "local_worker_daemon.py",
+        "tmux_session.py",
+        "windows_desktop.py",
+        "environment_manager.py",
+        "platform_bridge.py",
+        "platform_config.py"
+      ]
+    }
+  },
+  "notes": {
+    "context_py_move": "context.py moves from memory to identity — it defines EOSContext identity, not memory storage",
+    "quality_gate_dual": "quality_gate.py classified as cognition (primary) — also has governance aspects but output transformation is its core function",
+    "substrate_mirror": "transport/ subdirectory is an exact file-for-file mirror of substrate/ — same domain classifications apply",
+    "uncategorized_infra": "~17 utility/system files not classified: __pycache__, CLAUDE.md, runtime/ subdir (work_state, provider_state relocated to execution)"
+  }
+}
