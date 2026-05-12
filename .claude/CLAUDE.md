@@ -106,11 +106,11 @@ Focus: proving the system works before UI layer.
 
 ## Project structure
 /opt/OS/  (repository root — pending rename to /opt/UMH)
-  core/            — canonical substrate + infrastructure contracts
-  runtime/         — canonical runtime intelligence layer
-  eos_ai/          — shim layer (re-exports from runtime/ for backward compatibility)
-  services/        — live entrypoints (discord_bot.py, etc.)
-  scripts/         — operations layer (cron scripts, utilities)
+  core/            — substrate contracts, primitives, invariants, governance foundations
+  runtime/         — single live runtime (cognition, execution, memory, transport)
+  eos_ai/          — dead shim layer (zero consumers, pending removal)
+  services/        — daemons and interfaces (discord_bot.py, etc.)
+  scripts/         — operator tooling (cron scripts, utilities)
   saas/            — SaaS product (TypeScript/React) — EOS application projection
   03_CRM/          — pipeline and lead management — EOS application data
   orchestrator/    — scheduled tasks and approvals

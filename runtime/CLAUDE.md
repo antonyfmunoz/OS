@@ -1,18 +1,18 @@
-# runtime — Runtime Intelligence Layer
+# runtime — UMH Runtime
 
 ## Identity
-This is the UMH runtime intelligence layer.
-The canonical transport subsystem lives here at
-`runtime/transport/`. The shim layer at `eos_ai/substrate/` routes
-to transport for backward compatibility.
+This is the single UMH runtime layer — live cognition and execution.
+All AI machinery lives here: LLM routing, memory, cognitive loop,
+agent hierarchy, voice pipeline, transport, and execution fabric.
 
-The `eos_ai/` directory is a shim layer that re-exports from `runtime/`.
-All new code should import from `runtime.*` directly.
+The `eos_ai/` directory is a dead shim layer that re-exports from
+`runtime/`. It has zero active consumers and is pending removal.
+All code imports from `runtime.*` directly.
 
 ## Purpose
-Core intelligence substrate. All runtime AI lives here:
-LLM routing, memory persistence, cognitive loop, agent hierarchy,
-voice pipeline, and the canonical transport subsystem.
+Live cognition and execution machinery. This is NOT a second layer
+inside a larger substrate — `core/` holds contracts and foundations,
+`runtime/` is the single runtime that implements them.
 
 ## Key modules
 cognitive_loop.py   — PERCEIVE/GENERATE/ACT
@@ -29,11 +29,10 @@ voice_engine.py     — STT + TTS
 model_router.py     — multi-provider LLM routing
 
 ## Subdirectories
-transport/    — canonical transport (sessions, perception, execution)
-substrate/    — shim layer (re-exports from transport/)
-runtime/      — work_state.py (CONFIRMED_RUNTIME)
+transport/    — transport layer (sessions, perception, execution)
+substrate/    — internal re-exports (maps to transport/)
+runtime/      — work_state.py, provider_state.py
 interfaces/   — interface contracts (dormant)
-platforms/eos/ — EOS platform prototype (dormant)
 
 ## Conventions
 - Import: sys.path.insert(0, os.environ.get("UMH_ROOT") or "/opt/OS")

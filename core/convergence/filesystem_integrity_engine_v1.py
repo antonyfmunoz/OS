@@ -27,9 +27,9 @@ from core.convergence.repository_topology_contracts_v1 import (
 MAX_INTEGRITY_CHECKS = 100
 
 CANONICAL_OWNERSHIP: dict[str, str] = {
-    "core": "substrate",
-    "runtime": "intelligence",
-    "services": "runtime",
+    "core": "contracts",
+    "runtime": "execution",
+    "services": "daemons",
     "scripts": "operations",
     "tests": "verification",
     "docs": "documentation",
