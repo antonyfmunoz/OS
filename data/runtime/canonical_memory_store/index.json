@@ -1,0 +1,123 @@
+{
+  "entries": {
+    "mem-bf974e9f3b0ed653": {
+      "memory_type": "canonical",
+      "primitive_type": "resource",
+      "label": "I'd won the money game...",
+      "source_document_id": "doc-1aZiPZ0ijSvLQsL6",
+      "timestamp": "2026-05-09T23:52:33.502230+00:00"
+    },
+    "mem-4bf4f64ddec9eab4": {
+      "memory_type": "canonical",
+      "primitive_type": "goal",
+      "label": "If you want to see the system I built to escape, click here.",
+      "source_document_id": "doc-1aZiPZ0ijSvLQsL6",
+      "timestamp": "2026-05-09T23:52:33.502703+00:00"
+    },
+    "mem-cef137dcc44a651f": {
+      "memory_type": "canonical",
+      "primitive_type": "resource",
+      "label": "But because they found the cheat code to unlock the hidden g...",
+      "source_document_id": "doc-1aZiPZ0ijSvLQsL6",
+      "timestamp": "2026-05-09T23:52:33.503054+00:00"
+    },
+    "mem-f9511ef2f0873bea": {
+      "memory_type": "canonical",
+      "primitive_type": "constraint",
+      "label": "Preview: \nThe same programming that got you here is now your...",
+      "source_document_id": "doc-1aZiPZ0ijSvLQsL6",
+      "timestamp": "2026-05-09T23:52:33.504094+00:00"
+    },
+    "mem-2f4f5ca82e67e8c1": {
+      "memory_type": "canonical",
+      "primitive_type": "resource",
+      "label": "Body\nHave you ever played a video game and noticed the backg...",
+      "source_document_id": "doc-1aZiPZ0ijSvLQsL6",
+      "timestamp": "2026-05-09T23:52:33.504587+00:00"
+    },
+    "mem-7f088ccdad810366": {
+      "memory_type": "instance",
+      "primitive_type": "state",
+      "label": "(First name), there are only two types of people:\nNPCs - Fol...",
+      "source_document_id": "doc-1aZiPZ0ijSvLQsL6",
+      "timestamp": "2026-05-09T23:52:33.505068+00:00"
+    },
+    "mem-53dd62f7fb56055c": {
+      "memory_type": "instance",
+      "primitive_type": "time",
+      "label": "I spent 2 years building this system after burning out at 22...",
+      "source_document_id": "doc-1aZiPZ0ijSvLQsL6",
+      "timestamp": "2026-05-09T23:52:33.505539+00:00"
+    },
+    "mem-81e1243c20784a4e": {
+      "memory_type": "instance",
+      "primitive_type": "time",
+      "label": "I spent 2 years mapping these hidden levels after burning ou...",
+      "source_document_id": "doc-1aZiPZ0ijSvLQsL6",
+      "timestamp": "2026-05-09T23:52:33.506024+00:00"
+    },
+    "mem-54b6aab12074eab5": {
+      "memory_type": "instance",
+      "primitive_type": "time",
+      "label": "They walk the same path every day.",
+      "source_document_id": "doc-1aZiPZ0ijSvLQsL6",
+      "timestamp": "2026-05-09T23:52:33.506642+00:00"
+    },
+    "mem-0b33152e7c32b7b9": {
+      "memory_type": "instance",
+      "primitive_type": "time",
+      "label": "Here's what hit me at 22 after cashing in on crypto\u2026",
+      "source_document_id": "doc-1aZiPZ0ijSvLQsL6",
+      "timestamp": "2026-05-09T23:52:33.507139+00:00"
+    },
+    "mem-29c372fa8e374a8d": {
+      "memory_type": "canonical",
+      "primitive_type": "state",
+      "label": "Memory palace has 4 layers: Palace \u2192 Wing \u2192 Room \u2192 Locus",
+      "source_document_id": "local-1935d5191815beba",
+      "timestamp": "2026-05-12T17:45:19.504873+00:00"
+    }
+  },
+  "by_type": {
+    "resource": [
+      "mem-bf974e9f3b0ed653",
+      "mem-cef137dcc44a651f",
+      "mem-2f4f5ca82e67e8c1"
+    ],
+    "goal": [
+      "mem-4bf4f64ddec9eab4"
+    ],
+    "constraint": [
+      "mem-f9511ef2f0873bea"
+    ],
+    "state": [
+      "mem-7f088ccdad810366"
+    ],
+    "time": [
+      "mem-53dd62f7fb56055c",
+      "mem-81e1243c20784a4e",
+      "mem-54b6aab12074eab5",
+      "mem-0b33152e7c32b7b9"
+    ]
+  },
+  "by_document": {
+    "doc-1aZiPZ0ijSvLQsL6": [
+      "mem-bf974e9f3b0ed653",
+      "mem-4bf4f64ddec9eab4",
+      "mem-cef137dcc44a651f",
+      "mem-f9511ef2f0873bea",
+      "mem-2f4f5ca82e67e8c1",
+      "mem-7f088ccdad810366",
+      "mem-53dd62f7fb56055c",
+      "mem-81e1243c20784a4e",
+      "mem-54b6aab12074eab5",
+      "mem-0b33152e7c32b7b9"
+    ]
+  },
+  "stats": {
+    "total": 10,
+    "canonical": 5,
+    "instance": 5
+  },
+  "last_updated": "2026-05-09T23:52:33.507350+00:00"
+}

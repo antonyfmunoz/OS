@@ -260,3 +260,8 @@ new-primitive, debug-agent
 - NOTION_MORNING_BRIEF_ID points to dead DB → publisher falls back to Documents DB
 - After Ollama model change: `docker restart` services to pick up new code (Python files are bind-mounted)
 - Never hardcode `anthropic.Anthropic()` in services — always use model_router.call_with_fallback
+
+## Ingestion pipeline status
+PROOF_OF_LIFE — one real document completed full cycle on 2026-05-12.
+Proof: data/runtime/canonical_memory_store/proofs/2026-05-12_ingestion_e2e/
+Single proof; not yet production volume.

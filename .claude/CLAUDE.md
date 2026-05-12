@@ -130,3 +130,8 @@ Both exist — `os-monitor` is the container name. Use `docker restart os-monito
 
 ## Master Specification
 Read /opt/OS/ARCHITECTURE.md before any significant build decision.
+
+## Ingestion pipeline status
+PROOF_OF_LIFE — one real document completed full cycle on 2026-05-12.
+Proof: data/runtime/canonical_memory_store/proofs/2026-05-12_ingestion_e2e/
+Single proof; not yet production volume.

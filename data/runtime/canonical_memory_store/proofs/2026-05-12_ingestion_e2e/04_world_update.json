@@ -1,0 +1,110 @@
+{
+  "signal_id": "SIG-9f8d53277dd8",
+  "entities_added": [
+    {
+      "entity_id": "ent-8d7a4c23",
+      "observation_id": "obs-0e040854",
+      "primitive_type": "state",
+      "label": "Memory palace has 4 layers: Palace \u2192 Wing \u2192 Room \u2192 Locus",
+      "status": "added"
+    },
+    {
+      "entity_id": "ent-7c938f04",
+      "observation_id": "obs-0d03b3cf",
+      "primitive_type": "constraint",
+      "label": "AI must translate questions to concerns before navigating rooms",
+      "status": "added"
+    },
+    {
+      "entity_id": "ent-848cb918",
+      "observation_id": "obs-b06d60d5",
+      "primitive_type": "resource",
+      "label": "Locus rank formula: inbound*2 + outbound + critical*10 + entry*3",
+      "status": "added"
+    },
+    {
+      "entity_id": "ent-ea27d51a",
+      "observation_id": "obs-896443fa",
+      "primitive_type": "action",
+      "label": "Navigate palace by concern \u2192 room \u2192 purpose \u2192 core loci",
+      "status": "added"
+    },
+    {
+      "entity_id": "ent-be5db98d",
+      "observation_id": "obs-df208600",
+      "primitive_type": "goal",
+      "label": "Enable AI agents to navigate codebase without blind file scanning",
+      "status": "added"
+    },
+    {
+      "entity_id": "ent-d6c2dfd0",
+      "observation_id": "obs-fe9d56c8",
+      "primitive_type": "signal",
+      "label": "Each room page contains Purpose, Core Loci, Traversal, Raw Paths",
+      "status": "added"
+    }
+  ],
+  "entities_updated": [],
+  "facts_written": [
+    {
+      "fact_id": "fact-e320e85a",
+      "entity_id": "ent-8d7a4c23",
+      "statement": "The memory palace is structured as a 4-layer navigable hierarchy: Palace (whole system), Wing (top-level module, 4 total), Room (functional cluster, 7 today), Locus (single promoted file).",
+      "source": "cloud_palace.md via SIG-9f8d53277dd8",
+      "timestamp": "2026-05-12T17:45:19.504873+00:00",
+      "confidence": 0.95,
+      "evidence": "Palace \u2014 the whole system. One index page. Wing \u2014 a top-level module. 4 wings total. Room \u2014 a functional cluster inside a wing. 7 rooms today. Locus \u2014 a single file promoted into a room."
+    },
+    {
+      "fact_id": "fact-8bc54d42",
+      "entity_id": "ent-7c938f04",
+      "statement": "AI agents must first translate user questions into concerns, then navigate to matching rooms, verify ownership via purpose line, and only then access core loci files.",
+      "source": "cloud_palace.md via SIG-9f8d53277dd8",
+      "timestamp": "2026-05-12T17:45:19.504873+00:00",
+      "confidence": 0.9,
+      "evidence": "1. Translate the user's question into a concern. 2. Open the matching room page. 3. Read the purpose line \u2014 does this room actually own the concern? 4. Look at the core loci table."
+    },
+    {
+      "fact_id": "fact-6415e63c",
+      "entity_id": "ent-848cb918",
+      "statement": "Files are promoted into rooms based on a composite score of inbound references (\u00d72), outbound references (\u00d71), criticality (\u00d710), and entry-point status (\u00d73).",
+      "source": "cloud_palace.md via SIG-9f8d53277dd8",
+      "timestamp": "2026-05-12T17:45:19.504873+00:00",
+      "confidence": 0.95,
+      "evidence": "Rank is `inbound*2 + outbound + critical*10 + entry*3`."
+    },
+    {
+      "fact_id": "fact-65348955",
+      "entity_id": "ent-ea27d51a",
+      "statement": "The prescribed action sequence for AI codebase navigation: identify concern, open matching room, verify ownership, read core loci table.",
+      "source": "cloud_palace.md via SIG-9f8d53277dd8",
+      "timestamp": "2026-05-12T17:45:19.504873+00:00",
+      "confidence": 0.9,
+      "evidence": "1. Translate the user's question into a concern. 2. Open the matching room page. 3. Read the purpose line. 4. Look at the core loci table."
+    },
+    {
+      "fact_id": "fact-891c1483",
+      "entity_id": "ent-be5db98d",
+      "statement": "The memory palace exists so AI agents can find relevant files through structured navigation rather than grep-scanning the entire codebase.",
+      "source": "cloud_palace.md via SIG-9f8d53277dd8",
+      "timestamp": "2026-05-12T17:45:19.504873+00:00",
+      "confidence": 0.85,
+      "evidence": "The memory palace at 10_Wiki/palace/ is a navigable, room-based view of the codebase. This file tells AI agents how to use it."
+    },
+    {
+      "fact_id": "fact-e9de99b0",
+      "entity_id": "ent-d6c2dfd0",
+      "statement": "Room pages follow a standardized structure with four sections that serve as navigation signals for AI agents.",
+      "source": "cloud_palace.md via SIG-9f8d53277dd8",
+      "timestamp": "2026-05-12T17:45:19.504873+00:00",
+      "confidence": 0.95,
+      "evidence": "Purpose \u2014 one sentence naming the concern. Core Loci \u2014 ranked table. Traversal \u2014 links back to wing, palace, retrieval rules. Raw Paths \u2014 plaintext file paths."
+    }
+  ],
+  "conflicts_with_existing_state": [],
+  "map_duration_ms": 0.09,
+  "entry_point_invoked": {
+    "module": "ingestion-proof-1 inline world mapper",
+    "note": "No standalone world model update module exists. Mapping performed inline using primitive observations."
+  }
+}

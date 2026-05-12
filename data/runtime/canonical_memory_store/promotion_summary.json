@@ -1,0 +1,77 @@
+{
+  "promoted_canonical": [
+    {
+      "memory_id": "mem-bf974e9f3b0ed653",
+      "receipt_id": "receipt-7e7e99feb50dacaa",
+      "label": "I'd won the money game...",
+      "type": "resource"
+    },
+    {
+      "memory_id": "mem-4bf4f64ddec9eab4",
+      "receipt_id": "receipt-6371c7fc4abbc21e",
+      "label": "If you want to see the system I built to escape, click here.",
+      "type": "goal"
+    },
+    {
+      "memory_id": "mem-cef137dcc44a651f",
+      "receipt_id": "receipt-c7dfc4eb1a478dad",
+      "label": "But because they found the cheat code to unlock the hidden g...",
+      "type": "resource"
+    },
+    {
+      "memory_id": "mem-f9511ef2f0873bea",
+      "receipt_id": "receipt-5627b314de03164c",
+      "label": "Preview: \nThe same programming that got you here is now your...",
+      "type": "constraint"
+    },
+    {
+      "memory_id": "mem-2f4f5ca82e67e8c1",
+      "receipt_id": "receipt-6766a5a1685acbc0",
+      "label": "Body\nHave you ever played a video game and noticed the backg...",
+      "type": "resource"
+    },
+    {
+      "memory_id": "mem-29c372fa8e374a8d",
+      "receipt_id": "receipt-bce19efd738b4ba6",
+      "label": "Memory palace has 4 layers: Palace \u2192 Wing \u2192 Room \u2192 Locus",
+      "type": "state"
+    }
+  ],
+  "promoted_instance": [
+    {
+      "memory_id": "mem-7f088ccdad810366",
+      "receipt_id": "receipt-07024a277212f14f",
+      "label": "(First name), there are only two types of people:\nNPCs - Fol...",
+      "type": "state"
+    },
+    {
+      "memory_id": "mem-53dd62f7fb56055c",
+      "receipt_id": "receipt-3af300786ea18176",
+      "label": "I spent 2 years building this system after burning out at 22...",
+      "type": "time"
+    },
+    {
+      "memory_id": "mem-81e1243c20784a4e",
+      "receipt_id": "receipt-0935b0250ca4c288",
+      "label": "I spent 2 years mapping these hidden levels after burning ou...",
+      "type": "time"
+    },
+    {
+      "memory_id": "mem-54b6aab12074eab5",
+      "receipt_id": "receipt-a8703a96e865ae41",
+      "label": "They walk the same path every day.",
+      "type": "time"
+    },
+    {
+      "memory_id": "mem-0b33152e7c32b7b9",
+      "receipt_id": "receipt-ebf3a79b85b50739",
+      "label": "Here's what hit me at 22 after cashing in on crypto\u2026",
+      "type": "time"
+    }
+  ],
+  "stats": {
+    "total": 10,
+    "canonical": 5,
+    "instance": 5
+  }
+}
