@@ -1,0 +1,116 @@
+{
+  "decomposition_id": "decomp-5c2253c584da4f05",
+  "source_content_hash": "a1d1cf2ba90fc5f01d49aac1004470a3fae8a15bb60064ca1e072adaf79039a7",
+  "observations": [
+    {
+      "observation_id": "obs-9d1190a4",
+      "primitive_type": "state",
+      "label": "Document has 46 sections",
+      "description": "Structured document with sections: Runtime Domain Architecture Plan, 1. Current State, Current directory structure, 2. Target Domain Architecture, Why 11 domains (not fewer, not more), 3. Domain Definitions, 3.1 cognition/ \u2014 Reasoning and LLM Dispatch, 3.2 orchestration/ \u2014 Scheduling, Workflow, Delegat",
+      "confidence": 0.95,
+      "source_reference": "/opt/OS/docs/system/runtime_domain_architecture_plan.md:headings",
+      "evidence": "Runtime Domain Architecture Plan; 1. Current State; Current directory structure; 2. Target Domain Architecture; Why 11 domains (not fewer, not more)",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-20b076fc",
+      "primitive_type": "resource",
+      "label": "Domain coverage: architecture",
+      "description": "Document covers the architecture domain based on keyword analysis.",
+      "confidence": 0.95,
+      "source_reference": "/opt/OS/docs/system/runtime_domain_architecture_plan.md:domain:architecture",
+      "evidence": "Domain architecture detected via keyword overlap",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-5c53725b",
+      "primitive_type": "resource",
+      "label": "Domain coverage: runtime",
+      "description": "Document covers the runtime domain based on keyword analysis.",
+      "confidence": 0.95,
+      "source_reference": "/opt/OS/docs/system/runtime_domain_architecture_plan.md:domain:runtime",
+      "evidence": "Domain runtime detected via keyword overlap",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-54549116",
+      "primitive_type": "resource",
+      "label": "Domain coverage: governance",
+      "description": "Document covers the governance domain based on keyword analysis.",
+      "confidence": 0.95,
+      "source_reference": "/opt/OS/docs/system/runtime_domain_architecture_plan.md:domain:governance",
+      "evidence": "Domain governance detected via keyword overlap",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-645a8610",
+      "primitive_type": "constraint",
+      "label": "### Spine invariants (must hold after stabilization)",
+      "description": "### Spine invariants (must hold after stabilization)",
+      "confidence": 0.85,
+      "source_reference": "/opt/OS/docs/system/runtime_domain_architecture_plan.md:constraint",
+      "evidence": "### Spine invariants (must hold after stabilization)",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-014591b7",
+      "primitive_type": "constraint",
+      "label": "Two distinct primitive systems exist and must be preserved:",
+      "description": "Two distinct primitive systems exist and must be preserved:",
+      "confidence": 0.85,
+      "source_reference": "/opt/OS/docs/system/runtime_domain_architecture_plan.md:constraint",
+      "evidence": "Two distinct primitive systems exist and must be preserved:",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-965358f3",
+      "primitive_type": "constraint",
+      "label": "1. **platform/ imports from runtime domains, never the reverse.**",
+      "description": "1. **platform/ imports from runtime domains, never the reverse.**",
+      "confidence": 0.85,
+      "source_reference": "/opt/OS/docs/system/runtime_domain_architecture_plan.md:constraint",
+      "evidence": "1. **platform/ imports from runtime domains, never the reverse.**",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-1f79e3da",
+      "primitive_type": "goal",
+      "label": "Document intent: reference_document \u2014 structured multi-section content",
+      "description": "reference_document \u2014 structured multi-section content",
+      "confidence": 0.8,
+      "source_reference": "/opt/OS/docs/system/runtime_domain_architecture_plan.md:intent",
+      "evidence": "reference_document \u2014 structured multi-section content",
+      "is_inferred": true
+    }
+  ],
+  "relationships": [
+    {
+      "from_observation_id": "obs-9d1190a4",
+      "to_observation_id": "obs-20b076fc",
+      "relationship_type": "enables",
+      "confidence": 0.8,
+      "description": "Document structure enables domain coverage identification."
+    }
+  ],
+  "decomposition_confidence": 0.89,
+  "unsupported_assumptions": [],
+  "missing_information": [],
+  "explicit_unknowns": [],
+  "primitive_type_coverage": {
+    "state": 1,
+    "resource": 3,
+    "constraint": 3,
+    "goal": 1
+  },
+  "signal_id": "SIG-7f8ef9ac3ccd",
+  "decompose_duration_ms": 0.77,
+  "counts": {
+    "entities": 8,
+    "concepts": 4,
+    "relationships": 1
+  },
+  "entry_point_invoked": {
+    "module": "runtime.ingestion.orchestrator",
+    "function": "GenericIngestionOrchestrator._decompose"
+  }
+}

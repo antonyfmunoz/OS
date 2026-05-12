@@ -1,0 +1,17 @@
+{
+  "signal_id": "SIG-7f8ef9ac3ccd",
+  "source_path": "/opt/OS/docs/system/runtime_domain_architecture_plan.md",
+  "source_type": "text/markdown",
+  "content_sha256": "a1d1cf2ba90fc5f01d49aac1004470a3fae8a15bb60064ca1e072adaf79039a7",
+  "content_length": {
+    "chars": 21927,
+    "words": 3083,
+    "lines": 609
+  },
+  "timestamp_utc": "2026-05-12T18:33:11.487294+00:00",
+  "perceive_duration_ms": 0.26,
+  "entry_point_invoked": {
+    "module": "runtime.ingestion.orchestrator",
+    "function": "GenericIngestionOrchestrator._perceive"
+  }
+}

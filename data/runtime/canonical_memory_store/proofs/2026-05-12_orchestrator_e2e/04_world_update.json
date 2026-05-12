@@ -1,0 +1,142 @@
+{
+  "signal_id": "SIG-7f8ef9ac3ccd",
+  "entities_added": [
+    {
+      "entity_id": "ent-984c1688",
+      "observation_id": "obs-9d1190a4",
+      "primitive_type": "state",
+      "label": "Document has 46 sections",
+      "status": "added"
+    },
+    {
+      "entity_id": "ent-6b5616cf",
+      "observation_id": "obs-20b076fc",
+      "primitive_type": "resource",
+      "label": "Domain coverage: architecture",
+      "status": "added"
+    },
+    {
+      "entity_id": "ent-378469cc",
+      "observation_id": "obs-5c53725b",
+      "primitive_type": "resource",
+      "label": "Domain coverage: runtime",
+      "status": "added"
+    },
+    {
+      "entity_id": "ent-de9be182",
+      "observation_id": "obs-54549116",
+      "primitive_type": "resource",
+      "label": "Domain coverage: governance",
+      "status": "added"
+    },
+    {
+      "entity_id": "ent-9f42a7e7",
+      "observation_id": "obs-645a8610",
+      "primitive_type": "constraint",
+      "label": "### Spine invariants (must hold after stabilization)",
+      "status": "added"
+    },
+    {
+      "entity_id": "ent-6808993a",
+      "observation_id": "obs-014591b7",
+      "primitive_type": "constraint",
+      "label": "Two distinct primitive systems exist and must be preserved:",
+      "status": "added"
+    },
+    {
+      "entity_id": "ent-178b9229",
+      "observation_id": "obs-965358f3",
+      "primitive_type": "constraint",
+      "label": "1. **platform/ imports from runtime domains, never the reverse.**",
+      "status": "added"
+    },
+    {
+      "entity_id": "ent-d551dd81",
+      "observation_id": "obs-1f79e3da",
+      "primitive_type": "goal",
+      "label": "Document intent: reference_document \u2014 structured multi-section content",
+      "status": "added"
+    }
+  ],
+  "entities_updated": [],
+  "facts_written": [
+    {
+      "fact_id": "fact-a8553cf6",
+      "entity_id": "ent-984c1688",
+      "statement": "Structured document with sections: Runtime Domain Architecture Plan, 1. Current State, Current directory structure, 2. Target Domain Architecture, Why 11 domains (not fewer, not more), 3. Domain Definitions, 3.1 cognition/ \u2014 Reasoning and LLM Dispatch, 3.2 orchestration/ \u2014 Scheduling, Workflow, Delegat",
+      "source": "/opt/OS/docs/system/runtime_domain_architecture_plan.md via SIG-7f8ef9ac3ccd",
+      "timestamp": "2026-05-12T18:33:11.487294+00:00",
+      "confidence": 0.95,
+      "evidence": "Runtime Domain Architecture Plan; 1. Current State; Current directory structure; 2. Target Domain Architecture; Why 11 domains (not fewer, not more)"
+    },
+    {
+      "fact_id": "fact-2a5da8a0",
+      "entity_id": "ent-6b5616cf",
+      "statement": "Document covers the architecture domain based on keyword analysis.",
+      "source": "/opt/OS/docs/system/runtime_domain_architecture_plan.md via SIG-7f8ef9ac3ccd",
+      "timestamp": "2026-05-12T18:33:11.487294+00:00",
+      "confidence": 0.95,
+      "evidence": "Domain architecture detected via keyword overlap"
+    },
+    {
+      "fact_id": "fact-2e96a202",
+      "entity_id": "ent-378469cc",
+      "statement": "Document covers the runtime domain based on keyword analysis.",
+      "source": "/opt/OS/docs/system/runtime_domain_architecture_plan.md via SIG-7f8ef9ac3ccd",
+      "timestamp": "2026-05-12T18:33:11.487294+00:00",
+      "confidence": 0.95,
+      "evidence": "Domain runtime detected via keyword overlap"
+    },
+    {
+      "fact_id": "fact-da906b02",
+      "entity_id": "ent-de9be182",
+      "statement": "Document covers the governance domain based on keyword analysis.",
+      "source": "/opt/OS/docs/system/runtime_domain_architecture_plan.md via SIG-7f8ef9ac3ccd",
+      "timestamp": "2026-05-12T18:33:11.487294+00:00",
+      "confidence": 0.95,
+      "evidence": "Domain governance detected via keyword overlap"
+    },
+    {
+      "fact_id": "fact-51218075",
+      "entity_id": "ent-9f42a7e7",
+      "statement": "### Spine invariants (must hold after stabilization)",
+      "source": "/opt/OS/docs/system/runtime_domain_architecture_plan.md via SIG-7f8ef9ac3ccd",
+      "timestamp": "2026-05-12T18:33:11.487294+00:00",
+      "confidence": 0.85,
+      "evidence": "### Spine invariants (must hold after stabilization)"
+    },
+    {
+      "fact_id": "fact-110d3011",
+      "entity_id": "ent-6808993a",
+      "statement": "Two distinct primitive systems exist and must be preserved:",
+      "source": "/opt/OS/docs/system/runtime_domain_architecture_plan.md via SIG-7f8ef9ac3ccd",
+      "timestamp": "2026-05-12T18:33:11.487294+00:00",
+      "confidence": 0.85,
+      "evidence": "Two distinct primitive systems exist and must be preserved:"
+    },
+    {
+      "fact_id": "fact-bbde2ec1",
+      "entity_id": "ent-178b9229",
+      "statement": "1. **platform/ imports from runtime domains, never the reverse.**",
+      "source": "/opt/OS/docs/system/runtime_domain_architecture_plan.md via SIG-7f8ef9ac3ccd",
+      "timestamp": "2026-05-12T18:33:11.487294+00:00",
+      "confidence": 0.85,
+      "evidence": "1. **platform/ imports from runtime domains, never the reverse.**"
+    },
+    {
+      "fact_id": "fact-3a6f8fde",
+      "entity_id": "ent-d551dd81",
+      "statement": "reference_document \u2014 structured multi-section content",
+      "source": "/opt/OS/docs/system/runtime_domain_architecture_plan.md via SIG-7f8ef9ac3ccd",
+      "timestamp": "2026-05-12T18:33:11.487294+00:00",
+      "confidence": 0.8,
+      "evidence": "reference_document \u2014 structured multi-section content"
+    }
+  ],
+  "conflicts_with_existing_state": [],
+  "map_duration_ms": 0.08,
+  "entry_point_invoked": {
+    "module": "runtime.ingestion.orchestrator",
+    "function": "GenericIngestionOrchestrator._map"
+  }
+}

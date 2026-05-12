@@ -1,0 +1,751 @@
+"""GenericIngestionOrchestrator — source-agnostic canonical pipeline.
+
+Sequences: perceive → interpret → decompose → map → persist → query.
+Uses existing contract classes from core.ontology and runtime.transport.
+No source-specific logic inside — source abstraction handles that.
+"""
+
+from __future__ import annotations
+
+import json
+import time
+import traceback
+import uuid
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+from core.ontology.primitive_decomposition_v1 import (
+    DecompositionResult,
+    PrimitiveObservation,
+    PrimitiveRelationship,
+    PrimitiveType,
+    RelationshipType,
+)
+from runtime.ingestion.source import RawContent, Source
+from runtime.transport.memory_scope_contracts import (
+    MemoryScope,
+    MemoryScopeAssignment,
+    PromotionPath,
+)
+
+
+@dataclass
+class Signal:
+    """Perception output."""
+
+    signal_id: str
+    source_path: str
+    source_type: str
+    content_sha256: str
+    content_length: dict[str, int]
+    timestamp_utc: str
+    perceive_duration_ms: float
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "signal_id": self.signal_id,
+            "source_path": self.source_path,
+            "source_type": self.source_type,
+            "content_sha256": self.content_sha256,
+            "content_length": self.content_length,
+            "timestamp_utc": self.timestamp_utc,
+            "perceive_duration_ms": self.perceive_duration_ms,
+            "entry_point_invoked": {
+                "module": "runtime.ingestion.orchestrator",
+                "function": "GenericIngestionOrchestrator._perceive",
+            },
+        }
+
+
+@dataclass
+class InterpretationResult:
+    """Interpretation output."""
+
+    signal_id: str
+    inferred_document_type: str
+    inferred_domains: list[str]
+    confidence: float
+    structural_features: dict[str, Any]
+    intent_candidates: list[str]
+    interpret_duration_ms: float
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "signal_id": self.signal_id,
+            "inferred_document_type": self.inferred_document_type,
+            "inferred_domains": self.inferred_domains,
+            "confidence": self.confidence,
+            "structural_features": self.structural_features,
+            "intent_candidates": self.intent_candidates,
+            "interpret_duration_ms": self.interpret_duration_ms,
+            "entry_point_invoked": {
+                "module": "runtime.ingestion.orchestrator",
+                "function": "GenericIngestionOrchestrator._interpret",
+            },
+        }
+
+
+@dataclass
+class WorldUpdate:
+    """World model mapping output."""
+
+    signal_id: str
+    entities_added: list[dict[str, Any]]
+    entities_updated: list[dict[str, Any]]
+    facts_written: list[dict[str, Any]]
+    conflicts_with_existing_state: list[str]
+    map_duration_ms: float
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "signal_id": self.signal_id,
+            "entities_added": self.entities_added,
+            "entities_updated": self.entities_updated,
+            "facts_written": self.facts_written,
+            "conflicts_with_existing_state": self.conflicts_with_existing_state,
+            "map_duration_ms": self.map_duration_ms,
+            "entry_point_invoked": {
+                "module": "runtime.ingestion.orchestrator",
+                "function": "GenericIngestionOrchestrator._map",
+            },
+        }
+
+
+@dataclass
+class MemoryWrite:
+    """Memory persistence output."""
+
+    signal_id: str
+    new_canonical_memory_entry_id: str
+    governance_decision: str
+    governance_scope: dict[str, Any]
+    provenance_chain: dict[str, str]
+    confidence_score: float
+    timestamp_utc: str
+    persist_duration_ms: float
+    memories_jsonl_before: int
+    memories_jsonl_after: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "signal_id": self.signal_id,
+            "new_canonical_memory_entry_id": self.new_canonical_memory_entry_id,
+            "governance_decision": self.governance_decision,
+            "governance_scope": self.governance_scope,
+            "provenance_chain": self.provenance_chain,
+            "confidence_score": self.confidence_score,
+            "timestamp_utc": self.timestamp_utc,
+            "persist_duration_ms": self.persist_duration_ms,
+            "memories_jsonl_before": self.memories_jsonl_before,
+            "memories_jsonl_after": self.memories_jsonl_after,
+        }
+
+
+@dataclass
+class PromotionReceipt:
+    """Promotion receipt output."""
+
+    receipt_id: str
+    candidate_id: str
+    decision: str
+    reason: str
+    confidence: float
+    promoter: str
+    timestamp: str
+    rollback_reference: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "receipt_id": self.receipt_id,
+            "candidate_id": self.candidate_id,
+            "decision": self.decision,
+            "reason": self.reason,
+            "confidence": self.confidence,
+            "promoter": self.promoter,
+            "timestamp": self.timestamp,
+            "rollback_reference": self.rollback_reference,
+        }
+
+
+@dataclass
+class QueryProof:
+    """Query-back verification output."""
+
+    signal_id: str
+    query_string: str
+    query_derivation: str
+    retrieval_method: str
+    retrieved_entries: list[dict[str, Any]]
+    new_entry_appears_in_results: bool
+    new_entry_rank: int | None
+    total_entries_searched: int
+    query_duration_ms: float
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "signal_id": self.signal_id,
+            "query_string": self.query_string,
+            "query_derivation": self.query_derivation,
+            "retrieval_method": self.retrieval_method,
+            "retrieved_entries": self.retrieved_entries,
+            "new_entry_appears_in_results": self.new_entry_appears_in_results,
+            "new_entry_rank": self.new_entry_rank,
+            "total_entries_searched": self.total_entries_searched,
+            "query_duration_ms": self.query_duration_ms,
+        }
+
+
+@dataclass
+class IngestionResult:
+    """Complete result of a generic ingestion cycle."""
+
+    signal: Signal | None = None
+    interpretation: InterpretationResult | None = None
+    decomposition: DecompositionResult | None = None
+    world_update: WorldUpdate | None = None
+    memory_write: MemoryWrite | None = None
+    promotion_receipt: PromotionReceipt | None = None
+    query_proof: QueryProof | None = None
+    cycle_duration_ms: float = 0.0
+    verdict: str = "NOT_STARTED"
+    error_trace: str = ""
+    failed_stage: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "signal": self.signal.to_dict() if self.signal else None,
+            "interpretation": self.interpretation.to_dict() if self.interpretation else None,
+            "decomposition": self.decomposition.to_dict() if self.decomposition else None,
+            "world_update": self.world_update.to_dict() if self.world_update else None,
+            "memory_write": self.memory_write.to_dict() if self.memory_write else None,
+            "promotion_receipt": self.promotion_receipt.to_dict() if self.promotion_receipt else None,
+            "query_proof": self.query_proof.to_dict() if self.query_proof else None,
+            "cycle_duration_ms": self.cycle_duration_ms,
+            "verdict": self.verdict,
+            "error_trace": self.error_trace,
+            "failed_stage": self.failed_stage,
+        }
+
+
+# Domain keyword bank for interpretation
+_DOMAIN_KEYWORDS: dict[str, list[str]] = {
+    "architecture": ["architecture", "domain", "module", "spine", "layer"],
+    "runtime": ["runtime", "execution", "cognitive", "loop", "agent"],
+    "governance": ["governance", "authority", "constraint", "policy", "approval"],
+    "memory": ["memory", "canonical", "persistence", "store", "retrieval"],
+    "ingestion": ["ingestion", "perceive", "interpret", "decompose", "pipeline"],
+    "transport": ["transport", "relay", "session", "dispatch", "channel"],
+    "identity": ["identity", "soul", "ai_name", "principle", "agent_type"],
+    "testing": ["test", "pytest", "fixture", "assertion", "coverage"],
+    "deployment": ["docker", "container", "deploy", "service", "cron"],
+    "knowledge": ["wiki", "palace", "knowledge", "codebase", "navigation"],
+}
+
+
+class GenericIngestionOrchestrator:
+    """Source-agnostic ingestion orchestrator.
+
+    Sequences the canonical pipeline using existing contract classes.
+    No source-specific logic. Dependencies injected.
+    """
+
+    def __init__(
+        self,
+        memory_store_path: Path,
+        proof_dir: Path | None = None,
+    ) -> None:
+        self._memory_store_path = memory_store_path
+        self._memories_path = memory_store_path / "memories.jsonl"
+        self._receipts_path = memory_store_path / "promotion_receipts.jsonl"
+        self._index_path = memory_store_path / "index.json"
+        self._summary_path = memory_store_path / "promotion_summary.json"
+        self._proof_dir = proof_dir
+
+    def ingest(self, source: Source) -> IngestionResult:
+        """Run the full canonical pipeline on a source."""
+        result = IngestionResult()
+        cycle_start = time.monotonic()
+
+        try:
+            if not source.exists():
+                result.verdict = "FAILED_AT_PERCEIVE"
+                result.error_trace = f"Source does not exist: {source.source_id}"
+                return result
+
+            raw = source.read()
+            meta = source.metadata()
+            ts_utc = datetime.now(timezone.utc).isoformat()
+
+            result.signal = self._perceive(raw, meta, ts_utc)
+            print(f"[ingestion-orchestrator] perceive: {result.signal.signal_id}")
+
+            result.interpretation = self._interpret(result.signal, raw)
+            print(f"[ingestion-orchestrator] interpret: {result.interpretation.inferred_document_type}")
+
+            result.decomposition = self._decompose(result.signal, result.interpretation, raw)
+            print(f"[ingestion-orchestrator] decompose: {len(result.decomposition.observations)} observations")
+
+            result.world_update = self._map(result.signal, result.decomposition, ts_utc)
+            print(f"[ingestion-orchestrator] map: {len(result.world_update.entities_added)} entities")
+
+            mem_write, receipt = self._persist(
+                result.signal, result.decomposition, result.world_update, raw, meta, ts_utc
+            )
+            result.memory_write = mem_write
+            result.promotion_receipt = receipt
+            print(f"[ingestion-orchestrator] persist: {mem_write.new_canonical_memory_entry_id}")
+
+            result.query_proof = self._query_back(result.signal, result.memory_write, raw)
+            print(f"[ingestion-orchestrator] query: rank={result.query_proof.new_entry_rank}")
+
+            result.verdict = "COMPLETE_CYCLE"
+
+        except Exception as exc:
+            result.error_trace = traceback.format_exc()
+            if result.signal is None:
+                result.failed_stage = "perceive"
+                result.verdict = "FAILED_AT_PERCEIVE"
+            elif result.interpretation is None:
+                result.failed_stage = "interpret"
+                result.verdict = "FAILED_AT_INTERPRET"
+            elif result.decomposition is None:
+                result.failed_stage = "decompose"
+                result.verdict = "FAILED_AT_DECOMPOSE"
+            elif result.world_update is None:
+                result.failed_stage = "map"
+                result.verdict = "FAILED_AT_MAP"
+            elif result.memory_write is None:
+                result.failed_stage = "persist"
+                result.verdict = "FAILED_AT_PERSIST"
+            else:
+                result.failed_stage = "query"
+                result.verdict = "FAILED_AT_QUERY"
+            print(f"[ingestion-orchestrator] FAILED: {exc}")
+
+        result.cycle_duration_ms = round((time.monotonic() - cycle_start) * 1000, 2)
+
+        if self._proof_dir is not None:
+            self._write_proofs(result)
+
+        return result
+
+    def _perceive(self, raw: RawContent, meta: dict[str, Any], ts_utc: str) -> Signal:
+        t0 = time.monotonic()
+        lines = raw.content.count("\n") + 1
+        words = len(raw.content.split())
+        chars = len(raw.content)
+        signal_id = f"SIG-{uuid.uuid4().hex[:12]}"
+        dur = round((time.monotonic() - t0) * 1000, 2)
+        return Signal(
+            signal_id=signal_id,
+            source_path=meta.get("path", "unknown"),
+            source_type=meta.get("content_type", "text/plain"),
+            content_sha256=raw.sha256,
+            content_length={"chars": chars, "words": words, "lines": lines},
+            timestamp_utc=ts_utc,
+            perceive_duration_ms=dur,
+        )
+
+    def _interpret(self, signal: Signal, raw: RawContent) -> InterpretationResult:
+        t0 = time.monotonic()
+        text = raw.content
+        has_yaml = text.startswith("---")
+        has_headings = "## " in text or "# " in text
+        has_code = "```" in text
+        has_wikilinks = "[[" in text
+        heading_count = text.count("\n## ") + text.count("\n# ")
+
+        doc_type = "structured_operational_document" if has_yaml else "markdown_prose"
+        if not has_headings and not has_code:
+            doc_type = "plain_text"
+
+        text_lower = text.lower()
+        domains = []
+        for domain, keywords in _DOMAIN_KEYWORDS.items():
+            hits = sum(1 for kw in keywords if kw in text_lower)
+            if hits >= 2:
+                domains.append(domain)
+        confidence = min(0.95, 0.6 + 0.08 * len(domains))
+
+        intent_candidates = []
+        if has_headings and heading_count >= 3:
+            intent_candidates.append("reference_document — structured multi-section content")
+        if "must" in text_lower or "never" in text_lower or "always" in text_lower:
+            intent_candidates.append("protocol_or_policy — contains prescriptive directives")
+
+        dur = round((time.monotonic() - t0) * 1000, 2)
+        return InterpretationResult(
+            signal_id=signal.signal_id,
+            inferred_document_type=doc_type,
+            inferred_domains=domains,
+            confidence=confidence,
+            structural_features={
+                "has_yaml_frontmatter": has_yaml,
+                "heading_count": heading_count,
+                "has_code_blocks": has_code,
+                "has_wikilinks": has_wikilinks,
+            },
+            intent_candidates=intent_candidates,
+            interpret_duration_ms=dur,
+        )
+
+    def _decompose(
+        self,
+        signal: Signal,
+        interp: InterpretationResult,
+        raw: RawContent,
+    ) -> DecompositionResult:
+        t0 = time.monotonic()
+        decomp_id = f"decomp-{uuid.uuid4().hex[:16]}"
+        text = raw.content
+        lines = text.split("\n")
+
+        observations: list[PrimitiveObservation] = []
+        headings = [(i, l.lstrip("#").strip()) for i, l in enumerate(lines) if l.startswith("#")]
+
+        if headings:
+            observations.append(PrimitiveObservation(
+                observation_id=f"obs-{uuid.uuid4().hex[:8]}",
+                primitive_type=PrimitiveType.STATE,
+                label=f"Document has {len(headings)} sections",
+                description=f"Structured document with sections: {', '.join(h[1][:50] for h in headings[:8])}",
+                confidence=0.95,
+                source_reference=f"{signal.source_path}:headings",
+                evidence="; ".join(h[1][:40] for h in headings[:5]),
+                is_inferred=False,
+            ))
+
+        for domain in interp.inferred_domains[:3]:
+            observations.append(PrimitiveObservation(
+                observation_id=f"obs-{uuid.uuid4().hex[:8]}",
+                primitive_type=PrimitiveType.RESOURCE,
+                label=f"Domain coverage: {domain}",
+                description=f"Document covers the {domain} domain based on keyword analysis.",
+                confidence=interp.confidence,
+                source_reference=f"{signal.source_path}:domain:{domain}",
+                evidence=f"Domain {domain} detected via keyword overlap",
+                is_inferred=False,
+            ))
+
+        constraint_phrases = [l.strip() for l in lines if any(
+            w in l.lower() for w in ["must", "never", "always", "required", "forbidden"]
+        )]
+        for phrase in constraint_phrases[:3]:
+            observations.append(PrimitiveObservation(
+                observation_id=f"obs-{uuid.uuid4().hex[:8]}",
+                primitive_type=PrimitiveType.CONSTRAINT,
+                label=phrase[:80],
+                description=phrase[:200],
+                confidence=0.85,
+                source_reference=f"{signal.source_path}:constraint",
+                evidence=phrase[:200],
+                is_inferred=False,
+            ))
+
+        if interp.intent_candidates:
+            observations.append(PrimitiveObservation(
+                observation_id=f"obs-{uuid.uuid4().hex[:8]}",
+                primitive_type=PrimitiveType.GOAL,
+                label=f"Document intent: {interp.intent_candidates[0][:60]}",
+                description=interp.intent_candidates[0],
+                confidence=0.80,
+                source_reference=f"{signal.source_path}:intent",
+                evidence=interp.intent_candidates[0],
+                is_inferred=True,
+            ))
+
+        if not observations:
+            observations.append(PrimitiveObservation(
+                observation_id=f"obs-{uuid.uuid4().hex[:8]}",
+                primitive_type=PrimitiveType.SIGNAL,
+                label=f"Document ingested: {signal.source_path.split('/')[-1]}",
+                description=f"Content ingested from {signal.source_path} ({signal.content_length['words']} words).",
+                confidence=0.70,
+                source_reference=signal.source_path,
+                evidence=text[:200],
+                is_inferred=False,
+            ))
+
+        relationships: list[PrimitiveRelationship] = []
+        if len(observations) >= 2:
+            relationships.append(PrimitiveRelationship(
+                from_observation_id=observations[0].observation_id,
+                to_observation_id=observations[1].observation_id,
+                relationship_type=RelationshipType.ENABLES,
+                confidence=0.80,
+                description="Document structure enables domain coverage identification.",
+            ))
+
+        decomp = DecompositionResult(
+            decomposition_id=decomp_id,
+            source_content_hash=raw.sha256,
+            observations=observations,
+            relationships=relationships,
+            decomposition_confidence=round(sum(o.confidence for o in observations) / max(len(observations), 1), 2),
+        )
+        decomp.compute_coverage()
+        dur = round((time.monotonic() - t0) * 1000, 2)
+
+        # Attach extra fields for proof-shape compatibility
+        decomp._duration_ms = dur  # type: ignore[attr-defined]
+        decomp._signal_id = signal.signal_id  # type: ignore[attr-defined]
+        decomp._counts = {  # type: ignore[attr-defined]
+            "entities": len(observations),
+            "concepts": len(set(o.primitive_type.value for o in observations)),
+            "relationships": len(relationships),
+        }
+        return decomp
+
+    def _map(
+        self,
+        signal: Signal,
+        decomp: DecompositionResult,
+        ts_utc: str,
+    ) -> WorldUpdate:
+        t0 = time.monotonic()
+        entities = []
+        facts = []
+        for obs in decomp.observations:
+            entity_id = f"ent-{uuid.uuid4().hex[:8]}"
+            entities.append({
+                "entity_id": entity_id,
+                "observation_id": obs.observation_id,
+                "primitive_type": obs.primitive_type.value,
+                "label": obs.label,
+                "status": "added",
+            })
+            facts.append({
+                "fact_id": f"fact-{uuid.uuid4().hex[:8]}",
+                "entity_id": entity_id,
+                "statement": obs.description,
+                "source": f"{signal.source_path} via {signal.signal_id}",
+                "timestamp": ts_utc,
+                "confidence": obs.confidence,
+                "evidence": obs.evidence[:200],
+            })
+        dur = round((time.monotonic() - t0) * 1000, 2)
+        return WorldUpdate(
+            signal_id=signal.signal_id,
+            entities_added=entities,
+            entities_updated=[],
+            facts_written=facts,
+            conflicts_with_existing_state=[],
+            map_duration_ms=dur,
+        )
+
+    def _persist(
+        self,
+        signal: Signal,
+        decomp: DecompositionResult,
+        world: WorldUpdate,
+        raw: RawContent,
+        meta: dict[str, Any],
+        ts_utc: str,
+    ) -> tuple[MemoryWrite, PromotionReceipt]:
+        t0 = time.monotonic()
+
+        before_count = len(self._memories_path.read_text().strip().split("\n")) if self._memories_path.exists() else 0
+
+        memory_id = f"mem-{uuid.uuid4().hex[:16]}"
+        candidate_id = f"cand-{uuid.uuid4().hex[:16]}"
+        receipt_id = f"receipt-{uuid.uuid4().hex[:16]}"
+
+        best_obs = max(decomp.observations, key=lambda o: o.confidence) if decomp.observations else None
+        if best_obs is None:
+            raise ValueError("No observations to persist")
+
+        memory_entry = {
+            "memory_id": memory_id,
+            "candidate_id": candidate_id,
+            "memory_type": "canonical",
+            "primitive_type": best_obs.primitive_type.value,
+            "label": best_obs.label,
+            "content": best_obs.description,
+            "confidence": best_obs.confidence,
+            "source_document_id": f"local-{raw.sha256[:16]}",
+            "source_content_hash": raw.sha256,
+            "source_decomposition_id": decomp.decomposition_id,
+            "promotion_receipt_id": receipt_id,
+            "provenance": {
+                "source_reference": best_obs.source_reference,
+                "evidence": best_obs.evidence,
+                "is_inferred": best_obs.is_inferred,
+            },
+            "lineage": {
+                "candidate_id": candidate_id,
+                "decomposition_id": decomp.decomposition_id,
+                "document_id": f"local-{raw.sha256[:16]}",
+                "document_path": meta.get("path", "unknown"),
+                "content_hash": raw.sha256,
+                "classification_reason": f"{best_obs.primitive_type.value} is structurally canonical",
+            },
+            "timestamp": ts_utc,
+        }
+
+        scope = MemoryScopeAssignment(
+            source_id=signal.signal_id,
+            assigned_scope=MemoryScope.PROJECT_MEMORY,
+            promotion_path=PromotionPath.SOURCE_TO_INSTANCE_MEMORY,
+            notes="Generic orchestrator ingestion. Project-scoped.",
+        )
+
+        with open(self._memories_path, "a") as f:
+            f.write(json.dumps(memory_entry) + "\n")
+
+        receipt_data = {
+            "receipt_id": receipt_id,
+            "candidate_id": candidate_id,
+            "decision": "promoted",
+            "reason": f"Generic orchestrator ingestion — {best_obs.primitive_type.value}",
+            "confidence": best_obs.confidence,
+            "promoter": "generic-ingestion-orchestrator",
+            "timestamp": ts_utc,
+            "rollback_reference": f"candidate:{candidate_id}",
+        }
+
+        with open(self._receipts_path, "a") as f:
+            f.write(json.dumps(receipt_data) + "\n")
+
+        if self._index_path.exists():
+            index = json.loads(self._index_path.read_text())
+            index["entries"][memory_id] = {
+                "memory_type": "canonical",
+                "primitive_type": best_obs.primitive_type.value,
+                "label": best_obs.label,
+                "source_document_id": f"local-{raw.sha256[:16]}",
+                "timestamp": ts_utc,
+            }
+            self._index_path.write_text(json.dumps(index, indent=2))
+
+        if self._summary_path.exists():
+            summary = json.loads(self._summary_path.read_text())
+            summary["promoted_canonical"].append({
+                "memory_id": memory_id,
+                "receipt_id": receipt_id,
+                "label": best_obs.label,
+                "type": best_obs.primitive_type.value,
+            })
+            self._summary_path.write_text(json.dumps(summary, indent=2))
+
+        after_count = len(self._memories_path.read_text().strip().split("\n"))
+        dur = round((time.monotonic() - t0) * 1000, 2)
+
+        mem_write = MemoryWrite(
+            signal_id=signal.signal_id,
+            new_canonical_memory_entry_id=memory_id,
+            governance_decision="autonomous",
+            governance_scope=scope.to_dict(),
+            provenance_chain={
+                "signal_id": signal.signal_id,
+                "decomposition_id": decomp.decomposition_id,
+                "candidate_id": candidate_id,
+                "memory_id": memory_id,
+                "receipt_id": receipt_id,
+            },
+            confidence_score=best_obs.confidence,
+            timestamp_utc=ts_utc,
+            persist_duration_ms=dur,
+            memories_jsonl_before=before_count,
+            memories_jsonl_after=after_count,
+        )
+
+        promotion = PromotionReceipt(**receipt_data)
+
+        return mem_write, promotion
+
+    def _query_back(
+        self,
+        signal: Signal,
+        mem_write: MemoryWrite,
+        raw: RawContent,
+    ) -> QueryProof:
+        t0 = time.monotonic()
+
+        words = raw.content.split()
+        distinctive = " ".join(words[10:16]) if len(words) > 16 else " ".join(words[:6])
+        query_string = distinctive
+        query_derivation = f"Words 10-16 from source content as distinctive phrase"
+
+        all_memories = []
+        for line in self._memories_path.read_text().strip().split("\n"):
+            all_memories.append(json.loads(line))
+
+        query_terms = set(query_string.lower().split())
+
+        def score(entry: dict[str, Any]) -> float:
+            text = f"{entry.get('label', '')} {entry.get('content', '')}".lower()
+            text_terms = set(text.split())
+            overlap = len(query_terms & text_terms)
+            return overlap / max(len(query_terms), 1)
+
+        scored = [(score(m), m) for m in all_memories]
+        scored.sort(key=lambda x: x[0], reverse=True)
+        top5 = scored[:5]
+
+        memory_id = mem_write.new_canonical_memory_entry_id
+        new_rank = None
+        for i, (s, m) in enumerate(scored):
+            if m.get("memory_id") == memory_id:
+                new_rank = i + 1
+                break
+
+        dur = round((time.monotonic() - t0) * 1000, 2)
+
+        return QueryProof(
+            signal_id=signal.signal_id,
+            query_string=query_string,
+            query_derivation=query_derivation,
+            retrieval_method="term_overlap_scoring",
+            retrieved_entries=[
+                {
+                    "rank": i + 1,
+                    "memory_id": m.get("memory_id"),
+                    "label": m.get("label", "")[:80],
+                    "score": round(s, 4),
+                    "is_new_entry": m.get("memory_id") == memory_id,
+                }
+                for i, (s, m) in enumerate(top5)
+            ],
+            new_entry_appears_in_results=new_rank is not None and new_rank <= 5,
+            new_entry_rank=new_rank,
+            total_entries_searched=len(all_memories),
+            query_duration_ms=dur,
+        )
+
+    def _write_proofs(self, result: IngestionResult) -> None:
+        """Write proof artifacts to proof_dir."""
+        if self._proof_dir is None:
+            return
+        self._proof_dir.mkdir(parents=True, exist_ok=True)
+
+        def _write(name: str, data: Any) -> None:
+            path = self._proof_dir / name
+            if isinstance(data, str):
+                path.write_text(data)
+            else:
+                path.write_text(json.dumps(data, indent=2, default=str))
+
+        if result.signal:
+            _write("01_perceive_signal.json", result.signal.to_dict())
+        if result.interpretation:
+            _write("02_interpretation.json", result.interpretation.to_dict())
+        if result.decomposition:
+            decomp_dict = result.decomposition.to_dict()
+            decomp_dict["signal_id"] = getattr(result.decomposition, "_signal_id", "")
+            decomp_dict["decompose_duration_ms"] = getattr(result.decomposition, "_duration_ms", 0)
+            decomp_dict["counts"] = getattr(result.decomposition, "_counts", {})
+            decomp_dict["entry_point_invoked"] = {
+                "module": "runtime.ingestion.orchestrator",
+                "function": "GenericIngestionOrchestrator._decompose",
+            }
+            _write("03_decomposition.json", decomp_dict)
+        if result.world_update:
+            _write("04_world_update.json", result.world_update.to_dict())
+        if result.memory_write:
+            _write("05_memory_write.json", result.memory_write.to_dict())
+        if result.promotion_receipt:
+            _write("05_promotion_receipt.json", result.promotion_receipt.to_dict())
+        if result.query_proof:
+            _write("06_query_proof.json", result.query_proof.to_dict())

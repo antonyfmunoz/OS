@@ -135,3 +135,9 @@ Read /opt/OS/ARCHITECTURE.md before any significant build decision.
 PROOF_OF_LIFE — one real document completed full cycle on 2026-05-12.
 Proof: data/runtime/canonical_memory_store/proofs/2026-05-12_ingestion_e2e/
 Single proof; not yet production volume.
+
+## Generic ingestion orchestrator
+AVAILABLE — runtime.ingestion.GenericIngestionOrchestrator +
+LocalFileSource. First non-GWS ingestion path. Proof:
+data/runtime/canonical_memory_store/proofs/2026-05-12_orchestrator_e2e/
+FullLiveIngestionSpine remains the GWS-specific path.

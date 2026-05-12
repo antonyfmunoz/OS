@@ -76,6 +76,13 @@
       "label": "Memory palace has 4 layers: Palace \u2192 Wing \u2192 Room \u2192 Locus",
       "source_document_id": "local-1935d5191815beba",
       "timestamp": "2026-05-12T17:45:19.504873+00:00"
+    },
+    "mem-6301934988314da4": {
+      "memory_type": "canonical",
+      "primitive_type": "state",
+      "label": "Document has 46 sections",
+      "source_document_id": "local-a1d1cf2ba90fc5f0",
+      "timestamp": "2026-05-12T18:33:11.487294+00:00"
     }
   },
   "by_type": {
