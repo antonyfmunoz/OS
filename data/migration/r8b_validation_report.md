@@ -165,3 +165,8 @@ the canonical source.
 - Requires pre/post import graph comparison
 - Must preserve cycle count and init order
 - Cold boot timing must remain within bounds
+
+
+---
+
+> [Note: Test baseline re-anchored 2026-05-12. Actual collection is 11,532 / 338 (collected / collection errors). The 8684/2691/495 figures were valid at time of writing but are now stale. See data/audits/2026-05-12_ground_truth_audit.md §8.]

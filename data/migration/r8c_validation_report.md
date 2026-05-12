@@ -147,3 +147,8 @@ and orphan detection.
 - Must preserve all external consumer compatibility
 - Must generate shim manifest for ongoing maintenance
 - Must detect orphan bridges (bridges with no external consumers)
+
+
+---
+
+> [Note: Test baseline re-anchored 2026-05-12. Actual collection is 11,532 / 338 (collected / collection errors). The 8684/2691/495 figures were valid at time of writing but are now stale. See data/audits/2026-05-12_ground_truth_audit.md §8.]

@@ -183,3 +183,8 @@ R8f is complete. All semantic runtime references now use `runtime.*`:
 4. Migration tools (r8b/r8d generators) — reference eos_ai by design
 5. `runtime/transport/substrate_projection_boundaries.py` (1 ref) — backward-compat check
 6. `data/*.json` generated artifacts — will regenerate on next graph rebuild
+
+
+---
+
+> [Note: Test baseline re-anchored 2026-05-12. Actual collection is 11,532 / 338 (collected / collection errors). The 8684/2691/495 figures were valid at time of writing but are now stale. See data/audits/2026-05-12_ground_truth_audit.md §8.]

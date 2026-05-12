@@ -316,3 +316,8 @@ Next: Monitoring period → Shim retirement (with separate approval)
 | Identity violations | **0** |
 | Cold boot improvement | -13% from R8d baseline |
 | Days elapsed | R8a (May 10) → Post-R8h (May 11) |
+
+
+---
+
+> [Note: Test baseline re-anchored 2026-05-12. Actual collection is 11,532 / 338 (collected / collection errors). The 8684/2691/495 figures were valid at time of writing but are now stale. See data/audits/2026-05-12_ground_truth_audit.md §8.]

@@ -195,3 +195,8 @@ only consumers of eos_ai/ shims are:
 
 Before R8f: audit for any remaining live consumers of `eos_ai.*` imports
 outside the migrated scope.
+
+
+---
+
+> [Note: Test baseline re-anchored 2026-05-12. Actual collection is 11,532 / 338 (collected / collection errors). The 8684/2691/495 figures were valid at time of writing but are now stale. See data/audits/2026-05-12_ground_truth_audit.md §8.]

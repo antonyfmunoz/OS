@@ -503,7 +503,7 @@ Order: topology → transport → governance → orchestration →
 execution → world_model → memory → identity → cognition →
 integration → platform
 
-Validation: Test baseline holds (8684/2691/495).
+Validation: Test baseline holds (11,532 collected / 338 collection errors — re-anchored 2026-05-12).
 
 ### Phase 4: Re-export cleanup (LOW risk)
 
