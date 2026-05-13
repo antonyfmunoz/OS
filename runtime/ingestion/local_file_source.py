@@ -7,6 +7,7 @@ import mimetypes
 from pathlib import Path
 from typing import Any
 
+from runtime.ingestion.authority_tier import T5_DEFAULT, validate_tier
 from runtime.ingestion.source import RawContent, Source
 
 
@@ -15,9 +16,10 @@ class LocalFileSource:
 
     source_type: str = "local_file"
 
-    def __init__(self, path: Path | str) -> None:
+    def __init__(self, path: Path | str, *, authority_tier: int = T5_DEFAULT) -> None:
         self._path = Path(path).resolve()
         self._cached_content: RawContent | None = None
+        self.authority_tier: int = validate_tier(authority_tier)
 
     @property
     def source_id(self) -> str:

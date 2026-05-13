@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
 
+from runtime.ingestion.authority_tier import T5_DEFAULT
+
 
 @dataclass
 class RawContent:
@@ -22,6 +24,7 @@ class Source(Protocol):
 
     source_type: str
     source_id: str
+    authority_tier: int
 
     def read(self) -> RawContent: ...
 

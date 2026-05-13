@@ -27,6 +27,7 @@ from core.ontology.primitive_decomposition_v1 import (
 import runtime.domain_bridge.business  # noqa: F401  — auto-registers BusinessBridge
 from runtime.domain_bridge.contract import DomainProjection
 from runtime.domain_bridge.registry import default_registry as _bridge_registry
+from runtime.ingestion.authority_tier import T5_DEFAULT, get_authority_tier
 from runtime.ingestion.source import RawContent, Source
 from runtime.transport.memory_scope_contracts import (
     MemoryScope,
@@ -46,6 +47,7 @@ class Signal:
     content_length: dict[str, int]
     timestamp_utc: str
     perceive_duration_ms: float
+    authority_tier: int = T5_DEFAULT
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -56,6 +58,7 @@ class Signal:
             "content_length": self.content_length,
             "timestamp_utc": self.timestamp_utc,
             "perceive_duration_ms": self.perceive_duration_ms,
+            "authority_tier": self.authority_tier,
             "entry_point_invoked": {
                 "module": "runtime.ingestion.orchestrator",
                 "function": "GenericIngestionOrchestrator._perceive",
@@ -74,6 +77,7 @@ class InterpretationResult:
     structural_features: dict[str, Any]
     intent_candidates: list[str]
     interpret_duration_ms: float
+    authority_tier: int = T5_DEFAULT
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -84,6 +88,7 @@ class InterpretationResult:
             "structural_features": self.structural_features,
             "intent_candidates": self.intent_candidates,
             "interpret_duration_ms": self.interpret_duration_ms,
+            "authority_tier": self.authority_tier,
             "entry_point_invoked": {
                 "module": "runtime.ingestion.orchestrator",
                 "function": "GenericIngestionOrchestrator._interpret",
@@ -292,7 +297,7 @@ class GenericIngestionOrchestrator:
             meta = source.metadata()
             ts_utc = datetime.now(timezone.utc).isoformat()
 
-            result.signal = self._perceive(raw, meta, ts_utc)
+            result.signal = self._perceive(raw, meta, ts_utc, source.authority_tier)
             print(f"[ingestion-orchestrator] perceive: {result.signal.signal_id}")
 
             result.interpretation = self._interpret(result.signal, raw)
@@ -361,7 +366,9 @@ class GenericIngestionOrchestrator:
 
         return result
 
-    def _perceive(self, raw: RawContent, meta: dict[str, Any], ts_utc: str) -> Signal:
+    def _perceive(
+        self, raw: RawContent, meta: dict[str, Any], ts_utc: str, authority_tier: int = T5_DEFAULT
+    ) -> Signal:
         t0 = time.monotonic()
         lines = raw.content.count("\n") + 1
         words = len(raw.content.split())
@@ -376,6 +383,7 @@ class GenericIngestionOrchestrator:
             content_length={"chars": chars, "words": words, "lines": lines},
             timestamp_utc=ts_utc,
             perceive_duration_ms=dur,
+            authority_tier=authority_tier,
         )
 
     def _interpret(self, signal: Signal, raw: RawContent) -> InterpretationResult:
@@ -419,6 +427,7 @@ class GenericIngestionOrchestrator:
             },
             intent_candidates=intent_candidates,
             interpret_duration_ms=dur,
+            authority_tier=signal.authority_tier,
         )
 
     # Valid enum values for LLM prompt and validation
@@ -492,6 +501,9 @@ DOCUMENT SOURCE: {source_path}
                 "[decompose] LLM extraction failed, falling back to heuristic"
             )
             result = self._decompose_heuristic(signal, interp, raw, decomp_id)
+
+        for obs in result.observations:
+            obs.authority_tier = interp.authority_tier
 
         result.compute_coverage()
         dur = round((time.monotonic() - t0) * 1000, 2)
@@ -867,6 +879,7 @@ DOCUMENT SOURCE: {source_path}
                     "label": obs.label,
                     "content": obs.description,
                     "confidence": obs.confidence,
+                    "authority_tier": obs.authority_tier,
                     "source_document_id": doc_id,
                     "source_content_hash": raw.sha256,
                     "source_decomposition_id": decomp.decomposition_id,
@@ -938,6 +951,7 @@ DOCUMENT SOURCE: {source_path}
                     "label": proj.label,
                     "content": proj.description,
                     "confidence": proj.confidence,
+                    "authority_tier": proj.authority_tier,
                     "source_document_id": doc_id,
                     "source_content_hash": raw.sha256,
                     "source_decomposition_id": decomp.decomposition_id,
@@ -1083,6 +1097,7 @@ DOCUMENT SOURCE: {source_path}
                     "label": m.get("label", "")[:80],
                     "score": round(s, 4),
                     "is_new_entry": m.get("memory_id") in written_ids,
+                    "authority_tier": get_authority_tier(m),
                 }
                 for i, (s, m) in enumerate(top5)
             ],

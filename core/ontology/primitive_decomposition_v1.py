@@ -55,6 +55,7 @@ class PrimitiveObservation:
     source_reference: str = ""
     evidence: str = ""
     is_inferred: bool = False
+    authority_tier: int = 5
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -66,6 +67,7 @@ class PrimitiveObservation:
             "source_reference": self.source_reference,
             "evidence": self.evidence,
             "is_inferred": self.is_inferred,
+            "authority_tier": self.authority_tier,
         }
 
 

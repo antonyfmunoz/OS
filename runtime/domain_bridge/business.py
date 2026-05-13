@@ -237,6 +237,7 @@ class BusinessBridge:
             ontology_observation_ref=observation.observation_id,
             confidence=confidence,
             evidence=observation.evidence,
+            authority_tier=observation.authority_tier,
         )
 
 

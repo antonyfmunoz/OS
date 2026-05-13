@@ -297,6 +297,15 @@ Persist also writes domain projections as separate memory entries
 (memory_type: "domain_projection") with domain_id and
 ontology_observation_ref back-reference.
 
+Authority tier on Source protocol (runtime.ingestion.authority_tier):
+  - T1_CANONICAL (1) to T9_OLD_CHATS (9)
+  - Each Source declares its tier (default T5_DEFAULT)
+  - Tier propagates unchanged: source → signal → interpretation →
+    observation → projection → memory entry → query result
+  - Pure metadata — query ranking unchanged in V1
+  - Legacy entries (pre-tier) default to T5_DEFAULT via
+    get_authority_tier(entry)
+
 FullLiveIngestionSpine (core/runtime/full_live_ingestion_spine_v1.py)
 is a separate GWS-specific pipeline with its own ledger, replay, and
 governance contracts. It is NOT a wrapper — it uses different stages
@@ -309,3 +318,4 @@ Proofs:
   data/runtime/canonical_memory_store/proofs/2026-05-12_decomposer_depth_upgrade/
   data/runtime/canonical_memory_store/proofs/2026-05-12_persist_all/
   data/runtime/canonical_memory_store/proofs/2026-05-12_domain_bridge/
+  data/runtime/canonical_memory_store/proofs/2026-05-12_authority_tier/

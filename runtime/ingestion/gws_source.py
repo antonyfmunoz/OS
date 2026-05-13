@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 from typing import Any
 
+from runtime.ingestion.authority_tier import T5_DEFAULT, validate_tier
 from runtime.ingestion.source import RawContent, Source
 
 
@@ -23,6 +24,8 @@ class GWSSource:
         doc_id: str,
         scanner: Any,
         doc_meta: dict[str, Any] | None = None,
+        *,
+        authority_tier: int = T5_DEFAULT,
     ) -> None:
         """Initialize with a GWS document ID and a GWSDocumentScanner instance.
 
@@ -32,11 +35,13 @@ class GWSSource:
                 read_doc(doc_id) -> str and list_all_docs() -> list[dict]).
             doc_meta: Optional pre-fetched metadata dict from list_all_docs().
                 Keys: id, name, mimeType, modifiedTime, webViewLink.
+            authority_tier: Authority tier (1-9). Default T5_DEFAULT.
         """
         self._doc_id = doc_id
         self._scanner = scanner
         self._doc_meta = doc_meta or {}
         self._cached_content: RawContent | None = None
+        self.authority_tier: int = validate_tier(authority_tier)
 
     @property
     def source_id(self) -> str:

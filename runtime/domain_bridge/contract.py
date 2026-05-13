@@ -53,6 +53,7 @@ class DomainProjection:
     ontology_observation_ref: str
     confidence: float
     evidence: str
+    authority_tier: int = 5
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -65,6 +66,7 @@ class DomainProjection:
             "ontology_observation_ref": self.ontology_observation_ref,
             "confidence": self.confidence,
             "evidence": self.evidence,
+            "authority_tier": self.authority_tier,
         }
 
 
