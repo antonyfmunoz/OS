@@ -137,6 +137,17 @@ single ingestion path. Sources:
   - LocalFileSource (runtime.ingestion.local_file_source)
   - GWSSource       (runtime.ingestion.gws_source)
 
+Pipeline: perceive → interpret → decompose → bridge → map → persist → query_back
+
+UMH operates at the ontology layer (domain-agnostic substrate).
+Domain bridges produce domain-typed projections from ontology
+observations. The substrate works regardless of which domains are
+registered. See: docs/system/domain_bridge_contract_v1.md
+
+Registered domains:
+  - business (runtime.domain_bridge.business) — V1 structural mapping
+  - creator, life — future (CreatorOS, LYFEOS)
+
 Decomposition uses LLM extraction (via model_router) with heuristic
 fallback. Output schema per observation:
   - primitive_type: PrimitiveType enum (state/change/constraint/resource/
@@ -152,6 +163,10 @@ memory entry per observation (N-of-N, not 1-of-N). Each entry tagged
 with source_document_id + source_decomposition_id for group retrieval.
 MemoryWrite.memory_ids_written lists all IDs; entries_written gives count.
 
+Persist also writes domain projections as separate memory entries
+(memory_type: "domain_projection") with domain_id and
+ontology_observation_ref back-reference.
+
 FullLiveIngestionSpine (core/runtime/full_live_ingestion_spine_v1.py)
 is a separate GWS-specific pipeline with its own ledger, replay, and
 governance contracts. It is NOT a wrapper — it uses different stages
@@ -163,3 +178,4 @@ Proofs:
   data/runtime/canonical_memory_store/proofs/2026-05-12_orchestrator_unification/
   data/runtime/canonical_memory_store/proofs/2026-05-12_decomposer_depth_upgrade/
   data/runtime/canonical_memory_store/proofs/2026-05-12_persist_all/
+  data/runtime/canonical_memory_store/proofs/2026-05-12_domain_bridge/

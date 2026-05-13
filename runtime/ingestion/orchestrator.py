@@ -1,6 +1,6 @@
 """GenericIngestionOrchestrator — source-agnostic canonical pipeline.
 
-Sequences: perceive → interpret → decompose → map → persist → query.
+Sequences: perceive → interpret → decompose → bridge → map → persist → query.
 Uses existing contract classes from core.ontology and runtime.transport.
 No source-specific logic inside — source abstraction handles that.
 """
@@ -24,6 +24,9 @@ from core.ontology.primitive_decomposition_v1 import (
     PrimitiveType,
     RelationshipType,
 )
+import runtime.domain_bridge.business  # noqa: F401  — auto-registers BusinessBridge
+from runtime.domain_bridge.contract import DomainProjection
+from runtime.domain_bridge.registry import default_registry as _bridge_registry
 from runtime.ingestion.source import RawContent, Source
 from runtime.transport.memory_scope_contracts import (
     MemoryScope,
@@ -209,6 +212,7 @@ class IngestionResult:
     signal: Signal | None = None
     interpretation: InterpretationResult | None = None
     decomposition: DecompositionResult | None = None
+    projections: list[DomainProjection] = field(default_factory=list)
     world_update: WorldUpdate | None = None
     memory_write: MemoryWrite | None = None
     promotion_receipt: PromotionReceipt | None = None
@@ -224,6 +228,7 @@ class IngestionResult:
             "signal": self.signal.to_dict() if self.signal else None,
             "interpretation": self.interpretation.to_dict() if self.interpretation else None,
             "decomposition": self.decomposition.to_dict() if self.decomposition else None,
+            "projections": [p.to_dict() for p in self.projections],
             "world_update": self.world_update.to_dict() if self.world_update else None,
             "memory_write": self.memory_write.to_dict() if self.memory_write else None,
             "promotion_receipt": self.promotion_receipt.to_dict()
@@ -300,13 +305,22 @@ class GenericIngestionOrchestrator:
                 f"[ingestion-orchestrator] decompose: {len(result.decomposition.observations)} observations"
             )
 
+            result.projections = self._bridge(result.decomposition)
+            print(f"[ingestion-orchestrator] bridge: {len(result.projections)} projections")
+
             result.world_update = self._map(result.signal, result.decomposition, ts_utc)
             print(
                 f"[ingestion-orchestrator] map: {len(result.world_update.entities_added)} entities"
             )
 
             mem_write, receipts = self._persist(
-                result.signal, result.decomposition, result.world_update, raw, meta, ts_utc
+                result.signal,
+                result.decomposition,
+                result.projections,
+                result.world_update,
+                raw,
+                meta,
+                ts_utc,
             )
             result.memory_write = mem_write
             result.promotion_receipts = receipts
@@ -777,10 +791,24 @@ DOCUMENT SOURCE: {source_path}
             map_duration_ms=dur,
         )
 
+    def _bridge(self, decomp: DecompositionResult) -> list[DomainProjection]:
+        """Run all registered domain bridges over decomposition observations."""
+        projections: list[DomainProjection] = []
+        bridges = _bridge_registry.get_all()
+        if not bridges:
+            return projections
+        for obs in decomp.observations:
+            for bridge in bridges:
+                projection = bridge.bridge(obs)
+                if projection is not None:
+                    projections.append(projection)
+        return projections
+
     def _persist(
         self,
         signal: Signal,
         decomp: DecompositionResult,
+        projections: list[DomainProjection],
         world: WorldUpdate,
         raw: RawContent,
         meta: dict[str, Any],
@@ -893,6 +921,79 @@ DOCUMENT SOURCE: {source_path}
                             "receipt_id": receipt_id,
                             "label": obs.label,
                             "type": obs.primitive_type.value,
+                        }
+                    )
+
+            for proj in projections:
+                proj_mem_id = f"mem-{uuid.uuid4().hex[:16]}"
+                proj_cand_id = f"cand-{uuid.uuid4().hex[:16]}"
+                proj_receipt_id = f"receipt-{uuid.uuid4().hex[:16]}"
+
+                proj_entry = {
+                    "memory_id": proj_mem_id,
+                    "candidate_id": proj_cand_id,
+                    "memory_type": "domain_projection",
+                    "domain_id": proj.domain_id,
+                    "domain_primitive_type": proj.domain_primitive_type,
+                    "label": proj.label,
+                    "content": proj.description,
+                    "confidence": proj.confidence,
+                    "source_document_id": doc_id,
+                    "source_content_hash": raw.sha256,
+                    "source_decomposition_id": decomp.decomposition_id,
+                    "ontology_observation_ref": proj.ontology_observation_ref,
+                    "projection_id": proj.projection_id,
+                    "promotion_receipt_id": proj_receipt_id,
+                    "properties": proj.properties,
+                    "provenance": {
+                        "evidence": proj.evidence,
+                    },
+                    "lineage": {
+                        "candidate_id": proj_cand_id,
+                        "decomposition_id": decomp.decomposition_id,
+                        "document_id": doc_id,
+                        "document_path": meta.get("path", "unknown"),
+                        "content_hash": raw.sha256,
+                        "classification_reason": f"domain projection: {proj.domain_id}/{proj.domain_primitive_type}",
+                    },
+                    "timestamp": ts_utc,
+                }
+
+                mem_f.write(json.dumps(proj_entry) + "\n")
+
+                proj_receipt_data = {
+                    "receipt_id": proj_receipt_id,
+                    "candidate_id": proj_cand_id,
+                    "decision": "promoted",
+                    "reason": f"Domain projection — {proj.domain_id}/{proj.domain_primitive_type}",
+                    "confidence": proj.confidence,
+                    "promoter": "generic-ingestion-orchestrator",
+                    "timestamp": ts_utc,
+                    "rollback_reference": f"candidate:{proj_cand_id}",
+                }
+
+                rec_f.write(json.dumps(proj_receipt_data) + "\n")
+
+                all_memory_ids.append(proj_mem_id)
+                all_receipts.append(PromotionReceipt(**proj_receipt_data))
+
+                if index is not None:
+                    index["entries"][proj_mem_id] = {
+                        "memory_type": "domain_projection",
+                        "domain_id": proj.domain_id,
+                        "domain_primitive_type": proj.domain_primitive_type,
+                        "label": proj.label,
+                        "source_document_id": doc_id,
+                        "timestamp": ts_utc,
+                    }
+
+                if summary is not None:
+                    summary["promoted_canonical"].append(
+                        {
+                            "memory_id": proj_mem_id,
+                            "receipt_id": proj_receipt_id,
+                            "label": proj.label,
+                            "type": f"projection:{proj.domain_primitive_type}",
                         }
                     )
 
@@ -1018,6 +1119,11 @@ DOCUMENT SOURCE: {source_path}
                 "function": "GenericIngestionOrchestrator._decompose",
             }
             _write("03_decomposition.json", decomp_dict)
+        if result.projections:
+            _write(
+                "03b_bridge_projections.json",
+                [p.to_dict() for p in result.projections],
+            )
         if result.world_update:
             _write("04_world_update.json", result.world_update.to_dict())
         if result.memory_write:
