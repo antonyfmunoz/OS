@@ -181,11 +181,12 @@ is a separate GWS-specific pipeline with its own ledger, replay, and
 governance contracts. It is NOT a wrapper — it uses different stages
 and output shapes. No production callers; tests only.
 
-cc_sdk subprocess auth (runtime/cc_sdk.py):
-  - `_get_subprocess_env()` builds env overrides for CLI subprocess
-  - Injects CLAUDE_CODE_OAUTH_TOKEN from ancestor Claude Code process
-    via /proc walk (`_find_ancestor_oauth()`). Token cached per session.
-  - Blanks ANTHROPIC_API_KEY to prevent depleted API-key auth fallback
+cc_sdk (runtime/cc_sdk.py) — option 0, CLI via Max subscription:
+  - Timeout: 120s default, env var CC_SDK_TIMEOUT_SECONDS to override.
+    Opus 4.6 calls typically take 30-90s (startup + auth + inference).
+  - `_get_subprocess_env()` builds env overrides for CLI subprocess.
+    Injects CLAUDE_CODE_OAUTH_TOKEN from ancestor process via /proc walk.
+    Blanks ANTHROPIC_API_KEY. Token cached per session.
   - CLI authenticates via subscription (Opus 4.6, no API cost)
   - Diagnostic: data/audits/2026-05-13_cli_subprocess_auth_diagnostic.md
 

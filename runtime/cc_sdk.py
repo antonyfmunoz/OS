@@ -7,6 +7,8 @@ through Claude Code's subprocess transport (local CLI).
 This is NOT a replacement for model_router — it is a provider that
 model_router can call, alongside Gemini, Ollama, etc.
 
+Timeout: default 120s, override via CC_SDK_TIMEOUT_SECONDS env var.
+
 Usage:
     from runtime.cc_sdk import query_cc_sync
 
@@ -24,6 +26,22 @@ import time
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
+
+# ─── Timeout configuration ─────────────────────────────────────────────────
+
+DEFAULT_TIMEOUT_SECONDS: int = 120
+
+
+def _resolve_timeout() -> float:
+    """Resolve cc_sdk subprocess timeout from env or default."""
+    raw = os.environ.get("CC_SDK_TIMEOUT_SECONDS")
+    if not raw:
+        return float(DEFAULT_TIMEOUT_SECONDS)
+    try:
+        return float(int(raw))
+    except ValueError:
+        return float(DEFAULT_TIMEOUT_SECONDS)
+
 
 # ─── Error-leak detection ──────────────────────────────────────────────────
 
@@ -175,7 +193,7 @@ async def query_cc(
     session_id: str | None = None,
     max_budget_usd: float = 0.10,
     agent_id: str | None = None,
-    timeout: float = 30.0,
+    timeout: float | None = None,
 ) -> CCResult | None:
     """
     Query Claude Code via the Agent SDK.
@@ -188,11 +206,13 @@ async def query_cc(
                     session for agent_id (if provided).
         max_budget_usd: Hard budget cap per call. Default $0.10.
         agent_id: Agent identifier for session persistence.
-        timeout: Max seconds to wait for response. Default 30.
+        timeout: Max seconds to wait. Default from _resolve_timeout().
 
     Returns:
         CCResult on success, None on any error.
     """
+    if timeout is None:
+        timeout = _resolve_timeout()
     if _is_nested_cc_session():
         logger.info("[CC SDK] Nested session detected, skipping")
         return None
@@ -369,7 +389,7 @@ def query_cc_sync(
     session_id: str | None = None,
     max_budget_usd: float = 0.10,
     agent_id: str | None = None,
-    timeout: float = 30.0,
+    timeout: float | None = None,
 ) -> CCResult | None:
     """
     Synchronous wrapper around query_cc().
@@ -377,6 +397,8 @@ def query_cc_sync(
     Safe to call from model_router and other sync code.
     Creates a new event loop if none is running.
     """
+    if timeout is None:
+        timeout = _resolve_timeout()
     # Backpressure: don't spawn subprocesses when system is degraded
     try:
         from runtime.provider_state import get_system_state

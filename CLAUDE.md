@@ -212,9 +212,11 @@ new-primitive, debug-agent
 - All agent calls route through runtime/model_router.py
 - call_with_fallback() is the single module-level entry point
 - Provider contract: return None/empty on failure, non-empty content on success
+- cc_sdk is option 0: CLI via Max subscription, Opus 4.6, no API cost
+- cc_sdk timeout: 120s default, configurable via CC_SDK_TIMEOUT_SECONDS env var.
+  CLI calls to Opus typically take 30-90s (startup + auth + inference + streaming).
 - cc_sdk subprocess env: `_get_subprocess_env()` injects OAuth token from
-  ancestor Claude Code process and blanks ANTHROPIC_API_KEY. CLI
-  authenticates via subscription (no API cost). Token cached per session.
+  ancestor Claude Code process and blanks ANTHROPIC_API_KEY. Token cached per session.
 - cc_sdk validates output against error signatures before returning
   (runtime/cc_sdk.py `_is_error_leak()`). Auth/quota/transport errors
   leaked as streamed text return None so the router falls through.
