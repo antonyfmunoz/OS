@@ -211,8 +211,12 @@ new-primitive, debug-agent
 ## Intelligence Routing
 - All agent calls route through runtime/model_router.py
 - call_with_fallback() is the single module-level entry point
+- Provider contract: return None/empty on failure, non-empty content on success
+- cc_sdk validates output against error signatures before returning
+  (runtime/cc_sdk.py `_is_error_leak()`). Auth/quota/transport errors
+  leaked as streamed text return None so the router falls through.
 - CEO/strategic agents always use best available (pass agent_type='ceo' or force_opus=True)
-- Current routing chain: Gemini 2.5 Flash → Ollama (Anthropic credits depleted)
+- Current routing chain: cc_sdk → Gemini 2.5 Flash → Groq → Ollama (Anthropic credits depleted)
 - When credits restored: Anthropic (CC_MODEL_MAP) → Gemini → Ollama
 - agent_runtime.py has its own fallback via _claude_available flag — do not break
 - MCP_CONNECTION_NONBLOCKING=true always
@@ -245,7 +249,8 @@ new-primitive, debug-agent
   agent_type='ceo' in call_with_fallback()
 - Fast checks: Haiku via TaskType.FAST_RESPONSE
 
-## Current Known Gotchas (2026-04-02)
+## Current Known Gotchas (2026-05-12)
+- cc_sdk error-leak fixed: auth/quota errors streamed as AssistantMessage text are now caught by `_is_error_leak()` → returns None → router falls through. Signatures in `_ERROR_SIGNATURES` tuple. Proof: proofs/2026-05-12_fix_cc_sdk/
 - Anthropic key invalid (401 auth error) → SDK returns authentication_error not credit error
 - Gemini spending cap exceeded (429) → all Gemini calls fail until cap raised
 - google.generativeai (old SDK) deprecated → always use google.genai (new SDK)

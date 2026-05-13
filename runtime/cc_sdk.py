@@ -25,6 +25,34 @@ from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
+# ─── Error-leak detection ──────────────────────────────────────────────────
+
+_ERROR_SIGNATURES: tuple[str, ...] = (
+    "authentication_error",
+    "rate_limit_error",
+    "overloaded_error",
+    "invalid_request_error",
+    "credit balance",
+    "invalid x-api-key",
+)
+
+
+def _is_error_leak(content: str) -> bool:
+    """Return True if content matches a HIGH-confidence cc_sdk error signature.
+
+    Detects auth/quota/transport failure text that the Claude CLI
+    streams as AssistantMessage content before raising ProcessError.
+    The _stream() catch-all suppresses the exception, leaving error
+    text in output_parts. This function catches it before it reaches
+    call_with_fallback().
+
+    Conservative: false positives (flagging valid output) are worse
+    than false negatives (missing an unknown error format).
+    """
+    lowered = content.lower()
+    return any(sig in lowered for sig in _ERROR_SIGNATURES)
+
+
 # ─── Task type → effort mapping ─────────────────────────────────────────────
 
 EFFORT_MAP: dict[str, str] = {
@@ -214,6 +242,10 @@ async def query_cc(
     if not output:
         logger.warning("cc_sdk: empty response")
         logger.warning("[cc_sdk] returning None (empty output)")
+        return None
+
+    if _is_error_leak(output):
+        logger.warning("[cc_sdk] error leak detected, returning None: %s", output[:120])
         return None
 
     logger.warning("[cc_sdk] returning output (%d chars)", len(output))

@@ -181,6 +181,15 @@ is a separate GWS-specific pipeline with its own ledger, replay, and
 governance contracts. It is NOT a wrapper — it uses different stages
 and output shapes. No production callers; tests only.
 
+cc_sdk output validation (runtime/cc_sdk.py):
+  - `_is_error_leak(content)` checks output against error signatures
+    before returning to call_with_fallback()
+  - Catches auth/quota/transport errors leaked as streamed text
+  - Returns None on detection → router falls through to next provider
+  - Signatures: authentication_error, rate_limit_error, overloaded_error,
+    invalid_request_error, credit balance, invalid x-api-key
+  - Does NOT touch the _stream() catch-all (legitimate for MCP shutdown)
+
 Proofs:
   data/runtime/canonical_memory_store/proofs/2026-05-12_ingestion_e2e/
   data/runtime/canonical_memory_store/proofs/2026-05-12_orchestrator_e2e/
@@ -189,3 +198,4 @@ Proofs:
   data/runtime/canonical_memory_store/proofs/2026-05-12_persist_all/
   data/runtime/canonical_memory_store/proofs/2026-05-12_domain_bridge/
   data/runtime/canonical_memory_store/proofs/2026-05-12_authority_tier/
+  data/runtime/canonical_memory_store/proofs/2026-05-12_fix_cc_sdk/
