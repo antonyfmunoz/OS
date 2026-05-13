@@ -128,6 +128,8 @@ class MemoryWrite:
     persist_duration_ms: float
     memories_jsonl_before: int
     memories_jsonl_after: int
+    memory_ids_written: list[str] = field(default_factory=list)
+    entries_written: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -141,6 +143,8 @@ class MemoryWrite:
             "persist_duration_ms": self.persist_duration_ms,
             "memories_jsonl_before": self.memories_jsonl_before,
             "memories_jsonl_after": self.memories_jsonl_after,
+            "memory_ids_written": self.memory_ids_written,
+            "entries_written": self.entries_written,
         }
 
 
@@ -208,6 +212,7 @@ class IngestionResult:
     world_update: WorldUpdate | None = None
     memory_write: MemoryWrite | None = None
     promotion_receipt: PromotionReceipt | None = None
+    promotion_receipts: list[PromotionReceipt] = field(default_factory=list)
     query_proof: QueryProof | None = None
     cycle_duration_ms: float = 0.0
     verdict: str = "NOT_STARTED"
@@ -224,6 +229,7 @@ class IngestionResult:
             "promotion_receipt": self.promotion_receipt.to_dict()
             if self.promotion_receipt
             else None,
+            "promotion_receipts": [r.to_dict() for r in self.promotion_receipts],
             "query_proof": self.query_proof.to_dict() if self.query_proof else None,
             "cycle_duration_ms": self.cycle_duration_ms,
             "verdict": self.verdict,
@@ -299,12 +305,13 @@ class GenericIngestionOrchestrator:
                 f"[ingestion-orchestrator] map: {len(result.world_update.entities_added)} entities"
             )
 
-            mem_write, receipt = self._persist(
+            mem_write, receipts = self._persist(
                 result.signal, result.decomposition, result.world_update, raw, meta, ts_utc
             )
             result.memory_write = mem_write
-            result.promotion_receipt = receipt
-            print(f"[ingestion-orchestrator] persist: {mem_write.new_canonical_memory_entry_id}")
+            result.promotion_receipts = receipts
+            result.promotion_receipt = receipts[0] if receipts else None
+            print(f"[ingestion-orchestrator] persist: {mem_write.entries_written} entries")
 
             result.query_proof = self._query_back(result.signal, result.memory_write, raw)
             print(f"[ingestion-orchestrator] query: rank={result.query_proof.new_entry_rank}")
@@ -778,7 +785,7 @@ DOCUMENT SOURCE: {source_path}
         raw: RawContent,
         meta: dict[str, Any],
         ts_utc: str,
-    ) -> tuple[MemoryWrite, PromotionReceipt]:
+    ) -> tuple[MemoryWrite, list[PromotionReceipt]]:
         t0 = time.monotonic()
 
         before_count = (
@@ -787,43 +794,8 @@ DOCUMENT SOURCE: {source_path}
             else 0
         )
 
-        memory_id = f"mem-{uuid.uuid4().hex[:16]}"
-        candidate_id = f"cand-{uuid.uuid4().hex[:16]}"
-        receipt_id = f"receipt-{uuid.uuid4().hex[:16]}"
-
-        best_obs = (
-            max(decomp.observations, key=lambda o: o.confidence) if decomp.observations else None
-        )
-        if best_obs is None:
+        if not decomp.observations:
             raise ValueError("No observations to persist")
-
-        memory_entry = {
-            "memory_id": memory_id,
-            "candidate_id": candidate_id,
-            "memory_type": "canonical",
-            "primitive_type": best_obs.primitive_type.value,
-            "label": best_obs.label,
-            "content": best_obs.description,
-            "confidence": best_obs.confidence,
-            "source_document_id": f"local-{raw.sha256[:16]}",
-            "source_content_hash": raw.sha256,
-            "source_decomposition_id": decomp.decomposition_id,
-            "promotion_receipt_id": receipt_id,
-            "provenance": {
-                "source_reference": best_obs.source_reference,
-                "evidence": best_obs.evidence,
-                "is_inferred": best_obs.is_inferred,
-            },
-            "lineage": {
-                "candidate_id": candidate_id,
-                "decomposition_id": decomp.decomposition_id,
-                "document_id": f"local-{raw.sha256[:16]}",
-                "document_path": meta.get("path", "unknown"),
-                "content_hash": raw.sha256,
-                "classification_reason": f"{best_obs.primitive_type.value} is structurally canonical",
-            },
-            "timestamp": ts_utc,
-        }
 
         scope = MemoryScopeAssignment(
             source_id=signal.signal_id,
@@ -832,44 +804,102 @@ DOCUMENT SOURCE: {source_path}
             notes="Generic orchestrator ingestion. Project-scoped.",
         )
 
-        with open(self._memories_path, "a") as f:
-            f.write(json.dumps(memory_entry) + "\n")
+        doc_id = f"local-{raw.sha256[:16]}"
+        all_memory_ids: list[str] = []
+        all_receipts: list[PromotionReceipt] = []
+        first_memory_id = ""
+        first_candidate_id = ""
+        first_receipt_id = ""
+        best_obs = max(decomp.observations, key=lambda o: o.confidence)
 
-        receipt_data = {
-            "receipt_id": receipt_id,
-            "candidate_id": candidate_id,
-            "decision": "promoted",
-            "reason": f"Generic orchestrator ingestion — {best_obs.primitive_type.value}",
-            "confidence": best_obs.confidence,
-            "promoter": "generic-ingestion-orchestrator",
-            "timestamp": ts_utc,
-            "rollback_reference": f"candidate:{candidate_id}",
-        }
-
-        with open(self._receipts_path, "a") as f:
-            f.write(json.dumps(receipt_data) + "\n")
-
+        index = None
         if self._index_path.exists():
             index = json.loads(self._index_path.read_text())
-            index["entries"][memory_id] = {
-                "memory_type": "canonical",
-                "primitive_type": best_obs.primitive_type.value,
-                "label": best_obs.label,
-                "source_document_id": f"local-{raw.sha256[:16]}",
-                "timestamp": ts_utc,
-            }
-            self._index_path.write_text(json.dumps(index, indent=2))
 
+        summary = None
         if self._summary_path.exists():
             summary = json.loads(self._summary_path.read_text())
-            summary["promoted_canonical"].append(
-                {
+
+        with open(self._memories_path, "a") as mem_f, open(self._receipts_path, "a") as rec_f:
+            for obs in decomp.observations:
+                memory_id = f"mem-{uuid.uuid4().hex[:16]}"
+                candidate_id = f"cand-{uuid.uuid4().hex[:16]}"
+                receipt_id = f"receipt-{uuid.uuid4().hex[:16]}"
+
+                if not first_memory_id:
+                    first_memory_id = memory_id
+                    first_candidate_id = candidate_id
+                    first_receipt_id = receipt_id
+
+                memory_entry = {
                     "memory_id": memory_id,
-                    "receipt_id": receipt_id,
-                    "label": best_obs.label,
-                    "type": best_obs.primitive_type.value,
+                    "candidate_id": candidate_id,
+                    "memory_type": "canonical",
+                    "primitive_type": obs.primitive_type.value,
+                    "label": obs.label,
+                    "content": obs.description,
+                    "confidence": obs.confidence,
+                    "source_document_id": doc_id,
+                    "source_content_hash": raw.sha256,
+                    "source_decomposition_id": decomp.decomposition_id,
+                    "promotion_receipt_id": receipt_id,
+                    "provenance": {
+                        "source_reference": obs.source_reference,
+                        "evidence": obs.evidence,
+                        "is_inferred": obs.is_inferred,
+                    },
+                    "lineage": {
+                        "candidate_id": candidate_id,
+                        "decomposition_id": decomp.decomposition_id,
+                        "document_id": doc_id,
+                        "document_path": meta.get("path", "unknown"),
+                        "content_hash": raw.sha256,
+                        "classification_reason": f"{obs.primitive_type.value} is structurally canonical",
+                    },
+                    "timestamp": ts_utc,
                 }
-            )
+
+                mem_f.write(json.dumps(memory_entry) + "\n")
+
+                receipt_data = {
+                    "receipt_id": receipt_id,
+                    "candidate_id": candidate_id,
+                    "decision": "promoted",
+                    "reason": f"Generic orchestrator ingestion — {obs.primitive_type.value}",
+                    "confidence": obs.confidence,
+                    "promoter": "generic-ingestion-orchestrator",
+                    "timestamp": ts_utc,
+                    "rollback_reference": f"candidate:{candidate_id}",
+                }
+
+                rec_f.write(json.dumps(receipt_data) + "\n")
+
+                all_memory_ids.append(memory_id)
+                all_receipts.append(PromotionReceipt(**receipt_data))
+
+                if index is not None:
+                    index["entries"][memory_id] = {
+                        "memory_type": "canonical",
+                        "primitive_type": obs.primitive_type.value,
+                        "label": obs.label,
+                        "source_document_id": doc_id,
+                        "timestamp": ts_utc,
+                    }
+
+                if summary is not None:
+                    summary["promoted_canonical"].append(
+                        {
+                            "memory_id": memory_id,
+                            "receipt_id": receipt_id,
+                            "label": obs.label,
+                            "type": obs.primitive_type.value,
+                        }
+                    )
+
+        if index is not None:
+            self._index_path.write_text(json.dumps(index, indent=2))
+
+        if summary is not None:
             self._summary_path.write_text(json.dumps(summary, indent=2))
 
         after_count = len(self._memories_path.read_text().strip().split("\n"))
@@ -877,26 +907,26 @@ DOCUMENT SOURCE: {source_path}
 
         mem_write = MemoryWrite(
             signal_id=signal.signal_id,
-            new_canonical_memory_entry_id=memory_id,
+            new_canonical_memory_entry_id=first_memory_id,
             governance_decision="autonomous",
             governance_scope=scope.to_dict(),
             provenance_chain={
                 "signal_id": signal.signal_id,
                 "decomposition_id": decomp.decomposition_id,
-                "candidate_id": candidate_id,
-                "memory_id": memory_id,
-                "receipt_id": receipt_id,
+                "candidate_id": first_candidate_id,
+                "memory_id": first_memory_id,
+                "receipt_id": first_receipt_id,
             },
             confidence_score=best_obs.confidence,
             timestamp_utc=ts_utc,
             persist_duration_ms=dur,
             memories_jsonl_before=before_count,
             memories_jsonl_after=after_count,
+            memory_ids_written=all_memory_ids,
+            entries_written=len(all_memory_ids),
         )
 
-        promotion = PromotionReceipt(**receipt_data)
-
-        return mem_write, promotion
+        return mem_write, all_receipts
 
     def _query_back(
         self,
@@ -927,10 +957,14 @@ DOCUMENT SOURCE: {source_path}
         scored.sort(key=lambda x: x[0], reverse=True)
         top5 = scored[:5]
 
-        memory_id = mem_write.new_canonical_memory_entry_id
+        written_ids = (
+            set(mem_write.memory_ids_written)
+            if mem_write.memory_ids_written
+            else {mem_write.new_canonical_memory_entry_id}
+        )
         new_rank = None
         for i, (s, m) in enumerate(scored):
-            if m.get("memory_id") == memory_id:
+            if m.get("memory_id") in written_ids:
                 new_rank = i + 1
                 break
 
@@ -947,7 +981,7 @@ DOCUMENT SOURCE: {source_path}
                     "memory_id": m.get("memory_id"),
                     "label": m.get("label", "")[:80],
                     "score": round(s, 4),
-                    "is_new_entry": m.get("memory_id") == memory_id,
+                    "is_new_entry": m.get("memory_id") in written_ids,
                 }
                 for i, (s, m) in enumerate(top5)
             ],
@@ -988,7 +1022,9 @@ DOCUMENT SOURCE: {source_path}
             _write("04_world_update.json", result.world_update.to_dict())
         if result.memory_write:
             _write("05_memory_write.json", result.memory_write.to_dict())
-        if result.promotion_receipt:
+        if result.promotion_receipts:
+            _write("05_promotion_receipts.json", [r.to_dict() for r in result.promotion_receipts])
+        elif result.promotion_receipt:
             _write("05_promotion_receipt.json", result.promotion_receipt.to_dict())
         if result.query_proof:
             _write("06_query_proof.json", result.query_proof.to_dict())

@@ -277,6 +277,11 @@ fallback. Output schema per observation:
   - relationships: typed edges (RelationshipType enum)
   See: docs/system/decomposition_extraction_contract_v1.md
 
+Persist stage writes ALL observations from decomposer output — one
+memory entry per observation (N-of-N, not 1-of-N). Each entry tagged
+with source_document_id + source_decomposition_id for group retrieval.
+MemoryWrite.memory_ids_written lists all IDs; entries_written gives count.
+
 FullLiveIngestionSpine (core/runtime/full_live_ingestion_spine_v1.py)
 is a separate GWS-specific pipeline with its own ledger, replay, and
 governance contracts. It is NOT a wrapper — it uses different stages
@@ -287,3 +292,4 @@ Proofs:
   data/runtime/canonical_memory_store/proofs/2026-05-12_orchestrator_e2e/
   data/runtime/canonical_memory_store/proofs/2026-05-12_orchestrator_unification/
   data/runtime/canonical_memory_store/proofs/2026-05-12_decomposer_depth_upgrade/
+  data/runtime/canonical_memory_store/proofs/2026-05-12_persist_all/

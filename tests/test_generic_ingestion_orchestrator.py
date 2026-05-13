@@ -23,56 +23,80 @@ def temp_memory_store(tmp_path: Path):
     store = tmp_path / "canonical_memory_store"
     store.mkdir()
     (store / "memories.jsonl").write_text(
-        json.dumps({
-            "memory_id": "mem-seed-001",
-            "candidate_id": "cand-seed-001",
-            "memory_type": "canonical",
-            "primitive_type": "resource",
-            "label": "Seed entry for testing",
-            "content": "This is a seed memory entry.",
-            "confidence": 0.8,
-            "source_document_id": "test-seed",
-            "source_content_hash": "abc123",
-            "source_decomposition_id": "decomp-seed",
-            "promotion_receipt_id": "receipt-seed",
-            "provenance": {"source_reference": "test", "evidence": "seed", "is_inferred": False},
-            "lineage": {"candidate_id": "cand-seed-001", "decomposition_id": "decomp-seed",
-                        "document_id": "test-seed", "content_hash": "abc123",
-                        "classification_reason": "seed"},
-            "timestamp": "2026-05-12T00:00:00+00:00",
-        }) + "\n"
-    )
-    (store / "promotion_receipts.jsonl").write_text(
-        json.dumps({
-            "receipt_id": "receipt-seed",
-            "candidate_id": "cand-seed-001",
-            "decision": "promoted",
-            "reason": "Seed",
-            "confidence": 0.8,
-            "promoter": "test",
-            "timestamp": "2026-05-12T00:00:00+00:00",
-            "rollback_reference": "candidate:cand-seed-001",
-        }) + "\n"
-    )
-    (store / "index.json").write_text(json.dumps({
-        "entries": {
-            "mem-seed-001": {
+        json.dumps(
+            {
+                "memory_id": "mem-seed-001",
+                "candidate_id": "cand-seed-001",
                 "memory_type": "canonical",
                 "primitive_type": "resource",
                 "label": "Seed entry for testing",
+                "content": "This is a seed memory entry.",
+                "confidence": 0.8,
                 "source_document_id": "test-seed",
+                "source_content_hash": "abc123",
+                "source_decomposition_id": "decomp-seed",
+                "promotion_receipt_id": "receipt-seed",
+                "provenance": {
+                    "source_reference": "test",
+                    "evidence": "seed",
+                    "is_inferred": False,
+                },
+                "lineage": {
+                    "candidate_id": "cand-seed-001",
+                    "decomposition_id": "decomp-seed",
+                    "document_id": "test-seed",
+                    "content_hash": "abc123",
+                    "classification_reason": "seed",
+                },
                 "timestamp": "2026-05-12T00:00:00+00:00",
             }
-        }
-    }))
-    (store / "promotion_summary.json").write_text(json.dumps({
-        "promoted_canonical": [{
-            "memory_id": "mem-seed-001",
-            "receipt_id": "receipt-seed",
-            "label": "Seed entry for testing",
-            "type": "resource",
-        }]
-    }))
+        )
+        + "\n"
+    )
+    (store / "promotion_receipts.jsonl").write_text(
+        json.dumps(
+            {
+                "receipt_id": "receipt-seed",
+                "candidate_id": "cand-seed-001",
+                "decision": "promoted",
+                "reason": "Seed",
+                "confidence": 0.8,
+                "promoter": "test",
+                "timestamp": "2026-05-12T00:00:00+00:00",
+                "rollback_reference": "candidate:cand-seed-001",
+            }
+        )
+        + "\n"
+    )
+    (store / "index.json").write_text(
+        json.dumps(
+            {
+                "entries": {
+                    "mem-seed-001": {
+                        "memory_type": "canonical",
+                        "primitive_type": "resource",
+                        "label": "Seed entry for testing",
+                        "source_document_id": "test-seed",
+                        "timestamp": "2026-05-12T00:00:00+00:00",
+                    }
+                }
+            }
+        )
+    )
+    (store / "promotion_summary.json").write_text(
+        json.dumps(
+            {
+                "promoted_canonical": [
+                    {
+                        "memory_id": "mem-seed-001",
+                        "receipt_id": "receipt-seed",
+                        "label": "Seed entry for testing",
+                        "type": "resource",
+                    }
+                ]
+            }
+        )
+    )
     return store
 
 
@@ -103,7 +127,9 @@ class TestGenericIngestionOrchestrator:
         )
         result = orchestrator.ingest(source)
 
-        assert result.verdict == "COMPLETE_CYCLE", f"Expected COMPLETE_CYCLE, got {result.verdict}: {result.error_trace}"
+        assert result.verdict == "COMPLETE_CYCLE", (
+            f"Expected COMPLETE_CYCLE, got {result.verdict}: {result.error_trace}"
+        )
         assert result.cycle_duration_ms > 0
 
         assert result.signal is not None
@@ -123,10 +149,14 @@ class TestGenericIngestionOrchestrator:
         assert result.memory_write is not None
         assert result.memory_write.new_canonical_memory_entry_id.startswith("mem-")
         assert result.memory_write.memories_jsonl_before == 1
-        assert result.memory_write.memories_jsonl_after == 2
+        n_obs = len(result.decomposition.observations)
+        assert result.memory_write.memories_jsonl_after == 1 + n_obs
+        assert result.memory_write.entries_written == n_obs
+        assert len(result.memory_write.memory_ids_written) == n_obs
 
         assert result.promotion_receipt is not None
         assert result.promotion_receipt.decision == "promoted"
+        assert len(result.promotion_receipts) == n_obs
 
         assert result.query_proof is not None
 
