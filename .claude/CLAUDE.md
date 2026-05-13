@@ -137,6 +137,16 @@ single ingestion path. Sources:
   - LocalFileSource (runtime.ingestion.local_file_source)
   - GWSSource       (runtime.ingestion.gws_source)
 
+Decomposition uses LLM extraction (via model_router) with heuristic
+fallback. Output schema per observation:
+  - primitive_type: PrimitiveType enum (state/change/constraint/resource/
+    signal/action/outcome/feedback/goal/time)
+  - label: semantic name (≤80 chars, no markdown)
+  - description: adds context beyond label (≤300 chars)
+  - evidence: verbatim span from source
+  - relationships: typed edges (RelationshipType enum)
+  See: docs/system/decomposition_extraction_contract_v1.md
+
 FullLiveIngestionSpine (core/runtime/full_live_ingestion_spine_v1.py)
 is a separate GWS-specific pipeline with its own ledger, replay, and
 governance contracts. It is NOT a wrapper — it uses different stages
@@ -146,3 +156,4 @@ Proofs:
   data/runtime/canonical_memory_store/proofs/2026-05-12_ingestion_e2e/
   data/runtime/canonical_memory_store/proofs/2026-05-12_orchestrator_e2e/
   data/runtime/canonical_memory_store/proofs/2026-05-12_orchestrator_unification/
+  data/runtime/canonical_memory_store/proofs/2026-05-12_decomposer_depth_upgrade/

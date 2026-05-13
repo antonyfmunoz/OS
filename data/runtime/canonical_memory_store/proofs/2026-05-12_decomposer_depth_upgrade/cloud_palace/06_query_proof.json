@@ -1,0 +1,26 @@
+{
+  "signal_id": "SIG-090ad3fb6cf7",
+  "query_string": "Palace \u2014 Memory Palace Usage Rules",
+  "query_derivation": "Words 10-16 from source content as distinctive phrase",
+  "retrieval_method": "term_overlap_scoring",
+  "retrieved_entries": [
+    {
+      "rank": 1,
+      "memory_id": "mem-90fcb06fff634d0e",
+      "label": "Document has 7 sections",
+      "score": 0.8,
+      "is_new_entry": true
+    },
+    {
+      "rank": 2,
+      "memory_id": "seed",
+      "label": "seed",
+      "score": 0.0,
+      "is_new_entry": false
+    }
+  ],
+  "new_entry_appears_in_results": true,
+  "new_entry_rank": 1,
+  "total_entries_searched": 2,
+  "query_duration_ms": 0.15
+}

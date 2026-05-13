@@ -1,0 +1,141 @@
+{
+  "decomposition_id": "decomp-direct-1",
+  "source_content_hash": "testtesttesttesttesttesttesttesttesttesttesttesttesttesttesttest",
+  "observations": [
+    {
+      "observation_id": "obs-f14bb4b6",
+      "primitive_type": "state",
+      "label": "Palace Structure",
+      "description": "The memory palace has a navigable, room-based view of the codebase",
+      "confidence": 0.9,
+      "source_reference": "/opt/OS/10_Wiki/cloud_palace.md:10-15",
+      "evidence": "The memory palace at `10_Wiki/palace/` is a navigable, room-based view of the codebase.",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-52c66a1e",
+      "primitive_type": "action",
+      "label": "Translate User Question",
+      "description": "AI translates the user's question into a concern",
+      "confidence": 0.9,
+      "source_reference": "/opt/OS/10_Wiki/cloud_palace.md:40-45",
+      "evidence": "1. Translate the user's question into a **concern**.",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-3db7991a",
+      "primitive_type": "constraint",
+      "label": "Palace Invariants",
+      "description": "The palace has specific invariants that must be maintained",
+      "confidence": 0.9,
+      "source_reference": "/opt/OS/10_Wiki/cloud_palace.md:80-85",
+      "evidence": "- Palace never stores truth \u2014 it is a view over the graph.",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-f7586cbe",
+      "primitive_type": "resource",
+      "label": "Room Page",
+      "description": "Each room page contains specific information",
+      "confidence": 0.9,
+      "source_reference": "/opt/OS/10_Wiki/cloud_palace.md:25-30",
+      "evidence": "Each **room** page contains: - **Purpose** \u2014 one sentence naming the concern the room owns.",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-a0a0f068",
+      "primitive_type": "action",
+      "label": "Open Matching Room Page",
+      "description": "AI opens the matching room page",
+      "confidence": 0.9,
+      "source_reference": "/opt/OS/10_Wiki/cloud_palace.md:45-50",
+      "evidence": "2. Open the matching **room** page.",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-c7dacfd6",
+      "primitive_type": "state",
+      "label": "Room Definition",
+      "description": "Room definitions live in the build_palace.py script",
+      "confidence": 0.9,
+      "source_reference": "/opt/OS/10_Wiki/cloud_palace.md:70-75",
+      "evidence": "Room definitions live in `ROOM_DEFS` at the top of that script.",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-690e9194",
+      "primitive_type": "change",
+      "label": "Update Room Definitions",
+      "description": "Room definitions can be updated by editing the build_palace.py script",
+      "confidence": 0.85,
+      "source_reference": "/opt/OS/10_Wiki/cloud_palace.md:70-75",
+      "evidence": "Add or re-cluster rooms there; re-run; the palace updates deterministically.",
+      "is_inferred": true
+    },
+    {
+      "observation_id": "obs-6acb25ee",
+      "primitive_type": "goal",
+      "label": "Maintain Palace Currency",
+      "description": "The palace should be regenerated from the graph every time the build_palace.py script runs",
+      "confidence": 0.9,
+      "source_reference": "/opt/OS/10_Wiki/cloud_palace.md:75-80",
+      "evidence": "The palace is **regenerated from the graph every time** `scripts/build_palace.py` runs.",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-6b0f1076",
+      "primitive_type": "constraint",
+      "label": "Idempotent Build",
+      "description": "The palace build is idempotent, meaning the same graph always produces the same palace",
+      "confidence": 0.9,
+      "source_reference": "/opt/OS/10_Wiki/cloud_palace.md:85-90",
+      "evidence": "The palace build is idempotent: same graph \u2192 same palace.",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-6ed714da",
+      "primitive_type": "action",
+      "label": "Run Build Script",
+      "description": "The build_palace.py script should be run to update the palace",
+      "confidence": 0.85,
+      "source_reference": "/opt/OS/10_Wiki/cloud_palace.md:70-75",
+      "evidence": "Run `python3 scripts/build_palace.py`.",
+      "is_inferred": true
+    }
+  ],
+  "relationships": [
+    {
+      "from_observation_id": "obs-52c66a1e",
+      "to_observation_id": "obs-a0a0f068",
+      "relationship_type": "enables",
+      "confidence": 0.9,
+      "description": "Translating the user's question into a concern enables the AI to open the matching room page"
+    },
+    {
+      "from_observation_id": "obs-a0a0f068",
+      "to_observation_id": "obs-c7dacfd6",
+      "relationship_type": "follows",
+      "confidence": 0.9,
+      "description": "Opening the matching room page is followed by reading the purpose line"
+    },
+    {
+      "from_observation_id": "obs-690e9194",
+      "to_observation_id": "obs-6acb25ee",
+      "relationship_type": "causes",
+      "confidence": 0.85,
+      "description": "Updating room definitions can cause the palace to be updated"
+    },
+    {
+      "from_observation_id": "obs-6b0f1076",
+      "to_observation_id": "obs-6ed714da",
+      "relationship_type": "requires",
+      "confidence": 0.9,
+      "description": "Maintaining palace currency requires the palace build to be idempotent"
+    }
+  ],
+  "decomposition_confidence": 0.89,
+  "unsupported_assumptions": [],
+  "missing_information": [],
+  "explicit_unknowns": [],
+  "primitive_type_coverage": {}
+}

@@ -1,0 +1,148 @@
+{
+  "decomposition_id": "decomp-arch-1",
+  "source_content_hash": "testtesttesttesttesttesttesttesttesttesttesttesttesttesttesttest",
+  "observations": [
+    {
+      "observation_id": "obs-779b8a4b",
+      "primitive_type": "goal",
+      "label": "North Star",
+      "description": "The ultimate objective of the AgentOS system",
+      "confidence": 0.9,
+      "source_reference": "/opt/OS/ARCHITECTURE.md:## 1. Vision",
+      "evidence": "The north star: the user just talks. No commands. No prompts to engineer. No skills to configure.",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-3c714969",
+      "primitive_type": "constraint",
+      "label": "Comprehensive Principle",
+      "description": "The system must cover the full operating surface of a business",
+      "confidence": 0.9,
+      "source_reference": "/opt/OS/ARCHITECTURE.md:## 2. Core Principles",
+      "evidence": "**Comprehensive not narrow** \u2014 covers the full operating surface of a business, not just one department or workflow",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-c2f21dcd",
+      "primitive_type": "state",
+      "label": "Role-Centric Architecture",
+      "description": "The system is designed around roles as the atomic unit of operation",
+      "confidence": 0.9,
+      "source_reference": "/opt/OS/ARCHITECTURE.md:## 2. Core Principles",
+      "evidence": "**Role-centric** \u2014 the Role is the atomic unit; everything else is a property or extension of a role",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-0e8c48db",
+      "primitive_type": "action",
+      "label": "Agent Execution",
+      "description": "The system executes tasks through agents",
+      "confidence": 0.85,
+      "source_reference": "/opt/OS/ARCHITECTURE.md:## 4. Agent Architecture",
+      "evidence": "The system closes the loop from insight to action; advisors that cannot execute are incomplete",
+      "is_inferred": true
+    },
+    {
+      "observation_id": "obs-4e305ac4",
+      "primitive_type": "resource",
+      "label": "Knowledge Domains",
+      "description": "The system has a registry of 21 knowledge domains",
+      "confidence": 0.9,
+      "source_reference": "/opt/OS/ARCHITECTURE.md:## 5. Knowledge Architecture",
+      "evidence": "21 domains across 6 categories: reality, human, civilization, business, technology, personal, systems, creative",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-6e2160a6",
+      "primitive_type": "signal",
+      "label": "Real-Time Intelligence",
+      "description": "The system has a real-time intelligence layer",
+      "confidence": 0.9,
+      "source_reference": "/opt/OS/ARCHITECTURE.md:## 5. Knowledge Architecture",
+      "evidence": "Real-Time Intelligence \u2014 `reality_engine.py` + scraped signals",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-3cba92bb",
+      "primitive_type": "outcome",
+      "label": "Business Success",
+      "description": "The system aims to help businesses succeed",
+      "confidence": 0.85,
+      "source_reference": "/opt/OS/ARCHITECTURE.md:## 1. Vision",
+      "evidence": "gives any entrepreneur an elite business brain, operating team, and execution system inside one unified platform",
+      "is_inferred": true
+    },
+    {
+      "observation_id": "obs-f9fbcd69",
+      "primitive_type": "change",
+      "label": "System Evolution",
+      "description": "The system evolves over time through self-improvement",
+      "confidence": 0.85,
+      "source_reference": "/opt/OS/ARCHITECTURE.md:## 4. Agent Architecture",
+      "evidence": "Weekly self-improvement \u2014 workflow evolution, agent proposals",
+      "is_inferred": true
+    },
+    {
+      "observation_id": "obs-5eff9a0d",
+      "primitive_type": "feedback",
+      "label": "User Feedback",
+      "description": "The system receives feedback from users",
+      "confidence": 0.8,
+      "source_reference": "/opt/OS/ARCHITECTURE.md:## 1. Vision",
+      "evidence": "The system serves the human \u2014 not the reverse",
+      "is_inferred": true
+    },
+    {
+      "observation_id": "obs-5a360ca4",
+      "primitive_type": "time",
+      "label": "System Timeline",
+      "description": "The system has a timeline of development and updates",
+      "confidence": 0.8,
+      "source_reference": "/opt/OS/ARCHITECTURE.md:## 4. Agent Architecture",
+      "evidence": "Last updated: 2026-03-23",
+      "is_inferred": true
+    }
+  ],
+  "relationships": [
+    {
+      "from_observation_id": "obs-779b8a4b",
+      "to_observation_id": "obs-3cba92bb",
+      "relationship_type": "enables",
+      "confidence": 0.85,
+      "description": "The North Star goal enables the system to provide real-time intelligence"
+    },
+    {
+      "from_observation_id": "obs-3c714969",
+      "to_observation_id": "obs-c2f21dcd",
+      "relationship_type": "constrains",
+      "confidence": 0.9,
+      "description": "The Comprehensive Principle constrains the system to be role-centric"
+    },
+    {
+      "from_observation_id": "obs-0e8c48db",
+      "to_observation_id": "obs-4e305ac4",
+      "relationship_type": "produces",
+      "confidence": 0.85,
+      "description": "The Agent Execution action produces outcomes such as business success"
+    },
+    {
+      "from_observation_id": "obs-6e2160a6",
+      "to_observation_id": "obs-f9fbcd69",
+      "relationship_type": "requires",
+      "confidence": 0.85,
+      "description": "The Knowledge Domains resource requires the system to have a real-time intelligence layer"
+    },
+    {
+      "from_observation_id": "obs-5eff9a0d",
+      "to_observation_id": "obs-5a360ca4",
+      "relationship_type": "causes",
+      "confidence": 0.8,
+      "description": "The System Evolution change causes the system to receive user feedback"
+    }
+  ],
+  "decomposition_confidence": 0.86,
+  "unsupported_assumptions": [],
+  "missing_information": [],
+  "explicit_unknowns": [],
+  "primitive_type_coverage": {}
+}

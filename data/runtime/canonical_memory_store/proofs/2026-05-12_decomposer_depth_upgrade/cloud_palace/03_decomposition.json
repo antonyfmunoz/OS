@@ -1,0 +1,106 @@
+{
+  "decomposition_id": "decomp-eea161f292dd4bfe",
+  "source_content_hash": "1935d5191815bebaeef70f1c70e14de534d8f82f6c616b92f91fc94c78b7ebd7",
+  "observations": [
+    {
+      "observation_id": "obs-b4b07b01",
+      "primitive_type": "state",
+      "label": "Document has 7 sections",
+      "description": "Structured document with sections: Cloud Palace \u2014 Memory Palace Usage Rules, Structure, The four layers, How AI should use it, How it stays current, Extending the palace, Invariants",
+      "confidence": 0.95,
+      "source_reference": "/opt/OS/10_Wiki/cloud_palace.md:headings",
+      "evidence": "Cloud Palace \u2014 Memory Palace Usage Rules; Structure; The four layers; How AI should use it; How it stays current",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-9b1983bc",
+      "primitive_type": "resource",
+      "label": "Domain coverage: architecture",
+      "description": "Document covers the architecture domain based on keyword analysis.",
+      "confidence": 0.84,
+      "source_reference": "/opt/OS/10_Wiki/cloud_palace.md:domain:architecture",
+      "evidence": "Domain architecture detected via keyword overlap",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-3d1b99a6",
+      "primitive_type": "resource",
+      "label": "Domain coverage: memory",
+      "description": "Document covers the memory domain based on keyword analysis.",
+      "confidence": 0.84,
+      "source_reference": "/opt/OS/10_Wiki/cloud_palace.md:domain:memory",
+      "evidence": "Domain memory detected via keyword overlap",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-9df362bb",
+      "primitive_type": "resource",
+      "label": "Domain coverage: knowledge",
+      "description": "Document covers the knowledge domain based on keyword analysis.",
+      "confidence": 0.84,
+      "source_reference": "/opt/OS/10_Wiki/cloud_palace.md:domain:knowledge",
+      "evidence": "Domain knowledge detected via keyword overlap",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-de9f8a91",
+      "primitive_type": "constraint",
+      "label": "- Palace never stores truth \u2014 it is a view over the graph.",
+      "description": "- Palace never stores truth \u2014 it is a view over the graph.",
+      "confidence": 0.85,
+      "source_reference": "/opt/OS/10_Wiki/cloud_palace.md:constraint",
+      "evidence": "- Palace never stores truth \u2014 it is a view over the graph.",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-9253c5ca",
+      "primitive_type": "constraint",
+      "label": "- Loci are wikilinks, never duplicated content.",
+      "description": "- Loci are wikilinks, never duplicated content.",
+      "confidence": 0.85,
+      "source_reference": "/opt/OS/10_Wiki/cloud_palace.md:constraint",
+      "evidence": "- Loci are wikilinks, never duplicated content.",
+      "is_inferred": false
+    },
+    {
+      "observation_id": "obs-91699929",
+      "primitive_type": "goal",
+      "label": "Document intent: reference_document \u2014 structured multi-section content",
+      "description": "reference_document \u2014 structured multi-section content",
+      "confidence": 0.8,
+      "source_reference": "/opt/OS/10_Wiki/cloud_palace.md:intent",
+      "evidence": "reference_document \u2014 structured multi-section content",
+      "is_inferred": true
+    }
+  ],
+  "relationships": [
+    {
+      "from_observation_id": "obs-b4b07b01",
+      "to_observation_id": "obs-9b1983bc",
+      "relationship_type": "enables",
+      "confidence": 0.8,
+      "description": "Document structure enables domain coverage identification."
+    }
+  ],
+  "decomposition_confidence": 0.85,
+  "unsupported_assumptions": [],
+  "missing_information": [],
+  "explicit_unknowns": [],
+  "primitive_type_coverage": {
+    "state": 1,
+    "resource": 3,
+    "constraint": 2,
+    "goal": 1
+  },
+  "signal_id": "SIG-090ad3fb6cf7",
+  "decompose_duration_ms": 83636.84,
+  "counts": {
+    "entities": 7,
+    "concepts": 4,
+    "relationships": 1
+  },
+  "entry_point_invoked": {
+    "module": "runtime.ingestion.orchestrator",
+    "function": "GenericIngestionOrchestrator._decompose"
+  }
+}

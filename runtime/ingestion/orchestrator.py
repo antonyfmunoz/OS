@@ -8,6 +8,7 @@ No source-specific logic inside — source abstraction handles that.
 from __future__ import annotations
 
 import json
+import logging
 import time
 import traceback
 import uuid
@@ -220,7 +221,9 @@ class IngestionResult:
             "decomposition": self.decomposition.to_dict() if self.decomposition else None,
             "world_update": self.world_update.to_dict() if self.world_update else None,
             "memory_write": self.memory_write.to_dict() if self.memory_write else None,
-            "promotion_receipt": self.promotion_receipt.to_dict() if self.promotion_receipt else None,
+            "promotion_receipt": self.promotion_receipt.to_dict()
+            if self.promotion_receipt
+            else None,
             "query_proof": self.query_proof.to_dict() if self.query_proof else None,
             "cycle_duration_ms": self.cycle_duration_ms,
             "verdict": self.verdict,
@@ -282,13 +285,19 @@ class GenericIngestionOrchestrator:
             print(f"[ingestion-orchestrator] perceive: {result.signal.signal_id}")
 
             result.interpretation = self._interpret(result.signal, raw)
-            print(f"[ingestion-orchestrator] interpret: {result.interpretation.inferred_document_type}")
+            print(
+                f"[ingestion-orchestrator] interpret: {result.interpretation.inferred_document_type}"
+            )
 
             result.decomposition = self._decompose(result.signal, result.interpretation, raw)
-            print(f"[ingestion-orchestrator] decompose: {len(result.decomposition.observations)} observations")
+            print(
+                f"[ingestion-orchestrator] decompose: {len(result.decomposition.observations)} observations"
+            )
 
             result.world_update = self._map(result.signal, result.decomposition, ts_utc)
-            print(f"[ingestion-orchestrator] map: {len(result.world_update.entities_added)} entities")
+            print(
+                f"[ingestion-orchestrator] map: {len(result.world_update.entities_added)} entities"
+            )
 
             mem_write, receipt = self._persist(
                 result.signal, result.decomposition, result.world_update, raw, meta, ts_utc
@@ -391,6 +400,62 @@ class GenericIngestionOrchestrator:
             interpret_duration_ms=dur,
         )
 
+    # Valid enum values for LLM prompt and validation
+    _PRIMITIVE_TYPES = {t.value for t in PrimitiveType}
+    _RELATIONSHIP_TYPES = {t.value for t in RelationshipType}
+
+    _EXTRACTION_PROMPT = """\
+You are a document decomposition engine. Extract structured observations from the document below.
+
+Each observation is a typed primitive with a semantic label, description, evidence, and confidence score.
+
+VALID primitive_type values: {primitive_types}
+VALID relationship_type values: {relationship_types}
+
+RULES:
+- label: semantic name (≤80 chars). NOT raw text. No markdown formatting (no #, **, backticks). Self-contained.
+- description: adds context beyond label (≤300 chars). NOT a copy of label. NOT raw text.
+- evidence: verbatim span from the document (≤300 chars). Quoted, not paraphrased.
+- source_reference: "{source_path}:<locator>" where locator is line range, section name, or paragraph index.
+- confidence: 0.85-0.95 for direct extraction, 0.70-0.85 for inferred.
+- is_inferred: true only if synthesized from multiple signals, false if directly stated.
+- Produce 4-10 observations spanning at least 3 distinct primitive types.
+- Produce at least 1 relationship per 3 observations. Each relationship must have a semantic basis.
+- Prescriptive content (must/never/always) → constraint observations.
+- Procedural content (steps, sequences) → action observations.
+- Declarative state (X is Y, X has Z) → state observations.
+
+Return ONLY valid JSON matching this schema:
+{{
+  "observations": [
+    {{
+      "primitive_type": "<type>",
+      "label": "<semantic label>",
+      "description": "<semantic description>",
+      "confidence": <float>,
+      "source_reference": "<path:locator>",
+      "evidence": "<verbatim span>",
+      "is_inferred": <bool>
+    }}
+  ],
+  "relationships": [
+    {{
+      "from_index": <int>,
+      "to_index": <int>,
+      "relationship_type": "<type>",
+      "confidence": <float>,
+      "description": "<why this relationship exists>"
+    }}
+  ]
+}}
+
+from_index and to_index are 0-based indices into the observations array.
+
+DOCUMENT SOURCE: {source_path}
+---
+{content}
+---"""
+
     def _decompose(
         self,
         signal: Signal,
@@ -399,6 +464,168 @@ class GenericIngestionOrchestrator:
     ) -> DecompositionResult:
         t0 = time.monotonic()
         decomp_id = f"decomp-{uuid.uuid4().hex[:16]}"
+
+        result = self._decompose_llm(signal, interp, raw, decomp_id)
+        if result is None:
+            logging.getLogger(__name__).warning(
+                "[decompose] LLM extraction failed, falling back to heuristic"
+            )
+            result = self._decompose_heuristic(signal, interp, raw, decomp_id)
+
+        result.compute_coverage()
+        dur = round((time.monotonic() - t0) * 1000, 2)
+
+        result._duration_ms = dur  # type: ignore[attr-defined]
+        result._signal_id = signal.signal_id  # type: ignore[attr-defined]
+        result._counts = {  # type: ignore[attr-defined]
+            "entities": len(result.observations),
+            "concepts": len(set(o.primitive_type.value for o in result.observations)),
+            "relationships": len(result.relationships),
+        }
+        return result
+
+    def _decompose_llm(
+        self,
+        signal: Signal,
+        interp: InterpretationResult,
+        raw: RawContent,
+        decomp_id: str,
+    ) -> DecompositionResult | None:
+        """LLM-based semantic extraction. Returns None on failure."""
+        log = logging.getLogger(__name__)
+
+        content = raw.content
+        if len(content) > 12000:
+            content = content[:12000]
+
+        prompt = self._EXTRACTION_PROMPT.format(
+            primitive_types=", ".join(sorted(self._PRIMITIVE_TYPES)),
+            relationship_types=", ".join(sorted(self._RELATIONSHIP_TYPES)),
+            source_path=signal.source_path,
+            content=content,
+        )
+
+        for attempt in range(2):
+            try:
+                from runtime.model_router import call_with_fallback, TaskType
+
+                result = call_with_fallback(
+                    prompt=prompt,
+                    system="You are a structured data extraction engine. Return only valid JSON.",
+                    task_type=TaskType.ANALYSIS,
+                )
+                raw_output = result.output.strip()
+                parsed = self._parse_extraction_output(raw_output, signal, raw.sha256, decomp_id)
+                if parsed is not None:
+                    return parsed
+                log.warning("[decompose] LLM output failed validation (attempt %d)", attempt + 1)
+            except Exception as exc:
+                log.warning("[decompose] LLM call failed (attempt %d): %s", attempt + 1, exc)
+
+        return None
+
+    def _parse_extraction_output(
+        self,
+        raw_output: str,
+        signal: Signal,
+        content_hash: str,
+        decomp_id: str,
+    ) -> DecompositionResult | None:
+        """Parse and validate LLM JSON output into typed observations."""
+        # Extract JSON from possible markdown code fence
+        text = raw_output
+        if "```" in text:
+            start = text.find("```")
+            first_newline = text.find("\n", start)
+            end = text.find("```", first_newline)
+            if first_newline != -1 and end != -1:
+                text = text[first_newline + 1 : end]
+
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError:
+            return None
+
+        if not isinstance(data, dict) or "observations" not in data:
+            return None
+
+        raw_obs = data["observations"]
+        if not isinstance(raw_obs, list) or len(raw_obs) < 2:
+            return None
+
+        observations: list[PrimitiveObservation] = []
+        for item in raw_obs[:10]:
+            ptype = item.get("primitive_type", "")
+            if ptype not in self._PRIMITIVE_TYPES:
+                continue
+            label = str(item.get("label", ""))[:80].strip()
+            description = str(item.get("description", ""))[:300].strip()
+            if not label or not description or label == description:
+                continue
+            observations.append(
+                PrimitiveObservation(
+                    observation_id=f"obs-{uuid.uuid4().hex[:8]}",
+                    primitive_type=PrimitiveType(ptype),
+                    label=label,
+                    description=description,
+                    confidence=max(0.0, min(1.0, float(item.get("confidence", 0.8)))),
+                    source_reference=str(item.get("source_reference", signal.source_path))[:200],
+                    evidence=str(item.get("evidence", ""))[:300],
+                    is_inferred=bool(item.get("is_inferred", False)),
+                )
+            )
+
+        if len(observations) < 2:
+            return None
+
+        # Validate type coverage — need at least 2 distinct types
+        type_set = {o.primitive_type.value for o in observations}
+        if len(type_set) < 2:
+            return None
+
+        relationships: list[PrimitiveRelationship] = []
+        for rel in data.get("relationships", [])[:8]:
+            rtype = rel.get("relationship_type", "")
+            if rtype not in self._RELATIONSHIP_TYPES:
+                continue
+            from_idx = rel.get("from_index")
+            to_idx = rel.get("to_index")
+            if not isinstance(from_idx, int) or not isinstance(to_idx, int):
+                continue
+            if from_idx < 0 or from_idx >= len(observations):
+                continue
+            if to_idx < 0 or to_idx >= len(observations):
+                continue
+            if from_idx == to_idx:
+                continue
+            relationships.append(
+                PrimitiveRelationship(
+                    from_observation_id=observations[from_idx].observation_id,
+                    to_observation_id=observations[to_idx].observation_id,
+                    relationship_type=RelationshipType(rtype),
+                    confidence=max(0.0, min(1.0, float(rel.get("confidence", 0.8)))),
+                    description=str(rel.get("description", ""))[:200],
+                )
+            )
+
+        return DecompositionResult(
+            decomposition_id=decomp_id,
+            source_content_hash=content_hash,
+            observations=observations,
+            relationships=relationships,
+            decomposition_confidence=round(
+                sum(o.confidence for o in observations) / len(observations), 2
+            ),
+        )
+
+    def _decompose_heuristic(
+        self,
+        signal: Signal,
+        interp: InterpretationResult,
+        raw: RawContent,
+        decomp_id: str,
+    ) -> DecompositionResult:
+        """Heuristic fallback — shallow but zero-cost extraction."""
         text = raw.content
         lines = text.split("\n")
 
@@ -406,97 +633,101 @@ class GenericIngestionOrchestrator:
         headings = [(i, l.lstrip("#").strip()) for i, l in enumerate(lines) if l.startswith("#")]
 
         if headings:
-            observations.append(PrimitiveObservation(
-                observation_id=f"obs-{uuid.uuid4().hex[:8]}",
-                primitive_type=PrimitiveType.STATE,
-                label=f"Document has {len(headings)} sections",
-                description=f"Structured document with sections: {', '.join(h[1][:50] for h in headings[:8])}",
-                confidence=0.95,
-                source_reference=f"{signal.source_path}:headings",
-                evidence="; ".join(h[1][:40] for h in headings[:5]),
-                is_inferred=False,
-            ))
+            observations.append(
+                PrimitiveObservation(
+                    observation_id=f"obs-{uuid.uuid4().hex[:8]}",
+                    primitive_type=PrimitiveType.STATE,
+                    label=f"Document has {len(headings)} sections",
+                    description=f"Structured document with sections: {', '.join(h[1][:50] for h in headings[:8])}",
+                    confidence=0.95,
+                    source_reference=f"{signal.source_path}:headings",
+                    evidence="; ".join(h[1][:40] for h in headings[:5]),
+                    is_inferred=False,
+                )
+            )
 
         for domain in interp.inferred_domains[:3]:
-            observations.append(PrimitiveObservation(
-                observation_id=f"obs-{uuid.uuid4().hex[:8]}",
-                primitive_type=PrimitiveType.RESOURCE,
-                label=f"Domain coverage: {domain}",
-                description=f"Document covers the {domain} domain based on keyword analysis.",
-                confidence=interp.confidence,
-                source_reference=f"{signal.source_path}:domain:{domain}",
-                evidence=f"Domain {domain} detected via keyword overlap",
-                is_inferred=False,
-            ))
+            observations.append(
+                PrimitiveObservation(
+                    observation_id=f"obs-{uuid.uuid4().hex[:8]}",
+                    primitive_type=PrimitiveType.RESOURCE,
+                    label=f"Domain coverage: {domain}",
+                    description=f"Document covers the {domain} domain based on keyword analysis.",
+                    confidence=interp.confidence,
+                    source_reference=f"{signal.source_path}:domain:{domain}",
+                    evidence=f"Domain {domain} detected via keyword overlap",
+                    is_inferred=False,
+                )
+            )
 
-        constraint_phrases = [l.strip() for l in lines if any(
-            w in l.lower() for w in ["must", "never", "always", "required", "forbidden"]
-        )]
+        constraint_phrases = [
+            l.strip()
+            for l in lines
+            if any(w in l.lower() for w in ["must", "never", "always", "required", "forbidden"])
+        ]
         for phrase in constraint_phrases[:3]:
-            observations.append(PrimitiveObservation(
-                observation_id=f"obs-{uuid.uuid4().hex[:8]}",
-                primitive_type=PrimitiveType.CONSTRAINT,
-                label=phrase[:80],
-                description=phrase[:200],
-                confidence=0.85,
-                source_reference=f"{signal.source_path}:constraint",
-                evidence=phrase[:200],
-                is_inferred=False,
-            ))
+            observations.append(
+                PrimitiveObservation(
+                    observation_id=f"obs-{uuid.uuid4().hex[:8]}",
+                    primitive_type=PrimitiveType.CONSTRAINT,
+                    label=phrase[:80],
+                    description=phrase[:200],
+                    confidence=0.85,
+                    source_reference=f"{signal.source_path}:constraint",
+                    evidence=phrase[:200],
+                    is_inferred=False,
+                )
+            )
 
         if interp.intent_candidates:
-            observations.append(PrimitiveObservation(
-                observation_id=f"obs-{uuid.uuid4().hex[:8]}",
-                primitive_type=PrimitiveType.GOAL,
-                label=f"Document intent: {interp.intent_candidates[0][:60]}",
-                description=interp.intent_candidates[0],
-                confidence=0.80,
-                source_reference=f"{signal.source_path}:intent",
-                evidence=interp.intent_candidates[0],
-                is_inferred=True,
-            ))
+            observations.append(
+                PrimitiveObservation(
+                    observation_id=f"obs-{uuid.uuid4().hex[:8]}",
+                    primitive_type=PrimitiveType.GOAL,
+                    label=f"Document intent: {interp.intent_candidates[0][:60]}",
+                    description=interp.intent_candidates[0],
+                    confidence=0.80,
+                    source_reference=f"{signal.source_path}:intent",
+                    evidence=interp.intent_candidates[0],
+                    is_inferred=True,
+                )
+            )
 
         if not observations:
-            observations.append(PrimitiveObservation(
-                observation_id=f"obs-{uuid.uuid4().hex[:8]}",
-                primitive_type=PrimitiveType.SIGNAL,
-                label=f"Document ingested: {signal.source_path.split('/')[-1]}",
-                description=f"Content ingested from {signal.source_path} ({signal.content_length['words']} words).",
-                confidence=0.70,
-                source_reference=signal.source_path,
-                evidence=text[:200],
-                is_inferred=False,
-            ))
+            observations.append(
+                PrimitiveObservation(
+                    observation_id=f"obs-{uuid.uuid4().hex[:8]}",
+                    primitive_type=PrimitiveType.SIGNAL,
+                    label=f"Document ingested: {signal.source_path.split('/')[-1]}",
+                    description=f"Content ingested from {signal.source_path} ({signal.content_length['words']} words).",
+                    confidence=0.70,
+                    source_reference=signal.source_path,
+                    evidence=text[:200],
+                    is_inferred=False,
+                )
+            )
 
         relationships: list[PrimitiveRelationship] = []
         if len(observations) >= 2:
-            relationships.append(PrimitiveRelationship(
-                from_observation_id=observations[0].observation_id,
-                to_observation_id=observations[1].observation_id,
-                relationship_type=RelationshipType.ENABLES,
-                confidence=0.80,
-                description="Document structure enables domain coverage identification.",
-            ))
+            relationships.append(
+                PrimitiveRelationship(
+                    from_observation_id=observations[0].observation_id,
+                    to_observation_id=observations[1].observation_id,
+                    relationship_type=RelationshipType.ENABLES,
+                    confidence=0.80,
+                    description="Document structure enables domain coverage identification.",
+                )
+            )
 
-        decomp = DecompositionResult(
+        return DecompositionResult(
             decomposition_id=decomp_id,
             source_content_hash=raw.sha256,
             observations=observations,
             relationships=relationships,
-            decomposition_confidence=round(sum(o.confidence for o in observations) / max(len(observations), 1), 2),
+            decomposition_confidence=round(
+                sum(o.confidence for o in observations) / max(len(observations), 1), 2
+            ),
         )
-        decomp.compute_coverage()
-        dur = round((time.monotonic() - t0) * 1000, 2)
-
-        # Attach extra fields for proof-shape compatibility
-        decomp._duration_ms = dur  # type: ignore[attr-defined]
-        decomp._signal_id = signal.signal_id  # type: ignore[attr-defined]
-        decomp._counts = {  # type: ignore[attr-defined]
-            "entities": len(observations),
-            "concepts": len(set(o.primitive_type.value for o in observations)),
-            "relationships": len(relationships),
-        }
-        return decomp
 
     def _map(
         self,
@@ -509,22 +740,26 @@ class GenericIngestionOrchestrator:
         facts = []
         for obs in decomp.observations:
             entity_id = f"ent-{uuid.uuid4().hex[:8]}"
-            entities.append({
-                "entity_id": entity_id,
-                "observation_id": obs.observation_id,
-                "primitive_type": obs.primitive_type.value,
-                "label": obs.label,
-                "status": "added",
-            })
-            facts.append({
-                "fact_id": f"fact-{uuid.uuid4().hex[:8]}",
-                "entity_id": entity_id,
-                "statement": obs.description,
-                "source": f"{signal.source_path} via {signal.signal_id}",
-                "timestamp": ts_utc,
-                "confidence": obs.confidence,
-                "evidence": obs.evidence[:200],
-            })
+            entities.append(
+                {
+                    "entity_id": entity_id,
+                    "observation_id": obs.observation_id,
+                    "primitive_type": obs.primitive_type.value,
+                    "label": obs.label,
+                    "status": "added",
+                }
+            )
+            facts.append(
+                {
+                    "fact_id": f"fact-{uuid.uuid4().hex[:8]}",
+                    "entity_id": entity_id,
+                    "statement": obs.description,
+                    "source": f"{signal.source_path} via {signal.signal_id}",
+                    "timestamp": ts_utc,
+                    "confidence": obs.confidence,
+                    "evidence": obs.evidence[:200],
+                }
+            )
         dur = round((time.monotonic() - t0) * 1000, 2)
         return WorldUpdate(
             signal_id=signal.signal_id,
@@ -546,13 +781,19 @@ class GenericIngestionOrchestrator:
     ) -> tuple[MemoryWrite, PromotionReceipt]:
         t0 = time.monotonic()
 
-        before_count = len(self._memories_path.read_text().strip().split("\n")) if self._memories_path.exists() else 0
+        before_count = (
+            len(self._memories_path.read_text().strip().split("\n"))
+            if self._memories_path.exists()
+            else 0
+        )
 
         memory_id = f"mem-{uuid.uuid4().hex[:16]}"
         candidate_id = f"cand-{uuid.uuid4().hex[:16]}"
         receipt_id = f"receipt-{uuid.uuid4().hex[:16]}"
 
-        best_obs = max(decomp.observations, key=lambda o: o.confidence) if decomp.observations else None
+        best_obs = (
+            max(decomp.observations, key=lambda o: o.confidence) if decomp.observations else None
+        )
         if best_obs is None:
             raise ValueError("No observations to persist")
 
@@ -621,12 +862,14 @@ class GenericIngestionOrchestrator:
 
         if self._summary_path.exists():
             summary = json.loads(self._summary_path.read_text())
-            summary["promoted_canonical"].append({
-                "memory_id": memory_id,
-                "receipt_id": receipt_id,
-                "label": best_obs.label,
-                "type": best_obs.primitive_type.value,
-            })
+            summary["promoted_canonical"].append(
+                {
+                    "memory_id": memory_id,
+                    "receipt_id": receipt_id,
+                    "label": best_obs.label,
+                    "type": best_obs.primitive_type.value,
+                }
+            )
             self._summary_path.write_text(json.dumps(summary, indent=2))
 
         after_count = len(self._memories_path.read_text().strip().split("\n"))

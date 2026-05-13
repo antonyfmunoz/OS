@@ -1,0 +1,17 @@
+{
+  "signal_id": "SIG-090ad3fb6cf7",
+  "source_path": "/opt/OS/10_Wiki/cloud_palace.md",
+  "source_type": "text/markdown",
+  "content_sha256": "1935d5191815bebaeef70f1c70e14de534d8f82f6c616b92f91fc94c78b7ebd7",
+  "content_length": {
+    "chars": 2687,
+    "words": 410,
+    "lines": 78
+  },
+  "timestamp_utc": "2026-05-12T23:36:28.445273+00:00",
+  "perceive_duration_ms": 0.07,
+  "entry_point_invoked": {
+    "module": "runtime.ingestion.orchestrator",
+    "function": "GenericIngestionOrchestrator._perceive"
+  }
+}
