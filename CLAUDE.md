@@ -212,11 +212,14 @@ new-primitive, debug-agent
 - All agent calls route through runtime/model_router.py
 - call_with_fallback() is the single module-level entry point
 - Provider contract: return None/empty on failure, non-empty content on success
+- cc_sdk subprocess env: `_get_subprocess_env()` injects OAuth token from
+  ancestor Claude Code process and blanks ANTHROPIC_API_KEY. CLI
+  authenticates via subscription (no API cost). Token cached per session.
 - cc_sdk validates output against error signatures before returning
   (runtime/cc_sdk.py `_is_error_leak()`). Auth/quota/transport errors
   leaked as streamed text return None so the router falls through.
 - CEO/strategic agents always use best available (pass agent_type='ceo' or force_opus=True)
-- Current routing chain: cc_sdk → Gemini 2.5 Flash → Groq → Ollama (Anthropic credits depleted)
+- Current routing chain: cc_sdk (Opus 4.6 via subscription) → Gemini 2.5 Flash → Groq → Ollama
 - When credits restored: Anthropic (CC_MODEL_MAP) → Gemini → Ollama
 - agent_runtime.py has its own fallback via _claude_available flag — do not break
 - MCP_CONNECTION_NONBLOCKING=true always
@@ -249,7 +252,8 @@ new-primitive, debug-agent
   agent_type='ceo' in call_with_fallback()
 - Fast checks: Haiku via TaskType.FAST_RESPONSE
 
-## Current Known Gotchas (2026-05-12)
+## Current Known Gotchas (2026-05-13)
+- cc_sdk subprocess auth: OAuth token not in os.environ (shell snapshots don't propagate it). `_get_subprocess_env()` reads it from ancestor Claude Code process via /proc. Also blanks ANTHROPIC_API_KEY. Diagnostic: data/audits/2026-05-13_cli_subprocess_auth_diagnostic.md
 - cc_sdk error-leak fixed: auth/quota errors streamed as AssistantMessage text are now caught by `_is_error_leak()` → returns None → router falls through. Signatures in `_ERROR_SIGNATURES` tuple. Proof: proofs/2026-05-12_fix_cc_sdk/
 - Anthropic key invalid (401 auth error) → SDK returns authentication_error not credit error
 - Gemini spending cap exceeded (429) → all Gemini calls fail until cap raised

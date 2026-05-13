@@ -181,6 +181,14 @@ is a separate GWS-specific pipeline with its own ledger, replay, and
 governance contracts. It is NOT a wrapper — it uses different stages
 and output shapes. No production callers; tests only.
 
+cc_sdk subprocess auth (runtime/cc_sdk.py):
+  - `_get_subprocess_env()` builds env overrides for CLI subprocess
+  - Injects CLAUDE_CODE_OAUTH_TOKEN from ancestor Claude Code process
+    via /proc walk (`_find_ancestor_oauth()`). Token cached per session.
+  - Blanks ANTHROPIC_API_KEY to prevent depleted API-key auth fallback
+  - CLI authenticates via subscription (Opus 4.6, no API cost)
+  - Diagnostic: data/audits/2026-05-13_cli_subprocess_auth_diagnostic.md
+
 cc_sdk output validation (runtime/cc_sdk.py):
   - `_is_error_leak(content)` checks output against error signatures
     before returning to call_with_fallback()

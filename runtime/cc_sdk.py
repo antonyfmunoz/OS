@@ -98,6 +98,68 @@ def _track_cc_sdk_result(success: bool) -> None:
         pass
 
 
+# ─── Subprocess environment ────────────────────────────────────────────────
+
+
+def _find_ancestor_oauth() -> str | None:
+    """Walk the process tree to find CLAUDE_CODE_OAUTH_TOKEN.
+
+    When cc_sdk runs inside a Claude Code tool-execution subprocess,
+    the OAuth token is in the Claude Code process's environment but
+    NOT in os.environ (shell snapshots don't propagate it). This
+    function reads /proc/<pid>/environ up the ancestor chain until
+    it finds the token or reaches PID 1.
+    """
+    pid = os.getpid()
+    visited: set[int] = set()
+    while pid > 1 and pid not in visited:
+        visited.add(pid)
+        try:
+            with open(f"/proc/{pid}/environ", "rb") as f:
+                raw = f.read()
+            for entry in raw.split(b"\x00"):
+                if entry.startswith(b"CLAUDE_CODE_OAUTH_TOKEN="):
+                    return entry.split(b"=", 1)[1].decode()
+            with open(f"/proc/{pid}/status") as f:
+                for line in f:
+                    if line.startswith("PPid:"):
+                        pid = int(line.split(":")[1].strip())
+                        break
+                else:
+                    break
+        except (PermissionError, FileNotFoundError, ProcessLookupError):
+            break
+    return None
+
+
+_cached_oauth: str | None = None
+
+
+def _get_subprocess_env() -> dict[str, str]:
+    """Build env overrides for the Claude CLI subprocess.
+
+    - Injects CLAUDE_CODE_OAUTH_TOKEN from the ancestor Claude Code
+      process so the child CLI authenticates via subscription (no API cost).
+    - Strips ANTHROPIC_API_KEY to prevent the CLI from falling back to
+      a depleted API key when OAuth is available.
+    """
+    global _cached_oauth
+    env: dict[str, str] = {}
+
+    if "CLAUDE_CODE_OAUTH_TOKEN" not in os.environ:
+        if _cached_oauth is None:
+            _cached_oauth = _find_ancestor_oauth() or ""
+        if _cached_oauth:
+            env["CLAUDE_CODE_OAUTH_TOKEN"] = _cached_oauth
+            logger.info("[cc_sdk] injected OAuth token from ancestor process")
+
+    if "ANTHROPIC_API_KEY" in os.environ:
+        env["ANTHROPIC_API_KEY"] = ""
+        logger.debug("[cc_sdk] blanked ANTHROPIC_API_KEY for subprocess")
+
+    return env
+
+
 # ─── Core async query ───────────────────────────────────────────────────────
 
 
@@ -169,6 +231,7 @@ async def query_cc(
         max_turns=1,
         cli_path="/usr/bin/claude",
         setting_sources=[],
+        env=_get_subprocess_env(),
     )
 
     # Resume prior session if available
