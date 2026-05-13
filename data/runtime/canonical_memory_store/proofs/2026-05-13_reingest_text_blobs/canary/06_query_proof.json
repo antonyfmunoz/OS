@@ -1,0 +1,52 @@
+{
+  "signal_id": "SIG-12c403c8a0e9",
+  "query_string": "Test Fixture \u2014 XQVR7-ZEPHYR-CANARY-9F3K This document",
+  "query_derivation": "Words 10-16 from source content as distinctive phrase",
+  "retrieval_method": "term_overlap_scoring",
+  "retrieved_entries": [
+    {
+      "rank": 1,
+      "memory_id": "mem-01e01304999146c3",
+      "label": "Deterministic ingestion test fixture document",
+      "score": 0.6667,
+      "is_new_entry": false,
+      "authority_tier": 8
+    },
+    {
+      "rank": 2,
+      "memory_id": "mem-7f100823aa3f44ec",
+      "label": "[business:validation] Deterministic ingestion test fixture document",
+      "score": 0.6667,
+      "is_new_entry": false,
+      "authority_tier": 8
+    },
+    {
+      "rank": 3,
+      "memory_id": "mem-ba047829d81c42d9",
+      "label": "Deterministic ingestion test fixture document",
+      "score": 0.6667,
+      "is_new_entry": true,
+      "authority_tier": 8
+    },
+    {
+      "rank": 4,
+      "memory_id": "mem-18b0aa2a84664afc",
+      "label": "Fixture Purpose",
+      "score": 0.5,
+      "is_new_entry": false,
+      "authority_tier": 8
+    },
+    {
+      "rank": 5,
+      "memory_id": "mem-6301934988314da4",
+      "label": "Document has 46 sections",
+      "score": 0.3333,
+      "is_new_entry": false,
+      "authority_tier": 5
+    }
+  ],
+  "new_entry_appears_in_results": true,
+  "new_entry_rank": 3,
+  "total_entries_searched": 50,
+  "query_duration_ms": 0.57
+}

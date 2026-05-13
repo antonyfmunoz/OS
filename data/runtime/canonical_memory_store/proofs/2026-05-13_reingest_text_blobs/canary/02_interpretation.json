@@ -1,0 +1,27 @@
+{
+  "signal_id": "SIG-12c403c8a0e9",
+  "inferred_document_type": "structured_operational_document",
+  "inferred_domains": [
+    "architecture",
+    "memory",
+    "ingestion",
+    "testing"
+  ],
+  "confidence": 0.9199999999999999,
+  "structural_features": {
+    "has_yaml_frontmatter": true,
+    "heading_count": 7,
+    "has_code_blocks": true,
+    "has_wikilinks": true
+  },
+  "intent_candidates": [
+    "reference_document \u2014 structured multi-section content",
+    "protocol_or_policy \u2014 contains prescriptive directives"
+  ],
+  "interpret_duration_ms": 0.1,
+  "authority_tier": 8,
+  "entry_point_invoked": {
+    "module": "runtime.ingestion.orchestrator",
+    "function": "GenericIngestionOrchestrator._interpret"
+  }
+}

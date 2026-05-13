@@ -90,6 +90,364 @@
       "label": "Domain coverage: architecture",
       "source_document_id": "local-7d453aee481be18e",
       "timestamp": "2026-05-12T23:11:05.166442+00:00"
+    },
+    "mem-00c16dabdfb448d8": {
+      "memory_type": "canonical",
+      "primitive_type": "constraint",
+      "label": "Decomposition Requirement",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T06:24:04.822229+00:00"
+    },
+    "mem-dd3819ef323c4d1c": {
+      "memory_type": "canonical",
+      "primitive_type": "action",
+      "label": "Ingestion Process",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T06:24:04.822229+00:00"
+    },
+    "mem-18b0aa2a84664afc": {
+      "memory_type": "canonical",
+      "primitive_type": "state",
+      "label": "Fixture Purpose",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T06:24:04.822229+00:00"
+    },
+    "mem-b2670bb4f61f45e2": {
+      "memory_type": "canonical",
+      "primitive_type": "resource",
+      "label": "Ingestion Orchestrator Design",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T06:24:04.822229+00:00"
+    },
+    "mem-919baf1d238d4dba": {
+      "memory_type": "canonical",
+      "primitive_type": "constraint",
+      "label": "Fixture Immutability",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T06:24:04.822229+00:00"
+    },
+    "mem-10a728b275324886": {
+      "memory_type": "canonical",
+      "primitive_type": "goal",
+      "label": "Ingestion Validation",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T06:24:04.822229+00:00"
+    },
+    "mem-8ff0aa7ffb1f43c6": {
+      "memory_type": "domain_projection",
+      "domain_id": "business",
+      "domain_primitive_type": "conversation_first",
+      "label": "[business:validation] Ingestion Validation",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T06:24:04.822229+00:00"
+    },
+    "mem-479b506f57e3454c": {
+      "memory_type": "canonical",
+      "primitive_type": "constraint",
+      "label": "Decomposition Requirement",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T17:22:59.708996+00:00"
+    },
+    "mem-dd49cf6e788f4d80": {
+      "memory_type": "canonical",
+      "primitive_type": "state",
+      "label": "Fixture Purpose",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T17:22:59.708996+00:00"
+    },
+    "mem-4e3a51cf1e01457d": {
+      "memory_type": "canonical",
+      "primitive_type": "resource",
+      "label": "Ingestion Orchestrator",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T17:22:59.708996+00:00"
+    },
+    "mem-510a4fd976344918": {
+      "memory_type": "canonical",
+      "primitive_type": "action",
+      "label": "Ingestion Process",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T17:22:59.708996+00:00"
+    },
+    "mem-8658b47628db406b": {
+      "memory_type": "canonical",
+      "primitive_type": "goal",
+      "label": "Ingestion Objective",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T17:22:59.708996+00:00"
+    },
+    "mem-6e8e581e37cf477b": {
+      "memory_type": "canonical",
+      "primitive_type": "state",
+      "label": "Fixture Provenance",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T17:22:59.708996+00:00"
+    },
+    "mem-aab8fade3bd741ae": {
+      "memory_type": "domain_projection",
+      "domain_id": "business",
+      "domain_primitive_type": "conversation_first",
+      "label": "[business:validation] Fixture Purpose",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T17:22:59.708996+00:00"
+    },
+    "mem-0a857ae52d6f40c4": {
+      "memory_type": "domain_projection",
+      "domain_id": "business",
+      "domain_primitive_type": "conversation_first",
+      "label": "[business:validation] Ingestion Objective",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T17:22:59.708996+00:00"
+    },
+    "mem-01e01304999146c3": {
+      "memory_type": "canonical",
+      "primitive_type": "resource",
+      "label": "Deterministic ingestion test fixture document",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T18:50:51.686567+00:00"
+    },
+    "mem-79ce6898d0d54601": {
+      "memory_type": "canonical",
+      "primitive_type": "constraint",
+      "label": "Decomposition phase must not be skipped",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T18:50:51.686567+00:00"
+    },
+    "mem-af3757677c844f74": {
+      "memory_type": "canonical",
+      "primitive_type": "constraint",
+      "label": "Minimum primitive type coverage required",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T18:50:51.686567+00:00"
+    },
+    "mem-a02e37e2641f4783": {
+      "memory_type": "canonical",
+      "primitive_type": "state",
+      "label": "Orchestrator separates source from pipeline",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T18:50:51.686567+00:00"
+    },
+    "mem-e8206f590dd24850": {
+      "memory_type": "canonical",
+      "primitive_type": "constraint",
+      "label": "Orchestrator must not modify existing contracts",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T18:50:51.686567+00:00"
+    },
+    "mem-466ddf1373ad4dd1": {
+      "memory_type": "canonical",
+      "primitive_type": "action",
+      "label": "Six-stage canonical ingestion pipeline execution",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T18:50:51.686567+00:00"
+    },
+    "mem-0cd65efc3c1f4ffb": {
+      "memory_type": "canonical",
+      "primitive_type": "outcome",
+      "label": "Nonce retrievable at rank 1 after ingestion",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T18:50:51.686567+00:00"
+    },
+    "mem-b6f199bb63824e10": {
+      "memory_type": "canonical",
+      "primitive_type": "constraint",
+      "label": "Fixture immutability requirement",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T18:50:51.686567+00:00"
+    },
+    "mem-a6c89410682f434b": {
+      "memory_type": "canonical",
+      "primitive_type": "time",
+      "label": "Fixture creation date 2026-05-12",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T18:50:51.686567+00:00"
+    },
+    "mem-4ea69a0f6c2d4c0c": {
+      "memory_type": "canonical",
+      "primitive_type": "state",
+      "label": "Fixture structural composition metrics",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T18:50:51.686567+00:00"
+    },
+    "mem-7f100823aa3f44ec": {
+      "memory_type": "domain_projection",
+      "domain_id": "business",
+      "domain_primitive_type": "conversation_first",
+      "label": "[business:validation] Deterministic ingestion test fixture document",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T18:50:51.686567+00:00"
+    },
+    "mem-9a228b85f57e45ac": {
+      "memory_type": "domain_projection",
+      "domain_id": "business",
+      "domain_primitive_type": "domain:growth",
+      "label": "[business:growth] Decomposition phase must not be skipped",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T18:50:51.686567+00:00"
+    },
+    "mem-ba047829d81c42d9": {
+      "memory_type": "canonical",
+      "primitive_type": "resource",
+      "label": "Deterministic ingestion test fixture document",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T19:42:41.161981+00:00"
+    },
+    "mem-a11451e8f4ba4b11": {
+      "memory_type": "canonical",
+      "primitive_type": "constraint",
+      "label": "Decomposition phase must never be skipped",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T19:42:41.161981+00:00"
+    },
+    "mem-6acec8fb63974d38": {
+      "memory_type": "canonical",
+      "primitive_type": "constraint",
+      "label": "Minimum primitive type coverage required",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T19:42:41.161981+00:00"
+    },
+    "mem-90c49662e26a4514": {
+      "memory_type": "canonical",
+      "primitive_type": "state",
+      "label": "Ingestion orchestrator separates source from pipeline",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T19:42:41.161981+00:00"
+    },
+    "mem-612d0619554c4973": {
+      "memory_type": "canonical",
+      "primitive_type": "action",
+      "label": "Six-stage canonical ingestion pipeline execution",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T19:42:41.161981+00:00"
+    },
+    "mem-7432a7213e084f92": {
+      "memory_type": "canonical",
+      "primitive_type": "constraint",
+      "label": "Orchestrator must not modify existing contracts",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T19:42:41.161981+00:00"
+    },
+    "mem-f4649fee406243d3": {
+      "memory_type": "canonical",
+      "primitive_type": "outcome",
+      "label": "Nonce retrievable at rank 1 after query-back",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T19:42:41.161981+00:00"
+    },
+    "mem-121759770f764c0c": {
+      "memory_type": "canonical",
+      "primitive_type": "constraint",
+      "label": "Fixture immutability requirement",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T19:42:41.161981+00:00"
+    },
+    "mem-e0b4335695d34b02": {
+      "memory_type": "canonical",
+      "primitive_type": "time",
+      "label": "Fixture creation date 2026-05-12",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T19:42:41.161981+00:00"
+    },
+    "mem-c97aca4267c84f52": {
+      "memory_type": "canonical",
+      "primitive_type": "state",
+      "label": "Fixture document structure metrics",
+      "source_document_id": "local-383cb7e6d4f9c847",
+      "timestamp": "2026-05-13T19:42:41.161981+00:00"
+    },
+    "mem-5e223b4cb5f04d85": {
+      "memory_type": "canonical",
+      "primitive_type": "state",
+      "label": "NPC vs Player identity framework",
+      "source_document_id": "local-0c320243f7199d2f",
+      "timestamp": "2026-05-13T19:44:43.972825+00:00"
+    },
+    "mem-e138f1c4570d476c": {
+      "memory_type": "canonical",
+      "primitive_type": "signal",
+      "label": "Post-success emptiness as buying trigger",
+      "source_document_id": "local-0c320243f7199d2f",
+      "timestamp": "2026-05-13T19:44:43.972825+00:00"
+    },
+    "mem-39c5129f94044405": {
+      "memory_type": "canonical",
+      "primitive_type": "resource",
+      "label": "Game of Lyfe gamification system",
+      "source_document_id": "local-0c320243f7199d2f",
+      "timestamp": "2026-05-13T19:44:43.972825+00:00"
+    },
+    "mem-30e7bf94c27a40ac": {
+      "memory_type": "canonical",
+      "primitive_type": "constraint",
+      "label": "20 players per month capacity cap",
+      "source_document_id": "local-0c320243f7199d2f",
+      "timestamp": "2026-05-13T19:44:43.972825+00:00"
+    },
+    "mem-323005acd44a4740": {
+      "memory_type": "canonical",
+      "primitive_type": "action",
+      "label": "Book a qualifying call CTA",
+      "source_document_id": "local-0c320243f7199d2f",
+      "timestamp": "2026-05-13T19:44:43.972825+00:00"
+    },
+    "mem-c9b5e0463cfc4063": {
+      "memory_type": "canonical",
+      "primitive_type": "state",
+      "label": "Founder credibility through personal narrative",
+      "source_document_id": "local-0c320243f7199d2f",
+      "timestamp": "2026-05-13T19:44:43.972825+00:00"
+    },
+    "mem-1b2c6fafc01c4eb7": {
+      "memory_type": "canonical",
+      "primitive_type": "signal",
+      "label": "Hidden levels progression framework in Email 2",
+      "source_document_id": "local-0c320243f7199d2f",
+      "timestamp": "2026-05-13T19:44:43.972825+00:00"
+    },
+    "mem-977c56d5afd747ec": {
+      "memory_type": "canonical",
+      "primitive_type": "change",
+      "label": "Shift from Email 1 identity disruption to Email 2 progression promise",
+      "source_document_id": "local-0c320243f7199d2f",
+      "timestamp": "2026-05-13T19:44:43.972825+00:00"
+    },
+    "mem-49fc644f5e6c49c3": {
+      "memory_type": "canonical",
+      "primitive_type": "goal",
+      "label": "Escape the default life script",
+      "source_document_id": "local-0c320243f7199d2f",
+      "timestamp": "2026-05-13T19:44:43.972825+00:00"
+    },
+    "mem-6a62d1dc49dc434e": {
+      "memory_type": "canonical",
+      "primitive_type": "constraint",
+      "label": "Qualification framing inverts sales dynamic",
+      "source_document_id": "local-0c320243f7199d2f",
+      "timestamp": "2026-05-13T19:44:43.972825+00:00"
+    },
+    "mem-ed6233ae7aba46b4": {
+      "memory_type": "domain_projection",
+      "domain_id": "business",
+      "domain_primitive_type": "outreach_before_content",
+      "label": "[business:sales] Book a qualifying call CTA",
+      "source_document_id": "local-0c320243f7199d2f",
+      "timestamp": "2026-05-13T19:44:43.972825+00:00"
+    },
+    "mem-a307a4a3806240c4": {
+      "memory_type": "domain_projection",
+      "domain_id": "business",
+      "domain_primitive_type": "outreach_before_content",
+      "label": "[business:sales] Escape the default life script",
+      "source_document_id": "local-0c320243f7199d2f",
+      "timestamp": "2026-05-13T19:44:43.972825+00:00"
+    },
+    "mem-aeaf02b405ed4e68": {
+      "memory_type": "domain_projection",
+      "domain_id": "business",
+      "domain_primitive_type": "outreach_before_content",
+      "label": "[business:sales] Qualification framing inverts sales dynamic",
+      "source_document_id": "local-0c320243f7199d2f",
+      "timestamp": "2026-05-13T19:44:43.972825+00:00"
     }
   },
   "by_type": {

@@ -322,6 +322,14 @@ is a separate GWS-specific pipeline with its own ledger, replay, and
 governance contracts. It is NOT a wrapper — it uses different stages
 and output shapes. No production callers; tests only.
 
+Memory store (2026-05-13):
+  63 entries: 43 STRUCTURED + 2 PARTIAL + 10 TEXT_BLOB (legacy, preserved)
+              + 8 domain projections
+  Re-ingest: 10 TEXT_BLOB entries from Email Sequence (doc-1aZiPZ0ijSvLQsL6)
+  re-ingested via cc_sdk/Opus 4.6 → 10 STRUCTURED observations +
+  3 business:sales projections. Legacy entries preserved additively.
+  Report: data/audits/2026-05-13_reingest_text_blobs_report.md
+
 Proofs:
   data/runtime/canonical_memory_store/proofs/2026-05-12_ingestion_e2e/
   data/runtime/canonical_memory_store/proofs/2026-05-12_orchestrator_e2e/
@@ -330,3 +338,5 @@ Proofs:
   data/runtime/canonical_memory_store/proofs/2026-05-12_persist_all/
   data/runtime/canonical_memory_store/proofs/2026-05-12_domain_bridge/
   data/runtime/canonical_memory_store/proofs/2026-05-12_authority_tier/
+  data/runtime/canonical_memory_store/proofs/2026-05-13_cc_sdk_timeout_fix/
+  data/runtime/canonical_memory_store/proofs/2026-05-13_reingest_text_blobs/

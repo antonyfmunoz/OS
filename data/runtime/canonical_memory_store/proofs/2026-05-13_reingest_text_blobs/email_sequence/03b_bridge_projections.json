@@ -1,0 +1,53 @@
+[
+  {
+    "projection_id": "proj-1e14d5dc5f9e",
+    "domain_id": "business",
+    "domain_primitive_type": "outreach_before_content",
+    "label": "[business:sales] Book a qualifying call CTA",
+    "description": "Primary conversion action across both emails: prospect books a call to see if they qualify. Framed as qualification (they apply to you), not a sales pitch.",
+    "properties": {
+      "source_ontology_type": "action",
+      "business_domain": "sales",
+      "business_primitive_id": "outreach_before_content",
+      "keyword_match_score": 1
+    },
+    "ontology_observation_ref": "obs-ab9057cf",
+    "confidence": 0.75,
+    "evidence": "Book a call to see if you qualify for The Game of Lyfe",
+    "authority_tier": 4
+  },
+  {
+    "projection_id": "proj-ee1e05605929",
+    "domain_id": "business",
+    "domain_primitive_type": "outreach_before_content",
+    "label": "[business:sales] Escape the default life script",
+    "description": "The aspirational outcome sold to the prospect: stop following society's pre-programmed path and design your own life as an intentional game with mechanics you control.",
+    "properties": {
+      "source_ontology_type": "goal",
+      "business_domain": "sales",
+      "business_primitive_id": "outreach_before_content",
+      "keyword_match_score": 1
+    },
+    "ontology_observation_ref": "obs-9cee1774",
+    "confidence": 0.75,
+    "evidence": "If you're ready to turn your life into a game YOU'RE actually designing...",
+    "authority_tier": 4
+  },
+  {
+    "projection_id": "proj-4881471be0bc",
+    "domain_id": "business",
+    "domain_primitive_type": "outreach_before_content",
+    "label": "[business:sales] Qualification framing inverts sales dynamic",
+    "description": "The CTA is framed as the prospect qualifying for the program, not the program selling to them. This is a deliberate positioning constraint that filters for committed leads.",
+    "properties": {
+      "source_ontology_type": "constraint",
+      "business_domain": "sales",
+      "business_primitive_id": "outreach_before_content",
+      "keyword_match_score": 1
+    },
+    "ontology_observation_ref": "obs-5c42c7e8",
+    "confidence": 0.75,
+    "evidence": "Book a call to see if you qualify for The Game of Lyfe",
+    "authority_tier": 4
+  }
+]

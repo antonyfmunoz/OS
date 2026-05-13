@@ -47,6 +47,306 @@
       "receipt_id": "receipt-c0b1bf9e9d884212",
       "label": "Domain coverage: architecture",
       "type": "resource"
+    },
+    {
+      "memory_id": "mem-00c16dabdfb448d8",
+      "receipt_id": "receipt-ae719177884c4f5b",
+      "label": "Decomposition Requirement",
+      "type": "constraint"
+    },
+    {
+      "memory_id": "mem-dd3819ef323c4d1c",
+      "receipt_id": "receipt-7883bcda122747dd",
+      "label": "Ingestion Process",
+      "type": "action"
+    },
+    {
+      "memory_id": "mem-18b0aa2a84664afc",
+      "receipt_id": "receipt-2571b569d0824b7f",
+      "label": "Fixture Purpose",
+      "type": "state"
+    },
+    {
+      "memory_id": "mem-b2670bb4f61f45e2",
+      "receipt_id": "receipt-29e9802df97045b8",
+      "label": "Ingestion Orchestrator Design",
+      "type": "resource"
+    },
+    {
+      "memory_id": "mem-919baf1d238d4dba",
+      "receipt_id": "receipt-2546024ab7264b2d",
+      "label": "Fixture Immutability",
+      "type": "constraint"
+    },
+    {
+      "memory_id": "mem-10a728b275324886",
+      "receipt_id": "receipt-f43cd8a54e6a4e8a",
+      "label": "Ingestion Validation",
+      "type": "goal"
+    },
+    {
+      "memory_id": "mem-8ff0aa7ffb1f43c6",
+      "receipt_id": "receipt-dfc0598531684bc7",
+      "label": "[business:validation] Ingestion Validation",
+      "type": "projection:conversation_first"
+    },
+    {
+      "memory_id": "mem-479b506f57e3454c",
+      "receipt_id": "receipt-0067b1ca0840411a",
+      "label": "Decomposition Requirement",
+      "type": "constraint"
+    },
+    {
+      "memory_id": "mem-dd49cf6e788f4d80",
+      "receipt_id": "receipt-4cbc9edad3864955",
+      "label": "Fixture Purpose",
+      "type": "state"
+    },
+    {
+      "memory_id": "mem-4e3a51cf1e01457d",
+      "receipt_id": "receipt-7cd1db275e574c77",
+      "label": "Ingestion Orchestrator",
+      "type": "resource"
+    },
+    {
+      "memory_id": "mem-510a4fd976344918",
+      "receipt_id": "receipt-4add4ae8c3be4cf4",
+      "label": "Ingestion Process",
+      "type": "action"
+    },
+    {
+      "memory_id": "mem-8658b47628db406b",
+      "receipt_id": "receipt-5516036e7b954376",
+      "label": "Ingestion Objective",
+      "type": "goal"
+    },
+    {
+      "memory_id": "mem-6e8e581e37cf477b",
+      "receipt_id": "receipt-ce5e182fcd5f4d7b",
+      "label": "Fixture Provenance",
+      "type": "state"
+    },
+    {
+      "memory_id": "mem-aab8fade3bd741ae",
+      "receipt_id": "receipt-82ea67fabab94b8c",
+      "label": "[business:validation] Fixture Purpose",
+      "type": "projection:conversation_first"
+    },
+    {
+      "memory_id": "mem-0a857ae52d6f40c4",
+      "receipt_id": "receipt-2e9bd9ad53f149ea",
+      "label": "[business:validation] Ingestion Objective",
+      "type": "projection:conversation_first"
+    },
+    {
+      "memory_id": "mem-01e01304999146c3",
+      "receipt_id": "receipt-3cfb6d5cfbbe4226",
+      "label": "Deterministic ingestion test fixture document",
+      "type": "resource"
+    },
+    {
+      "memory_id": "mem-79ce6898d0d54601",
+      "receipt_id": "receipt-55efddf9e0fd4902",
+      "label": "Decomposition phase must not be skipped",
+      "type": "constraint"
+    },
+    {
+      "memory_id": "mem-af3757677c844f74",
+      "receipt_id": "receipt-a964ebdcd1f040ad",
+      "label": "Minimum primitive type coverage required",
+      "type": "constraint"
+    },
+    {
+      "memory_id": "mem-a02e37e2641f4783",
+      "receipt_id": "receipt-9f34f1122b624aff",
+      "label": "Orchestrator separates source from pipeline",
+      "type": "state"
+    },
+    {
+      "memory_id": "mem-e8206f590dd24850",
+      "receipt_id": "receipt-784d6afe77864983",
+      "label": "Orchestrator must not modify existing contracts",
+      "type": "constraint"
+    },
+    {
+      "memory_id": "mem-466ddf1373ad4dd1",
+      "receipt_id": "receipt-f0cc3debcb2042e0",
+      "label": "Six-stage canonical ingestion pipeline execution",
+      "type": "action"
+    },
+    {
+      "memory_id": "mem-0cd65efc3c1f4ffb",
+      "receipt_id": "receipt-45741955da554410",
+      "label": "Nonce retrievable at rank 1 after ingestion",
+      "type": "outcome"
+    },
+    {
+      "memory_id": "mem-b6f199bb63824e10",
+      "receipt_id": "receipt-4d13f140f8e64a3c",
+      "label": "Fixture immutability requirement",
+      "type": "constraint"
+    },
+    {
+      "memory_id": "mem-a6c89410682f434b",
+      "receipt_id": "receipt-f812722b67af4a9d",
+      "label": "Fixture creation date 2026-05-12",
+      "type": "time"
+    },
+    {
+      "memory_id": "mem-4ea69a0f6c2d4c0c",
+      "receipt_id": "receipt-a0f675bd69fe4798",
+      "label": "Fixture structural composition metrics",
+      "type": "state"
+    },
+    {
+      "memory_id": "mem-7f100823aa3f44ec",
+      "receipt_id": "receipt-fc9618fce7a0401f",
+      "label": "[business:validation] Deterministic ingestion test fixture document",
+      "type": "projection:conversation_first"
+    },
+    {
+      "memory_id": "mem-9a228b85f57e45ac",
+      "receipt_id": "receipt-f9ee97da852340c7",
+      "label": "[business:growth] Decomposition phase must not be skipped",
+      "type": "projection:domain:growth"
+    },
+    {
+      "memory_id": "mem-ba047829d81c42d9",
+      "receipt_id": "receipt-26c590a10a714b07",
+      "label": "Deterministic ingestion test fixture document",
+      "type": "resource"
+    },
+    {
+      "memory_id": "mem-a11451e8f4ba4b11",
+      "receipt_id": "receipt-2087187e6a584518",
+      "label": "Decomposition phase must never be skipped",
+      "type": "constraint"
+    },
+    {
+      "memory_id": "mem-6acec8fb63974d38",
+      "receipt_id": "receipt-c14bbe21e6bd472e",
+      "label": "Minimum primitive type coverage required",
+      "type": "constraint"
+    },
+    {
+      "memory_id": "mem-90c49662e26a4514",
+      "receipt_id": "receipt-143f78d46fb041eb",
+      "label": "Ingestion orchestrator separates source from pipeline",
+      "type": "state"
+    },
+    {
+      "memory_id": "mem-612d0619554c4973",
+      "receipt_id": "receipt-6a77960668b34edb",
+      "label": "Six-stage canonical ingestion pipeline execution",
+      "type": "action"
+    },
+    {
+      "memory_id": "mem-7432a7213e084f92",
+      "receipt_id": "receipt-585764d2165642d7",
+      "label": "Orchestrator must not modify existing contracts",
+      "type": "constraint"
+    },
+    {
+      "memory_id": "mem-f4649fee406243d3",
+      "receipt_id": "receipt-111952ce04774607",
+      "label": "Nonce retrievable at rank 1 after query-back",
+      "type": "outcome"
+    },
+    {
+      "memory_id": "mem-121759770f764c0c",
+      "receipt_id": "receipt-bdacb73823ed4870",
+      "label": "Fixture immutability requirement",
+      "type": "constraint"
+    },
+    {
+      "memory_id": "mem-e0b4335695d34b02",
+      "receipt_id": "receipt-26adafb40dbf49f4",
+      "label": "Fixture creation date 2026-05-12",
+      "type": "time"
+    },
+    {
+      "memory_id": "mem-c97aca4267c84f52",
+      "receipt_id": "receipt-29ec6cb688914ea8",
+      "label": "Fixture document structure metrics",
+      "type": "state"
+    },
+    {
+      "memory_id": "mem-5e223b4cb5f04d85",
+      "receipt_id": "receipt-c3f13d50907948c1",
+      "label": "NPC vs Player identity framework",
+      "type": "state"
+    },
+    {
+      "memory_id": "mem-e138f1c4570d476c",
+      "receipt_id": "receipt-aabf0ccb3d6c4954",
+      "label": "Post-success emptiness as buying trigger",
+      "type": "signal"
+    },
+    {
+      "memory_id": "mem-39c5129f94044405",
+      "receipt_id": "receipt-e5e895c7adde421b",
+      "label": "Game of Lyfe gamification system",
+      "type": "resource"
+    },
+    {
+      "memory_id": "mem-30e7bf94c27a40ac",
+      "receipt_id": "receipt-758f0d00e85d40b4",
+      "label": "20 players per month capacity cap",
+      "type": "constraint"
+    },
+    {
+      "memory_id": "mem-323005acd44a4740",
+      "receipt_id": "receipt-1b657c55803f40bd",
+      "label": "Book a qualifying call CTA",
+      "type": "action"
+    },
+    {
+      "memory_id": "mem-c9b5e0463cfc4063",
+      "receipt_id": "receipt-ce864456db8045cc",
+      "label": "Founder credibility through personal narrative",
+      "type": "state"
+    },
+    {
+      "memory_id": "mem-1b2c6fafc01c4eb7",
+      "receipt_id": "receipt-bd10283156954af7",
+      "label": "Hidden levels progression framework in Email 2",
+      "type": "signal"
+    },
+    {
+      "memory_id": "mem-977c56d5afd747ec",
+      "receipt_id": "receipt-04bd543f975047ae",
+      "label": "Shift from Email 1 identity disruption to Email 2 progression promise",
+      "type": "change"
+    },
+    {
+      "memory_id": "mem-49fc644f5e6c49c3",
+      "receipt_id": "receipt-a611dee3532d429d",
+      "label": "Escape the default life script",
+      "type": "goal"
+    },
+    {
+      "memory_id": "mem-6a62d1dc49dc434e",
+      "receipt_id": "receipt-9b760bd2da624503",
+      "label": "Qualification framing inverts sales dynamic",
+      "type": "constraint"
+    },
+    {
+      "memory_id": "mem-ed6233ae7aba46b4",
+      "receipt_id": "receipt-be33a10d2107470c",
+      "label": "[business:sales] Book a qualifying call CTA",
+      "type": "projection:outreach_before_content"
+    },
+    {
+      "memory_id": "mem-a307a4a3806240c4",
+      "receipt_id": "receipt-851cbc0b846f424e",
+      "label": "[business:sales] Escape the default life script",
+      "type": "projection:outreach_before_content"
+    },
+    {
+      "memory_id": "mem-aeaf02b405ed4e68",
+      "receipt_id": "receipt-ac10b38be7254bcc",
+      "label": "[business:sales] Qualification framing inverts sales dynamic",
+      "type": "projection:outreach_before_content"
     }
   ],
   "promoted_instance": [

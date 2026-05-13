@@ -1,0 +1,174 @@
+{
+  "signal_id": "SIG-13553734788d",
+  "entities_added": [
+    {
+      "entity_id": "ent-c4bd0aae",
+      "observation_id": "obs-53aa50d2",
+      "primitive_type": "state",
+      "label": "NPC vs Player identity framework",
+      "status": "added"
+    },
+    {
+      "entity_id": "ent-871d0c2a",
+      "observation_id": "obs-9d35726e",
+      "primitive_type": "signal",
+      "label": "Post-success emptiness as buying trigger",
+      "status": "added"
+    },
+    {
+      "entity_id": "ent-2059a15b",
+      "observation_id": "obs-fdc0b04a",
+      "primitive_type": "resource",
+      "label": "Game of Lyfe gamification system",
+      "status": "added"
+    },
+    {
+      "entity_id": "ent-4f44b2f4",
+      "observation_id": "obs-2ad5b62b",
+      "primitive_type": "constraint",
+      "label": "20 players per month capacity cap",
+      "status": "added"
+    },
+    {
+      "entity_id": "ent-84e6b39f",
+      "observation_id": "obs-ab9057cf",
+      "primitive_type": "action",
+      "label": "Book a qualifying call CTA",
+      "status": "added"
+    },
+    {
+      "entity_id": "ent-482755c7",
+      "observation_id": "obs-5df09b2d",
+      "primitive_type": "state",
+      "label": "Founder credibility through personal narrative",
+      "status": "added"
+    },
+    {
+      "entity_id": "ent-93b6ca22",
+      "observation_id": "obs-54d727c4",
+      "primitive_type": "signal",
+      "label": "Hidden levels progression framework in Email 2",
+      "status": "added"
+    },
+    {
+      "entity_id": "ent-de1912ca",
+      "observation_id": "obs-7be66e9b",
+      "primitive_type": "change",
+      "label": "Shift from Email 1 identity disruption to Email 2 progression promise",
+      "status": "added"
+    },
+    {
+      "entity_id": "ent-aac33b9f",
+      "observation_id": "obs-9cee1774",
+      "primitive_type": "goal",
+      "label": "Escape the default life script",
+      "status": "added"
+    },
+    {
+      "entity_id": "ent-30582d2d",
+      "observation_id": "obs-5c42c7e8",
+      "primitive_type": "constraint",
+      "label": "Qualification framing inverts sales dynamic",
+      "status": "added"
+    }
+  ],
+  "entities_updated": [],
+  "facts_written": [
+    {
+      "fact_id": "fact-a82a41ae",
+      "entity_id": "ent-c4bd0aae",
+      "statement": "Core positioning metaphor: most people (including wealthy ones) follow pre-programmed scripts like video game NPCs, while 'Players' write their own game code. This is the primary belief shift the sequence sells.",
+      "source": "/tmp/email_sequence_reingest.md via SIG-13553734788d",
+      "timestamp": "2026-05-13T19:44:43.972825+00:00",
+      "confidence": 0.95,
+      "evidence": "There are only two types of people: NPCs - Following society's code (even the rich ones) Players - Writing their own game code"
+    },
+    {
+      "fact_id": "fact-118f4cc5",
+      "entity_id": "ent-871d0c2a",
+      "statement": "Both emails target the emotional gap between financial success and fulfillment. This is the core pain point used to qualify leads \u2014 people who 'won' but feel empty.",
+      "source": "/tmp/email_sequence_reingest.md via SIG-13553734788d",
+      "timestamp": "2026-05-13T19:44:43.972825+00:00",
+      "confidence": 0.92,
+      "evidence": "I'd won the money game... But I was still following someone else's script."
+    },
+    {
+      "fact_id": "fact-d9fc3471",
+      "entity_id": "ent-2059a15b",
+      "statement": "The product being sold: a life-management system using game mechanics (XP, missions, levels, scores) applied to real-world tasks and calendar management.",
+      "source": "/tmp/email_sequence_reingest.md via SIG-13553734788d",
+      "timestamp": "2026-05-13T19:44:43.972825+00:00",
+      "confidence": 0.93,
+      "evidence": "Where you earn XP for real-world tasks. Where your calendar becomes a mission list. Where every choice either levels you up or keeps you stuck."
+    },
+    {
+      "fact_id": "fact-e2d72a86",
+      "entity_id": "ent-4f44b2f4",
+      "statement": "Scarcity mechanism limiting enrollment to 20 players per month, used in both emails as urgency driver and positioning signal for high-touch delivery.",
+      "source": "/tmp/email_sequence_reingest.md via SIG-13553734788d",
+      "timestamp": "2026-05-13T19:44:43.972825+00:00",
+      "confidence": 0.95,
+      "evidence": "We only take 20 players per month"
+    },
+    {
+      "fact_id": "fact-b38402b1",
+      "entity_id": "ent-84e6b39f",
+      "statement": "Primary conversion action across both emails: prospect books a call to see if they qualify. Framed as qualification (they apply to you), not a sales pitch.",
+      "source": "/tmp/email_sequence_reingest.md via SIG-13553734788d",
+      "timestamp": "2026-05-13T19:44:43.972825+00:00",
+      "confidence": 0.95,
+      "evidence": "Book a call to see if you qualify for The Game of Lyfe"
+    },
+    {
+      "fact_id": "fact-a75c6689",
+      "entity_id": "ent-482755c7",
+      "statement": "Antony positions himself as someone who cashed in on crypto at 22, burned out, spent 2 years building the system, and is now semi-retired at 24. This is the proof-of-concept story.",
+      "source": "/tmp/email_sequence_reingest.md via SIG-13553734788d",
+      "timestamp": "2026-05-13T19:44:43.972825+00:00",
+      "confidence": 0.93,
+      "evidence": "I spent 2 years building this system after burning out at 22. Now I'm semi-retired at 24."
+    },
+    {
+      "fact_id": "fact-7333dc49",
+      "entity_id": "ent-93b6ca22",
+      "statement": "Email 2 reframes the game metaphor as a level system: society shows Levels 1-3 (school/career/retirement), but hidden Levels 4+ exist. Prospect is positioned as stuck between Level 3 and 4.",
+      "source": "/tmp/email_sequence_reingest.md via SIG-13553734788d",
+      "timestamp": "2026-05-13T19:44:43.972825+00:00",
+      "confidence": 0.93,
+      "evidence": "Right now, you're probably stuck between Level 3 and 4. You can FEEL there's something more. You can SENSE the next level exists. But you can't ACCESS it."
+    },
+    {
+      "fact_id": "fact-2aa94c09",
+      "entity_id": "ent-de1912ca",
+      "statement": "Email 1 disrupts identity (you're an NPC). Email 2 offers a progression map (hidden levels beyond success). The sequence moves from pain/awareness to aspiration/solution.",
+      "source": "/tmp/email_sequence_reingest.md via SIG-13553734788d",
+      "timestamp": "2026-05-13T19:44:43.972825+00:00",
+      "confidence": 0.82,
+      "evidence": "The shift from NPC to Player isn't about working harder or making more money. It's about installing a completely different system."
+    },
+    {
+      "fact_id": "fact-4c5c8a69",
+      "entity_id": "ent-aac33b9f",
+      "statement": "The aspirational outcome sold to the prospect: stop following society's pre-programmed path and design your own life as an intentional game with mechanics you control.",
+      "source": "/tmp/email_sequence_reingest.md via SIG-13553734788d",
+      "timestamp": "2026-05-13T19:44:43.972825+00:00",
+      "confidence": 0.9,
+      "evidence": "If you're ready to turn your life into a game YOU'RE actually designing..."
+    },
+    {
+      "fact_id": "fact-39904936",
+      "entity_id": "ent-30582d2d",
+      "statement": "The CTA is framed as the prospect qualifying for the program, not the program selling to them. This is a deliberate positioning constraint that filters for committed leads.",
+      "source": "/tmp/email_sequence_reingest.md via SIG-13553734788d",
+      "timestamp": "2026-05-13T19:44:43.972825+00:00",
+      "confidence": 0.85,
+      "evidence": "Book a call to see if you qualify for The Game of Lyfe"
+    }
+  ],
+  "conflicts_with_existing_state": [],
+  "map_duration_ms": 0.08,
+  "entry_point_invoked": {
+    "module": "runtime.ingestion.orchestrator",
+    "function": "GenericIngestionOrchestrator._map"
+  }
+}

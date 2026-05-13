@@ -1,0 +1,102 @@
+[
+  {
+    "receipt_id": "receipt-26c590a10a714b07",
+    "candidate_id": "cand-ec9e220eac3241de",
+    "decision": "promoted",
+    "reason": "Generic orchestrator ingestion \u2014 resource",
+    "confidence": 0.95,
+    "promoter": "generic-ingestion-orchestrator",
+    "timestamp": "2026-05-13T19:42:41.161981+00:00",
+    "rollback_reference": "candidate:cand-ec9e220eac3241de"
+  },
+  {
+    "receipt_id": "receipt-2087187e6a584518",
+    "candidate_id": "cand-ac5bd73af6fa4abd",
+    "decision": "promoted",
+    "reason": "Generic orchestrator ingestion \u2014 constraint",
+    "confidence": 0.95,
+    "promoter": "generic-ingestion-orchestrator",
+    "timestamp": "2026-05-13T19:42:41.161981+00:00",
+    "rollback_reference": "candidate:cand-ac5bd73af6fa4abd"
+  },
+  {
+    "receipt_id": "receipt-c14bbe21e6bd472e",
+    "candidate_id": "cand-2e9ee6272b3643b2",
+    "decision": "promoted",
+    "reason": "Generic orchestrator ingestion \u2014 constraint",
+    "confidence": 0.95,
+    "promoter": "generic-ingestion-orchestrator",
+    "timestamp": "2026-05-13T19:42:41.161981+00:00",
+    "rollback_reference": "candidate:cand-2e9ee6272b3643b2"
+  },
+  {
+    "receipt_id": "receipt-143f78d46fb041eb",
+    "candidate_id": "cand-4a20c339473d46f2",
+    "decision": "promoted",
+    "reason": "Generic orchestrator ingestion \u2014 state",
+    "confidence": 0.9,
+    "promoter": "generic-ingestion-orchestrator",
+    "timestamp": "2026-05-13T19:42:41.161981+00:00",
+    "rollback_reference": "candidate:cand-4a20c339473d46f2"
+  },
+  {
+    "receipt_id": "receipt-6a77960668b34edb",
+    "candidate_id": "cand-bb674689daa149c1",
+    "decision": "promoted",
+    "reason": "Generic orchestrator ingestion \u2014 action",
+    "confidence": 0.95,
+    "promoter": "generic-ingestion-orchestrator",
+    "timestamp": "2026-05-13T19:42:41.161981+00:00",
+    "rollback_reference": "candidate:cand-bb674689daa149c1"
+  },
+  {
+    "receipt_id": "receipt-585764d2165642d7",
+    "candidate_id": "cand-3c83b2eab3074ed3",
+    "decision": "promoted",
+    "reason": "Generic orchestrator ingestion \u2014 constraint",
+    "confidence": 0.9,
+    "promoter": "generic-ingestion-orchestrator",
+    "timestamp": "2026-05-13T19:42:41.161981+00:00",
+    "rollback_reference": "candidate:cand-3c83b2eab3074ed3"
+  },
+  {
+    "receipt_id": "receipt-111952ce04774607",
+    "candidate_id": "cand-56642d28623a4b62",
+    "decision": "promoted",
+    "reason": "Generic orchestrator ingestion \u2014 outcome",
+    "confidence": 0.9,
+    "promoter": "generic-ingestion-orchestrator",
+    "timestamp": "2026-05-13T19:42:41.161981+00:00",
+    "rollback_reference": "candidate:cand-56642d28623a4b62"
+  },
+  {
+    "receipt_id": "receipt-bdacb73823ed4870",
+    "candidate_id": "cand-bf746aa254a94dc0",
+    "decision": "promoted",
+    "reason": "Generic orchestrator ingestion \u2014 constraint",
+    "confidence": 0.95,
+    "promoter": "generic-ingestion-orchestrator",
+    "timestamp": "2026-05-13T19:42:41.161981+00:00",
+    "rollback_reference": "candidate:cand-bf746aa254a94dc0"
+  },
+  {
+    "receipt_id": "receipt-26adafb40dbf49f4",
+    "candidate_id": "cand-fcd0ff087f09453b",
+    "decision": "promoted",
+    "reason": "Generic orchestrator ingestion \u2014 time",
+    "confidence": 0.95,
+    "promoter": "generic-ingestion-orchestrator",
+    "timestamp": "2026-05-13T19:42:41.161981+00:00",
+    "rollback_reference": "candidate:cand-fcd0ff087f09453b"
+  },
+  {
+    "receipt_id": "receipt-29ec6cb688914ea8",
+    "candidate_id": "cand-c7265d33cf444636",
+    "decision": "promoted",
+    "reason": "Generic orchestrator ingestion \u2014 state",
+    "confidence": 0.9,
+    "promoter": "generic-ingestion-orchestrator",
+    "timestamp": "2026-05-13T19:42:41.161981+00:00",
+    "rollback_reference": "candidate:cand-c7265d33cf444636"
+  }
+]

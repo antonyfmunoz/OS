@@ -1,0 +1,18 @@
+{
+  "signal_id": "SIG-12c403c8a0e9",
+  "source_path": "/opt/OS/tests/fixtures/ingestion_fixture.md",
+  "source_type": "text/markdown",
+  "content_sha256": "383cb7e6d4f9c847c15e9d9c48973f36e9c856455f3496361ca18b2bab0e8057",
+  "content_length": {
+    "chars": 2145,
+    "words": 299,
+    "lines": 71
+  },
+  "timestamp_utc": "2026-05-13T19:42:41.161981+00:00",
+  "perceive_duration_ms": 0.05,
+  "authority_tier": 8,
+  "entry_point_invoked": {
+    "module": "runtime.ingestion.orchestrator",
+    "function": "GenericIngestionOrchestrator._perceive"
+  }
+}

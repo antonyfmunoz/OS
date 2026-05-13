@@ -1,0 +1,183 @@
+{
+  "decomposition_id": "decomp-3f2c73be1ddb4f95",
+  "source_content_hash": "383cb7e6d4f9c847c15e9d9c48973f36e9c856455f3496361ca18b2bab0e8057",
+  "observations": [
+    {
+      "observation_id": "obs-de710b21",
+      "primitive_type": "resource",
+      "label": "Deterministic ingestion test fixture document",
+      "description": "A structured markdown document with nonce XQVR7-ZEPHYR-CANARY-9F3K used as a deterministic test fixture for the generic ingestion orchestrator.",
+      "confidence": 0.95,
+      "source_reference": "/opt/OS/tests/fixtures/ingestion_fixture.md:lines 7-10",
+      "evidence": "This document is a deterministic test fixture for the generic ingestion orchestrator. The nonce string XQVR7-ZEPHYR-CANARY-9F3K appears nowhere else in the repository and must be retrievable via query-back.",
+      "is_inferred": false,
+      "authority_tier": 8
+    },
+    {
+      "observation_id": "obs-daa7f313",
+      "primitive_type": "constraint",
+      "label": "Decomposition phase must never be skipped",
+      "description": "Agents processing this fixture are prohibited from skipping the decomposition phase of the ingestion pipeline.",
+      "confidence": 0.95,
+      "source_reference": "/opt/OS/tests/fixtures/ingestion_fixture.md:Constraints",
+      "evidence": "Agents must never skip the decomposition phase when processing this fixture.",
+      "is_inferred": false,
+      "authority_tier": 8
+    },
+    {
+      "observation_id": "obs-77bc9aa3",
+      "primitive_type": "constraint",
+      "label": "Minimum primitive type coverage required",
+      "description": "The pipeline must produce at least one observation for each primitive type present in the content, with state, constraint, and resource as the minimum required set.",
+      "confidence": 0.95,
+      "source_reference": "/opt/OS/tests/fixtures/ingestion_fixture.md:Constraints",
+      "evidence": "The pipeline must always produce at least one observation of each primitive type that appears in the content. Required coverage includes state, constraint, and resource primitives at minimum.",
+      "is_inferred": false,
+      "authority_tier": 8
+    },
+    {
+      "observation_id": "obs-2d13ab62",
+      "primitive_type": "state",
+      "label": "Ingestion orchestrator separates source from pipeline",
+      "description": "The generic ingestion orchestrator architecture maintains separation between the source (data provider) and the processing pipeline stages.",
+      "confidence": 0.9,
+      "source_reference": "/opt/OS/tests/fixtures/ingestion_fixture.md:Architecture Overview",
+      "evidence": "The generic ingestion orchestrator separates source from pipeline",
+      "is_inferred": false,
+      "authority_tier": 8
+    },
+    {
+      "observation_id": "obs-71f41023",
+      "primitive_type": "action",
+      "label": "Six-stage canonical ingestion pipeline execution",
+      "description": "The pipeline executes a fixed sequence: perceive, interpret, decompose, map, persist, and query, each producing a typed artifact.",
+      "confidence": 0.95,
+      "source_reference": "/opt/OS/tests/fixtures/ingestion_fixture.md:Architecture Overview",
+      "evidence": "Source.read() \u2192 perceive \u2192 interpret \u2192 decompose \u2192 map \u2192 persist \u2192 query",
+      "is_inferred": false,
+      "authority_tier": 8
+    },
+    {
+      "observation_id": "obs-2253993d",
+      "primitive_type": "constraint",
+      "label": "Orchestrator must not modify existing contracts",
+      "description": "The orchestrator is restricted to sequencing pipeline stages and must never alter the contracts between them.",
+      "confidence": 0.9,
+      "source_reference": "/opt/OS/tests/fixtures/ingestion_fixture.md:Architecture Overview",
+      "evidence": "The orchestrator never modifies existing contracts \u2014 it sequences them.",
+      "is_inferred": false,
+      "authority_tier": 8
+    },
+    {
+      "observation_id": "obs-fa072b75",
+      "primitive_type": "outcome",
+      "label": "Nonce retrievable at rank 1 after query-back",
+      "description": "After full pipeline processing, the nonce XQVR7-ZEPHYR-CANARY-9F3K must be retrievable at rank 1 in query results, validating end-to-end persistence.",
+      "confidence": 0.9,
+      "source_reference": "/opt/OS/tests/fixtures/ingestion_fixture.md:Expected Behavior",
+      "evidence": "Query: nonce XQVR7-ZEPHYR-CANARY-9F3K retrievable at rank 1",
+      "is_inferred": false,
+      "authority_tier": 8
+    },
+    {
+      "observation_id": "obs-89899acc",
+      "primitive_type": "constraint",
+      "label": "Fixture immutability requirement",
+      "description": "The fixture must remain unchanged after creation; if the orchestrator cannot process it, the orchestrator must be adjusted, never the fixture.",
+      "confidence": 0.95,
+      "source_reference": "/opt/OS/tests/fixtures/ingestion_fixture.md:Provenance",
+      "evidence": "The fixture must remain unchanged after creation. If the orchestrator cannot process it, the orchestrator needs adjustment \u2014 never the fixture.",
+      "is_inferred": false,
+      "authority_tier": 8
+    },
+    {
+      "observation_id": "obs-4fd75595",
+      "primitive_type": "time",
+      "label": "Fixture creation date 2026-05-12",
+      "description": "The test fixture was created on 2026-05-12 specifically for the ingestion-orchestrator-1 validation effort.",
+      "confidence": 0.95,
+      "source_reference": "/opt/OS/tests/fixtures/ingestion_fixture.md:Provenance",
+      "evidence": "This fixture was created on 2026-05-12 for ingestion-orchestrator-1.",
+      "is_inferred": false,
+      "authority_tier": 8
+    },
+    {
+      "observation_id": "obs-eac86b15",
+      "primitive_type": "state",
+      "label": "Fixture document structure metrics",
+      "description": "The fixture contains approximately 500 words, 5 headings, 2 constraints, 1 code block, and 1 wikilink as its structural composition.",
+      "confidence": 0.9,
+      "source_reference": "/opt/OS/tests/fixtures/ingestion_fixture.md:Test Data",
+      "evidence": "Word count | ~500 | Heading count | 5 | Constraints | 2 | Code blocks | 1 | Wikilinks | 1",
+      "is_inferred": false,
+      "authority_tier": 8
+    }
+  ],
+  "relationships": [
+    {
+      "from_observation_id": "obs-71f41023",
+      "to_observation_id": "obs-fa072b75",
+      "relationship_type": "produces",
+      "confidence": 0.9,
+      "description": "The six-stage pipeline execution ultimately produces the query-back outcome where the nonce is retrievable at rank 1."
+    },
+    {
+      "from_observation_id": "obs-daa7f313",
+      "to_observation_id": "obs-71f41023",
+      "relationship_type": "constrains",
+      "confidence": 0.9,
+      "description": "The decomposition-must-not-be-skipped constraint governs how the pipeline execution must proceed."
+    },
+    {
+      "from_observation_id": "obs-2253993d",
+      "to_observation_id": "obs-2d13ab62",
+      "relationship_type": "constrains",
+      "confidence": 0.85,
+      "description": "The no-contract-modification constraint preserves the source-pipeline separation architecture."
+    },
+    {
+      "from_observation_id": "obs-de710b21",
+      "to_observation_id": "obs-71f41023",
+      "relationship_type": "enables",
+      "confidence": 0.85,
+      "description": "The test fixture document serves as the input resource that enables the pipeline execution to run."
+    },
+    {
+      "from_observation_id": "obs-89899acc",
+      "to_observation_id": "obs-de710b21",
+      "relationship_type": "constrains",
+      "confidence": 0.9,
+      "description": "The immutability requirement constrains the fixture resource, ensuring it is never modified to accommodate orchestrator deficiencies."
+    },
+    {
+      "from_observation_id": "obs-77bc9aa3",
+      "to_observation_id": "obs-fa072b75",
+      "relationship_type": "measures",
+      "confidence": 0.8,
+      "description": "The minimum primitive type coverage requirement establishes measurable criteria that the query-back outcome must satisfy."
+    }
+  ],
+  "decomposition_confidence": 0.93,
+  "unsupported_assumptions": [],
+  "missing_information": [],
+  "explicit_unknowns": [],
+  "primitive_type_coverage": {
+    "resource": 1,
+    "constraint": 4,
+    "state": 2,
+    "action": 1,
+    "outcome": 1,
+    "time": 1
+  },
+  "signal_id": "SIG-12c403c8a0e9",
+  "decompose_duration_ms": 72125.35,
+  "counts": {
+    "entities": 10,
+    "concepts": 6,
+    "relationships": 6
+  },
+  "entry_point_invoked": {
+    "module": "runtime.ingestion.orchestrator",
+    "function": "GenericIngestionOrchestrator._decompose"
+  }
+}

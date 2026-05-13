@@ -1,0 +1,52 @@
+{
+  "signal_id": "SIG-13553734788d",
+  "query_string": "Like A Video Game, (First Name)...",
+  "query_derivation": "Words 10-16 from source content as distinctive phrase",
+  "retrieval_method": "term_overlap_scoring",
+  "retrieved_entries": [
+    {
+      "rank": 1,
+      "memory_id": "mem-2f4f5ca82e67e8c1",
+      "label": "Body\nHave you ever played a video game and noticed the backg...",
+      "score": 0.3333,
+      "is_new_entry": false,
+      "authority_tier": 5
+    },
+    {
+      "rank": 2,
+      "memory_id": "mem-7f088ccdad810366",
+      "label": "(First name), there are only two types of people:\nNPCs - Fol...",
+      "score": 0.3333,
+      "is_new_entry": false,
+      "authority_tier": 5
+    },
+    {
+      "rank": 3,
+      "memory_id": "mem-5e223b4cb5f04d85",
+      "label": "NPC vs Player identity framework",
+      "score": 0.3333,
+      "is_new_entry": true,
+      "authority_tier": 4
+    },
+    {
+      "rank": 4,
+      "memory_id": "mem-29c372fa8e374a8d",
+      "label": "Memory palace has 4 layers: Palace \u2192 Wing \u2192 Room \u2192 Locus",
+      "score": 0.1667,
+      "is_new_entry": false,
+      "authority_tier": 5
+    },
+    {
+      "rank": 5,
+      "memory_id": "mem-18b0aa2a84664afc",
+      "label": "Fixture Purpose",
+      "score": 0.1667,
+      "is_new_entry": false,
+      "authority_tier": 8
+    }
+  ],
+  "new_entry_appears_in_results": true,
+  "new_entry_rank": 3,
+  "total_entries_searched": 63,
+  "query_duration_ms": 0.91
+}
