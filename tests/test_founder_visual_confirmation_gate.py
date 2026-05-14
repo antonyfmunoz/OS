@@ -29,7 +29,7 @@ from execution.environments.chrome_visible_launch import (
     visible_launch_proof_allows_next_gate,
     CHROME_EXECUTABLE_PATHS_WSL,
 )
-from runtime.substrate.write_founder_gate_confirmation import (
+from runtime.transport.write_founder_gate_confirmation import (
     build_founder_visual_confirmation,
     write_confirmation,
 )

@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 
 from execution.runtime.worker_runtime_contracts import ProofStatus
-from runtime.substrate.local_worker_runtime_daemon import (
+from runtime.transport.local_worker_runtime_daemon import (
     LocalWorkerRuntimeDaemon,
     load_config,
     DEFAULT_CONFIG_PATH,
