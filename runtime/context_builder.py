@@ -460,7 +460,7 @@ class ContextBuilder:
 
         # Intent detection
         try:
-            from runtime.cognitive_loop import (
+            from control_plane.runtime.cognitive_loop import (
                 detect_intent_and_inject, _format_intent_context,
             )
             intent_data = detect_intent_and_inject(

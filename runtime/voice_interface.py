@@ -30,7 +30,7 @@ import uuid
 
 from runtime.context import EOSContext
 from runtime.media_processor import MediaProcessor
-from runtime.cognitive_loop import CognitiveLoop
+from control_plane.runtime.cognitive_loop import CognitiveLoop
 from runtime.agent_runtime import TaskType
 
 

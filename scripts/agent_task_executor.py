@@ -103,7 +103,7 @@ def execute_agent_task(task: dict, ctx) -> dict:
     Execute a single agent task through the cognitive loop.
     Returns a result dict with status, output, agent_id, display_name, tokens.
     """
-    from runtime.cognitive_loop import CognitiveLoop
+    from control_plane.runtime.cognitive_loop import CognitiveLoop
     from runtime.agent_runtime import TaskType
 
     agent_id = task.get('assignee_id', 'default_agent')

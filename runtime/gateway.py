@@ -963,7 +963,7 @@ class EOSGateway:
 
     def _route_agent_task(self, request: dict, session_id: str = None, cm=None) -> dict:
         from runtime.agent_runtime import AgentRuntime, TaskType
-        from runtime.cognitive_loop import CognitiveLoop
+        from control_plane.runtime.cognitive_loop import CognitiveLoop
         from runtime.context import load_context_from_env
 
         prompt = request["prompt"]

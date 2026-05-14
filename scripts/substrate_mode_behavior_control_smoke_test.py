@@ -218,7 +218,7 @@ import runtime.substrate.mode_behavior as mb
 mb_source = inspect.getsource(mb)
 hot_path_imports = [
     "from runtime.gateway",
-    "from runtime.cognitive_loop",
+    "from control_plane.runtime.cognitive_loop",
     "from runtime.model_router",
     "from runtime.agent_runtime",
     "from understanding.ontology.primitives",

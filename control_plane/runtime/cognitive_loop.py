@@ -8,7 +8,7 @@ in the system should enter through here rather than calling
 AgentRuntime directly.
 
 Usage:
-    from runtime.cognitive_loop import CognitiveLoop, CognitiveResult
+    from control_plane.runtime.cognitive_loop import CognitiveLoop, CognitiveResult
     from runtime.agent_runtime import TaskType
 
     ctx  = load_context_from_env()

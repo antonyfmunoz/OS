@@ -55,7 +55,7 @@ ROOM_DEFS: list[dict[str, Any]] = [
         "wing": "runtime",
         "purpose": "Cognition loop, routing, identity, primitives — the mind of EOS.",
         "prefixes": [
-            "runtime/cognitive_loop.py",
+            "control_plane/runtime/cognitive_loop.py",
             "runtime/ai_identity.py",
             "runtime/agent_runtime.py",
             "runtime/agent_hierarchy.py",

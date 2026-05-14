@@ -44,7 +44,7 @@ from runtime.substrate import operator_interface as oi  # noqa: E402
 
 HOT_PATH_FILES = (
     "runtime/gateway.py",
-    "runtime/cognitive_loop.py",
+    "control_plane/runtime/cognitive_loop.py",
     "runtime/model_router.py",
     "runtime/agent_runtime.py",
     "runtime/primitives.py",

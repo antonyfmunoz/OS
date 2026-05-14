@@ -274,7 +274,7 @@ def main() -> None:
         importlib.import_module(mod_name)
         for forbidden in [
             "runtime.gateway",
-            "runtime.cognitive_loop",
+            "control_plane.runtime.cognitive_loop",
             "runtime.model_router",
             "runtime.agent_runtime",
             "runtime.primitives",

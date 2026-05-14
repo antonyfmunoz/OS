@@ -383,7 +383,7 @@ def main() -> int:
     with open(transport_path) as f:
         transport_src = f.read()
     # Must not import cognitive_loop directly
-    has_cognitive_import = "from runtime.cognitive_loop" in transport_src
+    has_cognitive_import = "from control_plane.runtime.cognitive_loop" in transport_src
     # Must not import gateway directly
     has_gateway_import = "from runtime.gateway" in transport_src
     check(

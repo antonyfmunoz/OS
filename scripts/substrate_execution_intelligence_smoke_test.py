@@ -292,7 +292,7 @@ def main() -> int:
 
     # ── 14. Hot path imports remain clean ─────────────────────────────
     import runtime.gateway  # noqa: F401
-    import runtime.cognitive_loop  # noqa: F401
+    import control_plane.runtime.cognitive_loop  # noqa: F401
     import runtime.model_router  # noqa: F401
     import runtime.agent_runtime  # noqa: F401
     import understanding.ontology.primitives  # noqa: F401

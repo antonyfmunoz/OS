@@ -34,7 +34,7 @@ if _REPO_ROOT not in sys.path:
 load_dotenv(Path(__file__).parent / ".env")
 
 from runtime.context import EOSContext
-from runtime.cognitive_loop import CognitiveLoop
+from control_plane.runtime.cognitive_loop import CognitiveLoop
 from runtime.agent_runtime import TaskType
 from runtime.db import get_conn
 from runtime.memory import AgentMemory

@@ -310,7 +310,7 @@ class CoordinationEngine:
         CEO Agent breaks down a company objective into specific tasks
         and assigns each one. Returns a delegation summary.
         """
-        from runtime.cognitive_loop import CognitiveLoop
+        from control_plane.runtime.cognitive_loop import CognitiveLoop
         from runtime.agent_runtime import TaskType
 
         loop = CognitiveLoop(self.ctx)

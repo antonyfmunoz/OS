@@ -21,7 +21,7 @@ from datetime import datetime, timezone, timedelta
 
 from runtime.context import EOSContext
 from runtime.gws_connector import GWSConnector
-from runtime.cognitive_loop import CognitiveLoop
+from control_plane.runtime.cognitive_loop import CognitiveLoop
 from runtime.human_intelligence import HumanIntelligenceEngine
 from runtime.knowledge_graph import KnowledgeGraph
 from runtime.embedding_engine import EmbeddingEngine

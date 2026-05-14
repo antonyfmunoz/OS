@@ -38,7 +38,7 @@ load_dotenv(Path(__file__).parent / ".env")
 load_dotenv(Path(_REPO_ROOT) / "services" / ".env")
 
 from runtime.context import EOSContext
-from runtime.cognitive_loop import CognitiveLoop
+from control_plane.runtime.cognitive_loop import CognitiveLoop
 from runtime.event_bus import EventBus
 from runtime.agent_runtime import TaskType
 from runtime.venture_knowledge import VentureKnowledgeBase

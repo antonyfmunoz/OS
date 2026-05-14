@@ -42,7 +42,7 @@ SCENARIOS: dict[str, dict] = {
             "runtime/embedding_engine.py",
             "runtime/embedder.py",
             "runtime/db.py",
-            "runtime/cognitive_loop.py",
+            "control_plane/runtime/cognitive_loop.py",
         ],
         "search_terms": ["memory", "embedding", "interact"],
     },
@@ -50,7 +50,7 @@ SCENARIOS: dict[str, dict] = {
         "query": "What breaks if I change runtime/memory.py?",
         "known_relevant": [
             "runtime/memory.py",
-            "runtime/cognitive_loop.py",
+            "control_plane/runtime/cognitive_loop.py",
             "runtime/agent_runtime.py",
             "runtime/embedding_engine.py",
             "services/discord_bot.py",
