@@ -115,7 +115,7 @@ def get_venture_stage() -> str:
         from dotenv import load_dotenv
 
         load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
 
         ctx = load_context_from_env()
         return getattr(ctx, "stage", "unknown")

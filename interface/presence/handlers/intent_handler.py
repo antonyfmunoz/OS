@@ -146,7 +146,7 @@ def run_gateway(
     # Used by bypass paths that already handled the response (pipeline updates, etc).
     if memory_only:
         try:
-            from runtime.context import load_context_from_env
+            from state.context.context import load_context_from_env
             from state.memory.memory import ConversationMemory
 
             _mo_ctx = load_context_from_env()
@@ -200,7 +200,7 @@ def run_gateway(
 
     # Cloning loop — detect when text answers an open DEX question
     try:
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from state.storage.db import get_conn
 
         _cl_ctx = load_context_from_env()

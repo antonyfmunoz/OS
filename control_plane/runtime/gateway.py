@@ -340,7 +340,7 @@ class EOSGateway:
             return None, session_id, channel
         try:
             from state.memory.memory import ConversationMemory
-            from runtime.context import load_context_from_env
+            from state.context.context import load_context_from_env
 
             ctx = load_context_from_env()
             cm = ConversationMemory(ctx)
@@ -377,7 +377,7 @@ class EOSGateway:
             if match:
                 new_name = match.group(1).upper()
                 try:
-                    from runtime.context import load_context_from_env
+                    from state.context.context import load_context_from_env
                     from state.business.business_instance import BusinessInstanceManager
 
                     ctx = load_context_from_env()
@@ -419,7 +419,7 @@ class EOSGateway:
             return None
 
         try:
-            from runtime.context import load_context_from_env
+            from state.context.context import load_context_from_env
             from adapters.google_workspace.email_gps import EmailGPS
             from execution.runtime.model_router import get_router, TaskType
 
@@ -691,7 +691,7 @@ class EOSGateway:
         if prompt and request.get("type") in ("agent_task", "brief"):
             try:
                 from state.lifecycle.stage_manager import detect_stage_transition, StageManager
-                from runtime.context import load_context_from_env as _load_ctx
+                from state.context.context import load_context_from_env as _load_ctx
 
                 transition = detect_stage_transition(prompt)
                 if transition.get("detected"):
@@ -726,7 +726,7 @@ class EOSGateway:
         if prompt and request.get("type") in ("agent_task", "brief"):
             try:
                 from learning.self_model.self_awareness import SelfAwarenessEngine, ChangeType
-                from runtime.context import load_context_from_env as _load_ctx_sa
+                from state.context.context import load_context_from_env as _load_ctx_sa
 
                 ctx_sa = _load_ctx_sa()
                 sae = SelfAwarenessEngine(ctx_sa)
@@ -772,7 +772,7 @@ class EOSGateway:
                 # before they reach the cognitive loop
                 try:
                     from understanding.intelligence.input_intelligence import InputIntelligence
-                    from runtime.context import load_context_from_env as _load_ii_ctx
+                    from state.context.context import load_context_from_env as _load_ii_ctx
 
                     _prompt = request.get("prompt", "")
                     _venture_id = request.get("venture_id")
@@ -915,7 +915,7 @@ class EOSGateway:
         try:
             from governance.quality.quality_gate import QualityTransformationGate
 
-            from runtime.context import load_context_from_env
+            from state.context.context import load_context_from_env
 
             ctx = load_context_from_env()
             gate = QualityTransformationGate(ctx)
@@ -964,7 +964,7 @@ class EOSGateway:
     def _route_agent_task(self, request: dict, session_id: str = None, cm=None) -> dict:
         from execution.runtime.agent_runtime import AgentRuntime, TaskType
         from control_plane.runtime.cognitive_loop import CognitiveLoop
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
 
         prompt = request["prompt"]
         # Preserve the true raw user message before any gateway augmentation.
@@ -1704,7 +1704,7 @@ class EOSGateway:
         """Notion-first brief: run morning cycle, write to Notion, return URL."""
         try:
             from control_plane.orchestrator.orchestrator import run_full_morning_cycle
-            from runtime.context import load_context_from_env
+            from state.context.context import load_context_from_env
 
             ctx = load_context_from_env()
             result = run_full_morning_cycle(ctx, return_content=True)

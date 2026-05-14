@@ -143,7 +143,7 @@ class AgentMemory:
 
         # Auto-link interaction into knowledge graph
         try:
-            from runtime.context import load_context_from_env
+            from state.context.context import load_context_from_env
             from understanding.knowledge.knowledge_graph import KnowledgeGraph
             kg = KnowledgeGraph(load_context_from_env())
             kg.auto_link_interaction(interaction_id)
@@ -163,7 +163,7 @@ class AgentMemory:
 
                 def _refresh_user_profile() -> None:
                     try:
-                        from runtime.context import load_context_from_env as _lctx
+                        from state.context.context import load_context_from_env as _lctx
                         from state.profiles.user_model import UserModel as _UM
                         _UM(_lctx()).update_profile()
                     except Exception:
@@ -233,7 +233,7 @@ class AgentMemory:
         def _alert() -> None:
             try:
                 from control_plane.orchestrator.orchestrator import check_outcome_milestone
-                from runtime.context import load_context_from_env
+                from state.context.context import load_context_from_env
                 check_outcome_milestone(load_context_from_env(), outcome_count)
             except Exception:
                 pass
@@ -339,7 +339,7 @@ class AgentMemory:
                 def _refresh_profile(uname: str) -> None:
                     try:
                         from understanding.intelligence.human_intelligence import HumanIntelligenceEngine
-                        from runtime.context import load_context_from_env
+                        from state.context.context import load_context_from_env
                         ctx = load_context_from_env()
                         hie = HumanIntelligenceEngine(ctx)
                         hie.build_profile(uname)
@@ -387,7 +387,7 @@ class AgentMemory:
         def _refresh_orphaned_profile(uname: str) -> None:
             try:
                 from understanding.intelligence.human_intelligence import HumanIntelligenceEngine
-                from runtime.context import load_context_from_env
+                from state.context.context import load_context_from_env
                 ctx = load_context_from_env()
                 hie = HumanIntelligenceEngine(ctx)
                 hie.build_profile(uname)

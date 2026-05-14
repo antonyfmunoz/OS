@@ -116,7 +116,7 @@ def extract_task(page: dict) -> dict:
 def write_to_neon(task: dict, venture_id: str) -> bool:
     try:
         from state.storage.db import get_conn
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
 
         ctx = load_context_from_env()
         payload = json.dumps({
@@ -193,7 +193,7 @@ def sync_neon_to_notion() -> int:
     """
     try:
         from state.storage.db import get_conn
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
 
         ctx = load_context_from_env()
         updated = 0

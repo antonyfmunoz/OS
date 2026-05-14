@@ -51,7 +51,7 @@ class ExecutionSpine:
 
         # 1. Authority validation
         try:
-            from runtime.context import load_context_from_env
+            from state.context.context import load_context_from_env
             from governance.policy.authority_engine import AuthorityEngine
 
             ctx = load_context_from_env()
@@ -98,7 +98,7 @@ class ExecutionSpine:
         # 3a. ConversationMemory — messages table
         try:
             if ctx is None:
-                from runtime.context import load_context_from_env
+                from state.context.context import load_context_from_env
                 ctx = load_context_from_env()
 
             from state.memory.memory import ConversationMemory

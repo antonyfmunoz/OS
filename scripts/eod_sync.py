@@ -148,7 +148,7 @@ def _get_todays_decisions(ctx) -> list[str]:
 
 
 def build_eod_message() -> str:
-    from runtime.context import load_context_from_env
+    from state.context.context import load_context_from_env
     ctx = load_context_from_env()
 
     now = datetime.now(PDT)

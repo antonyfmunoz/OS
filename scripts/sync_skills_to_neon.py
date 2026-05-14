@@ -40,7 +40,7 @@ from scripts._tme_common import (  # noqa: E402
     load_skill,
 )
 
-from runtime.context import load_context_from_env  # noqa: E402
+from state.context.context import load_context_from_env  # noqa: E402
 from state.storage.db import get_conn  # noqa: E402
 
 

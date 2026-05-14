@@ -30,7 +30,7 @@ from dotenv import load_dotenv
 # before any import that touches db.py (memory, human_intelligence, etc.)
 load_dotenv(Path(__file__).parent / ".env")
 
-from runtime.context import EOSContext, load_context_from_env
+from state.context.context import EOSContext, load_context_from_env
 from state.business.venture_knowledge import VentureKnowledgeBase
 from state.registries.skill_registry import SkillRegistry, get_skill_registry
 from governance.policy.authority_engine import AuthorityEngine

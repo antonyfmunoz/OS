@@ -1,4 +1,4 @@
-from runtime.context import EOSContext
+from state.context.context import EOSContext
 from state.storage.db import get_conn
 import json, uuid
 from datetime import datetime, timezone

@@ -75,7 +75,7 @@ def post_to_notion(brief: str, ventures: list) -> str | None:
 
 async def run_portfolio_brief():
     sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-    from runtime.context import load_context_from_env
+    from state.context.context import load_context_from_env
     from control_plane.strategy.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
 
     ctx = load_context_from_env()

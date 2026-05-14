@@ -24,7 +24,7 @@ GENERAL_CHANNEL_ID = 1486289444830056540
 async def architect_week():
     from adapters.google_workspace.gws_connector import GWSConnector
     from control_plane.strategy.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
-    from runtime.context import load_context_from_env
+    from state.context.context import load_context_from_env
     from execution.runtime.model_router import get_router, TaskType
 
     ctx = load_context_from_env()

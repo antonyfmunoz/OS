@@ -176,7 +176,7 @@ def requires_approval(task: dict, result: dict) -> bool:
 
 async def run_executor():
     """Main executor loop — poll, execute, mark complete, surface to Discord."""
-    from runtime.context import load_context_from_env
+    from state.context.context import load_context_from_env
     from control_plane.coordination.coordination_engine import CoordinationEngine
     from state.storage.db import get_conn
 

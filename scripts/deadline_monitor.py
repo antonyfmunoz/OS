@@ -22,7 +22,7 @@ GENERAL_CHANNEL_ID = 1486289444830056540
 
 
 async def check_deadlines():
-    from runtime.context import load_context_from_env
+    from state.context.context import load_context_from_env
     import requests as _req
 
     ctx = load_context_from_env()
@@ -122,7 +122,7 @@ async def check_deadlines():
 
 async def check_stale_tasks():
     """Flag tasks open for 5+ days with no progress."""
-    from runtime.context import load_context_from_env
+    from state.context.context import load_context_from_env
     from state.storage.db import get_conn
 
     ctx = load_context_from_env()

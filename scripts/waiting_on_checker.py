@@ -22,7 +22,7 @@ GENERAL_CHANNEL_ID = 1486289444830056540
 
 
 async def check_waiting_on():
-    from runtime.context import load_context_from_env
+    from state.context.context import load_context_from_env
     from adapters.google_workspace.email_gps import EmailGPS
 
     ctx = load_context_from_env()

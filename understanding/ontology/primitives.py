@@ -14,7 +14,7 @@ Stage 1 (Validation) primitives reject premature advice about hiring, scaling,
 paid ads, and outsourcing — the system corrects itself before returning output.
 
 Usage:
-    from runtime.context import load_context_from_env
+    from state.context.context import load_context_from_env
     from understanding.ontology.primitives import (
         PrimitiveRegistry, ContextualReasoningEngine,
         PRIMITIVE_LIBRARY, KnowledgePrimitive,
@@ -33,7 +33,7 @@ Usage:
 """
 
 from dataclasses import dataclass, field
-from runtime.context import EOSContext
+from state.context.context import EOSContext
 
 
 # ─── KnowledgePrimitive ───────────────────────────────────────────────────────

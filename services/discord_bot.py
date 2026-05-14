@@ -88,7 +88,7 @@ load_dotenv(_REPO_ROOT / "runtime" / ".env")
 # ─── EOS imports ──────────────────────────────────────────────────────────────
 
 from control_plane.runtime.gateway import EOSGateway
-from runtime.context import load_context_from_env
+from state.context.context import load_context_from_env
 from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
 from execution.voice.voice_engine import VoiceEngine
 from state.business.business_instance import get_ai_name
@@ -2838,7 +2838,7 @@ async def cmd_approve(ctx: commands.Context, approval_id: str = ""):
 async def cmd_approve_followup(ctx: commands.Context):
     """Approve and send the most recent pending follow-up email draft."""
     try:
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from state.storage.db import get_conn
         from adapters.google_workspace.gws_connector import GWSConnector
         from governance.quality.quality_gate import gate_outgoing_email
@@ -2971,7 +2971,7 @@ async def cmd_approve_followup(ctx: commands.Context):
 async def cmd_force_send(ctx: commands.Context):
     """Force-send an email that failed the quality gate."""
     try:
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from state.storage.db import get_conn
         from adapters.google_workspace.gws_connector import GWSConnector
         import json as _json
@@ -3065,7 +3065,7 @@ async def cmd_confidential(ctx: commands.Context, *, args: str = ""):
 async def cmd_pending(ctx: commands.Context):
     """Show all pending approval emails."""
     try:
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from state.storage.db import get_conn
         import json as _json
 
@@ -4108,7 +4108,7 @@ async def cmd_energy(ctx: commands.Context, *, args: str = ""):
     def _run():
         try:
             import json as _ej
-            from runtime.context import load_context_from_env
+            from state.context.context import load_context_from_env
             from state.storage.db import get_conn
             from zoneinfo import ZoneInfo as _ZI
             from datetime import datetime as _dt
@@ -4395,7 +4395,7 @@ async def cmd_board(ctx: commands.Context, *, args: str = ""):
         try:
             from adapters.google_workspace.doc_creator import create_briefing_doc
             from control_plane.strategy.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
-            from runtime.context import load_context_from_env
+            from state.context.context import load_context_from_env
 
             ctx_eos = load_context_from_env()
             pa = PortfolioAgent(ctx_eos)
@@ -5037,7 +5037,7 @@ async def cmd_approve_task(ctx: commands.Context, task_id: str = ""):
         return
     try:
         import json as _json
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from state.storage.db import get_conn
 
         _ctx = load_context_from_env()
@@ -5091,7 +5091,7 @@ async def cmd_approve_task(ctx: commands.Context, task_id: str = ""):
 async def cmd_tasks(ctx: commands.Context):
     """Show pending task queue split by human vs AI."""
     try:
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from control_plane.coordination.coordination_engine import CoordinationEngine
 
         _ctx = load_context_from_env()
@@ -5126,7 +5126,7 @@ async def cmd_agent_results(ctx: commands.Context):
     """Show last 24h agent task results."""
     try:
         import json as _json
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from state.storage.db import get_conn
 
         _ctx = load_context_from_env()

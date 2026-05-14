@@ -49,7 +49,7 @@ class TestEmbeddingEngine:
 
     def test_semantic_search_returns_results(self):
         from understanding.embedding.embedding_engine import EmbeddingEngine
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         ctx = load_context_from_env()
         ee = EmbeddingEngine()
         results = ee.semantic_search('focus today', ctx.org_id, limit=3)
@@ -135,7 +135,7 @@ class TestSignalHierarchy:
 
     def test_classifies_business_domain(self):
         from control_plane.signals.signal_hierarchy import SignalHierarchyEngine
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         ctx = load_context_from_env()
         she = SignalHierarchyEngine(ctx)
         result = she.classify_input('I closed my first client today')
@@ -143,7 +143,7 @@ class TestSignalHierarchy:
 
     def test_classifies_reality_tier(self):
         from control_plane.signals.signal_hierarchy import SignalHierarchyEngine, SignalTier
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         ctx = load_context_from_env()
         she = SignalHierarchyEngine(ctx)
         result = she.classify_input('revenue is down this week')
@@ -151,7 +151,7 @@ class TestSignalHierarchy:
 
     def test_returns_required_keys(self):
         from control_plane.signals.signal_hierarchy import SignalHierarchyEngine
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         ctx = load_context_from_env()
         she = SignalHierarchyEngine(ctx)
         result = she.classify_input('test input')
@@ -165,7 +165,7 @@ class TestKnowledgeIntegrator:
 
     def test_integrate_returns_bool(self):
         from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         ctx = load_context_from_env()
         ki = KnowledgeIntegrator(ctx)
         result = ki.integrate(
@@ -177,7 +177,7 @@ class TestKnowledgeIntegrator:
 
     def test_query_knowledge_returns_list(self):
         from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         ctx = load_context_from_env()
         ki = KnowledgeIntegrator(ctx)
         results = ki.query_knowledge('test')
@@ -185,7 +185,7 @@ class TestKnowledgeIntegrator:
 
     def test_empty_content_handled(self):
         from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         ctx = load_context_from_env()
         ki = KnowledgeIntegrator(ctx)
         # Should not raise — graceful handling

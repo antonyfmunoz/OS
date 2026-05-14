@@ -118,7 +118,7 @@ async def handle_nomeetings(message, text: str) -> bool:
             description="Focus day. No meetings. DEX will decline all invites.",
         )
 
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from state.storage.db import get_conn
 
         _ctx = load_context_from_env()
@@ -251,7 +251,7 @@ async def handle_documents(message, text: str) -> bool:
         return False
 
     try:
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from state.storage.db import get_conn
 
         _ctx = load_context_from_env()
@@ -297,7 +297,7 @@ async def handle_audit(message, text: str) -> bool:
     _parts = text.split()
     _days = int(_parts[1]) if len(_parts) > 1 and _parts[1].isdigit() else 1
     try:
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from state.storage.db import get_conn
 
         _ctx = load_context_from_env()
