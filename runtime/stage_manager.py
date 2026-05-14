@@ -20,7 +20,6 @@ Usage:
 
 import os
 import sys
-import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -273,24 +272,15 @@ class StageManager:
         Log stage transition event to Neon for Discord bot to surface.
         Discord bot picks this up on next interaction.
         """
-        from state.storage.db import get_conn
-        import json
-
-        with get_conn(self.ctx.org_id) as cur:
-            cur.execute(
-                '''
-                INSERT INTO events (id, org_id, type, payload, created_at)
-                VALUES (%s, %s, %s, %s, NOW())
-                ''',
-                (
-                    str(uuid.uuid4()),
-                    self.ctx.org_id,
-                    'stage_transition',
-                    json.dumps({
-                        'venture_id': venture_id,
-                        'new_stage': new_stage,
-                        'unlocked_primitives': unlocked,
-                    }),
-                )
-            )
+        from state.memory.memory import AgentMemory
+        AgentMemory().log_event(
+            org_id=str(self.ctx.org_id),
+            event_type='stage_transition',
+            payload={
+                'venture_id': venture_id,
+                'new_stage': new_stage,
+                'unlocked_primitives': unlocked,
+            },
+            handled_by='stage_manager',
+        )
         print(f'[StageManager] Stage transition event fired to Neon')

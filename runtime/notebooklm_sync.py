@@ -217,26 +217,18 @@ class NotebookLMSync:
             answer = result.stdout.strip() if result.returncode == 0 else ''
 
             if answer:
-                from state.storage.db import get_conn
-                with get_conn(self.ctx.org_id) as cur:
-                    cur.execute(
-                        '''
-                        INSERT INTO events
-                            (id, org_id, event_type, payload_json, created_at)
-                        VALUES (%s, %s, %s, %s, NOW())
-                        ''',
-                        (
-                            str(uuid.uuid4()),
-                            self.ctx.org_id,
-                            'notebooklm_insight',
-                            json.dumps({
-                                'venture_id': venture_id,
-                                'question':   question,
-                                'answer':     answer[:2000],
-                                'source':     'notebooklm',
-                            }),
-                        ),
-                    )
+                from state.memory.memory import AgentMemory
+                AgentMemory().log_event(
+                    org_id=str(self.ctx.org_id),
+                    event_type='notebooklm_insight',
+                    payload={
+                        'venture_id': venture_id,
+                        'question':   question,
+                        'answer':     answer[:2000],
+                        'source':     'notebooklm',
+                    },
+                    handled_by='notebooklm_sync',
+                )
                 print(f'[NotebookLMSync] Query stored: {question[:50]}')
 
             return answer
