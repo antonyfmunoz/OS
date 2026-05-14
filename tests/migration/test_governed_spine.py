@@ -16,7 +16,7 @@ import pytest
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or "/opt/OS")
 
-from runtime.execution_spine import ExecutionSpine
+from execution.runtime.execution_spine import ExecutionSpine
 
 pytestmark = pytest.mark.migration
 

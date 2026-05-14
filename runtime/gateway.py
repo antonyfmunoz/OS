@@ -990,7 +990,7 @@ class EOSGateway:
         # CognitiveLoop branches below. This is the Phase 2 transition layer.
         try:
             from runtime.context_builder import ContextBuilder
-            from runtime.execution_spine import ExecutionSpine
+            from execution.runtime.execution_spine import ExecutionSpine
 
             _spine_agent = sub_agent or "executive_assistant"
             if team and not sub_agent:
