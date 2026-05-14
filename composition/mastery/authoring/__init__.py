@@ -9,7 +9,7 @@ authored claim is traceable to a specific raw capture on disk, or
 it is honestly marked as uncovered.
 
 Public entry point:
-    from core.tool_mastery_author_agent.agent import author
+    from .agent import author
 """
 
 from .agent import author  # noqa: F401

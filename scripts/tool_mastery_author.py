@@ -33,8 +33,8 @@ from pathlib import Path
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from core.tool_mastery_author_agent.agent import author  # noqa: E402
-from core.tool_mastery_author_agent.models import AuthorRequest, AuthorStatus  # noqa: E402
+from composition.mastery.authoring.agent import author  # noqa: E402
+from composition.mastery.authoring.models import AuthorRequest, AuthorStatus  # noqa: E402
 
 
 def _run(

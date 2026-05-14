@@ -272,8 +272,8 @@ def measure_signal(*, url: str, raw_path: str, raw_bytes: bytes) -> SignalReport
     """
 
     # Lazy imports: avoid circular load and keep this module optional.
-    from core.tool_mastery_author_agent.loader import sanitize_text
-    from core.tool_mastery_author_agent.mapping import (
+    from composition.mastery.authoring.loader import sanitize_text
+    from composition.mastery.authoring.mapping import (
         _split_prose_blocks,
         _strip_html,
     )
