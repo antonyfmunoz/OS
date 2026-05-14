@@ -1651,3 +1651,44 @@ Remaining raw SQL: archive/ (frozen) and scripts/ (deferred Phase C).
 - Import smoke: 14/14 stores + 23/23 callers import cleanly (with dotenv)
 - Tree grep: all Tier 3 table writes confined to state/stores/ in live runtime
 - Commits: pending (uncommitted, user reviews before push)
+
+---
+
+## Phase B: context.py Migration — 2026-05-14
+
+Hub migration for the highest-connectivity node in the codebase (96 callers).
+
+### Decision: SHIM
+
+Canonical at `state/context/context.py`. Original `runtime/context.py`
+rewritten as 3-line re-export shim. All 96 callers continue working via shim.
+
+**Rationale:**
+1. Path-dependent side effect (`load_dotenv(Path(__file__).parent / ".env")`)
+   — file move changes dotenv resolution. Fixed with absolute repo-root path.
+2. 2 mock patches by string path (`"runtime.context.load_context_from_env"`)
+   — continue working through shim namespace.
+3. 96 callers across 11 directories with aliased imports (`as _lctx`, etc.)
+   — sed bulk replacement is fragile.
+
+### Files
+
+| File | Role |
+|------|------|
+| state/context/context.py | Canonical (41 LOC, EOSContext + loaders) |
+| state/context/__init__.py | Package marker |
+| runtime/context.py | Re-export shim (3 LOC) |
+
+### Key fix
+
+`load_dotenv(Path(__file__).parent / ".env")` → `load_dotenv(_REPO_ROOT / "runtime" / ".env")`
+where `_REPO_ROOT = Path(__file__).resolve().parent.parent.parent`.
+
+### Verification
+
+- Tests: 4166 passed / 34 failed (all pre-existing) / 3 skipped — zero regressions
+- py_compile: 3/3 touched files pass
+- Identity check: `state.context.context.EOSContext is runtime.context.EOSContext` → True
+- Production smoke: 8 entry points across all layers import clean (fresh pycache)
+- Mock patches: verified `patch("runtime.context.load_context_from_env")` still intercepts
+- Tree grep: 96 callers on shim (expected), 1 on canonical (the shim itself)
