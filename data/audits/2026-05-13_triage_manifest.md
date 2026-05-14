@@ -827,3 +827,74 @@ python3 -c "from governance.policy.authority_tier import T5_DEFAULT"        → 
 python3 -c "from adapters.data_source_adapters.local_file_source import LocalFileSource" → OK
 python3 -c "from adapters.data_source_adapters.gws_source import GWSSource" → OK
 ```
+
+---
+
+## Wave 2 Execution — 2026-05-13
+
+- Items attempted: 12 (of 13 P2 items)
+- Items completed (committed): 12
+- Items skipped (crontab dependency): 1 — cron scripts (row #71) need crontab path updates, not just Python imports
+- Items reverted (test failure): 0
+- Tests baseline: 93 passed, 1 deselected / Post: 93 passed, 1 deselected (unchanged)
+- Active tree: 1,623 Python files
+- Commits: `1ab2fb97` .. `0a70283b` (12 commits)
+- Architectural findings: see below
+
+### Migrations completed
+
+| # | Source | Target | Import sites |
+|---|--------|--------|-------------|
+| 33 | `core/interpretation/` (1 file) | `understanding/interpretation/` | 2 |
+| 32 | `core/governance/` (1 file) | `governance/policy/` | 9 |
+| 31 | `core/coherence/` (4 files) | `control_plane/invariants/` | 12 |
+| 34 | `core/actuation/` (4 files) | `execution/actuation/` | 57 |
+| 28 | `core/registry/` (1 file) | `composition/registries/` | 83 |
+| 11 | `runtime/ingestion/{orchestrator,source}.py` | `understanding/perception/` | 12 |
+| 15 | `runtime/domain_bridge/` (4 files) | `understanding/domains/` | 9 |
+| 21 | `core/action_system/` (11 files) | `control_plane/actions/` | 25 |
+| 18 | `core/tool_mastery_research_agent/` (18 files) | `composition/mastery/research/` | 4 |
+| 19 | `core/tool_mastery_author_agent/` (11 files) | `composition/mastery/authoring/` | 9 |
+| 20 | `core/tool_mastery_manager/` (11 files) | `composition/mastery/management/` | 10 |
+| 66-70 | Salience pipeline (5 files) | `operations/memory/` | 12 |
+
+### Items skipped
+
+| # | Path | Reason |
+|---|------|--------|
+| 71 | Cron scripts (23 files) | Crontab entries reference `scripts/*.py` by absolute path. Moving requires crontab update (system-level coordination beyond Python import refactoring). Recommend: dedicated migration step with crontab update script. |
+
+### New §24 directories established in Wave 2
+
+```
+understanding/
+  interpretation/     ← core/interpretation/
+  domains/            ← runtime/domain_bridge/
+control_plane/
+  invariants/         ← core/coherence/
+  actions/            ← core/action_system/
+execution/
+  actuation/          ← core/actuation/
+composition/
+  registries/         ← core/registry/
+  mastery/
+    research/         ← core/tool_mastery_research_agent/
+    authoring/        ← core/tool_mastery_author_agent/
+    management/       ← core/tool_mastery_manager/
+governance/
+  policy/             ← (also: core/governance/ added this wave)
+operations/
+  memory/             ← scripts/{salience,nightly_consolidation,...}
+```
+
+### Architectural findings
+
+- `operations/` top-level layer now established (manifest Phase 5A proposal
+  implemented). First population: 5 memory pipeline scripts.
+- Cron script migration requires a dedicated step: (1) move scripts,
+  (2) update crontab, (3) verify cron execution. This is a system-level
+  coordination task, not a pure Python refactor.
+- All migrated packages that had internal cross-references already used
+  relative imports — the project's `core/` code was well-structured for
+  relocation.
+- Total import sites updated across Wave 2: ~244.
