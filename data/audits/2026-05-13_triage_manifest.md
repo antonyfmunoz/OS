@@ -1585,3 +1585,69 @@ Only remaining events SQL:
 - Import smoke: 6/6 touched modules import cleanly
 - Tree grep: 0 raw `UPDATE events SET` in runtime/
 - Commits: `f0ad2b0c` (method), `0daa2040` (4 sites), `1af6e822` (INVESTIGATE)
+
+---
+
+## Law 5.5 Tier 3 Adoption — 2026-05-14
+
+14 domain store classes created, ~50 raw SQL write sites adopted across
+23 caller modules. NEW FILES ONLY — §29 spine (memory.py, db.py) untouched.
+
+### Stores created (state/stores/)
+
+| Store | Methods | Callers adopted | Tables |
+|-------|---------|-----------------|--------|
+| entity_link_store | 1 | knowledge_graph | entity_links |
+| context_compaction_store | 1 | context_compaction | context_compactions |
+| agent_registry_store | 1 | self_awareness | agents |
+| embedding_store | 1 | embedding_engine | embeddings |
+| higgsfield_store | 2 | higgsfield_client, higgsfield_webhook | higgsfield_jobs |
+| email_folder_store | 2 | email_gps | email_folders |
+| venture_store | 1 | business_instance | ventures |
+| approval_store | 3 | evolution_engine, authority_engine | approvals |
+| skill_store | 3 | skill_registry_v2, skill_improvement, knowledge_domains, claude_skill_registry, research_engine | skills |
+| preference_store | 2 | model_preferences | model_preferences |
+| task_store | 3 | coordination_engine, execution_engine, notion_sync | tasks |
+| permission_store | 3 | os_trinity | cross_product_permissions, product_connections |
+| profile_store | 3 | human_intelligence, user_model, os_trinity | human_profiles, user_profiles, user_intelligence_profiles |
+| goal_store | 4 | goal_selector | goals, goal_outcomes |
+
+### Latent bugs found and fixed
+
+| Module | Bug | Fix |
+|--------|-----|-----|
+| evolution_engine.py | Used column `request` — actual column is `request_json` (would fail at runtime) | ApprovalStore uses correct `request_json` |
+
+### Race conditions eliminated
+
+| Module | Old pattern | New pattern |
+|--------|-------------|-------------|
+| knowledge_domains.py | SELECT → branch → INSERT/UPDATE | Atomic ON CONFLICT upsert via SkillStore |
+| research_engine.py | SELECT → branch → INSERT/UPDATE | Atomic ON CONFLICT upsert via SkillStore |
+
+### Excluded (dead code, 0 callers)
+
+| Module | Sites | Reason |
+|--------|-------|--------|
+| transaction_workflow.py | 8 | 0 callers in codebase |
+| company_instantiator.py | 2 | 0 callers in codebase |
+
+### Deferred (scripts/, Phase C)
+
+| Module | Sites | Reason |
+|--------|-------|--------|
+| scripts/sync_skills_to_neon.py | skills | Cron script, not runtime |
+| scripts/agent_task_executor.py | tasks | Cron script, not runtime |
+
+### Tree-wide grep status
+
+All 14 Tier 3 tables: write SQL confined to store files only in live runtime.
+Remaining raw SQL: archive/ (frozen) and scripts/ (deferred Phase C).
+
+### Verification
+
+- Tests: 4166 passed / 34 failed (all pre-existing) / 3 skipped — zero regressions, +27 new tests
+- py_compile: 14 store files + 23 caller files all clean
+- Import smoke: 14/14 stores + 23/23 callers import cleanly (with dotenv)
+- Tree grep: all Tier 3 table writes confined to state/stores/ in live runtime
+- Commits: pending (uncommitted, user reviews before push)
