@@ -217,30 +217,15 @@ class EmbeddingEngine:
             return False
 
         # DB write stage
-        from state.storage.db import get_conn
         try:
-            with get_conn(org_id) as cur:
-                cur.execute(
-                    'DELETE FROM embeddings '
-                    'WHERE interaction_id = %s AND org_id = %s',
-                    (interaction_id, org_id),
-                )
-                cur.execute(
-                    '''
-                    INSERT INTO embeddings
-                        (interaction_id, org_id, embedding,
-                         content_preview, embedding_model)
-                    VALUES (%s, %s, %s::vector, %s, %s)
-                    ''',
-                    (
-                        interaction_id,
-                        org_id,
-                        vec_json,
-                        content[:200],
-                        model_label,
-                    ),
-                )
-            return True
+            from state.stores.embedding_store import EmbeddingStore
+            return EmbeddingStore().upsert_embedding(
+                org_id=org_id,
+                interaction_id=interaction_id,
+                embedding_json=vec_json,
+                content_preview=content[:200],
+                embedding_model=model_label,
+            )
         except Exception as e:
             # Keep non-blocking semantics but classify the failure.
             kind = 'DB_FAILURE'
