@@ -1048,3 +1048,115 @@ interface/
 - Transport substrate dependency is the single largest remaining blocker. Rows 60, 75, 76
   all depend on it. This affects Wave 5 too — discord_bot is the primary consumer of spine modules.
 - Total import sites updated across Wave 4: ~127.
+
+---
+
+## Wave 5 Execution — 2026-05-13 — SPINE COMPLETE
+
+- Items attempted: 6 (all P5 items)
+- Items completed (committed): 6
+- Items skipped: 0
+- Items reverted: 0
+- Tests baseline: 93 passed, 1 deselected / Post: 93 passed, 1 deselected (unchanged)
+- Full LLM integration test: 4 passed (including live cc_sdk decomposer)
+- Active tree: 1,637 Python files
+- Commits: `4c8039da` .. `ee72d659` (6 commits)
+
+### Migrations completed
+
+| # | Source | Target | Import sites | Notes |
+|---|--------|--------|-------------|-------|
+| 1 | `runtime/cognitive_loop.py` | `control_plane/runtime/` | 53 | 18 imports + 35 strings |
+| 4 | `runtime/memory.py` | `state/memory/` | 42 | 31 imports + 11 strings |
+| 3 | `runtime/agent_runtime.py` | `execution/runtime/` | 70 | 35 imports + 35 strings |
+| 2 | `runtime/model_router.py` | `execution/runtime/` | 95 | 57 imports + 42 strings; 27 mock patches |
+| 5 | `runtime/db.py` | `state/storage/` | 99 | 95 imports + 5 strings; foundation module |
+| 10 | `runtime/gateway.py` | `control_plane/runtime/` | 47 | 14 imports + 33 strings; 1,972 LOC |
+
+### New §24 directory established in Wave 5
+
+```
+state/
+  storage/                      ← runtime/db.py
+```
+
+### Refactors applied
+
+- **Mock patch targets** (model_router): 7 patch targets in `tests/migration/` + 20 in
+  `tests/` updated from `runtime.model_router` → `execution.runtime.model_router`.
+  Same hazard pattern as Wave 4 authority_engine fix.
+- **Law 5.4 deferred**: All 5 REFACTOR_AND_RELOCATE items moved without type convergence.
+  Behavioral parity preserved — type changes are semantics-altering and belong in a
+  dedicated follow-up wave.
+- **String references**: Smoke test scripts, palace builder, codebase graph, and shim
+  retirement monitor all updated to canonical paths.
+
+### Canonical spine at §24 positions
+
+```
+control_plane/runtime/
+  cognitive_loop.py             ← runtime/cognitive_loop.py (1,263 LOC)
+  gateway.py                    ← runtime/gateway.py (1,972 LOC)
+  orchestrator/                 ← core/orchestrator/ (Wave 3)
+
+execution/runtime/
+  agent_runtime.py              ← runtime/agent_runtime.py (527 LOC)
+  model_router.py               ← runtime/model_router.py (1,194 LOC)
+  execution_spine.py            ← runtime/execution_spine.py (Wave 4)
+
+state/
+  memory/
+    memory.py                   ← runtime/memory.py (1,018 LOC)
+    contracts/                  ← core/memory/ (Wave 3)
+  storage/
+    db.py                       ← runtime/db.py (123 LOC)
+
+governance/policy/
+  authority_engine.py           ← runtime/authority_engine.py (Wave 4)
+
+understanding/ontology/
+  primitives.py                 ← runtime/primitives.py (Wave 4)
+
+adapters/model_adapters/
+  cc_sdk.py                     ← runtime/cc_sdk.py (Wave 4)
+```
+
+### Canary import verification
+
+| Module | New path | Import test | Notes |
+|--------|----------|-------------|-------|
+| model_router | `execution.runtime.model_router` | ✓ PASS | `call_with_fallback`, `get_router`, `TaskType` |
+| agent_runtime | `execution.runtime.agent_runtime` | ✓ PASS | `AgentRuntime`, `TaskType` |
+| cognitive_loop | `control_plane.runtime.cognitive_loop` | ✗ dep | `runtime.context` not yet migrated (Row 88) |
+| gateway | `control_plane.runtime.gateway` | ✗ dep | Same: `runtime.context` dependency |
+| memory | `state.memory.memory` | ✗ env | `state.storage.db` needs `DATABASE_URL` env |
+| db | `state.storage.db` | ✗ env | Needs `DATABASE_URL` + `EOS_ORG_ID` env vars |
+
+All failures are dependency-chain (unmigrated `runtime.context`) or environment (env vars
+not set in bare CLI). No path issues — all modules correctly found at new locations.
+
+### Cumulative deferred threads (across all waves)
+
+| Thread | Items affected | Blocker | Resolution |
+|--------|---------------|---------|------------|
+| Transport `__init__.py` rewrite | Rows 75, 76, 60 | `__init__.py` hard-imports 30 modules | Dedicated Wave 0.5: rewrite with lazy imports |
+| Law 5.4 type convergence | 5 spine modules (cognitive_loop, model_router, agent_runtime, memory, gateway) | Semantics-altering changes | Dedicated follow-up wave: dict → Pydantic types |
+| Law 5.9 adapter refactor | 6 files in execution/workers/workstation/ | §14.1 contract adoption | Dedicated pass after all relocations |
+| Law 5.5 memory write fixes | ~46 files across codebase | memory.py API extension | Row 88 prerequisite (manifest step 3.6) |
+| runtime.context migration | Row 88 (~85 modules) | cognitive_loop + gateway dependency | Prerequisite for full spine canary imports |
+| Cron script migration | 23 files in scripts/ | Crontab path updates | System-level coordination (Row 71) |
+| Docker compose paths | calendly_webhook, discord_bot | Container command paths | Manual update before deploy |
+
+### Migration milestone
+
+**The §29 Do-Not-Touch Core spine is now in §24 canonical positions.** All 6 P5 modules
+relocated. 406 import sites updated across the tree. Zero old-path imports remain.
+
+Remaining work:
+- Wave 6: DELETE shims (`eos_ai/` 459 files, `runtime/substrate/` 164 files)
+- Wave 0.5: Transport `__init__.py` rewrite (unblocks Rows 60, 75, 76)
+- Follow-up waves: Law 5.4 type convergence, Law 5.9 adapters, Law 5.5 memory writes
+- runtime.context + Row 88 (~85 non-spine runtime modules)
+- Cron scripts, Docker compose paths
+
+Total import sites updated across Wave 5: ~406.
