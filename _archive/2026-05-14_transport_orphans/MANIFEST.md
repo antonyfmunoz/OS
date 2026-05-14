@@ -3,9 +3,9 @@
 ## Reason
 
 These modules from `runtime/transport/` have zero external callers
-(or only non-production callers in scripts/tests). They were
-transitively loaded by the eager-import `__init__.py` before the
-PEP 562 lazy-import rewrite (Wave 0.5). Post-rewrite + Phase C,
+AND are not transitively required by any production-reachable module.
+They were transitively loaded by the eager-import `__init__.py` before
+the PEP 562 lazy-import rewrite (Wave 0.5). Post-rewrite + Phase C,
 they have no consumers.
 
 ## Classification
@@ -14,26 +14,25 @@ Full classification: `data/audits/2026-05-14_transport_orphan_classification.md`
 
 | Category | Count |
 |----------|-------|
-| TRUE_ORPHAN (no init registration) | 73 |
-| TRUE_ORPHAN (init-registered, registrations removed) | 32 |
-| SCRIPT_ONLY callers (non-production) | 39 |
-| TEST_ONLY callers (non-production) | 4 |
-| **Total archived** | **148** |
+| TRUE_ORPHAN (zero deps from PROD) | 95 |
+| Test files (tested archived modules) | 5 |
+| **Total archived** | **100** |
+
+Initial attempt archived 148 modules. Transitive closure analysis
+revealed 53 had hard import-time dependencies from the 15 PROD modules.
+All 53 restored. Final archive: 95 transport modules + 5 test files.
 
 ## Verification
 
-Every module confirmed 0 production callers via:
-```
-grep -rlE "from runtime\.transport\.<module>\b|import runtime\.transport\.<module>\b" \
-  --include="*.py" --exclude-dir=_archive --exclude-dir=__pycache__ . \
-  | grep -v "runtime/transport/"
-```
+Every module confirmed either:
+1. Zero external callers, OR
+2. Only script/test callers AND not transitively imported by PROD modules
 
-SCRIPT_ONLY/TEST_ONLY modules have callers only in scripts/ or tests/
-(smoke tests, diagnostics, test fixtures) — not production code.
+AST-based transitive closure verified 15 PROD modules import cleanly
+after archive (15/15 production smoke).
 
 ## Init cleanup
 
-32 init-registered orphans had their `_m()`/`_d()` registrations
-removed from `runtime/transport/__init__.py`. The remaining 22
-registrations serve the 15 production-caller modules.
+`__init__.py` trimmed from 474 → 62 lines. 54 → 4 registered modules.
+All `_d()` deferred registrations removed (orphans + phantom files).
+Remaining: `storage`, `capability_tagging`, `station_daemon`, `station_helpers`.
