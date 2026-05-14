@@ -898,3 +898,87 @@ operations/
   relative imports — the project's `core/` code was well-structured for
   relocation.
 - Total import sites updated across Wave 2: ~244.
+
+---
+
+## Wave 3 Execution — 2026-05-13
+
+- Items attempted: 12 (of 12 P3 items)
+- Items completed (committed): 10
+- Items skipped: 2
+- Items reverted (test failure): 0
+- Tests baseline: 93 passed, 1 deselected / Post: 93 passed, 1 deselected (unchanged)
+- Active tree: 1,635 Python files
+- Commits: `356ac445` .. `de07d051` (10 commits)
+- Architectural findings: see below
+
+### Migrations completed
+
+| # | Source | Target | Import sites |
+|---|--------|--------|-------------|
+| 30 | `core/state/` (1 file) | `state/` | 20 |
+| 29 | `core/execution/` (2 files) | `execution/runtime/` | 7 |
+| 27 | `core/memory/` (5 files) | `state/memory/contracts/` | 14 |
+| 22 | `core/environment_bridge/` (18 files) | `execution/environments/` | 55 |
+| 24 | `core/orchestrator/` (9 files) | `control_plane/runtime/orchestrator/` | 11 |
+| 25 | `core/adapters/` (7 files) | `adapters/adapter_engine/` | 28 |
+| 62 | `services/calendly_webhook.py` | `interface/api/webhooks/` | 0 (standalone) |
+| 23 | `core/control_plane_router/` (2 files) | `control_plane/router/` | 80 |
+| 16 | `core/runtime/` (44 files) | `execution/runtime/` (42) + `adapters/adapter_engine/` (2) | ~175 |
+| 17 | `core/workstation/` (41 files) | `execution/workers/workstation/` | ~1,159 |
+
+### Items skipped
+
+| # | Path | Reason |
+|---|------|--------|
+| 75 | Transport reachable (5 modules) | Entangled with `runtime/transport/__init__.py` cross-import graph. Same blocker as Wave 0 transport orphan deferral. Requires dedicated Wave 0.5 transport `__init__.py` rewrite. |
+| 88 | Runtime non-spine (~85 modules) | Blocked on `memory.py` API extension (Law 5.5 canonical path not ready). Prerequisite: manifest step 3.6. |
+
+### New §24 directories established in Wave 3
+
+```
+state/                        ← core/state/ (ledger)
+  memory/
+    contracts/                ← core/memory/ (5 files)
+execution/
+  runtime/                    ← core/execution/ (2) + core/runtime/ (42)
+  environments/               ← core/environment_bridge/ (18)
+  workers/
+    workstation/              ← core/workstation/ (41)
+control_plane/
+  runtime/
+    orchestrator/             ← core/orchestrator/ (9)
+  router/                     ← core/control_plane_router/ (2)
+adapters/
+  adapter_engine/             ← core/adapters/ (7) + core/runtime adapter files (2)
+interface/
+  api/
+    webhooks/                 ← services/calendly_webhook.py
+```
+
+### Refactors applied
+
+- **Law 5.5 fix** (calendly_webhook): raw `INSERT INTO events` replaced with
+  `AgentMemory.log_event()`. 1 site.
+- **Internal imports → relative**: 34 files in core/workstation/, 65 sites
+  in core/runtime/, 3 sites in core/adapters/, 2 sites in core/memory/.
+  All migrated packages are now location-independent.
+- **Law 5.9 deferred**: 6 files in execution/workers/workstation/ have
+  `execute()` methods. Needs dedicated pass with §14.1 contract adoption.
+
+### Architectural findings
+
+- `core/workstation/` had the highest import fan-out in the entire migration:
+  1,159 external import sites across 65 files. All mechanical sed replacement.
+- `core/runtime/` successfully split: 42 worker/execution contracts to
+  `execution/runtime/`, 2 adapter contracts to `adapters/adapter_engine/`.
+- `interface/` top-level layer established (new §24 layer). First
+  population: calendly_webhook. Will receive discord_bot + handlers in Wave 4.
+- `state/` top-level layer established (new §24 layer). Receives both
+  the transformation state ledger and memory contracts.
+- Docker compose path for calendly_webhook needs manual update:
+  `services/calendly_webhook.py` → `interface/api/webhooks/calendly_webhook.py`
+- Transport reachable modules (Row 75) confirmed blocked: `capability_tagging`
+  imports from `runtime.transport.capabilities`, `claude_responder` imports
+  from `runtime.substrate`. Cannot move without breaking transport layer.
+- Total import sites updated across Wave 3: ~1,549.
