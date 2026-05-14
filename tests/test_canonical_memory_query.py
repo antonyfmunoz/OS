@@ -24,7 +24,7 @@ from core.control_plane_router.router_contracts import (
     RouterStatus,
     WorkPacket,
 )
-from core.memory.canonical_memory_query_contracts import (
+from state.memory.contracts.canonical_memory_query_contracts import (
     ALLOWED_QUERY_SCOPES,
     FORBIDDEN_QUERY_ACTIONS,
     CanonicalMemoryQuery,

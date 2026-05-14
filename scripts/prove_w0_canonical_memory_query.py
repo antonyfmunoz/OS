@@ -38,7 +38,7 @@ from core.control_plane_router.router_contracts import (
     RuntimeProofReference,
     WorkPacket,
 )
-from core.memory.canonical_memory_query_contracts import (
+from state.memory.contracts.canonical_memory_query_contracts import (
     FORBIDDEN_QUERY_ACTIONS,
     CanonicalMemoryQuery,
     MemoryLineageReference,
