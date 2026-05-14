@@ -90,26 +90,14 @@ class SkillRegistryV2:
         Uses the existing skills schema: (id, org_id, name, content, version).
         """
         try:
-            import uuid
-            from state.storage.db import get_conn
+            from state.stores.skill_store import SkillStore
             content = skill.to_markdown()
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    """
-                    INSERT INTO skills (id, org_id, name, content, version)
-                    VALUES (%s, %s, %s, %s, %s)
-                    ON CONFLICT (org_id, name)
-                    DO UPDATE SET content = EXCLUDED.content,
-                                  version = EXCLUDED.version
-                    """,
-                    (
-                        str(uuid.uuid4()),
-                        self.ctx.org_id,
-                        skill.id,
-                        content,
-                        skill.version,
-                    ),
-                )
+            SkillStore().upsert_skill(
+                org_id=self.ctx.org_id,
+                name=skill.id,
+                content=content,
+                version=skill.version,
+            )
             print(f'[SkillV2] Registered: {skill.name}')
             return True
         except Exception as e:

@@ -374,32 +374,14 @@ class ResearchEngine:
 
         # Upsert: insert or update if name already exists for this org
         try:
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    "SELECT id FROM skills WHERE org_id = %s AND name = %s",
-                    (self.ctx.org_id, skill_name),
-                )
-                existing = cur.fetchone()
-                if existing:
-                    cur.execute(
-                        """
-                        UPDATE skills
-                        SET content = %s, version = version + 1, updated_at = NOW()
-                        WHERE id = %s
-                        """,
-                        (skill_content, existing["id"]),
-                    )
-                    print(f"[ResearchEngine] Knowledge updated: {skill_name}")
-                else:
-                    cur.execute(
-                        """
-                        INSERT INTO skills
-                          (org_id, name, content, version, created_at, updated_at)
-                        VALUES (%s, %s, %s, 1, NOW(), NOW())
-                        """,
-                        (self.ctx.org_id, skill_name, skill_content),
-                    )
-                    print(f"[ResearchEngine] Knowledge stored: {skill_name}")
+            from state.stores.skill_store import SkillStore
+            SkillStore().upsert_skill(
+                org_id=self.ctx.org_id,
+                name=skill_name,
+                content=skill_content,
+                version=1,
+            )
+            print(f"[ResearchEngine] Knowledge stored: {skill_name}")
             return True
 
         except Exception as e:

@@ -186,35 +186,21 @@ class ClaudeSkillRegistryManager:
         Skills without files are skipped silently.
         Returns count of skills synced.
         """
-        from state.storage.db import get_conn
-        import uuid as _uuid
-
         synced = 0
         try:
-            with get_conn(ctx.org_id) as cur:
-                for skill_id, skill in self.registry.items():
-                    content = self.read_skill(skill_id)
-                    if not content:
-                        continue
-                    cur.execute(
-                        """
-                        INSERT INTO skills (
-                            id, org_id, name, content, version)
-                        VALUES (%s, %s, %s, %s, %s)
-                        ON CONFLICT (org_id, name)
-                        DO UPDATE SET
-                            content = EXCLUDED.content,
-                            version = EXCLUDED.version
-                        """,
-                        (
-                            str(_uuid.uuid4()),
-                            ctx.org_id,
-                            skill_id,
-                            content,
-                            int(skill.version),
-                        ),
-                    )
-                    synced += 1
+            from state.stores.skill_store import SkillStore
+            store = SkillStore()
+            for skill_id, skill in self.registry.items():
+                content = self.read_skill(skill_id)
+                if not content:
+                    continue
+                store.upsert_skill(
+                    org_id=ctx.org_id,
+                    name=skill_id,
+                    content=content,
+                    version=int(skill.version),
+                )
+                synced += 1
             print(f"[SkillRegistry] Synced {synced} Claude skills to Neon")
         except Exception as e:
             print(f"[SkillRegistry] Sync failed: {e}")

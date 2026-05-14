@@ -868,30 +868,13 @@ class KnowledgeDomainRegistry:
             'domain_key': domain_key,
         }
         try:
-            from state.storage.db import get_conn
-            with get_conn(ctx.org_id) as cur:
-                cur.execute(
-                    'SELECT id FROM skills WHERE org_id = %s AND name = %s',
-                    (ctx.org_id, f'domain_{domain_key}'),
-                )
-                existing = cur.fetchone()
-                if existing:
-                    cur.execute(
-                        """
-                        UPDATE skills
-                        SET content = %s, version = version + 1
-                        WHERE id = %s
-                        """,
-                        (json.dumps(state_obj), existing['id']),
-                    )
-                else:
-                    cur.execute(
-                        """
-                        INSERT INTO skills (org_id, name, content, version, created_at)
-                        VALUES (%s, %s, %s, 1, NOW())
-                        """,
-                        (ctx.org_id, f'domain_{domain_key}', json.dumps(state_obj)),
-                    )
+            from state.stores.skill_store import SkillStore
+            SkillStore().upsert_skill(
+                org_id=ctx.org_id,
+                name=f'domain_{domain_key}',
+                content=json.dumps(state_obj),
+                version=1,
+            )
             self._current_state[domain_key] = state_obj
             print(f'[KnowledgeDomains] Saved: domain_{domain_key}')
             return True

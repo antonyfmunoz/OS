@@ -202,15 +202,13 @@ class SkillImprovementEngine:
         # Sync improved content to Neon skills table so DB overrides
         # the old file-based version on next SkillRegistry load.
         try:
-            from state.storage.db import get_conn, ORG_ID
-            with get_conn(ORG_ID) as cur:
-                cur.execute(
-                    """
-                    UPDATE skills SET content = %s, version = version + 1
-                    WHERE org_id = %s AND name = %s
-                    """,
-                    (improved_content, ORG_ID, skill.name),
-                )
+            from state.storage.db import ORG_ID
+            from state.stores.skill_store import SkillStore
+            SkillStore().update_skill_content_by_name(
+                org_id=ORG_ID,
+                name=skill.name,
+                content=improved_content,
+            )
             print(f"[SkillImprovement] Neon skills table synced for '{skill_id}'")
         except Exception as e:
             print(f"[SkillImprovement] Neon sync skipped (not in DB): {e}")
