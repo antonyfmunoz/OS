@@ -63,31 +63,15 @@ class OSTrinity:
         Upserts to cross_product_permissions. Clears revoked_at on re-grant.
         Returns True on success.
         """
-        from state.storage.db import get_conn
         try:
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    """
-                    INSERT INTO cross_product_permissions
-                      (id, user_id, source_product, target_product,
-                       data_category, permitted, granted_at)
-                    VALUES (%s, %s::uuid, %s, %s, %s, true, %s)
-                    ON CONFLICT (user_id, source_product,
-                                 target_product, data_category)
-                    DO UPDATE SET
-                      permitted  = true,
-                      granted_at = EXCLUDED.granted_at,
-                      revoked_at = NULL
-                    """,
-                    (
-                        str(uuid.uuid4()),
-                        user_id,
-                        source_product,
-                        target_product,
-                        data_category,
-                        datetime.now(timezone.utc),
-                    ),
-                )
+            from state.stores.permission_store import PermissionStore
+            PermissionStore().grant_permission(
+                org_id=self.ctx.org_id,
+                user_id=user_id,
+                source_product=source_product,
+                target_product=target_product,
+                data_category=data_category,
+            )
             return True
         except Exception as e:
             print(f"[OSTrinity] grant_permission failed: {e}")
@@ -105,27 +89,15 @@ class OSTrinity:
         Sets permitted=false and stamps revoked_at.
         Returns True on success.
         """
-        from state.storage.db import get_conn
         try:
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    """
-                    UPDATE cross_product_permissions
-                    SET permitted  = false,
-                        revoked_at = %s
-                    WHERE user_id        = %s::uuid
-                      AND source_product = %s
-                      AND target_product = %s
-                      AND data_category  = %s
-                    """,
-                    (
-                        datetime.now(timezone.utc),
-                        user_id,
-                        source_product,
-                        target_product,
-                        data_category,
-                    ),
-                )
+            from state.stores.permission_store import PermissionStore
+            PermissionStore().revoke_permission(
+                org_id=self.ctx.org_id,
+                user_id=user_id,
+                source_product=source_product,
+                target_product=target_product,
+                data_category=data_category,
+            )
             return True
         except Exception as e:
             print(f"[OSTrinity] revoke_permission failed: {e}")
@@ -215,94 +187,13 @@ class OSTrinity:
         """
         from state.storage.db import get_conn
 
-        def _j(val):
-            """Serialize to JSON string for JSONB columns, or None to skip."""
-            return json.dumps(val) if val is not None else None
-
         try:
-            with get_conn(self.ctx.org_id) as cur:
-                # Check for existing row
-                cur.execute(
-                    "SELECT id FROM user_intelligence_profiles WHERE user_id = %s::uuid",
-                    (user_id,),
-                )
-                existing = cur.fetchone()
-
-                if existing:
-                    cur.execute(
-                        """
-                        UPDATE user_intelligence_profiles
-                        SET
-                          communication_style     = COALESCE(%s::jsonb,
-                                                    communication_style),
-                          peak_performance_windows= COALESCE(%s::jsonb,
-                                                    peak_performance_windows),
-                          decision_patterns       = COALESCE(%s::jsonb,
-                                                    decision_patterns),
-                          content_strengths       = COALESCE(%s::jsonb,
-                                                    content_strengths),
-                          learning_style          = COALESCE(%s::jsonb,
-                                                    learning_style),
-                          stress_indicators       = COALESCE(%s::jsonb,
-                                                    stress_indicators),
-                          north_star              = COALESCE(%s,
-                                                    north_star),
-                          cross_product_insights  = COALESCE(%s::jsonb,
-                                                    cross_product_insights),
-                          last_updated            = %s
-                        WHERE user_id = %s::uuid
-                        """,
-                        (
-                            _j(updates.get('communication_style'))
-                            if 'communication_style' in updates else None,
-                            _j(updates.get('peak_performance_windows'))
-                            if 'peak_performance_windows' in updates else None,
-                            _j(updates.get('decision_patterns'))
-                            if 'decision_patterns' in updates else None,
-                            _j(updates.get('content_strengths'))
-                            if 'content_strengths' in updates else None,
-                            _j(updates.get('learning_style'))
-                            if 'learning_style' in updates else None,
-                            _j(updates.get('stress_indicators'))
-                            if 'stress_indicators' in updates else None,
-                            updates.get('north_star'),
-                            _j(updates.get('cross_product_insights'))
-                            if 'cross_product_insights' in updates else None,
-                            datetime.now(timezone.utc),
-                            user_id,
-                        ),
-                    )
-                else:
-                    cur.execute(
-                        """
-                        INSERT INTO user_intelligence_profiles
-                          (id, user_id,
-                           communication_style, peak_performance_windows,
-                           decision_patterns, content_strengths,
-                           learning_style, stress_indicators,
-                           north_star, cross_product_insights,
-                           last_updated)
-                        VALUES (%s, %s::uuid,
-                                %s::jsonb, %s::jsonb,
-                                %s::jsonb, %s::jsonb,
-                                %s::jsonb, %s::jsonb,
-                                %s, %s::jsonb,
-                                %s)
-                        """,
-                        (
-                            str(uuid.uuid4()),
-                            user_id,
-                            json.dumps(updates.get('communication_style', {})),
-                            json.dumps(updates.get('peak_performance_windows', [])),
-                            json.dumps(updates.get('decision_patterns', {})),
-                            json.dumps(updates.get('content_strengths', {})),
-                            json.dumps(updates.get('learning_style', {})),
-                            json.dumps(updates.get('stress_indicators', {})),
-                            updates.get('north_star', ''),
-                            json.dumps(updates.get('cross_product_insights', {})),
-                            datetime.now(timezone.utc),
-                        ),
-                    )
+            from state.stores.profile_store import ProfileStore
+            ProfileStore().upsert_intelligence_profile(
+                org_id=self.ctx.org_id,
+                user_id=user_id,
+                updates=updates,
+            )
             return True
         except Exception as e:
             print(f"[OSTrinity] update_intelligence_profile failed: {e}")
@@ -422,41 +313,13 @@ class OSTrinity:
         from state.storage.db import get_conn
         try:
             with get_conn(self.ctx.org_id) as cur:
-                # Check if already connected
-                cur.execute(
-                    """
-                    SELECT id FROM product_connections
-                    WHERE user_id = %s::uuid AND product = %s AND status = 'connected'
-                    """,
-                    (user_id, product),
+                from state.stores.permission_store import PermissionStore
+                PermissionStore().register_product(
+                    org_id=self.ctx.org_id,
+                    user_id=user_id,
+                    product=product,
+                    connection_config=connection_config,
                 )
-                existing = cur.fetchone()
-                if existing:
-                    # Update config silently
-                    cur.execute(
-                        """
-                        UPDATE product_connections
-                        SET connection_config = %s::jsonb
-                        WHERE id = %s
-                        """,
-                        (json.dumps(connection_config), existing['id']),
-                    )
-                else:
-                    cur.execute(
-                        """
-                        INSERT INTO product_connections
-                          (id, user_id, product, connection_config,
-                           status, connected_at)
-                        VALUES (%s, %s::uuid, %s, %s::jsonb, 'connected', %s)
-                        """,
-                        (
-                            str(uuid.uuid4()),
-                            user_id,
-                            product,
-                            json.dumps(connection_config),
-                            datetime.now(timezone.utc),
-                        ),
-                    )
             return True
         except Exception as e:
             print(f"[OSTrinity] register_product failed: {e}")

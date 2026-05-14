@@ -383,18 +383,12 @@ class UserModel:
         profile = self.build_communication_profile()
 
         try:
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    """
-                    INSERT INTO user_profiles (user_id, org_id, profile_json, updated_at)
-                    VALUES (%s, %s, %s, NOW())
-                    ON CONFLICT (user_id, org_id)
-                    DO UPDATE SET
-                        profile_json = EXCLUDED.profile_json,
-                        updated_at   = NOW()
-                    """,
-                    (self.ctx.user_id, self.ctx.org_id, json.dumps(profile)),
-                )
+            from state.stores.profile_store import ProfileStore
+            ProfileStore().upsert_user_profile(
+                org_id=self.ctx.org_id,
+                user_id=self.ctx.user_id,
+                profile=profile,
+            )
             print(f"[UserModel] Profile updated for user {self.ctx.user_id}")
         except Exception as e:
             print(f"[UserModel] Profile upsert failed: {e}")

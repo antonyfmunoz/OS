@@ -162,18 +162,13 @@ class HumanIntelligenceEngine:
         if not venture_uuid:
             print(f"  [HumanIntel] Warning: venture slug '{venture_id_slug}' not found — skipping Neon write.")
             return
-        with get_conn(self._ctx.org_id) as cur:
-            cur.execute(
-                """
-                INSERT INTO human_profiles (org_id, username, venture_id, profile_json, updated_at)
-                VALUES (%s, %s, %s, %s, %s)
-                ON CONFLICT (org_id, username)
-                DO UPDATE SET venture_id   = EXCLUDED.venture_id,
-                              profile_json = EXCLUDED.profile_json,
-                              updated_at   = EXCLUDED.updated_at
-                """,
-                (self._ctx.org_id, username, venture_uuid, json.dumps(profile), _utcnow()),
-            )
+        from state.stores.profile_store import ProfileStore
+        ProfileStore().upsert_human_profile(
+            org_id=self._ctx.org_id,
+            username=username,
+            venture_uuid=venture_uuid,
+            profile=profile,
+        )
 
     def _fetch_profile_row(self, username: str, venture_id: str = "lyfe_institute") -> dict | None:
         with get_conn(self._ctx.org_id) as cur:
