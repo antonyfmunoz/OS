@@ -1781,7 +1781,7 @@ operations + canonical API adoption.
 | 1. Dead-code runtime/ modules | 15 files, 0 callers | Archived to `_archive/2026-05-14_cleanup_sweep/dead_code_runtime/` | **CLOSED** (`4a0b562d`) |
 | 2. Tier 3 dead-code sites | transaction_workflow.py + company_instantiator.py | Covered by Thread 1 (both were among 15 dead-code modules) | **CLOSED** (by Thread 1) |
 | 3. Obsolete generators | r8b_generate_bridges, r8d_generate_shims, r8_import_graph_snapshot, r8_compare_import_graphs | Archived to `_archive/2026-05-14_cleanup_sweep/obsolete_generators/` | **CLOSED** (`e512bb39`) |
-| 4. Deferred Tier 3 script sites | agent_task_executor.py (2 raw SQL sites), sync_skills_to_neon.py | agent_task_executor: ADOPTED (log_event + set_notion_page_id). sync_skills_to_neon: DEFERRED (skills table has no domain store) | **PARTIAL** (`a65b4c6a`) |
+| 4. Deferred Tier 3 script sites | agent_task_executor.py (2 raw SQL sites), sync_skills_to_neon.py | agent_task_executor: ADOPTED (log_event + set_notion_page_id). sync_skills_to_neon: ADOPTED (3 SQL sites → SkillStore) | **CLOSED** (`a65b4c6a`, `5e3f5e80`) |
 | 5. Phase B context.py shim | runtime/context.py (3-line re-export) | Deleted. 0 callers after Thread 1 cleared last 7 dead-code refs | **CLOSED** (`952b52b1`) |
 
 ### Results
@@ -1789,7 +1789,7 @@ operations + canonical API adoption.
 - **Files archived**: 19 (15 dead-code modules + 4 obsolete generators)
 - **Files deleted**: 1 (runtime/context.py)
 - **Files adopted**: 1 (agent_task_executor.py — 2 raw SQL sites → canonical APIs)
-- **Files deferred**: 1 (sync_skills_to_neon.py — skills table lacks domain store)
+- **Files deferred**: 0 (sync_skills_to_neon.py resolved — SkillStore domain store added)
 - **runtime/ top-level .py files**: 16 → **0**
 - **runtime/ subdirectories**: 5 (transport, ingestion, domain_bridge, substrate, interfaces)
 - **Tests**: 4166 passed / 34 failed (all pre-existing) / 3 skipped — zero regressions
@@ -1804,7 +1804,7 @@ operations + canonical API adoption.
 | Transport package §24 migration | 68 modules (15 PROD + 53 deps) | NEW — full package move |
 | Law 5.4 type convergence | 5 spine modules | Dedicated follow-up wave |
 | Law 5.9 adapter refactor | 6 files in execution/workers/workstation/ | §14.1 contract |
-| Law 5.5 sync_skills_to_neon.py | 1 file, SELECT/INSERT/UPDATE on skills table | Needs SkillStore domain store |
+| ~~Law 5.5 sync_skills_to_neon.py~~ | ~~1 file, SELECT/INSERT/UPDATE on skills table~~ | ~~CLOSED — 2026-05-14 (SkillStore.get_by_name + upsert_skill)~~ |
 | Cron script migration | 23 files | System-level coordination |
 
 ---
@@ -1851,3 +1851,57 @@ package that must migrate as a unit. Suggested §24 target:
 
 Subthread: 53 smoke test scripts in `scripts/` reference archived
 modules. Non-production — stale references expected.
+
+---
+
+## Law 5.5 SkillStore — 2026-05-14
+
+**PHASE A MILESTONE: COMPLETE.** All Law 5.5 violations resolved.
+
+Last deferred site (`sync_skills_to_neon.py`) adopted SkillStore.
+The SkillStore domain store already existed from prior Tier 3 work;
+it needed only a `get_by_name()` read method to support the script's
+unchanged-detection optimization.
+
+### Changes
+
+| File | Change |
+|------|--------|
+| `state/stores/skill_store.py` | +`get_by_name()` method (+16 lines), removed unused `json` import |
+| `scripts/sync_skills_to_neon.py` | 3 raw SQL sites (SELECT/INSERT/UPDATE) → `SkillStore.get_by_name()` + `SkillStore.upsert_skill()`. Removed `uuid`, `get_conn` imports. |
+| `tests/test_domain_stores_tier3.py` | +2 tests (import + signature for `get_by_name`) |
+
+### Key finding: UNIQUE constraint exists
+
+The script's comment claimed "no UNIQUE(org_id, name) constraint exists"
+but `idx_skills_org_name` UNIQUE index is present. The cautious
+SELECT-then-INSERT-or-UPDATE was unnecessarily complex — ON CONFLICT
+upsert is safe. Script now uses `upsert_skill()` which leverages the
+constraint.
+
+### Verification
+
+- Dry-run: 96 skills processed (7 insert, 66 update, 23 unchanged)
+- Tree-wide SQL check: zero raw INSERT/UPDATE/DELETE on skills table
+  outside `state/stores/skill_store.py` and archived code
+- Tests: 4071/34/3 (+1 passed, zero regressions)
+- Commits: 2 (`de896329`, `5e3f5e80`)
+
+### Phase A final tally
+
+| Tier | Sites adopted | API methods | Status |
+|------|--------------|-------------|--------|
+| Tier 1 (log_event) | 46 sites across 33 modules | 0 new (existing) | COMPLETE |
+| Tier 2 (update_event, upsert_embedding) | 7 sites across 4 modules | 2 new | COMPLETE |
+| Tier 3 (domain stores) | ~50 sites across 19 modules | 14 stores | COMPLETE |
+| Tier 3 deferred (sync_skills_to_neon) | 3 sites in 1 script | 1 new read method | COMPLETE |
+| **Total** | **~106 sites** | **14 stores + 3 methods** | **COMPLETE** |
+
+### Remaining followup threads
+
+| Thread | Items | Status |
+|--------|-------|--------|
+| Transport package §24 migration | 68 modules (15 PROD + 53 deps) | Full package move |
+| Law 5.4 type convergence | 5 spine modules | Dedicated follow-up wave |
+| Law 5.9 adapter refactor | 6 files in execution/workers/workstation/ | §14.1 contract |
+| Cron script migration | 23 files | System-level coordination |
