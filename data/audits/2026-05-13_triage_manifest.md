@@ -982,3 +982,69 @@ interface/
   imports from `runtime.transport.capabilities`, `claude_responder` imports
   from `runtime.substrate`. Cannot move without breaking transport layer.
 - Total import sites updated across Wave 3: ~1,549.
+
+---
+
+## Wave 4 Execution — 2026-05-13
+
+- Items attempted: 7 (all P4 items)
+- Items completed (committed): 5
+- Items skipped: 2
+- Items reverted (test failure): 0 (1 test failure caught and fixed: mock patch targets)
+- Tests baseline: 93 passed, 1 deselected / Post: 93 passed, 1 deselected (unchanged)
+- Active tree: 1,637 Python files
+- Commits: `459e8442` .. `805bd76f` (5 commits)
+- Architectural findings: see below
+
+### Migrations completed
+
+| # | Source | Target | Import sites |
+|---|--------|--------|-------------|
+| 6 | `runtime/execution_spine.py` | `execution/runtime/` | 3 |
+| 7 | `runtime/authority_engine.py` | `governance/policy/` | 9 |
+| 8 | `runtime/primitives.py` | `understanding/ontology/` | 14 |
+| 9 | `runtime/cc_sdk.py` | `adapters/model_adapters/` | 16 |
+| 61 | `services/handlers/` (6 files) | `interface/presence/handlers/` | ~85 |
+
+### Items skipped
+
+| # | Path | Reason |
+|---|------|--------|
+| 76 | Transport via substrate (13 modules) | Blocked by transport `__init__.py` entanglement (Wave 0.5). Substrate shims cannot be bypassed without transport rewrite. |
+| 60 | `services/discord_bot.py` | Depends on Row 76 (substrate imports). Also: Law 5.5 violations, Docker compose path, path-literal test references. HIGH risk — needs transport resolution first. |
+
+### New §24 directories established in Wave 4
+
+```
+adapters/
+  model_adapters/               ← runtime/cc_sdk.py
+interface/
+  presence/
+    handlers/                   ← services/handlers/ (6 files)
+```
+
+### Refactors applied
+
+- **Mock patch targets** (test_governed_spine.py): Updated `patch("runtime.authority_engine.AuthorityEngine")`
+  → `patch("governance.policy.authority_engine.AuthorityEngine")` after authority_engine relocation.
+  Tests initially failed (2 failures) due to stale patch targets — fixed in same commit.
+
+### Cumulative deferred threads (across all waves)
+
+| Thread | Items affected | Blocker | Resolution |
+|--------|---------------|---------|------------|
+| Transport `__init__.py` rewrite | Rows 75, 76, 60 | `__init__.py` hard-imports 30 modules | Dedicated Wave 0.5: rewrite with lazy imports, then archive orphans |
+| Law 5.9 adapter refactor | 6 files in execution/workers/workstation/ | §14.1 contract adoption | Dedicated pass after all relocations |
+| Law 5.5 memory write fixes | ~46 files across codebase | memory.py API extension | Row 88 prerequisite (manifest step 3.6) |
+| Cron script migration | 23 files in scripts/ | Crontab path updates | System-level coordination (Row 71) |
+| Docker compose paths | calendly_webhook, discord_bot | Container command paths | Manual update before deploy |
+
+### Architectural findings
+
+- Handlers migration revealed 80+ test imports using bare `from handlers.X` — all tests
+  had `services/` on sys.path. Converted to fully qualified `from interface.presence.handlers.X`.
+- Mock patch targets are a subtle migration hazard: `patch()` resolves dotted paths at call time,
+  so it must match the module's NEW location, not where the code being tested lazy-imports from.
+- Transport substrate dependency is the single largest remaining blocker. Rows 60, 75, 76
+  all depend on it. This affects Wave 5 too — discord_bot is the primary consumer of spine modules.
+- Total import sites updated across Wave 4: ~127.
