@@ -23,7 +23,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from core.execution.workpacket_execution_gate_v1 import (
+from execution.runtime.workpacket_execution_gate_v1 import (
     ExecutionGateResult,
     GateVerdict,
     RuntimeExecutionRequest,

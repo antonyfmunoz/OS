@@ -79,7 +79,7 @@ from governance.policy.execution_authority_engine_v1 import (
     ExecutionAuthorityEngine,
     RiskClass,
 )
-from core.execution.workpacket_execution_gate_v1 import (
+from execution.runtime.workpacket_execution_gate_v1 import (
     WorkPacketExecutionGate,
 )
 from state.transformation_state_ledger import (

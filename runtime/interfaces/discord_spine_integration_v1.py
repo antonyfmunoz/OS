@@ -26,7 +26,7 @@ from governance.policy.execution_authority_engine_v1 import (
     ExecutionAuthorityEngine,
     RiskClass,
 )
-from core.execution.workpacket_execution_gate_v1 import (
+from execution.runtime.workpacket_execution_gate_v1 import (
     WorkPacketExecutionGate,
 )
 from core.runtime.live_local_runtime_execution_v1 import (
