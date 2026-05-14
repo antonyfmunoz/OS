@@ -1,6 +1,6 @@
-raise ImportError(
-    "umh/ has been archived to archive/umh_reference/ "
-    "(Wave 2 convergence, 2026-05-10). "
-    "No live service depends on umh/. "
-    "If you need UMH reference code, see archive/umh_reference/."
-)
+"""UMH — Universal Meta Harness.
+
+umh/protocols/ contains the canonical typed contracts (Pydantic v2).
+All other previous umh/ code was archived to archive/umh_reference/
+(Wave 2 convergence, 2026-05-10).
+"""
