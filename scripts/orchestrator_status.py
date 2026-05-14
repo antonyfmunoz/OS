@@ -29,8 +29,8 @@ from typing import Any
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from core.action_system.deferred import list_deferred  # noqa: E402
-from core.action_system.logging import (  # noqa: E402
+from control_plane.actions.deferred import list_deferred  # noqa: E402
+from control_plane.actions.logging import (  # noqa: E402
     DECISION_LOG_DIR,
     EXECUTION_LOG_DIR,
 )

@@ -24,8 +24,8 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-from core.action_system.control_plane import run_action
-from core.action_system.logging import log_decision
+from control_plane.actions.control_plane import run_action
+from control_plane.actions.logging import log_decision
 from core.optimizer import Optimizer
 from runtime.workflow_engine import WorkflowEngine, WorkflowState, WORKFLOWS
 

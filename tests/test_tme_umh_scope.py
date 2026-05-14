@@ -127,11 +127,11 @@ class TestTmeActionSystem(unittest.TestCase):
     """tme.py in action_system must expose new integration functions."""
 
     def test_ensure_mastery_before_tool_execution_importable(self):
-        from core.action_system.tme import ensure_mastery_before_tool_execution
+        from control_plane.actions.tme import ensure_mastery_before_tool_execution
         self.assertTrue(callable(ensure_mastery_before_tool_execution))
 
     def test_resolve_mastery_for_user_intent_importable(self):
-        from core.action_system.tme import resolve_mastery_for_user_intent
+        from control_plane.actions.tme import resolve_mastery_for_user_intent
         self.assertTrue(callable(resolve_mastery_for_user_intent))
 
 

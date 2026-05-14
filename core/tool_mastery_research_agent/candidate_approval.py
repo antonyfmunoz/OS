@@ -136,7 +136,7 @@ def persist_approval_file(
     content = json.dumps(approval.to_dict(), indent=2)
 
     try:
-        from core.action_system.control_plane import run_action
+        from control_plane.actions.control_plane import run_action
 
         run_action(
             type="write_file",

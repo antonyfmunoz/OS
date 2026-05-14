@@ -121,8 +121,8 @@ def _drain_author_queue(*, tool_filter: str | None, json_only: bool) -> int:
     ``scripts/tool_mastery_author.py`` with the inputs that were queued
     by the Research Agent.
     """
-    from core.action_system.control_plane import resume_action
-    from core.action_system.deferred import list_deferred
+    from control_plane.actions.control_plane import resume_action
+    from control_plane.actions.deferred import list_deferred
 
     deferred = list_deferred()
     matches = [

@@ -55,7 +55,7 @@ def _queue_author_action(*, tool_slug: str, artifact_path: str) -> dict[str, obj
     """
     try:
         # Imported lazily so a CP failure cannot break module load.
-        from core.action_system.control_plane import run_action
+        from control_plane.actions.control_plane import run_action
 
         action = run_action(
             type="run_script",

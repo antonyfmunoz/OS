@@ -28,7 +28,7 @@ import json
 from dataclasses import dataclass, field
 from typing import Any
 
-from core.action_system.control_plane import log_decision, run_action
+from control_plane.actions.control_plane import log_decision, run_action
 
 from .pipeline import ActionStep
 

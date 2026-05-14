@@ -26,7 +26,7 @@ import os
 from datetime import datetime, timezone
 from typing import Any
 
-from core.action_system.logging import DECISION_LOG_DIR
+from control_plane.actions.logging import DECISION_LOG_DIR
 
 # Action types that are safe to re-run blindly. Matches LoopConfig
 # defaults — if you change one, change both.

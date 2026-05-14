@@ -22,14 +22,14 @@ import sys
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from core.action_system.control_plane import (
+from control_plane.actions.control_plane import (
     list_deferred,
     load_deferred,
     resume_action,
 )
-from core.action_system.deferred import delete_deferred
-from core.action_system import idempotency
-from core.action_system.deferred_status import (
+from control_plane.actions.deferred import delete_deferred
+from control_plane.actions import idempotency
+from control_plane.actions.deferred_status import (
     DEFAULT_STALE_HOURS,
     VALID_STATUSES,
     clear_status,

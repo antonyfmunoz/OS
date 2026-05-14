@@ -29,8 +29,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from core.action_system.control_plane import run_action
-from core.action_system.logging import log_decision
+from control_plane.actions.control_plane import run_action
+from control_plane.actions.logging import log_decision
 
 
 # ---------------------------------------------------------------------------

@@ -29,7 +29,7 @@ from datetime import datetime, timezone
 from threading import Lock
 from typing import Any, Callable, Union
 
-from core.action_system.logging import log_decision
+from control_plane.actions.logging import log_decision
 
 from .pipeline import Pipeline, PipelineResult, run_pipeline
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"

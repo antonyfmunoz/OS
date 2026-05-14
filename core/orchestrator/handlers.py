@@ -39,8 +39,8 @@ import os
 from datetime import datetime, timezone
 from typing import Any
 
-from core.action_system.control_plane import log_decision, run_action
-from core.action_system.notifier import NOTIFICATION_QUEUE
+from control_plane.actions.control_plane import log_decision, run_action
+from control_plane.actions.notifier import NOTIFICATION_QUEUE
 
 from .decisions import should_escalate, should_ignore, should_retry
 
