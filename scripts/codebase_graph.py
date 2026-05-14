@@ -36,8 +36,8 @@ from typing import Any
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 try:
-    from parsers import REGISTRY as PARSER_REGISTRY
-    from parsers.base import ParsedFile
+    from understanding.perception.parsers import REGISTRY as PARSER_REGISTRY
+    from understanding.perception.parsers.base import ParsedFile
 except Exception:  # pragma: no cover — allow running before parsers/ exists
     PARSER_REGISTRY = []  # type: ignore[assignment]
     ParsedFile = None  # type: ignore[assignment,misc]

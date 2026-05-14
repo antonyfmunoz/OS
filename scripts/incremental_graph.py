@@ -77,7 +77,7 @@ from scripts.codebase_graph import (  # noqa: E402
 )
 
 try:
-    from parsers import REGISTRY as PARSER_REGISTRY
+    from understanding.perception.parsers import REGISTRY as PARSER_REGISTRY
 except Exception:  # pragma: no cover
     PARSER_REGISTRY = []  # type: ignore[assignment]
 

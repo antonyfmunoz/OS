@@ -11,12 +11,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from parsers.base import ParsedFile, Parser
-from parsers.config_parser import ConfigParser
-from parsers.js_parser import JSParser
-from parsers.python_parser import PythonParser
-from parsers.sql_parser import SQLParser
-from parsers.ts_parser import TSParser
+from .base import ParsedFile, Parser
+from .config_parser import ConfigParser
+from .js_parser import JSParser
+from .python_parser import PythonParser
+from .sql_parser import SQLParser
+from .ts_parser import TSParser
 
 REGISTRY: list[Parser] = [
     PythonParser(),

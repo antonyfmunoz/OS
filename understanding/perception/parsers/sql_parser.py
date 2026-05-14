@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from parsers.base import ParsedFile, ParsedImport, ParsedSymbol, Parser
+from .base import ParsedFile, ParsedImport, ParsedSymbol, Parser
 
 ROOT = Path("/opt/OS")
 

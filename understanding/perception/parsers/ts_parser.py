@@ -5,8 +5,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from parsers.base import ParsedFile, ParsedSymbol
-from parsers.js_parser import JSParser
+from .base import ParsedFile, ParsedSymbol
+from .js_parser import JSParser
 
 RE_INTERFACE = re.compile(r"""^\s*(?:export\s+)?interface\s+(?P<name>[\w$]+)""", re.M)
 RE_TYPE = re.compile(r"""^\s*(?:export\s+)?type\s+(?P<name>[\w$]+)\s*=""", re.M)

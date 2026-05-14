@@ -161,7 +161,7 @@ def check_freshness() -> CheckResult:
 
 def check_parser_registry() -> CheckResult:
     try:
-        from parsers import REGISTRY
+        from understanding.perception.parsers import REGISTRY
     except Exception as exc:
         return CheckResult("parser_registry", "FAIL", f"import error: {exc}")
     langs = {p.language for p in REGISTRY}

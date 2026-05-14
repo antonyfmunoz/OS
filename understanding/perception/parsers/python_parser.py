@@ -13,7 +13,7 @@ import re
 import sys
 from pathlib import Path
 
-from parsers.base import ParsedFile, ParsedImport, ParsedSymbol, Parser
+from .base import ParsedFile, ParsedImport, ParsedSymbol, Parser
 
 ROOT = Path("/opt/OS")
 ENTRY_PATTERNS = [
