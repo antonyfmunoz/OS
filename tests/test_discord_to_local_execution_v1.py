@@ -64,7 +64,7 @@ from core.runtime.live_local_runtime_execution_v1 import (
 from core.runtime.local_runtime_supervisor_v1 import (
     SUPERVISOR_FORBIDDEN_ACTIONS,
 )
-from core.governance.execution_authority_engine_v1 import (
+from governance.policy.execution_authority_engine_v1 import (
     AuthorityClass,
     CapabilityAuthority,
     EnvironmentAuthority,

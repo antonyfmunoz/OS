@@ -29,7 +29,7 @@ from core.execution.workpacket_execution_gate_v1 import (
     RuntimeExecutionRequest,
     WorkPacketExecutionGate,
 )
-from core.governance.execution_authority_engine_v1 import (
+from governance.policy.execution_authority_engine_v1 import (
     AuthorityClass,
     AuthorityDecision,
     ExecutionAuthorityEngine,

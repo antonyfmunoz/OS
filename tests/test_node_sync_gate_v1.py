@@ -42,7 +42,7 @@ from core.runtime.live_local_runtime_execution_v1 import (
     ExecutionSpineOutcome,
     LiveLocalRuntimeExecution,
 )
-from core.governance.execution_authority_engine_v1 import (
+from governance.policy.execution_authority_engine_v1 import (
     CapabilityAuthority,
     EnvironmentAuthority,
     ExecutionAuthorityEngine,

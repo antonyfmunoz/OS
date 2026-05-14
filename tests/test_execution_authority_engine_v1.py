@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from core.governance.execution_authority_engine_v1 import (
+from governance.policy.execution_authority_engine_v1 import (
     AUTHORITY_CLASS_RANK,
     DEFAULT_DENY_ACTIONS,
     GUI_REQUIRING_ACTIONS,

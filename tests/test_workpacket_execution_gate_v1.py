@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from core.governance.execution_authority_engine_v1 import (
+from governance.policy.execution_authority_engine_v1 import (
     ApprovalRequirement,
     AuthorityClass,
     AuthorityDecision,

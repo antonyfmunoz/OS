@@ -859,7 +859,7 @@ class TestNoWorldModelMutation:
 
 class TestSpineIntegration:
     def test_spine_capability_authority_includes_cu(self):
-        from core.governance.execution_authority_engine_v1 import CapabilityAuthority
+        from governance.policy.execution_authority_engine_v1 import CapabilityAuthority
 
         cap_auth = CapabilityAuthority(
             adapter_id="windows_interactive_desktop_relay",
