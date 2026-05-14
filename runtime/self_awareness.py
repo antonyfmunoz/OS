@@ -559,52 +559,28 @@ class SelfAwarenessEngine:
             return True
 
         elif consequence == 'register_agent_neon':
-            import uuid
-            from state.storage.db import get_conn
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    '''
-                    INSERT INTO agents
-                        (id, org_id, name, type, department, is_active)
-                    VALUES (%s, %s, %s, %s, %s, true)
-                    ON CONFLICT (org_id, name)
-                    DO UPDATE SET is_active = true
-                    ''',
-                    (
-                        str(uuid.uuid4()),
-                        self.ctx.org_id,
-                        str(change.new_value),
-                        'ai_agent',
-                        change.venture_id,
-                    ),
-                )
+            from state.stores.agent_registry_store import AgentRegistryStore
+            AgentRegistryStore().register_agent(
+                org_id=self.ctx.org_id,
+                name=str(change.new_value),
+                agent_type='ai_agent',
+                department=change.venture_id,
+            )
             return True
 
         elif consequence in ('register_ceo_agent', 'register_dev_agent'):
-            import uuid
-            from state.storage.db import get_conn
+            from state.stores.agent_registry_store import AgentRegistryStore
             agent_name = (
                 f'{change.venture_id}_ceo'
                 if consequence == 'register_ceo_agent'
                 else f'{change.venture_id}_dev'
             )
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    '''
-                    INSERT INTO agents
-                        (id, org_id, name, type, department, is_active)
-                    VALUES (%s, %s, %s, %s, %s, true)
-                    ON CONFLICT (org_id, name)
-                    DO UPDATE SET is_active = true
-                    ''',
-                    (
-                        str(uuid.uuid4()),
-                        self.ctx.org_id,
-                        agent_name,
-                        'ai_agent',
-                        change.venture_id,
-                    ),
-                )
+            AgentRegistryStore().register_agent(
+                org_id=self.ctx.org_id,
+                name=agent_name,
+                agent_type='ai_agent',
+                department=change.venture_id,
+            )
             return True
 
         elif consequence == 'regenerate_ea_soul_doc':
