@@ -10,7 +10,7 @@ import pytest
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or "/opt/OS")
 
-from runtime.ingestion.gws_source import GWSSource
+from adapters.data_source_adapters.gws_source import GWSSource
 from runtime.ingestion.source import RawContent, Source
 
 
