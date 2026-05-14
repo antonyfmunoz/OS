@@ -85,16 +85,13 @@ def generate(
         # status url format: .../requests/{request_id}/status
         request_id = urls["status_url"].rstrip("/").rsplit("/", 2)[-2]
 
-    with get_conn() as cur:
-        cur.execute(
-            """
-            INSERT INTO higgsfield_jobs
-                (request_id, venture, model_id, arguments, status, submitted_at)
-            VALUES (%s, %s, %s, %s::jsonb, 'queued', now())
-            ON CONFLICT (request_id) DO NOTHING
-            """,
-            (request_id, venture, model_id, json.dumps(arguments)),
-        )
+    from state.stores.higgsfield_store import HiggsFieldStore
+    HiggsFieldStore().insert_job(
+        request_id=request_id,
+        venture=venture,
+        model_id=model_id,
+        arguments=arguments,
+    )
 
     return request_id
 
@@ -108,12 +105,8 @@ def get_status(request_id: str) -> str:
 def cancel(request_id: str) -> None:
     """Cancel a queued request."""
     hf.cancel(request_id)
-    with get_conn() as cur:
-        cur.execute(
-            "UPDATE higgsfield_jobs SET status='Cancelled', finished_at=now() "
-            "WHERE request_id=%s",
-            (request_id,),
-        )
+    from state.stores.higgsfield_store import HiggsFieldStore
+    HiggsFieldStore().update_status(request_id=request_id, status="Cancelled")
 
 
 __all__ = ["generate", "get_status", "cancel", "WEBHOOK_URL"]

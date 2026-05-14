@@ -97,23 +97,13 @@ def handle_webhook(payload: dict) -> tuple[dict, int]:
         elif status in ("Failed", "NSFW", "Cancelled"):
             error = payload.get("error") or status
 
-        cur.execute(
-            """
-            UPDATE higgsfield_jobs
-               SET status=%s,
-                   output_url=%s,
-                   local_path=%s,
-                   error=%s,
-                   finished_at=now()
-             WHERE request_id=%s
-            """,
-            (
-                status,
-                _extract_output_url(payload)[0],
-                local_path,
-                error,
-                rid,
-            ),
+        from state.stores.higgsfield_store import HiggsFieldStore
+        HiggsFieldStore().update_status(
+            request_id=rid,
+            status=status,
+            output_url=_extract_output_url(payload)[0],
+            local_path=local_path,
+            error=error,
         )
 
     return {"ok": True, "status": status, "local_path": local_path}, 200
