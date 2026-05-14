@@ -224,26 +224,58 @@ class GovernedBrowserAdapter:
             risk,
         )
 
+    # ── §14.1 Adapter Contract ──────────────────────────────────────────────
+
+    def translate_request(self, request: BrowserExecutionRequest) -> BrowserExecutionRequest:
+        """§14.1 translate_request: input is already typed. Returns as-is."""
+        return request
+
+    def validate_operation(self, request: BrowserExecutionRequest) -> BrowserGovernanceDecision:
+        """§14.1 validate_operation: governance check for the browser action."""
+        return self.evaluate_action(request)
+
+    def normalize_result(
+        self,
+        raw_result: BrowserExecutionResult,
+        decision: BrowserGovernanceDecision,
+        duration_ms: float,
+    ) -> BrowserExecutionResult:
+        """§14.1 normalize_result: attach governance verdict and timing."""
+        raw_result.duration_ms = duration_ms
+        raw_result.governance_verdict = decision.verdict.value
+        return raw_result
+
+    def observe_state(self) -> dict[str, Any]:
+        """§14.1 observe_state: current adapter state for tracing."""
+        return {
+            "adapter_id": "governed_browser",
+            "operational_mode": self._mode.value,
+            "healthy": True,
+            **self.get_stats(),
+        }
+
+    # ── execute (backward-compatible orchestrator) ────────────────────────
+
     def execute(self, request: BrowserExecutionRequest) -> BrowserExecutionResult:
-        """Execute a governed browser action."""
-        decision = self.evaluate_action(request)
+        """Execute a governed browser action. Orchestrates §14.1 phases."""
+        canonical_request = self.translate_request(request)
+        decision = self.validate_operation(canonical_request)
 
         if decision.verdict != BrowserActionVerdict.APPROVED:
             return BrowserExecutionResult(
-                request_id=request.request_id,
-                action_type=request.action_type,
+                request_id=canonical_request.request_id,
+                action_type=canonical_request.action_type,
                 outcome=BrowserExecutionOutcome.DENIED,
                 adapter_used="governed_browser",
                 governance_verdict=decision.verdict.value,
                 error_message=decision.denial_reason,
-                correlation_id=request.correlation_id,
+                correlation_id=canonical_request.correlation_id,
             )
 
         start = time.monotonic()
-        result = self._execute_action(request)
-        result.duration_ms = (time.monotonic() - start) * 1000
-        result.governance_verdict = decision.verdict.value
-        return result
+        raw_result = self._execute_action(canonical_request)
+        duration_ms = (time.monotonic() - start) * 1000
+        return self.normalize_result(raw_result, decision, duration_ms)
 
     def get_decisions(self) -> list[BrowserGovernanceDecision]:
         return list(self._decisions)
