@@ -67,24 +67,16 @@ class KnowledgeGraph:
         Write a directed edge from_entity → to_entity.
         Returns the new link id (UUID string).
         """
-        with get_conn(self.ctx.org_id) as cur:
-            cur.execute(
-                """
-                INSERT INTO entity_links
-                    (org_id, from_type, from_id, to_type, to_id,
-                     relationship, metadata_json)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-                RETURNING id
-                """,
-                (
-                    self.ctx.org_id,
-                    from_type, from_id,
-                    to_type,   to_id,
-                    relationship,
-                    json.dumps(metadata) if metadata else None,
-                ),
-            )
-            return str(cur.fetchone()["id"])
+        from state.stores.entity_link_store import EntityLinkStore
+        return EntityLinkStore().insert_link(
+            org_id=self.ctx.org_id,
+            from_type=from_type,
+            from_id=from_id,
+            to_type=to_type,
+            to_id=to_id,
+            relationship=relationship,
+            metadata=metadata,
+        )
 
     # ─── Traversal ────────────────────────────────────────────────────────────
 
