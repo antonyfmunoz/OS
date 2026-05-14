@@ -130,12 +130,8 @@ class ModelPreferences:
                         'per_task_overrides': dict(row['per_task_overrides'] or {}),
                     }
                 # No row — insert defaults
-                cur.execute(
-                    "INSERT INTO model_preferences (org_id, cost_mode, prefer_local) "
-                    "VALUES (%s, 'auto', false) "
-                    "ON CONFLICT (org_id) DO NOTHING",
-                    (self.ctx.org_id,),
-                )
+                from state.stores.preference_store import PreferenceStore
+                PreferenceStore().ensure_defaults(self.ctx.org_id)
                 return {
                     'prefer_local': False,
                     'cost_mode': 'auto',
@@ -363,36 +359,24 @@ class ModelPreferences:
         if mode not in valid:
             raise ValueError(f"cost_mode must be one of {valid}")
         try:
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    "UPDATE model_preferences SET cost_mode = %s, updated_at = NOW() "
-                    "WHERE org_id = %s",
-                    (mode, self.ctx.org_id),
-                )
+            from state.stores.preference_store import PreferenceStore
+            PreferenceStore().set_field(self.ctx.org_id, "cost_mode", mode)
         except Exception as e:
             print(f"[ModelPreferences] set_cost_mode DB write failed: {e}")
         self._prefs['cost_mode'] = mode
 
     def set_prefer_local(self, prefer: bool) -> None:
         try:
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    "UPDATE model_preferences SET prefer_local = %s, updated_at = NOW() "
-                    "WHERE org_id = %s",
-                    (prefer, self.ctx.org_id),
-                )
+            from state.stores.preference_store import PreferenceStore
+            PreferenceStore().set_field(self.ctx.org_id, "prefer_local", prefer)
         except Exception as e:
             print(f"[ModelPreferences] set_prefer_local DB write failed: {e}")
         self._prefs['prefer_local'] = prefer
 
     def set_session_override(self, model: str | None) -> None:
         try:
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    "UPDATE model_preferences SET session_override = %s, updated_at = NOW() "
-                    "WHERE org_id = %s",
-                    (model, self.ctx.org_id),
-                )
+            from state.stores.preference_store import PreferenceStore
+            PreferenceStore().set_field(self.ctx.org_id, "session_override", model)
         except Exception as e:
             print(f"[ModelPreferences] set_session_override DB write failed: {e}")
         self._prefs['session_override'] = model
@@ -401,12 +385,8 @@ class ModelPreferences:
         overrides = dict(self._prefs.get('per_task_overrides', {}))
         overrides[task_type] = model
         try:
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    "UPDATE model_preferences SET per_task_overrides = %s::jsonb, "
-                    "updated_at = NOW() WHERE org_id = %s",
-                    (str(overrides).replace("'", '"'), self.ctx.org_id),
-                )
+            from state.stores.preference_store import PreferenceStore
+            PreferenceStore().set_field(self.ctx.org_id, "per_task_overrides", overrides)
         except Exception as e:
             print(f"[ModelPreferences] set_task_override DB write failed: {e}")
         self._prefs['per_task_overrides'] = overrides
@@ -415,12 +395,8 @@ class ModelPreferences:
         overrides = dict(self._prefs.get('per_task_overrides', {}))
         overrides.pop(task_type, None)
         try:
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    "UPDATE model_preferences SET per_task_overrides = %s::jsonb, "
-                    "updated_at = NOW() WHERE org_id = %s",
-                    (str(overrides).replace("'", '"'), self.ctx.org_id),
-                )
+            from state.stores.preference_store import PreferenceStore
+            PreferenceStore().set_field(self.ctx.org_id, "per_task_overrides", overrides)
         except Exception as e:
             print(f"[ModelPreferences] clear_task_override DB write failed: {e}")
         self._prefs['per_task_overrides'] = overrides
