@@ -226,7 +226,7 @@ or live grep/git evidence gathered during this synthesis.
 | 86 | `docs/operations/` (182 files) | OPEN_QUESTION | — | Triage for staleness | — | — | No audit coverage |
 | **RUNTIME — OTHER MODULES** | | | | | | | |
 | 87 | runtime/ top-level (125 files) — spine⁶ | See rows 1-10 | — | — | — | — | Covered above |
-| 88 | runtime/ top-level — reachable non-spine⁷ | REFACTOR_AND_RELOCATE | Various §24 homes | Law 5.5: many have direct INSERTs | P3 | MEDIUM | Gap: 42 of 46 Law 5.5 sites |
+| 88 | runtime/ top-level — 92 reachable non-spine (108 total incl. 8 spine + 15 unreachable)⁷ | REFACTOR_AND_RELOCATE | Various §24 homes | Law 5.5: 52 modules / ~100 SQL sites; context.py hub: 96 callers | P3 | MEDIUM | IN PLANNING — Phase A→B→C. 23 free now. See classification audit 2026-05-14. |
 | 89 | runtime/ top-level — unreachable (~20 files) | ARCHIVE | `_archive/runtime/` | — | — | LOW | Exploration: 16% unreachable |
 | **OTHER TOP-LEVEL** | | | | | | | |
 | 90 | `parsers/` (7 files) | PRESERVE | `understanding/perception/parsers/` | None | P1 | LOW | Exploration: 100% reachable |
@@ -932,7 +932,7 @@ operations/
 | # | Path | Reason |
 |---|------|--------|
 | 75 | Transport reachable (5 modules) | Entangled with `runtime/transport/__init__.py` cross-import graph. Same blocker as Wave 0 transport orphan deferral. Requires dedicated Wave 0.5 transport `__init__.py` rewrite. |
-| 88 | Runtime non-spine (~85 modules) | Blocked on `memory.py` API extension (Law 5.5 canonical path not ready). Prerequisite: manifest step 3.6. |
+| 88 | Runtime non-spine (92 reachable + 15 unreachable + 8 spine = 115 total files) | IN PLANNING. Three-phase: A (memory.py API extension, 52 modules), B (context.py hub, 96 callers), C (remaining). 23 modules free now. Classification: `2026-05-14_runtime_layer_classification.md`. API design: `2026-05-14_law_5_5_memory_api_design.md`. |
 
 ### New §24 directories established in Wave 3
 
@@ -1215,8 +1215,8 @@ from runtime.transport.<module> import *  # noqa: F401,F403
 | ~~Transport production path migration~~ | ~~16 modules (Row 76/60)~~ | ~~CLOSED — all substrate imports eliminated 2026-05-14~~ |
 | Law 5.4 type convergence | 5 spine modules | Dedicated follow-up wave |
 | Law 5.9 adapter refactor | 6 files in execution/workers/workstation/ | §14.1 contract |
-| Law 5.5 memory write fixes | ~46 files | memory.py API extension |
-| runtime.context migration | Row 88 (~85 modules) | Prerequisite for spine canary |
+| Law 5.5 memory write fixes (Phase A) | 52 modules, ~100 SQL sites | memory.py API extension — IN PLANNING. See `2026-05-14_law_5_5_memory_api_design.md` |
+| Runtime layer migration (Row 88) | 92 reachable modules (108 total incl. spine + unreachable) | IN PLANNING — three-phase: A (Law 5.5 API) → B (context.py hub, 96 callers) → C (remaining). 23 modules free now. See `2026-05-14_runtime_layer_classification.md` |
 | Cron script migration | 23 files | System-level coordination |
 | ~~Docker compose paths~~ | ~~calendly_webhook~~ | ~~CLOSED — calendly path updated 2026-05-14. discord_bot not yet migrated from services/.~~ |
 | r8d_generate_shims.py | 1 file in scripts/ | Generator script, safe to archive |
@@ -1432,3 +1432,53 @@ target path configuration — they're dead code (generators for deleted shims).
 ### Commit
 
 - `98e15ebe` — os-webhook command path → canonical §24
+
+---
+
+## Runtime Layer Classification (Row 88) — 2026-05-14
+
+**Status: IN PLANNING.** Classification audit complete. Migration blocked
+on Phase A (Law 5.5 memory API extension).
+
+### Scope correction
+
+Row 88 was described as "~85 modules". Actual inventory:
+
+| Category | Count |
+|----------|-------|
+| Spine (migrated W4-5) | 8 |
+| Reachable non-spine (Row 88 proper) | 92 |
+| Unreachable (Row 89 — archive) | 15 |
+| **Total runtime/*.py** | **115** |
+
+### Three-phase dependency chain
+
+| Phase | Prerequisite | Unblocks | Scope |
+|-------|-------------|----------|-------|
+| A | None | 52 Law-5.5 modules | memory.py API + 14 domain stores |
+| B | A (optional) | 17 context-dependent modules | context.py (96 callers) |
+| C | A + B | All remaining | Topological migration |
+
+23 modules are free NOW (no Law 5.5, no context dependency, no tangled
+cross-deps). These can migrate before Phase A.
+
+### Audits produced
+
+- `data/audits/2026-05-14_runtime_layer_classification.md` — per-module table,
+  dependency graph, §24 target mapping, free/blocked/tangled analysis
+- `data/audits/2026-05-14_law_5_5_memory_api_design.md` — Phase A design brief:
+  SQL pattern audit, proposed API extensions (3 tiers), risk surface, scope estimate
+
+### §24 layer distribution (92 reachable modules)
+
+| Layer | Count |
+|-------|-------|
+| control_plane/ | 24 |
+| state/ | 19 |
+| understanding/ | 16 |
+| adapters/ | 10 |
+| execution/ | 8 |
+| governance/ | 5 |
+| learning/ | 5 |
+| observability/ | 3 |
+| interface/ | 2 |
