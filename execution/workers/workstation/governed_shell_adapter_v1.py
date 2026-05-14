@@ -222,50 +222,26 @@ class GovernedShellAdapter:
             stripped, prefix, ShellCommandVerdict.APPROVED, "", rules, risk,
         )
 
-    def execute(self, request: WorkstationExecutionRequest) -> WorkstationExecutionResult:
-        """Execute a governed shell command."""
-        decision = self.evaluate_command(request.command)
+    # ── §14.1 Adapter Contract ──────────────────────────────────────────────
 
-        if decision.verdict != ShellCommandVerdict.APPROVED:
-            return WorkstationExecutionResult(
-                request_id=request.request_id,
-                command=request.command,
-                outcome=WorkstationExecutionOutcome.DENIED,
-                adapter_used="governed_shell",
-                governance_verdict=decision.verdict.value,
-                error_message=decision.denial_reason,
-                correlation_id=request.correlation_id,
-            )
+    def translate_request(self, request: WorkstationExecutionRequest) -> WorkstationExecutionRequest:
+        """§14.1 translate_request: input is already typed. Returns as-is."""
+        return request
 
-        start = time.monotonic()
-        try:
-            result = subprocess.run(
-                request.command,
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=min(request.timeout_seconds, self._mode_def.max_command_timeout),
-                cwd=request.working_directory or None,
-            )
-            duration_ms = (time.monotonic() - start) * 1000
-            return WorkstationExecutionResult(
-                request_id=request.request_id,
-                command=request.command,
-                outcome=(
-                    WorkstationExecutionOutcome.SUCCESS
-                    if result.returncode == 0
-                    else WorkstationExecutionOutcome.FAILURE
-                ),
-                stdout=result.stdout[:4096],
-                stderr=result.stderr[:2048],
-                exit_code=result.returncode,
-                adapter_used="governed_shell",
-                duration_ms=duration_ms,
-                governance_verdict=decision.verdict.value,
-                correlation_id=request.correlation_id,
-            )
-        except subprocess.TimeoutExpired:
-            duration_ms = (time.monotonic() - start) * 1000
+    def validate_operation(self, request: WorkstationExecutionRequest) -> ShellGovernanceDecision:
+        """§14.1 validate_operation: governance check for the command."""
+        return self.evaluate_command(request.command)
+
+    def normalize_result(
+        self,
+        raw_result: subprocess.CompletedProcess | None,
+        request: WorkstationExecutionRequest,
+        decision: ShellGovernanceDecision,
+        duration_ms: float,
+        error: Exception | None = None,
+    ) -> WorkstationExecutionResult:
+        """§14.1 normalize_result: map subprocess outcome to canonical result."""
+        if raw_result is None and isinstance(error, subprocess.TimeoutExpired):
             return WorkstationExecutionResult(
                 request_id=request.request_id,
                 command=request.command,
@@ -276,8 +252,7 @@ class GovernedShellAdapter:
                 error_message=f"Timeout after {request.timeout_seconds}s",
                 correlation_id=request.correlation_id,
             )
-        except Exception as e:
-            duration_ms = (time.monotonic() - start) * 1000
+        if raw_result is None:
             return WorkstationExecutionResult(
                 request_id=request.request_id,
                 command=request.command,
@@ -285,9 +260,69 @@ class GovernedShellAdapter:
                 adapter_used="governed_shell",
                 duration_ms=duration_ms,
                 governance_verdict=decision.verdict.value,
-                error_message=str(e),
+                error_message=str(error) if error else "Unknown error",
                 correlation_id=request.correlation_id,
             )
+        return WorkstationExecutionResult(
+            request_id=request.request_id,
+            command=request.command,
+            outcome=(
+                WorkstationExecutionOutcome.SUCCESS
+                if raw_result.returncode == 0
+                else WorkstationExecutionOutcome.FAILURE
+            ),
+            stdout=raw_result.stdout[:4096],
+            stderr=raw_result.stderr[:2048],
+            exit_code=raw_result.returncode,
+            adapter_used="governed_shell",
+            duration_ms=duration_ms,
+            governance_verdict=decision.verdict.value,
+            correlation_id=request.correlation_id,
+        )
+
+    def observe_state(self) -> dict[str, Any]:
+        """§14.1 observe_state: current adapter state for tracing."""
+        return {
+            "adapter_id": "governed_shell",
+            "operational_mode": self._mode.value,
+            "healthy": True,
+            **self.get_stats(),
+        }
+
+    # ── execute (backward-compatible orchestrator) ────────────────────────
+
+    def execute(self, request: WorkstationExecutionRequest) -> WorkstationExecutionResult:
+        """Execute a governed shell command. Orchestrates §14.1 phases."""
+        canonical_request = self.translate_request(request)
+        decision = self.validate_operation(canonical_request)
+
+        if decision.verdict != ShellCommandVerdict.APPROVED:
+            return WorkstationExecutionResult(
+                request_id=canonical_request.request_id,
+                command=canonical_request.command,
+                outcome=WorkstationExecutionOutcome.DENIED,
+                adapter_used="governed_shell",
+                governance_verdict=decision.verdict.value,
+                error_message=decision.denial_reason,
+                correlation_id=canonical_request.correlation_id,
+            )
+
+        start = time.monotonic()
+        raw_result: subprocess.CompletedProcess | None = None
+        error: Exception | None = None
+        try:
+            raw_result = subprocess.run(
+                canonical_request.command,
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=min(canonical_request.timeout_seconds, self._mode_def.max_command_timeout),
+                cwd=canonical_request.working_directory or None,
+            )
+        except Exception as e:
+            error = e
+        duration_ms = (time.monotonic() - start) * 1000
+        return self.normalize_result(raw_result, canonical_request, decision, duration_ms, error)
 
     def get_decisions(self) -> list[ShellGovernanceDecision]:
         return list(self._decisions)
