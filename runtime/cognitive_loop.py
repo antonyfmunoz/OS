@@ -455,7 +455,7 @@ class CognitiveLoop:
         # 5b. STAGE FILTER — prepend stage-appropriate correction if needed
         _output_str = result.output or ""
         try:
-            from runtime.primitives import ContextualReasoningEngine
+            from understanding.ontology.primitives import ContextualReasoningEngine
 
             _cre = ContextualReasoningEngine(self.ctx)
             _stage_ctx = _cre.get_current_context(

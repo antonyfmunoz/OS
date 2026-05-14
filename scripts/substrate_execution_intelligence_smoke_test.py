@@ -295,7 +295,7 @@ def main() -> int:
     import runtime.cognitive_loop  # noqa: F401
     import runtime.model_router  # noqa: F401
     import runtime.agent_runtime  # noqa: F401
-    import runtime.primitives  # noqa: F401
+    import understanding.ontology.primitives  # noqa: F401
 
     print("EXECUTION INTELLIGENCE SMOKE TEST PASSED")
     return 0

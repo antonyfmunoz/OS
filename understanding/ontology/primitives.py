@@ -15,7 +15,7 @@ paid ads, and outsourcing — the system corrects itself before returning output
 
 Usage:
     from runtime.context import load_context_from_env
-    from runtime.primitives import (
+    from understanding.ontology.primitives import (
         PrimitiveRegistry, ContextualReasoningEngine,
         PRIMITIVE_LIBRARY, KnowledgePrimitive,
     )

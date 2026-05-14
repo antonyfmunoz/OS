@@ -146,7 +146,7 @@ class ProactiveIntelligenceEngine:
 
         from runtime.memory import ConversationMemory
         from runtime.evolution_engine import EvolutionEngine
-        from runtime.primitives import PRIMITIVE_LIBRARY
+        from understanding.ontology.primitives import PRIMITIVE_LIBRARY
 
         cm = ConversationMemory(self.ctx)
         ee = EvolutionEngine(self.ctx)

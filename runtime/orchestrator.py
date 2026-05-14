@@ -1023,7 +1023,7 @@ async def generate_morning_brief(ctx: EOSContext) -> str:
         try:
             from runtime.business_instance import BusinessInstanceManager
             from runtime.evolution_engine import EvolutionEngine
-            from runtime.primitives import PRIMITIVE_LIBRARY
+            from understanding.ontology.primitives import PRIMITIVE_LIBRARY
 
             bim = BusinessInstanceManager(ctx)
             ee = EvolutionEngine(ctx)

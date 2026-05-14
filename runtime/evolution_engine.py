@@ -173,7 +173,7 @@ class EvolutionEngine:
         Return list of primitive IDs that are active (applies=True) at the
         venture's current stage.
         """
-        from runtime.primitives import PRIMITIVE_LIBRARY
+        from understanding.ontology.primitives import PRIMITIVE_LIBRARY
         stage  = self._get_stage(venture_id)
         return [
             pid for pid, prim in PRIMITIVE_LIBRARY.items()
@@ -191,7 +191,7 @@ class EvolutionEngine:
                 'what_applies_instead': str,
             }
         """
-        from runtime.primitives import PRIMITIVE_LIBRARY, STAGE_PRIMITIVES
+        from understanding.ontology.primitives import PRIMITIVE_LIBRARY, STAGE_PRIMITIVES
         prim  = PRIMITIVE_LIBRARY.get(primitive_id)
         stage = self._get_stage(venture_id)
 

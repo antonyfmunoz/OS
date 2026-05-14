@@ -221,7 +221,7 @@ hot_path_imports = [
     "from runtime.cognitive_loop",
     "from runtime.model_router",
     "from runtime.agent_runtime",
-    "from runtime.primitives",
+    "from understanding.ontology.primitives",
 ]
 for hp in hot_path_imports:
     _result(

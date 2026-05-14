@@ -309,7 +309,7 @@ class SelfAwarenessEngine:
         # ── NOTION UPDATES ────────────────────────────────────────────────────
 
         if consequence == 'update_notion_stage_guidance':
-            from runtime.primitives import PRIMITIVE_LIBRARY
+            from understanding.ontology.primitives import PRIMITIVE_LIBRARY
 
             stage = (
                 change.new_value
@@ -649,7 +649,7 @@ class SelfAwarenessEngine:
             return True
 
         elif consequence == 'notify_founder_primitive_unlocked':
-            from runtime.primitives import PRIMITIVE_LIBRARY
+            from understanding.ontology.primitives import PRIMITIVE_LIBRARY
             primitive = PRIMITIVE_LIBRARY.get(str(change.new_value))
             msg = (
                 f'✅ Primitive unlocked: {change.new_value}'
