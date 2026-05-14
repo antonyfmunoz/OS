@@ -16,7 +16,7 @@ Human override always wins. Never crash. Always return a valid config.
 
 import os
 from runtime.context import EOSContext
-from runtime.db import get_conn
+from state.storage.db import get_conn
 
 
 # ─── Provider configs ─────────────────────────────────────────────────────────

@@ -42,7 +42,7 @@ def log_competitor_signal(
     """Log a competitor signal to Neon."""
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -72,7 +72,7 @@ def get_recent_signals(venture: str = None, days: int = 7, ctx=None) -> list[dic
     """Get recent competitor signals."""
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:

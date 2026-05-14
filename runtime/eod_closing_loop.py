@@ -258,7 +258,7 @@ class EODClosingLoop:
 
     def _get_todays_project_updates(self) -> list[str]:
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
 
             since = (datetime.now(timezone.utc) - timedelta(hours=12)).isoformat()
             with get_conn(self.ctx.org_id) as cur:
@@ -309,7 +309,7 @@ class EODClosingLoop:
     def _get_todays_decisions(self) -> list[str]:
         """Decisions = dex_question events answered today."""
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
 
             since = (datetime.now(timezone.utc) - timedelta(hours=12)).isoformat()
             with get_conn(self.ctx.org_id) as cur:

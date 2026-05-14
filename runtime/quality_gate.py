@@ -494,7 +494,7 @@ def gate_outgoing_email(
 
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
 
         ctx = ctx or load_context_from_env()
         with get_conn(ctx.org_id) as cur:

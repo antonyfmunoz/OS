@@ -94,7 +94,7 @@ class AccountabilityEngine:
 
     def _save_commitment(self, commitment: Commitment) -> None:
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     '''
@@ -126,7 +126,7 @@ class AccountabilityEngine:
         followed up yet.
         """
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
             now = datetime.now().isoformat()
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
@@ -168,7 +168,7 @@ class AccountabilityEngine:
 
     def mark_follow_up_sent(self, event_id: str) -> None:
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     'SELECT payload_json FROM events WHERE id = %s',

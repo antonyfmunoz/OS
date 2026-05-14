@@ -19,7 +19,7 @@ import os
 import sys
 from dotenv import load_dotenv
 
-# /opt/OS on sys.path so we can import runtime.db
+# /opt/OS on sys.path so we can import state.storage.db
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 
@@ -34,7 +34,7 @@ if _EOS_KEY and _EOS_SECRET:
 
 import higgsfield_client as hf  # noqa: E402
 
-from runtime.db import get_conn  # noqa: E402
+from state.storage.db import get_conn  # noqa: E402
 
 WEBHOOK_URL = os.getenv(
     "HIGGSFIELD_WEBHOOK_URL",

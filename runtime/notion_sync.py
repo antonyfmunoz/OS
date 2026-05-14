@@ -379,7 +379,7 @@ def push_pending_tasks_to_notion(venture_id: str, ctx=None) -> int:
 
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
 
         ctx = ctx or load_context_from_env()
 

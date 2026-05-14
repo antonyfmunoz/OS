@@ -273,7 +273,7 @@ class StageManager:
         Log stage transition event to Neon for Discord bot to surface.
         Discord bot picks this up on next interaction.
         """
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         import json
 
         with get_conn(self.ctx.org_id) as cur:

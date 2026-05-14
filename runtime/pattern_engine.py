@@ -45,7 +45,7 @@ class PatternEngine:
         """
         patterns: list[Pattern] = []
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
             cutoff = (datetime.now() - timedelta(days=days_back)).isoformat()
 
             with get_conn(self.ctx.org_id) as cur:

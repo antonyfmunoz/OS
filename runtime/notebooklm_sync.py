@@ -85,7 +85,7 @@ class NotebookLMSync:
         Called manually or via check_and_update() on Saturdays.
         """
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
 
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
@@ -217,7 +217,7 @@ class NotebookLMSync:
             answer = result.stdout.strip() if result.returncode == 0 else ''
 
             if answer:
-                from runtime.db import get_conn
+                from state.storage.db import get_conn
                 with get_conn(self.ctx.org_id) as cur:
                     cur.execute(
                         '''
@@ -254,7 +254,7 @@ class NotebookLMSync:
         Retrieve recent NotebookLM insights from Neon for DEX context injection.
         """
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 if venture_id:
                     cur.execute(

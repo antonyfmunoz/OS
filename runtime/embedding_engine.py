@@ -217,7 +217,7 @@ class EmbeddingEngine:
             return False
 
         # DB write stage
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         try:
             with get_conn(org_id) as cur:
                 cur.execute(
@@ -271,7 +271,7 @@ class EmbeddingEngine:
         if not query_vector:
             return self._recent_fallback(org_id, limit, venture_id)
 
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         import json
         try:
             with get_conn(org_id) as cur:
@@ -354,7 +354,7 @@ class EmbeddingEngine:
             }
 
         import time
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
 
         with get_conn(org_id) as cur:
             cur.execute(

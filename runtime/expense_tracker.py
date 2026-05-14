@@ -75,7 +75,7 @@ def store_expense(expense: dict, ctx=None) -> bool:
     """Store expense in Neon events table."""
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -99,7 +99,7 @@ def get_monthly_summary(ctx=None) -> dict:
     """Get expense summary for current month."""
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -206,7 +206,7 @@ def create_invoice(
     """
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         from datetime import datetime, timedelta
         import uuid as _uuid
         ctx = ctx or load_context_from_env()
@@ -252,7 +252,7 @@ def get_invoices(status: str = None, ctx=None) -> list[dict]:
     """Get invoices, optionally filtered by status."""
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -328,7 +328,7 @@ def generate_expense_report(
     """
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         from datetime import datetime
         ctx = ctx or load_context_from_env()
 
@@ -403,7 +403,7 @@ def generate_budget_vs_actual(
     try:
         from datetime import datetime
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
         if not month:

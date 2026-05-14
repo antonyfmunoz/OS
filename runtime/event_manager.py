@@ -32,7 +32,7 @@ def create_event(
     """
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         from execution.runtime.model_router import get_router, TaskType
         ctx = ctx or load_context_from_env()
         router = get_router()
@@ -92,7 +92,7 @@ def get_events(upcoming_only: bool = True, ctx=None) -> list:
     """Get managed events, ordered by date ascending."""
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -138,7 +138,7 @@ def log_speaking_engagement(
     """
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -237,7 +237,7 @@ def log_pr_media_inquiry(
     """
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:

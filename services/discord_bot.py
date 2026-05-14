@@ -2839,7 +2839,7 @@ async def cmd_approve_followup(ctx: commands.Context):
     """Approve and send the most recent pending follow-up email draft."""
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         from runtime.gws_connector import GWSConnector
         from runtime.quality_gate import gate_outgoing_email
         import json as _json
@@ -2972,7 +2972,7 @@ async def cmd_force_send(ctx: commands.Context):
     """Force-send an email that failed the quality gate."""
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         from runtime.gws_connector import GWSConnector
         import json as _json
 
@@ -3066,7 +3066,7 @@ async def cmd_pending(ctx: commands.Context):
     """Show all pending approval emails."""
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         import json as _json
 
         _ctx = load_context_from_env()
@@ -4109,7 +4109,7 @@ async def cmd_energy(ctx: commands.Context, *, args: str = ""):
         try:
             import json as _ej
             from runtime.context import load_context_from_env
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
             from zoneinfo import ZoneInfo as _ZI
             from datetime import datetime as _dt
 
@@ -5038,7 +5038,7 @@ async def cmd_approve_task(ctx: commands.Context, task_id: str = ""):
     try:
         import json as _json
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
 
         _ctx = load_context_from_env()
 
@@ -5127,7 +5127,7 @@ async def cmd_agent_results(ctx: commands.Context):
     try:
         import json as _json
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
 
         _ctx = load_context_from_env()
 

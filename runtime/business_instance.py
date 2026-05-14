@@ -214,7 +214,7 @@ class BusinessInstanceManager:
 
     def save_bis(self, bis: BusinessInstance) -> bool:
         """Persist BIS to ventures.config_json. Creates venture row if needed."""
-        from runtime.db import get_conn, resolve_venture
+        from state.storage.db import get_conn, resolve_venture
         import uuid as _uuid
         data = asdict(bis)
 
@@ -257,7 +257,7 @@ class BusinessInstanceManager:
         if env_default:
             return env_default
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     """
@@ -277,7 +277,7 @@ class BusinessInstanceManager:
 
     def get_bis(self, venture_id: str) -> Optional[BusinessInstance]:
         """Load BIS from ventures.config_json. Returns None if not found."""
-        from runtime.db import get_conn, resolve_venture
+        from state.storage.db import get_conn, resolve_venture
         with get_conn(self.ctx.org_id) as cur:
             # resolve_venture inside get_conn so cache is populated
             venture_uuid = resolve_venture(venture_id)

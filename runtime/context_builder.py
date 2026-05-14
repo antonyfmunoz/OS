@@ -236,7 +236,7 @@ class ContextBuilder:
 
         # Layer 1e-vii-b: DEX learnings
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
             with get_conn(ctx.org_id) as cur:
                 cur.execute(
                     """
@@ -344,7 +344,7 @@ class ContextBuilder:
         # Human intelligence
         try:
             from runtime.human_intelligence import HumanIntelligenceEngine
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
             hi = HumanIntelligenceEngine(ctx)
             text_lower = (message or "").lower()
             with get_conn(ctx.org_id) as hi_cur:

@@ -21,7 +21,7 @@ load_dotenv(Path(__file__).parent / ".env")
 load_dotenv(Path(__file__).parent.parent / "services" / ".env")
 
 from runtime.context import EOSContext
-from runtime.db import get_conn, resolve_venture
+from state.storage.db import get_conn, resolve_venture
 from runtime.event_bus import EventBus
 from governance.policy.authority_engine import AuthorityEngine
 

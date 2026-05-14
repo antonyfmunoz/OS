@@ -80,7 +80,7 @@ class SkillRegistry:
         name collision. Called automatically on init when org_id is provided.
         """
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
             with get_conn(org_id) as cur:
                 cur.execute(
                     "SELECT name, content FROM skills WHERE org_id = %s",

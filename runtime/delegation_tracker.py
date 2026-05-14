@@ -21,7 +21,7 @@ def log_delegation(
     """Log a delegated task for follow-up tracking."""
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
         now = datetime.now(PDT)
         due_at = (now + timedelta(hours=due_hours)).isoformat()
@@ -53,7 +53,7 @@ def get_overdue_delegations(ctx=None) -> list[dict]:
     """Get delegated tasks that are overdue."""
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -85,7 +85,7 @@ def mark_delegation_complete(event_id: str, ctx=None) -> bool:
     """Mark a delegation as completed."""
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:

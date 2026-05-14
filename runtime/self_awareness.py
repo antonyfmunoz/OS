@@ -560,7 +560,7 @@ class SelfAwarenessEngine:
 
         elif consequence == 'register_agent_neon':
             import uuid
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     '''
@@ -582,7 +582,7 @@ class SelfAwarenessEngine:
 
         elif consequence in ('register_ceo_agent', 'register_dev_agent'):
             import uuid
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
             agent_name = (
                 f'{change.venture_id}_ceo'
                 if consequence == 'register_ceo_agent'
@@ -676,7 +676,7 @@ class SelfAwarenessEngine:
         """Write activity event to Neon events table."""
         import json
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     '''

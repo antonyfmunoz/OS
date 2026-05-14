@@ -29,7 +29,7 @@ if _REPO_ROOT not in sys.path:
 
 from execution.runtime.agent_runtime import AgentRuntime, TaskType
 from runtime.context import EOSContext
-from runtime.db import get_conn, resolve_venture
+from state.storage.db import get_conn, resolve_venture
 from state.memory.memory import AgentMemory
 from runtime.venture_knowledge import VentureKnowledgeBase
 

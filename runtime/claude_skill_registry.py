@@ -186,7 +186,7 @@ class ClaudeSkillRegistryManager:
         Skills without files are skipped silently.
         Returns count of skills synced.
         """
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         import uuid as _uuid
 
         synced = 0

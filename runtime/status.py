@@ -18,7 +18,7 @@ if _REPO_ROOT not in sys.path:
 from dotenv import load_dotenv
 load_dotenv(os.path.join(_REPO_ROOT, "services", ".env"))
 
-from runtime.db import get_conn, ORG_ID
+from state.storage.db import get_conn, ORG_ID
 from state.memory.memory import AgentMemory
 from runtime.venture_knowledge import VentureKnowledgeBase
 from runtime.skill_registry import SkillRegistry

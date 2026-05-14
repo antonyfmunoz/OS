@@ -113,7 +113,7 @@ Subject line included.""").strip()
 
             # Queue for approval
             try:
-                from runtime.db import get_conn
+                from state.storage.db import get_conn
                 import json as _json
                 with get_conn(ctx.org_id) as cur:
                     cur.execute('''

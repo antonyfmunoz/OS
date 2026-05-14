@@ -17,7 +17,7 @@ import uuid
 from datetime import datetime, timezone
 
 from runtime.context import EOSContext
-from runtime.db import get_conn
+from state.storage.db import get_conn
 
 
 def _utcnow() -> str:

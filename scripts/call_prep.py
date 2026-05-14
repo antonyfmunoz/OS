@@ -295,7 +295,7 @@ Under 100 words. Direct format.""").strip()
                     continue
 
                 from runtime.meetings import draft_meeting_agenda
-                from runtime.db import get_conn
+                from state.storage.db import get_conn
 
                 _agenda = draft_meeting_agenda(
                     title=_event.get('title', _event.get('summary', 'Our call')),

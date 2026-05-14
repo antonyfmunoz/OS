@@ -71,7 +71,7 @@ def _get_todays_purchases() -> list[str]:
 
 def _get_todays_project_updates(ctx) -> list[str]:
     try:
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         since = (datetime.now(timezone.utc) - timedelta(hours=12)).isoformat()
         with get_conn(ctx.org_id) as cur:
             cur.execute('''
@@ -117,7 +117,7 @@ def _get_todays_project_updates(ctx) -> list[str]:
 def _get_todays_decisions(ctx) -> list[str]:
     """Decisions = dex_question events answered today."""
     try:
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         since = (datetime.now(timezone.utc) - timedelta(hours=12)).isoformat()
         with get_conn(ctx.org_id) as cur:
             cur.execute('''

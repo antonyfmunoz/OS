@@ -37,7 +37,7 @@ class EmailReviewer:
 
     def run_nightly_review(self) -> str:
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
 
             since = (datetime.now() - timedelta(hours=24)).isoformat()
 
@@ -144,7 +144,7 @@ class EmailReviewer:
     def _store_report(self, report: str) -> None:
         """Persist report to Neon so morning sync can include it."""
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
 
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(

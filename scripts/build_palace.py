@@ -73,7 +73,7 @@ ROOM_DEFS: list[dict[str, Any]] = [
         "purpose": "Neon-backed memory, session state, authority, context.",
         "prefixes": [
             "state/memory/memory.py",
-            "runtime/db.py",
+            "state/storage/db.py",
             "runtime/session_state.py",
             "runtime/context.py",
             "runtime/system_context.py",

@@ -178,7 +178,7 @@ async def run_executor():
     """Main executor loop — poll, execute, mark complete, surface to Discord."""
     from runtime.context import load_context_from_env
     from runtime.coordination_engine import CoordinationEngine
-    from runtime.db import get_conn
+    from state.storage.db import get_conn
 
     print(f'[Executor] Starting — {datetime.now(PDT).strftime("%Y-%m-%d %H:%M:%S %Z")}')
 
@@ -218,7 +218,7 @@ async def run_executor():
         # Write task result to Notion
         try:
             from runtime.notion_sync import write_task
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
             venture_id = task.get('venture_id') or 'lyfe_institute'
             needs_approval = requires_approval(task, exec_result)
             notion_status = 'In review' if needs_approval else 'Done'

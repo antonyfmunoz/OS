@@ -917,7 +917,7 @@ class AgentWorkflowEngine:
     ) -> Optional[dict]:
         """Return the most recent active workflow matching this trigger."""
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
 
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
@@ -951,7 +951,7 @@ class AgentWorkflowEngine:
 
     def _save_workflow(self, workflow: AgentWorkflow) -> None:
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
 
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
@@ -982,7 +982,7 @@ class AgentWorkflowEngine:
 
     def _save_run(self, run: WorkflowRun) -> None:
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
 
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(

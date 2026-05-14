@@ -32,7 +32,7 @@ if _REPO_ROOT not in sys.path:
 
 from execution.runtime.agent_runtime import AgentRuntime, TaskType
 from runtime.context import EOSContext, load_context_from_env
-from runtime.db import get_conn, resolve_venture, ORG_ID, USER_ID
+from state.storage.db import get_conn, resolve_venture, ORG_ID, USER_ID
 
 LEADS_DIR      = Path(_REPO_ROOT) / "03_CRM" / "Leads"
 PROFILE_TTL_H  = 48  # hours before a profile is considered stale

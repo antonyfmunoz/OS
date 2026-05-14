@@ -28,7 +28,7 @@ def set_okr(
     """
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
         now = datetime.now(PDT)
         if not quarter:
@@ -62,7 +62,7 @@ def get_okrs(venture_id: str = None, ctx=None) -> list:
     """Get current quarter OKRs, optionally filtered by venture."""
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
         now = datetime.now(PDT)
         current_quarter = f'Q{(now.month - 1) // 3 + 1} {now.year}'

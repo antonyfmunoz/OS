@@ -49,7 +49,7 @@ from control_plane.runtime.cognitive_loop import CognitiveLoop
 from execution.runtime.agent_runtime import AgentRuntime, TaskType
 from runtime.skill_improvement import SkillImprovementEngine
 from runtime.research_engine import ResearchEngine
-from runtime.db import get_conn
+from state.storage.db import get_conn
 
 
 # ─── Primitive composition rules ─────────────────────────────────────────────

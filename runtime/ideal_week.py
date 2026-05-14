@@ -68,7 +68,7 @@ def get_ideal_week(ctx=None) -> dict:
     """Get stored ideal week template or return default."""
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -94,7 +94,7 @@ def save_ideal_week(template: dict, ctx=None) -> bool:
     """Save a custom ideal week template."""
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -208,7 +208,7 @@ def save_annual_architecture(year_plan: dict, ctx=None) -> bool:
     """
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
         with get_conn(ctx.org_id) as cur:
             cur.execute('''
@@ -234,7 +234,7 @@ def get_annual_architecture(ctx=None) -> dict:
     """Get the most recently saved annual plan."""
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
         with get_conn(ctx.org_id) as cur:
             cur.execute('''

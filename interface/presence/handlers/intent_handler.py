@@ -201,7 +201,7 @@ def run_gateway(
     # Cloning loop — detect when text answers an open DEX question
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
 
         _cl_ctx = load_context_from_env()
 

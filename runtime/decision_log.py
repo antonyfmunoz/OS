@@ -78,7 +78,7 @@ class DecisionLog:
         """
         decision_id = str(uuid.uuid4())[:8]
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     '''
@@ -161,7 +161,7 @@ class DecisionLog:
     ) -> list[dict]:
         """Retrieve recent decisions from Neon, optionally filtered by venture."""
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 if venture_id:
                     cur.execute(

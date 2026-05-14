@@ -99,7 +99,7 @@ class EmailGPS:
         """Seed default GPS folder definitions into Neon on first run.
         Safe to run multiple times — uses INSERT ... ON CONFLICT DO NOTHING."""
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
 
             defaults = [
                 {
@@ -244,7 +244,7 @@ class EmailGPS:
     def _load_folder_definitions(self) -> list:
         """Load folder definitions from Neon. Used to build AI classification prompt."""
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     '''
@@ -278,7 +278,7 @@ class EmailGPS:
         """Update a folder's purpose in Neon based on founder instruction.
         Future classifications use the updated definition."""
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
 
             # Load current purpose
             with get_conn(self.ctx.org_id) as cur:
@@ -666,7 +666,7 @@ Return JSON only:
             return 0
 
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
             import json as _json
             stored = 0
             with get_conn(self.ctx.org_id) as cur:
@@ -1193,7 +1193,7 @@ Return JSON only:
         try:
             import uuid
             import json
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     '''

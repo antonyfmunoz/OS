@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Optional
 
 from runtime.context import EOSContext, load_context_from_env
-from runtime.db import get_conn
+from state.storage.db import get_conn
 from execution.runtime.agent_runtime import AgentRuntime, TaskType
 
 
@@ -377,7 +377,7 @@ trajectory of the next 90 days.]"""
         try:
             from runtime.task_yield_matrix import run_yield_audit
             import json as _json
-            from runtime.db import get_conn as _get_conn
+            from state.storage.db import get_conn as _get_conn
             with _get_conn(self.ctx.org_id) as _cur:
                 _cur.execute(
                     """SELECT payload_json FROM events

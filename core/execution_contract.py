@@ -28,7 +28,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from runtime.context import load_context_from_env, EOSContext
-from runtime.db import get_conn, ORG_ID
+from state.storage.db import get_conn, ORG_ID
 from runtime.substrate.execution_trace import (
     new_trace,
     update_trace,

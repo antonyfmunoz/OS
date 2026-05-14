@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Literal
 
-from runtime.db import get_conn
+from state.storage.db import get_conn
 
 
 @dataclass

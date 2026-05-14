@@ -32,7 +32,7 @@ def add_stakeholder(
     """
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -65,7 +65,7 @@ def get_stakeholders(venture: str = None, ctx=None) -> list[dict]:
     """Get all stakeholders, optionally filtered by venture."""
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -194,7 +194,7 @@ def generate_board_update_brief(venture_id: str, ctx=None) -> str:
     import json as _j
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         from execution.runtime.model_router import get_router, TaskType
         ctx = ctx or load_context_from_env()
         router = get_router()

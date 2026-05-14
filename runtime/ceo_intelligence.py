@@ -131,7 +131,7 @@ def get_funnel_metrics(
         from runtime.context import (
             load_context_from_env,
         )
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
         since = datetime.now(PDT) - timedelta(
             days=days
@@ -475,7 +475,7 @@ def get_offer_stage(
         from runtime.context import (
             load_context_from_env,
         )
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -574,7 +574,7 @@ def get_agent_performance(
         from runtime.context import (
             load_context_from_env,
         )
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
         since = datetime.now(PDT) - timedelta(
             days=days

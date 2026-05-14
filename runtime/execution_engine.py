@@ -28,7 +28,7 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent / ".env")
 
 from runtime.context import EOSContext
-from runtime.db import get_conn
+from state.storage.db import get_conn
 
 
 # ─── Telegram alert helper ────────────────────────────────────────────────────

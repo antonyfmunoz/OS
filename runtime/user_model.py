@@ -40,7 +40,7 @@ load_dotenv(Path(__file__).parent / ".env")
 from runtime.context import EOSContext
 from control_plane.runtime.cognitive_loop import CognitiveLoop
 from execution.runtime.agent_runtime import AgentRuntime, TaskType
-from runtime.db import get_conn
+from state.storage.db import get_conn
 
 
 # ─── Trust level thresholds ───────────────────────────────────────────────────

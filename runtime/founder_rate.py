@@ -42,7 +42,7 @@ def store_founder_rate(annual_income: float, ctx=None) -> bool:
     """Store Founder Rate in Neon for use across the system."""
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
         rate = calculate_founder_rate(annual_income)
 
@@ -67,7 +67,7 @@ def get_current_founder_rate(ctx=None) -> dict:
     """Get the most recently set Founder Rate."""
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -103,7 +103,7 @@ def log_time_block(
     """
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -133,7 +133,7 @@ def get_time_audit_summary(days: int = 7, ctx=None) -> dict:
     """Summarize time and energy data for the week."""
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -190,7 +190,7 @@ def add_to_no_list(item: str, reason: str = '', ctx=None) -> bool:
     """Add something to Antony's No List."""
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
         with get_conn(ctx.org_id) as cur:
             cur.execute('''
@@ -217,7 +217,7 @@ def get_no_list(ctx=None) -> list[dict]:
     """Get Antony's No List (deduplicated, newest-first)."""
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
         with get_conn(ctx.org_id) as cur:
             cur.execute('''
@@ -262,7 +262,7 @@ def detect_delegation_threshold(ctx=None) -> list[dict]:
     """
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:

@@ -86,7 +86,7 @@ Reply with exactly one of: lyfe_institute | empyrean_creative | personal_brand""
 def capture_to_neon(text: str, capture_type: str, ctx=None) -> bool:
     """Write a captured task/idea to the Neon events table."""
     try:
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         from runtime.context import load_context_from_env
 
         ctx = ctx or load_context_from_env()

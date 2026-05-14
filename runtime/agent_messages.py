@@ -65,7 +65,7 @@ class AgentMessageBus:
 
     def send(self, message: AgentMessage) -> bool:
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     """
@@ -101,7 +101,7 @@ class AgentMessageBus:
         limit: int = 10,
     ) -> list[dict]:
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     """

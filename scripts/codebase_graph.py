@@ -86,7 +86,7 @@ CRITICAL_FILES = {
     "execution/runtime/agent_runtime.py",
     "execution/runtime/model_router.py",
     "runtime/orchestrator.py",
-    "runtime/db.py",
+    "state/storage/db.py",
     "state/memory/memory.py",
     "runtime/agent_hierarchy.py",
     "runtime/ai_identity.py",
@@ -434,7 +434,7 @@ def scan_codebase(target_module: str | None = None) -> CodebaseGraph:
             if mod in module_to_path:
                 resolved = module_to_path[mod]
             else:
-                # Try parent module (from runtime.db import get_conn)
+                # Try parent module (from state.storage.db import get_conn)
                 for known_mod, known_path in module_to_path.items():
                     if mod.startswith(known_mod) or known_mod.startswith(mod):
                         resolved = known_path

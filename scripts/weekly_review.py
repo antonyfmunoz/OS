@@ -22,7 +22,7 @@ GENERAL_CHANNEL_ID = 1486289444830056540
 
 async def run_weekly_review():
     from runtime.context import load_context_from_env
-    from runtime.db import get_conn
+    from state.storage.db import get_conn
     from runtime.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
     from execution.runtime.model_router import get_router, TaskType
     import json as _json
@@ -147,7 +147,7 @@ async def run_weekly_review():
     # Energy trend
     try:
         import json as _etjson
-        from runtime.db import get_conn as _et_conn
+        from state.storage.db import get_conn as _et_conn
         with _et_conn(ctx.org_id) as cur:
             cur.execute('''
                 SELECT payload_json FROM events

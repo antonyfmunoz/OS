@@ -15,7 +15,7 @@ import json
 from datetime import datetime, timezone
 
 from runtime.context import EOSContext
-from runtime.db import get_conn, resolve_venture, ORG_ID
+from state.storage.db import get_conn, resolve_venture, ORG_ID
 
 
 def _utcnow() -> str:

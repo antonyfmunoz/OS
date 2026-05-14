@@ -99,7 +99,7 @@ class KnowledgeIntegrator:
 
         # Store as interaction — satisfies embeddings FK and enables semantic search
         try:
-            from runtime.db import get_conn, ORG_ID, USER_ID
+            from state.storage.db import get_conn, ORG_ID, USER_ID
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     """

@@ -39,7 +39,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from runtime.db import get_conn, ORG_ID
+from state.storage.db import get_conn, ORG_ID
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 

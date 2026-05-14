@@ -181,7 +181,7 @@ async def process_invites():
             _is_protected = False
             try:
                 from runtime.context import load_context_from_env
-                from runtime.db import get_conn
+                from state.storage.db import get_conn
                 import json as _pjson
                 _ctx = load_context_from_env()
                 _event_date = invite.get('start', '')[:10]

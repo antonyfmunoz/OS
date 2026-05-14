@@ -59,7 +59,7 @@ class CEOAgent:
         primitives: dict = {}
 
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
 
             with get_conn(self.ctx.org_id) as cur:
 
@@ -130,7 +130,7 @@ class CEOAgent:
         if 'stage' not in primitives or 'current_revenue' not in primitives:
             try:
                 from runtime.business_instance import BusinessInstanceManager
-                from runtime.db import get_conn, resolve_venture
+                from state.storage.db import get_conn, resolve_venture
                 with get_conn(self.ctx.org_id) as cur:
                     venture_id = self.ctx.active_venture_id or 'lyfe_institute'
                     resolve_venture(venture_id)
@@ -284,7 +284,7 @@ class CEOAgent:
             # Write new stage to BIS
             try:
                 from runtime.business_instance import BusinessInstanceManager
-                from runtime.db import get_conn, resolve_venture
+                from state.storage.db import get_conn, resolve_venture
                 venture_id = self.ctx.active_venture_id or 'lyfe_institute'
                 with get_conn(self.ctx.org_id) as cur:
                     resolve_venture(venture_id)

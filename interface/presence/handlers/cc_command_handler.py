@@ -119,7 +119,7 @@ async def handle_nomeetings(message, text: str) -> bool:
         )
 
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
 
         _ctx = load_context_from_env()
         with get_conn(_ctx.org_id) as _cur:
@@ -252,7 +252,7 @@ async def handle_documents(message, text: str) -> bool:
 
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
 
         _ctx = load_context_from_env()
         with get_conn(_ctx.org_id) as _cur:
@@ -298,7 +298,7 @@ async def handle_audit(message, text: str) -> bool:
     _days = int(_parts[1]) if len(_parts) > 1 and _parts[1].isdigit() else 1
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
 
         _ctx = load_context_from_env()
         with get_conn(_ctx.org_id) as cur:

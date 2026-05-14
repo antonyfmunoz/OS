@@ -155,7 +155,7 @@ class GWSDocumentScanner:
         Queries the events table where KnowledgeIntegrator logs metadata.
         """
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     """

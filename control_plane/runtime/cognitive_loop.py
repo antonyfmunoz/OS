@@ -92,7 +92,7 @@ def _get_neon_spend(org_id: str) -> dict:
     if _spend_cache and (now - _spend_cache_ts) < _SPEND_CACHE_TTL:
         return _spend_cache
 
-    from runtime.db import get_conn
+    from state.storage.db import get_conn
     from execution.runtime.agent_runtime import COST_PER_MILLION_TOKENS
 
     fallback = {"today": 0.0, "month": 0.0, "all_time": 0.0}
@@ -1043,7 +1043,7 @@ def detect_intent_and_inject(
     ):
         injections["intent"] = "send_email"
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
             import json as _j
 
             with get_conn(ctx.org_id) as cur:
@@ -1202,7 +1202,7 @@ def detect_intent_and_inject(
     ):
         injections["intent"] = "tasks"
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
             import json as _j
 
             with get_conn(ctx.org_id) as cur:

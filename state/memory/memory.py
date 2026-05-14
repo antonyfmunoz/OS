@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from execution.runtime.agent_runtime import AgentResult
 
-from runtime.db import get_conn, resolve_venture, resolve_skill, ORG_ID, USER_ID
+from state.storage.db import get_conn, resolve_venture, resolve_skill, ORG_ID, USER_ID
 
 # SQLite path — still used by event_bus, gateway, and human_intelligence
 # for local-first event persistence and human profiles.

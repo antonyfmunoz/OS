@@ -453,7 +453,7 @@ class VoiceInterface:
 
         if q in ('tasks', 'todo', 'action items'):
             try:
-                from runtime.db import get_conn
+                from state.storage.db import get_conn
                 with get_conn(self.ctx.org_id) as cur:
                     cur.execute(
                         """

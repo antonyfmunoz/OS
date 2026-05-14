@@ -41,7 +41,7 @@ SCENARIOS: dict[str, dict] = {
             "state/memory/memory.py",
             "runtime/embedding_engine.py",
             "runtime/embedder.py",
-            "runtime/db.py",
+            "state/storage/db.py",
             "control_plane/runtime/cognitive_loop.py",
         ],
         "search_terms": ["memory", "embedding", "interact"],

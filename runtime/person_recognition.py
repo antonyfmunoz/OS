@@ -201,7 +201,7 @@ def recognize_person(
         # 4. Neon pipeline events
         if name or email:
             try:
-                from runtime.db import get_conn
+                from state.storage.db import get_conn
                 with get_conn(ctx.org_id) as cur:
                     cur.execute('''
                         SELECT payload_json, created_at

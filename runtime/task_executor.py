@@ -170,7 +170,7 @@ class TaskExecutor:
     def _handle_pipeline(self, task: AgentTask) -> AgentTask:
         import json as _json
         venture_id = task.inputs.get('venture_id', task.venture_id)
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         with get_conn(self.ctx.org_id) as cur:
             cur.execute(
                 """
@@ -216,7 +216,7 @@ class TaskExecutor:
 
     def _handle_log_lead(self, task: AgentTask) -> AgentTask:
         import json as _json
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         lead_data = task.inputs.get('lead', task.inputs)
         with get_conn(self.ctx.org_id) as cur:
             cur.execute(
@@ -251,7 +251,7 @@ class TaskExecutor:
     def _save_task(self, task: AgentTask) -> None:
         try:
             import json as _json
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     """

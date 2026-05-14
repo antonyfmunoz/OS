@@ -83,7 +83,7 @@ def create_confidential_session(
     """
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
         now = datetime.now(PDT)
 

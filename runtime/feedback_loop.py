@@ -61,7 +61,7 @@ class FeedbackLoop:
 
         rec_id = str(uuid.uuid4())[:8]
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
 
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
@@ -260,7 +260,7 @@ class FeedbackLoop:
     def _get_pending_recs(self) -> list[dict]:
         """Get pending recommendations from Neon."""
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
 
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
@@ -300,7 +300,7 @@ class FeedbackLoop:
     ) -> bool:
         """Update a recommendation's outcome in Neon."""
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
 
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
@@ -334,7 +334,7 @@ class FeedbackLoop:
         What percentage are succeeding? What percentage failing?
         """
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
 
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
@@ -374,7 +374,7 @@ class FeedbackLoop:
 
         closed = 0
         try:
-            from runtime.db import get_conn
+            from state.storage.db import get_conn
 
             with get_conn(self.ctx.org_id) as cur:
                 for rec in pending:

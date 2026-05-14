@@ -122,7 +122,7 @@ class NeonStorage:
     """
 
     def __init__(self) -> None:
-        from runtime.db import get_conn, ORG_ID  # import here so module-level fails are caught
+        from state.storage.db import get_conn, ORG_ID  # import here so module-level fails are caught
         self._get_conn = get_conn
         self._org_id = ORG_ID
         self._ensure_table()

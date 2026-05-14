@@ -32,7 +32,7 @@ def create_meeting_record(
     """
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         import requests
         from dotenv import load_dotenv
         load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
@@ -180,7 +180,7 @@ def update_meeting_outcome(
                 try:
                     from execution.runtime.model_router import get_router, TaskType
                     from runtime.context import load_context_from_env
-                    from runtime.db import get_conn
+                    from state.storage.db import get_conn
                     import json as _json
                     _ctx = ctx or load_context_from_env()
                     _router = get_router()
@@ -450,7 +450,7 @@ def queue_follow_up_tasks(
     """Auto-queue follow-up tasks after a meeting."""
     try:
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
         tasks = []
@@ -670,7 +670,7 @@ def draft_meeting_minutes(
         from execution.runtime.model_router import get_router, TaskType
         from runtime.gws_connector import GWSConnector
         from runtime.context import load_context_from_env
-        from runtime.db import get_conn
+        from state.storage.db import get_conn
         from datetime import datetime
         from zoneinfo import ZoneInfo
         router = get_router()

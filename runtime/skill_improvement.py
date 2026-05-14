@@ -46,7 +46,7 @@ class SkillImprovementEngine:
         Uses outcome_label (Python label) as outcome_type for compatibility.
         """
         try:
-            from runtime.db import get_conn, ORG_ID, resolve_skill
+            from state.storage.db import get_conn, ORG_ID, resolve_skill
             with get_conn(ORG_ID) as cur:
                 skill_uuid = resolve_skill(skill_id)
                 if not skill_uuid:
@@ -202,7 +202,7 @@ class SkillImprovementEngine:
         # Sync improved content to Neon skills table so DB overrides
         # the old file-based version on next SkillRegistry load.
         try:
-            from runtime.db import get_conn, ORG_ID
+            from state.storage.db import get_conn, ORG_ID
             with get_conn(ORG_ID) as cur:
                 cur.execute(
                     """
@@ -266,7 +266,7 @@ class SkillImprovementEngine:
         Returns list of dicts:
             {task_type, agent, count, example_inputs, pattern_description}
         """
-        from runtime.db import get_conn, ORG_ID
+        from state.storage.db import get_conn, ORG_ID
         cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
 
         try:
@@ -329,7 +329,7 @@ class SkillImprovementEngine:
     # ─── Self-organization: propose new skill ────────────────────────────────
 
     def _log_skill_created(self, skill_id: str, file_path: str, pattern: dict) -> None:
-        from runtime.db import get_conn, ORG_ID
+        from state.storage.db import get_conn, ORG_ID
         try:
             with get_conn(ORG_ID) as cur:
                 cur.execute(
