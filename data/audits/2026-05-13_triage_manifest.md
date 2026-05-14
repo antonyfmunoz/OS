@@ -1766,3 +1766,42 @@ All reachable non-spine modules now at canonical §24 homes. Remaining
 runtime/ contents: 15 dead-code modules (archive candidates), 1 context
 shim (zero live callers), and 6 subdirectories (transport, ingestion,
 domain_bridge, substrate, interfaces — separate subsystem scope).
+
+---
+
+## Cleanup Sweep — 2026-05-14
+
+Post-Phase-C housekeeping. Five followup threads closed via archive
+operations + canonical API adoption.
+
+### Thread status
+
+| Thread | Scope | Action | Status |
+|--------|-------|--------|--------|
+| 1. Dead-code runtime/ modules | 15 files, 0 callers | Archived to `_archive/2026-05-14_cleanup_sweep/dead_code_runtime/` | **CLOSED** (`4a0b562d`) |
+| 2. Tier 3 dead-code sites | transaction_workflow.py + company_instantiator.py | Covered by Thread 1 (both were among 15 dead-code modules) | **CLOSED** (by Thread 1) |
+| 3. Obsolete generators | r8b_generate_bridges, r8d_generate_shims, r8_import_graph_snapshot, r8_compare_import_graphs | Archived to `_archive/2026-05-14_cleanup_sweep/obsolete_generators/` | **CLOSED** (`e512bb39`) |
+| 4. Deferred Tier 3 script sites | agent_task_executor.py (2 raw SQL sites), sync_skills_to_neon.py | agent_task_executor: ADOPTED (log_event + set_notion_page_id). sync_skills_to_neon: DEFERRED (skills table has no domain store) | **PARTIAL** (`a65b4c6a`) |
+| 5. Phase B context.py shim | runtime/context.py (3-line re-export) | Deleted. 0 callers after Thread 1 cleared last 7 dead-code refs | **CLOSED** (`952b52b1`) |
+
+### Results
+
+- **Files archived**: 19 (15 dead-code modules + 4 obsolete generators)
+- **Files deleted**: 1 (runtime/context.py)
+- **Files adopted**: 1 (agent_task_executor.py — 2 raw SQL sites → canonical APIs)
+- **Files deferred**: 1 (sync_skills_to_neon.py — skills table lacks domain store)
+- **runtime/ top-level .py files**: 16 → **0**
+- **runtime/ subdirectories**: 5 (transport, ingestion, domain_bridge, substrate, interfaces)
+- **Tests**: 4166 passed / 34 failed (all pre-existing) / 3 skipped — zero regressions
+- **Production smoke**: 7/7 (fresh pycache)
+- **Commits**: 4 (`4a0b562d` .. `952b52b1`)
+
+### Remaining cleanup threads
+
+| Thread | Items | Status |
+|--------|-------|--------|
+| Transport orphan archive | 148 modules | NOW MOVABLE (blocked pre-Wave 0.5) |
+| Law 5.4 type convergence | 5 spine modules | Dedicated follow-up wave |
+| Law 5.9 adapter refactor | 6 files in execution/workers/workstation/ | §14.1 contract |
+| Law 5.5 sync_skills_to_neon.py | 1 file, SELECT/INSERT/UPDATE on skills table | Needs SkillStore domain store |
+| Cron script migration | 23 files | System-level coordination |
