@@ -719,3 +719,45 @@ moves, when stale references become obvious.
 - Architectural gap resolutions: 4 proposed (operations/ layer, type convergence rule, Law 5.5 refactor approach, Law 5.9 refactor approach)
 - Open questions for founder: 3 (scripts triage depth, tests triage, docs staleness)
 - Ready for: migration execution — Wave 0 (clean sweep) first, then Waves 1-6 by priority
+
+---
+
+## Wave 0 Execution — 2026-05-13
+
+- Items archived: 849 files (target was ~1,000)
+- Items deferred (transport interconnection): 149 files — `runtime/transport/` orphans
+  cannot be archived without rewriting `runtime/transport/__init__.py` (hard-imports
+  26 of the "orphan" modules; kept modules cross-import 13 more)
+- Tests pre: 94 passed (tests/migration/)
+- Tests post: 94 passed (unchanged)
+- Active Python file count: 1,606 (was ~3,500 including shims)
+- Archive location: `/opt/OS/_archive/2026-05-13_wave_0/`
+- Per-file manifest: `/opt/OS/_archive/2026-05-13_wave_0/MANIFEST.md`
+
+### Archived categories
+
+| Category | Files | Method |
+|----------|-------|--------|
+| Core scaffold (26 dirs) | 288 | Plain mv (untracked) |
+| Scaffold tests | 26 | git mv (15 tracked) + mv (11 untracked) |
+| tests/legacy/ | 423 | git mv |
+| docs/system/phase968* | 96 | git mv (62 tracked) + mv (34 untracked) |
+| Dormant services | 3 | git mv |
+| Frontend stub | 3 | git mv |
+| Orchestrator | 7 | git mv |
+
+### Deferred: Transport orphans (requires Wave 0.5)
+
+`runtime/transport/__init__.py` is a massive re-export file (450+ lines)
+that hard-imports 30 modules from the "orphan" set. The transport layer's
+internal cross-import graph makes piecemeal archival impossible without
+code modification. Resolution: dedicated wave to rewrite `__init__.py`
+with lazy imports, then archive truly orphan modules.
+
+### Spot-check verification
+
+```
+python3 -c "import umh.protocols"                                          → OK
+python3 -c "from runtime.ingestion.orchestrator import GenericIngestionOrchestrator" → OK
+python3 -c "import runtime.cc_sdk"                                         → OK
+```
