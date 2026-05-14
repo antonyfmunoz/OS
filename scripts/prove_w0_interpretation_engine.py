@@ -29,7 +29,7 @@ from core.interpretation.interpretation_engine_v1 import (
     InterpretationResult,
     InterpretationStage,
 )
-from core.ontology.primitive_decomposition_v1 import (
+from understanding.ontology.primitive_decomposition_v1 import (
     REQUIRED_PRIMITIVE_TYPES,
     DecompositionResult,
     PrimitiveObservation,

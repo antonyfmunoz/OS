@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from core.ontology.primitive_decomposition_v1 import (
+from understanding.ontology.primitive_decomposition_v1 import (
     DecompositionResult,
     PrimitiveObservation,
     PrimitiveRelationship,
