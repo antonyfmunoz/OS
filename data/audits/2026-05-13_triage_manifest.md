@@ -1215,7 +1215,7 @@ from runtime.transport.<module> import *  # noqa: F401,F403
 | ~~Transport production path migration~~ | ~~16 modules (Row 76/60)~~ | ~~CLOSED — all substrate imports eliminated 2026-05-14~~ |
 | Law 5.4 type convergence | 5 spine modules | Dedicated follow-up wave |
 | Law 5.9 adapter refactor | 6 files in execution/workers/workstation/ | §14.1 contract |
-| Law 5.5 memory write fixes (Phase A) | 52 modules, ~100 SQL sites | memory.py API extension — IN PLANNING. See `2026-05-14_law_5_5_memory_api_design.md` |
+| Law 5.5 memory write fixes (Phase A) | 52 modules, ~100 SQL sites | Tier 1 COMPLETE (31 modules, 44 events-INSERT sites). Tier 2 (4 UPDATE sites) + Tier 3 (14 domain stores, ~50 sites) pending. See `2026-05-14_law_5_5_memory_api_design.md` |
 | Runtime layer migration (Row 88) | 92 reachable modules (108 total incl. spine + unreachable) | IN PLANNING — three-phase: A (Law 5.5 API) → B (context.py hub, 96 callers) → C (remaining). 23 modules free now. See `2026-05-14_runtime_layer_classification.md` |
 | Cron script migration | 23 files | System-level coordination |
 | ~~Docker compose paths~~ | ~~calendly_webhook~~ | ~~CLOSED — calendly path updated 2026-05-14. discord_bot not yet migrated from services/.~~ |
@@ -1482,3 +1482,62 @@ cross-deps). These can migrate before Phase A.
 | learning/ | 5 |
 | observability/ | 3 |
 | interface/ | 2 |
+
+---
+
+## Law 5.5 Tier 1 Adoption — 2026-05-14
+
+**COMPLETE.** 31 modules adopted `AgentMemory.log_event()` for events table
+INSERT. 44 raw SQL sites replaced. Net -286 lines.
+
+### memory.py change
+
+Added `handled_by: str = "cognitive_loop"` parameter to `log_event()`.
+Backward-compatible — existing callers get same default. +5 lines.
+
+### Modules adopted (31)
+
+accountability, agent_messages, competitive_intel, confidentiality,
+decision_log, delegation_tracker, doc_creator, document_filer,
+email_gps (2 sites), email_reviewer, event_bus, event_manager (3 sites),
+execution_engine, expense_tracker (2 sites), feedback_loop (INSERT only),
+founder_capture, founder_rate (3 sites), goal_selector, ideal_week (2 sites),
+meetings (4 sites), okr_tracker, personal_admin, quality_gate,
+self_awareness, skill_improvement, stakeholder_map, subscription_tracker,
+task_executor (2 sites), task_yield_matrix, travel_manager (2 sites),
+workflow_engine (2 sites)
+
+### INVESTIGATE list (2 modules — non-standard column patterns)
+
+| Module | Columns | Issue |
+|--------|---------|-------|
+| notebooklm_sync | `(id, org_id, event_type, payload_json, created_at)` | Explicit id + created_at |
+| stage_manager | `(id, org_id, type, payload, created_at)` | Different column names (`type` not `event_type`, `payload` not `payload_json`) |
+
+These could be handled by extending log_event() with optional id/created_at
+params, or by normalizing the column names. Deferred.
+
+### UPDATE sites preserved (Tier 2 — 4 sites in 3 modules)
+
+| Module | Sites | Pattern |
+|--------|-------|---------|
+| accountability | 1 | `UPDATE events SET payload_json = %s WHERE id = %s` |
+| feedback_loop | 2 | `UPDATE events SET payload_json = %s WHERE id = %s` |
+| delegation_tracker | 1 | (needs inspection) |
+
+### Remaining Law 5.5 violations
+
+| Tier | Sites | Status |
+|------|-------|--------|
+| ~~Tier 1 (events INSERT)~~ | ~~44~~ | ~~COMPLETE~~ |
+| Tier 1 INVESTIGATE | 2 | Non-standard patterns |
+| Tier 2 (events UPDATE) | 4 | New method needed |
+| Tier 3 (domain tables) | ~50 | 14 domain store classes needed |
+| **Total remaining** | **~56** | |
+
+### Verification
+
+- Tests: 3827 passed / 34 failed (pre-existing) / 3 skipped
+- Compile: 32/32 files pass py_compile
+- Import smoke: 28/30 pass (2 pre-existing DATABASE_URL env failures)
+- Commit: `0b2d13ec`
