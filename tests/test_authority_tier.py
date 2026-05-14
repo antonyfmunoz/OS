@@ -12,7 +12,7 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or "/opt/OS")
 
 from understanding.ontology.primitive_decomposition_v1 import PrimitiveObservation, PrimitiveType
 from runtime.domain_bridge.business import BusinessBridge
-from runtime.ingestion.authority_tier import (
+from governance.policy.authority_tier import (
     T1_CANONICAL,
     T2_ACTIVE,
     T5_DEFAULT,

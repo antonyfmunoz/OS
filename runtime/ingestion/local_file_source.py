@@ -7,7 +7,7 @@ import mimetypes
 from pathlib import Path
 from typing import Any
 
-from runtime.ingestion.authority_tier import T5_DEFAULT, validate_tier
+from governance.policy.authority_tier import T5_DEFAULT, validate_tier
 from runtime.ingestion.source import RawContent, Source
 
 

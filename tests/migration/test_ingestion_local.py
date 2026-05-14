@@ -15,7 +15,7 @@ import pytest
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or "/opt/OS")
 
-from runtime.ingestion.authority_tier import T5_DEFAULT, get_authority_tier
+from governance.policy.authority_tier import T5_DEFAULT, get_authority_tier
 from runtime.ingestion.local_file_source import LocalFileSource
 from runtime.ingestion.orchestrator import GenericIngestionOrchestrator
 
