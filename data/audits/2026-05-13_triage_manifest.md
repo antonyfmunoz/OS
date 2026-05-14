@@ -1210,7 +1210,9 @@ from runtime.transport.<module> import *  # noqa: F401,F403
 | Thread | Items | Status |
 |--------|-------|--------|
 | ~~Legacy tests referencing runtime.substrate~~ | ~~82 files / 194 imports~~ | ~~CLOSED — archived 2026-05-14 (`f09c98e1`)~~ |
-| Transport `__init__.py` rewrite | Rows 75, 76, 60 | Dedicated Wave 0.5 |
+| ~~Transport `__init__.py` rewrite~~ | ~~Rows 75, 76, 60~~ | ~~CLOSED — lazy-import rewrite 2026-05-14~~ |
+| Transport orphan archive | 148 modules (72 invisible + 31 init-only + 39 script-only + 4 test-only + 2 codegen) | NOW MOVABLE — see inventory |
+| Transport production path migration | 16 modules (Row 76/60) | discord_bot substrate .pyc dependency — URGENT before container rebuild |
 | Law 5.4 type convergence | 5 spine modules | Dedicated follow-up wave |
 | Law 5.9 adapter refactor | 6 files in execution/workers/workstation/ | §14.1 contract |
 | Law 5.5 memory write fixes | ~46 files | memory.py API extension |
@@ -1267,3 +1269,49 @@ Zero archives, zero investigations. All canonical paths verified importable.
 - **Commit**: `5e909bb6`
 
 **Legacy-import theme: CLOSED.** No `runtime.substrate.*` or `eos_ai.*` imports remain in the active test tree.
+
+---
+
+## Transport `__init__.py` Rewrite — 2026-05-14 (Wave 0.5)
+
+**CLOSED.** Transport init rewritten from eager to lazy imports.
+
+- **File**: `runtime/transport/__init__.py`
+- **Lines**: 576 → 475 (PEP 562 `__getattr__` lazy-import pattern)
+- **Submodules loaded on `import runtime.transport`**: 40 → **0**
+- **Side-effect modules retained eager**: 0 (none found — all modules are pure definitions)
+- **Public API symbols (lazy)**: 213 (core: 131, deferred: 82)
+- **Aliases**: 1 (`open_scene_request` → `local_control.open_scene`)
+- **Tests**: 94/94 (unchanged)
+- **Behavioral parity**: confirmed — all symbols resolve identically
+
+### What this unblocks
+
+The eager-import chain that blocked 149 items in Wave 0 and 2 items
+in Wave 3 (capability_tagging, claude_responder) is broken. Reachability
+audit of all 163 transport modules:
+
+| Category | Count | Status |
+|----------|-------|--------|
+| Production reachable | 16 | STILL BLOCKED — need import path migration |
+| Script-only reachable | 39 | NOW MOVABLE |
+| Test-only reachable | 4 | NOW MOVABLE |
+| Migration-script only | 2 | NOW MOVABLE |
+| Orphan (in init, no consumer) | 31 | NOW MOVABLE |
+| Orphan (completely invisible) | 72 | NOW MOVABLE |
+
+**148 of 163 modules are now archivable.** 16 remain production-reachable.
+
+Full inventory: `data/audits/2026-05-14_transport_unblock_inventory.md`
+
+### Urgent finding: substrate .pyc shim risk
+
+`services/discord_bot.py` imports ~11 transport modules via `runtime.substrate.*`
+paths. Source `.py` files deleted in Wave 6. Bot running on stale `.pyc` bytecode.
+**A Docker rebuild will crash os-discord.** Must migrate discord_bot imports
+to direct `runtime.transport.*` paths before any container rebuild.
+
+### Remaining follow-ups: 10 threads
+
+(Transport rewrite thread CLOSED. Replaced with 2 new threads:
+transport orphan archive + transport production path migration.)
