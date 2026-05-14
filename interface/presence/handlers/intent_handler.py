@@ -132,7 +132,7 @@ def run_gateway(
     if channel_name not in channel_sessions:
         channel_sessions[channel_name] = str(_uuid_mod.uuid4())
         try:
-            from runtime.substrate.storage import get_storage
+            from runtime.transport.storage import get_storage
             get_storage().put(f"session:{channel_name}", channel_sessions[channel_name])
         except Exception:
             pass
@@ -302,7 +302,7 @@ Return JSON: {{"answers": true, "answer_summary": "brief summary"}}""",
     # so model_router's Claude CLI backend targets the correct session.
     _mode_cm = None
     try:
-        from runtime.substrate.discord_mode_routing import (
+        from runtime.transport.discord_mode_routing import (
             mode_context as _mc,
             resolve_discord_mode,
         )
@@ -326,7 +326,7 @@ Return JSON: {{"answers": true, "answer_summary": "brief summary"}}""",
                 policy_version=None,
             )
         else:
-            from runtime.substrate.discord_mode_routing import resolve_mode_session
+            from runtime.transport.discord_mode_routing import resolve_mode_session
 
             _mode_session = resolve_mode_session(
                 _discord_mode, guild_id=guild_id, channel_id=channel_id

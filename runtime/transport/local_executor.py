@@ -21,8 +21,8 @@ import time
 from pathlib import Path
 from typing import Any
 
-from runtime.substrate import control_bridge as bridge
-from runtime.substrate import control_commands as cc
+from runtime.transport import control_bridge as bridge
+from runtime.transport import control_commands as cc
 
 LAYER_NAME = "local_executor"
 LAYER_VERSION = "v1"

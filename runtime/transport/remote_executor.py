@@ -19,10 +19,10 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from runtime.substrate import control_bridge as bridge
-from runtime.substrate import control_commands as cc
-from runtime.substrate import local_executor
-from runtime.substrate import remote_identity
+from runtime.transport import control_bridge as bridge
+from runtime.transport import control_commands as cc
+from runtime.transport import local_executor
+from runtime.transport import remote_identity
 
 LAYER_NAME = "remote_executor"
 LAYER_VERSION = "v2"

@@ -31,7 +31,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from runtime.substrate import claude_session_bridge as csb
+from runtime.transport import claude_session_bridge as csb
 
 _DEFAULT_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 

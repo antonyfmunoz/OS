@@ -11,7 +11,7 @@ until the node/capability layer is consumed by routing. For now, orchestrator
 scripts and scheduled jobs can register and advance rituals through this API.
 
 Usage:
-    from runtime.substrate import RitualRegistry, RitualKind, RitualState
+    from runtime.transport import RitualRegistry, RitualKind, RitualState
 
     reg = RitualRegistry.default()
     ritual = reg.start(RitualKind.OPEN_DAY, inputs={"date": "2026-04-06"})

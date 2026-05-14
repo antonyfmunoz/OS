@@ -16,7 +16,7 @@ import os
 import socket
 from typing import Any
 
-from runtime.substrate import control_commands as cc
+from runtime.transport import control_commands as cc
 
 LAYER_NAME = "remote_identity"
 LAYER_VERSION = "v2"

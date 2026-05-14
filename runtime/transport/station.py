@@ -14,7 +14,7 @@ Design rules:
     (WebSocket, HTTP long-poll, SSH tunnel, etc. — chosen later).
 
 Usage (contract consumer side — substrate, not daemon):
-    from runtime.substrate import StationContract, StationHeartbeat
+    from runtime.transport import StationContract, StationHeartbeat
 
     contract = StationContract(node_id="antony-workstation")
     heartbeat = StationHeartbeat(

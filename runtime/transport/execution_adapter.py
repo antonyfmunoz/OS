@@ -178,7 +178,7 @@ class LocalRuntimeAdapter:
             )
 
             # Call the executor
-            from runtime.substrate import local_executor
+            from runtime.transport import local_executor
 
             result_dict = local_executor.execute_command(cmd)
 

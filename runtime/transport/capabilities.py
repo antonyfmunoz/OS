@@ -10,7 +10,7 @@ for querying which nodes offer a given capability. It is ADDITIVE — it does
 not alter current routing.
 
 Usage:
-    from runtime.substrate import Capability, CapabilityRegistry, NodeRegistry
+    from runtime.transport import Capability, CapabilityRegistry, NodeRegistry
 
     nodes = NodeRegistry.default()
     caps = CapabilityRegistry(nodes)

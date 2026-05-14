@@ -15,7 +15,7 @@ need to coexist without becoming disconnected systems. A role here is the
 operationally.
 
 Usage:
-    from runtime.substrate import RoleRegistry, AgentRole, RoleScope
+    from runtime.transport import RoleRegistry, AgentRole, RoleScope
 
     reg = RoleRegistry.default()
     ea = reg.get("ea_orchestrator")

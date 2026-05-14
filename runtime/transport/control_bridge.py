@@ -16,7 +16,7 @@ from __future__ import annotations
 import threading
 from typing import Any
 
-from runtime.substrate import control_commands as cc
+from runtime.transport import control_commands as cc
 from runtime.transport.storage import get_storage
 
 LAYER_NAME = "control_bridge"

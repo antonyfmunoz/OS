@@ -12,7 +12,7 @@ continues to make its own decisions. Eventually capability-aware routing
 a target, but that integration is intentionally deferred.
 
 Usage:
-    from runtime.substrate import NodeRegistry, Node, NodeType, NodeStatus
+    from runtime.transport import NodeRegistry, Node, NodeType, NodeStatus
 
     reg = NodeRegistry.default()
     reg.upsert(Node(

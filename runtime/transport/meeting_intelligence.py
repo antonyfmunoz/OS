@@ -1225,7 +1225,7 @@ def derive_active_role(node_id: Optional[str] = None) -> Optional[str]:
     any failure so the caller can fall back to role-agnostic phrasing.
     """
     try:
-        from runtime.substrate import voice_session as vs  # noqa: F401
+        from runtime.transport import voice_session as vs  # noqa: F401
 
         getter = getattr(vs, "get_active_role_slug", None)
         if callable(getter):
