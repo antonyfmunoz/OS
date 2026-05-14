@@ -26,7 +26,7 @@ from control_plane.router.router_contracts import (
     RouterStatus,
     WorkPacket,
 )
-from core.runtime.adapter_registry_contracts import AdapterRegistry
+from adapters.adapter_engine.adapter_registry_contracts import AdapterRegistry
 from runtime.interfaces.discord_interface_adapter_v1 import (
     COMMAND_ACTION_MAP,
     SUPPORTED_COMMANDS,

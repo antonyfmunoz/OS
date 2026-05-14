@@ -10,8 +10,8 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 import pytest
 
-from core.runtime.worker_runtime_contracts import WorkerHeartbeat
-from core.runtime.worker_supervisor_v1 import (
+from execution.runtime.worker_runtime_contracts import WorkerHeartbeat
+from execution.runtime.worker_supervisor_v1 import (
     AUTOSTART_ALLOWED_WORKERS,
     REQUIRES_HUMAN_CONFIRMATION,
     WORKER_DEPENDENCIES,

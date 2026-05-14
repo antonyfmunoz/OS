@@ -166,7 +166,7 @@ class TestCommandSurfaceManifest:
 
 class TestCommandSurfaceSync:
     def test_sync_result_defaults(self) -> None:
-        from core.runtime.command_surface_sync_v1 import CommandSurfaceSyncResult
+        from execution.runtime.command_surface_sync_v1 import CommandSurfaceSyncResult
 
         r = CommandSurfaceSyncResult()
         assert r.synced is False
@@ -175,13 +175,13 @@ class TestCommandSurfaceSync:
         assert r.errors == []
 
     def test_sync_result_auto_timestamp(self) -> None:
-        from core.runtime.command_surface_sync_v1 import CommandSurfaceSyncResult
+        from execution.runtime.command_surface_sync_v1 import CommandSurfaceSyncResult
 
         r = CommandSurfaceSyncResult()
         assert "T" in r.timestamp
 
     def test_sync_result_to_dict(self) -> None:
-        from core.runtime.command_surface_sync_v1 import CommandSurfaceSyncResult
+        from execution.runtime.command_surface_sync_v1 import CommandSurfaceSyncResult
 
         r = CommandSurfaceSyncResult(synced=True, vps_commit="abc123")
         d = r.to_dict()
@@ -189,7 +189,7 @@ class TestCommandSurfaceSync:
         assert d["vps_commit"] == "abc123"
 
     def test_surface_hash_deterministic(self) -> None:
-        from core.runtime.command_surface_sync_v1 import compute_surface_hash
+        from execution.runtime.command_surface_sync_v1 import compute_surface_hash
 
         h1 = compute_surface_hash(["!ping", "!chrome"])
         h2 = compute_surface_hash(["!chrome", "!ping"])
@@ -197,14 +197,14 @@ class TestCommandSurfaceSync:
         assert len(h1) == 12
 
     def test_surface_hash_changes_with_commands(self) -> None:
-        from core.runtime.command_surface_sync_v1 import compute_surface_hash
+        from execution.runtime.command_surface_sync_v1 import compute_surface_hash
 
         h1 = compute_surface_hash(["!ping"])
         h2 = compute_surface_hash(["!ping", "!chrome"])
         assert h1 != h2
 
     def test_verify_in_sync(self) -> None:
-        from core.runtime.command_surface_sync_v1 import verify_command_surface
+        from execution.runtime.command_surface_sync_v1 import verify_command_surface
 
         cmds = {"!ping", "!chrome", "!chrome-proof"}
         result = verify_command_surface(
@@ -216,7 +216,7 @@ class TestCommandSurfaceSync:
         assert result.source_surface_hash == result.live_surface_hash
 
     def test_verify_missing_command(self) -> None:
-        from core.runtime.command_surface_sync_v1 import verify_command_surface
+        from execution.runtime.command_surface_sync_v1 import verify_command_surface
 
         result = verify_command_surface(
             source_commands={"!ping", "!chrome-proof"},
@@ -226,7 +226,7 @@ class TestCommandSurfaceSync:
         assert not result.synced
 
     def test_verify_extra_command(self) -> None:
-        from core.runtime.command_surface_sync_v1 import verify_command_surface
+        from execution.runtime.command_surface_sync_v1 import verify_command_surface
 
         result = verify_command_surface(
             source_commands={"!ping"},
@@ -237,7 +237,7 @@ class TestCommandSurfaceSync:
 
 class TestSyncProofPersistence:
     def test_persist_proof(self, tmp_path: Path) -> None:
-        from core.runtime.command_surface_sync_v1 import (
+        from execution.runtime.command_surface_sync_v1 import (
             CommandSurfaceSyncResult,
             persist_sync_proof,
         )
@@ -250,7 +250,7 @@ class TestSyncProofPersistence:
         assert data["vps_commit"] == "abc123"
 
     def test_persist_proof_naming(self, tmp_path: Path) -> None:
-        from core.runtime.command_surface_sync_v1 import (
+        from execution.runtime.command_surface_sync_v1 import (
             CommandSurfaceSyncResult,
             persist_sync_proof,
         )

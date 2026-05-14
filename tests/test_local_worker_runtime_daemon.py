@@ -11,7 +11,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from core.runtime.worker_runtime_contracts import ProofStatus
+from execution.runtime.worker_runtime_contracts import ProofStatus
 from runtime.substrate.local_worker_runtime_daemon import (
     LocalWorkerRuntimeDaemon,
     load_config,

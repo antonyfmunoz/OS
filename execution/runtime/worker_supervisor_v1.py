@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
-from core.runtime.worker_runtime_contracts import (
+from .worker_runtime_contracts import (
     EnvironmentType,
     ProofStatus,
     WorkerHeartbeat,

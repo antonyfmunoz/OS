@@ -193,7 +193,7 @@ class TestDryRunBlocked:
 
 class TestHeadlessBlocked:
     def test_foreground_cu_forbidden_modes(self) -> None:
-        from core.runtime.foreground_cu_verification_v1 import (
+        from execution.runtime.foreground_cu_verification_v1 import (
             FORBIDDEN_EXECUTION_MODES,
             ExecutionMode,
         )
@@ -204,7 +204,7 @@ class TestHeadlessBlocked:
         assert ExecutionMode.COMPUTER_USE_FOREGROUND not in FORBIDDEN_EXECUTION_MODES
 
     def test_api_mode_blocked_by_config(self) -> None:
-        from core.runtime.foreground_cu_verification_v1 import (
+        from execution.runtime.foreground_cu_verification_v1 import (
             ExecutionMode,
             validate_execution_mode,
         )

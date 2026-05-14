@@ -42,7 +42,7 @@ from .google_drive_adapter_v1 import (
     DriveOpenProof,
     GoogleDriveAdapterV1,
 )
-from core.runtime.worker_supervisor_v1 import (
+from execution.runtime.worker_supervisor_v1 import (
     WorkerHealthStatus,
     WorkerSupervisor,
     WorkerType,
@@ -390,7 +390,7 @@ class LiveDriveDocsIngestionPipeline:
             for wt_str, status in worker_statuses.items():
                 try:
                     wt = WorkerType(wt_str)
-                    from core.runtime.worker_runtime_contracts import WorkerHeartbeat
+                    from execution.runtime.worker_runtime_contracts import WorkerHeartbeat
 
                     hb = WorkerHeartbeat(
                         worker_id=wt_str,

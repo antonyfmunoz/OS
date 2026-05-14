@@ -27,18 +27,18 @@ import pytest
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from core.runtime.continuity_classification_engine_v1 import (
+from execution.runtime.continuity_classification_engine_v1 import (
     ContinuityClass,
     classify_event,
     classify_outcome,
 )
-from core.runtime.continuity_summary_engine_v1 import ContinuitySummaryEngine
-from core.runtime.open_loop_registry_v1 import (
+from execution.runtime.continuity_summary_engine_v1 import ContinuitySummaryEngine
+from execution.runtime.open_loop_registry_v1 import (
     LoopStatus,
     LoopType,
     OpenLoopRegistry,
 )
-from core.runtime.runtime_cognition_contracts_v1 import (
+from execution.runtime.runtime_cognition_contracts_v1 import (
     ContinuityPhase,
     EventSeverity,
     OutcomeResult,
@@ -50,13 +50,13 @@ from core.runtime.runtime_cognition_contracts_v1 import (
     RuntimeSessionSummary,
     RuntimeTrace,
 )
-from core.runtime.runtime_continuity_store_v1 import RuntimeContinuityStore
-from core.runtime.runtime_memory_governance_bridge_v1 import (
+from execution.runtime.runtime_continuity_store_v1 import RuntimeContinuityStore
+from execution.runtime.runtime_memory_governance_bridge_v1 import (
     PromotionRule,
     RuntimeMemoryGovernanceBridge,
 )
-from core.runtime.runtime_resume_packet_v1 import ResumePacketGenerator
-from core.runtime.substrate_continuity_engine_v1 import SubstrateContinuityEngine
+from execution.runtime.runtime_resume_packet_v1 import ResumePacketGenerator
+from execution.runtime.substrate_continuity_engine_v1 import SubstrateContinuityEngine
 
 
 class TestRuntimeContracts:

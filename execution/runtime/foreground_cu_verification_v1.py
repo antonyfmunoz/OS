@@ -31,7 +31,7 @@ from execution.environments.chrome_visible_launch import (
     ChromeVisibleLaunchStatus,
     visible_launch_proof_allows_next_gate,
 )
-from core.runtime.runtime_presence_state_v1 import (
+from .runtime_presence_state_v1 import (
     WorkstationPresenceState,
     is_execution_capable,
 )

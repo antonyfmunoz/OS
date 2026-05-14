@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from core.runtime.runtime_heartbeat_v1 import (
+from execution.runtime.runtime_heartbeat_v1 import (
 
     HEARTBEAT_TIMEOUT_SECONDS,
     HeartbeatHealth,

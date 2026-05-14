@@ -35,28 +35,28 @@ from governance.policy.execution_authority_engine_v1 import (
     ExecutionAuthorityEngine,
     ExecutionAuthorityRequest,
 )
-from core.runtime.local_runtime_supervisor_v1 import (
+from .local_runtime_supervisor_v1 import (
     LocalRuntimeSupervisor,
     SupervisorState,
 )
-from core.runtime.runtime_dispatch_queue_v1 import (
+from .runtime_dispatch_queue_v1 import (
     DispatchRecord,
     RuntimeDispatchQueue,
 )
-from core.runtime.runtime_execution_result_v1 import (
+from .runtime_execution_result_v1 import (
     ExecutionOutcome,
     RuntimeExecutionResult,
 )
-from core.runtime.node_sync_gate_v1 import (
+from .node_sync_gate_v1 import (
     NodeSyncGate,
     NodeSyncGateResult,
     SyncDecision,
 )
-from core.runtime.runtime_recovery_v1 import (
+from .runtime_recovery_v1 import (
     FailureType,
     RuntimeRecoveryEngine,
 )
-from core.runtime.runtime_session_registry_v1 import (
+from .runtime_session_registry_v1 import (
     RuntimeMode,
     RuntimeSessionRegistry,
 )

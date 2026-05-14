@@ -54,8 +54,8 @@ from execution.environments.windows_desktop_request_builder import (
     build_w0_query_safe_memory_reference_request,
     build_w0_real_foreground_cu_ingestion_request,
 )
-from core.runtime.adapter_registry_contracts import AdapterRegistry
-from core.runtime.worker_runtime_contracts import ProofStatus
+from adapters.adapter_engine.adapter_registry_contracts import AdapterRegistry
+from execution.runtime.worker_runtime_contracts import ProofStatus
 from runtime.interfaces.discord_spine_integration_v1 import (
     SpineExecutionConfig,
     SpineRoutedResult,

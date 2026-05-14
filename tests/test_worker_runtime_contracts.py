@@ -7,7 +7,7 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 import unittest
 
-from core.runtime.worker_runtime_contracts import (
+from execution.runtime.worker_runtime_contracts import (
     AuthorityDomain,
     EnvironmentAuthorityDescriptor,
     EnvironmentType,

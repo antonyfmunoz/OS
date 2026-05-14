@@ -49,7 +49,7 @@ from control_plane.router.control_plane_router_v1 import (
     ControlPlaneRouterV1,
     load_config as load_router_config,
 )
-from core.runtime.adapter_registry_contracts import AdapterRegistry
+from adapters.adapter_engine.adapter_registry_contracts import AdapterRegistry
 
 _CANONICAL = get_canonical_registry()
 
@@ -157,7 +157,7 @@ def _ensure_infrastructure() -> tuple[Any, Any]:
 
     base_dir = Path(_REPO_ROOT)
 
-    from core.runtime.runtime_bootstrap_state_v1 import RuntimeBootstrapStateV1
+    from execution.runtime.runtime_bootstrap_state_v1 import RuntimeBootstrapStateV1
 
     _bootstrap = RuntimeBootstrapStateV1(base_dir)
     bv = _bootstrap.bootstrap(auto_heal=True)

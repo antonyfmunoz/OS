@@ -29,7 +29,7 @@ _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.ge
 
 import pytest
 
-from core.runtime.windows_foreground_actuator_v1 import (
+from execution.runtime.windows_foreground_actuator_v1 import (
     ACTUATION_FORBIDDEN_ACTIONS,
     FORBIDDEN_ENVIRONMENTS,
     REQUIRED_ENVIRONMENT,

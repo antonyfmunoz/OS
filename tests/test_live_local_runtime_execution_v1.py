@@ -27,47 +27,47 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 import pytest
 
-from core.runtime.runtime_heartbeat_v1 import (
+from execution.runtime.runtime_heartbeat_v1 import (
     HeartbeatHealth,
     RuntimeHeartbeat,
     evaluate_heartbeat_health,
     read_runtime_heartbeat,
     write_runtime_heartbeat,
 )
-from core.runtime.runtime_presence_state_v1 import (
+from execution.runtime.runtime_presence_state_v1 import (
     WorkstationPresence,
     WorkstationPresenceState,
     is_execution_capable,
 )
-from core.runtime.runtime_session_registry_v1 import (
+from execution.runtime.runtime_session_registry_v1 import (
     RuntimeHealth,
     RuntimeMode,
     RuntimeSession,
     RuntimeSessionRegistry,
 )
-from core.runtime.runtime_dispatch_queue_v1 import (
+from execution.runtime.runtime_dispatch_queue_v1 import (
     DispatchRecord,
     DispatchStatus,
     RuntimeDispatchQueue,
 )
-from core.runtime.runtime_execution_result_v1 import (
+from execution.runtime.runtime_execution_result_v1 import (
     ExecutionOutcome,
     ProofArtifact,
     ProofArtifactType,
     RuntimeExecutionResult,
     persist_execution_result,
 )
-from core.runtime.runtime_recovery_v1 import (
+from execution.runtime.runtime_recovery_v1 import (
     FailureRecord,
     FailureType,
     RecoveryStrategy,
     RuntimeRecoveryEngine,
 )
-from core.runtime.local_runtime_supervisor_v1 import (
+from execution.runtime.local_runtime_supervisor_v1 import (
     LocalRuntimeSupervisor,
     SupervisorState,
 )
-from core.runtime.live_local_runtime_execution_v1 import (
+from execution.runtime.live_local_runtime_execution_v1 import (
     ExecutionSpineOutcome,
     LiveLocalRuntimeExecution,
     SPINE_FORBIDDEN_ACTIONS,

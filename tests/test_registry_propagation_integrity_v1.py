@@ -29,7 +29,7 @@ class TestNodeSyncAcceptsCanonicalActions:
 
     def test_chrome_proof_accepted_by_action(self) -> None:
         from composition.registries.canonical_command_registry_v1 import get_canonical_registry
-        from core.runtime.node_sync_gate_v1 import NodeSyncGate, SyncPolicy
+        from execution.runtime.node_sync_gate_v1 import NodeSyncGate, SyncPolicy
 
         reg = get_canonical_registry()
         gate = NodeSyncGate(
@@ -47,7 +47,7 @@ class TestNodeSyncAcceptsCanonicalActions:
 
     def test_chrome_open_google_drive_accepted_by_action(self) -> None:
         from composition.registries.canonical_command_registry_v1 import get_canonical_registry
-        from core.runtime.node_sync_gate_v1 import NodeSyncGate, SyncPolicy
+        from execution.runtime.node_sync_gate_v1 import NodeSyncGate, SyncPolicy
 
         reg = get_canonical_registry()
         gate = NodeSyncGate(
@@ -65,7 +65,7 @@ class TestNodeSyncAcceptsCanonicalActions:
 
     def test_command_name_still_accepted(self) -> None:
         from composition.registries.canonical_command_registry_v1 import get_canonical_registry
-        from core.runtime.node_sync_gate_v1 import NodeSyncGate, SyncPolicy
+        from execution.runtime.node_sync_gate_v1 import NodeSyncGate, SyncPolicy
 
         reg = get_canonical_registry()
         gate = NodeSyncGate(
@@ -83,7 +83,7 @@ class TestNodeSyncAcceptsCanonicalActions:
 
     def test_unknown_action_still_denied(self) -> None:
         from composition.registries.canonical_command_registry_v1 import get_canonical_registry
-        from core.runtime.node_sync_gate_v1 import NodeSyncGate, SyncPolicy
+        from execution.runtime.node_sync_gate_v1 import NodeSyncGate, SyncPolicy
 
         reg = get_canonical_registry()
         gate = NodeSyncGate(
@@ -100,7 +100,7 @@ class TestNodeSyncAcceptsCanonicalActions:
 
     def test_all_canonical_actions_accepted(self) -> None:
         from composition.registries.canonical_command_registry_v1 import get_canonical_registry
-        from core.runtime.node_sync_gate_v1 import NodeSyncGate, SyncPolicy
+        from execution.runtime.node_sync_gate_v1 import NodeSyncGate, SyncPolicy
 
         reg = get_canonical_registry()
         gate = NodeSyncGate(
@@ -136,7 +136,7 @@ class TestRegistryHashPropagation:
 
     def test_sync_gate_gets_registry_hash(self) -> None:
         from composition.registries.canonical_command_registry_v1 import get_canonical_registry
-        from core.runtime.node_sync_gate_v1 import NodeSyncGate, SyncPolicy
+        from execution.runtime.node_sync_gate_v1 import NodeSyncGate, SyncPolicy
 
         reg = get_canonical_registry()
         gate = NodeSyncGate(
@@ -221,7 +221,7 @@ class TestFullSpineSimulation:
 
     def test_chrome_proof_through_sync_gate(self) -> None:
         from composition.registries.canonical_command_registry_v1 import get_canonical_registry
-        from core.runtime.node_sync_gate_v1 import NodeSyncGate, SyncPolicy
+        from execution.runtime.node_sync_gate_v1 import NodeSyncGate, SyncPolicy
 
         reg = get_canonical_registry()
         gate = NodeSyncGate(
@@ -249,7 +249,7 @@ class TestFullSpineSimulation:
 
     def test_chrome_open_google_drive_through_sync_gate(self) -> None:
         from composition.registries.canonical_command_registry_v1 import get_canonical_registry
-        from core.runtime.node_sync_gate_v1 import NodeSyncGate, SyncPolicy
+        from execution.runtime.node_sync_gate_v1 import NodeSyncGate, SyncPolicy
 
         reg = get_canonical_registry()
         gate = NodeSyncGate(

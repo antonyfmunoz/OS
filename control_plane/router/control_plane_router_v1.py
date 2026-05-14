@@ -22,8 +22,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from core.runtime.adapter_registry_contracts import AdapterDescriptor, AdapterRegistry
-from core.runtime.worker_runtime_contracts import ProofStatus
+from adapters.adapter_engine.adapter_registry_contracts import AdapterDescriptor, AdapterRegistry
+from execution.runtime.worker_runtime_contracts import ProofStatus
 
 from .router_contracts import (
 

@@ -35,7 +35,7 @@ _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.ge
 
 import pytest
 
-from core.runtime.foreground_cu_verification_v1 import (
+from execution.runtime.foreground_cu_verification_v1 import (
     FORBIDDEN_EXECUTION_MODES,
     FOREGROUND_CU_FORBIDDEN_ACTIONS,
     FOREGROUND_CU_REQUIRED_MODE,
@@ -53,7 +53,7 @@ from execution.environments.chrome_visible_launch import (
     ChromeVisibleLaunchStatus,
     visible_launch_proof_allows_next_gate,
 )
-from core.runtime.runtime_presence_state_v1 import (
+from execution.runtime.runtime_presence_state_v1 import (
     WorkstationPresenceState,
     is_execution_capable,
 )

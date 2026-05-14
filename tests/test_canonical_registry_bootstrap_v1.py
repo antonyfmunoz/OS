@@ -174,7 +174,7 @@ class TestRegistryHashDeterminism:
 
 class TestBootstrapLifecycle:
     def test_bootstrap_creates_missing_dirs(self, tmp_path: Path) -> None:
-        from core.runtime.runtime_bootstrap_state_v1 import RuntimeBootstrapStateV1
+        from execution.runtime.runtime_bootstrap_state_v1 import RuntimeBootstrapStateV1
 
         base = tmp_path / "repo"
         base.mkdir()
@@ -191,7 +191,7 @@ class TestBootstrapLifecycle:
         assert (base / "data/runtime/spine_gate_proofs").exists()
 
     def test_bootstrap_fails_without_config(self, tmp_path: Path) -> None:
-        from core.runtime.runtime_bootstrap_state_v1 import RuntimeBootstrapStateV1
+        from execution.runtime.runtime_bootstrap_state_v1 import RuntimeBootstrapStateV1
 
         base = tmp_path / "repo"
         base.mkdir()
@@ -203,7 +203,7 @@ class TestBootstrapLifecycle:
         assert any("control_plane_router" in r for r in v.denial_reasons)
 
     def test_bootstrap_creates_config_marker(self, tmp_path: Path) -> None:
-        from core.runtime.runtime_bootstrap_state_v1 import RuntimeBootstrapStateV1
+        from execution.runtime.runtime_bootstrap_state_v1 import RuntimeBootstrapStateV1
 
         base = tmp_path / "repo"
         base.mkdir()
@@ -221,7 +221,7 @@ class TestBootstrapLifecycle:
         assert "registry_hash" in data
 
     def test_bootstrap_persists_ledger(self, tmp_path: Path) -> None:
-        from core.runtime.runtime_bootstrap_state_v1 import RuntimeBootstrapStateV1
+        from execution.runtime.runtime_bootstrap_state_v1 import RuntimeBootstrapStateV1
 
         base = tmp_path / "repo"
         base.mkdir()
@@ -242,7 +242,7 @@ class TestBootstrapLifecycle:
         assert "bootstrap_runtime_ready" in stages
 
     def test_bootstrap_stage_lifecycle(self, tmp_path: Path) -> None:
-        from core.runtime.runtime_bootstrap_state_v1 import (
+        from execution.runtime.runtime_bootstrap_state_v1 import (
             BootstrapStage,
             RuntimeBootstrapStateV1,
         )
@@ -261,7 +261,7 @@ class TestBootstrapLifecycle:
         assert bs.is_ready is True
 
     def test_bootstrap_never_auto_heals_configs(self, tmp_path: Path) -> None:
-        from core.runtime.runtime_bootstrap_state_v1 import RuntimeBootstrapStateV1
+        from execution.runtime.runtime_bootstrap_state_v1 import RuntimeBootstrapStateV1
 
         base = tmp_path / "repo"
         base.mkdir()
@@ -272,7 +272,7 @@ class TestBootstrapLifecycle:
         assert not (base / "runtime/.env").exists()
 
     def test_bootstrap_runtime_id_deterministic_per_instance(self) -> None:
-        from core.runtime.runtime_bootstrap_state_v1 import RuntimeBootstrapStateV1
+        from execution.runtime.runtime_bootstrap_state_v1 import RuntimeBootstrapStateV1
 
         bs1 = RuntimeBootstrapStateV1(Path(_ROOT))
         bs2 = RuntimeBootstrapStateV1(Path(_ROOT))
@@ -282,7 +282,7 @@ class TestBootstrapLifecycle:
 
 class TestBootstrapDeniedExecution:
     def test_command_denied_if_bootstrap_incomplete(self) -> None:
-        from core.runtime.runtime_bootstrap_state_v1 import (
+        from execution.runtime.runtime_bootstrap_state_v1 import (
             BootstrapStage,
             BootstrapValidation,
         )
@@ -294,7 +294,7 @@ class TestBootstrapDeniedExecution:
         assert len(v.denial_reasons) > 0
 
     def test_validation_to_dict(self) -> None:
-        from core.runtime.runtime_bootstrap_state_v1 import BootstrapValidation
+        from execution.runtime.runtime_bootstrap_state_v1 import BootstrapValidation
 
         v = BootstrapValidation(valid=True, registry_hash="abc123", registry_count=27)
         d = v.to_dict()
@@ -392,7 +392,7 @@ class TestRegistryContracts:
 
 class TestLiveBootstrapOnVPS:
     def test_real_bootstrap_succeeds(self) -> None:
-        from core.runtime.runtime_bootstrap_state_v1 import RuntimeBootstrapStateV1
+        from execution.runtime.runtime_bootstrap_state_v1 import RuntimeBootstrapStateV1
 
         bs = RuntimeBootstrapStateV1(Path(_ROOT))
         v = bs.bootstrap(auto_heal=True)
@@ -402,7 +402,7 @@ class TestLiveBootstrapOnVPS:
 
     def test_real_bootstrap_registry_hash_matches(self) -> None:
         from composition.registries.canonical_command_registry_v1 import get_canonical_registry
-        from core.runtime.runtime_bootstrap_state_v1 import RuntimeBootstrapStateV1
+        from execution.runtime.runtime_bootstrap_state_v1 import RuntimeBootstrapStateV1
 
         bs = RuntimeBootstrapStateV1(Path(_ROOT))
         v = bs.bootstrap()

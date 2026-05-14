@@ -32,7 +32,7 @@ from state.memory.contracts.canonical_memory_query_contracts import (
     QueryResultReference,
     QueryScope,
 )
-from core.runtime.adapter_registry_contracts import AdapterRegistry
+from adapters.adapter_engine.adapter_registry_contracts import AdapterRegistry
 from state.transformation_state_ledger import compute_hash
 from runtime.interfaces.discord_interface_adapter_v1 import (
     COMMAND_ACTION_MAP,

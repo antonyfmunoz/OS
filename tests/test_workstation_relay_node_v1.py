@@ -113,7 +113,7 @@ class TestHealthEvaluation:
             RelayHeartbeat,
             evaluate_relay_health,
         )
-        from core.runtime.runtime_heartbeat_v1 import HeartbeatHealth
+        from execution.runtime.runtime_heartbeat_v1 import HeartbeatHealth
 
         now = datetime.now(timezone.utc)
         hb = RelayHeartbeat(
@@ -128,7 +128,7 @@ class TestHealthEvaluation:
             RelayHeartbeat,
             evaluate_relay_health,
         )
-        from core.runtime.runtime_heartbeat_v1 import HeartbeatHealth
+        from execution.runtime.runtime_heartbeat_v1 import HeartbeatHealth
 
         now = datetime.now(timezone.utc)
         hb = RelayHeartbeat(
@@ -143,7 +143,7 @@ class TestHealthEvaluation:
             RelayHeartbeat,
             evaluate_relay_health,
         )
-        from core.runtime.runtime_heartbeat_v1 import HeartbeatHealth
+        from execution.runtime.runtime_heartbeat_v1 import HeartbeatHealth
 
         now = datetime.now(timezone.utc)
         hb = RelayHeartbeat(
@@ -155,7 +155,7 @@ class TestHealthEvaluation:
 
     def test_dead_no_heartbeat(self) -> None:
         from core.workstation.workstation_relay_heartbeat_v1 import evaluate_relay_health
-        from core.runtime.runtime_heartbeat_v1 import HeartbeatHealth
+        from execution.runtime.runtime_heartbeat_v1 import HeartbeatHealth
 
         health = evaluate_relay_health(None)
         assert health == HeartbeatHealth.DEAD
@@ -165,7 +165,7 @@ class TestHealthEvaluation:
             RelayHeartbeat,
             evaluate_relay_health,
         )
-        from core.runtime.runtime_heartbeat_v1 import HeartbeatHealth
+        from execution.runtime.runtime_heartbeat_v1 import HeartbeatHealth
 
         hb = RelayHeartbeat(node_id="WRN-empty", timestamp="")
         hb.timestamp = ""
@@ -177,7 +177,7 @@ class TestHealthEvaluation:
             RelayHeartbeat,
             evaluate_relay_health,
         )
-        from core.runtime.runtime_heartbeat_v1 import HeartbeatHealth
+        from execution.runtime.runtime_heartbeat_v1 import HeartbeatHealth
 
         hb = RelayHeartbeat(node_id="WRN-bad")
         hb.timestamp = "not-a-date"
@@ -189,7 +189,7 @@ class TestHealthEvaluation:
             RelayHeartbeat,
             evaluate_relay_health,
         )
-        from core.runtime.runtime_heartbeat_v1 import HeartbeatHealth
+        from execution.runtime.runtime_heartbeat_v1 import HeartbeatHealth
 
         now = datetime.now(timezone.utc)
         hb = RelayHeartbeat(

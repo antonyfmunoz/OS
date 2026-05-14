@@ -21,7 +21,7 @@ from core.workstation.workstation_relay_node_v1 import (
     WorkstationRelayNode,
     load_relay_node_from_heartbeat,
 )
-from core.runtime.runtime_heartbeat_v1 import HeartbeatHealth
+from execution.runtime.runtime_heartbeat_v1 import HeartbeatHealth
 import os
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 

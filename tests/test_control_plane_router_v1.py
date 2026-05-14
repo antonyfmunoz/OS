@@ -28,12 +28,12 @@ from control_plane.router.control_plane_router_v1 import (
     load_config,
     DEFAULT_CONFIG_PATH,
 )
-from core.runtime.adapter_registry_contracts import (
+from adapters.adapter_engine.adapter_registry_contracts import (
     AdapterDescriptor,
     AdapterRegistry,
     CapabilityDescriptor,
 )
-from core.runtime.worker_runtime_contracts import (
+from execution.runtime.worker_runtime_contracts import (
     AuthorityDomain,
     MessageBusType,
     ProofStatus,

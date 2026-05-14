@@ -9,12 +9,12 @@ _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.ge
 import unittest
 from pathlib import Path
 
-from core.runtime.adapter_registry_contracts import (
+from adapters.adapter_engine.adapter_registry_contracts import (
     AdapterDescriptor,
     AdapterRegistry,
     CapabilityDescriptor,
 )
-from core.runtime.worker_runtime_contracts import (
+from execution.runtime.worker_runtime_contracts import (
     AuthorityDomain,
     MessageBusType,
 )

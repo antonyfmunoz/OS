@@ -33,35 +33,35 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from core.runtime.runtime_dispatch_queue_v1 import (
+from .runtime_dispatch_queue_v1 import (
     DispatchRecord,
     DispatchStatus,
     RuntimeDispatchQueue,
 )
-from core.runtime.runtime_execution_result_v1 import (
+from .runtime_execution_result_v1 import (
     ExecutionOutcome,
     ProofArtifact,
     ProofArtifactType,
     RuntimeExecutionResult,
     persist_execution_result,
 )
-from core.runtime.runtime_heartbeat_v1 import (
+from .runtime_heartbeat_v1 import (
     HeartbeatHealth,
     RuntimeHeartbeat,
     evaluate_heartbeat_health,
 )
-from core.runtime.runtime_presence_state_v1 import (
+from .runtime_presence_state_v1 import (
     WorkstationPresence,
     WorkstationPresenceState,
     is_execution_capable,
 )
-from core.runtime.runtime_recovery_v1 import (
+from .runtime_recovery_v1 import (
     FailureRecord,
     FailureType,
     RecoveryStrategy,
     RuntimeRecoveryEngine,
 )
-from core.runtime.runtime_session_registry_v1 import (
+from .runtime_session_registry_v1 import (
     RuntimeHealth,
     RuntimeMode,
     RuntimeSession,

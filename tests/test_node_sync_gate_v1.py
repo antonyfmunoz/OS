@@ -26,7 +26,7 @@ _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.ge
 import pytest
 from pathlib import Path
 
-from core.runtime.node_sync_gate_v1 import (
+from execution.runtime.node_sync_gate_v1 import (
     NodeSyncGate,
     NodeSyncGateResult,
     NodeSyncState,
@@ -38,7 +38,7 @@ from core.runtime.node_sync_gate_v1 import (
     SyncStatus,
     compute_file_hash,
 )
-from core.runtime.live_local_runtime_execution_v1 import (
+from execution.runtime.live_local_runtime_execution_v1 import (
     ExecutionSpineOutcome,
     LiveLocalRuntimeExecution,
 )
@@ -51,16 +51,16 @@ from governance.policy.execution_authority_engine_v1 import (
 from execution.runtime.workpacket_execution_gate_v1 import (
     WorkPacketExecutionGate,
 )
-from core.runtime.runtime_dispatch_queue_v1 import (
+from execution.runtime.runtime_dispatch_queue_v1 import (
     RuntimeDispatchQueue,
 )
-from core.runtime.runtime_recovery_v1 import (
+from execution.runtime.runtime_recovery_v1 import (
     RuntimeRecoveryEngine,
 )
-from core.runtime.runtime_session_registry_v1 import (
+from execution.runtime.runtime_session_registry_v1 import (
     RuntimeSessionRegistry,
 )
-from core.runtime.local_runtime_supervisor_v1 import (
+from execution.runtime.local_runtime_supervisor_v1 import (
     LocalRuntimeSupervisor,
 )
 from state.transformation_state_ledger import (

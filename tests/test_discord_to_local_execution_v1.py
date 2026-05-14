@@ -55,13 +55,13 @@ from control_plane.router.control_plane_router_v1 import (
     ACTION_CAPABILITY_MAP,
     ControlPlaneRouterV1,
 )
-from core.runtime.adapter_registry_contracts import AdapterRegistry
-from core.runtime.live_local_runtime_execution_v1 import (
+from adapters.adapter_engine.adapter_registry_contracts import AdapterRegistry
+from execution.runtime.live_local_runtime_execution_v1 import (
     ExecutionSpineOutcome,
     LiveLocalRuntimeExecution,
     SPINE_FORBIDDEN_ACTIONS,
 )
-from core.runtime.local_runtime_supervisor_v1 import (
+from execution.runtime.local_runtime_supervisor_v1 import (
     SUPERVISOR_FORBIDDEN_ACTIONS,
 )
 from governance.policy.execution_authority_engine_v1 import (
@@ -74,22 +74,22 @@ from governance.policy.execution_authority_engine_v1 import (
 from execution.runtime.workpacket_execution_gate_v1 import (
     WorkPacketExecutionGate,
 )
-from core.runtime.runtime_dispatch_queue_v1 import (
+from execution.runtime.runtime_dispatch_queue_v1 import (
     DispatchRecord,
     RuntimeDispatchQueue,
 )
-from core.runtime.runtime_execution_result_v1 import (
+from execution.runtime.runtime_execution_result_v1 import (
     ExecutionOutcome,
     ProofArtifactType,
 )
-from core.runtime.runtime_recovery_v1 import (
+from execution.runtime.runtime_recovery_v1 import (
     FailureType,
     RuntimeRecoveryEngine,
 )
-from core.runtime.runtime_session_registry_v1 import (
+from execution.runtime.runtime_session_registry_v1 import (
     RuntimeSessionRegistry,
 )
-from core.runtime.local_runtime_supervisor_v1 import (
+from execution.runtime.local_runtime_supervisor_v1 import (
     LocalRuntimeSupervisor,
 )
 from state.transformation_state_ledger import (

@@ -64,7 +64,7 @@ from control_plane.router.control_plane_router_v1 import (
 from execution.environments.windows_desktop_request_builder import (
     build_w0_full_live_ingestion_request,
 )
-from core.runtime.full_live_ingestion_spine_v1 import (
+from execution.runtime.full_live_ingestion_spine_v1 import (
     FullLiveIngestionSpine,
     IdentityScopedMetadata,
     IngestionLedgerState,
@@ -297,7 +297,7 @@ class TestAuthorityRequirement:
         assert contract["authority_required"] == "FOUNDER_APPROVAL"
 
     def test_ingest_safe_doc_not_in_spine_forbidden(self):
-        from core.runtime.live_local_runtime_execution_v1 import SPINE_FORBIDDEN_ACTIONS
+        from execution.runtime.live_local_runtime_execution_v1 import SPINE_FORBIDDEN_ACTIONS
 
         assert "ingest_safe_doc" not in SPINE_FORBIDDEN_ACTIONS
 
