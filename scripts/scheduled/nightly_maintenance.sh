@@ -14,7 +14,7 @@ cd ${UMH_ROOT:-/opt/OS}
 if ! python3 -c "
 import sys; import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS')
 from dotenv import load_dotenv; load_dotenv(os.path.join(os.environ.get('UMH_ROOT', '/opt/OS'), 'runtime/.env'))
-from runtime.provider_health import check_all
+from observability.health.provider_health import check_all
 h = check_all()
 sys.exit(0 if h.any_healthy else 1)
 " 2>/dev/null; then
@@ -36,7 +36,7 @@ Step 0 — GWS auth check:
 import os, sys; import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS')
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT', '/opt/OS'), 'services/.env'))
-from runtime.discord_utils import post_to_webhook
+from interface.discord.discord_utils import post_to_webhook
 webhook = os.getenv('DISCORD_BRIEF_WEBHOOK', '')
 if webhook:
   post_to_webhook(
@@ -72,7 +72,7 @@ Step 5 — Notion outcome sync:
 Step 6 — Session state update:
   python3 -c \"
 import sys; import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS')
-from runtime.session_state import SessionState
+from state.session.session_state import SessionState
 SessionState.save(
   phase='Nightly maintenance',
   last_completed='Nightly cycle completed: $(date +%Y-%m-%d)',
@@ -96,7 +96,7 @@ from pathlib import Path
 import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS')
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT', '/opt/OS'), 'runtime/.env'))
-from runtime.gateway import EOSGateway
+from control_plane.runtime.gateway import EOSGateway
 
 gateway = EOSGateway()
 
