@@ -1,0 +1,1 @@
+"""UMH Protocol contract tests."""
