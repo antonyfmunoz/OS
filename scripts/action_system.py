@@ -36,7 +36,7 @@ Python API
     sys = ActionSystem()
     action = sys.propose(
         action_type=ActionType.EDIT_FILE,
-        target="runtime/memory.py",
+        target="state/memory/memory.py",
         payload={"content": new_text},
         reason="fix typo in docstring",
     )
@@ -1019,7 +1019,7 @@ class ActionSystem:
         if not self.env.is_production:
             return
         try:
-            from runtime.memory import AgentMemory
+            from state.memory.memory import AgentMemory
         except Exception:
             return
         try:

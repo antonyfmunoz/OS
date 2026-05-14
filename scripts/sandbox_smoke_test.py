@@ -96,7 +96,7 @@ def step_edit_production_hub_in_sandbox() -> None:
         a = ActionSystem(env=env)
         action = a.propose(
             action_type=ActionType.EDIT_FILE,
-            target="runtime/memory.py",
+            target="state/memory/memory.py",
             payload={"content": "# stubbed in smoke\n"},
             reason="smoke test",
         )

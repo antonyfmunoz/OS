@@ -914,7 +914,7 @@ class WorkflowEngine:
             return
         try:
             from runtime.agent_runtime import AgentResult
-            from runtime.memory import AgentMemory
+            from state.memory.memory import AgentMemory
 
             summary_bits = []
             for s in wf.steps:

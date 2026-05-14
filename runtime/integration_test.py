@@ -19,7 +19,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from runtime.memory import DB_PATH
+from state.memory.memory import DB_PATH
 
 SEP  = "─" * 60
 SEP2 = "═" * 60
@@ -165,7 +165,7 @@ def main() -> None:
     print(f"  Lead file written → {lead_file.name}")
 
     # Also log to memory.db via AgentMemory so outcome linking works
-    from runtime.memory import AgentMemory
+    from state.memory.memory import AgentMemory
     mem = AgentMemory()
     mem_id = mem.log_lead_scored(
         username=TEST_USERNAME,

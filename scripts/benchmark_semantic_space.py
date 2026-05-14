@@ -38,7 +38,7 @@ SCENARIOS: dict[str, dict] = {
     "architecture": {
         "query": "How does the memory system work?",
         "known_relevant": [
-            "runtime/memory.py",
+            "state/memory/memory.py",
             "runtime/embedding_engine.py",
             "runtime/embedder.py",
             "runtime/db.py",
@@ -49,7 +49,7 @@ SCENARIOS: dict[str, dict] = {
     "impact": {
         "query": "What breaks if I change runtime/memory.py?",
         "known_relevant": [
-            "runtime/memory.py",
+            "state/memory/memory.py",
             "control_plane/runtime/cognitive_loop.py",
             "runtime/agent_runtime.py",
             "runtime/embedding_engine.py",

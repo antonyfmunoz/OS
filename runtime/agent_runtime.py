@@ -149,7 +149,7 @@ class AgentRuntime:
         self._prefs = ModelPreferences(ctx or load_context_from_env())
 
         # Import here to avoid circular imports if memory imports runtime
-        from runtime.memory import AgentMemory
+        from state.memory.memory import AgentMemory
 
         self._memory = AgentMemory()
 

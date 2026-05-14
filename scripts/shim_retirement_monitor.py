@@ -127,7 +127,7 @@ def check_shim_imports() -> dict:
     sys.path.insert(0, os.environ.get("UMH_ROOT") or "/opt/OS")
 
     test_modules = [
-        "runtime.db", "runtime.memory", "runtime.context",
+        "runtime.db", "state.memory.memory", "runtime.context",
         "runtime.model_router", "runtime.gateway",
         "runtime.agent_runtime", "control_plane.runtime.cognitive_loop",
     ]

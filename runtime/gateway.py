@@ -339,7 +339,7 @@ class EOSGateway:
         if not prompt or rtype not in ("agent_task", "brief"):
             return None, session_id, channel
         try:
-            from runtime.memory import ConversationMemory
+            from state.memory.memory import ConversationMemory
             from runtime.context import load_context_from_env
 
             ctx = load_context_from_env()
@@ -1952,7 +1952,7 @@ def ingest_external_context(
 
     Returns the interaction_id (UUID).
     """
-    from runtime.memory import AgentMemory
+    from state.memory.memory import AgentMemory
     from runtime.agent_runtime import AgentResult
 
     result = AgentResult(

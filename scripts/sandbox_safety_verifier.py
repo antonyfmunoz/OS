@@ -114,7 +114,7 @@ def check_sandbox_edit_does_not_touch_production() -> None:
         a = ActionSystem(env=env)
         action = a.propose(
             action_type=ActionType.EDIT_FILE,
-            target="runtime/memory.py",
+            target="state/memory/memory.py",
             payload={"content": "# sandbox stub\n"},
             reason="safety verifier",
         )
@@ -237,7 +237,7 @@ def check_graph_refresh_disabled_in_sandbox() -> None:
     env = make_sandbox(name="verify-no-graph-refresh", ephemeral=True)
     try:
         a = ActionSystem(env=env)
-        res = a._refresh_graph(["runtime/memory.py"])
+        res = a._refresh_graph(["state/memory/memory.py"])
         _assert(
             res.get("mode") == "skipped",
             f"graph refresh ran in sandbox: {res}",

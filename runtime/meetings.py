@@ -529,7 +529,7 @@ def build_prep_brief(
 
         # Semantic memory hits
         try:
-            from runtime.memory import AgentMemory
+            from state.memory.memory import AgentMemory
             mem = AgentMemory(ctx)
             query = f'{person} {company}'.strip()
             results = mem.semantic_search(query=query, limit=5, min_similarity=0.5)

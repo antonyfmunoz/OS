@@ -224,7 +224,7 @@ def run_task(
         # Write user message + assistant response to memory.py messages table.
         # Non-blocking — DB failure never breaks response.
         try:
-            from runtime.memory import ConversationMemory
+            from state.memory.memory import ConversationMemory
 
             ctx = load_context_from_env()
             cm = ConversationMemory(ctx)
@@ -361,7 +361,7 @@ def _learn_async(
 
     def _do() -> None:
         try:
-            from runtime.memory import AgentMemory
+            from state.memory.memory import AgentMemory
             from runtime.agent_runtime import AgentResult
 
             ar = AgentResult(

@@ -294,7 +294,7 @@ class ErrorHandler:
         """Log error to Neon events table. Silent on all failures."""
         try:
             if self.ctx:
-                from runtime.memory import AgentMemory
+                from state.memory.memory import AgentMemory
                 AgentMemory().log_event(
                     org_id=self.ctx.org_id,
                     event_type='system_error',

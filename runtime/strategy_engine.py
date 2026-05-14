@@ -40,7 +40,7 @@ from runtime.context import EOSContext, load_context_from_env
 from control_plane.runtime.cognitive_loop import CognitiveLoop
 from runtime.agent_runtime import TaskType
 from runtime.db import get_conn, resolve_venture
-from runtime.memory import AgentMemory
+from state.memory.memory import AgentMemory
 from runtime.venture_knowledge import VentureKnowledgeBase
 
 STRATEGY_DIR = Path(_REPO_ROOT) / "orchestrator" / "strategy"

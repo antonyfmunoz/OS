@@ -111,7 +111,7 @@ def recognize_person(
         # 1. Semantic memory search
         if name or email:
             try:
-                from runtime.memory import AgentMemory
+                from state.memory.memory import AgentMemory
                 mem = AgentMemory()
                 query = f'{name} {email}'.strip()
                 hits = mem.semantic_search(query=query, limit=5, min_similarity=0.5)

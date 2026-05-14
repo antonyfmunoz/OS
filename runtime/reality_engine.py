@@ -43,7 +43,7 @@ from runtime.event_bus import EventBus
 from runtime.agent_runtime import TaskType
 from runtime.venture_knowledge import VentureKnowledgeBase
 from runtime.strategy_engine import StrategyEngine, _parse_labeled_sections
-from runtime.memory import AgentMemory
+from state.memory.memory import AgentMemory
 
 
 SIGNAL_TIERS = ("CRITICAL", "HIGH", "NORMAL", "BACKGROUND")

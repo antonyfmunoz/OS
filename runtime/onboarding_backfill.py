@@ -81,7 +81,7 @@ class OnboardingBackfill:
             if not content or len(content) < 100:
                 continue
 
-            from runtime.memory import AgentMemory
+            from state.memory.memory import AgentMemory
             mem = AgentMemory()
             mem.log_event(
                 org_id=self.ctx.org_id,
@@ -295,7 +295,7 @@ class OnboardingBackfill:
             print(f"[Backfill] Knowledge synthesis failed: {e}")
             knowledge_summary = ""
 
-        from runtime.memory import AgentMemory
+        from state.memory.memory import AgentMemory
         mem = AgentMemory()
         try:
             mem.log_event(

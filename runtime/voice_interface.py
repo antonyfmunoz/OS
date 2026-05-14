@@ -477,7 +477,7 @@ class VoiceInterface:
 
         if q in ('signals', 'intel', 'market'):
             try:
-                from runtime.memory import AgentMemory
+                from state.memory.memory import AgentMemory
                 mem = AgentMemory()
                 events = mem.get_recent_events(
                     org_id=self.ctx.org_id,
@@ -573,7 +573,7 @@ class VoiceInterface:
                 bis = bim.get_bis(venture_id)
                 if bis:
                     # Log meeting as a venture event
-                    from runtime.memory import AgentMemory
+                    from state.memory.memory import AgentMemory
                     mem = AgentMemory()
                     mem.log_event(
                         org_id=self.ctx.org_id,
@@ -605,7 +605,7 @@ class VoiceInterface:
         self.clear_session()
 
         try:
-            from runtime.memory import AgentMemory
+            from state.memory.memory import AgentMemory
             mem = AgentMemory()
             mem.log_event(
                 org_id=self.ctx.org_id,
@@ -718,7 +718,7 @@ class VoiceInterface:
 
         # Log to Neon as 'meeting' event
         try:
-            from runtime.memory import AgentMemory
+            from state.memory.memory import AgentMemory
             mem = AgentMemory()
             mem.log_event(
                 org_id=self.ctx.org_id,

@@ -410,6 +410,6 @@ class EmbeddingEngine:
         venture_id: str | None,
     ) -> list[dict]:
         """Recency-based fallback when all embedding tiers fail."""
-        from runtime.memory import AgentMemory
+        from state.memory.memory import AgentMemory
         mem = AgentMemory()
         return mem.get_recent(venture_id=venture_id, limit=limit)

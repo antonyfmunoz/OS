@@ -27,7 +27,7 @@ Usage:
     out = harness.run_action(
         agent="executor",
         action_type="query_graph",
-        target="runtime/memory.py",
+        target="state/memory/memory.py",
         payload={"question": "dependents"},
         reason="pre-refactor impact",
     )
@@ -174,7 +174,7 @@ class AgentHarness:
         with self._lock:
             if self._agent_memory is None:
                 try:
-                    from runtime.memory import AgentMemory
+                    from state.memory.memory import AgentMemory
 
                     self._agent_memory = AgentMemory()
                 except Exception as e:

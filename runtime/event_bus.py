@@ -255,7 +255,7 @@ def _handle_lead_booked(payload: dict) -> dict:
     """
     lead_booked → log 'booked' outcome to memory.db + notify orchestrator.
     """
-    from runtime.memory import AgentMemory
+    from state.memory.memory import AgentMemory
 
     username = payload.get("username", "unknown")
     booking_time = payload.get("booking_time", "")
@@ -287,7 +287,7 @@ def _handle_lead_closed(payload: dict) -> dict:
     """
     lead_closed → log 'closed' outcome + run human profile update.
     """
-    from runtime.memory import AgentMemory
+    from state.memory.memory import AgentMemory
 
     username = payload.get("username", "unknown")
     venture_id = payload.get("venture_id", "lyfe_institute")
@@ -330,7 +330,7 @@ def _handle_lead_lost(payload: dict) -> dict:
     """
     lead_lost → log 'no_reply' outcome + store objection data for RLHF.
     """
-    from runtime.memory import AgentMemory
+    from state.memory.memory import AgentMemory
 
     username = payload.get("username", "unknown")
     objection = payload.get("objection", "")

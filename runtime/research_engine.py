@@ -37,7 +37,7 @@ from runtime.context import EOSContext
 from control_plane.runtime.cognitive_loop import CognitiveLoop
 from runtime.agent_runtime import TaskType
 from runtime.db import get_conn
-from runtime.memory import AgentMemory
+from state.memory.memory import AgentMemory
 from runtime.venture_knowledge import VentureKnowledgeBase
 from runtime.strategy_engine import _parse_labeled_sections
 

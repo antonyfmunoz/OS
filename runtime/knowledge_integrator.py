@@ -40,7 +40,7 @@ import uuid
 from typing import Optional
 
 from runtime.context import EOSContext
-from runtime.memory import AgentMemory
+from state.memory.memory import AgentMemory
 from runtime.embedding_engine import EmbeddingEngine
 
 VALID_CATEGORIES = {

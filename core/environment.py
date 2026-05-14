@@ -29,8 +29,8 @@ Usage
     with make_playground() as pg:
         ...  # auto-cleanup
 
-    sbx.resolve("runtime/memory.py")    # → /opt/OS/data/sandboxes/.../workspace/runtime/memory.py
-    sbx.ensure_copied("runtime/memory.py")  # copies from production on demand
+    sbx.resolve("state/memory/memory.py")    # → /opt/OS/data/sandboxes/.../workspace/runtime/memory.py
+    sbx.ensure_copied("state/memory/memory.py")  # copies from production on demand
     sbx.action_log_path                # → .../logs/action_log.jsonl
     sbx.is_production                  # → False
 

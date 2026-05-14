@@ -18,7 +18,7 @@ CLI:
 Programmatic:
     from scripts.query_graph import GraphQuery
     q = GraphQuery.load()
-    q.dependents("runtime/memory.py")
+    q.dependents("state/memory/memory.py")
     q.path("services/discord_bot.py", "runtime/db.py")
 
 A node can be a file path (runtime/memory.py), a module

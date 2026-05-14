@@ -30,7 +30,7 @@ if _REPO_ROOT not in sys.path:
 from runtime.agent_runtime import AgentRuntime, TaskType
 from runtime.context import EOSContext
 from runtime.db import get_conn, resolve_venture
-from runtime.memory import AgentMemory
+from state.memory.memory import AgentMemory
 from runtime.venture_knowledge import VentureKnowledgeBase
 
 VAULT = Path(_REPO_ROOT)

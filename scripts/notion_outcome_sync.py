@@ -128,7 +128,7 @@ def extract_page_data(page: dict) -> dict:
 def fire_outcome(page_data: dict, outcome_type: str):
     """Log outcome signal to Neon via AgentMemory."""
     try:
-        from runtime.memory import AgentMemory
+        from state.memory.memory import AgentMemory
         mem = AgentMemory()
         mem.log_standalone_outcome(
             outcome_type=outcome_type,

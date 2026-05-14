@@ -41,7 +41,7 @@ if _REPO_ROOT not in sys.path:
 
 from runtime.context import EOSContext, load_context_from_env
 from runtime.agent_runtime import AgentRuntime, TaskType
-from runtime.memory import AgentMemory
+from state.memory.memory import AgentMemory
 from governance.policy.authority_engine import AuthorityEngine
 from runtime.venture_knowledge import VentureKnowledgeBase
 

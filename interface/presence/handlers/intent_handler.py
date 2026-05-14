@@ -147,7 +147,7 @@ def run_gateway(
     if memory_only:
         try:
             from runtime.context import load_context_from_env
-            from runtime.memory import ConversationMemory
+            from state.memory.memory import ConversationMemory
 
             _mo_ctx = load_context_from_env()
             _mo_cm = ConversationMemory(_mo_ctx)

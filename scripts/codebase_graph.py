@@ -87,7 +87,7 @@ CRITICAL_FILES = {
     "runtime/model_router.py",
     "runtime/orchestrator.py",
     "runtime/db.py",
-    "runtime/memory.py",
+    "state/memory/memory.py",
     "runtime/agent_hierarchy.py",
     "runtime/ai_identity.py",
     "runtime/primitives.py",

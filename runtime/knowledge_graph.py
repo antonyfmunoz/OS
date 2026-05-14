@@ -446,7 +446,7 @@ class KnowledgeGraph:
         high_patterns = [p for p in patterns if p.get("signal_tier") == "HIGH"]
         if high_patterns:
             try:
-                from runtime.memory import AgentMemory
+                from state.memory.memory import AgentMemory
                 mem = AgentMemory()
                 for p in high_patterns[:5]:
                     mem.log_event(

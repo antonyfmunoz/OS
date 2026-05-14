@@ -364,7 +364,7 @@ class ContextBuilder:
 
         # Semantic memory
         try:
-            from runtime.memory import AgentMemory
+            from state.memory.memory import AgentMemory
             mem = AgentMemory()
             if message and len(message.split()) >= 3:
                 hits = mem.semantic_search(

@@ -277,7 +277,7 @@ class CoordinationEngine:
             return {"error": f"task {task_id} not found"}
 
         try:
-            from runtime.memory import AgentMemory
+            from state.memory.memory import AgentMemory
 
             AgentMemory().log_event(
                 org_id=self.ctx.org_id,
