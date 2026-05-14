@@ -1212,7 +1212,7 @@ from runtime.transport.<module> import *  # noqa: F401,F403
 | ~~Legacy tests referencing runtime.substrate~~ | ~~82 files / 194 imports~~ | ~~CLOSED — archived 2026-05-14 (`f09c98e1`)~~ |
 | ~~Transport `__init__.py` rewrite~~ | ~~Rows 75, 76, 60~~ | ~~CLOSED — lazy-import rewrite 2026-05-14~~ |
 | Transport orphan archive | 148 modules (72 invisible + 31 init-only + 39 script-only + 4 test-only + 2 codegen) | NOW MOVABLE — see inventory |
-| Transport production path migration | 16 modules (Row 76/60) | discord_bot substrate .pyc dependency — URGENT before container rebuild |
+| ~~Transport production path migration~~ | ~~16 modules (Row 76/60)~~ | ~~CLOSED — all substrate imports eliminated 2026-05-14~~ |
 | Law 5.4 type convergence | 5 spine modules | Dedicated follow-up wave |
 | Law 5.9 adapter refactor | 6 files in execution/workers/workstation/ | §14.1 contract |
 | Law 5.5 memory write fixes | ~46 files | memory.py API extension |
@@ -1304,14 +1304,97 @@ audit of all 163 transport modules:
 
 Full inventory: `data/audits/2026-05-14_transport_unblock_inventory.md`
 
-### Urgent finding: substrate .pyc shim risk
+### ~~Urgent finding: substrate .pyc shim risk~~ — RESOLVED
 
-`services/discord_bot.py` imports ~11 transport modules via `runtime.substrate.*`
-paths. Source `.py` files deleted in Wave 6. Bot running on stale `.pyc` bytecode.
-**A Docker rebuild will crash os-discord.** Must migrate discord_bot imports
-to direct `runtime.transport.*` paths before any container rebuild.
+~~`services/discord_bot.py` imports ~11 transport modules via `runtime.substrate.*`
+paths.~~ **FIXED 2026-05-14** — all substrate imports eliminated in production
+code, transport internals, and scripts. Container is rebuild-safe.
 
-### Remaining follow-ups: 10 threads
+### Remaining follow-ups: 9 threads
 
-(Transport rewrite thread CLOSED. Replaced with 2 new threads:
-transport orphan archive + transport production path migration.)
+(Transport rewrite CLOSED. Production path migration CLOSED. 9 threads remain.)
+
+---
+
+## Production Import Safety Sweep — 2026-05-14
+
+**CLOSED.** All `runtime.substrate` imports eliminated from the active tree.
+
+### Scope
+
+| Category | Files | Import sites |
+|----------|-------|-------------|
+| Production services | 2 (discord_bot, cc_webhook_receiver) | 29 |
+| Production modules | 4 (execution_contract, environment_mapping, foreground_cu_ingestion, intent_handler) | 7 |
+| Transport internals | 14 (sibling cross-refs inside runtime/transport/) | 14 |
+| Scripts | 71 (smoke tests, CLIs, diagnostics) | 392 |
+| **Total** | **91** | **442** |
+
+### Method
+
+Mechanical 1:1 path swap: `runtime.substrate.X` → `runtime.transport.X`.
+Substrate was always a one-line star re-export of transport, so the swap
+is byte-identical behavior.
+
+Three import patterns were fixed:
+- `from runtime.substrate.X import Y` (dotted submodule)
+- `from runtime.substrate import X` (module-level)
+- `import runtime.substrate.X as alias` (direct)
+- String references in `importlib.import_module()` / `find_spec()`
+
+### Missing-module handling
+
+7 modules referenced by discord_bot.py don't exist in `runtime/transport/`:
+`discord_ingress_adapter`, `discord_output_policy`, `event_store`,
+`message_framing`, `operator_trace`, `run_lifecycle`, `task_finalization`.
+
+All 7 are inside `try/except` blocks — they've always been silently failing
+(the substrate shims didn't have these either, since they were star re-exports
+of transport where the modules don't exist). The swap preserves the same
+`ImportError → except → graceful degradation` behavior.
+
+### claude_responder unblocked
+
+`runtime/transport/claude_responder.py` was one of the 2 Wave 3 blocked items.
+Its blocker was `from runtime.substrate import claude_session_bridge` — now
+fixed to `from runtime.transport import claude_session_bridge`. With the lazy
+`__init__.py`, this resolves cleanly without triggering the eager load chain.
+
+### Container rebuild simulation
+
+```
+find . -type d -name __pycache__ -exec rm -rf {} +
+find . -type f -name "*.pyc" -delete
+python3 -c "from runtime.transport.session_discord_bridge import send_reply"  → PASS
+python3 -c "from runtime.transport.discord_text_transport import ..."         → PASS
+python3 -c "from runtime.transport.event_spine import EventType"              → PASS
+# ... all 12 production entry points → PASS
+```
+
+**Docker container is now rebuild-safe.** Zero stale-`.pyc` reliance.
+
+### Commits
+
+- `c3000aca` — production files (6) + transport internals (14): 34 import sites
+- `6ceddb14` — scripts (71): 392 import sites
+
+### Remaining `runtime.substrate` references
+
+**Import statements: 0** in the active tree.
+
+String references remain in comments/docstrings of some scripts (e.g.,
+"runtime.substrate.voice_eos_responder" in docstring descriptions).
+These are cosmetic and do not affect execution. The `r8b_generate_bridges.py`
+and `r8d_generate_shims.py` codegen scripts reference substrate in their
+target path configuration — they're dead code (generators for deleted shims).
+
+### Rows 60, 75, 76 status
+
+- **Row 60** (`services/discord_bot.py`): substrate imports eliminated. Remaining
+  blockers: Law 5.5 violations, Docker compose path. NOT YET CLOSED.
+- **Row 75** (transport reachable — 5 modules): `capability_tagging` and
+  `claude_responder` unblocked (internal substrate refs fixed). Module relocation
+  to §24 homes is now mechanically possible. NOT YET CLOSED (relocation pending).
+- **Row 76** (transport via substrate — 13 modules): All substrate shim paths
+  eliminated. Direct transport paths established. Substrate bypass complete.
+  Row 76 CLOSED.
