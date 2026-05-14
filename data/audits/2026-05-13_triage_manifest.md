@@ -1692,3 +1692,77 @@ where `_REPO_ROOT = Path(__file__).resolve().parent.parent.parent`.
 - Production smoke: 8 entry points across all layers import clean (fresh pycache)
 - Mock patches: verified `patch("runtime.context.load_context_from_env")` still intercepts
 - Tree grep: 96 callers on shim (expected), 1 on canonical (the shim itself)
+
+## Phase C: Runtime Layer Migration — 2026-05-14
+
+Final substrate migration. All 99 reachable non-spine modules relocated from
+runtime/ top-level to canonical §24 homes.
+
+### Re-classification (post-Phase-A+B)
+
+Original blockers cleared:
+- Law 5.5: 50 of 52 modules cleared by Phase A stores (2 remaining = 1 site each)
+- Context dependency: all 64 shim callers now non-blocking (shim + canonical available)
+- Result: ALL 99 modules migratable (up from 23 originally free)
+
+### Sub-batch breakdown
+
+| Sub-batch | Count | Criterion | Examples |
+|-----------|-------|-----------|---------|
+| 1 (zero deps) | 51 | No runtime/ cross-deps | gws_connector (27 callers), business_instance (20), venture_knowledge (10) |
+| 2 (deps in B1) | 23 | All deps already migrated | knowledge_integrator, meetings, strategy_engine, skill_registry |
+| 3 (recursive) | 25 | Remaining, topological tiers | orchestrator, event_bus, goal_selector, discord_utils |
+
+Sub-batch 3 internal tiers:
+- 3a: 8 (no B3 deps) — portfolio_advisor, research_engine, status, ...
+- 3b: 3 (deps in 3a) — daily_sync, evolution_engine, task_executor
+- 3c: 2 (deps in 3a+3b) — proactive_engine, workflow_engine
+- 3d: 12 (cycles + remaining) — discord_utils↔output_validator, goal_selector↔event_bus, orchestrator
+
+### Migration results
+
+- **Modules migrated: 99 of 99** (all reachable non-spine)
+- **Deferred: 0** (all modules migrated successfully)
+- **Phase B shim: RETAINED** — 0 live callers, 7 dead-code callers
+  - 32 live callers migrated to canonical `state.context.context`
+  - 7 remaining callers are UNREACHABLE dead-code modules
+  - Shim removable alongside dead code archive
+- **Circular deps resolved**: 2 pairs (lazy imports, co-migrated)
+- **Tests/conftest fix**: pre-import `runtime.transport` for namespace pkg resolution
+
+### File distribution by §24 layer
+
+| §24 Layer | Modules | Examples |
+|-----------|---------|---------|
+| control_plane/ | 24 | orchestrator, goal_selector, event_bus, portfolio_advisor |
+| state/ | 19 | business_instance, work_state, skill_registry, session_state |
+| understanding/ | 16 | person_recognition, knowledge_integrator, research_engine |
+| adapters/ | 10 | gws_connector, email_gps, meetings, scrapling_connector |
+| execution/ | 8 | execution_engine, execution_loop, task_executor, voice_engine |
+| governance/ | 5 | quality_gate, output_validator, accountability, confidentiality |
+| learning/ | 5 | evolution_engine, feedback_loop, skill_improvement, self_awareness |
+| observability/ | 3 | provider_health, system_health, status |
+| interface/ | 2 | discord_utils, channel |
+
+### runtime/ file count
+
+| Metric | Before | After | Delta |
+|--------|--------|-------|-------|
+| Top-level .py files | 115 | 16 | -99 |
+| Remaining | — | 15 unreachable + 1 context.py shim | — |
+| Subdirectories | 6 | 6 (transport/, ingestion/, domain_bridge/, substrate/, interfaces/, .substrate_sandbox/) | unchanged |
+
+### Verification
+
+- Tests: 4165/35/3 — matches pre-Phase-C baseline exactly (zero regressions)
+- Production smoke: 14 canonical entry points import clean (fresh pycache)
+- Container rebuild sim: pycache cleared, all imports resolve
+- Object identity: `state.context.context.EOSContext is runtime.context.EOSContext` → True
+- Zero old-path references remain for any migrated module
+
+### Substrate completion status: COMPLETE (Row 88)
+
+All reachable non-spine modules now at canonical §24 homes. Remaining
+runtime/ contents: 15 dead-code modules (archive candidates), 1 context
+shim (zero live callers), and 6 subdirectories (transport, ingestion,
+domain_bridge, substrate, interfaces — separate subsystem scope).
