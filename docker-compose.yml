@@ -88,7 +88,7 @@ services:
     container_name: os-webhook
     restart: always
     working_dir: /app
-    command: python3 services/calendly_webhook.py
+    command: python3 interface/api/webhooks/calendly_webhook.py
     networks:
       - eos_network
     extra_hosts:
