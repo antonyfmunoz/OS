@@ -11,7 +11,7 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 import unittest
 
-from core.coherence.spine_lineage_contracts import (
+from control_plane.invariants.spine_lineage_contracts import (
     CANONICAL_STAGE_ORDER,
     REQUIRED_STAGE_NAMES,
     REQUIRED_STAGES,

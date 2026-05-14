@@ -14,13 +14,13 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 import unittest
 
-from core.coherence.coherence_gate import (
+from control_plane.invariants.coherence_gate import (
     CoherenceGateBlocked,
     assert_coherent_or_block,
     coherence_gate_allows_execution,
     evaluate_coherence_before_execution,
 )
-from core.coherence.spine_lineage_contracts import (
+from control_plane.invariants.spine_lineage_contracts import (
     CoherenceEnvelope,
     CoherenceStatus,
     SpineLineage,

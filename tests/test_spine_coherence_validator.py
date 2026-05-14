@@ -22,7 +22,7 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 import unittest
 
-from core.coherence.spine_lineage_contracts import (
+from control_plane.invariants.spine_lineage_contracts import (
     CoherenceEnvelope,
     CoherenceStatus,
     SpineLineage,
@@ -30,7 +30,7 @@ from core.coherence.spine_lineage_contracts import (
     SpineStageArtifact,
     SpineStageStatus,
 )
-from core.coherence.spine_coherence_validator import (
+from control_plane.invariants.spine_coherence_validator import (
     validate_coherence_envelope,
 )
 

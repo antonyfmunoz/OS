@@ -21,12 +21,12 @@ from core.environment_bridge.packet_validator import (
     PacketValidationStatus,
     validate_w0_packet_dict,
 )
-from core.coherence.spine_coherence_validator import validate_coherence_envelope_dict
-from core.coherence.coherence_gate import (
+from control_plane.invariants.spine_coherence_validator import validate_coherence_envelope_dict
+from control_plane.invariants.coherence_gate import (
     coherence_gate_allows_execution,
     evaluate_coherence_before_execution,
 )
-from core.coherence.spine_lineage_contracts import (
+from control_plane.invariants.spine_lineage_contracts import (
     CoherenceStatus,
     SpineStage,
     SpineStageStatus,

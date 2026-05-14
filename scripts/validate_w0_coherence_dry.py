@@ -17,11 +17,11 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-from core.coherence.coherence_gate import (
+from control_plane.invariants.coherence_gate import (
     coherence_gate_allows_execution,
     evaluate_coherence_before_execution,
 )
-from core.coherence.spine_lineage_contracts import (
+from control_plane.invariants.spine_lineage_contracts import (
     CoherenceStatus,
     SpineStage,
     SpineStageStatus,
