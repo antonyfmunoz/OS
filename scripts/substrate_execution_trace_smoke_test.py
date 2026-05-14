@@ -33,7 +33,7 @@ def _header(msg: str) -> None:
 
 
 def main() -> int:
-    from runtime.substrate.execution_trace import (
+    from runtime.transport.execution_trace import (
         _TraceHistory,
         clear_current_trace,
         finalize_trace,
@@ -275,7 +275,7 @@ def main() -> int:
     # ── 17. Hot-path import clean ────────────────────────────────────────
     _header("17. hot-path import")
     try:
-        mod = importlib.import_module("runtime.substrate.execution_trace")
+        mod = importlib.import_module("runtime.transport.execution_trace")
         import_ok = mod is not None
     except Exception as exc:
         import_ok = False

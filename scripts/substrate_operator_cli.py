@@ -31,10 +31,10 @@ import sys
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from runtime.substrate import operator_interface as oi  # noqa: E402
-from runtime.substrate import control_bridge as cb  # noqa: E402
-from runtime.substrate import control_commands as cc  # noqa: E402
-from runtime.substrate import local_executor as lx  # noqa: E402
+from runtime.transport import operator_interface as oi  # noqa: E402
+from runtime.transport import control_bridge as cb  # noqa: E402
+from runtime.transport import control_commands as cc  # noqa: E402
+from runtime.transport import local_executor as lx  # noqa: E402
 
 
 def _print_json(obj) -> None:

@@ -25,7 +25,7 @@ import sys
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from runtime.substrate.result_query import (  # noqa: E402
+from runtime.transport.result_query import (  # noqa: E402
     latest_failed,
     node_health_summary,
     recent_open_close_summaries,
@@ -34,9 +34,9 @@ from runtime.substrate.result_query import (  # noqa: E402
     stats as result_stats,
     unresolved_rituals,
 )
-from runtime.substrate.local_listener import listener_report  # noqa: E402
-from runtime.substrate.ritual_reconciler import reconcile_recent  # noqa: E402
-from runtime.substrate.station_drainer import drain_all  # noqa: E402
+from runtime.transport.local_listener import listener_report  # noqa: E402
+from runtime.transport.ritual_reconciler import reconcile_recent  # noqa: E402
+from runtime.transport.station_drainer import drain_all  # noqa: E402
 
 
 def main() -> int:

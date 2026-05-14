@@ -27,11 +27,11 @@ import sys
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from runtime.substrate.audio_loop import (  # noqa: E402
+from runtime.transport.audio_loop import (  # noqa: E402
     get_audio_loop_store,
     reset_audio_loop_store_for_tests,
 )
-from runtime.substrate.discord_text_transport import (  # noqa: E402
+from runtime.transport.discord_text_transport import (  # noqa: E402
     build_tts_reply_envelope,
     ingest_text_message,
     get_text_history,
@@ -40,14 +40,14 @@ from runtime.substrate.discord_text_transport import (  # noqa: E402
     reset_text_history_for_tests,
     truncate_reply,
 )
-from runtime.substrate.discord_voice_transport import (  # noqa: E402
+from runtime.transport.discord_voice_transport import (  # noqa: E402
     get_default_discord_voice_transport,
     reset_default_discord_voice_transports_for_tests,
     reset_transport_history_for_tests,
 )
-from runtime.substrate.station_bus import get_station_bus  # noqa: E402
-from runtime.substrate.station_daemon import StationDaemon  # noqa: E402
-from runtime.substrate.voice_session import (  # noqa: E402
+from runtime.transport.station_bus import get_station_bus  # noqa: E402
+from runtime.transport.station_daemon import StationDaemon  # noqa: E402
+from runtime.transport.voice_session import (  # noqa: E402
     VoiceTurnSource,
     get_voice_session_store,
     reset_voice_session_store_for_tests,
@@ -233,7 +233,7 @@ def main() -> int:
     assert len(truncate_reply("y" * 500, max_chars=20)) <= 20
 
     _header("12. transport_report pseudo_live block present")
-    from runtime.substrate.transport_report import unified_transport_report  # noqa: E402
+    from runtime.transport.transport_report import unified_transport_report  # noqa: E402
 
     report = unified_transport_report(node_id=node_id)
     pl = report.get("pseudo_live") or {}

@@ -37,7 +37,7 @@ def _rule(title: str) -> None:
 
 
 def main() -> int:
-    from runtime.substrate.stt_producer import (
+    from runtime.transport.stt_producer import (
         SttCaptureStatus,
         SttWorkstationReadiness,
         _detect_environment,

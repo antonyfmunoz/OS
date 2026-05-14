@@ -33,11 +33,11 @@ import sys
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from runtime.substrate.audio_loop import (  # noqa: E402
+from runtime.transport.audio_loop import (  # noqa: E402
     get_audio_loop_store,
     reset_audio_loop_store_for_tests,
 )
-from runtime.substrate.meeting_transport import (  # noqa: E402
+from runtime.transport.meeting_transport import (  # noqa: E402
     MeetingTransport,
     get_default_meeting_transport,
     get_meeting_transport_history,
@@ -45,10 +45,10 @@ from runtime.substrate.meeting_transport import (  # noqa: E402
     reset_default_meeting_transports_for_tests,
     reset_meeting_transport_history_for_tests,
 )
-from runtime.substrate.station_bus import get_station_bus  # noqa: E402
-from runtime.substrate.station_daemon import StationDaemon  # noqa: E402
-from runtime.substrate.transport_report import unified_transport_report  # noqa: E402
-from runtime.substrate.voice_session import (  # noqa: E402
+from runtime.transport.station_bus import get_station_bus  # noqa: E402
+from runtime.transport.station_daemon import StationDaemon  # noqa: E402
+from runtime.transport.transport_report import unified_transport_report  # noqa: E402
+from runtime.transport.voice_session import (  # noqa: E402
     VoiceSessionStatus,
     VoiceTurnSource,
     get_voice_session_store,

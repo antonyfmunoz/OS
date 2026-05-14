@@ -30,31 +30,31 @@ import sys
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from runtime.substrate.local_listener import (  # noqa: E402
+from runtime.transport.local_listener import (  # noqa: E402
     get_trigger_history,
 )
-from runtime.substrate.operator_presence import line_for_transition  # noqa: E402
-from runtime.substrate.operator_state import (  # noqa: E402
+from runtime.transport.operator_presence import line_for_transition  # noqa: E402
+from runtime.transport.operator_state import (  # noqa: E402
     OperatorMode,
     get_operator_state_store,
     reset_operator_state_store_for_tests,
 )
-from runtime.substrate.result_query import operator_state_snapshot  # noqa: E402
-from runtime.substrate.ritual_body import RitualPolicy  # noqa: E402
-from runtime.substrate.ritual_runner import (  # noqa: E402
+from runtime.transport.result_query import operator_state_snapshot  # noqa: E402
+from runtime.transport.ritual_body import RitualPolicy  # noqa: E402
+from runtime.transport.ritual_runner import (  # noqa: E402
     finish_close_day,
     finish_open_day,
     start_close_day,
     start_open_day,
 )
-from runtime.substrate.station_bus import get_station_bus  # noqa: E402
-from runtime.substrate.station_daemon import StationDaemon  # noqa: E402
-from runtime.substrate.voice_session import (  # noqa: E402
+from runtime.transport.station_bus import get_station_bus  # noqa: E402
+from runtime.transport.station_daemon import StationDaemon  # noqa: E402
+from runtime.transport.voice_session import (  # noqa: E402
     VoiceSessionRuntime,
     get_voice_session_store,
     reset_voice_session_store_for_tests,
 )
-from runtime.substrate.wake_producer import (  # noqa: E402
+from runtime.transport.wake_producer import (  # noqa: E402
     get_wake_producer_history,
     get_wake_producer_runtime,
     reset_wake_producer_runtime_for_tests,

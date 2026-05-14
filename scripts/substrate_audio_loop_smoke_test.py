@@ -35,38 +35,38 @@ import time
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from runtime.substrate.audio_loop import (  # noqa: E402
+from runtime.transport.audio_loop import (  # noqa: E402
     AudioLoopStatus,
     get_audio_loop_store,
     reset_audio_loop_store_for_tests,
 )
-from runtime.substrate.local_listener import (  # noqa: E402
+from runtime.transport.local_listener import (  # noqa: E402
     get_trigger_history,
 )
-from runtime.substrate.operator_state import (  # noqa: E402
+from runtime.transport.operator_state import (  # noqa: E402
     OperatorMode,
     get_operator_state_store,
     reset_operator_state_store_for_tests,
 )
-from runtime.substrate.operator_transitions import (  # noqa: E402
+from runtime.transport.operator_transitions import (  # noqa: E402
     TransitionTrigger,
     _record_transition,
     decide_transition,
 )
-from runtime.substrate.result_query import (  # noqa: E402
+from runtime.transport.result_query import (  # noqa: E402
     audio_loop_snapshot,
     recent_audio_loop_transcripts,
 )
-from runtime.substrate.station_bus import get_station_bus  # noqa: E402
-from runtime.substrate.station_daemon import StationDaemon  # noqa: E402
-from runtime.substrate.transcript_inject import inject_transcript  # noqa: E402
-from runtime.substrate.voice_session import (  # noqa: E402
+from runtime.transport.station_bus import get_station_bus  # noqa: E402
+from runtime.transport.station_daemon import StationDaemon  # noqa: E402
+from runtime.transport.transcript_inject import inject_transcript  # noqa: E402
+from runtime.transport.voice_session import (  # noqa: E402
     VoiceSessionRuntime,
     VoiceSessionStatus,
     get_voice_session_store,
     reset_voice_session_store_for_tests,
 )
-from runtime.substrate.wake_producer import (  # noqa: E402
+from runtime.transport.wake_producer import (  # noqa: E402
     get_wake_producer_history,
     get_wake_producer_runtime,
     reset_wake_producer_runtime_for_tests,

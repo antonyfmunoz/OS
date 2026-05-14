@@ -76,7 +76,7 @@ def main():
     os.makedirs(eos_substrate_dir, exist_ok=True)
 
     # substrate/__init__.py bridge
-    sub_init_content = f"{HEADER}from runtime.substrate import *  # noqa: F401,F403\n"
+    sub_init_content = f"{HEADER}from runtime.transport import *  # noqa: F401,F403\n"
     Path(os.path.join(eos_substrate_dir, "__init__.py")).write_text(sub_init_content)
     bridges_created.append({
         "bridge": "eos_ai/substrate/__init__.py",

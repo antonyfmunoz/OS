@@ -28,21 +28,21 @@ import sys
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from runtime.substrate.local_listener import (  # noqa: E402
+from runtime.transport.local_listener import (  # noqa: E402
     get_trigger_history,
 )
-from runtime.substrate.result_query import (  # noqa: E402
+from runtime.transport.result_query import (  # noqa: E402
     recent_wake_producer_events,
 )
-from runtime.substrate.station_bus import get_station_bus  # noqa: E402
-from runtime.substrate.station_daemon import StationDaemon  # noqa: E402
-from runtime.substrate.voice_session import (  # noqa: E402
+from runtime.transport.station_bus import get_station_bus  # noqa: E402
+from runtime.transport.station_daemon import StationDaemon  # noqa: E402
+from runtime.transport.voice_session import (  # noqa: E402
     VoiceSessionStatus,
     VoiceTurnSource,
     get_voice_session_store,
     reset_voice_session_store_for_tests,
 )
-from runtime.substrate.wake_producer import (  # noqa: E402
+from runtime.transport.wake_producer import (  # noqa: E402
     WakeProducerKind,
     get_wake_producer_history,
     get_wake_producer_runtime,
@@ -136,7 +136,7 @@ def main() -> int:
     print("  responder NOT invoked, no utterance submitted ✓")
 
     _header("4. End session, then wake word 'portfolio' → new session")
-    from runtime.substrate.voice_session import VoiceSessionRuntime
+    from runtime.transport.voice_session import VoiceSessionRuntime
 
     VoiceSessionRuntime().end_session(ev1.voice_session_id, reason="smoketest resume")
     ended = get_voice_session_store().get(ev1.voice_session_id)

@@ -19,7 +19,7 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'), override=True)
 
 # Must import AFTER load_dotenv so module-level os.getenv picks up values
-from runtime.substrate.session_watcher import (  # noqa: E402
+from runtime.transport.session_watcher import (  # noqa: E402
     SessionState,
     SessionWatcher,
     WatcherEvent,
@@ -27,7 +27,7 @@ from runtime.substrate.session_watcher import (  # noqa: E402
     _PERMISSION_PATTERNS,
     _QUESTION_PATTERNS,
 )
-from runtime.substrate.session_discord_bridge import (
+from runtime.transport.session_discord_bridge import (
     LAYER_VERSION,
     PlanApprovalView,
     PermissionView,

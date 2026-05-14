@@ -39,7 +39,7 @@ def _reload_router():
 
 def _install_bridge_stub(*, ok: bool, reason: str = "ok", reply: str = "hi"):
     """Replace respond_via_claude_session with a deterministic stub."""
-    import runtime.substrate.claude_responder as cr
+    import runtime.transport.claude_responder as cr
 
     calls: list[dict] = []
 
@@ -155,7 +155,7 @@ def main() -> int:
     print("\n[5] discord shared path is wired to runtime.model_router")
     import inspect
 
-    from runtime.substrate import voice_eos_responder as ver
+    from runtime.transport import voice_eos_responder as ver
 
     src = inspect.getsource(ver._eos_voice_responder)
     check(
@@ -169,7 +169,7 @@ def main() -> int:
 
     # And prove that discord_text_transport routes into the same voice
     # substrate (ingest_text_message), not a private bypass.
-    from runtime.substrate import discord_text_transport as dtt
+    from runtime.transport import discord_text_transport as dtt
 
     mirror_src = inspect.getsource(dtt.maybe_mirror_discord_text_message)
     check(

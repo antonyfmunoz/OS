@@ -27,10 +27,10 @@ import uuid
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from runtime.substrate import control_bridge as bridge  # noqa: E402
-from runtime.substrate import control_commands as cc  # noqa: E402
-from runtime.substrate.remote_executor import RemoteExecutor  # noqa: E402
-from runtime.substrate import remote_identity  # noqa: E402
+from runtime.transport import control_bridge as bridge  # noqa: E402
+from runtime.transport import control_commands as cc  # noqa: E402
+from runtime.transport.remote_executor import RemoteExecutor  # noqa: E402
+from runtime.transport import remote_identity  # noqa: E402
 
 
 RESULTS: list[tuple[str, bool, str]] = []

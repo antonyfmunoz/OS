@@ -70,7 +70,7 @@ def _reset_env() -> None:
 
 def test_classification() -> None:
     _header("1. resolve_discord_mode classification")
-    from runtime.substrate import discord_mode_routing as dmr
+    from runtime.transport import discord_mode_routing as dmr
 
     _reset_env()
     os.environ["EOS_DISCORD_BUILDER_CHANNELS"] = "111,222"
@@ -111,7 +111,7 @@ def test_classification() -> None:
 
 def test_session_mapping() -> None:
     _header("2. resolve_mode_session mapping")
-    from runtime.substrate import discord_mode_routing as dmr
+    from runtime.transport import discord_mode_routing as dmr
 
     _reset_env()
     os.environ["EOS_DISCORD_BUILDER_TARGET"] = "local"
@@ -172,7 +172,7 @@ def test_session_mapping() -> None:
 
 def test_thread_local_context() -> None:
     _header("3. mode_context thread-local binding")
-    from runtime.substrate import discord_mode_routing as dmr
+    from runtime.transport import discord_mode_routing as dmr
 
     dmr.clear_mode_context_for_tests()
     check(
@@ -211,7 +211,7 @@ def test_thread_local_context() -> None:
 
 def test_hotpath_clean() -> None:
     _header("4. hot-path hygiene on discord_mode_routing")
-    from runtime.substrate import discord_mode_routing as dmr
+    from runtime.transport import discord_mode_routing as dmr
 
     src = open(dmr.__file__).read()
     forbidden = (
@@ -233,7 +233,7 @@ def test_end_to_end_router_override() -> None:
     """Simulate the full ingress→router path with a stubbed CLI backend."""
     _header("5. end-to-end: router sees builder/product/unknown overrides")
 
-    from runtime.substrate import discord_mode_routing as dmr
+    from runtime.transport import discord_mode_routing as dmr
 
     dmr.clear_mode_context_for_tests()
 
@@ -252,7 +252,7 @@ def test_end_to_end_router_override() -> None:
         return {"ok": True, "reply": f"[stub/{session_name}] ack"}
 
     # Monkeypatch the responder the router imports locally
-    import runtime.substrate.claude_responder as cr
+    import runtime.transport.claude_responder as cr
 
     real_respond = cr.respond_via_claude_session
     cr.respond_via_claude_session = _fake_cli  # type: ignore[assignment]
@@ -352,9 +352,9 @@ def test_ingest_adds_mode_metadata() -> None:
     os.environ["EOS_DISCORD_BUILDER_TARGET"] = "vps"
     os.environ["EOS_DISCORD_PRODUCT_TARGET"] = "vps"
 
-    from runtime.substrate import discord_mode_routing as dmr
-    from runtime.substrate import discord_text_transport as dtt
-    from runtime.substrate import transcript_inject as ti
+    from runtime.transport import discord_mode_routing as dmr
+    from runtime.transport import discord_text_transport as dtt
+    from runtime.transport import transcript_inject as ti
 
     captured_meta: list[dict] = []
     captured_mode_during_inject: list = []
@@ -375,7 +375,7 @@ def test_ingest_adds_mode_metadata() -> None:
     ti.inject_transcript = _fake_inject_transcript  # type: ignore[assignment]
 
     # Also stub the transport initializer so no real voice transport is built
-    import runtime.substrate.discord_voice_transport as dvt
+    import runtime.transport.discord_voice_transport as dvt
 
     class _StubTransport:
         node_id = "stub-node"
@@ -467,7 +467,7 @@ def test_tts_footer_untouched() -> None:
     os.environ["EOS_DISCORD_TEXT_TRANSPORT_ENABLED"] = "1"
     os.environ["EOS_DISCORD_TEXT_REPLY_TTS_ENABLED"] = "1"
 
-    from runtime.substrate import discord_text_transport as dtt
+    from runtime.transport import discord_text_transport as dtt
 
     env = dtt.build_tts_reply_envelope(
         "hello world 🎉\n— footer debug info",
@@ -498,7 +498,7 @@ def test_shared_router_tripwire() -> None:
     """
     _header("8. tripwire: no mode router bypass of shared router")
 
-    from runtime.substrate import discord_mode_routing as dmr
+    from runtime.transport import discord_mode_routing as dmr
 
     src = open(dmr.__file__).read()
     check(

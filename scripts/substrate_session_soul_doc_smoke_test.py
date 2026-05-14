@@ -23,7 +23,7 @@ from pathlib import Path
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-from runtime.substrate import claude_session_bridge as csb  # noqa: E402
+from runtime.transport import claude_session_bridge as csb  # noqa: E402
 
 _results: list[tuple[str, bool, str]] = []
 

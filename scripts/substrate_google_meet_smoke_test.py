@@ -27,26 +27,26 @@ from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 
-from runtime.substrate.audio_loop import (  # noqa: E402
+from runtime.transport.audio_loop import (  # noqa: E402
     get_audio_loop_store,
     reset_audio_loop_store_for_tests,
 )
-from runtime.substrate.google_meet_source import (  # noqa: E402
+from runtime.transport.google_meet_source import (  # noqa: E402
     LIVE_ENV_VAR,
     PROVIDER,
     GoogleMeetSource,
     is_google_meet_source,
     parse_meet_url,
 )
-from runtime.substrate.meeting_sources import is_meeting_source  # noqa: E402
-from runtime.substrate.meeting_transport import (  # noqa: E402
+from runtime.transport.meeting_sources import is_meeting_source  # noqa: E402
+from runtime.transport.meeting_transport import (  # noqa: E402
     MeetingTransport,
     reset_default_meeting_transports_for_tests,
     reset_meeting_transport_history_for_tests,
 )
-from runtime.substrate.station_bus import get_station_bus  # noqa: E402
-from runtime.substrate.station_daemon import StationDaemon  # noqa: E402
-from runtime.substrate.voice_session import (  # noqa: E402
+from runtime.transport.station_bus import get_station_bus  # noqa: E402
+from runtime.transport.station_daemon import StationDaemon  # noqa: E402
+from runtime.transport.voice_session import (  # noqa: E402
     VoiceTurnSource,
     get_voice_session_store,
     reset_voice_session_store_for_tests,

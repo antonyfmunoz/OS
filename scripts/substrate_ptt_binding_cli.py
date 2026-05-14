@@ -43,7 +43,7 @@ def _print_json(obj) -> None:
 
 
 def cmd_readiness(args: argparse.Namespace) -> int:
-    from runtime.substrate.stt_producer import stt_workstation_readiness
+    from runtime.transport.stt_producer import stt_workstation_readiness
 
     payload = stt_workstation_readiness()
     _print_json(payload)
@@ -51,7 +51,7 @@ def cmd_readiness(args: argparse.Namespace) -> int:
 
 
 def cmd_devices(args: argparse.Namespace) -> int:
-    from runtime.substrate.stt_producer import _enumerate_input_devices  # noqa: WPS450
+    from runtime.transport.stt_producer import _enumerate_input_devices  # noqa: WPS450
 
     devices = _enumerate_input_devices()
     _print_json({"count": len(devices), "devices": devices})
@@ -59,7 +59,7 @@ def cmd_devices(args: argparse.Namespace) -> int:
 
 
 def cmd_validate(args: argparse.Namespace) -> int:
-    from runtime.substrate.ptt_binding import validate_real_capture
+    from runtime.transport.ptt_binding import validate_real_capture
 
     result = validate_real_capture(
         args.node,
@@ -75,7 +75,7 @@ def cmd_validate(args: argparse.Namespace) -> int:
 
 
 def cmd_report(args: argparse.Namespace) -> int:
-    from runtime.substrate.ptt_binding import real_capture_report
+    from runtime.transport.ptt_binding import real_capture_report
 
     _print_json(real_capture_report(node_id=args.node, limit=args.limit))
     return 0

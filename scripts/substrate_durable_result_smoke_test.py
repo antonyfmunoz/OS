@@ -26,7 +26,7 @@ import sys
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from runtime.substrate.result_query import (  # noqa: E402
+from runtime.transport.result_query import (  # noqa: E402
     by_action_id,
     latest,
     latest_by_kind,
@@ -37,18 +37,18 @@ from runtime.substrate.result_query import (  # noqa: E402
     stats as result_stats,
     unresolved_rituals,
 )
-from runtime.substrate.actions import ActionResult, ActionStatus  # noqa: E402
-from runtime.substrate.result_store import (  # noqa: E402
+from runtime.transport.actions import ActionResult, ActionStatus  # noqa: E402
+from runtime.transport.result_store import (  # noqa: E402
     get_result_store,
     reset_result_store_for_tests,
 )
-from runtime.substrate.ritual_body import RitualPolicy  # noqa: E402
-from runtime.substrate.ritual_reconciler import reconcile_ritual  # noqa: E402
-from runtime.substrate.ritual_runner import start_open_day  # noqa: E402
-from runtime.substrate.rituals import RitualRegistry  # noqa: E402
-from runtime.substrate.station_bus import get_station_bus  # noqa: E402
-from runtime.substrate.station_daemon import StationDaemon  # noqa: E402
-from runtime.substrate.station_drainer import drain_all  # noqa: E402
+from runtime.transport.ritual_body import RitualPolicy  # noqa: E402
+from runtime.transport.ritual_reconciler import reconcile_ritual  # noqa: E402
+from runtime.transport.ritual_runner import start_open_day  # noqa: E402
+from runtime.transport.rituals import RitualRegistry  # noqa: E402
+from runtime.transport.station_bus import get_station_bus  # noqa: E402
+from runtime.transport.station_daemon import StationDaemon  # noqa: E402
+from runtime.transport.station_drainer import drain_all  # noqa: E402
 
 
 TEST_NODE = "durable-result-smoketest"
@@ -120,7 +120,7 @@ def main() -> int:
     # we leave it alone because rituals are already durable and reconcile
     # is what we're stressing here.
     try:
-        from runtime.substrate.storage import reset_storage_for_tests
+        from runtime.transport.storage import reset_storage_for_tests
 
         reset_storage_for_tests()
     except Exception as e:

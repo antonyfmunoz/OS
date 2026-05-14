@@ -28,10 +28,10 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 from runtime.event_bus import EventBus  # noqa: E402
-from runtime.substrate.actions import ActionResult, ActionStatus  # noqa: E402
-from runtime.substrate.station import StationContract, StationEvent  # noqa: E402
-from runtime.substrate.station_bus import get_station_bus  # noqa: E402
-from runtime.substrate.station_drainer import drain_node  # noqa: E402
+from runtime.transport.actions import ActionResult, ActionStatus  # noqa: E402
+from runtime.transport.station import StationContract, StationEvent  # noqa: E402
+from runtime.transport.station_bus import get_station_bus  # noqa: E402
+from runtime.transport.station_drainer import drain_node  # noqa: E402
 
 
 TEST_NODE = "drainer-smoketest"

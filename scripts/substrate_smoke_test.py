@@ -25,16 +25,16 @@ import time
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from runtime.substrate.nodes import NodeRegistry, NodeStatus  # noqa: E402
-from runtime.substrate.ritual_body import RitualPolicy  # noqa: E402
-from runtime.substrate.ritual_runner import (  # noqa: E402
+from runtime.transport.nodes import NodeRegistry, NodeStatus  # noqa: E402
+from runtime.transport.ritual_body import RitualPolicy  # noqa: E402
+from runtime.transport.ritual_runner import (  # noqa: E402
     start_close_day,
     start_open_day,
 )
-from runtime.substrate.rituals import RitualRegistry  # noqa: E402
-from runtime.substrate.station_bus import get_station_bus  # noqa: E402
-from runtime.substrate.station_daemon import StationDaemon  # noqa: E402
-from runtime.substrate.station_helpers import (  # noqa: E402
+from runtime.transport.rituals import RitualRegistry  # noqa: E402
+from runtime.transport.station_bus import get_station_bus  # noqa: E402
+from runtime.transport.station_daemon import StationDaemon  # noqa: E402
+from runtime.transport.station_helpers import (  # noqa: E402
     propose_open_scene,
     propose_open_url,
     propose_launch_app,
