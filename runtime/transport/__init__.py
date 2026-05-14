@@ -5,12 +5,9 @@ All symbols are available via ``from runtime.transport import X`` or
 ``from runtime.transport.submodule import Y``. Submodules are loaded
 on first access (PEP 562 __getattr__), not at package import time.
 
-Previously this file was 570+ lines of eager imports that pulled in
-40 submodules transitively — blocking 151 deferred migration items.
-See: data/audits/2026-05-13_triage_manifest.md (Wave 0.5 thread).
-
-Post-orphan-archive (2026-05-14): 148 orphan modules archived.
-Only 15 production-reachable modules remain registered here.
+Post-orphan-archive (2026-05-14): 148 modules archived. Only 15
+production-reachable modules remain (4 registered here for
+package-level symbol access).
 """
 
 from __future__ import annotations
@@ -32,14 +29,9 @@ def _m(submodule: str, *names: str) -> None:
         _LAZY_MAP[name] = (f"runtime.transport.{submodule}", name)
 
 
-# ── Core registries ───────────────────────────────────────────────────
+# ── Production modules with package-level symbol access ──────────────
 
-_m("nodes", "Node", "NodeRole", "NodeType", "NodeStatus", "NodeRegistry")
-_m("station", "StationContract", "StationHeartbeat", "StationEvent", "ControlMode")
-_m("actions", "SafeAction", "ActionKind", "ActionResult", "ActionStatus")
-_m("rituals", "Ritual", "RitualKind", "RitualState", "RitualRegistry")
 _m("storage", "SubstrateStorage", "JSONFileStorage", "NeonStorage", "get_storage")
-_m("station_bus", "StationBus", "get_station_bus")
 _m("capability_tagging", "tag_request")
 _m("station_daemon", "StationDaemon")
 _m(
@@ -50,27 +42,9 @@ _m(
     "propose_launch_app",
     "propose_open_scene",
 )
-_m("ritual_body", "RitualPolicy", "run_close_day_body", "run_open_day_body")
-
-# ── Voice / session ──────────────────────────────────────────────────
-
-_m(
-    "voice_session",
-    "VoiceSession",
-    "VoiceSessionStatus",
-    "VoiceSessionRuntime",
-    "VoiceTurn",
-    "VoiceTurnSource",
-    "VoiceSessionStore",
-    "get_voice_session_store",
-    "set_voice_responder",
-    "voice_session_report",
-)
 
 
 # ── PEP 562 lazy loader ─────────────────────────────────────────────
-
-_ALIASES: dict[str, tuple[str, str]] = {}
 
 
 def __getattr__(name: str) -> Any:
@@ -81,16 +55,9 @@ def __getattr__(name: str) -> Any:
         globals()[name] = value
         return value
 
-    if name in _ALIASES:
-        module_path, attr = _ALIASES[name]
-        mod = importlib.import_module(module_path)
-        value = getattr(mod, attr)
-        globals()[name] = value
-        return value
-
     raise AttributeError(f"module 'runtime.transport' has no attribute {name!r}")
 
 
 # ── __all__ ──────────────────────────────────────────────────────────
 
-__all__ = list(_LAZY_MAP.keys()) + list(_ALIASES.keys())
+__all__ = list(_LAZY_MAP.keys())

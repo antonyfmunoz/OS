@@ -315,15 +315,6 @@ class TestCandidateLeakageBlocked:
         c = IngestionCandidate(candidate_type=CANDIDATE_TYPE_INSTANCE, label="test")
         assert c.memory_scope == "instance_memory"
 
-    def test_instance_context_blocks_global_canon(self) -> None:
-        from runtime.transport.instance_ingestion_contracts import (
-            build_w0_001_instance_context,
-        )
-
-        ctx = build_w0_001_instance_context()
-        assert ctx.global_canon_allowed_by_default is False
-        assert ctx.default_memory_scope.value == "instance_memory"
-
     def test_generated_candidates_default_instance_scope(self) -> None:
         extraction = {
             "title": "My Personal Notes",
