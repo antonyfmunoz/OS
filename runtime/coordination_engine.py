@@ -102,27 +102,17 @@ class CoordinationEngine:
         """
         venture_uuid = resolve_venture(venture_id) if venture_id else None
 
-        with get_conn(self.ctx.org_id) as cur:
-            cur.execute(
-                """
-                INSERT INTO tasks
-                    (org_id, venture_id, description, assignee_type,
-                     assignee_id, priority, status, due_by, assigned_by)
-                VALUES (%s, %s, %s, %s, %s, %s, 'pending', %s, %s)
-                RETURNING id
-                """,
-                (
-                    self.ctx.org_id,
-                    venture_uuid,
-                    task_description,
-                    assignee_type,
-                    assignee_id,
-                    priority,
-                    due_by,
-                    assigned_by,
-                ),
-            )
-            task_id = str(cur.fetchone()["id"])
+        from state.stores.task_store import TaskStore
+        task_id = TaskStore().create_task(
+            org_id=self.ctx.org_id,
+            venture_id=venture_uuid,
+            description=task_description,
+            assignee_type=assignee_type,
+            assignee_id=assignee_id,
+            priority=priority,
+            due_by=due_by,
+            assigned_by=assigned_by,
+        )
 
         if assignee_type == "agent":
             self.event_bus.publish_async(
@@ -258,20 +248,17 @@ class CoordinationEngine:
                     """,
                     (self.ctx.org_id, task_id + "%"),
                 )
-                row = cur.fetchone()
-                if row:
-                    task_id = str(row["id"])
+                short_row = cur.fetchone()
+                if short_row:
+                    task_id = str(short_row["id"])
 
-            cur.execute(
-                """
-                UPDATE tasks
-                SET status = 'completed', result = %s, updated_at = now()
-                WHERE id = %s AND org_id = %s
-                RETURNING id, description, assignee_id, priority
-                """,
-                (result, task_id, self.ctx.org_id),
-            )
-            row = cur.fetchone()
+        from state.stores.task_store import TaskStore
+        row = TaskStore().update_status(
+            org_id=self.ctx.org_id,
+            task_id=task_id,
+            status="completed",
+            extra_fields={"result": result},
+        )
 
         if not row:
             return {"error": f"task {task_id} not found"}

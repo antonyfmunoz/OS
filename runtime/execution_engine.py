@@ -79,20 +79,14 @@ class ExecutionEngine:
         """
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         try:
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    """
-                    UPDATE tasks
-                       SET status      = 'in_progress',
-                           started_at  = %s,
-                           assigned_to = %s,
-                           updated_at  = %s
-                     WHERE id = %s
-                       AND org_id = %s
-                    """,
-                    (now, agent, now, task_id, self.ctx.org_id),
-                )
-                updated = cur.rowcount > 0
+            from state.stores.task_store import TaskStore
+            row = TaskStore().update_status(
+                org_id=self.ctx.org_id,
+                task_id=task_id,
+                status="in_progress",
+                extra_fields={"started_at": now, "assigned_to": agent},
+            )
+            updated = row is not None
 
             self._log_event(task_id, "in_progress", {"agent": agent})
             return updated
@@ -117,32 +111,20 @@ class ExecutionEngine:
         Returns:
             True if updated, False if task not found.
         """
-        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         try:
-            assignee_type = None
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    """
-                    UPDATE tasks
-                       SET status     = 'blocked',
-                           updated_at = %s
-                     WHERE id = %s
-                       AND org_id = %s
-                    RETURNING assignee_type, description
-                    """,
-                    (now, task_id, self.ctx.org_id),
-                )
-                row = cur.fetchone()
-                if row:
-                    assignee_type = row["assignee_type"]
-                    description   = row["description"]
+            from state.stores.task_store import TaskStore
+            row = TaskStore().update_status(
+                org_id=self.ctx.org_id,
+                task_id=task_id,
+                status="blocked",
+            )
 
             self._log_event(task_id, "blocked", {"reason": reason})
 
-            if assignee_type == "human":
+            if row and row.get("assignee_type") == "human":
                 _notify(
                     f"⚠️ TASK BLOCKED\n\n"
-                    f"Task: {description[:100] if row else task_id[:8]}\n"
+                    f"Task: {(row.get('description') or task_id[:8])[:100]}\n"
                     f"Reason: {reason}\n"
                     f"Task ID: {task_id[:8]}"
                 )
@@ -183,22 +165,16 @@ class ExecutionEngine:
         """
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         try:
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    """
-                    UPDATE tasks
-                       SET status       = 'completed',
-                           completed_at = %s,
-                           result       = %s,
-                           updated_at   = %s
-                     WHERE id = %s
-                       AND org_id = %s
-                    RETURNING id
-                    """,
-                    (now, result, now, task_id, self.ctx.org_id),
-                )
-                updated = cur.fetchone() is not None
+            from state.stores.task_store import TaskStore
+            row = TaskStore().update_status(
+                org_id=self.ctx.org_id,
+                task_id=task_id,
+                status="completed",
+                extra_fields={"completed_at": now, "result": result},
+            )
+            updated = row is not None
 
+            with get_conn(self.ctx.org_id) as cur:
                 # Log outcome if provided
                 if updated and outcome_type:
                     try:

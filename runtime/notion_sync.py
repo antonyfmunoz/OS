@@ -442,12 +442,12 @@ def push_pending_tasks_to_notion(venture_id: str, ctx=None) -> int:
             )
 
             if notion_page_id:
-                with get_conn(ctx.org_id) as cur:
-                    cur.execute(
-                        'UPDATE tasks SET notion_page_id = %s '
-                        'WHERE id::text = %s AND org_id = %s',
-                        (notion_page_id, task_id, str(ctx.org_id)),
-                    )
+                from state.stores.task_store import TaskStore
+                TaskStore().set_notion_page_id(
+                    org_id=str(ctx.org_id),
+                    task_id=task_id,
+                    notion_page_id=notion_page_id,
+                )
                 pushed += 1
 
         return pushed
