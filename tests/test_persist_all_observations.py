@@ -10,7 +10,7 @@ import pytest
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or "/opt/OS")
 
-from runtime.ingestion.local_file_source import LocalFileSource
+from adapters.data_source_adapters.local_file_source import LocalFileSource
 from runtime.ingestion.orchestrator import GenericIngestionOrchestrator
 
 

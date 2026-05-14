@@ -23,7 +23,7 @@ from governance.policy.authority_tier import (
     validate_tier,
 )
 from runtime.ingestion.gws_source import GWSSource
-from runtime.ingestion.local_file_source import LocalFileSource
+from adapters.data_source_adapters.local_file_source import LocalFileSource
 from runtime.ingestion.orchestrator import GenericIngestionOrchestrator
 
 

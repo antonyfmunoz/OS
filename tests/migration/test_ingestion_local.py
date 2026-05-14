@@ -16,7 +16,7 @@ import pytest
 sys.path.insert(0, os.environ.get("UMH_ROOT") or "/opt/OS")
 
 from governance.policy.authority_tier import T5_DEFAULT, get_authority_tier
-from runtime.ingestion.local_file_source import LocalFileSource
+from adapters.data_source_adapters.local_file_source import LocalFileSource
 from runtime.ingestion.orchestrator import GenericIngestionOrchestrator
 
 from .conftest import FIXTURE_PATH, MOCK_LLM_RESPONSE
