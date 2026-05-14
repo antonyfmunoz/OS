@@ -26,7 +26,7 @@ import pytest
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from core.workstation.relay_execution_transport_v1 import (
+from execution.workers.workstation.relay_execution_transport_v1 import (
     RelayTransportResult,
     check_relay_inbox_exists,
     check_ssh_reachable,
@@ -173,11 +173,11 @@ class TestTransportWithVisibleActuationProof:
     def test_stale_relay_blocks_execution(self, tmp_path: Path) -> None:
         from datetime import datetime, timedelta, timezone
 
-        from core.workstation.workstation_relay_heartbeat_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import (
             RelayHeartbeat,
             write_relay_heartbeat,
         )
-        from core.workstation.workstation_relay_self_heal_v1 import (
+        from execution.workers.workstation.workstation_relay_self_heal_v1 import (
             should_allow_chrome_proof,
         )
 
@@ -196,11 +196,11 @@ class TestTransportWithVisibleActuationProof:
     def test_locked_desktop_blocks_execution(self, tmp_path: Path) -> None:
         from datetime import datetime, timezone
 
-        from core.workstation.workstation_relay_heartbeat_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import (
             RelayHeartbeat,
             write_relay_heartbeat,
         )
-        from core.workstation.workstation_relay_self_heal_v1 import (
+        from execution.workers.workstation.workstation_relay_self_heal_v1 import (
             should_allow_chrome_proof,
         )
 
@@ -218,7 +218,7 @@ class TestTransportWithVisibleActuationProof:
 
     def test_screenshot_failure_blocks_escalation(self) -> None:
         from execution.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
-        from core.workstation.visible_actuation_proof_v1 import (
+        from execution.workers.workstation.visible_actuation_proof_v1 import (
             VisibleActuationEvidence,
             classify_visible_actuation,
         )
@@ -237,7 +237,7 @@ class TestTransportWithVisibleActuationProof:
 
     def test_founder_denial_blocks_escalation(self) -> None:
         from execution.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
-        from core.workstation.visible_actuation_proof_v1 import (
+        from execution.workers.workstation.visible_actuation_proof_v1 import (
             VisibleActuationEvidence,
             classify_visible_actuation,
         )
@@ -256,7 +256,7 @@ class TestTransportWithVisibleActuationProof:
 
     def test_full_real_evidence_escalates(self) -> None:
         from execution.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
-        from core.workstation.visible_actuation_proof_v1 import (
+        from execution.workers.workstation.visible_actuation_proof_v1 import (
             classify_visible_actuation,
             extract_evidence_from_relay_result,
         )
@@ -290,7 +290,7 @@ class TestTransportWithVisibleActuationProof:
         assert proof.escalation_blocked is False
 
     def test_real_relay_result_with_transport(self) -> None:
-        from core.workstation.visible_actuation_proof_v1 import (
+        from execution.workers.workstation.visible_actuation_proof_v1 import (
             classify_visible_actuation,
             extract_evidence_from_relay_result,
         )
@@ -346,7 +346,7 @@ class TestRegistryMismatchBlocked:
 
 class TestTransportModuleImports:
     def test_all_exports_importable(self) -> None:
-        from core.workstation.relay_execution_transport_v1 import (
+        from execution.workers.workstation.relay_execution_transport_v1 import (
             RELAY_DIR_WSL,
             RELAY_INBOX_WSL,
             RELAY_OUTBOX_WSL,

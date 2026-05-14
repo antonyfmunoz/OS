@@ -28,7 +28,7 @@ sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS
 
 class TestRelayHeartbeatDataclass:
     def test_default_heartbeat(self) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import RelayHeartbeat
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import RelayHeartbeat
 
         hb = RelayHeartbeat()
         assert hb.node_id == ""
@@ -36,7 +36,7 @@ class TestRelayHeartbeatDataclass:
         assert hb.timestamp != ""
 
     def test_heartbeat_with_values(self) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import RelayHeartbeat
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import RelayHeartbeat
 
         hb = RelayHeartbeat(
             node_id="WRN-abc12345",
@@ -54,7 +54,7 @@ class TestRelayHeartbeatDataclass:
         assert len(hb.capabilities) == 2
 
     def test_heartbeat_to_dict(self) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import RelayHeartbeat
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import RelayHeartbeat
 
         hb = RelayHeartbeat(node_id="WRN-test", machine_name="M1")
         d = hb.to_dict()
@@ -67,7 +67,7 @@ class TestRelayHeartbeatDataclass:
 
 class TestHeartbeatReadWrite:
     def test_write_then_read(self, tmp_path: Path) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import (
             RelayHeartbeat,
             read_relay_heartbeat,
             write_relay_heartbeat,
@@ -89,13 +89,13 @@ class TestHeartbeatReadWrite:
         assert loaded.chrome_available is True
 
     def test_read_missing_file(self, tmp_path: Path) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import read_relay_heartbeat
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import read_relay_heartbeat
 
         result = read_relay_heartbeat(tmp_path)
         assert result is None
 
     def test_read_corrupt_file(self, tmp_path: Path) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import (
             RELAY_HEARTBEAT_PATH,
             read_relay_heartbeat,
         )
@@ -109,7 +109,7 @@ class TestHeartbeatReadWrite:
 
 class TestHealthEvaluation:
     def test_alive_heartbeat(self) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import (
             RelayHeartbeat,
             evaluate_relay_health,
         )
@@ -124,7 +124,7 @@ class TestHealthEvaluation:
         assert health == HeartbeatHealth.ALIVE
 
     def test_degraded_heartbeat(self) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import (
             RelayHeartbeat,
             evaluate_relay_health,
         )
@@ -139,7 +139,7 @@ class TestHealthEvaluation:
         assert health == HeartbeatHealth.DEGRADED
 
     def test_timeout_heartbeat(self) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import (
             RelayHeartbeat,
             evaluate_relay_health,
         )
@@ -154,14 +154,14 @@ class TestHealthEvaluation:
         assert health == HeartbeatHealth.TIMEOUT
 
     def test_dead_no_heartbeat(self) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import evaluate_relay_health
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import evaluate_relay_health
         from execution.runtime.runtime_heartbeat_v1 import HeartbeatHealth
 
         health = evaluate_relay_health(None)
         assert health == HeartbeatHealth.DEAD
 
     def test_dead_empty_timestamp(self) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import (
             RelayHeartbeat,
             evaluate_relay_health,
         )
@@ -173,7 +173,7 @@ class TestHealthEvaluation:
         assert health == HeartbeatHealth.DEAD
 
     def test_dead_invalid_timestamp(self) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import (
             RelayHeartbeat,
             evaluate_relay_health,
         )
@@ -185,7 +185,7 @@ class TestHealthEvaluation:
         assert health == HeartbeatHealth.DEAD
 
     def test_z_suffix_timestamp(self) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import (
             RelayHeartbeat,
             evaluate_relay_health,
         )
@@ -202,7 +202,7 @@ class TestHealthEvaluation:
 
 class TestRelayOnlineDetection:
     def test_online_with_fresh_heartbeat(self, tmp_path: Path) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import (
             RelayHeartbeat,
             is_relay_online,
             write_relay_heartbeat,
@@ -219,14 +219,14 @@ class TestRelayOnlineDetection:
         assert reason == "alive"
 
     def test_offline_no_heartbeat(self, tmp_path: Path) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import is_relay_online
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import is_relay_online
 
         online, reason = is_relay_online(tmp_path)
         assert online is False
         assert reason == "no_heartbeat_file"
 
     def test_offline_stale_heartbeat(self, tmp_path: Path) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import (
             RelayHeartbeat,
             is_relay_online,
             write_relay_heartbeat,
@@ -243,7 +243,7 @@ class TestRelayOnlineDetection:
         assert reason == "heartbeat_stale"
 
     def test_offline_no_desktop_session(self, tmp_path: Path) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import (
             RelayHeartbeat,
             is_relay_online,
             write_relay_heartbeat,
@@ -262,10 +262,10 @@ class TestRelayOnlineDetection:
 
 class TestWorkstationRelayNode:
     def test_node_from_heartbeat(self, tmp_path: Path) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import (
             RELAY_HEARTBEAT_PATH,
         )
-        from core.workstation.workstation_relay_node_v1 import (
+        from execution.workers.workstation.workstation_relay_node_v1 import (
             load_relay_node_from_heartbeat,
         )
 
@@ -299,7 +299,7 @@ class TestWorkstationRelayNode:
         assert len(node.capabilities) == 2
 
     def test_node_none_when_no_file(self, tmp_path: Path) -> None:
-        from core.workstation.workstation_relay_node_v1 import (
+        from execution.workers.workstation.workstation_relay_node_v1 import (
             load_relay_node_from_heartbeat,
         )
 
@@ -307,8 +307,8 @@ class TestWorkstationRelayNode:
         assert node is None
 
     def test_node_not_execution_capable(self, tmp_path: Path) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import RELAY_HEARTBEAT_PATH
-        from core.workstation.workstation_relay_node_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import RELAY_HEARTBEAT_PATH
+        from execution.workers.workstation.workstation_relay_node_v1 import (
             load_relay_node_from_heartbeat,
         )
 
@@ -332,7 +332,7 @@ class TestWorkstationRelayNode:
 
 class TestNodeRegistry:
     def test_registry_no_heartbeat(self) -> None:
-        from core.workstation.workstation_node_registry_v1 import (
+        from execution.workers.workstation.workstation_node_registry_v1 import (
             WorkstationNodeRegistry,
         )
 
@@ -341,7 +341,7 @@ class TestNodeRegistry:
         assert registry.is_relay_available() is False
 
     def test_registry_status_offline(self) -> None:
-        from core.workstation.workstation_node_registry_v1 import (
+        from execution.workers.workstation.workstation_node_registry_v1 import (
             WorkstationNodeRegistry,
         )
 
@@ -352,11 +352,11 @@ class TestNodeRegistry:
         assert status["maturity_ceiling"] == "L0_SIMULATED"
 
     def test_registry_status_with_heartbeat(self, tmp_path: Path) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import (
             RelayHeartbeat,
             write_relay_heartbeat,
         )
-        from core.workstation.workstation_node_registry_v1 import (
+        from execution.workers.workstation.workstation_node_registry_v1 import (
             WorkstationNodeRegistry,
         )
 
@@ -381,7 +381,7 @@ class TestNodeRegistry:
 
 class TestRelayProof:
     def test_classify_relay_proof(self) -> None:
-        from core.workstation.workstation_relay_proof_v1 import classify_relay_proof
+        from execution.workers.workstation.workstation_relay_proof_v1 import classify_relay_proof
 
         relay_result = {
             "request_id": "REQ-001",
@@ -409,7 +409,7 @@ class TestRelayProof:
         assert proof["is_dry_run"] is False
 
     def test_persist_relay_proof(self, tmp_path: Path) -> None:
-        from core.workstation.workstation_relay_proof_v1 import persist_relay_proof
+        from execution.workers.workstation.workstation_relay_proof_v1 import persist_relay_proof
 
         relay_result = {
             "request_id": "REQ-PERSIST",
@@ -427,7 +427,7 @@ class TestRelayProof:
         assert data["is_dry_run"] is True
 
     def test_proof_hash_deterministic(self) -> None:
-        from core.workstation.workstation_relay_proof_v1 import compute_proof_hash
+        from execution.workers.workstation.workstation_relay_proof_v1 import compute_proof_hash
 
         result = {
             "request_id": "REQ-HASH",
@@ -444,7 +444,7 @@ class TestRelayProof:
         assert len(h1) == 16
 
     def test_dry_run_capped_at_l0(self) -> None:
-        from core.workstation.workstation_relay_proof_v1 import classify_relay_proof
+        from execution.workers.workstation.workstation_relay_proof_v1 import classify_relay_proof
 
         relay_result = {
             "request_id": "REQ-DRY",

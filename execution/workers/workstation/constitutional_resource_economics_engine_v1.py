@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+from .distributed_constitutional_substrate_federation_v1 import (
     FEDERATION_HARD_CEILINGS,
     FEDERATION_MATURITY_LEVELS,
     FederatedNode,
@@ -35,23 +35,23 @@ from core.workstation.distributed_constitutional_substrate_federation_v1 import 
     FederationTrustScores,
     build_full_federation_proof,
 )
-from core.workstation.constitutional_substrate_governance_layer_v1 import (
+from .constitutional_substrate_governance_layer_v1 import (
     ConstitutionalProof,
     build_full_constitutional_proof,
 )
-from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+from .adaptive_governance_intelligence_engine_v1 import (
     GovernanceIntelligenceProof,
     build_full_governance_intelligence_proof,
 )
-from core.workstation.governed_recursive_orchestration_engine_v1 import (
+from .governed_recursive_orchestration_engine_v1 import (
     OrchestrationProof,
     build_full_orchestration_proof,
 )
-from core.workstation.persistent_substrate_continuity_engine_v1 import (
+from .persistent_substrate_continuity_engine_v1 import (
     ContinuityProof,
     build_full_continuity_proof,
 )
-from core.workstation.recursive_capability_planning_engine_v1 import (
+from .recursive_capability_planning_engine_v1 import (
 
     CapabilityPlanningProof,
     build_full_capability_proof,

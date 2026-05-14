@@ -34,10 +34,10 @@ from .live_runtime_contracts_v1 import (
     _now_iso,
 )
 from .substrate_continuity_engine_v1 import SubstrateContinuityEngine
-from core.workstation.workstation_continuity_bridge_v1 import (
+from execution.workers.workstation.workstation_continuity_bridge_v1 import (
     WorkstationContinuityBridge,
 )
-from core.workstation.browser_continuity_bridge_v1 import BrowserContinuityBridge
+from execution.workers.workstation.browser_continuity_bridge_v1 import BrowserContinuityBridge
 
 
 class LiveContinuityCoordinator:

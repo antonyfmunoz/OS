@@ -20,29 +20,29 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+from .constitutional_strategic_intelligence_engine_v1 import (
     StrategyProof,
     StrategyEvidence,
 )
-from core.workstation.constitutional_resource_economics_engine_v1 import (
+from .constitutional_resource_economics_engine_v1 import (
     EconomicsProof,
 )
-from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+from .distributed_constitutional_substrate_federation_v1 import (
     FederationProof,
 )
-from core.workstation.constitutional_substrate_governance_layer_v1 import (
+from .constitutional_substrate_governance_layer_v1 import (
     ConstitutionalProof,
 )
-from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+from .adaptive_governance_intelligence_engine_v1 import (
     GovernanceIntelligenceProof,
 )
-from core.workstation.governed_recursive_orchestration_engine_v1 import (
+from .governed_recursive_orchestration_engine_v1 import (
     OrchestrationProof,
 )
-from core.workstation.persistent_substrate_continuity_engine_v1 import (
+from .persistent_substrate_continuity_engine_v1 import (
     ContinuityProof,
 )
-from core.workstation.recursive_capability_planning_engine_v1 import (
+from .recursive_capability_planning_engine_v1 import (
 
     CapabilityPlanningProof,
 )

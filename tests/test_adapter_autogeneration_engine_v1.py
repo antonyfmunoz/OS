@@ -27,7 +27,7 @@ import pytest
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from core.workstation.adapter_autogeneration_engine_v1 import (
+from execution.workers.workstation.adapter_autogeneration_engine_v1 import (
     ADAPTER_MATURITY_LEVELS,
     ADAPTER_MATURITY_REQUIREMENTS,
     ADAPTER_TARGET_PLATFORMS,
@@ -53,7 +53,7 @@ from core.workstation.adapter_autogeneration_engine_v1 import (
     persist_adapter_proof,
     persist_blueprints,
 )
-from core.workstation.environment_mapping_engine_v1 import (
+from execution.workers.workstation.environment_mapping_engine_v1 import (
     DiscoveredPlatform,
     EnvironmentMappingEvidence,
     EnvironmentMappingProof,

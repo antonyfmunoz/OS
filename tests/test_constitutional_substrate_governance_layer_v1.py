@@ -40,14 +40,14 @@ sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS
 
 class TestConstants(unittest.TestCase):
     def test_maturity_levels_count(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             CONSTITUTIONAL_MATURITY_LEVELS,
         )
 
         self.assertEqual(len(CONSTITUTIONAL_MATURITY_LEVELS), 6)
 
     def test_maturity_levels_order(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             CONSTITUTIONAL_MATURITY_LEVELS,
         )
 
@@ -57,84 +57,84 @@ class TestConstants(unittest.TestCase):
         )
 
     def test_safety_invariants_count(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             CONSTITUTIONAL_SAFETY_INVARIANTS,
         )
 
         self.assertEqual(len(CONSTITUTIONAL_SAFETY_INVARIANTS), 6)
 
     def test_authority_boundaries_count(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             CONSTITUTIONAL_AUTHORITY_BOUNDARIES,
         )
 
         self.assertEqual(len(CONSTITUTIONAL_AUTHORITY_BOUNDARIES), 5)
 
     def test_continuity_contracts_count(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             CONSTITUTIONAL_CONTINUITY_CONTRACTS,
         )
 
         self.assertEqual(len(CONSTITUTIONAL_CONTINUITY_CONTRACTS), 5)
 
     def test_emergency_actions_count(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             CONSTITUTIONAL_EMERGENCY_ACTIONS,
         )
 
         self.assertEqual(len(CONSTITUTIONAL_EMERGENCY_ACTIONS), 6)
 
     def test_hard_ceilings_count(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             CONSTITUTIONAL_HARD_CEILINGS,
         )
 
         self.assertEqual(len(CONSTITUTIONAL_HARD_CEILINGS), 8)
 
     def test_integrity_checks_count(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             CONSTITUTIONAL_INTEGRITY_CHECKS,
         )
 
         self.assertEqual(len(CONSTITUTIONAL_INTEGRITY_CHECKS), 7)
 
     def test_mutation_classifications_count(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             MUTATION_CLASSIFICATIONS,
         )
 
         self.assertEqual(len(MUTATION_CLASSIFICATIONS), 6)
 
     def test_risk_dimensions_count(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             CONSTITUTIONAL_RISK_DIMENSIONS,
         )
 
         self.assertEqual(len(CONSTITUTIONAL_RISK_DIMENSIONS), 7)
 
     def test_simulation_types_count(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             CONSTITUTIONAL_SIMULATION_TYPES,
         )
 
         self.assertEqual(len(CONSTITUTIONAL_SIMULATION_TYPES), 8)
 
     def test_migration_requirements_count(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             CONSTITUTIONAL_MIGRATION_REQUIREMENTS,
         )
 
         self.assertEqual(len(CONSTITUTIONAL_MIGRATION_REQUIREMENTS), 6)
 
     def test_hard_ceilings_immutable(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             CONSTITUTIONAL_HARD_CEILINGS,
         )
 
         self.assertIsInstance(CONSTITUTIONAL_HARD_CEILINGS, frozenset)
 
     def test_safety_invariants_immutable(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             CONSTITUTIONAL_SAFETY_INVARIANTS,
         )
 
@@ -148,7 +148,7 @@ class TestConstants(unittest.TestCase):
 
 class TestDataclassContracts(unittest.TestCase):
     def test_safety_invariant_status_to_dict(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             ConstitutionalSafetyInvariantStatus,
         )
 
@@ -158,7 +158,7 @@ class TestDataclassContracts(unittest.TestCase):
         self.assertIn("invariant_count", d)
 
     def test_authority_boundary_status_to_dict(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             ConstitutionalAuthorityBoundaryStatus,
         )
 
@@ -168,7 +168,7 @@ class TestDataclassContracts(unittest.TestCase):
         self.assertIn("violations_detected", d)
 
     def test_continuity_contract_status_to_dict(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             ConstitutionalContinuityContractStatus,
         )
 
@@ -177,7 +177,7 @@ class TestDataclassContracts(unittest.TestCase):
         self.assertIn("all_contracts_enforced", d)
 
     def test_emergency_governance_status_to_dict(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             ConstitutionalEmergencyGovernanceStatus,
         )
 
@@ -186,7 +186,7 @@ class TestDataclassContracts(unittest.TestCase):
         self.assertIn("all_emergency_actions_available", d)
 
     def test_integrity_result_to_dict(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             ConstitutionalIntegrityResult,
         )
 
@@ -197,7 +197,7 @@ class TestDataclassContracts(unittest.TestCase):
         self.assertEqual(len([k for k in d if k.endswith("_integrity")]), 7)
 
     def test_mutation_classification_to_dict(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             ConstitutionalMutationClassification,
         )
 
@@ -207,7 +207,7 @@ class TestDataclassContracts(unittest.TestCase):
         self.assertEqual(d["classification"], "safe_mutation")
 
     def test_risk_scores_to_dict(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             ConstitutionalRiskScores,
         )
 
@@ -217,7 +217,7 @@ class TestDataclassContracts(unittest.TestCase):
         self.assertEqual(len(d), 8)
 
     def test_risk_scores_composite(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             ConstitutionalRiskScores,
         )
 
@@ -225,7 +225,7 @@ class TestDataclassContracts(unittest.TestCase):
         self.assertGreater(r.composite_risk(), 0)
 
     def test_governance_contract_to_dict(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             ConstitutionalGovernanceContract,
         )
 
@@ -235,7 +235,7 @@ class TestDataclassContracts(unittest.TestCase):
         self.assertIn("approved", d)
 
     def test_simulation_outcome_to_dict(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             ConstitutionalSimulationOutcome,
         )
 
@@ -245,7 +245,7 @@ class TestDataclassContracts(unittest.TestCase):
         self.assertTrue(d["simulation_id"].startswith("CONSIM-"))
 
     def test_migration_contract_to_dict(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             ConstitutionalMigrationContract,
         )
 
@@ -255,7 +255,7 @@ class TestDataclassContracts(unittest.TestCase):
         self.assertTrue(d["migration_id"].startswith("CONMIG-"))
 
     def test_evidence_to_dict(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             ConstitutionalEvidence,
         )
 
@@ -265,7 +265,7 @@ class TestDataclassContracts(unittest.TestCase):
         self.assertIn("governance_bypass_blocked", d)
 
     def test_proof_to_dict(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             ConstitutionalProof,
         )
 
@@ -275,7 +275,7 @@ class TestDataclassContracts(unittest.TestCase):
         self.assertTrue(d["proof_id"].startswith("CONST-"))
 
     def test_proof_auto_fields(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             ConstitutionalProof,
         )
 
@@ -291,7 +291,7 @@ class TestDataclassContracts(unittest.TestCase):
 
 class TestBuildSafetyInvariants(unittest.TestCase):
     def test_no_inputs(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_safety_invariants,
         )
 
@@ -301,10 +301,10 @@ class TestBuildSafetyInvariants(unittest.TestCase):
         self.assertFalse(s.all_invariants_active)
 
     def test_with_orchestration_proof(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_safety_invariants,
         )
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationProof,
             OrchestrationEvidence,
         )
@@ -322,18 +322,18 @@ class TestBuildSafetyInvariants(unittest.TestCase):
         self.assertGreaterEqual(s.active_count, 3)
 
     def test_full_invariants(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_safety_invariants,
         )
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationProof,
             OrchestrationEvidence,
         )
-        from core.workstation.persistent_substrate_continuity_engine_v1 import (
+        from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
             ContinuityProof,
             ContinuityEvidence,
         )
-        from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+        from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
             GovernanceIntelligenceProof,
             GovernanceIntelligenceEvidence,
         )
@@ -361,7 +361,7 @@ class TestBuildSafetyInvariants(unittest.TestCase):
 
 class TestBuildAuthorityBoundaries(unittest.TestCase):
     def test_no_inputs(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_authority_boundaries,
         )
 
@@ -372,10 +372,10 @@ class TestBuildAuthorityBoundaries(unittest.TestCase):
         self.assertEqual(ab.violations_detected, 0)
 
     def test_violation_detected(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_authority_boundaries,
         )
-        from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+        from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
             GovernanceIntelligenceProof,
             GovernanceIntelligenceEvidence,
         )
@@ -395,7 +395,7 @@ class TestBuildAuthorityBoundaries(unittest.TestCase):
 
 class TestBuildContinuityContracts(unittest.TestCase):
     def test_no_inputs(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_continuity_contracts,
         )
 
@@ -405,18 +405,18 @@ class TestBuildContinuityContracts(unittest.TestCase):
         self.assertFalse(cc.all_contracts_enforced)
 
     def test_full_contracts(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_continuity_contracts,
         )
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationProof,
             OrchestrationEvidence,
         )
-        from core.workstation.persistent_substrate_continuity_engine_v1 import (
+        from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
             ContinuityProof,
             ContinuityEvidence,
         )
-        from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+        from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
             GovernanceIntelligenceProof,
             GovernanceIntelligenceEvidence,
         )
@@ -440,7 +440,7 @@ class TestBuildContinuityContracts(unittest.TestCase):
 
 class TestBuildEmergencyGovernance(unittest.TestCase):
     def test_no_inputs(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_emergency_governance,
         )
 
@@ -450,17 +450,17 @@ class TestBuildEmergencyGovernance(unittest.TestCase):
         self.assertFalse(eg.all_emergency_actions_available)
 
     def test_full_emergency(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_emergency_governance,
         )
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationProof,
             OrchestrationEvidence,
         )
-        from core.workstation.persistent_substrate_continuity_engine_v1 import (
+        from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
             ContinuityProof,
         )
-        from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+        from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
             GovernanceIntelligenceProof,
         )
 
@@ -482,7 +482,7 @@ class TestBuildEmergencyGovernance(unittest.TestCase):
 
 class TestValidateIntegrity(unittest.TestCase):
     def test_no_inputs(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             validate_constitutional_integrity,
         )
 
@@ -492,18 +492,18 @@ class TestValidateIntegrity(unittest.TestCase):
         self.assertFalse(ir.all_integrity_checks_pass)
 
     def test_full_integrity(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             validate_constitutional_integrity,
         )
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationProof,
             OrchestrationEvidence,
         )
-        from core.workstation.persistent_substrate_continuity_engine_v1 import (
+        from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
             ContinuityProof,
             ContinuityEvidence,
         )
-        from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+        from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
             GovernanceIntelligenceProof,
             GovernanceIntelligenceEvidence,
         )
@@ -532,7 +532,7 @@ class TestValidateIntegrity(unittest.TestCase):
 
 class TestClassifyMutation(unittest.TestCase):
     def test_safe_mutation(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             classify_mutation,
         )
 
@@ -542,7 +542,7 @@ class TestClassifyMutation(unittest.TestCase):
         self.assertFalse(mc.requires_migration)
 
     def test_constitutional_impact(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             classify_mutation,
         )
 
@@ -552,7 +552,7 @@ class TestClassifyMutation(unittest.TestCase):
         self.assertTrue(mc.requires_migration)
 
     def test_governance_mutation(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             classify_mutation,
         )
 
@@ -561,7 +561,7 @@ class TestClassifyMutation(unittest.TestCase):
         self.assertTrue(mc.requires_founder_approval)
 
     def test_replay_risk(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             classify_mutation,
         )
 
@@ -570,7 +570,7 @@ class TestClassifyMutation(unittest.TestCase):
         self.assertTrue(mc.requires_founder_approval)
 
     def test_continuity_risk(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             classify_mutation,
         )
 
@@ -578,7 +578,7 @@ class TestClassifyMutation(unittest.TestCase):
         self.assertEqual(mc.classification, "continuity_risk_mutation")
 
     def test_topology_risk(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             classify_mutation,
         )
 
@@ -586,7 +586,7 @@ class TestClassifyMutation(unittest.TestCase):
         self.assertEqual(mc.classification, "topology_risk_mutation")
 
     def test_mutation_id_generated(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             classify_mutation,
         )
 
@@ -594,7 +594,7 @@ class TestClassifyMutation(unittest.TestCase):
         self.assertTrue(mc.mutation_id.startswith("MUT-"))
 
     def test_constitutional_overrides_governance(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             classify_mutation,
         )
 
@@ -609,7 +609,7 @@ class TestClassifyMutation(unittest.TestCase):
 
 class TestConstitutionalRiskScoring(unittest.TestCase):
     def test_no_inputs(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             compute_constitutional_risk,
         )
 
@@ -617,7 +617,7 @@ class TestConstitutionalRiskScoring(unittest.TestCase):
         self.assertEqual(r.composite_risk(), 0.0)
 
     def test_with_safety_invariants(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             compute_constitutional_risk,
             ConstitutionalSafetyInvariantStatus,
         )
@@ -628,7 +628,7 @@ class TestConstitutionalRiskScoring(unittest.TestCase):
         self.assertGreater(r.invariant_pressure, 0)
 
     def test_all_dimensions_scored(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             compute_constitutional_risk,
             ConstitutionalRiskScores,
         )
@@ -654,7 +654,7 @@ class TestConstitutionalRiskScoring(unittest.TestCase):
 
 class TestBuildGovernanceContracts(unittest.TestCase):
     def test_no_proposals(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_governance_contracts,
         )
 
@@ -662,13 +662,13 @@ class TestBuildGovernanceContracts(unittest.TestCase):
         self.assertEqual(len(contracts), 0)
 
     def test_with_proposals(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_governance_contracts,
             ConstitutionalSafetyInvariantStatus,
             ConstitutionalAuthorityBoundaryStatus,
             ConstitutionalIntegrityResult,
         )
-        from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+        from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
             GovernanceProposal,
         )
 
@@ -681,11 +681,11 @@ class TestBuildGovernanceContracts(unittest.TestCase):
         self.assertTrue(contracts[0].approved)
 
     def test_incompatible_proposal(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_governance_contracts,
             ConstitutionalSafetyInvariantStatus,
         )
-        from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+        from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
             GovernanceProposal,
         )
 
@@ -703,10 +703,10 @@ class TestBuildGovernanceContracts(unittest.TestCase):
         self.assertIn("incompatib", contracts[0].replay_compatibility)
 
     def test_contract_has_impact_analysis(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_governance_contracts,
         )
-        from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+        from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
             GovernanceProposal,
         )
 
@@ -722,7 +722,7 @@ class TestBuildGovernanceContracts(unittest.TestCase):
 
 class TestEnforceHardCeilings(unittest.TestCase):
     def test_no_inputs(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             enforce_hard_ceilings,
         )
 
@@ -731,7 +731,7 @@ class TestEnforceHardCeilings(unittest.TestCase):
         self.assertEqual(len(reasons), 0)
 
     def test_replay_risk_blocked(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             enforce_hard_ceilings,
             ConstitutionalMutationClassification,
         )
@@ -742,7 +742,7 @@ class TestEnforceHardCeilings(unittest.TestCase):
         self.assertTrue(any("replay_breaking" in r for r in reasons))
 
     def test_continuity_risk_blocked(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             enforce_hard_ceilings,
             ConstitutionalMutationClassification,
         )
@@ -753,10 +753,10 @@ class TestEnforceHardCeilings(unittest.TestCase):
         self.assertTrue(any("continuity_breaking" in r for r in reasons))
 
     def test_governance_bypass_blocked(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             enforce_hard_ceilings,
         )
-        from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+        from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
             GovernanceIntelligenceProof,
             GovernanceIntelligenceEvidence,
         )
@@ -771,7 +771,7 @@ class TestEnforceHardCeilings(unittest.TestCase):
         self.assertGreater(len(reasons), 0)
 
     def test_invariant_violation_blocked(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             enforce_hard_ceilings,
             ConstitutionalMutationClassification,
         )
@@ -791,7 +791,7 @@ class TestEnforceHardCeilings(unittest.TestCase):
 
 class TestConstitutionalSimulations(unittest.TestCase):
     def test_all_8_types(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             run_constitutional_simulations,
             CONSTITUTIONAL_SIMULATION_TYPES,
         )
@@ -803,7 +803,7 @@ class TestConstitutionalSimulations(unittest.TestCase):
             self.assertIn(st, sim_types)
 
     def test_deterministic(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             run_constitutional_simulations,
             ConstitutionalRiskScores,
         )
@@ -817,7 +817,7 @@ class TestConstitutionalSimulations(unittest.TestCase):
             self.assertEqual(a.cascading_failures, b.cascading_failures)
 
     def test_simulation_has_severity(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             run_constitutional_simulations,
         )
 
@@ -826,7 +826,7 @@ class TestConstitutionalSimulations(unittest.TestCase):
             self.assertIn(s.predicted_severity, ("low", "medium", "high", "critical"))
 
     def test_simulation_ids_unique(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             run_constitutional_simulations,
         )
 
@@ -842,7 +842,7 @@ class TestConstitutionalSimulations(unittest.TestCase):
 
 class TestMigrationContracts(unittest.TestCase):
     def test_no_inputs(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_migration_contract,
         )
 
@@ -851,7 +851,7 @@ class TestMigrationContracts(unittest.TestCase):
         self.assertEqual(mc.requirement_count, 6)
 
     def test_full_migration(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_migration_contract,
         )
 
@@ -867,7 +867,7 @@ class TestMigrationContracts(unittest.TestCase):
         self.assertEqual(mc.met_count, 6)
 
     def test_partial_migration(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_migration_contract,
         )
 
@@ -883,7 +883,7 @@ class TestMigrationContracts(unittest.TestCase):
 
 class TestComputeMaturity(unittest.TestCase):
     def test_l0(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             compute_constitutional_maturity,
             ConstitutionalEvidence,
         )
@@ -896,7 +896,7 @@ class TestComputeMaturity(unittest.TestCase):
         self.assertEqual(compute_constitutional_maturity(ev), 0)
 
     def test_l5(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             compute_constitutional_maturity,
             ConstitutionalEvidence,
         )
@@ -924,7 +924,7 @@ class TestComputeMaturity(unittest.TestCase):
 
 class TestMaturityCeiling(unittest.TestCase):
     def test_dry_run(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             constitutional_maturity_ceiling,
             ConstitutionalEvidence,
         )
@@ -935,7 +935,7 @@ class TestMaturityCeiling(unittest.TestCase):
         self.assertTrue(blocked)
 
     def test_no_safety(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             constitutional_maturity_ceiling,
             ConstitutionalEvidence,
         )
@@ -946,7 +946,7 @@ class TestMaturityCeiling(unittest.TestCase):
         self.assertTrue(blocked)
 
     def test_no_authority(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             constitutional_maturity_ceiling,
             ConstitutionalEvidence,
         )
@@ -959,7 +959,7 @@ class TestMaturityCeiling(unittest.TestCase):
         self.assertTrue(blocked)
 
     def test_no_continuity(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             constitutional_maturity_ceiling,
             ConstitutionalEvidence,
         )
@@ -974,7 +974,7 @@ class TestMaturityCeiling(unittest.TestCase):
         self.assertTrue(blocked)
 
     def test_no_integrity(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             constitutional_maturity_ceiling,
             ConstitutionalEvidence,
         )
@@ -991,7 +991,7 @@ class TestMaturityCeiling(unittest.TestCase):
         self.assertTrue(blocked)
 
     def test_no_simulations(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             constitutional_maturity_ceiling,
             ConstitutionalEvidence,
         )
@@ -1010,7 +1010,7 @@ class TestMaturityCeiling(unittest.TestCase):
         self.assertTrue(blocked)
 
     def test_no_founder(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             constitutional_maturity_ceiling,
             ConstitutionalEvidence,
         )
@@ -1031,7 +1031,7 @@ class TestMaturityCeiling(unittest.TestCase):
         self.assertTrue(blocked)
 
     def test_full_l5(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             constitutional_maturity_ceiling,
             ConstitutionalEvidence,
         )
@@ -1055,7 +1055,7 @@ class TestMaturityCeiling(unittest.TestCase):
 
 class TestClassifyMaturity(unittest.TestCase):
     def test_dry_run(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             classify_constitutional_maturity,
             ConstitutionalEvidence,
         )
@@ -1066,7 +1066,7 @@ class TestClassifyMaturity(unittest.TestCase):
         self.assertTrue(blocked)
 
     def test_full_l5(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             classify_constitutional_maturity,
             ConstitutionalEvidence,
         )
@@ -1102,7 +1102,7 @@ class TestClassifyMaturity(unittest.TestCase):
 
 class TestFullPipeline(unittest.TestCase):
     def test_no_inputs(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_full_constitutional_proof,
         )
 
@@ -1116,7 +1116,7 @@ class TestFullPipeline(unittest.TestCase):
         self.assertIsNotNone(proof.constitutional_risk)
 
     def test_strategy_simulation(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_full_constitutional_proof,
         )
 
@@ -1124,7 +1124,7 @@ class TestFullPipeline(unittest.TestCase):
         self.assertEqual(proof.execution_strategy, "simulation_only")
 
     def test_strategy_await_founder(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_full_constitutional_proof,
         )
 
@@ -1132,7 +1132,7 @@ class TestFullPipeline(unittest.TestCase):
         self.assertEqual(proof.execution_strategy, "await_founder_confirmation")
 
     def test_strategy_active(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_full_constitutional_proof,
         )
 
@@ -1140,7 +1140,7 @@ class TestFullPipeline(unittest.TestCase):
         self.assertEqual(proof.execution_strategy, "constitutional_governance_active")
 
     def test_simulations_present(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_full_constitutional_proof,
         )
 
@@ -1148,7 +1148,7 @@ class TestFullPipeline(unittest.TestCase):
         self.assertEqual(len(proof.simulations), 8)
 
     def test_to_dict_complete(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_full_constitutional_proof,
         )
 
@@ -1164,16 +1164,16 @@ class TestFullPipeline(unittest.TestCase):
         self.assertIn("simulations", d)
 
     def test_with_proofs(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_full_constitutional_proof,
         )
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
-        from core.workstation.persistent_substrate_continuity_engine_v1 import (
+        from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
             build_full_continuity_proof,
         )
-        from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+        from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
             build_full_governance_intelligence_proof,
         )
 
@@ -1200,7 +1200,7 @@ class TestFullPipeline(unittest.TestCase):
 
 class TestProofPersistence(unittest.TestCase):
     def test_persist(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_full_constitutional_proof,
             persist_constitutional_proof,
         )
@@ -1212,7 +1212,7 @@ class TestProofPersistence(unittest.TestCase):
         path.parent.rmdir()
 
     def test_persist_valid_json(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_full_constitutional_proof,
             persist_constitutional_proof,
         )
@@ -1227,7 +1227,7 @@ class TestProofPersistence(unittest.TestCase):
     def test_persist_creates_dir(self) -> None:
         import shutil
 
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_full_constitutional_proof,
             persist_constitutional_proof,
             CONSTITUTIONAL_REPORT_DIR,
@@ -1242,17 +1242,17 @@ class TestProofPersistence(unittest.TestCase):
         shutil.rmtree(base)
 
     def test_persist_full_pipeline(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_full_constitutional_proof,
             persist_constitutional_proof,
         )
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
-        from core.workstation.persistent_substrate_continuity_engine_v1 import (
+        from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
             build_full_continuity_proof,
         )
-        from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+        from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
             build_full_governance_intelligence_proof,
         )
 
@@ -1284,7 +1284,7 @@ class TestProofPersistence(unittest.TestCase):
 
 class TestCanonicalInstanceSeparation(unittest.TestCase):
     def test_independent_proofs(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_full_constitutional_proof,
         )
 
@@ -1294,7 +1294,7 @@ class TestCanonicalInstanceSeparation(unittest.TestCase):
         self.assertNotEqual(p1.trace_id, p2.trace_id)
 
     def test_founder_vs_no_founder(self) -> None:
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_full_constitutional_proof,
         )
 

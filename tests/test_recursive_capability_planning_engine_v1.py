@@ -29,13 +29,13 @@ sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS
 
 class TestCapabilityNode:
     def test_node_has_id(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import CapabilityNode
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import CapabilityNode
 
         node = CapabilityNode(name="relay_transport")
         assert node.capability_id.startswith("CAP-")
 
     def test_node_defaults(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import CapabilityNode
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import CapabilityNode
 
         node = CapabilityNode(name="test")
         assert node.status == "missing"
@@ -45,7 +45,7 @@ class TestCapabilityNode:
         assert node.evidence_quality == 0.0
 
     def test_node_to_dict(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import CapabilityNode
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import CapabilityNode
 
         node = CapabilityNode(name="relay_transport", proven=True, evidence_quality=0.8)
         d = node.to_dict()
@@ -54,7 +54,7 @@ class TestCapabilityNode:
         assert d["evidence_quality"] == 0.8
 
     def test_node_timestamp(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import CapabilityNode
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import CapabilityNode
 
         node = CapabilityNode(name="test")
         assert len(node.timestamp) > 0
@@ -62,7 +62,7 @@ class TestCapabilityNode:
 
 class TestLeverageScore:
     def test_composite_positive_only(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import LeverageScore
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import LeverageScore
 
         score = LeverageScore(
             upgrade_name="test",
@@ -78,7 +78,7 @@ class TestLeverageScore:
         assert score.composite_score == 1.0
 
     def test_composite_with_penalties(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import LeverageScore
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import LeverageScore
 
         score = LeverageScore(
             upgrade_name="test",
@@ -89,7 +89,7 @@ class TestLeverageScore:
         assert score.composite_score < 0.5 * 0.25
 
     def test_composite_floor_at_zero(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import LeverageScore
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import LeverageScore
 
         score = LeverageScore(
             upgrade_name="test",
@@ -100,13 +100,13 @@ class TestLeverageScore:
         assert score.composite_score == 0.0
 
     def test_score_has_id(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import LeverageScore
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import LeverageScore
 
         score = LeverageScore(upgrade_name="test")
         assert score.score_id.startswith("LSCR-")
 
     def test_score_to_dict(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import LeverageScore
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import LeverageScore
 
         score = LeverageScore(upgrade_name="test", leverage_gain=0.7)
         d = score.to_dict()
@@ -115,7 +115,7 @@ class TestLeverageScore:
         assert "composite_score" in d
 
     def test_eight_dimensions_present(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import LeverageScore
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import LeverageScore
 
         score = LeverageScore(upgrade_name="test")
         d = score.to_dict()
@@ -135,13 +135,13 @@ class TestLeverageScore:
 
 class TestBottleneck:
     def test_bottleneck_has_id(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import Bottleneck
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import Bottleneck
 
         b = Bottleneck(category="manual", description="test")
         assert b.bottleneck_id.startswith("BTNK-")
 
     def test_bottleneck_to_dict(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import Bottleneck
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import Bottleneck
 
         b = Bottleneck(category="relay", description="test", severity=0.5)
         d = b.to_dict()
@@ -149,7 +149,7 @@ class TestBottleneck:
         assert d["severity"] == 0.5
 
     def test_bottleneck_categories_valid(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             BOTTLENECK_CATEGORIES,
         )
 
@@ -169,19 +169,19 @@ class TestBottleneck:
 
 class TestUpgradeProposal:
     def test_proposal_has_id(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import UpgradeProposal
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import UpgradeProposal
 
         p = UpgradeProposal(name="test")
         assert p.proposal_id.startswith("UPGR-")
 
     def test_proposal_defaults_canonical(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import UpgradeProposal
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import UpgradeProposal
 
         p = UpgradeProposal(name="test")
         assert p.candidate_type == "canonical"
 
     def test_proposal_to_dict(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             LeverageScore,
             UpgradeProposal,
         )
@@ -195,14 +195,14 @@ class TestUpgradeProposal:
 
 class TestSubstrateCapabilities:
     def test_exactly_21_capabilities(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             SUBSTRATE_CAPABILITIES,
         )
 
         assert len(SUBSTRATE_CAPABILITIES) == 21
 
     def test_all_capabilities_have_dependencies(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CAPABILITY_DEPENDENCIES,
             SUBSTRATE_CAPABILITIES,
         )
@@ -211,7 +211,7 @@ class TestSubstrateCapabilities:
             assert cap in CAPABILITY_DEPENDENCIES
 
     def test_all_dependencies_are_valid_capabilities(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CAPABILITY_DEPENDENCIES,
             SUBSTRATE_CAPABILITIES,
         )
@@ -222,7 +222,7 @@ class TestSubstrateCapabilities:
                 assert dep in cap_set, f"{cap} depends on unknown {dep}"
 
     def test_no_self_dependencies(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CAPABILITY_DEPENDENCIES,
         )
 
@@ -230,7 +230,7 @@ class TestSubstrateCapabilities:
             assert cap not in deps, f"{cap} has self-dependency"
 
     def test_all_capabilities_have_proof_indicators(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CAPABILITY_PROOF_INDICATORS,
             SUBSTRATE_CAPABILITIES,
         )
@@ -241,7 +241,7 @@ class TestSubstrateCapabilities:
 
 class TestCapabilityGraph:
     def test_graph_from_empty_evidence(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             build_capability_graph,
         )
@@ -253,7 +253,7 @@ class TestCapabilityGraph:
         assert graph.missing_count == 21
 
     def test_graph_from_full_evidence(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             build_capability_graph,
         )
@@ -274,7 +274,7 @@ class TestCapabilityGraph:
         assert graph.missing_count == 0
 
     def test_graph_has_id(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             build_capability_graph,
         )
@@ -283,7 +283,7 @@ class TestCapabilityGraph:
         assert graph.graph_id.startswith("CGRAPH-")
 
     def test_graph_to_dict(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             build_capability_graph,
         )
@@ -294,7 +294,7 @@ class TestCapabilityGraph:
         assert len(d["nodes"]) == 21
 
     def test_node_statuses_blocked_vs_missing(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             build_capability_graph,
         )
@@ -307,7 +307,7 @@ class TestCapabilityGraph:
         assert statuses["clipboard_extraction"] == "blocked"
 
     def test_evidence_quality_scores(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             build_capability_graph,
         )
@@ -325,12 +325,12 @@ class TestCapabilityGraph:
 
 class TestDependencyGraph:
     def test_dependents_computed(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import _DEPENDENTS
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import _DEPENDENTS
 
         assert "desktop_actuation" in _DEPENDENTS["relay_transport"]
 
     def test_relay_transport_has_most_dependents(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import _DEPENDENTS
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import _DEPENDENTS
 
         relay_deps = len(_DEPENDENTS["relay_transport"])
         for cap, deps in _DEPENDENTS.items():
@@ -344,7 +344,7 @@ class TestDependencyGraph:
             )
 
     def test_recursive_planning_depends_on_adapter_layer(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CAPABILITY_DEPENDENCIES,
         )
 
@@ -355,7 +355,7 @@ class TestDependencyGraph:
         assert "maturity_evaluation" in deps
 
     def test_no_circular_dependencies(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CAPABILITY_DEPENDENCIES,
         )
 
@@ -374,7 +374,7 @@ class TestDependencyGraph:
 
 class TestBottleneckAnalysis:
     def test_empty_evidence_max_bottlenecks(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             analyze_bottlenecks,
             build_capability_graph,
@@ -386,7 +386,7 @@ class TestBottleneckAnalysis:
         assert len(bottlenecks) >= 8
 
     def test_bottlenecks_sorted_by_severity(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             analyze_bottlenecks,
             build_capability_graph,
@@ -399,7 +399,7 @@ class TestBottleneckAnalysis:
         assert severities == sorted(severities, reverse=True)
 
     def test_actuation_bottleneck_highest_severity(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             analyze_bottlenecks,
             build_capability_graph,
@@ -412,7 +412,7 @@ class TestBottleneckAnalysis:
         assert bottlenecks[0].category == "execution"
 
     def test_all_bottleneck_categories_valid(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             BOTTLENECK_CATEGORIES,
             CapabilityPlanningEvidence,
             analyze_bottlenecks,
@@ -426,7 +426,7 @@ class TestBottleneckAnalysis:
             assert b.category in BOTTLENECK_CATEGORIES
 
     def test_fewer_bottlenecks_with_evidence(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             analyze_bottlenecks,
             build_capability_graph,
@@ -449,12 +449,12 @@ class TestBottleneckAnalysis:
 
 class TestLeverageScoring:
     def test_upgrade_catalog_has_5_entries(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import UPGRADE_CATALOG
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import UPGRADE_CATALOG
 
         assert len(UPGRADE_CATALOG) == 5
 
     def test_score_upgrade_returns_leverage_score(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             UPGRADE_CATALOG,
             score_upgrade,
         )
@@ -464,7 +464,7 @@ class TestLeverageScoring:
         assert score.upgrade_name == UPGRADE_CATALOG[0]["name"]
 
     def test_all_catalog_entries_have_scores(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             UPGRADE_CATALOG,
             score_upgrade,
         )
@@ -475,7 +475,7 @@ class TestLeverageScoring:
             assert score.composite_score <= 1.0
 
     def test_local_adapter_highest_leverage(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             UPGRADE_CATALOG,
             score_upgrade,
         )
@@ -489,7 +489,7 @@ class TestLeverageScoring:
 
 class TestUpgradeProposals:
     def test_proposals_generated(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             build_capability_graph,
             generate_upgrade_proposals,
@@ -501,7 +501,7 @@ class TestUpgradeProposals:
         assert len(proposals) == 5
 
     def test_proposals_ranked_by_composite(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             build_capability_graph,
             generate_upgrade_proposals,
@@ -514,7 +514,7 @@ class TestUpgradeProposals:
         assert composites == sorted(composites, reverse=True)
 
     def test_proposals_have_priority(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             build_capability_graph,
             generate_upgrade_proposals,
@@ -527,7 +527,7 @@ class TestUpgradeProposals:
         assert priorities == [1, 2, 3, 4, 5]
 
     def test_all_proposals_canonical(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             build_capability_graph,
             generate_upgrade_proposals,
@@ -542,7 +542,7 @@ class TestUpgradeProposals:
 
 class TestMaturityClassification:
     def test_dry_run_always_l0(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             compute_capability_maturity,
         )
@@ -556,7 +556,7 @@ class TestMaturityClassification:
         assert compute_capability_maturity(evidence) == "L0_SIMULATED"
 
     def test_l1_with_actuation(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             compute_capability_maturity,
         )
@@ -565,7 +565,7 @@ class TestMaturityClassification:
         assert compute_capability_maturity(evidence) == "L1_VISIBLE_ACTUATION"
 
     def test_l2_with_cu_ingestion(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             compute_capability_maturity,
         )
@@ -577,7 +577,7 @@ class TestMaturityClassification:
         assert compute_capability_maturity(evidence) == "L2_FOREGROUND_CU_INGESTION"
 
     def test_l3_with_environment(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             compute_capability_maturity,
         )
@@ -590,7 +590,7 @@ class TestMaturityClassification:
         assert compute_capability_maturity(evidence) == "L3_ENVIRONMENT_INTELLIGENCE"
 
     def test_l4_with_adapters(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             compute_capability_maturity,
         )
@@ -606,7 +606,7 @@ class TestMaturityClassification:
         assert compute_capability_maturity(evidence) == "L4_ADAPTER_MATURITY"
 
     def test_l5_with_planning(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             compute_capability_maturity,
         )
@@ -625,7 +625,7 @@ class TestMaturityClassification:
         assert compute_capability_maturity(evidence) == "L5_RECURSIVE_CAPABILITY_PLANNING"
 
     def test_maturity_levels_count(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CAPABILITY_MATURITY_LEVELS,
         )
 
@@ -634,7 +634,7 @@ class TestMaturityClassification:
 
 class TestHardCeilings:
     def test_dry_run_ceiling_l0(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             capability_maturity_ceiling,
         )
@@ -643,7 +643,7 @@ class TestHardCeilings:
         assert capability_maturity_ceiling(evidence) == "L0_SIMULATED"
 
     def test_no_screenshots_ceiling_l1(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             capability_maturity_ceiling,
         )
@@ -655,7 +655,7 @@ class TestHardCeilings:
         assert capability_maturity_ceiling(evidence) == "L1_VISIBLE_ACTUATION"
 
     def test_no_env_ceiling_l2(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             capability_maturity_ceiling,
         )
@@ -668,7 +668,7 @@ class TestHardCeilings:
         assert capability_maturity_ceiling(evidence) == "L2_FOREGROUND_CU_INGESTION"
 
     def test_no_blueprints_ceiling_l3(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             capability_maturity_ceiling,
         )
@@ -682,7 +682,7 @@ class TestHardCeilings:
         assert capability_maturity_ceiling(evidence) == "L3_ENVIRONMENT_INTELLIGENCE"
 
     def test_no_governance_ceiling_l3(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             capability_maturity_ceiling,
         )
@@ -697,7 +697,7 @@ class TestHardCeilings:
         assert capability_maturity_ceiling(evidence) == "L3_ENVIRONMENT_INTELLIGENCE"
 
     def test_no_graph_ceiling_l4(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             capability_maturity_ceiling,
         )
@@ -713,7 +713,7 @@ class TestHardCeilings:
         assert capability_maturity_ceiling(evidence) == "L4_ADAPTER_MATURITY"
 
     def test_no_leverage_ceiling_l4(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             capability_maturity_ceiling,
         )
@@ -730,7 +730,7 @@ class TestHardCeilings:
         assert capability_maturity_ceiling(evidence) == "L4_ADAPTER_MATURITY"
 
     def test_no_founder_ceiling_l4(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             capability_maturity_ceiling,
         )
@@ -748,7 +748,7 @@ class TestHardCeilings:
         assert capability_maturity_ceiling(evidence) == "L4_ADAPTER_MATURITY"
 
     def test_full_evidence_ceiling_l5(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             capability_maturity_ceiling,
         )
@@ -766,7 +766,7 @@ class TestHardCeilings:
         assert capability_maturity_ceiling(evidence) == "L5_RECURSIVE_CAPABILITY_PLANNING"
 
     def test_ceiling_blocks_escalation(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             classify_capability_maturity,
         )
@@ -791,7 +791,7 @@ class TestHardCeilings:
 
 class TestProofPersistence:
     def test_proof_persists(self, tmp_path: Path) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningProof,
             persist_capability_proof,
         )
@@ -803,7 +803,7 @@ class TestProofPersistence:
         assert data["proof_type"] == "recursive_capability_planning"
 
     def test_proof_filename(self, tmp_path: Path) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningProof,
             persist_capability_proof,
         )
@@ -814,7 +814,7 @@ class TestProofPersistence:
         assert path.name.endswith(".json")
 
     def test_proof_creates_directory(self, tmp_path: Path) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningProof,
             persist_capability_proof,
         )
@@ -825,7 +825,7 @@ class TestProofPersistence:
         assert report_dir.exists()
 
     def test_proof_serialization_complete(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningProof,
             CapabilityPlanningEvidence,
             CapabilityGraph,
@@ -845,7 +845,7 @@ class TestProofPersistence:
 
 class TestFullPipeline:
     def test_full_proof_from_empty(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             build_full_capability_proof,
         )
 
@@ -864,7 +864,7 @@ class TestFullPipeline:
         assert len(proof.upgrade_proposals) == 5
 
     def test_full_proof_dry_run(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             build_full_capability_proof,
         )
 
@@ -876,7 +876,7 @@ class TestFullPipeline:
         assert proof.execution_strategy == "simulation_only"
 
     def test_full_proof_has_strategy(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             build_full_capability_proof,
         )
 
@@ -892,7 +892,7 @@ class TestFullPipeline:
         )
 
     def test_full_proof_safest_and_highest(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             build_full_capability_proof,
         )
 
@@ -902,7 +902,7 @@ class TestFullPipeline:
         assert proof.safest_next_phase != proof.highest_leverage_upgrade
 
     def test_full_proof_serializable(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             build_full_capability_proof,
         )
 
@@ -917,7 +917,7 @@ class TestFullPipeline:
 
 class TestInfrastructureAnalysis:
     def test_analyze_registries(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import analyze_registries
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import analyze_registries
 
         result = analyze_registries()
         assert result["adapter_registry_exists"] is True
@@ -925,7 +925,7 @@ class TestInfrastructureAnalysis:
         assert result["config_action_count"] == 27
 
     def test_analyze_proof_artifacts(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             analyze_proof_artifacts,
         )
 
@@ -936,7 +936,7 @@ class TestInfrastructureAnalysis:
         assert "capability_reports" in result
 
     def test_analyze_governance_surface(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             analyze_governance_surface,
         )
 
@@ -946,7 +946,7 @@ class TestInfrastructureAnalysis:
         assert result["governance_coverage"] > 0.0
 
     def test_find_infrastructure_reuse(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             build_capability_graph,
             generate_upgrade_proposals,
@@ -965,7 +965,7 @@ class TestInfrastructureAnalysis:
 
 class TestCanonicalInstanceSeparation:
     def test_proposals_always_canonical(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             build_capability_graph,
             generate_upgrade_proposals,
@@ -978,7 +978,7 @@ class TestCanonicalInstanceSeparation:
             assert p.candidate_type == "canonical"
 
     def test_proof_type_field(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             build_full_capability_proof,
         )
 
@@ -1043,14 +1043,14 @@ class TestRegistryIntegration:
 
 class TestMaturityRequirements:
     def test_l0_no_requirements(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CAPABILITY_MATURITY_REQUIREMENTS,
         )
 
         assert CAPABILITY_MATURITY_REQUIREMENTS["L0_SIMULATED"] == []
 
     def test_l5_has_most_requirements(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CAPABILITY_MATURITY_REQUIREMENTS,
         )
 
@@ -1059,7 +1059,7 @@ class TestMaturityRequirements:
             assert len(l5_reqs) >= len(reqs)
 
     def test_each_level_adds_requirements(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CAPABILITY_MATURITY_LEVELS,
             CAPABILITY_MATURITY_REQUIREMENTS,
         )
@@ -1071,7 +1071,7 @@ class TestMaturityRequirements:
             prev_len = curr_len
 
     def test_l5_includes_planning_requirements(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CAPABILITY_MATURITY_REQUIREMENTS,
         )
 
@@ -1083,7 +1083,7 @@ class TestMaturityRequirements:
 
 class TestPlanningEvidence:
     def test_evidence_to_dict(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
         )
 
@@ -1096,7 +1096,7 @@ class TestPlanningEvidence:
         assert d["leverage_analyzed"] is True
 
     def test_build_planning_evidence_from_nothing(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             build_planning_evidence,
         )
 
@@ -1105,7 +1105,7 @@ class TestPlanningEvidence:
         assert ev.capability_graph_generated is False
 
     def test_build_planning_evidence_with_graph(self) -> None:
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             CapabilityPlanningEvidence,
             build_capability_graph,
             build_planning_evidence,

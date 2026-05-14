@@ -33,10 +33,10 @@ from .live_runtime_contracts_v1 import (
     _content_hash,
     _new_id,
 )
-from core.workstation.workstation_operational_embodiment_engine_v1 import (
+from execution.workers.workstation.workstation_operational_embodiment_engine_v1 import (
     WorkstationOperationalEmbodimentEngine,
 )
-from core.workstation.browser_gui_embodiment_engine_v1 import (
+from execution.workers.workstation.browser_gui_embodiment_engine_v1 import (
     BrowserGUIEmbodimentEngine,
 )
 

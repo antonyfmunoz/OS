@@ -21,14 +21,14 @@ sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS
 
 class TestIdentityConstants:
     def test_maturity_levels_count(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IDENTITY_MATURITY_LEVELS,
         )
 
         assert len(IDENTITY_MATURITY_LEVELS) == 6
 
     def test_maturity_levels_order(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IDENTITY_MATURITY_LEVELS,
         )
 
@@ -36,56 +36,56 @@ class TestIdentityConstants:
         assert IDENTITY_MATURITY_LEVELS[5] == "L5_CONSTITUTIONAL_IDENTITY_CONTINUITY"
 
     def test_primitives_count(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IDENTITY_PRIMITIVES,
         )
 
         assert len(IDENTITY_PRIMITIVES) == 10
 
     def test_memory_layers_count(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             SOVEREIGN_MEMORY_LAYERS,
         )
 
         assert len(SOVEREIGN_MEMORY_LAYERS) == 8
 
     def test_narrative_dimensions_count(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             NARRATIVE_CONTINUITY_DIMENSIONS,
         )
 
         assert len(NARRATIVE_CONTINUITY_DIMENSIONS) == 8
 
     def test_drift_types_count(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IDENTITY_DRIFT_TYPES,
         )
 
         assert len(IDENTITY_DRIFT_TYPES) == 8
 
     def test_reconciliation_types_count(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             HISTORICAL_RECONCILIATION_TYPES,
         )
 
         assert len(HISTORICAL_RECONCILIATION_TYPES) == 6
 
     def test_topology_types_count(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             TEMPORAL_TOPOLOGY_TYPES,
         )
 
         assert len(TEMPORAL_TOPOLOGY_TYPES) == 7
 
     def test_hard_ceilings_count(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IDENTITY_HARD_CEILINGS,
         )
 
         assert len(IDENTITY_HARD_CEILINGS) == 7
 
     def test_adaptation_types_count(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IDENTITY_ADAPTATION_TYPES,
         )
 
@@ -99,7 +99,7 @@ class TestIdentityConstants:
 
 class TestIdentityPrimitive:
     def test_default(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IdentityPrimitive,
         )
 
@@ -108,7 +108,7 @@ class TestIdentityPrimitive:
         assert p.stability == 0.0
 
     def test_to_dict_serializable(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IdentityPrimitive,
         )
 
@@ -120,7 +120,7 @@ class TestIdentityPrimitive:
 
 class TestIdentityPrimitiveSet:
     def test_auto_timestamp(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IdentityPrimitiveSet,
         )
 
@@ -128,7 +128,7 @@ class TestIdentityPrimitiveSet:
         assert s.timestamp != ""
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IdentityPrimitiveSet,
         )
 
@@ -139,7 +139,7 @@ class TestIdentityPrimitiveSet:
 
 class TestSovereignMemoryLayer:
     def test_default(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             SovereignMemoryLayer,
         )
 
@@ -148,7 +148,7 @@ class TestSovereignMemoryLayer:
         assert m.immutable is True
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             SovereignMemoryLayer,
         )
 
@@ -159,7 +159,7 @@ class TestSovereignMemoryLayer:
 
 class TestNarrativeContinuityDimension:
     def test_default(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             NarrativeContinuityDimension,
         )
 
@@ -168,7 +168,7 @@ class TestNarrativeContinuityDimension:
         assert n.divergence_detected is False
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             NarrativeContinuityDimension,
         )
 
@@ -179,7 +179,7 @@ class TestNarrativeContinuityDimension:
 
 class TestIdentityDriftDetection:
     def test_default(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IdentityDriftDetection,
         )
 
@@ -188,7 +188,7 @@ class TestIdentityDriftDetection:
         assert d.severity == "low"
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IdentityDriftDetection,
         )
 
@@ -199,7 +199,7 @@ class TestIdentityDriftDetection:
 
 class TestHistoricalReconciliation:
     def test_default(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             HistoricalReconciliation,
         )
 
@@ -208,7 +208,7 @@ class TestHistoricalReconciliation:
         assert r.severity == 0.0
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             HistoricalReconciliation,
         )
 
@@ -219,7 +219,7 @@ class TestHistoricalReconciliation:
 
 class TestTemporalTopologyNode:
     def test_default(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             TemporalTopologyNode,
         )
 
@@ -227,7 +227,7 @@ class TestTemporalTopologyNode:
         assert n.connections == 0
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             TemporalTopologyNode,
         )
 
@@ -238,7 +238,7 @@ class TestTemporalTopologyNode:
 
 class TestTemporalTopology:
     def test_auto_hash(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             TemporalTopology,
             TemporalTopologyNode,
         )
@@ -247,7 +247,7 @@ class TestTemporalTopology:
         assert t.topology_hash != ""
 
     def test_hash_deterministic(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             TemporalTopology,
             TemporalTopologyNode,
         )
@@ -260,7 +260,7 @@ class TestTemporalTopology:
 
 class TestIdentityAdaptation:
     def test_default_invariants_preserved(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IdentityAdaptation,
         )
 
@@ -268,7 +268,7 @@ class TestIdentityAdaptation:
         assert a.invariants_preserved is True
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IdentityAdaptation,
         )
 
@@ -279,7 +279,7 @@ class TestIdentityAdaptation:
 
 class TestIdentityEvidence:
     def test_field_count(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IdentityEvidence,
         )
 
@@ -288,7 +288,7 @@ class TestIdentityEvidence:
         assert len(d) == 38
 
     def test_to_dict_serializable(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IdentityEvidence,
         )
 
@@ -298,7 +298,7 @@ class TestIdentityEvidence:
 
 class TestIdentityProof:
     def test_auto_proof_id(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IdentityProof,
         )
 
@@ -306,7 +306,7 @@ class TestIdentityProof:
         assert p.proof_id.startswith("IDEN-")
 
     def test_to_dict_serializable(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IdentityEvidence,
             IdentityProof,
         )
@@ -322,7 +322,7 @@ class TestIdentityProof:
 
 class TestBuildIdentityPrimitives:
     def test_produces_10_primitives(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_identity_primitives,
         )
 
@@ -330,7 +330,7 @@ class TestBuildIdentityPrimitives:
         assert len(result.primitives) == 10
 
     def test_composite_confidence_positive(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_identity_primitives,
         )
 
@@ -338,7 +338,7 @@ class TestBuildIdentityPrimitives:
         assert result.composite_confidence > 0
 
     def test_all_primitives_named(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_identity_primitives,
             IDENTITY_PRIMITIVES,
         )
@@ -350,7 +350,7 @@ class TestBuildIdentityPrimitives:
 
 class TestBuildSovereignMemory:
     def test_produces_8_layers(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_sovereign_memory,
         )
 
@@ -358,7 +358,7 @@ class TestBuildSovereignMemory:
         assert len(result.layers) == 8
 
     def test_composite_integrity_positive(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_sovereign_memory,
         )
 
@@ -368,7 +368,7 @@ class TestBuildSovereignMemory:
 
 class TestBuildNarrativeContinuity:
     def test_produces_8_dimensions(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_identity_primitives,
             build_sovereign_memory,
             build_narrative_continuity,
@@ -380,7 +380,7 @@ class TestBuildNarrativeContinuity:
         assert len(result.dimensions) == 8
 
     def test_composite_coherence_between_0_and_1(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_identity_primitives,
             build_sovereign_memory,
             build_narrative_continuity,
@@ -394,7 +394,7 @@ class TestBuildNarrativeContinuity:
 
 class TestBuildIdentityDrift:
     def test_produces_8_detections(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_identity_primitives,
             build_sovereign_memory,
             build_narrative_continuity,
@@ -408,7 +408,7 @@ class TestBuildIdentityDrift:
         assert len(result.detections) == 8
 
     def test_drift_types_all_covered(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_identity_primitives,
             build_sovereign_memory,
             build_narrative_continuity,
@@ -426,7 +426,7 @@ class TestBuildIdentityDrift:
 
 class TestBuildHistoricalReconciliation:
     def test_produces_reconciliation_types(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_identity_primitives,
             build_sovereign_memory,
             build_narrative_continuity,
@@ -442,7 +442,7 @@ class TestBuildHistoricalReconciliation:
         assert result.conflict_count >= 0
 
     def test_all_types_covered(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_identity_primitives,
             build_sovereign_memory,
             build_narrative_continuity,
@@ -462,7 +462,7 @@ class TestBuildHistoricalReconciliation:
 
 class TestBuildTemporalTopology:
     def test_covers_7_types(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_identity_primitives,
             build_sovereign_memory,
             build_narrative_continuity,
@@ -478,7 +478,7 @@ class TestBuildTemporalTopology:
         assert result.topology_types_covered == 7
 
     def test_hash_not_empty(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_identity_primitives,
             build_sovereign_memory,
             build_narrative_continuity,
@@ -496,7 +496,7 @@ class TestBuildTemporalTopology:
 
 class TestBuildIdentityAdaptations:
     def test_produces_6_adaptations(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_identity_primitives,
             build_sovereign_memory,
             build_narrative_continuity,
@@ -514,7 +514,7 @@ class TestBuildIdentityAdaptations:
         assert len(result.adaptations) == 6
 
     def test_invariants_preserved(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_identity_primitives,
             build_sovereign_memory,
             build_narrative_continuity,
@@ -534,7 +534,7 @@ class TestBuildIdentityAdaptations:
 
 class TestEnforceIdentityHardCeilings:
     def test_no_violation_on_clean(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IdentityPrimitiveSet,
             IdentityPrimitive,
             IdentityDriftAnalysis,
@@ -561,7 +561,7 @@ class TestEnforceIdentityHardCeilings:
         assert len(reasons) == 0
 
     def test_invariant_violation_blocks(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IdentityPrimitiveSet,
             IdentityPrimitive,
             IdentityDriftAnalysis,
@@ -604,7 +604,7 @@ class TestEnforceIdentityHardCeilings:
 
 class TestComputeIdentityMaturity:
     def test_empty_evidence_low_score(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IdentityEvidence,
             compute_identity_maturity,
         )
@@ -618,7 +618,7 @@ class TestComputeIdentityMaturity:
         assert compute_identity_maturity(ev) == 0
 
     def test_full_evidence_high_score(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IdentityEvidence,
             compute_identity_maturity,
         )
@@ -641,7 +641,7 @@ class TestComputeIdentityMaturity:
 
 class TestIdentityMaturityCeiling:
     def test_dry_run_l0(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IdentityEvidence,
             identity_maturity_ceiling,
         )
@@ -650,7 +650,7 @@ class TestIdentityMaturityCeiling:
         assert identity_maturity_ceiling(ev) == "L0_NO_IDENTITY_CONTINUITY"
 
     def test_no_primitives_l0(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IdentityEvidence,
             identity_maturity_ceiling,
         )
@@ -659,7 +659,7 @@ class TestIdentityMaturityCeiling:
         assert identity_maturity_ceiling(ev) == "L0_NO_IDENTITY_CONTINUITY"
 
     def test_full_evidence_l5(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IdentityEvidence,
             identity_maturity_ceiling,
         )
@@ -674,7 +674,7 @@ class TestIdentityMaturityCeiling:
         assert identity_maturity_ceiling(ev) == "L5_CONSTITUTIONAL_IDENTITY_CONTINUITY"
 
     def test_no_founder_capped_l4(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IdentityEvidence,
             identity_maturity_ceiling,
         )
@@ -691,7 +691,7 @@ class TestIdentityMaturityCeiling:
 
 class TestClassifyIdentityMaturity:
     def test_empty_l0(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IdentityEvidence,
             classify_identity_maturity,
         )
@@ -713,7 +713,7 @@ class TestClassifyIdentityMaturity:
 
 class TestBuildFullIdentityProof:
     def test_no_upstream(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_full_identity_proof,
         )
 
@@ -723,7 +723,7 @@ class TestBuildFullIdentityProof:
         assert proof.evidence.primitives_evaluated is True
 
     def test_dry_run(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_full_identity_proof,
         )
 
@@ -732,7 +732,7 @@ class TestBuildFullIdentityProof:
         assert proof.execution_strategy == "identity_continuity_dry_run"
 
     def test_founder_identity(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_full_identity_proof,
         )
 
@@ -740,25 +740,25 @@ class TestBuildFullIdentityProof:
         assert proof.evidence.founder_confirmed is True
 
     def test_with_full_upstream_chain(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_full_identity_proof,
         )
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_full_epistemic_proof,
         )
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             build_full_strategy_proof,
         )
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             build_full_economics_proof,
         )
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             build_full_federation_proof,
         )
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             build_full_capability_proof,
         )
 
@@ -807,7 +807,7 @@ class TestBuildFullIdentityProof:
 
 class TestPersistIdentityProof:
     def test_persist_creates_file(self, tmp_path: Path) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_full_identity_proof,
             persist_identity_proof,
         )
@@ -820,7 +820,7 @@ class TestPersistIdentityProof:
         assert data["proof_type"] == "constitutional_identity_continuity"
 
     def test_persist_json_valid(self, tmp_path: Path) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_full_identity_proof,
             persist_identity_proof,
         )
@@ -840,7 +840,7 @@ class TestPersistIdentityProof:
 
 class TestSelfhoodStability:
     def test_selfhood_logic(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_full_identity_proof,
         )
 
@@ -850,7 +850,7 @@ class TestSelfhoodStability:
         assert ev.selfhood_stable is expected
 
     def test_critical_drift_destabilizes(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_identity_primitives,
             build_sovereign_memory,
             build_narrative_continuity,
@@ -872,7 +872,7 @@ class TestSelfhoodStability:
 
 class TestMemoryQuarantineSafety:
     def test_no_quarantine_without_corruption(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_identity_primitives,
             build_sovereign_memory,
             build_narrative_continuity,
@@ -898,7 +898,7 @@ class TestMemoryQuarantineSafety:
 
 class TestIdentityPreservation:
     def test_preservation_always_present(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IdentityPrimitiveSet,
             IdentityDriftAnalysis,
             HistoricalReconciliationAnalysis,
@@ -922,16 +922,16 @@ class TestIdentityPreservation:
 
 class TestReplaySafeLineage:
     def test_replay_safe_with_federation(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_full_identity_proof,
         )
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             build_full_federation_proof,
         )
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             build_full_capability_proof,
         )
 
@@ -951,7 +951,7 @@ class TestReplaySafeLineage:
 
 class TestTemporalTopologyGeneration:
     def test_all_7_types_generated(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_identity_primitives,
             build_sovereign_memory,
             build_narrative_continuity,
@@ -976,7 +976,7 @@ class TestTemporalTopologyGeneration:
 
 class TestContinuitySafeMemoryRecovery:
     def test_historical_integrity_always_applied(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             IdentityPrimitiveSet,
             IdentityDriftAnalysis,
             HistoricalReconciliationAnalysis,
@@ -1048,35 +1048,35 @@ class TestIdentityCommandRegistration:
 
 class TestLiveIdentityProof:
     def test_live_proof_with_full_upstream(self) -> None:
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_full_identity_proof,
             persist_identity_proof,
         )
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_full_epistemic_proof,
         )
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             build_full_strategy_proof,
         )
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             build_full_economics_proof,
         )
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             build_full_federation_proof,
         )
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_full_constitutional_proof,
         )
-        from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+        from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
             build_full_governance_intelligence_proof,
         )
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
-        from core.workstation.persistent_substrate_continuity_engine_v1 import (
+        from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
             build_full_continuity_proof,
         )
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             build_full_capability_proof,
         )
 

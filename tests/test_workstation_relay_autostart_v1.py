@@ -28,7 +28,7 @@ sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS
 
 class TestAutostartMarker:
     def test_no_marker_returns_none(self, tmp_path: Path) -> None:
-        from core.workstation.workstation_relay_self_heal_v1 import (
+        from execution.workers.workstation.workstation_relay_self_heal_v1 import (
             read_autostart_marker,
         )
 
@@ -36,7 +36,7 @@ class TestAutostartMarker:
         assert result is None
 
     def test_valid_marker(self, tmp_path: Path) -> None:
-        from core.workstation.workstation_relay_self_heal_v1 import (
+        from execution.workers.workstation.workstation_relay_self_heal_v1 import (
             AUTOSTART_MARKER_PATH,
             read_autostart_marker,
         )
@@ -58,7 +58,7 @@ class TestAutostartMarker:
         assert result["task_name"] == "EOS-WorkstationRelay"
 
     def test_corrupt_marker(self, tmp_path: Path) -> None:
-        from core.workstation.workstation_relay_self_heal_v1 import (
+        from execution.workers.workstation.workstation_relay_self_heal_v1 import (
             AUTOSTART_MARKER_PATH,
             read_autostart_marker,
         )
@@ -73,8 +73,8 @@ class TestAutostartMarker:
 
 class TestHeartbeatAge:
     def test_fresh_heartbeat_age(self) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import RelayHeartbeat
-        from core.workstation.workstation_relay_self_heal_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import RelayHeartbeat
+        from execution.workers.workstation.workstation_relay_self_heal_v1 import (
             compute_heartbeat_age,
         )
 
@@ -84,8 +84,8 @@ class TestHeartbeatAge:
         assert 0 <= age < 1
 
     def test_old_heartbeat_age(self) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import RelayHeartbeat
-        from core.workstation.workstation_relay_self_heal_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import RelayHeartbeat
+        from execution.workers.workstation.workstation_relay_self_heal_v1 import (
             compute_heartbeat_age,
         )
 
@@ -95,7 +95,7 @@ class TestHeartbeatAge:
         assert 119 < age < 121
 
     def test_no_heartbeat_returns_negative(self) -> None:
-        from core.workstation.workstation_relay_self_heal_v1 import (
+        from execution.workers.workstation.workstation_relay_self_heal_v1 import (
             compute_heartbeat_age,
         )
 
@@ -103,8 +103,8 @@ class TestHeartbeatAge:
         assert age == -1
 
     def test_empty_timestamp_returns_negative(self) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import RelayHeartbeat
-        from core.workstation.workstation_relay_self_heal_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import RelayHeartbeat
+        from execution.workers.workstation.workstation_relay_self_heal_v1 import (
             compute_heartbeat_age,
         )
 
@@ -114,8 +114,8 @@ class TestHeartbeatAge:
         assert age == -1
 
     def test_z_suffix_parsed(self) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import RelayHeartbeat
-        from core.workstation.workstation_relay_self_heal_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import RelayHeartbeat
+        from execution.workers.workstation.workstation_relay_self_heal_v1 import (
             compute_heartbeat_age,
         )
 
@@ -128,11 +128,11 @@ class TestHeartbeatAge:
 
 class TestRelayHealthAssessment:
     def test_healthy_relay(self, tmp_path: Path) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import (
             RelayHeartbeat,
             write_relay_heartbeat,
         )
-        from core.workstation.workstation_relay_self_heal_v1 import (
+        from execution.workers.workstation.workstation_relay_self_heal_v1 import (
             assess_relay_health,
         )
 
@@ -155,7 +155,7 @@ class TestRelayHealthAssessment:
         assert report.denial_reason == ""
 
     def test_offline_no_heartbeat(self, tmp_path: Path) -> None:
-        from core.workstation.workstation_relay_self_heal_v1 import (
+        from execution.workers.workstation.workstation_relay_self_heal_v1 import (
             assess_relay_health,
         )
 
@@ -167,11 +167,11 @@ class TestRelayHealthAssessment:
         assert report.restart_recommended is True
 
     def test_stale_heartbeat(self, tmp_path: Path) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import (
             RelayHeartbeat,
             write_relay_heartbeat,
         )
-        from core.workstation.workstation_relay_self_heal_v1 import (
+        from execution.workers.workstation.workstation_relay_self_heal_v1 import (
             assess_relay_health,
         )
 
@@ -191,11 +191,11 @@ class TestRelayHealthAssessment:
         assert report.execution_allowed is False
 
     def test_degraded_heartbeat(self, tmp_path: Path) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import (
             RelayHeartbeat,
             write_relay_heartbeat,
         )
-        from core.workstation.workstation_relay_self_heal_v1 import (
+        from execution.workers.workstation.workstation_relay_self_heal_v1 import (
             assess_relay_health,
         )
 
@@ -215,11 +215,11 @@ class TestRelayHealthAssessment:
         assert report.execution_allowed is True
 
     def test_no_desktop_denies_execution(self, tmp_path: Path) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import (
             RelayHeartbeat,
             write_relay_heartbeat,
         )
-        from core.workstation.workstation_relay_self_heal_v1 import (
+        from execution.workers.workstation.workstation_relay_self_heal_v1 import (
             assess_relay_health,
         )
 
@@ -238,11 +238,11 @@ class TestRelayHealthAssessment:
         assert report.denial_reason == "no_desktop_session"
 
     def test_no_chrome_denies_execution(self, tmp_path: Path) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import (
             RelayHeartbeat,
             write_relay_heartbeat,
         )
-        from core.workstation.workstation_relay_self_heal_v1 import (
+        from execution.workers.workstation.workstation_relay_self_heal_v1 import (
             assess_relay_health,
         )
 
@@ -263,7 +263,7 @@ class TestRelayHealthAssessment:
 
 class TestAutostartInHealthReport:
     def test_autostart_detected(self, tmp_path: Path) -> None:
-        from core.workstation.workstation_relay_self_heal_v1 import (
+        from execution.workers.workstation.workstation_relay_self_heal_v1 import (
             AUTOSTART_MARKER_PATH,
             assess_relay_health,
         )
@@ -284,7 +284,7 @@ class TestAutostartInHealthReport:
         assert report.autostart_task_name == "EOS-WorkstationRelay"
 
     def test_no_autostart(self, tmp_path: Path) -> None:
-        from core.workstation.workstation_relay_self_heal_v1 import (
+        from execution.workers.workstation.workstation_relay_self_heal_v1 import (
             assess_relay_health,
         )
 
@@ -295,11 +295,11 @@ class TestAutostartInHealthReport:
 
 class TestChromeProofGating:
     def test_healthy_relay_allows_chrome_proof(self, tmp_path: Path) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import (
             RelayHeartbeat,
             write_relay_heartbeat,
         )
-        from core.workstation.workstation_relay_self_heal_v1 import (
+        from execution.workers.workstation.workstation_relay_self_heal_v1 import (
             should_allow_chrome_proof,
         )
 
@@ -318,7 +318,7 @@ class TestChromeProofGating:
         assert reason == "relay_healthy"
 
     def test_offline_blocks_chrome_proof(self, tmp_path: Path) -> None:
-        from core.workstation.workstation_relay_self_heal_v1 import (
+        from execution.workers.workstation.workstation_relay_self_heal_v1 import (
             should_allow_chrome_proof,
         )
 
@@ -327,11 +327,11 @@ class TestChromeProofGating:
         assert "relay_offline" in reason
 
     def test_stale_blocks_chrome_proof(self, tmp_path: Path) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import (
             RelayHeartbeat,
             write_relay_heartbeat,
         )
-        from core.workstation.workstation_relay_self_heal_v1 import (
+        from execution.workers.workstation.workstation_relay_self_heal_v1 import (
             should_allow_chrome_proof,
         )
 
@@ -347,11 +347,11 @@ class TestChromeProofGating:
         assert allowed is False
 
     def test_no_chrome_blocks_proof(self, tmp_path: Path) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import (
             RelayHeartbeat,
             write_relay_heartbeat,
         )
-        from core.workstation.workstation_relay_self_heal_v1 import (
+        from execution.workers.workstation.workstation_relay_self_heal_v1 import (
             should_allow_chrome_proof,
         )
 
@@ -370,7 +370,7 @@ class TestChromeProofGating:
 
 class TestHealthReportSerialization:
     def test_to_dict_serializable(self) -> None:
-        from core.workstation.workstation_relay_self_heal_v1 import (
+        from execution.workers.workstation.workstation_relay_self_heal_v1 import (
             RelayHealthReport,
         )
 
@@ -388,7 +388,7 @@ class TestHealthReportSerialization:
         assert d["heartbeat_age_seconds"] == 5.1
 
     def test_offline_report_dict(self) -> None:
-        from core.workstation.workstation_relay_self_heal_v1 import (
+        from execution.workers.workstation.workstation_relay_self_heal_v1 import (
             RelayHealthReport,
         )
 
@@ -400,11 +400,11 @@ class TestHealthReportSerialization:
 
 class TestSelfHealIntegration:
     def test_assess_uses_existing_heartbeat(self, tmp_path: Path) -> None:
-        from core.workstation.workstation_relay_heartbeat_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import (
             RelayHeartbeat,
             write_relay_heartbeat,
         )
-        from core.workstation.workstation_relay_self_heal_v1 import (
+        from execution.workers.workstation.workstation_relay_self_heal_v1 import (
             assess_relay_health,
         )
 
@@ -426,7 +426,7 @@ class TestSelfHealIntegration:
         assert report.execution_allowed is True
 
     def test_live_vps_health_check(self) -> None:
-        from core.workstation.workstation_relay_self_heal_v1 import (
+        from execution.workers.workstation.workstation_relay_self_heal_v1 import (
             assess_relay_health,
         )
 

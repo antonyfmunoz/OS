@@ -36,7 +36,7 @@ sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS
 
 
 def _get_proposals():
-    from core.workstation.recursive_capability_planning_engine_v1 import (
+    from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
         CapabilityPlanningEvidence,
         build_capability_graph,
         generate_upgrade_proposals,
@@ -54,7 +54,7 @@ def _get_proposals():
 
 class TestDAGNode:
     def test_node_creates_with_defaults(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import DAGNode
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import DAGNode
 
         node = DAGNode(name="test")
         assert node.name == "test"
@@ -63,7 +63,7 @@ class TestDAGNode:
         assert node.wave == 0
 
     def test_node_to_dict(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import DAGNode
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import DAGNode
 
         node = DAGNode(name="test", blast_radius=0.5)
         d = node.to_dict()
@@ -71,13 +71,13 @@ class TestDAGNode:
         assert d["blast_radius"] == 0.5
 
     def test_node_dependencies(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import DAGNode
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import DAGNode
 
         node = DAGNode(name="a", dependencies=["b", "c"])
         assert len(node.dependencies) == 2
 
     def test_node_flags(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import DAGNode
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import DAGNode
 
         node = DAGNode(replay_safe=True, rollback_safe=True, governance_approved=True)
         assert node.replay_safe is True
@@ -92,7 +92,7 @@ class TestDAGNode:
 
 class TestOrchestrationDAG:
     def test_dag_creates_with_defaults(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationDAG,
         )
 
@@ -102,7 +102,7 @@ class TestOrchestrationDAG:
         assert dag.has_cycles is False
 
     def test_dag_to_dict(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             DAGNode,
             OrchestrationDAG,
         )
@@ -117,7 +117,7 @@ class TestOrchestrationDAG:
         assert d["has_cycles"] is False
 
     def test_dag_cycle_flag(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationDAG,
         )
 
@@ -132,7 +132,7 @@ class TestOrchestrationDAG:
 
 class TestBlastRadius:
     def test_blast_radius_auto_compute(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             BlastRadius,
         )
 
@@ -145,7 +145,7 @@ class TestBlastRadius:
         assert br.risk_score > 0
 
     def test_blast_radius_risk_capped(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             BlastRadius,
         )
 
@@ -156,7 +156,7 @@ class TestBlastRadius:
         assert br.risk_score <= 1.0
 
     def test_blast_radius_to_dict(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             BlastRadius,
         )
 
@@ -166,7 +166,7 @@ class TestBlastRadius:
         assert "risk_score" in d
 
     def test_blast_radius_empty(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             BlastRadius,
         )
 
@@ -182,7 +182,7 @@ class TestBlastRadius:
 
 class TestRollbackPlan:
     def test_rollback_plan_creates(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             RollbackPlan,
         )
 
@@ -191,7 +191,7 @@ class TestRollbackPlan:
         assert rp.rollback_safe is True
 
     def test_rollback_plan_to_dict(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             RollbackPlan,
         )
 
@@ -200,7 +200,7 @@ class TestRollbackPlan:
         assert d["rollback_strategy"] == "revert"
 
     def test_rollback_plan_determinism(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             RollbackPlan,
         )
 
@@ -217,7 +217,7 @@ class TestRollbackPlan:
 
 class TestSimulationOutcome:
     def test_outcome_creates(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             SimulationOutcome,
         )
 
@@ -226,7 +226,7 @@ class TestSimulationOutcome:
         assert so.succeeded is True
 
     def test_outcome_to_dict(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             SimulationOutcome,
         )
 
@@ -235,7 +235,7 @@ class TestSimulationOutcome:
         assert d["failure_reason"] == "x"
 
     def test_outcome_recovery_path(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             SimulationOutcome,
         )
 
@@ -250,7 +250,7 @@ class TestSimulationOutcome:
 
 class TestOrchestrationEvidence:
     def test_evidence_defaults(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationEvidence,
         )
 
@@ -259,7 +259,7 @@ class TestOrchestrationEvidence:
         assert ev.founder_confirmed is False
 
     def test_evidence_to_dict(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationEvidence,
         )
 
@@ -269,7 +269,7 @@ class TestOrchestrationEvidence:
         assert d["dag_count"] == 7
 
     def test_evidence_all_fields(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationEvidence,
         )
 
@@ -304,7 +304,7 @@ class TestOrchestrationEvidence:
 
 class TestOrchestrationProof:
     def test_proof_creates(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationProof,
         )
 
@@ -313,7 +313,7 @@ class TestOrchestrationProof:
         assert p.maturity_level == "L0_SIMULATED_ORCHESTRATION"
 
     def test_proof_to_dict(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationProof,
         )
 
@@ -324,7 +324,7 @@ class TestOrchestrationProof:
         assert "dag_count" in d
 
     def test_proof_serializable(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationProof,
         )
 
@@ -340,14 +340,14 @@ class TestOrchestrationProof:
 
 class TestConstants:
     def test_dag_types_count(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             DAG_TYPES,
         )
 
         assert len(DAG_TYPES) == 7
 
     def test_dag_types_values(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             DAG_TYPES,
         )
 
@@ -363,14 +363,14 @@ class TestConstants:
         assert DAG_TYPES == expected
 
     def test_simulation_outcomes_count(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             SIMULATION_OUTCOMES,
         )
 
         assert len(SIMULATION_OUTCOMES) == 8
 
     def test_simulation_outcomes_values(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             SIMULATION_OUTCOMES,
         )
 
@@ -387,14 +387,14 @@ class TestConstants:
         assert SIMULATION_OUTCOMES == expected
 
     def test_maturity_levels_count(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             ORCHESTRATION_MATURITY_LEVELS,
         )
 
         assert len(ORCHESTRATION_MATURITY_LEVELS) == 6
 
     def test_maturity_requirements_keys(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             ORCHESTRATION_MATURITY_LEVELS,
             ORCHESTRATION_MATURITY_REQUIREMENTS,
         )
@@ -403,14 +403,14 @@ class TestConstants:
             assert level in ORCHESTRATION_MATURITY_REQUIREMENTS
 
     def test_upgrade_blast_map_count(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             UPGRADE_BLAST_MAP,
         )
 
         assert len(UPGRADE_BLAST_MAP) == 5
 
     def test_rollback_strategies_count(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             ROLLBACK_STRATEGIES,
         )
 
@@ -424,7 +424,7 @@ class TestConstants:
 
 class TestCycleDetection:
     def test_no_cycles_in_dag(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             _detect_cycles,
         )
 
@@ -432,7 +432,7 @@ class TestCycleDetection:
         assert _detect_cycles(adj) is False
 
     def test_detects_cycle(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             _detect_cycles,
         )
 
@@ -440,7 +440,7 @@ class TestCycleDetection:
         assert _detect_cycles(adj) is True
 
     def test_self_loop(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             _detect_cycles,
         )
 
@@ -448,7 +448,7 @@ class TestCycleDetection:
         assert _detect_cycles(adj) is True
 
     def test_empty_graph(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             _detect_cycles,
         )
 
@@ -462,7 +462,7 @@ class TestCycleDetection:
 
 class TestTopologicalSort:
     def test_linear_sort(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             _topological_sort,
         )
 
@@ -471,7 +471,7 @@ class TestTopologicalSort:
         assert result == ["c", "b", "a"]
 
     def test_returns_empty_on_cycle(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             _topological_sort,
         )
 
@@ -479,7 +479,7 @@ class TestTopologicalSort:
         assert _topological_sort(adj) == []
 
     def test_deterministic_tie_breaking(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             _topological_sort,
         )
 
@@ -495,7 +495,7 @@ class TestTopologicalSort:
 
 class TestWaveAssignment:
     def test_wave_depth(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             _assign_waves,
         )
 
@@ -507,7 +507,7 @@ class TestWaveAssignment:
         assert waves["c"] == 2
 
     def test_parallel_waves(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             _assign_waves,
         )
 
@@ -526,7 +526,7 @@ class TestWaveAssignment:
 
 class TestDAGBuilders:
     def test_execution_dag(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_execution_dag,
         )
 
@@ -537,7 +537,7 @@ class TestDAGBuilders:
         assert dag.has_cycles is False
 
     def test_dependency_dag(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_dependency_dag,
         )
 
@@ -547,7 +547,7 @@ class TestDAGBuilders:
         assert len(dag.nodes) == len(proposals)
 
     def test_governance_dag(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_governance_dag,
         )
 
@@ -557,7 +557,7 @@ class TestDAGBuilders:
         assert len(dag.nodes) == len(proposals)
 
     def test_rollback_dag(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_rollback_dag,
         )
 
@@ -568,7 +568,7 @@ class TestDAGBuilders:
         assert len(safe_nodes) > 0
 
     def test_replay_dag(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_replay_dag,
         )
 
@@ -579,7 +579,7 @@ class TestDAGBuilders:
         assert len(replay_nodes) > 0
 
     def test_maturity_dag(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_maturity_dag,
         )
 
@@ -589,7 +589,7 @@ class TestDAGBuilders:
         assert dag.has_cycles is False
 
     def test_infrastructure_mutation_dag(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_infrastructure_mutation_dag,
         )
 
@@ -600,7 +600,7 @@ class TestDAGBuilders:
         assert len(blast_nodes) > 0
 
     def test_all_dags_count(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_all_dags,
         )
 
@@ -609,7 +609,7 @@ class TestDAGBuilders:
         assert len(dags) == 7
 
     def test_all_dag_types_represented(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             DAG_TYPES,
             build_all_dags,
         )
@@ -627,7 +627,7 @@ class TestDAGBuilders:
 
 class TestBlastRadiusAnalysis:
     def test_known_upgrade_blast(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             compute_blast_radius,
         )
 
@@ -637,7 +637,7 @@ class TestBlastRadiusAnalysis:
         assert br.upgrade_name == "local_adapter_execution"
 
     def test_unknown_upgrade_empty(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             compute_blast_radius,
         )
 
@@ -645,7 +645,7 @@ class TestBlastRadiusAnalysis:
         assert br.total_affected == 0
 
     def test_world_model_highest_blast(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             compute_blast_radius,
         )
 
@@ -654,7 +654,7 @@ class TestBlastRadiusAnalysis:
         assert wm.total_affected > la.total_affected
 
     def test_all_blast_radii(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             compute_all_blast_radii,
         )
 
@@ -663,7 +663,7 @@ class TestBlastRadiusAnalysis:
         assert len(radii) == len(proposals)
 
     def test_blast_radius_seven_categories(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             compute_blast_radius,
         )
 
@@ -688,7 +688,7 @@ class TestBlastRadiusAnalysis:
 
 class TestRollbackPlanning:
     def test_known_rollback_plan(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_rollback_plan,
         )
 
@@ -698,7 +698,7 @@ class TestRollbackPlanning:
         assert len(rp.rollback_replay_contract) > 0
 
     def test_non_deterministic_rollback(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_rollback_plan,
         )
 
@@ -706,7 +706,7 @@ class TestRollbackPlanning:
         assert rp.rollback_deterministic is False
 
     def test_unknown_upgrade_fallback(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_rollback_plan,
         )
 
@@ -715,7 +715,7 @@ class TestRollbackPlanning:
         assert rp.rollback_safe is False
 
     def test_all_rollback_plans(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_all_rollback_plans,
         )
 
@@ -724,7 +724,7 @@ class TestRollbackPlanning:
         assert len(plans) == len(proposals)
 
     def test_rollback_blast_radius_values(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_rollback_plan,
         )
 
@@ -740,7 +740,7 @@ class TestRollbackPlanning:
 
 class TestRolloutSimulation:
     def test_successful_rollout(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             BlastRadius,
             RollbackPlan,
             simulate_rollout,
@@ -753,7 +753,7 @@ class TestRolloutSimulation:
         assert sim.replay_intact is True
 
     def test_partial_rollout(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             BlastRadius,
             RollbackPlan,
             simulate_rollout,
@@ -764,7 +764,7 @@ class TestRolloutSimulation:
         assert sim.failure_reason == "partial_completion"
 
     def test_governance_rejection(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             BlastRadius,
             RollbackPlan,
             simulate_rollout,
@@ -775,7 +775,7 @@ class TestRolloutSimulation:
         assert sim.recovery_path == "obtain_founder_approval"
 
     def test_relay_disconnect(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             BlastRadius,
             RollbackPlan,
             simulate_rollout,
@@ -786,7 +786,7 @@ class TestRolloutSimulation:
         assert sim.replay_intact is True
 
     def test_replay_failure(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             BlastRadius,
             RollbackPlan,
             simulate_rollout,
@@ -796,7 +796,7 @@ class TestRolloutSimulation:
         assert sim.replay_intact is False
 
     def test_rollback_recovery_deterministic(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             BlastRadius,
             RollbackPlan,
             simulate_rollout,
@@ -808,7 +808,7 @@ class TestRolloutSimulation:
         assert sim.blast_radius_acceptable is True
 
     def test_partial_infrastructure_mutation(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             BlastRadius,
             RollbackPlan,
             simulate_rollout,
@@ -821,7 +821,7 @@ class TestRolloutSimulation:
         assert sim.blast_radius_acceptable is False
 
     def test_stale_rollout(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             BlastRadius,
             RollbackPlan,
             simulate_rollout,
@@ -832,7 +832,7 @@ class TestRolloutSimulation:
         assert sim.governance_satisfied is False
 
     def test_all_outcome_types_simulated(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             SIMULATION_OUTCOMES,
             simulate_all_rollouts,
             compute_all_blast_radii,
@@ -846,7 +846,7 @@ class TestRolloutSimulation:
         assert len(sims) == len(proposals) * len(SIMULATION_OUTCOMES)
 
     def test_unknown_outcome_type(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             BlastRadius,
             RollbackPlan,
             simulate_rollout,
@@ -863,7 +863,7 @@ class TestRolloutSimulation:
 
 class TestReplayabilityEnforcement:
     def test_replay_safety_classification(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             validate_replay_safety,
             build_all_rollback_plans,
         )
@@ -874,7 +874,7 @@ class TestReplayabilityEnforcement:
         assert len(safe) + len(unsafe) == len(proposals)
 
     def test_replay_safe_has_requirements(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             validate_replay_safety,
             build_all_rollback_plans,
         )
@@ -895,7 +895,7 @@ class TestReplayabilityEnforcement:
 
 class TestUnsafeChainDetection:
     def test_detects_unsafe_chains(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             detect_unsafe_chains,
             build_all_rollback_plans,
             compute_all_blast_radii,
@@ -908,7 +908,7 @@ class TestUnsafeChainDetection:
         assert isinstance(unsafe, list)
 
     def test_non_deterministic_flagged(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             detect_unsafe_chains,
             build_all_rollback_plans,
             compute_all_blast_radii,
@@ -922,7 +922,7 @@ class TestUnsafeChainDetection:
         assert len(non_det) > 0
 
     def test_high_blast_flagged(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             detect_unsafe_chains,
             build_all_rollback_plans,
             compute_all_blast_radii,
@@ -943,7 +943,7 @@ class TestUnsafeChainDetection:
 
 class TestGovernanceBottleneckDetection:
     def test_detects_bottlenecks(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             detect_governance_bottlenecks,
         )
 
@@ -952,7 +952,7 @@ class TestGovernanceBottleneckDetection:
         assert isinstance(bottlenecks, list)
 
     def test_multi_governance_flagged(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             detect_governance_bottlenecks,
         )
 
@@ -970,7 +970,7 @@ class TestGovernanceBottleneckDetection:
 
 class TestSafetyFirstSequencing:
     def test_sequencing_returns_all(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             sequence_upgrades,
             build_all_rollback_plans,
             compute_all_blast_radii,
@@ -984,7 +984,7 @@ class TestSafetyFirstSequencing:
         assert set(seq) == {p.name for p in proposals}
 
     def test_safest_first(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             sequence_upgrades,
             build_all_rollback_plans,
             compute_all_blast_radii,
@@ -1000,7 +1000,7 @@ class TestSafetyFirstSequencing:
         assert rb.rollback_safe is True
 
     def test_deterministic_ordering(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             sequence_upgrades,
             build_all_rollback_plans,
             compute_all_blast_radii,
@@ -1021,7 +1021,7 @@ class TestSafetyFirstSequencing:
 
 class TestConflictDetection:
     def test_detects_shared_registries(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             detect_conflicts,
             compute_all_blast_radii,
         )
@@ -1032,7 +1032,7 @@ class TestConflictDetection:
         assert len(conflicts) > 0
 
     def test_conflict_format(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             detect_conflicts,
             compute_all_blast_radii,
         )
@@ -1052,7 +1052,7 @@ class TestConflictDetection:
 
 class TestMaturityEvaluation:
     def test_l0_on_dry_run(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationEvidence,
             compute_orchestration_maturity,
         )
@@ -1061,7 +1061,7 @@ class TestMaturityEvaluation:
         assert compute_orchestration_maturity(ev) == "L0_SIMULATED_ORCHESTRATION"
 
     def test_l0_on_no_evidence(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationEvidence,
             compute_orchestration_maturity,
         )
@@ -1070,7 +1070,7 @@ class TestMaturityEvaluation:
         assert compute_orchestration_maturity(ev) == "L0_SIMULATED_ORCHESTRATION"
 
     def test_l1_requires_dag_and_replay(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationEvidence,
             compute_orchestration_maturity,
         )
@@ -1079,7 +1079,7 @@ class TestMaturityEvaluation:
         assert compute_orchestration_maturity(ev) == "L1_REPLAY_SAFE_ORCHESTRATION"
 
     def test_l2_requires_rollback(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationEvidence,
             compute_orchestration_maturity,
         )
@@ -1092,7 +1092,7 @@ class TestMaturityEvaluation:
         assert compute_orchestration_maturity(ev) == "L2_ROLLBACK_SAFE_ORCHESTRATION"
 
     def test_l3_requires_governance(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationEvidence,
             compute_orchestration_maturity,
         )
@@ -1106,7 +1106,7 @@ class TestMaturityEvaluation:
         assert compute_orchestration_maturity(ev) == "L3_GOVERNED_ORCHESTRATION"
 
     def test_l4_requires_sequencing_and_blast(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationEvidence,
             compute_orchestration_maturity,
         )
@@ -1122,7 +1122,7 @@ class TestMaturityEvaluation:
         assert compute_orchestration_maturity(ev) == "L4_RECURSIVE_ORCHESTRATION"
 
     def test_l5_requires_simulation_and_founder(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationEvidence,
             compute_orchestration_maturity,
         )
@@ -1147,7 +1147,7 @@ class TestMaturityEvaluation:
 
 class TestHardCeilings:
     def test_dry_run_ceiling_l0(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationEvidence,
             orchestration_maturity_ceiling,
         )
@@ -1156,7 +1156,7 @@ class TestHardCeilings:
         assert orchestration_maturity_ceiling(ev) == "L0_SIMULATED_ORCHESTRATION"
 
     def test_no_dag_ceiling_l0(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationEvidence,
             orchestration_maturity_ceiling,
         )
@@ -1165,7 +1165,7 @@ class TestHardCeilings:
         assert orchestration_maturity_ceiling(ev) == "L0_SIMULATED_ORCHESTRATION"
 
     def test_no_replay_ceiling_l0(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationEvidence,
             orchestration_maturity_ceiling,
         )
@@ -1174,7 +1174,7 @@ class TestHardCeilings:
         assert orchestration_maturity_ceiling(ev) == "L0_SIMULATED_ORCHESTRATION"
 
     def test_no_rollback_ceiling_l1(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationEvidence,
             orchestration_maturity_ceiling,
         )
@@ -1185,7 +1185,7 @@ class TestHardCeilings:
         assert orchestration_maturity_ceiling(ev) == "L1_REPLAY_SAFE_ORCHESTRATION"
 
     def test_no_governance_ceiling_l2(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationEvidence,
             orchestration_maturity_ceiling,
         )
@@ -1199,7 +1199,7 @@ class TestHardCeilings:
         assert orchestration_maturity_ceiling(ev) == "L2_ROLLBACK_SAFE_ORCHESTRATION"
 
     def test_no_sequencing_ceiling_l3(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationEvidence,
             orchestration_maturity_ceiling,
         )
@@ -1214,7 +1214,7 @@ class TestHardCeilings:
         assert orchestration_maturity_ceiling(ev) == "L3_GOVERNED_ORCHESTRATION"
 
     def test_no_blast_analysis_ceiling_l3(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationEvidence,
             orchestration_maturity_ceiling,
         )
@@ -1230,7 +1230,7 @@ class TestHardCeilings:
         assert orchestration_maturity_ceiling(ev) == "L3_GOVERNED_ORCHESTRATION"
 
     def test_no_simulation_ceiling_l4(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationEvidence,
             orchestration_maturity_ceiling,
         )
@@ -1247,7 +1247,7 @@ class TestHardCeilings:
         assert orchestration_maturity_ceiling(ev) == "L4_RECURSIVE_ORCHESTRATION"
 
     def test_no_founder_ceiling_l4(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationEvidence,
             orchestration_maturity_ceiling,
         )
@@ -1265,7 +1265,7 @@ class TestHardCeilings:
         assert orchestration_maturity_ceiling(ev) == "L4_RECURSIVE_ORCHESTRATION"
 
     def test_ceiling_blocks_escalation(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationEvidence,
             classify_orchestration_maturity,
         )
@@ -1289,7 +1289,7 @@ class TestHardCeilings:
 
 class TestFullPipeline:
     def test_full_proof_without_capability_proof(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
 
@@ -1302,10 +1302,10 @@ class TestFullPipeline:
         assert len(proof.sequenced_upgrades) > 0
 
     def test_full_proof_with_capability_proof(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             build_full_capability_proof,
         )
 
@@ -1321,7 +1321,7 @@ class TestFullPipeline:
         assert len(proof.sequenced_upgrades) == len(cap_proof.upgrade_proposals)
 
     def test_full_proof_dry_run(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
 
@@ -1330,7 +1330,7 @@ class TestFullPipeline:
         assert proof.evidence.is_dry_run is True
 
     def test_full_proof_awaits_founder(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
 
@@ -1338,7 +1338,7 @@ class TestFullPipeline:
         assert proof.execution_strategy == "await_founder_confirmation"
 
     def test_full_proof_with_founder(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
 
@@ -1346,7 +1346,7 @@ class TestFullPipeline:
         assert proof.execution_strategy == "execute_safest_sequence"
 
     def test_full_proof_evidence_populated(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
 
@@ -1364,7 +1364,7 @@ class TestFullPipeline:
         assert ev.request_id == "REQ-TEST-001"
 
     def test_full_proof_serializable(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
 
@@ -1382,7 +1382,7 @@ class TestFullPipeline:
 
 class TestProofPersistence:
     def test_persist_creates_file(self, tmp_path: Path) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationProof,
             persist_orchestration_proof,
         )
@@ -1393,7 +1393,7 @@ class TestProofPersistence:
         assert path.name.startswith("ORCHPROOF-")
 
     def test_persist_json_valid(self, tmp_path: Path) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
             persist_orchestration_proof,
         )
@@ -1406,7 +1406,7 @@ class TestProofPersistence:
         assert "blast_radii" in data
 
     def test_persist_to_correct_dir(self, tmp_path: Path) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             ORCHESTRATION_REPORT_DIR,
             OrchestrationProof,
             persist_orchestration_proof,
@@ -1417,7 +1417,7 @@ class TestProofPersistence:
         assert str(ORCHESTRATION_REPORT_DIR) in str(path.parent)
 
     def test_persist_idempotent(self, tmp_path: Path) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationProof,
             persist_orchestration_proof,
         )
@@ -1435,7 +1435,7 @@ class TestProofPersistence:
 
 class TestCanonicalInstanceSeparation:
     def test_separate_proof_instances(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
 
@@ -1445,7 +1445,7 @@ class TestCanonicalInstanceSeparation:
         assert p1.trace_id != p2.trace_id
 
     def test_separate_evidence_instances(self) -> None:
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
 

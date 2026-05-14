@@ -27,7 +27,7 @@ import pytest
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from core.workstation.foreground_cu_ingestion_execution_v1 import (
+from execution.workers.workstation.foreground_cu_ingestion_execution_v1 import (
     CANDIDATE_TYPE_CANONICAL,
     CANDIDATE_TYPE_INSTANCE,
     CU_INGESTION_MATURITY_REQUIREMENTS,
@@ -217,11 +217,11 @@ class TestHeadlessBlocked:
 class TestStaleRelayBlocked:
     def test_stale_heartbeat_blocks(self, tmp_path: Path) -> None:
         from datetime import datetime, timedelta, timezone
-        from core.workstation.workstation_relay_heartbeat_v1 import (
+        from execution.workers.workstation.workstation_relay_heartbeat_v1 import (
             RelayHeartbeat,
             write_relay_heartbeat,
         )
-        from core.workstation.workstation_relay_self_heal_v1 import (
+        from execution.workers.workstation.workstation_relay_self_heal_v1 import (
             should_allow_chrome_proof,
         )
 
@@ -585,7 +585,7 @@ class TestMaturityCeilings:
 
 class TestTransportIntegration:
     def test_relay_transport_result_with_ingestion(self) -> None:
-        from core.workstation.relay_execution_transport_v1 import RelayTransportResult
+        from execution.workers.workstation.relay_execution_transport_v1 import RelayTransportResult
 
         transport = RelayTransportResult(
             status="completed",

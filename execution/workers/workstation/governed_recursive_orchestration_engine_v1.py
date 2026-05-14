@@ -26,7 +26,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from core.workstation.recursive_capability_planning_engine_v1 import (
+from .recursive_capability_planning_engine_v1 import (
     CAPABILITY_DEPENDENCIES,
     CAPABILITY_MATURITY_LEVELS,
     SUBSTRATE_CAPABILITIES,
@@ -40,7 +40,7 @@ from core.workstation.recursive_capability_planning_engine_v1 import (
     generate_upgrade_proposals,
     score_upgrade,
 )
-from core.workstation.environment_mapping_engine_v1 import (
+from .environment_mapping_engine_v1 import (
 
     CANDIDATE_TYPE_CANONICAL,
 )

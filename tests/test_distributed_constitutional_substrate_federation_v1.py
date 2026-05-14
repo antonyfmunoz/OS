@@ -39,14 +39,14 @@ sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS
 
 class TestConstants(unittest.TestCase):
     def test_maturity_levels_count(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FEDERATION_MATURITY_LEVELS,
         )
 
         self.assertEqual(len(FEDERATION_MATURITY_LEVELS), 6)
 
     def test_maturity_levels_order(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FEDERATION_MATURITY_LEVELS,
         )
 
@@ -54,14 +54,14 @@ class TestConstants(unittest.TestCase):
         self.assertEqual(FEDERATION_MATURITY_LEVELS[5], "L5_DISTRIBUTED_CONSTITUTIONAL_FEDERATION")
 
     def test_trust_dimensions_count(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FEDERATION_TRUST_DIMENSIONS,
         )
 
         self.assertEqual(len(FEDERATION_TRUST_DIMENSIONS), 7)
 
     def test_trust_dimensions_membership(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FEDERATION_TRUST_DIMENSIONS,
         )
 
@@ -69,14 +69,14 @@ class TestConstants(unittest.TestCase):
         self.assertIn("federation_drift_risk", FEDERATION_TRUST_DIMENSIONS)
 
     def test_drift_types_count(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FEDERATION_DRIFT_TYPES,
         )
 
         self.assertEqual(len(FEDERATION_DRIFT_TYPES), 7)
 
     def test_drift_types_membership(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FEDERATION_DRIFT_TYPES,
         )
 
@@ -84,35 +84,35 @@ class TestConstants(unittest.TestCase):
         self.assertIn("federation_entropy", FEDERATION_DRIFT_TYPES)
 
     def test_emergency_actions_count(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FEDERATION_EMERGENCY_ACTIONS,
         )
 
         self.assertEqual(len(FEDERATION_EMERGENCY_ACTIONS), 6)
 
     def test_emergency_actions_is_frozenset(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FEDERATION_EMERGENCY_ACTIONS,
         )
 
         self.assertIsInstance(FEDERATION_EMERGENCY_ACTIONS, frozenset)
 
     def test_hard_ceilings_count(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FEDERATION_HARD_CEILINGS,
         )
 
         self.assertEqual(len(FEDERATION_HARD_CEILINGS), 7)
 
     def test_hard_ceilings_is_frozenset(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FEDERATION_HARD_CEILINGS,
         )
 
         self.assertIsInstance(FEDERATION_HARD_CEILINGS, frozenset)
 
     def test_hard_ceilings_membership(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FEDERATION_HARD_CEILINGS,
         )
 
@@ -120,14 +120,14 @@ class TestConstants(unittest.TestCase):
         self.assertIn("distributed_replay_corruption", FEDERATION_HARD_CEILINGS)
 
     def test_simulation_types_count(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FEDERATION_SIMULATION_TYPES,
         )
 
         self.assertEqual(len(FEDERATION_SIMULATION_TYPES), 8)
 
     def test_simulation_types_membership(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FEDERATION_SIMULATION_TYPES,
         )
 
@@ -135,14 +135,14 @@ class TestConstants(unittest.TestCase):
         self.assertIn("distributed_emergency_recovery", FEDERATION_SIMULATION_TYPES)
 
     def test_lineage_types_count(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FEDERATION_LINEAGE_TYPES,
         )
 
         self.assertEqual(len(FEDERATION_LINEAGE_TYPES), 6)
 
     def test_lineage_types_membership(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FEDERATION_LINEAGE_TYPES,
         )
 
@@ -157,7 +157,7 @@ class TestConstants(unittest.TestCase):
 
 class TestFederatedNode(unittest.TestCase):
     def test_defaults(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederatedNode,
         )
 
@@ -168,7 +168,7 @@ class TestFederatedNode(unittest.TestCase):
         self.assertEqual(n.trust_classification, "untrusted")
 
     def test_to_dict_keys(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederatedNode,
         )
 
@@ -180,7 +180,7 @@ class TestFederatedNode(unittest.TestCase):
 
 class TestFederatedNodeRegistry(unittest.TestCase):
     def test_defaults(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederatedNodeRegistry,
         )
 
@@ -189,7 +189,7 @@ class TestFederatedNodeRegistry(unittest.TestCase):
         self.assertEqual(r.node_count(), 0)
 
     def test_counts(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederatedNode,
             FederatedNodeRegistry,
         )
@@ -205,7 +205,7 @@ class TestFederatedNodeRegistry(unittest.TestCase):
         self.assertEqual(r.trusted_count(), 1)
 
     def test_registry_hash(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederatedNodeRegistry,
         )
 
@@ -214,7 +214,7 @@ class TestFederatedNodeRegistry(unittest.TestCase):
         self.assertEqual(len(h), 16)
 
     def test_to_dict(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederatedNodeRegistry,
         )
 
@@ -225,7 +225,7 @@ class TestFederatedNodeRegistry(unittest.TestCase):
 
 class TestFederatedReplayCoordination(unittest.TestCase):
     def test_defaults(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederatedReplayCoordination,
         )
 
@@ -234,7 +234,7 @@ class TestFederatedReplayCoordination(unittest.TestCase):
         self.assertEqual(c.replay_determinism_score, 0.0)
 
     def test_to_dict(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederatedReplayCoordination,
         )
 
@@ -245,7 +245,7 @@ class TestFederatedReplayCoordination(unittest.TestCase):
 
 class TestFederatedContinuityCoordination(unittest.TestCase):
     def test_defaults(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederatedContinuityCoordination,
         )
 
@@ -254,7 +254,7 @@ class TestFederatedContinuityCoordination(unittest.TestCase):
         self.assertEqual(c.continuity_preservation_score, 0.0)
 
     def test_to_dict(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederatedContinuityCoordination,
         )
 
@@ -265,7 +265,7 @@ class TestFederatedContinuityCoordination(unittest.TestCase):
 
 class TestFederatedConstitutionalGovernance(unittest.TestCase):
     def test_defaults(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederatedConstitutionalGovernance,
         )
 
@@ -274,7 +274,7 @@ class TestFederatedConstitutionalGovernance(unittest.TestCase):
         self.assertEqual(g.compatible_node_count, 0)
 
     def test_to_dict(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederatedConstitutionalGovernance,
         )
 
@@ -285,7 +285,7 @@ class TestFederatedConstitutionalGovernance(unittest.TestCase):
 
 class TestFederationTrustScores(unittest.TestCase):
     def test_defaults(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederationTrustScores,
         )
 
@@ -293,7 +293,7 @@ class TestFederationTrustScores(unittest.TestCase):
         self.assertEqual(t.composite_trust(), 0.0)
 
     def test_composite(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederationTrustScores,
         )
 
@@ -309,7 +309,7 @@ class TestFederationTrustScores(unittest.TestCase):
         self.assertAlmostEqual(t.composite_trust(), 0.7, places=3)
 
     def test_to_dict_has_composite(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederationTrustScores,
         )
 
@@ -320,7 +320,7 @@ class TestFederationTrustScores(unittest.TestCase):
 
 class TestFederationDriftSignal(unittest.TestCase):
     def test_defaults(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederationDriftSignal,
         )
 
@@ -329,7 +329,7 @@ class TestFederationDriftSignal(unittest.TestCase):
         self.assertTrue(s.timestamp)
 
     def test_to_dict(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederationDriftSignal,
         )
 
@@ -340,7 +340,7 @@ class TestFederationDriftSignal(unittest.TestCase):
 
 class TestFederatedEmergencyGovernance(unittest.TestCase):
     def test_defaults(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederatedEmergencyGovernance,
         )
 
@@ -349,7 +349,7 @@ class TestFederatedEmergencyGovernance(unittest.TestCase):
         self.assertEqual(e.available_count, 0)
 
     def test_to_dict(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederatedEmergencyGovernance,
         )
 
@@ -360,7 +360,7 @@ class TestFederatedEmergencyGovernance(unittest.TestCase):
 
 class TestFederationSimulationOutcome(unittest.TestCase):
     def test_defaults(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederationSimulationOutcome,
         )
 
@@ -369,7 +369,7 @@ class TestFederationSimulationOutcome(unittest.TestCase):
         self.assertTrue(s.recovery_possible)
 
     def test_to_dict(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederationSimulationOutcome,
         )
 
@@ -380,7 +380,7 @@ class TestFederationSimulationOutcome(unittest.TestCase):
 
 class TestFederationEvidence(unittest.TestCase):
     def test_defaults(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederationEvidence,
         )
 
@@ -390,7 +390,7 @@ class TestFederationEvidence(unittest.TestCase):
         self.assertTrue(e.governance_bypass_blocked)
 
     def test_to_dict_keys(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederationEvidence,
         )
 
@@ -400,7 +400,7 @@ class TestFederationEvidence(unittest.TestCase):
         self.assertIn("hard_ceilings_enforced", d)
 
     def test_field_count(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederationEvidence,
         )
 
@@ -409,7 +409,7 @@ class TestFederationEvidence(unittest.TestCase):
 
 class TestFederationProof(unittest.TestCase):
     def test_defaults(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederationProof,
         )
 
@@ -419,7 +419,7 @@ class TestFederationProof(unittest.TestCase):
         self.assertFalse(p.escalation_blocked)
 
     def test_to_dict_has_proof_type(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederationProof,
         )
 
@@ -434,7 +434,7 @@ class TestFederationProof(unittest.TestCase):
 
 class TestBuildNodeRegistry(unittest.TestCase):
     def test_no_proofs(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             build_node_registry,
         )
 
@@ -452,19 +452,19 @@ class TestBuildNodeRegistry(unittest.TestCase):
             shutil.rmtree(tmp)
 
     def test_with_constitutional_proof(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             build_node_registry,
         )
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_full_constitutional_proof,
         )
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
-        from core.workstation.persistent_substrate_continuity_engine_v1 import (
+        from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
             build_full_continuity_proof,
         )
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             build_full_capability_proof,
         )
 
@@ -503,7 +503,7 @@ class TestBuildNodeRegistry(unittest.TestCase):
 
 class TestBuildReplayCoordination(unittest.TestCase):
     def test_empty(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederatedNodeRegistry,
             build_replay_coordination,
         )
@@ -513,14 +513,14 @@ class TestBuildReplayCoordination(unittest.TestCase):
         self.assertEqual(coord.replay_determinism_score, 0.0)
 
     def test_with_orchestration(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederatedNodeRegistry,
             build_replay_coordination,
         )
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             build_full_capability_proof,
         )
 
@@ -541,7 +541,7 @@ class TestBuildReplayCoordination(unittest.TestCase):
 
 class TestBuildContinuityCoordination(unittest.TestCase):
     def test_empty(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederatedNodeRegistry,
             build_continuity_coordination,
         )
@@ -550,17 +550,17 @@ class TestBuildContinuityCoordination(unittest.TestCase):
         self.assertFalse(coord.distributed_continuity_lineage)
 
     def test_with_continuity_proof(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederatedNodeRegistry,
             build_continuity_coordination,
         )
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
-        from core.workstation.persistent_substrate_continuity_engine_v1 import (
+        from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
             build_full_continuity_proof,
         )
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             build_full_capability_proof,
         )
 
@@ -588,7 +588,7 @@ class TestBuildContinuityCoordination(unittest.TestCase):
 
 class TestBuildConstitutionalGovernance(unittest.TestCase):
     def test_empty(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederatedNodeRegistry,
             build_constitutional_governance,
         )
@@ -597,23 +597,23 @@ class TestBuildConstitutionalGovernance(unittest.TestCase):
         self.assertFalse(gov.constitutional_compatibility_validated)
 
     def test_with_proofs(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             build_node_registry,
             build_constitutional_governance,
         )
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_full_constitutional_proof,
         )
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
-        from core.workstation.persistent_substrate_continuity_engine_v1 import (
+        from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
             build_full_continuity_proof,
         )
-        from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+        from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
             build_full_governance_intelligence_proof,
         )
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             build_full_capability_proof,
         )
 
@@ -662,7 +662,7 @@ class TestBuildConstitutionalGovernance(unittest.TestCase):
 
 class TestComputeFederationTrust(unittest.TestCase):
     def test_empty(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederatedNodeRegistry,
             FederatedReplayCoordination,
             FederatedContinuityCoordination,
@@ -679,7 +679,7 @@ class TestComputeFederationTrust(unittest.TestCase):
         self.assertEqual(trust.composite_trust(), 0.0)
 
     def test_dimension_count(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederationTrustScores,
         )
 
@@ -695,7 +695,7 @@ class TestComputeFederationTrust(unittest.TestCase):
 
 class TestDetectFederationDrift(unittest.TestCase):
     def test_minimal(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederatedNodeRegistry,
             FederatedReplayCoordination,
             FederatedContinuityCoordination,
@@ -714,7 +714,7 @@ class TestDetectFederationDrift(unittest.TestCase):
         self.assertIn("governance_divergence", drift_types)
 
     def test_offline_node_entropy(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederatedNode,
             FederatedNodeRegistry,
             FederatedReplayCoordination,
@@ -746,7 +746,7 @@ class TestDetectFederationDrift(unittest.TestCase):
 
 class TestBuildEmergencyGovernance(unittest.TestCase):
     def test_no_proofs(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             build_emergency_governance,
         )
 
@@ -756,20 +756,20 @@ class TestBuildEmergencyGovernance(unittest.TestCase):
         self.assertFalse(eg.all_emergency_actions_available)
 
     def test_full_proofs_with_founder(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             build_emergency_governance,
             build_node_registry,
         )
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_full_constitutional_proof,
         )
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
-        from core.workstation.persistent_substrate_continuity_engine_v1 import (
+        from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
             build_full_continuity_proof,
         )
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             build_full_capability_proof,
         )
 
@@ -805,7 +805,7 @@ class TestBuildEmergencyGovernance(unittest.TestCase):
 
 class TestEnforceFederationHardCeilings(unittest.TestCase):
     def test_no_violations(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederatedNode,
             FederatedNodeRegistry,
             FederatedReplayCoordination,
@@ -832,7 +832,7 @@ class TestEnforceFederationHardCeilings(unittest.TestCase):
         self.assertFalse(blocked)
 
     def test_incompatible_node_blocks(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederatedNodeRegistry,
             FederatedReplayCoordination,
             FederatedContinuityCoordination,
@@ -851,7 +851,7 @@ class TestEnforceFederationHardCeilings(unittest.TestCase):
         self.assertTrue(any("incompatible_constitutional_node" in r for r in reasons))
 
     def test_replay_drift_blocks(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederatedNodeRegistry,
             FederatedReplayCoordination,
             FederatedContinuityCoordination,
@@ -877,7 +877,7 @@ class TestEnforceFederationHardCeilings(unittest.TestCase):
 
 class TestRunFederationSimulations(unittest.TestCase):
     def test_produces_8_simulations(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederatedNodeRegistry,
             FederationTrustScores,
             run_federation_simulations,
@@ -887,7 +887,7 @@ class TestRunFederationSimulations(unittest.TestCase):
         self.assertEqual(len(sims), 8)
 
     def test_simulation_types_covered(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FEDERATION_SIMULATION_TYPES,
             FederatedNodeRegistry,
             FederationTrustScores,
@@ -899,7 +899,7 @@ class TestRunFederationSimulations(unittest.TestCase):
         self.assertEqual(sim_types, set(FEDERATION_SIMULATION_TYPES))
 
     def test_all_have_ids(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederatedNodeRegistry,
             FederationTrustScores,
             run_federation_simulations,
@@ -917,7 +917,7 @@ class TestRunFederationSimulations(unittest.TestCase):
 
 class TestMaturityClassification(unittest.TestCase):
     def test_l0_no_evidence(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederationEvidence,
             classify_federation_maturity,
         )
@@ -931,7 +931,7 @@ class TestMaturityClassification(unittest.TestCase):
         self.assertTrue(blocked)
 
     def test_l0_dry_run(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederationEvidence,
             classify_federation_maturity,
         )
@@ -947,7 +947,7 @@ class TestMaturityClassification(unittest.TestCase):
         self.assertIn("dry run", reason)
 
     def test_l5_full(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederationEvidence,
             classify_federation_maturity,
         )
@@ -983,7 +983,7 @@ class TestMaturityClassification(unittest.TestCase):
         self.assertFalse(blocked)
 
     def test_ceiling_blocks_level(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederationEvidence,
             classify_federation_maturity,
         )
@@ -1007,7 +1007,7 @@ class TestMaturityClassification(unittest.TestCase):
 
 class TestFullPipeline(unittest.TestCase):
     def test_minimal_pipeline(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             build_full_federation_proof,
         )
 
@@ -1024,22 +1024,22 @@ class TestFullPipeline(unittest.TestCase):
         self.assertIn("L", proof.maturity_level)
 
     def test_full_proof_chain(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             build_full_federation_proof,
         )
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_full_constitutional_proof,
         )
-        from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+        from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
             build_full_governance_intelligence_proof,
         )
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
-        from core.workstation.persistent_substrate_continuity_engine_v1 import (
+        from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
             build_full_continuity_proof,
         )
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             build_full_capability_proof,
         )
 
@@ -1088,7 +1088,7 @@ class TestFullPipeline(unittest.TestCase):
         self.assertTrue(proof.evidence.founder_confirmed)
 
     def test_dry_run(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             build_full_federation_proof,
         )
 
@@ -1097,7 +1097,7 @@ class TestFullPipeline(unittest.TestCase):
         self.assertTrue(proof.evidence.is_dry_run)
 
     def test_no_founder_strategy(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             build_full_federation_proof,
         )
 
@@ -1114,7 +1114,7 @@ class TestPersistence(unittest.TestCase):
     def test_persist_and_read(self) -> None:
         import tempfile
 
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             build_full_federation_proof,
             persist_federation_proof,
         )
@@ -1135,23 +1135,23 @@ class TestPersistence(unittest.TestCase):
     def test_persist_full_pipeline(self) -> None:
         import tempfile
 
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             build_full_federation_proof,
             persist_federation_proof,
         )
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_full_constitutional_proof,
         )
-        from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+        from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
             build_full_governance_intelligence_proof,
         )
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
-        from core.workstation.persistent_substrate_continuity_engine_v1 import (
+        from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
             build_full_continuity_proof,
         )
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             build_full_capability_proof,
         )
 
@@ -1212,7 +1212,7 @@ class TestPersistence(unittest.TestCase):
 
 class TestInstanceSeparation(unittest.TestCase):
     def test_separate_proofs(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             build_full_federation_proof,
         )
 
@@ -1222,7 +1222,7 @@ class TestInstanceSeparation(unittest.TestCase):
         self.assertNotEqual(p1.trace_id, p2.trace_id)
 
     def test_separate_registries(self) -> None:
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             FederatedNodeRegistry,
         )
 

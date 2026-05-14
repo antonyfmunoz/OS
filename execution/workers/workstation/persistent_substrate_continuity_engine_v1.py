@@ -26,7 +26,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from core.workstation.governed_recursive_orchestration_engine_v1 import (
+from .governed_recursive_orchestration_engine_v1 import (
     DAG_TYPES,
     ORCHESTRATION_MATURITY_LEVELS,
     ORCHESTRATION_REPORT_DIR,
@@ -35,7 +35,7 @@ from core.workstation.governed_recursive_orchestration_engine_v1 import (
     OrchestrationProof,
     build_full_orchestration_proof,
 )
-from core.workstation.recursive_capability_planning_engine_v1 import (
+from .recursive_capability_planning_engine_v1 import (
 
     CAPABILITY_MATURITY_LEVELS,
     SUBSTRATE_CAPABILITIES,

@@ -13,11 +13,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from core.workstation.workstation_relay_heartbeat_v1 import (
+from .workstation_relay_heartbeat_v1 import (
     evaluate_relay_health,
     read_relay_heartbeat,
 )
-from core.workstation.workstation_relay_node_v1 import (
+from .workstation_relay_node_v1 import (
     WorkstationRelayNode,
     load_relay_node_from_heartbeat,
 )

@@ -21,14 +21,14 @@ sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS
 
 class TestEpistemicConstants:
     def test_maturity_levels_count(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EPISTEMIC_MATURITY_LEVELS,
         )
 
         assert len(EPISTEMIC_MATURITY_LEVELS) == 6
 
     def test_maturity_levels_order(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EPISTEMIC_MATURITY_LEVELS,
         )
 
@@ -36,56 +36,56 @@ class TestEpistemicConstants:
         assert EPISTEMIC_MATURITY_LEVELS[5] == "L5_CONSTITUTIONAL_EPISTEMIC_INTELLIGENCE"
 
     def test_primitives_count(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EPISTEMIC_PRIMITIVES,
         )
 
         assert len(EPISTEMIC_PRIMITIVES) == 10
 
     def test_integrity_dimensions_count(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EVIDENCE_INTEGRITY_DIMENSIONS,
         )
 
         assert len(EVIDENCE_INTEGRITY_DIMENSIONS) == 8
 
     def test_coherence_detectors_count(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             REALITY_COHERENCE_DETECTORS,
         )
 
         assert len(REALITY_COHERENCE_DETECTORS) == 8
 
     def test_probabilistic_types_count(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             PROBABILISTIC_REASONING_TYPES,
         )
 
         assert len(PROBABILISTIC_REASONING_TYPES) == 7
 
     def test_contradiction_types_count(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             CONTRADICTION_TYPES,
         )
 
         assert len(CONTRADICTION_TYPES) == 7
 
     def test_topology_types_count(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EPISTEMIC_TOPOLOGY_TYPES,
         )
 
         assert len(EPISTEMIC_TOPOLOGY_TYPES) == 7
 
     def test_hard_ceilings_count(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EPISTEMIC_HARD_CEILINGS,
         )
 
         assert len(EPISTEMIC_HARD_CEILINGS) == 7
 
     def test_adaptation_types_count(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EPISTEMIC_ADAPTATION_TYPES,
         )
 
@@ -99,7 +99,7 @@ class TestEpistemicConstants:
 
 class TestEpistemicPrimitive:
     def test_default(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EpistemicPrimitive,
         )
 
@@ -108,7 +108,7 @@ class TestEpistemicPrimitive:
         assert p.certainty == 0.0
 
     def test_to_dict_serializable(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EpistemicPrimitive,
         )
 
@@ -120,7 +120,7 @@ class TestEpistemicPrimitive:
 
 class TestEpistemicPrimitiveSet:
     def test_auto_timestamp(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EpistemicPrimitiveSet,
         )
 
@@ -128,7 +128,7 @@ class TestEpistemicPrimitiveSet:
         assert s.timestamp != ""
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EpistemicPrimitiveSet,
         )
 
@@ -139,7 +139,7 @@ class TestEpistemicPrimitiveSet:
 
 class TestEvidenceIntegrityResult:
     def test_default(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EvidenceIntegrityResult,
         )
 
@@ -148,7 +148,7 @@ class TestEvidenceIntegrityResult:
         assert r.divergence_detected is False
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EvidenceIntegrityResult,
         )
 
@@ -159,7 +159,7 @@ class TestEvidenceIntegrityResult:
 
 class TestRealityCoherenceDetection:
     def test_default(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             RealityCoherenceDetection,
         )
 
@@ -168,7 +168,7 @@ class TestRealityCoherenceDetection:
         assert d.coherence_score == 1.0
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             RealityCoherenceDetection,
         )
 
@@ -179,7 +179,7 @@ class TestRealityCoherenceDetection:
 
 class TestContradiction:
     def test_default(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             Contradiction,
         )
 
@@ -188,7 +188,7 @@ class TestContradiction:
         assert c.resolution_possible is True
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             Contradiction,
         )
 
@@ -199,7 +199,7 @@ class TestContradiction:
 
 class TestEpistemicTopologyNode:
     def test_default(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EpistemicTopologyNode,
         )
 
@@ -209,7 +209,7 @@ class TestEpistemicTopologyNode:
 
 class TestEpistemicTopology:
     def test_auto_hash(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EpistemicTopology,
             EpistemicTopologyNode,
         )
@@ -218,7 +218,7 @@ class TestEpistemicTopology:
         assert t.topology_hash != ""
 
     def test_hash_deterministic(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EpistemicTopology,
             EpistemicTopologyNode,
         )
@@ -231,7 +231,7 @@ class TestEpistemicTopology:
 
 class TestEpistemicAdaptation:
     def test_default_invariants_preserved(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EpistemicAdaptation,
         )
 
@@ -239,7 +239,7 @@ class TestEpistemicAdaptation:
         assert a.invariants_preserved is True
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EpistemicAdaptation,
         )
 
@@ -250,7 +250,7 @@ class TestEpistemicAdaptation:
 
 class TestEpistemicEvidence:
     def test_field_count(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EpistemicEvidence,
         )
 
@@ -259,7 +259,7 @@ class TestEpistemicEvidence:
         assert len(d) == 36
 
     def test_to_dict_serializable(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EpistemicEvidence,
         )
 
@@ -269,7 +269,7 @@ class TestEpistemicEvidence:
 
 class TestEpistemicProof:
     def test_auto_proof_id(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EpistemicProof,
         )
 
@@ -277,7 +277,7 @@ class TestEpistemicProof:
         assert p.proof_id.startswith("EPIS-")
 
     def test_to_dict_serializable(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EpistemicProof,
             EpistemicEvidence,
         )
@@ -293,7 +293,7 @@ class TestEpistemicProof:
 
 class TestBuildEpistemicPrimitives:
     def test_produces_10_primitives(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_epistemic_primitives,
         )
 
@@ -301,7 +301,7 @@ class TestBuildEpistemicPrimitives:
         assert len(result.primitives) == 10
 
     def test_composite_confidence_positive(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_epistemic_primitives,
         )
 
@@ -309,7 +309,7 @@ class TestBuildEpistemicPrimitives:
         assert result.composite_confidence > 0
 
     def test_all_primitives_named(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_epistemic_primitives,
             EPISTEMIC_PRIMITIVES,
         )
@@ -321,7 +321,7 @@ class TestBuildEpistemicPrimitives:
 
 class TestBuildEvidenceIntegrity:
     def test_produces_8_dimensions(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_evidence_integrity,
         )
 
@@ -329,7 +329,7 @@ class TestBuildEvidenceIntegrity:
         assert len(result.results) == 8
 
     def test_composite_positive(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_evidence_integrity,
         )
 
@@ -339,7 +339,7 @@ class TestBuildEvidenceIntegrity:
 
 class TestBuildRealityCoherence:
     def test_produces_8_detections(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_epistemic_primitives,
             build_evidence_integrity,
             build_reality_coherence,
@@ -351,7 +351,7 @@ class TestBuildRealityCoherence:
         assert len(result.detections) == 8
 
     def test_composite_coherence_between_0_and_1(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_epistemic_primitives,
             build_evidence_integrity,
             build_reality_coherence,
@@ -365,7 +365,7 @@ class TestBuildRealityCoherence:
 
 class TestBuildProbabilisticReasoning:
     def test_produces_7_assessments(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_epistemic_primitives,
             build_evidence_integrity,
             build_probabilistic_reasoning,
@@ -379,7 +379,7 @@ class TestBuildProbabilisticReasoning:
 
 class TestBuildContradictionAnalysis:
     def test_produces_contradiction_types(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_epistemic_primitives,
             build_evidence_integrity,
             build_reality_coherence,
@@ -393,7 +393,7 @@ class TestBuildContradictionAnalysis:
         assert result.total_count >= 0
 
     def test_density_between_0_and_1(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_epistemic_primitives,
             build_evidence_integrity,
             build_reality_coherence,
@@ -409,7 +409,7 @@ class TestBuildContradictionAnalysis:
 
 class TestBuildEpistemicTopology:
     def test_covers_7_types(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_epistemic_primitives,
             build_evidence_integrity,
             build_reality_coherence,
@@ -425,7 +425,7 @@ class TestBuildEpistemicTopology:
         assert result.topology_types_covered == 7
 
     def test_hash_deterministic(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_epistemic_primitives,
             build_evidence_integrity,
             build_reality_coherence,
@@ -443,7 +443,7 @@ class TestBuildEpistemicTopology:
 
 class TestBuildEpistemicAdaptations:
     def test_produces_6_adaptations(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_epistemic_primitives,
             build_evidence_integrity,
             build_reality_coherence,
@@ -459,7 +459,7 @@ class TestBuildEpistemicAdaptations:
         assert len(result.adaptations) == 6
 
     def test_invariants_preserved(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_epistemic_primitives,
             build_evidence_integrity,
             build_reality_coherence,
@@ -477,7 +477,7 @@ class TestBuildEpistemicAdaptations:
 
 class TestEnforceEpistemicHardCeilings:
     def test_no_violation_on_clean(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EpistemicPrimitiveSet,
             EpistemicPrimitive,
             RealityCoherenceAnalysis,
@@ -502,7 +502,7 @@ class TestEnforceEpistemicHardCeilings:
         assert len(reasons) == 0
 
     def test_invariant_violation_blocks(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EpistemicPrimitiveSet,
             EpistemicPrimitive,
             RealityCoherenceAnalysis,
@@ -533,7 +533,7 @@ class TestEnforceEpistemicHardCeilings:
 
 class TestComputeEpistemicMaturity:
     def test_empty_evidence_low_score(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EpistemicEvidence,
             compute_epistemic_maturity,
         )
@@ -547,7 +547,7 @@ class TestComputeEpistemicMaturity:
         assert compute_epistemic_maturity(ev) == 0
 
     def test_full_evidence_high_score(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EpistemicEvidence,
             compute_epistemic_maturity,
         )
@@ -570,7 +570,7 @@ class TestComputeEpistemicMaturity:
 
 class TestEpistemicMaturityCeiling:
     def test_dry_run_l0(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EpistemicEvidence,
             epistemic_maturity_ceiling,
         )
@@ -579,7 +579,7 @@ class TestEpistemicMaturityCeiling:
         assert epistemic_maturity_ceiling(ev) == "L0_NO_EPISTEMIC_INTELLIGENCE"
 
     def test_no_primitives_l0(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EpistemicEvidence,
             epistemic_maturity_ceiling,
         )
@@ -588,7 +588,7 @@ class TestEpistemicMaturityCeiling:
         assert epistemic_maturity_ceiling(ev) == "L0_NO_EPISTEMIC_INTELLIGENCE"
 
     def test_full_evidence_l5(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EpistemicEvidence,
             epistemic_maturity_ceiling,
         )
@@ -603,7 +603,7 @@ class TestEpistemicMaturityCeiling:
         assert epistemic_maturity_ceiling(ev) == "L5_CONSTITUTIONAL_EPISTEMIC_INTELLIGENCE"
 
     def test_no_founder_capped_l4(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EpistemicEvidence,
             epistemic_maturity_ceiling,
         )
@@ -620,7 +620,7 @@ class TestEpistemicMaturityCeiling:
 
 class TestClassifyEpistemicMaturity:
     def test_empty_l0(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EpistemicEvidence,
             classify_epistemic_maturity,
         )
@@ -642,7 +642,7 @@ class TestClassifyEpistemicMaturity:
 
 class TestBuildFullEpistemicProof:
     def test_no_upstream(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_full_epistemic_proof,
         )
 
@@ -652,7 +652,7 @@ class TestBuildFullEpistemicProof:
         assert proof.evidence.primitives_evaluated is True
 
     def test_dry_run(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_full_epistemic_proof,
         )
 
@@ -661,7 +661,7 @@ class TestBuildFullEpistemicProof:
         assert proof.execution_strategy == "epistemic_intelligence_dry_run"
 
     def test_founder_epistemic(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_full_epistemic_proof,
         )
 
@@ -669,22 +669,22 @@ class TestBuildFullEpistemicProof:
         assert proof.evidence.founder_confirmed is True
 
     def test_with_full_upstream_chain(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_full_epistemic_proof,
         )
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             build_full_strategy_proof,
         )
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             build_full_economics_proof,
         )
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             build_full_federation_proof,
         )
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             build_full_capability_proof,
         )
 
@@ -724,7 +724,7 @@ class TestBuildFullEpistemicProof:
 
 class TestPersistEpistemicProof:
     def test_persist_creates_file(self, tmp_path: Path) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_full_epistemic_proof,
             persist_epistemic_proof,
         )
@@ -737,7 +737,7 @@ class TestPersistEpistemicProof:
         assert data["proof_type"] == "constitutional_epistemic_intelligence"
 
     def test_persist_json_valid(self, tmp_path: Path) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_full_epistemic_proof,
             persist_epistemic_proof,
         )
@@ -757,7 +757,7 @@ class TestPersistEpistemicProof:
 
 class TestHallucinationPrevention:
     def test_normal_conditions_prevented(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_full_epistemic_proof,
         )
 
@@ -765,7 +765,7 @@ class TestHallucinationPrevention:
         assert proof.evidence.hallucination_prevented is True
 
     def test_high_risk_not_prevented(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_epistemic_primitives,
             build_evidence_integrity,
             build_reality_coherence,
@@ -785,7 +785,7 @@ class TestHallucinationPrevention:
 
 class TestTruthDowngradeSafety:
     def test_low_confidence_triggers_downgrade(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EpistemicPrimitiveSet,
             RealityCoherenceAnalysis,
             ContradictionAnalysis,
@@ -802,7 +802,7 @@ class TestTruthDowngradeSafety:
         assert downgrade_adapt[0].truth_downgraded is True
 
     def test_high_confidence_no_downgrade(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EpistemicPrimitiveSet,
             RealityCoherenceAnalysis,
             ContradictionAnalysis,
@@ -824,7 +824,7 @@ class TestTruthDowngradeSafety:
 
 class TestUncertaintyPropagation:
     def test_uncertainty_between_0_and_1(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_epistemic_primitives,
             build_evidence_integrity,
             build_probabilistic_reasoning,
@@ -836,7 +836,7 @@ class TestUncertaintyPropagation:
         assert 0 <= result.total_uncertainty <= 1
 
     def test_all_assessments_have_uncertainty(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_epistemic_primitives,
             build_evidence_integrity,
             build_probabilistic_reasoning,
@@ -856,7 +856,7 @@ class TestUncertaintyPropagation:
 
 class TestFederationRealityDivergence:
     def test_no_divergence_without_high_drift(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_epistemic_primitives,
             build_evidence_integrity,
             build_reality_coherence,
@@ -876,7 +876,7 @@ class TestFederationRealityDivergence:
 
 class TestReplayEvidenceConsistency:
     def test_replay_dimension_exists(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_evidence_integrity,
         )
 
@@ -892,7 +892,7 @@ class TestReplayEvidenceConsistency:
 
 class TestEpistemicTopologyGeneration:
     def test_all_7_types_generated(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_epistemic_primitives,
             build_evidence_integrity,
             build_reality_coherence,
@@ -917,7 +917,7 @@ class TestEpistemicTopologyGeneration:
 
 class TestContinuitySafeRecovery:
     def test_continuity_preservation_always_applied(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             EpistemicPrimitiveSet,
             RealityCoherenceAnalysis,
             ContradictionAnalysis,
@@ -987,32 +987,32 @@ class TestEpistemicCommandRegistration:
 
 class TestLiveEpistemicProof:
     def test_live_proof_with_full_upstream(self) -> None:
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_full_epistemic_proof,
             persist_epistemic_proof,
         )
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             build_full_strategy_proof,
         )
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             build_full_economics_proof,
         )
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             build_full_federation_proof,
         )
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_full_constitutional_proof,
         )
-        from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+        from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
             build_full_governance_intelligence_proof,
         )
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
-        from core.workstation.persistent_substrate_continuity_engine_v1 import (
+        from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
             build_full_continuity_proof,
         )
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             build_full_capability_proof,
         )
 

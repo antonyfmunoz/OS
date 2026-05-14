@@ -22,14 +22,14 @@ _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.ge
 
 class TestResilienceConstants:
     def test_maturity_levels_count(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             RESILIENCE_MATURITY_LEVELS,
         )
 
         assert len(RESILIENCE_MATURITY_LEVELS) == 6
 
     def test_maturity_levels_order(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             RESILIENCE_MATURITY_LEVELS,
         )
 
@@ -37,56 +37,56 @@ class TestResilienceConstants:
         assert RESILIENCE_MATURITY_LEVELS[5] == "L5_CONSTITUTIONAL_ANTIFRAGILITY"
 
     def test_primitives_count(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             RESILIENCE_PRIMITIVES,
         )
 
         assert len(RESILIENCE_PRIMITIVES) == 10
 
     def test_catastrophic_scenario_count(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             CATASTROPHIC_SCENARIO_TYPES,
         )
 
         assert len(CATASTROPHIC_SCENARIO_TYPES) == 10
 
     def test_antifragility_dimensions_count(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             ANTIFRAGILITY_DIMENSIONS,
         )
 
         assert len(ANTIFRAGILITY_DIMENSIONS) == 8
 
     def test_evolutionary_forecasts_count(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             EVOLUTIONARY_RESILIENCE_FORECASTS,
         )
 
         assert len(EVOLUTIONARY_RESILIENCE_FORECASTS) == 8
 
     def test_existential_risk_count(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             EXISTENTIAL_RISK_TYPES,
         )
 
         assert len(EXISTENTIAL_RISK_TYPES) == 8
 
     def test_topology_types_count(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             RESILIENCE_TOPOLOGY_TYPES,
         )
 
         assert len(RESILIENCE_TOPOLOGY_TYPES) == 7
 
     def test_hard_ceilings_count(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             RESILIENCE_HARD_CEILINGS,
         )
 
         assert len(RESILIENCE_HARD_CEILINGS) == 7
 
     def test_adaptation_types_count(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             RESILIENCE_ADAPTATION_TYPES,
         )
 
@@ -100,7 +100,7 @@ class TestResilienceConstants:
 
 class TestResiliencePrimitive:
     def test_default(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             ResiliencePrimitive,
         )
 
@@ -110,7 +110,7 @@ class TestResiliencePrimitive:
         assert p.fragility_score == 0.0
 
     def test_to_dict_serializable(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             ResiliencePrimitive,
         )
 
@@ -122,7 +122,7 @@ class TestResiliencePrimitive:
 
 class TestResiliencePrimitiveSet:
     def test_auto_timestamp(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             ResiliencePrimitiveSet,
         )
 
@@ -130,7 +130,7 @@ class TestResiliencePrimitiveSet:
         assert ps.timestamp != ""
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             ResiliencePrimitiveSet,
         )
 
@@ -142,7 +142,7 @@ class TestResiliencePrimitiveSet:
 
 class TestCatastrophicScenario:
     def test_default(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             CatastrophicScenario,
         )
 
@@ -152,7 +152,7 @@ class TestCatastrophicScenario:
         assert s.cascading_failures == 0
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             CatastrophicScenario,
         )
 
@@ -164,7 +164,7 @@ class TestCatastrophicScenario:
 
 class TestAntifragilityDimension:
     def test_default(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             AntifragilityDimension,
         )
 
@@ -173,7 +173,7 @@ class TestAntifragilityDimension:
         assert a.gain_from_stress == 0.0
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             AntifragilityDimension,
         )
 
@@ -185,7 +185,7 @@ class TestAntifragilityDimension:
 
 class TestEvolutionaryResilienceForecast:
     def test_default(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             EvolutionaryResilienceForecast,
         )
 
@@ -194,7 +194,7 @@ class TestEvolutionaryResilienceForecast:
         assert f.brittleness == 0.0
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             EvolutionaryResilienceForecast,
         )
 
@@ -208,7 +208,7 @@ class TestEvolutionaryResilienceForecast:
 
 class TestExistentialRiskDetection:
     def test_default(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             ExistentialRiskDetection,
         )
 
@@ -218,7 +218,7 @@ class TestExistentialRiskDetection:
         assert r.mitigation_available is True
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             ExistentialRiskDetection,
         )
 
@@ -230,7 +230,7 @@ class TestExistentialRiskDetection:
 
 class TestResilienceTopologyNode:
     def test_default(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             ResilienceTopologyNode,
         )
 
@@ -239,7 +239,7 @@ class TestResilienceTopologyNode:
         assert n.single_points_of_failure == 0
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             ResilienceTopologyNode,
         )
 
@@ -251,7 +251,7 @@ class TestResilienceTopologyNode:
 
 class TestResilienceTopology:
     def test_auto_hash(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             ResilienceTopology,
             ResilienceTopologyNode,
         )
@@ -260,7 +260,7 @@ class TestResilienceTopology:
         assert t.topology_hash != ""
 
     def test_hash_deterministic(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             ResilienceTopology,
             ResilienceTopologyNode,
         )
@@ -273,7 +273,7 @@ class TestResilienceTopology:
 
 class TestResilienceAdaptation:
     def test_default_invariants_preserved(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             ResilienceAdaptation,
         )
 
@@ -281,7 +281,7 @@ class TestResilienceAdaptation:
         assert a.invariants_preserved is True
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             ResilienceAdaptation,
         )
 
@@ -296,7 +296,7 @@ class TestResilienceAdaptation:
 
 class TestResilienceEvidence:
     def test_field_count(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             ResilienceEvidence,
         )
         import dataclasses
@@ -304,7 +304,7 @@ class TestResilienceEvidence:
         assert len(dataclasses.fields(ResilienceEvidence)) == 40
 
     def test_to_dict_serializable(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             ResilienceEvidence,
         )
 
@@ -316,7 +316,7 @@ class TestResilienceEvidence:
 
 class TestResilienceProof:
     def test_auto_proof_id(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             ResilienceProof,
         )
 
@@ -324,7 +324,7 @@ class TestResilienceProof:
         assert p.proof_id.startswith("RESIL-")
 
     def test_to_dict_serializable(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             ResilienceProof,
             ResilienceEvidence,
         )
@@ -342,7 +342,7 @@ class TestResilienceProof:
 
 class TestBuildResiliencePrimitives:
     def test_produces_10_primitives(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_resilience_primitives,
         )
 
@@ -350,7 +350,7 @@ class TestBuildResiliencePrimitives:
         assert len(ps.primitives) == 10
 
     def test_composite_tolerance_positive(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_resilience_primitives,
         )
 
@@ -358,7 +358,7 @@ class TestBuildResiliencePrimitives:
         assert ps.composite_tolerance > 0
 
     def test_all_primitives_named(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_resilience_primitives,
             RESILIENCE_PRIMITIVES,
         )
@@ -370,7 +370,7 @@ class TestBuildResiliencePrimitives:
 
 class TestBuildCatastropheSimulation:
     def test_produces_10_scenarios(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_resilience_primitives,
             build_catastrophe_simulation,
         )
@@ -381,7 +381,7 @@ class TestBuildCatastropheSimulation:
         assert len(cs.scenarios) == 10
 
     def test_all_types_covered(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_resilience_primitives,
             build_catastrophe_simulation,
             CATASTROPHIC_SCENARIO_TYPES,
@@ -393,7 +393,7 @@ class TestBuildCatastropheSimulation:
         assert types == set(CATASTROPHIC_SCENARIO_TYPES)
 
     def test_worst_case_identified(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_resilience_primitives,
             build_catastrophe_simulation,
         )
@@ -405,7 +405,7 @@ class TestBuildCatastropheSimulation:
 
 class TestBuildAntifragilityAnalysis:
     def test_produces_8_dimensions(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_resilience_primitives,
             build_catastrophe_simulation,
             build_antifragility_analysis,
@@ -417,7 +417,7 @@ class TestBuildAntifragilityAnalysis:
         assert len(af.dimensions) == 8
 
     def test_all_dimensions_covered(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_resilience_primitives,
             build_catastrophe_simulation,
             build_antifragility_analysis,
@@ -431,7 +431,7 @@ class TestBuildAntifragilityAnalysis:
         assert dims == set(ANTIFRAGILITY_DIMENSIONS)
 
     def test_stress_counts_sum(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_resilience_primitives,
             build_catastrophe_simulation,
             build_antifragility_analysis,
@@ -445,7 +445,7 @@ class TestBuildAntifragilityAnalysis:
 
 class TestBuildEvolutionaryResilience:
     def test_produces_8_forecasts(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_resilience_primitives,
             build_catastrophe_simulation,
             build_antifragility_analysis,
@@ -459,7 +459,7 @@ class TestBuildEvolutionaryResilience:
         assert len(ev.forecasts) == 8
 
     def test_all_types_covered(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_resilience_primitives,
             build_catastrophe_simulation,
             build_antifragility_analysis,
@@ -477,7 +477,7 @@ class TestBuildEvolutionaryResilience:
 
 class TestBuildExistentialRiskAnalysis:
     def test_produces_8_risks(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_resilience_primitives,
             build_catastrophe_simulation,
             build_antifragility_analysis,
@@ -494,7 +494,7 @@ class TestBuildExistentialRiskAnalysis:
         assert len(er.risks) == 8
 
     def test_all_types_covered(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_resilience_primitives,
             build_catastrophe_simulation,
             build_antifragility_analysis,
@@ -514,7 +514,7 @@ class TestBuildExistentialRiskAnalysis:
 
 class TestBuildResilienceTopology:
     def test_covers_7_types(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_resilience_primitives,
             build_catastrophe_simulation,
             build_antifragility_analysis,
@@ -530,7 +530,7 @@ class TestBuildResilienceTopology:
         assert len(t.nodes) == 7
 
     def test_hash_not_empty(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_resilience_primitives,
             build_catastrophe_simulation,
             build_antifragility_analysis,
@@ -548,7 +548,7 @@ class TestBuildResilienceTopology:
 
 class TestBuildResilienceAdaptations:
     def test_produces_6_adaptations(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_resilience_primitives,
             build_catastrophe_simulation,
             build_antifragility_analysis,
@@ -566,7 +566,7 @@ class TestBuildResilienceAdaptations:
         assert len(ad.adaptations) == 6
 
     def test_invariants_preserved(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_resilience_primitives,
             build_catastrophe_simulation,
             build_antifragility_analysis,
@@ -586,7 +586,7 @@ class TestBuildResilienceAdaptations:
 
 class TestEnforceResilienceHardCeilings:
     def test_no_violation_on_clean(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             ResilienceEvidence,
             ResilienceAdaptationSet,
             enforce_resilience_hard_ceilings,
@@ -604,7 +604,7 @@ class TestEnforceResilienceHardCeilings:
         assert len(violations) == 0
 
     def test_invariant_violation_blocks(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             ResilienceEvidence,
             ResilienceAdaptationSet,
             enforce_resilience_hard_ceilings,
@@ -617,7 +617,7 @@ class TestEnforceResilienceHardCeilings:
         assert "resilience_invariant_violation" in violations
 
     def test_high_fragility_blocks(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             ResilienceEvidence,
             ResilienceAdaptationSet,
             enforce_resilience_hard_ceilings,
@@ -632,7 +632,7 @@ class TestEnforceResilienceHardCeilings:
 
 class TestComputeResilienceMaturity:
     def test_empty_evidence_low_score(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             ResilienceEvidence,
             compute_resilience_maturity,
         )
@@ -642,7 +642,7 @@ class TestComputeResilienceMaturity:
         assert score < 0.15
 
     def test_full_evidence_high_score(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             ResilienceEvidence,
             compute_resilience_maturity,
         )
@@ -671,7 +671,7 @@ class TestComputeResilienceMaturity:
 
 class TestResilienceMaturityCeiling:
     def test_dry_run_l0(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             ResilienceEvidence,
             resilience_maturity_ceiling,
         )
@@ -680,7 +680,7 @@ class TestResilienceMaturityCeiling:
         assert resilience_maturity_ceiling(ev) == "L0_NO_RESILIENCE_ANALYSIS"
 
     def test_no_primitives_l0(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             ResilienceEvidence,
             resilience_maturity_ceiling,
         )
@@ -689,7 +689,7 @@ class TestResilienceMaturityCeiling:
         assert resilience_maturity_ceiling(ev) == "L0_NO_RESILIENCE_ANALYSIS"
 
     def test_full_evidence_l5(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             ResilienceEvidence,
             resilience_maturity_ceiling,
         )
@@ -709,7 +709,7 @@ class TestResilienceMaturityCeiling:
         assert resilience_maturity_ceiling(ev) == "L5_CONSTITUTIONAL_ANTIFRAGILITY"
 
     def test_no_founder_capped_l4(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             ResilienceEvidence,
             resilience_maturity_ceiling,
         )
@@ -731,7 +731,7 @@ class TestResilienceMaturityCeiling:
 
 class TestClassifyResilienceMaturity:
     def test_empty_l0(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             classify_resilience_maturity,
         )
 
@@ -748,7 +748,7 @@ class TestClassifyResilienceMaturity:
 
 class TestBuildFullResilienceProof:
     def test_no_upstream(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_full_resilience_proof,
         )
 
@@ -759,7 +759,7 @@ class TestBuildFullResilienceProof:
         assert proof.evidence.total_scenarios == 10
 
     def test_dry_run(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_full_resilience_proof,
         )
 
@@ -768,7 +768,7 @@ class TestBuildFullResilienceProof:
         assert proof.evidence.is_dry_run is True
 
     def test_founder_resilience(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_full_resilience_proof,
         )
 
@@ -778,16 +778,16 @@ class TestBuildFullResilienceProof:
         assert proof.evidence.all_invariants_preserved is True
 
     def test_with_full_upstream_chain(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_full_resilience_proof,
         )
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             build_full_telos_proof,
         )
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_full_identity_proof,
         )
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_full_epistemic_proof,
         )
 
@@ -807,7 +807,7 @@ class TestBuildFullResilienceProof:
 
 class TestPersistResilienceProof:
     def test_persist_creates_file(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_full_resilience_proof,
             persist_resilience_proof,
         )
@@ -819,7 +819,7 @@ class TestPersistResilienceProof:
             assert proof.proof_id in path.name
 
     def test_persist_json_valid(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_full_resilience_proof,
             persist_resilience_proof,
         )
@@ -839,7 +839,7 @@ class TestPersistResilienceProof:
 
 class TestCatastropheSimulationIntegrity:
     def test_survivability_bounded(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_resilience_primitives,
             build_catastrophe_simulation,
         )
@@ -850,7 +850,7 @@ class TestCatastropheSimulationIntegrity:
             assert 0.0 <= s.survivability <= 1.0
 
     def test_mean_survivability_computed(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_resilience_primitives,
             build_catastrophe_simulation,
         )
@@ -862,7 +862,7 @@ class TestCatastropheSimulationIntegrity:
 
 class TestAntifragilityMeasurement:
     def test_net_gain_computable(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_resilience_primitives,
             build_catastrophe_simulation,
             build_antifragility_analysis,
@@ -876,7 +876,7 @@ class TestAntifragilityMeasurement:
 
 class TestExistentialRiskDetection:
     def test_severity_classification(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_full_resilience_proof,
         )
 
@@ -887,7 +887,7 @@ class TestExistentialRiskDetection:
 
 class TestFederationSurvivability:
     def test_federation_collapse_simulated(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_full_resilience_proof,
         )
 
@@ -898,7 +898,7 @@ class TestFederationSurvivability:
 
 class TestBrittlenessDetection:
     def test_brittleness_bounded(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_full_resilience_proof,
         )
 
@@ -908,7 +908,7 @@ class TestBrittlenessDetection:
 
 class TestRecursiveSurvivabilityPreservation:
     def test_continuity_adaptation_always_applied(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_full_resilience_proof,
         )
 
@@ -919,7 +919,7 @@ class TestRecursiveSurvivabilityPreservation:
 
 class TestResilienceWeightedOrchestration:
     def test_survivability_priority_applied(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_full_resilience_proof,
         )
 
@@ -979,11 +979,11 @@ class TestResilienceCommandRegistration:
 
 class TestLiveResilienceProof:
     def test_live_proof_with_full_upstream(self) -> None:
-        from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+        from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
             build_full_resilience_proof,
             persist_resilience_proof,
         )
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             build_full_telos_proof,
         )
 

@@ -21,14 +21,14 @@ sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS
 
 class TestTelosConstants:
     def test_maturity_levels_count(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             TELOS_MATURITY_LEVELS,
         )
 
         assert len(TELOS_MATURITY_LEVELS) == 6
 
     def test_maturity_levels_order(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             TELOS_MATURITY_LEVELS,
         )
 
@@ -36,56 +36,56 @@ class TestTelosConstants:
         assert TELOS_MATURITY_LEVELS[5] == "L5_CONSTITUTIONAL_TELOS_ALIGNMENT"
 
     def test_primitives_count(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             TELOS_PRIMITIVES,
         )
 
         assert len(TELOS_PRIMITIVES) == 10
 
     def test_mission_dimensions_count(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             MISSION_CONTINUITY_DIMENSIONS,
         )
 
         assert len(MISSION_CONTINUITY_DIMENSIONS) == 8
 
     def test_optimization_direction_count(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             OPTIMIZATION_DIRECTION_TYPES,
         )
 
         assert len(OPTIMIZATION_DIRECTION_TYPES) == 8
 
     def test_value_hierarchy_count(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             VALUE_HIERARCHY_TYPES,
         )
 
         assert len(VALUE_HIERARCHY_TYPES) == 8
 
     def test_purpose_conflict_count(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             PURPOSE_CONFLICT_TYPES,
         )
 
         assert len(PURPOSE_CONFLICT_TYPES) == 7
 
     def test_topology_types_count(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             ALIGNMENT_TOPOLOGY_TYPES,
         )
 
         assert len(ALIGNMENT_TOPOLOGY_TYPES) == 7
 
     def test_hard_ceilings_count(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             TELOS_HARD_CEILINGS,
         )
 
         assert len(TELOS_HARD_CEILINGS) == 7
 
     def test_adaptation_types_count(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             TELOS_ADAPTATION_TYPES,
         )
 
@@ -99,7 +99,7 @@ class TestTelosConstants:
 
 class TestTelosPrimitive:
     def test_default(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             TelosPrimitive,
         )
 
@@ -109,7 +109,7 @@ class TestTelosPrimitive:
         assert p.alignment_score == 0.0
 
     def test_to_dict_serializable(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             TelosPrimitive,
         )
 
@@ -121,7 +121,7 @@ class TestTelosPrimitive:
 
 class TestTelosPrimitiveSet:
     def test_auto_timestamp(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             TelosPrimitiveSet,
         )
 
@@ -129,7 +129,7 @@ class TestTelosPrimitiveSet:
         assert s.timestamp != ""
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             TelosPrimitiveSet,
         )
 
@@ -140,7 +140,7 @@ class TestTelosPrimitiveSet:
 
 class TestMissionContinuityDimension:
     def test_default(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             MissionContinuityDimension,
         )
 
@@ -149,7 +149,7 @@ class TestMissionContinuityDimension:
         assert m.continuity_intact is True
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             MissionContinuityDimension,
         )
 
@@ -160,7 +160,7 @@ class TestMissionContinuityDimension:
 
 class TestOptimizationDirectionDetection:
     def test_default(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             OptimizationDirectionDetection,
         )
 
@@ -169,7 +169,7 @@ class TestOptimizationDirectionDetection:
         assert d.severity == "low"
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             OptimizationDirectionDetection,
         )
 
@@ -180,7 +180,7 @@ class TestOptimizationDirectionDetection:
 
 class TestValueHierarchyEntry:
     def test_default(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             ValueHierarchyEntry,
         )
 
@@ -189,7 +189,7 @@ class TestValueHierarchyEntry:
         assert v.weight == 0.0
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             ValueHierarchyEntry,
         )
 
@@ -200,7 +200,7 @@ class TestValueHierarchyEntry:
 
 class TestPurposeConflict:
     def test_default(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             PurposeConflict,
         )
 
@@ -209,7 +209,7 @@ class TestPurposeConflict:
         assert c.severity == 0.0
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             PurposeConflict,
         )
 
@@ -220,7 +220,7 @@ class TestPurposeConflict:
 
 class TestAlignmentTopologyNode:
     def test_default(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             AlignmentTopologyNode,
         )
 
@@ -229,7 +229,7 @@ class TestAlignmentTopologyNode:
         assert n.alignment == 0.0
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             AlignmentTopologyNode,
         )
 
@@ -240,7 +240,7 @@ class TestAlignmentTopologyNode:
 
 class TestAlignmentTopology:
     def test_auto_hash(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             AlignmentTopology,
             AlignmentTopologyNode,
         )
@@ -249,7 +249,7 @@ class TestAlignmentTopology:
         assert t.topology_hash != ""
 
     def test_hash_deterministic(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             AlignmentTopology,
             AlignmentTopologyNode,
         )
@@ -262,7 +262,7 @@ class TestAlignmentTopology:
 
 class TestTelosAdaptation:
     def test_default_invariants_preserved(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             TelosAdaptation,
         )
 
@@ -270,7 +270,7 @@ class TestTelosAdaptation:
         assert a.invariants_preserved is True
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             TelosAdaptation,
         )
 
@@ -281,7 +281,7 @@ class TestTelosAdaptation:
 
 class TestTelosEvidence:
     def test_field_count(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             TelosEvidence,
         )
 
@@ -290,7 +290,7 @@ class TestTelosEvidence:
         assert len(d) == 40
 
     def test_to_dict_serializable(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             TelosEvidence,
         )
 
@@ -300,7 +300,7 @@ class TestTelosEvidence:
 
 class TestTelosProof:
     def test_auto_proof_id(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             TelosProof,
         )
 
@@ -308,7 +308,7 @@ class TestTelosProof:
         assert p.proof_id.startswith("TELS-")
 
     def test_to_dict_serializable(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             TelosEvidence,
             TelosProof,
         )
@@ -324,7 +324,7 @@ class TestTelosProof:
 
 class TestBuildTelosPrimitives:
     def test_produces_10_primitives(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             build_telos_primitives,
         )
 
@@ -332,7 +332,7 @@ class TestBuildTelosPrimitives:
         assert len(result.primitives) == 10
 
     def test_composite_confidence_positive(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             build_telos_primitives,
         )
 
@@ -340,7 +340,7 @@ class TestBuildTelosPrimitives:
         assert result.composite_confidence > 0
 
     def test_all_primitives_named(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             build_telos_primitives,
             TELOS_PRIMITIVES,
         )
@@ -352,7 +352,7 @@ class TestBuildTelosPrimitives:
 
 class TestBuildMissionContinuity:
     def test_produces_8_dimensions(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             build_telos_primitives,
             build_mission_continuity,
         )
@@ -362,7 +362,7 @@ class TestBuildMissionContinuity:
         assert len(result.dimensions) == 8
 
     def test_composite_alignment_between_0_and_1(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             build_telos_primitives,
             build_mission_continuity,
         )
@@ -374,7 +374,7 @@ class TestBuildMissionContinuity:
 
 class TestBuildOptimizationDirection:
     def test_produces_8_detections(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             build_telos_primitives,
             build_mission_continuity,
             build_optimization_direction,
@@ -386,7 +386,7 @@ class TestBuildOptimizationDirection:
         assert len(result.detections) == 8
 
     def test_all_types_covered(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             build_telos_primitives,
             build_mission_continuity,
             build_optimization_direction,
@@ -402,7 +402,7 @@ class TestBuildOptimizationDirection:
 
 class TestBuildValueHierarchy:
     def test_produces_8_entries(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             build_telos_primitives,
             build_mission_continuity,
             build_optimization_direction,
@@ -416,7 +416,7 @@ class TestBuildValueHierarchy:
         assert len(result.entries) == 8
 
     def test_composite_stability_positive(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             build_telos_primitives,
             build_mission_continuity,
             build_optimization_direction,
@@ -432,7 +432,7 @@ class TestBuildValueHierarchy:
 
 class TestBuildPurposeConflicts:
     def test_produces_7_conflicts(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             build_telos_primitives,
             build_mission_continuity,
             build_optimization_direction,
@@ -448,7 +448,7 @@ class TestBuildPurposeConflicts:
         assert len(result.conflicts) == 7
 
     def test_all_types_covered(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             build_telos_primitives,
             build_mission_continuity,
             build_optimization_direction,
@@ -468,7 +468,7 @@ class TestBuildPurposeConflicts:
 
 class TestBuildAlignmentTopology:
     def test_covers_7_types(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             build_telos_primitives,
             build_mission_continuity,
             build_optimization_direction,
@@ -484,7 +484,7 @@ class TestBuildAlignmentTopology:
         assert result.topology_types_covered == 7
 
     def test_hash_not_empty(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             build_telos_primitives,
             build_mission_continuity,
             build_optimization_direction,
@@ -502,7 +502,7 @@ class TestBuildAlignmentTopology:
 
 class TestBuildTelosAdaptations:
     def test_produces_6_adaptations(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             build_telos_primitives,
             build_mission_continuity,
             build_optimization_direction,
@@ -520,7 +520,7 @@ class TestBuildTelosAdaptations:
         assert len(result.adaptations) == 6
 
     def test_invariants_preserved(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             build_telos_primitives,
             build_mission_continuity,
             build_optimization_direction,
@@ -540,7 +540,7 @@ class TestBuildTelosAdaptations:
 
 class TestEnforceTelosHardCeilings:
     def test_no_violation_on_clean(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             TelosPrimitiveSet,
             OptimizationDirectionAnalysis,
             PurposeConflictAnalysis,
@@ -563,7 +563,7 @@ class TestEnforceTelosHardCeilings:
         assert len(reasons) == 0
 
     def test_invariant_violation_blocks(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             TelosPrimitiveSet,
             OptimizationDirectionAnalysis,
             PurposeConflictAnalysis,
@@ -605,7 +605,7 @@ class TestEnforceTelosHardCeilings:
 
 class TestComputeTelosMaturity:
     def test_empty_evidence_low_score(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             TelosEvidence,
             compute_telos_maturity,
         )
@@ -619,7 +619,7 @@ class TestComputeTelosMaturity:
         assert compute_telos_maturity(ev) == 0
 
     def test_full_evidence_high_score(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             TelosEvidence,
             compute_telos_maturity,
         )
@@ -642,7 +642,7 @@ class TestComputeTelosMaturity:
 
 class TestTelosMaturityCeiling:
     def test_dry_run_l0(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             TelosEvidence,
             telos_maturity_ceiling,
         )
@@ -651,7 +651,7 @@ class TestTelosMaturityCeiling:
         assert telos_maturity_ceiling(ev) == "L0_NO_TELOS_ALIGNMENT"
 
     def test_no_primitives_l0(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             TelosEvidence,
             telos_maturity_ceiling,
         )
@@ -660,7 +660,7 @@ class TestTelosMaturityCeiling:
         assert telos_maturity_ceiling(ev) == "L0_NO_TELOS_ALIGNMENT"
 
     def test_full_evidence_l5(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             TelosEvidence,
             telos_maturity_ceiling,
         )
@@ -675,7 +675,7 @@ class TestTelosMaturityCeiling:
         assert telos_maturity_ceiling(ev) == "L5_CONSTITUTIONAL_TELOS_ALIGNMENT"
 
     def test_no_founder_capped_l4(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             TelosEvidence,
             telos_maturity_ceiling,
         )
@@ -692,7 +692,7 @@ class TestTelosMaturityCeiling:
 
 class TestClassifyTelosMaturity:
     def test_empty_l0(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             TelosEvidence,
             classify_telos_maturity,
         )
@@ -714,7 +714,7 @@ class TestClassifyTelosMaturity:
 
 class TestBuildFullTelosProof:
     def test_no_upstream(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             build_full_telos_proof,
         )
 
@@ -724,7 +724,7 @@ class TestBuildFullTelosProof:
         assert proof.evidence.primitives_evaluated is True
 
     def test_dry_run(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             build_full_telos_proof,
         )
 
@@ -733,7 +733,7 @@ class TestBuildFullTelosProof:
         assert proof.execution_strategy == "telos_alignment_dry_run"
 
     def test_founder_telos(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             build_full_telos_proof,
         )
 
@@ -741,28 +741,28 @@ class TestBuildFullTelosProof:
         assert proof.evidence.founder_confirmed is True
 
     def test_with_full_upstream_chain(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             build_full_telos_proof,
         )
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_full_identity_proof,
         )
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_full_epistemic_proof,
         )
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             build_full_strategy_proof,
         )
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             build_full_economics_proof,
         )
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             build_full_federation_proof,
         )
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             build_full_capability_proof,
         )
 
@@ -822,7 +822,7 @@ class TestBuildFullTelosProof:
 
 class TestPersistTelosProof:
     def test_persist_creates_file(self, tmp_path: Path) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             build_full_telos_proof,
             persist_telos_proof,
         )
@@ -835,7 +835,7 @@ class TestPersistTelosProof:
         assert data["proof_type"] == "constitutional_telos_alignment"
 
     def test_persist_json_valid(self, tmp_path: Path) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             build_full_telos_proof,
             persist_telos_proof,
         )
@@ -855,7 +855,7 @@ class TestPersistTelosProof:
 
 class TestMissionDriftDetection:
     def test_mission_drift_logic(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             build_full_telos_proof,
         )
 
@@ -872,16 +872,16 @@ class TestMissionDriftDetection:
 
 class TestRecursiveAlignmentStability:
     def test_alignment_with_federation(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             build_full_telos_proof,
         )
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             build_full_federation_proof,
         )
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             build_full_capability_proof,
         )
 
@@ -901,7 +901,7 @@ class TestRecursiveAlignmentStability:
 
 class TestValueHierarchyConsistency:
     def test_all_types_present(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             build_telos_primitives,
             build_mission_continuity,
             build_optimization_direction,
@@ -924,7 +924,7 @@ class TestValueHierarchyConsistency:
 
 class TestAlignmentTopologyGeneration:
     def test_all_7_types_generated(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             build_telos_primitives,
             build_mission_continuity,
             build_optimization_direction,
@@ -949,7 +949,7 @@ class TestAlignmentTopologyGeneration:
 
 class TestContinuitySafeAlignment:
     def test_purpose_continuity_always_applied(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             TelosPrimitiveSet,
             OptimizationDirectionAnalysis,
             PurposeConflictAnalysis,
@@ -1021,37 +1021,37 @@ class TestTelosCommandRegistration:
 
 class TestLiveTelosProof:
     def test_live_proof_with_full_upstream(self) -> None:
-        from core.workstation.constitutional_telos_alignment_engine_v1 import (
+        from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
             build_full_telos_proof,
         )
-        from core.workstation.constitutional_identity_continuity_engine_v1 import (
+        from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
             build_full_identity_proof,
         )
-        from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
             build_full_epistemic_proof,
         )
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             build_full_strategy_proof,
         )
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             build_full_economics_proof,
         )
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             build_full_federation_proof,
         )
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_full_constitutional_proof,
         )
-        from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+        from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
             build_full_governance_intelligence_proof,
         )
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
-        from core.workstation.persistent_substrate_continuity_engine_v1 import (
+        from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
             build_full_continuity_proof,
         )
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             build_full_capability_proof,
         )
 

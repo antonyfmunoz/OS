@@ -24,14 +24,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from core.workstation.adapter_autogeneration_engine_v1 import (
+from .adapter_autogeneration_engine_v1 import (
     ADAPTER_MATURITY_LEVELS,
     ADAPTER_MATURITY_REQUIREMENTS,
     ADAPTER_TARGET_PLATFORMS,
     AdapterAutogenProof,
     AdapterBlueprint,
 )
-from core.workstation.environment_mapping_engine_v1 import (
+from .environment_mapping_engine_v1 import (
 
     CANDIDATE_TYPE_CANONICAL,
     CANDIDATE_TYPE_INSTANCE,

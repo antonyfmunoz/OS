@@ -1099,7 +1099,7 @@ def send_explore_environment_request(
     timeout_seconds: int = 60,
 ) -> Any:
     """Send explore-environment request via relay transport."""
-    from core.workstation.relay_execution_transport_v1 import send_and_wait
+    from .relay_execution_transport_v1 import send_and_wait
 
     request = {
         "request_id": f"REQ-W0-EXPLORE-ENV-{uuid.uuid4().hex[:8]}",

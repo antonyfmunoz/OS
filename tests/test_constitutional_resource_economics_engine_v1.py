@@ -50,14 +50,14 @@ sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS
 
 class TestEconomicsConstants:
     def test_maturity_levels_count(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             ECONOMICS_MATURITY_LEVELS,
         )
 
         assert len(ECONOMICS_MATURITY_LEVELS) == 6
 
     def test_maturity_levels_order(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             ECONOMICS_MATURITY_LEVELS,
         )
 
@@ -65,42 +65,42 @@ class TestEconomicsConstants:
         assert ECONOMICS_MATURITY_LEVELS[5] == "L5_CONSTITUTIONAL_RESOURCE_COORDINATION"
 
     def test_resource_primitives_count(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             RESOURCE_PRIMITIVES,
         )
 
         assert len(RESOURCE_PRIMITIVES) == 9
 
     def test_execution_economics_dimensions_count(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             EXECUTION_ECONOMICS_DIMENSIONS,
         )
 
         assert len(EXECUTION_ECONOMICS_DIMENSIONS) == 8
 
     def test_constrained_node_types_count(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             CONSTRAINED_NODE_TYPES,
         )
 
         assert len(CONSTRAINED_NODE_TYPES) == 7
 
     def test_degraded_mode_types_count(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             DEGRADED_MODE_TYPES,
         )
 
         assert len(DEGRADED_MODE_TYPES) == 6
 
     def test_scarcity_simulation_types_count(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             SCARCITY_SIMULATION_TYPES,
         )
 
         assert len(SCARCITY_SIMULATION_TYPES) == 8
 
     def test_economics_hard_ceilings_count(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             ECONOMICS_HARD_CEILINGS,
         )
 
@@ -108,7 +108,7 @@ class TestEconomicsConstants:
         assert isinstance(ECONOMICS_HARD_CEILINGS, frozenset)
 
     def test_resource_graph_dimensions_count(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             RESOURCE_GRAPH_DIMENSIONS,
         )
 
@@ -122,7 +122,7 @@ class TestEconomicsConstants:
 
 class TestNodeResourceProfile:
     def test_default_capacity(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             NodeResourceProfile,
         )
 
@@ -130,7 +130,7 @@ class TestNodeResourceProfile:
         assert p.total_capacity() >= 0
 
     def test_full_capacity_node(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             NodeResourceProfile,
         )
 
@@ -144,7 +144,7 @@ class TestNodeResourceProfile:
         assert p.total_capacity() == 1.0
 
     def test_to_dict_has_total_capacity(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             NodeResourceProfile,
         )
 
@@ -154,7 +154,7 @@ class TestNodeResourceProfile:
         assert d["node_id"] == "test"
 
     def test_degraded_flag(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             NodeResourceProfile,
         )
 
@@ -165,7 +165,7 @@ class TestNodeResourceProfile:
 
 class TestFederationResourceGraph:
     def test_default_graph(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             FederationResourceGraph,
         )
 
@@ -174,7 +174,7 @@ class TestFederationResourceGraph:
         assert g.total_compute == 0.0
 
     def test_to_dict_serializable(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             FederationResourceGraph,
         )
 
@@ -184,7 +184,7 @@ class TestFederationResourceGraph:
         assert len(s) > 0
 
     def test_timestamp_auto_set(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             FederationResourceGraph,
         )
 
@@ -194,7 +194,7 @@ class TestFederationResourceGraph:
 
 class TestExecutionEconomicsScores:
     def test_composite_economics(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             ExecutionEconomicsScores,
         )
 
@@ -207,7 +207,7 @@ class TestExecutionEconomicsScores:
         assert s.composite_economics() > 0
 
     def test_composite_negative_factors(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             ExecutionEconomicsScores,
         )
 
@@ -220,7 +220,7 @@ class TestExecutionEconomicsScores:
         assert s.composite_economics() < 0
 
     def test_to_dict_has_composite(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             ExecutionEconomicsScores,
         )
 
@@ -231,7 +231,7 @@ class TestExecutionEconomicsScores:
 
 class TestDelegationPath:
     def test_safe_delegation_score(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             DelegationPath,
         )
 
@@ -245,7 +245,7 @@ class TestDelegationPath:
         assert p.delegation_score() > 0
 
     def test_unsafe_delegation_score_zero(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             DelegationPath,
         )
 
@@ -253,7 +253,7 @@ class TestDelegationPath:
         assert p.delegation_score() == 0.0
 
     def test_to_dict_has_delegation_score(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             DelegationPath,
         )
 
@@ -264,7 +264,7 @@ class TestDelegationPath:
 
 class TestDelegationTopology:
     def test_default_topology(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             DelegationTopology,
         )
 
@@ -273,7 +273,7 @@ class TestDelegationTopology:
         assert t.safe_path_count == 0
 
     def test_to_dict_serializable(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             DelegationTopology,
         )
 
@@ -285,7 +285,7 @@ class TestDelegationTopology:
 
 class TestDegradedModeStatus:
     def test_default_not_ready(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             DegradedModeStatus,
         )
 
@@ -294,7 +294,7 @@ class TestDegradedModeStatus:
         assert dm.partial_federation_ready is False
 
     def test_to_dict_all_fields(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             DegradedModeStatus,
         )
 
@@ -306,7 +306,7 @@ class TestDegradedModeStatus:
 
 class TestScarcitySimulationOutcome:
     def test_auto_simulation_id(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             ScarcitySimulationOutcome,
         )
 
@@ -314,7 +314,7 @@ class TestScarcitySimulationOutcome:
         assert s.simulation_id.startswith("SCARSIM-")
 
     def test_auto_timestamp(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             ScarcitySimulationOutcome,
         )
 
@@ -322,7 +322,7 @@ class TestScarcitySimulationOutcome:
         assert len(s.timestamp) > 0
 
     def test_to_dict_serializable(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             ScarcitySimulationOutcome,
         )
 
@@ -335,7 +335,7 @@ class TestScarcitySimulationOutcome:
 
 class TestEconomicsEvidence:
     def test_field_count(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             EconomicsEvidence,
         )
 
@@ -344,7 +344,7 @@ class TestEconomicsEvidence:
         assert len(d) == 28
 
     def test_to_dict_serializable(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             EconomicsEvidence,
         )
 
@@ -355,7 +355,7 @@ class TestEconomicsEvidence:
 
 class TestEconomicsProof:
     def test_auto_proof_id(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             EconomicsProof,
         )
 
@@ -363,7 +363,7 @@ class TestEconomicsProof:
         assert p.proof_id.startswith("ECON-")
 
     def test_auto_timestamp(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             EconomicsProof,
         )
 
@@ -371,7 +371,7 @@ class TestEconomicsProof:
         assert len(p.timestamp) > 0
 
     def test_to_dict_serializable(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             EconomicsProof,
         )
 
@@ -389,7 +389,7 @@ class TestEconomicsProof:
 
 class TestBuildResourceGraph:
     def test_no_federation_creates_default_node(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             build_resource_graph,
         )
 
@@ -399,7 +399,7 @@ class TestBuildResourceGraph:
         assert g.total_compute == 1.0
 
     def test_graph_hash_deterministic(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             build_resource_graph,
         )
 
@@ -409,7 +409,7 @@ class TestBuildResourceGraph:
         assert len(g1.graph_hash) == 16
 
     def test_no_delegation_paths_for_single_node(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             build_resource_graph,
         )
 
@@ -417,7 +417,7 @@ class TestBuildResourceGraph:
         assert g.delegation_paths == 0
 
     def test_hotspot_detection(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             build_resource_graph,
         )
 
@@ -425,7 +425,7 @@ class TestBuildResourceGraph:
         assert g.hotspot_count >= 0
 
     def test_bottleneck_detection(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             build_resource_graph,
         )
 
@@ -435,7 +435,7 @@ class TestBuildResourceGraph:
 
 class TestComputeExecutionEconomics:
     def test_from_default_graph(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             build_resource_graph,
             compute_execution_economics,
         )
@@ -446,7 +446,7 @@ class TestComputeExecutionEconomics:
         assert e.resource_efficiency > 0
 
     def test_all_dimensions_set(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             build_resource_graph,
             compute_execution_economics,
         )
@@ -459,7 +459,7 @@ class TestComputeExecutionEconomics:
 
 class TestBuildDelegationTopology:
     def test_single_node_no_paths(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             build_delegation_topology,
             build_resource_graph,
         )
@@ -470,7 +470,7 @@ class TestBuildDelegationTopology:
         assert t.safe_path_count == 0
 
     def test_multi_node_has_paths(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             FederationResourceGraph,
             NodeResourceProfile,
             build_delegation_topology,
@@ -487,7 +487,7 @@ class TestBuildDelegationTopology:
         assert t.safe_path_count + t.unsafe_path_count == 2
 
     def test_degraded_target_unsafe(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             FederationResourceGraph,
             NodeResourceProfile,
             build_delegation_topology,
@@ -507,7 +507,7 @@ class TestBuildDelegationTopology:
 
 class TestBuildDegradedModeStatus:
     def test_no_proofs_partial_only(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             build_degraded_mode_status,
             build_resource_graph,
         )
@@ -519,14 +519,14 @@ class TestBuildDegradedModeStatus:
         assert dm.ready_count >= 1
 
     def test_quarantine_requires_founder(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             build_degraded_mode_status,
             build_resource_graph,
         )
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             ConstitutionalProof,
         )
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             OrchestrationProof,
         )
 
@@ -546,7 +546,7 @@ class TestBuildDegradedModeStatus:
 
 class TestEnforceEconomicsHardCeilings:
     def test_no_violation_on_normal(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             DegradedModeStatus,
             DelegationTopology,
             ExecutionEconomicsScores,
@@ -565,7 +565,7 @@ class TestEnforceEconomicsHardCeilings:
         assert blocked is False
 
     def test_high_governance_risk_triggers_ceiling(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             DegradedModeStatus,
             DelegationTopology,
             ExecutionEconomicsScores,
@@ -582,7 +582,7 @@ class TestEnforceEconomicsHardCeilings:
         assert any("governance_breaking" in r for r in reasons)
 
     def test_high_blast_radius_triggers_ceiling(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             DegradedModeStatus,
             DelegationTopology,
             ExecutionEconomicsScores,
@@ -601,7 +601,7 @@ class TestEnforceEconomicsHardCeilings:
 
 class TestRunScarcitySimulations:
     def test_all_8_types(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             SCARCITY_SIMULATION_TYPES,
             DelegationTopology,
             ExecutionEconomicsScores,
@@ -623,7 +623,7 @@ class TestRunScarcitySimulations:
         assert sim_types == set(SCARCITY_SIMULATION_TYPES)
 
     def test_all_simulations_have_ids(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             DelegationTopology,
             ExecutionEconomicsScores,
             FederationResourceGraph,
@@ -638,7 +638,7 @@ class TestRunScarcitySimulations:
             assert s.simulation_id.startswith("SCARSIM-")
 
     def test_all_simulations_serializable(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             DelegationTopology,
             ExecutionEconomicsScores,
             FederationResourceGraph,
@@ -662,7 +662,7 @@ class TestRunScarcitySimulations:
 
 class TestComputeEconomicsMaturity:
     def test_empty_evidence_score_zero(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             EconomicsEvidence,
             compute_economics_maturity,
         )
@@ -671,7 +671,7 @@ class TestComputeEconomicsMaturity:
         assert compute_economics_maturity(ev) == 0
 
     def test_full_evidence_high_score(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             EconomicsEvidence,
             compute_economics_maturity,
         )
@@ -700,7 +700,7 @@ class TestComputeEconomicsMaturity:
 
 class TestEconomicsMaturityCeiling:
     def test_dry_run_ceiling_l0(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             EconomicsEvidence,
             economics_maturity_ceiling,
         )
@@ -711,7 +711,7 @@ class TestEconomicsMaturityCeiling:
         assert blocked is True
 
     def test_no_graph_ceiling_l0(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             EconomicsEvidence,
             economics_maturity_ceiling,
         )
@@ -722,7 +722,7 @@ class TestEconomicsMaturityCeiling:
         assert blocked is True
 
     def test_no_delegation_ceiling_l2(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             EconomicsEvidence,
             economics_maturity_ceiling,
         )
@@ -737,7 +737,7 @@ class TestEconomicsMaturityCeiling:
         assert blocked is True
 
     def test_full_evidence_ceiling_l5(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             EconomicsEvidence,
             economics_maturity_ceiling,
         )
@@ -764,7 +764,7 @@ class TestEconomicsMaturityCeiling:
 
 class TestClassifyEconomicsMaturity:
     def test_empty_evidence_l0(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             EconomicsEvidence,
             classify_economics_maturity,
         )
@@ -775,7 +775,7 @@ class TestClassifyEconomicsMaturity:
         assert blocked is True
 
     def test_level_clamped_by_ceiling(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             EconomicsEvidence,
             classify_economics_maturity,
         )
@@ -811,7 +811,7 @@ class TestClassifyEconomicsMaturity:
 
 class TestBuildFullEconomicsProof:
     def test_no_upstream_produces_proof(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             build_full_economics_proof,
         )
 
@@ -828,7 +828,7 @@ class TestBuildFullEconomicsProof:
         assert len(proof.simulations) == 8
 
     def test_dry_run_strategy(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             build_full_economics_proof,
         )
 
@@ -837,7 +837,7 @@ class TestBuildFullEconomicsProof:
         assert proof.maturity_level == "L0_NO_RESOURCE_COORDINATION"
 
     def test_no_founder_confirmation_strategy(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             build_full_economics_proof,
         )
 
@@ -845,7 +845,7 @@ class TestBuildFullEconomicsProof:
         assert proof.execution_strategy == "await_founder_confirmation"
 
     def test_founder_confirmed_strategy(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             build_full_economics_proof,
         )
 
@@ -855,25 +855,25 @@ class TestBuildFullEconomicsProof:
 
 class TestBuildFullEconomicsProofWithUpstream:
     def test_with_federation_proof(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             build_full_economics_proof,
         )
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             build_full_federation_proof,
         )
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_full_constitutional_proof,
         )
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
-        from core.workstation.persistent_substrate_continuity_engine_v1 import (
+        from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
             build_full_continuity_proof,
         )
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             build_full_capability_proof,
         )
-        from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+        from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
             build_full_governance_intelligence_proof,
         )
 
@@ -925,16 +925,16 @@ class TestBuildFullEconomicsProofWithUpstream:
         assert proof.execution_strategy == "constitutional_resource_coordination_active"
 
     def test_full_chain_maturity_above_l0(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             build_full_economics_proof,
         )
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             build_full_federation_proof,
         )
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             build_full_capability_proof,
         )
 
@@ -958,7 +958,7 @@ class TestBuildFullEconomicsProofWithUpstream:
 
 class TestPersistEconomicsProof:
     def test_persist_creates_file(self, tmp_path: Path) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             build_full_economics_proof,
             persist_economics_proof,
         )
@@ -972,7 +972,7 @@ class TestPersistEconomicsProof:
         assert data["proof_id"] == proof.proof_id
 
     def test_persist_json_valid(self, tmp_path: Path) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             build_full_economics_proof,
             persist_economics_proof,
         )
@@ -1051,28 +1051,28 @@ class TestEconomicsCommandRegistration:
 
 class TestLiveEconomicsProof:
     def test_live_proof_with_full_upstream(self) -> None:
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             ECONOMICS_HARD_CEILINGS,
             ECONOMICS_MATURITY_LEVELS,
             SCARCITY_SIMULATION_TYPES,
             build_full_economics_proof,
         )
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             build_full_federation_proof,
         )
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_full_constitutional_proof,
         )
-        from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+        from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
             build_full_governance_intelligence_proof,
         )
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
-        from core.workstation.persistent_substrate_continuity_engine_v1 import (
+        from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
             build_full_continuity_proof,
         )
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             build_full_capability_proof,
         )
 

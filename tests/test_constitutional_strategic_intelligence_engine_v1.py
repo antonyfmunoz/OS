@@ -46,14 +46,14 @@ sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS
 
 class TestStrategyConstants:
     def test_maturity_levels_count(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             STRATEGY_MATURITY_LEVELS,
         )
 
         assert len(STRATEGY_MATURITY_LEVELS) == 6
 
     def test_maturity_levels_order(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             STRATEGY_MATURITY_LEVELS,
         )
 
@@ -61,49 +61,49 @@ class TestStrategyConstants:
         assert STRATEGY_MATURITY_LEVELS[5] == "L5_CONSTITUTIONAL_STRATEGIC_INTELLIGENCE"
 
     def test_forecasting_primitives_count(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             STRATEGIC_FORECASTING_PRIMITIVES,
         )
 
         assert len(STRATEGIC_FORECASTING_PRIMITIVES) == 9
 
     def test_leverage_dimensions_count(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             RECURSIVE_LEVERAGE_DIMENSIONS,
         )
 
         assert len(RECURSIVE_LEVERAGE_DIMENSIONS) == 8
 
     def test_bottleneck_types_count(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             STRATEGIC_BOTTLENECK_TYPES,
         )
 
         assert len(STRATEGIC_BOTTLENECK_TYPES) == 8
 
     def test_simulation_types_count(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             LONG_HORIZON_SIMULATION_TYPES,
         )
 
         assert len(LONG_HORIZON_SIMULATION_TYPES) == 9
 
     def test_sequencing_priorities_count(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             STRATEGIC_SEQUENCING_PRIORITIES,
         )
 
         assert len(STRATEGIC_SEQUENCING_PRIORITIES) == 7
 
     def test_topology_types_count(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             STRATEGIC_TOPOLOGY_TYPES,
         )
 
         assert len(STRATEGIC_TOPOLOGY_TYPES) == 7
 
     def test_hard_ceilings_count(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             STRATEGIC_HARD_CEILINGS,
         )
 
@@ -111,7 +111,7 @@ class TestStrategyConstants:
         assert isinstance(STRATEGIC_HARD_CEILINGS, frozenset)
 
     def test_adaptation_types_count(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             STRATEGIC_ADAPTATION_TYPES,
         )
 
@@ -120,7 +120,7 @@ class TestStrategyConstants:
 
 class TestStrategicForecast:
     def test_default(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             StrategicForecast,
         )
 
@@ -129,7 +129,7 @@ class TestStrategicForecast:
         assert f.risk_level == "low"
 
     def test_to_dict_serializable(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             StrategicForecast,
         )
 
@@ -142,7 +142,7 @@ class TestStrategicForecast:
 
 class TestStrategicForecastSet:
     def test_auto_timestamp(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             StrategicForecastSet,
         )
 
@@ -150,7 +150,7 @@ class TestStrategicForecastSet:
         assert len(fs.timestamp) > 0
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             StrategicForecastSet,
         )
 
@@ -161,7 +161,7 @@ class TestStrategicForecastSet:
 
 class TestLeverageChain:
     def test_effective_leverage_safe(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             LeverageChain,
         )
 
@@ -176,7 +176,7 @@ class TestLeverageChain:
         assert c.effective_leverage() > 0
 
     def test_effective_leverage_unsafe_zero(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             LeverageChain,
         )
 
@@ -184,7 +184,7 @@ class TestLeverageChain:
         assert c.effective_leverage() == 0.0
 
     def test_higher_order_compounds(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             LeverageChain,
         )
 
@@ -209,7 +209,7 @@ class TestLeverageChain:
 
 class TestRecursiveLeverageModel:
     def test_default(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             RecursiveLeverageModel,
         )
 
@@ -218,7 +218,7 @@ class TestRecursiveLeverageModel:
         assert m.total_leverage == 0.0
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             RecursiveLeverageModel,
         )
 
@@ -229,7 +229,7 @@ class TestRecursiveLeverageModel:
 
 class TestBottleneckPrediction:
     def test_default(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             BottleneckPrediction,
         )
 
@@ -237,7 +237,7 @@ class TestBottleneckPrediction:
         assert b.severity == "low"
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             BottleneckPrediction,
         )
 
@@ -248,7 +248,7 @@ class TestBottleneckPrediction:
 
 class TestHorizonSimulationOutcome:
     def test_auto_id(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             HorizonSimulationOutcome,
         )
 
@@ -256,7 +256,7 @@ class TestHorizonSimulationOutcome:
         assert s.simulation_id.startswith("STRSIM-")
 
     def test_auto_timestamp(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             HorizonSimulationOutcome,
         )
 
@@ -264,7 +264,7 @@ class TestHorizonSimulationOutcome:
         assert len(s.timestamp) > 0
 
     def test_to_dict_serializable(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             HorizonSimulationOutcome,
         )
 
@@ -276,7 +276,7 @@ class TestHorizonSimulationOutcome:
 
 class TestStrategicSequenceItem:
     def test_composite_priority(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             StrategicSequenceItem,
         )
 
@@ -290,7 +290,7 @@ class TestStrategicSequenceItem:
         assert item.composite_priority() > 0
 
     def test_to_dict_has_composite(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             StrategicSequenceItem,
         )
 
@@ -301,7 +301,7 @@ class TestStrategicSequenceItem:
 
 class TestStrategicTopology:
     def test_default(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             StrategicTopology,
         )
 
@@ -309,7 +309,7 @@ class TestStrategicTopology:
         assert len(t.nodes) == 0
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             StrategicTopology,
         )
 
@@ -320,7 +320,7 @@ class TestStrategicTopology:
 
 class TestStrategicAdaptation:
     def test_default_invariants_preserved(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             StrategicAdaptation,
         )
 
@@ -328,7 +328,7 @@ class TestStrategicAdaptation:
         assert a.constitutional_invariants_preserved is True
 
     def test_to_dict(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             StrategicAdaptation,
         )
 
@@ -339,7 +339,7 @@ class TestStrategicAdaptation:
 
 class TestStrategyEvidence:
     def test_field_count(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             StrategyEvidence,
         )
 
@@ -348,7 +348,7 @@ class TestStrategyEvidence:
         assert len(d) == 30
 
     def test_to_dict_serializable(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             StrategyEvidence,
         )
 
@@ -359,7 +359,7 @@ class TestStrategyEvidence:
 
 class TestStrategyProof:
     def test_auto_proof_id(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             StrategyProof,
         )
 
@@ -367,7 +367,7 @@ class TestStrategyProof:
         assert p.proof_id.startswith("STRAT-")
 
     def test_to_dict_serializable(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             StrategyProof,
         )
 
@@ -380,7 +380,7 @@ class TestStrategyProof:
 
 class TestBuildStrategicForecasts:
     def test_produces_9_primitives(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             STRATEGIC_FORECASTING_PRIMITIVES,
             build_strategic_forecasts,
         )
@@ -391,7 +391,7 @@ class TestBuildStrategicForecasts:
         assert primitives == set(STRATEGIC_FORECASTING_PRIMITIVES)
 
     def test_composite_trajectory_positive(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             build_strategic_forecasts,
         )
 
@@ -399,7 +399,7 @@ class TestBuildStrategicForecasts:
         assert fs.composite_trajectory > 0
 
     def test_stability_between_0_and_1(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             build_strategic_forecasts,
         )
 
@@ -409,7 +409,7 @@ class TestBuildStrategicForecasts:
 
 class TestBuildRecursiveLeverageModel:
     def test_produces_chains(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             build_recursive_leverage_model,
         )
 
@@ -418,7 +418,7 @@ class TestBuildRecursiveLeverageModel:
         assert m.safe_chain_count + m.unsafe_chain_count == len(m.chains)
 
     def test_has_first_and_second_order(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             build_recursive_leverage_model,
         )
 
@@ -428,7 +428,7 @@ class TestBuildRecursiveLeverageModel:
         assert 2 in orders
 
     def test_total_leverage_positive(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             build_recursive_leverage_model,
         )
 
@@ -438,7 +438,7 @@ class TestBuildRecursiveLeverageModel:
 
 class TestBuildBottleneckPredictions:
     def test_produces_8_types(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             STRATEGIC_BOTTLENECK_TYPES,
             build_bottleneck_predictions,
         )
@@ -449,7 +449,7 @@ class TestBuildBottleneckPredictions:
         assert types == set(STRATEGIC_BOTTLENECK_TYPES)
 
     def test_counts_consistent(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             build_bottleneck_predictions,
         )
 
@@ -460,7 +460,7 @@ class TestBuildBottleneckPredictions:
 
 class TestRunLongHorizonSimulations:
     def test_produces_9_types(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             LONG_HORIZON_SIMULATION_TYPES,
             build_strategic_forecasts,
             build_recursive_leverage_model,
@@ -475,7 +475,7 @@ class TestRunLongHorizonSimulations:
         assert sim_types == set(LONG_HORIZON_SIMULATION_TYPES)
 
     def test_all_have_ids(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             build_strategic_forecasts,
             build_recursive_leverage_model,
             run_long_horizon_simulations,
@@ -488,7 +488,7 @@ class TestRunLongHorizonSimulations:
             assert s.simulation_id.startswith("STRSIM-")
 
     def test_cycle_counts_vary(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             build_strategic_forecasts,
             build_recursive_leverage_model,
             run_long_horizon_simulations,
@@ -505,7 +505,7 @@ class TestRunLongHorizonSimulations:
 
 class TestBuildStrategicSequence:
     def test_produces_7_items(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             build_recursive_leverage_model,
             build_bottleneck_predictions,
             build_strategic_sequence,
@@ -517,7 +517,7 @@ class TestBuildStrategicSequence:
         assert len(ss.items) == 7
 
     def test_items_ranked(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             build_recursive_leverage_model,
             build_bottleneck_predictions,
             build_strategic_sequence,
@@ -532,7 +532,7 @@ class TestBuildStrategicSequence:
 
 class TestBuildStrategicTopology:
     def test_covers_7_types(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             build_recursive_leverage_model,
             build_strategic_forecasts,
             build_strategic_topology,
@@ -544,7 +544,7 @@ class TestBuildStrategicTopology:
         assert tp.topology_types_covered == 7
 
     def test_hash_deterministic(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             build_recursive_leverage_model,
             build_strategic_forecasts,
             build_strategic_topology,
@@ -560,7 +560,7 @@ class TestBuildStrategicTopology:
 
 class TestBuildStrategicAdaptations:
     def test_produces_6_adaptations(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             STRATEGIC_ADAPTATION_TYPES,
             build_strategic_forecasts,
             build_recursive_leverage_model,
@@ -577,7 +577,7 @@ class TestBuildStrategicAdaptations:
         assert types == set(STRATEGIC_ADAPTATION_TYPES)
 
     def test_invariants_preserved(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             build_strategic_forecasts,
             build_recursive_leverage_model,
             build_bottleneck_predictions,
@@ -593,7 +593,7 @@ class TestBuildStrategicAdaptations:
 
 class TestEnforceStrategicHardCeilings:
     def test_no_violation_on_normal(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             build_strategic_forecasts,
             build_recursive_leverage_model,
             build_bottleneck_predictions,
@@ -609,7 +609,7 @@ class TestEnforceStrategicHardCeilings:
         assert blocked is False
 
     def test_invariant_violation_blocks(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             StrategicForecastSet,
             RecursiveLeverageModel,
             BottleneckForecastSet,
@@ -628,7 +628,7 @@ class TestEnforceStrategicHardCeilings:
 
 class TestComputeStrategyMaturity:
     def test_empty_evidence_low_score(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             StrategyEvidence,
             compute_strategy_maturity,
         )
@@ -641,7 +641,7 @@ class TestComputeStrategyMaturity:
         assert compute_strategy_maturity(ev) == 0
 
     def test_full_evidence_high_score(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             StrategyEvidence,
             compute_strategy_maturity,
         )
@@ -673,7 +673,7 @@ class TestComputeStrategyMaturity:
 
 class TestStrategyMaturityCeiling:
     def test_dry_run_l0(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             StrategyEvidence,
             strategy_maturity_ceiling,
         )
@@ -684,7 +684,7 @@ class TestStrategyMaturityCeiling:
         assert blocked is True
 
     def test_no_forecasts_l0(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             StrategyEvidence,
             strategy_maturity_ceiling,
         )
@@ -694,7 +694,7 @@ class TestStrategyMaturityCeiling:
         assert ceiling == "L0_NO_STRATEGIC_INTELLIGENCE"
 
     def test_full_evidence_l5(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             StrategyEvidence,
             strategy_maturity_ceiling,
         )
@@ -720,7 +720,7 @@ class TestStrategyMaturityCeiling:
         assert blocked is False
 
     def test_no_founder_capped_l4(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             StrategyEvidence,
             strategy_maturity_ceiling,
         )
@@ -748,7 +748,7 @@ class TestStrategyMaturityCeiling:
 
 class TestClassifyStrategyMaturity:
     def test_empty_l0(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             StrategyEvidence,
             classify_strategy_maturity,
         )
@@ -761,7 +761,7 @@ class TestClassifyStrategyMaturity:
 
 class TestBuildFullStrategyProof:
     def test_no_upstream(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             build_full_strategy_proof,
         )
 
@@ -777,7 +777,7 @@ class TestBuildFullStrategyProof:
         assert proof.adaptations is not None
 
     def test_dry_run(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             build_full_strategy_proof,
         )
 
@@ -785,7 +785,7 @@ class TestBuildFullStrategyProof:
         assert proof.execution_strategy == "simulation_only"
 
     def test_founder_strategy(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             build_full_strategy_proof,
         )
 
@@ -793,19 +793,19 @@ class TestBuildFullStrategyProof:
         assert proof.execution_strategy == "constitutional_strategic_intelligence_active"
 
     def test_with_full_upstream_chain(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             build_full_strategy_proof,
         )
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             build_full_economics_proof,
         )
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             build_full_federation_proof,
         )
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             build_full_capability_proof,
         )
 
@@ -830,7 +830,7 @@ class TestBuildFullStrategyProof:
 
 class TestPersistStrategyProof:
     def test_persist_creates_file(self, tmp_path: Path) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             build_full_strategy_proof,
             persist_strategy_proof,
         )
@@ -843,7 +843,7 @@ class TestPersistStrategyProof:
         assert data["proof_type"] == "constitutional_strategic_intelligence"
 
     def test_persist_json_valid(self, tmp_path: Path) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             build_full_strategy_proof,
             persist_strategy_proof,
         )
@@ -905,30 +905,30 @@ class TestStrategyCommandRegistration:
 
 class TestLiveStrategyProof:
     def test_live_proof_with_full_upstream(self) -> None:
-        from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+        from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
             STRATEGY_MATURITY_LEVELS,
             LONG_HORIZON_SIMULATION_TYPES,
             build_full_strategy_proof,
         )
-        from core.workstation.constitutional_resource_economics_engine_v1 import (
+        from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
             build_full_economics_proof,
         )
-        from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+        from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
             build_full_federation_proof,
         )
-        from core.workstation.constitutional_substrate_governance_layer_v1 import (
+        from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
             build_full_constitutional_proof,
         )
-        from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+        from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
             build_full_governance_intelligence_proof,
         )
-        from core.workstation.governed_recursive_orchestration_engine_v1 import (
+        from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
             build_full_orchestration_proof,
         )
-        from core.workstation.persistent_substrate_continuity_engine_v1 import (
+        from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
             build_full_continuity_proof,
         )
-        from core.workstation.recursive_capability_planning_engine_v1 import (
+        from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
             build_full_capability_proof,
         )
 

@@ -349,8 +349,8 @@ async def _handle_commands_list(message: Any) -> None:
 
 
 async def _handle_relay_status(message: Any) -> None:
-    from core.workstation.workstation_node_registry_v1 import WorkstationNodeRegistry
-    from core.workstation.workstation_relay_self_heal_v1 import assess_relay_health
+    from execution.workers.workstation.workstation_node_registry_v1 import WorkstationNodeRegistry
+    from execution.workers.workstation.workstation_relay_self_heal_v1 import assess_relay_health
 
     base = Path(_REPO_ROOT)
     registry = WorkstationNodeRegistry(base)
@@ -418,7 +418,7 @@ async def _handle_relay_status(message: Any) -> None:
         lines.append(f"vps_registry: `{vps_reg_hash}`")
 
     # SSH transport check (non-blocking, short timeout)
-    from core.workstation.relay_execution_transport_v1 import check_ssh_reachable
+    from execution.workers.workstation.relay_execution_transport_v1 import check_ssh_reachable
 
     ssh_ok, ssh_reason = await asyncio.to_thread(check_ssh_reachable)
     lines.append(f"ssh_transport: `{'LIVE' if ssh_ok else 'UNREACHABLE'}` ({ssh_reason})")
@@ -432,15 +432,15 @@ async def _handle_relay_status(message: Any) -> None:
 
 
 async def _handle_chrome_proof(message: Any, spine: Any) -> None:
-    from core.workstation.workstation_relay_self_heal_v1 import should_allow_chrome_proof
-    from core.workstation.visible_actuation_proof_v1 import (
+    from execution.workers.workstation.workstation_relay_self_heal_v1 import should_allow_chrome_proof
+    from execution.workers.workstation.visible_actuation_proof_v1 import (
         FounderConfirmationArtifact,
         classify_visible_actuation,
         extract_evidence_from_relay_result,
         persist_founder_confirmation,
         persist_visible_actuation_proof,
     )
-    from core.workstation.relay_execution_transport_v1 import (
+    from execution.workers.workstation.relay_execution_transport_v1 import (
         check_ssh_reachable,
         send_chrome_proof_request,
     )
@@ -571,15 +571,15 @@ async def _handle_chrome_proof(message: Any, spine: Any) -> None:
 
 
 async def _handle_ingest_safe_doc_cu(message: Any, spine: Any) -> None:
-    from core.workstation.workstation_relay_self_heal_v1 import should_allow_chrome_proof
-    from core.workstation.relay_execution_transport_v1 import check_ssh_reachable
-    from core.workstation.foreground_cu_ingestion_execution_v1 import (
+    from execution.workers.workstation.workstation_relay_self_heal_v1 import should_allow_chrome_proof
+    from execution.workers.workstation.relay_execution_transport_v1 import check_ssh_reachable
+    from execution.workers.workstation.foreground_cu_ingestion_execution_v1 import (
         build_full_ingestion_proof,
         extract_ingestion_evidence,
         persist_cu_ingestion_proof,
         send_ingest_safe_doc_request,
     )
-    from core.workstation.visible_actuation_proof_v1 import (
+    from execution.workers.workstation.visible_actuation_proof_v1 import (
         FounderConfirmationArtifact,
         persist_founder_confirmation,
     )
@@ -715,14 +715,14 @@ async def _handle_ingest_safe_doc_cu(message: Any, spine: Any) -> None:
 
 
 async def _handle_explore_environment(message: Any, spine: Any) -> None:
-    from core.workstation.workstation_relay_self_heal_v1 import should_allow_chrome_proof
-    from core.workstation.relay_execution_transport_v1 import check_ssh_reachable
-    from core.workstation.environment_mapping_engine_v1 import (
+    from execution.workers.workstation.workstation_relay_self_heal_v1 import should_allow_chrome_proof
+    from execution.workers.workstation.relay_execution_transport_v1 import check_ssh_reachable
+    from execution.workers.workstation.environment_mapping_engine_v1 import (
         build_full_environment_proof,
         persist_environment_mapping_proof,
         send_explore_environment_request,
     )
-    from core.workstation.visible_actuation_proof_v1 import (
+    from execution.workers.workstation.visible_actuation_proof_v1 import (
         FounderConfirmationArtifact,
         persist_founder_confirmation,
     )
@@ -902,19 +902,19 @@ def get_command_surface_manifest() -> dict[str, Any]:
 
 
 async def _handle_adapter_report(message: Any, spine: Any) -> None:
-    from core.workstation.adapter_autogeneration_engine_v1 import (
+    from execution.workers.workstation.adapter_autogeneration_engine_v1 import (
         build_full_adapter_proof,
         persist_adapter_proof,
         persist_blueprints,
         ADAPTER_TARGET_PLATFORMS,
     )
-    from core.workstation.environment_mapping_engine_v1 import (
+    from execution.workers.workstation.environment_mapping_engine_v1 import (
         ENVIRONMENT_MAP_DIR,
         EnvironmentMappingProof,
         EnvironmentTopology,
         build_environment_topology,
     )
-    from core.workstation.visible_actuation_proof_v1 import (
+    from execution.workers.workstation.visible_actuation_proof_v1 import (
         FounderConfirmationArtifact,
         persist_founder_confirmation,
     )
@@ -933,7 +933,7 @@ async def _handle_adapter_report(message: Any, spine: Any) -> None:
                     proof_data = json.load(f)
                 topo_data = proof_data.get("topology")
                 if topo_data:
-                    from core.workstation.environment_mapping_engine_v1 import (
+                    from execution.workers.workstation.environment_mapping_engine_v1 import (
                         DiscoveredPlatform,
                         DiscoveredAccount,
                         DiscoveredWorkspace,
@@ -1108,24 +1108,24 @@ async def _handle_adapter_report(message: Any, spine: Any) -> None:
 
 
 async def _handle_capability_report(message: Any, spine: Any) -> None:
-    from core.workstation.recursive_capability_planning_engine_v1 import (
+    from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
         build_full_capability_proof,
         persist_capability_proof,
         SUBSTRATE_CAPABILITIES,
         BOTTLENECK_CATEGORIES,
     )
-    from core.workstation.adapter_autogeneration_engine_v1 import (
+    from execution.workers.workstation.adapter_autogeneration_engine_v1 import (
         AdapterAutogenProof,
         AdapterAutogenEvidence,
     )
-    from core.workstation.environment_mapping_engine_v1 import (
+    from execution.workers.workstation.environment_mapping_engine_v1 import (
         ENVIRONMENT_MAP_DIR,
         EnvironmentMappingProof,
         EnvironmentTopology,
         EnvironmentMappingEvidence,
         DiscoveredPlatform,
     )
-    from core.workstation.visible_actuation_proof_v1 import (
+    from execution.workers.workstation.visible_actuation_proof_v1 import (
         FounderConfirmationArtifact,
         persist_founder_confirmation,
     )
@@ -1321,29 +1321,29 @@ async def _handle_capability_report(message: Any, spine: Any) -> None:
 
 
 async def _handle_orchestration_report(message: Any, spine: Any) -> None:
-    from core.workstation.governed_recursive_orchestration_engine_v1 import (
+    from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
         build_full_orchestration_proof,
         persist_orchestration_proof,
         DAG_TYPES,
         SIMULATION_OUTCOMES,
         ORCHESTRATION_MATURITY_LEVELS,
     )
-    from core.workstation.recursive_capability_planning_engine_v1 import (
+    from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
         build_full_capability_proof,
         SUBSTRATE_CAPABILITIES,
     )
-    from core.workstation.adapter_autogeneration_engine_v1 import (
+    from execution.workers.workstation.adapter_autogeneration_engine_v1 import (
         AdapterAutogenProof,
         AdapterAutogenEvidence,
     )
-    from core.workstation.environment_mapping_engine_v1 import (
+    from execution.workers.workstation.environment_mapping_engine_v1 import (
         ENVIRONMENT_MAP_DIR,
         EnvironmentMappingProof,
         EnvironmentTopology,
         EnvironmentMappingEvidence,
         DiscoveredPlatform,
     )
-    from core.workstation.visible_actuation_proof_v1 import (
+    from execution.workers.workstation.visible_actuation_proof_v1 import (
         FounderConfirmationArtifact,
         persist_founder_confirmation,
     )
@@ -1561,7 +1561,7 @@ async def _handle_orchestration_report(message: Any, spine: Any) -> None:
 
 
 async def _handle_continuity_report(message: Any, spine: Any) -> None:
-    from core.workstation.persistent_substrate_continuity_engine_v1 import (
+    from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
         CONTINUITY_MATURITY_LEVELS,
         DRIFT_TYPES,
         CONTINUITY_GOVERNANCE_VIOLATIONS,
@@ -1569,25 +1569,25 @@ async def _handle_continuity_report(message: Any, spine: Any) -> None:
         build_full_continuity_proof,
         persist_continuity_proof,
     )
-    from core.workstation.governed_recursive_orchestration_engine_v1 import (
+    from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
         build_full_orchestration_proof,
         ORCHESTRATION_REPORT_DIR,
     )
-    from core.workstation.recursive_capability_planning_engine_v1 import (
+    from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
         build_full_capability_proof,
     )
-    from core.workstation.adapter_autogeneration_engine_v1 import (
+    from execution.workers.workstation.adapter_autogeneration_engine_v1 import (
         AdapterAutogenProof,
         AdapterAutogenEvidence,
     )
-    from core.workstation.environment_mapping_engine_v1 import (
+    from execution.workers.workstation.environment_mapping_engine_v1 import (
         ENVIRONMENT_MAP_DIR,
         EnvironmentMappingProof,
         EnvironmentTopology,
         EnvironmentMappingEvidence,
         DiscoveredPlatform,
     )
-    from core.workstation.visible_actuation_proof_v1 import (
+    from execution.workers.workstation.visible_actuation_proof_v1 import (
         FounderConfirmationArtifact,
         persist_founder_confirmation,
     )
@@ -1832,7 +1832,7 @@ async def _handle_continuity_report(message: Any, spine: Any) -> None:
 
 
 async def _handle_governance_intelligence_report(message: Any, spine: Any) -> None:
-    from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+    from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
         GOVERNANCE_INTELLIGENCE_MATURITY_LEVELS,
         GOVERNANCE_INTELLIGENCE_HARD_CEILINGS,
         PROPOSAL_TYPES,
@@ -1840,27 +1840,27 @@ async def _handle_governance_intelligence_report(message: Any, spine: Any) -> No
         build_full_governance_intelligence_proof,
         persist_governance_intelligence_proof,
     )
-    from core.workstation.governed_recursive_orchestration_engine_v1 import (
+    from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
         build_full_orchestration_proof,
     )
-    from core.workstation.persistent_substrate_continuity_engine_v1 import (
+    from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
         build_full_continuity_proof,
     )
-    from core.workstation.recursive_capability_planning_engine_v1 import (
+    from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
         build_full_capability_proof,
     )
-    from core.workstation.adapter_autogeneration_engine_v1 import (
+    from execution.workers.workstation.adapter_autogeneration_engine_v1 import (
         AdapterAutogenProof,
         AdapterAutogenEvidence,
     )
-    from core.workstation.environment_mapping_engine_v1 import (
+    from execution.workers.workstation.environment_mapping_engine_v1 import (
         ENVIRONMENT_MAP_DIR,
         EnvironmentMappingProof,
         EnvironmentTopology,
         EnvironmentMappingEvidence,
         DiscoveredPlatform,
     )
-    from core.workstation.visible_actuation_proof_v1 import (
+    from execution.workers.workstation.visible_actuation_proof_v1 import (
         FounderConfirmationArtifact,
         persist_founder_confirmation,
     )
@@ -2116,7 +2116,7 @@ async def _handle_governance_intelligence_report(message: Any, spine: Any) -> No
 
 
 async def _handle_constitution_report(message: Any, spine: Any) -> None:
-    from core.workstation.constitutional_substrate_governance_layer_v1 import (
+    from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
         CONSTITUTIONAL_MATURITY_LEVELS,
         CONSTITUTIONAL_HARD_CEILINGS,
         CONSTITUTIONAL_SAFETY_INVARIANTS,
@@ -2127,30 +2127,30 @@ async def _handle_constitution_report(message: Any, spine: Any) -> None:
         build_full_constitutional_proof,
         persist_constitutional_proof,
     )
-    from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+    from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
         build_full_governance_intelligence_proof,
     )
-    from core.workstation.governed_recursive_orchestration_engine_v1 import (
+    from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
         build_full_orchestration_proof,
     )
-    from core.workstation.persistent_substrate_continuity_engine_v1 import (
+    from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
         build_full_continuity_proof,
     )
-    from core.workstation.recursive_capability_planning_engine_v1 import (
+    from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
         build_full_capability_proof,
     )
-    from core.workstation.adapter_autogeneration_engine_v1 import (
+    from execution.workers.workstation.adapter_autogeneration_engine_v1 import (
         AdapterAutogenProof,
         AdapterAutogenEvidence,
     )
-    from core.workstation.environment_mapping_engine_v1 import (
+    from execution.workers.workstation.environment_mapping_engine_v1 import (
         ENVIRONMENT_MAP_DIR,
         EnvironmentMappingProof,
         EnvironmentTopology,
         EnvironmentMappingEvidence,
         DiscoveredPlatform,
     )
-    from core.workstation.visible_actuation_proof_v1 import (
+    from execution.workers.workstation.visible_actuation_proof_v1 import (
         FounderConfirmationArtifact,
         persist_founder_confirmation,
     )
@@ -2423,7 +2423,7 @@ async def _handle_constitution_report(message: Any, spine: Any) -> None:
 
 
 async def _handle_federation_report(message: Any, spine: Any) -> None:
-    from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+    from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
         FEDERATION_MATURITY_LEVELS,
         FEDERATION_HARD_CEILINGS,
         FEDERATION_TRUST_DIMENSIONS,
@@ -2434,33 +2434,33 @@ async def _handle_federation_report(message: Any, spine: Any) -> None:
         build_full_federation_proof,
         persist_federation_proof,
     )
-    from core.workstation.constitutional_substrate_governance_layer_v1 import (
+    from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
         build_full_constitutional_proof,
     )
-    from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+    from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
         build_full_governance_intelligence_proof,
     )
-    from core.workstation.governed_recursive_orchestration_engine_v1 import (
+    from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
         build_full_orchestration_proof,
     )
-    from core.workstation.persistent_substrate_continuity_engine_v1 import (
+    from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
         build_full_continuity_proof,
     )
-    from core.workstation.recursive_capability_planning_engine_v1 import (
+    from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
         build_full_capability_proof,
     )
-    from core.workstation.adapter_autogeneration_engine_v1 import (
+    from execution.workers.workstation.adapter_autogeneration_engine_v1 import (
         AdapterAutogenProof,
         AdapterAutogenEvidence,
     )
-    from core.workstation.environment_mapping_engine_v1 import (
+    from execution.workers.workstation.environment_mapping_engine_v1 import (
         ENVIRONMENT_MAP_DIR,
         EnvironmentMappingProof,
         EnvironmentTopology,
         EnvironmentMappingEvidence,
         DiscoveredPlatform,
     )
-    from core.workstation.visible_actuation_proof_v1 import (
+    from execution.workers.workstation.visible_actuation_proof_v1 import (
         FounderConfirmationArtifact,
         persist_founder_confirmation,
     )
@@ -2732,7 +2732,7 @@ async def _handle_federation_report(message: Any, spine: Any) -> None:
 
 
 async def _handle_economics_report(message: Any, spine: Any) -> None:
-    from core.workstation.constitutional_resource_economics_engine_v1 import (
+    from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
         ECONOMICS_MATURITY_LEVELS,
         ECONOMICS_HARD_CEILINGS,
         RESOURCE_PRIMITIVES,
@@ -2744,36 +2744,36 @@ async def _handle_economics_report(message: Any, spine: Any) -> None:
         build_full_economics_proof,
         persist_economics_proof,
     )
-    from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+    from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
         build_full_federation_proof,
     )
-    from core.workstation.constitutional_substrate_governance_layer_v1 import (
+    from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
         build_full_constitutional_proof,
     )
-    from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+    from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
         build_full_governance_intelligence_proof,
     )
-    from core.workstation.governed_recursive_orchestration_engine_v1 import (
+    from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
         build_full_orchestration_proof,
     )
-    from core.workstation.persistent_substrate_continuity_engine_v1 import (
+    from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
         build_full_continuity_proof,
     )
-    from core.workstation.recursive_capability_planning_engine_v1 import (
+    from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
         build_full_capability_proof,
     )
-    from core.workstation.adapter_autogeneration_engine_v1 import (
+    from execution.workers.workstation.adapter_autogeneration_engine_v1 import (
         AdapterAutogenProof,
         AdapterAutogenEvidence,
     )
-    from core.workstation.environment_mapping_engine_v1 import (
+    from execution.workers.workstation.environment_mapping_engine_v1 import (
         ENVIRONMENT_MAP_DIR,
         EnvironmentMappingProof,
         EnvironmentTopology,
         EnvironmentMappingEvidence,
         DiscoveredPlatform,
     )
-    from core.workstation.visible_actuation_proof_v1 import (
+    from execution.workers.workstation.visible_actuation_proof_v1 import (
         FounderConfirmationArtifact,
         persist_founder_confirmation,
     )
@@ -3065,7 +3065,7 @@ async def _handle_economics_report(message: Any, spine: Any) -> None:
 
 
 async def _handle_strategy_report(message: Any, spine: Any) -> None:
-    from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+    from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
         STRATEGY_MATURITY_LEVELS,
         STRATEGIC_FORECASTING_PRIMITIVES,
         RECURSIVE_LEVERAGE_DIMENSIONS,
@@ -3078,39 +3078,39 @@ async def _handle_strategy_report(message: Any, spine: Any) -> None:
         build_full_strategy_proof,
         persist_strategy_proof,
     )
-    from core.workstation.constitutional_resource_economics_engine_v1 import (
+    from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
         build_full_economics_proof,
     )
-    from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+    from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
         build_full_federation_proof,
     )
-    from core.workstation.constitutional_substrate_governance_layer_v1 import (
+    from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
         build_full_constitutional_proof,
     )
-    from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+    from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
         build_full_governance_intelligence_proof,
     )
-    from core.workstation.governed_recursive_orchestration_engine_v1 import (
+    from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
         build_full_orchestration_proof,
     )
-    from core.workstation.persistent_substrate_continuity_engine_v1 import (
+    from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
         build_full_continuity_proof,
     )
-    from core.workstation.recursive_capability_planning_engine_v1 import (
+    from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
         build_full_capability_proof,
     )
-    from core.workstation.adapter_autogeneration_engine_v1 import (
+    from execution.workers.workstation.adapter_autogeneration_engine_v1 import (
         AdapterAutogenProof,
         AdapterAutogenEvidence,
     )
-    from core.workstation.environment_mapping_engine_v1 import (
+    from execution.workers.workstation.environment_mapping_engine_v1 import (
         ENVIRONMENT_MAP_DIR,
         EnvironmentMappingProof,
         EnvironmentTopology,
         EnvironmentMappingEvidence,
         DiscoveredPlatform,
     )
-    from core.workstation.visible_actuation_proof_v1 import (
+    from execution.workers.workstation.visible_actuation_proof_v1 import (
         FounderConfirmationArtifact,
         persist_founder_confirmation,
     )
@@ -3422,7 +3422,7 @@ async def _handle_strategy_report(message: Any, spine: Any) -> None:
 
 
 async def _handle_epistemic_report(message: Any, spine: Any) -> None:
-    from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+    from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
         EPISTEMIC_MATURITY_LEVELS,
         EPISTEMIC_PRIMITIVES,
         EVIDENCE_INTEGRITY_DIMENSIONS,
@@ -3435,42 +3435,42 @@ async def _handle_epistemic_report(message: Any, spine: Any) -> None:
         build_full_epistemic_proof,
         persist_epistemic_proof,
     )
-    from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+    from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
         build_full_strategy_proof,
     )
-    from core.workstation.constitutional_resource_economics_engine_v1 import (
+    from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
         build_full_economics_proof,
     )
-    from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+    from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
         build_full_federation_proof,
     )
-    from core.workstation.constitutional_substrate_governance_layer_v1 import (
+    from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
         build_full_constitutional_proof,
     )
-    from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+    from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
         build_full_governance_intelligence_proof,
     )
-    from core.workstation.governed_recursive_orchestration_engine_v1 import (
+    from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
         build_full_orchestration_proof,
     )
-    from core.workstation.persistent_substrate_continuity_engine_v1 import (
+    from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
         build_full_continuity_proof,
     )
-    from core.workstation.recursive_capability_planning_engine_v1 import (
+    from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
         build_full_capability_proof,
     )
-    from core.workstation.adapter_autogeneration_engine_v1 import (
+    from execution.workers.workstation.adapter_autogeneration_engine_v1 import (
         AdapterAutogenProof,
         AdapterAutogenEvidence,
     )
-    from core.workstation.environment_mapping_engine_v1 import (
+    from execution.workers.workstation.environment_mapping_engine_v1 import (
         ENVIRONMENT_MAP_DIR,
         EnvironmentMappingProof,
         EnvironmentTopology,
         EnvironmentMappingEvidence,
         DiscoveredPlatform,
     )
-    from core.workstation.visible_actuation_proof_v1 import (
+    from execution.workers.workstation.visible_actuation_proof_v1 import (
         FounderConfirmationArtifact,
         persist_founder_confirmation,
     )
@@ -3680,7 +3680,7 @@ async def _handle_epistemic_report(message: Any, spine: Any) -> None:
 
 
 async def _handle_identity_report(message: Any, spine: Any) -> None:
-    from core.workstation.constitutional_identity_continuity_engine_v1 import (
+    from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
         IDENTITY_MATURITY_LEVELS,
         IDENTITY_PRIMITIVES,
         SOVEREIGN_MEMORY_LAYERS,
@@ -3693,45 +3693,45 @@ async def _handle_identity_report(message: Any, spine: Any) -> None:
         build_full_identity_proof,
         persist_identity_proof,
     )
-    from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+    from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
         build_full_epistemic_proof,
     )
-    from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+    from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
         build_full_strategy_proof,
     )
-    from core.workstation.constitutional_resource_economics_engine_v1 import (
+    from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
         build_full_economics_proof,
     )
-    from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+    from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
         build_full_federation_proof,
     )
-    from core.workstation.constitutional_substrate_governance_layer_v1 import (
+    from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
         build_full_constitutional_proof,
     )
-    from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+    from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
         build_full_governance_intelligence_proof,
     )
-    from core.workstation.governed_recursive_orchestration_engine_v1 import (
+    from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
         build_full_orchestration_proof,
     )
-    from core.workstation.persistent_substrate_continuity_engine_v1 import (
+    from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
         build_full_continuity_proof,
     )
-    from core.workstation.recursive_capability_planning_engine_v1 import (
+    from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
         build_full_capability_proof,
     )
-    from core.workstation.adapter_autogeneration_engine_v1 import (
+    from execution.workers.workstation.adapter_autogeneration_engine_v1 import (
         AdapterAutogenProof,
         AdapterAutogenEvidence,
     )
-    from core.workstation.environment_mapping_engine_v1 import (
+    from execution.workers.workstation.environment_mapping_engine_v1 import (
         ENVIRONMENT_MAP_DIR,
         EnvironmentMappingProof,
         EnvironmentTopology,
         EnvironmentMappingEvidence,
         DiscoveredPlatform,
     )
-    from core.workstation.visible_actuation_proof_v1 import (
+    from execution.workers.workstation.visible_actuation_proof_v1 import (
         FounderConfirmationArtifact,
         persist_founder_confirmation,
     )
@@ -3954,7 +3954,7 @@ async def _handle_identity_report(message: Any, spine: Any) -> None:
 
 
 async def _handle_telos_report(message: Any, spine: Any) -> None:
-    from core.workstation.constitutional_telos_alignment_engine_v1 import (
+    from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
         TELOS_MATURITY_LEVELS,
         TELOS_PRIMITIVES,
         MISSION_CONTINUITY_DIMENSIONS,
@@ -3967,48 +3967,48 @@ async def _handle_telos_report(message: Any, spine: Any) -> None:
         build_full_telos_proof,
         persist_telos_proof,
     )
-    from core.workstation.constitutional_identity_continuity_engine_v1 import (
+    from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
         build_full_identity_proof,
     )
-    from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+    from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
         build_full_epistemic_proof,
     )
-    from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+    from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
         build_full_strategy_proof,
     )
-    from core.workstation.constitutional_resource_economics_engine_v1 import (
+    from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
         build_full_economics_proof,
     )
-    from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+    from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
         build_full_federation_proof,
     )
-    from core.workstation.constitutional_substrate_governance_layer_v1 import (
+    from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
         build_full_constitutional_proof,
     )
-    from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+    from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
         build_full_governance_intelligence_proof,
     )
-    from core.workstation.governed_recursive_orchestration_engine_v1 import (
+    from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
         build_full_orchestration_proof,
     )
-    from core.workstation.persistent_substrate_continuity_engine_v1 import (
+    from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
         build_full_continuity_proof,
     )
-    from core.workstation.recursive_capability_planning_engine_v1 import (
+    from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
         build_full_capability_proof,
     )
-    from core.workstation.adapter_autogeneration_engine_v1 import (
+    from execution.workers.workstation.adapter_autogeneration_engine_v1 import (
         AdapterAutogenProof,
         AdapterAutogenEvidence,
     )
-    from core.workstation.environment_mapping_engine_v1 import (
+    from execution.workers.workstation.environment_mapping_engine_v1 import (
         ENVIRONMENT_MAP_DIR,
         EnvironmentMappingProof,
         EnvironmentTopology,
         EnvironmentMappingEvidence,
         DiscoveredPlatform,
     )
-    from core.workstation.visible_actuation_proof_v1 import (
+    from execution.workers.workstation.visible_actuation_proof_v1 import (
         FounderConfirmationArtifact,
         persist_founder_confirmation,
     )
@@ -4245,7 +4245,7 @@ async def _handle_telos_report(message: Any, spine: Any) -> None:
 
 
 async def _handle_resilience_report(message: Any, spine: Any) -> None:
-    from core.workstation.constitutional_antifragility_resilience_engine_v1 import (
+    from execution.workers.workstation.constitutional_antifragility_resilience_engine_v1 import (
         RESILIENCE_MATURITY_LEVELS,
         RESILIENCE_PRIMITIVES,
         CATASTROPHIC_SCENARIO_TYPES,
@@ -4258,37 +4258,37 @@ async def _handle_resilience_report(message: Any, spine: Any) -> None:
         build_full_resilience_proof,
         persist_resilience_proof,
     )
-    from core.workstation.recursive_capability_planning_engine_v1 import (
+    from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
         build_full_capability_proof,
     )
-    from core.workstation.governed_recursive_orchestration_engine_v1 import (
+    from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
         build_full_orchestration_proof,
     )
-    from core.workstation.persistent_substrate_continuity_engine_v1 import (
+    from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
         build_full_continuity_proof,
     )
-    from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+    from execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
         build_full_governance_intelligence_proof,
     )
-    from core.workstation.constitutional_substrate_governance_layer_v1 import (
+    from execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
         build_full_constitutional_proof,
     )
-    from core.workstation.distributed_constitutional_substrate_federation_v1 import (
+    from execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
         build_full_federation_proof,
     )
-    from core.workstation.constitutional_resource_economics_engine_v1 import (
+    from execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
         build_full_economics_proof,
     )
-    from core.workstation.constitutional_strategic_intelligence_engine_v1 import (
+    from execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
         build_full_strategy_proof,
     )
-    from core.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+    from execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
         build_full_epistemic_proof,
     )
-    from core.workstation.constitutional_identity_continuity_engine_v1 import (
+    from execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
         build_full_identity_proof,
     )
-    from core.workstation.constitutional_telos_alignment_engine_v1 import (
+    from execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
         build_full_telos_proof,
     )
 

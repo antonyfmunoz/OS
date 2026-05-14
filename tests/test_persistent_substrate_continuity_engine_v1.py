@@ -15,7 +15,7 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-from core.workstation.persistent_substrate_continuity_engine_v1 import (
+from execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
     CONTINUITY_GOVERNANCE_VIOLATIONS,
     CONTINUITY_MATURITY_LEVELS,
     CONTINUITY_MATURITY_REQUIREMENTS,
@@ -55,12 +55,12 @@ from core.workstation.persistent_substrate_continuity_engine_v1 import (
     validate_replay_continuity,
     validate_rollback_continuity,
 )
-from core.workstation.governed_recursive_orchestration_engine_v1 import (
+from execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
     OrchestrationEvidence,
     OrchestrationProof,
     build_full_orchestration_proof,
 )
-from core.workstation.recursive_capability_planning_engine_v1 import (
+from execution.workers.workstation.recursive_capability_planning_engine_v1 import (
     build_full_capability_proof,
 )
 

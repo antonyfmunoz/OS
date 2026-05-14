@@ -29,7 +29,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from core.workstation.governed_recursive_orchestration_engine_v1 import (
+from .governed_recursive_orchestration_engine_v1 import (
     DAG_TYPES,
     ORCHESTRATION_MATURITY_LEVELS,
     ORCHESTRATION_REPORT_DIR,
@@ -43,7 +43,7 @@ from core.workstation.governed_recursive_orchestration_engine_v1 import (
     SimulationOutcome,
     build_full_orchestration_proof,
 )
-from core.workstation.persistent_substrate_continuity_engine_v1 import (
+from .persistent_substrate_continuity_engine_v1 import (
     CONTINUITY_GOVERNANCE_VIOLATIONS,
     CONTINUITY_MATURITY_LEVELS,
     CONTINUITY_REJECTION_TRIGGERS,
@@ -59,7 +59,7 @@ from core.workstation.persistent_substrate_continuity_engine_v1 import (
     replay_maturity_evolution,
     replay_orchestration_history,
 )
-from core.workstation.recursive_capability_planning_engine_v1 import (
+from .recursive_capability_planning_engine_v1 import (
 
     CAPABILITY_MATURITY_LEVELS,
     SUBSTRATE_CAPABILITIES,

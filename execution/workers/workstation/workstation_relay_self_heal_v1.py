@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from execution.runtime.runtime_heartbeat_v1 import HeartbeatHealth
-from core.workstation.workstation_relay_heartbeat_v1 import (
+from .workstation_relay_heartbeat_v1 import (
 
     RELAY_HEARTBEAT_STALE_SECONDS,
     RelayHeartbeat,

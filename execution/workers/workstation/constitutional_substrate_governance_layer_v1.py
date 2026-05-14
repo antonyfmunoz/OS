@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from core.workstation.adaptive_governance_intelligence_engine_v1 import (
+from .adaptive_governance_intelligence_engine_v1 import (
     GOVERNANCE_INTELLIGENCE_HARD_CEILINGS,
     GOVERNANCE_INTELLIGENCE_MATURITY_LEVELS,
     AdaptiveRiskScores,
@@ -33,19 +33,19 @@ from core.workstation.adaptive_governance_intelligence_engine_v1 import (
     GovernanceProposal,
     build_full_governance_intelligence_proof,
 )
-from core.workstation.governed_recursive_orchestration_engine_v1 import (
+from .governed_recursive_orchestration_engine_v1 import (
     ORCHESTRATION_MATURITY_LEVELS,
     OrchestrationEvidence,
     OrchestrationProof,
     build_full_orchestration_proof,
 )
-from core.workstation.persistent_substrate_continuity_engine_v1 import (
+from .persistent_substrate_continuity_engine_v1 import (
     CONTINUITY_MATURITY_LEVELS,
     ContinuityEvidence,
     ContinuityProof,
     build_full_continuity_proof,
 )
-from core.workstation.recursive_capability_planning_engine_v1 import (
+from .recursive_capability_planning_engine_v1 import (
 
     CAPABILITY_MATURITY_LEVELS,
     CapabilityPlanningProof,
