@@ -14,12 +14,12 @@ from understanding.ontology.primitive_decomposition_v1 import (
     PrimitiveType,
     RelationshipType,
 )
-from runtime.ingestion.orchestrator import (
+from understanding.perception.orchestrator import (
     GenericIngestionOrchestrator,
     InterpretationResult,
     Signal,
 )
-from runtime.ingestion.source import RawContent
+from understanding.perception.source import RawContent
 
 
 VALID_LLM_RESPONSE = json.dumps(

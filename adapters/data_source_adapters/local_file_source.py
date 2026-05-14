@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from governance.policy.authority_tier import T5_DEFAULT, validate_tier
-from runtime.ingestion.source import RawContent, Source
+from understanding.perception.source import RawContent, Source
 
 
 class LocalFileSource:

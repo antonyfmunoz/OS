@@ -14,7 +14,7 @@ from understanding.ontology.primitive_decomposition_v1 import PrimitiveObservati
 from runtime.domain_bridge.contract import DomainBridge, DomainProjection
 from runtime.domain_bridge.business import BusinessBridge
 from adapters.data_source_adapters.local_file_source import LocalFileSource
-from runtime.ingestion.orchestrator import GenericIngestionOrchestrator
+from understanding.perception.orchestrator import GenericIngestionOrchestrator
 
 
 BUSINESS_LLM_RESPONSE = json.dumps(

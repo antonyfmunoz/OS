@@ -11,7 +11,7 @@ import pytest
 sys.path.insert(0, os.environ.get("UMH_ROOT") or "/opt/OS")
 
 from adapters.data_source_adapters.local_file_source import LocalFileSource
-from runtime.ingestion.orchestrator import GenericIngestionOrchestrator
+from understanding.perception.orchestrator import GenericIngestionOrchestrator
 
 
 MULTI_OBS_LLM_RESPONSE = json.dumps(

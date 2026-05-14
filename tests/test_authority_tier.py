@@ -24,7 +24,7 @@ from governance.policy.authority_tier import (
 )
 from adapters.data_source_adapters.gws_source import GWSSource
 from adapters.data_source_adapters.local_file_source import LocalFileSource
-from runtime.ingestion.orchestrator import GenericIngestionOrchestrator
+from understanding.perception.orchestrator import GenericIngestionOrchestrator
 
 
 TIERED_LLM_RESPONSE = json.dumps(

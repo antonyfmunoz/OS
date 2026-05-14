@@ -11,7 +11,7 @@ import pytest
 sys.path.insert(0, os.environ.get("UMH_ROOT") or "/opt/OS")
 
 from adapters.data_source_adapters.gws_source import GWSSource
-from runtime.ingestion.source import RawContent, Source
+from understanding.perception.source import RawContent, Source
 
 
 SAMPLE_DOC_ID = "1aBcDeFgHiJkLmNoPqRsTuVwXyZ"
