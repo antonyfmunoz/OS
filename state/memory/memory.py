@@ -423,6 +423,28 @@ class AgentMemory:
             )
             return str(cur.fetchone()["id"])
 
+    def merge_event_payload(
+        self,
+        org_id: str,
+        event_id: str,
+        updates: dict,
+    ) -> bool:
+        """
+        Atomically merge key-value pairs into an event's payload_json.
+        Uses JSONB || for server-side merge — no read step, no race condition.
+        Returns True on success.
+        """
+        with get_conn(org_id) as cur:
+            cur.execute(
+                """
+                UPDATE events
+                SET payload_json = payload_json || %s::jsonb
+                WHERE id = %s AND org_id = %s
+                """,
+                (json.dumps(updates), event_id, org_id),
+            )
+            return cur.rowcount > 0
+
     # ─── Read ──────────────────────────────────────────────────────────────────
 
     def get_interaction_for_lead(
