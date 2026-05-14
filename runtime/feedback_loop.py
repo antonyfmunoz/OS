@@ -288,30 +288,19 @@ class FeedbackLoop:
     ) -> bool:
         """Update a recommendation's outcome in Neon."""
         try:
-            from state.storage.db import get_conn
-
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    "SELECT payload_json FROM events WHERE id = %s",
-                    (event_id,),
-                )
-                row = cur.fetchone()
-                if not row:
-                    return False
-
-                payload = row["payload_json"]
-                if isinstance(payload, str):
-                    payload = json.loads(payload)
-                payload["outcome"] = outcome
-                payload["outcome_note"] = note
-                payload["outcome_at"] = datetime.now().isoformat()
-
-                cur.execute(
-                    "UPDATE events SET payload_json = %s WHERE id = %s",
-                    (json.dumps(payload), event_id),
-                )
+            from state.memory.memory import AgentMemory
+            updated = AgentMemory().merge_event_payload(
+                org_id=str(self.ctx.org_id),
+                event_id=event_id,
+                updates={
+                    'outcome': outcome,
+                    'outcome_note': note,
+                    'outcome_at': datetime.now().isoformat(),
+                },
+            )
+            if updated:
                 print(f"[FeedbackLoop] Outcome logged: {outcome}")
-                return True
+            return updated
         except Exception as e:
             print(f"[FeedbackLoop] Update rec: {e}")
             return False
@@ -437,14 +426,16 @@ class FeedbackLoop:
                             close_reason = "expired: 14 days without signal"
 
                     if outcome:
-                        payload["outcome"] = outcome
-                        payload["outcome_note"] = close_reason
-                        payload["outcome_at"] = datetime.now().isoformat()
-                        payload["auto_closed"] = True
-
-                        cur.execute(
-                            "UPDATE events SET payload_json = %s WHERE id = %s",
-                            (json.dumps(payload), event_id),
+                        from state.memory.memory import AgentMemory
+                        AgentMemory().merge_event_payload(
+                            org_id=str(self.ctx.org_id),
+                            event_id=event_id,
+                            updates={
+                                'outcome': outcome,
+                                'outcome_note': close_reason,
+                                'outcome_at': datetime.now().isoformat(),
+                                'auto_closed': True,
+                            },
                         )
                         closed += 1
                         print(f"[FeedbackLoop] Auto-closed: {outcome} — {close_reason}")

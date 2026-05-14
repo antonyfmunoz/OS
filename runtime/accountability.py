@@ -158,21 +158,11 @@ class AccountabilityEngine:
 
     def mark_follow_up_sent(self, event_id: str) -> None:
         try:
-            from state.storage.db import get_conn
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    'SELECT payload_json FROM events WHERE id = %s',
-                    (event_id,),
-                )
-                row = cur.fetchone()
-                if row:
-                    payload = row['payload_json']
-                    if isinstance(payload, str):
-                        payload = json.loads(payload)
-                    payload['follow_up_sent'] = True
-                    cur.execute(
-                        'UPDATE events SET payload_json = %s WHERE id = %s',
-                        (json.dumps(payload), event_id),
-                    )
+            from state.memory.memory import AgentMemory
+            AgentMemory().merge_event_payload(
+                org_id=str(self.ctx.org_id),
+                event_id=event_id,
+                updates={'follow_up_sent': True},
+            )
         except Exception as e:
             print(f'[Accountability] Mark sent: {e}')

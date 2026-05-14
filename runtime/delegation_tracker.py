@@ -80,16 +80,14 @@ def mark_delegation_complete(event_id: str, ctx=None) -> bool:
     """Mark a delegation as completed."""
     try:
         from runtime.context import load_context_from_env
-        from state.storage.db import get_conn
+        from state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
 
-        with get_conn(ctx.org_id) as cur:
-            cur.execute("""
-                UPDATE events
-                SET payload_json = payload_json || '{"status": "completed"}'::jsonb
-                WHERE id = %s AND org_id = %s
-            """, (event_id, str(ctx.org_id)))
-        return True
+        return AgentMemory().merge_event_payload(
+            org_id=str(ctx.org_id),
+            event_id=event_id,
+            updates={'status': 'completed'},
+        )
     except Exception as e:
         logger.warning(f'[Delegation] mark_complete failed: {e}')
         return False
