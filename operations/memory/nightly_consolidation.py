@@ -66,7 +66,7 @@ def run_summarization(dry_run: bool = False) -> dict:
     """Run conversation summarization. Returns stats dict."""
     logger.info("─── Phase 1: Summarization ───\n")
 
-    from scripts.summarize_conversations import (
+    from .summarize_conversations import (
         get_processed_sessions,
         process_session,
     )
@@ -102,7 +102,7 @@ def run_promotion(dry_run: bool = False) -> dict:
     """Run wiki promotion with salience gating. Returns stats dict."""
     logger.info("─── Phase 2: Wiki Promotion ───\n")
 
-    from scripts.promote_to_wiki import (
+    from .promote_to_wiki import (
         get_existing_wiki_pages,
         should_promote,
         promote_candidate,
@@ -172,7 +172,7 @@ def rescore_summaries(dry_run: bool = False) -> dict:
     """
     logger.info("─── Rescoring Summaries ───\n")
 
-    from scripts.salience import score_from_frontmatter, score_cross_session
+    from .salience import score_from_frontmatter, score_cross_session
 
     summary_files = sorted(glob.glob(os.path.join(SUMMARIES_DIR, "*.md")))
     updated = 0

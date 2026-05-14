@@ -341,7 +341,7 @@ def promote_candidate(
 
     # Record to Neon
     try:
-        from scripts.memory_neon import record_wiki_promoted
+        from .memory_neon import record_wiki_promoted
 
         record_wiki_promoted(
             wiki_path=wiki_path,

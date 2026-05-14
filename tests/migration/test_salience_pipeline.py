@@ -21,13 +21,13 @@ pytestmark = pytest.mark.migration
 
 class TestSalienceImports:
     def test_salience_module_importable(self):
-        from scripts.salience import score_summary, score_cross_session
+        from operations.memory.salience import score_summary, score_cross_session
 
         assert score_summary is not None
         assert score_cross_session is not None
 
     def test_salience_result_class(self):
-        from scripts.salience import SalienceResult
+        from operations.memory.salience import SalienceResult
 
         result = SalienceResult(score=50, label="medium")
         assert result.score == 50
@@ -36,7 +36,7 @@ class TestSalienceImports:
         assert result.consolidation_recommendation == "index"
 
     def test_cross_session_result_class(self):
-        from scripts.salience import CrossSessionResult
+        from operations.memory.salience import CrossSessionResult
 
         result = CrossSessionResult(score=0)
         assert result.score == 0
@@ -45,14 +45,14 @@ class TestSalienceImports:
 
 class TestSalienceScoring:
     def test_empty_parsed_scores_zero(self):
-        from scripts.salience import score_summary
+        from operations.memory.salience import score_summary
 
         result = score_summary({})
         assert result.score == 0
         assert result.label == "low"
 
     def test_decisions_boost_score(self):
-        from scripts.salience import score_summary
+        from operations.memory.salience import score_summary
 
         parsed = {"decisions": ["switched to Groq", "disabled Anthropic"]}
         result = score_summary(parsed)
@@ -60,7 +60,7 @@ class TestSalienceScoring:
         assert "decision" in result.reasons[0].lower()
 
     def test_high_score_gets_promote_recommendation(self):
-        from scripts.salience import score_summary
+        from operations.memory.salience import score_summary
 
         parsed = {
             "decisions": ["a", "b", "c"],
@@ -72,13 +72,13 @@ class TestSalienceScoring:
         assert result.promotion_recommendation in ("promote", "must_promote")
 
     def test_score_bands(self):
-        from scripts.salience import BANDS
+        from operations.memory.salience import BANDS
 
         assert BANDS[0][1] == "critical"
         assert BANDS[-1][1] == "low"
 
     def test_consolidation_recommendations(self):
-        from scripts.salience import _consolidation_recommendation
+        from operations.memory.salience import _consolidation_recommendation
 
         assert _consolidation_recommendation("critical") == "promote"
         assert _consolidation_recommendation("high") == "promote"
@@ -88,19 +88,19 @@ class TestSalienceScoring:
 
 class TestFindRepeatedNoneGuard:
     def test_none_current_items_returns_empty(self):
-        from scripts.salience import _find_repeated
+        from operations.memory.salience import _find_repeated
 
         result = _find_repeated(None, [{"entities": ["foo"]}], "entities")
         assert result == []
 
     def test_empty_current_items_returns_empty(self):
-        from scripts.salience import _find_repeated
+        from operations.memory.salience import _find_repeated
 
         result = _find_repeated([], [{"entities": ["foo"]}], "entities")
         assert result == []
 
     def test_finds_repeated_entity(self):
-        from scripts.salience import _find_repeated
+        from operations.memory.salience import _find_repeated
 
         past = [{"entities": ["model_router", "gateway"]}]
         current = ["model_router"]
@@ -110,7 +110,7 @@ class TestFindRepeatedNoneGuard:
 
 class TestNightlyConsolidation:
     def test_nightly_consolidation_importable(self):
-        from scripts.nightly_consolidation import run_summarization, run_promotion
+        from operations.memory.nightly_consolidation import run_summarization, run_promotion
 
         assert run_summarization is not None
         assert run_promotion is not None
@@ -118,12 +118,12 @@ class TestNightlyConsolidation:
 
 class TestPromoteToWiki:
     def test_should_promote_importable(self):
-        from scripts.promote_to_wiki import should_promote
+        from operations.memory.promote_to_wiki import should_promote
 
         assert should_promote is not None
 
     def test_low_salience_not_promoted(self):
-        from scripts.promote_to_wiki import should_promote
+        from operations.memory.promote_to_wiki import should_promote
 
         candidate = {"name": "test-entity", "page_type": "entity"}
         ok, reason = should_promote(
@@ -136,11 +136,11 @@ class TestPromoteToWiki:
 
 class TestMemoryNeon:
     def test_memory_neon_importable(self):
-        from scripts.memory_neon import record_summary_created
+        from operations.memory.memory_neon import record_summary_created
 
         assert record_summary_created is not None
 
     def test_search_summaries_importable(self):
-        from scripts.memory_neon import search_summaries
+        from operations.memory.memory_neon import search_summaries
 
         assert search_summaries is not None

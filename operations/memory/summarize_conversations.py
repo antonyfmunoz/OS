@@ -218,7 +218,7 @@ def write_summary(
     filepath = os.path.join(SUMMARIES_DIR, filename)
 
     # Compute per-session salience
-    from scripts.salience import score_summary, score_cross_session
+    from .salience import score_summary, score_cross_session
 
     salience = score_summary(parsed, body_text=str(parsed))
 
@@ -437,8 +437,8 @@ def process_session(filepath: str, dry_run: bool = False) -> bool:
     # Record to Neon (non-blocking enhancement)
     # Recompute salience here since write_summary scopes it locally
     try:
-        from scripts.salience import score_summary as _score_summary
-        from scripts.memory_neon import record_summary_created
+        from .salience import score_summary as _score_summary
+        from .memory_neon import record_summary_created
 
         _sal = _score_summary(parsed, body_text=str(parsed))
         record_summary_created(
