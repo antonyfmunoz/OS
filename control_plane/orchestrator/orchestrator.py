@@ -5,10 +5,10 @@ Reads venture KPIs, queries 7-day memory stats, identifies the binding
 constraint, and dispatches the morning brief via Telegram.
 
 Usage (manual):
-    python3 runtime/orchestrator.py
+    cd /opt/OS && python3 control_plane/orchestrator/orchestrator.py
 
 Cron (6am daily):
-    0 6 * * * cd /opt/OS && python3 runtime/orchestrator.py >> logs/orchestrator.log 2>&1
+    0 6 * * * cd /opt/OS && python3 control_plane/orchestrator/orchestrator.py >> logs/orchestrator.log 2>&1
 """
 
 import json
@@ -20,10 +20,11 @@ from pathlib import Path
 import requests
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
-load_dotenv(os.path.join(os.path.dirname(__file__), "..", "services", ".env"))
+_REPO_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or "/opt/OS"
 
-_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv(os.path.join(_REPO_ROOT, "runtime", ".env"))
+load_dotenv(os.path.join(_REPO_ROOT, "services", ".env"))
+
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
