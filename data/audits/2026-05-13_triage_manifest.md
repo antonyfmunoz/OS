@@ -1218,7 +1218,7 @@ from runtime.transport.<module> import *  # noqa: F401,F403
 | Law 5.5 memory write fixes | ~46 files | memory.py API extension |
 | runtime.context migration | Row 88 (~85 modules) | Prerequisite for spine canary |
 | Cron script migration | 23 files | System-level coordination |
-| Docker compose paths | calendly_webhook, discord_bot | Manual update before deploy |
+| ~~Docker compose paths~~ | ~~calendly_webhook~~ | ~~CLOSED — calendly path updated 2026-05-14. discord_bot not yet migrated from services/.~~ |
 | r8d_generate_shims.py | 1 file in scripts/ | Generator script, safe to archive |
 
 ### Migration main arc milestone
@@ -1310,9 +1310,9 @@ Full inventory: `data/audits/2026-05-14_transport_unblock_inventory.md`
 paths.~~ **FIXED 2026-05-14** — all substrate imports eliminated in production
 code, transport internals, and scripts. Container is rebuild-safe.
 
-### Remaining follow-ups: 9 threads
+### Remaining follow-ups: 8 threads
 
-(Transport rewrite CLOSED. Production path migration CLOSED. 9 threads remain.)
+(Transport rewrite CLOSED. Production path migration CLOSED. Docker compose CLOSED. 8 threads remain.)
 
 ---
 
@@ -1390,11 +1390,45 @@ target path configuration — they're dead code (generators for deleted shims).
 
 ### Rows 60, 75, 76 status
 
-- **Row 60** (`services/discord_bot.py`): substrate imports eliminated. Remaining
-  blockers: Law 5.5 violations, Docker compose path. NOT YET CLOSED.
+- **Row 60** (`services/discord_bot.py`): substrate imports eliminated. Docker
+  compose path: calendly fixed (`98e15ebe`); discord_bot not yet migrated from
+  services/ (no compose change needed until file moves). Remaining blocker:
+  Law 5.5 violations. NOT YET CLOSED.
 - **Row 75** (transport reachable — 5 modules): `capability_tagging` and
   `claude_responder` unblocked (internal substrate refs fixed). Module relocation
   to §24 homes is now mechanically possible. NOT YET CLOSED (relocation pending).
 - **Row 76** (transport via substrate — 13 modules): All substrate shim paths
   eliminated. Direct transport paths established. Substrate bypass complete.
   Row 76 CLOSED.
+
+---
+
+## Docker Compose Paths — 2026-05-14
+
+**CLOSED** (calendly). discord_bot deferred until file migrates.
+
+### Inventory
+
+| File | Line | Old path | New path | Action |
+|------|------|----------|----------|--------|
+| `docker-compose.yml` | 91 | `services/calendly_webhook.py` | `interface/api/webhooks/calendly_webhook.py` | UPDATED |
+| `docker-compose.yml` | 165 | `services/discord_bot.py` | — (file not yet migrated) | NO CHANGE |
+
+### Validation
+
+- YAML parse: pass
+- `docker compose config`: pass
+- Target file exists on disk: yes (`interface/api/webhooks/calendly_webhook.py`, 16,399 bytes)
+- Target compiles + spec loads: pass
+
+### Notes
+
+- `infra/docker/docker-compose.yml` is a future-state template using `umh/interfaces/`
+  paths that don't exist yet. Not edited — it's not the production compose file.
+- `discord_bot.py` still lives at `services/discord_bot.py`. Its compose entry is
+  correct for now. When Row 60 file migration happens, compose path updates with it.
+- Row 60 remaining blocker: Law 5.5 violations (Docker compose blocker resolved).
+
+### Commit
+
+- `98e15ebe` — os-webhook command path → canonical §24
