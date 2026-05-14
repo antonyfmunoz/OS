@@ -1,12 +1,27 @@
-"""SkillStore — canonical write API for the skills table."""
+"""SkillStore — canonical API for the skills table."""
 
-import json
 import uuid
 
 from state.storage.db import get_conn
 
 
 class SkillStore:
+
+    def get_by_name(
+        self,
+        org_id: str,
+        name: str,
+    ) -> dict | None:
+        """Fetch a skill by (org_id, name). Returns {id, content, version} or None."""
+        with get_conn(org_id) as cur:
+            cur.execute(
+                "SELECT id, content, version FROM skills WHERE org_id = %s AND name = %s",
+                (org_id, name),
+            )
+            row = cur.fetchone()
+        if row is None:
+            return None
+        return {"id": str(row["id"]), "content": row["content"] or "", "version": int(row["version"] or 1)}
 
     def upsert_skill(
         self,

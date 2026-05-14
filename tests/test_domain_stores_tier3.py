@@ -109,9 +109,15 @@ def test_approval_store_create_return():
 
 def test_skill_store_import():
     from state.stores.skill_store import SkillStore
+    assert hasattr(SkillStore, "get_by_name")
     assert hasattr(SkillStore, "upsert_skill")
     assert hasattr(SkillStore, "update_skill_content")
     assert hasattr(SkillStore, "update_skill_content_by_name")
+
+def test_skill_store_get_by_name_signature():
+    from state.stores.skill_store import SkillStore
+    params = list(inspect.signature(SkillStore.get_by_name).parameters)
+    assert "org_id" in params and "name" in params
 
 
 # ── PreferenceStore ──────────────────────────────────────────────────────────
