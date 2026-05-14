@@ -1902,6 +1902,49 @@ constraint.
 | Thread | Items | Status |
 |--------|-------|--------|
 | Transport package §24 migration | 68 modules (15 PROD + 53 deps) | Full package move |
-| Law 5.4 type convergence | 5 spine modules | Dedicated follow-up wave |
-| Law 5.9 adapter refactor | 6 files in execution/workers/workstation/ | §14.1 contract |
+| Law 5.4 type convergence | 5 spine modules | DEFERRED — all 6 types classify as NO_EQUIVALENT (infrastructure vs protocol layer) |
+| ~~Law 5.9 adapter refactor~~ | ~~6 files~~ | ~~CLOSED — 2 ADAPTER refactored, 4 INTERNAL_WORKER out of scope~~ |
 | Cron script migration | 23 files | System-level coordination |
+
+---
+
+## Law 5.9 Adapter Refactor — 2026-05-14
+
+**Status: PARTIAL (2/6 refactored, 4/6 out of scope)**
+
+### Classification
+
+| File | Classification | Action |
+|------|---------------|--------|
+| `governed_shell_adapter_v1.py` | ADAPTER | §14.1 refactored |
+| `governed_browser_adapter_v1.py` | ADAPTER | §14.1 refactored |
+| `browser_execution_orchestrator_v1.py` | INTERNAL_WORKER | OUT_OF_SCOPE |
+| `workstation_execution_orchestrator_v1.py` | INTERNAL_WORKER | OUT_OF_SCOPE |
+| `browser_gui_embodiment_engine_v1.py` | INTERNAL_WORKER | OUT_OF_SCOPE |
+| `workstation_operational_embodiment_engine_v1.py` | INTERNAL_WORKER | OUT_OF_SCOPE |
+
+### Refactor summary
+
+Both ADAPTER files now expose 4 §14.1 methods:
+- `translate_request()` — input already typed, returns as-is
+- `validate_operation()` — wraps existing governance evaluation
+- `normalize_result()` — maps raw execution output to canonical result
+- `observe_state()` — adapter health + stats for tracing
+
+`execute()` retained as backward-compatible orchestrator calling the 4 phases.
+
+### INTERNAL_WORKER deferral rationale (per Law 5.4 precedent)
+
+The 4 orchestrator/engine files are OUT_OF_SCOPE because:
+1. They delegate to adapters — they never cross system boundaries
+2. Law 5.10 distinguishes "Workers execute" from "Adapters translate"
+3. Their execute() is internal coordination, not a deprecated adapter contract
+4. Same precedent as Law 5.4: infrastructure types serve different purpose than protocol contracts
+
+### Results
+
+- Tests: 4082/34/3 (+11 new §14.1 contract tests, zero regressions)
+- §14.1 inspection: 2/2 adapters pass (all 4 methods present)
+- Backward compatibility: all 184 pre-existing tests still pass via execute()
+- Commits: 3 (`34437236`, `5524689c`, `2a68b2e8`)
+- Full audit: `data/audits/2026-05-14_law_5_9_classification.md`
