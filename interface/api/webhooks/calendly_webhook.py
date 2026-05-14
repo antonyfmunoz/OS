@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 import sys as _sys
-_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 if _REPO_ROOT not in _sys.path:
     _sys.path.insert(0, _REPO_ROOT)
 from runtime.memory import AgentMemory
@@ -394,27 +394,17 @@ Subject: [subject]
 DEX
 On behalf of Antony Munoz""").strip()
 
-            from runtime.context import load_context_from_env
-            from runtime.db import get_conn
-            import json as _json
-            _ctx = load_context_from_env()
-            with get_conn(_ctx.org_id) as _cur:
-                _cur.execute('''
-                    INSERT INTO events
-                    (org_id, event_type, payload_json, handled_by)
-                    VALUES (%s, %s, %s, %s)
-                ''', (
-                    str(_ctx.org_id),
-                    'email_draft_pending',
-                    _json.dumps({
-                        'draft': _draft,
-                        'to_email': _cemail,
-                        'to_name': _cname,
-                        'type': 'cancellation_recovery',
-                        'status': 'pending_approval',
-                    }),
-                    'dex_calendly',
-                ))
+            _mem.log_event(
+                event_type='email_draft_pending',
+                event_data={
+                    'draft': _draft,
+                    'to_email': _cemail,
+                    'to_name': _cname,
+                    'type': 'cancellation_recovery',
+                    'status': 'pending_approval',
+                },
+                agent_name='dex_calendly',
+            )
 
             import requests as _req
             _webhook = _os.getenv('DISCORD_BRIEF_WEBHOOK')
