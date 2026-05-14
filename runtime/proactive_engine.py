@@ -114,7 +114,7 @@ class ProactiveIntelligenceEngine:
             print(f'[Proactive] Reality scan failed: {e}')
 
         try:
-            from runtime.accountability import AccountabilityEngine
+            from governance.accountability.accountability import AccountabilityEngine
             ae = AccountabilityEngine(self.ctx)
             pending = ae.get_pending_follow_ups()
             for commitment in pending:
@@ -320,7 +320,7 @@ class ProactiveIntelligenceEngine:
         signals: list[ProactiveSignal] = []
 
         from state.memory.memory import ConversationMemory
-        from runtime.business_instance import BusinessInstanceManager
+        from state.business.business_instance import BusinessInstanceManager
 
         cm  = ConversationMemory(self.ctx)
         bim = BusinessInstanceManager(self.ctx)

@@ -417,7 +417,7 @@ class EmailGPS:
 
         # 3. Central person recognition — checks CRM, meetings, memory, Neon
         try:
-            from runtime.person_recognition import recognize_person
+            from understanding.intelligence.person_recognition import recognize_person
             result = recognize_person(
                 name=email.from_name or '',
                 email=email.from_address,
@@ -684,7 +684,7 @@ Return JSON only:
         across ALL existing emails (not just unread).
         """
         try:
-            from runtime.gws_connector import GWSConnector
+            from adapters.google_workspace.gws_connector import GWSConnector
             gws = GWSConnector()
 
             fetch_limit = 500 if process_all else limit
@@ -788,7 +788,7 @@ Return JSON only:
                         if p.get('filename') and '.' in p.get('filename', '')
                     ]
                     if _df_attachments:
-                        from runtime.document_filer import process_email_attachments
+                        from adapters.google_workspace.document_filer import process_email_attachments
                         _df_results = process_email_attachments(
                             subject=email.subject,
                             sender=email.from_address,
@@ -828,7 +828,7 @@ Return JSON only:
         Most reliable method — no browser needed.
         """
         try:
-            from runtime.gws_connector import GWSConnector
+            from adapters.google_workspace.gws_connector import GWSConnector
             gws = GWSConnector()
             headers = gws.get_message_headers(
                 email_id,
@@ -876,7 +876,7 @@ Return JSON only:
     def _browser_unsubscribe(self, url: str) -> bool:
         """Click unsubscribe link via headless browser."""
         try:
-            from runtime.browser_agent import BrowserAgent
+            from execution.agents.browser_agent import BrowserAgent
 
             async def do_unsub(u: str) -> bool:
                 agent = BrowserAgent(headless=True)
@@ -946,7 +946,7 @@ Return JSON only:
     def _delete_email(self, email_id: str) -> None:
         """Move email to trash via Gmail API labels."""
         try:
-            from runtime.gws_connector import GWSConnector
+            from adapters.google_workspace.gws_connector import GWSConnector
             gws = GWSConnector()
             gws.apply_label_to_message(
                 email_id,
@@ -1013,7 +1013,7 @@ Return JSON only:
     def get_emails_to_respond(self, limit: int = 5) -> list[dict]:
         """Get emails currently in the TO_RESPOND Gmail label."""
         try:
-            from runtime.gws_connector import GWSConnector
+            from adapters.google_workspace.gws_connector import GWSConnector
             gws = GWSConnector()
             label_id = gws.get_or_create_label('To Respond')
             if not label_id:
@@ -1049,7 +1049,7 @@ Return JSON only:
     def get_emails_for_review(self, limit: int = 5) -> list[dict]:
         """Get emails currently in the REVIEW Gmail label."""
         try:
-            from runtime.gws_connector import GWSConnector
+            from adapters.google_workspace.gws_connector import GWSConnector
             gws = GWSConnector()
             label_id = gws.get_or_create_label('Review')
             if not label_id:
@@ -1136,7 +1136,7 @@ Return JSON only:
         Logs an email_classified event to Neon for the nightly reviewer.
         """
         try:
-            from runtime.gws_connector import GWSConnector
+            from adapters.google_workspace.gws_connector import GWSConnector
             gws = GWSConnector()
             label_name = folder.value
             label_id   = gws.get_or_create_label(label_name)
@@ -1194,7 +1194,7 @@ Return JSON only:
         Returns: {moved: N, stayed: N, errors: N}
         """
         try:
-            from runtime.gws_connector import GWSConnector
+            from adapters.google_workspace.gws_connector import GWSConnector
             gws = GWSConnector()
 
             label_name = source_folder.value
@@ -1292,7 +1292,7 @@ Return JSON only:
         Returns: {migrated: N, deleted: N, errors: []}
         """
         try:
-            from runtime.gws_connector import GWSConnector
+            from adapters.google_workspace.gws_connector import GWSConnector
             gws = GWSConnector()
 
             # Build a map of label name → label id from Gmail
@@ -1372,7 +1372,7 @@ Return JSON only:
         Triggered via !verify-inbox in Discord.
         """
         try:
-            from runtime.gws_connector import GWSConnector
+            from adapters.google_workspace.gws_connector import GWSConnector
             gws = GWSConnector()
 
             # Build name → id map in one call

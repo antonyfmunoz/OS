@@ -15,7 +15,7 @@ _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.ge
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 
-from runtime.notion_sync import (
+from adapters.notion.notion_sync import (
 
     get_db_id,
     HEADERS, _title, _select, _text, _number,

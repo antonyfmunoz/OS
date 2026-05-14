@@ -362,7 +362,7 @@ class EOSSystemHealth:
         )
 
         try:
-            from runtime.channel import get_channel_router
+            from interface.channels.channel import get_channel_router
 
             router = get_channel_router()
             router.notify(message)

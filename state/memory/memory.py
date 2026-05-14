@@ -130,7 +130,7 @@ class AgentMemory:
         ).strip()
         if content_to_embed:
             import threading
-            from runtime.embedding_engine import EmbeddingEngine
+            from understanding.embedding.embedding_engine import EmbeddingEngine
 
             def _embed_async(iid: str, content: str, oid: str) -> None:
                 EmbeddingEngine().embed_interaction(iid, content, oid)
@@ -144,7 +144,7 @@ class AgentMemory:
         # Auto-link interaction into knowledge graph
         try:
             from runtime.context import load_context_from_env
-            from runtime.knowledge_graph import KnowledgeGraph
+            from understanding.knowledge.knowledge_graph import KnowledgeGraph
             kg = KnowledgeGraph(load_context_from_env())
             kg.auto_link_interaction(interaction_id)
         except Exception:
@@ -573,7 +573,7 @@ class AgentMemory:
         write path. Schema is vector(384); fastembed BAAI/bge-small-en-v1.5
         produces matching 384-dim vectors. Returns True on success.
         """
-        from runtime.embedding_engine import EmbeddingEngine
+        from understanding.embedding.embedding_engine import EmbeddingEngine
         return EmbeddingEngine().embed_interaction(interaction_id, text, ORG_ID)
 
     def semantic_search(
@@ -589,7 +589,7 @@ class AgentMemory:
         Returns ranked results — most similar first.
         """
         try:
-            from runtime.embedding_engine import EmbeddingEngine
+            from understanding.embedding.embedding_engine import EmbeddingEngine
             engine = EmbeddingEngine()
             query_vec = engine.embed(query)
             if not query_vec:
@@ -751,7 +751,7 @@ class ConversationMemory:
                 )
                 # Embed and store
                 try:
-                    from runtime.embedder import embed
+                    from understanding.embedding.embedder import embed
                     vec = embed(content)
                     cur.execute(
                         'UPDATE messages SET embedding = %s WHERE id = %s',
@@ -961,7 +961,7 @@ class ConversationMemory:
             with get_conn(self.ctx.org_id) as cur:
                 if query:
                     try:
-                        from runtime.embedder import embed
+                        from understanding.embedding.embedder import embed
                         vec = embed(query)
                         cur.execute(
                             '''

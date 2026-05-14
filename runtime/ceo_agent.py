@@ -129,7 +129,7 @@ class CEOAgent:
         # Fill stage from BIS manager if not in events
         if 'stage' not in primitives or 'current_revenue' not in primitives:
             try:
-                from runtime.business_instance import BusinessInstanceManager
+                from state.business.business_instance import BusinessInstanceManager
                 from state.storage.db import get_conn, resolve_venture
                 with get_conn(self.ctx.org_id) as cur:
                     venture_id = self.ctx.active_venture_id or 'lyfe_institute'
@@ -283,7 +283,7 @@ class CEOAgent:
 
             # Write new stage to BIS
             try:
-                from runtime.business_instance import BusinessInstanceManager
+                from state.business.business_instance import BusinessInstanceManager
                 from state.storage.db import get_conn, resolve_venture
                 venture_id = self.ctx.active_venture_id or 'lyfe_institute'
                 with get_conn(self.ctx.org_id) as cur:
@@ -325,7 +325,7 @@ class CEOAgent:
     ) -> dict:
         """Active constraint from live data."""
         try:
-            from runtime.ceo_intelligence import (
+            from control_plane.agents.ceo_intelligence import (
                 diagnose_constraint,
             )
             vid = (
@@ -358,7 +358,7 @@ class CEOAgent:
     ) -> str:
         """Generate CEO intelligence brief."""
         try:
-            from runtime.ceo_intelligence import (
+            from control_plane.agents.ceo_intelligence import (
                 generate_ceo_brief,
             )
             vid = (

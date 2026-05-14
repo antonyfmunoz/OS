@@ -36,7 +36,7 @@ def architect_week(ctx=None) -> str:
         # Get real calendar events for the week if available
         calendar_context = ""
         try:
-            from runtime.gws_connector import GWSConnector
+            from adapters.google_workspace.gws_connector import GWSConnector
 
             gws = GWSConnector()
             upcoming = gws.get_upcoming_events(days=7)

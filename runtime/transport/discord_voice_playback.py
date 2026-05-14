@@ -194,7 +194,7 @@ def _render_tts_to_wav(text: str) -> Optional[str]:
 
     # Primary: VoiceEngine.speak()
     try:
-        from runtime.voice_engine import VoiceEngine  # type: ignore
+        from execution.voice.voice_engine import VoiceEngine  # type: ignore
 
         ve = VoiceEngine()
         path = ve.speak(clean)

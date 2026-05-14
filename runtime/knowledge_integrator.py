@@ -41,7 +41,7 @@ from typing import Optional
 
 from runtime.context import EOSContext
 from state.memory.memory import AgentMemory
-from runtime.embedding_engine import EmbeddingEngine
+from understanding.embedding.embedding_engine import EmbeddingEngine
 
 VALID_CATEGORIES = {
     'web_search',

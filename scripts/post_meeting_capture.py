@@ -37,7 +37,7 @@ def save_state(state: dict) -> None:
 
 
 async def check_and_prompt() -> None:
-    from runtime.gws_connector import GWSConnector
+    from adapters.google_workspace.gws_connector import GWSConnector
 
     state = load_state()
     gws = GWSConnector()

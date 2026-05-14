@@ -522,7 +522,7 @@ class SelfAwarenessEngine:
             return True
 
         elif consequence == 'update_bis':
-            from runtime.business_instance import BusinessInstanceManager
+            from state.business.business_instance import BusinessInstanceManager
             bim = BusinessInstanceManager(self.ctx)
             bis = bim.get_bis(change.venture_id)
             if not bis:
@@ -541,7 +541,7 @@ class SelfAwarenessEngine:
             return True
 
         elif consequence == 'create_bis':
-            from runtime.business_instance import (
+            from state.business.business_instance import (
                 BusinessInstance, BusinessInstanceManager,
             )
             bim = BusinessInstanceManager(self.ctx)
@@ -586,7 +586,7 @@ class SelfAwarenessEngine:
         elif consequence == 'regenerate_ea_soul_doc':
             try:
                 from runtime.setup_wizard import generate_ea_soul_doc
-                from runtime.business_instance import BusinessInstanceManager
+                from state.business.business_instance import BusinessInstanceManager
                 from pathlib import Path
 
                 bim = BusinessInstanceManager(self.ctx)

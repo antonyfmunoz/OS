@@ -86,41 +86,41 @@ class TestBuybackRate:
 class TestMartellPatterns:
 
     def test_import(self):
-        from runtime.martell_patterns import (
+        from understanding.patterns.martell_patterns import (
             TIME_ASSASSIN_SIGNALS, detect_time_assassin, check_131_rule,
         )
 
     def test_detect_staller(self):
-        from runtime.martell_patterns import detect_time_assassin
+        from understanding.patterns.martell_patterns import detect_time_assassin
         result = detect_time_assassin("I need more information before I decide")
         assert result.get('assassin') == 'staller'
         assert 'intervention' in result
         assert len(result['intervention']) > 10
 
     def test_detect_saver(self):
-        from runtime.martell_patterns import detect_time_assassin
+        from understanding.patterns.martell_patterns import detect_time_assassin
         result = detect_time_assassin("I'll do it myself, it's easier if I handle this")
         assert result.get('assassin') == 'saver'
 
     def test_no_assassin_clean_text(self):
-        from runtime.martell_patterns import detect_time_assassin
+        from understanding.patterns.martell_patterns import detect_time_assassin
         result = detect_time_assassin("Let's review the Q1 revenue numbers")
         assert result == {}
 
     def test_131_violation_detected(self):
-        from runtime.martell_patterns import check_131_rule
+        from understanding.patterns.martell_patterns import check_131_rule
         # Problem statement with no options
         assert check_131_rule("The problem is we have no leads. What should I do?") is True
 
     def test_131_compliant_with_options(self):
-        from runtime.martell_patterns import check_131_rule
+        from understanding.patterns.martell_patterns import check_131_rule
         # Problem with options present
         assert check_131_rule(
             "The problem is low leads. Option 1 is ads. Option 2 is outreach. I recommend outreach."
         ) is False
 
     def test_131_clean_message(self):
-        from runtime.martell_patterns import check_131_rule
+        from understanding.patterns.martell_patterns import check_131_rule
         assert check_131_rule("Schedule a call with Jacob for Thursday") is False
 
 
@@ -153,7 +153,7 @@ class TestPerfectWeek:
 class TestGWSConnectorDrive:
 
     def test_new_methods_exist(self):
-        from runtime.gws_connector import GWSConnector
+        from adapters.google_workspace.gws_connector import GWSConnector
         gws = GWSConnector()
         for method in (
             'create_folder', 'move_file', 'list_files',
@@ -163,20 +163,20 @@ class TestGWSConnectorDrive:
             assert hasattr(gws, method), f'Missing method: {method}'
 
     def test_list_files_returns_list(self):
-        from runtime.gws_connector import GWSConnector
+        from adapters.google_workspace.gws_connector import GWSConnector
         gws = GWSConnector()
         # GWS CLI may not be authed — must return [] not raise
         result = gws.list_files()
         assert isinstance(result, list)
 
     def test_get_drive_structure_returns_list(self):
-        from runtime.gws_connector import GWSConnector
+        from adapters.google_workspace.gws_connector import GWSConnector
         gws = GWSConnector()
         result = gws.get_drive_structure()
         assert isinstance(result, list)
 
     def test_audit_drive_returns_dict(self):
-        from runtime.gws_connector import GWSConnector
+        from adapters.google_workspace.gws_connector import GWSConnector
         gws = GWSConnector()
         result = gws.audit_drive()
         assert isinstance(result, dict)

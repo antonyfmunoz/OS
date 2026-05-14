@@ -151,7 +151,7 @@ class EvolutionEngine:
     def _get_stage(self, venture_id: str) -> int:
         """Read BIS stage for venture. Returns 1 on any failure (safe default)."""
         try:
-            from runtime.business_instance import BusinessInstanceManager
+            from state.business.business_instance import BusinessInstanceManager
             bim     = BusinessInstanceManager(self.ctx)
             ctx_str = bim.get_context_for_agents(venture_id)
             for line in ctx_str.split('\n'):

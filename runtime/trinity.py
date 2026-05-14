@@ -23,7 +23,7 @@ Usage:
 """
 
 from runtime.context import EOSContext
-from runtime.os_registry import OSRegistryManager
+from state.registries.os_registry import OSRegistryManager
 
 
 class TrinityEngine:
@@ -45,7 +45,7 @@ class TrinityEngine:
         Defaults to EntrepreneurOS if not set or on any error.
         """
         try:
-            from runtime.business_instance import BusinessInstanceManager
+            from state.business.business_instance import BusinessInstanceManager
             bim = BusinessInstanceManager(self.ctx)
             bis = bim.get_bis('lyfe_institute')
             subs = getattr(bis, 'os_subscriptions', [])

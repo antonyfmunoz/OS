@@ -252,7 +252,7 @@ class HumanIntelligenceEngine:
         # Enrich with any Gmail threads from this lead
         email_context = ""
         try:
-            from runtime.gws_connector import GWSConnector
+            from adapters.google_workspace.gws_connector import GWSConnector
             gws    = GWSConnector()
             emails = gws.search_emails_from(username)
             if emails:

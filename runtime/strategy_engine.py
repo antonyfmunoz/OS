@@ -41,7 +41,7 @@ from control_plane.runtime.cognitive_loop import CognitiveLoop
 from execution.runtime.agent_runtime import TaskType
 from state.storage.db import get_conn, resolve_venture
 from state.memory.memory import AgentMemory
-from runtime.venture_knowledge import VentureKnowledgeBase
+from state.business.venture_knowledge import VentureKnowledgeBase
 
 STRATEGY_DIR = Path(_REPO_ROOT) / "orchestrator" / "strategy"
 

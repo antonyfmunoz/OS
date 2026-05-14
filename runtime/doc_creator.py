@@ -31,7 +31,7 @@ def create_briefing_doc(
     """
     try:
         from execution.runtime.model_router import get_router, TaskType
-        from runtime.gws_connector import GWSConnector
+        from adapters.google_workspace.gws_connector import GWSConnector
         router = get_router()
 
         templates = {
@@ -203,7 +203,7 @@ def create_presentation_outline(
     """
     try:
         from execution.runtime.model_router import get_router, TaskType
-        from runtime.gws_connector import GWSConnector
+        from adapters.google_workspace.gws_connector import GWSConnector
         import json as _json
         router = get_router()
 

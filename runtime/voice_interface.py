@@ -29,7 +29,7 @@ import time
 import uuid
 
 from runtime.context import EOSContext
-from runtime.media_processor import MediaProcessor
+from execution.media.media_processor import MediaProcessor
 from control_plane.runtime.cognitive_loop import CognitiveLoop
 from execution.runtime.agent_runtime import TaskType
 
@@ -341,7 +341,7 @@ class VoiceInterface:
         # BIS context injection
         bis_context = ''
         try:
-            from runtime.business_instance import BusinessInstanceManager
+            from state.business.business_instance import BusinessInstanceManager
             bim = BusinessInstanceManager(self.ctx)
             bis_context = bim.get_context_for_agents(venture_id) or ''
         except Exception:
@@ -392,7 +392,7 @@ class VoiceInterface:
         # Fast non-AI shortcuts
         if q in ('score', 'icp score', 'icp'):
             try:
-                from runtime.business_instance import BusinessInstanceManager
+                from state.business.business_instance import BusinessInstanceManager
                 bim = BusinessInstanceManager(self.ctx)
                 bis = bim.get_bis(venture_id)
                 return f'ICP target: {bis.icp_description}' if bis else 'No BIS loaded'
@@ -401,7 +401,7 @@ class VoiceInterface:
 
         if q in ('stage', 'current stage'):
             try:
-                from runtime.business_instance import BusinessInstanceManager
+                from state.business.business_instance import BusinessInstanceManager
                 bim = BusinessInstanceManager(self.ctx)
                 g = bim.get_stage_guidance(venture_id)
                 return f'Stage {g["current_stage"]}/6 — {g["stage_name"]}\nFocus: {g["focus"]}'
@@ -410,7 +410,7 @@ class VoiceInterface:
 
         if q in ('numbers', 'kpis', 'metrics', 'revenue'):
             try:
-                from runtime.business_instance import BusinessInstanceManager
+                from state.business.business_instance import BusinessInstanceManager
                 bim = BusinessInstanceManager(self.ctx)
                 bis = bim.get_bis(venture_id)
                 if bis:
@@ -425,7 +425,7 @@ class VoiceInterface:
 
         if q in ('price', 'offer', 'anchor'):
             try:
-                from runtime.business_instance import BusinessInstanceManager
+                from state.business.business_instance import BusinessInstanceManager
                 bim = BusinessInstanceManager(self.ctx)
                 bis = bim.get_bis(venture_id)
                 if bis:
@@ -440,7 +440,7 @@ class VoiceInterface:
 
         if q in ('constraint', 'bottleneck', 'binding'):
             try:
-                from runtime.business_instance import BusinessInstanceManager
+                from state.business.business_instance import BusinessInstanceManager
                 bim = BusinessInstanceManager(self.ctx)
                 g = bim.get_stage_guidance(venture_id)
                 return (
@@ -568,7 +568,7 @@ class VoiceInterface:
         if meeting_type == 'finance_review' and result.get('decisions'):
             # Update BIS financial data from decisions
             try:
-                from runtime.business_instance import BusinessInstanceManager
+                from state.business.business_instance import BusinessInstanceManager
                 bim = BusinessInstanceManager(self.ctx)
                 bis = bim.get_bis(venture_id)
                 if bis:

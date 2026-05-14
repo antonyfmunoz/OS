@@ -378,7 +378,7 @@ async def run_browser_action(
     Returns:
         {success, steps_taken, page_states, findings, final_url}
     """
-    from runtime.browser_agent import run_browser_task
+    from execution.agents.browser_agent import run_browser_task
     print(f"[AgentTeams] {team} → browser_action: {task[:60]} @ {url}")
     return await run_browser_task(url, task, ctx)
 

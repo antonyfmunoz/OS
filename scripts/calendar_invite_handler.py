@@ -38,7 +38,7 @@ def save_state(state):
 def get_pending_invites() -> list[dict]:
     """Get calendar events where Antony hasn't responded yet."""
     try:
-        from runtime.gws_connector import GWSConnector
+        from adapters.google_workspace.gws_connector import GWSConnector
         gws = GWSConnector()
 
         now = datetime.now(timezone.utc)
@@ -121,7 +121,7 @@ Respond with JSON only:
 def respond_to_invite(event_id: str, response: str) -> bool:
     """Accept or decline a calendar invite. response: 'accepted' or 'declined'"""
     try:
-        from runtime.gws_connector import GWSConnector
+        from adapters.google_workspace.gws_connector import GWSConnector
         gws = GWSConnector()
 
         event = gws._run(
@@ -237,7 +237,7 @@ async def process_invites():
                    and 'teams' not in _location.lower() \
                    and 'http' not in _location.lower():
                     try:
-                        from runtime.gws_connector import GWSConnector
+                        from adapters.google_workspace.gws_connector import GWSConnector
                         _gws = GWSConnector()
                         _travel = _gws.block_travel_time(
                             event_id=invite['id'],

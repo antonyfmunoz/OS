@@ -36,7 +36,7 @@ from state.storage.db import get_conn
 def _notify(text: str) -> None:
     """Send notification via channel router."""
     try:
-        from runtime.channel import get_channel_router
+        from interface.channels.channel import get_channel_router
 
         router = get_channel_router()
         router.notify(text)

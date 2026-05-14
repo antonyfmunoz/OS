@@ -246,7 +246,7 @@ class SystemProviderState:
 
     def _check_resource_pressure(self) -> str:
         """Return 'low', 'moderate', 'high', or 'critical'."""
-        from runtime.work_state import _measure_pressure
+        from state.work.work_state import _measure_pressure
 
         return _measure_pressure().value
 

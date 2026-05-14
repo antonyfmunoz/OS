@@ -20,7 +20,7 @@ PDT = ZoneInfo('America/Los_Angeles')
 
 def run():
     from runtime.context import load_context_from_env
-    from runtime.notion_sync import push_all_ventures
+    from adapters.notion.notion_sync import push_all_ventures
     from scripts.notion_tasks_sync import sync_neon_to_notion
 
     ctx = load_context_from_env()

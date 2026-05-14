@@ -31,10 +31,10 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent / ".env")
 
 from runtime.context import EOSContext, load_context_from_env
-from runtime.venture_knowledge import VentureKnowledgeBase
+from state.business.venture_knowledge import VentureKnowledgeBase
 from runtime.skill_registry import SkillRegistry, get_skill_registry
 from governance.policy.authority_engine import AuthorityEngine
-from runtime.model_preferences import ModelPreferences
+from state.preferences.model_preferences import ModelPreferences
 
 
 # ─── Models ──────────────────────────────────────────────────────────────────
@@ -236,7 +236,7 @@ class AgentRuntime:
         # When no agent specified, default to executive_assistant.
         if agent == "default":
             try:
-                from runtime.agent_hierarchy import AgentHierarchy
+                from control_plane.agents.agent_hierarchy import AgentHierarchy
 
                 agent = AgentHierarchy().get_primary_interface()
             except Exception:
@@ -248,7 +248,7 @@ class AgentRuntime:
         # Every user gets their own AI name and identity — loaded from BIS.
         if agent == "executive_assistant":
             try:
-                from runtime.business_instance import BusinessInstanceManager
+                from state.business.business_instance import BusinessInstanceManager
 
                 _bim = BusinessInstanceManager(ctx)
                 # Try primary venture — EA soul doc is stored on the first venture

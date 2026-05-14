@@ -489,7 +489,7 @@ def build_prep_brief(
     """
     try:
         from runtime.context import load_context_from_env
-        from runtime.person_recognition import (
+        from understanding.intelligence.person_recognition import (
             build_intelligence_profile,
             format_intelligence_profile,
         )
@@ -555,7 +555,7 @@ def build_prep_brief(
         # Add timezone context if attendee email is known
         if email:
             try:
-                from runtime.gws_connector import GWSConnector
+                from adapters.google_workspace.gws_connector import GWSConnector
                 _tz_gws = GWSConnector()
                 _tz = _tz_gws.detect_timezone_from_email(email)
                 from zoneinfo import ZoneInfo
@@ -596,7 +596,7 @@ def draft_meeting_agenda(
     try:
         from runtime.context import load_context_from_env
         from execution.runtime.model_router import get_router, TaskType
-        from runtime.person_recognition import build_intelligence_profile
+        from understanding.intelligence.person_recognition import build_intelligence_profile
         ctx = ctx or load_context_from_env()
         router = get_router()
         model = router.route(TaskType.FAST_RESPONSE)
@@ -655,7 +655,7 @@ def draft_meeting_minutes(
     import json as _j
     try:
         from execution.runtime.model_router import get_router, TaskType
-        from runtime.gws_connector import GWSConnector
+        from adapters.google_workspace.gws_connector import GWSConnector
         from runtime.context import load_context_from_env
         from state.storage.db import get_conn
         from datetime import datetime

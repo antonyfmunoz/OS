@@ -792,7 +792,7 @@ class PrimitiveRegistry:
     def _get_stage(self, venture_id: str) -> int:
         """Read BIS stage. Returns 1 on any failure (safe default)."""
         try:
-            from runtime.business_instance import BusinessInstanceManager
+            from state.business.business_instance import BusinessInstanceManager
             bim     = BusinessInstanceManager(self.ctx)
             ctx_str = bim.get_context_for_agents(venture_id)
             for line in ctx_str.split('\n'):
@@ -852,7 +852,7 @@ class ContextualReasoningEngine:
         # Resolve default venture from BIM if not passed — no hardcoded venture
         if not venture_id:
             try:
-                from runtime.business_instance import BusinessInstanceManager as _BIM
+                from state.business.business_instance import BusinessInstanceManager as _BIM
                 venture_id = _BIM(self.ctx).get_default_venture_id()
             except Exception:
                 venture_id = None

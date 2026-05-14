@@ -63,7 +63,7 @@ async def handle_travel(message, text: str) -> bool:
         )
         return True
     try:
-        from runtime.gws_connector import GWSConnector
+        from adapters.google_workspace.gws_connector import GWSConnector
 
         _event_id = parts[0].strip()
         _location = parts[1].strip()
@@ -88,7 +88,7 @@ async def handle_nomeetings(message, text: str) -> bool:
 
     _parts = text.split()
     try:
-        from runtime.gws_connector import GWSConnector
+        from adapters.google_workspace.gws_connector import GWSConnector
 
         _gws = GWSConnector()
 
@@ -162,7 +162,7 @@ async def handle_confirm_event(message, text: str, pending_events: dict) -> bool
     if _ch_id in pending_events:
         _ev_data = pending_events.pop(_ch_id)
         try:
-            from runtime.gws_connector import GWSConnector
+            from adapters.google_workspace.gws_connector import GWSConnector
 
             _gws = GWSConnector()
             _event = _gws.create_calendar_event(
@@ -234,7 +234,7 @@ async def handle_competitive(message, text: str) -> bool:
     _parts = text.split()
     _venture = _parts[1] if len(_parts) > 1 else "empyrean_creative"
     try:
-        from runtime.competitive_intel import synthesize_competitive_landscape
+        from understanding.intelligence.competitive_intel import synthesize_competitive_landscape
 
         _analysis = synthesize_competitive_landscape(_venture)
         await message.channel.send(
@@ -452,7 +452,7 @@ async def handle_calendar_write(message, text: str, pending_events: dict) -> boo
         return False
 
     try:
-        from runtime.gws_connector import GWSConnector
+        from adapters.google_workspace.gws_connector import GWSConnector
 
         _gws = GWSConnector()
         from execution.runtime.model_router import call_with_fallback

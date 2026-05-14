@@ -43,7 +43,7 @@ from runtime.context import EOSContext, load_context_from_env
 from execution.runtime.agent_runtime import AgentRuntime, TaskType
 from state.memory.memory import AgentMemory
 from governance.policy.authority_engine import AuthorityEngine
-from runtime.venture_knowledge import VentureKnowledgeBase
+from state.business.venture_knowledge import VentureKnowledgeBase
 
 
 @dataclass
@@ -294,7 +294,7 @@ class CognitiveLoop:
                 or input.document_bytes
                 or input.video_path
             ):
-                from runtime.media_processor import MediaProcessor
+                from execution.media.media_processor import MediaProcessor
 
                 # write bytes to temp file if no path given
                 tmp_path = None
@@ -540,7 +540,7 @@ class CognitiveLoop:
         # 7c. FEEDBACK — auto-check if user message closes pending recommendations
         try:
             if text and modality == "text":
-                from runtime.feedback_loop import FeedbackLoop
+                from learning.feedback.feedback_loop import FeedbackLoop
 
                 _fl = FeedbackLoop(self.ctx)
                 _fl.log_outcome(
@@ -591,7 +591,7 @@ class CognitiveLoop:
         User never sees the reset — conversation continues seamlessly.
         """
         try:
-            from runtime.context_compaction import ContextCompactor
+            from control_plane.context.context_compaction import ContextCompactor
 
             compactor = ContextCompactor(self.ctx)
             if compactor.should_compact(self._messages):
@@ -1019,7 +1019,7 @@ def detect_intent_and_inject(
     ):
         injections["intent"] = "okr_check"
         try:
-            from runtime.okr_tracker import generate_okr_report
+            from state.metrics.okr_tracker import generate_okr_report
 
             report = generate_okr_report(ctx)
             injections["okr_data"] = report
@@ -1094,7 +1094,7 @@ def detect_intent_and_inject(
     ):
         injections["intent"] = "calendar"
         try:
-            from runtime.gws_connector import GWSConnector
+            from adapters.google_workspace.gws_connector import GWSConnector
 
             gws = GWSConnector()
             events = gws.get_upcoming_events(days=7)
@@ -1173,7 +1173,7 @@ def detect_intent_and_inject(
                 name = name_part.split("?")[0].strip().title()
                 if name:
                     try:
-                        from runtime.person_recognition import (
+                        from understanding.intelligence.person_recognition import (
                             build_intelligence_profile,
                             format_intelligence_profile,
                         )

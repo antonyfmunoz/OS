@@ -375,7 +375,7 @@ trajectory of the next 90 days.]"""
         # Append DRIP scan and Drive health to weekly output
         _extra: list[str] = []
         try:
-            from runtime.task_yield_matrix import run_yield_audit
+            from control_plane.strategy.task_yield_matrix import run_yield_audit
             import json as _json
             from state.storage.db import get_conn as _get_conn
             with _get_conn(self.ctx.org_id) as _cur:
@@ -415,7 +415,7 @@ trajectory of the next 90 days.]"""
             pass
 
         try:
-            from runtime.gws_connector import GWSConnector
+            from adapters.google_workspace.gws_connector import GWSConnector
             _gws = GWSConnector()
             _issues = _gws.audit_drive()
             _root_count = len(_issues.get('root_files', []))
@@ -538,8 +538,8 @@ trajectory of the next 90 days.]"""
         # If no events-based ventures, fall back to VentureKnowledgeBase
         if not ventures:
             try:
-                from runtime.venture_knowledge import VentureKnowledgeBase
-                from runtime.business_instance import BusinessInstanceManager
+                from state.business.venture_knowledge import VentureKnowledgeBase
+                from state.business.business_instance import BusinessInstanceManager
 
                 bim = BusinessInstanceManager(self.ctx)
                 for vid in VentureKnowledgeBase.list_ventures():

@@ -19,7 +19,7 @@ def get_upcoming_calls(window_start_mins: int = 25, window_end_mins: int = 45) -
     Returns list of event dicts (GWSConnector format).
     """
     try:
-        from runtime.gws_connector import GWSConnector
+        from adapters.google_workspace.gws_connector import GWSConnector
 
         gws = GWSConnector()
 
@@ -251,7 +251,7 @@ Under 100 words. Direct format.""").strip()
         import json as _json
         from datetime import timezone
         from dateutil.parser import parse as _parse
-        from runtime.gws_connector import GWSConnector
+        from adapters.google_workspace.gws_connector import GWSConnector
 
         _gws = GWSConnector()
         _all_events = _gws.get_upcoming_events(days=2)
@@ -353,7 +353,7 @@ Under 100 words. Direct format.""").strip()
         import json as _tj
         from datetime import timezone as _tz
         from dateutil.parser import parse as _tparse
-        from runtime.gws_connector import GWSConnector as _TGWS
+        from adapters.google_workspace.gws_connector import GWSConnector as _TGWS
         from runtime.context import load_context_from_env as _tctx
         from runtime.travel_manager import detect_travel_event, build_travel_brief, log_trip
 

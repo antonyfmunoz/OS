@@ -20,11 +20,11 @@ import re
 from datetime import datetime, timezone, timedelta
 
 from runtime.context import EOSContext
-from runtime.gws_connector import GWSConnector
+from adapters.google_workspace.gws_connector import GWSConnector
 from control_plane.runtime.cognitive_loop import CognitiveLoop
 from runtime.human_intelligence import HumanIntelligenceEngine
-from runtime.knowledge_graph import KnowledgeGraph
-from runtime.embedding_engine import EmbeddingEngine
+from understanding.knowledge.knowledge_graph import KnowledgeGraph
+from understanding.embedding.embedding_engine import EmbeddingEngine
 
 
 class OnboardingBackfill:
@@ -200,7 +200,7 @@ class OnboardingBackfill:
 
         if events:
             try:
-                from runtime.os_trinity import OSTrinity
+                from state.permissions.os_trinity import OSTrinity
                 trinity = OSTrinity(self.ctx)
                 trinity.update_intelligence_profile(
                     self.ctx.user_id,

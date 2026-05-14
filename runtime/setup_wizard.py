@@ -128,7 +128,7 @@ def run_setup() -> None:
     # Build and save BIS
     try:
         from runtime.context import load_context_from_env
-        from runtime.business_instance import (
+        from state.business.business_instance import (
             BusinessInstance, BusinessInstanceManager, STAGE_NAMES
         )
 

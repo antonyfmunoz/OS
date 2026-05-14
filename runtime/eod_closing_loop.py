@@ -92,7 +92,7 @@ class EODClosingLoop:
 
         # Next day preview
         try:
-            from runtime.gws_connector import GWSConnector
+            from adapters.google_workspace.gws_connector import GWSConnector
             from datetime import timedelta
             from zoneinfo import ZoneInfo
             from dateutil.parser import parse as _parse
@@ -149,7 +149,7 @@ class EODClosingLoop:
         # Write to Notion
         notion_url = ""
         try:
-            from runtime.notion_publisher import get_publisher
+            from adapters.notion.notion_publisher import get_publisher
 
             publisher = get_publisher(self.ctx)
             notion_url = publisher.publish_eod_sync(
@@ -182,7 +182,7 @@ class EODClosingLoop:
 
     def _get_todays_meetings(self) -> list[str]:
         try:
-            from runtime.gws_connector import GWSConnector
+            from adapters.google_workspace.gws_connector import GWSConnector
 
             gws = GWSConnector()
             events = gws.get_today_events()
@@ -207,7 +207,7 @@ class EODClosingLoop:
     def _get_todays_purchases(self) -> list[str]:
         """Pull receipts/financials from GPS RECEIPTS label for today."""
         try:
-            from runtime.gws_connector import GWSConnector
+            from adapters.google_workspace.gws_connector import GWSConnector
 
             gws = GWSConnector()
             label_id = gws.get_or_create_label("Receipts-Financials")

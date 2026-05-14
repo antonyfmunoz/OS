@@ -23,7 +23,7 @@ from collections import Counter
 from pathlib import Path
 
 from runtime.email_gps import EmailGPS, EmailFolder, ProcessedEmail
-from runtime.gws_connector import GWSConnector
+from adapters.google_workspace.gws_connector import GWSConnector
 from runtime.context import load_context_from_env
 
 ctx = load_context_from_env()

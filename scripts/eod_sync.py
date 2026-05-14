@@ -24,7 +24,7 @@ MORNING_BRIEF_CHANNEL_ID = 1485765524766982234
 
 def _get_todays_meetings() -> list[str]:
     try:
-        from runtime.gws_connector import GWSConnector
+        from adapters.google_workspace.gws_connector import GWSConnector
         gws = GWSConnector()
         events = gws.get_today_events()
         result = []
@@ -185,7 +185,7 @@ def build_eod_message() -> str:
 
     # Overdue delegations
     try:
-        from runtime.delegation_tracker import get_overdue_delegations
+        from control_plane.delegation.delegation_tracker import get_overdue_delegations
         overdue_dels = get_overdue_delegations(ctx)
         if overdue_dels:
             section = [f'**🔄 Overdue delegations ({len(overdue_dels)}):**']

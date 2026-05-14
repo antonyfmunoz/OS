@@ -41,7 +41,7 @@ from runtime.context import EOSContext
 from control_plane.runtime.cognitive_loop import CognitiveLoop
 from runtime.event_bus import EventBus
 from execution.runtime.agent_runtime import TaskType
-from runtime.venture_knowledge import VentureKnowledgeBase
+from state.business.venture_knowledge import VentureKnowledgeBase
 from runtime.strategy_engine import StrategyEngine, _parse_labeled_sections
 from state.memory.memory import AgentMemory
 
@@ -83,7 +83,7 @@ _HIGH_KEYWORDS = [
 def _notify(text: str) -> None:
     """Send notification via channel router."""
     try:
-        from runtime.channel import get_channel_router
+        from interface.channels.channel import get_channel_router
 
         router = get_channel_router()
         router.notify(text)
@@ -152,7 +152,7 @@ class RealityIntelligenceEngine:
             )
             return []
 
-        from runtime.scrapling_connector import ScraplingConnector
+        from adapters.scrapling.scrapling_connector import ScraplingConnector
 
         venture_ctx = VentureKnowledgeBase.to_agent_context(venture_id, detail="full")
 

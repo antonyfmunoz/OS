@@ -97,7 +97,7 @@ class ContextBuilder:
 
         # Layer 0: AI Identity
         try:
-            from runtime.ai_identity import AIIdentityEngine
+            from control_plane.identity.ai_identity import AIIdentityEngine
             uc.ai_identity = AIIdentityEngine().get_foundation_prompt()
         except Exception as e:
             uc.failed_sources.append(f"ai_identity: {e}")
@@ -106,7 +106,7 @@ class ContextBuilder:
         _ea_agents = ("executive_assistant", "dex", "ea", None)
         if agent in _ea_agents or (agent and "ea" in agent.lower()):
             try:
-                from runtime.ea_operational_standards import get_all_standards
+                from control_plane.agents.ea_operational_standards import get_all_standards
                 standards = get_all_standards()
                 uc.ea_standards = f"## Operating Standards\n{standards}"
             except Exception as e:
@@ -114,7 +114,7 @@ class ContextBuilder:
 
         # Layer 0b: Signal classification
         try:
-            from runtime.signal_hierarchy import SignalHierarchyEngine
+            from control_plane.signals.signal_hierarchy import SignalHierarchyEngine
             she = SignalHierarchyEngine(ctx=ctx)
             uc.signal_classification = she.classify_input(message or "", channel="unknown")
             prompt = she.format_for_prompt(uc.signal_classification)
@@ -214,7 +214,7 @@ class ContextBuilder:
 
         # Layer 1e-vi: Cross-session behavioral patterns
         try:
-            from runtime.pattern_engine import PatternEngine
+            from understanding.patterns.pattern_engine import PatternEngine
             pe = PatternEngine(ctx)
             patterns = pe.analyze(days_back=14)
             if patterns:
@@ -224,7 +224,7 @@ class ContextBuilder:
 
         # Layer 1e-vii: Decision log
         try:
-            from runtime.decision_log import DecisionLog
+            from state.logs.decision_log import DecisionLog
             dl = DecisionLog(ctx)
             decisions = dl.get_recent_decisions(
                 venture_id=venture_id or "", limit=5,
@@ -266,7 +266,7 @@ class ContextBuilder:
 
         # Layer 1e-viii: NotebookLM insights
         try:
-            from runtime.notebooklm_sync import NotebookLMSync
+            from adapters.notebooklm.notebooklm_sync import NotebookLMSync
             nls = NotebookLMSync(ctx)
             insights = nls.get_recent_insights(
                 venture_id=venture_id or "", limit=3,
@@ -298,7 +298,7 @@ class ContextBuilder:
 
         # Layer 1d (north star): BIS north star + stage
         try:
-            from runtime.business_instance import BusinessInstanceManager
+            from state.business.business_instance import BusinessInstanceManager
             bim = BusinessInstanceManager(ctx)
             bis = bim.get_bis(
                 venture_id or getattr(ctx, "active_venture_id", "") or ""
@@ -313,7 +313,7 @@ class ContextBuilder:
 
         # Layer 1h: Hierarchy
         try:
-            from runtime.agent_hierarchy import AgentHierarchy
+            from control_plane.agents.agent_hierarchy import AgentHierarchy
             ah = AgentHierarchy()
             skip_agents = ("default", "gateway.direct", "prompt_engine", "quality_checker")
             if agent and agent not in skip_agents:
@@ -326,7 +326,7 @@ class ContextBuilder:
 
         # Calendar context
         try:
-            from runtime.gws_connector import GWSConnector
+            from adapters.google_workspace.gws_connector import GWSConnector
             gws = GWSConnector()
             events = gws.get_today_events()
             if events:
@@ -406,7 +406,7 @@ class ContextBuilder:
 
         # Confidentiality
         try:
-            from runtime.confidentiality import detect_confidential_context
+            from governance.policies.confidentiality import detect_confidential_context
             conf = detect_confidential_context(message)
             if conf.get("is_confidential"):
                 level = conf.get("level", "restricted")
@@ -421,7 +421,7 @@ class ContextBuilder:
 
         # Martell patterns
         try:
-            from runtime.martell_patterns import (
+            from understanding.patterns.martell_patterns import (
                 detect_leverage_killer, check_solution_standard,
             )
             assassin = detect_leverage_killer(message)
@@ -446,7 +446,7 @@ class ContextBuilder:
 
         # No List enforcement
         try:
-            from runtime.founder_rate import check_against_no_list
+            from state.metrics.founder_rate import check_against_no_list
             violations = check_against_no_list(message)
             if violations:
                 uc.no_list = (
@@ -476,7 +476,7 @@ class ContextBuilder:
 
         # World model context — canonical + instance entries relevant to this message
         try:
-            from runtime.world_model import WorldModel
+            from understanding.world_model.world_model import WorldModel
             _wm = WorldModel(org_id=str(ctx.org_id))
             _wm_ctx = _wm.get_context_for_prompt(message)
             if _wm_ctx:
@@ -489,7 +489,7 @@ class ContextBuilder:
         uc.estimated_tokens = len(system_prompt) // 4
         if uc.estimated_tokens > 140_000:
             try:
-                from runtime.context_compaction import ContextCompactor
+                from control_plane.context.context_compaction import ContextCompactor
                 compactor = ContextCompactor(ctx)
                 messages = [{"role": "system", "content": system_prompt}]
                 brief = compactor.compact(messages, session_id)

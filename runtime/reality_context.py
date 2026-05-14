@@ -100,7 +100,7 @@ class RealityContext:
         """
         try:
             from runtime.reality_engine import RealityIntelligenceEngine
-            from runtime.venture_knowledge import VentureKnowledgeBase
+            from state.business.venture_knowledge import VentureKnowledgeBase
 
             rie   = RealityIntelligenceEngine(self.ctx)
             result: dict = {}

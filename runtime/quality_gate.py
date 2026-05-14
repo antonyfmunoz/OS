@@ -172,7 +172,7 @@ class QualityTransformationGate:
         Reality lens: is this grounded in what is actually true?
         Penalizes generic patterns. Rewards situation-specific reference.
         """
-        from runtime.signal_hierarchy import SignalTier
+        from control_plane.signals.signal_hierarchy import SignalTier
 
         transformations: list[str] = []
         score = 0.7  # baseline
@@ -345,7 +345,7 @@ class QualityTransformationGate:
         Intelligence without execution is philosophy.
         Every output must move the north star.
         """
-        from runtime.signal_hierarchy import SignalTier
+        from control_plane.signals.signal_hierarchy import SignalTier
 
         transformations: list[str] = []
         score = 0.6  # lower baseline — action must be earned

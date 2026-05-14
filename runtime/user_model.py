@@ -395,7 +395,7 @@ class UserModel:
 
         # Sync up to harness-level intelligence profile
         try:
-            from runtime.os_trinity import OSTrinity
+            from state.permissions.os_trinity import OSTrinity
 
             trinity = OSTrinity(self.ctx)
             trinity.sync_from_user_model(self.ctx.user_id)

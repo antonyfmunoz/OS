@@ -82,7 +82,7 @@ def main():
         sys.exit(0)
 
     try:
-        from runtime.channel import get_channel_router
+        from interface.channels.channel import get_channel_router
         router = get_channel_router()
         cmd_preview = str(tool_input)[:300]
         router.request_approval(

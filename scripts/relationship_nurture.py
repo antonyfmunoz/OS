@@ -83,7 +83,7 @@ async def check_relationships():
 
     # Score and sort by relationship health (lowest first)
     try:
-        from runtime.person_recognition import score_relationship_health
+        from understanding.intelligence.person_recognition import score_relationship_health
         for c in cold_contacts:
             h = score_relationship_health(name=c['person'], ctx=ctx)
             c['health_score'] = h.get('score', 0.5)

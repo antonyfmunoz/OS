@@ -31,7 +31,7 @@ from execution.runtime.agent_runtime import AgentRuntime, TaskType
 from runtime.context import EOSContext
 from state.storage.db import get_conn, resolve_venture
 from state.memory.memory import AgentMemory
-from runtime.venture_knowledge import VentureKnowledgeBase
+from state.business.venture_knowledge import VentureKnowledgeBase
 
 VAULT = Path(_REPO_ROOT)
 DAILY_DIR = VAULT / "orchestrator" / "daily"
@@ -44,7 +44,7 @@ POSTMORTEM_DIR = VAULT / "orchestrator" / "postmortems"
 def _notify(text: str) -> None:
     """Send notification via channel router."""
     try:
-        from runtime.channel import get_channel_router
+        from interface.channels.channel import get_channel_router
 
         router = get_channel_router()
         router.notify(text)
@@ -363,7 +363,7 @@ def run_full_morning_cycle(ctx: EOSContext, return_content: bool = False):
 
     # 0. Sync Claude skills to Neon on startup
     try:
-        from runtime.claude_skill_registry import ClaudeSkillRegistryManager
+        from state.registries.claude_skill_registry import ClaudeSkillRegistryManager
 
         csrm = ClaudeSkillRegistryManager()
         csrm.sync_to_neon(ctx)
@@ -484,7 +484,7 @@ def run_full_morning_cycle(ctx: EOSContext, return_content: bool = False):
     # 6. Knowledge graph patterns
     patterns: list[dict] = []
     try:
-        from runtime.knowledge_graph import KnowledgeGraph
+        from understanding.knowledge.knowledge_graph import KnowledgeGraph
 
         kg = KnowledgeGraph(ctx)
         for vid in VentureKnowledgeBase.list_ventures():
@@ -500,7 +500,7 @@ def run_full_morning_cycle(ctx: EOSContext, return_content: bool = False):
     calendar_section = "📅 TODAY\nNo events scheduled"
     tasks_section = "✅ TASKS\nNo pending tasks"
     try:
-        from runtime.gws_connector import GWSConnector
+        from adapters.google_workspace.gws_connector import GWSConnector
 
         gws = GWSConnector()
 
@@ -538,7 +538,7 @@ def run_full_morning_cycle(ctx: EOSContext, return_content: bool = False):
     # Write to Notion
     notion_url = ""
     try:
-        from runtime.notion_publisher import get_publisher
+        from adapters.notion.notion_publisher import get_publisher
 
         publisher = get_publisher(ctx)
         notion_url = publisher.publish_morning_brief(content=brief_content)
@@ -683,7 +683,7 @@ def run_ceo_morning_delegation(
     venture_list = ventures or getattr(ctx, "ventures", [])
     if not venture_list:
         try:
-            from runtime.business_instance import BusinessInstanceManager
+            from state.business.business_instance import BusinessInstanceManager
 
             _default_vid = BusinessInstanceManager(ctx).get_default_venture_id()
             if _default_vid:
@@ -732,7 +732,7 @@ def run_ceo_morning_delegation(
             offer_data = {}
             constraint_context = ""
             try:
-                from runtime.ceo_intelligence import (
+                from control_plane.agents.ceo_intelligence import (
                     diagnose_constraint as _dc,
                     get_offer_stage as _gos,
                 )
@@ -837,7 +837,7 @@ def run_ceo_morning_delegation(
     if results:
         notion_url = ""
         try:
-            from runtime.notion_publisher import get_publisher
+            from adapters.notion.notion_publisher import get_publisher
 
             publisher = get_publisher(ctx)
             notion_url = publisher.publish_ceo_delegation(content={"results": results})
@@ -997,7 +997,7 @@ async def generate_morning_brief(ctx: EOSContext) -> str:
     if not _ctx_ventures:
         try:
             from runtime.context import load_context_from_env as _lctx
-            from runtime.business_instance import BusinessInstanceManager as _BIM
+            from state.business.business_instance import BusinessInstanceManager as _BIM
 
             _c = _lctx()
             _ctx_ventures = getattr(_c, "ventures", []) or []
@@ -1021,7 +1021,7 @@ async def generate_morning_brief(ctx: EOSContext) -> str:
 
     for venture_id, name, icon in companies:
         try:
-            from runtime.business_instance import BusinessInstanceManager
+            from state.business.business_instance import BusinessInstanceManager
             from runtime.evolution_engine import EvolutionEngine
             from understanding.ontology.primitives import PRIMITIVE_LIBRARY
 
@@ -1095,7 +1095,7 @@ async def generate_morning_brief(ctx: EOSContext) -> str:
     # Add today's calendar
     calendar_section = ""
     try:
-        from runtime.gws_connector import GWSConnector
+        from adapters.google_workspace.gws_connector import GWSConnector
 
         gws = GWSConnector()
         events = gws.get_today_events()
@@ -1303,7 +1303,7 @@ class EOSOrchestrator:
         pattern_context = ""
         try:
             from runtime.context import load_context_from_env as _lctx
-            from runtime.pattern_engine import PatternEngine as _PE
+            from understanding.patterns.pattern_engine import PatternEngine as _PE
 
             _ctx_pe = _lctx()
             _patterns = _PE(_ctx_pe).analyze(days_back=7)
@@ -1624,7 +1624,7 @@ class EOSOrchestrator:
         # Embedding backfill — runs weekly on Saturdays
         if datetime.date.today().weekday() == 5:  # Saturday = 5
             try:
-                from runtime.embedding_engine import EmbeddingEngine
+                from understanding.embedding.embedding_engine import EmbeddingEngine
                 from runtime.context import load_context_from_env
 
                 ctx_ee = load_context_from_env()
@@ -1664,7 +1664,7 @@ class EOSOrchestrator:
         pattern_summary = ""
         try:
             from runtime.context import load_context_from_env
-            from runtime.knowledge_graph import KnowledgeGraph
+            from understanding.knowledge.knowledge_graph import KnowledgeGraph
 
             ctx_kg = load_context_from_env()
             kg = KnowledgeGraph(ctx_kg)
@@ -1747,7 +1747,7 @@ def refresh_ambient_state(ctx: EOSContext) -> None:
     """
     try:
         from runtime.reality_context import RealityContext
-        from runtime.session_state import SessionState
+        from state.session.session_state import SessionState
 
         rc = RealityContext(ctx)
         reality = rc.get_current_reality()
@@ -1777,7 +1777,7 @@ def start_ambient_refresh_loop(ctx: EOSContext) -> None:
 
     def _refresh_loop() -> None:
         while True:
-            from runtime.work_state import detect_work_state, record_signal
+            from state.work.work_state import detect_work_state, record_signal
 
             ws = detect_work_state()
 
@@ -1839,7 +1839,7 @@ def start_ambient_refresh_loop(ctx: EOSContext) -> None:
 
 if __name__ == "__main__":
     from runtime.context import load_context_from_env
-    from runtime.knowledge_domains import KnowledgeDomainRegistry
+    from understanding.knowledge.knowledge_domains import KnowledgeDomainRegistry
     from runtime.research_engine import ResearchEngine
 
     _ctx = load_context_from_env()

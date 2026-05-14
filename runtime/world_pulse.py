@@ -237,7 +237,7 @@ class WorldPulse:
                 'sources_scanned':  list[str],
             }
         """
-        from runtime.scrapling_connector import ScraplingConnector
+        from adapters.scrapling.scrapling_connector import ScraplingConnector
         sc = ScraplingConnector()
 
         results_summary: list[str] = []
@@ -303,7 +303,7 @@ class WorldPulse:
         # Check Claude skills for source doc updates
         skills_needing_review: list[str] = []
         try:
-            from runtime.claude_skill_registry import ClaudeSkillRegistryManager
+            from state.registries.claude_skill_registry import ClaudeSkillRegistryManager
             csrm = ClaudeSkillRegistryManager()
             skills_needing_review = csrm.check_for_updates()
             if skills_needing_review:
@@ -369,7 +369,7 @@ class WorldPulse:
                 'sources_scanned': list[str],  # one line per source
             }
         """
-        from runtime.scrapling_connector import ScraplingConnector
+        from adapters.scrapling.scrapling_connector import ScraplingConnector
         sc = ScraplingConnector()
 
         results_summary: list[str] = []
@@ -435,7 +435,7 @@ class WorldPulse:
         # Check Claude skills for source doc updates
         skills_needing_review: list[str] = []
         try:
-            from runtime.claude_skill_registry import ClaudeSkillRegistryManager
+            from state.registries.claude_skill_registry import ClaudeSkillRegistryManager
             csrm = ClaudeSkillRegistryManager()
             skills_needing_review = csrm.check_for_updates()
             if skills_needing_review:
@@ -498,7 +498,7 @@ class WorldPulse:
 
         # Sync pulse report to NotebookLM
         try:
-            from runtime.notebooklm_sync import NotebookLMSync
+            from adapters.notebooklm.notebooklm_sync import NotebookLMSync
             nls = NotebookLMSync(self.ctx)
             nls.sync_world_pulse_to_notebook(report)
         except Exception as e:
@@ -508,7 +508,7 @@ class WorldPulse:
         try:
             from datetime import datetime as _dt
             if _dt.now().weekday() == 5:  # Saturday
-                from runtime.notebooklm_sync import NotebookLMSync
+                from adapters.notebooklm.notebooklm_sync import NotebookLMSync
                 nls = NotebookLMSync(self.ctx)
                 nls.check_and_update()
         except Exception as e:

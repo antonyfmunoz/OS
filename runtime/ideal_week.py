@@ -166,7 +166,7 @@ as Antony would, without asking questions."""
             f.write(playbook)
 
         try:
-            from runtime.skill_registry_v2 import SkillRegistryV2, SkillV2, SkillDomain, TrustLevel
+            from state.registries.skill_registry_v2 import SkillRegistryV2, SkillV2, SkillDomain, TrustLevel
             registry = SkillRegistryV2(ctx)
             skill = SkillV2(
                 id=f'process_capture_{safe_name}',

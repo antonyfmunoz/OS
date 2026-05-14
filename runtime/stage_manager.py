@@ -110,7 +110,7 @@ class StageManager:
         Handle full stage transition. Updates BIS, Notion, fires Discord event.
         Synchronous — safe to call from gateway.py.
         """
-        from runtime.business_instance import BusinessInstanceManager
+        from state.business.business_instance import BusinessInstanceManager
         from understanding.ontology.primitives import PRIMITIVE_LIBRARY
 
         bim = BusinessInstanceManager(self.ctx)

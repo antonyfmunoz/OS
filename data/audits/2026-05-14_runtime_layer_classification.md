@@ -328,3 +328,189 @@ Topological order, hubs last. Largest batches:
 - understanding/ group: 16 modules
 - control_plane/ group: 24 modules
 - state/ group: 19 modules
+
+---
+
+## Phase C Re-Classification — 2026-05-14
+
+Post-Phase-A (Law 5.5 stores) + Phase-B (context.py shim):
+
+### Blocker Status
+
+| Blocker | Original | Current | Change |
+|---------|----------|---------|--------|
+| L5.5 violations | 52 modules | 2 modules (1 site each) | -50 |
+| Context dependency | 64 modules (shim callers) | 0 (shim = non-blocking) | -64 |
+| Both blocked | 28 modules | 0 | -28 |
+
+Remaining L5.5: `execution_engine` (1 INSERT INTO outcomes),
+`knowledge_integrator` (1 INSERT INTO interactions). Fixed inline during migration.
+
+### Re-Classification Summary
+
+| Original Status | Count | New Status | Notes |
+|-----------------|-------|------------|-------|
+| FREE (23 truly clean) | 23 | Sub-batch 1 | All still free |
+| FREE (7 tangled) | 7 | Various batches | Tangled deps resolved |
+| L5.5_BLOCKED | 10 | Sub-batch 1 mostly | Stores absorb SQL |
+| CTX_BLOCKED | 17 | Sub-batch 1 mostly | Shim = non-blocking |
+| BOTH_BLOCKED | 28 | Various batches | Both blockers cleared |
+| email_gps (missing from original) | 1 | Sub-batch 2 | Added to classification |
+| **Total** | **99** (excl. context) | **99** | +7 vs original 92 (context excluded, email_gps added) |
+
+### Sub-Batch Assignment (by structural dependency tier)
+
+**Sub-batch 1 — Zero runtime/ cross-deps (51 modules)**
+
+Sorted by caller count ascending:
+
+| Module | Callers | Target §24 Layer | Sub-path |
+|--------|---------|-----------------|----------|
+| ai_identity | 1 | control_plane/ | identity/ |
+| ceo_operational_standards | 1 | control_plane/ | agents/ |
+| competitive_intel | 1 | understanding/ | intelligence/ |
+| doc_creator | 1 (b2) | adapters/ | google_workspace/ |
+| event_manager | 1 | control_plane/ | events/ |
+| feedback_loop | 3 | learning/ | feedback/ |
+| founder_capture | 1 (b2) | understanding/ | signals/ |
+| higgsfield_client | 1 | adapters/ | higgsfield/ |
+| input_intelligence | 1 (b2) | understanding/ | intelligence/ |
+| intent_router | 2 | control_plane/ | routing/ |
+| media_processor | 2 | execution/ | media/ |
+| os_registry | 2 | state/ | registries/ |
+| principle_engine | 1 | governance/ | principles/ |
+| session_state | 1 | state/ | session/ |
+| template_registry | 1 | state/ | registries/ |
+| voice_engine | 2 | execution/ | voice/ |
+| world_model | 1 | understanding/ | world_model/ |
+| ceo_intelligence | 2 | control_plane/ | agents/ |
+| confidentiality | 2 | governance/ | policies/ |
+| context_compaction | 2 | control_plane/ | context/ |
+| decision_log | 3 | state/ | logs/ |
+| delegation_tracker | 3 | control_plane/ | delegation/ |
+| ea_operational_standards | 2 | control_plane/ | agents/ |
+| embedding_engine | 5 | understanding/ | embedding/ |
+| knowledge_domains | 3 | understanding/ | knowledge/ |
+| knowledge_graph | 3 | understanding/ | knowledge/ |
+| martell_patterns | 3 | understanding/ | patterns/ |
+| model_preferences | 2 | state/ | preferences/ |
+| notebooklm_sync | 3 | adapters/ | notebooklm/ |
+| notion_publisher | 4 | adapters/ | notion/ |
+| notion_sync | 4 | adapters/ | notion/ |
+| okr_tracker | 2 | state/ | metrics/ |
+| os_trinity | 3 | state/ | permissions/ |
+| pattern_engine | 3 | understanding/ | patterns/ |
+| portfolio_advisor_standards | 1 | control_plane/ | strategy/ |
+| provider_health | 2 | observability/ | health/ |
+| scrapling_connector | 4 | adapters/ | scrapling/ |
+| signal_hierarchy | 3 | control_plane/ | signals/ |
+| skill_registry_v2 | 1 | state/ | registries/ |
+| subscription_tracker | 2 | state/ | finance/ |
+| accountability | 3 | governance/ | accountability/ |
+| browser_agent | 3 | execution/ | agents/ |
+| channel | 7 | interface/ | channels/ |
+| claude_skill_registry | 3 | state/ | registries/ |
+| document_filer | 1 | adapters/ | google_workspace/ |
+| embedder | 5 | understanding/ | embedding/ |
+| founder_rate | 4 | state/ | metrics/ |
+| gws_connector | 27 | adapters/ | google_workspace/ |
+| agent_hierarchy | 4 | control_plane/ | agents/ |
+| business_instance | 20 | state/ | business/ |
+| venture_knowledge | 10 | state/ | business/ |
+| work_state | 4 | state/ | work/ |
+| person_recognition | 10 | understanding/ | intelligence/ |
+| task_yield_matrix | 4 | control_plane/ | strategy/ |
+
+**Sub-batch 2 — Deps only in sub-batch 1 (23 modules)**
+
+Sorted by caller count ascending:
+
+| Module | Callers | Deps (all in B1) | Target §24 |
+|--------|---------|-------------------|-----------|
+| agent_teams | 3 | browser_agent | control_plane/agents/ |
+| ceo_agent | 3 | business_instance, ceo_intelligence | control_plane/agents/ |
+| doc_creator | 1 | gws_connector | adapters/google_workspace/ |
+| email_gps | 7 | browser_agent, document_filer, gws_connector, person_recognition | adapters/google_workspace/ |
+| execution_engine | 2 | channel | execution/engine/ |
+| expense_tracker | 5 | gws_connector | state/finance/ |
+| founder_capture | 1 | founder_rate, task_yield_matrix | understanding/signals/ |
+| human_intelligence | 6 | gws_connector | understanding/intelligence/ |
+| ideal_week | 3 | skill_registry_v2 | control_plane/scheduling/ |
+| input_intelligence | 1 | business_instance | understanding/intelligence/ |
+| knowledge_integrator | 8 | embedding_engine | understanding/knowledge/ |
+| meetings | 8 | gws_connector, person_recognition | adapters/calendar/ |
+| personal_admin | 2 | person_recognition | control_plane/scheduling/ |
+| provider_state | 6 | work_state | state/providers/ |
+| quality_gate | 3 | signal_hierarchy | governance/quality/ |
+| setup_wizard | 3 | business_instance | control_plane/onboarding/ |
+| skill_registry | 4 | embedder | state/registries/ |
+| stage_manager | 3 | business_instance | state/lifecycle/ |
+| stakeholder_map | 2 | person_recognition | understanding/intelligence/ |
+| strategy_engine | 5 | venture_knowledge | control_plane/strategy/ |
+| system_health | 2 | channel | observability/health/ |
+| tenant | 2 | business_instance | state/tenancy/ |
+| user_model | 3 | os_trinity | state/profiles/ |
+
+**Sub-batch 3 — Recursive deps (25 modules)**
+
+Tier 3a (deps only in B1+B2, no B3 deps): 8
+
+| Module | Callers | Target §24 |
+|--------|---------|-----------|
+| context_builder | 2 | control_plane/context/ |
+| onboarding_engine | 1 | control_plane/onboarding/ |
+| portfolio_advisor | 10 | control_plane/strategy/ |
+| research_engine | 3 | understanding/research/ |
+| skill_improvement | 3 | learning/skills/ |
+| status | 1 | observability/status/ |
+| travel_manager | 2 | adapters/calendar/ |
+| week_architect | 1 | control_plane/scheduling/ |
+
+Tier 3b (deps in B1+B2+3a): 3
+
+| Module | Callers | B3 deps | Target §24 |
+|--------|---------|---------|-----------|
+| daily_sync | 2 | portfolio_advisor | control_plane/scheduling/ |
+| evolution_engine | 5 | research_engine, skill_improvement | learning/evolution/ |
+| task_executor | 2 | portfolio_advisor | execution/tasks/ |
+
+Tier 3c (deps in B1+B2+3a+3b): 2
+
+| Module | Callers | B3 deps | Target §24 |
+|--------|---------|---------|-----------|
+| proactive_engine | 1 | evolution_engine | control_plane/proactive/ |
+| workflow_engine | 1 | task_executor | execution/workflows/ |
+
+Tier 3d (remaining — contains 2 circular pairs): 12
+
+| Module | Callers | B3 deps (within 3d) | Target §24 |
+|--------|---------|---------------------|-----------|
+| discord_utils ↔ output_validator | 9, 3 | (cycle) | interface/discord/, governance/validation/ |
+| goal_selector ↔ event_bus | 11, 11 | (cycle) | control_plane/goals/, control_plane/events/ |
+| coordination_engine | 5 | event_bus | control_plane/coordination/ |
+| execution_loop | 2 | event_bus, goal_selector | execution/loop/ |
+| gws_scanner | 2 | discord_utils | adapters/google_workspace/ |
+| orchestrator | 5 | coordination_engine, discord_utils, reality_context, reality_engine, world_pulse | control_plane/orchestrator/ |
+| reality_context | 2 | reality_engine | understanding/reality/ |
+| reality_engine | 3 | event_bus | understanding/reality/ |
+| self_awareness | 2 | output_validator | learning/self_model/ |
+| world_pulse | 2 | discord_utils, gws_scanner | understanding/world_pulse/ |
+
+**Circular pairs:** Migrate together in single commit.
+- `discord_utils` + `output_validator` (lazy imports — no load-time cycle)
+- `goal_selector` + `event_bus` (lazy imports — no load-time cycle)
+
+### Migration Order Within Tier 3d
+
+After resolving cycles (migrate pairs together):
+
+1. discord_utils + output_validator (9+3 callers)
+2. goal_selector + event_bus (11+11 callers)
+3. gws_scanner (2, deps: discord_utils)
+4. self_awareness (2, deps: output_validator)
+5. reality_engine (3, deps: event_bus)
+6. reality_context (2, deps: reality_engine)
+7. coordination_engine (5, deps: event_bus)
+8. execution_loop (2, deps: event_bus, goal_selector)
+9. world_pulse (2, deps: discord_utils, gws_scanner)
+10. orchestrator (5, deps on most of above)

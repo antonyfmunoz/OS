@@ -96,7 +96,7 @@ class DailySync:
         # ── Section 2: Calendar review ────────────────────────────────────
         # Mondays: 6 weeks out. Other days: 2 weeks out.
         try:
-            from runtime.gws_connector import GWSConnector
+            from adapters.google_workspace.gws_connector import GWSConnector
             gws  = GWSConnector()
             days = 42 if is_monday else 14
             events = gws.get_upcoming_events(days=days)
@@ -301,7 +301,7 @@ Return JSON only:
 
         # ── DRIP split — filter delegate tasks to dex_items ─────────────
         try:
-            from runtime.task_yield_matrix import classify_task_yield
+            from control_plane.strategy.task_yield_matrix import classify_task_yield
             antony_items = []
             dex_items = []
             for item in agenda.action_items[:10]:
@@ -433,7 +433,7 @@ Return JSON only:
 
         # Subscription renewal alerts
         try:
-            from runtime.subscription_tracker import get_upcoming_renewals
+            from state.finance.subscription_tracker import get_upcoming_renewals
             renewals = get_upcoming_renewals(days=7)
             if renewals:
                 agenda.subscription_alerts = [

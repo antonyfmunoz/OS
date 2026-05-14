@@ -140,7 +140,7 @@ No fluff. If there's nothing meaningful, say so briefly."""
     # Write to Notion first, send link to Discord
     notion_url = ""
     try:
-        from runtime.notion_publisher import get_publisher
+        from adapters.notion.notion_publisher import get_publisher
 
         publisher = get_publisher()
         notion_url = publisher.publish_intel_brief(

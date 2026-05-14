@@ -217,7 +217,7 @@ async def run_executor():
 
         # Write task result to Notion
         try:
-            from runtime.notion_sync import write_task
+            from adapters.notion.notion_sync import write_task
             from state.storage.db import get_conn
             venture_id = task.get('venture_id') or 'lyfe_institute'
             needs_approval = requires_approval(task, exec_result)

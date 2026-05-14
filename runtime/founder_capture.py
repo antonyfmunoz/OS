@@ -202,8 +202,8 @@ def capture(text: str, ctx=None, venture_id: str = None) -> dict:
 
     # BBR check — should DEX handle this without flagging Antony?
     try:
-        from runtime.founder_rate import get_current_founder_rate
-        from runtime.task_yield_matrix import classify_task_yield
+        from state.metrics.founder_rate import get_current_founder_rate
+        from control_plane.strategy.task_yield_matrix import classify_task_yield
         rate = get_current_founder_rate()
         if rate:
             drip = classify_task_yield(text)

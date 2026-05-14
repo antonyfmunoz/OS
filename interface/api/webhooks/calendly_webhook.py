@@ -257,7 +257,7 @@ def calendly_webhook():
 
         # Person recognition — Martell rule check before anything else
         try:
-            from runtime.person_recognition import recognize_person, format_person_context
+            from understanding.intelligence.person_recognition import recognize_person, format_person_context
             _recognition = recognize_person(name=name, email=email)
             _person_context = format_person_context(_recognition, name=name)
             if _recognition.get('warning'):
@@ -305,7 +305,7 @@ def calendly_webhook():
         # Auto-create lead file if no existing one found
         if not lead_file:
             try:
-                from runtime.person_recognition import create_lead_file
+                from understanding.intelligence.person_recognition import create_lead_file
                 create_lead_file(
                     name=name,
                     email=email,

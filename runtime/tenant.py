@@ -57,7 +57,7 @@ class TenantManager:
     def get_tenant_context(self) -> TenantContext:
         """Load full tenant context from DB via BIS."""
         try:
-            from runtime.business_instance import BusinessInstanceManager
+            from state.business.business_instance import BusinessInstanceManager
             bim = BusinessInstanceManager(self.ctx)
             default_venture = bim.get_default_venture_id()
             bis = bim.get_bis(default_venture) if default_venture else None

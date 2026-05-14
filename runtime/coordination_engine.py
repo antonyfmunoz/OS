@@ -33,7 +33,7 @@ def _utcnow() -> str:
 def _notify(text: str) -> None:
     """Send notification via channel router."""
     try:
-        from runtime.channel import get_channel_router
+        from interface.channels.channel import get_channel_router
 
         router = get_channel_router()
         router.notify(text)
@@ -143,7 +143,7 @@ class CoordinationEngine:
                 f"Reply /done {task_id[:8]} when complete."
             )
             try:
-                from runtime.gws_connector import GWSConnector
+                from adapters.google_workspace.gws_connector import GWSConnector
 
                 gws = GWSConnector()
                 gws.create_task(

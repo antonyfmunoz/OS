@@ -25,7 +25,7 @@ _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.ge
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 
-from runtime.provider_health import check_all  # noqa: E402
+from observability.health.provider_health import check_all  # noqa: E402
 
 LOG_DIR = Path(_ROOT) / "logs"
 

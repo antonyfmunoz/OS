@@ -20,25 +20,25 @@ import pytest
 class TestEmbeddingEngine:
 
     def test_available(self):
-        from runtime.embedding_engine import EmbeddingEngine
+        from understanding.embedding.embedding_engine import EmbeddingEngine
         ee = EmbeddingEngine()
         assert ee.is_available()
 
     def test_embed_returns_384_dims(self):
-        from runtime.embedding_engine import EmbeddingEngine
+        from understanding.embedding.embedding_engine import EmbeddingEngine
         ee = EmbeddingEngine()
         result = ee.embed('test text')
         assert result is not None
         assert len(result) == 384
 
     def test_embed_empty_returns_none(self):
-        from runtime.embedding_engine import EmbeddingEngine
+        from understanding.embedding.embedding_engine import EmbeddingEngine
         ee = EmbeddingEngine()
         assert ee.embed('') is None
         assert ee.embed('   ') is None
 
     def test_active_tier(self):
-        from runtime.embedding_engine import EmbeddingEngine
+        from understanding.embedding.embedding_engine import EmbeddingEngine
         ee = EmbeddingEngine()
         tier = ee.get_active_tier()
         assert tier in [
@@ -48,7 +48,7 @@ class TestEmbeddingEngine:
         ]
 
     def test_semantic_search_returns_results(self):
-        from runtime.embedding_engine import EmbeddingEngine
+        from understanding.embedding.embedding_engine import EmbeddingEngine
         from runtime.context import load_context_from_env
         ctx = load_context_from_env()
         ee = EmbeddingEngine()
@@ -134,7 +134,7 @@ class TestOutputValidator:
 class TestSignalHierarchy:
 
     def test_classifies_business_domain(self):
-        from runtime.signal_hierarchy import SignalHierarchyEngine
+        from control_plane.signals.signal_hierarchy import SignalHierarchyEngine
         from runtime.context import load_context_from_env
         ctx = load_context_from_env()
         she = SignalHierarchyEngine(ctx)
@@ -142,7 +142,7 @@ class TestSignalHierarchy:
         assert result['domain'] == 'business'
 
     def test_classifies_reality_tier(self):
-        from runtime.signal_hierarchy import SignalHierarchyEngine, SignalTier
+        from control_plane.signals.signal_hierarchy import SignalHierarchyEngine, SignalTier
         from runtime.context import load_context_from_env
         ctx = load_context_from_env()
         she = SignalHierarchyEngine(ctx)
@@ -150,7 +150,7 @@ class TestSignalHierarchy:
         assert result['primary_tier'] == SignalTier.REALITY
 
     def test_returns_required_keys(self):
-        from runtime.signal_hierarchy import SignalHierarchyEngine
+        from control_plane.signals.signal_hierarchy import SignalHierarchyEngine
         from runtime.context import load_context_from_env
         ctx = load_context_from_env()
         she = SignalHierarchyEngine(ctx)

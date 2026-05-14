@@ -139,7 +139,7 @@ def process_receipt_emails(ctx=None) -> int:
     """
     try:
         from runtime.context import load_context_from_env
-        from runtime.gws_connector import GWSConnector
+        from adapters.google_workspace.gws_connector import GWSConnector
         ctx = ctx or load_context_from_env()
         gws = GWSConnector()
 

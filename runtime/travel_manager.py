@@ -246,7 +246,7 @@ def generate_trip_itinerary(
     """Generate a day-by-day trip itinerary document and save to Drive."""
     try:
         from execution.runtime.model_router import get_router, TaskType
-        from runtime.gws_connector import GWSConnector
+        from adapters.google_workspace.gws_connector import GWSConnector
         router = get_router()
 
         meetings_text = '\n'.join(f'- {m}' for m in (meetings or [])) if meetings else 'No meetings confirmed yet'

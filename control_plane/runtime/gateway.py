@@ -378,7 +378,7 @@ class EOSGateway:
                 new_name = match.group(1).upper()
                 try:
                     from runtime.context import load_context_from_env
-                    from runtime.business_instance import BusinessInstanceManager
+                    from state.business.business_instance import BusinessInstanceManager
 
                     ctx = load_context_from_env()
                     bim = BusinessInstanceManager(ctx)
@@ -701,7 +701,7 @@ class EOSGateway:
                     # Venture from request, then BIM default. Text-keyword routing
                     # was venture-specific leakage and has been removed — venture
                     # selection must come from explicit request or BIM lookup.
-                    from runtime.business_instance import BusinessInstanceManager as _BIM
+                    from state.business.business_instance import BusinessInstanceManager as _BIM
 
                     _bim_st = _BIM(ctx_eos)
                     venture_id = (
@@ -730,7 +730,7 @@ class EOSGateway:
 
                 ctx_sa = _load_ctx_sa()
                 sae = SelfAwarenessEngine(ctx_sa)
-                from runtime.business_instance import BusinessInstanceManager as _BIM_sa
+                from state.business.business_instance import BusinessInstanceManager as _BIM_sa
 
                 _bim_sa = _BIM_sa(ctx_sa)
                 venture_id_sa = (
@@ -953,7 +953,7 @@ class EOSGateway:
         Returns agent_id string.
         """
         try:
-            from runtime.agent_hierarchy import AgentHierarchy
+            from control_plane.agents.agent_hierarchy import AgentHierarchy
 
             return AgentHierarchy().route_request(text)
         except Exception:
@@ -1218,7 +1218,7 @@ class EOSGateway:
                 except Exception:
                     # Fallback to Python module
                     try:
-                        from runtime.ceo_operational_standards import (
+                        from control_plane.agents.ceo_operational_standards import (
                             get_constraint_rules,
                             get_offer_rules,
                             get_delegation_rules,
@@ -1272,7 +1272,7 @@ class EOSGateway:
                         raise ValueError("portfolio_framework skill not found")
                 except Exception:
                     try:
-                        from runtime.portfolio_advisor_standards import (
+                        from control_plane.strategy.portfolio_advisor_standards import (
                             get_all_standards as get_pa_standards,
                         )
 
@@ -1289,7 +1289,7 @@ class EOSGateway:
 
             # Universal agent standards
             try:
-                from runtime.principle_engine import PrincipleEngine
+                from governance.principles.principle_engine import PrincipleEngine
 
                 _pe = PrincipleEngine(ctx)
                 _standards = _pe.format_agent_standards(agent_id)
@@ -1301,7 +1301,7 @@ class EOSGateway:
 
             # Domain-specific principles
             try:
-                from runtime.principle_engine import PrincipleEngine
+                from governance.principles.principle_engine import PrincipleEngine
 
                 _pe_d = PrincipleEngine(ctx)
                 _domain = _AGENT_DOMAIN_MAP.get(agent_id, "ops")
@@ -1325,7 +1325,7 @@ class EOSGateway:
             if agent_id == "executive_assistant":
                 # DEX — inject EA operational standards + Martell leverage detection
                 try:
-                    from runtime.martell_patterns import detect_leverage_killer
+                    from understanding.patterns.martell_patterns import detect_leverage_killer
 
                     leverage = detect_leverage_killer(prompt)
                     if leverage:
@@ -1345,7 +1345,7 @@ class EOSGateway:
                         raise ValueError("ea_framework skill not found")
                 except Exception:
                     try:
-                        from runtime.ea_operational_standards import get_all_standards
+                        from control_plane.agents.ea_operational_standards import get_all_standards
 
                         ea_standards = get_all_standards()
                         prompt = (
@@ -1412,7 +1412,7 @@ class EOSGateway:
 
             if not agent_to_use:
                 try:
-                    from runtime.intent_router import IntentRouter, IntentDomain
+                    from control_plane.routing.intent_router import IntentRouter, IntentDomain
 
                     ir = IntentRouter(ctx)
                     domain = ir.route(prompt)
@@ -1460,7 +1460,7 @@ class EOSGateway:
             # Log delegation if routing to a CEO agent
             if agent_to_use in _CEO_AGENTS:
                 try:
-                    from runtime.delegation_tracker import log_delegation
+                    from control_plane.delegation.delegation_tracker import log_delegation
 
                     log_delegation(
                         task=prompt[:200],
@@ -1515,7 +1515,7 @@ class EOSGateway:
 
         # Feedback loop — log advice as recommendation; detect outcome reports
         try:
-            from runtime.feedback_loop import FeedbackLoop
+            from learning.feedback.feedback_loop import FeedbackLoop
 
             fl = FeedbackLoop(ctx)
             if any(
@@ -1542,7 +1542,7 @@ class EOSGateway:
 
         # Accountability — detect and log commitments in founder's message
         try:
-            from runtime.accountability import AccountabilityEngine
+            from governance.accountability.accountability import AccountabilityEngine
 
             ae = AccountabilityEngine(ctx)
             commitment = ae.detect_commitment(prompt, venture_id or "")
@@ -1553,7 +1553,7 @@ class EOSGateway:
 
         # Decision log — detect and permanently record decisions
         try:
-            from runtime.decision_log import DecisionLog
+            from state.logs.decision_log import DecisionLog
 
             _dl = DecisionLog(ctx)
             if _dl.detect_decision(prompt):
@@ -1620,7 +1620,7 @@ class EOSGateway:
             _fetch_last_orchestrator_run,
             _cost_est,
         )
-        from runtime.venture_knowledge import VentureKnowledgeBase
+        from state.business.venture_knowledge import VentureKnowledgeBase
 
         rows_7d = _fetch_7d_raw()
         total_interactions = _fetch_total_interactions()

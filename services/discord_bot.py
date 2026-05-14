@@ -90,8 +90,8 @@ load_dotenv(_REPO_ROOT / "runtime" / ".env")
 from control_plane.runtime.gateway import EOSGateway
 from runtime.context import load_context_from_env
 from runtime.knowledge_integrator import KnowledgeIntegrator
-from runtime.voice_engine import VoiceEngine
-from runtime.business_instance import get_ai_name
+from execution.voice.voice_engine import VoiceEngine
+from state.business.business_instance import get_ai_name
 from runtime.discord_utils import chunk_message, post_to_webhook
 from runtime.transport.session_discord_bridge import send_reply as _send_reply
 from runtime.transport.discord_text_transport import (
@@ -963,7 +963,7 @@ async def _warmup_cc_sdk():
     """
     await asyncio.sleep(10)
     try:
-        from runtime.work_state import _measure_pressure, Pressure
+        from state.work.work_state import _measure_pressure, Pressure
 
         p = _measure_pressure()
         if p in (Pressure.HIGH, Pressure.CRITICAL):
@@ -1465,7 +1465,7 @@ async def on_message(message: discord.Message):
 
     # Wake idle system — a real user message is a work signal
     try:
-        from runtime.work_state import record_signal, reset_idle_counter
+        from state.work.work_state import record_signal, reset_idle_counter
 
         record_signal()
         reset_idle_counter()
@@ -2840,7 +2840,7 @@ async def cmd_approve_followup(ctx: commands.Context):
     try:
         from runtime.context import load_context_from_env
         from state.storage.db import get_conn
-        from runtime.gws_connector import GWSConnector
+        from adapters.google_workspace.gws_connector import GWSConnector
         from runtime.quality_gate import gate_outgoing_email
         import json as _json
 
@@ -2973,7 +2973,7 @@ async def cmd_force_send(ctx: commands.Context):
     try:
         from runtime.context import load_context_from_env
         from state.storage.db import get_conn
-        from runtime.gws_connector import GWSConnector
+        from adapters.google_workspace.gws_connector import GWSConnector
         import json as _json
 
         _ctx = load_context_from_env()
@@ -3044,7 +3044,7 @@ async def cmd_confidential(ctx: commands.Context, *, args: str = ""):
         )
         return
     try:
-        from runtime.confidentiality import create_confidential_session
+        from governance.policies.confidentiality import create_confidential_session
 
         topic = parts[0]
         parties = [p.strip() for p in parts[1].split(",")] if len(parts) > 1 else ["Antony"]
@@ -3110,7 +3110,7 @@ async def cmd_relationship(ctx: commands.Context, *, name: str = ""):
         await ctx.reply("Usage: `!relationship [contact name]`")
         return
     try:
-        from runtime.person_recognition import (
+        from understanding.intelligence.person_recognition import (
             score_relationship_health,
             build_intelligence_profile,
         )
@@ -3145,7 +3145,7 @@ async def cmd_nurture(ctx: commands.Context, *, name: str = ""):
         return
     try:
         from execution.runtime.model_router import get_router, TaskType
-        from runtime.person_recognition import build_intelligence_profile
+        from understanding.intelligence.person_recognition import build_intelligence_profile
 
         _router = get_router()
         _model = _router.route(TaskType.FAST_RESPONSE)
@@ -3372,7 +3372,7 @@ async def cmd_cal(ctx: commands.Context, period: str = "today"):
 
         def _run():
             try:
-                from runtime.gws_connector import GWSConnector
+                from adapters.google_workspace.gws_connector import GWSConnector
 
                 gws = GWSConnector()
                 if period == "week":
@@ -3425,7 +3425,7 @@ async def cmd_focus(ctx: commands.Context, hours: str = "2"):
         def _run():
             try:
                 h = int(hours) if hours.isdigit() else 2
-                from runtime.gws_connector import GWSConnector
+                from adapters.google_workspace.gws_connector import GWSConnector
                 from datetime import datetime, timezone, timedelta
 
                 gws = GWSConnector()
@@ -3536,7 +3536,7 @@ async def cmd_delegated(ctx: commands.Context):
 
     def _run():
         try:
-            from runtime.delegation_tracker import get_overdue_delegations
+            from control_plane.delegation.delegation_tracker import get_overdue_delegations
 
             overdue = get_overdue_delegations()
             if not overdue:
@@ -3562,7 +3562,7 @@ async def cmd_subscriptions(ctx: commands.Context):
 
     def _run():
         try:
-            from runtime.subscription_tracker import (
+            from state.finance.subscription_tracker import (
                 get_subscriptions,
                 get_upcoming_renewals,
                 get_monthly_subscription_total,
@@ -3608,7 +3608,7 @@ async def cmd_add_sub(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from runtime.subscription_tracker import add_subscription
+            from state.finance.subscription_tracker import add_subscription
 
             vendor = parts[0]
             amount = float(parts[1])
@@ -3728,7 +3728,7 @@ async def cmd_drip(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from runtime.task_yield_matrix import run_drip_audit, format_drip_report
+            from control_plane.strategy.task_yield_matrix import run_drip_audit, format_drip_report
 
             tasks = [t.strip() for t in args.replace("\n", ",").split(",") if t.strip()]
             if not tasks:
@@ -3751,7 +3751,7 @@ async def cmd_buyback(ctx: commands.Context, income: str = ""):
 
         def _run():
             try:
-                from runtime.founder_rate import (
+                from state.metrics.founder_rate import (
                     calculate_buyback_rate,
                     store_buyback_rate,
                 )
@@ -3775,7 +3775,7 @@ async def cmd_buyback(ctx: commands.Context, income: str = ""):
 
         def _get():
             try:
-                from runtime.founder_rate import get_current_buyback_rate
+                from state.metrics.founder_rate import get_current_buyback_rate
 
                 rate = get_current_buyback_rate()
                 if rate:
@@ -3808,7 +3808,7 @@ async def cmd_logtime(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from runtime.founder_rate import log_time_block
+            from state.metrics.founder_rate import log_time_block
 
             parts = args.split("|")
             activity = parts[0].strip()
@@ -3840,7 +3840,7 @@ async def cmd_timeaudit(ctx: commands.Context):
 
     def _run():
         try:
-            from runtime.founder_rate import get_time_audit_summary
+            from state.metrics.founder_rate import get_time_audit_summary
 
             summary = get_time_audit_summary(days=7)
             if not summary.get("total_hours"):
@@ -3935,7 +3935,7 @@ async def cmd_drive(ctx: commands.Context):
 
     def _run():
         try:
-            from runtime.gws_connector import GWSConnector
+            from adapters.google_workspace.gws_connector import GWSConnector
 
             gws = GWSConnector()
             structure = gws.get_drive_structure()
@@ -3960,7 +3960,7 @@ async def cmd_driveaudit(ctx: commands.Context):
 
     def _run():
         try:
-            from runtime.gws_connector import GWSConnector
+            from adapters.google_workspace.gws_connector import GWSConnector
 
             gws = GWSConnector()
             issues = gws.audit_drive()
@@ -3995,7 +3995,7 @@ async def cmd_createfolder(ctx: commands.Context, *, name: str = ""):
 
     def _run():
         try:
-            from runtime.gws_connector import GWSConnector
+            from adapters.google_workspace.gws_connector import GWSConnector
 
             gws = GWSConnector()
             result = gws.create_folder(name.strip())
@@ -4048,7 +4048,7 @@ async def cmd_nolist(ctx: commands.Context):
 
     def _run():
         try:
-            from runtime.founder_rate import get_no_list
+            from state.metrics.founder_rate import get_no_list
 
             items = get_no_list()
             if not items:
@@ -4078,7 +4078,7 @@ async def cmd_noadd(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from runtime.founder_rate import add_to_no_list
+            from state.metrics.founder_rate import add_to_no_list
 
             parts = args.split("|", 1)
             item = parts[0].strip()
@@ -4768,7 +4768,7 @@ async def cmd_okr(ctx: commands.Context, subcommand: str = "report", *, args: st
     """OKR tracking. Usage: !okr report | !okr set [venture] | [objective] | [KR, target, unit]"""
     if subcommand == "report":
         try:
-            from runtime.okr_tracker import generate_okr_report
+            from state.metrics.okr_tracker import generate_okr_report
 
             report = generate_okr_report()
             await _send_reply(ctx.channel, report)
@@ -4783,7 +4783,7 @@ async def cmd_okr(ctx: commands.Context, subcommand: str = "report", *, args: st
             )
             return
         try:
-            from runtime.okr_tracker import set_okr
+            from state.metrics.okr_tracker import set_okr
 
             parts = [p.strip() for p in args.split("|")]
             venture_id = parts[0]
@@ -4820,7 +4820,7 @@ async def cmd_event(ctx: commands.Context, *, args: str = ""):
     """Manage events. Usage: !event list | !event [name] | [type] | [date] | [location] | [budget]"""
     if not args or args.strip() == "list":
         try:
-            from runtime.event_manager import get_events
+            from control_plane.events.event_manager import get_events
 
             events = get_events()
             if not events:
@@ -4846,7 +4846,7 @@ async def cmd_event(ctx: commands.Context, *, args: str = ""):
     if "|" in args:
         parts = [p.strip() for p in args.split("|")]
         try:
-            from runtime.event_manager import create_event
+            from control_plane.events.event_manager import create_event
 
             budget = 0.0
             if len(parts) > 4:
@@ -4891,7 +4891,7 @@ async def cmd_talkingpoints(ctx: commands.Context, *, args: str = ""):
         )
         return
     try:
-        from runtime.event_manager import draft_talking_points
+        from control_plane.events.event_manager import draft_talking_points
 
         await ctx.reply("📝 Drafting talking points...")
         topic = parts[0]
@@ -4914,7 +4914,7 @@ async def cmd_pr(ctx: commands.Context, *, args: str = ""):
         )
         return
     try:
-        from runtime.event_manager import log_pr_media_inquiry
+        from control_plane.events.event_manager import log_pr_media_inquiry
 
         parts = [p.strip() for p in args.split("|")]
         ok = log_pr_media_inquiry(

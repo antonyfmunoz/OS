@@ -278,7 +278,7 @@ class ErrorHandler:
         )
 
         try:
-            from runtime.channel import get_channel_router
+            from interface.channels.channel import get_channel_router
             get_channel_router().notify(full_msg)
         except Exception:
             pass  # never let alerting crash the service

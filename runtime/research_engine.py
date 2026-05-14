@@ -38,7 +38,7 @@ from control_plane.runtime.cognitive_loop import CognitiveLoop
 from execution.runtime.agent_runtime import TaskType
 from state.storage.db import get_conn
 from state.memory.memory import AgentMemory
-from runtime.venture_knowledge import VentureKnowledgeBase
+from state.business.venture_knowledge import VentureKnowledgeBase
 from runtime.strategy_engine import _parse_labeled_sections
 
 
@@ -236,7 +236,7 @@ class ResearchEngine:
             topic, venture_id, summary, confidence, sources_quality,
             knowledge_object, raw_output, researched_at
         """
-        from runtime.scrapling_connector import ScraplingConnector
+        from adapters.scrapling.scrapling_connector import ScraplingConnector
 
         venture_context = ""
         if venture_id:
@@ -466,8 +466,8 @@ class ResearchEngine:
         Updates COST_PER_MILLION_TOKENS in-memory for this session.
         """
         import os as _os
-        from runtime.model_preferences import PROVIDER_CONFIGS
-        from runtime.knowledge_domains import KnowledgeDomainRegistry
+        from state.preferences.model_preferences import PROVIDER_CONFIGS
+        from understanding.knowledge.knowledge_domains import KnowledgeDomainRegistry
 
         use_perplexity = bool(_os.getenv('PERPLEXITY_API_KEY'))
 
@@ -592,7 +592,7 @@ class ResearchEngine:
 
         Returns summary dict with scores and updated domain keys.
         """
-        from runtime.knowledge_domains import KnowledgeDomainRegistry
+        from understanding.knowledge.knowledge_domains import KnowledgeDomainRegistry
 
         print("[ResearchEngine] ── Domain update cycle start ──")
         registry = KnowledgeDomainRegistry()

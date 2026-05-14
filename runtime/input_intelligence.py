@@ -314,7 +314,7 @@ Produce the enhanced execution prompt:"""
         """Build a compact venture context string for the enhancement prompt."""
         try:
             if venture_id:
-                from runtime.business_instance import BusinessInstanceManager
+                from state.business.business_instance import BusinessInstanceManager
                 bim = BusinessInstanceManager(self.ctx)
                 bis = bim.get_bis(venture_id)
                 if bis:
