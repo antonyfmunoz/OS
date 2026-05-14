@@ -214,31 +214,14 @@ class BusinessInstanceManager:
 
     def save_bis(self, bis: BusinessInstance) -> bool:
         """Persist BIS to ventures.config_json. Creates venture row if needed."""
-        from state.storage.db import get_conn, resolve_venture
-        import uuid as _uuid
+        from state.stores.venture_store import VentureStore
         data = asdict(bis)
-
-        with get_conn(self.ctx.org_id) as cur:
-            # resolve_venture must be called inside get_conn — cache loads there
-            venture_uuid = resolve_venture(bis.venture_id)
-            if venture_uuid:
-                cur.execute(
-                    """
-                    UPDATE ventures
-                    SET config_json = %s::jsonb
-                    WHERE org_id = %s AND id = %s
-                    """,
-                    (json.dumps(data), self.ctx.org_id, venture_uuid),
-                )
-            else:
-                new_id = str(_uuid.uuid4())
-                cur.execute(
-                    """
-                    INSERT INTO ventures (id, org_id, name, config_json)
-                    VALUES (%s, %s, %s, %s::jsonb)
-                    """,
-                    (new_id, self.ctx.org_id, bis.name, json.dumps(data)),
-                )
+        VentureStore().save_venture(
+            org_id=self.ctx.org_id,
+            venture_id_slug=bis.venture_id,
+            name=bis.name,
+            config=data,
+        )
         return True
 
     def get_default_venture_id(self) -> Optional[str]:
