@@ -1211,7 +1211,7 @@ from runtime.transport.<module> import *  # noqa: F401,F403
 |--------|-------|--------|
 | ~~Legacy tests referencing runtime.substrate~~ | ~~82 files / 194 imports~~ | ~~CLOSED — archived 2026-05-14 (`f09c98e1`)~~ |
 | ~~Transport `__init__.py` rewrite~~ | ~~Rows 75, 76, 60~~ | ~~CLOSED — lazy-import rewrite 2026-05-14~~ |
-| Transport orphan archive | 148 modules (72 invisible + 31 init-only + 39 script-only + 4 test-only + 2 codegen) | NOW MOVABLE — see inventory |
+| ~~Transport orphan archive~~ | ~~148 candidates → 95 archived~~ | ~~CLOSED — 2026-05-14. 53 restored (transitive PROD deps)~~ |
 | ~~Transport production path migration~~ | ~~16 modules (Row 76/60)~~ | ~~CLOSED — all substrate imports eliminated 2026-05-14~~ |
 | Law 5.4 type convergence | 5 spine modules | Dedicated follow-up wave |
 | Law 5.9 adapter refactor | 6 files in execution/workers/workstation/ | §14.1 contract |
@@ -1800,8 +1800,54 @@ operations + canonical API adoption.
 
 | Thread | Items | Status |
 |--------|-------|--------|
-| Transport orphan archive | 148 modules | NOW MOVABLE (blocked pre-Wave 0.5) |
+| ~~Transport orphan archive~~ | ~~148 → 95 archived~~ | ~~CLOSED — 2026-05-14~~ |
+| Transport package §24 migration | 68 modules (15 PROD + 53 deps) | NEW — full package move |
 | Law 5.4 type convergence | 5 spine modules | Dedicated follow-up wave |
 | Law 5.9 adapter refactor | 6 files in execution/workers/workstation/ | §14.1 contract |
 | Law 5.5 sync_skills_to_neon.py | 1 file, SELECT/INSERT/UPDATE on skills table | Needs SkillStore domain store |
 | Cron script migration | 23 files | System-level coordination |
+
+---
+
+## Transport Orphan Archive — 2026-05-14
+
+95 of 163 transport modules archived. Thread CLOSED.
+
+### Classification
+
+| Category | Count | Action |
+|----------|-------|--------|
+| TRUE_ORPHAN (archived) | 95 | `_archive/2026-05-14_transport_orphans/` |
+| INTRA_TRANSPORT (PROD deps) | 53 | Restored — move with package |
+| PROD callers | 15 | §24 migration follow-up |
+| **Total** | **163** | |
+
+### Key finding: transitive coupling
+
+15 PROD modules depend on 53 additional modules via import chains.
+AST-based transitive closure analysis required to identify safe
+archive boundary. Initial 148-archive reduced to 95 after discovering
+hard import-time dependencies.
+
+### Archive contents
+
+- 95 transport modules (zero PROD deps after transitive analysis)
+- 5 test files (tested only archived modules)
+- 1 test method removed from live test file
+- `__init__.py` trimmed: 474 → 62 lines, 54 → 4 registered modules
+
+### Results
+
+- **runtime/transport/**: 164 → 69 .py files (163 → 68 modules)
+- **Tests**: 4070/34/3 (96 tests removed with archived files, 0 regressions)
+- **Production smoke**: 15/15 PROD modules + 12/12 canonical entry points
+- **Commits**: 6 (`78951a82` .. `6abf0951`)
+
+### New follow-up: Transport package §24 migration
+
+68 modules remain in `runtime/transport/`. These form a tightly-coupled
+package that must migrate as a unit. Suggested §24 target:
+`execution/transport/` or dedicated top-level `transport/`.
+
+Subthread: 53 smoke test scripts in `scripts/` reference archived
+modules. Non-production — stale references expected.
