@@ -879,13 +879,13 @@ class TestStrategyCommandRegistration:
         assert entry.canonical_action == "strategy_report"
 
     def test_action_in_allowed(self) -> None:
-        from core.control_plane_router.router_contracts import ALLOWED_ACTION_TYPES
+        from control_plane.router.router_contracts import ALLOWED_ACTION_TYPES
 
         assert "strategy_report" in ALLOWED_ACTION_TYPES
         assert len(ALLOWED_ACTION_TYPES) == 27
 
     def test_action_in_map(self) -> None:
-        from core.control_plane_router.control_plane_router_v1 import (
+        from control_plane.router.control_plane_router_v1 import (
             ACTION_CAPABILITY_MAP,
         )
 

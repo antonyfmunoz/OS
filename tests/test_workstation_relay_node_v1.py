@@ -498,12 +498,12 @@ class TestCanonicalRegistryRelayStatus:
         assert "relay_status" in config["allowed_action_types"]
 
     def test_relay_status_in_allowed_action_types(self) -> None:
-        from core.control_plane_router.router_contracts import ALLOWED_ACTION_TYPES
+        from control_plane.router.router_contracts import ALLOWED_ACTION_TYPES
 
         assert "relay_status" in ALLOWED_ACTION_TYPES
 
     def test_relay_status_in_capability_map(self) -> None:
-        from core.control_plane_router.control_plane_router_v1 import (
+        from control_plane.router.control_plane_router_v1 import (
             ACTION_CAPABILITY_MAP,
         )
 

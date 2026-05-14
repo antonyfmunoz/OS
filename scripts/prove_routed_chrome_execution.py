@@ -31,8 +31,8 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-from core.control_plane_router.control_plane_router_v1 import ControlPlaneRouterV1
-from core.control_plane_router.router_contracts import (
+from control_plane.router.control_plane_router_v1 import ControlPlaneRouterV1
+from control_plane.router.router_contracts import (
     RouterStatus,
     WorkPacket,
 )
@@ -126,7 +126,7 @@ def prove_router_result_normalization(
 ) -> None:
     """Step 4: RouterResult normalization + Discord formatting."""
     _log("STEP 4: RouterResult normalization")
-    from core.control_plane_router.router_contracts import (
+    from control_plane.router.router_contracts import (
         RouterDecision,
         RouterResult,
         RuntimeProofReference,
@@ -190,7 +190,7 @@ def write_proof_artifacts(wp: WorkPacket, proof: RuntimeProofRecord) -> None:
         json.dump(dataclasses.asdict(proof), f, indent=2, default=str)
     _log(f"  {proof_path.name}")
 
-    from core.control_plane_router.router_contracts import (
+    from control_plane.router.router_contracts import (
         RouterDecision,
         RouterResult,
         RuntimeProofReference,

@@ -44,14 +44,14 @@ from runtime.interfaces.discord_spine_integration_v1 import (
     execute_spine_command,
     format_spine_result,
 )
-from core.control_plane_router.router_contracts import (
+from control_plane.router.router_contracts import (
     ALLOWED_ACTION_TYPES,
     CapabilityType,
     RouterResult,
     RouterStatus,
     WorkPacket,
 )
-from core.control_plane_router.control_plane_router_v1 import (
+from control_plane.router.control_plane_router_v1 import (
     ACTION_CAPABILITY_MAP,
     ControlPlaneRouterV1,
 )

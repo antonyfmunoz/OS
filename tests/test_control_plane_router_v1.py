@@ -16,13 +16,13 @@ import time
 import unittest
 from pathlib import Path
 
-from core.control_plane_router.router_contracts import (
+from control_plane.router.router_contracts import (
     ALLOWED_ACTION_TYPES,
     CapabilityType,
     RouterStatus,
     WorkPacket,
 )
-from core.control_plane_router.control_plane_router_v1 import (
+from control_plane.router.control_plane_router_v1 import (
     ACTION_CAPABILITY_MAP,
     ControlPlaneRouterV1,
     load_config,

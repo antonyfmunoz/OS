@@ -1480,22 +1480,22 @@ class TestRegistryIntegration:
         assert entry.canonical_action == "orchestration_report"
 
     def test_orchestration_report_in_router_contracts(self) -> None:
-        from core.control_plane_router.router_contracts import ALLOWED_ACTION_TYPES
+        from control_plane.router.router_contracts import ALLOWED_ACTION_TYPES
 
         assert "orchestration_report" in ALLOWED_ACTION_TYPES
 
     def test_orchestration_report_in_router_map(self) -> None:
-        from core.control_plane_router.control_plane_router_v1 import (
+        from control_plane.router.control_plane_router_v1 import (
             ACTION_CAPABILITY_MAP,
         )
 
         assert "orchestration_report" in ACTION_CAPABILITY_MAP
 
     def test_orchestration_report_capability_type(self) -> None:
-        from core.control_plane_router.control_plane_router_v1 import (
+        from control_plane.router.control_plane_router_v1 import (
             ACTION_CAPABILITY_MAP,
         )
-        from core.control_plane_router.router_contracts import CapabilityType
+        from control_plane.router.router_contracts import CapabilityType
 
         cap = ACTION_CAPABILITY_MAP["orchestration_report"]
         assert cap.capability_type == CapabilityType.ORCHESTRATION_GOVERNANCE

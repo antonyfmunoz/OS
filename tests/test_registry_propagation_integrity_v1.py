@@ -166,7 +166,7 @@ class TestRouterConfigParity:
             assert action in allowed, f"{action} missing from router config"
 
     def test_router_contracts_allow_all_actions(self) -> None:
-        from core.control_plane_router.router_contracts import ALLOWED_ACTION_TYPES
+        from control_plane.router.router_contracts import ALLOWED_ACTION_TYPES
         from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
@@ -174,7 +174,7 @@ class TestRouterConfigParity:
             assert action in ALLOWED_ACTION_TYPES, f"{action} missing from ALLOWED_ACTION_TYPES"
 
     def test_capability_map_has_all_actions(self) -> None:
-        from core.control_plane_router.control_plane_router_v1 import (
+        from control_plane.router.control_plane_router_v1 import (
             ACTION_CAPABILITY_MAP,
         )
         from composition.registries.canonical_command_registry_v1 import get_canonical_registry

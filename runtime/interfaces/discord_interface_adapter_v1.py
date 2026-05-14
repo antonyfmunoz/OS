@@ -33,11 +33,11 @@ _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.ge
 
 import discord
 
-from core.control_plane_router.control_plane_router_v1 import (
+from control_plane.router.control_plane_router_v1 import (
     ControlPlaneRouterV1,
     load_config as load_router_config,
 )
-from core.control_plane_router.router_contracts import (
+from control_plane.router.router_contracts import (
     RouterResult,
     RouterStatus,
     WorkPacket,

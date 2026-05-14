@@ -1253,22 +1253,22 @@ class TestRegistryIntegration(unittest.TestCase):
         self.assertEqual(entry.capability_type, "DISTRIBUTED_FEDERATION")
 
     def test_action_types_count(self) -> None:
-        from core.control_plane_router.router_contracts import ALLOWED_ACTION_TYPES
+        from control_plane.router.router_contracts import ALLOWED_ACTION_TYPES
 
         self.assertEqual(len(ALLOWED_ACTION_TYPES), 27)
 
     def test_federation_report_in_action_types(self) -> None:
-        from core.control_plane_router.router_contracts import ALLOWED_ACTION_TYPES
+        from control_plane.router.router_contracts import ALLOWED_ACTION_TYPES
 
         self.assertIn("federation_report", ALLOWED_ACTION_TYPES)
 
     def test_router_map_count(self) -> None:
-        from core.control_plane_router.control_plane_router_v1 import ACTION_CAPABILITY_MAP
+        from control_plane.router.control_plane_router_v1 import ACTION_CAPABILITY_MAP
 
         self.assertEqual(len(ACTION_CAPABILITY_MAP), 27)
 
     def test_router_map_has_federation(self) -> None:
-        from core.control_plane_router.control_plane_router_v1 import ACTION_CAPABILITY_MAP
+        from control_plane.router.control_plane_router_v1 import ACTION_CAPABILITY_MAP
 
         self.assertIn("federation_report", ACTION_CAPABILITY_MAP)
 
@@ -1336,7 +1336,7 @@ class TestRegistryIntegration(unittest.TestCase):
 
     def test_parity_registry_vs_router(self) -> None:
         from composition.registries.canonical_command_registry_v1 import get_canonical_registry
-        from core.control_plane_router.router_contracts import ALLOWED_ACTION_TYPES
+        from control_plane.router.router_contracts import ALLOWED_ACTION_TYPES
 
         reg = get_canonical_registry()
         self.assertEqual(len(reg), len(ALLOWED_ACTION_TYPES))

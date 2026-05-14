@@ -31,8 +31,8 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-from core.control_plane_router.control_plane_router_v1 import ControlPlaneRouterV1
-from core.control_plane_router.router_contracts import (
+from control_plane.router.control_plane_router_v1 import ControlPlaneRouterV1
+from control_plane.router.router_contracts import (
     RouterDecision,
     RouterStatus,
     RuntimeProofReference,

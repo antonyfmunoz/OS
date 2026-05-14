@@ -1165,7 +1165,7 @@ class TestRegistryIntegration(unittest.TestCase):
         self.assertIn("continuity_report", reg.actions)
 
     def test_router_contracts_capability_type(self) -> None:
-        from core.control_plane_router.router_contracts import (
+        from control_plane.router.router_contracts import (
             ALLOWED_ACTION_TYPES,
             CapabilityType,
         )
@@ -1177,7 +1177,7 @@ class TestRegistryIntegration(unittest.TestCase):
         )
 
     def test_router_action_map(self) -> None:
-        from core.control_plane_router.control_plane_router_v1 import (
+        from control_plane.router.control_plane_router_v1 import (
             ACTION_CAPABILITY_MAP,
         )
 
@@ -1219,7 +1219,7 @@ class TestRegistryIntegration(unittest.TestCase):
         self.assertIn("continuity_report", cap_ids)
 
     def test_allowed_action_types_count(self) -> None:
-        from core.control_plane_router.router_contracts import (
+        from control_plane.router.router_contracts import (
             ALLOWED_ACTION_TYPES,
         )
 

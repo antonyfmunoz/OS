@@ -722,12 +722,12 @@ class TestRegistryIntegration:
         assert entry.foreground_required is True
 
     def test_explore_environment_in_allowed_actions(self) -> None:
-        from core.control_plane_router.router_contracts import ALLOWED_ACTION_TYPES
+        from control_plane.router.router_contracts import ALLOWED_ACTION_TYPES
 
         assert "explore_environment" in ALLOWED_ACTION_TYPES
 
     def test_explore_environment_in_capability_map(self) -> None:
-        from core.control_plane_router.control_plane_router_v1 import (
+        from control_plane.router.control_plane_router_v1 import (
             ACTION_CAPABILITY_MAP,
         )
 

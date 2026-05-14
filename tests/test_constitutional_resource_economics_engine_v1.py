@@ -1012,17 +1012,17 @@ class TestEconomicsCommandRegistration:
         assert entry.canonical_action == "economics_report"
 
     def test_economics_report_action_in_allowed(self) -> None:
-        from core.control_plane_router.router_contracts import ALLOWED_ACTION_TYPES
+        from control_plane.router.router_contracts import ALLOWED_ACTION_TYPES
 
         assert "economics_report" in ALLOWED_ACTION_TYPES
 
     def test_allowed_action_types_count(self) -> None:
-        from core.control_plane_router.router_contracts import ALLOWED_ACTION_TYPES
+        from control_plane.router.router_contracts import ALLOWED_ACTION_TYPES
 
         assert len(ALLOWED_ACTION_TYPES) == 27
 
     def test_economics_report_in_action_map(self) -> None:
-        from core.control_plane_router.control_plane_router_v1 import (
+        from control_plane.router.control_plane_router_v1 import (
             ACTION_CAPABILITY_MAP,
         )
 

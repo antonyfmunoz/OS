@@ -28,7 +28,7 @@ from runtime.interfaces.discord_interface_adapter_v1 import (
     write_work_packet,
     DEFAULT_CONFIG_PATH,
 )
-from core.control_plane_router.router_contracts import (
+from control_plane.router.router_contracts import (
     RouterDecision,
     RouterResult,
     RouterStatus,
@@ -436,7 +436,7 @@ class TestAdapterInitializesWithRouter(unittest.TestCase):
             self.assertIn("proof_dir", data)
 
 
-from core.control_plane_router.control_plane_router_v1 import ControlPlaneRouterV1
+from control_plane.router.control_plane_router_v1 import ControlPlaneRouterV1
 
 
 if __name__ == "__main__":

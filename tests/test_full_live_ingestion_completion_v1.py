@@ -54,11 +54,11 @@ from adapters.adapter_engine.live_drive_docs_ingestion_pipeline_v1 import (
     MemoryCandidate,
     PIPELINE_FORBIDDEN_ACTIONS,
 )
-from core.control_plane_router.router_contracts import (
+from control_plane.router.router_contracts import (
     ALLOWED_ACTION_TYPES,
     CapabilityType,
 )
-from core.control_plane_router.control_plane_router_v1 import (
+from control_plane.router.control_plane_router_v1 import (
     ACTION_CAPABILITY_MAP,
 )
 from execution.environments.windows_desktop_request_builder import (

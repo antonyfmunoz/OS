@@ -54,11 +54,11 @@ from runtime.interfaces.discord_interface_adapter_v1 import (
     SUPPORTED_COMMANDS,
     build_work_packet_for_router,
 )
-from core.control_plane_router.router_contracts import (
+from control_plane.router.router_contracts import (
     ALLOWED_ACTION_TYPES,
     CapabilityType,
 )
-from core.control_plane_router.control_plane_router_v1 import (
+from control_plane.router.control_plane_router_v1 import (
     ACTION_CAPABILITY_MAP,
 )
 from execution.environments.windows_desktop_request_builder import (

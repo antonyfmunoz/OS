@@ -1016,12 +1016,12 @@ class TestIdentityCommandRegistration:
         assert "!identity-report" in reg.commands
 
     def test_action_in_allowed(self) -> None:
-        from core.control_plane_router.router_contracts import ALLOWED_ACTION_TYPES
+        from control_plane.router.router_contracts import ALLOWED_ACTION_TYPES
 
         assert "identity_report" in ALLOWED_ACTION_TYPES
 
     def test_action_in_map(self) -> None:
-        from core.control_plane_router.control_plane_router_v1 import (
+        from control_plane.router.control_plane_router_v1 import (
             ACTION_CAPABILITY_MAP,
         )
 

@@ -45,7 +45,7 @@ from runtime.interfaces.discord_spine_integration_v1 import (
     execute_spine_command,
     format_spine_result,
 )
-from core.control_plane_router.control_plane_router_v1 import (
+from control_plane.router.control_plane_router_v1 import (
     ControlPlaneRouterV1,
     load_config as load_router_config,
 )

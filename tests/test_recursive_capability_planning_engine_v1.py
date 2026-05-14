@@ -1008,7 +1008,7 @@ class TestRegistryIntegration:
         assert "capability_report" in config["allowed_action_types"]
 
     def test_capability_report_in_contracts(self) -> None:
-        from core.control_plane_router.router_contracts import (
+        from control_plane.router.router_contracts import (
             ALLOWED_ACTION_TYPES,
             CapabilityType,
         )
@@ -1017,7 +1017,7 @@ class TestRegistryIntegration:
         assert hasattr(CapabilityType, "CAPABILITY_PLANNING")
 
     def test_capability_report_in_action_map(self) -> None:
-        from core.control_plane_router.control_plane_router_v1 import ACTION_CAPABILITY_MAP
+        from control_plane.router.control_plane_router_v1 import ACTION_CAPABILITY_MAP
 
         assert "capability_report" in ACTION_CAPABILITY_MAP
 
