@@ -1593,7 +1593,7 @@ Tab 12 calls this "the MOST important missing section" because without it, hallu
 - VPS orchestration (`/opt/OS` on `srv1500858`)
 - Foreground CU ingestion pipeline (the API slice)
 - Phase 75B governed execution spine end-to-end: Input → Control Plane → Identity → Governance → Backend Registry → Canonical Execution Engine → Trace Store → Result
-- Salience pipeline for EOS memory (episodic logging, salience scoring, consolidation, promotion thresholds, Neon metadata)
+- Salience pipeline for EOS memory (conversation logging, salience scoring, consolidation, promotion thresholds, Neon metadata)
 - Tailscale mesh (VPS + Windows + iPhone)
 - ttyd / Termius / code-server access paths
 - Persistent `claude` tmux session
@@ -1607,7 +1607,6 @@ Tab 12 calls this "the MOST important missing section" because without it, hallu
 
 - Workstation automation (modes exist conceptually, runtime is partial)
 - Google session routing (API path solid, CU path provisional)
-- Cross-session salience (logged but not yet consolidated nightly)
 - UserPromptSubmit hook capture (planned, not in production)
 - Semantic retrieval tuning (basic recall works, ranking is naive)
 - Subprocess lifecycle management (4GB swapfile + management works, but spawning cap is still a manual ceiling)
@@ -1616,7 +1615,6 @@ Tab 12 calls this "the MOST important missing section" because without it, hallu
 
 - Founder-confirmed foreground extraction (W-GDOCS-CU-001 still blocked on local GUI gaps)
 - Full W0-001 triple-test (API/CU/parity)
-- Nightly consolidation cron for memory promotion
 - End-to-end RLHF loop (memory writes happen on only 2 of 13 message paths in the EOS gateway — the foundational diagnosis from earlier)
 
 ## 37. Not Built `PLANNED` / `SPECULATIVE`
@@ -1787,6 +1785,30 @@ This frame is correct as direction but dangerous as near-term build pressure. Th
 |Substrate / Execution Infra / Platform Surfaces / Domain Systems|§17                    |Tab 12    |
 |Through-line                                                    |§1, §46                |Tab 12    |
 |Synthesis precursor                                             |informed §29, §38–§45  |Tab 13    |
+
+-----
+
+## Appendix C — Audit Corrections Log
+
+### 2026-05-13 — Salience Audit Corrections
+
+Triggered by migration test PROVEN-IN-NAME-ONLY finding.
+Full audit: data/audits/2026-05-13_salience_audit.md
+
+- §34: reworded "episodic logging" → "conversation logging"
+  (code logs as markdown, not typed EPISODIC entries)
+- §35: removed cross-session salience line — verified PROVEN
+  (score_cross_session() runs nightly, 150 summaries scored)
+- §36: removed nightly consolidation cron line — verified
+  PROVEN (cron successful 14 nights, Apr 24 – May 12)
+- Architectural note: §24 canonical module tree is
+  request-path-centric. Operator tooling / batch / scheduled
+  work (scripts/ today, 2,100 LOC of salience pipeline)
+  doesn't have a formal §24 layer. This is a real
+  architectural gap to address during migration. Salience
+  pipeline is one of multiple subsystems that will need a
+  home — possibly a new top-level operator_tooling/ or
+  batch/, possibly under learning/ or execution/.
 
 -----
 
