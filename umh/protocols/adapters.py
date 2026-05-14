@@ -129,6 +129,8 @@ class AccessPath(BaseModel):
 
     path_id: str
     method: str
+    type: str = ""  # See Q10 of open_questions_resolved.md
+    environment_type: str = ""
     description: str = ""
 
 
