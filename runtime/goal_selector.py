@@ -874,102 +874,57 @@ class GoalSelector:
     def _persist_goal(self, goal: Goal) -> None:
         """Upsert a single goal to Neon."""
         try:
-            with get_conn(self.org_id) as cur:
-                cur.execute(
-                    """
-                    INSERT INTO goals (
-                        id, org_id, title, description, state,
-                        priority, expected_impact, estimated_cost,
-                        confidence, dependency_unlock, venture_id,
-                        blocked_by, score, rank, score_explanation,
-                        performance, created_at, updated_at
-                    ) VALUES (
-                        %s, %s, %s, %s, %s,
-                        %s, %s, %s,
-                        %s, %s, %s,
-                        %s, %s, %s, %s,
-                        %s, %s, %s
-                    )
-                    ON CONFLICT (id) DO UPDATE SET
-                        title = EXCLUDED.title,
-                        description = EXCLUDED.description,
-                        state = EXCLUDED.state,
-                        priority = EXCLUDED.priority,
-                        expected_impact = EXCLUDED.expected_impact,
-                        estimated_cost = EXCLUDED.estimated_cost,
-                        confidence = EXCLUDED.confidence,
-                        dependency_unlock = EXCLUDED.dependency_unlock,
-                        venture_id = EXCLUDED.venture_id,
-                        blocked_by = EXCLUDED.blocked_by,
-                        score = EXCLUDED.score,
-                        rank = EXCLUDED.rank,
-                        score_explanation = EXCLUDED.score_explanation,
-                        performance = EXCLUDED.performance,
-                        updated_at = EXCLUDED.updated_at
-                    """,
-                    (
-                        goal.id,
-                        goal.org_id,
-                        goal.title,
-                        goal.description,
-                        goal.state.value,
-                        goal.priority,
-                        goal.expected_impact,
-                        goal.estimated_cost,
-                        goal.confidence,
-                        goal.dependency_unlock,
-                        goal.venture_id,
-                        json.dumps(goal.blocked_by),
-                        goal.score,
-                        goal.rank,
-                        json.dumps(goal.score_explanation),
-                        json.dumps(goal.performance.to_dict()),
-                        goal.created_at.isoformat(),
-                        goal.updated_at.isoformat(),
-                    ),
-                )
+            from state.stores.goal_store import GoalStore
+            GoalStore().upsert_goal(
+                org_id=goal.org_id,
+                goal_id=goal.id,
+                title=goal.title,
+                description=goal.description,
+                state=goal.state.value,
+                priority=goal.priority,
+                expected_impact=goal.expected_impact,
+                estimated_cost=goal.estimated_cost,
+                confidence=goal.confidence,
+                dependency_unlock=goal.dependency_unlock,
+                venture_id=goal.venture_id,
+                blocked_by=goal.blocked_by,
+                score=goal.score,
+                rank=goal.rank,
+                score_explanation=goal.score_explanation,
+                performance=goal.performance.to_dict(),
+                created_at=goal.created_at.isoformat(),
+                updated_at=goal.updated_at.isoformat(),
+            )
         except Exception as e:
             print(f"[GoalSelector] persist failed: {e}")
 
     def _persist_goals(self, goals: list[Goal]) -> None:
         """Batch persist — one transaction."""
         try:
-            with get_conn(self.org_id) as cur:
-                for goal in goals:
-                    cur.execute(
-                        """
-                        UPDATE goals SET
-                            state = %s, score = %s, rank = %s,
-                            score_explanation = %s, dependency_unlock = %s,
-                            performance = %s, horizons = %s,
-                            updated_at = %s,
-                            opportunity_cost_adjustment = %s,
-                            swap_pressure_cycles = %s,
-                            stability_bonus = %s,
-                            horizon_adjustments = %s,
-                            failure_streak = %s,
-                            priority_decay_multiplier = %s
-                        WHERE id = %s AND org_id = %s
-                        """,
-                        (
-                            goal.state.value,
-                            goal.score,
-                            goal.rank,
-                            json.dumps(goal.score_explanation),
-                            goal.dependency_unlock,
-                            json.dumps(goal.performance.to_dict()),
-                            json.dumps(goal.horizons.to_dict()),
-                            goal.updated_at.isoformat(),
-                            goal.opportunity_cost_adjustment,
-                            goal.swap_pressure_cycles,
-                            goal.stability_bonus,
-                            json.dumps(goal.horizon_adjustments),
-                            goal.failure_streak,
-                            goal.priority_decay_multiplier,
-                            goal.id,
-                            goal.org_id,
-                        ),
-                    )
+            from state.stores.goal_store import GoalStore
+            GoalStore().batch_update_rankings(
+                org_id=self.org_id,
+                goals=[
+                    {
+                        "id": g.id,
+                        "state": g.state.value,
+                        "score": g.score,
+                        "rank": g.rank,
+                        "score_explanation": g.score_explanation,
+                        "dependency_unlock": g.dependency_unlock,
+                        "performance": g.performance.to_dict(),
+                        "horizons": g.horizons.to_dict(),
+                        "updated_at": g.updated_at.isoformat(),
+                        "opportunity_cost_adjustment": g.opportunity_cost_adjustment,
+                        "swap_pressure_cycles": g.swap_pressure_cycles,
+                        "stability_bonus": g.stability_bonus,
+                        "horizon_adjustments": g.horizon_adjustments,
+                        "failure_streak": g.failure_streak,
+                        "priority_decay_multiplier": g.priority_decay_multiplier,
+                    }
+                    for g in goals
+                ],
+            )
         except Exception as e:
             print(f"[GoalSelector] batch persist failed: {e}")
 
@@ -1156,24 +1111,16 @@ class OutcomeTracker:
 
         # 1. Persist outcome to goal_outcomes table
         try:
-            with get_conn(self.org_id) as cur:
-                cur.execute(
-                    """
-                    INSERT INTO goal_outcomes
-                        (org_id, goal_id, outcome_type, task_type,
-                         execution_time, impact_delta, metadata)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    """,
-                    (
-                        self.org_id,
-                        goal_id,
-                        outcome_type,
-                        task_type,
-                        execution_time,
-                        impact_delta,
-                        json.dumps(metadata or {}),
-                    ),
-                )
+            from state.stores.goal_store import GoalStore
+            GoalStore().insert_outcome(
+                org_id=self.org_id,
+                goal_id=goal_id,
+                outcome_type=outcome_type,
+                task_type=task_type,
+                execution_time=execution_time,
+                impact_delta=impact_delta,
+                metadata=metadata or {},
+            )
         except Exception as e:
             print(f"[OutcomeTracker] persist outcome failed: {e}")
             return
@@ -1187,25 +1134,16 @@ class OutcomeTracker:
 
         # 4. Update goal's performance + horizons + decay columns
         try:
-            with get_conn(self.org_id) as cur:
-                cur.execute(
-                    """
-                    UPDATE goals SET
-                        performance = %s, horizons = %s,
-                        failure_streak = %s, priority_decay_multiplier = %s,
-                        updated_at = %s
-                    WHERE id = %s AND org_id = %s
-                    """,
-                    (
-                        json.dumps(profile.to_dict()),
-                        json.dumps(horizons.to_dict()),
-                        failure_streak,
-                        decay_multiplier,
-                        now.isoformat(),
-                        goal_id,
-                        self.org_id,
-                    ),
-                )
+            from state.stores.goal_store import GoalStore
+            GoalStore().update_performance(
+                org_id=self.org_id,
+                goal_id=goal_id,
+                performance=profile.to_dict(),
+                horizons=horizons.to_dict(),
+                failure_streak=failure_streak,
+                priority_decay_multiplier=decay_multiplier,
+                updated_at=now.isoformat(),
+            )
         except Exception as e:
             print(f"[OutcomeTracker] update performance failed: {e}")
 
