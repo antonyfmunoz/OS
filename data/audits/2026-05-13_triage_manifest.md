@@ -1215,7 +1215,7 @@ from runtime.transport.<module> import *  # noqa: F401,F403
 | ~~Transport production path migration~~ | ~~16 modules (Row 76/60)~~ | ~~CLOSED — all substrate imports eliminated 2026-05-14~~ |
 | Law 5.4 type convergence | 5 spine modules | Dedicated follow-up wave |
 | Law 5.9 adapter refactor | 6 files in execution/workers/workstation/ | §14.1 contract |
-| Law 5.5 memory write fixes (Phase A) | 52 modules, ~100 SQL sites | Tier 1 COMPLETE (31 modules, 44 events-INSERT sites). Tier 2 (4 UPDATE sites) + Tier 3 (14 domain stores, ~50 sites) pending. See `2026-05-14_law_5_5_memory_api_design.md` |
+| Law 5.5 memory write fixes (Phase A) | 52 modules, ~100 SQL sites | Tier 1 COMPLETE (33 modules, 46 events-INSERT sites). Tier 2 COMPLETE (4 UPDATE sites + 2 INVESTIGATE). Tier 3 (14 domain stores, ~50 sites) pending. See `2026-05-14_law_5_5_memory_api_design.md` |
 | Runtime layer migration (Row 88) | 92 reachable modules (108 total incl. spine + unreachable) | IN PLANNING — three-phase: A (Law 5.5 API) → B (context.py hub, 96 callers) → C (remaining). 23 modules free now. See `2026-05-14_runtime_layer_classification.md` |
 | Cron script migration | 23 files | System-level coordination |
 | ~~Docker compose paths~~ | ~~calendly_webhook~~ | ~~CLOSED — calendly path updated 2026-05-14. discord_bot not yet migrated from services/.~~ |
@@ -1507,37 +1507,81 @@ self_awareness, skill_improvement, stakeholder_map, subscription_tracker,
 task_executor (2 sites), task_yield_matrix, travel_manager (2 sites),
 workflow_engine (2 sites)
 
-### INVESTIGATE list (2 modules — non-standard column patterns)
+### ~~INVESTIGATE list~~ — RESOLVED (Tier 2)
 
-| Module | Columns | Issue |
-|--------|---------|-------|
-| notebooklm_sync | `(id, org_id, event_type, payload_json, created_at)` | Explicit id + created_at |
-| stage_manager | `(id, org_id, type, payload, created_at)` | Different column names (`type` not `event_type`, `payload` not `payload_json`) |
+| Module | Original issue | Resolution |
+|--------|---------------|------------|
+| notebooklm_sync | Explicit id + created_at | Redundant — DB handles both. Adopted `log_event()` |
+| stage_manager | Wrong column names (`type`, `payload`) | **Latent bug** — INSERT would fail at runtime. Adopted `log_event()` which fixes the bug |
 
-These could be handled by extending log_event() with optional id/created_at
-params, or by normalizing the column names. Deferred.
+### ~~UPDATE sites~~ — ADOPTED (Tier 2)
 
-### UPDATE sites preserved (Tier 2 — 4 sites in 3 modules)
-
-| Module | Sites | Pattern |
-|--------|-------|---------|
-| accountability | 1 | `UPDATE events SET payload_json = %s WHERE id = %s` |
-| feedback_loop | 2 | `UPDATE events SET payload_json = %s WHERE id = %s` |
-| delegation_tracker | 1 | (needs inspection) |
+| Module | Sites | Old pattern | New method |
+|--------|-------|-------------|------------|
+| accountability | 1 | read-modify-write (SELECT → mutate → UPDATE) | `merge_event_payload()` |
+| feedback_loop | 2 | read-modify-write (SELECT → mutate → UPDATE) | `merge_event_payload()` |
+| delegation_tracker | 1 | JSONB merge (`\|\|`) | `merge_event_payload()` |
 
 ### Remaining Law 5.5 violations
 
 | Tier | Sites | Status |
 |------|-------|--------|
-| ~~Tier 1 (events INSERT)~~ | ~~44~~ | ~~COMPLETE~~ |
-| Tier 1 INVESTIGATE | 2 | Non-standard patterns |
-| Tier 2 (events UPDATE) | 4 | New method needed |
+| ~~Tier 1 (events INSERT)~~ | ~~46~~ | ~~COMPLETE~~ |
+| ~~Tier 1 INVESTIGATE~~ | ~~2~~ | ~~RESOLVED (adopted log_event)~~ |
+| ~~Tier 2 (events UPDATE)~~ | ~~4~~ | ~~COMPLETE (merge_event_payload)~~ |
 | Tier 3 (domain tables) | ~50 | 14 domain store classes needed |
+| discord_bot.py (Row 60) | 6 | 1 INSERT + 5 UPDATE — blocked on bot migration |
 | **Total remaining** | **~56** | |
 
-### Verification
+### Tier 1 Verification
 
 - Tests: 3827 passed / 34 failed (pre-existing) / 3 skipped
 - Compile: 32/32 files pass py_compile
 - Import smoke: 28/30 pass (2 pre-existing DATABASE_URL env failures)
 - Commit: `0b2d13ec`
+
+---
+
+## Law 5.5 Tier 2 Adoption — 2026-05-14
+
+**COMPLETE.** 1 new method added to AgentMemory. 4 UPDATE sites + 2 INVESTIGATE
+items adopted. runtime/ layer now has ZERO raw events SQL.
+
+### memory.py change
+
+Added `merge_event_payload(org_id, event_id, updates) -> bool`.
+Uses JSONB `||` operator for atomic server-side merge. +18 lines.
+Existing methods unchanged (additive only).
+
+### Tier 2 modules adopted (3 modules, 4 UPDATE sites)
+
+| Module | Sites | Old pattern | Improvement |
+|--------|-------|-------------|-------------|
+| accountability | 1 | read-modify-write (2 round-trips) | Atomic merge (1 round-trip, no race) |
+| feedback_loop | 2 | read-modify-write (2 round-trips) | Atomic merge (1 round-trip, no race) |
+| delegation_tracker | 1 | JSONB `\|\|` (already atomic) | Canonical API call |
+
+### INVESTIGATE items resolved (2 modules, 2 INSERT sites → log_event)
+
+| Module | Issue | Resolution |
+|--------|-------|------------|
+| notebooklm_sync | Explicit id + created_at | Redundant — adopted `log_event()` |
+| stage_manager | Wrong column names (`type`, `payload`) | **Latent bug fixed** — adopted `log_event()` |
+
+### runtime/ events SQL status: CLEAN
+
+```
+grep -rn "INSERT INTO events\|UPDATE events" runtime/ → 0 results
+```
+
+Only remaining events SQL:
+- `state/memory/memory.py` — the canonical API itself (correct)
+- `services/discord_bot.py` — 6 sites (Row 60, blocked on bot migration)
+
+### Verification
+
+- Tests: 4139 passed / 35 failed (all pre-existing) / 3 skipped
+- py_compile: 6/6 touched files pass
+- Import smoke: 6/6 touched modules import cleanly
+- Tree grep: 0 raw `UPDATE events SET` in runtime/
+- Commits: `f0ad2b0c` (method), `0daa2040` (4 sites), `1af6e822` (INVESTIGATE)
