@@ -138,24 +138,15 @@ class ContextCompactor:
                 brief["last_action"] = result.output[:500]
 
         # Persist to Neon
-        with get_conn(self.ctx.org_id) as cur:
-            cur.execute(
-                """
-                INSERT INTO context_compactions
-                    (org_id, session_id, generation, brief_json,
-                     messages_compressed, tokens_before)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                RETURNING id
-                """,
-                (
-                    self.ctx.org_id,
-                    session_id,
-                    generation,
-                    json.dumps(brief),
-                    len(messages),
-                    tokens_before,
-                ),
-            )
+        from state.stores.context_compaction_store import ContextCompactionStore
+        ContextCompactionStore().insert_compaction(
+            org_id=self.ctx.org_id,
+            session_id=session_id,
+            generation=generation,
+            brief=brief,
+            messages_compressed=len(messages),
+            tokens_before=tokens_before,
+        )
 
         print(
             f"[ContextCompactor] Session {str(session_id)[:8]}... "
