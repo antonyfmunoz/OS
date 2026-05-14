@@ -607,7 +607,7 @@ class VoiceEngine:
 
         if ctx is not None:
             try:
-                from runtime.gateway import EOSGateway
+                from control_plane.runtime.gateway import EOSGateway
                 gw     = EOSGateway()
                 result = gw.handle({'type': 'agent_task', 'prompt': text})
                 output = result.get('output') or result.get('brief') or ''

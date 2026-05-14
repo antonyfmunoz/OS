@@ -42,7 +42,7 @@ _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.ge
 from runtime.substrate import meeting_intelligence as mi  # noqa: E402
 
 HOT_PATH_FILES = (
-    "runtime/gateway.py",
+    "control_plane/runtime/gateway.py",
     "control_plane/runtime/cognitive_loop.py",
     "execution/runtime/model_router.py",
     "execution/runtime/agent_runtime.py",

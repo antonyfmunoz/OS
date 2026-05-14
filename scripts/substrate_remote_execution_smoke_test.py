@@ -179,7 +179,7 @@ def test_hot_path_imports() -> None:
         import importlib
 
         for mod in (
-            "runtime.gateway",
+            "control_plane.runtime.gateway",
             "control_plane.runtime.cognitive_loop",
             "execution.runtime.model_router",
             "execution.runtime.agent_runtime",

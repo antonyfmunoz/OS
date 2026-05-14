@@ -95,7 +95,7 @@ class CEOAgent:
         """
         import json
         from runtime.coordination_engine import CoordinationEngine
-        from runtime.gateway import get_gateway as _get_gw
+        from control_plane.runtime.gateway import get_gateway as _get_gw
 
         # Step 1: break objective into department-level sub-objectives via gateway
         _gw = _get_gw()
@@ -716,7 +716,7 @@ def run_ceo_morning_delegation(
                 results.append(f"🚀 **{venture_name}:** {changes['message']}")
 
             # Determine today's objective for this venture
-            from runtime.gateway import get_gateway as _get_gw
+            from control_plane.runtime.gateway import get_gateway as _get_gw
 
             primitives = evo_ceo.detect_primitives()
             stage = primitives.get("stage", 1)
@@ -1118,7 +1118,7 @@ async def generate_morning_brief(ctx: EOSContext) -> str:
 
     # Add AI insight on top of data — route through gateway
     try:
-        from runtime.gateway import get_gateway as _get_gw_brief
+        from control_plane.runtime.gateway import get_gateway as _get_gw_brief
 
         _gw_brief = _get_gw_brief()
         _insight_result = _gw_brief.handle(

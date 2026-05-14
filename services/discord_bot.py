@@ -87,7 +87,7 @@ load_dotenv(_REPO_ROOT / "runtime" / ".env")
 
 # ─── EOS imports ──────────────────────────────────────────────────────────────
 
-from runtime.gateway import EOSGateway
+from control_plane.runtime.gateway import EOSGateway
 from runtime.context import load_context_from_env
 from runtime.knowledge_integrator import KnowledgeIntegrator
 from runtime.voice_engine import VoiceEngine

@@ -215,7 +215,7 @@ def test_hotpath_clean() -> None:
 
     src = open(dmr.__file__).read()
     forbidden = (
-        "runtime.gateway",
+        "control_plane.runtime.gateway",
         "control_plane.runtime.cognitive_loop",
         "execution.runtime.model_router",
         "execution.runtime.agent_runtime",

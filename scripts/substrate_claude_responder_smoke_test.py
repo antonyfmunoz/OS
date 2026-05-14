@@ -43,7 +43,7 @@ def check(name: str, cond: bool, detail: str = "") -> None:
 def _hotpath_clean() -> bool:
     src = open(cr.__file__).read()
     forbidden = (
-        "runtime.gateway",
+        "control_plane.runtime.gateway",
         "control_plane.runtime.cognitive_loop",
         "execution.runtime.model_router",
         "execution.runtime.agent_runtime",

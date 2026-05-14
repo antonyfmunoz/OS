@@ -138,7 +138,7 @@ def run_task(
 
         # ── 3. ROUTE ─────────────────────────────────────────────────
         # Call gateway.classify_intent() to determine path.
-        from runtime.gateway import EOSGateway
+        from control_plane.runtime.gateway import EOSGateway
 
         gw = EOSGateway()
         intent = gw.classify_intent(clean_text)

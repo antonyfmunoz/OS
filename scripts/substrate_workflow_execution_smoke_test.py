@@ -226,7 +226,7 @@ def main() -> None:
             del sys.modules[mod_name]
         importlib.import_module(mod_name)
         for forbidden in [
-            "runtime.gateway",
+            "control_plane.runtime.gateway",
             "control_plane.runtime.cognitive_loop",
             "execution.runtime.model_router",
             "execution.runtime.agent_runtime",

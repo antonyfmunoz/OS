@@ -156,7 +156,7 @@ class EOSSystemHealth:
 
         # Gateway singleton
         try:
-            from runtime.gateway import get_gateway
+            from control_plane.runtime.gateway import get_gateway
 
             gw = get_gateway()
             health["gateway"] = {

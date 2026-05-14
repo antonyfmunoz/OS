@@ -220,7 +220,7 @@ def main() -> int:
 
     # 12. hot-path guard — none of the untouchable files mention resolution
     hot = [
-        "runtime/gateway.py",
+        "control_plane/runtime/gateway.py",
         "control_plane/runtime/cognitive_loop.py",
         "execution/runtime/model_router.py",
         "execution/runtime/agent_runtime.py",

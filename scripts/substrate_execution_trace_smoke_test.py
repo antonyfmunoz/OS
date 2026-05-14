@@ -385,7 +385,7 @@ def main() -> int:
     # Must not import cognitive_loop directly
     has_cognitive_import = "from control_plane.runtime.cognitive_loop" in transport_src
     # Must not import gateway directly
-    has_gateway_import = "from runtime.gateway" in transport_src
+    has_gateway_import = "from control_plane.runtime.gateway" in transport_src
     check(
         "24. discord_text_transport does not import cognitive_loop or gateway",
         not has_cognitive_import and not has_gateway_import,

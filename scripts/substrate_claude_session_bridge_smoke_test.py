@@ -40,7 +40,7 @@ def _hotpath_clean() -> bool:
     import runtime.substrate.claude_session_bridge as m
 
     forbidden = {
-        "runtime.gateway",
+        "control_plane.runtime.gateway",
         "control_plane.runtime.cognitive_loop",
         "execution.runtime.model_router",
         "execution.runtime.agent_runtime",

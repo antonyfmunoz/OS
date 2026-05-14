@@ -32,7 +32,7 @@ def _emit(obj: dict) -> None:
 
 
 def _run_agent(payload: dict) -> dict:
-    from runtime.gateway import EOSGateway
+    from control_plane.runtime.gateway import EOSGateway
     gateway = EOSGateway()
     request = {
         "type":       "agent_task",
@@ -61,7 +61,7 @@ def _run_agent(payload: dict) -> dict:
 
 
 def _run_team(payload: dict) -> dict:
-    from runtime.gateway import EOSGateway
+    from control_plane.runtime.gateway import EOSGateway
     gateway = EOSGateway()
     request = {
         "type":       "agent_task",

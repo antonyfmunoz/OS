@@ -63,7 +63,7 @@ ROOM_DEFS: list[dict[str, Any]] = [
             "runtime/model_preferences.py",
             "runtime/primitives.py",
             "runtime/intent_router.py",
-            "runtime/gateway.py",
+            "control_plane/runtime/gateway.py",
         ],
     },
     {

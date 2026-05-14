@@ -291,7 +291,7 @@ def main() -> int:
     assert len(res2["commitments"]) <= mi.MAX_COMMITMENTS
 
     # ── 14. Hot path imports remain clean ─────────────────────────────
-    import runtime.gateway  # noqa: F401
+    import control_plane.runtime.gateway  # noqa: F401
     import control_plane.runtime.cognitive_loop  # noqa: F401
     import execution.runtime.model_router  # noqa: F401
     import execution.runtime.agent_runtime  # noqa: F401

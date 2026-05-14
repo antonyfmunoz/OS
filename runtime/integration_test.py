@@ -71,7 +71,7 @@ def main() -> None:
     print(f"  {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(SEP2)
 
-    from runtime.gateway import EOSGateway
+    from control_plane.runtime.gateway import EOSGateway
     from runtime.event_bus import EventBus, EventRegistry
 
     gw  = EOSGateway()

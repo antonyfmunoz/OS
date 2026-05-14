@@ -763,7 +763,7 @@ Return JSON only:
                     # Queue draft for approval — writes to orchestrator/approvals/pending/
                     if email.draft_response:
                         try:
-                            from runtime.gateway import EOSGateway
+                            from control_plane.runtime.gateway import EOSGateway
                             gw = EOSGateway()
                             approval_id = gw.queue_for_approval({
                                 "type":       "email_draft",

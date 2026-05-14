@@ -21,7 +21,7 @@ Request schema:
     }
 
 Usage:
-    from runtime.gateway import EOSGateway
+    from control_plane.runtime.gateway import EOSGateway
     gw = EOSGateway()
     result = gw.handle({"type": "brief", "prompt": "", "venture_id": "lyfe_institute"})
 """
