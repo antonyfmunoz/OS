@@ -231,8 +231,8 @@ def main() -> int:
     if args.execute:
         # delegate to the research agent; honest v1 — plans are replaced
         # by a real run with artifacts under logs/tool_mastery_research/
-        from core.tool_mastery_research_agent.agent import run as _run_research
-        from core.tool_mastery_research_agent.models import (
+        from composition.mastery.research.agent import run as _run_research
+        from composition.mastery.research.models import (
             ResearchMode,
             ResearchRequest,
         )

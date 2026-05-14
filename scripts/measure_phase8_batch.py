@@ -33,8 +33,8 @@ from core.tool_mastery_author_agent.mapping import (
     map_sections,
 )
 from core.tool_mastery_author_agent.draft import build_drafts
-from core.tool_mastery_research_agent.artifact import TME_SECTIONS
-from core.tool_mastery_research_agent.extraction import (
+from composition.mastery.research.artifact import TME_SECTIONS
+from composition.mastery.research.extraction import (
 
     extract_from_source,
     merge_extractions,
