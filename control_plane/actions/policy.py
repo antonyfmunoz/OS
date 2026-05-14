@@ -121,7 +121,7 @@ def authority_classify(business_action_type: str) -> Optional[RiskLevel]:
     unavailable.
     """
     try:
-        from runtime.authority_engine import RISK_CLASSES  # lazy import
+        from governance.policy.authority_engine import RISK_CLASSES  # lazy import
     except Exception:
         return None
     for upper_class, actions in RISK_CLASSES.items():

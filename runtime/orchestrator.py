@@ -473,7 +473,7 @@ def run_full_morning_cycle(ctx: EOSContext, return_content: bool = False):
     # 5. Pending approvals across all companies
     pending: list = []
     try:
-        from runtime.authority_engine import AuthorityEngine
+        from governance.policy.authority_engine import AuthorityEngine
 
         ae = AuthorityEngine(ctx)
         pending = ae.get_pending()

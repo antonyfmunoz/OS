@@ -57,7 +57,7 @@ class TestSpineAuthorityGate:
 
         with (
             patch("runtime.context.load_context_from_env") as mock_load,
-            patch("runtime.authority_engine.AuthorityEngine") as mock_ae_cls,
+            patch("governance.policy.authority_engine.AuthorityEngine") as mock_ae_cls,
         ):
             mock_ae_cls.return_value = mock_ae
 
@@ -90,7 +90,7 @@ class TestSpineAuthorityGate:
 
         with (
             patch("runtime.context.load_context_from_env"),
-            patch("runtime.authority_engine.AuthorityEngine") as mock_ae_cls,
+            patch("governance.policy.authority_engine.AuthorityEngine") as mock_ae_cls,
             patch(
                 "runtime.model_router.call_with_fallback",
                 return_value=mock_routing_result,

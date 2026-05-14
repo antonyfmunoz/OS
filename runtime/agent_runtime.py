@@ -33,7 +33,7 @@ load_dotenv(Path(__file__).parent / ".env")
 from runtime.context import EOSContext, load_context_from_env
 from runtime.venture_knowledge import VentureKnowledgeBase
 from runtime.skill_registry import SkillRegistry, get_skill_registry
-from runtime.authority_engine import AuthorityEngine
+from governance.policy.authority_engine import AuthorityEngine
 from runtime.model_preferences import ModelPreferences
 
 

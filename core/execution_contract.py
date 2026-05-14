@@ -175,7 +175,7 @@ def run_task(
         action = request.get("action")
         if action:
             try:
-                from runtime.authority_engine import AuthorityEngine
+                from governance.policy.authority_engine import AuthorityEngine
 
                 ctx = load_context_from_env()
                 ae = AuthorityEngine(ctx)

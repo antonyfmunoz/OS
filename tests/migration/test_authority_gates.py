@@ -11,7 +11,7 @@ import pytest
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or "/opt/OS")
 
-from runtime.authority_engine import (
+from governance.policy.authority_engine import (
     AUTONOMY_LEVEL_MAP,
     MIN_LEVEL_TO_EXECUTE,
     RISK_CLASSES,
