@@ -24,7 +24,7 @@ async def midday_checkin():
     from runtime.gws_connector import GWSConnector
     from runtime.context import load_context_from_env
     from runtime.db import get_conn
-    from runtime.model_router import get_router, TaskType
+    from execution.runtime.model_router import get_router, TaskType
     from dateutil.parser import parse as _parse
 
     ctx = load_context_from_env()

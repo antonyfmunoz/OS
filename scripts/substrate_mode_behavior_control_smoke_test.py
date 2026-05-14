@@ -219,7 +219,7 @@ mb_source = inspect.getsource(mb)
 hot_path_imports = [
     "from runtime.gateway",
     "from control_plane.runtime.cognitive_loop",
-    "from runtime.model_router",
+    "from execution.runtime.model_router",
     "from execution.runtime.agent_runtime",
     "from understanding.ontology.primitives",
 ]

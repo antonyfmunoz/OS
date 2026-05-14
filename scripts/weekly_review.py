@@ -24,7 +24,7 @@ async def run_weekly_review():
     from runtime.context import load_context_from_env
     from runtime.db import get_conn
     from runtime.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
-    from runtime.model_router import get_router, TaskType
+    from execution.runtime.model_router import get_router, TaskType
     import json as _json
 
     ctx = load_context_from_env()

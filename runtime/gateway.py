@@ -421,7 +421,7 @@ class EOSGateway:
         try:
             from runtime.context import load_context_from_env
             from runtime.email_gps import EmailGPS
-            from runtime.model_router import get_router, TaskType
+            from execution.runtime.model_router import get_router, TaskType
 
             ctx_eos = load_context_from_env()
             gps = EmailGPS(ctx_eos)
@@ -867,7 +867,7 @@ class EOSGateway:
 
     def _web_search(self, query: str) -> str:
         try:
-            from runtime.model_router import get_router, TaskType as RouterTaskType
+            from execution.runtime.model_router import get_router, TaskType as RouterTaskType
 
             router = get_router()
             result = router.call_with_fallback(
@@ -1892,7 +1892,7 @@ class EOSGateway:
             "UNKNOWN",
         }
         try:
-            from runtime.model_router import call_with_fallback, TaskType
+            from execution.runtime.model_router import call_with_fallback, TaskType
 
             result = call_with_fallback(
                 prompt=text,

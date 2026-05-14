@@ -436,7 +436,7 @@ class StepExecutor:
 
     # ── Lazy imports so `--help` and dry-run don't require full env ──────
     def _router_call(self) -> Callable[..., Any]:
-        from runtime.model_router import call_with_fallback
+        from execution.runtime.model_router import call_with_fallback
 
         return call_with_fallback
 

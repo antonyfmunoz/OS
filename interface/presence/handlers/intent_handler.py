@@ -227,7 +227,7 @@ def run_gateway(
                 _q_payload = json.loads(_q_payload)
             _question = _q_payload.get("question", "")
 
-            from runtime.model_router import call_with_fallback as _cl_cwf
+            from execution.runtime.model_router import call_with_fallback as _cl_cwf
 
             _cl_result = _cl_cwf(
                 prompt=f"""Does this message answer this question?

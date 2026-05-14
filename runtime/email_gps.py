@@ -293,7 +293,7 @@ class EmailGPS:
                 current_purpose = row['purpose'] if row else ''
 
             # Use AI to update purpose
-            from runtime.model_router import get_router, TaskType
+            from execution.runtime.model_router import get_router, TaskType
             router = get_router(self.ctx)
 
             new_purpose = router.call_with_fallback(
@@ -514,7 +514,7 @@ class EmailGPS:
     ) -> EmailFolder:
         """AI classifies with full business context and judgment criteria."""
         try:
-            from runtime.model_router import get_router, TaskType
+            from execution.runtime.model_router import get_router, TaskType
             router = get_router(self.ctx)
 
             definitions = self._load_folder_definitions()
@@ -594,7 +594,7 @@ class EmailGPS:
     def draft_response(self, email: ProcessedEmail) -> str:
         """Generate DEX response draft for TO_RESPOND emails."""
         try:
-            from runtime.model_router import get_router, TaskType
+            from execution.runtime.model_router import get_router, TaskType
             router = get_router(self.ctx)
 
             body = router.call_with_fallback(
@@ -629,7 +629,7 @@ class EmailGPS:
     ) -> list[str]:
         """Extract action items and commitments from email."""
         try:
-            from runtime.model_router import get_router, TaskType
+            from execution.runtime.model_router import get_router, TaskType
             import json as _json
             router = get_router(self.ctx)
 

@@ -79,7 +79,7 @@ class ExecutionSpine:
 
         response = ""
         try:
-            from runtime.model_router import call_with_fallback
+            from execution.runtime.model_router import call_with_fallback
 
             routing_result = call_with_fallback(
                 prompt=message,

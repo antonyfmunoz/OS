@@ -73,7 +73,7 @@ _assert(is_eos_voice_responder_installed(), "install_default_eos_voice_responder
 
 _section("monkey-patch model_router.call_with_fallback")
 
-import runtime.model_router as _mr
+import execution.runtime.model_router as _mr
 
 _calls: list[dict] = []
 

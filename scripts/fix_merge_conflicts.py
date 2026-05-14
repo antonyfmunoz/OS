@@ -13,7 +13,7 @@ _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.ge
 FILES = [
     "control_plane/runtime/cognitive_loop.py",
     "execution/runtime/agent_runtime.py",
-    "runtime/model_router.py",
+    "execution/runtime/model_router.py",
     "runtime/cc_sdk.py",
     "runtime/media_processor.py",
     "runtime/event_bus.py",

@@ -343,7 +343,7 @@ def analyze_llm_failures(ctx: dict[str, Any]) -> list[Proposal]:
         Proposal(
             id=_new_id(),
             kind="llm_failure_spike",
-            target="runtime/model_router.py",
+            target="execution/runtime/model_router.py",
             reason=(
                 f"LLM call failure rate is {rate:.0%} over "
                 f"{len(llm_rows)} calls — check provider quotas"
@@ -440,7 +440,7 @@ def analyze_advisor_effectiveness(ctx: dict[str, Any]) -> list[Proposal]:
             Proposal(
                 id=_new_id(),
                 kind="advisor_high_reject_rate",
-                target="runtime/model_router.py",
+                target="execution/runtime/model_router.py",
                 reason=(
                     f"advisor reject rate is {reject_rate:.0%} over {total} calls — "
                     f"executor model may need upgrading for these task types"
@@ -452,7 +452,7 @@ def analyze_advisor_effectiveness(ctx: dict[str, Any]) -> list[Proposal]:
                 },
                 suggested_action={
                     "action_type": "none",
-                    "target": "runtime/model_router.py",
+                    "target": "execution/runtime/model_router.py",
                     "payload": {
                         "suggestion": "review executor model capabilities for rejected task types",
                     },

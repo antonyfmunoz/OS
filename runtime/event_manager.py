@@ -33,7 +33,7 @@ def create_event(
     try:
         from runtime.context import load_context_from_env
         from runtime.db import get_conn
-        from runtime.model_router import get_router, TaskType
+        from execution.runtime.model_router import get_router, TaskType
         ctx = ctx or load_context_from_env()
         router = get_router()
 
@@ -177,7 +177,7 @@ def draft_talking_points(
     """Draft talking points for a speaking engagement."""
     try:
         from runtime.context import load_context_from_env
-        from runtime.model_router import get_router, TaskType
+        from execution.runtime.model_router import get_router, TaskType
         ctx = ctx or load_context_from_env()
         router = get_router()
 

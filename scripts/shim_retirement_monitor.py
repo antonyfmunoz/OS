@@ -128,7 +128,7 @@ def check_shim_imports() -> dict:
 
     test_modules = [
         "runtime.db", "state.memory.memory", "runtime.context",
-        "runtime.model_router", "runtime.gateway",
+        "execution.runtime.model_router", "runtime.gateway",
         "execution.runtime.agent_runtime", "control_plane.runtime.cognitive_loop",
     ]
 

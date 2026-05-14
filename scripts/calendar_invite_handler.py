@@ -86,7 +86,7 @@ def get_pending_invites() -> list[dict]:
 def assess_invite(invite: dict) -> dict:
     """Use LLM to assess invite and recommend accept/decline."""
     try:
-        from runtime.model_router import ModelRouter, TaskType
+        from execution.runtime.model_router import ModelRouter, TaskType
         from runtime.context import load_context_from_env
         ctx = load_context_from_env()
         router = ModelRouter(ctx)

@@ -345,7 +345,7 @@ class AgentRuntime:
 
         # 3. Call the API — single path through model_router fallback chain:
         #    cc_sdk → Anthropic → Gemini → Ollama
-        from runtime.model_router import call_with_fallback as _router_call
+        from execution.runtime.model_router import call_with_fallback as _router_call
 
         _start = time.time()
 

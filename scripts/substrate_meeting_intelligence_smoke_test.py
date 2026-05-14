@@ -27,7 +27,7 @@ from runtime.substrate import meeting_intelligence as mi  # noqa: E402
 
 def _force_model_failure():
     """Monkey-patch call_with_fallback to raise — exercises fallback path."""
-    import runtime.model_router as mr
+    import execution.runtime.model_router as mr
 
     def _boom(*a, **kw):
         raise RuntimeError("forced failure for smoke test")

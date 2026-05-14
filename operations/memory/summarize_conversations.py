@@ -133,7 +133,7 @@ CONVERSATION:
 def _call_llm(conversation_text: str) -> str | None:
     """Call the LLM for summarization. Returns raw output or None on failure."""
     try:
-        from runtime.model_router import call_with_fallback
+        from execution.runtime.model_router import call_with_fallback
 
         prompt = SUMMARIZE_PROMPT.format(conversation=conversation_text[:4000])
         result = call_with_fallback(

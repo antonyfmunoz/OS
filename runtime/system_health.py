@@ -63,7 +63,7 @@ class EOSSystemHealth:
         caused zombie processes when providers were down.
         """
         try:
-            from runtime.model_router import (
+            from execution.runtime.model_router import (
                 get_router,
                 MODEL_REGISTRY,
                 ModelProvider,
@@ -171,7 +171,7 @@ class EOSSystemHealth:
 
         # Model router — availability check only (no real LLM call)
         try:
-            from runtime.model_router import get_router, MODEL_REGISTRY
+            from execution.runtime.model_router import get_router, MODEL_REGISTRY
 
             router = get_router()
             router._check_availability()

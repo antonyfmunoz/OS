@@ -182,7 +182,7 @@ class FeedbackLoop:
         Returns: 'success', 'failure', 'partial', or 'unknown'.
         """
         try:
-            from runtime.model_router import call_with_fallback, TaskType
+            from execution.runtime.model_router import call_with_fallback, TaskType
 
             result = call_with_fallback(
                 prompt=(

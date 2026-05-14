@@ -187,7 +187,7 @@ class AgentHarness:
         with self._lock:
             if self._model_router is None:
                 try:
-                    from runtime.model_router import call_with_fallback
+                    from execution.runtime.model_router import call_with_fallback
 
                     self._model_router = call_with_fallback
                 except Exception as e:

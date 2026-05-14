@@ -540,7 +540,7 @@ DOCUMENT SOURCE: {source_path}
 
         for attempt in range(2):
             try:
-                from runtime.model_router import call_with_fallback, TaskType
+                from execution.runtime.model_router import call_with_fallback, TaskType
 
                 result = call_with_fallback(
                     prompt=prompt,

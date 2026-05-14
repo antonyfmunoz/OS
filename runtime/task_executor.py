@@ -112,7 +112,7 @@ class TaskExecutor:
 
     def _handle_research(self, task: AgentTask) -> AgentTask:
         query = task.inputs.get('query', task.description)
-        from runtime.model_router import get_router, TaskType
+        from execution.runtime.model_router import get_router, TaskType
         router = get_router(self.ctx)
         model  = router.route(TaskType.ANALYSIS)
         if model:
@@ -131,7 +131,7 @@ class TaskExecutor:
     def _handle_draft(self, task: AgentTask) -> AgentTask:
         recipient = task.inputs.get('recipient', 'prospect')
         context   = task.inputs.get('context', '')
-        from runtime.model_router import get_router, TaskType
+        from execution.runtime.model_router import get_router, TaskType
         router = get_router(self.ctx)
         model  = router.route(TaskType.CONVERSATION)
         if model:
@@ -151,7 +151,7 @@ class TaskExecutor:
     def _handle_analyze(self, task: AgentTask) -> AgentTask:
         subject = task.inputs.get('subject', task.description)
         context = task.inputs.get('context', '')
-        from runtime.model_router import get_router, TaskType
+        from execution.runtime.model_router import get_router, TaskType
         router = get_router(self.ctx)
         model  = router.route(TaskType.ANALYSIS)
         if model:
@@ -206,7 +206,7 @@ class TaskExecutor:
 
     def _handle_search(self, task: AgentTask) -> AgentTask:
         query = task.inputs.get('query', task.description)
-        from runtime.model_router import get_router, TaskType
+        from execution.runtime.model_router import get_router, TaskType
         router = get_router(self.ctx)
         model  = router.route(TaskType.ANALYSIS)
         if model:

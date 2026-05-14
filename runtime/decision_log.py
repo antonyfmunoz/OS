@@ -116,7 +116,7 @@ class DecisionLog:
         Uses LLM to extract structured decision data. Returns decision_id or None.
         """
         try:
-            from runtime.model_router import get_router, TaskType as RouterTaskType
+            from execution.runtime.model_router import get_router, TaskType as RouterTaskType
             router  = get_router()
             model   = router.route(RouterTaskType.ANALYSIS)
             if not model:

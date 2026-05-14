@@ -34,7 +34,7 @@ from runtime.substrate import meeting_intelligence as mi  # noqa: E402
 
 
 def _force_model_failure() -> None:
-    import runtime.model_router as mr
+    import execution.runtime.model_router as mr
 
     def _boom(*a, **kw):
         raise RuntimeError("forced failure for resolution smoke test")
@@ -222,7 +222,7 @@ def main() -> int:
     hot = [
         "runtime/gateway.py",
         "control_plane/runtime/cognitive_loop.py",
-        "runtime/model_router.py",
+        "execution/runtime/model_router.py",
         "execution/runtime/agent_runtime.py",
         "runtime/primitives.py",
     ]

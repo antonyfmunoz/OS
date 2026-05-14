@@ -217,7 +217,7 @@ def test_hotpath_clean() -> None:
     forbidden = (
         "runtime.gateway",
         "control_plane.runtime.cognitive_loop",
-        "runtime.model_router",
+        "execution.runtime.model_router",
         "execution.runtime.agent_runtime",
         "runtime.primitives",
     )
@@ -237,7 +237,7 @@ def test_end_to_end_router_override() -> None:
 
     dmr.clear_mode_context_for_tests()
 
-    import runtime.model_router as mr
+    import execution.runtime.model_router as mr
 
     captured: list[dict] = []
 
@@ -511,8 +511,8 @@ def test_shared_router_tripwire() -> None:
     )
     check(
         "discord_mode_routing does not import model_router",
-        "from runtime.model_router" not in src
-        and "import runtime.model_router" not in src,
+        "from execution.runtime.model_router" not in src
+        and "import execution.runtime.model_router" not in src,
     )
 
 

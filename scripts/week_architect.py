@@ -25,7 +25,7 @@ async def architect_week():
     from runtime.gws_connector import GWSConnector
     from runtime.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
     from runtime.context import load_context_from_env
-    from runtime.model_router import get_router, TaskType
+    from execution.runtime.model_router import get_router, TaskType
 
     ctx = load_context_from_env()
     gws = GWSConnector()

@@ -496,7 +496,7 @@ def update_meeting_summary(
 
         parsed: Optional[dict] = None
         try:
-            from runtime.model_router import call_with_fallback
+            from execution.runtime.model_router import call_with_fallback
 
             system, prompt = _build_prompt(previous, recent)
             result = call_with_fallback(
@@ -1260,7 +1260,7 @@ def refine_intervention_message(
     static = (_ROLE_STATIC_PREFIX.get(role, "") + raw)[:MAX_REFINED_MESSAGE_CHARS]
 
     try:
-        from runtime.model_router import call_with_fallback
+        from execution.runtime.model_router import call_with_fallback
 
         style = _ROLE_STYLE_HINT.get(role, "")
         pressure = getattr(summary, "decision_pressure_score", 0) if summary else 0

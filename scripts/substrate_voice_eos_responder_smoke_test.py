@@ -118,11 +118,11 @@ class _MockRouter:
 def _install_mock_router(mock: _MockRouter) -> None:
     """Patch the lazily-imported call_with_fallback inside the adapter.
 
-    The adapter imports `from runtime.model_router import call_with_fallback`
+    The adapter imports `from execution.runtime.model_router import call_with_fallback`
     INSIDE its responder function (to avoid module-load coupling), so the
     canonical patch point is the source module.
     """
-    import runtime.model_router as mr
+    import execution.runtime.model_router as mr
 
     mr.call_with_fallback = mock  # type: ignore[assignment]
 
@@ -131,7 +131,7 @@ def _restore_real_router() -> None:
     """Reload model_router to restore the real call_with_fallback."""
     import importlib
 
-    import runtime.model_router as mr
+    import execution.runtime.model_router as mr
 
     importlib.reload(mr)
 
@@ -301,7 +301,7 @@ def main() -> int:
     for mod in (
         "runtime.gateway",
         "control_plane.runtime.cognitive_loop",
-        "runtime.model_router",
+        "execution.runtime.model_router",
         "execution.runtime.agent_runtime",
         "runtime.primitives",
     ):

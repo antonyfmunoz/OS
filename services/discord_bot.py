@@ -3144,7 +3144,7 @@ async def cmd_nurture(ctx: commands.Context, *, name: str = ""):
         await ctx.reply("Usage: `!nurture [contact name]`")
         return
     try:
-        from runtime.model_router import get_router, TaskType
+        from execution.runtime.model_router import get_router, TaskType
         from runtime.person_recognition import build_intelligence_profile
 
         _router = get_router()

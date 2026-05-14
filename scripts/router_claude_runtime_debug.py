@@ -23,7 +23,7 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 
 def main() -> int:
-    from runtime import model_router as mr
+    from execution.runtime import model_router as mr
     from runtime.substrate import claude_responder as cr
     from runtime.substrate import claude_session_bridge as csb
 

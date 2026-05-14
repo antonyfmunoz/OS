@@ -35,7 +35,7 @@ class _FakeResult:
 
 def _patch_model(outputs: list[str]) -> list[dict]:
     """Replace call_with_fallback with a stub that returns queued outputs."""
-    import runtime.model_router as mr
+    import execution.runtime.model_router as mr
 
     calls: list[dict] = []
     queue = list(outputs)
@@ -53,7 +53,7 @@ def _patch_model(outputs: list[str]) -> list[dict]:
 
 
 def _force_model_failure() -> None:
-    import runtime.model_router as mr
+    import execution.runtime.model_router as mr
 
     def _boom(*a, **kw):
         raise RuntimeError("forced failure for upgrade smoke test")

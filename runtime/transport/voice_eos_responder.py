@@ -226,7 +226,7 @@ def _eos_voice_responder(session: VoiceSession, utterance: str) -> str:
 
     # Late import so a router import error never poisons module load.
     try:
-        from runtime.model_router import call_with_fallback
+        from execution.runtime.model_router import call_with_fallback
     except Exception as e:  # noqa: BLE001
         _log(f"model_router import failed: {e}")
         _record_responder_meta(

@@ -71,7 +71,7 @@ class TestIngestionFullCycle:
         mock_result.output = MOCK_LLM_RESPONSE
 
         with patch(
-            "runtime.model_router.call_with_fallback",
+            "execution.runtime.model_router.call_with_fallback",
             return_value=mock_result,
         ):
             result = orchestrator.ingest(source)
@@ -104,7 +104,7 @@ class TestIngestionFullCycle:
         mock_result.output = MOCK_LLM_RESPONSE
 
         with patch(
-            "runtime.model_router.call_with_fallback",
+            "execution.runtime.model_router.call_with_fallback",
             return_value=mock_result,
         ):
             result = orchestrator.ingest(source)
@@ -125,7 +125,7 @@ class TestIngestionFullCycle:
         mock_result.output = MOCK_LLM_RESPONSE
 
         with patch(
-            "runtime.model_router.call_with_fallback",
+            "execution.runtime.model_router.call_with_fallback",
             return_value=mock_result,
         ):
             result = orchestrator.ingest(source)

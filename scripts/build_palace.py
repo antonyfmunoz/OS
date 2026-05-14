@@ -59,7 +59,7 @@ ROOM_DEFS: list[dict[str, Any]] = [
             "runtime/ai_identity.py",
             "execution/runtime/agent_runtime.py",
             "runtime/agent_hierarchy.py",
-            "runtime/model_router.py",
+            "execution/runtime/model_router.py",
             "runtime/model_preferences.py",
             "runtime/primitives.py",
             "runtime/intent_router.py",

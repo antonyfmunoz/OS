@@ -32,7 +32,7 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 def _reload_router():
     import importlib
 
-    import runtime.model_router as mr
+    import execution.runtime.model_router as mr
 
     return importlib.reload(mr)
 
@@ -160,7 +160,7 @@ def main() -> int:
     src = inspect.getsource(ver._eos_voice_responder)
     check(
         "voice_eos_responder imports call_with_fallback",
-        "from runtime.model_router import call_with_fallback" in src,
+        "from execution.runtime.model_router import call_with_fallback" in src,
     )
     check(
         "voice_eos_responder calls call_with_fallback",

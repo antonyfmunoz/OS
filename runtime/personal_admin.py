@@ -114,7 +114,7 @@ def research_gift(
     Returns formatted list of 5 specific gift suggestions.
     """
     try:
-        from runtime.model_router import get_router, TaskType
+        from execution.runtime.model_router import get_router, TaskType
         from runtime.person_recognition import build_intelligence_profile
         router = get_router()
         model = router.route(TaskType.FAST_RESPONSE)

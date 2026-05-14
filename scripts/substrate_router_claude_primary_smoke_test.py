@@ -25,8 +25,8 @@ import sys
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from runtime import model_router as mr  # noqa: E402
-from runtime.model_router import (  # noqa: E402
+from execution.runtime import model_router as mr  # noqa: E402
+from execution.runtime.model_router import (  # noqa: E402
     ModelProvider,
     PROVIDER_PRIORITY,
     PROVIDER_PRIORITY_FAST,
@@ -220,7 +220,7 @@ def main() -> int:
     for mod in (
         "runtime.gateway",
         "control_plane.runtime.cognitive_loop",
-        "runtime.model_router",
+        "execution.runtime.model_router",
         "execution.runtime.agent_runtime",
         "runtime.primitives",
     ):

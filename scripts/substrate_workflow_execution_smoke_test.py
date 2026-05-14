@@ -228,7 +228,7 @@ def main() -> None:
         for forbidden in [
             "runtime.gateway",
             "control_plane.runtime.cognitive_loop",
-            "runtime.model_router",
+            "execution.runtime.model_router",
             "execution.runtime.agent_runtime",
             "runtime.primitives",
         ]:

@@ -132,7 +132,7 @@ class TestExtractionSchemaShape:
         raw = _make_raw()
 
         with patch(
-            "runtime.model_router.call_with_fallback",
+            "execution.runtime.model_router.call_with_fallback",
             return_value=_mock_call_with_fallback(VALID_LLM_RESPONSE),
         ):
             result = orchestrator._decompose_llm(signal, _make_interp(signal), raw, "decomp-test1")
@@ -159,7 +159,7 @@ class TestExtractionSchemaShape:
         raw = _make_raw()
 
         with patch(
-            "runtime.model_router.call_with_fallback",
+            "execution.runtime.model_router.call_with_fallback",
             return_value=_mock_call_with_fallback(VALID_LLM_RESPONSE),
         ):
             result = orchestrator._decompose_llm(signal, _make_interp(signal), raw, "decomp-test2")
@@ -184,7 +184,7 @@ class TestIdentityStability:
         results = []
         for _ in range(2):
             with patch(
-                "runtime.model_router.call_with_fallback",
+                "execution.runtime.model_router.call_with_fallback",
                 return_value=_mock_call_with_fallback(VALID_LLM_RESPONSE),
             ):
                 r = orchestrator._decompose_llm(signal, _make_interp(signal), raw, "decomp-stable")
@@ -209,7 +209,7 @@ class TestRelationshipsAreTyped:
         raw = _make_raw()
 
         with patch(
-            "runtime.model_router.call_with_fallback",
+            "execution.runtime.model_router.call_with_fallback",
             return_value=_mock_call_with_fallback(VALID_LLM_RESPONSE),
         ):
             result = orchestrator._decompose_llm(signal, _make_interp(signal), raw, "decomp-rel")
@@ -233,7 +233,7 @@ class TestRelationshipsAreTyped:
         raw = _make_raw()
 
         with patch(
-            "runtime.model_router.call_with_fallback",
+            "execution.runtime.model_router.call_with_fallback",
             return_value=_mock_call_with_fallback(VALID_LLM_RESPONSE),
         ):
             result = orchestrator._decompose_llm(signal, _make_interp(signal), raw, "decomp-relvar")
@@ -270,7 +270,7 @@ class TestHeuristicFallback:
         interp = _make_interp(signal)
 
         with patch(
-            "runtime.model_router.call_with_fallback",
+            "execution.runtime.model_router.call_with_fallback",
             side_effect=Exception("API down"),
         ):
             result = orchestrator._decompose(signal, interp, raw)
