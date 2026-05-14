@@ -967,7 +967,7 @@ class TestResilienceCommandRegistration:
 
     def test_substrate_commands(self) -> None:
         sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS", "services"))
-        from handlers.substrate_command_handler import SUBSTRATE_COMMANDS
+        from interface.presence.handlers.substrate_command_handler import SUBSTRATE_COMMANDS
 
         assert len(SUBSTRATE_COMMANDS) == 27
 

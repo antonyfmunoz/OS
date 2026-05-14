@@ -1329,7 +1329,7 @@ class TestRegistryIntegration(unittest.TestCase):
         self.assertEqual(reg.commands, expected)
 
     def test_handler_dispatch_has_federation(self) -> None:
-        from handlers.substrate_command_handler import SUBSTRATE_COMMANDS
+        from interface.presence.handlers.substrate_command_handler import SUBSTRATE_COMMANDS
 
         self.assertIn("!federation-report", SUBSTRATE_COMMANDS)
         self.assertEqual(len(SUBSTRATE_COMMANDS), 27)

@@ -30,7 +30,7 @@ sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS
 
 class TestSubstrateHandlerRegistration:
     def test_handler_module_imports(self) -> None:
-        from handlers.substrate_command_handler import (
+        from interface.presence.handlers.substrate_command_handler import (
             SUBSTRATE_COMMANDS,
             handle_substrate_command,
             is_substrate_command,
@@ -41,62 +41,62 @@ class TestSubstrateHandlerRegistration:
         assert len(SUBSTRATE_COMMANDS) > 0
 
     def test_chrome_proof_is_substrate(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert is_substrate_command("!chrome-proof")
 
     def test_ping_is_substrate(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert is_substrate_command("!ping")
 
     def test_chrome_is_substrate(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert is_substrate_command("!chrome")
 
     def test_ingest_safe_doc_is_substrate(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert is_substrate_command("!ingest-safe-doc")
 
     def test_ingest_safe_doc_cu_is_substrate(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert is_substrate_command("!ingest-safe-doc-cu")
 
     def test_commands_is_substrate(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert is_substrate_command("!commands")
 
     def test_brief_is_not_substrate(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert not is_substrate_command("!brief")
 
     def test_help_is_not_substrate(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert not is_substrate_command("!help")
 
     def test_status_is_not_substrate(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert not is_substrate_command("!status")
 
     def test_empty_is_not_substrate(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert not is_substrate_command("")
 
     def test_plain_text_is_not_substrate(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert not is_substrate_command("hello world")
 
     def test_substrate_commands_excludes_status(self) -> None:
-        from handlers.substrate_command_handler import SUBSTRATE_COMMANDS
+        from interface.presence.handlers.substrate_command_handler import SUBSTRATE_COMMANDS
 
         assert "!status" not in SUBSTRATE_COMMANDS
 
@@ -106,28 +106,28 @@ class TestSubstrateHandlerRegistration:
 
 class TestCommandSurfaceManifest:
     def test_manifest_has_substrate_commands(self) -> None:
-        from handlers.substrate_command_handler import get_command_surface_manifest
+        from interface.presence.handlers.substrate_command_handler import get_command_surface_manifest
 
         m = get_command_surface_manifest()
         assert "!chrome-proof" in m["substrate_commands"]
         assert "!ping" in m["substrate_commands"]
 
     def test_manifest_has_spine_routed(self) -> None:
-        from handlers.substrate_command_handler import get_command_surface_manifest
+        from interface.presence.handlers.substrate_command_handler import get_command_surface_manifest
 
         m = get_command_surface_manifest()
         assert "!chrome-proof" in m["spine_routed"]
         assert "!ingest-safe-doc" in m["spine_routed"]
 
     def test_manifest_has_action_map(self) -> None:
-        from handlers.substrate_command_handler import get_command_surface_manifest
+        from interface.presence.handlers.substrate_command_handler import get_command_surface_manifest
 
         m = get_command_surface_manifest()
         assert m["action_map"]["!chrome-proof"] == "chrome_proof"
         assert m["action_map"]["!ping"] == "ping"
 
     def test_manifest_has_contracts(self) -> None:
-        from handlers.substrate_command_handler import get_command_surface_manifest
+        from interface.presence.handlers.substrate_command_handler import get_command_surface_manifest
 
         m = get_command_surface_manifest()
         assert "!chrome-proof" in m["contracts"]
@@ -136,25 +136,25 @@ class TestCommandSurfaceManifest:
         assert contract["require_screenshot_proof"] is True
 
     def test_manifest_has_surface_hash(self) -> None:
-        from handlers.substrate_command_handler import get_command_surface_manifest
+        from interface.presence.handlers.substrate_command_handler import get_command_surface_manifest
 
         m = get_command_surface_manifest()
         assert len(m["surface_hash"]) == 12
 
     def test_manifest_has_vps_commit(self) -> None:
-        from handlers.substrate_command_handler import get_command_surface_manifest
+        from interface.presence.handlers.substrate_command_handler import get_command_surface_manifest
 
         m = get_command_surface_manifest()
         assert len(m["vps_commit"]) > 0
 
     def test_manifest_has_timestamp(self) -> None:
-        from handlers.substrate_command_handler import get_command_surface_manifest
+        from interface.presence.handlers.substrate_command_handler import get_command_surface_manifest
 
         m = get_command_surface_manifest()
         assert "T" in m["timestamp"]
 
     def test_manifest_json_serializable(self) -> None:
-        from handlers.substrate_command_handler import get_command_surface_manifest
+        from interface.presence.handlers.substrate_command_handler import get_command_surface_manifest
 
         m = get_command_surface_manifest()
         serialized = json.dumps(m)
@@ -267,7 +267,7 @@ class TestSyncProofPersistence:
 class TestLiveBotIntegration:
     def test_bot_imports_substrate_handler(self) -> None:
         source = (Path(_ROOT) / "services" / "discord_bot.py").read_text()
-        assert "from handlers.substrate_command_handler import" in source
+        assert "from interface.presence.handlers.substrate_command_handler import" in source
 
     def test_bot_calls_is_substrate_command(self) -> None:
         source = (Path(_ROOT) / "services" / "discord_bot.py").read_text()
@@ -333,7 +333,7 @@ class TestSpineRouting:
 
 class TestSourceParity:
     def test_all_supported_are_substrate_or_status(self) -> None:
-        from handlers.substrate_command_handler import SUBSTRATE_COMMANDS
+        from interface.presence.handlers.substrate_command_handler import SUBSTRATE_COMMANDS
         from runtime.interfaces.discord_interface_adapter_v1 import SUPPORTED_COMMANDS
 
         for cmd in SUPPORTED_COMMANDS:
@@ -342,14 +342,14 @@ class TestSourceParity:
             assert cmd in SUBSTRATE_COMMANDS, f"{cmd} in SUPPORTED but not SUBSTRATE"
 
     def test_all_action_map_keys_are_substrate(self) -> None:
-        from handlers.substrate_command_handler import SUBSTRATE_COMMANDS
+        from interface.presence.handlers.substrate_command_handler import SUBSTRATE_COMMANDS
         from runtime.interfaces.discord_interface_adapter_v1 import COMMAND_ACTION_MAP
 
         for cmd in COMMAND_ACTION_MAP:
             assert cmd in SUBSTRATE_COMMANDS, f"{cmd} in ACTION_MAP but not SUBSTRATE"
 
     def test_every_substrate_has_action_mapping(self) -> None:
-        from handlers.substrate_command_handler import SUBSTRATE_COMMANDS
+        from interface.presence.handlers.substrate_command_handler import SUBSTRATE_COMMANDS
         from runtime.interfaces.discord_interface_adapter_v1 import COMMAND_ACTION_MAP
 
         for cmd in SUBSTRATE_COMMANDS:
@@ -361,52 +361,52 @@ class TestSourceParity:
 
 class TestRegressionExistingBotCommands:
     def test_brief_not_intercepted(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert not is_substrate_command("!brief")
 
     def test_join_not_intercepted(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert not is_substrate_command("!join")
 
     def test_leave_not_intercepted(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert not is_substrate_command("!leave")
 
     def test_portfolio_not_intercepted(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert not is_substrate_command("!portfolio")
 
     def test_say_not_intercepted(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert not is_substrate_command("!say")
 
     def test_help_not_intercepted(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert not is_substrate_command("!help")
 
     def test_setup_not_intercepted(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert not is_substrate_command("!setup")
 
     def test_inbox_not_intercepted(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert not is_substrate_command("!inbox")
 
     def test_drive_not_intercepted(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert not is_substrate_command("!drive")
 
     def test_cal_not_intercepted(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert not is_substrate_command("!cal")
 
@@ -416,26 +416,26 @@ class TestRegressionExistingBotCommands:
 
 class TestRegressionInlineCommands:
     def test_followup_not_intercepted(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert not is_substrate_command("!followup")
 
     def test_travel_not_intercepted(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert not is_substrate_command("!travel")
 
     def test_nomeetings_not_intercepted(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert not is_substrate_command("!nomeetings")
 
     def test_documents_not_intercepted(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert not is_substrate_command("!documents")
 
     def test_audit_not_intercepted(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert not is_substrate_command("!audit")

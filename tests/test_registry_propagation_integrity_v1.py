@@ -123,7 +123,7 @@ class TestRegistryHashPropagation:
         from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
-        from handlers.substrate_command_handler import _CANONICAL
+        from interface.presence.handlers.substrate_command_handler import _CANONICAL
 
         assert _CANONICAL.registry_hash() == reg.registry_hash()
 
@@ -148,7 +148,7 @@ class TestRegistryHashPropagation:
 
     def test_manifest_registry_hash_matches(self) -> None:
         from composition.registries.canonical_command_registry_v1 import get_canonical_registry
-        from handlers.substrate_command_handler import get_command_surface_manifest
+        from interface.presence.handlers.substrate_command_handler import get_command_surface_manifest
 
         reg = get_canonical_registry()
         m = get_command_surface_manifest()

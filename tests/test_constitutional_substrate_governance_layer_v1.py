@@ -1387,7 +1387,7 @@ class TestRegistryIntegration(unittest.TestCase):
         self.assertEqual(len(ALLOWED_ACTION_TYPES), 27)
 
     def test_const_report_in_handler(self) -> None:
-        from handlers.substrate_command_handler import SUBSTRATE_COMMANDS
+        from interface.presence.handlers.substrate_command_handler import SUBSTRATE_COMMANDS
 
         self.assertIn("!constitution-report", SUBSTRATE_COMMANDS)
         self.assertEqual(len(SUBSTRATE_COMMANDS), 27)

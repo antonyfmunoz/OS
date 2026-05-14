@@ -1035,7 +1035,7 @@ class TestIdentityCommandRegistration:
         assert len(config["allowed_action_types"]) == 27
 
     def test_substrate_commands(self) -> None:
-        from handlers.substrate_command_handler import SUBSTRATE_COMMANDS
+        from interface.presence.handlers.substrate_command_handler import SUBSTRATE_COMMANDS
 
         assert "!identity-report" in SUBSTRATE_COMMANDS
         assert len(SUBSTRATE_COMMANDS) == 27

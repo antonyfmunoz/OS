@@ -1036,7 +1036,7 @@ class TestRegistryIntegration:
         assert "capability_report" in wsl_caps
 
     def test_substrate_commands_includes_capability_report(self) -> None:
-        from handlers.substrate_command_handler import SUBSTRATE_COMMANDS
+        from interface.presence.handlers.substrate_command_handler import SUBSTRATE_COMMANDS
 
         assert "!capability-report" in SUBSTRATE_COMMANDS
 

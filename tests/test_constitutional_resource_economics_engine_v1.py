@@ -1034,12 +1034,12 @@ class TestEconomicsCommandRegistration:
         assert "economics_report" in config["allowed_action_types"]
 
     def test_substrate_commands_has_economics(self) -> None:
-        from handlers.substrate_command_handler import SUBSTRATE_COMMANDS
+        from interface.presence.handlers.substrate_command_handler import SUBSTRATE_COMMANDS
 
         assert "!economics-report" in SUBSTRATE_COMMANDS
 
     def test_substrate_commands_count(self) -> None:
-        from handlers.substrate_command_handler import SUBSTRATE_COMMANDS
+        from interface.presence.handlers.substrate_command_handler import SUBSTRATE_COMMANDS
 
         assert len(SUBSTRATE_COMMANDS) == 27
 

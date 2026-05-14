@@ -530,11 +530,11 @@ class TestCanonicalRegistryRelayStatus:
 
 class TestSubstrateHandlerRelayStatus:
     def test_relay_status_in_substrate_commands(self) -> None:
-        from handlers.substrate_command_handler import SUBSTRATE_COMMANDS
+        from interface.presence.handlers.substrate_command_handler import SUBSTRATE_COMMANDS
 
         assert "!relay-status" in SUBSTRATE_COMMANDS
 
     def test_relay_status_is_substrate_command(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert is_substrate_command("!relay-status") is True

@@ -27,7 +27,7 @@ sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS
 
 class TestStaleRuntimeDetection:
     def test_stale_detected_when_hashes_differ(self) -> None:
-        from handlers.substrate_command_handler import _is_stale_runtime
+        from interface.presence.handlers.substrate_command_handler import _is_stale_runtime
 
         with (
             patch(
@@ -45,7 +45,7 @@ class TestStaleRuntimeDetection:
             assert origin == "def5678"
 
     def test_not_stale_when_hashes_match(self) -> None:
-        from handlers.substrate_command_handler import _is_stale_runtime
+        from interface.presence.handlers.substrate_command_handler import _is_stale_runtime
 
         with (
             patch(
@@ -61,7 +61,7 @@ class TestStaleRuntimeDetection:
             assert stale is False
 
     def test_not_stale_when_unknown(self) -> None:
-        from handlers.substrate_command_handler import _is_stale_runtime
+        from interface.presence.handlers.substrate_command_handler import _is_stale_runtime
 
         with (
             patch(
@@ -77,7 +77,7 @@ class TestStaleRuntimeDetection:
             assert stale is False
 
     def test_stale_runtime_blocks_substrate_command(self) -> None:
-        from handlers.substrate_command_handler import handle_substrate_command
+        from interface.presence.handlers.substrate_command_handler import handle_substrate_command
 
         msg = MagicMock()
         msg.channel.send = AsyncMock()
@@ -96,22 +96,22 @@ class TestStaleRuntimeDetection:
 
 class TestMetaCommands:
     def test_version_is_meta(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert is_substrate_command("!version")
 
     def test_runtime_is_meta(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert is_substrate_command("!runtime")
 
     def test_commands_is_meta(self) -> None:
-        from handlers.substrate_command_handler import is_substrate_command
+        from interface.presence.handlers.substrate_command_handler import is_substrate_command
 
         assert is_substrate_command("!commands")
 
     def test_version_handler_sends_response(self) -> None:
-        from handlers.substrate_command_handler import handle_substrate_command
+        from interface.presence.handlers.substrate_command_handler import handle_substrate_command
 
         msg = MagicMock()
         msg.channel.send = AsyncMock()
@@ -124,7 +124,7 @@ class TestMetaCommands:
         assert "parity" in response
 
     def test_runtime_handler_sends_response(self) -> None:
-        from handlers.substrate_command_handler import handle_substrate_command
+        from interface.presence.handlers.substrate_command_handler import handle_substrate_command
 
         msg = MagicMock()
         msg.channel.send = AsyncMock()
@@ -137,7 +137,7 @@ class TestMetaCommands:
         assert "uptime" in response
 
     def test_commands_handler_sends_response(self) -> None:
-        from handlers.substrate_command_handler import handle_substrate_command
+        from interface.presence.handlers.substrate_command_handler import handle_substrate_command
 
         msg = MagicMock()
         msg.channel.send = AsyncMock()
@@ -173,7 +173,7 @@ class TestSubstrateInterceptOrder:
 
 class TestCommandRegistryParity:
     def test_surface_hash_deterministic(self) -> None:
-        from handlers.substrate_command_handler import _get_command_surface_hash
+        from interface.presence.handlers.substrate_command_handler import _get_command_surface_hash
 
         h1 = _get_command_surface_hash()
         h2 = _get_command_surface_hash()
@@ -181,7 +181,7 @@ class TestCommandRegistryParity:
         assert len(h1) == 12
 
     def test_router_contract_hash_deterministic(self) -> None:
-        from handlers.substrate_command_handler import _get_router_contract_hash
+        from interface.presence.handlers.substrate_command_handler import _get_router_contract_hash
 
         h1 = _get_router_contract_hash()
         h2 = _get_router_contract_hash()
@@ -189,7 +189,7 @@ class TestCommandRegistryParity:
         assert len(h1) == 12
 
     def test_surface_and_contract_hashes_differ(self) -> None:
-        from handlers.substrate_command_handler import (
+        from interface.presence.handlers.substrate_command_handler import (
             _get_command_surface_hash,
             _get_router_contract_hash,
         )
@@ -197,12 +197,12 @@ class TestCommandRegistryParity:
         assert _get_command_surface_hash() != _get_router_contract_hash()
 
     def test_chrome_proof_in_live_command_list(self) -> None:
-        from handlers.substrate_command_handler import SUBSTRATE_COMMANDS
+        from interface.presence.handlers.substrate_command_handler import SUBSTRATE_COMMANDS
 
         assert "!chrome-proof" in SUBSTRATE_COMMANDS
 
     def test_manifest_matches_substrate_set(self) -> None:
-        from handlers.substrate_command_handler import (
+        from interface.presence.handlers.substrate_command_handler import (
             SUBSTRATE_COMMANDS,
             get_command_surface_manifest,
         )
@@ -213,7 +213,7 @@ class TestCommandRegistryParity:
 
 class TestLogStartup:
     def test_log_startup_produces_output(self, capsys: pytest.CaptureFixture) -> None:
-        from handlers.substrate_command_handler import log_startup
+        from interface.presence.handlers.substrate_command_handler import log_startup
 
         log_startup()
         captured = capsys.readouterr()
@@ -222,7 +222,7 @@ class TestLogStartup:
         assert "surface hash:" in captured.out
 
     def test_log_startup_shows_parity(self, capsys: pytest.CaptureFixture) -> None:
-        from handlers.substrate_command_handler import log_startup
+        from interface.presence.handlers.substrate_command_handler import log_startup
 
         log_startup()
         captured = capsys.readouterr()
@@ -258,14 +258,14 @@ class TestBotWiringIntegrity:
 
 class TestContainerIdentity:
     def test_container_id_returns_string(self) -> None:
-        from handlers.substrate_command_handler import _container_id
+        from interface.presence.handlers.substrate_command_handler import _container_id
 
         cid = _container_id()
         assert isinstance(cid, str)
         assert len(cid) > 0
 
     def test_boot_time_is_set(self) -> None:
-        from handlers.substrate_command_handler import _BOOT_TIME
+        from interface.presence.handlers.substrate_command_handler import _BOOT_TIME
 
         from datetime import datetime, timezone
 
@@ -273,6 +273,6 @@ class TestContainerIdentity:
         assert _BOOT_TIME.tzinfo is not None
 
     def test_boot_pid_is_current(self) -> None:
-        from handlers.substrate_command_handler import _BOOT_PID
+        from interface.presence.handlers.substrate_command_handler import _BOOT_PID
 
         assert _BOOT_PID == os.getpid()

@@ -107,7 +107,7 @@ class TestCanonicalRegistrySingleSource:
 
     def test_substrate_commands_matches_canonical(self) -> None:
         from composition.registries.canonical_command_registry_v1 import get_canonical_registry
-        from handlers.substrate_command_handler import SUBSTRATE_COMMANDS
+        from interface.presence.handlers.substrate_command_handler import SUBSTRATE_COMMANDS
 
         reg = get_canonical_registry()
         assert SUBSTRATE_COMMANDS == reg.commands
@@ -324,7 +324,7 @@ class TestRouterConfigParity:
 
 class TestCommandSurfaceFromCanonical:
     def test_commands_list_from_canonical(self) -> None:
-        from handlers.substrate_command_handler import (
+        from interface.presence.handlers.substrate_command_handler import (
             SUBSTRATE_COMMANDS,
             _CANONICAL,
         )
@@ -332,7 +332,7 @@ class TestCommandSurfaceFromCanonical:
         assert SUBSTRATE_COMMANDS == _CANONICAL.commands
 
     def test_manifest_includes_registry_hash(self) -> None:
-        from handlers.substrate_command_handler import get_command_surface_manifest
+        from interface.presence.handlers.substrate_command_handler import get_command_surface_manifest
 
         m = get_command_surface_manifest()
         assert "registry_hash" in m
@@ -340,7 +340,7 @@ class TestCommandSurfaceFromCanonical:
 
     def test_manifest_action_map_from_canonical(self) -> None:
         from composition.registries.canonical_command_registry_v1 import get_canonical_registry
-        from handlers.substrate_command_handler import get_command_surface_manifest
+        from interface.presence.handlers.substrate_command_handler import get_command_surface_manifest
 
         m = get_command_surface_manifest()
         reg = get_canonical_registry()

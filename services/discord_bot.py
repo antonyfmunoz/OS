@@ -157,11 +157,11 @@ except Exception as _voice_responder_install_err:  # noqa: BLE001
 
 # ─── Handler imports ─────────────────────────────────────────────────────────
 
-from handlers.intent_handler import run_gateway as _handler_run_gateway
-from handlers.intent_handler import CHANNEL_MAP as _HANDLER_CHANNEL_MAP
-from handlers.pipeline_handler import handle_pipeline_update
-from handlers.cc_command_handler import try_inline_commands
-from handlers.substrate_command_handler import (
+from interface.presence.handlers.intent_handler import run_gateway as _handler_run_gateway
+from interface.presence.handlers.intent_handler import CHANNEL_MAP as _HANDLER_CHANNEL_MAP
+from interface.presence.handlers.pipeline_handler import handle_pipeline_update
+from interface.presence.handlers.cc_command_handler import try_inline_commands
+from interface.presence.handlers.substrate_command_handler import (
     handle_substrate_command,
     is_substrate_command,
     log_startup as _substrate_log_startup,

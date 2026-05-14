@@ -1521,7 +1521,7 @@ class TestRegistryIntegration:
         assert "orchestration_report" in win_caps
 
     def test_handler_exports_20_commands(self) -> None:
-        from handlers.substrate_command_handler import SUBSTRATE_COMMANDS
+        from interface.presence.handlers.substrate_command_handler import SUBSTRATE_COMMANDS
 
         assert len(SUBSTRATE_COMMANDS) == 27
         assert "!orchestration-report" in SUBSTRATE_COMMANDS

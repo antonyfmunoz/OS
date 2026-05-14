@@ -897,7 +897,7 @@ class TestStrategyCommandRegistration:
         assert "strategy_report" in config["allowed_action_types"]
 
     def test_substrate_commands(self) -> None:
-        from handlers.substrate_command_handler import SUBSTRATE_COMMANDS
+        from interface.presence.handlers.substrate_command_handler import SUBSTRATE_COMMANDS
 
         assert "!strategy-report" in SUBSTRATE_COMMANDS
         assert len(SUBSTRATE_COMMANDS) == 27
