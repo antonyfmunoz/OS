@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from umh.protocols.common import (
+from control_plane.protocols.common import (
     AuthorityContext,
     AuthorityLevel,
     Benchmark,

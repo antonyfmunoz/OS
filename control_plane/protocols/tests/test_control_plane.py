@@ -3,8 +3,8 @@
 import pytest
 from pydantic import ValidationError
 
-from umh.protocols.common import AuthorityContext, AuthorityLevel, RiskLevel
-from umh.protocols.control_plane import ControlPlaneEvent
+from control_plane.protocols.common import AuthorityContext, AuthorityLevel, RiskLevel
+from control_plane.protocols.control_plane import ControlPlaneEvent
 
 
 class TestControlPlaneEvent:

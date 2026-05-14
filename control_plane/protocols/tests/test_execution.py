@@ -3,13 +3,13 @@
 import pytest
 from pydantic import ValidationError
 
-from umh.protocols.execution import (
+from control_plane.protocols.execution import (
     ActionContract,
     Environment,
     StateTransition,
     WorkPacket,
 )
-from umh.protocols.common import (
+from control_plane.protocols.common import (
     ApprovalStatus,
     AuthorityLevel,
     EnvironmentRef,

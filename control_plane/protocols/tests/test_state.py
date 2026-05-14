@@ -3,13 +3,13 @@
 import pytest
 from pydantic import ValidationError
 
-from umh.protocols.state import (
+from control_plane.protocols.state import (
     Fact,
     MemoryRecord,
     WorldEntity,
     WorldState,
 )
-from umh.protocols.common import MemoryType, PromotionStatus
+from control_plane.protocols.common import MemoryType, PromotionStatus
 
 
 class TestWorldEntity:

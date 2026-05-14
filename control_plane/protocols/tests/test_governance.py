@@ -3,14 +3,14 @@
 import pytest
 from pydantic import ValidationError
 
-from umh.protocols.governance import (
+from control_plane.protocols.governance import (
     ApprovalRequirement,
     EnvironmentLimit,
     EscalationRule,
     GovernancePolicy,
     RiskModel,
 )
-from umh.protocols.common import (
+from control_plane.protocols.common import (
     AuthorityLevel,
     EnvironmentType,
     RiskLevel,

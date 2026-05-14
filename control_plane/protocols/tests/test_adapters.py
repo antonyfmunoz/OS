@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from umh.protocols.adapters import (
+from control_plane.protocols.adapters import (
     AccessPath,
     Adapter,
     AdapterPackage,
@@ -16,7 +16,7 @@ from umh.protocols.adapters import (
     StateSnapshot,
     ValidationResult,
 )
-from umh.protocols.common import (
+from control_plane.protocols.common import (
     AdapterCategory,
     CapabilityRef,
     EnvironmentType,

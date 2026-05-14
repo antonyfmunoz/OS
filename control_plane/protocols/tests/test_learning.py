@@ -3,8 +3,8 @@
 import pytest
 from pydantic import ValidationError
 
-from umh.protocols.learning import InternalSignal
-from umh.protocols.common import Severity, SignalType
+from control_plane.protocols.learning import InternalSignal
+from control_plane.protocols.common import Severity, SignalType
 
 
 class TestInternalSignal:

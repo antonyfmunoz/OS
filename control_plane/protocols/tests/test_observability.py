@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from umh.protocols.observability import (
+from control_plane.protocols.observability import (
     ExecutionResult,
     GovernanceDecision,
     Outcome,
@@ -13,7 +13,7 @@ from umh.protocols.observability import (
     Trace,
     WorldStateSnapshot,
 )
-from umh.protocols.common import (
+from control_plane.protocols.common import (
     AuthorityLevel,
     ConfirmationStatus,
     EvidenceType,

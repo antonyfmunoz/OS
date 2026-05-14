@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from umh.protocols.understanding import (
+from control_plane.protocols.understanding import (
     DomainMap,
     IntentCandidate,
     InterpretedSignal,
@@ -12,7 +12,7 @@ from umh.protocols.understanding import (
     Relationship,
     Signal,
 )
-from umh.protocols.common import (
+from control_plane.protocols.common import (
     EvidenceRef,
     EvidenceType,
     PrimitiveType,

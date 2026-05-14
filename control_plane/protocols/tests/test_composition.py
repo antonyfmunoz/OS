@@ -3,14 +3,14 @@
 import pytest
 from pydantic import ValidationError
 
-from umh.protocols.composition import (
+from control_plane.protocols.composition import (
     Capability,
     ExecutableComposition,
     MasteryRequirement,
     RegistryItem,
     Template,
 )
-from umh.protocols.common import (
+from control_plane.protocols.common import (
     AuthorityLevel,
     ItemStatus,
     MasteryCategory,
