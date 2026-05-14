@@ -40,8 +40,8 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-from core.tool_mastery_manager.coverage import evaluate_coverage  # noqa: E402
-from core.tool_mastery_manager.paths import SKILLS_TOOLS_DIR  # noqa: E402
+from composition.mastery.management.coverage import evaluate_coverage  # noqa: E402
+from composition.mastery.management.paths import SKILLS_TOOLS_DIR  # noqa: E402
 
 VALID_WORK_TYPES = ("research", "refresh", "repair")
 

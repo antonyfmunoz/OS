@@ -44,14 +44,14 @@ import sys
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from core.tool_mastery_manager.backlog import backlog_report, bootstrap  # noqa: E402
-from core.tool_mastery_manager.coverage import evaluate_coverage  # noqa: E402
-from core.tool_mastery_manager.ensure import ensure_mastery  # noqa: E402
-from core.tool_mastery_manager.maintenance import (  # noqa: E402
+from composition.mastery.management.backlog import backlog_report, bootstrap  # noqa: E402
+from composition.mastery.management.coverage import evaluate_coverage  # noqa: E402
+from composition.mastery.management.ensure import ensure_mastery  # noqa: E402
+from composition.mastery.management.maintenance import (  # noqa: E402
     audit_all,
     refresh_stale,
 )
-from core.tool_mastery_manager.models import CoverageStatus  # noqa: E402
+from composition.mastery.management.models import CoverageStatus  # noqa: E402
 
 
 def _emit(payload: dict | list, as_json: bool, fallback_lines: list[str]) -> None:
