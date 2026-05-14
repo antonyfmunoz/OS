@@ -344,15 +344,12 @@ class ExecutionEngine:
     def _log_event(self, task_id: str, event_type: str, payload: dict) -> None:
         """Write a lifecycle event to the events table (best-effort)."""
         try:
-            import json
+            from state.memory.memory import AgentMemory
             payload_with_task = {"task_id": task_id, **payload}
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    """
-                    INSERT INTO events (org_id, event_type, payload)
-                    VALUES (%s, %s, %s::jsonb)
-                    """,
-                    (self.ctx.org_id, f"task.{event_type}", json.dumps(payload_with_task)),
-                )
+            AgentMemory().log_event(
+                org_id=self.ctx.org_id,
+                event_type=f"task.{event_type}",
+                payload=payload_with_task,
+            )
         except Exception:
             pass  # event logging is enhancement — never block lifecycle updates

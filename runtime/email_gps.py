@@ -666,28 +666,23 @@ Return JSON only:
             return 0
 
         try:
-            from state.storage.db import get_conn
-            import json as _json
+            from state.memory.memory import AgentMemory
             stored = 0
-            with get_conn(self.ctx.org_id) as cur:
-                for task in tasks:
-                    cur.execute('''
-                        INSERT INTO events
-                        (org_id, event_type, payload_json, handled_by)
-                        VALUES (%s, %s, %s, %s)
-                    ''', (
-                        str(self.ctx.org_id),
-                        'dex_task',
-                        _json.dumps({
-                            'task': task,
-                            'source': 'email',
-                            'email_subject': subject,
-                            'from': sender,
-                            'status': 'pending',
-                        }),
-                        'email_gps',
-                    ))
-                    stored += 1
+            mem = AgentMemory()
+            for task in tasks:
+                mem.log_event(
+                    org_id=str(self.ctx.org_id),
+                    event_type='dex_task',
+                    payload={
+                        'task': task,
+                        'source': 'email',
+                        'email_subject': subject,
+                        'from': sender,
+                        'status': 'pending',
+                    },
+                    handled_by='email_gps',
+                )
+                stored += 1
             return stored
         except Exception as e:
             logger.warning(f'[EmailGPS] capture_email_tasks failed: {e}')
@@ -1191,28 +1186,16 @@ Return JSON only:
     ) -> None:
         """Write email_classified event to Neon for nightly review."""
         try:
-            import uuid
-            import json
-            from state.storage.db import get_conn
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    '''
-                    INSERT INTO events (
-                        id, org_id, event_type,
-                        payload_json, created_at
-                    ) VALUES (%s, %s, %s, %s, NOW())
-                    ''',
-                    (
-                        str(uuid.uuid4()),
-                        self.ctx.org_id,
-                        'email_classified',
-                        json.dumps({
-                            'email_id': email_id,
-                            'folder':   folder.value,
-                            'method':   method,
-                        }),
-                    ),
-                )
+            from state.memory.memory import AgentMemory
+            AgentMemory().log_event(
+                org_id=self.ctx.org_id,
+                event_type='email_classified',
+                payload={
+                    'email_id': email_id,
+                    'folder':   folder.value,
+                    'method':   method,
+                },
+            )
         except Exception as e:
             print(f'[EmailGPS] Event log error: {e}')
 

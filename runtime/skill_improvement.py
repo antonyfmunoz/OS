@@ -329,27 +329,21 @@ class SkillImprovementEngine:
     # ─── Self-organization: propose new skill ────────────────────────────────
 
     def _log_skill_created(self, skill_id: str, file_path: str, pattern: dict) -> None:
-        from state.storage.db import get_conn, ORG_ID
+        from state.storage.db import ORG_ID
+        from state.memory.memory import AgentMemory
         try:
-            with get_conn(ORG_ID) as cur:
-                cur.execute(
-                    """
-                    INSERT INTO events (org_id, event_type, payload_json, handled_by)
-                    VALUES (%s, %s, %s, %s)
-                    """,
-                    (
-                        ORG_ID,
-                        "skill_created",
-                        json.dumps({
-                            "skill_id":      skill_id,
-                            "file_path":     file_path,
-                            "pattern_count": pattern["count"],
-                            "agent":         pattern["agent"],
-                            "task_type":     pattern["task_type"],
-                        }),
-                        json.dumps(["SkillImprovementEngine.propose_new_skill"]),
-                    ),
-                )
+            AgentMemory().log_event(
+                org_id=ORG_ID,
+                event_type="skill_created",
+                payload={
+                    "skill_id":      skill_id,
+                    "file_path":     file_path,
+                    "pattern_count": pattern["count"],
+                    "agent":         pattern["agent"],
+                    "task_type":     pattern["task_type"],
+                },
+                handled_by=json.dumps(["SkillImprovementEngine.propose_new_skill"]),
+            )
         except Exception as e:
             print(f"[SkillImprovement] _log_skill_created failed: {e}")
 

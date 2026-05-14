@@ -119,26 +119,21 @@ def log_trip(
     """Log a trip to Neon."""
     try:
         from runtime.context import load_context_from_env
-        from state.storage.db import get_conn
+        from state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
 
-        with get_conn(ctx.org_id) as cur:
-            cur.execute('''
-                INSERT INTO events
-                (org_id, event_type, payload_json, handled_by)
-                VALUES (%s, %s, %s, %s)
-            ''', (
-                str(ctx.org_id),
-                'trip',
-                json.dumps({
-                    'title': title,
-                    'destination': destination,
-                    'start_date': start_date,
-                    'end_date': end_date,
-                    'logged_at': datetime.now(PDT).isoformat(),
-                }),
-                'dex_travel',
-            ))
+        AgentMemory().log_event(
+            org_id=str(ctx.org_id),
+            event_type='trip',
+            payload={
+                'title': title,
+                'destination': destination,
+                'start_date': start_date,
+                'end_date': end_date,
+                'logged_at': datetime.now(PDT).isoformat(),
+            },
+            handled_by='dex_travel',
+        )
         return True
     except Exception as e:
         logger.warning(f'[TravelManager] log_trip failed: {e}')
@@ -303,27 +298,22 @@ def log_loyalty_program(
     """Track a travel loyalty program membership."""
     try:
         from runtime.context import load_context_from_env
-        from state.storage.db import get_conn
+        from state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
 
-        with get_conn(ctx.org_id) as cur:
-            cur.execute('''
-                INSERT INTO events
-                (org_id, event_type, payload_json, handled_by)
-                VALUES (%s, %s, %s, %s)
-            ''', (
-                str(ctx.org_id),
-                'loyalty_program',
-                json.dumps({
-                    'program': program,
-                    'provider': provider,
-                    'account_number': account_number,
-                    'points_balance': points_balance,
-                    'tier': tier,
-                    'updated_at': datetime.now(PDT).isoformat(),
-                }),
-                'dex_travel',
-            ))
+        AgentMemory().log_event(
+            org_id=str(ctx.org_id),
+            event_type='loyalty_program',
+            payload={
+                'program': program,
+                'provider': provider,
+                'account_number': account_number,
+                'points_balance': points_balance,
+                'tier': tier,
+                'updated_at': datetime.now(PDT).isoformat(),
+            },
+            handled_by='dex_travel',
+        )
         return True
     except Exception as e:
         logger.warning(f'[Travel] log_loyalty failed: {e}')

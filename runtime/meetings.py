@@ -42,30 +42,24 @@ def create_meeting_record(
         # 1. Write to Neon
         neon_id = None
         try:
-            with get_conn(ctx.org_id) as cur:
-                cur.execute('''
-                    INSERT INTO events (org_id, event_type, payload_json, handled_by)
-                    VALUES (%s, %s, %s, %s)
-                    RETURNING id
-                ''', (
-                    str(ctx.org_id),
-                    'meeting_scheduled',
-                    json.dumps({
-                        'title': title,
-                        'person': person,
-                        'email': email,
-                        'company': company,
-                        'date': date_iso,
-                        'type': meeting_type,
-                        'venture': venture,
-                        'source': source,
-                        'meet_link': meet_link,
-                        'calendly_event_id': calendly_event_id,
-                    }),
-                    'dex_meetings',
-                ))
-                row = cur.fetchone()
-                neon_id = str(row['id']) if row else None
+            from state.memory.memory import AgentMemory
+            neon_id = AgentMemory().log_event(
+                org_id=str(ctx.org_id),
+                event_type='meeting_scheduled',
+                payload={
+                    'title': title,
+                    'person': person,
+                    'email': email,
+                    'company': company,
+                    'date': date_iso,
+                    'type': meeting_type,
+                    'venture': venture,
+                    'source': source,
+                    'meet_link': meet_link,
+                    'calendly_event_id': calendly_event_id,
+                },
+                handled_by='dex_meetings',
+            )
         except Exception as e:
             logger.warning(f'[Meetings] Neon write failed: {e}')
 
@@ -207,22 +201,18 @@ On behalf of Antony Munoz"""
 
                     _draft = _router.call(_model, _prompt).strip()
 
-                    with get_conn(_ctx.org_id) as _cur:
-                        _cur.execute('''
-                            INSERT INTO events
-                            (org_id, event_type, payload_json, handled_by)
-                            VALUES (%s, %s, %s, %s)
-                        ''', (
-                            str(_ctx.org_id),
-                            'email_draft_pending',
-                            _json.dumps({
-                                'draft': _draft,
-                                'type': 'meeting_followup',
-                                'status': 'pending_approval',
-                                'source': 'post_meeting',
-                            }),
-                            'dex_meetings',
-                        ))
+                    from state.memory.memory import AgentMemory as _AgentMemory
+                    _AgentMemory().log_event(
+                        org_id=str(_ctx.org_id),
+                        event_type='email_draft_pending',
+                        payload={
+                            'draft': _draft,
+                            'type': 'meeting_followup',
+                            'status': 'pending_approval',
+                            'source': 'post_meeting',
+                        },
+                        handled_by='dex_meetings',
+                    )
 
                     try:
                         import requests as _req
@@ -450,7 +440,7 @@ def queue_follow_up_tasks(
     """Auto-queue follow-up tasks after a meeting."""
     try:
         from runtime.context import load_context_from_env
-        from state.storage.db import get_conn
+        from state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
 
         tasks = []
@@ -465,23 +455,20 @@ def queue_follow_up_tasks(
                 if loop and len(loop) > 10:
                     tasks.append(loop)
 
-        with get_conn(ctx.org_id) as cur:
-            for task in tasks:
-                cur.execute('''
-                    INSERT INTO events (org_id, event_type, payload_json, handled_by)
-                    VALUES (%s, %s, %s, %s)
-                ''', (
-                    str(ctx.org_id),
-                    'dex_task',
-                    json.dumps({
-                        'task':    task,
-                        'status':  'pending',
-                        'source':  'post_meeting',
-                        'person':  person,
-                        'venture': venture,
-                    }),
-                    'dex_meetings',
-                ))
+        mem = AgentMemory()
+        for task in tasks:
+            mem.log_event(
+                org_id=str(ctx.org_id),
+                event_type='dex_task',
+                payload={
+                    'task':    task,
+                    'status':  'pending',
+                    'source':  'post_meeting',
+                    'person':  person,
+                    'venture': venture,
+                },
+                handled_by='dex_meetings',
+            )
         return True
     except Exception as e:
         logger.warning(f'[Meetings] queue_follow_up_tasks failed: {e}')
@@ -720,24 +707,20 @@ Keep it professional and concise.""").strip()
 
         ctx = ctx or load_context_from_env()
         try:
-            with get_conn(ctx.org_id) as cur:
-                cur.execute('''
-                    INSERT INTO events
-                    (org_id, event_type, payload_json, handled_by)
-                    VALUES (%s, %s, %s, %s)
-                ''', (
-                    str(ctx.org_id),
-                    'meeting_minutes',
-                    _j.dumps({
-                        'title': title,
-                        'person': person,
-                        'minutes': minutes,
-                        'drive_id': drive_file.get('id', ''),
-                        'attendee_emails': attendee_emails or [],
-                        'created_at': now.isoformat(),
-                    }),
-                    'dex_meetings',
-                ))
+            from state.memory.memory import AgentMemory
+            AgentMemory().log_event(
+                org_id=str(ctx.org_id),
+                event_type='meeting_minutes',
+                payload={
+                    'title': title,
+                    'person': person,
+                    'minutes': minutes,
+                    'drive_id': drive_file.get('id', ''),
+                    'attendee_emails': attendee_emails or [],
+                    'created_at': now.isoformat(),
+                },
+                handled_by='dex_meetings',
+            )
         except Exception:
             pass
 

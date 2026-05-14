@@ -21,28 +21,23 @@ def log_delegation(
     """Log a delegated task for follow-up tracking."""
     try:
         from runtime.context import load_context_from_env
-        from state.storage.db import get_conn
+        from state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
         now = datetime.now(PDT)
         due_at = (now + timedelta(hours=due_hours)).isoformat()
 
-        with get_conn(ctx.org_id) as cur:
-            cur.execute('''
-                INSERT INTO events
-                (org_id, event_type, payload_json, handled_by)
-                VALUES (%s, %s, %s, %s)
-            ''', (
-                str(ctx.org_id),
-                'delegation',
-                json.dumps({
-                    'task': task,
-                    'delegated_to': delegated_to,
-                    'status': 'pending',
-                    'delegated_at': now.isoformat(),
-                    'due_at': due_at,
-                }),
-                'dex_delegation',
-            ))
+        AgentMemory().log_event(
+            org_id=str(ctx.org_id),
+            event_type='delegation',
+            payload={
+                'task': task,
+                'delegated_to': delegated_to,
+                'status': 'pending',
+                'delegated_at': now.isoformat(),
+                'due_at': due_at,
+            },
+            handled_by='dex_delegation',
+        )
         return True
     except Exception as e:
         logger.warning(f'[Delegation] log_delegation failed: {e}')

@@ -144,22 +144,12 @@ class EmailReviewer:
     def _store_report(self, report: str) -> None:
         """Persist report to Neon so morning sync can include it."""
         try:
-            from state.storage.db import get_conn
-
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    '''
-                    INSERT INTO events (
-                        id, org_id, event_type,
-                        payload_json, created_at
-                    ) VALUES (%s, %s, %s, %s, NOW())
-                    ''',
-                    (
-                        str(uuid.uuid4()),
-                        self.ctx.org_id,
-                        'email_review_report',
-                        json.dumps({'report': report}),
-                    ),
-                )
+            from state.memory.memory import AgentMemory
+            AgentMemory().log_event(
+                org_id=str(self.ctx.org_id),
+                event_type='email_review_report',
+                payload={'report': report},
+                handled_by='email_reviewer',
+            )
         except Exception as e:
             print(f'[EmailReviewer] Store report failed: {e}')

@@ -115,7 +115,7 @@ def run_yield_audit(tasks: list[str], ctx=None) -> dict:
 
     try:
         from runtime.context import load_context_from_env
-        from state.storage.db import get_conn
+        from state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
         # Strip derived quadrant_info before persisting to Neon
         clean_results = {}
@@ -127,21 +127,16 @@ def run_yield_audit(tasks: list[str], ctx=None) -> dict:
                 {k: v for k, v in item.items() if k != 'quadrant_info'}
                 for item in items
             ]
-        with get_conn(ctx.org_id) as cur:
-            cur.execute(
-                '''INSERT INTO events (org_id, event_type, payload_json, handled_by)
-                   VALUES (%s, %s, %s, %s)''',
-                (
-                    str(ctx.org_id),
-                    'yield_audit',
-                    json.dumps({
-                        'results': clean_results,
-                        'task_count': len(tasks),
-                        'audited_at': datetime.now(PDT).isoformat(),
-                    }),
-                    'dex_yield',
-                ),
-            )
+        AgentMemory().log_event(
+            org_id=str(ctx.org_id),
+            event_type='yield_audit',
+            payload={
+                'results': clean_results,
+                'task_count': len(tasks),
+                'audited_at': datetime.now(PDT).isoformat(),
+            },
+            handled_by='dex_yield',
+        )
     except Exception as e:
         logger.warning(f'[TaskYield] audit persist failed: {e}')
 

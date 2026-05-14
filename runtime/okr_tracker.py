@@ -28,30 +28,25 @@ def set_okr(
     """
     try:
         from runtime.context import load_context_from_env
-        from state.storage.db import get_conn
+        from state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
         now = datetime.now(PDT)
         if not quarter:
             month = now.month
             quarter = f'Q{(month - 1) // 3 + 1} {now.year}'
 
-        with get_conn(ctx.org_id) as cur:
-            cur.execute('''
-                INSERT INTO events
-                (org_id, event_type, payload_json, handled_by)
-                VALUES (%s, %s, %s, %s)
-            ''', (
-                str(ctx.org_id),
-                'okr',
-                json.dumps({
-                    'objective': objective,
-                    'key_results': key_results,
-                    'venture_id': venture_id,
-                    'quarter': quarter,
-                    'created_at': now.isoformat(),
-                }),
-                'dex_okr',
-            ))
+        AgentMemory().log_event(
+            org_id=str(ctx.org_id),
+            event_type='okr',
+            payload={
+                'objective': objective,
+                'key_results': key_results,
+                'venture_id': venture_id,
+                'quarter': quarter,
+                'created_at': now.isoformat(),
+            },
+            handled_by='dex_okr',
+        )
         return True
     except Exception as e:
         logger.warning(f'[OKR] set_okr failed: {e}')

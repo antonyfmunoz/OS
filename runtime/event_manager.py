@@ -32,7 +32,7 @@ def create_event(
     """
     try:
         from runtime.context import load_context_from_env
-        from state.storage.db import get_conn
+        from state.memory.memory import AgentMemory
         from execution.runtime.model_router import get_router, TaskType
         ctx = ctx or load_context_from_env()
         router = get_router()
@@ -70,17 +70,12 @@ Return JSON only:
             'created_at': datetime.now(PDT).isoformat(),
         }
 
-        with get_conn(ctx.org_id) as cur:
-            cur.execute('''
-                INSERT INTO events
-                (org_id, event_type, payload_json, handled_by)
-                VALUES (%s, %s, %s, %s)
-            ''', (
-                str(ctx.org_id),
-                'managed_event',
-                json.dumps(event),
-                'dex_events',
-            ))
+        AgentMemory().log_event(
+            org_id=str(ctx.org_id),
+            event_type='managed_event',
+            payload=event,
+            handled_by='dex_events',
+        )
 
         return event
     except Exception as e:
@@ -138,29 +133,24 @@ def log_speaking_engagement(
     """
     try:
         from runtime.context import load_context_from_env
-        from state.storage.db import get_conn
+        from state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
 
-        with get_conn(ctx.org_id) as cur:
-            cur.execute('''
-                INSERT INTO events
-                (org_id, event_type, payload_json, handled_by)
-                VALUES (%s, %s, %s, %s)
-            ''', (
-                str(ctx.org_id),
-                'speaking_engagement',
-                json.dumps({
-                    'event_name': event_name,
-                    'organizer': organizer,
-                    'organizer_email': organizer_email,
-                    'date': date,
-                    'topic': topic,
-                    'format': format,
-                    'status': status,
-                    'logged_at': datetime.now(PDT).isoformat(),
-                }),
-                'dex_speaking',
-            ))
+        AgentMemory().log_event(
+            org_id=str(ctx.org_id),
+            event_type='speaking_engagement',
+            payload={
+                'event_name': event_name,
+                'organizer': organizer,
+                'organizer_email': organizer_email,
+                'date': date,
+                'topic': topic,
+                'format': format,
+                'status': status,
+                'logged_at': datetime.now(PDT).isoformat(),
+            },
+            handled_by='dex_speaking',
+        )
         return True
     except Exception as e:
         logger.warning(f'[EventManager] log_speaking failed: {e}')
@@ -237,29 +227,24 @@ def log_pr_media_inquiry(
     """
     try:
         from runtime.context import load_context_from_env
-        from state.storage.db import get_conn
+        from state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
 
-        with get_conn(ctx.org_id) as cur:
-            cur.execute('''
-                INSERT INTO events
-                (org_id, event_type, payload_json, handled_by)
-                VALUES (%s, %s, %s, %s)
-            ''', (
-                str(ctx.org_id),
-                'pr_media_inquiry',
-                json.dumps({
-                    'outlet': outlet,
-                    'contact_name': contact_name,
-                    'contact_email': contact_email,
-                    'topic': topic,
-                    'deadline': deadline,
-                    'type': inquiry_type,
-                    'status': 'received',
-                    'logged_at': datetime.now(PDT).isoformat(),
-                }),
-                'dex_pr',
-            ))
+        AgentMemory().log_event(
+            org_id=str(ctx.org_id),
+            event_type='pr_media_inquiry',
+            payload={
+                'outlet': outlet,
+                'contact_name': contact_name,
+                'contact_email': contact_email,
+                'topic': topic,
+                'deadline': deadline,
+                'type': inquiry_type,
+                'status': 'received',
+                'logged_at': datetime.now(PDT).isoformat(),
+            },
+            handled_by='dex_pr',
+        )
         return True
     except Exception as e:
         logger.warning(f'[EventManager] log_pr failed: {e}')

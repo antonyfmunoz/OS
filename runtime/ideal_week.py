@@ -94,23 +94,18 @@ def save_ideal_week(template: dict, ctx=None) -> bool:
     """Save a custom ideal week template."""
     try:
         from runtime.context import load_context_from_env
-        from state.storage.db import get_conn
+        from state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
 
-        with get_conn(ctx.org_id) as cur:
-            cur.execute(
-                '''INSERT INTO events (org_id, event_type, payload_json, handled_by)
-                   VALUES (%s, %s, %s, %s)''',
-                (
-                    str(ctx.org_id),
-                    'ideal_week',
-                    json.dumps({
-                        'template': template,
-                        'saved_at': datetime.now(PDT).isoformat(),
-                    }),
-                    'dex_ideal_week',
-                ),
-            )
+        AgentMemory().log_event(
+            org_id=str(ctx.org_id),
+            event_type='ideal_week',
+            payload={
+                'template': template,
+                'saved_at': datetime.now(PDT).isoformat(),
+            },
+            handled_by='dex_ideal_week',
+        )
         return True
     except Exception as e:
         logger.warning(f'[IdealWeek] save failed: {e}')
@@ -208,22 +203,17 @@ def save_annual_architecture(year_plan: dict, ctx=None) -> bool:
     """
     try:
         from runtime.context import load_context_from_env
-        from state.storage.db import get_conn
+        from state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
-        with get_conn(ctx.org_id) as cur:
-            cur.execute('''
-                INSERT INTO events
-                (org_id, event_type, payload_json, handled_by)
-                VALUES (%s, %s, %s, %s)
-            ''', (
-                str(ctx.org_id),
-                'annual_architecture',
-                json.dumps({
-                    'plan': year_plan,
-                    'saved_at': datetime.now(PDT).isoformat(),
-                }),
-                'dex_annual_plan',
-            ))
+        AgentMemory().log_event(
+            org_id=str(ctx.org_id),
+            event_type='annual_architecture',
+            payload={
+                'plan': year_plan,
+                'saved_at': datetime.now(PDT).isoformat(),
+            },
+            handled_by='dex_annual_plan',
+        )
         return True
     except Exception as e:
         logger.warning(f'[IdealWeek] save_annual_architecture failed: {e}')

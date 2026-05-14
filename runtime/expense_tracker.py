@@ -75,20 +75,15 @@ def store_expense(expense: dict, ctx=None) -> bool:
     """Store expense in Neon events table."""
     try:
         from runtime.context import load_context_from_env
-        from state.storage.db import get_conn
+        from state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
 
-        with get_conn(ctx.org_id) as cur:
-            cur.execute('''
-                INSERT INTO events
-                (org_id, event_type, payload_json, handled_by)
-                VALUES (%s, %s, %s, %s)
-            ''', (
-                str(ctx.org_id),
-                'expense',
-                json.dumps(expense),
-                'dex_expense_tracker',
-            ))
+        AgentMemory().log_event(
+            org_id=str(ctx.org_id),
+            event_type='expense',
+            payload=expense,
+            handled_by='dex_expense_tracker',
+        )
         return True
     except Exception as e:
         logger.warning(f'[ExpenseTracker] Store failed: {e}')
@@ -206,7 +201,7 @@ def create_invoice(
     """
     try:
         from runtime.context import load_context_from_env
-        from state.storage.db import get_conn
+        from state.memory.memory import AgentMemory
         from datetime import datetime, timedelta
         import uuid as _uuid
         ctx = ctx or load_context_from_env()
@@ -230,17 +225,12 @@ def create_invoice(
             'created_at': datetime.now(PDT).isoformat(),
         }
 
-        with get_conn(ctx.org_id) as cur:
-            cur.execute('''
-                INSERT INTO events
-                (org_id, event_type, payload_json, handled_by)
-                VALUES (%s, %s, %s, %s)
-            ''', (
-                str(ctx.org_id),
-                'invoice',
-                json.dumps(invoice),
-                'dex_invoices',
-            ))
+        AgentMemory().log_event(
+            org_id=str(ctx.org_id),
+            event_type='invoice',
+            payload=invoice,
+            handled_by='dex_invoices',
+        )
 
         return invoice
     except Exception as e:

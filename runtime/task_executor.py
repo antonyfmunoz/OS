@@ -215,24 +215,13 @@ class TaskExecutor:
         return task
 
     def _handle_log_lead(self, task: AgentTask) -> AgentTask:
-        import json as _json
-        from state.storage.db import get_conn
+        from state.memory.memory import AgentMemory
         lead_data = task.inputs.get('lead', task.inputs)
-        with get_conn(self.ctx.org_id) as cur:
-            cur.execute(
-                """
-                INSERT INTO events (
-                    id, org_id, event_type,
-                    payload_json, created_at)
-                VALUES (%s, %s, %s, %s, NOW())
-                """,
-                (
-                    str(uuid.uuid4()),
-                    self.ctx.org_id,
-                    'pipeline_entry',
-                    _json.dumps(lead_data),
-                ),
-            )
+        AgentMemory().log_event(
+            org_id=self.ctx.org_id,
+            event_type='pipeline_entry',
+            payload=lead_data,
+        )
         task.outputs['logged'] = True
         return task
 
@@ -250,32 +239,20 @@ class TaskExecutor:
 
     def _save_task(self, task: AgentTask) -> None:
         try:
-            import json as _json
-            from state.storage.db import get_conn
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    """
-                    INSERT INTO events (
-                        id, org_id, event_type,
-                        payload_json, created_at)
-                    VALUES (%s, %s, %s, %s, NOW())
-                    ON CONFLICT DO NOTHING
-                    """,
-                    (
-                        str(uuid.uuid4()),
-                        self.ctx.org_id,
-                        'agent_task_execution',
-                        _json.dumps({
-                            'task_id': task.id,
-                            'agent':   task.agent_id,
-                            'type':    task.task_type,
-                            'status':  task.status.value,
-                            'venture': task.venture_id,
-                            'inputs':  task.inputs,
-                            'outputs': task.outputs,
-                            'error':   task.error,
-                        }),
-                    ),
-                )
+            from state.memory.memory import AgentMemory
+            AgentMemory().log_event(
+                org_id=self.ctx.org_id,
+                event_type='agent_task_execution',
+                payload={
+                    'task_id': task.id,
+                    'agent':   task.agent_id,
+                    'type':    task.task_type,
+                    'status':  task.status.value,
+                    'venture': task.venture_id,
+                    'inputs':  task.inputs,
+                    'outputs': task.outputs,
+                    'error':   task.error,
+                },
+            )
         except Exception as e:
             print(f'[TaskExecutor] Save: {e}')

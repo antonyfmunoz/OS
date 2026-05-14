@@ -33,7 +33,8 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from state.storage.db import get_conn, ORG_ID
+from state.storage.db import ORG_ID
+from state.memory.memory import AgentMemory
 
 
 def _utcnow() -> str:
@@ -96,16 +97,12 @@ class EventBus:
         handled_by: list[str],
     ) -> str:
         try:
-            with get_conn(ORG_ID) as cur:
-                cur.execute(
-                    """
-                    INSERT INTO events (org_id, event_type, payload_json, handled_by)
-                    VALUES (%s, %s, %s, %s)
-                    RETURNING id
-                    """,
-                    (ORG_ID, event_type, json.dumps(payload), json.dumps(handled_by)),
-                )
-                return str(cur.fetchone()["id"])
+            return AgentMemory().log_event(
+                org_id=ORG_ID,
+                event_type=event_type,
+                payload=payload,
+                handled_by=json.dumps(handled_by),
+            )
         except Exception as e:
             print(f"[EventBus] _log_event failed: {e}")
             return ""

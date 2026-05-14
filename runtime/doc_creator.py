@@ -163,24 +163,19 @@ Keep it under 500 words. Client-facing quality.""",
         # Log to Neon
         try:
             from runtime.context import load_context_from_env
-            from state.storage.db import get_conn
+            from state.memory.memory import AgentMemory
             ctx = ctx or load_context_from_env()
-            with get_conn(ctx.org_id) as cur:
-                cur.execute('''
-                    INSERT INTO events
-                    (org_id, event_type, payload_json, handled_by)
-                    VALUES (%s, %s, %s, %s)
-                ''', (
-                    str(ctx.org_id),
-                    'document_created',
-                    json.dumps({
-                        'title': title,
-                        'type': doc_type,
-                        'drive_id': drive_result.get('id', ''),
-                        'created_at': datetime.now(PDT).isoformat(),
-                    }),
-                    'dex_doc_creator',
-                ))
+            AgentMemory().log_event(
+                org_id=str(ctx.org_id),
+                event_type='document_created',
+                payload={
+                    'title': title,
+                    'type': doc_type,
+                    'drive_id': drive_result.get('id', ''),
+                    'created_at': datetime.now(PDT).isoformat(),
+                },
+                handled_by='dex_doc_creator',
+            )
         except Exception:
             pass
 

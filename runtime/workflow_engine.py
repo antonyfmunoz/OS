@@ -951,62 +951,38 @@ class AgentWorkflowEngine:
 
     def _save_workflow(self, workflow: AgentWorkflow) -> None:
         try:
-            from state.storage.db import get_conn
+            from state.memory.memory import AgentMemory
 
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    """
-                    INSERT INTO events (
-                        id, org_id, event_type,
-                        payload_json, created_at)
-                    VALUES (%s, %s, %s, %s, NOW())
-                    """,
-                    (
-                        str(_uuid_mod.uuid4()),
-                        self.ctx.org_id,
-                        "workflow_created",
-                        json.dumps(
-                            {
-                                "workflow_id": workflow.id,
-                                "name": workflow.name,
-                                "venture_id": workflow.venture_id,
-                                "trigger": workflow.trigger,
-                                "steps": len(workflow.steps),
-                                "status": workflow.status.value,
-                            }
-                        ),
-                    ),
-                )
+            AgentMemory().log_event(
+                org_id=self.ctx.org_id,
+                event_type="workflow_created",
+                payload={
+                    "workflow_id": workflow.id,
+                    "name": workflow.name,
+                    "venture_id": workflow.venture_id,
+                    "trigger": workflow.trigger,
+                    "steps": len(workflow.steps),
+                    "status": workflow.status.value,
+                },
+            )
         except Exception as e:
             print(f"[AgentWorkflowEngine] Save: {e}")
 
     def _save_run(self, run: WorkflowRun) -> None:
         try:
-            from state.storage.db import get_conn
+            from state.memory.memory import AgentMemory
 
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    """
-                    INSERT INTO events (
-                        id, org_id, event_type,
-                        payload_json, created_at)
-                    VALUES (%s, %s, %s, %s, NOW())
-                    """,
-                    (
-                        str(_uuid_mod.uuid4()),
-                        self.ctx.org_id,
-                        "workflow_run",
-                        json.dumps(
-                            {
-                                "run_id": run.id,
-                                "workflow_id": run.workflow_id,
-                                "status": run.status.value,
-                                "current_step": run.current_step,
-                                "step_results": run.step_results,
-                                "error": run.error,
-                            }
-                        ),
-                    ),
-                )
+            AgentMemory().log_event(
+                org_id=self.ctx.org_id,
+                event_type="workflow_run",
+                payload={
+                    "run_id": run.id,
+                    "workflow_id": run.workflow_id,
+                    "status": run.status.value,
+                    "current_step": run.current_step,
+                    "step_results": run.step_results,
+                    "error": run.error,
+                },
+            )
         except Exception as e:
             print(f"[AgentWorkflowEngine] Run save: {e}")

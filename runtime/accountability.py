@@ -94,29 +94,19 @@ class AccountabilityEngine:
 
     def _save_commitment(self, commitment: Commitment) -> None:
         try:
-            from state.storage.db import get_conn
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    '''
-                    INSERT INTO events (
-                        id, org_id, event_type,
-                        payload_json, created_at)
-                    VALUES (%s, %s, %s, %s, NOW())
-                    ''',
-                    (
-                        str(uuid.uuid4()),
-                        self.ctx.org_id,
-                        'commitment',
-                        json.dumps({
-                            'commitment_id': commitment.id,
-                            'text': commitment.text,
-                            'venture_id': commitment.venture_id,
-                            'due_at': commitment.due_at.isoformat(),
-                            'fulfilled': None,
-                            'follow_up_sent': False,
-                        }),
-                    ),
-                )
+            from state.memory.memory import AgentMemory
+            AgentMemory().log_event(
+                org_id=self.ctx.org_id,
+                event_type='commitment',
+                payload={
+                    'commitment_id': commitment.id,
+                    'text': commitment.text,
+                    'venture_id': commitment.venture_id,
+                    'due_at': commitment.due_at.isoformat(),
+                    'fulfilled': None,
+                    'follow_up_sent': False,
+                },
+            )
         except Exception as e:
             print(f'[Accountability] Save: {e}')
 

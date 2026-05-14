@@ -86,29 +86,22 @@ Reply with exactly one of: lyfe_institute | empyrean_creative | personal_brand""
 def capture_to_neon(text: str, capture_type: str, ctx=None) -> bool:
     """Write a captured task/idea to the Neon events table."""
     try:
-        from state.storage.db import get_conn
+        from state.memory.memory import AgentMemory
         from runtime.context import load_context_from_env
 
         ctx = ctx or load_context_from_env()
 
-        with get_conn(ctx.org_id) as cur:
-            cur.execute(
-                """
-                INSERT INTO events (org_id, event_type, payload_json, handled_by)
-                VALUES (%s, %s, %s, %s)
-                """,
-                (
-                    str(ctx.org_id),
-                    'dex_task',
-                    json.dumps({
-                        'task': f'{capture_type.upper()}: {text}',
-                        'status': None,
-                        'completed': 'false',
-                        'source': 'discord_capture',
-                    }),
-                    json.dumps([]),
-                ),
-            )
+        AgentMemory().log_event(
+            org_id=str(ctx.org_id),
+            event_type='dex_task',
+            payload={
+                'task': f'{capture_type.upper()}: {text}',
+                'status': None,
+                'completed': 'false',
+                'source': 'discord_capture',
+            },
+            handled_by=json.dumps([]),
+        )
 
         logger.info(f"[Capture] Saved {capture_type}: {text[:60]}")
         return True

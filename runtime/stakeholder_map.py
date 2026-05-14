@@ -32,29 +32,24 @@ def add_stakeholder(
     """
     try:
         from runtime.context import load_context_from_env
-        from state.storage.db import get_conn
+        from state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
 
-        with get_conn(ctx.org_id) as cur:
-            cur.execute('''
-                INSERT INTO events
-                (org_id, event_type, payload_json, handled_by)
-                VALUES (%s, %s, %s, %s)
-            ''', (
-                str(ctx.org_id),
-                'stakeholder',
-                json.dumps({
-                    'name': name,
-                    'venture': venture,
-                    'role': role,
-                    'influence': influence,
-                    'status': status,
-                    'notes': notes,
-                    'email': email,
-                    'added_at': datetime.now(PDT).isoformat(),
-                }),
-                'dex_stakeholders',
-            ))
+        AgentMemory().log_event(
+            org_id=str(ctx.org_id),
+            event_type='stakeholder',
+            payload={
+                'name': name,
+                'venture': venture,
+                'role': role,
+                'influence': influence,
+                'status': status,
+                'notes': notes,
+                'email': email,
+                'added_at': datetime.now(PDT).isoformat(),
+            },
+            handled_by='dex_stakeholders',
+        )
         return True
     except Exception as e:
         logger.warning(f'[StakeholderMap] add failed: {e}')

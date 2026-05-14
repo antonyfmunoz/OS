@@ -42,21 +42,16 @@ def store_founder_rate(annual_income: float, ctx=None) -> bool:
     """Store Founder Rate in Neon for use across the system."""
     try:
         from runtime.context import load_context_from_env
-        from state.storage.db import get_conn
+        from state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
         rate = calculate_founder_rate(annual_income)
 
-        with get_conn(ctx.org_id) as cur:
-            cur.execute(
-                '''INSERT INTO events (org_id, event_type, payload_json, handled_by)
-                   VALUES (%s, %s, %s, %s)''',
-                (
-                    str(ctx.org_id),
-                    'founder_rate',
-                    json.dumps({**rate, 'set_at': datetime.now(PDT).isoformat()}),
-                    'dex_founder_rate',
-                ),
-            )
+        AgentMemory().log_event(
+            org_id=str(ctx.org_id),
+            event_type='founder_rate',
+            payload={**rate, 'set_at': datetime.now(PDT).isoformat()},
+            handled_by='dex_founder_rate',
+        )
         return True
     except Exception as e:
         logger.warning(f'[FounderRate] store failed: {e}')
@@ -103,26 +98,21 @@ def log_time_block(
     """
     try:
         from runtime.context import load_context_from_env
-        from state.storage.db import get_conn
+        from state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
 
-        with get_conn(ctx.org_id) as cur:
-            cur.execute(
-                '''INSERT INTO events (org_id, event_type, payload_json, handled_by)
-                   VALUES (%s, %s, %s, %s)''',
-                (
-                    str(ctx.org_id),
-                    'time_audit_block',
-                    json.dumps({
-                        'activity': activity,
-                        'duration_minutes': duration_minutes,
-                        'energy': energy,
-                        'estimated_value': estimated_value,
-                        'logged_at': datetime.now(PDT).isoformat(),
-                    }),
-                    'dex_time_audit',
-                ),
-            )
+        AgentMemory().log_event(
+            org_id=str(ctx.org_id),
+            event_type='time_audit_block',
+            payload={
+                'activity': activity,
+                'duration_minutes': duration_minutes,
+                'energy': energy,
+                'estimated_value': estimated_value,
+                'logged_at': datetime.now(PDT).isoformat(),
+            },
+            handled_by='dex_time_audit',
+        )
         return True
     except Exception as e:
         logger.warning(f'[FounderRate] log_time_block failed: {e}')
@@ -190,23 +180,18 @@ def add_to_no_list(item: str, reason: str = '', ctx=None) -> bool:
     """Add something to Antony's No List."""
     try:
         from runtime.context import load_context_from_env
-        from state.storage.db import get_conn
+        from state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
-        with get_conn(ctx.org_id) as cur:
-            cur.execute('''
-                INSERT INTO events
-                (org_id, event_type, payload_json, handled_by)
-                VALUES (%s, %s, %s, %s)
-            ''', (
-                str(ctx.org_id),
-                'no_list',
-                json.dumps({
-                    'item': item,
-                    'reason': reason,
-                    'added_at': datetime.now(PDT).isoformat(),
-                }),
-                'dex_no_list',
-            ))
+        AgentMemory().log_event(
+            org_id=str(ctx.org_id),
+            event_type='no_list',
+            payload={
+                'item': item,
+                'reason': reason,
+                'added_at': datetime.now(PDT).isoformat(),
+            },
+            handled_by='dex_no_list',
+        )
         return True
     except Exception as e:
         logger.warning(f'[NoList] add failed: {e}')

@@ -65,31 +65,22 @@ class AgentMessageBus:
 
     def send(self, message: AgentMessage) -> bool:
         try:
-            from state.storage.db import get_conn
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    """
-                    INSERT INTO events (
-                        id, org_id, event_type,
-                        payload_json, created_at)
-                    VALUES (%s, %s, %s, %s, NOW())
-                    """,
-                    (
-                        str(uuid.uuid4()),
-                        self.ctx.org_id,
-                        'agent_message',
-                        json.dumps({
-                            'from':             message.from_agent,
-                            'to':               message.to_agent,
-                            'direction':        message.direction.value,
-                            'content':          message.content,
-                            'type':             message.message_type.value,
-                            'venture_id':       message.venture_id,
-                            'requires_response': message.requires_response,
-                            'priority':         message.priority,
-                        }),
-                    ),
-                )
+            from state.memory.memory import AgentMemory
+            AgentMemory().log_event(
+                org_id=str(self.ctx.org_id),
+                event_type='agent_message',
+                payload={
+                    'from':             message.from_agent,
+                    'to':               message.to_agent,
+                    'direction':        message.direction.value,
+                    'content':          message.content,
+                    'type':             message.message_type.value,
+                    'venture_id':       message.venture_id,
+                    'requires_response': message.requires_response,
+                    'priority':         message.priority,
+                },
+                handled_by='agent_messages',
+            )
             return True
         except Exception as e:
             print(f'[MessageBus] Send: {e}')

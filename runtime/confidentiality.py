@@ -83,7 +83,7 @@ def create_confidential_session(
     """
     try:
         from runtime.context import load_context_from_env
-        from state.storage.db import get_conn
+        from state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
         now = datetime.now(PDT)
 
@@ -96,22 +96,17 @@ def create_confidential_session(
         }
 
         if level != 'sealed':
-            with get_conn(ctx.org_id) as cur:
-                cur.execute('''
-                    INSERT INTO events
-                    (org_id, event_type, payload_json, handled_by)
-                    VALUES (%s, %s, %s, %s)
-                ''', (
-                    str(ctx.org_id),
-                    'confidential_session',
-                    json.dumps({
-                        'topic': topic,
-                        'party_count': len(parties),
-                        'level': level,
-                        'started_at': now.isoformat(),
-                    }),
-                    'confidentiality_protocol',
-                ))
+            AgentMemory().log_event(
+                org_id=str(ctx.org_id),
+                event_type='confidential_session',
+                payload={
+                    'topic': topic,
+                    'party_count': len(parties),
+                    'level': level,
+                    'started_at': now.isoformat(),
+                },
+                handled_by='confidentiality_protocol',
+            )
 
         return session
     except Exception as e:

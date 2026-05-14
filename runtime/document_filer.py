@@ -84,28 +84,23 @@ def log_document(
     """Log a filed document to Neon."""
     try:
         from runtime.context import load_context_from_env
-        from state.storage.db import get_conn
+        from state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
 
-        with get_conn(ctx.org_id) as cur:
-            cur.execute('''
-                INSERT INTO events
-                (org_id, event_type, payload_json, handled_by)
-                VALUES (%s, %s, %s, %s)
-            ''', (
-                str(ctx.org_id),
-                'document_filed',
-                json.dumps({
-                    'filename': filename,
-                    'type': doc_type,
-                    'folder': folder,
-                    'venture': venture,
-                    'sender': sender,
-                    'requires_review': requires_review,
-                    'filed_at': datetime.now(PDT).isoformat(),
-                }),
-                'document_filer',
-            ))
+        AgentMemory().log_event(
+            org_id=str(ctx.org_id),
+            event_type='document_filed',
+            payload={
+                'filename': filename,
+                'type': doc_type,
+                'folder': folder,
+                'venture': venture,
+                'sender': sender,
+                'requires_review': requires_review,
+                'filed_at': datetime.now(PDT).isoformat(),
+            },
+            handled_by='document_filer',
+        )
         return True
     except Exception as e:
         logger.warning(f'[DocumentFiler] log failed: {e}')

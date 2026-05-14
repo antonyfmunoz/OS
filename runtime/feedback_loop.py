@@ -61,32 +61,20 @@ class FeedbackLoop:
 
         rec_id = str(uuid.uuid4())[:8]
         try:
-            from state.storage.db import get_conn
+            from state.memory.memory import AgentMemory
 
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    """
-                    INSERT INTO events (
-                        id, org_id, event_type,
-                        payload_json, created_at)
-                    VALUES (%s, %s, %s, %s, NOW())
-                    """,
-                    (
-                        str(uuid.uuid4()),
-                        self.ctx.org_id,
-                        "recommendation",
-                        json.dumps(
-                            {
-                                "rec_id": rec_id,
-                                "content": content[:500],
-                                "venture_id": venture_id,
-                                "context": context[:200],
-                                "outcome": "pending",
-                                "followed": None,
-                            }
-                        ),
-                    ),
-                )
+            AgentMemory().log_event(
+                org_id=self.ctx.org_id,
+                event_type="recommendation",
+                payload={
+                    "rec_id": rec_id,
+                    "content": content[:500],
+                    "venture_id": venture_id,
+                    "context": context[:200],
+                    "outcome": "pending",
+                    "followed": None,
+                },
+            )
             print(f"[FeedbackLoop] Logged rec: {rec_id}")
         except Exception as e:
             print(f"[FeedbackLoop] Log failed: {e}")

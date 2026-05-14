@@ -78,29 +78,21 @@ class DecisionLog:
         """
         decision_id = str(uuid.uuid4())[:8]
         try:
-            from state.storage.db import get_conn
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    '''
-                    INSERT INTO events (
-                        id, org_id, event_type, payload_json, created_at
-                    ) VALUES (%s, %s, %s, %s, NOW())
-                    ''',
-                    (
-                        str(uuid.uuid4()),
-                        self.ctx.org_id,
-                        'decision',
-                        json.dumps({
-                            'decision_id': decision_id,
-                            'description': description,
-                            'rationale':   rationale,
-                            'venture_id':  venture_id,
-                            'decided_by':  decided_by,
-                            'impact':      impact,
-                            'tags':        tags or [],
-                        }),
-                    ),
-                )
+            from state.memory.memory import AgentMemory
+            AgentMemory().log_event(
+                org_id=str(self.ctx.org_id),
+                event_type='decision',
+                payload={
+                    'decision_id': decision_id,
+                    'description': description,
+                    'rationale':   rationale,
+                    'venture_id':  venture_id,
+                    'decided_by':  decided_by,
+                    'impact':      impact,
+                    'tags':        tags or [],
+                },
+                handled_by='decision_log',
+            )
             print(f'[DecisionLog] Logged: {description[:60]}')
         except Exception as e:
             print(f'[DecisionLog] log failed: {e}')

@@ -406,21 +406,20 @@ class AgentMemory:
         org_id: str,
         event_type: str,
         payload: dict,
+        handled_by: str = "cognitive_loop",
     ) -> str:
         """
         Write a structured event to the Neon events table.
-        Used by CognitiveLoop for reflections and any
-        layer that needs to record a non-interaction event.
         Returns event_id (UUID).
         """
         with get_conn(org_id) as cur:
             cur.execute(
                 """
                 INSERT INTO events (org_id, event_type, payload_json, handled_by)
-                VALUES (%s, %s, %s, 'cognitive_loop')
+                VALUES (%s, %s, %s, %s)
                 RETURNING id
                 """,
-                (org_id, event_type, json.dumps(payload)),
+                (org_id, event_type, json.dumps(payload), handled_by),
             )
             return str(cur.fetchone()["id"])
 

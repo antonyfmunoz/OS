@@ -676,23 +676,15 @@ class SelfAwarenessEngine:
         """Write activity event to Neon events table."""
         import json
         try:
-            from state.storage.db import get_conn
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    '''
-                    INSERT INTO events
-                        (org_id, event_type, payload_json, handled_by)
-                    VALUES (%s, %s, %s, %s)
-                    ''',
-                    (
-                        self.ctx.org_id,
-                        'self_awareness_event',
-                        json.dumps({
-                            'venture_id': venture_id,
-                            'message':    message[:500],
-                        }),
-                        json.dumps(['SelfAwarenessEngine']),
-                    ),
-                )
+            from state.memory.memory import AgentMemory
+            AgentMemory().log_event(
+                org_id=self.ctx.org_id,
+                event_type='self_awareness_event',
+                payload={
+                    'venture_id': venture_id,
+                    'message':    message[:500],
+                },
+                handled_by=json.dumps(['SelfAwarenessEngine']),
+            )
         except Exception as e:
             print(f'[SelfAwareness] _log_to_neon failed: {e}')

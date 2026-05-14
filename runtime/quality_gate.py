@@ -494,31 +494,21 @@ def gate_outgoing_email(
 
     try:
         from runtime.context import load_context_from_env
-        from state.storage.db import get_conn
+        from state.memory.memory import AgentMemory
 
         ctx = ctx or load_context_from_env()
-        with get_conn(ctx.org_id) as cur:
-            cur.execute(
-                """
-                INSERT INTO events
-                (org_id, event_type, payload_json, handled_by)
-                VALUES (%s, %s, %s, %s)
-            """,
-                (
-                    str(ctx.org_id),
-                    "quality_gate_check",
-                    _j.dumps(
-                        {
-                            "subject": subject,
-                            "to": to_email,
-                            "score": result.get("score"),
-                            "approved": result.get("approved"),
-                            "issues": result.get("issues", []),
-                        }
-                    ),
-                    "quality_gate",
-                ),
-            )
+        AgentMemory().log_event(
+            org_id=str(ctx.org_id),
+            event_type="quality_gate_check",
+            payload={
+                "subject": subject,
+                "to": to_email,
+                "score": result.get("score"),
+                "approved": result.get("approved"),
+                "issues": result.get("issues", []),
+            },
+            handled_by="quality_gate",
+        )
     except Exception:
         pass
 

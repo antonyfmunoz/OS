@@ -1099,34 +1099,26 @@ class GoalSelector:
     def _log_cycle(self, active: list[Goal], all_scored: list[Goal]) -> None:
         """Log selection cycle result to events table."""
         try:
-            with get_conn(self.org_id) as cur:
-                cur.execute(
-                    """
-                    INSERT INTO events (org_id, event_type, payload_json)
-                    VALUES (%s, %s, %s)
-                    """,
-                    (
-                        self.org_id,
-                        "goal_selection_cycle",
-                        json.dumps(
-                            {
-                                "active_count": len(active),
-                                "total_scored": len(all_scored),
-                                "focus_budget": self.focus_budget,
-                                "active_goals": [
-                                    {
-                                        "id": g.id,
-                                        "title": g.title,
-                                        "score": g.score,
-                                        "opportunity_cost": g.opportunity_cost_adjustment,
-                                    }
-                                    for g in active
-                                ],
-                                "timestamp": datetime.now(timezone.utc).isoformat(),
-                            }
-                        ),
-                    ),
-                )
+            from state.memory.memory import AgentMemory
+            AgentMemory().log_event(
+                org_id=self.org_id,
+                event_type="goal_selection_cycle",
+                payload={
+                    "active_count": len(active),
+                    "total_scored": len(all_scored),
+                    "focus_budget": self.focus_budget,
+                    "active_goals": [
+                        {
+                            "id": g.id,
+                            "title": g.title,
+                            "score": g.score,
+                            "opportunity_cost": g.opportunity_cost_adjustment,
+                        }
+                        for g in active
+                    ],
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                },
+            )
         except Exception as e:
             print(f"[GoalSelector] cycle log failed: {e}")
 
