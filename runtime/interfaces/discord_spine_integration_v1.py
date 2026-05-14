@@ -50,7 +50,7 @@ from core.runtime.runtime_recovery_v1 import (
 from core.runtime.runtime_session_registry_v1 import (
     RuntimeSessionRegistry,
 )
-from core.state.transformation_state_ledger import (
+from state.transformation_state_ledger import (
 
     TransformationStateLedger,
     make_trace_id,

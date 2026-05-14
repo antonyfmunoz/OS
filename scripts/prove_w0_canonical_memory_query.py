@@ -48,7 +48,7 @@ from core.memory.canonical_memory_query_contracts import (
 )
 from core.runtime.adapter_registry_contracts import AdapterRegistry
 from core.runtime.worker_runtime_contracts import ProofStatus, RuntimeProofRecord
-from core.state.transformation_state_ledger import (
+from state.transformation_state_ledger import (
     GOVERNANCE_REQUIRED_STAGES,
     VALID_TRANSITIONS,
     StateArtifactReference,

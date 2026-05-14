@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 ---
 type: wiki_index
 updated: 2026-04-05
@@ -124,6 +123,30 @@ Ideas, frameworks, and patterns that recur across the business.
 - [[minimum-input-length-guard]] — Details a design pattern to prevent LLM operations from processing trivially short inputs, improving quality and efficiency.
 - [[input-length-guard]] — A proposed mechanism to prevent execution plans from attempting to process trivially short inputs for tasks like summarization.
 - [[execution-plan-concept]] — Covers the definition and structure of an execution plan, likely in JSON format, used for defining sequences of operations.
+- [[codebase-truth-mapping]] — The process of mapping and auditing a codebase to determine its actual state and readiness for ingestion.
+- [[proof-generation-patterns]] — Recognizing patterns where a system produces its own evidence of correctness, and the need for external validation to make that evidence meaningful.
+- [[transformation-state-ledger]] — Transformation state ledger acts as the integrity backbone across all three layers of adapter maturity
+- [[adapter-package-metadata]] — Package metadata claims what an adapter can do in terms of capabilities, governance, and maturity percentage
+- [[pipeline-orchestration]] — Pipeline orchestration defines how adapters compose into governed workflows
+- [[runtime-engine-legacy-duplication]] — Explains the 42-module duplication between runtime_engine and clean packages that emerged during the eos_ai to umh migration.
+- [[intelligence-kernel-architecture]] — Describes the 65-module intelligence kernel built in phases 30-74 with zero subprocess imports, bounded invariants, and pure-computation discipline.
+- [[gws-to-substrate-ingestion-bridge]] — Describes the pipeline connecting the GWS scanner through extraction, decomposition, candidate generation, memory persistence, and query validation.
+- [[revenue-growth-strategies]] — strategies to increase revenue including paid advertising and other methods
+- [[pattern-influence-layer]] — Documents the gated, bounded pattern influence system that adjusts candidate scores based on historical pattern similarity with strict invariants 323-333.
+- [[scoring-composition-chain]] — Describes the full scoring composition chain (base × regime × feedback × weight × interaction × pattern) used in the strategy orchestrator.
+- [[multi-pattern-aggregation]] — Explains how multiple pattern results are combined using similarity and confidence weighting while keeping total influence bounded.
+- [[execution-plan-safety-validation]] — Documents the safety validation requirements for execution plans including destructive command blocklists, human approval gates, and confidence score integrity checks.
+- [[float-comparison-epsilon-pattern]] — Documents the EPSILON-based float comparison pattern used in attribution feedback to prevent IEEE 754 drift from creating false positive/negative signals.
+- [[opportunity-cost-layer]] — Documents the cross-goal learning system where active goals are penalized based on relative performance against deferred alternatives with hysteresis-protected swap triggers.
+- [[goal-scoring-composition]] — Describes the three-layered goal scoring model (base_score + performance_adjustment + opportunity_cost_adjustment) and the two-pass selection cycle.
+- [[swap-pressure-hysteresis]] — Explains the capacitor-like swap_pressure_cycles mechanism that prevents goal thrashing by requiring sustained superiority before triggering replacements.
+- [[two-layer-primitive-system]] — Documents the distinction between generic ontology primitives (state, constraint, resource) and domain-specific business primitives (offer, ICP, revenue) and the missing bridge layer between them.
+- [[persist-stage-lossy-funnel]] — Documents how the ingestion persist stage captures only the highest-confidence observation per cycle, losing ~86% of decomposed observations.
+- [[approval-lifecycle]] — Documents the approval state machine (PENDING → APPROVED → CONSUMED, PENDING → DENIED, PENDING → EXPIRED) and the CLI surface for managing it.
+- [[umh-external-boundary-law]] — The UMH External Boundary Law states that no external system may be accessed directly by UMH, and all interactions must pass through an adapter.
+- [[adapter-pattern]] — The adapter pattern is a design pattern that connects and translates between different systems or interfaces.
+- [[action-execution-separation]] — The Action/Execution Separation concept states that actions represent intended state transformations, while execution is performed by a separate system or entity.
+- [[universal-mastery-doctrine]] — The Universal Mastery Doctrine is a parent doctrine that guides the implementation of mastery engines and adapters in the UMH system.
 
 ## Entities
 
@@ -152,6 +175,12 @@ Named things: people, products, companies, offers.
 - [[summarize-operation]] — A common AI operation used in execution plans to condense textual information into a shorter, coherent summary, typically powered by an LLM.
 - [[api-authentication-error-401]] — An HTTP status code indicating that the client's request lacks valid authentication credentials for the target resource.
 - [[claudemd]] — A markdown document serving as a primary source of truth for system constraints and state.
+- [[w0-codebase-truth-map]] — A specific codebase truth mapping and ingestion readiness audit, including its objectives, tasks, and outcomes.
+- [[google-drive-adapter-maturity]] — Google drive adapter maturity phase involves maturing the google drive adapter using one safe real google doc
+- [[cu-api-parity]] — CU API parity defines the comparison of CU and API extractions to ensure equivalence and bounded preview equality
+- [[gws-source-adapter]] — Describes the GWSSource implementation that wraps gws_scanner.py as a Source protocol adapter for use with GenericIngestionOrchestrator.
+- [[attribution-feedback-system]] — Describes the attribution feedback system that computes per-bucket feedback factors and uses precision-safe comparisons to classify score relationships.
+- [[approval-store]] — Describes the thread-safe ApprovalStore singleton that manages approval state transitions with TTL expiry and list_all/list_pending query methods.
 
 ## Decisions
 
@@ -159,6 +188,9 @@ Architectural, strategic, or operational choices with rationale.
 
 - [[eos-architectural-preservation]] — Explains the decision to implement presentation and lifecycle layers on top of the existing EOS pipeline without modifying the hot path, ensuring architecture preservation.
 - [[in-memory-task-pause-state]] — Details the architectural decision to store task pause state entirely in-memory on the Task dataclass, including the rationale and trade-offs.
+- [[umh-mvp-gap-analysis]] — Captures the finding that the MVP requires only ~250 LOC of wiring across governance gate, trace persistence, and backend discovery.
+- [[component-status-taxonomy]] — Defines the 6-tier status classification (CONFIRMED_RUNTIME through DEPRECATED) used to truthfully categorize component readiness in CLAUDE.md.
+- [[running-paid-ads]] — the decision to run paid ads to grow revenue
 
 ## Synthesis
 
@@ -196,54 +228,13 @@ Cross-cutting analysis that connects multiple sources or concepts.
 - [[system-health-check-patterns]] — Outlines common steps and suggested structures for effective system health inspection plans, including summary steps.
 - [[handling-vague-objectives]] — Strategies and common patterns for dealing with user objectives that lack sufficient detail for direct execution.
 - [[minimum-input-length-check]] — Discusses the rationale and implementation of checks to prevent LLM calls for trivially short inputs.
+- [[phase-75a-reconciliation]] — Documents the full codebase audit mapping 734 modules to UMH PRD architecture, identifying MVP-critical paths and redundancies.
+- [[phase-96-8bi-repo-stabilization]] — Documents the W0 critical stabilization that resolved 74 merge conflicts, fixed phantom imports, and corrected overclaimed component statuses to restore repository trust.
+- [[ingestion-pipeline-duality]] — Documents why the FullLiveIngestionSpine and GenericIngestionOrchestrator implement fundamentally different pipeline contracts and cannot be unified via simple delegation.
+- [[decomposer-depth-audit-2026-05-12]] — Captures the finding that the decomposer emits typed containers but with shallow semantic depth, persists only 1 of N observations, and needs a depth upgrade to match hand-built proof quality.
 
 ## Sources
 
 Summaries of ingested RAW material with provenance links.
 
 (none yet)
-=======
----
-type: wiki_index
-updated: 2026-04-05
----
-
-# Wiki Index
-
-Entry point for the LLM-maintained knowledge graph.
-Retrieval strategy: index -> page -> deep dive into RAW if needed.
-
-## Concepts
-
-Ideas, frameworks, and patterns that recur across the business.
-
-- [[icp-signals]] — ICP signal detection patterns and psychology
-- [[memory-pipeline]] — The conversation-to-summary-to-wiki knowledge extraction pipeline in EOS
-- [[eos-product-mode]] — Explains the target behavior and implementation for Product Mode in EOS, focusing on clean SaaS output and suppression of internal language.
-- [[eos-builder-mode]] — Describes the target behavior for Builder Mode in EOS, aiming for an AI operator/dev cofounder feel with system/debug references visible.
-- [[eos-auto-clear-mechanism]] — Documents the flow-triggered, message-counting mechanism for auto-clearing sessions in EOS, highlighting its efficiency benefits.
-
-## Entities
-
-Named things: people, products, companies, offers.
-
-- [[initiate-arena]] — Lyfe Institute's flagship coaching offer
-
-## Decisions
-
-Architectural, strategic, or operational choices with rationale.
-
-- [[eos-architectural-preservation]] — Explains the decision to implement presentation and lifecycle layers on top of the existing EOS pipeline without modifying the hot path, ensuring architecture preservation.
-
-## Synthesis
-
-Cross-cutting analysis that connects multiple sources or concepts.
-
-- [[eos-mode-behavior-control]] — Details the EOS Mode Behavior + Session Control v1 production upgrade, including objectives, non-negotiables, implementation steps, and architectural insights.
-
-## Sources
-
-Summaries of ingested RAW material with provenance links.
-
-(none yet)
->>>>>>> Stashed changes

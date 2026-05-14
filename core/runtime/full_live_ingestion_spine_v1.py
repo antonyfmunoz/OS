@@ -45,7 +45,7 @@ from core.adapters.live_drive_docs_ingestion_pipeline_v1 import (
     PIPELINE_FORBIDDEN_ACTIONS,
     ReplayQueryResult,
 )
-from core.state.transformation_state_ledger import (
+from state.transformation_state_ledger import (
     StateArtifactReference,
     StateLedgerRecord,
     TransformationStage,

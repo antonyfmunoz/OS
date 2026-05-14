@@ -92,7 +92,7 @@ from core.runtime.runtime_session_registry_v1 import (
 from core.runtime.local_runtime_supervisor_v1 import (
     LocalRuntimeSupervisor,
 )
-from core.state.transformation_state_ledger import (
+from state.transformation_state_ledger import (
     TransformationStage,
     TransformationStateLedger,
 )

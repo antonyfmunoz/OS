@@ -72,7 +72,7 @@ from core.runtime.full_live_ingestion_spine_v1 import (
     IngestionSpineResult,
     INGESTION_FORBIDDEN_ACTIONS,
 )
-from core.state.transformation_state_ledger import (
+from state.transformation_state_ledger import (
     TransformationStage,
     TransformationStateLedger,
     compute_hash,

@@ -82,7 +82,7 @@ from governance.policy.execution_authority_engine_v1 import (
 from core.execution.workpacket_execution_gate_v1 import (
     WorkPacketExecutionGate,
 )
-from core.state.transformation_state_ledger import (
+from state.transformation_state_ledger import (
     TransformationStage,
     TransformationStateLedger,
 )
@@ -789,7 +789,7 @@ class TestLedgerStagePersistence:
             assert TransformationStage.RUNTIME_FAILED in stages
 
     def test_new_stages_in_valid_transitions(self):
-        from core.state.transformation_state_ledger import VALID_TRANSITIONS
+        from state.transformation_state_ledger import VALID_TRANSITIONS
 
         new_stages = [
             TransformationStage.WORKPACKET_DISPATCHED,

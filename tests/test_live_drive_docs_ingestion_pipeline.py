@@ -28,7 +28,7 @@ from core.adapters.live_drive_docs_ingestion_pipeline_v1 import (
     ReplayQueryResult,
 )
 from core.runtime.worker_supervisor_v1 import WorkerHealthStatus
-from core.state.transformation_state_ledger import TransformationStateLedger
+from state.transformation_state_ledger import TransformationStateLedger
 
 
 SAFE_CONFIG = {

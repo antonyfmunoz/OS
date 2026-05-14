@@ -57,7 +57,7 @@ from core.runtime.runtime_presence_state_v1 import (
     WorkstationPresenceState,
     is_execution_capable,
 )
-from core.state.transformation_state_ledger import (
+from state.transformation_state_ledger import (
     TransformationStage,
     VALID_TRANSITIONS,
 )

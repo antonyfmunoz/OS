@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 ---
 type: memory_index
 updated: 2026-04-05
@@ -174,48 +173,77 @@ Compressed knowledge extracted from conversations.
 - [[summaries/summary_73306772_2026-04-27_generating-json-execution-plan-for-generic-objecti]] — Generating JSON Execution Plan for Generic Objective (session 73306772)
 - [[summaries/summary_73a71bbd_2026-04-27_generate-json-execution-plan-for-dry-run-objective]] — Generate JSON execution plan for dry run objective (session 73a71bbd)
 - [[summaries/summary_73a9d7f9_2026-04-27_generate-json-execution-plan-for-generic-objective]] — Generate JSON Execution Plan for Generic Objective (session 73a9d7f9)
+- [[summaries/summary_0b5889d4_2026-05-09_codebase-truth-mapping-and-ingestion-readiness-aud]] — Codebase Truth Mapping and Ingestion Readiness Audit (session 0b5889d4)
+- [[summaries/summary_0bbd11ae_2026-05-09_focus-and-prioritization-discussion]] — Focus and Prioritization Discussion (session 0bbd11ae)
+- [[summaries/summary_0f453182_2026-05-09_evaluating-paid-ads-decision]] — Evaluating Paid Ads Decision (session 0f453182)
+- [[summaries/summary_10f54176_2026-05-03_eos-morning-preparation-procedure]] — EOS Morning Preparation Procedure (session 10f54176)
+- [[summaries/summary_18045afe_2026-05-09_evaluating-paid-ads-decision]] — Evaluating Paid Ads Decision (session 18045afe)
+- [[summaries/summary_1d0a7ea5_2026-05-08_w0-live-drivedocs-ingestion-adapter-maturity]] — W0 LIVE DRIVE/DOCS INGESTION ADAPTER MATURITY (session 1d0a7ea5)
+- [[summaries/summary_1d52f360_2026-05-02_codebase-intelligence-and-mvp-reconciliation-audit]] — Codebase Intelligence and MVP Reconciliation Audit (session 1d52f360)
+- [[summaries/summary_295c0295_2026-05-09_repository-stabilization-and-gws-ingestion-pipelin]] — Repository Stabilization and GWS Ingestion Pipeline Connection (session 295c0295)
+- [[summaries/summary_2d67303b_2026-05-09_paid-advertising-decision]] — paid advertising decision (session 2d67303b)
+- [[summaries/summary_52abb772_2026-04-27_generic-json-execution-plan-generation-test]] — Generic JSON Execution Plan Generation Test (session 52abb772)
+- [[summaries/summary_62590249_2026-05-09_brief-test-conversation-with-compaction-check]] — Brief Test Conversation With Compaction Check (session 62590249)
+- [[summaries/summary_66222cf2_2026-05-12_gws-ingestion-spine-unification-under-genericinges]] — GWS Ingestion Spine Unification Under GenericIngestionOrchestrator (session 66222cf2)
+- [[summaries/summary_6f577615_2026-04-27_minimal-execution-plan-and-summarization-tests]] — Minimal Execution Plan and Summarization Tests (session 6f577615)
+- [[summaries/summary_7423b985_2026-04-27_cognitive-loop-execution-plan-generation-tests]] — Cognitive Loop Execution Plan Generation Tests (session 7423b985)
+- [[summaries/summary_747663f0_2026-04-27_execution-plan-for-nonexistent-template-error]] — Execution Plan for Nonexistent Template Error (session 747663f0)
+- [[summaries/summary_74f58bf5_2026-04-27_fresh-session-startup-with-system-health-check]] — Fresh Session Startup With System Health Check (session 74f58bf5)
+- [[summaries/summary_7667edda_2026-04-27_execution-plan-generation-and-summarization-tests]] — Execution Plan Generation and Summarization Tests (session 7667edda)
+- [[summaries/summary_7682b45d_2026-04-27_generic-execution-plan-generation-test]] — Generic Execution Plan Generation Test (session 7682b45d)
+- [[summaries/summary_773456fd_2026-04-27_empty-session-with-repeated-continue-attempts]] — Empty Session With Repeated Continue Attempts (session 773456fd)
+- [[summaries/summary_787507db_2026-04-27_fresh-session-startup-awaiting-direction]] — Fresh Session Startup Awaiting Direction (session 787507db)
+- [[summaries/summary_789dbee9_2026-04-27_empty-session-with-repeated-fresh-start-prompts]] — Empty Session With Repeated Fresh Start Prompts (session 789dbee9)
+- [[summaries/summary_78f698fe_2026-04-27_system-health-execution-plan-review]] — System Health Execution Plan Review (session 78f698fe)
+- [[summaries/summary_7a32d41f_2026-04-27_trivial-summarization-execution-plan-review]] — Trivial Summarization Execution Plan Review (session 7a32d41f)
+- [[summaries/summary_7b923444_2026-04-27_execution-plan-review-and-template-fallback-testin]] — Execution Plan Review and Template Fallback Testing (session 7b923444)
+- [[summaries/summary_7c74f470_2026-04-27_generic-execution-plan-generation-test]] — Generic Execution Plan Generation Test (session 7c74f470)
+- [[summaries/summary_7cc5a774_2026-04-27_system-health-plan-review-with-suggestions]] — System Health Plan Review With Suggestions (session 7cc5a774)
+- [[summaries/summary_7ccdb79f_2026-04-27_generic-execution-plan-generation-test]] — Generic Execution Plan Generation Test (session 7ccdb79f)
+- [[summaries/summary_7cceaa34_2026-04-27_test-objective-execution-plan-generation]] — Test Objective Execution Plan Generation (session 7cceaa34)
+- [[summaries/summary_7febc500_2026-04-27_repeated-fresh-session-starts-without-task-directi]] — Repeated Fresh Session Starts Without Task Direction (session 7febc500)
+- [[summaries/summary_821736fa_2026-04-27_execution-plan-review-and-failure-analysis-testing]] — Execution Plan Review and Failure Analysis Testing (session 821736fa)
+- [[summaries/summary_8460db5d_2026-04-27_generic-execution-plan-generation-test]] — Generic Execution Plan Generation Test (session 8460db5d)
+- [[summaries/summary_848054b8_2026-04-27_automated-loop-sending-repeated-session-start-mess]] — Automated Loop Sending Repeated Session Start Messages (session 848054b8)
+- [[summaries/summary_84b3b6c5_2026-04-27_edge-case-testing-for-execution-plans-and-summariz]] — Edge Case Testing for Execution Plans and Summarization (session 84b3b6c5)
+- [[summaries/summary_854018b1_2026-04-27_nonexistent-operation-execution-plan-error-handlin]] — Nonexistent Operation Execution Plan Error Handling (session 854018b1)
+- [[summaries/summary_857bec14_2026-04-27_trivial-input-plan-review-and-edge-case-testing]] — Trivial Input Plan Review and Edge Case Testing (session 857bec14)
+- [[summaries/summary_85bc1367_2026-04-27_generic-execution-plan-generation-test]] — Generic Execution Plan Generation Test (session 85bc1367)
+- [[summaries/summary_861732cf_2026-04-27_test-plan-review-with-traceability-suggestions]] — Test Plan Review With Traceability Suggestions (session 861732cf)
+- [[summaries/summary_8641ea71_2026-04-27_generic-execution-plan-generation-test]] — Generic Execution Plan Generation Test (session 8641ea71)
+- [[summaries/summary_86a69775_2026-04-27_automated-loop-sending-repeated-messages-without-t]] — Automated Loop Sending Repeated Messages Without Task (session 86a69775)
+- [[summaries/summary_86f05c21_2026-05-01_pattern-influence-and-multi-pattern-aggregation-im]] — Pattern Influence and Multi-Pattern Aggregation Implementation (session 86f05c21)
+- [[summaries/summary_872fcbe5_2026-04-27_automated-loop-sending-empty-messages-repeatedly]] — Automated Loop Sending Empty Messages Repeatedly (session 872fcbe5)
+- [[summaries/summary_881635cc_2026-04-27_generic-execution-plan-generation-test]] — Generic Execution Plan Generation Test (session 881635cc)
+- [[summaries/summary_88e9696f_2026-04-27_test-objective-execution-plan-generation]] — Test Objective Execution Plan Generation (session 88e9696f)
+- [[summaries/summary_894b7f12_2026-04-27_summarization-and-system-health-plan-reviews]] — Summarization and System Health Plan Reviews (session 894b7f12)
+- [[summaries/summary_89e6ae26_2026-04-27_execution-plan-review-for-duplicate-and-test-plans]] — Execution Plan Review for Duplicate and Test Plans (session 89e6ae26)
+- [[summaries/summary_8b56beff_2026-04-27_plan-review-and-failure-analysis-for-execution-sys]] — Plan Review and Failure Analysis for Execution System (session 8b56beff)
+- [[summaries/summary_8bc81640_2026-04-27_execution-plan-generation-for-various-objectives]] — Execution Plan Generation for Various Objectives (session 8bc81640)
+- [[summaries/summary_8bc9d1f7_2026-04-27_fresh-session-startup-awaiting-direction]] — Fresh Session Startup Awaiting Direction (session 8bc9d1f7)
+- [[summaries/summary_8cc624e8_2026-04-27_execution-plan-and-summarization-edge-case-tests]] — Execution Plan and Summarization Edge Case Tests (session 8cc624e8)
+- [[summaries/summary_8d16e006_2026-04-27_plan-review-across-safety-and-quality-scenarios]] — Plan Review Across Safety and Quality Scenarios (session 8d16e006)
+- [[summaries/summary_8d2858cc_2026-05-01_attribution-feedback-precision-fix-and-feedback-se]] — Attribution Feedback Precision Fix and Feedback Selection Layer (session 8d2858cc)
+- [[summaries/summary_8d5854eb_2026-04-27_generic-execution-plan-generation-test]] — Generic Execution Plan Generation Test (session 8d5854eb)
+- [[summaries/summary_8de76892_2026-05-09_saas-business-profile-field-generation-for-test-co]] — SaaS Business Profile Field Generation for Test Co (session 8de76892)
+- [[summaries/summary_8e56c00e_2026-04-27_execution-plan-generation-and-summarization-tests]] — Execution Plan Generation and Summarization Tests (session 8e56c00e)
+- [[summaries/summary_8fd53812_2026-04-28_cross-goal-learning-and-multi-timescale-decision-l]] — Cross-Goal Learning and Multi-Timescale Decision Layers (session 8fd53812)
+- [[summaries/summary_90ee484c_2026-04-27_edge-case-testing-for-plans-and-summarization]] — Edge Case Testing for Plans and Summarization (session 90ee484c)
+- [[summaries/summary_91441792_2026-04-27_generic-execution-plan-generation-test]] — Generic Execution Plan Generation Test (session 91441792)
+- [[summaries/summary_916be92a_2026-04-27_fresh-session-startup-awaiting-direction]] — Fresh Session Startup Awaiting Direction (session 916be92a)
+- [[summaries/summary_931b119d_2026-04-26_fresh-session-with-system-health-module-error]] — Fresh Session With System Health Module Error (session 931b119d)
+- [[summaries/summary_9420358d_2026-04-27_system-health-plan-review-with-improvement-suggest]] — System Health Plan Review With Improvement Suggestions (session 9420358d)
+- [[summaries/summary_9484ae15_2026-04-27_nonexistent-objective-execution-plan-generation]] — Nonexistent Objective Execution Plan Generation (session 9484ae15)
+- [[summaries/summary_95875553_2026-05-12_decomposition-output-audit-structured-entities-vs-]] — Decomposition Output Audit Structured Entities vs Text Blobs (session 95875553)
+- [[summaries/summary_95a5eb1e_2026-04-27_invalid-objective-and-automated-hook-testing]] — Invalid Objective and Automated Hook Testing (session 95a5eb1e)
+- [[summaries/summary_95d5ff0d_2026-04-27_execution-plan-generation-for-various-objectives]] — Execution Plan Generation for Various Objectives (session 95d5ff0d)
+- [[summaries/summary_95e58656_2026-04-27_test-objective-execution-plan-generation]] — Test Objective Execution Plan Generation (session 95e58656)
+- [[summaries/summary_978614d5_2026-04-26_phase-4e-approval-interface-cli-implementation]] — Phase 4E Approval Interface CLI Implementation (session 978614d5)
+- [[summaries/summary_97af62d0_2026-04-26_personal-brand-content-creation]] — Personal Brand Content Creation (session 97af62d0)
+- [[summaries/summary_985ec642_2026-05-06_umh-external-boundary-law-implementation]] — UMH External Boundary Law Implementation (session 985ec642)
 
 - [[summaries/summary_46cd1f54_2026-04-06_eos-memory-system-architecture]] — EOS memory system architecture (session 46cd1f54)
 
 ## Existing Memory
 
 - [[Conversion_Signals/memory_2026-03-14_20-15]] — hook engagement observation
-=======
----
-type: memory_index
-updated: 2026-04-05
----
-
-# Conversation Memory Index
-
-## Sessions
-
-Per-session lifecycle logs created by Claude Code Stop hook.
-
-- [[conversations/ce52f933-4364-4dfa-8780-75ad8ca96b5a]] — 2026-04-06, stop hook fix
-- [[conversations/46cd1f54-47a3-4f8c-9b15-cbb099d704ff]] — 2026-04-06, memory system architecture
-
-## Summaries
-
-Compressed knowledge extracted from conversations.
-- [[summaries/summary_1251ad09_2026-04-08_structured-extraction-for-missing-code-documentati]] — Structured extraction for missing code documentation sections (session 1251ad09)
-- [[summaries/summary_3b80a2bd_2026-04-10_a-concise-title-5-10-words-describing]] — A concise title (5-10 words) describing (session 3b80a2bd)
-- [[summaries/summary_404508a8_2026-04-08_a-concise-title-5-10-words-describing]] — A concise title (5-10 words) describing (session 404508a8)
-- [[summaries/summary_659503ff_2026-04-09_a-concise-title-5-10-words-describing]] — A concise title (5-10 words) describing (session 659503ff)
-- [[summaries/summary_6807afa0_2026-04-10_a-concise-title-5-10-words-describing]] — A concise title (5-10 words) describing (session 6807afa0)
-- [[summaries/summary_7eb68a31_2026-04-08_a-concise-title-5-10-words-describing]] — A concise title (5-10 words) describing (session 7eb68a31)
-- [[summaries/summary_7f5a9152_2026-04-14_a-concise-title-5-10-words-describing]] — A concise title (5-10 words) describing (session 7f5a9152)
-- [[summaries/summary_a9fbb459_2026-04-06_a-concise-title-5-10-words-describing]] — A concise title (5-10 words) describing (session a9fbb459)
-- [[summaries/summary_aa688581_2026-04-10_a-concise-title-5-10-words-describing]] — A concise title (5-10 words) describing (session aa688581)
-- [[summaries/summary_ab802c6a_2026-04-10_a-concise-title-5-10-words-describing]] — A concise title (5-10 words) describing (session ab802c6a)
-- [[summaries/summary_ac5e955a_2026-04-12_a-concise-title-5-10-words-describing]] — A concise title (5-10 words) describing (session ac5e955a)
-- [[summaries/summary_ad9a5105_2026-04-13_a-concise-title-5-10-words-describing]] — A concise title (5-10 words) describing (session ad9a5105)
-- [[summaries/summary_df3cb352_2026-04-06_a-concise-title-5-10-words-describing]] — A concise title (5-10 words) describing (session df3cb352)
-- [[summaries/summary_e0b81a49_2026-04-08_a-concise-title-5-10-words-describing]] — A concise title (5-10 words) describing (session e0b81a49)
-
-- [[summaries/summary_46cd1f54_2026-04-06_eos-memory-system-architecture]] — EOS memory system architecture (session 46cd1f54)
-
-## Existing Memory
-
-- [[Conversion_Signals/memory_2026-03-14_20-15]] — hook engagement observation
->>>>>>> Stashed changes

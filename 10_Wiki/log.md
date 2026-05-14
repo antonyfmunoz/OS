@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 ---
 type: wiki_log
 ---
@@ -516,42 +515,114 @@ Promoted from summary. A proposed mechanism to prevent execution plans from atte
 
 ## [2026-05-01T06:22:27-07:00] create | execution-plan-concept
 Promoted from summary. Covers the definition and structure of an execution plan, likely in JSON format, used for defining sequences of operations.
-=======
----
-type: wiki_log
----
 
-# Wiki Change Log
+## [2026-05-13T21:50:27-07:00] create | codebase-truth-mapping
+Promoted from summary. The process of mapping and auditing a codebase to determine its actual state and readiness for ingestion.
 
-Append-only. Every wiki mutation gets an entry.
+## [2026-05-13T21:50:27-07:00] create | proof-generation-patterns
+Promoted from summary. Recognizing patterns where a system produces its own evidence of correctness, and the need for external validation to make that evidence meaningful.
 
-## [2026-04-05T21:45:00-07:00] create | index.md
-Initial wiki index created with Concepts, Entities, Decisions, Synthesis, Sources categories.
+## [2026-05-13T21:50:28-07:00] create | w0-codebase-truth-map
+Promoted from summary. A specific codebase truth mapping and ingestion readiness audit, including its objectives, tasks, and outcomes.
 
-## [2026-04-05T21:45:00-07:00] create | WIKI_RULES.md
-Wiki schema and operating rules established.
+## [2026-05-13T21:50:29-07:00] create | transformation-state-ledger
+Promoted from summary. Transformation state ledger acts as the integrity backbone across all three layers of adapter maturity
 
-## [2026-04-05T21:45:00-07:00] create | entities/initiate-arena.md
-Seeded from 04_Offers/Initiate Arena.md and existing knowledge.
+## [2026-05-13T21:50:29-07:00] create | adapter-package-metadata
+Promoted from summary. Package metadata claims what an adapter can do in terms of capabilities, governance, and maturity percentage
 
-## [2026-04-05T21:45:00-07:00] create | concepts/icp-signals.md
-Synthesized from 07_Knowledge/ICP/ signal analysis files.
+## [2026-05-13T21:50:30-07:00] create | pipeline-orchestration
+Promoted from summary. Pipeline orchestration defines how adapters compose into governed workflows
 
-## [2026-04-06T02:57:39-07:00] create | memory-pipeline
-Promoted from summary. The conversation-to-summary-to-wiki knowledge extraction pipeline in EOS
+## [2026-05-13T21:50:30-07:00] create | google-drive-adapter-maturity
+Promoted from summary. Google drive adapter maturity phase involves maturing the google drive adapter using one safe real google doc
 
-## [2026-04-11T03:14:03-07:00] create | eos-mode-behavior-control
-Promoted from summary. Details the EOS Mode Behavior + Session Control v1 production upgrade, including objectives, non-negotiables, implementation steps, and architectural insights.
+## [2026-05-13T21:50:31-07:00] create | cu-api-parity
+Promoted from summary. CU API parity defines the comparison of CU and API extractions to ensure equivalence and bounded preview equality
 
-## [2026-04-11T03:14:03-07:00] create | eos-product-mode
-Promoted from summary. Explains the target behavior and implementation for Product Mode in EOS, focusing on clean SaaS output and suppression of internal language.
+## [2026-05-13T21:50:31-07:00] create | phase-75a-reconciliation
+Promoted from summary. Documents the full codebase audit mapping 734 modules to UMH PRD architecture, identifying MVP-critical paths and redundancies.
 
-## [2026-04-11T03:14:04-07:00] create | eos-builder-mode
-Promoted from summary. Describes the target behavior for Builder Mode in EOS, aiming for an AI operator/dev cofounder feel with system/debug references visible.
+## [2026-05-13T21:50:32-07:00] create | umh-mvp-gap-analysis
+Promoted from summary. Captures the finding that the MVP requires only ~250 LOC of wiring across governance gate, trace persistence, and backend discovery.
 
-## [2026-04-11T03:14:05-07:00] create | eos-auto-clear-mechanism
-Promoted from summary. Documents the flow-triggered, message-counting mechanism for auto-clearing sessions in EOS, highlighting its efficiency benefits.
+## [2026-05-13T21:50:32-07:00] create | runtime-engine-legacy-duplication
+Promoted from summary. Explains the 42-module duplication between runtime_engine and clean packages that emerged during the eos_ai to umh migration.
 
-## [2026-04-11T03:14:05-07:00] create | eos-architectural-preservation
-Promoted from summary. Explains the decision to implement presentation and lifecycle layers on top of the existing EOS pipeline without modifying the hot path, ensuring architecture preservation.
->>>>>>> Stashed changes
+## [2026-05-13T21:50:33-07:00] create | intelligence-kernel-architecture
+Promoted from summary. Describes the 65-module intelligence kernel built in phases 30-74 with zero subprocess imports, bounded invariants, and pure-computation discipline.
+
+## [2026-05-13T21:50:33-07:00] create | component-status-taxonomy
+Promoted from summary. Defines the 6-tier status classification (CONFIRMED_RUNTIME through DEPRECATED) used to truthfully categorize component readiness in CLAUDE.md.
+
+## [2026-05-13T21:50:34-07:00] create | phase-96-8bi-repo-stabilization
+Promoted from summary. Documents the W0 critical stabilization that resolved 74 merge conflicts, fixed phantom imports, and corrected overclaimed component statuses to restore repository trust.
+
+## [2026-05-13T21:50:34-07:00] create | gws-to-substrate-ingestion-bridge
+Promoted from summary. Describes the pipeline connecting the GWS scanner through extraction, decomposition, candidate generation, memory persistence, and query validation.
+
+## [2026-05-13T21:50:35-07:00] create | running-paid-ads
+Promoted from summary. the decision to run paid ads to grow revenue
+
+## [2026-05-13T21:50:35-07:00] create | revenue-growth-strategies
+Promoted from summary. strategies to increase revenue including paid advertising and other methods
+
+## [2026-05-13T21:50:36-07:00] create | ingestion-pipeline-duality
+Promoted from summary. Documents why the FullLiveIngestionSpine and GenericIngestionOrchestrator implement fundamentally different pipeline contracts and cannot be unified via simple delegation.
+
+## [2026-05-13T21:50:36-07:00] create | gws-source-adapter
+Promoted from summary. Describes the GWSSource implementation that wraps gws_scanner.py as a Source protocol adapter for use with GenericIngestionOrchestrator.
+
+## [2026-05-13T21:50:37-07:00] create | pattern-influence-layer
+Promoted from summary. Documents the gated, bounded pattern influence system that adjusts candidate scores based on historical pattern similarity with strict invariants 323-333.
+
+## [2026-05-13T21:50:37-07:00] create | scoring-composition-chain
+Promoted from summary. Describes the full scoring composition chain (base × regime × feedback × weight × interaction × pattern) used in the strategy orchestrator.
+
+## [2026-05-13T21:50:38-07:00] create | multi-pattern-aggregation
+Promoted from summary. Explains how multiple pattern results are combined using similarity and confidence weighting while keeping total influence bounded.
+
+## [2026-05-13T21:50:38-07:00] create | execution-plan-safety-validation
+Promoted from summary. Documents the safety validation requirements for execution plans including destructive command blocklists, human approval gates, and confidence score integrity checks.
+
+## [2026-05-13T21:50:39-07:00] create | float-comparison-epsilon-pattern
+Promoted from summary. Documents the EPSILON-based float comparison pattern used in attribution feedback to prevent IEEE 754 drift from creating false positive/negative signals.
+
+## [2026-05-13T21:50:39-07:00] create | attribution-feedback-system
+Promoted from summary. Describes the attribution feedback system that computes per-bucket feedback factors and uses precision-safe comparisons to classify score relationships.
+
+## [2026-05-13T21:50:40-07:00] create | opportunity-cost-layer
+Promoted from summary. Documents the cross-goal learning system where active goals are penalized based on relative performance against deferred alternatives with hysteresis-protected swap triggers.
+
+## [2026-05-13T21:50:40-07:00] create | goal-scoring-composition
+Promoted from summary. Describes the three-layered goal scoring model (base_score + performance_adjustment + opportunity_cost_adjustment) and the two-pass selection cycle.
+
+## [2026-05-13T21:50:41-07:00] create | swap-pressure-hysteresis
+Promoted from summary. Explains the capacitor-like swap_pressure_cycles mechanism that prevents goal thrashing by requiring sustained superiority before triggering replacements.
+
+## [2026-05-13T21:50:41-07:00] create | two-layer-primitive-system
+Promoted from summary. Documents the distinction between generic ontology primitives (state, constraint, resource) and domain-specific business primitives (offer, ICP, revenue) and the missing bridge layer between them.
+
+## [2026-05-13T21:50:42-07:00] create | decomposer-depth-audit-2026-05-12
+Promoted from summary. Captures the finding that the decomposer emits typed containers but with shallow semantic depth, persists only 1 of N observations, and needs a depth upgrade to match hand-built proof quality.
+
+## [2026-05-13T21:50:42-07:00] create | persist-stage-lossy-funnel
+Promoted from summary. Documents how the ingestion persist stage captures only the highest-confidence observation per cycle, losing ~86% of decomposed observations.
+
+## [2026-05-13T21:50:43-07:00] create | approval-lifecycle
+Promoted from summary. Documents the approval state machine (PENDING → APPROVED → CONSUMED, PENDING → DENIED, PENDING → EXPIRED) and the CLI surface for managing it.
+
+## [2026-05-13T21:50:43-07:00] create | approval-store
+Promoted from summary. Describes the thread-safe ApprovalStore singleton that manages approval state transitions with TTL expiry and list_all/list_pending query methods.
+
+## [2026-05-13T21:50:44-07:00] create | umh-external-boundary-law
+Promoted from summary. The UMH External Boundary Law states that no external system may be accessed directly by UMH, and all interactions must pass through an adapter.
+
+## [2026-05-13T21:50:44-07:00] create | adapter-pattern
+Promoted from summary. The adapter pattern is a design pattern that connects and translates between different systems or interfaces.
+
+## [2026-05-13T21:50:45-07:00] create | action-execution-separation
+Promoted from summary. The Action/Execution Separation concept states that actions represent intended state transformations, while execution is performed by a separate system or entity.
+
+## [2026-05-13T21:50:45-07:00] create | universal-mastery-doctrine
+Promoted from summary. The Universal Mastery Doctrine is a parent doctrine that guides the implementation of mastery engines and adapters in the UMH system.

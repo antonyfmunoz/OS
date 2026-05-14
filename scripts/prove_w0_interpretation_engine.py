@@ -37,7 +37,7 @@ from understanding.ontology.primitive_decomposition_v1 import (
     PrimitiveType,
     RelationshipType,
 )
-from core.state.transformation_state_ledger import (
+from state.transformation_state_ledger import (
 
     VALID_TRANSITIONS,
     TransformationStage,

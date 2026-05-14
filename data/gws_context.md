@@ -1,68 +1,187 @@
 # GWS Document Context
-Last scanned: 2026-03-28 08:06
-Total documents: 12
+Last scanned: 2026-05-09 06:35
+Total documents: 17
 
 ## empyrean_creative
-### Empyrean Studios (Agency Brand)
+### Untitled document
 Relevance: high
-Summary: Empyrean Creative business plan — tactical AI automation agency for service, e-commerce, info product, agency, and SaaS businesses.
-Key: Target: Service businesses, e-commerce, coaches, agencies, SaaS founders. Offer stack: Paid community + Done-For-You services. Bridge to AgentOS platform.
+Summary: Untitled document — 32 relevant keywords
+Key: ﻿Tab 1
+
+
+Tab 2
+# THE HOUSE
+
+
+**An AI-native record label and artist development system.**
+**A module of CreatorOS / Operating System Technologies.**
+
+
+
+### Untitled document
+Relevance: high
+Summary: Untitled document — 6 relevant keywords
+Key: ﻿Tab 1
+That means the ln command probably failed, but the script still printed “Created” because the echo ran anyway.
+Run this exact version. It uses 
 
 ## eos_platform
+### Untitled document
+Relevance: high
+Summary: Untitled document — 6 relevant keywords
+Key: ﻿Tab 1
+
+
+
+
+You are implementing the next EOS integration slice in /opt/OS.
+
+
+SYSTEM STATE:
+
+
+- InfluenceOrchestrator produces UnifiedInfluence via res
+
+### Untitled document
+Relevance: low
+Summary: Untitled document — 2 relevant keywords
+Key: ﻿Solid. Here’s the full picture:
+claude-agent-sdk v0.1.55 — Confirmed API
+Same query() pattern as the deprecated package, but significantly richer:
+
+
+
+
+## lyfe_institute
+### SKILL.md
+Relevance: high
+Summary: SKILL.md — 18 relevant keywords
+Key: ﻿________________
+
+
+name: leverage-principle description: Apply the OST leverage principle when reasoning about any build, architecture, dependency, s
+
+### SKILL.md
+Relevance: high
+Summary: SKILL.md — 18 relevant keywords
+Key: ﻿________________
+
+
+name: leverage-principle description: Apply the OST leverage principle when reasoning about any build, architecture, dependency, s
+
+### UMH
+Relevance: high
+Summary: UMH — 38 relevant keywords
+Key: ﻿Tab 10
+The important realization is:
+* the “universal harness” is NOT universal execution
+* it is universal orchestration + protocol standardization
+
+
 ### EntrepreneurOS
 Relevance: high
-Summary: End-state PRD for EntrepreneurOS — Antony's AI-native OS platform for multi-company management and agentic execution.
-Key: EntrepreneurOS: cognitive OS for founders. Multi-biz, unified dashboards, workflows, agents, intelligence, memory, governance. Core product Antony is building.
+Summary: EntrepreneurOS — 47 relevant keywords
+Key: ﻿Tab 1
+UserapprovedClaude'splan
+ ⎿ Plansavedto:
+~/.claude/plans/snappy-orbiting-nova.md·/planto
+edit
+Plan: Context7 vs Tool Mastery Engine — Drizzle O
 
 ### LyfeOS
 Relevance: high
-Summary: LyfeOS UI theme documentation — light mode conversion specs for Explore and Marketplace pages across dark/light mode variants.
-Key: Product design spec for EntrepreneurOS platform. Light mode conversion requested: white background, black text. Multiple page states documented.
+Summary: LyfeOS — 44 relevant keywords
+Key: ﻿Tab 1
+http://lyfeos.net/login?access=beta 
+
+
+http://lyfeos.net/register?access=beta
+
+
+
+
+Message:
+
+
+http://lyfeos.net/login?access=beta
+
+
+Add to your 
 
 ### CreatorOS
 Relevance: high
-Summary: Creator OS is a unified platform for content distribution, community hosting, courses, and commerce—directly aligned with EntrepreneurOS product vision.
-Key: Post once, publish everywhere. Single OS for creators combining content, community, courses, commerce. Solves tool sprawl and distribution fragmentation.
+Summary: CreatorOS — 43 relevant keywords
+Key: ﻿Tab 1
 
-### Automations
-Relevance: high
-Summary: Core operational framework document defining DEX's automation rules, email processing system, and daily sync structure across all Munoz ventures.
-Key: DEX automation protocol: Email GPS (7 folders), Inbox Zero by 6am/3pm, Daily Sync (5 sections + EOD), Calendar ownership, cloning goal to replace Antony's decisions.
 
-## general
-### Business Template
-Relevance: high
-Summary: Business Operating Template (BOT) — systems-engineering framework for building plug-and-play, scalable ventures across all Munoz ventures.
-Key: 6-layer universal business skeleton: Market Interface, Value Engine, Delivery, Growth, Operations, Capital/Governance. Directly applicable to Lyfe Institute scaling and EntrepreneurOS platform design.
-
-## lyfe_institute
-### Untitled document
-Relevance: high
-Summary: Antony's internal notes on business sequencing — manual DM outreach (30 contacts, 3 ICP-qualified), automated system in development, referencing Alex Hormozi framework for Phase 1-2 validation.
-Key: Manual outreach working. Automated system still in build. ICP: men 18-25. Real bottleneck: revenue engine, not messaging. Stage 1 validation in progress.
+Product Requirements Document
+Product Requirements Document
+Creator OS
+The Operating System for Creators
+Version
+	2.90
+	Date
+	February 2nd, 2
 
 ### Life Coaching (E-Learning/Info-Product Brand)
 Relevance: high
-Summary: Complete curriculum architecture for Initiate Arena ($750, 90-day self-mastery program) with phase structure, lesson format, and assignment types across 4 pillars: Mental, Physical, Material, Spiritual.
-Key: Phase 0 (Onboarding) → Phase 1 (Mindset/Awareness) framework. Hosted on WHOP + Discord. Three assignment types: Reflection, Community, Execution. XP-based progression system.
+Summary: Life Coaching (E-Learning/Info-Product Brand) — 44 relevant keywords
+Key: ﻿Notes Page
+Curriculum Distribution
+* Hosted on WHOP(Curriculum Delivery & PDFs Assignments)
+* Community on Discord(Accountability & Live Coaching Cal
 
 ### Coaching Philosophy/Methodology
 Relevance: high
-Summary: Core coaching methodology document for Lyfe Institute—three-stage framework (Initiate Arena → Game of Lyfe → Sovereign Path) with layered problem-solution architecture and progress tracking systems.
-Key: Initiate Arena ($750, 90-day): identify craft, skill stack, document journey, launch side venture. Market validation → scaling. Then asset diversification.
+Summary: Coaching Philosophy/Methodology — 45 relevant keywords
+Key: ﻿Notes Page
+Layered Framework Philosophy:
+* Spinal
+   * Nested
+      * Sub-Nested
+
+
+How can I create a living(Security) while fulfilling my purpose(Se
 
 ### Coaching Frameworks & Workbooks
 Relevance: high
-Summary: Internal workbook improvement framework for Initiate Arena coaching curriculum—structure for converting frameworks into lead magnets and course content.
-Key: Spinal Framework → VSL + YouTube → Course. Nested Framework → 6 short-form videos → Module. Workbooks = lead magnets. Quality audit checklist included.
+Summary: Coaching Frameworks & Workbooks — 42 relevant keywords
+Key: ﻿NOTES -
+Workbook Improvement Prompting Workflow - 
+* Is each tool actually useful?
+* Are the reflection questions actually priming properly for the e
 
-## personal_brand
 ### Antony F. Munoz (Personal Brand)
 Relevance: high
-Summary: Antony's master canon framework — governance-grade personal development OS with spinal logic across 9+ dimensions (identity, values, emotional regulation, discipline, time, relationships, health, creativity, wealth).
-Key: Non-negotiable: building a living governed canon, not motivation brand. Many frameworks, one spine. Frameworks expand, governing logic immutable.
+Summary: Antony F. Munoz (Personal Brand) — 45 relevant keywords
+Key: ﻿Notes Page
+CONCEPT MULTIPLICATION FOR A COMPREHENSIVE PERSONAL DEVELOPMENT CANON
+Context (Non-Negotiable)
+I am building a governance-grade personal d
+
+### Empyrean Studios (Agency Brand)
+Relevance: high
+Summary: Empyrean Studios (Agency Brand) — 44 relevant keywords
+Key: ﻿Tab 1
+
+
+BUSINESS PLAN
+EMPYREAN CREATIVE BUSINESS PLAN
+OVERVIEW
+Empyrean Creative is a tactical automation agency that installs AI agent infrastructur
+
+### Business Template
+Relevance: high
+Summary: Business Template — 23 relevant keywords
+Key: ﻿Tab 1
+If you want business to be plug-and-play, you have to stop thinking in terms of companies and start thinking in terms of modules, interfaces, a
 
 ### Antony Munoz Email Sequence
 Relevance: high
-Summary: Antony's own email sequence for Lyfe Institute positioning NPC vs Player framework as core positioning for Initiate Arena product.
-Key: This is Antony's own copywriting. NPC vs Player positioning. Core messaging for Initiate Arena ($750, 90-day). Direct funnel asset.
+Summary: Antony Munoz Email Sequence — 8 relevant keywords
+Key: ﻿Email #1
+Email #1
+Subject: 
+Retire By Treating Life Like A Video Game, (First Name)... 
+Preview: 
+The same programming that got you here is now your 
