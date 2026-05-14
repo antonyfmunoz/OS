@@ -92,7 +92,7 @@ def _run_team(payload: dict) -> dict:
 
 
 def _run_brief() -> dict:
-    from runtime.orchestrator import EOSOrchestrator
+    from control_plane.orchestrator.orchestrator import EOSOrchestrator
     orch       = EOSOrchestrator()
     brief      = orch.morning_brief()
     north_star = orch.get_north_star_status()
