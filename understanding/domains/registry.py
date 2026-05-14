@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from runtime.domain_bridge.contract import DomainBridge
+from .contract import DomainBridge
 
 
 class BridgeRegistry:

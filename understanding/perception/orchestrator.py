@@ -24,9 +24,9 @@ from understanding.ontology.primitive_decomposition_v1 import (
     PrimitiveType,
     RelationshipType,
 )
-import runtime.domain_bridge.business  # noqa: F401  — auto-registers BusinessBridge
-from runtime.domain_bridge.contract import DomainProjection
-from runtime.domain_bridge.registry import default_registry as _bridge_registry
+import understanding.domains.business  # noqa: F401  — auto-registers BusinessBridge
+from understanding.domains.contract import DomainProjection
+from understanding.domains.registry import default_registry as _bridge_registry
 from governance.policy.authority_tier import T5_DEFAULT, get_authority_tier
 from understanding.perception.source import RawContent, Source
 from runtime.transport.memory_scope_contracts import (

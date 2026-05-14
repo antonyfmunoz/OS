@@ -13,8 +13,8 @@ import pytest
 sys.path.insert(0, os.environ.get("UMH_ROOT") or "/opt/OS")
 
 from understanding.ontology.primitive_decomposition_v1 import PrimitiveObservation, PrimitiveType
-from runtime.domain_bridge.business import BusinessBridge
-from runtime.domain_bridge.contract import DomainBridge, DomainProjection
+from understanding.domains.business import BusinessBridge
+from understanding.domains.contract import DomainBridge, DomainProjection
 
 pytestmark = pytest.mark.migration
 
