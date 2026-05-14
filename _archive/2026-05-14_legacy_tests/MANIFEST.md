@@ -24,9 +24,11 @@ Total: 82 files, 194 legacy imports.
 
 ## Stragglers retained (NOT archived)
 
-These 6 files mix legacy + canonical imports. They reference one
-`runtime.substrate.*` import each alongside canonical §24 imports.
-Future triage should update the single legacy import per file.
+These 6 files mixed legacy + canonical imports. Each had one
+`runtime.substrate.*` import alongside canonical §24 imports.
+
+**RESOLVED 2026-05-14** (`5e909bb6`): All 6 updated to canonical
+`runtime.transport.*` paths. Zero legacy imports remain in `tests/`.
 
 | File | Legacy imports | Canonical imports |
 |------|---------------|-------------------|

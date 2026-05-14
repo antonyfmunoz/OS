@@ -1245,10 +1245,25 @@ Row 82 CLOSED.
 - **Tests**: 93 passed, 1 deselected (unchanged from baseline)
 - **Commit**: `f09c98e1`
 
-Stragglers (future triage — update single legacy import per file):
-- `tests/test_w0_execution_binding.py`
-- `tests/test_local_worker_visible_chrome_gate.py`
-- `tests/test_foreground_cu_ingestion_execution_v1.py`
-- `tests/test_founder_visual_confirmation_gate.py`
-- `tests/test_local_worker_runtime_daemon.py`
-- `tests/test_w0_coherence_envelope.py`
+~~Stragglers (future triage — update single legacy import per file):~~
+~~All 6 resolved — `5e909bb6`~~
+
+## Stragglers Close — 2026-05-14
+
+All 6 straggler files updated: `runtime.substrate.*` → `runtime.transport.*`.
+Zero archives, zero investigations. All canonical paths verified importable.
+
+| File | Old import | New import | Decision |
+|------|-----------|------------|----------|
+| `test_w0_execution_binding.py` | `runtime.substrate.local_worker_auto_loop` | `runtime.transport.local_worker_auto_loop` | UPDATE_IMPORT |
+| `test_local_worker_visible_chrome_gate.py` | `runtime.substrate.local_worker_auto_loop` | `runtime.transport.local_worker_auto_loop` | UPDATE_IMPORT |
+| `test_foreground_cu_ingestion_execution_v1.py` | `runtime.substrate.instance_ingestion_contracts` | `runtime.transport.instance_ingestion_contracts` | UPDATE_IMPORT |
+| `test_founder_visual_confirmation_gate.py` | `runtime.substrate.write_founder_gate_confirmation` | `runtime.transport.write_founder_gate_confirmation` | UPDATE_IMPORT |
+| `test_local_worker_runtime_daemon.py` | `runtime.substrate.local_worker_runtime_daemon` | `runtime.transport.local_worker_runtime_daemon` | UPDATE_IMPORT |
+| `test_w0_coherence_envelope.py` | `runtime.substrate.local_worker_auto_loop` | `runtime.transport.local_worker_auto_loop` | UPDATE_IMPORT |
+
+- **Tests**: 94 passed (unchanged from baseline)
+- **Legacy imports remaining in `tests/`**: 0
+- **Commit**: `5e909bb6`
+
+**Legacy-import theme: CLOSED.** No `runtime.substrate.*` or `eos_ai.*` imports remain in the active test tree.
