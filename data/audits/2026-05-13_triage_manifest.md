@@ -1209,7 +1209,7 @@ from runtime.transport.<module> import *  # noqa: F401,F403
 
 | Thread | Items | Status |
 |--------|-------|--------|
-| Legacy tests referencing runtime.substrate | 376 imports across ~40 test files | ARCHIVE candidates (manifest Row 82) |
+| ~~Legacy tests referencing runtime.substrate~~ | ~~82 files / 194 imports~~ | ~~CLOSED — archived 2026-05-14 (`f09c98e1`)~~ |
 | Transport `__init__.py` rewrite | Rows 75, 76, 60 | Dedicated Wave 0.5 |
 | Law 5.4 type convergence | 5 spine modules | Dedicated follow-up wave |
 | Law 5.9 adapter refactor | 6 files in execution/workers/workstation/ | §14.1 contract |
@@ -1231,4 +1231,24 @@ from runtime.transport.<module> import *  # noqa: F401,F403
 
 Active tree reduced from ~3,500 Python files (pre-migration) to **1,014 files**.
 All production imports route through canonical §24 paths.
-Only follow-up waves (transport rewrite, Law fixes, legacy test ARCHIVE) remain.
+Only follow-up waves (transport rewrite, Law fixes) remain.
+
+---
+
+## Legacy Test Archive — 2026-05-14
+
+Row 82 CLOSED.
+
+- **Files archived**: 82 (git mv to `_archive/2026-05-14_legacy_tests/`)
+- **Legacy imports**: 194 from `runtime.substrate.*` or `eos_ai.*`
+- **Stragglers retained**: 6 files with mixed legacy + canonical imports (1 legacy import each)
+- **Tests**: 93 passed, 1 deselected (unchanged from baseline)
+- **Commit**: `f09c98e1`
+
+Stragglers (future triage — update single legacy import per file):
+- `tests/test_w0_execution_binding.py`
+- `tests/test_local_worker_visible_chrome_gate.py`
+- `tests/test_foreground_cu_ingestion_execution_v1.py`
+- `tests/test_founder_visual_confirmation_gate.py`
+- `tests/test_local_worker_runtime_daemon.py`
+- `tests/test_w0_coherence_envelope.py`
