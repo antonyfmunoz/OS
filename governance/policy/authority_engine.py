@@ -101,23 +101,15 @@ class AuthorityEngine:
         action_type: str,
         payload: dict,
         agent: str) -> str:
-        approval_id = str(uuid.uuid4())
-        with get_conn(self.ctx.org_id) as cur:
-            cur.execute("""
-                INSERT INTO approvals
-                (id, org_id, request_json, status, created_at)
-                VALUES (%s, %s, %s, 'pending', %s)
-            """, (
-                approval_id,
-                self.ctx.org_id,
-                json.dumps({
-                    'action_type': action_type,
-                    'payload': payload,
-                    'agent': agent
-                }),
-                datetime.now(timezone.utc)
-            ))
-        return approval_id
+        from state.stores.approval_store import ApprovalStore
+        return ApprovalStore().create_approval(
+            org_id=self.ctx.org_id,
+            request={
+                'action_type': action_type,
+                'payload': payload,
+                'agent': agent,
+            },
+        )
 
     def execute_or_queue(self,
         action_type: str,
@@ -139,26 +131,16 @@ class AuthorityEngine:
             }
 
     def approve(self, approval_id: str) -> dict:
-        with get_conn(self.ctx.org_id) as cur:
-            cur.execute("""
-                UPDATE approvals
-                SET status = 'approved',
-                    resolved_at = %s,
-                    resolved_by = %s
-                WHERE id = %s AND org_id = %s
-                RETURNING request_json
-            """, (
-                datetime.now(timezone.utc),
-                self.ctx.user_id,
-                approval_id,
-                self.ctx.org_id
-            ))
-            row = cur.fetchone()
-        if not row:
+        from state.stores.approval_store import ApprovalStore
+        result = ApprovalStore().approve(
+            org_id=self.ctx.org_id,
+            approval_id=approval_id,
+            resolved_by=self.ctx.user_id,
+        )
+        if not result:
             return {'error': 'approval not found'}
 
-        # Chain 4: if this was a new agent proposal, write the soul doc
-        request = row['request_json'] or {}
+        request = result.get('request_json') or {}
         if isinstance(request, str):
             import json as _json
             try:
@@ -172,7 +154,7 @@ class AuthorityEngine:
             except Exception as e:
                 print(f"[AuthorityEngine] Soul doc write failed: {e}")
 
-        return {'status': 'approved', 'request': row['request_json']}
+        return {'status': 'approved', 'request': result.get('request_json')}
 
     def _create_agent_soul_doc(self, agent_spec: dict) -> None:
         """Write a soul doc to agents/ when a new agent is approved."""
@@ -208,19 +190,12 @@ class AuthorityEngine:
         print(f"[AuthorityEngine] Soul doc written → {soul_doc}")
 
     def reject(self, approval_id: str) -> dict:
-        with get_conn(self.ctx.org_id) as cur:
-            cur.execute("""
-                UPDATE approvals
-                SET status = 'rejected',
-                    resolved_at = %s,
-                    resolved_by = %s
-                WHERE id = %s AND org_id = %s
-            """, (
-                datetime.now(timezone.utc),
-                self.ctx.user_id,
-                approval_id,
-                self.ctx.org_id
-            ))
+        from state.stores.approval_store import ApprovalStore
+        ApprovalStore().reject(
+            org_id=self.ctx.org_id,
+            approval_id=approval_id,
+            resolved_by=self.ctx.user_id,
+        )
         return {'status': 'rejected', 'approval_id': approval_id}
 
     def get_pending(self) -> list:

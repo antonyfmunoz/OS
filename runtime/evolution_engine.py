@@ -545,26 +545,18 @@ class EvolutionEngine:
             }
 
         # ── Queue for approval ────────────────────────────────────────────────
-        approval_id = str(uuid.uuid4())
         try:
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    """
-                    INSERT INTO approvals (id, org_id, request, status, created_at)
-                    VALUES (%s, %s, %s, 'pending', NOW())
-                    """,
-                    (
-                        approval_id,
-                        self.ctx.org_id,
-                        json.dumps({
-                            "action_type":    "workflow_improvement",
-                            "workflow_id":    workflow_id,
-                            "workflow_name":  workflow["name"],
-                            "proposed_steps": proposed_steps,
-                            "agent":          "evolution_engine",
-                        }),
-                    ),
-                )
+            from state.stores.approval_store import ApprovalStore
+            approval_id = ApprovalStore().create_approval(
+                org_id=self.ctx.org_id,
+                request={
+                    "action_type":    "workflow_improvement",
+                    "workflow_id":    workflow_id,
+                    "workflow_name":  workflow["name"],
+                    "proposed_steps": proposed_steps,
+                    "agent":          "evolution_engine",
+                },
+            )
             print(f"[EvolutionEngine] Workflow improvement queued → approval {approval_id}")
         except Exception as e:
             return {
@@ -646,25 +638,17 @@ class EvolutionEngine:
                 "reason": f"Agent design failed: {e}",
             }
 
-        approval_id = str(uuid.uuid4())
         try:
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    """
-                    INSERT INTO approvals (id, org_id, request, status, created_at)
-                    VALUES (%s, %s, %s, 'pending', NOW())
-                    """,
-                    (
-                        approval_id,
-                        self.ctx.org_id,
-                        json.dumps({
-                            "action_type":       "new_agent_proposal",
-                            "pattern":           pattern_description[:300],
-                            "proposed_agent":    agent_spec,
-                            "agent":             "evolution_engine",
-                        }),
-                    ),
-                )
+            from state.stores.approval_store import ApprovalStore
+            approval_id = ApprovalStore().create_approval(
+                org_id=self.ctx.org_id,
+                request={
+                    "action_type":       "new_agent_proposal",
+                    "pattern":           pattern_description[:300],
+                    "proposed_agent":    agent_spec,
+                    "agent":             "evolution_engine",
+                },
+            )
             print(f"[EvolutionEngine] New agent proposed: {agent_spec.get('name')} → approval {approval_id}")
         except Exception as e:
             return {
