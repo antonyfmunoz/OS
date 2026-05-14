@@ -215,26 +215,12 @@ class EmailGPS:
                 },
             ]
 
-            with get_conn(self.ctx.org_id) as cur:
-                for folder in defaults:
-                    cur.execute(
-                        '''
-                        INSERT INTO email_folders (
-                            org_id, name, purpose,
-                            examples, auto_actions)
-                        VALUES (%s, %s, %s, %s, %s)
-                        ON CONFLICT (org_id, name)
-                        DO NOTHING
-                        ''',
-                        (
-                            self.ctx.org_id,
-                            folder['name'],
-                            folder['purpose'],
-                            folder['examples'],
-                            folder['auto_actions'],
-                        ),
-                    )
-                print('[EmailGPS] Folder definitions seeded')
+            from state.stores.email_folder_store import EmailFolderStore
+            EmailFolderStore().seed_folders(
+                org_id=self.ctx.org_id,
+                folders=defaults,
+            )
+            print('[EmailGPS] Folder definitions seeded')
             return True
 
         except Exception as e:
@@ -313,15 +299,12 @@ class EmailGPS:
                 return ''
 
             # Save to Neon
-            with get_conn(self.ctx.org_id) as cur:
-                cur.execute(
-                    '''
-                    UPDATE email_folders
-                    SET purpose = %s, updated_at = NOW()
-                    WHERE org_id = %s AND name = %s
-                    ''',
-                    (new_purpose, self.ctx.org_id, folder_name),
-                )
+            from state.stores.email_folder_store import EmailFolderStore
+            EmailFolderStore().update_purpose(
+                org_id=self.ctx.org_id,
+                folder_name=folder_name,
+                new_purpose=new_purpose,
+            )
 
             print(
                 f'[EmailGPS] Updated "{folder_name}": '
