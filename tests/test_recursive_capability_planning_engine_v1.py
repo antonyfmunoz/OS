@@ -1022,7 +1022,7 @@ class TestRegistryIntegration:
         assert "capability_report" in ACTION_CAPABILITY_MAP
 
     def test_capability_report_in_adapter_contracts(self) -> None:
-        from core.environment_bridge.windows_desktop_adapter_contracts import (
+        from execution.environments.windows_desktop_adapter_contracts import (
             WindowsDesktopActionType,
         )
 

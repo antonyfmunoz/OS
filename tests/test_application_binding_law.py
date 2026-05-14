@@ -19,7 +19,7 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 import unittest
 
-from core.environment_bridge.execution_binding_contracts import (
+from execution.environments.execution_binding_contracts import (
     ApplicationBinding,
     ApplicationLaunchMethod,
     DISALLOWED_CHROME_LAUNCH_METHODS,
@@ -38,7 +38,7 @@ from core.environment_bridge.execution_binding_contracts import (
     WSL_TMUX_SURFACE_TYPES,
     build_w0_chrome_gws_binding,
 )
-from core.environment_bridge.execution_binding_validator import (
+from execution.environments.execution_binding_validator import (
     validate_execution_binding,
     validate_execution_binding_dict,
 )

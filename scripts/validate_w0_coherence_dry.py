@@ -26,11 +26,11 @@ from control_plane.invariants.spine_lineage_contracts import (
     SpineStage,
     SpineStageStatus,
 )
-from core.environment_bridge.execution_binding_validator import (
+from execution.environments.execution_binding_validator import (
     validate_execution_binding_dict,
 )
-from core.environment_bridge.packet_validator import validate_w0_packet_dict
-from core.environment_bridge.w0_packet_builder import build_w0_001_packet
+from execution.environments.packet_validator import validate_w0_packet_dict
+from execution.environments.w0_packet_builder import build_w0_001_packet
 
 REPORT_DIR = Path(_ROOT) / "data" / "dry_validation"
 REPORT_DIR.mkdir(parents=True, exist_ok=True)

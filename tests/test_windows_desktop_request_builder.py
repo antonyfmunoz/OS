@@ -19,18 +19,18 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 import unittest
 
-from core.environment_bridge.windows_desktop_adapter_contracts import (
+from execution.environments.windows_desktop_adapter_contracts import (
     BLOCKED_LAUNCH_METHODS,
     WindowsDesktopActionType,
 )
-from core.environment_bridge.windows_desktop_request_builder import (
+from execution.environments.windows_desktop_request_builder import (
     CHROME_EXECUTABLE_PATH_WINDOWS,
     GOOGLE_DRIVE_URL,
     build_ping_request,
     build_w0_chrome_open_request,
     request_to_json,
 )
-from core.environment_bridge.windows_desktop_adapter_validator import (
+from execution.environments.windows_desktop_adapter_validator import (
     validate_desktop_action_request,
 )
 

@@ -251,7 +251,7 @@ def route_to_windows_desktop_adapter(
         }
 
     try:
-        from core.environment_bridge.windows_desktop_request_builder import (
+        from execution.environments.windows_desktop_request_builder import (
             build_w0_chrome_open_request,
         )
         from runtime.transport.windows_desktop_relay_client import (
@@ -578,7 +578,7 @@ def _execute_approved_action(packet: dict[str, Any], response: dict[str, Any]) -
     drive_url = "https://drive.google.com/drive/my-drive"
 
     sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-    from core.environment_bridge.chrome_visible_launch import (
+    from execution.environments.chrome_visible_launch import (
         ChromeLaunchMethod,
         ChromeVisibleLaunchStatus,
         apply_founder_visual_confirmation,

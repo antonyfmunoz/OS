@@ -1501,7 +1501,7 @@ class TestRegistryIntegration:
         assert cap.capability_type == CapabilityType.ORCHESTRATION_GOVERNANCE
 
     def test_orchestration_report_in_adapter_enum(self) -> None:
-        from core.environment_bridge.windows_desktop_adapter_contracts import (
+        from execution.environments.windows_desktop_adapter_contracts import (
             WindowsDesktopActionType,
         )
 

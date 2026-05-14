@@ -557,7 +557,7 @@ def send_ingest_safe_doc_request(
 ) -> Any:
     """Send real foreground CU ingestion request via relay transport."""
     from core.workstation.relay_execution_transport_v1 import send_and_wait
-    from core.environment_bridge.windows_desktop_request_builder import (
+    from execution.environments.windows_desktop_request_builder import (
         build_w0_real_foreground_cu_ingestion_request,
     )
 

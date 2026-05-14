@@ -48,7 +48,7 @@ from core.runtime.foreground_cu_verification_v1 import (
     validate_execution_mode,
     validate_workstation_readiness,
 )
-from core.environment_bridge.chrome_visible_launch import (
+from execution.environments.chrome_visible_launch import (
     ChromeVisibleLaunchProof,
     ChromeVisibleLaunchStatus,
     visible_launch_proof_allows_next_gate,
@@ -75,7 +75,7 @@ from core.control_plane_router.router_contracts import (
 from core.control_plane_router.control_plane_router_v1 import (
     ACTION_CAPABILITY_MAP,
 )
-from core.environment_bridge.windows_desktop_request_builder import (
+from execution.environments.windows_desktop_request_builder import (
     build_w0_real_foreground_cu_ingestion_request,
 )
 

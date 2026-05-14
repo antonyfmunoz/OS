@@ -6,12 +6,12 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 import unittest
-from core.environment_bridge.work_packet import (
+from execution.environments.work_packet import (
     WorkPacketRiskLevel,
     WorkPacketStatus,
     build_work_packet,
 )
-from core.environment_bridge.packet_validator import (
+from execution.environments.packet_validator import (
     PacketValidationStatus,
     CU_REQUIRED_BLOCKED_ACTIONS,
     validate_work_packet,
@@ -164,7 +164,7 @@ class TestHelpers(unittest.TestCase):
         self.assertTrue(packet_has_required_proof(pkt))
 
     def test_validator_blocks(self):
-        from core.environment_bridge.packet_validator import PacketValidationResult
+        from execution.environments.packet_validator import PacketValidationResult
 
         r = PacketValidationResult(can_execute=False)
         self.assertTrue(packet_validator_blocks_execution(r))

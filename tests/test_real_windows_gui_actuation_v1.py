@@ -44,7 +44,7 @@ from core.runtime.windows_foreground_actuator_v1 import (
     persist_gui_actuation_proof,
     validate_environment,
 )
-from core.environment_bridge.windows_desktop_adapter_contracts import (
+from execution.environments.windows_desktop_adapter_contracts import (
     WindowsDesktopActionType,
 )
 from runtime.interfaces.discord_interface_adapter_v1 import (
@@ -61,7 +61,7 @@ from core.control_plane_router.router_contracts import (
 from core.control_plane_router.control_plane_router_v1 import (
     ACTION_CAPABILITY_MAP,
 )
-from core.environment_bridge.windows_desktop_request_builder import (
+from execution.environments.windows_desktop_request_builder import (
     build_w0_chrome_proof_request,
 )
 

@@ -12,7 +12,7 @@ import pytest
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or "/opt/OS")
 
-from core.environment_bridge.work_packet import (
+from execution.environments.work_packet import (
     WorkPacket,
     WorkPacketRiskLevel,
     WorkPacketStatus,

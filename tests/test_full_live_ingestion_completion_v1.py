@@ -61,7 +61,7 @@ from core.control_plane_router.router_contracts import (
 from core.control_plane_router.control_plane_router_v1 import (
     ACTION_CAPABILITY_MAP,
 )
-from core.environment_bridge.windows_desktop_request_builder import (
+from execution.environments.windows_desktop_request_builder import (
     build_w0_full_live_ingestion_request,
 )
 from core.runtime.full_live_ingestion_spine_v1 import (

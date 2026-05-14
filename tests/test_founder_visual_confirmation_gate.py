@@ -18,7 +18,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from core.environment_bridge.chrome_visible_launch import (
+from execution.environments.chrome_visible_launch import (
     ChromeLaunchMethod,
     ChromeProcessSnapshot,
     ChromeVisibleLaunchStatus,

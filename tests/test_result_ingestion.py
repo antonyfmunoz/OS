@@ -6,7 +6,7 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 import unittest
-from core.environment_bridge.result_ingestion import (
+from execution.environments.result_ingestion import (
     BridgeResult,
     BridgeResultStatus,
     build_bridge_result,
@@ -16,7 +16,7 @@ from core.environment_bridge.result_ingestion import (
     ingest_bridge_result,
     summarize_bridge_result,
 )
-from core.environment_bridge.work_packet import build_work_packet
+from execution.environments.work_packet import build_work_packet
 
 
 class TestResultBuilds(unittest.TestCase):

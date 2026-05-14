@@ -16,8 +16,8 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 import unittest
 
-from core.environment_bridge.w0_packet_builder import build_w0_001_packet
-from core.environment_bridge.packet_validator import (
+from execution.environments.w0_packet_builder import build_w0_001_packet
+from execution.environments.packet_validator import (
     PacketValidationStatus,
     validate_w0_packet_dict,
 )

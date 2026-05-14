@@ -6,7 +6,7 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 import unittest
-from core.environment_bridge.vps_local_bridge import (
+from execution.environments.vps_local_bridge import (
     VPSLocalBridge,
     VPSLocalBridgeStatus,
     BridgeMode,
@@ -17,7 +17,7 @@ from core.environment_bridge.vps_local_bridge import (
     bridge_requires_manual_bootstrap,
     summarize_vps_local_bridge,
 )
-from core.environment_bridge.heartbeat import build_worker_heartbeat
+from execution.environments.heartbeat import build_worker_heartbeat
 
 
 class TestBridgeBuilds(unittest.TestCase):

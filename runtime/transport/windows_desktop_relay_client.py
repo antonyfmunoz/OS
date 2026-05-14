@@ -329,7 +329,7 @@ def _cli_main() -> None:
 
     if args.action == "PING":
         sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-        from core.environment_bridge.windows_desktop_request_builder import (
+        from execution.environments.windows_desktop_request_builder import (
             build_ping_request,
         )
 

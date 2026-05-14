@@ -42,7 +42,7 @@ from core.control_plane_router.router_contracts import (
     RouterStatus,
     WorkPacket,
 )
-from core.environment_bridge.windows_desktop_request_builder import (
+from execution.environments.windows_desktop_request_builder import (
     build_ping_request,
     build_w0_chrome_open_request,
     build_w0_chrome_proof_request,

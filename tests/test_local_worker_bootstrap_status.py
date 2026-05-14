@@ -6,7 +6,7 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 import unittest
-from core.environment_bridge.bootstrap_status import (
+from execution.environments.bootstrap_status import (
     BootstrapCheckStatus,
     BootstrapStatusReport,
     check_vps_bootstrap_readiness,

@@ -16,7 +16,7 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 import unittest
-from core.environment_bridge.chrome_visible_launch import (
+from execution.environments.chrome_visible_launch import (
     ChromeLaunchMethod,
     ChromeProcessSnapshot,
     ChromeVisibleLaunchStatus,
@@ -30,8 +30,8 @@ from runtime.substrate.local_worker_auto_loop import (
     WO_001_ID,
     WO_001_ACCOUNT,
 )
-from core.environment_bridge.execution_binding_contracts import build_w0_chrome_gws_binding
-from core.environment_bridge.w0_packet_builder import build_w0_001_packet
+from execution.environments.execution_binding_contracts import build_w0_chrome_gws_binding
+from execution.environments.w0_packet_builder import build_w0_001_packet
 
 VALID_WSL_PATH = CHROME_EXECUTABLE_PATHS_WSL[0]
 DRIVE_URL = "https://drive.google.com/drive/my-drive"

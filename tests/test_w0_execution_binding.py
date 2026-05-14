@@ -16,26 +16,26 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 import unittest
 
-from core.environment_bridge.w0_packet_builder import (
+from execution.environments.w0_packet_builder import (
     build_w0_001_packet,
     w0_001_packet_has_required_routing,
 )
-from core.environment_bridge.packet_validator import (
+from execution.environments.packet_validator import (
     PacketValidationStatus,
     validate_w0_packet_dict,
 )
-from core.environment_bridge.execution_binding_contracts import (
+from execution.environments.execution_binding_contracts import (
     ApplicationLaunchMethod,
     DISALLOWED_CHROME_LAUNCH_METHODS,
 )
-from core.environment_bridge.execution_binding_validator import (
+from execution.environments.execution_binding_validator import (
     validate_execution_binding_dict,
 )
 from runtime.substrate.local_worker_auto_loop import (
     validate_wo_001_packet,
     validate_execution_binding_from_packet,
 )
-from core.environment_bridge.chrome_visible_launch import (
+from execution.environments.chrome_visible_launch import (
     ChromeLaunchMethod,
     ChromeProcessSnapshot,
     ChromeVisibleLaunchStatus,

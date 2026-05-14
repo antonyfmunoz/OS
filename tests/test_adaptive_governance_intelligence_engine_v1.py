@@ -971,7 +971,7 @@ class TestRegistryIntegration(unittest.TestCase):
         self.assertIn("governance_intelligence_report", ACTION_CAPABILITY_MAP)
 
     def test_adapter_contracts_enum(self) -> None:
-        from core.environment_bridge.windows_desktop_adapter_contracts import (
+        from execution.environments.windows_desktop_adapter_contracts import (
             WindowsDesktopActionType,
         )
 

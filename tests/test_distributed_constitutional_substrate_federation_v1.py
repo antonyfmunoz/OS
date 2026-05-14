@@ -1273,7 +1273,7 @@ class TestRegistryIntegration(unittest.TestCase):
         self.assertIn("federation_report", ACTION_CAPABILITY_MAP)
 
     def test_adapter_contracts_has_federation(self) -> None:
-        from core.environment_bridge.windows_desktop_adapter_contracts import (
+        from execution.environments.windows_desktop_adapter_contracts import (
             WindowsDesktopActionType,
         )
 

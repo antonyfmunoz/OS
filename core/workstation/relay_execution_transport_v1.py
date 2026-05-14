@@ -263,7 +263,7 @@ def send_chrome_proof_request(
     url: str = "https://www.google.com",
     timeout_seconds: int = TRANSPORT_TIMEOUT_SECONDS,
 ) -> RelayTransportResult:
-    from core.environment_bridge.windows_desktop_request_builder import (
+    from execution.environments.windows_desktop_request_builder import (
         build_w0_chrome_proof_request,
     )
 
@@ -275,7 +275,7 @@ def send_chrome_proof_request(
 def send_ping_request(
     timeout_seconds: int = 30,
 ) -> RelayTransportResult:
-    from core.environment_bridge.windows_desktop_request_builder import (
+    from execution.environments.windows_desktop_request_builder import (
         build_ping_request,
     )
 

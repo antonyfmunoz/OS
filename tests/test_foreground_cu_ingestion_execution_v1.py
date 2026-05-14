@@ -603,7 +603,7 @@ class TestTransportIntegration:
         assert len(proof.candidates) > 0
 
     def test_request_builder_integration(self) -> None:
-        from core.environment_bridge.windows_desktop_request_builder import (
+        from execution.environments.windows_desktop_request_builder import (
             build_w0_real_foreground_cu_ingestion_request,
         )
 

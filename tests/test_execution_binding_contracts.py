@@ -12,7 +12,7 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 import unittest
 
-from core.environment_bridge.execution_binding_contracts import (
+from execution.environments.execution_binding_contracts import (
     ApplicationBinding,
     ApplicationLaunchMethod,
     CapabilityBinding,

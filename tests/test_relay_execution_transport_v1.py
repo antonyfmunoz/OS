@@ -365,7 +365,7 @@ class TestTransportModuleImports:
         assert TRANSPORT_POLL_INTERVAL == 3
 
     def test_request_builder_integration(self) -> None:
-        from core.environment_bridge.windows_desktop_request_builder import (
+        from execution.environments.windows_desktop_request_builder import (
             build_w0_chrome_proof_request,
         )
 

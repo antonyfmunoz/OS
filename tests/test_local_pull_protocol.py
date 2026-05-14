@@ -10,7 +10,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from core.environment_bridge.local_pull_protocol import (
+from execution.environments.local_pull_protocol import (
     LocalPullStatus,
     LocalPullCycleResult,
     discover_remote_packets,
@@ -114,7 +114,7 @@ class TestResultWritten(unittest.TestCase):
 
 class TestSyncFailure(unittest.TestCase):
     def test_force_sync_failure(self):
-        from core.environment_bridge.local_pull_protocol import (
+        from execution.environments.local_pull_protocol import (
             sync_local_results_to_remote,
         )
 

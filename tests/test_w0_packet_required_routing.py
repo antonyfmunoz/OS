@@ -6,7 +6,7 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 import unittest
-from core.environment_bridge.w0_packet_builder import (
+from execution.environments.w0_packet_builder import (
     W0_001_TARGET_ACCOUNT,
     W0_001_WORKER_MODE,
     W0_001_APPROVAL_ROUTING,
@@ -16,13 +16,13 @@ from core.environment_bridge.w0_packet_builder import (
     w0_001_packet_has_required_routing,
     w0_001_packet_blocks_playwright,
 )
-from core.environment_bridge.work_packet import (
+from execution.environments.work_packet import (
     WorkPacket,
     WorkPacketRiskLevel,
     WorkPacketStatus,
     build_work_packet,
 )
-from core.environment_bridge.packet_validator import (
+from execution.environments.packet_validator import (
     PacketValidationStatus,
     CU_REQUIRED_BLOCKED_ACTIONS,
     validate_work_packet,

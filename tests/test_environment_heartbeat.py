@@ -11,7 +11,7 @@ import unittest
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-from core.environment_bridge.heartbeat import (
+from execution.environments.heartbeat import (
     WorkerHeartbeat,
     WorkerHeartbeatStatus,
     build_worker_heartbeat,
