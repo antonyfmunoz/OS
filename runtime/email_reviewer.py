@@ -12,7 +12,7 @@ Cron:
     load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'services', '.env'))
     from runtime.email_reviewer import EmailReviewer
     from runtime.context import load_context_from_env
-    from runtime.discord_utils import post_to_webhook
+    from interface.discord.discord_utils import post_to_webhook
     import os
     ctx = load_context_from_env()
     er = EmailReviewer(ctx)

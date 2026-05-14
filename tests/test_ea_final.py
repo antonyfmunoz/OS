@@ -187,10 +187,10 @@ class TestGWSConnectorDrive:
 class TestWeekArchitect:
 
     def test_import(self):
-        from runtime.week_architect import architect_week
+        from control_plane.scheduling.week_architect import architect_week
 
     def test_architect_week_returns_string(self):
-        from runtime.week_architect import architect_week
+        from control_plane.scheduling.week_architect import architect_week
         # Falls back gracefully without LLM — must not raise
         try:
             result = architect_week()

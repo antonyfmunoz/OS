@@ -234,7 +234,7 @@ class OnboardingBackfill:
             if not title:
                 continue
             try:
-                from runtime.coordination_engine import CoordinationEngine
+                from control_plane.coordination.coordination_engine import CoordinationEngine
                 ce = CoordinationEngine(self.ctx)
                 ce.assign_task(
                     task_description=title,

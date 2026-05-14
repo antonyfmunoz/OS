@@ -65,7 +65,7 @@ class TestEmbeddingEngine:
 class TestDiscordUtils:
 
     def test_chunk_message_under_discord_limit(self):
-        from runtime.discord_utils import chunk_message
+        from interface.discord.discord_utils import chunk_message
         long = 'x ' * 1000
         chunks = chunk_message(long)
         # Discord's hard limit is 2000. DISCORD_MAX_CHARS=1800 is the content
@@ -74,7 +74,7 @@ class TestDiscordUtils:
         assert all(len(c) <= 2000 for c in chunks)
 
     def test_chunk_preserves_all_content(self):
-        from runtime.discord_utils import chunk_message
+        from interface.discord.discord_utils import chunk_message
         text = 'word ' * 400
         chunks = chunk_message(text)
         rejoined = ''.join(chunks)
@@ -82,7 +82,7 @@ class TestDiscordUtils:
         assert len(rejoined) >= len(text.strip())
 
     def test_short_message_returns_single_chunk(self):
-        from runtime.discord_utils import chunk_message
+        from interface.discord.discord_utils import chunk_message
         text = 'short message'
         chunks = chunk_message(text)
         assert len(chunks) == 1
@@ -94,14 +94,14 @@ class TestDiscordUtils:
 class TestOutputValidator:
 
     def test_catches_long_discord_message(self):
-        from runtime.output_validator import OutputValidator
+        from governance.validation.output_validator import OutputValidator
         v = OutputValidator()
         result = v.validate_discord_message('x ' * 1000)
         violation_types = [viol.violation_type.value for viol in result.violations]
         assert 'discord_chunk_limit' in violation_types
 
     def test_catches_generic_response(self):
-        from runtime.output_validator import OutputValidator
+        from governance.validation.output_validator import OutputValidator
         v = OutputValidator()
         result = v.validate_discord_message(
             'Great question! How can I help?', 'agent_response'
@@ -109,7 +109,7 @@ class TestOutputValidator:
         assert len(result.violations) > 0
 
     def test_clean_message_passes(self):
-        from runtime.output_validator import OutputValidator
+        from governance.validation.output_validator import OutputValidator
         v = OutputValidator()
         result = v.validate_discord_message(
             'Morning. Zero pipeline. 20 DMs today.'
@@ -121,7 +121,7 @@ class TestOutputValidator:
         assert len(critical) == 0
 
     def test_result_has_expected_fields(self):
-        from runtime.output_validator import OutputValidator
+        from governance.validation.output_validator import OutputValidator
         v = OutputValidator()
         result = v.validate_discord_message('test')
         assert hasattr(result, 'passed')

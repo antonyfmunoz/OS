@@ -177,7 +177,7 @@ def requires_approval(task: dict, result: dict) -> bool:
 async def run_executor():
     """Main executor loop — poll, execute, mark complete, surface to Discord."""
     from runtime.context import load_context_from_env
-    from runtime.coordination_engine import CoordinationEngine
+    from control_plane.coordination.coordination_engine import CoordinationEngine
     from state.storage.db import get_conn
 
     print(f'[Executor] Starting — {datetime.now(PDT).strftime("%Y-%m-%d %H:%M:%S %Z")}')

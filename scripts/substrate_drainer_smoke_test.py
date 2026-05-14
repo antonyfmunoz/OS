@@ -27,7 +27,7 @@ import time
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from runtime.event_bus import EventBus  # noqa: E402
+from control_plane.events.event_bus import EventBus  # noqa: E402
 from runtime.transport.actions import ActionResult, ActionStatus  # noqa: E402
 from runtime.transport.station import StationContract, StationEvent  # noqa: E402
 from runtime.transport.station_bus import get_station_bus  # noqa: E402

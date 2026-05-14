@@ -92,7 +92,7 @@ from runtime.context import load_context_from_env
 from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
 from execution.voice.voice_engine import VoiceEngine
 from state.business.business_instance import get_ai_name
-from runtime.discord_utils import chunk_message, post_to_webhook
+from interface.discord.discord_utils import chunk_message, post_to_webhook
 from runtime.transport.session_discord_bridge import send_reply as _send_reply
 from runtime.transport.discord_text_transport import (
     maybe_mirror_discord_text_message as _maybe_pseudo_live_text,
@@ -174,7 +174,7 @@ _gateway = EOSGateway()  # singleton — no ctx arg
 _ki = KnowledgeIntegrator(_ctx_eos)
 _ve = VoiceEngine()
 
-from runtime.onboarding_engine import OnboardingEngine as _OnboardingEngine
+from control_plane.onboarding.onboarding_engine import OnboardingEngine as _OnboardingEngine
 
 _onboarding = _OnboardingEngine(_ctx_eos)
 
@@ -1057,7 +1057,7 @@ async def on_ready():
 
     # Start ambient refresh (same as Telegram bot)
     try:
-        from runtime.orchestrator import start_ambient_refresh_loop
+        from control_plane.orchestrator.orchestrator import start_ambient_refresh_loop
 
         start_ambient_refresh_loop(_ctx_eos)
         print("[Discord] Ambient refresh started")
@@ -2629,7 +2629,7 @@ async def cmd_status(ctx: commands.Context):
 
         def _portfolio_scan():
             try:
-                from runtime.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
+                from control_plane.strategy.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
 
                 pa = PortfolioAgent(_ctx_eos)
                 ventures = pa.scan_all_ventures()
@@ -3285,7 +3285,7 @@ async def cmd_sync(ctx: commands.Context):
 
         def _run():
             try:
-                from runtime.daily_sync import DailySyncEngine
+                from control_plane.scheduling.daily_sync import DailySyncEngine
 
                 dse = DailySyncEngine(_ctx_eos)
                 return dse.run_sync()
@@ -4023,7 +4023,7 @@ async def cmd_trip(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from runtime.travel_manager import build_travel_brief, log_trip
+            from adapters.calendar.travel_manager import build_travel_brief, log_trip
 
             parts = [p.strip() for p in args.split("|")]
             title = parts[0]
@@ -4394,7 +4394,7 @@ async def cmd_board(ctx: commands.Context, *, args: str = ""):
     def _run():
         try:
             from adapters.google_workspace.doc_creator import create_briefing_doc
-            from runtime.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
+            from control_plane.strategy.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
             from runtime.context import load_context_from_env
 
             ctx_eos = load_context_from_env()
@@ -4625,7 +4625,7 @@ async def cmd_flights(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from runtime.travel_manager import research_flights
+            from adapters.calendar.travel_manager import research_flights
 
             parts = [p.strip() for p in args.split("|")]
             result = research_flights(
@@ -4655,7 +4655,7 @@ async def cmd_hotels(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from runtime.travel_manager import research_hotels
+            from adapters.calendar.travel_manager import research_hotels
 
             parts = [p.strip() for p in args.split("|")]
             city = parts[0]
@@ -4682,7 +4682,7 @@ async def cmd_restaurants(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from runtime.travel_manager import research_restaurants
+            from adapters.calendar.travel_manager import research_restaurants
 
             parts = [p.strip() for p in args.split("|")]
             city = parts[0]
@@ -5012,7 +5012,7 @@ async def cmd_itinerary(ctx: commands.Context, *, args: str = ""):
         )
         return
     try:
-        from runtime.travel_manager import generate_trip_itinerary
+        from adapters.calendar.travel_manager import generate_trip_itinerary
 
         await ctx.reply("✈️ Generating itinerary...")
         itinerary = generate_trip_itinerary(
@@ -5092,7 +5092,7 @@ async def cmd_tasks(ctx: commands.Context):
     """Show pending task queue split by human vs AI."""
     try:
         from runtime.context import load_context_from_env
-        from runtime.coordination_engine import CoordinationEngine
+        from control_plane.coordination.coordination_engine import CoordinationEngine
 
         _ctx = load_context_from_env()
         coordination = CoordinationEngine(_ctx)

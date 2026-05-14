@@ -738,7 +738,7 @@ class VoiceInterface:
         # Create tasks in Neon for all action items via CoordinationEngine
         if action_items:
             try:
-                from runtime.coordination_engine import CoordinationEngine
+                from control_plane.coordination.coordination_engine import CoordinationEngine
                 ce = CoordinationEngine(self.ctx)
                 action_text = '\n'.join(
                     f"- {a['owner']}: {a['action']}"

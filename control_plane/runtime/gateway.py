@@ -725,7 +725,7 @@ class EOSGateway:
         # 2d. Self-awareness — detect any non-stage business change and process it
         if prompt and request.get("type") in ("agent_task", "brief"):
             try:
-                from runtime.self_awareness import SelfAwarenessEngine, ChangeType
+                from learning.self_model.self_awareness import SelfAwarenessEngine, ChangeType
                 from runtime.context import load_context_from_env as _load_ctx_sa
 
                 ctx_sa = _load_ctx_sa()
@@ -831,7 +831,7 @@ class EOSGateway:
     # ─── Route: event ─────────────────────────────────────────────────────────
 
     def _route_event(self, request: dict) -> dict:
-        from runtime.event_bus import EventBus
+        from control_plane.events.event_bus import EventBus
 
         event_type = request["event_type"]
         payload = request.get("payload") or {}
@@ -989,7 +989,7 @@ class EOSGateway:
         # Attempts the new spine. On ANY failure, falls back to the existing
         # CognitiveLoop branches below. This is the Phase 2 transition layer.
         try:
-            from runtime.context_builder import ContextBuilder
+            from control_plane.context.context_builder import ContextBuilder
             from execution.runtime.execution_spine import ExecutionSpine
 
             _spine_agent = sub_agent or "executive_assistant"
@@ -1358,7 +1358,7 @@ class EOSGateway:
             elif agent_id == "portfolio_advisor":
                 # Portfolio Advisor — inject live portfolio data
                 try:
-                    from runtime.portfolio_advisor import (
+                    from control_plane.strategy.portfolio_advisor import (
                         PortfolioAdvisor as PortfolioAgent,
                     )
 
@@ -1422,7 +1422,7 @@ class EOSGateway:
                     # Portfolio domain — inject live portfolio data into prompt
                     if domain == IntentDomain.PORTFOLIO:
                         try:
-                            from runtime.portfolio_advisor import (
+                            from control_plane.strategy.portfolio_advisor import (
                                 PortfolioAdvisor as PortfolioAgent,
                             )
 
@@ -1614,7 +1614,7 @@ class EOSGateway:
     # ─── Route: status ────────────────────────────────────────────────────────
 
     def _route_status(self, request: dict) -> dict:
-        from runtime.status import (
+        from observability.status.status import (
             _fetch_7d_raw,
             _fetch_total_interactions,
             _fetch_last_orchestrator_run,
@@ -1703,7 +1703,7 @@ class EOSGateway:
     def _route_brief(self, request: dict) -> dict:
         """Notion-first brief: run morning cycle, write to Notion, return URL."""
         try:
-            from runtime.orchestrator import run_full_morning_cycle
+            from control_plane.orchestrator.orchestrator import run_full_morning_cycle
             from runtime.context import load_context_from_env
 
             ctx = load_context_from_env()

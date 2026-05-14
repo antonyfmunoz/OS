@@ -897,7 +897,7 @@ class ContextualReasoningEngine:
             # Pre-check: look up matching primitive by keyword in principle text
             # This gives richer, structured responses before any AI call
             try:
-                from runtime.evolution_engine import EvolutionEngine
+                from learning.evolution.evolution_engine import EvolutionEngine
                 _ee = EvolutionEngine(self.ctx)
                 _venture = context.get('venture_id')  # may be None — substrate-neutral
                 _adv_lower = advice.lower()

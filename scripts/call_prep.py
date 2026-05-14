@@ -355,7 +355,7 @@ Under 100 words. Direct format.""").strip()
         from dateutil.parser import parse as _tparse
         from adapters.google_workspace.gws_connector import GWSConnector as _TGWS
         from runtime.context import load_context_from_env as _tctx
-        from runtime.travel_manager import detect_travel_event, build_travel_brief, log_trip
+        from adapters.calendar.travel_manager import detect_travel_event, build_travel_brief, log_trip
 
         _t_ctx = _tctx()
         _t_gws = _TGWS()  # GWSConnector takes no args

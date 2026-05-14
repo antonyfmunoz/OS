@@ -25,7 +25,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from runtime.goal_selector import (
+from control_plane.goals.goal_selector import (
     GoalSelector,
     Goal,
     GoalState,
@@ -576,7 +576,7 @@ class TestTimeDecay:
         not at scoring time. A goal with worse short-term profile than long-term
         reflects recency. This test uses explicit horizon profiles to verify.
         """
-        from runtime.goal_selector import MultiHorizonProfile
+        from control_plane.goals.goal_selector import MultiHorizonProfile
 
         sel = _make_selector()
         recent_perf = PerformanceProfile(

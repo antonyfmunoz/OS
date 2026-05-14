@@ -72,7 +72,7 @@ def main() -> None:
     print(SEP2)
 
     from control_plane.runtime.gateway import EOSGateway
-    from runtime.event_bus import EventBus, EventRegistry
+    from control_plane.events.event_bus import EventBus, EventRegistry
 
     gw  = EOSGateway()
     bus = EventBus()

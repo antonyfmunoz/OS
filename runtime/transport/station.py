@@ -153,7 +153,7 @@ class StationContract:
         # namespace so existing subscribers are unaffected until they
         # explicitly subscribe.
         try:
-            from runtime.event_bus import EventBus
+            from control_plane.events.event_bus import EventBus
             EventBus().publish_async(
                 f"station.{evt.event_type}",
                 {

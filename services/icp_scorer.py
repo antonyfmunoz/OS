@@ -460,7 +460,7 @@ kanban_stage: New
 
     # Publish new_lead event — triggers icp_qualifier handler async (non-blocking)
     try:
-        from runtime.event_bus import EventBus
+        from control_plane.events.event_bus import EventBus
         EventBus().publish_async("new_lead", {
             "username":   username,
             "score":      result["score"],

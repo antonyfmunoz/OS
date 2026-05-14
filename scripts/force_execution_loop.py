@@ -27,7 +27,7 @@ _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.ge
 from control_plane.actions.control_plane import run_action
 from control_plane.actions.logging import log_decision
 from core.optimizer import Optimizer
-from runtime.workflow_engine import WorkflowEngine, WorkflowState, WORKFLOWS
+from execution.workflows.workflow_engine import WorkflowEngine, WorkflowState, WORKFLOWS
 
 # Log files the optimizer reads
 WORKFLOW_LOG = Path(_ROOT) / "data" / "workflow_log.jsonl"

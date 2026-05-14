@@ -17,7 +17,7 @@ Cron:
   load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'services', '.env'))
   from runtime.eod_closing_loop import EODClosingLoop
   from runtime.context import load_context_from_env
-  from runtime.discord_utils import post_to_webhook
+  from interface.discord.discord_utils import post_to_webhook
   import os
   ctx = load_context_from_env()
   eod = EODClosingLoop(ctx)
@@ -164,7 +164,7 @@ class EODClosingLoop:
 
         # Post to Discord
         try:
-            from runtime.discord_utils import post_to_webhook
+            from interface.discord.discord_utils import post_to_webhook
 
             webhook = os.getenv("DISCORD_BRIEF_WEBHOOK", "")
             if webhook:

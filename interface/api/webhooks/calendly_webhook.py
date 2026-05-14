@@ -238,7 +238,7 @@ def calendly_webhook():
                               notes=f"Calendly invitee.created — {event_time}")
         # Publish lead_booked event — triggers handler async (non-blocking)
         try:
-            from runtime.event_bus import EventBus
+            from control_plane.events.event_bus import EventBus
             EventBus().publish_async("lead_booked", {
                 "username":     username,
                 "booking_time": event_time,

@@ -232,7 +232,7 @@ class AgentMemory:
 
         def _alert() -> None:
             try:
-                from runtime.orchestrator import check_outcome_milestone
+                from control_plane.orchestrator.orchestrator import check_outcome_milestone
                 from runtime.context import load_context_from_env
                 check_outcome_milestone(load_context_from_env(), outcome_count)
             except Exception:

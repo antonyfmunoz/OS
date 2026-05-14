@@ -364,7 +364,7 @@ class CognitiveLoop:
         self._maybe_compact()
 
         # 1. PERCEIVE + 2. UNDERSTAND — unified context assembly via ContextBuilder
-        from runtime.context_builder import ContextBuilder
+        from control_plane.context.context_builder import ContextBuilder
 
         _ctx_builder = ContextBuilder()
         _unified = _ctx_builder.build(
