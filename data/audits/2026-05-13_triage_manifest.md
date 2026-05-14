@@ -761,3 +761,69 @@ python3 -c "import umh.protocols"                                          → O
 python3 -c "from runtime.ingestion.orchestrator import GenericIngestionOrchestrator" → OK
 python3 -c "import runtime.cc_sdk"                                         → OK
 ```
+
+---
+
+## Wave 1 Execution — 2026-05-13
+
+- Items attempted: 6 (of 8 P1 items; 2 already at target path)
+- Items completed (committed): 6
+- Items skipped (refactor too large): 0
+- Items reverted (test failure): 0
+- Tests baseline: 93 passed, 1 deselected / Post: 93 passed, 1 deselected (unchanged)
+- Active tree: 1,614 Python files
+- Commits: `818654de` .. `eb71a6e8` (6 commits)
+
+### Migrations completed
+
+| # | Source | Target | Import sites updated |
+|---|--------|--------|---------------------|
+| 90 | `parsers/` (7 files) | `understanding/perception/parsers/` | 3 (scripts/) |
+| 78 | `umh/protocols/` (10 files + tests) | `control_plane/protocols/` | 10 (protocol tests) |
+| 26 | `core/ontology/` (1 file) | `understanding/ontology/` | 13 |
+| 14 | `runtime/ingestion/authority_tier.py` | `governance/policy/authority_tier.py` | 6 |
+| 12 | `runtime/ingestion/local_file_source.py` | `adapters/data_source_adapters/` | 6 |
+| 13 | `runtime/ingestion/gws_source.py` | `adapters/data_source_adapters/` | 2 |
+
+### Items already at target (no move required)
+
+| # | Path | Reason |
+|---|------|--------|
+| 79 | `tests/migration/` | Target IS current path |
+| 80 | `tests/integration/` | Target IS current path |
+
+### §24 directories established
+
+```
+understanding/
+  perception/
+    parsers/          ← parsers/ (7 files)
+  ontology/           ← core/ontology/ (1 file)
+control_plane/
+  protocols/          ← umh/protocols/ (10 files + tests)
+governance/
+  policy/             ← runtime/ingestion/authority_tier.py
+adapters/
+  data_source_adapters/  ← runtime/ingestion/{local_file,gws}_source.py
+```
+
+### Architectural findings
+
+- `parsers/` internal imports were absolute (`from parsers.X`). Converted to
+  relative (`from .X`) for location independence — this is the pattern all
+  migrated packages should follow.
+- `umh/protocols/` already used relative imports internally — no changes needed.
+- `core/ontology/` had 13 import sites spread across runtime, core, tests, and
+  scripts. All updated in single commit — this is the highest fan-out item in P1.
+- Transport `__init__.py` finding carried forward from Wave 0 (unchanged).
+
+### Spot-check verification
+
+```
+python3 -c "from understanding.perception.parsers import REGISTRY"         → OK
+python3 -c "from control_plane.protocols import Signal, WorkPacket"         → OK
+python3 -c "from understanding.ontology.primitive_decomposition_v1 import PrimitiveObservation" → OK
+python3 -c "from governance.policy.authority_tier import T5_DEFAULT"        → OK
+python3 -c "from adapters.data_source_adapters.local_file_source import LocalFileSource" → OK
+python3 -c "from adapters.data_source_adapters.gws_source import GWSSource" → OK
+```
