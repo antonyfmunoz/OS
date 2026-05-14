@@ -43,7 +43,7 @@ def _hotpath_clean() -> bool:
         "runtime.gateway",
         "control_plane.runtime.cognitive_loop",
         "runtime.model_router",
-        "runtime.agent_runtime",
+        "execution.runtime.agent_runtime",
         "runtime.primitives",
     }
     mod_globals = set(getattr(m, "__dict__", {}).keys())

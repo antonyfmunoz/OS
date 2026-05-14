@@ -123,7 +123,7 @@ class ExecutionSpine:
         # 3b. AgentMemory — interactions table
         try:
             from state.memory.memory import AgentMemory
-            from runtime.agent_runtime import AgentResult
+            from execution.runtime.agent_runtime import AgentResult
 
             _agent_result = AgentResult(
                 output=response[:2000],

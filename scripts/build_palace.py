@@ -57,7 +57,7 @@ ROOM_DEFS: list[dict[str, Any]] = [
         "prefixes": [
             "control_plane/runtime/cognitive_loop.py",
             "runtime/ai_identity.py",
-            "runtime/agent_runtime.py",
+            "execution/runtime/agent_runtime.py",
             "runtime/agent_hierarchy.py",
             "runtime/model_router.py",
             "runtime/model_preferences.py",

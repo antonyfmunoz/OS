@@ -220,7 +220,7 @@ hot_path_imports = [
     "from runtime.gateway",
     "from control_plane.runtime.cognitive_loop",
     "from runtime.model_router",
-    "from runtime.agent_runtime",
+    "from execution.runtime.agent_runtime",
     "from understanding.ontology.primitives",
 ]
 for hp in hot_path_imports:

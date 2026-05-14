@@ -83,7 +83,7 @@ SKIP_FILES = {
 CRITICAL_FILES = {
     "control_plane/runtime/cognitive_loop.py",
     "runtime/gateway.py",
-    "runtime/agent_runtime.py",
+    "execution/runtime/agent_runtime.py",
     "runtime/model_router.py",
     "runtime/orchestrator.py",
     "runtime/db.py",

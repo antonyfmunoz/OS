@@ -46,7 +46,7 @@ load_dotenv(Path(__file__).parent / ".env")
 
 from runtime.context import EOSContext
 from control_plane.runtime.cognitive_loop import CognitiveLoop
-from runtime.agent_runtime import AgentRuntime, TaskType
+from execution.runtime.agent_runtime import AgentRuntime, TaskType
 from runtime.skill_improvement import SkillImprovementEngine
 from runtime.research_engine import ResearchEngine
 from runtime.db import get_conn

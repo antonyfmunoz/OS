@@ -27,7 +27,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from runtime.agent_runtime import AgentRuntime, TaskType
+from execution.runtime.agent_runtime import AgentRuntime, TaskType
 from runtime.context import EOSContext
 from runtime.db import get_conn, resolve_venture
 from state.memory.memory import AgentMemory

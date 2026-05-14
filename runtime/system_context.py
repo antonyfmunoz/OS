@@ -127,7 +127,7 @@ class SystemContext:
         )
 
         try:
-            from runtime.agent_runtime import AgentRuntime, TaskType
+            from execution.runtime.agent_runtime import AgentRuntime, TaskType
             runtime = AgentRuntime(self.ctx)
             result = runtime.run(
                 task_type=TaskType.ANALYZE,

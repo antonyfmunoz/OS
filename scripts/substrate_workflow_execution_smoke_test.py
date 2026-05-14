@@ -229,7 +229,7 @@ def main() -> None:
             "runtime.gateway",
             "control_plane.runtime.cognitive_loop",
             "runtime.model_router",
-            "runtime.agent_runtime",
+            "execution.runtime.agent_runtime",
             "runtime.primitives",
         ]:
             assert forbidden not in sys.modules, (

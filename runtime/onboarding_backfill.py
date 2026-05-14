@@ -265,7 +265,7 @@ class OnboardingBackfill:
         Synthesize all gathered data into a structured business intelligence
         summary. Stored as an event and logged for future retrieval.
         """
-        from runtime.agent_runtime import TaskType
+        from execution.runtime.agent_runtime import TaskType
 
         summary_prompt = (
             f"Based on the following sources that were just analyzed for "

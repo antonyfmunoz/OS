@@ -212,7 +212,7 @@ class GWSDocumentScanner:
             }
 
         try:
-            from runtime.agent_runtime import AgentRuntime, TaskType
+            from execution.runtime.agent_runtime import AgentRuntime, TaskType
             rt = AgentRuntime(self.ctx)
 
             result = rt.run(
@@ -476,7 +476,7 @@ class GWSDocumentScanner:
 
         if not ends_complete:
             try:
-                from runtime.agent_runtime import TaskType
+                from execution.runtime.agent_runtime import TaskType
                 continuation = rt.run(
                     task_type=TaskType.GENERATE,
                     prompt=(
@@ -529,7 +529,7 @@ class GWSDocumentScanner:
                 )
                 by_venture.setdefault(doc.venture_id, []).append(entry)
 
-        from runtime.agent_runtime import AgentRuntime, TaskType
+        from execution.runtime.agent_runtime import AgentRuntime, TaskType
         rt = AgentRuntime(self.ctx)
         sections: list[str] = []
 

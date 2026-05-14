@@ -287,7 +287,7 @@ class BrowserAgent:
             final_url:    str,
           }
         """
-        from runtime.agent_runtime import AgentRuntime, TaskType
+        from execution.runtime.agent_runtime import AgentRuntime, TaskType
 
         if not ctx:
             from runtime.context import load_context_from_env

@@ -6,7 +6,7 @@ Routes calls to the correct Claude model based on task type:
   - Sonnet (claude-sonnet-4-6)           — generation, deep analysis, content creation
 
 Usage:
-    from runtime.agent_runtime import AgentRuntime, TaskType
+    from execution.runtime.agent_runtime import AgentRuntime, TaskType
 
     runtime = AgentRuntime()
     result = runtime.run(

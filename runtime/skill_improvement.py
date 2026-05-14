@@ -22,7 +22,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from runtime.agent_runtime import AgentRuntime, TaskType
+from execution.runtime.agent_runtime import AgentRuntime, TaskType
 from runtime.skill_registry import SkillRegistry, get_skill_registry, reset_skill_registry
 
 MIN_OUTCOMES          = 5      # minimum scored outcomes before improvement runs

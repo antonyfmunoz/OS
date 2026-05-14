@@ -46,7 +46,7 @@ def _hotpath_clean() -> bool:
         "runtime.gateway",
         "control_plane.runtime.cognitive_loop",
         "runtime.model_router",
-        "runtime.agent_runtime",
+        "execution.runtime.agent_runtime",
         "runtime.primitives",
     )
     return not any(f in src for f in forbidden)

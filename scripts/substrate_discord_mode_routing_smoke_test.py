@@ -218,7 +218,7 @@ def test_hotpath_clean() -> None:
         "runtime.gateway",
         "control_plane.runtime.cognitive_loop",
         "runtime.model_router",
-        "runtime.agent_runtime",
+        "execution.runtime.agent_runtime",
         "runtime.primitives",
     )
     leaked = [f for f in forbidden if f in src]

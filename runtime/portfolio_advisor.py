@@ -27,7 +27,7 @@ from typing import Optional
 
 from runtime.context import EOSContext, load_context_from_env
 from runtime.db import get_conn
-from runtime.agent_runtime import AgentRuntime, TaskType
+from execution.runtime.agent_runtime import AgentRuntime, TaskType
 
 
 # ─── VentureHealth ────────────────────────────────────────────────────────────

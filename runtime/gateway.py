@@ -962,7 +962,7 @@ class EOSGateway:
     # ─── Route: agent_task ────────────────────────────────────────────────────
 
     def _route_agent_task(self, request: dict, session_id: str = None, cm=None) -> dict:
-        from runtime.agent_runtime import AgentRuntime, TaskType
+        from execution.runtime.agent_runtime import AgentRuntime, TaskType
         from control_plane.runtime.cognitive_loop import CognitiveLoop
         from runtime.context import load_context_from_env
 
@@ -1953,7 +1953,7 @@ def ingest_external_context(
     Returns the interaction_id (UUID).
     """
     from state.memory.memory import AgentMemory
-    from runtime.agent_runtime import AgentResult
+    from execution.runtime.agent_runtime import AgentResult
 
     result = AgentResult(
         output=content[:500],

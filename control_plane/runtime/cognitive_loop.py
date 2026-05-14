@@ -9,7 +9,7 @@ AgentRuntime directly.
 
 Usage:
     from control_plane.runtime.cognitive_loop import CognitiveLoop, CognitiveResult
-    from runtime.agent_runtime import TaskType
+    from execution.runtime.agent_runtime import TaskType
 
     ctx  = load_context_from_env()
     loop = CognitiveLoop(ctx)
@@ -40,7 +40,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from runtime.context import EOSContext, load_context_from_env
-from runtime.agent_runtime import AgentRuntime, TaskType
+from execution.runtime.agent_runtime import AgentRuntime, TaskType
 from state.memory.memory import AgentMemory
 from governance.policy.authority_engine import AuthorityEngine
 from runtime.venture_knowledge import VentureKnowledgeBase
@@ -93,7 +93,7 @@ def _get_neon_spend(org_id: str) -> dict:
         return _spend_cache
 
     from runtime.db import get_conn
-    from runtime.agent_runtime import COST_PER_MILLION_TOKENS
+    from execution.runtime.agent_runtime import COST_PER_MILLION_TOKENS
 
     fallback = {"today": 0.0, "month": 0.0, "all_time": 0.0}
     try:
@@ -164,7 +164,7 @@ def format_response_footer(
     Telegram or the gateway carries model, cost, latency, and (when
     the prompt was enhanced) the optimized version.
     """
-    from runtime.agent_runtime import calculate_cost
+    from execution.runtime.agent_runtime import calculate_cost
 
     model = getattr(result, "model_used", None) or "unknown"
     cost = getattr(result, "cost_usd", 0.0) or calculate_cost(

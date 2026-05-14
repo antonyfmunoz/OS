@@ -260,7 +260,7 @@ class InputIntelligence:
         Uses Haiku with full venture context — fast and cheap.
         """
         try:
-            from runtime.agent_runtime import AgentRuntime, TaskType
+            from execution.runtime.agent_runtime import AgentRuntime, TaskType
             from runtime.context import load_context_from_env
 
             ctx = self.ctx or load_context_from_env()

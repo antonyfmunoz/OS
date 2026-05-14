@@ -35,7 +35,7 @@ load_dotenv(Path(__file__).parent / ".env")
 
 from runtime.context import EOSContext
 from control_plane.runtime.cognitive_loop import CognitiveLoop
-from runtime.agent_runtime import TaskType
+from execution.runtime.agent_runtime import TaskType
 from runtime.db import get_conn
 from state.memory.memory import AgentMemory
 from runtime.venture_knowledge import VentureKnowledgeBase
@@ -542,7 +542,7 @@ class ResearchEngine:
         # Parse and update COST_PER_MILLION_TOKENS in-memory
         updated_costs = self._parse_model_costs(result.output or '')
         if updated_costs:
-            import runtime.agent_runtime as _ar
+            import execution.runtime.agent_runtime as _ar
             _ar.COST_PER_MILLION_TOKENS.update(updated_costs)
 
         return {

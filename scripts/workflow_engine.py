@@ -913,7 +913,7 @@ class WorkflowEngine:
         if not self.env.is_production:
             return
         try:
-            from runtime.agent_runtime import AgentResult
+            from execution.runtime.agent_runtime import AgentResult
             from state.memory.memory import AgentMemory
 
             summary_bits = []

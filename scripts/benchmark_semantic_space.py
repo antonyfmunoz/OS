@@ -51,7 +51,7 @@ SCENARIOS: dict[str, dict] = {
         "known_relevant": [
             "state/memory/memory.py",
             "control_plane/runtime/cognitive_loop.py",
-            "runtime/agent_runtime.py",
+            "execution/runtime/agent_runtime.py",
             "runtime/embedding_engine.py",
             "services/discord_bot.py",
         ],

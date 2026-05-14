@@ -223,7 +223,7 @@ def main() -> int:
         "runtime/gateway.py",
         "control_plane/runtime/cognitive_loop.py",
         "runtime/model_router.py",
-        "runtime/agent_runtime.py",
+        "execution/runtime/agent_runtime.py",
         "runtime/primitives.py",
     ]
     out = subprocess.run(

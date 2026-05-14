@@ -362,7 +362,7 @@ def _learn_async(
     def _do() -> None:
         try:
             from state.memory.memory import AgentMemory
-            from runtime.agent_runtime import AgentResult
+            from execution.runtime.agent_runtime import AgentResult
 
             ar = AgentResult(
                 output=response or "",

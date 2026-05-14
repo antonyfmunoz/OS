@@ -591,7 +591,7 @@ class AgentHarness:
             )
 
         try:
-            from runtime.agent_runtime import AgentResult
+            from execution.runtime.agent_runtime import AgentResult
 
             ar = AgentResult(
                 output=content[:2000],

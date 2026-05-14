@@ -311,7 +311,7 @@ class CoordinationEngine:
         and assigns each one. Returns a delegation summary.
         """
         from control_plane.runtime.cognitive_loop import CognitiveLoop
-        from runtime.agent_runtime import TaskType
+        from execution.runtime.agent_runtime import TaskType
 
         loop = CognitiveLoop(self.ctx)
         result = loop.run(

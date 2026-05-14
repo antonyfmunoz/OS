@@ -31,7 +31,7 @@ import uuid
 from runtime.context import EOSContext
 from runtime.media_processor import MediaProcessor
 from control_plane.runtime.cognitive_loop import CognitiveLoop
-from runtime.agent_runtime import TaskType
+from execution.runtime.agent_runtime import TaskType
 
 
 class VoiceInterface:
@@ -307,7 +307,7 @@ class VoiceInterface:
 
         duration_ms = int(time.monotonic() * 1000) - start_ms
 
-        from runtime.agent_runtime import calculate_cost
+        from execution.runtime.agent_runtime import calculate_cost
         cost_usd = calculate_cost(
             cognitive_result.model_used,
             cognitive_result.tokens_used,
