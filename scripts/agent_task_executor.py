@@ -12,8 +12,6 @@ import os
 import sys
 import asyncio
 import discord
-import json
-import uuid
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
@@ -178,7 +176,6 @@ async def run_executor():
     """Main executor loop — poll, execute, mark complete, surface to Discord."""
     from state.context.context import load_context_from_env
     from control_plane.coordination.coordination_engine import CoordinationEngine
-    from state.storage.db import get_conn
 
     print(f'[Executor] Starting — {datetime.now(PDT).strftime("%Y-%m-%d %H:%M:%S %Z")}')
 
@@ -218,7 +215,6 @@ async def run_executor():
         # Write task result to Notion
         try:
             from adapters.notion.notion_sync import write_task
-            from state.storage.db import get_conn
             venture_id = task.get('venture_id') or 'lyfe_institute'
             needs_approval = requires_approval(task, exec_result)
             notion_status = 'In review' if needs_approval else 'Done'
@@ -243,12 +239,12 @@ async def run_executor():
                 requires_approval=needs_approval,
             )
             if notion_page_id:
-                with get_conn(ctx.org_id) as cur:
-                    cur.execute(
-                        'UPDATE tasks SET notion_page_id = %s '
-                        'WHERE id::text = %s AND org_id = %s',
-                        (notion_page_id, task_id, str(ctx.org_id)),
-                    )
+                from state.stores.task_store import TaskStore
+                TaskStore().set_notion_page_id(
+                    org_id=str(ctx.org_id),
+                    task_id=task_id,
+                    notion_page_id=notion_page_id,
+                )
                 print(f'[Executor] → Notion: {notion_page_id[:8]}')
         except Exception as e:
             print(f'[Executor] Notion write skipped: {e}')
@@ -266,17 +262,13 @@ async def run_executor():
         }
 
         try:
-            with get_conn(ctx.org_id) as cur:
-                cur.execute(
-                    'INSERT INTO events (id, org_id, event_type, payload_json, created_at) '
-                    'VALUES (%s, %s, %s, %s, NOW())',
-                    (
-                        str(uuid.uuid4()),
-                        str(ctx.org_id),
-                        'agent_task_result',
-                        json.dumps(payload),
-                    ),
-                )
+            from state.memory.memory import AgentMemory
+            AgentMemory().log_event(
+                org_id=str(ctx.org_id),
+                event_type='agent_task_result',
+                payload=payload,
+                handled_by='agent_task_executor',
+            )
         except Exception as e:
             print(f'[Executor] Failed to write event for task {task_id[:8]}: {e}')
 
