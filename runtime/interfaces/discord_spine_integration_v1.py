@@ -183,7 +183,7 @@ def build_spine_infrastructure(
     }
     sync_policy = policy_map.get(config.sync_policy, SyncPolicy.STRICT)
 
-    from core.registry.canonical_command_registry_v1 import get_canonical_registry
+    from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
     _reg = get_canonical_registry()
     sync_gate = NodeSyncGate(
@@ -221,7 +221,7 @@ def execute_spine_command(
     if not packet_id:
         packet_id = f"DISCORD-SPINE-{uuid.uuid4().hex[:8]}"
     if not action_type:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         action_type = get_canonical_registry().command_action_map.get(command, "")
     if not action_type:

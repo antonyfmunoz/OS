@@ -609,7 +609,7 @@ class TestTargetPlatforms:
 
 class TestRegistryIntegration:
     def test_adapter_report_in_registry(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
         assert reg.contains("!adapter-report")
@@ -625,7 +625,7 @@ class TestRegistryIntegration:
         assert "adapter_report" in ACTION_CAPABILITY_MAP
 
     def test_registry_count_is_20(self) -> None:
-        from core.registry.canonical_command_registry_v1 import CanonicalCommandRegistryV1
+        from composition.registries.canonical_command_registry_v1 import CanonicalCommandRegistryV1
 
         reg = CanonicalCommandRegistryV1()
         assert len(reg) == 27

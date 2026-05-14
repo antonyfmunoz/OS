@@ -943,13 +943,13 @@ class TestContinuitySafeRecovery:
 
 class TestEpistemicCommandRegistration:
     def test_registry_has_24_commands(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
         assert len(reg) == 27
 
     def test_epistemic_report_in_registry(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
         assert "!epistemic-report" in reg.commands

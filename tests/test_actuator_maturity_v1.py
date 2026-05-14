@@ -453,7 +453,7 @@ class TestProofSummaryIntegrity:
 
 class TestCanonicalRegistryInclusion:
     def test_actuator_proof_in_canonical_registry(self) -> None:
-        from core.registry.canonical_command_registry_v1 import (
+        from composition.registries.canonical_command_registry_v1 import (
             CanonicalCommandRegistryV1,
         )
 
@@ -462,7 +462,7 @@ class TestCanonicalRegistryInclusion:
         assert reg.contains_action("actuator_proof")
 
     def test_actuator_proof_is_spine_routed(self) -> None:
-        from core.registry.canonical_command_registry_v1 import (
+        from composition.registries.canonical_command_registry_v1 import (
             CanonicalCommandRegistryV1,
         )
 
@@ -470,7 +470,7 @@ class TestCanonicalRegistryInclusion:
         assert "!actuator-proof" in reg.spine_routed_commands
 
     def test_actuator_proof_requires_foreground(self) -> None:
-        from core.registry.canonical_command_registry_v1 import (
+        from composition.registries.canonical_command_registry_v1 import (
             CanonicalCommandRegistryV1,
         )
 
@@ -499,7 +499,7 @@ class TestCanonicalRegistryInclusion:
         assert "actuator_proof" in ACTION_CAPABILITY_MAP
 
     def test_canonical_registry_now_has_15_commands(self) -> None:
-        from core.registry.canonical_command_registry_v1 import (
+        from composition.registries.canonical_command_registry_v1 import (
             CanonicalCommandRegistryV1,
         )
 
@@ -626,7 +626,7 @@ class TestRegressionIntegrity:
             py_compile.compile(f, doraise=True)
 
     def test_previous_registry_tests_compatible(self) -> None:
-        from core.registry.canonical_command_registry_v1 import (
+        from composition.registries.canonical_command_registry_v1 import (
             get_canonical_registry,
         )
 

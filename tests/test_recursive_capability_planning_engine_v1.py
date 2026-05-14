@@ -989,13 +989,13 @@ class TestCanonicalInstanceSeparation:
 
 class TestRegistryIntegration:
     def test_registry_count_is_20(self) -> None:
-        from core.registry.canonical_command_registry_v1 import CanonicalCommandRegistryV1
+        from composition.registries.canonical_command_registry_v1 import CanonicalCommandRegistryV1
 
         reg = CanonicalCommandRegistryV1()
         assert len(reg) == 27
 
     def test_capability_report_in_registry(self) -> None:
-        from core.registry.canonical_command_registry_v1 import CanonicalCommandRegistryV1
+        from composition.registries.canonical_command_registry_v1 import CanonicalCommandRegistryV1
 
         reg = CanonicalCommandRegistryV1()
         assert reg.contains("!capability-report")

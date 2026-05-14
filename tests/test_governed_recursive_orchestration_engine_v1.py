@@ -1461,7 +1461,7 @@ class TestCanonicalInstanceSeparation:
 
 class TestRegistryIntegration:
     def test_registry_has_20_commands(self) -> None:
-        from core.registry.canonical_command_registry_v1 import (
+        from composition.registries.canonical_command_registry_v1 import (
             CanonicalCommandRegistryV1,
         )
 
@@ -1469,7 +1469,7 @@ class TestRegistryIntegration:
         assert len(reg) == 27
 
     def test_orchestration_report_in_registry(self) -> None:
-        from core.registry.canonical_command_registry_v1 import (
+        from composition.registries.canonical_command_registry_v1 import (
             CanonicalCommandRegistryV1,
         )
 
@@ -1527,7 +1527,7 @@ class TestRegistryIntegration:
         assert "!orchestration-report" in SUBSTRATE_COMMANDS
 
     def test_router_config_parity(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
         config = json.loads((Path(_ROOT) / "config" / "control_plane_router_v1.json").read_text())
@@ -1536,7 +1536,7 @@ class TestRegistryIntegration:
             assert action in allowed
 
     def test_no_orphan_actions(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
         config = json.loads((Path(_ROOT) / "config" / "control_plane_router_v1.json").read_text())

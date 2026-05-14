@@ -334,7 +334,7 @@ class TestTransportWithVisibleActuationProof:
 
 class TestRegistryMismatchBlocked:
     def test_registry_hash_parity_check(self) -> None:
-        from core.registry.canonical_command_registry_v1 import (
+        from composition.registries.canonical_command_registry_v1 import (
             get_canonical_registry,
         )
 

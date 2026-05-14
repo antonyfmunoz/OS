@@ -1238,13 +1238,13 @@ class TestInstanceSeparation(unittest.TestCase):
 
 class TestRegistryIntegration(unittest.TestCase):
     def test_canonical_registry_count(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
         self.assertEqual(len(reg), 27)
 
     def test_federation_report_registered(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
         self.assertTrue(reg.contains("!federation-report"))
@@ -1294,7 +1294,7 @@ class TestRegistryIntegration(unittest.TestCase):
         self.assertIn("federation_report", win_caps)
 
     def test_expected_command_set(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
         expected = {
@@ -1335,7 +1335,7 @@ class TestRegistryIntegration(unittest.TestCase):
         self.assertEqual(len(SUBSTRATE_COMMANDS), 27)
 
     def test_parity_registry_vs_router(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
         from core.control_plane_router.router_contracts import ALLOWED_ACTION_TYPES
 
         reg = get_canonical_registry()

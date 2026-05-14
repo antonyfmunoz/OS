@@ -861,7 +861,7 @@ class TestPersistStrategyProof:
 
 class TestStrategyCommandRegistration:
     def test_registry_has_23_commands(self) -> None:
-        from core.registry.canonical_command_registry_v1 import (
+        from composition.registries.canonical_command_registry_v1 import (
             CanonicalCommandRegistryV1,
         )
 
@@ -869,7 +869,7 @@ class TestStrategyCommandRegistration:
         assert len(reg) == 27
 
     def test_strategy_report_in_registry(self) -> None:
-        from core.registry.canonical_command_registry_v1 import (
+        from composition.registries.canonical_command_registry_v1 import (
             CanonicalCommandRegistryV1,
         )
 

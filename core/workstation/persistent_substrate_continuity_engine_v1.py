@@ -754,7 +754,7 @@ def build_topology_continuity(
     """Build Layer 3 — Topology Continuity Memory."""
     memory = TopologyContinuityMemory()
 
-    from core.registry.canonical_command_registry_v1 import (
+    from composition.registries.canonical_command_registry_v1 import (
         get_canonical_registry,
     )
 
@@ -833,7 +833,7 @@ def build_substrate_snapshot(
     base_dir: Path = Path(_ROOT),
 ) -> SubstrateSnapshot:
     """Build a point-in-time substrate snapshot."""
-    from core.registry.canonical_command_registry_v1 import (
+    from composition.registries.canonical_command_registry_v1 import (
         get_canonical_registry,
     )
 
@@ -901,7 +901,7 @@ def detect_drift(
     """Detect substrate drift signals."""
     signals: list[DriftSignal] = []
 
-    from core.registry.canonical_command_registry_v1 import (
+    from composition.registries.canonical_command_registry_v1 import (
         get_canonical_registry,
     )
 

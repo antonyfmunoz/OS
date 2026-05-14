@@ -712,7 +712,7 @@ class TestTransportIntegration:
 
 class TestRegistryIntegration:
     def test_explore_environment_in_registry(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         registry = get_canonical_registry()
         assert registry.contains("!explore-environment")

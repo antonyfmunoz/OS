@@ -936,19 +936,19 @@ class TestCanonicalInstanceSeparation(unittest.TestCase):
 
 class TestRegistryIntegration(unittest.TestCase):
     def test_registry_count_is_20(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
         self.assertEqual(len(reg), 27)
 
     def test_gov_intel_report_in_registry(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
         self.assertIn("!governance-intelligence-report", reg.commands)
 
     def test_gov_intel_report_action(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
         self.assertIn("governance_intelligence_report", reg.actions)

@@ -985,7 +985,7 @@ def analyze_proof_artifacts(base_dir: Path = Path(_ROOT)) -> dict[str, Any]:
 
 def analyze_governance_surface(base_dir: Path = Path(_ROOT)) -> dict[str, Any]:
     """Analyze governance surface coverage."""
-    from core.registry.canonical_command_registry_v1 import get_canonical_registry
+    from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
     reg = get_canonical_registry()
     commands = list(reg)

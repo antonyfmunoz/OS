@@ -468,7 +468,7 @@ class TestRelayProof:
 
 class TestCanonicalRegistryRelayStatus:
     def test_registry_has_17_commands(self) -> None:
-        from core.registry.canonical_command_registry_v1 import (
+        from composition.registries.canonical_command_registry_v1 import (
             CanonicalCommandRegistryV1,
         )
 
@@ -476,7 +476,7 @@ class TestCanonicalRegistryRelayStatus:
         assert len(reg) == 27
 
     def test_relay_status_in_registry(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
         assert reg.contains("!relay-status")
@@ -487,7 +487,7 @@ class TestCanonicalRegistryRelayStatus:
         assert entry.execution_mode.value == "shell"
 
     def test_relay_status_is_router_routed(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
         assert "!relay-status" in reg.router_routed_commands
@@ -519,7 +519,7 @@ class TestCanonicalRegistryRelayStatus:
         assert "relay_status" in action_types
 
     def test_all_canonical_actions_in_router_config(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
         config = json.loads((Path(_ROOT) / "config" / "control_plane_router_v1.json").read_text())

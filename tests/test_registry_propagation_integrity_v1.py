@@ -28,7 +28,7 @@ class TestNodeSyncAcceptsCanonicalActions:
     """The sync gate must accept action types, not just command names."""
 
     def test_chrome_proof_accepted_by_action(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
         from core.runtime.node_sync_gate_v1 import NodeSyncGate, SyncPolicy
 
         reg = get_canonical_registry()
@@ -46,7 +46,7 @@ class TestNodeSyncAcceptsCanonicalActions:
         assert len(cmd_denials) == 0
 
     def test_chrome_open_google_drive_accepted_by_action(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
         from core.runtime.node_sync_gate_v1 import NodeSyncGate, SyncPolicy
 
         reg = get_canonical_registry()
@@ -64,7 +64,7 @@ class TestNodeSyncAcceptsCanonicalActions:
         assert len(cmd_denials) == 0
 
     def test_command_name_still_accepted(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
         from core.runtime.node_sync_gate_v1 import NodeSyncGate, SyncPolicy
 
         reg = get_canonical_registry()
@@ -82,7 +82,7 @@ class TestNodeSyncAcceptsCanonicalActions:
         assert len(cmd_denials) == 0
 
     def test_unknown_action_still_denied(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
         from core.runtime.node_sync_gate_v1 import NodeSyncGate, SyncPolicy
 
         reg = get_canonical_registry()
@@ -99,7 +99,7 @@ class TestNodeSyncAcceptsCanonicalActions:
         assert len(cmd_denials) == 1
 
     def test_all_canonical_actions_accepted(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
         from core.runtime.node_sync_gate_v1 import NodeSyncGate, SyncPolicy
 
         reg = get_canonical_registry()
@@ -120,7 +120,7 @@ class TestNodeSyncAcceptsCanonicalActions:
 
 class TestRegistryHashPropagation:
     def test_surface_and_sync_gate_same_hash(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
         from handlers.substrate_command_handler import _CANONICAL
@@ -128,14 +128,14 @@ class TestRegistryHashPropagation:
         assert _CANONICAL.registry_hash() == reg.registry_hash()
 
     def test_adapter_and_canonical_same_source(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
         from runtime.interfaces.discord_interface_adapter_v1 import COMMAND_ACTION_MAP
 
         reg = get_canonical_registry()
         assert COMMAND_ACTION_MAP == reg.command_action_map
 
     def test_sync_gate_gets_registry_hash(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
         from core.runtime.node_sync_gate_v1 import NodeSyncGate, SyncPolicy
 
         reg = get_canonical_registry()
@@ -147,7 +147,7 @@ class TestRegistryHashPropagation:
         assert gate._registry_hash == reg.registry_hash()
 
     def test_manifest_registry_hash_matches(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
         from handlers.substrate_command_handler import get_command_surface_manifest
 
         reg = get_canonical_registry()
@@ -158,7 +158,7 @@ class TestRegistryHashPropagation:
 class TestRouterConfigParity:
     def test_router_config_allows_all_canonical_actions(self) -> None:
         config = json.loads((Path(_ROOT) / "config" / "control_plane_router_v1.json").read_text())
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
         allowed = set(config["allowed_action_types"])
@@ -167,7 +167,7 @@ class TestRouterConfigParity:
 
     def test_router_contracts_allow_all_actions(self) -> None:
         from core.control_plane_router.router_contracts import ALLOWED_ACTION_TYPES
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
         for action in reg.actions:
@@ -177,7 +177,7 @@ class TestRouterConfigParity:
         from core.control_plane_router.control_plane_router_v1 import (
             ACTION_CAPABILITY_MAP,
         )
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
         for action in reg.actions:
@@ -220,7 +220,7 @@ class TestFullSpineSimulation:
     """Simulate the full spine path to verify no command_not_in_registry."""
 
     def test_chrome_proof_through_sync_gate(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
         from core.runtime.node_sync_gate_v1 import NodeSyncGate, SyncPolicy
 
         reg = get_canonical_registry()
@@ -248,7 +248,7 @@ class TestFullSpineSimulation:
             assert "command_not_in_registry" not in reason, f"chrome_proof still denied: {reason}"
 
     def test_chrome_open_google_drive_through_sync_gate(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
         from core.runtime.node_sync_gate_v1 import NodeSyncGate, SyncPolicy
 
         reg = get_canonical_registry()

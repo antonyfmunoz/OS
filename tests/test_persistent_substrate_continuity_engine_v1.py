@@ -1141,7 +1141,7 @@ class TestCanonicalInstanceSeparation(unittest.TestCase):
 
 class TestRegistryIntegration(unittest.TestCase):
     def test_registry_count_is_20(self) -> None:
-        from core.registry.canonical_command_registry_v1 import (
+        from composition.registries.canonical_command_registry_v1 import (
             get_canonical_registry,
         )
 
@@ -1149,7 +1149,7 @@ class TestRegistryIntegration(unittest.TestCase):
         self.assertEqual(len(reg), 27)
 
     def test_continuity_report_in_registry(self) -> None:
-        from core.registry.canonical_command_registry_v1 import (
+        from composition.registries.canonical_command_registry_v1 import (
             get_canonical_registry,
         )
 
@@ -1157,7 +1157,7 @@ class TestRegistryIntegration(unittest.TestCase):
         self.assertIn("!continuity-report", reg.commands)
 
     def test_continuity_report_action(self) -> None:
-        from core.registry.canonical_command_registry_v1 import (
+        from composition.registries.canonical_command_registry_v1 import (
             get_canonical_registry,
         )
 

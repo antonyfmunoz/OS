@@ -993,7 +993,7 @@ class TestPersistEconomicsProof:
 
 class TestEconomicsCommandRegistration:
     def test_registry_has_22_commands(self) -> None:
-        from core.registry.canonical_command_registry_v1 import (
+        from composition.registries.canonical_command_registry_v1 import (
             CanonicalCommandRegistryV1,
         )
 
@@ -1001,7 +1001,7 @@ class TestEconomicsCommandRegistration:
         assert len(reg) == 27
 
     def test_economics_report_in_registry(self) -> None:
-        from core.registry.canonical_command_registry_v1 import (
+        from composition.registries.canonical_command_registry_v1 import (
             CanonicalCommandRegistryV1,
         )
 

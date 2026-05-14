@@ -935,13 +935,13 @@ class TestResilienceWeightedOrchestration:
 
 class TestResilienceCommandRegistration:
     def test_registry_has_27_commands(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
         assert len(reg) == 27
 
     def test_resilience_report_in_registry(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
         assert "!resilience-report" in reg.commands

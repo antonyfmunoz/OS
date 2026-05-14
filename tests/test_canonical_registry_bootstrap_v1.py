@@ -29,7 +29,7 @@ sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS
 
 class TestCanonicalRegistrySingleSource:
     def test_registry_loads(self) -> None:
-        from core.registry.canonical_command_registry_v1 import (
+        from composition.registries.canonical_command_registry_v1 import (
             CanonicalCommandRegistryV1,
         )
 
@@ -37,7 +37,7 @@ class TestCanonicalRegistrySingleSource:
         assert len(reg) == 27
 
     def test_all_commands_present(self) -> None:
-        from core.registry.canonical_command_registry_v1 import (
+        from composition.registries.canonical_command_registry_v1 import (
             CanonicalCommandRegistryV1,
         )
 
@@ -74,7 +74,7 @@ class TestCanonicalRegistrySingleSource:
         assert reg.commands == expected
 
     def test_command_in_surface_also_in_execution(self) -> None:
-        from core.registry.canonical_command_registry_v1 import (
+        from composition.registries.canonical_command_registry_v1 import (
             CanonicalCommandRegistryV1,
         )
 
@@ -85,41 +85,41 @@ class TestCanonicalRegistrySingleSource:
             assert reg.contains_action(entry.canonical_action)
 
     def test_action_map_matches_canonical(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
         from runtime.interfaces.discord_interface_adapter_v1 import COMMAND_ACTION_MAP
 
         reg = get_canonical_registry()
         assert COMMAND_ACTION_MAP == reg.command_action_map
 
     def test_spine_routed_matches_canonical(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
         from runtime.interfaces.discord_interface_adapter_v1 import SPINE_ROUTED_COMMANDS
 
         reg = get_canonical_registry()
         assert SPINE_ROUTED_COMMANDS == reg.spine_routed_commands
 
     def test_supported_commands_matches_canonical(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
         from runtime.interfaces.discord_interface_adapter_v1 import SUPPORTED_COMMANDS
 
         reg = get_canonical_registry()
         assert SUPPORTED_COMMANDS == reg.commands | {"!status"}
 
     def test_substrate_commands_matches_canonical(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
         from handlers.substrate_command_handler import SUBSTRATE_COMMANDS
 
         reg = get_canonical_registry()
         assert SUBSTRATE_COMMANDS == reg.commands
 
     def test_no_duplicate_command_definitions(self) -> None:
-        from core.registry.canonical_command_registry_v1 import CANONICAL_COMMANDS
+        from composition.registries.canonical_command_registry_v1 import CANONICAL_COMMANDS
 
         names = [e.command_name for e in CANONICAL_COMMANDS]
         assert len(names) == len(set(names))
 
     def test_no_duplicate_action_definitions(self) -> None:
-        from core.registry.canonical_command_registry_v1 import CANONICAL_COMMANDS
+        from composition.registries.canonical_command_registry_v1 import CANONICAL_COMMANDS
 
         actions = [e.canonical_action for e in CANONICAL_COMMANDS]
         assert len(actions) == len(set(actions))
@@ -127,7 +127,7 @@ class TestCanonicalRegistrySingleSource:
 
 class TestRegistryHashDeterminism:
     def test_registry_hash_deterministic(self) -> None:
-        from core.registry.canonical_command_registry_v1 import (
+        from composition.registries.canonical_command_registry_v1 import (
             CanonicalCommandRegistryV1,
         )
 
@@ -137,7 +137,7 @@ class TestRegistryHashDeterminism:
         assert len(r1.registry_hash()) == 12
 
     def test_surface_hash_deterministic(self) -> None:
-        from core.registry.canonical_command_registry_v1 import (
+        from composition.registries.canonical_command_registry_v1 import (
             CanonicalCommandRegistryV1,
         )
 
@@ -146,7 +146,7 @@ class TestRegistryHashDeterminism:
         assert r1.surface_hash() == r2.surface_hash()
 
     def test_registry_hash_differs_from_surface_hash(self) -> None:
-        from core.registry.canonical_command_registry_v1 import (
+        from composition.registries.canonical_command_registry_v1 import (
             CanonicalCommandRegistryV1,
         )
 
@@ -154,14 +154,14 @@ class TestRegistryHashDeterminism:
         assert reg.registry_hash() != reg.surface_hash()
 
     def test_singleton_returns_same_instance(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         r1 = get_canonical_registry()
         r2 = get_canonical_registry()
         assert r1 is r2
 
     def test_to_dict_json_serializable(self) -> None:
-        from core.registry.canonical_command_registry_v1 import (
+        from composition.registries.canonical_command_registry_v1 import (
             CanonicalCommandRegistryV1,
         )
 
@@ -305,7 +305,7 @@ class TestBootstrapDeniedExecution:
 
 class TestRouterConfigParity:
     def test_all_canonical_actions_in_router_config(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
         config = json.loads((Path(_ROOT) / "config" / "control_plane_router_v1.json").read_text())
@@ -314,7 +314,7 @@ class TestRouterConfigParity:
             assert action in allowed, f"{action} missing from router config allowed_action_types"
 
     def test_no_orphan_actions_in_router_config(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
         config = json.loads((Path(_ROOT) / "config" / "control_plane_router_v1.json").read_text())
@@ -339,7 +339,7 @@ class TestCommandSurfaceFromCanonical:
         assert len(m["registry_hash"]) == 12
 
     def test_manifest_action_map_from_canonical(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
         from handlers.substrate_command_handler import get_command_surface_manifest
 
         m = get_command_surface_manifest()
@@ -349,7 +349,7 @@ class TestCommandSurfaceFromCanonical:
 
 class TestRegistryContracts:
     def test_spine_commands_have_contracts(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
         contracts = reg.command_contracts
@@ -357,7 +357,7 @@ class TestRegistryContracts:
             assert cmd in contracts, f"{cmd} is spine-routed but has no contract"
 
     def test_router_commands_no_contracts(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
         contracts = reg.command_contracts
@@ -365,7 +365,7 @@ class TestRegistryContracts:
             assert cmd not in contracts
 
     def test_chrome_proof_contract_flags(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
         contracts = reg.command_contracts
@@ -375,7 +375,7 @@ class TestRegistryContracts:
         assert cp["mutation_allowed"] is False
 
     def test_command_entry_frozen(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
         entry = reg.get("!ping")
@@ -383,7 +383,7 @@ class TestRegistryContracts:
             entry.command_name = "!modified"
 
     def test_allowed_action_types_sorted(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         reg = get_canonical_registry()
         actions = reg.allowed_action_types
@@ -401,7 +401,7 @@ class TestLiveBootstrapOnVPS:
         assert v.registry_count == 27
 
     def test_real_bootstrap_registry_hash_matches(self) -> None:
-        from core.registry.canonical_command_registry_v1 import get_canonical_registry
+        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
         from core.runtime.runtime_bootstrap_state_v1 import RuntimeBootstrapStateV1
 
         bs = RuntimeBootstrapStateV1(Path(_ROOT))
