@@ -457,12 +457,15 @@ def _normalize(text: str) -> str:
 
 
 def _find_repeated(
-    current_items: list[str], past_summaries: list[dict], field: str
+    current_items: list[str] | None, past_summaries: list[dict], field: str
 ) -> list[str]:
     """Find items from current that appear in at least one past summary."""
+    if not current_items:
+        return []
+
     past_items: set[str] = set()
     for s in past_summaries:
-        for item in s.get(field, []):
+        for item in s.get(field, []) or []:
             if isinstance(item, str):
                 past_items.add(_normalize(item))
             elif isinstance(item, dict):
