@@ -10,7 +10,7 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 import pytest
 
-from core.adapters.google_drive_adapter_v1 import (
+from adapters.adapter_engine.google_drive_adapter_v1 import (
     DRIVE_ADAPTER_GOVERNANCE,
     FORBIDDEN_DRIVE_ACTIONS,
     DriveAdapterStatus,
@@ -19,7 +19,7 @@ from core.adapters.google_drive_adapter_v1 import (
     DriveOpenProof,
     GoogleDriveAdapterV1,
 )
-from core.adapters.google_docs_adapter_v1 import (
+from adapters.adapter_engine.google_docs_adapter_v1 import (
     DOCS_ADAPTER_GOVERNANCE,
     FORBIDDEN_DOCS_ACTIONS,
     DocsAdapterStatus,

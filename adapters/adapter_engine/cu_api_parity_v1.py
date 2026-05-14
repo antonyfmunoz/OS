@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
-from core.adapters.google_docs_adapter_v1 import (
+from .google_docs_adapter_v1 import (
     ExtractionResult,
     NormalizedExtraction,
 )

@@ -20,16 +20,16 @@ import pytest
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from core.adapters.gws_scanner_bridge_v1 import (
+from adapters.adapter_engine.gws_scanner_bridge_v1 import (
     NormalizedDocument,
     normalize_from_scanner_outputs,
 )
-from core.adapters.substrate_candidate_gen_v1 import (
+from adapters.adapter_engine.substrate_candidate_gen_v1 import (
     CandidateSet,
     MemoryType,
     generate_candidates,
 )
-from core.adapters.substrate_decomposer_v1 import (
+from adapters.adapter_engine.substrate_decomposer_v1 import (
     DecompositionResult,
     decompose_document,
 )

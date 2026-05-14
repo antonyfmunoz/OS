@@ -10,7 +10,7 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 import pytest
 
-from core.adapters.cu_api_parity_v1 import (
+from adapters.adapter_engine.cu_api_parity_v1 import (
     PARITY_FORBIDDEN_ACTIONS,
     ExtractionComparison,
     ParityCheck,
@@ -20,7 +20,7 @@ from core.adapters.cu_api_parity_v1 import (
     assess_parity,
     compare_extractions,
 )
-from core.adapters.google_docs_adapter_v1 import (
+from adapters.adapter_engine.google_docs_adapter_v1 import (
     ExtractionPath,
     ExtractionResult,
     GoogleDocsAdapterV1,

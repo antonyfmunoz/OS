@@ -14,9 +14,9 @@ from pathlib import Path
 
 import pytest
 
-from core.adapters.cu_api_parity_v1 import ParityConfidence, ParityStatus
-from core.adapters.google_docs_adapter_v1 import ExtractionPath
-from core.adapters.live_drive_docs_ingestion_pipeline_v1 import (
+from adapters.adapter_engine.cu_api_parity_v1 import ParityConfidence, ParityStatus
+from adapters.adapter_engine.google_docs_adapter_v1 import ExtractionPath
+from adapters.adapter_engine.live_drive_docs_ingestion_pipeline_v1 import (
     PIPELINE_FORBIDDEN_ACTIONS,
     GovernanceReceipt,
     IngestionCandidate,

@@ -27,18 +27,18 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from core.adapters.google_docs_adapter_v1 import (
+from adapters.adapter_engine.google_docs_adapter_v1 import (
     ExtractionPath,
     ExtractionResult,
     GoogleDocsAdapterV1,
     NormalizedExtraction,
     normalize_text,
 )
-from core.adapters.google_drive_adapter_v1 import (
+from adapters.adapter_engine.google_drive_adapter_v1 import (
     DriveOpenProof,
     GoogleDriveAdapterV1,
 )
-from core.adapters.live_drive_docs_ingestion_pipeline_v1 import (
+from adapters.adapter_engine.live_drive_docs_ingestion_pipeline_v1 import (
     IngestionCandidate,
     MemoryCandidate,
     PipelineSnapshot,

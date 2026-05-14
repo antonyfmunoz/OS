@@ -22,7 +22,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from core.adapters.cu_api_parity_v1 import (
+from .cu_api_parity_v1 import (
     ExtractionComparison,
     ParityConfidence,
     ParityResult,
@@ -30,14 +30,14 @@ from core.adapters.cu_api_parity_v1 import (
     assess_parity,
     compare_extractions,
 )
-from core.adapters.google_docs_adapter_v1 import (
+from .google_docs_adapter_v1 import (
     DocsOpenProof,
     ExtractionPath,
     ExtractionResult,
     GoogleDocsAdapterV1,
     NormalizedExtraction,
 )
-from core.adapters.google_drive_adapter_v1 import (
+from .google_drive_adapter_v1 import (
     DriveMetadataResult,
     DriveOpenProof,
     GoogleDriveAdapterV1,

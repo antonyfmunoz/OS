@@ -42,14 +42,14 @@ _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.ge
 
 import pytest
 
-from core.adapters.google_docs_adapter_v1 import (
+from adapters.adapter_engine.google_docs_adapter_v1 import (
     ExtractionPath,
     GoogleDocsAdapterV1,
     NormalizedExtraction,
     normalize_text,
 )
-from core.adapters.google_drive_adapter_v1 import GoogleDriveAdapterV1
-from core.adapters.live_drive_docs_ingestion_pipeline_v1 import (
+from adapters.adapter_engine.google_drive_adapter_v1 import GoogleDriveAdapterV1
+from adapters.adapter_engine.live_drive_docs_ingestion_pipeline_v1 import (
     IngestionCandidate,
     MemoryCandidate,
     PIPELINE_FORBIDDEN_ACTIONS,
