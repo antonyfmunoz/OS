@@ -27,8 +27,6 @@ from __future__ import annotations
 
 import argparse
 import sys
-import uuid
-from pathlib import Path
 
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
@@ -41,48 +39,30 @@ from scripts._tme_common import (  # noqa: E402
 )
 
 from state.context.context import load_context_from_env  # noqa: E402
-from state.storage.db import get_conn  # noqa: E402
+from state.stores.skill_store import SkillStore  # noqa: E402
+
+
+_store = SkillStore()
 
 
 def _raw_text(rec: SkillRecord) -> str:
     return rec.skill_md.read_text(encoding="utf-8")
 
 
-def _fetch_existing(cur, org_id: str, name: str) -> tuple[str, str, int] | None:
-    cur.execute(
-        "SELECT id, content, version FROM skills WHERE org_id = %s AND name = %s",
-        (org_id, name),
-    )
-    row = cur.fetchone()
-    if row is None:
-        return None
-    return str(row["id"]), row["content"] or "", int(row["version"] or 1)
-
-
-def _sync_one(cur, org_id: str, rec: SkillRecord, dry_run: bool) -> str:
+def _sync_one(org_id: str, rec: SkillRecord, dry_run: bool) -> str:
     """Return action string: 'insert' | 'update' | 'unchanged' | 'skip'."""
     if not rec.exists:
         return "skip"
     new_content = _raw_text(rec)
-    existing = _fetch_existing(cur, org_id, rec.slug)
+    existing = _store.get_by_name(org_id, rec.slug)
     if existing is None:
         if not dry_run:
-            cur.execute(
-                """
-                INSERT INTO skills (id, org_id, name, content, version)
-                VALUES (%s, %s, %s, %s, 1)
-                """,
-                (str(uuid.uuid4()), org_id, rec.slug, new_content),
-            )
+            _store.upsert_skill(org_id, rec.slug, new_content, version=1)
         return "insert"
-    _id, old_content, old_version = existing
-    if old_content == new_content:
+    if existing["content"] == new_content:
         return "unchanged"
     if not dry_run:
-        cur.execute(
-            "UPDATE skills SET content = %s, version = %s WHERE id = %s",
-            (new_content, old_version + 1, _id),
-        )
+        _store.upsert_skill(org_id, rec.slug, new_content, version=existing["version"] + 1)
     return "update"
 
 
@@ -105,7 +85,7 @@ def main() -> int:
         slugs = [args.skill]
 
     if not slugs:
-        eprint(f"No skills found under {_ROOT}/skills/tools/")
+        eprint("No skills found under skills/tools/")
         return 1
 
     ctx = load_context_from_env()
@@ -115,25 +95,21 @@ def main() -> int:
     changes: list[tuple[str, str]] = []
 
     try:
-        with get_conn(ctx.org_id) as cur:
-            for slug in slugs:
-                rec = load_skill(slug)
-                if not rec.exists:
-                    eprint(f"[SKIP] {slug}: SKILL.md missing")
-                    counts["skip"] += 1
-                    continue
-                if rec.parse_error:
-                    eprint(f"[WARN] {slug}: {rec.parse_error}")
-                    parse_failures.append(slug)
-                action = _sync_one(cur, ctx.org_id, rec, args.dry_run)
-                counts[action] += 1
-                changes.append((slug, action))
-                if args.verbose or action in ("insert", "update"):
-                    prefix = "[DRY]" if args.dry_run else "[OK] "
-                    print(f"{prefix} {action:9s} {slug}")
-            if args.dry_run:
-                # Rollback any accidental writes (there shouldn't be any)
-                cur.execute("ROLLBACK")
+        for slug in slugs:
+            rec = load_skill(slug)
+            if not rec.exists:
+                eprint(f"[SKIP] {slug}: SKILL.md missing")
+                counts["skip"] += 1
+                continue
+            if rec.parse_error:
+                eprint(f"[WARN] {slug}: {rec.parse_error}")
+                parse_failures.append(slug)
+            action = _sync_one(ctx.org_id, rec, args.dry_run)
+            counts[action] += 1
+            changes.append((slug, action))
+            if args.verbose or action in ("insert", "update"):
+                prefix = "[DRY]" if args.dry_run else "[OK] "
+                print(f"{prefix} {action:9s} {slug}")
     except Exception as e:
         eprint(f"[FATAL] {e}")
         return 1
