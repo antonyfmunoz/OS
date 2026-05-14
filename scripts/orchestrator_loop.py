@@ -20,9 +20,9 @@ import sys
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from core.orchestrator.loop import LoopConfig, run_cycle, run_forever  # noqa: E402
-from core.orchestrator.orchestrator import default_orchestrator  # noqa: E402
-from core.orchestrator.workflows import register_default_workflows  # noqa: E402
+from control_plane.runtime.orchestrator.loop import LoopConfig, run_cycle, run_forever  # noqa: E402
+from control_plane.runtime.orchestrator.orchestrator import default_orchestrator  # noqa: E402
+from control_plane.runtime.orchestrator.workflows import register_default_workflows  # noqa: E402
 
 
 def main() -> int:

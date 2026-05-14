@@ -38,7 +38,7 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-from core.orchestrator.steps import ScriptWorkflowSpec, run_script_workflow
+from control_plane.runtime.orchestrator.steps import ScriptWorkflowSpec, run_script_workflow
 
 SCRIPT_PATH = f"{_ROOT}/scripts/scheduled/morning_prep.sh"
 IDEMPOTENCY_TTL_SECONDS = 23 * 3600  # 23h — never collides with tomorrow's run
