@@ -1602,14 +1602,18 @@ Tab 12 calls this "the MOST important missing section" because without it, hallu
 - Clerk auth flow on `feature/company-system`
 - Core user flow: login → portfolio creation → company setup → Command Center
 - `saas-dev-skill` extracted into standalone repo, dropped into OSv2 as local dev harness
+- UserPromptSubmit hook capture (scripts/user_prompt_capture.py, .claude/settings.json hook configured, 453 conversation files captured)
+- Full ingestion system — GenericIngestionOrchestrator + LocalFileSource + GWSSource + BusinessBridge (1,000+ LOC running in production)
+- Multi-Model Routing across Claude/GPT/Gemini/local (1,000+ LOC in model_router.py, cc_sdk→Gemini→Groq→Ollama fallback chain)
 
 ## 35. Partially Proven `PARTIAL`
 
 - Workstation automation (modes exist conceptually, runtime is partial)
 - Google session routing (API path solid, CU path provisional)
-- UserPromptSubmit hook capture (planned, not in production)
 - Semantic retrieval tuning (basic recall works, ranking is naive)
 - Subprocess lifecycle management (4GB swapfile + management works, but spawning cap is still a manual ceiling)
+- Composition Engine — partial implementation; not yet the canonical 15-step engine from §11.6
+- World Model — partial implementation; some entity/fact tables exist; not yet the full §10.1 structure
 
 ## 36. Unverified `PARTIAL`
 
@@ -1619,17 +1623,13 @@ Tab 12 calls this "the MOST important missing section" because without it, hallu
 
 ## 37. Not Built `PLANNED` / `SPECULATIVE`
 
-- Full ingestion system (beyond W0-001)
 - Unified memory graph (cross-product user identity is in place, but graph traversal is not)
 - Autonomous reconciliation
 - Workstation UI runtime (Command Center as a real interface, not just a contract)
-- Composition Engine v1
 - Completeness Engine v1
 - Quality Engine v1
-- World Model Core (real entity/relationship/fact tables with confidence + provenance)
 - Causal Attribution
 - Simulation Interface
-- Multi-Model Routing across Claude/GPT/Gemini/local
 - Computer Use access path matured to "proven" status anywhere
 - Mobile (Appium) control
 - Desktop (PyAutoGUI) control beyond Playwright
@@ -1809,6 +1809,37 @@ Full audit: data/audits/2026-05-13_salience_audit.md
   pipeline is one of multiple subsystems that will need a
   home — possibly a new top-level operator_tooling/ or
   batch/, possibly under learning/ or execution/.
+
+### 2026-05-13 — Gap Analysis Reclassifications
+
+Triggered by pre-migration gap analysis.
+Full report: data/audits/2026-05-13_gap_analysis.md
+
+Five reclassifications applied:
+- §35 → §34: UserPromptSubmit hook capture (verified PROVEN)
+- §37 → §34: Full ingestion system (1,000+ LOC, recently built)
+- §37 → §34: Multi-Model Routing (1,000+ LOC in production)
+- §37 → §35: Composition Engine (partial; not yet canonical 15-step)
+- §37 → §35: World Model (partial; not yet full §10.1)
+
+Pattern confirmed: code advances, classification doesn't.
+This is the third audit instance of the same failure mode
+(after §35 cross-session salience and §36 nightly cron
+corrections).
+
+Additional gap analysis findings NOT applied to synthesis
+text — documented in the gap analysis report for migration
+planning:
+- Two-Type-System Problem: 86 Pydantic types in umh/protocols/
+  have zero production users; production code grew its own
+  @dataclass system. Convergence happens during migration.
+- Law 5.5 violations: 46 files doing raw INSERT INTO,
+  bypassing the canonical memory path.
+- Law 5.9 violations: 5 adapters still use the deprecated
+  execute() contract; 0 use translate_request/normalize_result.
+- §24 architectural gap: ~52K LOC of operator tooling
+  (scripts/) has no formal §24 layer. Salience pipeline is
+  one example; likely others.
 
 -----
 
