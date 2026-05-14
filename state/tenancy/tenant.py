@@ -7,7 +7,7 @@ Three-layer model:
   PERSONAL  — emerges from usage over time (preferences, patterns)
 
 Usage:
-    from runtime.tenant import TenantManager, TenantLayer
+    from state.tenancy.tenant import TenantManager, TenantLayer
     ctx = load_context_from_env()
     tm = TenantManager(ctx)
     tc = tm.get_tenant_context()

@@ -402,7 +402,7 @@ class GWSDocumentScanner:
         """
         ingested = 0
         try:
-            from runtime.knowledge_integrator import KnowledgeIntegrator
+            from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
             ki = KnowledgeIntegrator(self.ctx)
 
             for doc in documents:

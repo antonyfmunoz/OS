@@ -11,7 +11,7 @@ Integration points:
     discord_bot.py   — checks spawn guard before subagent creation
 
 Usage:
-    from runtime.provider_state import get_system_state
+    from state.providers.provider_state import get_system_state
 
     state = get_system_state()
     if not state.allow_execution():

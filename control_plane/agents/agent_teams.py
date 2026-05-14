@@ -6,7 +6,7 @@ Each team maps named sub-agents to a SubAgentConfig (task type + skill + token b
 The module-level route() function is the single entry point used by AgentRuntime.run_team_task().
 
 Usage:
-    from runtime.agent_teams import route, run_team_task
+    from control_plane.agents.agent_teams import route, run_team_task
     config = route("sales", "icp_qualifier")
     # config.task_type, config.skill_name, config.max_tokens
 
@@ -336,7 +336,7 @@ def run_team_task(
         interaction_id, cost_usd, duration_ms.
     """
     from execution.runtime.agent_runtime import AgentRuntime
-    from runtime.context import load_context_from_env
+    from state.context.context import load_context_from_env
 
     runtime = AgentRuntime(ctx or load_context_from_env())
     result = runtime.run_team_task(

@@ -410,7 +410,7 @@ def run_full_morning_cycle(ctx: EOSContext, return_content: bool = False):
 
     # 2b. CEO Agent evolution check — stage transitions + org chart
     try:
-        from runtime.ceo_agent import CEOAgent as _CEOEvolutionAgent
+        from control_plane.agents.ceo_agent import CEOAgent as _CEOEvolutionAgent
 
         _ceo_evo = _CEOEvolutionAgent(ctx)
         _evo_changes = _ceo_evo.check_and_evolve()
@@ -444,7 +444,7 @@ def run_full_morning_cycle(ctx: EOSContext, return_content: bool = False):
     # 3. Strategy Engine binding constraint
     binding = ""
     try:
-        from runtime.strategy_engine import StrategyEngine
+        from control_plane.strategy.strategy_engine import StrategyEngine
 
         se = StrategyEngine(ctx)
         pulse = se.analyze_portfolio_strategy()
@@ -662,7 +662,7 @@ def run_ceo_morning_delegation(
 
     _PDT = _ZI("America/Los_Angeles")
 
-    from runtime.ceo_agent import CEOAgent as _EvoCEO
+    from control_plane.agents.ceo_agent import CEOAgent as _EvoCEO
     from runtime.coordination_engine import CoordinationEngine as _CE
     from runtime.portfolio_advisor import PortfolioAdvisor as _PA
 
@@ -1435,7 +1435,7 @@ class EOSOrchestrator:
 
         # Email GPS — 6am inbox processing pass (DEX handles email before Antony)
         try:
-            from runtime.email_gps import EmailGPS
+            from adapters.google_workspace.email_gps import EmailGPS
             from runtime.context import load_context_from_env as _lcfe
 
             _ctx = _lcfe()
@@ -1471,7 +1471,7 @@ class EOSOrchestrator:
         # Human intelligence profile cycle
         profile_summary = ""
         try:
-            from runtime.human_intelligence import HumanIntelligenceEngine
+            from understanding.intelligence.human_intelligence import HumanIntelligenceEngine
 
             hi_engine = HumanIntelligenceEngine()
             hi_result = hi_engine.run_profile_cycle()
@@ -1489,7 +1489,7 @@ class EOSOrchestrator:
         strategy_summary = ""
         if datetime.date.today().weekday() == 6:  # Sunday = 6
             try:
-                from runtime.strategy_engine import StrategyEngine
+                from control_plane.strategy.strategy_engine import StrategyEngine
                 from runtime.context import load_context_from_env
 
                 ctx = load_context_from_env()
@@ -1796,7 +1796,7 @@ def start_ambient_refresh_loop(ctx: EOSContext) -> None:
 
             # Backpressure gate — moderate pressure, skip heavy work
             try:
-                from runtime.provider_state import get_system_state
+                from state.providers.provider_state import get_system_state
 
                 _sys = get_system_state()
                 if not _sys.allow_execution():

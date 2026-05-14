@@ -87,7 +87,7 @@ def capture_to_neon(text: str, capture_type: str, ctx=None) -> bool:
     """Write a captured task/idea to the Neon events table."""
     try:
         from state.memory.memory import AgentMemory
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
 
         ctx = ctx or load_context_from_env()
 

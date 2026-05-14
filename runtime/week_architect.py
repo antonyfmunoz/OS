@@ -21,7 +21,7 @@ def architect_week(ctx=None) -> str:
     Returns a formatted week plan string for Discord or file output.
     """
     try:
-        from runtime.ideal_week import get_ideal_week
+        from control_plane.scheduling.ideal_week import get_ideal_week
         from execution.runtime.model_router import get_router, TaskType
 
         ideal_week = get_ideal_week(ctx)

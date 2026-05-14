@@ -126,7 +126,7 @@ def get_venture_stage() -> str:
 def get_system_health_summary() -> str:
     """Quick system health for SessionStart context."""
     try:
-        from runtime.system_health import get_system_health
+        from observability.health.system_health import get_system_health
 
         sh = get_system_health()
         return sh.system_check()

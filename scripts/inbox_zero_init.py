@@ -22,7 +22,7 @@ load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT')
 from collections import Counter
 from pathlib import Path
 
-from runtime.email_gps import EmailGPS, EmailFolder, ProcessedEmail
+from adapters.google_workspace.email_gps import EmailGPS, EmailFolder, ProcessedEmail
 from adapters.google_workspace.gws_connector import GWSConnector
 from runtime.context import load_context_from_env
 

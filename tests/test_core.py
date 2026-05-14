@@ -164,7 +164,7 @@ class TestSignalHierarchy:
 class TestKnowledgeIntegrator:
 
     def test_integrate_returns_bool(self):
-        from runtime.knowledge_integrator import KnowledgeIntegrator
+        from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
         from runtime.context import load_context_from_env
         ctx = load_context_from_env()
         ki = KnowledgeIntegrator(ctx)
@@ -176,7 +176,7 @@ class TestKnowledgeIntegrator:
         assert isinstance(result, bool)
 
     def test_query_knowledge_returns_list(self):
-        from runtime.knowledge_integrator import KnowledgeIntegrator
+        from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
         from runtime.context import load_context_from_env
         ctx = load_context_from_env()
         ki = KnowledgeIntegrator(ctx)
@@ -184,7 +184,7 @@ class TestKnowledgeIntegrator:
         assert isinstance(results, list)
 
     def test_empty_content_handled(self):
-        from runtime.knowledge_integrator import KnowledgeIntegrator
+        from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
         from runtime.context import load_context_from_env
         ctx = load_context_from_env()
         ki = KnowledgeIntegrator(ctx)

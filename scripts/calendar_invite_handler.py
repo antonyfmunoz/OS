@@ -272,7 +272,7 @@ async def process_invites():
                 await channel.send(msg)
 
                 try:
-                    from runtime.meetings import create_meeting_record
+                    from adapters.calendar.meetings import create_meeting_record
                     create_meeting_record(
                         title=invite['title'],
                         person=invite['organizer_name'],

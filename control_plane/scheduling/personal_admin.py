@@ -28,7 +28,7 @@ def add_important_date(
     date format: MM-DD (recurring yearly) or YYYY-MM-DD (one-time)
     """
     try:
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
         AgentMemory().log_event(
@@ -52,7 +52,7 @@ def add_important_date(
 def get_upcoming_dates(days: int = 30, ctx=None) -> list[dict]:
     """Get important dates coming up in the next N days, sorted by days_until."""
     try:
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
         with get_conn(ctx.org_id) as cur:

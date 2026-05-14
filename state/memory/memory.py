@@ -164,7 +164,7 @@ class AgentMemory:
                 def _refresh_user_profile() -> None:
                     try:
                         from runtime.context import load_context_from_env as _lctx
-                        from runtime.user_model import UserModel as _UM
+                        from state.profiles.user_model import UserModel as _UM
                         _UM(_lctx()).update_profile()
                     except Exception:
                         pass
@@ -338,7 +338,7 @@ class AgentMemory:
                 import threading
                 def _refresh_profile(uname: str) -> None:
                     try:
-                        from runtime.human_intelligence import HumanIntelligenceEngine
+                        from understanding.intelligence.human_intelligence import HumanIntelligenceEngine
                         from runtime.context import load_context_from_env
                         ctx = load_context_from_env()
                         hie = HumanIntelligenceEngine(ctx)
@@ -386,7 +386,7 @@ class AgentMemory:
         import threading
         def _refresh_orphaned_profile(uname: str) -> None:
             try:
-                from runtime.human_intelligence import HumanIntelligenceEngine
+                from understanding.intelligence.human_intelligence import HumanIntelligenceEngine
                 from runtime.context import load_context_from_env
                 ctx = load_context_from_env()
                 hie = HumanIntelligenceEngine(ctx)

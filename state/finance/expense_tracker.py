@@ -74,7 +74,7 @@ Return JSON only:
 def store_expense(expense: dict, ctx=None) -> bool:
     """Store expense in Neon events table."""
     try:
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
 
@@ -93,7 +93,7 @@ def store_expense(expense: dict, ctx=None) -> bool:
 def get_monthly_summary(ctx=None) -> dict:
     """Get expense summary for current month."""
     try:
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
@@ -138,7 +138,7 @@ def process_receipt_emails(ctx=None) -> int:
     Returns count of processed expenses.
     """
     try:
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from adapters.google_workspace.gws_connector import GWSConnector
         ctx = ctx or load_context_from_env()
         gws = GWSConnector()
@@ -200,7 +200,7 @@ def create_invoice(
     Returns invoice dict with id, total, due_date.
     """
     try:
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from state.memory.memory import AgentMemory
         from datetime import datetime, timedelta
         import uuid as _uuid
@@ -241,7 +241,7 @@ def create_invoice(
 def get_invoices(status: str = None, ctx=None) -> list[dict]:
     """Get invoices, optionally filtered by status."""
     try:
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
@@ -317,7 +317,7 @@ def generate_expense_report(
     month: 'YYYY-MM' format, defaults to current month.
     """
     try:
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from state.storage.db import get_conn
         from datetime import datetime
         ctx = ctx or load_context_from_env()
@@ -392,7 +392,7 @@ def generate_budget_vs_actual(
     """Generate a budget vs actual report."""
     try:
         from datetime import datetime
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 

@@ -22,7 +22,7 @@ from datetime import datetime, timezone, timedelta
 from runtime.context import EOSContext
 from adapters.google_workspace.gws_connector import GWSConnector
 from control_plane.runtime.cognitive_loop import CognitiveLoop
-from runtime.human_intelligence import HumanIntelligenceEngine
+from understanding.intelligence.human_intelligence import HumanIntelligenceEngine
 from understanding.knowledge.knowledge_graph import KnowledgeGraph
 from understanding.embedding.embedding_engine import EmbeddingEngine
 

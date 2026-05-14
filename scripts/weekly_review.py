@@ -127,7 +127,7 @@ async def run_weekly_review():
 
     # Meeting ROI
     try:
-        from runtime.meetings import calculate_meeting_roi
+        from adapters.calendar.meetings import calculate_meeting_roi
         _wr_roi = calculate_meeting_roi(days=7)
         if _wr_roi and _wr_roi.get('total', 0) > 0:
             sections.append('**📊 Meeting ROI this week:**')

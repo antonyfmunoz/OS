@@ -12,8 +12,8 @@ Wired into CognitiveLoop._enhance_prompt():
   # user model expansion takes priority over generic Haiku enhancement
 
 Usage:
-    from runtime.context import load_context_from_env
-    from runtime.user_model import UserModel
+    from state.context.context import load_context_from_env
+    from state.profiles.user_model import UserModel
 
     ctx = load_context_from_env()
     um  = UserModel(ctx)
@@ -37,7 +37,7 @@ if _REPO_ROOT not in sys.path:
 
 load_dotenv(Path(__file__).parent / ".env")
 
-from runtime.context import EOSContext
+from state.context.context import EOSContext
 from control_plane.runtime.cognitive_loop import CognitiveLoop
 from execution.runtime.agent_runtime import AgentRuntime, TaskType
 from state.storage.db import get_conn

@@ -37,7 +37,7 @@ Usage:
 """
 
 from runtime.context import EOSContext
-from runtime.knowledge_integrator import KnowledgeIntegrator
+from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
 
 
 # ─── Perplexity market intel queries ──────────────────────────────────────────

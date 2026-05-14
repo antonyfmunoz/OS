@@ -35,7 +35,7 @@ PDT = ZoneInfo("America/Los_Angeles")
 
 def system_health_heartbeat() -> None:
     """EOS monitors its own operational state every 30 minutes."""
-    from runtime.system_health import get_system_health
+    from observability.health.system_health import get_system_health
 
     sh = get_system_health()
 

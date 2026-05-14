@@ -39,7 +39,7 @@ from execution.runtime.agent_runtime import TaskType
 from state.storage.db import get_conn
 from state.memory.memory import AgentMemory
 from state.business.venture_knowledge import VentureKnowledgeBase
-from runtime.strategy_engine import _parse_labeled_sections
+from control_plane.strategy.strategy_engine import _parse_labeled_sections
 
 
 class ResearchEngine:
@@ -273,7 +273,7 @@ class ResearchEngine:
         # Permanently integrate scraped pages into knowledge base
         if _scraped_pages:
             try:
-                from runtime.knowledge_integrator import KnowledgeIntegrator
+                from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
                 ki = KnowledgeIntegrator(self.ctx)
                 ki.integrate_search_result(topic, _scraped_pages)
             except Exception as _ki_e:
@@ -509,7 +509,7 @@ class ResearchEngine:
 
         # Permanently integrate into knowledge base
         try:
-            from runtime.knowledge_integrator import KnowledgeIntegrator
+            from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
             from datetime import datetime as _dt
             ki = KnowledgeIntegrator(self.ctx)
             ki.integrate(

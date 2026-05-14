@@ -59,7 +59,7 @@ class EODClosingLoop:
 
         # ── Overdue invoice check ─────────────────────────────────────────
         try:
-            from runtime.expense_tracker import get_overdue_invoices
+            from state.finance.expense_tracker import get_overdue_invoices
 
             overdue = get_overdue_invoices()
             if overdue:

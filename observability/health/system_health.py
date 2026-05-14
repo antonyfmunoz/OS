@@ -139,7 +139,7 @@ class EOSSystemHealth:
 
         # Foundation — BIS context loads
         try:
-            from runtime.context import load_context_from_env
+            from state.context.context import load_context_from_env
 
             ctx = load_context_from_env()
             ventures = ctx.ventures or []

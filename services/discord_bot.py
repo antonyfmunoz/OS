@@ -89,7 +89,7 @@ load_dotenv(_REPO_ROOT / "runtime" / ".env")
 
 from control_plane.runtime.gateway import EOSGateway
 from runtime.context import load_context_from_env
-from runtime.knowledge_integrator import KnowledgeIntegrator
+from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
 from execution.voice.voice_engine import VoiceEngine
 from state.business.business_instance import get_ai_name
 from runtime.discord_utils import chunk_message, post_to_webhook
@@ -2069,7 +2069,7 @@ async def on_message(message: discord.Message):
             text.strip().replace("\ufe0f\u20e3", ""), _DEFAULT_VENTURE_ID
         )
         try:
-            from runtime.founder_capture import capture
+            from understanding.signals.founder_capture import capture
 
             capture(_pending["text"], venture_id=_venture_id)
             _icon = "💡" if _pending["type"] == "idea" else "✅"
@@ -2112,7 +2112,7 @@ async def on_message(message: discord.Message):
 
     # ── Founder capture — detect tasks/ideas, write to Your list + Notion ────
     try:
-        from runtime.founder_capture import should_capture, capture
+        from understanding.signals.founder_capture import should_capture, capture
 
         _should, _ctype = should_capture(text)
         if _should:
@@ -2716,7 +2716,7 @@ async def cmd_outcome(ctx: commands.Context, *, args: str = ""):
         outcomes_text = " ".join(left_tokens[1:]) if len(left_tokens) > 1 else ""
         open_loops_text = parts[1].strip() if len(parts) > 1 else ""
 
-        from runtime.meetings import update_meeting_outcome
+        from adapters.calendar.meetings import update_meeting_outcome
 
         ok = update_meeting_outcome(
             calendly_event_id=event_id,
@@ -2841,7 +2841,7 @@ async def cmd_approve_followup(ctx: commands.Context):
         from runtime.context import load_context_from_env
         from state.storage.db import get_conn
         from adapters.google_workspace.gws_connector import GWSConnector
-        from runtime.quality_gate import gate_outgoing_email
+        from governance.quality.quality_gate import gate_outgoing_email
         import json as _json
 
         _ctx = load_context_from_env()
@@ -3177,7 +3177,7 @@ Subject: [subject]
 async def cmd_expenses(ctx: commands.Context):
     """Show month-to-date expenses. Usage: !expenses"""
     try:
-        from runtime.expense_tracker import get_monthly_summary
+        from state.finance.expense_tracker import get_monthly_summary
 
         summary = get_monthly_summary()
         if not summary.get("total"):
@@ -3304,7 +3304,7 @@ async def cmd_inbox(ctx: commands.Context):
 
         def _run():
             try:
-                from runtime.email_gps import EmailGPS
+                from adapters.google_workspace.email_gps import EmailGPS
 
                 gps = EmailGPS(_ctx_eos)
                 processed = gps.process_inbox(limit=20)
@@ -3458,7 +3458,7 @@ async def cmd_waiting(ctx: commands.Context):
 
         def _run():
             try:
-                from runtime.email_gps import EmailGPS
+                from adapters.google_workspace.email_gps import EmailGPS
 
                 gps = EmailGPS(_ctx_eos)
                 processed = gps.process_inbox(limit=30)
@@ -3484,7 +3484,7 @@ async def cmd_verify_inbox(ctx: commands.Context):
 
         def _run():
             try:
-                from runtime.email_gps import EmailGPS
+                from adapters.google_workspace.email_gps import EmailGPS
 
                 gps = EmailGPS(_ctx_eos)
                 return gps.verify_existing_labels(sample=5)
@@ -3511,7 +3511,7 @@ async def cmd_folder_update(ctx: commands.Context, folder: str = "", *, instruct
 
         def _run():
             try:
-                from runtime.email_gps import EmailGPS
+                from adapters.google_workspace.email_gps import EmailGPS
 
                 gps = EmailGPS(_ctx_eos)
                 new_purpose = gps.update_folder_purpose(folder, instruction)
@@ -3870,7 +3870,7 @@ async def cmd_perfectweek(ctx: commands.Context):
 
     def _run():
         try:
-            from runtime.ideal_week import get_perfect_week
+            from control_plane.scheduling.ideal_week import get_perfect_week
 
             week = get_perfect_week()
             lines = ["**📅 Your Perfect Week:**", ""]
@@ -3910,7 +3910,7 @@ async def cmd_camcorder(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from runtime.ideal_week import create_camcorder_playbook
+            from control_plane.scheduling.ideal_week import create_camcorder_playbook
 
             playbook = create_camcorder_playbook(task_name, description)
             if playbook:
@@ -4170,7 +4170,7 @@ async def cmd_year(ctx: commands.Context):
 
     def _run():
         try:
-            from runtime.ideal_week import get_preloaded_year
+            from control_plane.scheduling.ideal_week import get_preloaded_year
 
             plan = get_preloaded_year()
             if not plan:
@@ -4209,7 +4209,7 @@ async def cmd_rocks(ctx: commands.Context):
 
     def _run():
         try:
-            from runtime.ideal_week import get_current_quarter_rocks
+            from control_plane.scheduling.ideal_week import get_current_quarter_rocks
             from datetime import datetime as _rdt
 
             rocks = get_current_quarter_rocks()
@@ -4238,7 +4238,7 @@ async def cmd_invoices(ctx: commands.Context):
 
     def _run():
         try:
-            from runtime.expense_tracker import get_invoices, get_overdue_invoices
+            from state.finance.expense_tracker import get_invoices, get_overdue_invoices
 
             all_inv = get_invoices()
             overdue = get_overdue_invoices()
@@ -4285,7 +4285,7 @@ async def cmd_invoice(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from runtime.expense_tracker import create_invoice, generate_invoice_text
+            from state.finance.expense_tracker import create_invoice, generate_invoice_text
 
             parts = [p.strip() for p in args.split("|")]
             inv = create_invoice(
@@ -4322,7 +4322,7 @@ async def cmd_expensereport(ctx: commands.Context, month: str = ""):
 
     def _run():
         try:
-            from runtime.expense_tracker import generate_expense_report
+            from state.finance.expense_tracker import generate_expense_report
 
             return generate_expense_report(month or None)
         except Exception as e:
@@ -4339,7 +4339,7 @@ async def cmd_budget(ctx: commands.Context, target: str = "10000"):
 
     def _run():
         try:
-            from runtime.expense_tracker import generate_budget_vs_actual
+            from state.finance.expense_tracker import generate_budget_vs_actual
 
             t = float(target.replace("$", "").replace(",", ""))
             return generate_budget_vs_actual(revenue_target=t)
@@ -4363,7 +4363,7 @@ async def cmd_briefdoc(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from runtime.doc_creator import create_briefing_doc
+            from adapters.google_workspace.doc_creator import create_briefing_doc
 
             parts = [p.strip() for p in args.split("|")]
             title = parts[0]
@@ -4393,7 +4393,7 @@ async def cmd_board(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from runtime.doc_creator import create_briefing_doc
+            from adapters.google_workspace.doc_creator import create_briefing_doc
             from runtime.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
             from runtime.context import load_context_from_env
 
@@ -4425,7 +4425,7 @@ async def cmd_investor(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from runtime.doc_creator import create_briefing_doc
+            from adapters.google_workspace.doc_creator import create_briefing_doc
 
             result = create_briefing_doc(
                 title="Investor Update",
@@ -4454,7 +4454,7 @@ async def cmd_slides(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from runtime.doc_creator import create_presentation_outline
+            from adapters.google_workspace.doc_creator import create_presentation_outline
 
             parts = [p.strip() for p in args.split("|")]
             title = parts[0]
@@ -4491,7 +4491,7 @@ async def cmd_factcheck(ctx: commands.Context, *, claim: str = ""):
 
     def _run():
         try:
-            from runtime.doc_creator import fact_check
+            from adapters.google_workspace.doc_creator import fact_check
 
             result = fact_check(claim)
             verdict_emoji = {
@@ -4522,7 +4522,7 @@ async def cmd_dates(ctx: commands.Context):
 
     def _run():
         try:
-            from runtime.personal_admin import get_upcoming_dates
+            from control_plane.scheduling.personal_admin import get_upcoming_dates
 
             dates = get_upcoming_dates(days=60)
             if not dates:
@@ -4564,7 +4564,7 @@ async def cmd_adddate(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from runtime.personal_admin import add_important_date
+            from control_plane.scheduling.personal_admin import add_important_date
 
             parts = [p.strip() for p in args.split("|")]
             ok = add_important_date(
@@ -4596,7 +4596,7 @@ async def cmd_gift(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from runtime.personal_admin import research_gift
+            from control_plane.scheduling.personal_admin import research_gift
 
             parts = [p.strip() for p in args.split("|")]
             person = parts[0]
@@ -4706,7 +4706,7 @@ async def cmd_proofread(ctx: commands.Context, *, content: str = ""):
         await ctx.reply("Usage: `!proofread [paste your email or message here]`")
         return
     try:
-        from runtime.quality_gate import quality_check
+        from governance.quality.quality_gate import quality_check
 
         await ctx.reply("🔍 Running quality check...")
         result = quality_check(content)
@@ -4744,7 +4744,7 @@ async def cmd_minutes(ctx: commands.Context, *, args: str = ""):
         )
         return
     try:
-        from runtime.meetings import draft_meeting_minutes
+        from adapters.calendar.meetings import draft_meeting_minutes
 
         parts = [p.strip() for p in args.split("|")]
         result = draft_meeting_minutes(
@@ -4944,7 +4944,7 @@ async def cmd_board_update(ctx: commands.Context, venture_id: str = ""):
         )
         return
     try:
-        from runtime.stakeholder_map import generate_board_update_brief
+        from understanding.intelligence.stakeholder_map import generate_board_update_brief
 
         await ctx.reply("📋 Generating board update...")
         brief = generate_board_update_brief(venture_id)
@@ -4965,7 +4965,7 @@ async def cmd_announce(ctx: commands.Context, *, args: str = ""):
         )
         return
     try:
-        from runtime.doc_creator import draft_announcement
+        from adapters.google_workspace.doc_creator import draft_announcement
 
         draft = draft_announcement(
             topic=parts[0],
@@ -4988,7 +4988,7 @@ async def cmd_crisis(ctx: commands.Context, *, args: str = ""):
         )
         return
     try:
-        from runtime.doc_creator import draft_crisis_communication
+        from adapters.google_workspace.doc_creator import draft_crisis_communication
 
         draft = draft_crisis_communication(
             situation=parts[0],

@@ -269,7 +269,7 @@ def calendly_webhook():
 
         # Create meeting record (Neon + Notion)
         try:
-            from runtime.meetings import create_meeting_record, build_prep_brief
+            from adapters.calendar.meetings import create_meeting_record, build_prep_brief
             _invitee = payload.get('invitee', {})
             _event_obj = payload.get('event', {})
             _questions = _invitee.get('questions_and_answers', [])

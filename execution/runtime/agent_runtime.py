@@ -32,7 +32,7 @@ load_dotenv(Path(__file__).parent / ".env")
 
 from runtime.context import EOSContext, load_context_from_env
 from state.business.venture_knowledge import VentureKnowledgeBase
-from runtime.skill_registry import SkillRegistry, get_skill_registry
+from state.registries.skill_registry import SkillRegistry, get_skill_registry
 from governance.policy.authority_engine import AuthorityEngine
 from state.preferences.model_preferences import ModelPreferences
 
@@ -430,7 +430,7 @@ class AgentRuntime:
         Returns:
             AgentResult with output, model, token counts, skill used, and interaction_id.
         """
-        from runtime.agent_teams import route as team_route
+        from control_plane.agents.agent_teams import route as team_route
 
         config = team_route(team, sub_agent)
         agent_label = f"{team}.{sub_agent}"
@@ -439,7 +439,7 @@ class AgentRuntime:
         system_extra: str | None = None
         if username and config.task_type in (TaskType.GENERATE, TaskType.ANALYZE):
             try:
-                from runtime.human_intelligence import HumanIntelligenceEngine
+                from understanding.intelligence.human_intelligence import HumanIntelligenceEngine
 
                 engine = HumanIntelligenceEngine()
                 profile = engine.get_profile(username)
@@ -496,7 +496,7 @@ class AgentRuntime:
         system_extra: str | None = None
         if username and task_type in (TaskType.GENERATE, TaskType.ANALYZE):
             try:
-                from runtime.human_intelligence import HumanIntelligenceEngine
+                from understanding.intelligence.human_intelligence import HumanIntelligenceEngine
 
                 engine = HumanIntelligenceEngine()
                 profile = engine.get_profile(username)

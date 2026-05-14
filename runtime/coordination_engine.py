@@ -127,7 +127,7 @@ class CoordinationEngine:
             )
             # Lifecycle tracking: mark in_progress immediately for agent tasks
             try:
-                from runtime.execution_engine import ExecutionEngine
+                from execution.engine.execution_engine import ExecutionEngine
 
                 ExecutionEngine(self.ctx).start_execution(task_id, assignee_id)
             except Exception as _ee_err:

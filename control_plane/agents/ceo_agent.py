@@ -7,8 +7,8 @@ Monitors for stage transitions and evolves the org chart.
 Reports to Portfolio Agent.
 
 Usage:
-    from runtime.ceo_agent import CEOAgent
-    from runtime.context import load_context_from_env
+    from control_plane.agents.ceo_agent import CEOAgent
+    from state.context.context import load_context_from_env
 
     ctx = load_context_from_env()
     ceo = CEOAgent(ctx)
@@ -21,7 +21,7 @@ Usage:
 import json
 import os
 from typing import Optional
-from runtime.context import EOSContext
+from state.context.context import EOSContext
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 

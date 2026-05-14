@@ -23,7 +23,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from execution.runtime.agent_runtime import AgentRuntime, TaskType
-from runtime.skill_registry import SkillRegistry, get_skill_registry, reset_skill_registry
+from state.registries.skill_registry import SkillRegistry, get_skill_registry, reset_skill_registry
 
 MIN_OUTCOMES          = 5      # minimum scored outcomes before improvement runs
 REPLY_THRESHOLD       = 0.30   # reply_rate below this → rewrite

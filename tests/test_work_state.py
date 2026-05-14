@@ -141,7 +141,7 @@ def test_max_idle_cap():
 
 def test_provider_state_pressure_delegation():
     """provider_state._check_resource_pressure delegates to work_state."""
-    from runtime.provider_state import SystemProviderState
+    from state.providers.provider_state import SystemProviderState
 
     sps = SystemProviderState()
     result = sps._check_resource_pressure()

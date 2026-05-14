@@ -261,7 +261,7 @@ class InputIntelligence:
         """
         try:
             from execution.runtime.agent_runtime import AgentRuntime, TaskType
-            from runtime.context import load_context_from_env
+            from state.context.context import load_context_from_env
 
             ctx = self.ctx or load_context_from_env()
             runtime = AgentRuntime(ctx)

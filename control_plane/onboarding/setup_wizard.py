@@ -8,7 +8,7 @@ Usage (interactive):
     python3 -m runtime.setup_wizard
 
 Usage (programmatic):
-    from runtime.setup_wizard import generate_ea_soul_doc
+    from control_plane.onboarding.setup_wizard import generate_ea_soul_doc
     soul_doc = generate_ea_soul_doc(
         ai_name='ARIA',
         founder_name='Jane Smith',
@@ -127,7 +127,7 @@ def run_setup() -> None:
 
     # Build and save BIS
     try:
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from state.business.business_instance import (
             BusinessInstance, BusinessInstanceManager, STAGE_NAMES
         )

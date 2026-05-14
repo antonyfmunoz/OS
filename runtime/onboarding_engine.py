@@ -283,7 +283,7 @@ class OnboardingEngine:
 
         # ── Step 3: Generate EA soul doc ──────────────────────────────────────
         try:
-            from runtime.setup_wizard import generate_ea_soul_doc
+            from control_plane.onboarding.setup_wizard import generate_ea_soul_doc
 
             ai_name = data.get('ai_name', 'DEX') or 'DEX'
             soul_doc = generate_ea_soul_doc(

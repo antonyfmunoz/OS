@@ -31,7 +31,7 @@ def create_meeting_record(
     Returns dict with neon_id, notion_id, success.
     """
     try:
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from state.storage.db import get_conn
         import requests
         from dotenv import load_dotenv
@@ -173,7 +173,7 @@ def update_meeting_outcome(
             if status == 'Completed' and (outcomes or open_loops):
                 try:
                     from execution.runtime.model_router import get_router, TaskType
-                    from runtime.context import load_context_from_env
+                    from state.context.context import load_context_from_env
                     from state.storage.db import get_conn
                     import json as _json
                     _ctx = ctx or load_context_from_env()
@@ -439,7 +439,7 @@ def queue_follow_up_tasks(
 ) -> bool:
     """Auto-queue follow-up tasks after a meeting."""
     try:
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
 
@@ -488,7 +488,7 @@ def build_prep_brief(
     Pulls intelligence profile + semantic memory + structures talking points.
     """
     try:
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from understanding.intelligence.person_recognition import (
             build_intelligence_profile,
             format_intelligence_profile,
@@ -594,7 +594,7 @@ def draft_meeting_agenda(
     Returns formatted agenda as string.
     """
     try:
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from execution.runtime.model_router import get_router, TaskType
         from understanding.intelligence.person_recognition import build_intelligence_profile
         ctx = ctx or load_context_from_env()
@@ -656,7 +656,7 @@ def draft_meeting_minutes(
     try:
         from execution.runtime.model_router import get_router, TaskType
         from adapters.google_workspace.gws_connector import GWSConnector
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from state.storage.db import get_conn
         from datetime import datetime
         from zoneinfo import ZoneInfo

@@ -195,7 +195,7 @@ async def handle_meetingroi(message, text: str) -> bool:
     _parts = text.split()
     _venture = _parts[1] if len(_parts) > 1 else None
     try:
-        from runtime.meetings import calculate_meeting_roi
+        from adapters.calendar.meetings import calculate_meeting_roi
 
         _roi = calculate_meeting_roi(venture=_venture, days=30)
         if not _roi or not _roi.get("total"):
@@ -364,7 +364,7 @@ async def handle_stakeholders(message, text: str) -> bool:
     _parts = text.split()
     _venture = _parts[1] if len(_parts) > 1 else None
     try:
-        from runtime.stakeholder_map import (
+        from understanding.intelligence.stakeholder_map import (
             get_stakeholders,
             generate_stakeholder_brief,
         )
@@ -411,7 +411,7 @@ async def handle_add_stakeholder(message, text: str) -> bool:
         )
         return True
     try:
-        from runtime.stakeholder_map import add_stakeholder
+        from understanding.intelligence.stakeholder_map import add_stakeholder
 
         _name = _parts[0].strip()
         _venture = _parts[1].strip()

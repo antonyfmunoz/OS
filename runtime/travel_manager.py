@@ -330,7 +330,7 @@ def reconcile_trip_expenses(
     expenses: [{"description": str, "amount": float, "category": str}]
     """
     try:
-        from runtime.expense_tracker import store_expense
+        from state.finance.expense_tracker import store_expense
         total = 0.0
         stored = 0
         for exp in expenses:

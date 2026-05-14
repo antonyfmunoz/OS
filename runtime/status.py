@@ -21,7 +21,7 @@ load_dotenv(os.path.join(_REPO_ROOT, "services", ".env"))
 from state.storage.db import get_conn, ORG_ID
 from state.memory.memory import AgentMemory
 from state.business.venture_knowledge import VentureKnowledgeBase
-from runtime.skill_registry import SkillRegistry
+from state.registries.skill_registry import SkillRegistry
 
 # Model pricing (per token) — mirrors cost_tracker.py
 _PRICING = {

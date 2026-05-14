@@ -8,8 +8,8 @@ position, competitive dynamics, resource allocation, and what
 not to do — grounded in real data from Neon, not templates.
 
 Usage:
-    from runtime.context import load_context_from_env
-    from runtime.strategy_engine import StrategyEngine, DecisionEngine
+    from state.context.context import load_context_from_env
+    from control_plane.strategy.strategy_engine import StrategyEngine, DecisionEngine
 
     ctx = load_context_from_env()
     se  = StrategyEngine(ctx)
@@ -36,7 +36,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from runtime.context import EOSContext, load_context_from_env
+from state.context.context import EOSContext, load_context_from_env
 from control_plane.runtime.cognitive_loop import CognitiveLoop
 from execution.runtime.agent_runtime import TaskType
 from state.storage.db import get_conn, resolve_venture

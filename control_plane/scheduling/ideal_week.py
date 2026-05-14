@@ -67,7 +67,7 @@ DEFAULT_IDEAL_WEEK = {
 def get_ideal_week(ctx=None) -> dict:
     """Get stored ideal week template or return default."""
     try:
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
@@ -93,7 +93,7 @@ def get_ideal_week(ctx=None) -> dict:
 def save_ideal_week(template: dict, ctx=None) -> bool:
     """Save a custom ideal week template."""
     try:
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
 
@@ -119,7 +119,7 @@ def create_process_capture(task_name: str, description: str, ctx=None) -> str:
     """
     try:
         from execution.runtime.model_router import get_router, TaskType
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         ctx = ctx or load_context_from_env()
 
         router = get_router()
@@ -202,7 +202,7 @@ def save_annual_architecture(year_plan: dict, ctx=None) -> bool:
     }
     """
     try:
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
         AgentMemory().log_event(
@@ -223,7 +223,7 @@ def save_annual_architecture(year_plan: dict, ctx=None) -> bool:
 def get_annual_architecture(ctx=None) -> dict:
     """Get the most recently saved annual plan."""
     try:
-        from runtime.context import load_context_from_env
+        from state.context.context import load_context_from_env
         from state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
         with get_conn(ctx.org_id) as cur:

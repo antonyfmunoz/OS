@@ -420,7 +420,7 @@ class EOSGateway:
 
         try:
             from runtime.context import load_context_from_env
-            from runtime.email_gps import EmailGPS
+            from adapters.google_workspace.email_gps import EmailGPS
             from execution.runtime.model_router import get_router, TaskType
 
             ctx_eos = load_context_from_env()
@@ -690,7 +690,7 @@ class EOSGateway:
         stage_context = ""
         if prompt and request.get("type") in ("agent_task", "brief"):
             try:
-                from runtime.stage_manager import detect_stage_transition, StageManager
+                from state.lifecycle.stage_manager import detect_stage_transition, StageManager
                 from runtime.context import load_context_from_env as _load_ctx
 
                 transition = detect_stage_transition(prompt)
@@ -771,7 +771,7 @@ class EOSGateway:
                 # Input Intelligence Layer — elevate underpowered inputs
                 # before they reach the cognitive loop
                 try:
-                    from runtime.input_intelligence import InputIntelligence
+                    from understanding.intelligence.input_intelligence import InputIntelligence
                     from runtime.context import load_context_from_env as _load_ii_ctx
 
                     _prompt = request.get("prompt", "")
@@ -913,7 +913,7 @@ class EOSGateway:
                 break
 
         try:
-            from runtime.quality_gate import QualityTransformationGate
+            from governance.quality.quality_gate import QualityTransformationGate
 
             from runtime.context import load_context_from_env
 
@@ -1201,7 +1201,7 @@ class EOSGateway:
             # CEO deep standards — try skill first, fall back to Python module
             if agent_id in _CEO_AGENTS:
                 try:
-                    from runtime.skill_registry import get_skill_registry
+                    from state.registries.skill_registry import get_skill_registry
 
                     _sr = get_skill_registry()
                     _ceo_skill = _sr.get_skill("ceo_framework")
@@ -1257,7 +1257,7 @@ class EOSGateway:
             # Portfolio advisor deep standards — try skill first, fall back to Python module
             if agent_id == "portfolio_advisor":
                 try:
-                    from runtime.skill_registry import get_skill_registry
+                    from state.registries.skill_registry import get_skill_registry
 
                     _sr_pa = get_skill_registry()
                     _pa_skill = _sr_pa.get_skill("portfolio_framework")
@@ -1334,7 +1334,7 @@ class EOSGateway:
                     pass
 
                 try:
-                    from runtime.skill_registry import get_skill_registry
+                    from state.registries.skill_registry import get_skill_registry
 
                     _sr_ea = get_skill_registry()
                     _ea_skill = _sr_ea.get_skill("ea_framework")
@@ -1385,7 +1385,7 @@ class EOSGateway:
 
         elif team:
             # Team task — resolve via agent_teams then run through cognitive loop
-            from runtime.agent_teams import route as team_route
+            from control_plane.agents.agent_teams import route as team_route
 
             config = team_route(team, sub_agent)
             result = loop.run(
@@ -1436,7 +1436,7 @@ class EOSGateway:
                     # CEO domain — inject company primitives into prompt
                     elif domain == IntentDomain.CEO:
                         try:
-                            from runtime.ceo_agent import CEOAgent
+                            from control_plane.agents.ceo_agent import CEOAgent
 
                             _ceo = CEOAgent(ctx)
                             _prims = _ceo.detect_primitives()
@@ -1496,7 +1496,7 @@ class EOSGateway:
 
         # Permanently integrate this exchange into the knowledge base
         try:
-            from runtime.knowledge_integrator import KnowledgeIntegrator
+            from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
 
             _ki = KnowledgeIntegrator(ctx)
             if prompt and result.output:

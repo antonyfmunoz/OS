@@ -488,7 +488,7 @@ class SelfAwarenessEngine:
         # ── SYSTEM UPDATES ─────────────────────────────────────────────────────
 
         elif consequence == 'advance_stage':
-            from runtime.stage_manager import StageManager
+            from state.lifecycle.stage_manager import StageManager
             from runtime.evolution_engine import EvolutionEngine
             sm      = StageManager(self.ctx)
             ee      = EvolutionEngine(self.ctx)
@@ -510,7 +510,7 @@ class SelfAwarenessEngine:
             return True
 
         elif consequence == 'check_stage_transition':
-            from runtime.stage_manager import StageManager, detect_stage_transition
+            from state.lifecycle.stage_manager import StageManager, detect_stage_transition
             stage_hint = f'advance to stage based on revenue milestone {change.new_value}'
             detected   = detect_stage_transition(stage_hint)
             if detected.get('detected'):
@@ -585,7 +585,7 @@ class SelfAwarenessEngine:
 
         elif consequence == 'regenerate_ea_soul_doc':
             try:
-                from runtime.setup_wizard import generate_ea_soul_doc
+                from control_plane.onboarding.setup_wizard import generate_ea_soul_doc
                 from state.business.business_instance import BusinessInstanceManager
                 from pathlib import Path
 

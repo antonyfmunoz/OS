@@ -125,7 +125,7 @@ class ContextBuilder:
 
         # Layer 0c: Quality requirements
         try:
-            from runtime.quality_gate import QualityTransformationGate, TransformationResult
+            from governance.quality.quality_gate import QualityTransformationGate, TransformationResult
             qtg = QualityTransformationGate(ctx)
             pre_result = TransformationResult(
                 original="", transformed="",
@@ -144,7 +144,7 @@ class ContextBuilder:
 
         # Layer 1d: BIS / TenantManager
         try:
-            from runtime.tenant import TenantManager
+            from state.tenancy.tenant import TenantManager
             tm = TenantManager(ctx)
             bis_prompt = tm.format_for_prompt()
             if bis_prompt and bis_prompt.strip():
@@ -343,7 +343,7 @@ class ContextBuilder:
 
         # Human intelligence
         try:
-            from runtime.human_intelligence import HumanIntelligenceEngine
+            from understanding.intelligence.human_intelligence import HumanIntelligenceEngine
             from state.storage.db import get_conn
             hi = HumanIntelligenceEngine(ctx)
             text_lower = (message or "").lower()

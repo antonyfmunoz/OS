@@ -212,7 +212,7 @@ class PortfolioAdvisor:
         # Ground the advisory in real strategy analysis
         strategy_context = ""
         try:
-            from runtime.strategy_engine import StrategyEngine
+            from control_plane.strategy.strategy_engine import StrategyEngine
             se       = StrategyEngine(self.ctx)
             position = se.analyze_company_position(self.ctx.org_id)
             strategy_context = (

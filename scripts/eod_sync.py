@@ -49,7 +49,7 @@ def _get_todays_meetings() -> list[str]:
 def _get_todays_purchases() -> list[str]:
     """Pull receipts from expense tracker — processes new emails and returns monthly summary."""
     try:
-        from runtime.expense_tracker import (
+        from state.finance.expense_tracker import (
             process_receipt_emails,
             get_monthly_summary,
         )

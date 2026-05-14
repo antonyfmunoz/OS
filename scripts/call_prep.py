@@ -54,8 +54,8 @@ def get_upcoming_calls(window_start_mins: int = 25, window_end_mins: int = 45) -
 
 def build_prep_brief(event: dict, ctx) -> str:
     """Build a concise pre-call brief for a calendar event."""
-    from runtime.meetings import build_prep_brief as _meetings_brief
-    from runtime.meetings import find_notion_meeting_by_person, update_meeting_prep_notes
+    from adapters.calendar.meetings import build_prep_brief as _meetings_brief
+    from adapters.calendar.meetings import find_notion_meeting_by_person, update_meeting_prep_notes
 
     title     = event.get('title', 'Untitled event')
     start_str = event.get('start', '')
@@ -294,7 +294,7 @@ Under 100 words. Direct format.""").strip()
                 if not _attendee_email:
                     continue
 
-                from runtime.meetings import draft_meeting_agenda
+                from adapters.calendar.meetings import draft_meeting_agenda
                 from state.storage.db import get_conn
 
                 _agenda = draft_meeting_agenda(

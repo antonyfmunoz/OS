@@ -31,7 +31,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from execution.runtime.agent_runtime import AgentRuntime, TaskType
-from runtime.context import EOSContext, load_context_from_env
+from state.context.context import EOSContext, load_context_from_env
 from state.storage.db import get_conn, resolve_venture, ORG_ID, USER_ID
 
 LEADS_DIR      = Path(_REPO_ROOT) / "03_CRM" / "Leads"

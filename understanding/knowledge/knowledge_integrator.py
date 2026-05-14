@@ -20,8 +20,8 @@ Categories:
   world_pulse      — continuous monitoring of market sources
 
 Usage:
-    from runtime.context import load_context_from_env
-    from runtime.knowledge_integrator import KnowledgeIntegrator
+    from state.context.context import load_context_from_env
+    from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
 
     ctx = load_context_from_env()
     ki = KnowledgeIntegrator(ctx)
@@ -39,7 +39,7 @@ Usage:
 import uuid
 from typing import Optional
 
-from runtime.context import EOSContext
+from state.context.context import EOSContext
 from state.memory.memory import AgentMemory
 from understanding.embedding.embedding_engine import EmbeddingEngine
 

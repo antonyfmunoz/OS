@@ -515,7 +515,7 @@ class CognitiveLoop:
 
         # 7b. LEARN — permanently integrate conversation into knowledge base
         try:
-            from runtime.knowledge_integrator import KnowledgeIntegrator
+            from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
             from datetime import datetime, timezone as _tz
 
             _ki = KnowledgeIntegrator(self.ctx)
@@ -655,7 +655,7 @@ class CognitiveLoop:
             return prompt  # Never enhance greetings
 
         try:
-            from runtime.user_model import UserModel
+            from state.profiles.user_model import UserModel
 
             _um = UserModel(self.ctx)
             _trust = _um.get_trust_level()
@@ -691,7 +691,7 @@ class CognitiveLoop:
 
         # 1. User model expansion (profile-aware, higher fidelity)
         try:
-            from runtime.user_model import UserModel
+            from state.profiles.user_model import UserModel
 
             um = UserModel(self.ctx)
             expanded = um.get_intent_expansion(prompt)
@@ -998,7 +998,7 @@ def detect_intent_and_inject(
         injections["intent"] = "meeting_minutes"
         injections["capability"] = "draft_meeting_minutes"
         try:
-            from runtime.meetings import draft_meeting_minutes  # noqa: F401
+            from adapters.calendar.meetings import draft_meeting_minutes  # noqa: F401
 
             injections["capability_available"] = True
         except Exception:
@@ -1141,7 +1141,7 @@ def detect_intent_and_inject(
     ):
         injections["intent"] = "financial"
         try:
-            from runtime.expense_tracker import get_monthly_summary
+            from state.finance.expense_tracker import get_monthly_summary
 
             summary = get_monthly_summary(ctx)
             injections["expense_summary"] = summary

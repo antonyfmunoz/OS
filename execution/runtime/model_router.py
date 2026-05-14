@@ -38,7 +38,7 @@ try:
 except Exception:
     pass
 
-from runtime.provider_state import get_system_state
+from state.providers.provider_state import get_system_state
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +80,7 @@ def _circuit_record_failure() -> None:
     _circuit_consecutive_failures += 1
     _circuit_last_failure_time = time.time()
     try:
-        from runtime.provider_state import get_system_state
+        from state.providers.provider_state import get_system_state
 
         get_system_state().record_all_providers_failed()
     except Exception:
@@ -96,7 +96,7 @@ def _circuit_record_success() -> None:
 def _track_provider_result(provider_name: str, success: bool) -> None:
     """Feed per-provider result into global SystemProviderState."""
     try:
-        from runtime.provider_state import get_system_state
+        from state.providers.provider_state import get_system_state
 
         state = get_system_state()
         if success:

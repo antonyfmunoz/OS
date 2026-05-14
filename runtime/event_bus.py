@@ -311,7 +311,7 @@ def _handle_lead_closed(payload: dict) -> dict:
 
     # Run human profile update
     try:
-        from runtime.human_intelligence import HumanIntelligenceEngine
+        from understanding.intelligence.human_intelligence import HumanIntelligenceEngine
         from runtime.context import load_context_from_env
 
         engine = HumanIntelligenceEngine(load_context_from_env())

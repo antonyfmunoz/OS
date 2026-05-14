@@ -135,7 +135,7 @@ class DailySync:
         # ── Section 3: Past meetings — open loops ────────────────────────
         # Completed calls with unresolved follow-ups from Notion Meetings DB.
         try:
-            from runtime.meetings import get_open_loop_meetings
+            from adapters.calendar.meetings import get_open_loop_meetings
             _open_loops = get_open_loop_meetings(days_back=7)
             if _open_loops:
                 for m in _open_loops:
@@ -258,7 +258,7 @@ class DailySync:
 
         # ── Quarterly rocks from preloaded year ─────────────────────────
         try:
-            from runtime.ideal_week import get_current_quarter_rocks
+            from control_plane.scheduling.ideal_week import get_current_quarter_rocks
             agenda.quarterly_rocks = get_current_quarter_rocks(self.ctx)
         except Exception:
             agenda.quarterly_rocks = []
@@ -363,7 +363,7 @@ Return JSON only:
         # ── Section 6: Emails ────────────────────────────────────────────
         # TO_RESPOND + REVIEW from GPS labels.
         try:
-            from runtime.email_gps import EmailGPS
+            from adapters.google_workspace.email_gps import EmailGPS
             gps            = EmailGPS(self.ctx)
             review_emails  = gps.get_emails_for_review(limit=5)
             respond_emails = gps.get_emails_to_respond(limit=5)
@@ -445,7 +445,7 @@ Return JSON only:
 
         # ── Upcoming important dates (next 14 days) ──────────────────────
         try:
-            from runtime.personal_admin import get_upcoming_dates
+            from control_plane.scheduling.personal_admin import get_upcoming_dates
             upcoming = get_upcoming_dates(days=14, ctx=self.ctx)
             if upcoming:
                 agenda.important_dates = [

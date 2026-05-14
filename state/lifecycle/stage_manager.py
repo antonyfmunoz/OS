@@ -11,7 +11,7 @@ Everything that needs to change on a stage transition happens here:
   - Event fired for Discord bot to create new channels + announce
 
 Usage:
-    from runtime.stage_manager import StageManager, detect_stage_transition
+    from state.lifecycle.stage_manager import StageManager, detect_stage_transition
     ctx = load_context_from_env()
     sm = StageManager(ctx)
     result = sm.advance_stage('lyfe_institute', 2)
@@ -31,7 +31,7 @@ if _REPO_ROOT not in sys.path:
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent / '.env')
 
-from runtime.context import EOSContext
+from state.context.context import EOSContext
 
 
 # ─── Stage transition detection ───────────────────────────────────────────────

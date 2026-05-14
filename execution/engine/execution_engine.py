@@ -5,8 +5,8 @@ Gives every task a visible, auditable lifecycle:
   queued → assigned → in_progress → blocked → completed → outcome_logged
 
 Usage:
-    from runtime.execution_engine import ExecutionEngine
-    from runtime.context import load_context_from_env
+    from execution.engine.execution_engine import ExecutionEngine
+    from state.context.context import load_context_from_env
 
     ctx = load_context_from_env()
     ee = ExecutionEngine(ctx)
@@ -27,7 +27,7 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / ".env")
 
-from runtime.context import EOSContext
+from state.context.context import EOSContext
 from state.storage.db import get_conn
 
 
