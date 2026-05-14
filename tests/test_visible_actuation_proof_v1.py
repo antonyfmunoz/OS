@@ -22,7 +22,7 @@ import pytest
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from core.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
+from execution.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
 from core.workstation.visible_actuation_proof_v1 import (
     FounderConfirmationArtifact,
     VisibleActuationEvidence,

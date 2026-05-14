@@ -217,7 +217,7 @@ class TestTransportWithVisibleActuationProof:
         assert "no_desktop_session" in reason
 
     def test_screenshot_failure_blocks_escalation(self) -> None:
-        from core.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
+        from execution.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
         from core.workstation.visible_actuation_proof_v1 import (
             VisibleActuationEvidence,
             classify_visible_actuation,
@@ -236,7 +236,7 @@ class TestTransportWithVisibleActuationProof:
         assert "screenshot" in proof.escalation_reason
 
     def test_founder_denial_blocks_escalation(self) -> None:
-        from core.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
+        from execution.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
         from core.workstation.visible_actuation_proof_v1 import (
             VisibleActuationEvidence,
             classify_visible_actuation,
@@ -255,7 +255,7 @@ class TestTransportWithVisibleActuationProof:
         assert "founder_confirmation" in proof.escalation_reason
 
     def test_full_real_evidence_escalates(self) -> None:
-        from core.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
+        from execution.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
         from core.workstation.visible_actuation_proof_v1 import (
             classify_visible_actuation,
             extract_evidence_from_relay_result,

@@ -57,7 +57,7 @@ from core.workstation.environment_mapping_engine_v1 import (
     plan_ingestion_lanes,
     synthesize_relationships,
 )
-from core.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
+from execution.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
 
 
 def _full_evidence(**overrides: object) -> EnvironmentMappingEvidence:

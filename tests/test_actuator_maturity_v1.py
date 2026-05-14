@@ -31,7 +31,7 @@ sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS
 
 class TestMaturityLevelComputation:
     def test_empty_evidence_is_l0(self) -> None:
-        from core.actuation.actuator_maturity_v1 import (
+        from execution.actuation.actuator_maturity_v1 import (
             ActuatorMaturityLevel,
             compute_maturity_level,
         )
@@ -40,7 +40,7 @@ class TestMaturityLevelComputation:
         assert level == ActuatorMaturityLevel.L0_SIMULATED
 
     def test_pid_only_is_l1(self) -> None:
-        from core.actuation.actuator_maturity_v1 import (
+        from execution.actuation.actuator_maturity_v1 import (
             ActuatorMaturityLevel,
             compute_maturity_level,
         )
@@ -49,7 +49,7 @@ class TestMaturityLevelComputation:
         assert level == ActuatorMaturityLevel.L1_PROCESS_STARTED
 
     def test_pid_and_hwnd_is_l2(self) -> None:
-        from core.actuation.actuator_maturity_v1 import (
+        from execution.actuation.actuator_maturity_v1 import (
             ActuatorMaturityLevel,
             compute_maturity_level,
         )
@@ -58,7 +58,7 @@ class TestMaturityLevelComputation:
         assert level == ActuatorMaturityLevel.L2_WINDOW_OBSERVED
 
     def test_full_focus_is_l3(self) -> None:
-        from core.actuation.actuator_maturity_v1 import (
+        from execution.actuation.actuator_maturity_v1 import (
             ActuatorMaturityLevel,
             compute_maturity_level,
         )
@@ -67,7 +67,7 @@ class TestMaturityLevelComputation:
         assert level == ActuatorMaturityLevel.L3_FOREGROUND_FOCUSED
 
     def test_navigation_is_l4(self) -> None:
-        from core.actuation.actuator_maturity_v1 import (
+        from execution.actuation.actuator_maturity_v1 import (
             ActuatorMaturityLevel,
             compute_maturity_level,
         )
@@ -83,7 +83,7 @@ class TestMaturityLevelComputation:
         assert level == ActuatorMaturityLevel.L4_NAVIGATION_OBSERVED
 
     def test_screenshot_is_l5(self) -> None:
-        from core.actuation.actuator_maturity_v1 import (
+        from execution.actuation.actuator_maturity_v1 import (
             ActuatorMaturityLevel,
             compute_maturity_level,
         )
@@ -100,7 +100,7 @@ class TestMaturityLevelComputation:
         assert level == ActuatorMaturityLevel.L5_SCREENSHOT_VERIFIED
 
     def test_founder_confirmed_is_l6(self) -> None:
-        from core.actuation.actuator_maturity_v1 import (
+        from execution.actuation.actuator_maturity_v1 import (
             ActuatorMaturityLevel,
             compute_maturity_level,
         )
@@ -118,7 +118,7 @@ class TestMaturityLevelComputation:
         assert level == ActuatorMaturityLevel.L6_FOUNDER_CONFIRMED
 
     def test_replay_hash_is_l7(self) -> None:
-        from core.actuation.actuator_maturity_v1 import (
+        from execution.actuation.actuator_maturity_v1 import (
             ActuatorMaturityLevel,
             compute_maturity_level,
         )
@@ -139,7 +139,7 @@ class TestMaturityLevelComputation:
 
 class TestMaturityCeiling:
     def test_no_hwnd_caps_at_l1(self) -> None:
-        from core.actuation.actuator_maturity_v1 import (
+        from execution.actuation.actuator_maturity_v1 import (
             ActuatorMaturityLevel,
             maturity_ceiling,
         )
@@ -147,7 +147,7 @@ class TestMaturityCeiling:
         assert maturity_ceiling(has_window_handle=False) == ActuatorMaturityLevel.L1_PROCESS_STARTED
 
     def test_no_screenshot_caps_at_l4(self) -> None:
-        from core.actuation.actuator_maturity_v1 import (
+        from execution.actuation.actuator_maturity_v1 import (
             ActuatorMaturityLevel,
             maturity_ceiling,
         )
@@ -158,7 +158,7 @@ class TestMaturityCeiling:
         )
 
     def test_no_founder_caps_at_l5(self) -> None:
-        from core.actuation.actuator_maturity_v1 import (
+        from execution.actuation.actuator_maturity_v1 import (
             ActuatorMaturityLevel,
             maturity_ceiling,
         )
@@ -173,7 +173,7 @@ class TestMaturityCeiling:
         )
 
     def test_all_present_allows_l7(self) -> None:
-        from core.actuation.actuator_maturity_v1 import (
+        from execution.actuation.actuator_maturity_v1 import (
             ActuatorMaturityLevel,
             maturity_ceiling,
         )
@@ -190,7 +190,7 @@ class TestMaturityCeiling:
 
 class TestMaturityClaimValidation:
     def test_valid_claim(self) -> None:
-        from core.actuation.actuator_maturity_v1 import (
+        from execution.actuation.actuator_maturity_v1 import (
             ActuatorMaturityLevel,
             validate_maturity_claim,
         )
@@ -204,7 +204,7 @@ class TestMaturityClaimValidation:
         assert missing == []
 
     def test_overclaim_rejected(self) -> None:
-        from core.actuation.actuator_maturity_v1 import (
+        from execution.actuation.actuator_maturity_v1 import (
             ActuatorMaturityLevel,
             validate_maturity_claim,
         )
@@ -218,7 +218,7 @@ class TestMaturityClaimValidation:
         assert len(missing) > 0
 
     def test_l0_always_valid(self) -> None:
-        from core.actuation.actuator_maturity_v1 import (
+        from execution.actuation.actuator_maturity_v1 import (
             ActuatorMaturityLevel,
             validate_maturity_claim,
         )
@@ -229,7 +229,7 @@ class TestMaturityClaimValidation:
 
 class TestDryRunCannotClaimL2:
     def test_dry_run_is_l0(self) -> None:
-        from core.actuation.observed_desktop_state_v1 import ObservedDesktopStateV1
+        from execution.actuation.observed_desktop_state_v1 import ObservedDesktopStateV1
 
         obs = ObservedDesktopStateV1(
             chrome_pid=12345,
@@ -237,12 +237,12 @@ class TestDryRunCannotClaimL2:
             focused=True,
             is_dry_run=True,
         )
-        from core.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
+        from execution.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
 
         assert obs.maturity_level == ActuatorMaturityLevel.L0_SIMULATED
 
     def test_dry_run_proof_result_is_simulated(self) -> None:
-        from core.actuation.windows_foreground_actuator_v1 import (
+        from execution.actuation.windows_foreground_actuator_v1 import (
             classify_relay_result,
         )
 
@@ -262,10 +262,10 @@ class TestDryRunCannotClaimL2:
 
 class TestSimulatedMarkedClearly:
     def test_simulated_status_string(self) -> None:
-        from core.actuation.windows_foreground_actuator_v1 import (
+        from execution.actuation.windows_foreground_actuator_v1 import (
             ActuatorProofResult,
         )
-        from core.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
+        from execution.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
 
         r = ActuatorProofResult(
             request_id="test",
@@ -277,10 +277,10 @@ class TestSimulatedMarkedClearly:
         assert r.status == "SIMULATED"
 
     def test_real_actuation_status(self) -> None:
-        from core.actuation.windows_foreground_actuator_v1 import (
+        from execution.actuation.windows_foreground_actuator_v1 import (
             ActuatorProofResult,
         )
-        from core.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
+        from execution.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
 
         r = ActuatorProofResult(
             request_id="test",
@@ -293,10 +293,10 @@ class TestSimulatedMarkedClearly:
         assert r.status == "REAL_ACTUATION"
 
     def test_failed_real_actuation(self) -> None:
-        from core.actuation.windows_foreground_actuator_v1 import (
+        from execution.actuation.windows_foreground_actuator_v1 import (
             ActuatorProofResult,
         )
-        from core.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
+        from execution.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
 
         r = ActuatorProofResult(
             request_id="test",
@@ -310,7 +310,7 @@ class TestSimulatedMarkedClearly:
 
 class TestBackendRegistry:
     def test_registry_loads(self) -> None:
-        from core.actuation.actuator_backend_registry_v1 import (
+        from execution.actuation.actuator_backend_registry_v1 import (
             get_backend_registry,
         )
 
@@ -318,7 +318,7 @@ class TestBackendRegistry:
         assert len(reg.available_backends) >= 6
 
     def test_relay_backend_has_all_capabilities(self) -> None:
-        from core.actuation.actuator_backend_registry_v1 import (
+        from execution.actuation.actuator_backend_registry_v1 import (
             BackendCapability,
             get_backend_registry,
         )
@@ -335,7 +335,7 @@ class TestBackendRegistry:
         assert relay.supports(BackendCapability.PROCESS_DETECTION)
 
     def test_select_for_proof_returns_relay(self) -> None:
-        from core.actuation.actuator_backend_registry_v1 import (
+        from execution.actuation.actuator_backend_registry_v1 import (
             get_backend_registry,
         )
 
@@ -345,7 +345,7 @@ class TestBackendRegistry:
         assert selected.backend_id == "windows_interactive_desktop_relay"
 
     def test_playwright_lacks_hwnd(self) -> None:
-        from core.actuation.actuator_backend_registry_v1 import (
+        from execution.actuation.actuator_backend_registry_v1 import (
             BackendCapability,
             get_backend_registry,
         )
@@ -357,7 +357,7 @@ class TestBackendRegistry:
         assert not pw.supports(BackendCapability.FOREGROUND_DETECTION)
 
     def test_ui_tars_high_security_risk(self) -> None:
-        from core.actuation.actuator_backend_registry_v1 import (
+        from execution.actuation.actuator_backend_registry_v1 import (
             get_backend_registry,
         )
 
@@ -367,7 +367,7 @@ class TestBackendRegistry:
         assert tars.security_risk == "high"
 
     def test_backend_to_dict_serializable(self) -> None:
-        from core.actuation.actuator_backend_registry_v1 import (
+        from execution.actuation.actuator_backend_registry_v1 import (
             get_backend_registry,
         )
 
@@ -379,7 +379,7 @@ class TestBackendRegistry:
 
 class TestProofSummaryIntegrity:
     def test_intended_state_cannot_claim_success(self) -> None:
-        from core.actuation.windows_foreground_actuator_v1 import (
+        from execution.actuation.windows_foreground_actuator_v1 import (
             classify_relay_result,
         )
 
@@ -394,12 +394,12 @@ class TestProofSummaryIntegrity:
             }
         )
         assert not result.succeeded
-        from core.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
+        from execution.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
 
         assert result.maturity_level == ActuatorMaturityLevel.L0_SIMULATED
 
     def test_real_relay_result_classifies_correctly(self) -> None:
-        from core.actuation.windows_foreground_actuator_v1 import (
+        from execution.actuation.windows_foreground_actuator_v1 import (
             classify_relay_result,
         )
 
@@ -443,7 +443,7 @@ class TestProofSummaryIntegrity:
             }
         )
         assert result.succeeded
-        from core.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
+        from execution.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
 
         assert result.maturity_level == ActuatorMaturityLevel.L5_SCREENSHOT_VERIFIED
         assert result.founder_confirmed is False
@@ -509,11 +509,11 @@ class TestCanonicalRegistryInclusion:
 
 class TestProofArtifactPersistence:
     def test_persist_proof_artifacts(self, tmp_path: Path) -> None:
-        from core.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
-        from core.actuation.observed_desktop_state_v1 import (
+        from execution.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
+        from execution.actuation.observed_desktop_state_v1 import (
             ObservedDesktopStateV1,
         )
-        from core.actuation.windows_foreground_actuator_v1 import (
+        from execution.actuation.windows_foreground_actuator_v1 import (
             ActuatorProofResult,
             persist_proof_artifacts,
         )
@@ -555,7 +555,7 @@ class TestProofArtifactPersistence:
         assert summary["phase"] == "96.8AN"
 
     def test_backend_selection_proof(self) -> None:
-        from core.actuation.windows_foreground_actuator_v1 import (
+        from execution.actuation.windows_foreground_actuator_v1 import (
             build_backend_selection_proof,
         )
 
@@ -567,19 +567,19 @@ class TestProofArtifactPersistence:
 
 class TestMaturityLevelOrdering:
     def test_levels_strictly_ordered(self) -> None:
-        from core.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
+        from execution.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
 
         levels = list(ActuatorMaturityLevel)
         for i in range(len(levels) - 1):
             assert levels[i] < levels[i + 1]
 
     def test_all_8_levels_defined(self) -> None:
-        from core.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
+        from execution.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
 
         assert len(ActuatorMaturityLevel) == 8
 
     def test_all_levels_have_labels(self) -> None:
-        from core.actuation.actuator_maturity_v1 import (
+        from execution.actuation.actuator_maturity_v1 import (
             MATURITY_LABELS,
             ActuatorMaturityLevel,
         )
@@ -588,7 +588,7 @@ class TestMaturityLevelOrdering:
             assert level in MATURITY_LABELS
 
     def test_all_levels_have_requirements(self) -> None:
-        from core.actuation.actuator_maturity_v1 import (
+        from execution.actuation.actuator_maturity_v1 import (
             MATURITY_REQUIREMENTS,
             ActuatorMaturityLevel,
         )

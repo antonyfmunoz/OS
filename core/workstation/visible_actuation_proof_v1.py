@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from core.actuation.actuator_maturity_v1 import (
+from execution.actuation.actuator_maturity_v1 import (
 
     MATURITY_LABELS,
     ActuatorMaturityLevel,
@@ -181,7 +181,7 @@ def classify_visible_actuation(
         "replay_hash": "",
     }
 
-    from core.actuation.actuator_maturity_v1 import compute_maturity_level
+    from execution.actuation.actuator_maturity_v1 import compute_maturity_level
 
     raw_level = compute_maturity_level(computed_evidence)
     level = min(raw_level, ceiling)

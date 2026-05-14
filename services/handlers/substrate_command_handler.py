@@ -941,7 +941,7 @@ async def _handle_adapter_report(message: Any, spine: Any) -> None:
                         IngestionLane,
                         EnvironmentMappingEvidence,
                     )
-                    from core.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
+                    from execution.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
 
                     platforms = [
                         DiscoveredPlatform(

@@ -74,7 +74,7 @@ class WorkstationNodeRegistry:
                 "maturity_ceiling_reason": "relay_offline",
             }
 
-        from core.actuation.actuator_maturity_v1 import (
+        from execution.actuation.actuator_maturity_v1 import (
             ActuatorMaturityLevel,
             maturity_ceiling,
         )

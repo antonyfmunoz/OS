@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
-from core.actuation.actuator_maturity_v1 import (
+from .actuator_maturity_v1 import (
     ActuatorMaturityLevel,
     compute_maturity_level,
     maturity_ceiling,
@@ -77,7 +77,7 @@ class ObservedDesktopStateV1:
 
     @property
     def maturity_label(self) -> str:
-        from core.actuation.actuator_maturity_v1 import MATURITY_LABELS
+        from .actuator_maturity_v1 import MATURITY_LABELS
 
         return MATURITY_LABELS[self.maturity_level]
 

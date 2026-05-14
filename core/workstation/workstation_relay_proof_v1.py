@@ -14,13 +14,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from core.actuation.actuator_maturity_v1 import (
+from execution.actuation.actuator_maturity_v1 import (
     MATURITY_LABELS,
     ActuatorMaturityLevel,
     compute_maturity_level,
     maturity_ceiling,
 )
-from core.actuation.observed_desktop_state_v1 import (
+from execution.actuation.observed_desktop_state_v1 import (
 
     ObservedDesktopStateV1,
     from_relay_result,

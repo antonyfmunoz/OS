@@ -43,7 +43,7 @@ from core.workstation.foreground_cu_ingestion_execution_v1 import (
     ingestion_maturity_ceiling,
     persist_cu_ingestion_proof,
 )
-from core.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
+from execution.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
 
 
 def _full_evidence(**overrides: object) -> CUIngestionEvidence:

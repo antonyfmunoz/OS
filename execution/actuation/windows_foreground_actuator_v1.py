@@ -25,19 +25,19 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from core.actuation.actuator_backend_registry_v1 import (
+from .actuator_backend_registry_v1 import (
     ActuatorBackendRegistry,
     BackendCapability,
     get_backend_registry,
 )
-from core.actuation.actuator_maturity_v1 import (
+from .actuator_maturity_v1 import (
     MATURITY_LABELS,
     ActuatorMaturityLevel,
     compute_maturity_level,
     maturity_ceiling,
     validate_maturity_claim,
 )
-from core.actuation.observed_desktop_state_v1 import (
+from .observed_desktop_state_v1 import (
     ObservedDesktopStateV1,
     from_relay_result,
 )
