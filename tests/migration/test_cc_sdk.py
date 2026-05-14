@@ -12,7 +12,7 @@ import pytest
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or "/opt/OS")
 
-from runtime.cc_sdk import (
+from adapters.model_adapters.cc_sdk import (
     DEFAULT_TIMEOUT_SECONDS,
     _find_ancestor_oauth,
     _get_subprocess_env,
@@ -118,7 +118,7 @@ class TestOAuthDiscovery:
 
 class TestSubprocessEnv:
     def test_blanks_anthropic_api_key(self):
-        import runtime.cc_sdk as cc_mod
+        import adapters.model_adapters.cc_sdk as cc_mod
 
         old_cached = cc_mod._cached_oauth
         try:
@@ -129,7 +129,7 @@ class TestSubprocessEnv:
             cc_mod._cached_oauth = old_cached
 
     def test_injects_oauth_token(self):
-        import runtime.cc_sdk as cc_mod
+        import adapters.model_adapters.cc_sdk as cc_mod
 
         old_cached = cc_mod._cached_oauth
         try:

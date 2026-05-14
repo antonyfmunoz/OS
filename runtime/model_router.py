@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
-from runtime.cc_sdk import query_cc_sync, CCResult
+from adapters.model_adapters.cc_sdk import query_cc_sync, CCResult
 
 # Load .env so GEMINI_API_KEY is available when model_router is used standalone
 # (agent_runtime does this too — safe to call twice, dotenv is idempotent)

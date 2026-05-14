@@ -10,7 +10,7 @@ model_router can call, alongside Gemini, Ollama, etc.
 Timeout: default 120s, override via CC_SDK_TIMEOUT_SECONDS env var.
 
 Usage:
-    from runtime.cc_sdk import query_cc_sync
+    from adapters.model_adapters.cc_sdk import query_cc_sync
 
     result = query_cc_sync("Analyze this business situation")
     if result:

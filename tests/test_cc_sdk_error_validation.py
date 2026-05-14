@@ -7,7 +7,7 @@ import pytest
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or "/opt/OS")
 
-from runtime.cc_sdk import _is_error_leak
+from adapters.model_adapters.cc_sdk import _is_error_leak
 
 
 ANTHROPIC_AUTH_ERROR = (

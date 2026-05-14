@@ -68,7 +68,7 @@ class EOSSystemHealth:
                 MODEL_REGISTRY,
                 ModelProvider,
             )
-            from runtime.cc_sdk import query_cc_sync
+            from adapters.model_adapters.cc_sdk import query_cc_sync
 
             # Check cc_sdk availability (cheapest check — just import)
             if query_cc_sync is not None:
