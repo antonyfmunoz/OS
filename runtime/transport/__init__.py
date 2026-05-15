@@ -1,63 +1,28 @@
 """
-runtime.transport — Lazy-import package.
+runtime.transport → execution.transport shim.
 
-All symbols are available via ``from runtime.transport import X`` or
-``from runtime.transport.submodule import Y``. Submodules are loaded
-on first access (PEP 562 __getattr__), not at package import time.
-
-Post-orphan-archive (2026-05-14): 148 modules archived. Only 15
-production-reachable modules remain (4 registered here for
-package-level symbol access).
+Canonical location: execution/transport/ (§24 migration, 2026-05-14).
+This shim delegates all attribute access to the canonical package.
 """
 
 from __future__ import annotations
 
 import importlib
-import logging
 from typing import Any
-
-_log = logging.getLogger(__name__)
-
-# ── Symbol → (submodule, attribute) mapping ───────────────────────────
-
-_LAZY_MAP: dict[str, tuple[str, str]] = {}
-
-
-def _m(submodule: str, *names: str) -> None:
-    """Register symbols from a submodule for lazy import."""
-    for name in names:
-        _LAZY_MAP[name] = (f"runtime.transport.{submodule}", name)
-
-
-# ── Production modules with package-level symbol access ──────────────
-
-_m("storage", "SubstrateStorage", "JSONFileStorage", "NeonStorage", "get_storage")
-_m("capability_tagging", "tag_request")
-_m("station_daemon", "StationDaemon")
-_m(
-    "station_helpers",
-    "propose_play_sound",
-    "propose_speak_text",
-    "propose_open_url",
-    "propose_launch_app",
-    "propose_open_scene",
-)
-
-
-# ── PEP 562 lazy loader ─────────────────────────────────────────────
 
 
 def __getattr__(name: str) -> Any:
-    if name in _LAZY_MAP:
-        module_path, attr = _LAZY_MAP[name]
-        mod = importlib.import_module(module_path)
-        value = getattr(mod, attr)
-        globals()[name] = value
-        return value
+    import execution.transport as _canonical
+
+    try:
+        return getattr(_canonical, name)
+    except AttributeError:
+        pass
+
+    try:
+        mod = importlib.import_module(f"execution.transport.{name}")
+        return mod
+    except ImportError:
+        pass
 
     raise AttributeError(f"module 'runtime.transport' has no attribute {name!r}")
-
-
-# ── __all__ ──────────────────────────────────────────────────────────
-
-__all__ = list(_LAZY_MAP.keys())
