@@ -31,7 +31,7 @@ import time
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from runtime.transport import meeting_intelligence as mi  # noqa: E402
+from execution.transport import meeting_intelligence as mi  # noqa: E402
 
 
 class _FakeResult:
@@ -49,7 +49,7 @@ def _force_model_failure() -> None:
 
 
 def _stub_speak() -> list[dict]:
-    import runtime.transport.station_helpers as sh
+    import execution.transport.station_helpers as sh
 
     calls: list[dict] = []
 

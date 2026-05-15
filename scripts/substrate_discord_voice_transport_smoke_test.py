@@ -29,11 +29,11 @@ import sys
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from runtime.transport.audio_loop import (  # noqa: E402
+from execution.transport.audio_loop import (  # noqa: E402
     get_audio_loop_store,
     reset_audio_loop_store_for_tests,
 )
-from runtime.transport.discord_voice_transport import (  # noqa: E402
+from execution.transport.discord_voice_transport import (  # noqa: E402
     DiscordVoiceTransport,
     get_default_discord_voice_transport,
     get_transport_history,
@@ -41,9 +41,9 @@ from runtime.transport.discord_voice_transport import (  # noqa: E402
     reset_default_discord_voice_transports_for_tests,
     reset_transport_history_for_tests,
 )
-from runtime.transport.station_bus import get_station_bus  # noqa: E402
-from runtime.transport.station_daemon import StationDaemon  # noqa: E402
-from runtime.transport.voice_session import (  # noqa: E402
+from execution.transport.station_bus import get_station_bus  # noqa: E402
+from execution.transport.station_daemon import StationDaemon  # noqa: E402
+from execution.transport.voice_session import (  # noqa: E402
     VoiceSessionStatus,
     VoiceTurnSource,
     get_voice_session_store,

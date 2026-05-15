@@ -49,7 +49,7 @@ def _print_json(obj) -> None:
 
 
 def _transport(args: argparse.Namespace):
-    from runtime.transport.discord_voice_transport import (
+    from execution.transport.discord_voice_transport import (
         get_default_discord_voice_transport,
     )
 
@@ -93,7 +93,7 @@ def cmd_end(args: argparse.Namespace) -> int:
 
 
 def cmd_report(args: argparse.Namespace) -> int:
-    from runtime.transport.discord_voice_transport import get_transport_history
+    from execution.transport.discord_voice_transport import get_transport_history
 
     rows = get_transport_history().latest(limit=args.limit, node_id=args.node)
     _print_json([r.as_dict() for r in rows])
@@ -146,7 +146,7 @@ def cmd_play(args: argparse.Namespace) -> int:
 
 
 def cmd_playback_status(args: argparse.Namespace) -> int:
-    from runtime.transport.discord_voice_playback import (
+    from execution.transport.discord_voice_playback import (
         get_playback_history,
         probe_playback_capability,
     )

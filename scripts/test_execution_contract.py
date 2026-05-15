@@ -12,7 +12,7 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 from core.execution_contract import run_task
 from state.storage.db import get_conn, ORG_ID
-from runtime.transport.execution_trace import get_trace_history
+from execution.transport.execution_trace import get_trace_history
 
 
 def main() -> None:

@@ -23,7 +23,7 @@ import sys
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from runtime.transport.local_listener import (  # noqa: E402
+from execution.transport.local_listener import (  # noqa: E402
     LocalListener,
     LocalTrigger,
     TriggerKind,
@@ -31,10 +31,10 @@ from runtime.transport.local_listener import (  # noqa: E402
     get_trigger_history,
     listener_report,
 )
-from runtime.transport.nodes import NodeRegistry, NodeStatus  # noqa: E402
-from runtime.transport.rituals import RitualKind, RitualRegistry  # noqa: E402
-from runtime.transport.station_bus import get_station_bus  # noqa: E402
-from runtime.transport.station_daemon import StationDaemon  # noqa: E402
+from execution.transport.nodes import NodeRegistry, NodeStatus  # noqa: E402
+from execution.transport.rituals import RitualKind, RitualRegistry  # noqa: E402
+from execution.transport.station_bus import get_station_bus  # noqa: E402
+from execution.transport.station_daemon import StationDaemon  # noqa: E402
 
 TEST_NODE = "smoketest-local-listener"
 GHOST_NODE = "smoketest-ghost-never-registered"

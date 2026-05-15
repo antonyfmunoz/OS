@@ -39,8 +39,8 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-from runtime.transport import meeting_intelligence as mi  # noqa: E402
-from runtime.transport import operator_interface as oi  # noqa: E402
+from execution.transport import meeting_intelligence as mi  # noqa: E402
+from execution.transport import operator_interface as oi  # noqa: E402
 
 HOT_PATH_FILES = (
     "control_plane/runtime/gateway.py",

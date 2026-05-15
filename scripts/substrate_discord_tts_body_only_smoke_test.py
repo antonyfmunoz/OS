@@ -26,15 +26,15 @@ import sys
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from runtime.transport import discord_text_transport as dtt  # noqa: E402
-from runtime.transport.discord_text_transport import (  # noqa: E402
+from execution.transport import discord_text_transport as dtt  # noqa: E402
+from execution.transport.discord_text_transport import (  # noqa: E402
     build_tts_reply_envelope,
     maybe_mirror_discord_text_message,
     pseudo_live_status,
     reset_backend_state_for_tests,
     reset_text_history_for_tests,
 )
-from runtime.transport.tts_sanitize import sanitize_tts_reply  # noqa: E402
+from execution.transport.tts_sanitize import sanitize_tts_reply  # noqa: E402
 
 TEST_GUILD = "bo-guild"
 TEST_CHANNEL = "bo-channel"
@@ -117,7 +117,7 @@ class _FakeResponderOK:
 
 
 def _install_fake_responder(reply: str) -> None:
-    import runtime.transport.claude_responder as cr
+    import execution.transport.claude_responder as cr
 
     cr.respond_via_claude_session = _FakeResponderOK(reply)  # type: ignore[assignment]
 

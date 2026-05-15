@@ -22,7 +22,7 @@ import uuid
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from runtime.transport import claude_session_bridge as csb  # noqa: E402
+from execution.transport import claude_session_bridge as csb  # noqa: E402
 
 FAILURES: list[str] = []
 
@@ -37,7 +37,7 @@ def check(name: str, cond: bool, detail: str = "") -> None:
 
 def _hotpath_clean() -> bool:
     """Verify the bridge module does NOT import any hot-path module."""
-    import runtime.transport.claude_session_bridge as m
+    import execution.transport.claude_session_bridge as m
 
     forbidden = {
         "control_plane.runtime.gateway",
@@ -190,7 +190,7 @@ def main() -> int:
 
     finally:
         # Teardown: kill the test session if it exists
-        from runtime.transport.claude_session_bridge import _run_tmux
+        from execution.transport.claude_session_bridge import _run_tmux
 
         _run_tmux(["kill-session", "-t", session])
 

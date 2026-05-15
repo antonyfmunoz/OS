@@ -98,7 +98,7 @@ class _CCSDKFake:
 def _install_claude_responder(fake) -> None:
     # The router imports claude_responder lazily inside call_with_fallback,
     # so patching via sys.modules works. Easiest: inject a shim module.
-    import runtime.transport.claude_responder as cr
+    import execution.transport.claude_responder as cr
 
     cr.respond_via_claude_session = fake  # type: ignore[assignment]
     cr.DEFAULT_TARGET = "vps"
