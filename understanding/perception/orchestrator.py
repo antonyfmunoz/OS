@@ -1,7 +1,7 @@
 """GenericIngestionOrchestrator — source-agnostic canonical pipeline.
 
 Sequences: perceive → interpret → decompose → bridge → map → persist → query.
-Uses existing contract classes from core.ontology and runtime.transport.
+Uses existing contract classes from core.ontology and execution.transport.
 No source-specific logic inside — source abstraction handles that.
 """
 
@@ -29,7 +29,7 @@ from understanding.domains.contract import DomainProjection
 from understanding.domains.registry import default_registry as _bridge_registry
 from governance.policy.authority_tier import T5_DEFAULT, get_authority_tier
 from understanding.perception.source import RawContent, Source
-from runtime.transport.memory_scope_contracts import (
+from execution.transport.memory_scope_contracts import (
     MemoryScope,
     MemoryScopeAssignment,
     PromotionPath,

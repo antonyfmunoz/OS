@@ -145,7 +145,7 @@ class ExecutionSpine:
         # 4. Session persistence — channel_id → session_id mapping
         if channel_id:
             try:
-                from runtime.transport.storage import get_storage
+                from execution.transport.storage import get_storage
                 store = get_storage()
                 store.put(f"session:{channel_id}", session_id)
             except Exception as e:

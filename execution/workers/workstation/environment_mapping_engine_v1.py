@@ -32,7 +32,7 @@ from execution.actuation.actuator_maturity_v1 import (
     MATURITY_LABELS,
     ActuatorMaturityLevel,
 )
-from runtime.transport.memory_scope_contracts import MemoryScope
+from execution.transport.memory_scope_contracts import MemoryScope
 import os
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 

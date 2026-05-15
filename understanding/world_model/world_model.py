@@ -34,7 +34,7 @@ class WorldModelEntry:
 
 class CanonicalWorldModel:
     def __init__(self):
-        from runtime.transport.storage import get_storage
+        from execution.transport.storage import get_storage
         self._store = get_storage()
 
     def _key(self, entry_type: str, entry_id: str) -> str:
@@ -87,7 +87,7 @@ class CanonicalWorldModel:
 class InstanceWorldModel:
     def __init__(self, org_id: str):
         self.org_id = org_id
-        from runtime.transport.storage import get_storage
+        from execution.transport.storage import get_storage
         self._store = get_storage()
 
     def _key(self, entry_type: str, entry_id: str) -> str:

@@ -619,7 +619,7 @@ class EOSGateway:
         # and future capability-aware routing can see what was needed.
         # NEVER raises — tag_request swallows and logs internally.
         try:
-            from runtime.transport.capability_tagging import tag_request
+            from execution.transport.capability_tagging import tag_request
 
             tag_request(request)
         except Exception as _cap_e:

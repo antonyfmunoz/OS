@@ -29,7 +29,7 @@ if _REPO_ROOT not in sys.path:
 
 from state.context.context import load_context_from_env, EOSContext
 from state.storage.db import get_conn, ORG_ID
-from runtime.transport.execution_trace import (
+from execution.transport.execution_trace import (
     new_trace,
     update_trace,
     finalize_trace,

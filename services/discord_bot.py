@@ -93,29 +93,29 @@ from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
 from execution.voice.voice_engine import VoiceEngine
 from state.business.business_instance import get_ai_name
 from interface.discord.discord_utils import chunk_message, post_to_webhook
-from runtime.transport.session_discord_bridge import send_reply as _send_reply
-from runtime.transport.discord_text_transport import (
+from execution.transport.session_discord_bridge import send_reply as _send_reply
+from execution.transport.discord_text_transport import (
     maybe_mirror_discord_text_message as _maybe_pseudo_live_text,
 )
 
 # Graceful import for substrate modules that may not exist yet
 try:
-    from runtime.transport.message_framing import get_inbound_buffer
+    from execution.transport.message_framing import get_inbound_buffer
 except ImportError:
     get_inbound_buffer = None
 
-from runtime.transport.event_spine import (
+from execution.transport.event_spine import (
     EventType as _FrameEventType,
     create_event as _frame_create_event,
 )
 
 try:
-    from runtime.transport.event_store import get_event_store as _frame_get_event_store
+    from execution.transport.event_store import get_event_store as _frame_get_event_store
 except ImportError:
     _frame_get_event_store = None
 
 try:
-    from runtime.transport.interaction_archive import (
+    from execution.transport.interaction_archive import (
         archive_inbound as _archive_inbound,
         Interface as _ArchiveInterface,
     )
@@ -131,7 +131,7 @@ except ImportError:
 # multiple times. The substrate architecture is preserved — we are only
 # replacing the pluggable responder hook the substrate already exposes.
 try:
-    from runtime.transport.voice_eos_responder import (
+    from execution.transport.voice_eos_responder import (
         install_default_eos_voice_responder as _install_voice_router_responder,
         is_eos_voice_responder_installed as _is_voice_router_responder_installed,
     )
@@ -392,7 +392,7 @@ def _run_day_command(
     continuity_text: str | None = None,
 ) -> dict:
     try:
-        from runtime.transport.day_workflows import close_day, open_day
+        from execution.transport.day_workflows import close_day, open_day
 
         if cmd == "open_day":
             return open_day(
@@ -870,7 +870,7 @@ async def start_meeting_mode(
     _active_meeting["notes"] = []
     _active_meeting["key_points"] = []
     try:
-        from runtime.transport.storage import get_storage
+        from execution.transport.storage import get_storage
 
         get_storage().put("active_meeting", dict(_active_meeting))
     except Exception:
@@ -945,7 +945,7 @@ async def end_active_meeting(channel=None) -> None:
     _active_meeting["notes"] = []
     _active_meeting["key_points"] = []
     try:
-        from runtime.transport.storage import get_storage
+        from execution.transport.storage import get_storage
 
         get_storage().put("active_meeting", dict(_active_meeting))
     except Exception:
@@ -1024,7 +1024,7 @@ async def on_ready():
 
     # ── Restore persisted session state from SubstrateStorage ──────────
     try:
-        from runtime.transport.storage import get_storage
+        from execution.transport.storage import get_storage
 
         _store = get_storage()
         _restored = 0
@@ -1088,8 +1088,8 @@ async def on_ready():
     # permission requests, questions).  SessionDiscordBridge renders them
     # as interactive Discord messages with buttons.
     try:
-        from runtime.transport.session_discord_bridge import get_bridge
-        from runtime.transport.session_watcher import start_watcher
+        from execution.transport.session_discord_bridge import get_bridge
+        from execution.transport.session_watcher import start_watcher
 
         bridge = get_bridge()
         bridge.set_bot(bot)
@@ -1102,7 +1102,7 @@ async def on_ready():
 
     # ── Start Station Daemon (background heartbeat loop) ─────────────────
     try:
-        from runtime.transport.station_daemon import start_station_daemon
+        from execution.transport.station_daemon import start_station_daemon
 
         start_station_daemon()
         print("[Discord] Station daemon started")
@@ -1289,7 +1289,7 @@ async def _listen_loop(
             # voice_session / audio_loop / SPEAK_TEXT alongside the existing
             # gateway routing. Never raises. Returns None when disabled.
             try:
-                from runtime.transport.discord_voice_transport import (
+                from execution.transport.discord_voice_transport import (
                     maybe_mirror_discord_utterance,
                 )
 
@@ -1774,7 +1774,7 @@ async def on_message(message: discord.Message):
     # When disabled (default), falls through to the existing CC/PseudoLive chain.
     _orch_handled = False
     try:
-        from runtime.transport.discord_ingress_adapter import ingest_and_emit
+        from execution.transport.discord_ingress_adapter import ingest_and_emit
 
         _orch_result = ingest_and_emit(
             text=text,
@@ -1792,7 +1792,7 @@ async def on_message(message: discord.Message):
             )
             # Structured trace reply (best-effort)
             try:
-                from runtime.transport.operator_trace import (
+                from execution.transport.operator_trace import (
                     OperatorTrace,
                     format_trace_for_discord,
                 )
@@ -1907,7 +1907,7 @@ async def on_message(message: discord.Message):
                     # Hard guard: drop if lifecycle is sealed
                     _pl_terminal = False
                     try:
-                        from runtime.transport.run_lifecycle import (
+                        from execution.transport.run_lifecycle import (
                             is_run_terminally_finalized as _pl_term_check,
                         )
 
@@ -1924,7 +1924,7 @@ async def on_message(message: discord.Message):
                     if not _pl_terminal:
                         try:
                             _pl_session = _pl_fin.get("source_session", "")
-                            from runtime.transport.run_lifecycle import (
+                            from execution.transport.run_lifecycle import (
                                 propose_run_completion as _pl_propose,
                             )
 
@@ -1939,7 +1939,7 @@ async def on_message(message: discord.Message):
                             if not _pl_proposal.accepted:
                                 print(f"[PseudoLive] Proposal rejected: {_pl_proposal.reason}")
                             else:
-                                from runtime.transport.task_finalization import (
+                                from execution.transport.task_finalization import (
                                     finalize_completed_task as _pl_finalize,
                                 )
 
@@ -1965,7 +1965,7 @@ async def on_message(message: discord.Message):
                 _tts_role = _deferred.get("role_slug") or "ea_orchestrator"
                 if _tts_node and _tts_text:
                     try:
-                        from runtime.transport.station_helpers import propose_speak_text
+                        from execution.transport.station_helpers import propose_speak_text
 
                         propose_speak_text(
                             _tts_node,
@@ -2561,7 +2561,7 @@ async def cmd_answer(ctx: commands.Context, session_name: str, *, text: str):
         await ctx.reply("Founder only.")
         return
     try:
-        from runtime.transport.session_discord_bridge import get_bridge
+        from execution.transport.session_discord_bridge import get_bridge
 
         result = await get_bridge().handle_answer_command(session_name, text)
         await ctx.reply(result)
@@ -2578,13 +2578,13 @@ async def cmd_watcher_status(ctx: commands.Context):
     try:
         import time as _time
 
-        from runtime.transport.session_watcher import _WATCHERS, _WATCHERS_LOCK
+        from execution.transport.session_watcher import _WATCHERS, _WATCHERS_LOCK
 
         with _WATCHERS_LOCK:
             if not _WATCHERS:
                 await ctx.reply("No watchers running.")
                 return
-            from runtime.transport.discord_output_policy import get_display_name
+            from execution.transport.discord_output_policy import get_display_name
 
             lines = []
             for name, w in _WATCHERS.items():
@@ -5167,7 +5167,7 @@ async def cmd_agent_results(ctx: commands.Context):
 async def cmd_trace(ctx: commands.Context, limit: int = 5):
     """Show recent execution traces (builder mode only)."""
     try:
-        from runtime.transport.discord_mode_routing import resolve_discord_mode
+        from execution.transport.discord_mode_routing import resolve_discord_mode
 
         gid = str(ctx.guild.id) if ctx.guild else None
         cid = str(ctx.channel.id)
@@ -5177,7 +5177,7 @@ async def cmd_trace(ctx: commands.Context, limit: int = 5):
             await ctx.reply("Trace output is not available in product mode.")
             return
 
-        from runtime.transport.execution_trace import (
+        from execution.transport.execution_trace import (
             format_trace_compact,
             get_trace_history,
         )
