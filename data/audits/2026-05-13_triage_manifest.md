@@ -8,6 +8,59 @@
 
 ---
 
+## CLOSURE SUMMARY — 2026-05-14
+
+**Status: ALL SUBSTANTIVE THREADS CLOSED.**
+
+| Metric | Value |
+|--------|-------|
+| Timeline | 2026-05-13 → 2026-05-14 (2 days) |
+| Total commits | 124 |
+| Threads opened | 12 |
+| Threads closed | 11 |
+| Threads deferred | 1 (Law 5.4 type convergence — NO_EQUIVALENT) |
+| Raw SQL sites fixed | 54 (Law 5.5, 3 tiers) |
+| Adapters refactored | 2 (Law 5.9) |
+| Modules relocated | 68 (transport → execution/transport/) |
+| Modules archived | 110+ (dead code, orphans, scaffold) |
+| Dead-code modules removed | 15 (runtime/) |
+| Cron entries audited | 33 (22 clean, 2 fixed, 1 obsolete) |
+| Net LOC change | −286 (adoption > creation) |
+| Test baseline | 4082 passed / 34 skipped / 3 xfail (unchanged) |
+| Production container | os-discord verified cold-start clean |
+
+**Closed threads:**
+1. Runtime layer classification (Row 88) — 23 FREE / 37 GATED / 32 SPINE
+2. Law 5.5 Tier 1 — 46 sites adopted
+3. Law 5.5 Tier 2 — 5 sites adopted (JSONB, upsert patterns)
+4. Law 5.5 Tier 3 — 3 sites adopted (race condition fixes)
+5. Law 5.5 SkillStore — sync_skills_to_neon.py adopted
+6. Phase B context.py — hub eliminated, shim deleted
+7. Phase C runtime layer — 23 modules relocated
+8. Cleanup sweep — 5 sub-threads (dead code, generators, scripts, shim)
+9. Transport orphan archive — 95 modules archived
+10. Transport §24 migration — 68 modules to execution/transport/
+11. Law 5.9 adapter refactor — 2 ADAPTER + 4 INTERNAL_WORKER classified
+12. Cron script migration — 22 clean, 2 fixed, crontab corrected
+
+**Remaining (non-substantive):**
+- Law 5.4 type convergence: CLOSED-DEFERRED (all 6 types are NO_EQUIVALENT)
+- runtime/ingestion/: active canonical pipeline (not a migration target)
+- runtime/domain_bridge/: active domain projection (not a migration target)
+- runtime/interfaces/: active adapter (2 files, not a migration target)
+- runtime/substrate/: internal re-exports mapping to execution/transport/
+
+**Engineering artifacts produced:**
+- 22 audit documents in data/audits/
+- 10 consolidation principles (Appendix C of synthesis)
+- 4 decision records (Phase B, Law 5.5 design, Law 5.9 classification, transport)
+- Transport package decision record
+- Updated §34-§37 status classifications
+
+**Next phase:** OG build sequence resumption (Initiate Arena outreach).
+
+---
+
 ## Executive Summary
 
 | Label | Subsystems | Files | LOC |

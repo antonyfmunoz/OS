@@ -1605,6 +1605,9 @@ Tab 12 calls this "the MOST important missing section" because without it, hallu
 - UserPromptSubmit hook capture (scripts/user_prompt_capture.py, .claude/settings.json hook configured, 453 conversation files captured)
 - Full ingestion system — GenericIngestionOrchestrator + LocalFileSource + GWSSource + BusinessBridge (1,000+ LOC running in production)
 - Multi-Model Routing across Claude/GPT/Gemini/local (1,000+ LOC in model_router.py, cc_sdk→Gemini→Groq→Ollama fallback chain)
+- Transport §24 migration — 68 modules relocated to `execution/transport/`, 11 PROD callers updated, Docker-tested cold-start, thin shim at old path (2026-05-14)
+- Law 5.5 memory API canonical enforcement — 54 raw-SQL sites migrated to AgentMemory/ConversationMemory stores across 3 tiers (2026-05-14)
+- Cron operational reliability — 22/24 scripts verified CLEAN, 2 fixed (broken .env paths + moved modules), crontab audited and corrected (2026-05-14)
 
 ## 35. Partially Proven `PARTIAL`
 
@@ -1614,6 +1617,7 @@ Tab 12 calls this "the MOST important missing section" because without it, hallu
 - Subprocess lifecycle management (4GB swapfile + management works, but spawning cap is still a manual ceiling)
 - Composition Engine — partial implementation; not yet the canonical 15-step engine from §11.6
 - World Model — partial implementation; some entity/fact tables exist; not yet the full §10.1 structure
+- Law 5.9 adapter contract — 2 of 6 identified adapters refactored to translate_request/normalize_result; 4 classified as INTERNAL_WORKER (out of scope) (2026-05-14)
 
 ## 36. Unverified `PARTIAL`
 
@@ -1840,6 +1844,154 @@ planning:
 - §24 architectural gap: ~52K LOC of operator tooling
   (scripts/) has no formal §24 layer. Salience pipeline is
   one example; likely others.
+
+### 2026-05-14 — Post-Consolidation Reclassifications
+
+Triggered by substrate consolidation arc completion (all substantive
+threads closed). Full audit trail: data/audits/2026-05-13_triage_manifest.md
+
+Three promotions to §34 (PROVEN):
+- Transport §24 migration: 68 modules at `execution/transport/`, Docker
+  cold-start verified, 11 PROD + 45 smoke callers updated
+- Law 5.5 memory API adoption: 54 raw-SQL sites → canonical stores
+  (3 tiers, net −286 LOC, zero new abstractions)
+- Cron operational reliability: 22 scripts verified, 2 fixed, crontab
+  corrected (broken paths exposed by audit)
+
+One addition to §35 (PARTIAL):
+- Law 5.9 adapter contract: 2 adapters refactored, 4 classified as
+  INTERNAL_WORKER (not subject to adapter contract per audit-before-
+  refactor principle P2)
+
+Pattern confirmed (4th instance): code advances, classification doesn't.
+Status sections require periodic reconciliation with implementation
+reality.
+
+### 2026-05-14 — Consolidation Principles
+
+Ten engineering principles discovered during the substrate consolidation
+arc (Phase A through Transport §24 migration). Each emerged from a
+specific failure or optimization and applies to all future migration,
+refactoring, and infrastructure work.
+
+#### P1. Env-var-based roots over \_\_file\_\_-relative paths
+
+Modules using `os.path.dirname(__file__)` to locate sibling files (e.g.,
+`.env`) silently break when relocated. Use an env-var anchor (`UMH_ROOT`,
+`_REPO_ROOT`) with a sensible `os.getenv(..., '/opt/OS')` default.
+
+*Discovered:* Phase B `context.py` migration + Cron audit
+(`nightly_maintenance.sh` hard-coded `/opt/OS/runtime/.env`).
+*Why it matters:* Every future §24 migration moves files. Path-relative
+code creates invisible breakage at every move.
+
+#### P2. Audit-before-refactor as a hard safety gate
+
+When a refactor scope assumes "N items need X treatment," classify each
+item first. The classification frequently surfaces in-scope vs
+out-of-scope distinctions that would cause misapplication if skipped.
+
+*Discovered:* Law 5.4 reframe (spine infrastructure types ≠ canonical
+protocol types → NO_EQUIVALENT classification) + Law 5.9 ADAPTER vs
+INTERNAL_WORKER classification (4 of 6 files were workers, not adapters).
+*Why it matters:* Prevents wasted refactoring effort and incorrect
+abstraction application.
+
+#### P3. AST-based transitive closure for archive boundary determination
+
+Direct caller analysis (grep on imports) misses dependencies hidden in
+`__init__.py` registrations and import-time side effects. Use AST to
+compute transitive closure before declaring modules archive-safe.
+
+*Discovered:* Transport orphan archive — caught 53 hidden dependencies
+via transitive closure, saving 15 PROD modules from silent breakage.
+*Why it matters:* A single missed transitive dependency can break
+production after what appeared to be a safe archive operation.
+
+#### P4. Dead-code amplification
+
+Dead code holds dependency edges. Archive dead code FIRST, then re-check
+what gates clear automatically. This avoids editing files that are about
+to be deleted.
+
+*Discovered:* Cleanup sweep — 15 dead-code archives unblocked the Phase B
+`context.py` shim deletion (Thread 5: 7 of its last callers were
+dead-code modules).
+*Why it matters:* Ordering archive-before-refactor reduces total work and
+eliminates throwaway edits.
+
+#### P5. Suppress-and-skip patterns hide regressions
+
+Shell patterns like `|| exit 0` combined with `2>/dev/null` silently mask
+failures. A nightly cron job had been silently failing for the entire
+post-migration period because the script it called was moved but the
+error was swallowed.
+
+*Discovered:* Cron migration audit (`nightly_maintenance.sh` silently
+failing; `11pm_email_reviewer` referencing a moved module).
+*Why it matters:* Silent failures compound. Audit shell wrappers for
+stderr-swallowed exits during any migration.
+
+#### P6. Adoption over creation as highest-ROI principle
+
+When a canonical API already exists, the highest-ROI migration work is
+wiring it into the call sites that grew their own duplicates. Tier 1
+Law 5.5 closed 46 raw-SQL sites with zero new abstractions, net −286
+lines of code.
+
+*Discovered:* Phase A Tier 1 (Law 5.5 memory API adoption).
+*Why it matters:* Resist the urge to build new abstractions when the
+existing canonical path just needs callers redirected to it.
+
+#### P7. Atomic Postgres patterns beat read-modify-write
+
+`SELECT → mutate-in-Python → UPDATE` is a code smell. Postgres native
+operators (`||` for JSONB merge, `ON CONFLICT` for upsert) eliminate
+both round-trips and race conditions.
+
+*Discovered:* Phase A Tier 2 (`merge_event_payload` JSONB merge) and
+Tier 3 (`knowledge_domains.py` + `research_engine.py` race condition
+fixes via `ON CONFLICT`).
+*Why it matters:* Every read-modify-write is a latent race condition
+under concurrent access.
+
+#### P8. Per-X commits yield to independent-validity
+
+"One commit per store/module" is a default heuristic, not a constraint.
+When two stores serve a single caller, combining their commit is correct
+because separate commits leave broken intermediate states.
+
+*Discovered:* Phase A Tier 3 (`PermissionStore` + `ProfileStore`
+co-committed because `os_trinity.py` called both; splitting would
+leave one adopted and one raw-SQL in between commits).
+*Why it matters:* The real constraint is "every commit compiles and
+passes tests," not "every commit touches exactly one file."
+
+#### P9. Scripts over inline Python in crontab entries
+
+Inline Python one-liners in crontab silently break when their referenced
+modules change. Cron entries should reference scripts that can be tested
+in isolation and that surface import errors at invocation time.
+
+*Discovered:* Cron migration (11pm email reviewer one-liner referencing
+a renamed module — failure swallowed by shell redirect).
+*Why it matters:* Testable scripts expose breakage; inline one-liners
+bury it in cron's stderr blackhole.
+
+#### P10. Container rebuild simulation vs stale pycache reliance
+
+Running production processes can hold `.pyc` files in memory for modules
+whose `.py` source has been deleted. A container rebuild regenerates
+pycache from source and exposes the breakage. ALWAYS clear `__pycache__`
+and do a fresh-import of production entry points after any migration
+affecting production code.
+
+*Discovered:* Transport §24 migration — `discord_bot.py` passed import
+checks but Docker restart revealed the pre-existing
+`control_plane/runtime/` namespace collision that stale pycache had
+been masking.
+*Why it matters:* Migration correctness requires testing from cold
+state, not warm cache.
 
 -----
 
