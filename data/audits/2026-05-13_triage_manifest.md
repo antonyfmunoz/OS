@@ -1036,7 +1036,7 @@ interface/
 | Transport `__init__.py` rewrite | Rows 75, 76, 60 | `__init__.py` hard-imports 30 modules | Dedicated Wave 0.5: rewrite with lazy imports, then archive orphans |
 | Law 5.9 adapter refactor | 6 files in execution/workers/workstation/ | §14.1 contract adoption | Dedicated pass after all relocations |
 | Law 5.5 memory write fixes | ~46 files across codebase | memory.py API extension | Row 88 prerequisite (manifest step 3.6) |
-| Cron script migration | 23 files in scripts/ | Crontab path updates | System-level coordination (Row 71) |
+| ~~Cron script migration~~ | ~~23 files~~ | ~~Crontab path updates~~ | ~~CLOSED 2026-05-14~~ |
 | Docker compose paths | calendly_webhook, discord_bot | Container command paths | Manual update before deploy |
 
 ### Architectural findings
@@ -1144,7 +1144,7 @@ not set in bare CLI). No path issues — all modules correctly found at new loca
 | Law 5.9 adapter refactor | 6 files in execution/workers/workstation/ | §14.1 contract adoption | Dedicated pass after all relocations |
 | Law 5.5 memory write fixes | ~46 files across codebase | memory.py API extension | Row 88 prerequisite (manifest step 3.6) |
 | runtime.context migration | Row 88 (~85 modules) | cognitive_loop + gateway dependency | Prerequisite for full spine canary imports |
-| Cron script migration | 23 files in scripts/ | Crontab path updates | System-level coordination (Row 71) |
+| ~~Cron script migration~~ | ~~23 files~~ | ~~Crontab path updates~~ | ~~CLOSED 2026-05-14~~ |
 | Docker compose paths | calendly_webhook, discord_bot | Container command paths | Manual update before deploy |
 
 ### Migration milestone
@@ -1904,7 +1904,7 @@ constraint.
 | Transport package §24 migration | 68 modules (15 PROD + 53 deps) | Full package move |
 | Law 5.4 type convergence | 5 spine modules | DEFERRED — all 6 types classify as NO_EQUIVALENT (infrastructure vs protocol layer) |
 | ~~Law 5.9 adapter refactor~~ | ~~6 files~~ | ~~CLOSED — 2 ADAPTER refactored, 4 INTERNAL_WORKER out of scope~~ |
-| Cron script migration | 23 files | System-level coordination |
+| ~~Cron script migration~~ | ~~33 entries~~ | ~~CLOSED — 22 Python CLEAN, 2 fixed, 1 obsolete, crontab updated~~ |
 
 ---
 
@@ -1948,3 +1948,55 @@ The 4 orchestrator/engine files are OUT_OF_SCOPE because:
 - Backward compatibility: all 184 pre-existing tests still pass via execute()
 - Commits: 3 (`34437236`, `5524689c`, `2a68b2e8`)
 - Full audit: `data/audits/2026-05-14_law_5_9_classification.md`
+
+---
+
+## Cron Script Migration — 2026-05-14
+
+**Status: CLOSED**
+
+### Per-script audit results
+
+| Status | Count | Details |
+|--------|-------|---------|
+| CLEAN | 22 | All Python cron scripts in scripts/ — imports resolve, no stale paths, env vars present |
+| CLEAN | 4 | Shell scripts (auth_monitor/*, nightly_maintenance.sh) |
+| STALE_PATH | 1 | `control_plane/orchestrator/orchestrator.py` — `__file__`-relative paths broke after §24 move |
+| IMPORT_FAIL | 1 | `nightly_maintenance.sh` — 4 embedded Python imports referenced pre-migration `runtime.*` paths |
+| OBSOLETE | 1 | Inline 11pm email reviewer — `runtime.email_reviewer` archived as dead code |
+
+### Crontab changes
+
+- `runtime/orchestrator.py` → `control_plane/orchestrator/orchestrator.py` (6am daily)
+- 11pm email reviewer entry: **commented out** (module archived, no canonical replacement)
+- Active entries: 30 (was 31)
+- Backup: `data/backups/crontab_2026-05-14.txt`
+- Current: `infra/cron/crontab.current`
+
+### Remediation
+
+1. **orchestrator.py** (`control_plane/orchestrator/orchestrator.py`):
+   - `_REPO_ROOT` from env var instead of broken `dirname(dirname(__file__))`
+   - `load_dotenv` paths resolve to `runtime/.env` + `services/.env`
+   - Docstring updated with canonical invocation path
+
+2. **nightly_maintenance.sh**:
+   - `runtime.provider_health` → `observability.health.provider_health`
+   - `runtime.discord_utils` → `interface.discord.discord_utils`
+   - `runtime.session_state` → `state.session.session_state`
+   - `runtime.gateway` → `control_plane.runtime.gateway`
+   - Provider health gate was silently ImportError-ing → always skipping nightly job
+
+3. **Crontab**: installed via `crontab` command (live)
+
+### Out of scope (not cron-referenced)
+
+- `substrate_*_smoke_test.py` scripts (68+ files) — part of Transport §24 migration thread
+- RESEARCH_EOF heredoc `${UMH_ROOT:-/opt/OS}` bug — pre-existing, single-quoted heredoc doesn't expand
+
+### Results
+
+- Tests: 4082/34/3 (zero regressions from cron changes)
+- Fresh import: all 22 Python cron scripts pass after pycache clear
+- Cron schedule integrity: 30 active entries, all paths resolve to disk
+- Commits: `10ee088d`, `a3d8e8ef`, `c01c91a6`
