@@ -87,6 +87,17 @@ load_dotenv(_REPO_ROOT / "runtime" / ".env")
 
 # ─── EOS imports ──────────────────────────────────────────────────────────────
 
+# Pin top-level runtime before control_plane.runtime shadows the name
+import importlib.util as _ilu
+_rt_spec = _ilu.find_spec("runtime", [str(_REPO_ROOT)])
+if _rt_spec and "runtime" not in sys.modules:
+    _rt_mod = _ilu.module_from_spec(_rt_spec)
+    sys.modules["runtime"] = _rt_mod
+    if _rt_spec.submodule_search_locations:
+        _rt_mod.__path__ = list(_rt_spec.submodule_search_locations)
+    if _rt_spec.loader:
+        _rt_spec.loader.exec_module(_rt_mod)
+
 from control_plane.runtime.gateway import EOSGateway
 from state.context.context import load_context_from_env
 from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
