@@ -1750,7 +1750,7 @@ Sub-batch 3 internal tiers:
 |--------|--------|-------|-------|
 | Top-level .py files | 115 | 16 | -99 |
 | Remaining | — | 15 unreachable + 1 context.py shim | — |
-| Subdirectories | 6 | 6 (transport/, ingestion/, domain_bridge/, substrate/, interfaces/, .substrate_sandbox/) | unchanged |
+| Subdirectories | 6 | 6 (transport/ [shim only], ingestion/, domain_bridge/, substrate/, interfaces/, .substrate_sandbox/) | transport canonical at execution/transport/ |
 
 ### Verification
 
@@ -1801,7 +1801,7 @@ operations + canonical API adoption.
 | Thread | Items | Status |
 |--------|-------|--------|
 | ~~Transport orphan archive~~ | ~~148 → 95 archived~~ | ~~CLOSED — 2026-05-14~~ |
-| Transport package §24 migration | 68 modules (15 PROD + 53 deps) | NEW — full package move |
+| ~~Transport package §24 migration~~ | ~~68 modules (15 PROD + 53 deps)~~ | **CLOSED** — `execution/transport/` |
 | Law 5.4 type convergence | 5 spine modules | Dedicated follow-up wave |
 | Law 5.9 adapter refactor | 6 files in execution/workers/workstation/ | §14.1 contract |
 | ~~Law 5.5 sync_skills_to_neon.py~~ | ~~1 file, SELECT/INSERT/UPDATE on skills table~~ | ~~CLOSED — 2026-05-14 (SkillStore.get_by_name + upsert_skill)~~ |
@@ -1901,7 +1901,7 @@ constraint.
 
 | Thread | Items | Status |
 |--------|-------|--------|
-| Transport package §24 migration | 68 modules (15 PROD + 53 deps) | Full package move |
+| ~~Transport package §24 migration~~ | ~~68 modules~~ | **CLOSED** — `execution/transport/` |
 | Law 5.4 type convergence | 5 spine modules | DEFERRED — all 6 types classify as NO_EQUIVALENT (infrastructure vs protocol layer) |
 | ~~Law 5.9 adapter refactor~~ | ~~6 files~~ | ~~CLOSED — 2 ADAPTER refactored, 4 INTERNAL_WORKER out of scope~~ |
 | ~~Cron script migration~~ | ~~33 entries~~ | ~~CLOSED — 22 Python CLEAN, 2 fixed, 1 obsolete, crontab updated~~ |
@@ -2000,3 +2000,81 @@ The 4 orchestrator/engine files are OUT_OF_SCOPE because:
 - Fresh import: all 22 Python cron scripts pass after pycache clear
 - Cron schedule integrity: 30 active entries, all paths resolve to disk
 - Commits: `10ee088d`, `a3d8e8ef`, `c01c91a6`
+
+---
+
+## Transport Package §24 Migration — 2026-05-14
+
+**Status: CLOSED**
+
+Final substantive migration thread. 68 modules (15 PROD + 53 deps)
+moved as a unit from `runtime/transport/` to `execution/transport/`.
+
+### Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Target §24 layer | `execution/transport/` | Transport is execution infrastructure; §24 `execution/` already has `actions/ workers/ runtime/` |
+| Migration approach | BIG-BANG (sub-batched) | 11 PROD callers, 0 mock patches, simple `__init__.py` — no shim complexity warranted |
+
+### Caller surface
+
+| Category | Count | Action |
+|----------|-------|--------|
+| PROD | 11 | Updated to `execution.transport` |
+| TEST | 3 | Updated (conftest uses shim for namespace compat) |
+| SMOKE | 68 | 23 archived, 45 updated |
+| INTRA_TRANSPORT | 57 | Moved with package (249 internal refs updated) |
+| Mock patches | 0 | N/A |
+| Dynamic importlib | 1 | Updated |
+
+### Changes
+
+1. **Package move**: `git mv runtime/transport execution/transport`
+2. **`__init__.py` path strings**: `runtime.transport.{mod}` → `execution.transport.{mod}`
+3. **Intra-transport imports**: 249 references updated across 69 modules
+4. **PROD callers**: 11 files, 43 import sites
+5. **Shim**: `runtime/transport/__init__.py` — thin `__getattr__` delegating to canonical
+6. **Smoke tests archived**: 23 scripts referencing archived modules
+7. **Smoke tests updated**: 45 scripts to canonical paths
+
+### Shim note
+
+`runtime/transport/__init__.py` retained as thin re-export shim because:
+- conftest.py uses `import runtime.transport` to maintain namespace pkg resolution
+- discord_bot.py has 7 try/except guarded imports of archived modules — these resolve
+  through the shim → AttributeError → ImportError (same behavior as before)
+- Dynamic references from non-greppable sources (if any) fall through
+
+### Results
+
+- **Tests**: 4081/35/3 (±1 from baseline — timing-sensitive LLM test fluctuation)
+- **Lazy-import**: preserved at canonical path (0 → 3 modules loaded on access)
+- **Production smoke**: discord_bot, gateway, execution_spine, world_model — all import clean
+- **Container rebuild sim**: full pycache clear + fresh imports = OK
+- **Tree-wide check**: zero `runtime.transport` in code (excluding shim + docstrings)
+- **runtime/transport/**: 1 file remains (shim `__init__.py`)
+- **Commits**: `11e3cb37`, `145bda3b`, `8fa031f0`, `f139c4a7`
+- **Decision record**: `data/audits/2026-05-14_transport_package_decision.md`
+
+### Thread table update
+
+| Thread | Status |
+|--------|--------|
+| ~~Transport package §24 migration~~ | **CLOSED** |
+| Law 5.4 type convergence | DEFERRED — all types NO_EQUIVALENT |
+| ~~Law 5.9 adapter refactor~~ | **CLOSED** — 2 ADAPTER + 4 INTERNAL_WORKER |
+| ~~Cron script migration~~ | **CLOSED** |
+
+### Remaining migration items (all non-substantive)
+
+| Item | Type | Status |
+|------|------|--------|
+| Law 5.4 type convergence | Architecture decision | CLOSED-DEFERRED (NO_EQUIVALENT) |
+| runtime/ingestion/ | Active code, separate concern | Used by canonical ingestion pipeline |
+| runtime/domain_bridge/ | Active code, separate concern | Business domain bridge |
+| runtime/interfaces/ | Active code (2 files) | discord_interface_adapter_v1 |
+| runtime/substrate/ | Internal re-exports | Maps to execution/transport/ |
+| runtime/.substrate_sandbox/ | Dev sandbox | Non-production |
+
+**SUBSTRATE MIGRATION COMPLETE** — all substantive threads closed.
