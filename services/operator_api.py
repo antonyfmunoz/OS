@@ -32,7 +32,7 @@ import uvicorn
 load_dotenv("/opt/OS/services/.env")
 load_dotenv("/opt/OS/runtime/.env", override=True)
 
-UMH_ROOT = Path("/opt/OS")
+UMH_ROOT = Path(os.getenv("UMH_ROOT", "/opt/OS"))
 API_KEY = os.getenv("UMH_OPERATOR_API_KEY", "dev-key-change-me")
 
 logger = logging.getLogger("operator_api")
