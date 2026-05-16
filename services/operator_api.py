@@ -48,16 +48,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ─── CognitiveLoop import (graceful fallback) ─────────────────────────────────
+# ─── ExecutionSpine import (production path) ──────────────────────────────────
+_HAS_SPINE = False
 try:
-    from control_plane.runtime.cognitive_loop import CognitiveLoop
+    from execution.runtime.execution_spine import ExecutionSpine
+    from control_plane.context.context_builder import ContextBuilder
+    from state.context.context import load_context_from_env
 
-    _cognitive_loop = CognitiveLoop()
-    _HAS_COGNITIVE_LOOP = True
+    _spine = ExecutionSpine()
+    _ctx_builder = ContextBuilder()
+    _ctx = load_context_from_env()
+    _HAS_SPINE = True
+    logger.info("ExecutionSpine loaded — chat via spine")
 except Exception as e:
-    logger.warning(f"CognitiveLoop not available: {e}")
-    _HAS_COGNITIVE_LOOP = False
-    _cognitive_loop = None
+    logger.warning(f"ExecutionSpine not available: {e}")
+    _spine = None
+    _ctx_builder = None
+    _ctx = None
 
 
 # ─── Auth dependency ───────────────────────────────────────────────────────────
@@ -194,30 +201,41 @@ async def system_ingestion_status() -> dict[str, Any]:
 # ─── Chat endpoint ─────────────────────────────────────────────────────────────
 @app.post("/api/chat", dependencies=[Depends(verify_api_key)])
 async def chat(request: Request) -> dict[str, Any]:
-    """Send a message through CognitiveLoop."""
+    """Send a message through ExecutionSpine."""
     body = await request.json()
     message = body.get("message", "")
     if not message:
         raise HTTPException(status_code=400, detail="message field required")
 
-    if not _HAS_COGNITIVE_LOOP:
+    if not _HAS_SPINE:
         return {
-            "text": "CognitiveLoop not available in this context",
+            "text": "ExecutionSpine not available in this context",
             "model_used": "none",
             "duration_ms": 0,
         }
 
     start = time.time()
     try:
-        result = await asyncio.to_thread(_cognitive_loop.run, raw_prompt=message)
+        uc = _ctx_builder.build(_ctx, message, "operator_ui_session")
+        response = await asyncio.to_thread(
+            _spine.run,
+            message=message,
+            unified_context=uc,
+            agent_type="executive_assistant",
+            session_id="operator_ui_session",
+            channel_id="operator_ui",
+            org_id=str(_ctx.org_id),
+            user_id=str(_ctx.user_id),
+        )
         duration_ms = int((time.time() - start) * 1000)
         return {
-            "text": result.output if hasattr(result, "output") else str(result),
-            "model_used": getattr(result, "model_used", "unknown"),
+            "text": response,
+            "model_used": "spine",
             "duration_ms": duration_ms,
+            "context_tokens": uc.estimated_tokens,
         }
     except Exception as e:
-        logger.error(f"CognitiveLoop error: {e}")
+        logger.error(f"ExecutionSpine error: {e}")
         return {"text": f"Error: {e}", "model_used": "none", "duration_ms": 0}
 
 

@@ -93,6 +93,27 @@ class ContextBuilder:
         channel: str = "",
         conversation_memory: Any = None,
     ) -> UnifiedContext:
+        try:
+            return self._build_inner(
+                ctx, message, session_id, agent, venture_id, channel, conversation_memory
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"ContextBuilder catastrophic failure: {e}")
+            uc = UnifiedContext()
+            uc.failed_sources.append(f"catastrophic: {e}")
+            return uc
+
+    def _build_inner(
+        self,
+        ctx: EOSContext,
+        message: str,
+        session_id: str,
+        agent: str = "executive_assistant",
+        venture_id: str | None = None,
+        channel: str = "",
+        conversation_memory: Any = None,
+    ) -> UnifiedContext:
         uc = UnifiedContext()
 
         # Layer 0: AI Identity
