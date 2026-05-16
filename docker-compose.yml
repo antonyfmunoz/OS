@@ -167,3 +167,31 @@ services:
       resources:
         limits:
           memory: 2G
+
+  os-operator:
+    build: .
+    container_name: os-operator
+    restart: unless-stopped
+    working_dir: /app
+    command: python3 -m uvicorn services.operator_api:app --host 0.0.0.0 --port 8091
+    networks:
+      - eos_network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ${UMH_ROOT:-/opt/OS}:/app
+    env_file:
+      - services/.env
+      - runtime/.env
+    environment:
+      - PYTHONPATH=/app
+      - TZ=America/Los_Angeles
+      - PYTHONUNBUFFERED=1
+      - UMH_OPERATOR_API_KEY=${UMH_OPERATOR_API_KEY:-dev-key-change-me}
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+    ports:
+      - "8091:8091"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
