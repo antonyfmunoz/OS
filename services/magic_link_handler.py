@@ -1,14 +1,17 @@
-"""magic_link_handler.py — Bridge endpoint for intercepting magic-link emails.
+"""magic_link_handler.py — Bridge endpoint for intercepting auth emails.
 
-Watches Gmail for magic-link login emails from services (currently claude.ai).
-Polls at short intervals, extracts the URL from the email body, returns it
-to the auth flow module which navigates Camoufox to the link directly.
+Watches Gmail for authentication emails (magic-links, verification codes)
+from services (claude.ai, chatgpt.com, etc.). Polls at short intervals,
+extracts credentials (URL or code) from the email body, returns to caller.
+
+Multi-inbox: each service specifies which inbox to poll via inbox_email.
+Credentials stored per-domain at /root/.config/gws/gmail_credentials_{domain}.json.
 
 Architecture:
-    auth_flows/claude.py → POST /api/auth/wait-for-magic-link
-    → This handler polls Gmail via GWSConnector for matching email
-    → Extracts magic-link URL from HTML body
-    → Returns {"magic_link_url": "https://..."} to caller
+    auth_flows/*.py → POST /api/auth/wait-for-magic-link
+    → This handler polls Gmail for matching email in the specified inbox
+    → Extracts magic-link URL or verification code from HTML body
+    → Returns {"magic_link_url": "https://..."} or {"verification_code": "123456"}
 """
 
 from __future__ import annotations
@@ -34,10 +37,12 @@ logger = logging.getLogger("magic_link_handler")
 
 _SENDER_PATTERNS: dict[str, list[str]] = {
     "claude": ["mail.anthropic.com", "noreply@anthropic.com", "no-reply@anthropic.com", "anthropic.com"],
+    "chatgpt": ["tm.openai.com", "noreply@tm.openai.com", "openai.com", "no-reply@openai.com"],
 }
 
 _SUBJECT_PATTERNS: dict[str, list[str]] = {
-    "claude": ["sign in", "log in", "login", "magic link", "verify", "claude"],
+    "claude": ["sign in", "log in", "login", "magic link", "verify", "claude", "verification", "code"],
+    "chatgpt": ["sign in", "log in", "login", "verify", "openai", "chatgpt", "verification", "code"],
 }
 
 _URL_PATTERNS: dict[str, list[str]] = {
@@ -47,25 +52,57 @@ _URL_PATTERNS: dict[str, list[str]] = {
         r"https://claude\.ai/login/callback[^\s\"'<>]+",
         r"https://console\.anthropic\.com/auth[^\s\"'<>]+",
     ],
+    "chatgpt": [
+        r"https://auth0\.openai\.com/[^\s\"'<>]+",
+        r"https://chatgpt\.com/auth[^\s\"'<>]+",
+        r"https://openai\.com/auth[^\s\"'<>]+",
+    ],
+}
+
+_CODE_PATTERNS: dict[str, str] = {
+    "claude": r"\b(\d{6})\b",
+    "chatgpt": r"\b(\d{6})\b",
+}
+
+_SERVICE_INBOX: dict[str, str] = {
+    "claude": "antonyfm@empyreanstudios.co",
+    "chatgpt": "antonyfm@theempyreancreative.com",
 }
 
 _POLL_INTERVAL_S = 5
 _MAX_EMAIL_AGE_S = 180
-_GMAIL_CREDS_PATH = Path("/root/.config/gws/gmail_credentials.json")
+_GMAIL_CREDS_DIR = Path("/root/.config/gws")
 
 
-def _get_gmail_service():
-    """Build Gmail API service using stored OAuth credentials."""
+def _creds_path_for_inbox(inbox_email: str) -> Path:
+    """Resolve credentials file path for a given inbox email."""
+    domain = inbox_email.split("@")[-1] if "@" in inbox_email else inbox_email
+    per_domain = _GMAIL_CREDS_DIR / f"gmail_credentials_{domain}.json"
+    if per_domain.exists():
+        return per_domain
+    default = _GMAIL_CREDS_DIR / "gmail_credentials.json"
+    if default.exists():
+        return default
+    raise RuntimeError(
+        f"Gmail credentials not found for {inbox_email}. "
+        f"Checked: {per_domain} and {default}. "
+        "Run: python3 services/oauth_device_flow.py --scopes gmail.readonly"
+    )
+
+
+def _get_gmail_service(inbox_email: str | None = None):
+    """Build Gmail API service using stored OAuth credentials for the given inbox."""
     from google.oauth2.credentials import Credentials
     from googleapiclient.discovery import build
 
-    if not _GMAIL_CREDS_PATH.exists():
+    creds_path = _creds_path_for_inbox(inbox_email) if inbox_email else _GMAIL_CREDS_DIR / "gmail_credentials.json"
+    if not creds_path.exists():
         raise RuntimeError(
-            f"Gmail credentials not found at {_GMAIL_CREDS_PATH}. "
+            f"Gmail credentials not found at {creds_path}. "
             "Run: python3 services/oauth_device_flow.py --scopes gmail.readonly"
         )
 
-    data = json.loads(_GMAIL_CREDS_PATH.read_text())
+    data = json.loads(creds_path.read_text())
     creds = Credentials(
         token=data.get("access_token"),
         refresh_token=data.get("refresh_token"),
@@ -135,6 +172,20 @@ def _extract_body_from_payload(payload: dict) -> str:
     return ""
 
 
+def _extract_verification_code(body: str, service: str) -> str | None:
+    """Extract 6-digit verification code from email body."""
+    pattern = _CODE_PATTERNS.get(service)
+    if not pattern:
+        return None
+
+    matches = re.findall(pattern, body)
+    for candidate in matches:
+        if len(candidate) == 6 and candidate.isdigit():
+            if int(candidate) >= 100000:
+                return candidate
+    return None
+
+
 def _extract_magic_link(body: str, service: str) -> str | None:
     """Extract magic-link URL from email body using service-specific patterns."""
     patterns = _URL_PATTERNS.get(service, [])
@@ -146,7 +197,6 @@ def _extract_magic_link(body: str, service: str) -> str | None:
             url = re.sub(r"&amp;", "&", url)
             return url
 
-    # Fallback: any URL containing the service domain + auth-like path
     fallback_patterns = [
         rf"https://[^\s\"'<>]*{re.escape(service)}[^\s\"'<>]*(?:magic|auth|login|verify|callback)[^\s\"'<>]*",
     ]
@@ -173,11 +223,13 @@ def _is_recent_email(date_str: str, max_age_s: int = _MAX_EMAIL_AGE_S) -> bool:
 
 
 async def handle_wait_for_magic_link(request: web.Request) -> web.Response:
-    """Poll Gmail for a magic-link email and return the URL.
+    """Poll Gmail for an auth email and return the URL or verification code.
 
     POST /api/auth/wait-for-magic-link
-    Body: {"service": "claude", "email": "user@example.com", "timeout": 120}
+    Body: {"service": "claude", "email": "user@example.com", "timeout": 120,
+           "inbox_email": "user@domain.com" (optional — resolved from _SERVICE_INBOX if omitted)}
     Response: {"magic_link_url": "https://...", "email_id": "...", "sender": "..."}
+         or: {"verification_code": "123456", "email_id": "...", "sender": "..."}
     """
     try:
         data = await request.json()
@@ -187,6 +239,7 @@ async def handle_wait_for_magic_link(request: web.Request) -> web.Response:
     service = data.get("service", "").lower()
     email = data.get("email", "")
     timeout = min(data.get("timeout", 120), 300)
+    inbox_email = data.get("inbox_email") or _SERVICE_INBOX.get(service, email)
 
     if not service or service not in _SENDER_PATTERNS:
         return web.json_response(
@@ -195,17 +248,17 @@ async def handle_wait_for_magic_link(request: web.Request) -> web.Response:
         )
 
     logger.info(
-        "[MagicLink] Watching for %s magic-link email (timeout=%ds, recipient=%s)",
-        service, timeout, email,
+        "[MagicLink] Watching for %s auth email (timeout=%ds, recipient=%s, inbox=%s)",
+        service, timeout, email, inbox_email,
     )
 
     start_time = time.time()
     seen_ids: set[str] = set()
 
     try:
-        gmail = _get_gmail_service()
+        gmail = _get_gmail_service(inbox_email)
     except Exception as exc:
-        logger.error("[MagicLink] Cannot initialize Gmail service: %s", exc)
+        logger.error("[MagicLink] Cannot initialize Gmail service for %s: %s", inbox_email, exc)
         return web.json_response(
             {"ok": False, "error": f"gmail service failed: {exc}"},
             status=500,
@@ -251,9 +304,24 @@ async def handle_wait_for_magic_link(request: web.Request) -> web.Response:
                         logger.warning("[MagicLink] Could not retrieve body for %s", msg_id)
                         continue
 
+                    elapsed = time.time() - start_time
+
+                    code = _extract_verification_code(body, service)
+                    if code:
+                        logger.info(
+                            "[MagicLink] Extracted verification code in %.1fs: %s",
+                            elapsed, code,
+                        )
+                        return web.json_response({
+                            "ok": True,
+                            "verification_code": code,
+                            "email_id": msg_id,
+                            "sender": sender,
+                            "elapsed_seconds": round(elapsed, 1),
+                        })
+
                     magic_url = _extract_magic_link(body, service)
                     if magic_url:
-                        elapsed = time.time() - start_time
                         logger.info(
                             "[MagicLink] Extracted magic link in %.1fs: %s",
                             elapsed, magic_url[:80],
@@ -265,11 +333,11 @@ async def handle_wait_for_magic_link(request: web.Request) -> web.Response:
                             "sender": sender,
                             "elapsed_seconds": round(elapsed, 1),
                         })
-                    else:
-                        logger.warning(
-                            "[MagicLink] Email matched but no URL extracted (id=%s)",
-                            msg_id,
-                        )
+
+                    logger.warning(
+                        "[MagicLink] Email matched but no credential extracted (id=%s)",
+                        msg_id,
+                    )
 
         except Exception as exc:
             logger.warning("[MagicLink] Poll iteration error: %s", exc)
@@ -277,7 +345,7 @@ async def handle_wait_for_magic_link(request: web.Request) -> web.Response:
         await asyncio.sleep(_POLL_INTERVAL_S)
 
     elapsed = time.time() - start_time
-    logger.warning("[MagicLink] Timed out after %.1fs — no magic link found", elapsed)
+    logger.warning("[MagicLink] Timed out after %.1fs — no auth credential found", elapsed)
     return web.json_response(
         {"ok": False, "error": "timeout", "elapsed_seconds": round(elapsed, 1)},
         status=408,

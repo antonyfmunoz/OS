@@ -127,32 +127,61 @@ async def _notify_discord(message: str) -> None:
         logger.warning("[OAuth] Discord notify failed: %s", exc)
 
 
-def _save_credentials(token_data: dict, scopes: list[str]) -> None:
-    """Save credentials in a format the magic_link_handler can read."""
+def _save_credentials(token_data: dict, scopes: list[str], account_email: str | None = None) -> Path:
+    """Save credentials in a format the magic_link_handler can read.
+
+    If account_email is provided, saves to gmail_credentials_{domain}.json.
+    Also always updates the default gmail_credentials.json for backwards compat.
+    """
+    client_cfg = _load_client_config()
     creds = {
         "access_token": token_data.get("access_token"),
         "refresh_token": token_data.get("refresh_token"),
         "token_uri": "https://oauth2.googleapis.com/token",
-        "client_id": _load_client_config()["client_id"],
-        "client_secret": _load_client_config()["client_secret"],
+        "client_id": client_cfg["client_id"],
+        "client_secret": client_cfg["client_secret"],
         "scopes": scopes,
         "expiry": token_data.get("expires_in"),
         "issued_at": time.time(),
     }
+    if account_email:
+        creds["account_email"] = account_email
+
     _CREDENTIALS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    _CREDENTIALS_PATH.write_text(json.dumps(creds, indent=2))
-    logger.info("[OAuth] Credentials saved to %s", _CREDENTIALS_PATH)
+    content = json.dumps(creds, indent=2)
+
+    save_path = _CREDENTIALS_PATH
+    if account_email and "@" in account_email:
+        domain = account_email.split("@")[-1]
+        save_path = _CREDENTIALS_PATH.parent / f"gmail_credentials_{domain}.json"
+        save_path.write_text(content)
+        logger.info("[OAuth] Per-domain credentials saved to %s", save_path)
+
+    _CREDENTIALS_PATH.write_text(content)
+    logger.info("[OAuth] Default credentials saved to %s", _CREDENTIALS_PATH)
+    return save_path
 
 
 async def run_oauth_flow(
     scopes: list[str],
     notify_discord: bool = True,
     timeout_s: int = 300,
+    account_email: str | None = None,
 ) -> bool:
-    """Run the full OAuth flow: start listener, surface URL, wait for callback."""
+    """Run the full OAuth flow: start listener, surface URL, wait for callback.
+
+    account_email: which Google account to authorize. Used in Discord notification
+    and for per-domain credential storage.
+    """
     client_config = _load_client_config()
     state = f"eos-{int(time.time())}"
+
+    login_hint_params = {}
+    if account_email:
+        login_hint_params["login_hint"] = account_email
     auth_url = _build_auth_url(client_config["client_id"], scopes, state)
+    if account_email:
+        auth_url += f"&login_hint={urllib.parse.quote(account_email)}"
 
     code_future: asyncio.Future = asyncio.get_event_loop().create_future()
 
@@ -190,12 +219,13 @@ async def run_oauth_flow(
     logger.info("[OAuth] Callback listener on http://0.0.0.0:%d/oauth/callback", _CALLBACK_PORT)
     logger.info("[OAuth] Auth URL: %s", auth_url)
 
+    display_account = account_email or "antonyfm@empyreanstudios.co"
     if notify_discord:
         scope_names = ", ".join(s.split("/")[-1] if "/" in s else s for s in scopes)
         msg = (
             f"**Google OAuth — scope grant required**\n"
             f"Scopes: `{scope_names}`\n"
-            f"Account: `antonyfm@empyreanstudios.co`\n\n"
+            f"Account: `{display_account}`\n\n"
             f"**Tap to authorize:** {auth_url}\n\n"
             f"_Expires in {timeout_s}s. One tap — no code entry needed._"
         )
@@ -207,7 +237,7 @@ async def run_oauth_flow(
     except asyncio.TimeoutError:
         logger.error("[OAuth] Timed out waiting for consent (%ds)", timeout_s)
         if notify_discord:
-            await _notify_discord("OAuth consent timed out. Re-run when ready.")
+            await _notify_discord(f"OAuth consent timed out for {display_account}. Re-run when ready.")
         await runner.cleanup()
         return False
     except Exception as exc:
@@ -231,12 +261,12 @@ async def run_oauth_flow(
     if not token_data.get("refresh_token"):
         logger.warning("[OAuth] No refresh_token in response — token may be short-lived")
 
-    _save_credentials(token_data, scopes)
+    _save_credentials(token_data, scopes, account_email=account_email)
 
     if notify_discord:
-        await _notify_discord("Gmail access granted. Export pipeline ready.")
+        await _notify_discord(f"Gmail access granted for {display_account}. Export pipeline ready.")
 
-    logger.info("[OAuth] Flow complete — credentials stored")
+    logger.info("[OAuth] Flow complete — credentials stored for %s", display_account)
     return True
 
 
@@ -244,6 +274,8 @@ async def main():
     parser = argparse.ArgumentParser(description="Google OAuth re-auth via Tailscale callback")
     parser.add_argument("--scopes", nargs="+", default=["gmail.readonly"],
                         help="Scope aliases or full URLs to request")
+    parser.add_argument("--account", type=str, default=None,
+                        help="Google account email (login_hint + per-domain creds storage)")
     parser.add_argument("--no-discord", action="store_true",
                         help="Skip Discord notification (print URL to stdout only)")
     parser.add_argument("--timeout", type=int, default=300,
@@ -251,12 +283,13 @@ async def main():
     args = parser.parse_args()
 
     scopes = _resolve_scopes(args.scopes)
-    logger.info("[OAuth] Requesting scopes: %s", scopes)
+    logger.info("[OAuth] Requesting scopes: %s (account: %s)", scopes, args.account or "default")
 
     success = await run_oauth_flow(
         scopes=scopes,
         notify_discord=not args.no_discord,
         timeout_s=args.timeout,
+        account_email=args.account,
     )
 
     if success:

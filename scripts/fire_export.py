@@ -42,9 +42,11 @@ async def run_export(service: str) -> None:
         print(f"[{service}] Attempt {attempt}/{_MAX_RETRIES}")
         cleanup = None
         try:
+            locale = "en-US" if service == "chatgpt" else None
             context, page, cleanup = await launch_browser(
                 service=service,
                 headless=headless,
+                locale=locale,
             )
 
             # Step 1: Screenshot initial state
@@ -179,9 +181,11 @@ async def _click_export_button(page, service: str) -> bool:
             'a:has-text("Export")',
         ],
         "chatgpt": [
+            'button[aria-label*="Export" i]',
             'button:has-text("Export")',
             'button:has-text("Export data")',
             'button:has-text("Confirm export")',
+            'button[data-testid*="export" i]',
         ],
         "instagram": [
             'button:has-text("Request")',
