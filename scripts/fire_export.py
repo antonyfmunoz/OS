@@ -145,6 +145,33 @@ async def _navigate_chatgpt_settings(page) -> None:
     await page.goto("https://chatgpt.com", wait_until="domcontentloaded", timeout=30000)
     await page.wait_for_timeout(3000)
 
+    # First: dump DOM near "More" text to understand structure
+    try:
+        more_info = await page.evaluate("""() => {
+            const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+            const results = [];
+            while (walker.nextNode()) {
+                if (walker.currentNode.textContent.trim() === 'More') {
+                    const el = walker.currentNode.parentElement;
+                    const info = {
+                        tag: el.tagName,
+                        classes: el.className,
+                        id: el.id,
+                        role: el.getAttribute('role'),
+                        parentTag: el.parentElement ? el.parentElement.tagName : null,
+                        parentClasses: el.parentElement ? el.parentElement.className : null,
+                        parentRole: el.parentElement ? el.parentElement.getAttribute('role') : null,
+                        grandparentTag: el.parentElement && el.parentElement.parentElement ? el.parentElement.parentElement.tagName : null,
+                    };
+                    results.push(info);
+                }
+            }
+            return results;
+        }""")
+        print(f"[chatgpt] DOM 'More' elements: {more_info}")
+    except Exception as exc:
+        print(f"[chatgpt] DOM introspection failed: {exc}")
+
     menu_selectors = [
         'button[data-testid="profile-button"]',
         'img[alt*="User" i]',
@@ -156,20 +183,25 @@ async def _navigate_chatgpt_settings(page) -> None:
         'button.rounded-full',
         # Sidebar "More" / "..." button — free tier has no profile icon
         'button:has-text("More")',
-        'nav button:has-text("More")',
-        'aside button:has-text("More")',
+        'a:has-text("More")',
+        'div:has-text("More"):not(:has(div:has-text("More")))',
+        'span:has-text("More")',
+        # XPath-based: element containing text "More" that is clickable
+        ':text("More")',
     ]
     clicked_menu = False
     for selector in menu_selectors:
         try:
             el = page.locator(selector)
-            if await el.count() > 0:
+            count = await el.count()
+            if count > 0:
                 await el.first.click()
-                print(f"[chatgpt] Clicked menu: {selector}")
+                print(f"[chatgpt] Clicked menu: {selector} (count={count})")
                 await page.wait_for_timeout(1500)
                 clicked_menu = True
                 break
-        except Exception:
+        except Exception as exc:
+            print(f"[chatgpt] Selector {selector} failed: {exc}")
             continue
 
     if not clicked_menu:
