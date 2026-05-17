@@ -1,7 +1,12 @@
 """bridge_health.py — VPS-side watchdog for the Windows bridge.
 
 Ensures the Windows bridge is live before any operation that depends on it.
-If unreachable, SSHs to Windows over Tailscale and starts the bridge process.
+If unreachable, SSHs to Windows over Tailscale (OpenSSH Server) and starts
+the bridge process.
+
+SSH uses key auth via OpenSSH Server bound to the Tailscale interface on
+Windows. Username has spaces — always use list-form subprocess args with
+explicit -l flag, never user@host concatenation.
 
 Usage:
     # Programmatic — call before any bridge-dependent operation
@@ -36,26 +41,46 @@ load_dotenv(_REPO_ROOT / "runtime" / ".env")
 
 logger = logging.getLogger(__name__)
 
-# Windows machine Tailscale hostname/IP
+# Windows machine — OpenSSH Server on Tailscale interface
 _WINDOWS_HOST = os.getenv("EOS_WINDOWS_TAILSCALE_HOST", "100.74.199.102")
-_WINDOWS_USER = os.getenv("EOS_WINDOWS_TAILSCALE_USER", "antony")
+_WINDOWS_USER = os.getenv("EOS_WINDOWS_TAILSCALE_USER", "antonys beast pc")
 _BRIDGE_PORT = int(os.getenv("EOS_LOCAL_BRIDGE_PORT", "8766"))
 _BRIDGE_URL = f"http://{_WINDOWS_HOST}:{_BRIDGE_PORT}"
 
-_SSH_TIMEOUT_S = 10
+_SSH_TIMEOUT_S = 15
 _HEALTH_TIMEOUT_S = 3.0
 _POLL_INTERVAL_S = 3
 _MAX_WAIT_S = 30
 
-# Path to bridge server on Windows (WSL path)
+# Path to bridge server on Windows (native Windows path)
+_WINDOWS_REPO = os.getenv(
+    "EOS_WINDOWS_REPO_PATH",
+    r"C:\Users\antonys beast pc\dev\OSv2",
+)
 _WINDOWS_BRIDGE_SCRIPT = os.getenv(
     "EOS_WINDOWS_BRIDGE_SCRIPT",
-    "~/OS/services/local_bridge_server.py",
+    rf"{_WINDOWS_REPO}\services\local_bridge_server.py",
 )
 _WINDOWS_BRIDGE_LOG = os.getenv(
     "EOS_WINDOWS_BRIDGE_LOG",
-    "~/eos_bridge.log",
+    r"C:\Users\antonys beast pc\eos_bridge.log",
 )
+
+
+def _ssh_cmd(remote_command: list[str]) -> list[str]:
+    """Build SSH command with proper handling of spaced username.
+
+    Always uses list-form args with -l flag. Never concatenates user@host.
+    """
+    return [
+        "ssh",
+        "-o", "ConnectTimeout=5",
+        "-o", "StrictHostKeyChecking=accept-new",
+        "-o", "BatchMode=yes",
+        "-l", _WINDOWS_USER,
+        _WINDOWS_HOST,
+        *remote_command,
+    ]
 
 
 def _check_health() -> bool:
@@ -67,12 +92,12 @@ def _check_health() -> bool:
         return False
 
 
-def _check_tailscale_ssh() -> dict[str, Any]:
-    """Verify Tailscale SSH to Windows is possible."""
+def _check_ssh() -> dict[str, Any]:
+    """Verify OpenSSH connectivity to Windows via Tailscale interface."""
     try:
+        cmd = _ssh_cmd(["powershell", "-c", "echo ok"])
         result = subprocess.run(
-            ["ssh", "-o", "ConnectTimeout=5", "-o", "StrictHostKeyChecking=accept-new",
-             f"{_WINDOWS_USER}@{_WINDOWS_HOST}", "echo", "ok"],
+            cmd,
             capture_output=True,
             text=True,
             timeout=_SSH_TIMEOUT_S,
@@ -92,33 +117,63 @@ def _check_tailscale_ssh() -> dict[str, Any]:
 
 
 def _start_bridge_via_ssh() -> dict[str, Any]:
-    """SSH to Windows and start the bridge server in background."""
-    start_cmd = (
-        f"nohup python3 {_WINDOWS_BRIDGE_SCRIPT} "
-        f"> {_WINDOWS_BRIDGE_LOG} 2>&1 & "
-        f"echo $!"
-    )
+    """SSH to Windows and start the bridge server natively (no WSL).
+
+    Uses cmd.exe `start /b` to detach the process so the SSH session
+    returns immediately. Output goes to NUL (the bridge logs internally
+    via Python logging — no need for shell-level redirection).
+    """
+    # `start /b ""` launches detached (empty title required for paths with spaces).
+    # The script path is double-quoted for the space in the user profile path.
+    cmd_line = f'start /b "" python "{_WINDOWS_BRIDGE_SCRIPT}"'
 
     try:
+        cmd = _ssh_cmd(["cmd", "/c", cmd_line])
         result = subprocess.run(
-            ["ssh", "-o", "ConnectTimeout=5", "-o", "StrictHostKeyChecking=accept-new",
-             f"{_WINDOWS_USER}@{_WINDOWS_HOST}", "bash", "-lc", start_cmd],
+            cmd,
             capture_output=True,
             text=True,
             timeout=_SSH_TIMEOUT_S,
         )
         if result.returncode == 0:
-            pid = result.stdout.strip()
-            logger.info("[BridgeHealth] Started bridge on Windows, PID=%s", pid)
-            return {"ok": True, "pid": pid}
+            logger.info("[BridgeHealth] Started bridge on Windows via SSH (native Python)")
+            return {"ok": True, "pid": "detached"}
         return {
             "ok": False,
-            "error": f"SSH start failed (code {result.returncode}): {result.stderr.strip()[:200]}",
+            "error": f"SSH start failed (code {result.returncode}): {result.stderr.strip()[:300]}",
         }
     except subprocess.TimeoutExpired:
         return {"ok": False, "error": "SSH start command timed out"}
     except Exception as exc:
         return {"ok": False, "error": f"SSH start failed: {exc}"}
+
+
+def _kill_bridge_via_ssh() -> dict[str, Any]:
+    """SSH to Windows and kill any running bridge Python process.
+
+    Only kills python.exe processes whose command line contains
+    'local_bridge_server'. Never kills svchost or other system processes.
+    """
+    # Use taskkill with /fi to target only python processes with our script name.
+    # This is safer than Stop-Process on arbitrary PIDs.
+    kill_cmd = 'taskkill /f /fi "IMAGENAME eq python.exe" /fi "WINDOWTITLE eq *bridge*"'
+    # Fallback: PowerShell filtering by command line (more accurate)
+    ps_kill = (
+        "Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" | "
+        "Where-Object {$_.CommandLine -like '*local_bridge_server*'} | "
+        "ForEach-Object {Stop-Process -Id $_.ProcessId -Force}"
+    )
+    try:
+        cmd = _ssh_cmd(["powershell", "-c", ps_kill])
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=_SSH_TIMEOUT_S,
+        )
+        return {"ok": True, "output": result.stdout.strip()}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
 
 
 def _surface_error(message: str) -> None:
@@ -138,20 +193,32 @@ def _surface_error(message: str) -> None:
 def _surface_setup_gate() -> None:
     """Surface a one-time setup gate to Discord with remediation steps."""
     msg = (
-        "🔧 **ONE-TIME SETUP REQUIRED — Tailscale SSH to Windows**\n\n"
+        "🔧 **ONE-TIME SETUP REQUIRED — OpenSSH on Windows**\n\n"
         "The VPS cannot SSH to your Windows machine. This is needed for "
         "automatic bridge lifecycle management.\n\n"
-        "**Fix (run once on Windows):**\n"
+        "**Fix (run once on Windows, admin PowerShell):**\n"
         "```\n"
-        "# 1. Enable Tailscale SSH on Windows\n"
-        "tailscale set --ssh\n"
+        "# 1. Install OpenSSH Server\n"
+        "Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0\n"
         "\n"
-        "# 2. Verify from VPS (run on VPS):\n"
-        f"ssh {_WINDOWS_USER}@{_WINDOWS_HOST} echo ok\n"
+        "# 2. Start and enable sshd\n"
+        "Start-Service sshd\n"
+        "Set-Service -Name sshd -StartupType Automatic\n"
         "\n"
-        "# 3. If username wrong, set EOS_WINDOWS_TAILSCALE_USER in services/.env\n"
-        "# 4. If IP wrong, set EOS_WINDOWS_TAILSCALE_HOST in services/.env\n"
+        "# 3. Bind sshd to Tailscale interface (edit sshd_config):\n"
+        "#    ListenAddress 100.74.199.102\n"
+        "\n"
+        "# 4. Paste VPS pubkey into:\n"
+        "#    C:\\ProgramData\\ssh\\administrators_authorized_keys\n"
+        "#    (icacls: only SYSTEM + Administrators, no inheritance)\n"
+        "\n"
+        "# 5. Restart sshd\n"
+        "Restart-Service sshd\n"
         "```\n"
+        "\n"
+        "**Verify from VPS:**\n"
+        f"```\nssh -l \"{_WINDOWS_USER}\" {_WINDOWS_HOST} powershell -c \"echo ok\"\n```\n"
+        "\n"
         "After this, bridge auto-recovery works forever. Zero awareness needed."
     )
     try:
@@ -180,10 +247,10 @@ def ensure_bridge_live(timeout: float = _MAX_WAIT_S) -> dict[str, Any]:
     if _check_health():
         return {"ok": True, "action": "already_live", "elapsed_s": 0.0}
 
-    logger.info("[BridgeHealth] Bridge unreachable — attempting autostart via Tailscale SSH")
+    logger.info("[BridgeHealth] Bridge unreachable — attempting autostart via OpenSSH")
 
     # Check SSH connectivity first
-    ssh_check = _check_tailscale_ssh()
+    ssh_check = _check_ssh()
     if not ssh_check["ok"]:
         _surface_setup_gate()
         return {
@@ -210,7 +277,7 @@ def ensure_bridge_live(timeout: float = _MAX_WAIT_S) -> dict[str, Any]:
             return {"ok": True, "action": "started", "elapsed_s": round(elapsed, 1)}
 
     # Timeout
-    error_msg = f"Bridge did not respond within {timeout}s after SSH start (PID={start_result.get('pid')})"
+    error_msg = f"Bridge did not respond within {timeout}s after SSH start"
     _surface_error(error_msg)
     return {"ok": False, "error": error_msg, "action": "timeout"}
 
@@ -236,7 +303,7 @@ def main() -> None:
     if args.check_only:
         healthy = _check_health()
         print(f"Bridge healthy: {healthy}")
-        ssh = _check_tailscale_ssh()
+        ssh = _check_ssh()
         print(f"SSH to Windows: {ssh}")
         sys.exit(0 if healthy else 1)
 

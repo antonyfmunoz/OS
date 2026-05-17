@@ -1,23 +1,19 @@
 # Windows Bridge Autostart
 
-The local bridge server runs on the Windows workstation and handles
+The local bridge server runs on the Windows workstation (in WSL) and handles
 browser exports, MFA routing, and future Windows-side capabilities
 (UI-TARS, Voice-Pro, etc.).
 
 ## Autostart via Scheduled Task
 
 The bridge auto-starts on Windows user login and auto-restarts on failure.
-VPS installs this task once via Tailscale SSH.
+VPS installs this task once via OpenSSH.
 
 ### Install command (run from VPS)
 
 ```bash
-ssh antony@100.74.199.102 'schtasks /create \
-  /tn "EOS-Bridge" \
-  /tr "wsl -d Ubuntu -e bash -lc \"cd ~/OS/services && python3 local_bridge_server.py >> ~/eos_bridge.log 2>&1\"" \
-  /sc onlogon \
-  /rl highest \
-  /f'
+ssh -l "antonys beast pc" 100.74.199.102 powershell -c \
+  'schtasks /create /tn "EOS-Bridge" /tr "wsl -d Ubuntu -e bash -lc \"cd ~/OS/services && python3 local_bridge_server.py >> ~/eos_bridge.log 2>&1\"" /sc onlogon /rl highest /f'
 ```
 
 ### What this does
@@ -33,20 +29,23 @@ ssh antony@100.74.199.102 'schtasks /create \
 ### Verify task installed
 
 ```bash
-ssh antony@100.74.199.102 'schtasks /query /tn "EOS-Bridge" /fo list'
+ssh -l "antonys beast pc" 100.74.199.102 powershell -c 'schtasks /query /tn "EOS-Bridge" /fo list'
 ```
 
 ### Manual start/stop from VPS
 
 ```bash
-# Start
-ssh antony@100.74.199.102 'schtasks /run /tn "EOS-Bridge"'
+# Start (via scheduled task)
+ssh -l "antonys beast pc" 100.74.199.102 powershell -c 'schtasks /run /tn "EOS-Bridge"'
+
+# Start (direct)
+ssh -l "antonys beast pc" 100.74.199.102 powershell -c 'Start-Process -NoNewWindow -FilePath "wsl" -ArgumentList "-d","Ubuntu","-e","bash","-lc","cd ~/OS/services && python3 local_bridge_server.py >> ~/eos_bridge.log 2>&1"'
 
 # Stop
-ssh antony@100.74.199.102 'wsl -d Ubuntu -e bash -c "pkill -f local_bridge_server"'
+ssh -l "antonys beast pc" 100.74.199.102 powershell -c 'wsl -d Ubuntu -e bash -c "pkill -f local_bridge_server"'
 
 # Check status
-ssh antony@100.74.199.102 'wsl -d Ubuntu -e bash -c "pgrep -f local_bridge_server && echo running || echo stopped"'
+ssh -l "antonys beast pc" 100.74.199.102 powershell -c 'wsl -d Ubuntu -e bash -c "pgrep -f local_bridge_server && echo running || echo stopped"'
 ```
 
 ### Automatic recovery
@@ -60,33 +59,53 @@ The VPS watchdog (`services/bridge_health.py`) handles recovery transparently:
 
 You never need to SSH to Windows manually. The VPS handles it.
 
-## Prerequisites (one-time)
+## Prerequisites (one-time, already done)
 
-### 1. Tailscale SSH on Windows
+### 1. OpenSSH Server on Windows
 
 ```powershell
-# On Windows (admin PowerShell):
-tailscale set --ssh
+# Install (admin PowerShell)
+Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+
+# Start and auto-enable
+Start-Service sshd
+Set-Service -Name sshd -StartupType Automatic
 ```
 
-### 2. WSL with Ubuntu
+### 2. Bind sshd to Tailscale interface
 
-The bridge runs in WSL. Verify:
-```bash
-ssh antony@100.74.199.102 'wsl -l -v'
+Edit `C:\ProgramData\ssh\sshd_config`:
+```
+ListenAddress 100.74.199.102
 ```
 
-### 3. Python + deps in WSL
+### 3. VPS pubkey in administrators_authorized_keys
 
-```bash
-ssh antony@100.74.199.102 'wsl -d Ubuntu -e bash -lc "python3 --version && pip3 show aiohttp"'
+```powershell
+# Paste VPS pubkey into:
+#   C:\ProgramData\ssh\administrators_authorized_keys
+#
+# Then fix permissions (CRITICAL — sshd ignores file otherwise):
+icacls "C:\ProgramData\ssh\administrators_authorized_keys" /inheritance:r /grant "SYSTEM:F" /grant "Administrators:F"
 ```
 
-### 4. Repo synced to Windows
+### 4. WSL with Ubuntu
 
-The bridge expects the repo at `~/OS/` in WSL. Sync via git:
 ```bash
-ssh antony@100.74.199.102 'wsl -d Ubuntu -e bash -lc "cd ~/OS && git pull"'
+ssh -l "antonys beast pc" 100.74.199.102 powershell -c 'wsl -l -v'
+```
+
+### 5. Python + deps in WSL
+
+```bash
+ssh -l "antonys beast pc" 100.74.199.102 powershell -c 'wsl -d Ubuntu -e bash -lc "python3 --version && pip3 show aiohttp"'
+```
+
+### 6. Repo synced to Windows WSL
+
+The bridge expects the repo at `~/OS/` in WSL:
+```bash
+ssh -l "antonys beast pc" 100.74.199.102 powershell -c 'wsl -d Ubuntu -e bash -lc "cd ~/OS && git pull"'
 ```
 
 ## Environment variables
@@ -94,10 +113,19 @@ ssh antony@100.74.199.102 'wsl -d Ubuntu -e bash -lc "cd ~/OS && git pull"'
 | Variable | Default | Where |
 |----------|---------|-------|
 | EOS_WINDOWS_TAILSCALE_HOST | 100.74.199.102 | services/.env on VPS |
-| EOS_WINDOWS_TAILSCALE_USER | antony | services/.env on VPS |
+| EOS_WINDOWS_TAILSCALE_USER | antonys beast pc | services/.env on VPS |
 | EOS_LOCAL_BRIDGE_PORT | 8766 | both VPS + Windows |
-| EOS_WINDOWS_BRIDGE_SCRIPT | ~/OS/services/local_bridge_server.py | VPS (override if needed) |
-| EOS_WINDOWS_BRIDGE_LOG | ~/eos_bridge.log | VPS (log path on Windows) |
+| EOS_WINDOWS_BRIDGE_SCRIPT | ~/OS/services/local_bridge_server.py | VPS (WSL path) |
+| EOS_WINDOWS_BRIDGE_LOG | ~/eos_bridge.log | VPS (WSL log path) |
+
+## SSH notes
+
+- Username has spaces (`antonys beast pc`). Always use `-l` flag with
+  list-form args in subprocess. Never use `user@host` concatenation.
+- Tailscale SSH server is NOT available on Windows — only OpenSSH Server
+  bound to the Tailscale interface (100.74.199.102) works.
+- VPS pubkey must be in `administrators_authorized_keys` (not regular
+  `authorized_keys`) because the Windows user is an administrator.
 
 ## Lifecycle pattern
 
