@@ -156,35 +156,50 @@ def _detect_check_email_page(body_text: str) -> bool:
 
 
 async def _wait_for_magic_link(email: str) -> str | None:
-    """Request magic link URL from the bridge Gmail poller."""
+    """Request magic link URL from the VPS Gmail poller.
+
+    The VPS has Gmail API access (GWS CLI with gmail.readonly scope).
+    Windows calls the VPS webhook receiver which runs the Gmail poller.
+    Falls back to local bridge if VPS is unreachable.
+    """
     import aiohttp
 
+    vps_url = os.getenv("EOS_MAGIC_LINK_URL", "http://100.77.233.50:8769")
     bridge_port = os.getenv("EOS_LOCAL_BRIDGE_PORT", "8767")
-    bridge_url = f"http://localhost:{bridge_port}"
+    local_url = f"http://localhost:{bridge_port}"
 
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                f"{bridge_url}/api/auth/wait-for-magic-link",
-                json={
-                    "service": "claude",
-                    "email": email,
-                    "timeout": _MAGIC_LINK_TIMEOUT,
-                },
-                timeout=aiohttp.ClientTimeout(total=_MAGIC_LINK_TIMEOUT + 10),
-            ) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    url = data.get("magic_link_url")
-                    if url:
-                        logger.info("[claude:auth] Bridge returned magic link")
-                        return url
-                    logger.warning("[claude:auth] Bridge returned 200 but no URL: %s", data)
-                else:
-                    body = await resp.text()
-                    logger.warning("[claude:auth] Bridge returned %d: %s", resp.status, body[:200])
-    except Exception as exc:
-        logger.error("[claude:auth] Bridge magic-link request failed: %s", exc)
+    endpoints = [
+        (vps_url, "VPS"),
+        (local_url, "local bridge"),
+    ]
+
+    for base_url, label in endpoints:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    f"{base_url}/api/auth/wait-for-magic-link",
+                    json={
+                        "service": "claude",
+                        "email": email,
+                        "timeout": _MAGIC_LINK_TIMEOUT,
+                    },
+                    timeout=aiohttp.ClientTimeout(total=_MAGIC_LINK_TIMEOUT + 10),
+                ) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        url = data.get("magic_link_url")
+                        if url:
+                            logger.info("[claude:auth] %s returned magic link", label)
+                            return url
+                        logger.warning("[claude:auth] %s returned 200 but no URL: %s", label, data)
+                    elif resp.status == 408:
+                        logger.warning("[claude:auth] %s timed out waiting for magic link", label)
+                    else:
+                        body = await resp.text()
+                        logger.warning("[claude:auth] %s returned %d: %s", label, resp.status, body[:200])
+        except Exception as exc:
+            logger.warning("[claude:auth] %s unreachable: %s — trying next", label, exc)
+            continue
 
     return None
 
