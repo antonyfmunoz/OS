@@ -145,118 +145,74 @@ async def _navigate_chatgpt_settings(page) -> None:
     await page.goto("https://chatgpt.com", wait_until="domcontentloaded", timeout=30000)
     await page.wait_for_timeout(3000)
 
-    # First: dump DOM near "More" text to understand structure
-    try:
-        more_info = await page.evaluate("""() => {
-            const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-            const results = [];
-            while (walker.nextNode()) {
-                if (walker.currentNode.textContent.trim() === 'More') {
-                    const el = walker.currentNode.parentElement;
-                    const info = {
-                        tag: el.tagName,
-                        classes: el.className,
-                        id: el.id,
-                        role: el.getAttribute('role'),
-                        parentTag: el.parentElement ? el.parentElement.tagName : null,
-                        parentClasses: el.parentElement ? el.parentElement.className : null,
-                        parentRole: el.parentElement ? el.parentElement.getAttribute('role') : null,
-                        grandparentTag: el.parentElement && el.parentElement.parentElement ? el.parentElement.parentElement.tagName : null,
-                    };
-                    results.push(info);
-                }
-            }
-            return results;
-        }""")
-        print(f"[chatgpt] DOM 'More' elements: {more_info}")
-    except Exception as exc:
-        print(f"[chatgpt] DOM introspection failed: {exc}")
-
-    menu_selectors = [
-        'button[data-testid="profile-button"]',
-        'img[alt*="User" i]',
-        'button[aria-label*="User menu" i]',
-        'button[aria-label*="Profile" i]',
-        'button[aria-label*="Account" i]',
-        'button:has(img[referrerpolicy="no-referrer"])',
-        '[data-testid="user-menu"]',
-        'button.rounded-full',
-        # Sidebar "More" / "..." button — free tier has no profile icon
-        'button:has-text("More")',
-        'a:has-text("More")',
-        'div:has-text("More"):not(:has(div:has-text("More")))',
-        'span:has-text("More")',
-        # XPath-based: element containing text "More" that is clickable
-        ':text("More")',
-    ]
-    clicked_menu = False
-    for selector in menu_selectors:
-        try:
-            el = page.locator(selector)
-            count = await el.count()
-            if count > 0:
-                await el.first.click()
-                print(f"[chatgpt] Clicked menu: {selector} (count={count})")
-                await page.wait_for_timeout(1500)
-                clicked_menu = True
-                break
-        except Exception as exc:
-            print(f"[chatgpt] Selector {selector} failed: {exc}")
-            continue
-
-    if not clicked_menu:
-        print("[chatgpt] No menu button found — trying keyboard shortcut")
-        await page.keyboard.press("Control+Shift+,")
-        await page.wait_for_timeout(2000)
-
-    await page.screenshot(path=str(LOGS_DIR / "chatgpt" / "debug_after_menu_click.png"), full_page=False)
-    print(f"[chatgpt] Debug screenshot after menu click saved")
-
+    # Settings is in sidebar footer, NOT in the "More" dropdown
     settings_selectors = [
-        'a[href*="settings"]',
-        '[role="menuitem"]:has-text("Settings")',
-        'div[role="menuitem"]:has-text("Settings")',
-        'a:has-text("Settings")',
+        'a[href*="/settings"]',
         'button:has-text("Settings")',
-        '[data-testid="settings"]',
-        '[role="option"]:has-text("Settings")',
+        'a:has-text("Settings")',
+        ':text-is("Settings")',
+        'div:has-text("Settings"):not(:has(div:has-text("Settings")))',
     ]
     clicked_settings = False
     for selector in settings_selectors:
         try:
             el = page.locator(selector)
-            if await el.count() > 0:
+            count = await el.count()
+            if count > 0:
                 await el.first.click()
-                print(f"[chatgpt] Clicked settings: {selector}")
+                print(f"[chatgpt] Clicked Settings: {selector} (count={count})")
                 await page.wait_for_timeout(2000)
                 clicked_settings = True
                 break
-        except Exception:
+        except Exception as exc:
+            print(f"[chatgpt] Settings selector {selector} failed: {exc}")
             continue
+
+    if not clicked_settings:
+        print("[chatgpt] Settings not found in sidebar — trying DOM walk click")
+        try:
+            await page.evaluate("""() => {
+                const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+                while (walker.nextNode()) {
+                    if (walker.currentNode.textContent.trim() === 'Settings') {
+                        const el = walker.currentNode.parentElement;
+                        if (el) { el.click(); return true; }
+                    }
+                }
+                return false;
+            }""")
+            print("[chatgpt] Clicked Settings via DOM walk")
+            await page.wait_for_timeout(2000)
+            clicked_settings = True
+        except Exception as exc:
+            print(f"[chatgpt] DOM walk click failed: {exc}")
+
+    await page.screenshot(path=str(LOGS_DIR / "chatgpt" / "debug_after_settings_click.png"), full_page=False)
+    print("[chatgpt] Debug screenshot: after settings click")
 
     if clicked_settings:
-        await page.screenshot(path=str(LOGS_DIR / "chatgpt" / "debug_settings_open.png"), full_page=False)
-        print("[chatgpt] Debug screenshot: settings modal")
+        data_controls_selectors = [
+            'a[href*="DataControls"]',
+            '[role="tab"]:has-text("Data controls")',
+            'button:has-text("Data controls")',
+            'a:has-text("Data controls")',
+            ':text("Data controls")',
+            'div:has-text("Data controls"):not(:has(div:has-text("Data controls")))',
+            'nav a:has-text("Data")',
+        ]
+        for selector in data_controls_selectors:
+            try:
+                el = page.locator(selector)
+                if await el.count() > 0:
+                    await el.first.click()
+                    print(f"[chatgpt] Clicked Data Controls: {selector}")
+                    await page.wait_for_timeout(2000)
+                    break
+            except Exception:
+                continue
 
-    data_controls_selectors = [
-        'a[href*="DataControls"]',
-        '[role="tab"]:has-text("Data controls")',
-        'button:has-text("Data controls")',
-        'a:has-text("Data controls")',
-        'div[role="tab"]:has-text("Data")',
-        '[data-testid*="data-controls"]',
-        'nav a:has-text("Data")',
-    ]
-    for selector in data_controls_selectors:
-        try:
-            el = page.locator(selector)
-            if await el.count() > 0:
-                await el.first.click()
-                print(f"[chatgpt] Clicked Data Controls: {selector}")
-                await page.wait_for_timeout(2000)
-                break
-        except Exception:
-            continue
+    await page.screenshot(path=str(LOGS_DIR / "chatgpt" / "debug_data_controls.png"), full_page=False)
+    print("[chatgpt] Debug screenshot: data controls page")
 
 
 def _load_auth_flow(service: str):
