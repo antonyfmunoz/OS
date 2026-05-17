@@ -20,8 +20,12 @@
 - [DONE] local_bridge_client.py extended — send_mfa_response() for MFA code delivery
 - [DONE] local_bridge_server.py extended — register_routes() loads export_bridge_handler
 - [DONE] discord_bot.py extended — !mfa <service> <code> + !fire_export <service> commands
+- [DONE] services/bridge_health.py — VPS watchdog (ensure_bridge_live + SSH autostart)
+- [DONE] docs/setup/windows_bridge_autostart.md — schtasks install + lifecycle pattern
+- [DONE] scripts/test_bridge_lifecycle.sh — chaos test (kill bridge → verify auto-recovery)
+- [DONE] trigger_export.py integrates watchdog — transparent recovery before dispatch
 - [GATE] MFA login pass needed per service before first export (one-time, phone tap)
-- [GATE] Windows bridge server must be running (local_bridge_server.py + export_bridge_handler.py)
+- [GATE] Tailscale SSH: run `tailscale set --ssh` on Windows once (watchdog surfaces gate)
 
 ## FRONT 3 — Code View v1.5
 - [DONE] operator-ui/ — React 18 + Vite + Tailwind + Monaco Editor
