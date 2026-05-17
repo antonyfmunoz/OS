@@ -1,19 +1,23 @@
-# auth_mode values: magic_link, password_totp, password_email_code, oauth_google, oauth_apple
+# auth_mode values: magic_link, password_totp, password_email_code, verification_code, oauth_google, oauth_apple
 
 claude:
   login_url: "https://claude.ai/login"
   export_url: "https://claude.ai/settings"
-  auth_mode: "magic_link"
+  auth_mode: "verification_code"
+  inbox_email: "antonyfm@empyreanstudios.co"
+  sender_filter: "mail.anthropic.com"
   export_request_selector: 'button:has-text("Export"), button:has-text("Request")'
   success_indicator: "export requested"
   auth_flow_module: "services.auth_flows.claude"
   credentials_prefix: "CLAUDE"
 
 chatgpt:
-  login_url: "https://auth0.openai.com/u/login"
+  login_url: "https://chatgpt.com/auth/login"
   export_url: "https://chatgpt.com/#settings/DataControls"
   auth_mode: "password_email_code"
-  export_request_selector: 'button:has-text("Export"), button:has-text("Export data")'
+  inbox_email: "antonyfm@theempyreancreative.com"
+  sender_filter: "noreply@tm.openai.com"
+  export_request_selector: 'button[aria-label="Export"], button:has-text("Export data")'
   success_indicator: "export requested"
   auth_flow_module: "services.auth_flows.chatgpt"
   credentials_prefix: "CHATGPT"
@@ -22,6 +26,8 @@ instagram:
   login_url: "https://www.instagram.com/accounts/login/"
   export_url: "https://www.instagram.com/download/request/"
   auth_mode: "password_totp"
+  inbox_email: null
+  sender_filter: null
   export_request_selector: 'button:has-text("Request"), button:has-text("Next")'
   success_indicator: "request submitted"
   auth_flow_module: "services.auth_flows.instagram"

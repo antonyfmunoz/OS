@@ -25,6 +25,7 @@ async def launch_browser(
     headless: bool = False,
     geoip: bool = True,
     humanize: bool | float = True,
+    locale: str | None = None,
     **kwargs,
 ):
     """Launch a Camoufox browser instance with anti-detect fingerprinting.
@@ -34,6 +35,9 @@ async def launch_browser(
 
     The page object has the standard Playwright API: goto(), fill(), click(),
     screenshot(), query_selector(), inner_text(), url, etc.
+
+    locale: if set (e.g. 'en-US'), forces that locale and disables GeoIP
+    locale matching to prevent pages rendering in unexpected languages.
     """
     from camoufox.async_api import AsyncCamoufox
 
@@ -42,9 +46,13 @@ async def launch_browser(
 
     os_targets = kwargs.pop("os_targets", ["windows"])
 
+    if locale:
+        kwargs.setdefault("locale", locale)
+        geoip = False
+
     logger.info(
-        "[BrowserAdapter] Launching Camoufox for %s (headless=%s, geoip=%s, humanize=%s)",
-        service, headless, geoip, humanize,
+        "[BrowserAdapter] Launching Camoufox for %s (headless=%s, geoip=%s, humanize=%s, locale=%s)",
+        service, headless, geoip, humanize, locale,
     )
 
     camoufox = AsyncCamoufox(
