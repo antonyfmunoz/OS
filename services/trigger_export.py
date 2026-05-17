@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 _BRIDGE_IP = os.getenv("EOS_LOCAL_BRIDGE_IP", "100.74.199.102")
 _BRIDGE_PORT = int(os.getenv("EOS_LOCAL_BRIDGE_PORT", "8767"))
 _BASE_URL = f"http://{_BRIDGE_IP}:{_BRIDGE_PORT}"
-_SEND_TIMEOUT_S = 15.0
+_SEND_TIMEOUT_S = 120.0
 
 VALID_SERVICES = ("claude", "chatgpt", "instagram", "all")
 
