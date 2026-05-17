@@ -266,6 +266,13 @@ async def _click_export_button(page, service: str) -> bool:
             if "export" in body_text.lower():
                 idx = body_text.lower().find("export")
                 print(f"[chatgpt] Context around 'export': ...{body_text[max(0,idx-50):idx+80]}...")
+
+            settings_text = body_text[-2000:] if len(body_text) > 2000 else body_text
+            for keyword in ["export", "download", "request", "data", "control", "improve", "model", "delete", "archive"]:
+                if keyword in settings_text.lower():
+                    idx = settings_text.lower().find(keyword)
+                    snippet = settings_text[max(0,idx-30):idx+60].replace('\n', ' ')
+                    print(f"[chatgpt] Found '{keyword}': ...{snippet}...")
         except Exception as exc:
             print(f"[chatgpt] Scroll/text check failed: {exc}")
 
