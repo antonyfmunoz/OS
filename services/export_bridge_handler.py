@@ -29,7 +29,7 @@ from aiohttp import web
 
 logger = logging.getLogger("export_bridge")
 
-_REPO_ROOT = Path(os.getenv("EOS_REPO_ROOT", str(Path.home() / "OS")))
+_REPO_ROOT = Path(os.getenv("EOS_REPO_ROOT", str(Path.home() / "dev" / "OSv2")))
 _VPS_WEBHOOK_URL = os.getenv("EOS_VPS_WEBHOOK_URL", "http://100.77.233.50:8765")
 _PROFILE_DIR = Path(os.getenv("PLAYWRIGHT_USER_DATA_DIR", str(Path.home() / ".playwright-profiles")))
 
