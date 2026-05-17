@@ -1,0 +1,26 @@
+claude:
+  login_url: "https://claude.ai/login"
+  export_url: "https://claude.ai/settings"
+  mfa_mode: "totp"
+  export_request_selector: 'button:has-text("Export"), button:has-text("Request")'
+  success_indicator: "export requested"
+  auth_flow_module: "services.auth_flows.claude"
+  credentials_prefix: "CLAUDE"
+
+chatgpt:
+  login_url: "https://auth0.openai.com/u/login"
+  export_url: "https://chatgpt.com/#settings/DataControls"
+  mfa_mode: "email"
+  export_request_selector: 'button:has-text("Export"), button:has-text("Export data")'
+  success_indicator: "export requested"
+  auth_flow_module: "services.auth_flows.chatgpt"
+  credentials_prefix: "CHATGPT"
+
+instagram:
+  login_url: "https://www.instagram.com/accounts/login/"
+  export_url: "https://www.instagram.com/download/request/"
+  mfa_mode: "sms"
+  export_request_selector: 'button:has-text("Request"), button:has-text("Next")'
+  success_indicator: "request submitted"
+  auth_flow_module: "services.auth_flows.instagram"
+  credentials_prefix: "INSTAGRAM"

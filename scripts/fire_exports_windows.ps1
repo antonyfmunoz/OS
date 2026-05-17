@@ -2,8 +2,8 @@
 #
 # Prerequisites:
 #   - Python 3.12+ installed
-#   - pip install playwright pyotp python-dotenv aiohttp
-#   - playwright install chromium
+#   - pip install camoufox[geoip] pyotp python-dotenv aiohttp
+#   - python -m camoufox fetch
 #   - This repo cloned/synced to Windows
 #
 # Usage (from repo root):
@@ -14,7 +14,7 @@
 #
 # Environment:
 #   BROWSER_HEADLESS       — "false" for interactive (default from bridge)
-#   PLAYWRIGHT_USER_DATA_DIR — persistent profile dir per service
+#   CAMOUFOX_PROFILES_DIR  — persistent profile dir per service
 #   EOS_EXPORT_MFA_CALLBACK_URL — bridge URL for MFA response delivery
 
 param(
@@ -33,8 +33,8 @@ if (-not $env:BROWSER_HEADLESS) {
 }
 
 # Persistent profiles — survive across runs so MFA only happens once
-if (-not $env:PLAYWRIGHT_USER_DATA_DIR) {
-    $env:PLAYWRIGHT_USER_DATA_DIR = Join-Path $env:USERPROFILE ".playwright-profiles"
+if (-not $env:CAMOUFOX_PROFILES_DIR) {
+    $env:CAMOUFOX_PROFILES_DIR = Join-Path $env:USERPROFILE ".camoufox-profiles"
 }
 
 if ($Service -eq "all") {
@@ -49,11 +49,11 @@ foreach ($svc in $services) {
     Write-Host "========================================`n" -ForegroundColor Cyan
 
     # Ensure per-service profile dir exists
-    $profileDir = Join-Path $env:PLAYWRIGHT_USER_DATA_DIR $svc
+    $profileDir = Join-Path $env:CAMOUFOX_PROFILES_DIR $svc
     if (-not (Test-Path $profileDir)) {
         New-Item -ItemType Directory -Path $profileDir -Force | Out-Null
     }
-    $env:PLAYWRIGHT_USER_DATA_DIR_SERVICE = $profileDir
+    $env:CAMOUFOX_PROFILES_DIR_SERVICE = $profileDir
 
     python "$RepoRoot\scripts\fire_export.py" $svc
 
