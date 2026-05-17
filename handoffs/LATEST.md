@@ -10,12 +10,18 @@
 - [DONE] scripts/github_trinity_ingest.py — clone + ingest via GenericIngestionOrchestrator
 - [DONE] scripts/gws_scanner_cron.py — thin wrapper for existing GWSDocumentScanner
 - [DONE] adapters/browser_exports/ — export agents for claude/chatgpt/instagram
-- [DONE] scripts/fire_export.py — headless/non-headless runner with MFA detection
-- [DONE] scripts/fire_exports_windows.ps1 — Windows PowerShell wrapper (non-headless)
-- [GATE] Browser exports must run from Windows machine (VPS headless gets bot-blocked)
-- [GATE] MFA login pass needed per service before first export
+- [DONE] scripts/fire_export.py — headless/non-headless runner with MFA detection + bridge callback
+- [DONE] scripts/fire_exports_windows.ps1 — Windows PowerShell wrapper (persistent profiles)
 - [DONE] scripts/export_pipeline.py — Gmail poller → auto-download → route to parser → ingest. Cron-ready.
-- [DONE] scripts/fire_exports_windows.ps1 — non-headless PowerShell wrapper for Windows
+- [DONE] services/trigger_export.py — VPS-side trigger (CLI + importable)
+- [DONE] services/export_bridge_handler.py — Windows-side handler (/fire-export, /mfa-response)
+- [DONE] operator-ui/src/server/routes/export.ts — HTTP trigger endpoint POST /api/export/fire
+- [DONE] cc_webhook_receiver.py extended — /mfa-challenge handler surfaces to Discord
+- [DONE] local_bridge_client.py extended — send_mfa_response() for MFA code delivery
+- [DONE] local_bridge_server.py extended — register_routes() loads export_bridge_handler
+- [DONE] discord_bot.py extended — !mfa <service> <code> + !fire_export <service> commands
+- [GATE] MFA login pass needed per service before first export (one-time, phone tap)
+- [GATE] Windows bridge server must be running (local_bridge_server.py + export_bridge_handler.py)
 
 ## FRONT 3 — Code View v1.5
 - [DONE] operator-ui/ — React 18 + Vite + Tailwind + Monaco Editor

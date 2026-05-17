@@ -226,8 +226,78 @@ async def start_webhook_server(
     async def handle_health(_request: web.Request) -> web.Response:
         return web.Response(status=200, text="ok")
 
+    async def handle_mfa_challenge(request: web.Request) -> web.Response:
+        """Receive MFA challenge from Windows bridge and surface to Discord.
+
+        Payload: {type: "mfa_challenge", service: str, mfa_type: str, url: str, ...}
+        Surfaces as a Discord message with the challenge details.
+        User responds in Discord → trigger_export routes response back.
+        """
+        try:
+            data = await request.json()
+        except json.JSONDecodeError:
+            return web.Response(status=400, text="invalid json")
+
+        service = data.get("service", "unknown")
+        mfa_type = data.get("mfa_type", "UNKNOWN")
+        url = data.get("url", "")
+
+        # Find the builder channel (or general) for MFA notifications
+        channel_id = (
+            _SESSION_CHANNEL_MAP.get("dex_builder_main")
+            or _SESSION_CHANNEL_MAP.get("dex_main")
+            or next(iter(_SESSION_CHANNEL_MAP.values()), None)
+        )
+
+        if not channel_id:
+            logger.error("[CCWebhook] No channel available for MFA notification")
+            return web.Response(status=404, text="no channel configured")
+
+        channel = bot.get_channel(channel_id)
+        if not channel:
+            return web.Response(status=404, text="channel not found")
+
+        # Build the Discord notification
+        mfa_msg = (
+            f"🔐 **MFA CHALLENGE — {service.upper()}**\n"
+            f"```\n"
+            f"Service:  {service}\n"
+            f"Type:     {mfa_type}\n"
+            f"URL:      {url[:100]}\n"
+            f"```\n"
+        )
+
+        if mfa_type in ("TOTP", "SMS", "EMAIL_2FA"):
+            mfa_msg += (
+                f"**Reply with the 6-digit code:**\n"
+                f"`!mfa {service} <code>`\n"
+            )
+        elif mfa_type == "PUSH":
+            mfa_msg += (
+                f"**Approve the push notification, then reply:**\n"
+                f"`!mfa {service} approved`\n"
+            )
+        else:
+            mfa_msg += (
+                f"**Check screenshot and respond:**\n"
+                f"`!mfa {service} <code-or-approved>`\n"
+            )
+
+        try:
+            await channel.send(mfa_msg)
+            logger.info(
+                "[CCWebhook] MFA challenge surfaced to Discord for %s (type=%s)",
+                service, mfa_type,
+            )
+        except Exception as exc:
+            logger.error("[CCWebhook] MFA Discord send failed: %s", exc)
+            return web.Response(status=500, text=str(exc))
+
+        return web.Response(status=200, text="ok")
+
     app.router.add_post("/cc-reply", handle_cc_reply)
     app.router.add_post("/cc-prompt", handle_cc_prompt)
+    app.router.add_post("/mfa-challenge", handle_mfa_challenge)
     app.router.add_get("/health", handle_health)
 
     runner = web.AppRunner(app)

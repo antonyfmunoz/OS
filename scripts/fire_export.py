@@ -4,6 +4,11 @@ Usage:
     python3 scripts/fire_export.py claude
     python3 scripts/fire_export.py chatgpt
     python3 scripts/fire_export.py instagram
+
+Environment:
+    BROWSER_HEADLESS              — "true"/"false" (default: true)
+    PLAYWRIGHT_USER_DATA_DIR_SERVICE — override profile dir for this service
+    EOS_EXPORT_MFA_CALLBACK_URL   — if set, bridge-mediated MFA (no stdin wait)
 """
 
 import asyncio
@@ -17,11 +22,46 @@ sys.path.insert(0, "/opt/OS")
 from adapters.browser_exports.contract import ExportRequest
 from adapters.browser_exports.profile_manager import ProfileManager
 
-EXPORT_DIR = Path("/opt/OS/data/runtime/exports")
+EXPORT_DIR = Path(os.environ.get("EOS_EXPORT_DIR", "/opt/OS/data/runtime/exports"))
 EXPORT_DIR.mkdir(parents=True, exist_ok=True)
 
-LOGS_DIR = Path("/opt/OS/logs/exports")
+LOGS_DIR = Path(os.environ.get("EOS_EXPORT_LOGS_DIR", "/opt/OS/logs/exports"))
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+async def _wait_for_bridge_mfa(pm: ProfileManager, service: str, mfa_type: str, timeout: int = 300) -> bool:
+    """Wait for MFA code delivered via bridge HTTP callback.
+
+    The bridge handler (export_bridge_handler.py) monitors our stdout for
+    MFA_CHALLENGE, notifies VPS, and delivers the user's response to
+    /mfa-response on the local bridge. Meanwhile, we poll for page navigation
+    (push/approve case) or wait for the code to appear in a local file
+    that the bridge writes.
+
+    For PUSH type: just poll page URL until it navigates away from challenge.
+    For TOTP/SMS/EMAIL: bridge injects code via Playwright form fill.
+    """
+    elapsed = 0
+    interval = 5
+
+    while elapsed < timeout:
+        await asyncio.sleep(interval)
+        elapsed += interval
+
+        if pm._page:
+            url = pm._page.url
+            mfa_indicators = ["login", "signin", "verify", "challenge",
+                              "accounts/login", "auth", "two-factor", "mfa", "otp"]
+            still_on_mfa = any(ind in url.lower() for ind in mfa_indicators)
+
+            if not still_on_mfa:
+                print(f"[{service}] Page navigated away from MFA — resolved!")
+                return True
+
+        if elapsed % 30 == 0:
+            print(f"[{service}] Still waiting for MFA resolution... ({elapsed}s)")
+
+    return False
 
 
 async def run_export(service: str) -> None:
@@ -110,9 +150,15 @@ async def run_export(service: str) -> None:
             f"mfa_type: {mfa_type}\n"
         )
 
-        # Wait for manual completion (120s timeout)
-        print(f"[{service}] Waiting up to 120s for manual MFA completion...")
-        mfa_resolved = await pm.handle_mfa("manual", timeout=120)
+        # Bridge-mediated MFA: wait for code via HTTP callback
+        mfa_callback_url = os.environ.get("EOS_EXPORT_MFA_CALLBACK_URL")
+        if mfa_callback_url:
+            print(f"[{service}] Bridge MFA mode — waiting for code via callback (300s timeout)...")
+            mfa_resolved = await _wait_for_bridge_mfa(pm, service, mfa_type, timeout=300)
+        else:
+            # Standalone mode: wait for manual page navigation
+            print(f"[{service}] Waiting up to 120s for manual MFA completion...")
+            mfa_resolved = await pm.handle_mfa("manual", timeout=120)
 
         if mfa_resolved:
             print(f"[{service}] MFA resolved! Continuing...")
@@ -120,7 +166,7 @@ async def run_export(service: str) -> None:
             await pm.screenshot(post_mfa_shot)
             print(f"[{service}] Post-MFA screenshot: {post_mfa_shot}")
         else:
-            print(f"[{service}] MFA NOT resolved within 120s. Profile NOT seeded.")
+            print(f"[{service}] MFA NOT resolved within timeout. Profile NOT seeded.")
             await pm.stop()
             return
     else:

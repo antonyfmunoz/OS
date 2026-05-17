@@ -2580,6 +2580,44 @@ async def cmd_answer(ctx: commands.Context, session_name: str, *, text: str):
         await ctx.reply(f"Error: {e}")
 
 
+@bot.command(name="mfa")
+async def cmd_mfa(ctx: commands.Context, service: str, *, code: str):
+    """Respond to an MFA challenge: !mfa claude 123456 or !mfa chatgpt approved"""
+    if ctx.author.id != FOUNDER_ID:
+        await ctx.reply("Founder only.")
+        return
+    try:
+        from services.local_bridge_client import send_mfa_response
+
+        response_type = "approved" if code.lower().strip() in ("approved", "approve", "yes") else "code"
+        ok = send_mfa_response(service.lower(), code.strip(), response_type)
+        if ok:
+            await ctx.reply(f"✅ MFA response delivered to **{service}** ({response_type})")
+        else:
+            await ctx.reply(f"❌ Failed to deliver MFA response — bridge unreachable or no pending challenge")
+    except Exception as e:
+        await ctx.reply(f"Error: {e}")
+
+
+@bot.command(name="fire_export")
+async def cmd_fire_export(ctx: commands.Context, service: str = "all"):
+    """Trigger a browser export: !fire_export claude or !fire_export all"""
+    if ctx.author.id != FOUNDER_ID:
+        await ctx.reply("Founder only.")
+        return
+    try:
+        from services.trigger_export import fire_export
+
+        await ctx.reply(f"🚀 Triggering export: **{service}**...")
+        result = fire_export(service.lower())
+        if result.get("ok"):
+            await ctx.reply(f"✅ Bridge accepted: {result.get('message', 'dispatched')}")
+        else:
+            await ctx.reply(f"❌ Failed: {result.get('error', 'unknown')}")
+    except Exception as e:
+        await ctx.reply(f"Error: {e}")
+
+
 @bot.command(name="watcher_status")
 async def cmd_watcher_status(ctx: commands.Context):
     """Show session watcher status."""

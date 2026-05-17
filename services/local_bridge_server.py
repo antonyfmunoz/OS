@@ -230,6 +230,14 @@ def create_app() -> web.Application:
     app.router.add_get("/health", handle_health)
     app.router.add_post("/message", handle_message)
     app.router.add_get("/status", handle_status)
+
+    # Export bridge extension (fire_export + MFA response handlers)
+    try:
+        from export_bridge_handler import register_routes as register_export_routes
+        register_export_routes(app)
+    except ImportError:
+        logger.info("[Bridge] export_bridge_handler not available — export routes disabled")
+
     return app
 
 

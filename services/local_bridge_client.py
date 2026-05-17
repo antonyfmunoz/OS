@@ -121,6 +121,45 @@ def forward_to_local(text: str, session_name: str) -> bool:
         return False
 
 
+def send_mfa_response(service: str, code: str, response_type: str = "code") -> bool:
+    """Send MFA response to the Windows bridge for a pending challenge.
+
+    Args:
+        service: Which service (claude, chatgpt, instagram)
+        code: The 6-digit code or "approved" for push
+        response_type: "code" or "approved"
+
+    Returns True if delivered, False otherwise.
+    """
+    if not _BRIDGE_ENABLED:
+        logger.debug("[LocalBridge] Disabled — cannot send MFA response")
+        return False
+
+    if not check_health():
+        logger.info("[LocalBridge] Health check failed — cannot deliver MFA response")
+        return False
+
+    try:
+        resp = requests.post(
+            f"{_BASE_URL}/mfa-response",
+            json={"service": service, "code": code, "response_type": response_type},
+            timeout=_SEND_TIMEOUT_S,
+        )
+        if resp.status_code == 200:
+            logger.info("[LocalBridge] MFA response delivered for %s", service)
+            return True
+        else:
+            logger.warning(
+                "[LocalBridge] MFA response failed — HTTP %d: %s",
+                resp.status_code,
+                resp.text[:200],
+            )
+            return False
+    except (requests.ConnectionError, requests.Timeout, OSError) as exc:
+        logger.info("[LocalBridge] MFA response delivery failed — %s", exc)
+        return False
+
+
 def bridge_status() -> dict[str, Any]:
     """Return a status dict for diagnostics."""
     healthy = check_health() if _BRIDGE_ENABLED else False
