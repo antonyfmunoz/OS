@@ -51,27 +51,52 @@ _URL_PATTERNS: dict[str, list[str]] = {
 
 _POLL_INTERVAL_S = 5
 _MAX_EMAIL_AGE_S = 180
+_GMAIL_CREDS_PATH = Path("/root/.config/gws/gmail_credentials.json")
 
 
-def _get_gws_connector():
-    """Import and return GWSConnector instance."""
-    from adapters.google_workspace.gws_connector import GWSConnector
-    return GWSConnector()
+def _get_gmail_service():
+    """Build Gmail API service using stored OAuth credentials."""
+    from google.oauth2.credentials import Credentials
+    from googleapiclient.discovery import build
 
+    if not _GMAIL_CREDS_PATH.exists():
+        raise RuntimeError(
+            f"Gmail credentials not found at {_GMAIL_CREDS_PATH}. "
+            "Run: python3 services/oauth_device_flow.py --scopes gmail.readonly"
+        )
 
-def _get_full_message_body(gws, message_id: str) -> str:
-    """Fetch full message body (HTML or plain text) from Gmail API."""
-    detail = gws._run(
-        "gmail", "users", "messages", "get",
-        params={
-            "userId": "me",
-            "id": message_id,
-            "format": "full",
-        },
+    data = json.loads(_GMAIL_CREDS_PATH.read_text())
+    creds = Credentials(
+        token=data.get("access_token"),
+        refresh_token=data.get("refresh_token"),
+        token_uri=data.get("token_uri", "https://oauth2.googleapis.com/token"),
+        client_id=data.get("client_id"),
+        client_secret=data.get("client_secret"),
+        scopes=data.get("scopes", []),
     )
+    return build("gmail", "v1", credentials=creds)
+
+
+def _gmail_list_messages(service, query: str, max_results: int = 5) -> list[dict]:
+    """List messages matching query via Gmail API."""
+    results = service.users().messages().list(
+        userId="me", maxResults=max_results, q=query
+    ).execute()
+    return results.get("messages", [])
+
+
+def _gmail_get_message(service, message_id: str, fmt: str = "metadata") -> dict:
+    """Get a single message by ID."""
+    return service.users().messages().get(
+        userId="me", id=message_id, format=fmt
+    ).execute()
+
+
+def _get_full_message_body(service, message_id: str) -> str:
+    """Fetch full message body (HTML or plain text) from Gmail API."""
+    detail = _gmail_get_message(service, message_id, fmt="full")
     if not detail:
         return ""
-
     payload = detail.get("payload", {})
     return _extract_body_from_payload(payload)
 
@@ -178,11 +203,11 @@ async def handle_wait_for_magic_link(request: web.Request) -> web.Response:
     seen_ids: set[str] = set()
 
     try:
-        gws = _get_gws_connector()
+        gmail = _get_gmail_service()
     except Exception as exc:
-        logger.error("[MagicLink] Cannot initialize GWSConnector: %s", exc)
+        logger.error("[MagicLink] Cannot initialize Gmail service: %s", exc)
         return web.json_response(
-            {"ok": False, "error": f"gmail connector failed: {exc}"},
+            {"ok": False, "error": f"gmail service failed: {exc}"},
             status=500,
         )
 
@@ -193,16 +218,21 @@ async def handle_wait_for_magic_link(request: web.Request) -> web.Response:
         try:
             for sender in senders:
                 query = f"from:{sender} newer_than:5m"
-                emails = gws.get_recent_emails(max_results=5, query=query)
+                messages = _gmail_list_messages(gmail, query, max_results=5)
 
-                for msg in emails:
-                    msg_id = msg.get("id", "")
+                for msg_ref in messages:
+                    msg_id = msg_ref.get("id", "")
                     if msg_id in seen_ids:
                         continue
                     seen_ids.add(msg_id)
 
-                    subject = msg.get("subject", "").lower()
-                    date_str = msg.get("date", "")
+                    detail = _gmail_get_message(gmail, msg_id, fmt="metadata")
+                    headers = {
+                        h["name"]: h["value"]
+                        for h in detail.get("payload", {}).get("headers", [])
+                    }
+                    subject = headers.get("Subject", "").lower()
+                    date_str = headers.get("Date", "")
 
                     if not _is_recent_email(date_str):
                         continue
@@ -213,10 +243,10 @@ async def handle_wait_for_magic_link(request: web.Request) -> web.Response:
 
                     logger.info(
                         "[MagicLink] Found candidate email: id=%s subject='%s' from=%s",
-                        msg_id, msg.get("subject", ""), sender,
+                        msg_id, headers.get("Subject", ""), sender,
                     )
 
-                    body = _get_full_message_body(gws, msg_id)
+                    body = _get_full_message_body(gmail, msg_id)
                     if not body:
                         logger.warning("[MagicLink] Could not retrieve body for %s", msg_id)
                         continue
