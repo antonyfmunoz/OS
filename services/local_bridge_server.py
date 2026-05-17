@@ -238,6 +238,13 @@ def create_app() -> web.Application:
     except ImportError:
         logger.info("[Bridge] export_bridge_handler not available — export routes disabled")
 
+    # Magic-link auth handler (Gmail poller for login emails)
+    try:
+        from magic_link_handler import register_routes as register_magic_link_routes
+        register_magic_link_routes(app)
+    except ImportError:
+        logger.info("[Bridge] magic_link_handler not available — magic link routes disabled")
+
     return app
 
 
