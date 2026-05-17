@@ -145,7 +145,7 @@ async def _navigate_chatgpt_settings(page) -> None:
     await page.goto("https://chatgpt.com", wait_until="domcontentloaded", timeout=30000)
     await page.wait_for_timeout(3000)
 
-    profile_selectors = [
+    menu_selectors = [
         'button[data-testid="profile-button"]',
         'img[alt*="User" i]',
         'button[aria-label*="User menu" i]',
@@ -154,17 +154,31 @@ async def _navigate_chatgpt_settings(page) -> None:
         'button:has(img[referrerpolicy="no-referrer"])',
         '[data-testid="user-menu"]',
         'button.rounded-full',
+        # Sidebar "More" / "..." button — free tier has no profile icon
+        'button:has-text("More")',
+        'nav button:has-text("More")',
+        'aside button:has-text("More")',
     ]
-    for selector in profile_selectors:
+    clicked_menu = False
+    for selector in menu_selectors:
         try:
             el = page.locator(selector)
             if await el.count() > 0:
                 await el.first.click()
-                print(f"[chatgpt] Clicked profile menu: {selector}")
+                print(f"[chatgpt] Clicked menu: {selector}")
                 await page.wait_for_timeout(1500)
+                clicked_menu = True
                 break
         except Exception:
             continue
+
+    if not clicked_menu:
+        print("[chatgpt] No menu button found — trying keyboard shortcut")
+        await page.keyboard.press("Control+Shift+,")
+        await page.wait_for_timeout(2000)
+
+    await page.screenshot(path=str(LOGS_DIR / "chatgpt" / "debug_after_menu_click.png"), full_page=False)
+    print(f"[chatgpt] Debug screenshot after menu click saved")
 
     settings_selectors = [
         'a[href*="settings"]',
@@ -173,7 +187,9 @@ async def _navigate_chatgpt_settings(page) -> None:
         'a:has-text("Settings")',
         'button:has-text("Settings")',
         '[data-testid="settings"]',
+        '[role="option"]:has-text("Settings")',
     ]
+    clicked_settings = False
     for selector in settings_selectors:
         try:
             el = page.locator(selector)
@@ -181,17 +197,23 @@ async def _navigate_chatgpt_settings(page) -> None:
                 await el.first.click()
                 print(f"[chatgpt] Clicked settings: {selector}")
                 await page.wait_for_timeout(2000)
+                clicked_settings = True
                 break
         except Exception:
             continue
+
+    if clicked_settings:
+        await page.screenshot(path=str(LOGS_DIR / "chatgpt" / "debug_settings_open.png"), full_page=False)
+        print("[chatgpt] Debug screenshot: settings modal")
 
     data_controls_selectors = [
         'a[href*="DataControls"]',
         '[role="tab"]:has-text("Data controls")',
         'button:has-text("Data controls")',
         'a:has-text("Data controls")',
-        'div:has-text("Data controls"):not(:has(div))',
+        'div[role="tab"]:has-text("Data")',
         '[data-testid*="data-controls"]',
+        'nav a:has-text("Data")',
     ]
     for selector in data_controls_selectors:
         try:
