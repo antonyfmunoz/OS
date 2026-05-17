@@ -97,7 +97,7 @@ async def _run_export(service: str, dry_run: bool = False) -> dict[str, Any]:
     env = os.environ.copy()
     env["BROWSER_HEADLESS"] = "false"
     env["PLAYWRIGHT_USER_DATA_DIR"] = str(_PROFILE_DIR / service)
-    env["EOS_EXPORT_MFA_CALLBACK_URL"] = f"http://localhost:{os.getenv('EOS_LOCAL_BRIDGE_PORT', '8766')}/mfa-response"
+    env["EOS_EXPORT_MFA_CALLBACK_URL"] = f"http://localhost:{os.getenv('EOS_LOCAL_BRIDGE_PORT', '8767')}/mfa-response"
 
     _PROFILE_DIR.mkdir(parents=True, exist_ok=True)
     (_PROFILE_DIR / service).mkdir(parents=True, exist_ok=True)
