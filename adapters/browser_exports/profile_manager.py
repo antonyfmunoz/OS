@@ -45,13 +45,12 @@ class ProfileManager(BrowserAgent):
         self._context = await self._pw.chromium.launch_persistent_context(
             user_data_dir=str(self._profile_dir),
             headless=self.headless,
-            args=["--no-sandbox", "--disable-dev-shm-usage"],
+            args=[
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-blink-features=AutomationControlled",
+            ],
             viewport={"width": 1280, "height": 800},
-            user_agent=(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/120.0.0.0 Safari/537.36"
-            ),
         )
         # Persistent context has no separate browser handle
         self._browser = None
