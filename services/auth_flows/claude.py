@@ -47,19 +47,19 @@ async def login(page) -> bool:
 
     logger.info("[claude:auth] Not authenticated — starting magic-link flow")
     await page.goto(_LOGIN_URL, wait_until="domcontentloaded", timeout=30000)
-    await page.wait_for_timeout(3000)
-
-    if not await _click_continue_with_email(page):
-        logger.error("[claude:auth] Could not find 'Continue with email' button")
-        return False
-
-    await page.wait_for_timeout(2000)
+    await page.wait_for_timeout(5000)
 
     if not await _fill_email(page, email):
         logger.error("[claude:auth] Could not fill email input")
         return False
 
-    await page.wait_for_timeout(3000)
+    await page.wait_for_timeout(1000)
+
+    if not await _click_continue_with_email(page):
+        logger.error("[claude:auth] Could not find 'Continue with email' button")
+        return False
+
+    await page.wait_for_timeout(5000)
 
     if not _detect_check_email_page(await _get_body_text(page)):
         logger.warning("[claude:auth] Did not detect 'check your email' confirmation")
@@ -101,11 +101,13 @@ async def _already_authenticated(page) -> bool:
 
 
 async def _click_continue_with_email(page) -> bool:
-    """Find and click the 'Continue with email' button."""
+    """Find and click the 'Continue with email' button (submits the email form)."""
     selectors = [
         'button:has-text("Continue with email")',
         'button:has-text("continue with email")',
+        'button:has-text("Continue with Email")',
         'a:has-text("Continue with email")',
+        'button[type="submit"]',
         'button:has-text("Email")',
         '[data-testid="email-login"]',
     ]
@@ -122,28 +124,13 @@ async def _click_continue_with_email(page) -> bool:
 
 
 async def _fill_email(page, email: str) -> bool:
-    """Fill the email input and submit."""
+    """Fill the email input field (does not submit)."""
     try:
         email_input = page.locator('input[type="email"], input[name="email"], input[placeholder*="email" i]')
         if await email_input.count() > 0:
             await email_input.first.fill(email)
-            await page.wait_for_timeout(500)
-
-            submit = page.locator(
-                'button[type="submit"], '
-                'button:has-text("Continue"), '
-                'button:has-text("Send"), '
-                'button:has-text("Sign in"), '
-                'button:has-text("Send login link")'
-            )
-            if await submit.count() > 0:
-                await submit.first.click()
-                logger.info("[claude:auth] Email submitted: %s", email)
-                return True
-            else:
-                await email_input.first.press("Enter")
-                logger.info("[claude:auth] Email submitted via Enter key")
-                return True
+            logger.info("[claude:auth] Email filled: %s", email)
+            return True
     except Exception as exc:
         logger.warning("[claude:auth] Email fill failed: %s", exc)
     return False
