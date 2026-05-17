@@ -31,7 +31,9 @@ class ProfileManager(BrowserAgent):
     def __init__(self, service: str, headless: bool = True) -> None:
         super().__init__(headless=headless)
         self.service = service
-        self._profile_dir = _PROFILES_DIR / service
+        # Bridge override: use per-service dir from env if set (Windows path)
+        override = os.getenv("PLAYWRIGHT_USER_DATA_DIR_SERVICE")
+        self._profile_dir = Path(override) if override else _PROFILES_DIR / service
         self._profile_dir.mkdir(parents=True, exist_ok=True)
 
     async def start(self) -> None:

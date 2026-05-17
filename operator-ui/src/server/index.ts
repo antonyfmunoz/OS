@@ -8,6 +8,7 @@ import { Hono } from 'hono'
 import { serve } from '@hono/node-server'
 import { cors } from 'hono/cors'
 import { codeRouter } from './routes/code.js'
+import { exportRouter } from './routes/export.js'
 
 const app = new Hono()
 
@@ -19,6 +20,9 @@ app.get('/api/health', (c) => c.json({ status: 'ok', service: 'operator-ui', ts:
 
 // Code engine routes
 app.route('/api/code', codeRouter)
+
+// Export trigger routes
+app.route('/api/export', exportRouter)
 
 // 404
 app.notFound((c) => c.json({ error: 'not_found', path: c.req.path }, 404))
