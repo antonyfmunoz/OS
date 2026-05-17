@@ -73,9 +73,13 @@ async def run_export(service: str) -> None:
                 print(f"[{service}] No auth flow module — proceeding unauthenticated")
 
             # Step 3: Navigate to export page
-            export_url = _get_export_url(service)
-            print(f"[{service}] Navigating to {export_url}")
-            await page.goto(export_url, wait_until="domcontentloaded", timeout=30000)
+            if service == "chatgpt":
+                print(f"[{service}] Opening settings via UI (SPA modal, not URL)")
+                await _navigate_chatgpt_settings(page)
+            else:
+                export_url = _get_export_url(service)
+                print(f"[{service}] Navigating to {export_url}")
+                await page.goto(export_url, wait_until="domcontentloaded", timeout=30000)
             await page.wait_for_timeout(3000)
 
             post_nav_shot = str(svc_log_dir / f"{ts}_step3_export_page.png")
@@ -134,6 +138,71 @@ async def run_export(service: str) -> None:
                 continue
             _try_tier_3(service, None)
             sys.exit(1)
+
+
+async def _navigate_chatgpt_settings(page) -> None:
+    """Open ChatGPT settings modal via UI clicks (SPA doesn't URL-route settings)."""
+    await page.goto("https://chatgpt.com", wait_until="domcontentloaded", timeout=30000)
+    await page.wait_for_timeout(3000)
+
+    profile_selectors = [
+        'button[data-testid="profile-button"]',
+        'img[alt*="User" i]',
+        'button[aria-label*="User menu" i]',
+        'button[aria-label*="Profile" i]',
+        'button[aria-label*="Account" i]',
+        'button:has(img[referrerpolicy="no-referrer"])',
+        '[data-testid="user-menu"]',
+        'button.rounded-full',
+    ]
+    for selector in profile_selectors:
+        try:
+            el = page.locator(selector)
+            if await el.count() > 0:
+                await el.first.click()
+                print(f"[chatgpt] Clicked profile menu: {selector}")
+                await page.wait_for_timeout(1500)
+                break
+        except Exception:
+            continue
+
+    settings_selectors = [
+        'a[href*="settings"]',
+        '[role="menuitem"]:has-text("Settings")',
+        'div[role="menuitem"]:has-text("Settings")',
+        'a:has-text("Settings")',
+        'button:has-text("Settings")',
+        '[data-testid="settings"]',
+    ]
+    for selector in settings_selectors:
+        try:
+            el = page.locator(selector)
+            if await el.count() > 0:
+                await el.first.click()
+                print(f"[chatgpt] Clicked settings: {selector}")
+                await page.wait_for_timeout(2000)
+                break
+        except Exception:
+            continue
+
+    data_controls_selectors = [
+        'a[href*="DataControls"]',
+        '[role="tab"]:has-text("Data controls")',
+        'button:has-text("Data controls")',
+        'a:has-text("Data controls")',
+        'div:has-text("Data controls"):not(:has(div))',
+        '[data-testid*="data-controls"]',
+    ]
+    for selector in data_controls_selectors:
+        try:
+            el = page.locator(selector)
+            if await el.count() > 0:
+                await el.first.click()
+                print(f"[chatgpt] Clicked Data Controls: {selector}")
+                await page.wait_for_timeout(2000)
+                break
+        except Exception:
+            continue
 
 
 def _load_auth_flow(service: str):
