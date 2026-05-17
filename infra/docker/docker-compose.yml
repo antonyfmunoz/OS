@@ -159,3 +159,24 @@ services:
       - EOS_DISCORD_TEXT_ALLOWED_CHANNELS=*
       - EOS_DISCORD_TEXT_ALLOWED_USERS=*
     command: python3 umh/interfaces/discord/bot.py
+
+  os-operator:
+    image: node:20-slim
+    container_name: os-operator
+    restart: unless-stopped
+    working_dir: /app/operator-ui
+    networks:
+      - eos_network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8091:8091"
+    volumes:
+      - ${UMH_ROOT:-/opt/OS}:/app
+    environment:
+      - NODE_ENV=production
+      - PORT=8091
+      - APP_ROOT=/app
+      - CLAUDE_CODE_OAUTH_TOKEN=${CLAUDE_CODE_OAUTH_TOKEN:-}
+    command: >
+      bash -c "npm install --omit=dev 2>/dev/null; npx tsx src/server/index.ts"

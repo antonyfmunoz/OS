@@ -429,11 +429,13 @@ def parse_instagram_saves(saved_posts_path: Path) -> InstagramCurationReport:
     if isinstance(raw, list):
         posts = raw
     elif isinstance(raw, dict):
-        # Various possible structures
+        # Various possible structures — check most specific keys first
         if "saved_saved_media" in raw:
             posts = raw["saved_saved_media"]
         elif "saved_media" in raw:
             posts = raw["saved_media"]
+        elif "posts" in raw:
+            posts = raw["posts"]
         elif "saves" in raw:
             posts = raw["saves"]
         else:
