@@ -33,7 +33,7 @@ if str(_REPO_ROOT) not in sys.path:
 logger = logging.getLogger("magic_link_handler")
 
 _SENDER_PATTERNS: dict[str, list[str]] = {
-    "claude": ["noreply@anthropic.com", "no-reply@anthropic.com", "anthropic.com"],
+    "claude": ["mail.anthropic.com", "noreply@anthropic.com", "no-reply@anthropic.com", "anthropic.com"],
 }
 
 _SUBJECT_PATTERNS: dict[str, list[str]] = {
