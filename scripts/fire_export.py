@@ -252,6 +252,23 @@ def _get_success_markers(service: str) -> list[str]:
 
 async def _click_export_button(page, service: str) -> bool:
     """Find and click the export/request button for a given service."""
+    if service == "chatgpt":
+        try:
+            await page.evaluate("""() => {
+                const modal = document.querySelector('[role="dialog"], [class*="modal"], [class*="settings"]');
+                if (modal) { modal.scrollTop = modal.scrollHeight; }
+                else { window.scrollTo(0, document.body.scrollHeight); }
+            }""")
+            await page.wait_for_timeout(1000)
+
+            body_text = await page.inner_text("body")
+            print(f"[chatgpt] Page text includes 'export': {'export' in body_text.lower()}")
+            if "export" in body_text.lower():
+                idx = body_text.lower().find("export")
+                print(f"[chatgpt] Context around 'export': ...{body_text[max(0,idx-50):idx+80]}...")
+        except Exception as exc:
+            print(f"[chatgpt] Scroll/text check failed: {exc}")
+
     selectors = {
         "claude": [
             'button:has-text("Export")',
@@ -265,6 +282,7 @@ async def _click_export_button(page, service: str) -> bool:
             'button:has-text("Export data")',
             'button:has-text("Confirm export")',
             'button[data-testid*="export" i]',
+            ':text("Export")',
         ],
         "instagram": [
             'button:has-text("Request")',
