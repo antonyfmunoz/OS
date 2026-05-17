@@ -17,15 +17,16 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from adapters.browser_exports.contract import ExportRequest
 from adapters.browser_exports.profile_manager import ProfileManager
 
-EXPORT_DIR = Path(os.environ.get("EOS_EXPORT_DIR", "/opt/OS/data/runtime/exports"))
+_REPO = Path(__file__).resolve().parent.parent
+EXPORT_DIR = Path(os.environ.get("EOS_EXPORT_DIR", str(_REPO / "data" / "runtime" / "exports")))
 EXPORT_DIR.mkdir(parents=True, exist_ok=True)
 
-LOGS_DIR = Path(os.environ.get("EOS_EXPORT_LOGS_DIR", "/opt/OS/logs/exports"))
+LOGS_DIR = Path(os.environ.get("EOS_EXPORT_LOGS_DIR", str(_REPO / "logs" / "exports")))
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
 

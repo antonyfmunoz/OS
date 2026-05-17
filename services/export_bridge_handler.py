@@ -154,14 +154,40 @@ async def _run_export(service: str, dry_run: bool = False) -> dict[str, Any]:
 
         if proc.stdout:
             await _read_stream(proc.stdout)
+        if proc.stderr:
+            async for line in proc.stderr:
+                decoded = line.decode("utf-8", errors="replace").rstrip()
+                stdout_lines.append(decoded)
+                logger.warning("[ExportBridge:%s:stderr] %s", service, decoded)
         await proc.wait()
 
+        full_output = "\n".join(stdout_lines)
+        has_error = "[ERROR]" in full_output or "Traceback" in full_output or "ModuleNotFoundError" in full_output
+        has_success = any(sig in full_output for sig in [
+            "export submitted",
+            "Export result: success",
+            "export complete",
+            "[OK]",
+            "No MFA detected",
+            "Export attempt complete",
+        ])
+        screenshot_path = None
+        for line in stdout_lines:
+            if "Screenshot saved:" in line:
+                screenshot_path = line.split("Screenshot saved:", 1)[1].strip()
+                break
+
+        actually_ok = has_success and not has_error and proc.returncode == 0
+
         return {
-            "ok": proc.returncode == 0,
+            "ok": actually_ok,
             "exit_code": proc.returncode,
             "mfa_detected": mfa_detected,
+            "screenshot_path": screenshot_path,
             "output_lines": len(stdout_lines),
-            "message": f"export {service} completed with exit code {proc.returncode}",
+            "has_error": has_error,
+            "message": f"export {service}: {'success' if actually_ok else 'FAILED'}",
+            "last_lines": stdout_lines[-10:] if not actually_ok else [],
         }
 
     except asyncio.TimeoutError:
