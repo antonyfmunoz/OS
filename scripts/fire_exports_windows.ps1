@@ -24,6 +24,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$script:exitCode = 0
 $RepoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 
 # Non-headless on Windows for MFA visibility
@@ -57,10 +58,12 @@ foreach ($svc in $services) {
     python "$RepoRoot\scripts\fire_export.py" $svc
 
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "`n[ERROR] $svc export failed." -ForegroundColor Red
+        Write-Host "`n[ERROR] $svc export failed with exit code $LASTEXITCODE." -ForegroundColor Red
+        $script:exitCode = 1
     } else {
         Write-Host "`n[OK] $svc export complete." -ForegroundColor Green
     }
 }
 
-Write-Host "`nAll exports attempted. Check /logs/exports/ for screenshots and MFA observations." -ForegroundColor Yellow
+Write-Host "`nAll exports attempted." -ForegroundColor Yellow
+exit $script:exitCode

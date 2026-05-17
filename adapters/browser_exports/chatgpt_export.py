@@ -1,24 +1,25 @@
 """ChatGPT data export trigger — deterministic Playwright script."""
 
-import sys
-
-sys.path.insert(0, "/opt/OS")
-
 import logging
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
 from dotenv import load_dotenv
 
-load_dotenv("/opt/OS/runtime/.env")
-load_dotenv("/opt/OS/services/.env", override=True)
+load_dotenv(_REPO_ROOT / "runtime" / ".env")
+load_dotenv(_REPO_ROOT / "services" / ".env", override=True)
 
 from adapters.browser_exports.contract import ExportRequest, ExportResult
 from adapters.browser_exports.profile_manager import ProfileManager
 
 logger = logging.getLogger(__name__)
 
-_LOGS_DIR = Path("/opt/OS/logs")
+_LOGS_DIR = _REPO_ROOT / "logs"
 _LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
 _CHATGPT_SETTINGS_URL = "https://chat.openai.com/#settings/DataControls"

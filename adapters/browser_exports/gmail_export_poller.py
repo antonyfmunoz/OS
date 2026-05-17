@@ -1,17 +1,19 @@
 """Gmail export email poller — finds export download links in inbox."""
 
-import sys
-
-sys.path.insert(0, "/opt/OS")
-
 import logging
 import re
+import sys
 from datetime import datetime, timezone
+from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 from dotenv import load_dotenv
 
-load_dotenv("/opt/OS/runtime/.env")
-load_dotenv("/opt/OS/services/.env", override=True)
+load_dotenv(_REPO_ROOT / "runtime" / ".env")
+load_dotenv(_REPO_ROOT / "services" / ".env", override=True)
 
 logger = logging.getLogger(__name__)
 

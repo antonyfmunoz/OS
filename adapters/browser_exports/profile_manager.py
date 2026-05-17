@@ -1,24 +1,25 @@
 """ProfileManager — persistent browser context for authenticated exports."""
 
-import sys
-
-sys.path.insert(0, "/opt/OS")
-
 import asyncio
 import logging
 import os
+import sys
 from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 from dotenv import load_dotenv
 
-load_dotenv("/opt/OS/runtime/.env")
-load_dotenv("/opt/OS/services/.env", override=True)
+load_dotenv(_REPO_ROOT / "runtime" / ".env")
+load_dotenv(_REPO_ROOT / "services" / ".env", override=True)
 
 from execution.agents.browser_agent import BrowserAgent
 
 logger = logging.getLogger(__name__)
 
-_PROFILES_DIR = Path("/opt/OS/data/runtime/browser_profiles")
+_PROFILES_DIR = Path(os.getenv("PLAYWRIGHT_USER_DATA_DIR", str(_REPO_ROOT / "data" / "runtime" / "browser_profiles")))
 
 
 class ProfileManager(BrowserAgent):
