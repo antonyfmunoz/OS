@@ -41,7 +41,7 @@ logger = logging.getLogger("local_bridge")
 
 # ── Configuration ───────────────────────────────────────────────────────────
 
-PORT = int(os.getenv("EOS_LOCAL_BRIDGE_PORT", "8766"))
+PORT = int(os.getenv("EOS_LOCAL_BRIDGE_PORT", "8767"))
 INBOX_DIR = Path.home() / "eos_inbox"
 TMUX_INJECT_TIMEOUT_S = 5.0
 

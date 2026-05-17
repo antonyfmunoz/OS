@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 # ── Configuration ───────────────────────────────────────────────────────────
 
 _BRIDGE_IP = os.getenv("EOS_LOCAL_BRIDGE_IP", "100.74.199.102")
-_BRIDGE_PORT = int(os.getenv("EOS_LOCAL_BRIDGE_PORT", "8766"))
+_BRIDGE_PORT = int(os.getenv("EOS_LOCAL_BRIDGE_PORT", "8767"))
 _BRIDGE_ENABLED = os.getenv("EOS_LOCAL_BRIDGE_ENABLED", "0").strip().lower() in (
     "1",
     "true",

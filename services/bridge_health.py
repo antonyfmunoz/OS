@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 # Windows machine — OpenSSH Server on Tailscale interface
 _WINDOWS_HOST = os.getenv("EOS_WINDOWS_TAILSCALE_HOST", "100.74.199.102")
 _WINDOWS_USER = os.getenv("EOS_WINDOWS_TAILSCALE_USER", "antonys beast pc")
-_BRIDGE_PORT = int(os.getenv("EOS_LOCAL_BRIDGE_PORT", "8766"))
+_BRIDGE_PORT = int(os.getenv("EOS_LOCAL_BRIDGE_PORT", "8767"))
 _BRIDGE_URL = f"http://{_WINDOWS_HOST}:{_BRIDGE_PORT}"
 
 _SSH_TIMEOUT_S = 15
@@ -117,18 +117,14 @@ def _check_ssh() -> dict[str, Any]:
 
 
 def _start_bridge_via_ssh() -> dict[str, Any]:
-    """SSH to Windows and start the bridge server natively (no WSL).
+    """SSH to Windows and start the bridge server via scheduled task.
 
-    Uses cmd.exe `start /b` to detach the process so the SSH session
-    returns immediately. Output goes to NUL (the bridge logs internally
-    via Python logging — no need for shell-level redirection).
+    Uses `schtasks /run` to trigger the pre-installed EOS-Bridge task.
+    This creates a persistent process that survives SSH session closure
+    (unlike `start /b` or `Start-Process` which die with the session).
     """
-    # `start /b ""` launches detached (empty title required for paths with spaces).
-    # The script path is double-quoted for the space in the user profile path.
-    cmd_line = f'start /b "" python "{_WINDOWS_BRIDGE_SCRIPT}"'
-
     try:
-        cmd = _ssh_cmd(["cmd", "/c", cmd_line])
+        cmd = _ssh_cmd(["powershell", "-c", "schtasks /run /tn 'EOS-Bridge'"])
         result = subprocess.run(
             cmd,
             capture_output=True,
@@ -136,11 +132,11 @@ def _start_bridge_via_ssh() -> dict[str, Any]:
             timeout=_SSH_TIMEOUT_S,
         )
         if result.returncode == 0:
-            logger.info("[BridgeHealth] Started bridge on Windows via SSH (native Python)")
-            return {"ok": True, "pid": "detached"}
+            logger.info("[BridgeHealth] Started bridge on Windows via schtasks")
+            return {"ok": True, "pid": "schtask"}
         return {
             "ok": False,
-            "error": f"SSH start failed (code {result.returncode}): {result.stderr.strip()[:300]}",
+            "error": f"schtasks /run failed (code {result.returncode}): {result.stderr.strip()[:300]}",
         }
     except subprocess.TimeoutExpired:
         return {"ok": False, "error": "SSH start command timed out"}
