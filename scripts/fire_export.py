@@ -191,25 +191,35 @@ async def _navigate_chatgpt_settings(page) -> None:
     print("[chatgpt] Debug screenshot: after settings click")
 
     if clicked_settings:
-        data_controls_selectors = [
-            'a[href*="DataControls"]',
-            '[role="tab"]:has-text("Data controls")',
-            'button:has-text("Data controls")',
-            'a:has-text("Data controls")',
-            ':text("Data controls")',
-            'div:has-text("Data controls"):not(:has(div:has-text("Data controls")))',
-            'nav a:has-text("Data")',
-        ]
-        for selector in data_controls_selectors:
-            try:
-                el = page.locator(selector)
-                if await el.count() > 0:
-                    await el.first.click()
-                    print(f"[chatgpt] Clicked Data Controls: {selector}")
-                    await page.wait_for_timeout(2000)
-                    break
-            except Exception:
-                continue
+        # Check each settings tab for export option
+        tabs_to_check = ["General", "Data controls"]
+        for tab_name in tabs_to_check:
+            tab_selectors = [
+                f'[role="tab"]:has-text("{tab_name}")',
+                f'button:has-text("{tab_name}")',
+                f'a:has-text("{tab_name}")',
+                f':text-is("{tab_name}")',
+            ]
+            for selector in tab_selectors:
+                try:
+                    el = page.locator(selector)
+                    if await el.count() > 0:
+                        await el.first.click()
+                        print(f"[chatgpt] Clicked tab: {tab_name} via {selector}")
+                        await page.wait_for_timeout(2000)
+
+                        tab_text = await page.inner_text("body")
+                        for kw in ["export", "download", "request your", "your data", "archive", "delete"]:
+                            if kw in tab_text.lower():
+                                idx = tab_text.lower().find(kw)
+                                snippet = tab_text[max(0,idx-40):idx+80].replace('\n', ' ')
+                                print(f"[chatgpt] [{tab_name}] Found '{kw}': ...{snippet}...")
+
+                        safe_name = tab_name.lower().replace(" ", "_")
+                        await page.screenshot(path=str(LOGS_DIR / "chatgpt" / f"debug_tab_{safe_name}.png"), full_page=False)
+                        break
+                except Exception:
+                    continue
 
     await page.screenshot(path=str(LOGS_DIR / "chatgpt" / "debug_data_controls.png"), full_page=False)
     print("[chatgpt] Debug screenshot: data controls page")
