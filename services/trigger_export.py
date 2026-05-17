@@ -60,13 +60,20 @@ def _check_bridge_health() -> bool:
 def fire_export(service: str, dry_run: bool = False) -> dict[str, Any]:
     """Dispatch a fire_export command to the Windows bridge.
 
+    Transparently ensures bridge is live before dispatching (auto-starts
+    via Tailscale SSH if needed). Zero delay if bridge already up.
+
     Returns the bridge response or an error dict.
     """
     if service not in VALID_SERVICES:
         return {"ok": False, "error": f"invalid service: {service}"}
 
-    if not _check_bridge_health():
-        return {"ok": False, "error": "bridge unreachable — Windows machine offline?"}
+    # Watchdog: ensure bridge is live, auto-start if needed
+    from services.bridge_health import ensure_bridge_live
+
+    bridge_status = ensure_bridge_live()
+    if not bridge_status["ok"]:
+        return {"ok": False, "error": f"bridge not live: {bridge_status['error']}"}
 
     payload = {
         "type": "fire_export",
