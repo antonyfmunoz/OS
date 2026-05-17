@@ -25,7 +25,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $script:exitCode = 0
-$RepoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+$RepoRoot = Split-Path -Parent $PSScriptRoot
 
 # Non-headless on Windows for MFA visibility
 if (-not $env:BROWSER_HEADLESS) {
