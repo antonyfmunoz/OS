@@ -88,12 +88,13 @@ async def main():
     print(f"[OAuth] Listener on http://localhost:{_CALLBACK_PORT}/oauth/callback")
     print(f"[OAuth] Opening browser...")
     webbrowser.open(auth_url)
-    print(f"[OAuth] Waiting for consent (120s timeout)...")
+    print(f"[OAuth] Waiting for consent (600s timeout)...")
+    print(f"[OAuth] Sign in as antonyfm@empyreanstudios.co and approve Gmail access")
 
     try:
-        code = await asyncio.wait_for(code_future, timeout=120)
+        code = await asyncio.wait_for(code_future, timeout=600)
     except asyncio.TimeoutError:
-        print("[OAuth] TIMEOUT — no consent received in 120s")
+        print("[OAuth] TIMEOUT — no consent received in 600s")
         await runner.cleanup()
         sys.exit(1)
 

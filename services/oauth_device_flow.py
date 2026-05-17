@@ -37,7 +37,7 @@ _CLIENT_SECRET_PATH = Path("/root/.config/gws/client_secret.json")
 _CREDENTIALS_PATH = Path("/root/.config/gws/gmail_credentials.json")
 _CALLBACK_PORT = int(os.getenv("OAUTH_CALLBACK_PORT", "8090"))
 _TAILSCALE_IP = os.getenv("TAILSCALE_VPS_IP", "100.77.233.50")
-_USE_LOCALHOST_REDIRECT = True  # Google Installed App clients only allow localhost
+_USE_LOCALHOST_REDIRECT = True  # Google enforces localhost-only for Installed App clients
 
 _SCOPE_ALIASES: dict[str, str] = {
     "gmail.readonly": "https://www.googleapis.com/auth/gmail.readonly",
