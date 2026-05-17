@@ -264,25 +264,43 @@ async def _click_export_button(page, service: str) -> bool:
     """Find and click the export/request button for a given service."""
     if service == "chatgpt":
         try:
-            await page.evaluate("""() => {
-                const modal = document.querySelector('[role="dialog"], [class*="modal"], [class*="settings"]');
-                if (modal) { modal.scrollTop = modal.scrollHeight; }
-                else { window.scrollTo(0, document.body.scrollHeight); }
+            # Aggressively scroll ALL scrollable elements in the settings modal
+            scroll_result = await page.evaluate("""() => {
+                const scrolled = [];
+                // Find all potentially scrollable containers
+                const all = document.querySelectorAll('*');
+                for (const el of all) {
+                    if (el.scrollHeight > el.clientHeight + 10 && el.clientHeight > 50) {
+                        const before = el.scrollTop;
+                        el.scrollTop = el.scrollHeight;
+                        if (el.scrollTop !== before) {
+                            scrolled.push({
+                                tag: el.tagName,
+                                class: (el.className || '').substring(0, 80),
+                                scrollHeight: el.scrollHeight,
+                                clientHeight: el.clientHeight,
+                            });
+                        }
+                    }
+                }
+                return scrolled;
             }""")
+            print(f"[chatgpt] Scrolled {len(scroll_result)} containers: {scroll_result[:3]}")
             await page.wait_for_timeout(1000)
+
+            await page.screenshot(path=str(LOGS_DIR / "chatgpt" / "debug_after_scroll.png"), full_page=False)
 
             body_text = await page.inner_text("body")
             print(f"[chatgpt] Page text includes 'export': {'export' in body_text.lower()}")
             if "export" in body_text.lower():
                 idx = body_text.lower().find("export")
                 print(f"[chatgpt] Context around 'export': ...{body_text[max(0,idx-50):idx+80]}...")
-
-            settings_text = body_text[-2000:] if len(body_text) > 2000 else body_text
-            for keyword in ["export", "download", "request", "data", "control", "improve", "model", "delete", "archive"]:
-                if keyword in settings_text.lower():
-                    idx = settings_text.lower().find(keyword)
-                    snippet = settings_text[max(0,idx-30):idx+60].replace('\n', ' ')
-                    print(f"[chatgpt] Found '{keyword}': ...{snippet}...")
+            else:
+                for keyword in ["delete", "archive", "download", "request"]:
+                    if keyword in body_text.lower():
+                        idx = body_text.lower().find(keyword)
+                        snippet = body_text[max(0,idx-40):idx+80].replace('\n', ' ')
+                        print(f"[chatgpt] Found '{keyword}': ...{snippet}...")
         except Exception as exc:
             print(f"[chatgpt] Scroll/text check failed: {exc}")
 
