@@ -1,8 +1,7 @@
-import Anthropic from "@anthropic-ai/sdk";
+import Anthropic from "../claude-subprocess.js";
 import { SpecOutputSchema } from "@shared/spec-schema.js";
 import type { SpecOutput } from "@shared/spec-schema.js";
 import { extractJsonFromResponse } from "./restructure-spec.js";
-import { getAnthropicApiKey, getAnthropicBaseUrl } from "../env.js";
 
 // ─── Question Sequence ────────────────────────────────────────────────────────
 
@@ -166,10 +165,7 @@ export function isFlowComplete(state: CollaborativeState): boolean {
 export async function extractSpecFromConversation(
   messages: Array<{ role: "user" | "assistant"; content: string }>
 ): Promise<SpecOutput> {
-  const client = new Anthropic({
-    apiKey: getAnthropicApiKey(),
-    baseURL: getAnthropicBaseUrl(),
-  });
+  const client = new Anthropic();
 
   const systemPrompt = `You are a SaaS product spec extractor. You have been given the full transcript of a collaborative spec creation conversation. Your job is to extract all gathered information into a precise SpecOutput JSON object.
 

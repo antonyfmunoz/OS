@@ -6,8 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
-import Anthropic from "@anthropic-ai/sdk";
-import { getAnthropicApiKey, getAnthropicBaseUrl } from "../env.js";
+import Anthropic from "../claude-subprocess.js";
 import {
   runTscCheck,
   validateImports,
@@ -22,10 +21,7 @@ const SYSTEM_PROMPT =
   "You are a senior QA engineer and code reviewer. You never sign off on broken work. You fix issues precisely and minimally.";
 
 function getClient(): Anthropic {
-  return new Anthropic({
-    apiKey: getAnthropicApiKey(),
-    baseURL: getAnthropicBaseUrl(),
-  });
+  return new Anthropic();
 }
 
 function stripFences(text: string): string {

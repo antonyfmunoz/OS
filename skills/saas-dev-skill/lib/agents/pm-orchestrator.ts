@@ -3,8 +3,7 @@
 // Runs agents in waves with dependency ordering, manages build state, and reports
 // progress to both console and browser overlay.
 
-import Anthropic from "@anthropic-ai/sdk";
-import { getAnthropicApiKey, getAnthropicBaseUrl } from "../env.js";
+import Anthropic from "../claude-subprocess.js";
 import type {
   ProjectBrief,
   ProductInsights,
@@ -81,17 +80,17 @@ export class PMOrchestrator {
 
     // 1. Check required env vars
     const requiredEnvVars = ["DATABASE_URL"];
-    const optionalEnvVars = ["ANTHROPIC_API_KEY", "AI_INTEGRATIONS_ANTHROPIC_API_KEY"];
+    const authEnvVars = ["CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY", "AI_INTEGRATIONS_ANTHROPIC_API_KEY"];
     for (const key of requiredEnvVars) {
       const present = !!process.env[key];
       checks.push({ name: `env:${key}`, passed: present, message: present ? "present" : `Missing ${key} in environment` });
     }
-    // At least one Anthropic key must exist
-    const hasAnthropicKey = optionalEnvVars.some((k) => !!process.env[k]);
+    // Auth: OAuth token (Max subscription) or API key
+    const hasAuth = authEnvVars.some((k) => !!process.env[k]);
     checks.push({
-      name: "env:ANTHROPIC_API_KEY",
-      passed: hasAnthropicKey,
-      message: hasAnthropicKey ? "present" : "Missing ANTHROPIC_API_KEY or AI_INTEGRATIONS_ANTHROPIC_API_KEY",
+      name: "env:claude-auth",
+      passed: hasAuth,
+      message: hasAuth ? "present" : "Missing CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY",
     });
 
     // 2. Verify database is reachable (check DATABASE_URL is parseable)
@@ -614,10 +613,7 @@ Are these decisions coherent with the product brief and user constraints? Do the
 Return JSON: { "coherent": boolean, "issues": ["issue description"] }`;
 
     try {
-      const client = new Anthropic({
-        apiKey: getAnthropicApiKey(),
-        baseURL: getAnthropicBaseUrl(),
-      });
+      const client = new Anthropic();
       const stream = client.messages.stream({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 1000,

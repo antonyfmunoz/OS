@@ -1,9 +1,8 @@
-import Anthropic from "@anthropic-ai/sdk";
+import Anthropic from "../claude-subprocess.js";
 import pRetry from "p-retry";
 import { SharedComponentSpec } from "@shared/spec-schema.js";
 import type { PageSpecFull } from "@shared/spec-schema.js";
 import { extractJsonFromResponse } from "./restructure-spec.js";
-import { getAnthropicApiKey, getAnthropicBaseUrl } from "../env.js";
 
 /**
  * System prompt for AI-powered semantic deduplication of shared components.
@@ -98,10 +97,7 @@ export async function deduplicateComponents(
     return { deduplicated: components, merges: [] };
   }
 
-  const client = new Anthropic({
-    apiKey: getAnthropicApiKey(),
-    baseURL: getAnthropicBaseUrl(),
-  });
+  const client = new Anthropic();
 
   return pRetry(
     async () => {

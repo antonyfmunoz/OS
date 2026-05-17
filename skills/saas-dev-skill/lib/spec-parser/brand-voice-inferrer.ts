@@ -5,8 +5,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import Anthropic from "@anthropic-ai/sdk";
-import { getAnthropicApiKey, getAnthropicBaseUrl } from "../env.js";
+import Anthropic from "../claude-subprocess.js";
 
 const BRAND_VOICE_SYSTEM_PROMPT = `You are a brand voice and SaaS copy expert. Given a product requirements document, extract the brand voice characteristics AND produce actionable copy guidance for building the product's UI and landing pages.
 
@@ -72,10 +71,7 @@ export async function inferBrandVoice(
   outputDir: string,
 ): Promise<BrandVoiceResult | null> {
   try {
-    const client = new Anthropic({
-      apiKey: getAnthropicApiKey(),
-      baseURL: getAnthropicBaseUrl(),
-    });
+    const client = new Anthropic();
 
     const response = await client.messages.create({
       model: "claude-haiku-4-5-20251001",

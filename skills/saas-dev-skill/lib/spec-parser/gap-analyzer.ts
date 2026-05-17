@@ -2,9 +2,8 @@
 // Analyzes a draft SpecOutput for missing pages, flows, states, and assumptions.
 // Pure static checks + optional LLM contextual analysis.
 
-import Anthropic from "@anthropic-ai/sdk";
+import Anthropic from "../claude-subprocess.js";
 import type { SpecOutput, PageSpecFull } from "@shared/spec-schema.js";
-import { getAnthropicApiKey, getAnthropicBaseUrl } from "../env.js";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -193,10 +192,7 @@ function checkOrphanedRoutes(spec: SpecOutput): GapItem[] {
 // ─── LLM Contextual Analysis ────────────────────────────────────────────────
 
 async function llmContextualAnalysis(spec: SpecOutput): Promise<GapItem[]> {
-  const client = new Anthropic({
-    apiKey: getAnthropicApiKey(),
-    baseURL: getAnthropicBaseUrl(),
-  });
+  const client = new Anthropic();
 
   const specSummary = spec.pages
     .map(

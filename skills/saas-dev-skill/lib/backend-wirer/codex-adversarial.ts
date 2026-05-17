@@ -1,9 +1,8 @@
-import Anthropic from "@anthropic-ai/sdk";
+import Anthropic from "../claude-subprocess.js";
 import type {
   RouteCodeBlock,
   SchemaCodeBlock,
 } from "./types.js";
-import { getAnthropicApiKey, getAnthropicBaseUrl } from "../env.js";
 
 /**
  * Codex adversarial security review for backend code (Plan 05-05).
@@ -47,10 +46,7 @@ export interface AdversarialReviewInput {
 const MODEL = "claude-sonnet-4-5";
 
 function getClient(): Anthropic {
-  return new Anthropic({
-    apiKey: getAnthropicApiKey(),
-    baseURL: getAnthropicBaseUrl(),
-  });
+  return new Anthropic();
 }
 
 export async function adversarialReview(

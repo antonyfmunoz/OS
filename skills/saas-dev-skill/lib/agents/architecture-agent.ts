@@ -5,8 +5,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import Anthropic from "@anthropic-ai/sdk";
-import { getAnthropicApiKey, getAnthropicBaseUrl } from "../env.js";
+import Anthropic from "../claude-subprocess.js";
 import { extractJsonFromResponse } from "../spec-parser/restructure-spec.js";
 import { ArtifactStore } from "./artifact-store.js";
 import type { SystemArchitecture, ProductInsights, PageStructure, ApiContract, ExistingCodebaseAudit } from "./types.js";
@@ -429,10 +428,7 @@ export async function runArchitectureAgent(
   // Pre-audit: scan existing codebase before designing anything
   const audit = preAudit(store.getProjectRoot(), store);
 
-  const client = new Anthropic({
-    apiKey: getAnthropicApiKey(),
-    baseURL: getAnthropicBaseUrl(),
-  });
+  const client = new Anthropic();
 
   const userPrompt = buildUserPrompt(brief, insights, audit);
 

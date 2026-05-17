@@ -1,17 +1,13 @@
 // lib/copy-planner/copy-reviewer.ts
 // Reviews all project copy at once for cross-page voice consistency and brand compliance.
 
-import Anthropic from "@anthropic-ai/sdk";
+import Anthropic from "../claude-subprocess.js";
 import { z } from "zod";
-import { getAnthropicApiKey, getAnthropicBaseUrl } from "../env.js";
 import { extractJsonFromResponse } from "../spec-parser/restructure-spec.js";
 import { ProjectCopySchema, type ProjectCopy } from "./types.js";
 
 function getClient(): Anthropic {
-  return new Anthropic({
-    apiKey: getAnthropicApiKey(),
-    baseURL: getAnthropicBaseUrl(),
-  });
+  return new Anthropic();
 }
 
 const CopyReviewResultSchema = z.object({

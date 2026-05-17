@@ -8,8 +8,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import Anthropic from "@anthropic-ai/sdk";
-import { getAnthropicApiKey, getAnthropicBaseUrl } from "../env.js";
+import Anthropic from "../claude-subprocess.js";
 import { DESIGN_RULES, DESIGN_TOKENS } from "./design-tokens.js";
 import {
   autoFixImports,
@@ -20,10 +19,7 @@ import {
 import type { ProjectBrief } from "../intake/types.js";
 
 function getClient(): Anthropic {
-  return new Anthropic({
-    apiKey: getAnthropicApiKey(),
-    baseURL: getAnthropicBaseUrl(),
-  });
+  return new Anthropic();
 }
 
 interface SharedComponentDef {
