@@ -11,7 +11,7 @@ Architecture:
     → This handler validates + dispatches PowerShell script
     → On MFA challenge: POST /mfa-challenge to VPS webhook receiver
     → VPS surfaces to Discord → user responds → POST /mfa-response here
-    → Handler injects code into Playwright form
+    → Handler injects code into Camoufox form
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ logger = logging.getLogger("export_bridge")
 
 _REPO_ROOT = Path(os.getenv("EOS_REPO_ROOT", str(Path.home() / "dev" / "OSv2")))
 _VPS_WEBHOOK_URL = os.getenv("EOS_VPS_WEBHOOK_URL", "http://100.77.233.50:8765")
-_PROFILE_DIR = Path(os.getenv("PLAYWRIGHT_USER_DATA_DIR", str(Path.home() / ".playwright-profiles")))
+_PROFILE_DIR = Path(os.getenv("CAMOUFOX_PROFILES_DIR", str(Path.home() / ".camoufox-profiles")))
 
 _pending_mfa: dict[str, asyncio.Future] = {}
 
@@ -96,7 +96,7 @@ async def _run_export(service: str, dry_run: bool = False) -> dict[str, Any]:
 
     env = os.environ.copy()
     env["BROWSER_HEADLESS"] = "false"
-    env["PLAYWRIGHT_USER_DATA_DIR"] = str(_PROFILE_DIR / service)
+    env["CAMOUFOX_PROFILES_DIR"] = str(_PROFILE_DIR)
     env["EOS_EXPORT_MFA_CALLBACK_URL"] = f"http://localhost:{os.getenv('EOS_LOCAL_BRIDGE_PORT', '8767')}/mfa-response"
 
     _PROFILE_DIR.mkdir(parents=True, exist_ok=True)
