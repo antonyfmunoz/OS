@@ -1,7 +1,9 @@
+# auth_mode values: magic_link, password_totp, password_email_code, oauth_google, oauth_apple
+
 claude:
   login_url: "https://claude.ai/login"
   export_url: "https://claude.ai/settings"
-  mfa_mode: "totp"
+  auth_mode: "magic_link"
   export_request_selector: 'button:has-text("Export"), button:has-text("Request")'
   success_indicator: "export requested"
   auth_flow_module: "services.auth_flows.claude"
@@ -10,7 +12,7 @@ claude:
 chatgpt:
   login_url: "https://auth0.openai.com/u/login"
   export_url: "https://chatgpt.com/#settings/DataControls"
-  mfa_mode: "email"
+  auth_mode: "password_email_code"
   export_request_selector: 'button:has-text("Export"), button:has-text("Export data")'
   success_indicator: "export requested"
   auth_flow_module: "services.auth_flows.chatgpt"
@@ -19,7 +21,7 @@ chatgpt:
 instagram:
   login_url: "https://www.instagram.com/accounts/login/"
   export_url: "https://www.instagram.com/download/request/"
-  mfa_mode: "sms"
+  auth_mode: "password_totp"
   export_request_selector: 'button:has-text("Request"), button:has-text("Next")'
   success_indicator: "request submitted"
   auth_flow_module: "services.auth_flows.instagram"
