@@ -1,8 +1,7 @@
-import Anthropic from "@anthropic-ai/sdk";
+import Anthropic from "../claude-subprocess.js";
 import pRetry from "p-retry";
 import { SpecOutputSchema } from "@shared/spec-schema.js";
 import type { SpecOutput } from "@shared/spec-schema.js";
-import { getAnthropicApiKey, getAnthropicBaseUrl } from "../env.js";
 
 /**
  * Strips markdown fences (```json...``` or ```...```) and parses JSON.
@@ -183,10 +182,7 @@ Return ONLY the JSON object. No other text.`;
  * @returns Validated SpecOutput
  */
 export async function restructureSpec(rawInput: string): Promise<SpecOutput> {
-  const client = new Anthropic({
-    apiKey: getAnthropicApiKey(),
-    baseURL: getAnthropicBaseUrl(),
-  });
+  const client = new Anthropic();
 
   // Stream long responses — Anthropic SDK refuses non-streaming calls that
   // may exceed 10 minutes (triggered at high max_tokens). We accumulate text

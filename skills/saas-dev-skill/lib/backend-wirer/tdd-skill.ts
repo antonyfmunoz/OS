@@ -1,6 +1,5 @@
-import Anthropic from "@anthropic-ai/sdk";
+import Anthropic from "../claude-subprocess.js";
 import type { BackendSpec } from "./types.js";
-import { getAnthropicApiKey, getAnthropicBaseUrl } from "../env.js";
 
 /**
  * superpowers:test-driven-development skill wrapper (Plan 05-05).
@@ -13,10 +12,7 @@ import { getAnthropicApiKey, getAnthropicBaseUrl } from "../env.js";
 const MODEL = "claude-sonnet-4-5";
 
 function getClient(): Anthropic {
-  return new Anthropic({
-    apiKey: getAnthropicApiKey(),
-    baseURL: getAnthropicBaseUrl(),
-  });
+  return new Anthropic();
 }
 
 export async function queryTDDSkill(spec: BackendSpec): Promise<string> {

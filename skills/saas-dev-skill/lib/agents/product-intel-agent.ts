@@ -2,8 +2,7 @@
 // Wraps the competitive researcher and adds a product analysis layer.
 // Produces ProductInsights that feed downstream agents (architecture, design, copy).
 
-import Anthropic from "@anthropic-ai/sdk";
-import { getAnthropicApiKey, getAnthropicBaseUrl } from "../env.js";
+import Anthropic from "../claude-subprocess.js";
 import { extractJsonFromResponse } from "../spec-parser/restructure-spec.js";
 import { researchCompetitors } from "../intake/competitive-researcher.js";
 import { ArtifactStore } from "./artifact-store.js";
@@ -104,10 +103,7 @@ export async function runProductIntelAgent(
   // Step 2: Call Claude for product analysis
   console.log("[product-intel] Generating product insights...");
 
-  const client = new Anthropic({
-    apiKey: getAnthropicApiKey(),
-    baseURL: getAnthropicBaseUrl(),
-  });
+  const client = new Anthropic();
 
   const response = await client.messages.create({
     model: "claude-haiku-4-5-20251001",

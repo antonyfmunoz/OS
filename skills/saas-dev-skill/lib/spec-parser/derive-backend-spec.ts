@@ -1,9 +1,8 @@
-import Anthropic from "@anthropic-ai/sdk";
+import Anthropic from "../claude-subprocess.js";
 import pRetry from "p-retry";
 import { BackendSpecSchema } from "@shared/spec-schema.js";
 import type { BackendSpec, PageSpecFull } from "@shared/spec-schema.js";
 import { extractJsonFromResponse } from "./restructure-spec.js";
-import { getAnthropicApiKey, getAnthropicBaseUrl } from "../env.js";
 
 /**
  * System prompt instructing Claude to derive a BackendSpec from a PageSpecFull[]
@@ -75,10 +74,7 @@ Return ONLY the JSON object. No other text.`;
  * @returns Validated BackendSpec
  */
 export async function deriveBackendSpec(pages: PageSpecFull[]): Promise<BackendSpec> {
-  const client = new Anthropic({
-    apiKey: getAnthropicApiKey(),
-    baseURL: getAnthropicBaseUrl(),
-  });
+  const client = new Anthropic();
 
   return pRetry(
     async () => {

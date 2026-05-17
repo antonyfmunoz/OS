@@ -25,5 +25,8 @@
 - [DONE] Auth: CLAUDE_CODE_OAUTH_TOKEN header when configured, open in dev mode
 - [DONE] os-operator Docker service in docker-compose.yml, port 8091, node:20-slim
 - [DONE] E2E test: scripts/test_code_view_e2e.sh — 4/4 passed (health, read, execute, list)
-- [GATE] AI-powered features (saas-dev-skill Claude API calls) blocked until Anthropic credits restored
+- [DONE] saas-dev-skill wired to claude -p subprocess (Max subscription, zero API cost)
+- [DONE] lib/claude-subprocess.ts — drop-in Anthropic SDK replacement, OAuth token auth
+- [DONE] All 21 constructor calls across 20 files replaced, 0 TypeScript errors from changes
+- [DONE] E2E verified: messages.create (Haiku) + messages.stream (Sonnet) both pass
 - [NOTE] AUTH.md documents the auth path and gate clearly

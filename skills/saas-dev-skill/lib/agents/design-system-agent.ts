@@ -5,8 +5,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import Anthropic from "@anthropic-ai/sdk";
-import { getAnthropicApiKey, getAnthropicBaseUrl } from "../env.js";
+import Anthropic from "../claude-subprocess.js";
 import { extractJsonFromResponse } from "../spec-parser/restructure-spec.js";
 import { generateDesignContract } from "../react-gen/design-linter.js";
 import { ArtifactStore } from "./artifact-store.js";
@@ -500,10 +499,7 @@ export async function researchComponentLibraries(
   const existing = store.getComponentLibraryRecommendations();
   if (existing) return existing;
 
-  const client = new Anthropic({
-    apiKey: getAnthropicApiKey(),
-    baseURL: getAnthropicBaseUrl(),
-  });
+  const client = new Anthropic();
 
   const userPrompt = `Product: ${brief.productName}
 Description: ${brief.productDescription}
@@ -567,10 +563,7 @@ export async function runDesignSystemAgent(
   insights: ProductInsights,
   store: ArtifactStore,
 ): Promise<DesignSystem> {
-  const client = new Anthropic({
-    apiKey: getAnthropicApiKey(),
-    baseURL: getAnthropicBaseUrl(),
-  });
+  const client = new Anthropic();
 
   const projectRoot = store.getProjectRoot();
 

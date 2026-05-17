@@ -3,8 +3,7 @@
 // UX flows, and synthesize competitive intelligence for copy and UI generation.
 
 import { z } from "zod";
-import Anthropic from "@anthropic-ai/sdk";
-import { getAnthropicApiKey, getAnthropicBaseUrl } from "../env.js";
+import Anthropic from "../claude-subprocess.js";
 import { extractJsonFromResponse } from "../spec-parser/restructure-spec.js";
 import type { SpecOutput } from "@shared/spec-schema.js";
 
@@ -56,10 +55,7 @@ async function fetchPageContent(url: string): Promise<string | null> {
 // ─── Analysis ────────────────────────────────────────────────────────────────
 
 function getClient(): Anthropic {
-  return new Anthropic({
-    apiKey: getAnthropicApiKey(),
-    baseURL: getAnthropicBaseUrl(),
-  });
+  return new Anthropic();
 }
 
 const ANALYSIS_SYSTEM = `You are a competitive intelligence analyst for SaaS products. Analyze competitor websites to extract actionable patterns for copy, structure, and UX design.

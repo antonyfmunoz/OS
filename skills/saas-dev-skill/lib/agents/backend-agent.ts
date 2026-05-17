@@ -6,8 +6,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import Anthropic from "@anthropic-ai/sdk";
-import { getAnthropicApiKey, getAnthropicBaseUrl } from "../env.js";
+import Anthropic from "../claude-subprocess.js";
 import { extractJsonFromResponse } from "../spec-parser/restructure-spec.js";
 import { generateSchemaCode, generateMigrationSQL } from "../backend-wirer/schema-generator.js";
 import { generateRouteCode, generateStorageCode } from "../backend-wirer/route-generator.js";

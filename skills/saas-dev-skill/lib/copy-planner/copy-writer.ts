@@ -2,18 +2,14 @@
 // Generates all UI copy for a project in one Claude call for cross-page voice coherence.
 
 import { createHash } from "node:crypto";
-import Anthropic from "@anthropic-ai/sdk";
-import { getAnthropicApiKey, getAnthropicBaseUrl } from "../env.js";
+import Anthropic from "../claude-subprocess.js";
 import { extractJsonFromResponse } from "../spec-parser/restructure-spec.js";
 import { ProjectCopySchema, type ProjectCopy } from "./types.js";
 import type { SpecOutput } from "@shared/spec-schema.js";
 import type { ProjectBrief } from "../intake/types.js";
 
 function getClient(): Anthropic {
-  return new Anthropic({
-    apiKey: getAnthropicApiKey(),
-    baseURL: getAnthropicBaseUrl(),
-  });
+  return new Anthropic();
 }
 
 function hashBrandVoice(brandVoice: string): string {
