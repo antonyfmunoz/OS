@@ -18,6 +18,7 @@ from ..protocols.signal import Signal, SignalSource, SignalUrgency
 from ..sockets.view.broadcaster import ViewFrameBroadcaster, make_pipeline_listener
 from ..sockets.view.websocket import broadcast_frame, ws_endpoint
 from ..sockets.view_socket import ViewSocket
+from ..execution.executor import build_default_executor
 from .pipeline import ExecutionPipeline
 from .runtime import SubstrateRuntime
 
@@ -26,7 +27,7 @@ logging.basicConfig(level=logging.INFO)
 
 _runtime = SubstrateRuntime()
 _view_socket = ViewSocket()
-_pipeline = ExecutionPipeline()
+_pipeline = ExecutionPipeline(executor=build_default_executor())
 _broadcaster: ViewFrameBroadcaster | None = None
 
 
