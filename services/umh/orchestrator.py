@@ -52,9 +52,11 @@ class Orchestrator:
         auto_candidate: bool = True,
         metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Full trace lifecycle: create → execute → classify → proof → candidate → state.
+        """DEPRECATED: use ExecutionPipeline.submit_signal() for new code.
 
-        Returns a summary dict with all generated IDs and classification.
+        Retained as compatibility wrapper — records pre-made results into
+        trace/proof/candidate stores. Does NOT run governance or execution.
+        Will be removed when all callers migrate to ExecutionPipeline.
         """
         now = datetime.now(timezone.utc).isoformat()
 
