@@ -60,7 +60,7 @@ def build_request(
     username: str,
     default_venture_id: str,
 ) -> dict:
-    """Build a valid EOSGateway request dict from classified intent."""
+    """Build a valid EntrepreneurOSGateway request dict from classified intent."""
     if intent == "BRIEF":
         explicit_brief_triggers = [
             "morning brief",

@@ -13,7 +13,7 @@ EOS domain compositions — L2 business structures mapped to L0 primitives.
 
 Every structure here decomposes into ontological primitives via
 `to_primitives()`.  These are the canonical building blocks of the
-EOS business domain.  Other domains (LyfeOS, CreatorOS) will follow
+EOS business domain.  Other domains (LYFEOS, CreatorOS) will follow
 ...
 
 **Lines:** 273 | **Size:** 8,758 bytes

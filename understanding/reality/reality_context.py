@@ -19,7 +19,7 @@ Usage:
     # {'lyfe_institute': [{'content': '...', 'tier': 'HIGH', ...}, ...]}
 """
 
-from state.context.context import EOSContext
+from state.context.context import EntrepreneurOSContext
 
 
 class RealityContext:
@@ -28,7 +28,7 @@ class RealityContext:
     for injection into the CognitiveLoop PERCEIVE step.
     """
 
-    def __init__(self, ctx: EOSContext):
+    def __init__(self, ctx: EntrepreneurOSContext):
         self.ctx = ctx
 
     def _get_founder_pattern(self) -> dict:

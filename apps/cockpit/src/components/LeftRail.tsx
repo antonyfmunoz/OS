@@ -19,14 +19,12 @@ export function LeftRail() {
           <div className="flex items-center gap-2">
             <div className={clsx('w-2 h-2 rounded-full', wsConnected ? 'bg-ok wv-pulse' : 'bg-danger')} />
             <div className="flex flex-col">
-              <span className="text-[11px] font-mono text-text-secondary tracking-wider uppercase">
+              <span className="text-[13px] font-mono text-cyan tracking-wider uppercase font-bold">
+                {personaName || 'UMH'}
+              </span>
+              <span className="text-[9px] font-mono text-text-tertiary tracking-wide uppercase">
                 UMH Cockpit
               </span>
-              {personaName && (
-                <span className="text-[9px] font-mono text-cyan tracking-wide">
-                  {personaName}
-                </span>
-              )}
             </div>
           </div>
         )}

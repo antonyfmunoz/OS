@@ -802,7 +802,7 @@ Munoz Conglomerate (holding)
   ├── Relay Business: Lyfe Spectrum
   │     └── (similar 5-bucket layout)
   │
-  └── Relay Business: LyfeOS / CreatorOS
+  └── Relay Business: LYFEOS / CreatorOS
         └── (similar 5-bucket layout)
 ```
 

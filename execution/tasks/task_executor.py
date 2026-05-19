@@ -28,7 +28,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from state.context.context import EOSContext
+from state.context.context import EntrepreneurOSContext
 
 
 class TaskStatus(Enum):
@@ -76,7 +76,7 @@ class TaskExecutor:
         'send_dm':       '_handle_send_dm',
     }
 
-    def __init__(self, ctx: EOSContext) -> None:
+    def __init__(self, ctx: EntrepreneurOSContext) -> None:
         self.ctx = ctx
 
     def execute(self, task: AgentTask) -> AgentTask:

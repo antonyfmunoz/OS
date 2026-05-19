@@ -30,7 +30,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-from state.context.context import EOSContext
+from state.context.context import EntrepreneurOSContext
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 
@@ -57,7 +57,7 @@ class GWSDocumentScanner:
     Ingests with chunking. Saves context summary for cognitive loop.
     """
 
-    def __init__(self, ctx: EOSContext):
+    def __init__(self, ctx: EntrepreneurOSContext):
         self.ctx = ctx
         self._scan_skipped = 0  # set by scan_all() for reporting
 

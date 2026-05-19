@@ -98,7 +98,7 @@ if _rt_spec and "runtime" not in sys.modules:
     if _rt_spec.loader:
         _rt_spec.loader.exec_module(_rt_mod)
 
-from control_plane.runtime.gateway import EOSGateway
+from control_plane.runtime.gateway import EntrepreneurOSGateway
 from state.context.context import load_context_from_env
 from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
 from execution.voice.voice_engine import VoiceEngine
@@ -181,7 +181,7 @@ from interface.presence.handlers.substrate_command_handler import (
 # ─── Initialise ───────────────────────────────────────────────────────────────
 
 _ctx_eos = load_context_from_env()
-_gateway = EOSGateway()  # singleton — no ctx arg
+_gateway = EntrepreneurOSGateway()  # singleton — no ctx arg
 _ki = KnowledgeIntegrator(_ctx_eos)
 _ve = VoiceEngine()
 
@@ -593,7 +593,7 @@ async def on_error(event, *args, **kwargs):
 
 
 def _build_request(text: str, intent: str, channel_name: str, username: str) -> dict:
-    """Build a valid EOSGateway request dict from classified intent."""
+    """Build a valid EntrepreneurOSGateway request dict from classified intent."""
     if intent == "BRIEF":
         # Only trigger the full brief dump if explicitly requested
         # Otherwise route through cognitive loop — soul doc governs response

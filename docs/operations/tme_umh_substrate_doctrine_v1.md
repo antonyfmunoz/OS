@@ -8,7 +8,7 @@
 
 ## Core Rule
 
-The Tool Mastery Engine (TME) is a UMH substrate subsystem, not an EOS product subsystem. TME governs every external tool, SaaS, API, adapter, runtime, and capability UMH touches. EOS, LyfeOS, CreatorOS, and other platforms are consumers of TME — they do not own it.
+The Tool Mastery Engine (TME) is a UMH substrate subsystem, not an EOS product subsystem. TME governs every external tool, SaaS, API, adapter, runtime, and capability UMH touches. EOS, LYFEOS, CreatorOS, and other platforms are consumers of TME — they do not own it.
 
 ## What TME Is
 
@@ -34,7 +34,7 @@ Any platform built on UMH can consume TME outputs:
 | Platform | How It Consumes TME |
 |----------|-------------------|
 | EOS | Loads tool skills via decision tree, syncs to Neon, populates Adapter Package Layer 4 |
-| LyfeOS | (future) Can load same tool skills via same decision tree |
+| LYFEOS | (future) Can load same tool skills via same decision tree |
 | CreatorOS | (future) Can load same tool skills via same decision tree |
 | Custom UMH runtimes | (future) Can query TME via Control Plane's `ensure_tool_mastery()` |
 

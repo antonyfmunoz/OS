@@ -37,7 +37,7 @@ Every build decision must pass through all of these.
 11. **Educational** — teaches the why behind every recommendation so users build judgment, not just compliance
 12. **Current** — live intelligence through web search and signal monitoring; domain knowledge updated on a schedule
 13. **Secure and owner-controlled** — user owns all data; no forced integrations; cross-product sharing requires explicit permission
-14. **Cross-system** — EntrepreneurOS, CreatorOS, and LyfeOS share one intelligence substrate; each works standalone, any two compound, all three multiply
+14. **Cross-system** — EntrepreneurOS, CreatorOS, and LYFEOS share one intelligence substrate; each works standalone, any two compound, all three multiply
 15. **Execution-oriented** — the system closes the loop from insight to action; advisors that cannot execute are incomplete
 
 ---
@@ -301,7 +301,7 @@ HubSpot, Salesforce, QuickBooks, Zapier/n8n, GitHub, Slack (deep), LinkedIn, Wha
 | Table | Contents |
 |---|---|
 | `user_intelligence_profiles` | Behavioral profile that survives product boundaries |
-| `cross_product_permissions` | User-granted data sharing between EOS / CreatorOS / LyfeOS |
+| `cross_product_permissions` | User-granted data sharing between EOS / CreatorOS / LYFEOS |
 | `product_connections` | Registered product instances per user |
 
 ### Business Instance Spec (BIS)
@@ -349,7 +349,7 @@ Quick decisions, approvals, notifications. AI chat, brief consumption, voice int
 
 ### Endpoint (full vision)
 
-All three OS products live. All 15 department agents with full skill sets. Browser and computer control operational. Real users with Firebase auth and Stripe billing. Mobile app. Cross-product intelligence compounding across EOS + CreatorOS + LyfeOS. RLHF meaningfully improving skills over time. Proprietary dataset accumulating. Local/offline execution option. $100K/month net profit.
+All three OS products live. All 15 department agents with full skill sets. Browser and computer control operational. Real users with Firebase auth and Stripe billing. Mobile app. Cross-product intelligence compounding across EOS + CreatorOS + LYFEOS. RLHF meaningfully improving skills over time. Proprietary dataset accumulating. Local/offline execution option. $100K/month net profit.
 
 ### MVP Phase 1 (current — mostly built)
 
@@ -376,7 +376,7 @@ All three OS products live. All 15 department agents with full skill sets. Brows
 ### MVP Phase 3 (following)
 
 - CreatorOS frontend
-- LyfeOS frontend
+- LYFEOS frontend
 - Mobile app
 - Cross-product compounding
 - All department agents complete with full skill sets
@@ -412,7 +412,7 @@ Architectural decisions not yet made that will affect future builds.
 - Public scale requires: cloud infra, CDN, geographic distribution, autoscaling
 - Decision needed 60-90 days before public launch
 
-**6. CreatorOS / LyfeOS integration protocol**
+**6. CreatorOS / LYFEOS integration protocol**
 - OS Trinity tables exist in Neon but are unpopulated
 - Open questions: what data flows between products? User controls what crosses?
 - Definition needed before any cross-product feature is built

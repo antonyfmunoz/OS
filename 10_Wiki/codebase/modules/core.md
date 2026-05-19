@@ -84,7 +84,7 @@ generated: 2026-05-07
 - [[core-coord_assignment-py]] (415 lines) — Semantic Space v1.1 — Coordinate Assignment (Hybrid Index)
 - [[core-domain-creator-py]] (145 lines) — CreatorOS domain compositions — content creation structures.
 - [[core-domain-eos-py]] (273 lines) — EOS domain compositions — L2 business structures mapped to L
-- [[core-domain-lyfe-py]] (148 lines) — LyfeOS domain compositions — personal operating system struc
+- [[core-domain-lyfe-py]] (148 lines) — LYFEOS domain compositions — personal operating system struc
 - [[core-dynamics-py]] (271 lines) — Feedback Dynamics — model delayed, nonlinear, and compoundin
 - [[core-environment-py]] (535 lines) — environment.py — Execution environment model for the EOS AI 
 - [[core-environment_bridge-bootstrap_plan-py]] (231 lines) — Bootstrap plan for the Environment Bridge.

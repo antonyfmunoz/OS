@@ -12,7 +12,7 @@
 | **Purpose** | Universal intelligence substrate — powers all OS products |
 | **Type** | Substrate / framework / kernel — NOT a SaaS UI |
 | **User/Customer** | Internal (OST products) — never sold directly |
-| **Internal vs Public** | Internal only — consumed by EOS, CreatorOS, LyfeOS |
+| **Internal vs Public** | Internal only — consumed by EOS, CreatorOS, LYFEOS |
 | **First Use Case** | Power EntrepreneurOS to run first operating workflow |
 | **Long-Term Role** | Foundation for AI OS, proprietary runtime, robotics-control |
 | **Data Produced** | Architecture phases, ontology laws, governance policies, execution traces, adapter configs, registry items, storage records |
@@ -56,7 +56,7 @@
 
 ---
 
-## LyfeOS
+## LYFEOS
 
 | Field | Value |
 |-------|-------|

@@ -27,7 +27,7 @@ _REPO_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.envir
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from state.context.context import load_context_from_env, EOSContext
+from state.context.context import load_context_from_env, EntrepreneurOSContext
 from state.storage.db import get_conn, ORG_ID
 from execution.transport.execution_trace import (
     new_trace,
@@ -138,9 +138,9 @@ def run_task(
 
         # ── 3. ROUTE ─────────────────────────────────────────────────
         # Call gateway.classify_intent() to determine path.
-        from control_plane.runtime.gateway import EOSGateway
+        from control_plane.runtime.gateway import EntrepreneurOSGateway
 
-        gw = EOSGateway()
+        gw = EntrepreneurOSGateway()
         intent = gw.classify_intent(clean_text)
         update_trace(trace, workflow_intent=intent)
 

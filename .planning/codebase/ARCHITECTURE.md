@@ -21,7 +21,7 @@ Layer 1 — Platform (EOS)     eos_ai/cognitive_loop.py
   Authority gating, prompt enhancement, quality verification
 
 Layer 2 — OS Module          per-venture config + eos_ai modules
-  EntrepreneurOS / CreatorOS / LyfeOS subscription surfaces
+  EntrepreneurOS / CreatorOS / LYFEOS subscription surfaces
   Stage-aware gating via BIS (Business Instance Spec)
 
 Layer 3 — Instance Context   ventures table + BIS JSON in Neon

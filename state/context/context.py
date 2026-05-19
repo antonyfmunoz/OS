@@ -10,7 +10,7 @@ load_dotenv(_REPO_ROOT / "runtime" / ".env")
 
 
 @dataclass
-class EOSContext:
+class EntrepreneurOSContext:
     org_id: str
     user_id: str
     portfolio_id: str | None = None
@@ -32,8 +32,8 @@ def load_ventures_from_env() -> list:
         return []
 
 
-def load_context_from_env() -> EOSContext:
-    return EOSContext(
+def load_context_from_env() -> EntrepreneurOSContext:
+    return EntrepreneurOSContext(
         org_id=os.environ["EOS_ORG_ID"],
         user_id=os.environ["EOS_USER_ID"],
         portfolio_id=os.environ.get("EOS_PORTFOLIO_ID"),

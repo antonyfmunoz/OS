@@ -35,7 +35,7 @@ A business execution surface powered by UMH:
 
 ## What are Other Projections?
 
-- LyfeOS — personal optimization projection
+- LYFEOS — personal optimization projection
 - CreatorOS — content creator projection
 - Distribution platforms, audience platforms
 
@@ -57,7 +57,7 @@ All projections sit on top of UMH. None of them are the substrate.
 - "EOS is a domain projection"
 - "UMH is the substrate"
 - "UMH powers EOS"
-- "LyfeOS is a projection"
+- "LYFEOS is a projection"
 - "CreatorOS is a projection"
 
 ## Classification Logic

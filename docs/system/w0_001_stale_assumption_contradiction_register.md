@@ -13,7 +13,7 @@ based on other evidence (CLAUDE.md, current codebase state, or newer documents).
 | # | Assumption | Found In | Why Stale | Confidence |
 |---|-----------|----------|-----------|------------|
 | S1 | "Game of Lyfe" as active product with email sales funnel | Email Sequence (jeremy.ness) | Predates Initiate Arena rebrand. Current strategy is Initiate Arena first, Game of Lyfe after $10K/mo. | HIGH |
-| S2 | LyfeOS is in active development (lyfeos.net/login?access=beta) | LyfeOS doc | Domain/app exists but development is paused per CLAUDE.md ("Side: Lyfe Spectrum, LyfeOS/CreatorOS"). No recent activity. | HIGH |
+| S2 | LYFEOS is in active development (LYFEOS.net/login?access=beta) | LYFEOS doc | Domain/app exists but development is paused per CLAUDE.md ("Side: Lyfe Spectrum, LYFEOS/CreatorOS"). No recent activity. | HIGH |
 | S3 | "Semi-retired at 24" positioning in email copy | Email Sequence | Antony turned 25 in April 2026. Also pre-revenue makes "semi-retired" positioning potentially misleading for current use. | HIGH |
 | S4 | GoHighLevel as CRM tool | AI Tools | No integration exists in EOS. Tool was bookmarked but not adopted. Current system uses Neon + Discord + manual tracking. | MEDIUM |
 | S5 | "We only take 20 players per month" (Game of Lyfe) | Email Sequence | No cohort has launched yet. This was aspirational copy, not operational reality. | HIGH |
@@ -45,7 +45,7 @@ Documents span from 2025-02 to 2026-05. Key evolution:
 2025-10: Storytelling structures shared
 2025-11: Systems Inventory (virality bible) written
 2026-01: Business Template, Personal Curriculum, Coaching Frameworks
-2026-02: Conglomerate Brands, Personal Brand, LyfeOS, CreatorOS, Coaching Philosophy
+2026-02: Conglomerate Brands, Personal Brand, LYFEOS, CreatorOS, Coaching Philosophy
 2026-03: Content strategy, AI Tools, Claude plugins reference, Hormozi conversation
 2026-04: EntrepreneurOS notes, EOS dev specs, Untitled docs
 2026-05: UMH spec (most recent, aligns with current EOS work)

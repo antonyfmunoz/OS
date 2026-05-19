@@ -19,8 +19,8 @@ for a complete understanding of the business and operational context.
 
 | # | Source | Type | Referenced In | Why |
 |---|--------|------|---------------|-----|
-| Q5 | lyfeos.net (beta app) | Web app | LyfeOS doc | Current state of the app, what's built, what's broken |
-| Q6 | LYFEOS_Product_Development_Roadmap.docx | Word doc | Drive inventory | NEEDS_SEPARATE_EXPORT_APPROVAL — product roadmap for LyfeOS |
+| Q5 | LYFEOS.net (beta app) | Web app | LYFEOS doc | Current state of the app, what's built, what's broken |
+| Q6 | LYFEOS_Product_Development_Roadmap.docx | Word doc | Drive inventory | NEEDS_SEPARATE_EXPORT_APPROVAL — product roadmap for LYFEOS |
 | Q7 | Notion workspace (referenced in Life Coaching) | Platform | Life Coaching doc | "Onboarding To Community / Explain System Philosophy / Set-Up Player Sheet" — may have curriculum content |
 
 ## Priority 3: Collaborator/External Accounts

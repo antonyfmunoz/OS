@@ -47,7 +47,7 @@ are shifted +1 from original numbering.
 ## Non-Negotiables
 
 1. **First workflow is Personal Brand → Initiate Arena** — not any other workflow
-2. **OST owns UMH/EOS/CreatorOS/LyfeOS** — technology company owns technology
+2. **OST owns UMH/EOS/CreatorOS/LYFEOS** — technology company owns technology
 3. **Empyrean Studio includes B2B AI agency services** — not just creative agency
 4. **Lyfe Institute owns Initiate Arena and Game of Lyfe** — education company owns education
 5. **AI chat archive ingestion is future critical capability** — plan exists, not built yet

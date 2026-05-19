@@ -238,7 +238,7 @@ See `docs/system/canonical_terminology.md` for authoritative definitions.
 | Replay determinism (learning) | 165/165 pytest pass, 5 checks per trace, outcome/pattern/proposal/governance/confidence determinism | Phase 96.8CC |
 | Application projection contracts | 15 contracts (ApplicationProjection, ApplicationCapabilitySurface, ApplicationRuntimeContext, ApplicationBoundaryState, ApplicationExecutionSurface, ApplicationWorkflowSurface, ApplicationContinuityState, ApplicationProjectionReceipt, ApplicationCapabilityBinding, DomainProjectionState, ProjectionReplayState, ProjectionGovernanceState, ApplicationLifecycleStateContract, ApplicationTopologyState, ApplicationObservabilityState), 5 enums | Phase 96.8CD |
 | Canonical application projection coordinator | Composes lifecycle+registry+capabilities+contexts+continuity+observability+topology, cannot execute outside spine, cannot allow application-owned orchestration/governance/cognition | Phase 96.8CD |
-| Application registry engine | 3 known apps (EOS=core, LyfeOS=governed, CreatorOS=governed), dynamic registration, MAX_APPLICATIONS=20 | Phase 96.8CD |
+| Application registry engine | 3 known apps (EOS=core, LYFEOS=governed, CreatorOS=governed), dynamic registration, MAX_APPLICATIONS=20 | Phase 96.8CD |
 | Capability projection engine | Trust-tier capability filtering (core=all 9, governed=5, restricted=3, sandboxed=2), 6 forbidden direct capabilities | Phase 96.8CD |
 | Domain runtime context engine | 6 domain types (business, personal, creator_media, infrastructure, research, operations), isolation verification | Phase 96.8CD |
 | Application continuity engine | Cross-app checkpoints, session chain tracking, deterministic content hashes | Phase 96.8CD |
@@ -586,7 +586,7 @@ See `docs/system/canonical_terminology.md` for authoritative definitions.
 ### 96.8CD — SUBSTRATE_APPLICATION_PROJECTION_COORDINATION — DONE
 - Application projection contracts: 15 data shapes (ApplicationProjection, ApplicationCapabilitySurface, ApplicationRuntimeContext, ApplicationBoundaryState, ApplicationExecutionSurface, ApplicationWorkflowSurface, ApplicationContinuityState, ApplicationProjectionReceipt, ApplicationCapabilityBinding, DomainProjectionState, ProjectionReplayState, ProjectionGovernanceState, ApplicationLifecycleStateContract, ApplicationTopologyState, ApplicationObservabilityState)
 - Canonical application projection coordinator: composes lifecycle+registry+capabilities+contexts+continuity+observability+topology, cannot execute outside spine, cannot allow application-owned orchestration/governance/cognition
-- Application registry engine: 3 known apps (EOS=core, LyfeOS=governed, CreatorOS=governed), dynamic registration with trust tier assignment, MAX_APPLICATIONS=20, capability/binding tracking
+- Application registry engine: 3 known apps (EOS=core, LYFEOS=governed, CreatorOS=governed), dynamic registration with trust tier assignment, MAX_APPLICATIONS=20, capability/binding tracking
 - Capability projection engine: trust-tier filtering (core gets all 9 capability categories, governed gets 5, restricted gets 3, sandboxed gets 2), 6 forbidden direct capabilities, deterministic binding hashes
 - Domain runtime context engine: 6 domain types (business, personal, creator_media, infrastructure, research, operations), isolation verification, MAX_ACTIVE_CONTEXTS=10
 - Application continuity engine: cross-app checkpoints with SHA-256 hashes, session chain tracking (max 50), restore/checkpoint lifecycle

@@ -44,7 +44,7 @@ if _REPO_ROOT not in sys.path:
 
 load_dotenv(Path(__file__).parent / ".env")
 
-from state.context.context import EOSContext
+from state.context.context import EntrepreneurOSContext
 from control_plane.runtime.cognitive_loop import CognitiveLoop
 from execution.runtime.agent_runtime import AgentRuntime, TaskType
 from learning.skills.skill_improvement import SkillImprovementEngine
@@ -140,7 +140,7 @@ class EvolutionEngine:
     evolution cycle.
     """
 
-    def __init__(self, ctx: EOSContext):
+    def __init__(self, ctx: EntrepreneurOSContext):
         self.ctx              = ctx
         self.loop             = CognitiveLoop(ctx)
         self.skill_improvement = SkillImprovementEngine()

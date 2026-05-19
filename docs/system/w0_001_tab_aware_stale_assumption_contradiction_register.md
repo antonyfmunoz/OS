@@ -23,7 +23,7 @@ These documents contain temporal references (2023, 2024, "old version", "depreca
 | Document | Stale Indicators | Words | Notes |
 |----------|:----------------:|------:|-------|
 | Coaching Philosophy/Methodology | High | 34,683 | Contains historical method evolution |
-| LyfeOS | High | 44,400 | Multiple product version references |
+| LYFEOS | High | 44,400 | Multiple product version references |
 | EntrepreneurOS | Moderate | 40,222 | Roadmap versions, old features |
 | Systems Inventory | Moderate | 22,695 | Tool references may be outdated |
 | CreatorOS | Moderate | 27,301 | Platform evolution references |
@@ -67,4 +67,4 @@ With full tab-aware content:
 
 - CreatorOS: previously marked "empty/stale" → actually 27,301 words of active content
 - Empyrean Studios: previously marked "empty/stale" → actually 10,985 words of active content
-- LyfeOS: previously seen as 255 words → actually 44,400 words of detailed spec
+- LYFEOS: previously seen as 255 words → actually 44,400 words of detailed spec

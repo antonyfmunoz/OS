@@ -3,7 +3,7 @@
 Governed intelligence substrate for autonomous business operations.
 
 UMH is the runtime intelligence layer. Applications like
-EntrepreneurOS (EOS), CreatorOS, and LyfeOS are projections
+EntrepreneurOS (EOS), CreatorOS, and LYFEOS are projections
 built on top of UMH — they consume its intelligence, they
 do not own it.
 

@@ -26,7 +26,7 @@ import re
 import uuid
 from dataclasses import dataclass, field
 
-from state.context.context import EOSContext
+from state.context.context import EntrepreneurOSContext
 
 
 @dataclass
@@ -56,7 +56,7 @@ DECISION_SIGNALS = (
 
 class DecisionLog:
 
-    def __init__(self, ctx: EOSContext):
+    def __init__(self, ctx: EntrepreneurOSContext):
         self.ctx = ctx
 
     def detect_decision(self, text: str, venture_id: str = '') -> bool:

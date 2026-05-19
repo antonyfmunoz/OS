@@ -20,7 +20,7 @@
 ## 2. Core Entities (by cross-document frequency)
 
 ### Companies / Platforms
-- **LyfeOS** — referenced in 15+ documents
+- **LYFEOS** — referenced in 15+ documents
 - **EntrepreneurOS** — referenced in 12+ documents
 - **CreatorOS** — referenced in 10+ documents
 - **Empyrean Studios** — referenced in 8+ documents
@@ -42,13 +42,13 @@
 
 - **59 unique entities** tracked across the corpus
 - **1,277 cross-document connection edges** (entity appears in multiple docs)
-- Highest connectivity: LyfeOS, EntrepreneurOS, CreatorOS (appear in most documents)
+- Highest connectivity: LYFEOS, EntrepreneurOS, CreatorOS (appear in most documents)
 - Strongest clusters: product specs ↔ coaching ↔ brand identity
 
 ## 4. Document Centrality
 
 Most connected documents (most shared entities with other docs):
-1. LyfeOS (53 tabs) — connects to nearly all other documents
+1. LYFEOS (53 tabs) — connects to nearly all other documents
 2. EntrepreneurOS (14 tabs) — product architecture references all brands
 3. Coaching Philosophy (35 tabs) — methodology referenced by all coaching docs
 4. Antony F. Munoz Personal Brand — brand identity connects to all ventures
@@ -57,7 +57,7 @@ Most connected documents (most shared entities with other docs):
 ## 5. Structural Findings
 
 - The corpus forms a single connected graph — no isolated documents
-- Product specs (LyfeOS, EntrepreneurOS, CreatorOS) form the dense core
+- Product specs (LYFEOS, EntrepreneurOS, CreatorOS) form the dense core
 - Coaching content forms a secondary cluster connected through methodology
 - Brand docs bridge between product and coaching clusters
 - Operational docs are leaf nodes with few cross-references
@@ -70,4 +70,4 @@ Most connected documents (most shared entities with other docs):
 | Empyrean Studios in graph | No (appeared empty) | Yes (11K words, connected) |
 | Cross-document edges | ~150 | 1,277 |
 | Unique entities | ~15 | 59 |
-| LyfeOS connectivity | Low (255 words) | Highest (44K words) |
+| LYFEOS connectivity | Low (255 words) | Highest (44K words) |

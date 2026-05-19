@@ -86,7 +86,7 @@ Munoz Holdings (future)
 | 3 | **UMH** | OST | Substrate / framework | Building | Never sold directly | `product_map.md` |
 | 4 | **Game of Lyfe** | Lyfe Institute | Info-product (higher tier) | Not started | After Initiate Arena proves | `product_map.md` |
 | 5 | **CreatorOS** | OST | SaaS | Not started | After EOS validated | `product_map.md` |
-| 6 | **LyfeOS** | OST | SaaS | Not started | After EOS validated | `product_map.md` |
+| 6 | **LYFEOS** | OST | SaaS | Not started | After EOS validated | `product_map.md` |
 
 ### Initiate Arena — Offer Details (extracted)
 

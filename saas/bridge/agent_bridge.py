@@ -32,8 +32,8 @@ def _emit(obj: dict) -> None:
 
 
 def _run_agent(payload: dict) -> dict:
-    from control_plane.runtime.gateway import EOSGateway
-    gateway = EOSGateway()
+    from control_plane.runtime.gateway import EntrepreneurOSGateway
+    gateway = EntrepreneurOSGateway()
     request = {
         "type":       "agent_task",
         "prompt":     payload.get("prompt", ""),
@@ -61,8 +61,8 @@ def _run_agent(payload: dict) -> dict:
 
 
 def _run_team(payload: dict) -> dict:
-    from control_plane.runtime.gateway import EOSGateway
-    gateway = EOSGateway()
+    from control_plane.runtime.gateway import EntrepreneurOSGateway
+    gateway = EntrepreneurOSGateway()
     request = {
         "type":       "agent_task",
         "prompt":     payload.get("prompt", ""),
@@ -92,8 +92,8 @@ def _run_team(payload: dict) -> dict:
 
 
 def _run_brief() -> dict:
-    from control_plane.orchestrator.orchestrator import EOSOrchestrator
-    orch       = EOSOrchestrator()
+    from control_plane.orchestrator.orchestrator import EntrepreneurOSOrchestrator
+    orch       = EntrepreneurOSOrchestrator()
     brief      = orch.morning_brief()
     north_star = orch.get_north_star_status()
     return {

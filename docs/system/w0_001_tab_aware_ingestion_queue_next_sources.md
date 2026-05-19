@@ -19,7 +19,7 @@
 - **LYFEOS_Product_Development_Roadmap.docx** (file ID: 1svTpbCtrmSoxFlCKau7doOU2PGr4hP-m)
 - Already in Drive inventory
 - Requires separate extraction method (different mime type)
-- Likely contains LyfeOS roadmap content that may overlap with LyfeOS Google Doc
+- Likely contains LYFEOS roadmap content that may overlap with LYFEOS Google Doc
 - **Action**: Approve Word doc export/read, or convert to Google Doc format
 
 ### Priority 2: Shared With Me

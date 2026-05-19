@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 PDT = ZoneInfo("America/Los_Angeles")
 
 
-class EOSSystemHealth:
+class EntrepreneurOSSystemHealth:
     """
     EOS knows its own operational state at all times.
 
@@ -411,12 +411,12 @@ class EOSSystemHealth:
         return "\n".join(lines)
 
 
-def get_system_health(ctx=None) -> EOSSystemHealth:
+def get_system_health(ctx=None) -> EntrepreneurOSSystemHealth:
     """Get configured system health instance."""
     from dotenv import load_dotenv
 
     load_dotenv(os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS", "runtime", ".env"))
-    return EOSSystemHealth(ctx)
+    return EntrepreneurOSSystemHealth(ctx)
 
 
 if __name__ == "__main__":

@@ -10,4 +10,4 @@ generated: 2026-05-07
 **File:** [[services-telegram_control-py]] | **Line:** 1203
 **Signature:** `connect_cmd(update, context)`
 
-/connect [product] — register a product connection (lyfeos, creatorOS, eos).
+/connect [product] — register a product connection (LYFEOS, creatorOS, eos).

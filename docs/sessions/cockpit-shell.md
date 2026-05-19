@@ -1,7 +1,7 @@
 # UMH Cockpit Shell — Session Report
 
 **Date:** 2026-05-18
-**Session:** A (Cockpit / WorldView UI)
+**Session:** A (Cockpit UI)
 **Worktree:** cockpit-shell
 **Branch:** worktree-cockpit-shell
 
@@ -55,7 +55,7 @@
 - `src/views/Settings.tsx` — stub
 
 ### Design System
-- `src/index.css` — WorldView tactical design system: #0A0A0A canvas, #00E5FF cyan, semantic colors, monospace-first, component classes (wv-card, wv-badge, wv-label, wv-metric, wv-pulse, wv-scanline)
+- `src/index.css` — tactical design system: #0A0A0A canvas, #00E5FF cyan, semantic colors, monospace-first, component classes (wv-card, wv-badge, wv-label, wv-metric, wv-pulse, wv-scanline)
 
 ### Reports
 - `DISCOVERY_REPORT.md`
@@ -90,7 +90,7 @@ $ npm run build
 - [x] No backend required for first boot (all mock data)
 - [x] Protected files untouched
 
-## 4. Design System — WorldView
+## 4. Design System
 
 | Token | Value | Usage |
 |-------|-------|-------|
