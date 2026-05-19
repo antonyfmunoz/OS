@@ -320,15 +320,15 @@ Per the socket design's deferred-auth decision: we are not at remote integration
 
 ## 9. Open Decisions
 
-### Must resolve before Phase 1
+### Resolved (Phase 1)
 
-1. **Registration wiring:** Should the Notion integration register in `build_default_executor()` alongside Shell/Filesystem/Git/Tmux, or should it register separately through `IntegrationRegistry` at app startup? The local adapters use `WorkPacketExecutor.register_adapter()` directly. The Notion integration uses `IntegrationRegistry.register()` which creates an `IntegrationAdapter` wrapper. These are two different registration paths. Decision: which path, and where does the registration call live?
+1. **Registration wiring:** DECIDED — `IntegrationRegistry.register()` at app startup. The resulting `IntegrationAdapter` is passed to `WorkPacketExecutor.register_adapter()`. This is the designed path; local adapters predate the socket layer and register directly only because they lack signals/outcomes.
 
-2. **Logical database name mapping:** The handler resolves logical names (`"lyfe_tasks"`) to env var UUIDs. Should this mapping be hardcoded in `manifest.py`, loaded from a config file, or derived from env var naming convention (`NOTION_*_TASKS_DB` → `*_tasks`)?
+2. **Logical database name mapping:** DECIDED — derive from env var naming convention. Strip `NOTION_` prefix and `_DB`/`_ID` suffix, lowercase, join with underscore. Adding a new database = adding an env var, no code change.
 
-3. **Error retry policy:** The `CapabilitySocket` catches handler exceptions and normalizes them. Should the handler itself retry on 429 (rate limit) before letting the exception propagate, or should retry be a socket-layer concern? Current socket design is no-retry (fail fast, return `raw_error`). But Notion 429s are expected under normal operation with a 2-second retry window.
+3. **Error retry policy:** DECIDED — one retry with backoff inside the handler on 429. Retry logic is Notion-specific knowledge that doesn't belong in the socket layer. Handler retries once, then lets it fail. Socket layer still catches unexpected exceptions via its existing normalization.
 
-4. **Test strategy:** Integration tests need a real Notion API call or a mock. For CI: mock `notion_client.Client`. For smoke tests: real API against a test database. Do we create a dedicated test database, or use an existing one with a `[TEST]` prefix convention?
+4. **Test strategy:** DECIDED — mock `notion_client.Client` for unit tests (CI suite). One manual smoke test script hits the real API against existing databases using `[UMH-TEST]` title prefix. No dedicated test database.
 
 ### Must resolve before Phase 2
 
