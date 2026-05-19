@@ -3,7 +3,7 @@
 
 **Date**: 2026-05-18
 **Session**: D (parallel build)
-**Target**: services/jarvis/
+**Target**: services/umh/
 **Status**: COMPLETE — 63/63 tests passing
 
 ---
@@ -14,7 +14,7 @@
 Append-only JSONL trace persistence with JSON index for queries.
 
 **Key classes**: `Trace` (dataclass), `TraceStore`, `TraceStatus`
-**Data path**: `data/jarvis/traces/traces.jsonl` + `index.json`
+**Data path**: `data/umh/traces/traces.jsonl` + `index.json`
 **Operations**: create_trace, update_trace, get_trace, query_traces, recent_traces
 
 Traces record the full execution lifecycle:
@@ -30,7 +30,7 @@ Traces record the full execution lifecycle:
 Date-partitioned JSON proof artifact store.
 
 **Key classes**: `ProofArtifact` (dataclass), `ProofStore`
-**Data path**: `data/jarvis/proofs/YYYY-MM-DD/proof-*.json`
+**Data path**: `data/umh/proofs/YYYY-MM-DD/proof-*.json`
 **Operations**: store_proof, get_proof, proofs_for_trace, recent_proofs
 
 ### 3. OutcomeClassifier (`observability/outcome_classifier.py`)
@@ -44,7 +44,7 @@ Rule-based classifier for execution results.
 Stages memory candidates from traces — does NOT write to canonical memory.
 
 **Key classes**: `MemoryCandidate` (dataclass), `MemoryCandidateGenerator`, `PromotionStatus`
-**Data path**: `data/jarvis/memory_candidates/candidates.jsonl`
+**Data path**: `data/umh/memory_candidates/candidates.jsonl`
 **Operations**: generate_candidate, generate_from_trace, get_candidates, count
 
 Memory candidates include:
@@ -63,21 +63,21 @@ Memory candidates include:
 Runtime workstation snapshot: profile + session + resume.
 
 **Key classes**: `WorkstationProfile`, `WorkstationSessionState`, `ResumeState`, `WorkstationSnapshot`, `WorkstationStateManager`
-**Data path**: `data/jarvis/workstation_state/current_snapshot.json` + `snapshot_history.jsonl`
+**Data path**: `data/umh/workstation_state/current_snapshot.json` + `snapshot_history.jsonl`
 
 WorkstationProfile: user/session ID, current mode, active environment, hostname, platform
 WorkstationSessionState: recent traces, pending approvals, last activity, counts
 ResumeState: resume summary, next suggested actions, last outcome, unresolved count
 
-### 6. JarvisOrchestrator (`orchestrator.py`)
+### 6. Orchestrator (`orchestrator.py`)
 Unified facade coordinating all subsystems.
 
-**Key class**: `JarvisOrchestrator`
+**Key class**: `Orchestrator`
 **Operations**:
 - `execute_trace()` — full lifecycle: create → classify → proof → candidate → state
-- `get_traces()` — query traces (endpoint-ready for GET /api/jarvis/traces)
+- `get_traces()` — query traces (endpoint-ready for GET /api/umh/traces)
 - `get_trace_detail()` — full trace with proofs and candidates
-- `get_resume()` — build resume state (endpoint-ready for GET /api/jarvis/resume)
+- `get_resume()` — build resume state (endpoint-ready for GET /api/umh/resume)
 - `get_stats()` — summary statistics
 
 ---
@@ -85,7 +85,7 @@ Unified facade coordinating all subsystems.
 ## File Tree
 
 ```
-services/jarvis/
+services/umh/
   __init__.py
   orchestrator.py
   DISCOVERY_REPORT.md
@@ -108,7 +108,7 @@ services/jarvis/
 
 Data directories (created at runtime):
 ```
-data/jarvis/
+data/umh/
   traces/           traces.jsonl + index.json
   proofs/           YYYY-MM-DD/proof-*.json
   memory_candidates/ candidates.jsonl
@@ -191,7 +191,7 @@ data/jarvis/
 63 passed, 0 failed
 ```
 
-Full test command: `python3 services/jarvis/tests/test_e2e.py`
+Full test command: `python3 services/umh/tests/test_e2e.py`
 
 ---
 
@@ -213,7 +213,7 @@ Full test command: `python3 services/jarvis/tests/test_e2e.py`
 
 ## Integration Notes
 
-- **No existing files modified** — all new code in services/jarvis/
+- **No existing files modified** — all new code in services/umh/
 - **No DB dependency** — file-backed JSONL/JSON throughout
 - **Deterministic IDs** — same pattern as canonical memory store (_deterministic_id)
 - **Append-only** — traces.jsonl and candidates.jsonl are append-only

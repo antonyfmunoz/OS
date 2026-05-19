@@ -1,4 +1,4 @@
-# Jarvis Layer 0 — Session Report
+# UMH Layer 0 — Session Report
 
 **Session:** B
 **Date:** 2026-05-18
@@ -42,7 +42,7 @@
 | `control_plane/invariants.py` | Law enforcement — pre-creation validation, work packet validation, adapter checks |
 | `control_plane/router.py` | Signal routing through legal pipeline: intake → interpret → decompose → govern → execute → trace |
 | `control_plane/runtime.py` | Top-level orchestrator — wires bus/checker/router/identity/perspective |
-| `control_plane/app.py` | FastAPI surface: /api/jarvis/health, /api/jarvis/signal, /api/jarvis/events, /api/jarvis/violations |
+| `control_plane/app.py` | FastAPI surface: /api/umh/health, /api/umh/signal, /api/umh/events, /api/umh/violations |
 
 ### Package Files (4 files)
 - `__init__.py` (root + foundation + protocols + control_plane)
@@ -83,10 +83,10 @@
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/api/jarvis/health` | Runtime health check |
-| POST | `/api/jarvis/signal` | Universal signal intake |
-| GET | `/api/jarvis/events` | Recent event bus events |
-| GET | `/api/jarvis/violations` | Recorded invariant violations |
+| GET | `/api/umh/health` | Runtime health check |
+| POST | `/api/umh/signal` | Universal signal intake |
+| GET | `/api/umh/events` | Recent event bus events |
+| GET | `/api/umh/violations` | Recorded invariant violations |
 
 ## Not Modified
 - `eos_ai/gateway.py`

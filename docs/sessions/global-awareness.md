@@ -11,7 +11,7 @@ event ingestion across four data categories with source attribution.
 ### Module Structure
 
 ```
-services/jarvis/awareness/world/
+services/umh/awareness/world/
 ├── __init__.py          — public API exports
 ├── schema.py            — GlobalEvent dataclass + enums
 ├── adapter_rss.py       — RSS via feedparser (stdlib XML fallback)
@@ -62,7 +62,7 @@ All adapters returned live data. Mock fallbacks exist but were not triggered.
 ## Cockpit JSON Contract
 
 ```python
-from services.jarvis.awareness.world import GlobalAwarenessAggregator
+from services.umh.awareness.world import GlobalAwarenessAggregator
 
 agg = GlobalAwarenessAggregator()
 snapshot = agg.snapshot()      # dict
@@ -96,7 +96,7 @@ Snapshot shape:
 - [x] Graceful mock fallback per adapter
 - [x] Cockpit-compatible JSON output
 - [x] No dependency on external WorldView product
-- [x] Native UMH capability (services/jarvis/awareness/)
+- [x] Native UMH capability (services/umh/awareness/)
 
 ## Dependencies Installed
 
