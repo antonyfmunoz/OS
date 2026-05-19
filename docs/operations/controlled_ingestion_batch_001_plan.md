@@ -120,7 +120,7 @@ These are known to exist based on user documentation. They are listed here as fu
 |---|-------------|-----------------|-------------------|
 | 1 | UMH | Architecture docs, design notes | HIGH |
 | 2 | EntrepreneurOS | Product specs, roadmaps | HIGH |
-| 3 | LyfeOS | Product specs | MEDIUM |
+| 3 | LYFEOS | Product specs | MEDIUM |
 | 4 | CreatorOS | Product specs | MEDIUM |
 | 5 | AI Tools | Tool evaluations, setup notes | MEDIUM |
 | 6 | AI Agents | Agent designs, conversation exports | HIGH |

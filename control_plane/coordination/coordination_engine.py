@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent / ".env")
 load_dotenv(Path(__file__).parent.parent / "services" / ".env")
 
-from state.context.context import EOSContext
+from state.context.context import EntrepreneurOSContext
 from state.storage.db import get_conn, resolve_venture
 from control_plane.events.event_bus import EventBus
 from governance.policy.authority_engine import AuthorityEngine
@@ -42,7 +42,7 @@ def _notify(text: str) -> None:
 
 
 class CoordinationEngine:
-    def __init__(self, ctx: EOSContext):
+    def __init__(self, ctx: EntrepreneurOSContext):
         self.ctx = ctx
         self.event_bus = EventBus()
         self.authority = AuthorityEngine(ctx)

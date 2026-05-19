@@ -33,7 +33,7 @@ if _REPO_ROOT not in sys.path:
 
 load_dotenv(Path(__file__).parent / ".env")
 
-from state.context.context import EOSContext
+from state.context.context import EntrepreneurOSContext
 from control_plane.runtime.cognitive_loop import CognitiveLoop
 from execution.runtime.agent_runtime import TaskType
 from state.storage.db import get_conn
@@ -51,7 +51,7 @@ class ResearchEngine:
     as permanent skills in the Neon skills table.
     """
 
-    def __init__(self, ctx: EOSContext):
+    def __init__(self, ctx: EntrepreneurOSContext):
         self.ctx    = ctx
         self.loop   = CognitiveLoop(ctx)
         self.memory = AgentMemory()

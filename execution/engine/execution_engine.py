@@ -27,7 +27,7 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / ".env")
 
-from state.context.context import EOSContext
+from state.context.context import EntrepreneurOSContext
 from state.storage.db import get_conn
 
 
@@ -56,7 +56,7 @@ class ExecutionEngine:
 
     _STUCK_THRESHOLD_MINUTES = 30
 
-    def __init__(self, ctx: EOSContext) -> None:
+    def __init__(self, ctx: EntrepreneurOSContext) -> None:
         self.ctx = ctx
 
     # ─── start_execution ─────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 """github_trinity_ingest.py — Clone and ingest the three core repos via canonical pipeline.
 
-Targets: EntrepreneurOS, CreatorOS, LyfeOS (the "Trinity").
+Targets: EntrepreneurOS, CreatorOS, LYFEOS (the "Trinity").
 Uses GenericIngestionOrchestrator + LocalFileSource for each relevant file.
 
 Usage:
@@ -40,7 +40,7 @@ _PROOF_DIR = _MEMORY_STORE / "proofs" / "github_trinity"
 TRINITY_REPOS: dict[str, str] = {
     "entrepreneuros": "https://github.com/antonyfmunoz/EntrepreneurOS.git",
     "creatoros": "https://github.com/antonyfmunoz/CreatorOS.git",
-    "lyfeos": "https://github.com/antonyfmunoz/LyfeOS.git",
+    "LYFEOS": "https://github.com/antonyfmunoz/LYFEOS.git",
 }
 
 # File extensions worth ingesting (source code + docs)

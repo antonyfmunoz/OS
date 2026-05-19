@@ -25,7 +25,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
-from state.context.context import EOSContext, load_context_from_env
+from state.context.context import EntrepreneurOSContext, load_context_from_env
 from state.storage.db import get_conn
 from execution.runtime.agent_runtime import AgentRuntime, TaskType
 
@@ -55,7 +55,7 @@ _ORG_NAMES: dict[str, str] = {
 
 class PortfolioAdvisor:
 
-    def __init__(self, ctx: EOSContext) -> None:
+    def __init__(self, ctx: EntrepreneurOSContext) -> None:
         self.ctx     = ctx
         self._runtime = AgentRuntime()
         self._portfolio_name: str = "Munoz Holdings Portfolio"

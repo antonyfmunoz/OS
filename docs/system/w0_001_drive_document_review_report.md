@@ -44,7 +44,7 @@
 | Content Strategy | 1 | Content |
 | Marketing Copy | 1 | Email Sequence |
 | Legal | 1 | Service Contract |
-| Product Notes | 1 | LyfeOS |
+| Product Notes | 1 | LYFEOS |
 | Personal | 1 | Personal Curriculum |
 | Reference | 3 | AI Tools, Claude Plugins, SEMAX |
 | Empty Placeholders | 4 | AI Agents, Automations, CreatorOS, Empyrean Studios |
@@ -80,7 +80,7 @@ Based on document references, the following should exist somewhere but isn't in 
 3. **Client intake forms** — referenced Google Forms but not found
 4. **Outreach templates/scripts** — DM scripts referenced but not documented here
 5. **Financial records** — no revenue tracking, expense docs, or P&L
-6. **Product specs for LyfeOS app features** — only UI screenshots referenced
+6. **Product specs for LYFEOS app features** — only UI screenshots referenced
 
 ## 6. Document Age and Freshness
 

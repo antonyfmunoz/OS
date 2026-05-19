@@ -42,7 +42,7 @@ Coaching Philosophy/Methodology, Conglomerate Brands, Content,
 Copy of Claude Cowork Plugins, Copy of Script Storytelling Structures,
 CreatorOS, Empyrean Studios (Agency Brand), EntrepreneurOS,
 Hunter Hoffman - Service Contract Agreement,
-Life Coaching (E-Learning/Info-Product Brand), LyfeOS,
+Life Coaching (E-Learning/Info-Product Brand), LYFEOS,
 LYFEOS_Product_Development_Roadmap.docx, Personal Curriculum,
 Systems Inventory, UMH, Untitled document (×5)
 

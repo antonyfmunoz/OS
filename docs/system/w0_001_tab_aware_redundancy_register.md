@@ -23,7 +23,7 @@
 |-------|-------|:--------------:|:-------:|:----------:|
 | Copy of Script Storytelling | Script Storytelling Structures | High | ~95% | Intentional copy |
 | Coaching Philosophy | Coaching Frameworks | Moderate | ~4% | Expected (same domain) |
-| LyfeOS | EntrepreneurOS | Low | ~2.5% | Related products share terminology |
+| LYFEOS | EntrepreneurOS | Low | ~2.5% | Related products share terminology |
 
 ## 3. Analysis
 
@@ -34,12 +34,12 @@ maintained distinct documents for distinct purposes.
 Notable findings:
 - "Copy of Script Storytelling Structures" is an intentional duplicate (marked by "Copy of")
 - Coaching documents share methodology terminology but not duplicate content
-- Product specs (LyfeOS/EntrepreneurOS/CreatorOS) share vocabulary but have distinct architectures
+- Product specs (LYFEOS/EntrepreneurOS/CreatorOS) share vocabulary but have distinct architectures
 
 ## 4. Prior Register Correction
 
 The previous redundancy register incorrectly reported:
-- CreatorOS: "empty document, possible redundancy with LyfeOS" → FALSE (27,301 words of unique content)
+- CreatorOS: "empty document, possible redundancy with LYFEOS" → FALSE (27,301 words of unique content)
 - Empyrean Studios: "empty document" → FALSE (10,985 words of unique brand content)
 
 These were not redundant — they were invisible due to the first-tab-only extraction bug.

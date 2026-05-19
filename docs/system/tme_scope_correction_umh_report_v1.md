@@ -12,7 +12,7 @@ The Tool Mastery Engine (TME) scope has been corrected from "EOS subsystem" to "
 
 ## 2. Founder Correction
 
-The founder clarified that TME is not meant to be EOS-specific. TME belongs to the Universal Meta Harness (UMH) substrate. EOS, LyfeOS, CreatorOS, and other platforms may consume TME outputs, but they do not own TME.
+The founder clarified that TME is not meant to be EOS-specific. TME belongs to the Universal Meta Harness (UMH) substrate. EOS, LYFEOS, CreatorOS, and other platforms may consume TME outputs, but they do not own TME.
 
 **Before**: "TME governs every build in EOS"
 **After**: "TME governs every external tool, SaaS, API, adapter, runtime, and capability UMH touches."
@@ -31,7 +31,7 @@ EOS is one platform that projects TME outputs into its workflows:
 - EOS workers execute using mastery guidance from TME
 - EOS syncs tool skills to its Neon database for runtime query
 
-Other platforms (LyfeOS, CreatorOS, future platforms) can consume the same TME outputs through their own projection mechanisms.
+Other platforms (LYFEOS, CreatorOS, future platforms) can consume the same TME outputs through their own projection mechanisms.
 
 ## 5. Current TME File Locations
 

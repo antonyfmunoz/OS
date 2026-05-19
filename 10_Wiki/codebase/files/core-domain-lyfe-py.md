@@ -9,7 +9,7 @@ generated: 2026-05-07
 
 # core/domain/lyfe.py
 
-LyfeOS domain compositions — personal operating system structures.
+LYFEOS domain compositions — personal operating system structures.
 
 Maps life-optimization concepts to L0 primitives following the same
 pattern as EOS business compositions.

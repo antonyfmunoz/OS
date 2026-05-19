@@ -19,7 +19,7 @@
 ## 2. Document Categories (from full content)
 
 ### Strategic / Product Specs (5 docs, 174,428 words)
-- **LyfeOS** (53 tabs, 44,400w) — full product spec, philosophy, feature design
+- **LYFEOS** (53 tabs, 44,400w) — full product spec, philosophy, feature design
 - **EntrepreneurOS** (14 tabs, 40,222w) — product requirements, roadmap, MVP, AI programming
 - **Coaching Philosophy/Methodology** (35 tabs, 34,683w) — methodology, frameworks, exercises
 - **CreatorOS** (8 tabs, 27,301w) — creator platform spec (was falsely marked empty)
@@ -50,7 +50,7 @@
 
 ## 3. Key Findings (new from full corpus)
 
-1. **LyfeOS is the largest document** (53 tabs, 44K words) — contains entire product architecture
+1. **LYFEOS is the largest document** (53 tabs, 44K words) — contains entire product architecture
 2. **CreatorOS has substantial content** (27K words) — was invisible in prior extraction
 3. **Empyrean Studios is well-developed** (11K words) — falsely appeared empty
 4. **EntrepreneurOS has full PRD + roadmap** in separate named tabs

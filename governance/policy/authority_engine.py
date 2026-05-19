@@ -1,4 +1,4 @@
-from state.context.context import EOSContext
+from state.context.context import EntrepreneurOSContext
 from state.storage.db import get_conn
 import json, uuid
 from datetime import datetime, timezone
@@ -42,7 +42,7 @@ MIN_LEVEL_TO_EXECUTE = {
 
 class AuthorityEngine:
 
-    def __init__(self, ctx: EOSContext):
+    def __init__(self, ctx: EntrepreneurOSContext):
         self.ctx = ctx
         self._org_autonomy = self._load_org_autonomy()
 

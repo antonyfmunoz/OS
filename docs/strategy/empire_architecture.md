@@ -14,7 +14,7 @@ Munoz Holdings / Parent Ownership Layer
 │   ├── UMH (Universal Meta Harness)
 │   ├── EntrepreneurOS
 │   ├── CreatorOS
-│   ├── LyfeOS
+│   ├── LYFEOS
 │   ├── Future AI OS
 │   ├── Future Proprietary Model / Runtime
 │   └── Future Robotics-Control Infrastructure
@@ -99,7 +99,7 @@ Personal Brand (attention)
 | 4. Distribution/personal brand | Audience, community, trust, content library | Now (building in parallel) |
 | 5. Agency/incubation engine | Empyrean Studio client delivery + internal builds | After first revenue |
 | 6. Education/community | Lyfe Institute products, alumni network | Initiate Arena launch |
-| 7. SaaS products | EntrepreneurOS, CreatorOS, LyfeOS public versions | After internal validation |
+| 7. SaaS products | EntrepreneurOS, CreatorOS, LYFEOS public versions | After internal validation |
 | 8. Operating companies | Portfolio of businesses running on EOS | 3-5 year horizon |
 | 9. Real estate/manufacturing/fulfillment | Physical asset ownership | 5-10 year horizon |
 | 10. Robotics/physical automation | Automated manufacturing/fulfillment | 10+ year horizon |

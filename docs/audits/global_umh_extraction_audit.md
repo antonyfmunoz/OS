@@ -211,7 +211,7 @@
 | 77 | `eos_product/saas/db/schema.ts` | EXTRACT_PATTERN_ONLY | `umh/docs/patterns/` | Multi-tenant agent/skill/workflow/outcome data model | P1 | HIGH |
 | 78 | `eos_product/saas/api/routes/` (7 files) | KEEP_OUT_OF_UMH | n/a | EOS-specific REST API | n/a | HIGH |
 | 79 | `eos_product/saas/db/client.ts` | EXTRACT_PATTERN_ONLY | `umh/docs/patterns/` | withOrg() wrapper for org-scoped transactions | P2 | MEDIUM |
-| 80 | `eos_product/products/` (3 stubs) | KEEP_OUT_OF_UMH | n/a | EntrepreneurOS/CreatorOS/LyfeOS product shells | n/a | HIGH |
+| 80 | `eos_product/products/` (3 stubs) | KEEP_OUT_OF_UMH | n/a | EntrepreneurOS/CreatorOS/LYFEOS product shells | n/a | HIGH |
 
 ### 1.19 Orchestrator / Scheduling
 
@@ -615,7 +615,7 @@ umh/
 **Repo:** `eos-saas` (TypeScript, depends on EOS API)
 **Contents:**
 - `eos_product/saas/` (Hono API + Drizzle schema)
-- `eos_product/products/` (EntrepreneurOS/CreatorOS/LyfeOS shells)
+- `eos_product/products/` (EntrepreneurOS/CreatorOS/LYFEOS shells)
 - Bridge to Python layer
 
 ### 10.4 Knowledge Vault (Instance Data)
@@ -635,7 +635,7 @@ umh/
 - `.claude/rules/` (harness rules)
 **Note:** CC-specific. Loads into Claude Code via `.claude/` convention.
 
-### 10.6 LyfeOS / CreatorOS (Future)
+### 10.6 LYFEOS / CreatorOS (Future)
 **Repos:** `lyfe-os`, `creator-os`
 **Depends on:** UMH (core runtime) + EOS SaaS (shared backend)
 **Contents:** Product-specific agents, workflows, UI

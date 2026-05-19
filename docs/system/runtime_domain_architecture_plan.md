@@ -231,7 +231,7 @@ Defines what the system IS, not what it DOES.
 | primitive_registry.py | 10 ontological building blocks |
 | template_library.py | Pre-composed primitive assemblies |
 | template_registry.py | Formal template schema |
-| os_registry.py | EOS/CreatorOS/LyfeOS registry |
+| os_registry.py | EOS/CreatorOS/LYFEOS registry |
 | os_trinity.py | Cross-product data sharing |
 | trinity.py | Cross-OS intelligence routing |
 | business_instance.py | Venture-stage context |
@@ -445,12 +445,12 @@ Platform-agnostic runtime (10 domains) vs. EOS-specific projections
 2. **platform/ modules are EOS application logic.**
    They implement EntrepreneurOS features using runtime primitives.
 
-3. **New projections (CreatorOS, LyfeOS) get their own platform/ subdirectory.**
+3. **New projections (CreatorOS, LYFEOS) get their own platform/ subdirectory.**
    ```
    runtime/platform/
    ├── eos/       ← current 19 EOS modules
    ├── creator/   ← future CreatorOS projection
-   └── lyfe/      ← future LyfeOS projection
+   └── lyfe/      ← future LYFEOS projection
    ```
 
 4. **os_registry.py, os_trinity.py, trinity.py stay in identity/.**

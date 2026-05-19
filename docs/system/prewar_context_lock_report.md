@@ -32,7 +32,7 @@ This phase prevents all three failure modes by creating a single canonical refer
 | `docs/strategy/master_intention_lock.md` | Single canonical strategic reference — identity, thesis, sequencing, doctrines |
 | `docs/strategy/empire_architecture.md` | Ownership hierarchy, moat layers, flywheel, value creation model |
 | `docs/strategy/company_map.md` | 7 entity profiles — OST, Empyrean, Lyfe Institute, Personal Brand, Holdings, Future Portfolio, Future Infrastructure |
-| `docs/strategy/product_map.md` | 10 product profiles — UMH, EOS, CreatorOS, LyfeOS, Initiate Arena, Game of Lyfe, Empyrean B2B, futures |
+| `docs/strategy/product_map.md` | 10 product profiles — UMH, EOS, CreatorOS, LYFEOS, Initiate Arena, Game of Lyfe, Empyrean B2B, futures |
 | `docs/strategy/first_operating_workflow.md` | 16-stage revenue loop with objectives, metrics, tools, failure modes, data capture per stage |
 | `docs/strategy/source_ingestion_map.md` | 50+ data sources across 7 categories with priority, method, sensitivity, review flags |
 | `docs/strategy/ai_chat_archive_ingestion_plan.md` | Ingestion tiers, extraction targets, memory statuses, supersession rules, safety rules |
@@ -49,7 +49,7 @@ This phase prevents all three failure modes by creating a single canonical refer
 1. Empire goal is $1T+ over multi-decade horizon
 2. AI-native holdco combining BlackRock/YC/Berkshire characteristics with proprietary AI substrate
 3. Parent ownership layer (Munoz Holdings) holds equity in all entities
-4. OST owns all technology (UMH, EOS, CreatorOS, LyfeOS, future AI OS/runtime/robotics)
+4. OST owns all technology (UMH, EOS, CreatorOS, LYFEOS, future AI OS/runtime/robotics)
 5. EntrepreneurOS is priority product — highest leverage, tested on real companies first
 6. UMH is substrate, not SaaS UI
 7. Empyrean Studio includes B2B AI agency services, consulting, R&D, and incubation

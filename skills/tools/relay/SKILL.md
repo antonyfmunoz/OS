@@ -58,7 +58,7 @@ alongside Mercury. The split is intentional:
 - **Mercury** — primary operating accounts for Lyfe Institute and Empyrean
   Studio, where API access is required (Mercury has a real REST API).
 - **Relay** — multi-bucket cash management for entities that need Profit First
-  envelope structure: Lyfe Spectrum, LyfeOS, holding company sweep accounts,
+  envelope structure: Lyfe Spectrum, LYFEOS, holding company sweep accounts,
   and personal-brand reserves.
 
 Canonical EOS pattern:

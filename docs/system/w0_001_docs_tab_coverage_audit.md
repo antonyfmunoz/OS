@@ -37,7 +37,7 @@ With `includeTabsContent=true`:
 
 | Document | Tabs | First Tab Words | All Tabs Words | Coverage |
 |----------|:----:|:---------------:|:--------------:|:--------:|
-| LyfeOS | **53** | 255 | 44,400 | 0.6% |
+| LYFEOS | **53** | 255 | 44,400 | 0.6% |
 | EntrepreneurOS | **14** | 740 | 40,222 | 1.8% |
 | Coaching Philosophy/Methodology | **35** | 1,646 | 34,683 | 4.7% |
 | CreatorOS | **8** | 0 | 27,301 | 0% |
@@ -70,7 +70,7 @@ With `includeTabsContent=true`:
 
 These documents had the most content hidden in non-first tabs:
 
-1. **LyfeOS** — 53 tabs, 44,145 words missed (entire product spec)
+1. **LYFEOS** — 53 tabs, 44,145 words missed (entire product spec)
 2. **EntrepreneurOS** — 14 tabs, 39,482 words missed
 3. **Coaching Philosophy** — 35 tabs, 33,037 words missed
 4. **CreatorOS** — 8 tabs, 27,301 words missed (appeared "empty" before!)

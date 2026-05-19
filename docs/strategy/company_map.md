@@ -13,7 +13,7 @@
 | **Owner** | Munoz Holdings (future), Antony F. Munoz (current) |
 | **Purpose** | Build and own the AI substrate, SaaS products, and technology infrastructure |
 | **Stage** | Building — pre-revenue, active development |
-| **Products/Offers** | UMH, EntrepreneurOS, CreatorOS, LyfeOS, future AI OS, future proprietary model/runtime, future robotics-control |
+| **Products/Offers** | UMH, EntrepreneurOS, CreatorOS, LYFEOS, future AI OS, future proprietary model/runtime, future robotics-control |
 | **Core Workflows** | Platform development, architecture design, substrate maintenance, product release |
 | **Key Assets** | UMH codebase, EOS codebase, ontology/law kernel, execution data, templates, phase history |
 | **Data Generated** | Architecture decisions, phase reports, test results, execution traces, agent configs, workflow templates |

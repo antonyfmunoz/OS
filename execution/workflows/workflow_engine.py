@@ -23,7 +23,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from state.context.context import EOSContext
+from state.context.context import EntrepreneurOSContext
 
 
 # ─── Agent-workflow enums and dataclasses ─────────────────────────────────────
@@ -624,7 +624,7 @@ class WorkflowEngine:
         we.advance(state, outputs={'lead_data': {...}})
     """
 
-    def __init__(self, ctx: EOSContext) -> None:
+    def __init__(self, ctx: EntrepreneurOSContext) -> None:
         self.ctx = ctx
         _STATE_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -791,7 +791,7 @@ class AgentWorkflowEngine:
         run = we.run(wf, context={'prospect': 'jake_smith'})
     """
 
-    def __init__(self, ctx: EOSContext) -> None:
+    def __init__(self, ctx: EntrepreneurOSContext) -> None:
         self.ctx = ctx
 
     # ─── create_workflow ──────────────────────────────────────────────────────

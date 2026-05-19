@@ -7,7 +7,7 @@ Principles are injected universally so skills stay focused on execution logic on
 
 from __future__ import annotations
 
-from state.context.context import EOSContext
+from state.context.context import EntrepreneurOSContext
 import os
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
@@ -359,7 +359,7 @@ class PrincipleEngine:
         # Returns list with ROOT_RULE first, then domain-specific principles.
     """
 
-    def __init__(self, ctx: EOSContext) -> None:
+    def __init__(self, ctx: EntrepreneurOSContext) -> None:
         self.ctx = ctx
 
     # ─── get_relevant_principles ─────────────────────────────────────────────

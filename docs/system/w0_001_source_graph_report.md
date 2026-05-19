@@ -29,7 +29,7 @@
 | Empyrean Studios | Agency brand (AI/creative services) | Planned | Conglomerate Brands |
 | Lyfe Institute | Education company (Initiate Arena) | Active (primary focus) | Conglomerate Brands, Coaching docs |
 | Lyfe Spectrum | Clothing brand | Side project | Conglomerate Brands |
-| LyfeOS | SaaS platform (personal dev app) | Beta built, paused | LyfeOS doc, Conglomerate Brands |
+| LYFEOS | SaaS platform (personal dev app) | Beta built, paused | LYFEOS doc, Conglomerate Brands |
 | CreatorOS | SaaS platform | Placeholder (empty doc) | CreatorOS doc |
 
 ## 2. Products / Offers
@@ -39,7 +39,7 @@
 | **Initiate Arena** | Lyfe Institute | Active — seeking first cohort | $750 | 90 days | Coaching Philosophy, Life Coaching |
 | Game of Lyfe | Lyfe Institute | Designed, not built | TBD | TBD | Personal Brand, Coaching Philosophy |
 | Sovereign Path | Lyfe Institute | Conceptual | TBD | TBD | Coaching Philosophy |
-| LyfeOS (app) | LyfeOS | Beta exists (lyfeos.net) | TBD | Subscription | LyfeOS doc |
+| LYFEOS (app) | LYFEOS | Beta exists (LYFEOS.net) | TBD | Subscription | LYFEOS doc |
 | CreatorOS | CreatorOS | Empty placeholder | TBD | TBD | CreatorOS doc |
 | Marketing services | Empyrean Creative LLC | Active (1 known client) | $1200/mo min | 4+ months | Service Contract |
 | AI service offer | Empyrean Studios | Post-$10K/mo | TBD | TBD | CLAUDE.md context |
@@ -69,7 +69,7 @@ Source: Coaching Philosophy/Methodology, Life Coaching doc
 | WHOP | Curriculum delivery + PDFs | Selected | Life Coaching doc |
 | Discord | Community + accountability + coaching calls | Selected | Life Coaching doc |
 | Instagram | Primary outreach channel (DMs) | Active | Hormozi conversation |
-| lyfeos.net | Personal development app (beta) | Built, paused | LyfeOS doc |
+| LYFEOS.net | Personal development app (beta) | Built, paused | LYFEOS doc |
 | EOS (/opt/OS) | AI business operating system | Active development | UMH doc, EntrepreneurOS |
 | UMH | Intelligence runtime (control plane) | Active development | UMH doc |
 
@@ -122,7 +122,7 @@ Munoz Conglomerate (holding)
 ├── Empyrean Creative LLC (agency, legal entity)
 │   └── Empyrean Studios (AI services brand)
 ├── Lyfe Spectrum (clothing, side project)
-├── LyfeOS (SaaS, paused)
+├── LYFEOS (SaaS, paused)
 └── CreatorOS (SaaS, empty)
 
 Technology Layer:
@@ -130,7 +130,7 @@ Technology Layer:
 │   ├── Serves all ventures
 │   ├── Future: productize as EntrepreneurOS
 │   └── Runs on: VPS + Docker + Neon + Anthropic/Gemini
-└── lyfeos.net (PWA, beta)
+└── LYFEOS.net (PWA, beta)
 
 Content/Marketing:
 ├── Instagram DMs (30/day outreach)
@@ -175,7 +175,7 @@ Source: Coaching Philosophy/Methodology
 | Agency retainers ($1200+/mo) | 1 known client (Hunter Hoffman) | Service Contract |
 | Future: Game of Lyfe | Not priced | Coaching Philosophy |
 | Future: Empyrean AI services | Post-$10K/mo | CLAUDE.md context |
-| Future: LyfeOS subscriptions | Paused | LyfeOS doc |
+| Future: LYFEOS subscriptions | Paused | LYFEOS doc |
 
 ## 11. Key Strategic Insights from Documents
 
@@ -185,7 +185,7 @@ Source: Coaching Philosophy/Methodology
 
 3. **Structure over discipline**: The core philosophy. Systems and frameworks beat willpower.
 
-4. **Initiate Arena is the narrow wedge**: Everything else (Game of Lyfe, LyfeOS, CreatorOS, Sovereign Path) waits until this generates $10K/month.
+4. **Initiate Arena is the narrow wedge**: Everything else (Game of Lyfe, LYFEOS, CreatorOS, Sovereign Path) waits until this generates $10K/month.
 
 5. **Content IS advertising**: Personal brand content serves as the marketing vehicle. "Wear Lyfe Spectrum. Use own SaaS products. Live the brand naturally."
 

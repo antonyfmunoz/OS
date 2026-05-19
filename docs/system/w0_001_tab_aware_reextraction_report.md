@@ -27,7 +27,7 @@
 
 | Document | Tabs | Words | Prior Words | Coverage Change |
 |----------|:----:|------:|:-----------:|:-:|
-| LyfeOS | 53 | 44,400 | 255 | 0.6% → 100% |
+| LYFEOS | 53 | 44,400 | 255 | 0.6% → 100% |
 | EntrepreneurOS | 14 | 40,222 | 740 | 1.8% → 100% |
 | Coaching Philosophy/Methodology | 35 | 34,683 | 1,646 | 4.7% → 100% |
 | CreatorOS | 8 | 27,301 | 0 | 0% → 100% |
@@ -62,7 +62,7 @@
 |-------|-------------|-----------------|
 | CreatorOS | Marked "empty" | 27,301 words across 8 tabs |
 | Empyrean Studios | Marked "empty" | 10,985 words across 15 tabs |
-| LyfeOS | 255 words captured | 44,400 words (53 tabs) |
+| LYFEOS | 255 words captured | 44,400 words (53 tabs) |
 | EntrepreneurOS | 740 words captured | 40,222 words (14 tabs) |
 | Total coverage | 7.9% (22,431w) | 100% (283,831w) |
 

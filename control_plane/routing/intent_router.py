@@ -13,7 +13,7 @@ Usage:
 
 from enum import Enum
 
-from state.context.context import EOSContext
+from state.context.context import EntrepreneurOSContext
 
 
 class IntentDomain(Enum):
@@ -32,7 +32,7 @@ class IntentRouter:
     Fast — no LLM call. Runs on every gateway message.
     """
 
-    def __init__(self, ctx: EOSContext) -> None:
+    def __init__(self, ctx: EntrepreneurOSContext) -> None:
         self.ctx = ctx
 
     PORTFOLIO_SIGNALS = [

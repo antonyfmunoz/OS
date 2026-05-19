@@ -1,5 +1,5 @@
 """
-EOSGateway — single control plane for all AI operations.
+EntrepreneurOSGateway — single control plane for all AI operations.
 
 Every AI request enters here. Nothing calls agent_runtime, event_bus,
 orchestrator, or agent_teams directly from outside runtime.
@@ -21,8 +21,8 @@ Request schema:
     }
 
 Usage:
-    from control_plane.runtime.gateway import EOSGateway
-    gw = EOSGateway()
+    from control_plane.runtime.gateway import EntrepreneurOSGateway
+    gw = EntrepreneurOSGateway()
     result = gw.handle({"type": "brief", "prompt": "", "venture_id": "lyfe_institute"})
 """
 
@@ -226,19 +226,19 @@ def _timestamp_id() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
 
 
-# ─── EOSGateway (singleton) ───────────────────────────────────────────────────
+# ─── EntrepreneurOSGateway (singleton) ───────────────────────────────────────────────────
 
 
-class EOSGateway:
+class EntrepreneurOSGateway:
     """
-    Singleton gateway. EOSGateway() always returns the same instance.
+    Singleton gateway. EntrepreneurOSGateway() always returns the same instance.
     Thread-safe.
     """
 
-    _instance: "EOSGateway | None" = None
+    _instance: "EntrepreneurOSGateway | None" = None
     _class_lock: threading.Lock = threading.Lock()
 
-    def __new__(cls) -> "EOSGateway":
+    def __new__(cls) -> "EntrepreneurOSGateway":
         with cls._class_lock:
             if cls._instance is None:
                 instance = super().__new__(cls)
@@ -597,7 +597,7 @@ class EOSGateway:
                         ORG_ID,
                         f"gateway:{request.get('type', 'unknown')}",
                         json.dumps(payload),
-                        json.dumps(["EOSGateway"]),
+                        json.dumps(["EntrepreneurOSGateway"]),
                     ),
                 )
                 return str(cur.fetchone()["id"])
@@ -1929,9 +1929,9 @@ class EOSGateway:
 # ─── Module-level helper ──────────────────────────────────────────────────────
 
 
-def get_gateway() -> EOSGateway:
-    """Return the singleton EOSGateway instance."""
-    return EOSGateway()
+def get_gateway() -> EntrepreneurOSGateway:
+    """Return the singleton EntrepreneurOSGateway instance."""
+    return EntrepreneurOSGateway()
 
 
 def ingest_external_context(

@@ -71,7 +71,7 @@ Technology company. Owns and builds:
 - UMH (Universal Meta Harness) — intelligence substrate
 - EntrepreneurOS — business execution OS (priority product)
 - CreatorOS — distribution/audience/content platform
-- LyfeOS — personal operating system / human optimization
+- LYFEOS — personal operating system / human optimization
 - Future AI OS, proprietary model/runtime, robotics-control infrastructure
 
 ### Empyrean Studio

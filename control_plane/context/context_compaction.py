@@ -16,7 +16,7 @@ import json
 import uuid
 from datetime import datetime, timezone
 
-from state.context.context import EOSContext
+from state.context.context import EntrepreneurOSContext
 from state.storage.db import get_conn
 
 
@@ -29,7 +29,7 @@ class ContextCompactor:
     # 80% of 200k token window (4 chars ≈ 1 token → 160k tokens ≈ 640k chars)
     COMPACTION_THRESHOLD = 160_000
 
-    def __init__(self, ctx: EOSContext):
+    def __init__(self, ctx: EntrepreneurOSContext):
         self.ctx = ctx
         self._ensure_table()
 

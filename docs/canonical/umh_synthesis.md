@@ -1143,7 +1143,7 @@ VPS · workstation · relay · queues · orchestration · adapters · action sys
 
 ### C. Platform Surfaces
 
-LyfeOS · EntrepreneurOS · CreatorOS · InvestorOS. **These are projections/interfaces, not substrate.** They translate user intent into UMH signals, provide domain-specific views, expose workflows and dashboards, display results, collect feedback, enforce domain-specific permissions. They do not own memory, governance, capability registry, execution spine, adapter contracts, or learning loops.
+LYFEOS · EntrepreneurOS · CreatorOS · InvestorOS. **These are projections/interfaces, not substrate.** They translate user intent into UMH signals, provide domain-specific views, expose workflows and dashboards, display results, collect feedback, enforce domain-specific permissions. They do not own memory, governance, capability registry, execution spine, adapter contracts, or learning loops.
 
 ### D. Domain Systems
 

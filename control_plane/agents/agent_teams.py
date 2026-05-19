@@ -328,7 +328,7 @@ def run_team_task(
         sub_agent:  Named sub-agent within that team.
         prompt:     Task input.
         venture_id: Venture context to inject.
-        ctx:        EOSContext — loaded from env if not provided.
+        ctx:        EntrepreneurOSContext — loaded from env if not provided.
         username:   Optional Instagram handle for human profile injection.
 
     Returns:
@@ -373,7 +373,7 @@ async def run_browser_action(
         team: Department team name — for logging/attribution only.
         url:  URL to navigate to before running the task.
         task: Natural-language task description for the browser agent.
-        ctx:  EOSContext — loaded from env if not provided.
+        ctx:  EntrepreneurOSContext — loaded from env if not provided.
 
     Returns:
         {success, steps_taken, page_states, findings, final_url}

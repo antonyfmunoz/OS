@@ -36,7 +36,7 @@ Usage:
     print(f"{pulse['total_integrated']} items integrated")
 """
 
-from state.context.context import EOSContext
+from state.context.context import EntrepreneurOSContext
 from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
 
 
@@ -164,7 +164,7 @@ class WorldPulse:
     into the knowledge base.
     """
 
-    def __init__(self, ctx: EOSContext):
+    def __init__(self, ctx: EntrepreneurOSContext):
         self.ctx = ctx
         self.ki  = KnowledgeIntegrator(ctx)
 

@@ -16,8 +16,8 @@ Usage:
     ctx     = load_context_from_env()
     trinity = OSTrinity(ctx)
 
-    trinity.grant_permission(ctx.user_id, 'lyfeos', 'eos', 'health')
-    ok = trinity.check_permission(ctx.user_id, 'lyfeos', 'eos', 'health')  # True
+    trinity.grant_permission(ctx.user_id, 'LYFEOS', 'eos', 'health')
+    ok = trinity.check_permission(ctx.user_id, 'LYFEOS', 'eos', 'health')  # True
     print(trinity.format_permissions_summary(ctx.user_id))
 """
 
@@ -25,10 +25,10 @@ import json
 import uuid
 from datetime import datetime, timezone
 
-from state.context.context import EOSContext
+from state.context.context import EntrepreneurOSContext
 
 
-VALID_PRODUCTS: list[str] = ['lyfeos', 'creatorOS', 'eos']
+VALID_PRODUCTS: list[str] = ['LYFEOS', 'creatorOS', 'eos']
 VALID_CATEGORIES: list[str] = [
     'health', 'content_performance', 'finance',
     'goals', 'audience', 'habits', 'calendar',
@@ -44,7 +44,7 @@ class OSTrinity:
     without crashing the caller. Default for permission checks is always DENIED.
     """
 
-    def __init__(self, ctx: EOSContext) -> None:
+    def __init__(self, ctx: EntrepreneurOSContext) -> None:
         self.ctx = ctx
 
     # ─── Cross-product permissions ────────────────────────────────────────────

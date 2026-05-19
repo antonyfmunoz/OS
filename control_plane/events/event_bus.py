@@ -421,10 +421,10 @@ def _handle_morning_cycle(payload: dict) -> dict:
     """
     morning_cycle → trigger orchestrator.run_morning_cycle().
     """
-    from control_plane.orchestrator.orchestrator import EOSOrchestrator
+    from control_plane.orchestrator.orchestrator import EntrepreneurOSOrchestrator
 
     print("[EventBus:morning_cycle] firing orchestrator.run_morning_cycle()")
-    orchestrator = EOSOrchestrator()
+    orchestrator = EntrepreneurOSOrchestrator()
     orchestrator.run_morning_cycle()
     return {"status": "morning_cycle_complete"}
 

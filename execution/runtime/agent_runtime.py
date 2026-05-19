@@ -30,7 +30,7 @@ from dotenv import load_dotenv
 # before any import that touches db.py (memory, human_intelligence, etc.)
 load_dotenv(Path(__file__).parent / ".env")
 
-from state.context.context import EOSContext, load_context_from_env
+from state.context.context import EntrepreneurOSContext, load_context_from_env
 from state.business.venture_knowledge import VentureKnowledgeBase
 from state.registries.skill_registry import SkillRegistry, get_skill_registry
 from governance.policy.authority_engine import AuthorityEngine
@@ -144,7 +144,7 @@ class AgentResult:
 
 
 class AgentRuntime:
-    def __init__(self, ctx: EOSContext | None = None) -> None:
+    def __init__(self, ctx: EntrepreneurOSContext | None = None) -> None:
         self._skills = get_skill_registry()
         self._prefs = ModelPreferences(ctx or load_context_from_env())
 
@@ -178,7 +178,7 @@ class AgentRuntime:
         max_tokens: int = 1024,
         agent: str = "default",
         system_extra: str | None = None,
-        ctx: EOSContext | None = None,
+        ctx: EntrepreneurOSContext | None = None,
         modality: str = "text",
         data_tier: str = "internal",
         require_realtime: bool = False,
@@ -476,7 +476,7 @@ class AgentRuntime:
         max_tokens: int = 1024,
         agent: str = "default",
         username: str | None = None,
-        ctx: EOSContext | None = None,
+        ctx: EntrepreneurOSContext | None = None,
     ) -> AgentResult:
         """
         Same as run() but auto-selects the top matching skill from the registry
