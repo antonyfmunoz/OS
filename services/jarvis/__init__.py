@@ -11,6 +11,7 @@ Composed package for the governed intelligence runtime. Contains:
 - Orchestrator: facade coordinating the full lifecycle
 - Routing: 12-label model routing, capability bridge, provider dispatch
 - Launch: smoke test, integration wiring
+- Awareness: world adapters (news, weather, markets, crypto), event aggregator
 """
 
 __version__ = "0.1.0"
