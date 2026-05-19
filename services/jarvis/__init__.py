@@ -9,6 +9,8 @@ Composed package for the governed intelligence runtime. Contains:
 - Memory: candidate generator, promoter
 - Workstation: profile, session, resume state
 - Orchestrator: facade coordinating the full lifecycle
+- Routing: 12-label model routing, capability bridge, provider dispatch
+- Launch: smoke test, integration wiring
 """
 
 __version__ = "0.1.0"
