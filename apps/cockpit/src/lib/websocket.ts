@@ -12,7 +12,7 @@ export class CockpitSocket {
   }
 
   connect(url?: string): void {
-    const target = url ?? `ws://${window.location.hostname}:8093/ws`
+    const target = url ?? `ws://${window.location.host}/ws`
     this.ws = new WebSocket(target)
 
     this.ws.onopen = () => this.onStatus(true)
