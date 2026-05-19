@@ -239,7 +239,8 @@ class CapabilityResponse:
     request_id: UUID           # correlates to CapabilityRequest
     success: bool
     result_data: dict[str, Any]  # integration-specific output
-    error: str | None
+    error: str | None          # normalized, human-readable
+    raw_error: str | None      # original exception type + message, unmodified
     latency_ms: float
     side_effects: list[str]    # what changed in the external system
     metadata: dict[str, Any]
@@ -797,8 +798,9 @@ class IntegrationRegistry:
 
 **Physical folder boundary:**
 ```
-services/umh/sockets/         ← UMH-owned socket definitions + protocols
-<external>/                   ← Integration-owned handlers
+services/umh/sockets/              ← UMH-owned socket definitions + protocols
+services/umh/integrations/<name>/  ← UMH-owned config per integration (manifest, transforms, routing)
+<external>/                        ← Integration-owned handlers (actual API calls)
 ```
 
 **Import direction (enforced):**
@@ -838,163 +840,123 @@ registration). Add Tier 3 only if the integration ecosystem grows beyond
 | IntegrationAdapter (generic) | `services/umh/sockets/registry.py` | UMH |
 | IntegrationRegistry | `services/umh/sockets/registry.py` | UMH |
 | WebSocket bridge | `services/umh/sockets/ws_bridge.py` | UMH |
-| Handler implementations | `<external>/umh_integration/<name>/` | Integration |
+| Per-integration config (manifest, transforms, routing) | `services/umh/integrations/<name>/` | UMH |
+| Handler implementations (actual API calls) | `<external>/umh_integration/<name>/` | Integration |
 | Handler Protocol definitions | `services/umh/sockets/types.py` | UMH |
 
 ---
 
-## 7. OPEN QUESTIONS
+## 7. DESIGN DECISIONS (Resolved 2026-05-19)
 
-### 7.1 Sync vs Async per Socket Type
+### 7.1 Sync vs Async — DECIDED: Option 3
 
-**Current state:** The ExecutionPipeline is entirely synchronous.
-The EventBus is entirely async. The cockpit WebSocket is async.
+Sync pipeline on background thread. `run_coroutine_threadsafe()` pushes
+ViewFrames to the async FastAPI event loop. Pipeline code stays sync.
+WebSocket bridge is the only async component.
 
-**Tension:** The Capability socket sits in the sync pipeline path (Stage 5).
-If a Notion API call takes 2 seconds, it blocks the pipeline thread.
+**Rationale:** Keeps ~800 lines of pipeline/executor/proof code untouched.
+Thread boundary maps 1:1 to the conceptual boundary between "processing"
+and "broadcasting."
 
-**Options:**
-1. **All sync** — Keep the pipeline sync. Integration handlers must be sync
-   or wrap their async in `asyncio.run()`. Simple. Predictable. Limits
-   concurrency to one signal at a time through the pipeline.
-2. **Capability async, rest sync** — Make `CapabilitySocket.request()` async.
-   Requires making `WorkPacketExecutor.execute()` async, which cascades to
-   `ExecutionPipeline.submit_signal()`. Larger change but unblocks the event
-   loop for other work during external API calls.
-3. **Pipeline stays sync, run on thread** — Pipeline stays sync but runs on a
-   background thread. WebSocket bridge uses `asyncio.run_coroutine_threadsafe()`
-   to push frames to the async FastAPI event loop.
+### 7.2 Outcome Routing — DECIDED: Dual Mode
 
-**My lean:** Option 3. Keeps the pipeline simple, doesn't cascade async through
-the codebase, and the thread boundary is a clean seam for the WebSocket bridge.
+`notify()` sends to the originating integration only.
+`notify_all()` broadcasts to all registered receivers.
 
-**Decision needed from you.**
+Signal → 1 integration. Capability → 1 integration. Outcome → 1 or all.
+View → all subscribers (broadcast by design).
 
-### 7.2 1-to-1 vs 1-to-Many Semantics
+### 7.3 Auth at Socket Boundary — DECIDED: Deferred
 
-**Signal socket:** 1-to-1 is natural. One integration emits one signal.
-Multiple integrations can each emit their own signals independently.
+No auth on sockets in V1. All integrations run in-process. Governance
+handles authorization for *what* can happen; auth at the socket boundary
+answers *who* is asking — irrelevant when there's one trusted process.
 
-**Capability socket:** 1-to-1 today. One work packet → one adapter → one
-integration handler. Future question: could one work packet need capabilities
-from multiple integrations? (e.g., "read from Notion, write to Airtable")
+#### ⚠ AUTH DEFERRED UNTIL REMOTE INTEGRATIONS
 
-**Outcome socket:** Can be 1-to-many. A signal from Notion might produce an
-outcome that both Notion (to update the page) and EOS (to update the dashboard)
-want to know about.
+**Gap:** When integrations move to separate processes (MCP servers,
+microservices, remote webhooks), the socket boundary becomes a network
+boundary. At that point:
 
-**View socket:** 1-to-many by design. Broadcast to all subscribers.
+- Each integration needs an identity token validated on every socket call
+- Token scope should match the integration's manifest (which sockets it
+  registered for, which capabilities it declared)
+- The `IntegrationRegistry.register()` method becomes the auth handshake
+- WebSocket connections need auth headers or ticket-based auth
 
-**Specific question:** For Outcome, should `notify()` only send to the
-originating integration, or should it broadcast to all registered receivers?
-Current design has `notify()` (single) and `notify_all()` (broadcast). Is
-that the right split?
+**Trigger to revisit:** First integration that runs as a separate process
+(likely Notion MCP server or EOS frontend calling POST /api/umh/signal
+from a different host).
 
-### 7.3 Auth at the Socket Boundary
+**What's safe now:** Localhost-only FastAPI, in-process registration,
+Tailscale network boundary.
 
-**Current state:** No auth on sockets. Integrations register at startup in
-the same process. The FastAPI endpoints have no auth (localhost only).
+**What breaks without auth:** Any integration reachable from outside
+Tailscale, any multi-tenant scenario, any integration the founder didn't
+personally deploy.
 
-**Tension:** If integrations ever run as separate processes (e.g., a Notion
-MCP server), the socket boundary becomes a network boundary and needs auth.
+### 7.4 Outcome Correlation — DECIDED: correlation_id Propagation
 
-**Options:**
-1. **No auth now** — Everything runs in-process. Defer auth to when/if
-   integrations become remote services.
-2. **Token-per-integration** — Each integration gets a registration token
-   at startup. Socket validates token on every call. Adds overhead now
-   but makes the move to remote integrations trivial.
-3. **Capability-scoped tokens** — Integration gets a token that specifies
-   which capabilities it can invoke and which signals it can emit. More
-   granular but more complex.
+Integration sets `correlation_id` on `SignalEnvelope`. UMH carries it
+through the pipeline unchanged. `OutcomeEnvelope` returns it.
+Integration owns its own `correlation_id → internal_state` mapping.
+UMH never stores integration-side correlation state.
 
-**My lean:** Option 1. We're in single-process territory. The governance
-layer already provides authorization for *what* can happen. Auth at the
-socket boundary would answer *who* is asking — that matters when there are
-multiple untrusted integrations, which isn't the case now.
+### 7.5 IntegrationAdapter Location — DECIDED: Generic Class + Per-Integration Directories
 
-**Decision needed from you.**
+One generic `IntegrationAdapter` class in `services/umh/sockets/registry.py`.
+All integrations use it — no Notion-specific adapter code inside UMH.
 
-### 7.4 Outcome Correlation
+Each integration ALSO gets a per-integration directory at
+`services/umh/integrations/{name}/` containing UMH-owned configuration:
 
-**Problem:** When an integration emits a signal and later receives an outcome,
-how does it know which signal the outcome is for?
+```
+services/umh/integrations/notion/
+  __init__.py       — exports manifest for registration
+  manifest.py       — declares sockets used, signal descriptors,
+                      capability descriptors, default risk classes
+  transforms.py     — payload translations (Notion's nested property
+                      format → flat dict, and vice versa)
+  routing.py        — integration-specific signal routing rules
+                      (e.g., "page_created in DB X → READ_ONLY,
+                       page_created in DB Y → REVERSIBLE_WRITE")
+```
 
-**Current design:** `OutcomeEnvelope` carries `signal_id` and
-`correlation_id`. The integration can set `correlation_id` on the
-`SignalEnvelope`, and it propagates through the pipeline to the outcome.
+This is UMH's *configuration and translation layer* for the integration.
+The handler implementation (code that actually calls the Notion API)
+still lives outside UMH. The generic `IntegrationAdapter` reads manifests
+and transforms from these directories at registration time.
 
-**Is this sufficient?** The integration must maintain its own
-`correlation_id → internal_state` mapping. The alternative is UMH
-maintaining a pending-requests table per integration, but that puts
-integration state inside UMH (violation of boundary).
+### 7.6 Error Propagation — DECIDED: Socket Normalizes with Raw Preservation
 
-**My lean:** `correlation_id` propagation is correct. The integration
-owns its own correlation state. UMH just faithfully carries the UUID through.
+Socket catches all exceptions from `CapabilityHandler`, wraps in
+`CapabilityResponse(success=False)`. Pipeline continues normally through
+proof/outcome/trace stages. The error is visible in the trace.
 
-### 7.5 Where IntegrationAdapter Lives
+**Added requirement:** The normalized `CapabilityResponse` preserves the
+raw integration-specific error in a `raw_error` field:
 
-**Option A:** `services/umh/integrations/<name>/adapter.py` — one directory
-per integration inside UMH. Contains ONLY the thin `IntegrationAdapter`
-bridge, not the handler implementation.
+```python
+@dataclass(frozen=True)
+class CapabilityResponse:
+    request_id: UUID
+    success: bool
+    result_data: dict[str, Any]
+    error: str | None          # normalized, human-readable
+    raw_error: str | None      # original exception type + message, unmodified
+    latency_ms: float
+    side_effects: list[str]
+    metadata: dict[str, Any]
+```
 
-**Option B:** `services/umh/sockets/registry.py` — a single generic
-`IntegrationAdapter` class that works for any integration, parameterized
-by `integration_id` and `CapabilitySocket`. No per-integration directory
-inside UMH.
+`error` is what the pipeline sees and traces. `raw_error` is what a
+developer reads when debugging why the Notion API returned 429.
 
-**My lean:** Option B. The `IntegrationAdapter` is generic — it just
-converts between executor vocabulary and socket vocabulary. There's no
-Notion-specific logic inside UMH. One class handles all integrations.
+### 7.7 WebSocket Endpoint — DECIDED: /ws on Existing FastAPI
 
-**Decision needed from you.**
-
-### 7.6 Error Propagation Policy
-
-When a CapabilityHandler raises an exception:
-
-- **Option A:** Socket catches, wraps in `CapabilityResponse(success=False)`,
-  pipeline continues to proof/outcome/trace normally. The error is visible
-  in the trace but doesn't crash anything.
-- **Option B:** Socket lets it propagate. The executor's existing
-  `except Exception` in `WorkPacketExecutor.execute()` catches it and
-  produces `ExecutionOutcome.FAILURE`.
-
-**My lean:** Option A. The socket should normalize errors before they
-cross the boundary. The executor shouldn't need to know whether the
-failure came from a local adapter or a remote integration.
-
-### 7.7 Cockpit WebSocket: New Endpoint or Reuse /ws?
-
-The vite proxy already points `/ws` → `ws://localhost:8093/ws`.
-The FastAPI app currently has no WebSocket endpoint.
-
-**Option A:** Add WebSocket at `/ws` on the existing FastAPI app (port 8093).
-Single server, single port.
-
-**Option B:** Separate WebSocket server on a different port. More isolation
-but another port to manage.
-
-**My lean:** Option A. The vite config already expects it at 8093. One
-server, one process.
-
-**Decision needed from you.**
-
----
-
-## Summary of Decisions Needed
-
-| # | Question | My Lean | Impact |
-|---|----------|---------|--------|
-| 7.1 | Sync vs async | Option 3 (sync pipeline, background thread) | Architecture-level |
-| 7.2 | Outcome 1-to-1 vs broadcast | `notify()` + `notify_all()` split | API shape |
-| 7.3 | Auth at socket boundary | Option 1 (no auth now) | Security posture |
-| 7.5 | IntegrationAdapter location | Option B (generic, one class) | File structure |
-| 7.6 | Error propagation | Option A (socket normalizes) | Error handling contract |
-| 7.7 | WebSocket endpoint | Option A (same FastAPI app, /ws) | Infrastructure |
-
-Items 7.4 (correlation_id propagation) is more of a confirmation —
-the design already handles it. Flag if you disagree.
+WebSocket at `/ws` on the existing FastAPI app at port 8093.
+Vite proxy already configured: `/ws` → `ws://localhost:8093/ws`.
+One server, one process, one port.
 
 ---
 
@@ -1003,20 +965,27 @@ the design already handles it. Flag if you disagree.
 ```
 services/umh/sockets/
   __init__.py
-  types.py              — SignalEnvelope, CapabilityRequest, CapabilityResponse,
-                          OutcomeEnvelope, ViewFrame, SignalReceipt,
-                          SignalDescriptor, CapabilityDescriptor, CapabilityHealth,
-                          Protocol definitions (SignalEmitter, CapabilityHandler,
-                          OutcomeReceiver, ViewSubscriber), IntegrationManifest
+  types.py              — SignalEnvelope, CapabilityRequest, CapabilityResponse
+                          (with raw_error), OutcomeEnvelope, ViewFrame,
+                          SignalReceipt, SignalDescriptor, CapabilityDescriptor,
+                          CapabilityHealth, Protocol definitions (SignalEmitter,
+                          CapabilityHandler, OutcomeReceiver, ViewSubscriber),
+                          IntegrationManifest
   signal_socket.py      — SignalSocket
   capability_socket.py  — CapabilitySocket
   outcome_socket.py     — OutcomeSocket
   view_socket.py        — ViewSocket
   registry.py           — IntegrationRegistry + generic IntegrationAdapter
   ws_bridge.py          — WebSocketBridge (ViewSubscriber → WebSocket)
+
+services/umh/integrations/<name>/   (one per integration, UMH-owned config)
+  __init__.py           — exports manifest
+  manifest.py           — socket declarations, descriptors, risk classes
+  transforms.py         — payload translations for this integration
+  routing.py            — integration-specific signal routing rules
 ```
 
-Estimated total: ~600-800 lines across 8 files.
+Estimated total: ~600-800 lines for sockets/, ~100-150 lines per integration config dir.
 
 ---
 
