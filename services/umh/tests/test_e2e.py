@@ -14,9 +14,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from services.umh.adapters.shell import ShellAdapter
 from services.umh.control_plane.pipeline import ExecutionPipeline
-from services.umh.execution.executor import WorkPacketExecutor
+from services.umh.execution.executor import WorkPacketExecutor, build_default_executor
 from services.umh.governance.policy_engine import PolicyEngine
 from services.umh.governance.risk_classes import RiskClass
 from services.umh.memory.candidate_generator import (
@@ -222,8 +221,7 @@ def test_pipeline_e2e() -> None:
         candidate_gen = MemoryCandidateGenerator(root / "memory_candidates")
         promoter = MemoryPromoter(path=root / "memories.json")
 
-        executor = WorkPacketExecutor()
-        executor.register_adapter(ShellAdapter())
+        executor = build_default_executor()
 
         pipeline = ExecutionPipeline(
             policy_engine=PolicyEngine(safe_roots=["/opt/OS"]),

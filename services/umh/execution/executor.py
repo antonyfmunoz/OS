@@ -163,3 +163,13 @@ class WorkPacketExecutor:
 
         proof = self._proof_gen.generate(packet, verdict, result, adapter_name)
         return ExecutionBundle(result, proof, governance_proof)
+
+
+def build_default_executor() -> WorkPacketExecutor:
+    """Factory that returns a WorkPacketExecutor with all local adapters registered."""
+    from services.umh.adapters import FilesystemAdapter, GitAdapter, ShellAdapter, TmuxAdapter
+
+    executor = WorkPacketExecutor()
+    for adapter in (ShellAdapter(), FilesystemAdapter(), GitAdapter(), TmuxAdapter()):
+        executor.register_adapter(adapter)
+    return executor
