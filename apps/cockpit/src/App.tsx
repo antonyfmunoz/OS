@@ -1,7 +1,9 @@
+import { useEffect } from 'react'
 import { LeftRail } from './components/LeftRail.tsx'
 import { StatusBar } from './components/StatusBar.tsx'
 import { PresenceLayer } from './components/PresenceOverlay.tsx'
 import { useCockpitStore } from './stores/cockpitStore.ts'
+import { connectWebSocket, disconnectWebSocket } from './lib/ws-client.ts'
 
 import { CommandCenter } from './views/CommandCenter.tsx'
 import { Agents } from './views/Agents.tsx'
@@ -48,6 +50,11 @@ const VIEW_MAP: Record<RouteId, () => ReactNode> = {
 export function App() {
   const { route } = useCockpitStore()
   const View = VIEW_MAP[route]
+
+  useEffect(() => {
+    connectWebSocket()
+    return () => disconnectWebSocket()
+  }, [])
 
   return (
     <div className="flex h-screen bg-canvas overflow-hidden">
