@@ -6,7 +6,7 @@
 
 ## Summary
 
-Built the governed execution layer for Jarvis: 3 packages (governance, execution, adapters)
+Built the governed execution layer for UMH: 3 packages (governance, execution, adapters)
 containing 11 new modules plus the protocol pack (copied from jarvis-layer0 for import resolution).
 
 ## Files Created
@@ -40,7 +40,7 @@ containing 11 new modules plus the protocol pack (copied from jarvis-layer0 for 
 ### Other
 | File | Purpose |
 |------|---------|
-| `__init__.py` | Jarvis package root |
+| `__init__.py` | UMH package root |
 | `proofs/sample_execution_proof.json` | Generated proof artifact sample |
 | `DISCOVERY_REPORT.md` | Pre-session codebase discovery |
 | `SESSION_REPORT.md` | This file |

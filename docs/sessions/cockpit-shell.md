@@ -8,7 +8,7 @@
 ## 1. Files Created (41 files)
 
 ### Configuration
-- `package.json` — jarvis-cockpit v0.1.0
+- `package.json` — umh-cockpit v0.1.0
 - `tsconfig.json`, `tsconfig.app.json`, `tsconfig.node.json`
 - `vite.config.ts` — port 5174, proxy to 8093
 - `index.html` — entry point
@@ -23,7 +23,7 @@
 - `src/stores/cockpitStore.ts` — Zustand store with all cockpit state
 
 ### API / Lib (3 files)
-- `src/api/client.ts` — typed API client for Jarvis backend
+- `src/api/client.ts` — typed API client for UMH backend
 - `src/lib/websocket.ts` — CockpitSocket with reconnect
 - `src/lib/mockData.ts` — mock data for all views
 - `src/lib/time.ts` — relative time, uptime, duration formatters
@@ -76,7 +76,7 @@ $ npm run build
 
 - [x] Discovery completed
 - [x] DISCOVERY_REPORT.md written
-- [x] Frontend root created at jarvis/jarvis_web/
+- [x] Frontend root created at apps/cockpit/
 - [x] Frontend builds (tsc + vite, 0 errors)
 - [x] Command Center renders (mock pulse, models, traces, approvals)
 - [x] Left rail works (18 routes, 4 groups, collapsible)
@@ -120,13 +120,13 @@ Typography: JetBrains Mono primary, Inter for body. Sizes: 9-14px range. All upp
 - **State-driven routing** — no URL router; `useCockpitStore().route` drives view switching
 - **Zustand single store** — all cockpit state in one store for simplicity
 - **Mock data in `lib/mockData.ts`** — easy to swap for real API calls
-- **API client in `api/client.ts`** — typed fetch wrapper targeting Jarvis API on 8093
+- **API client in `api/client.ts`** — typed fetch wrapper targeting UMH API on 8093
 - **WebSocket in `lib/websocket.ts`** — reconnecting socket manager, ready for real-time events
 - **Data contracts documented** — TypeScript interfaces serve as the contract for backend integration
 
 ## 7. What's Next
 
-1. Backend integration — connect API client and WebSocket to running Jarvis API
+1. Backend integration — connect API client and WebSocket to running UMH API
 2. Implement remaining 15 stub views with real data
 3. Add tactical map renderer (Mapbox GL / Deck.gl)
 4. Deploy to VPS nginx as static site

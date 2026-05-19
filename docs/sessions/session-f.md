@@ -7,13 +7,13 @@
 
 ## Objective
 
-Integrate the Jarvis MVP pieces from other sessions, create the full 12-label
+Integrate the UMH MVP pieces from other sessions, create the full 12-label
 symbolic model routing config, build launch/smoke-test infrastructure, and
 document the integration.
 
 ## What Was Found (Discovery)
 
-1. **MVP code lives in `umh_mvp/`** (not `services/jarvis/`) — running from the
+1. **MVP code lives in `umh_mvp/`** (not `services/umh/`) — running from the
    `umh-mvp` worktree. Backend on 8093, frontend on 5173, both live.
 2. **All 14 API endpoints** respond correctly (health, signal, traces, resume,
    awareness, capabilities, workpackets, decisions, proofs, ontology, state,
@@ -26,23 +26,23 @@ document the integration.
 
 ## What Was Built
 
-### Model Routing (`services/jarvis/model_routing/`)
+### Model Routing (`services/umh/model_routing/`)
 
 - **capabilities.py**: 12 symbolic capability classes with full metadata
   (provider symbols, fallback chains, privacy levels, cost hints, local-first flags)
 - **config.py**: `RoutingConfig` class that maps capability labels to
   `model_router.call_with_fallback()` kwargs with env var overrides
 
-### Integration (`services/jarvis/integration/`)
+### Integration (`services/umh/integration/`)
 
 - **health.py**: `HealthAggregator` — probes backend, frontend, operator API,
   and Ollama in one call
 - **cors.py**: `cors_origins()` — generates CORS origin list including all 4
   Tailscale device IPs
-- **bridge.py**: `JarvisBridge` — connects symbolic capability labels to
+- **bridge.py**: `CapabilityBridge` — connects symbolic capability labels to
   runtime/model_router.py without modifying it
 
-### Launch (`services/jarvis/launch/`)
+### Launch (`services/umh/launch/`)
 
 - **launch_backend.sh**: Start script with port-conflict detection and import
   verification. Supports foreground and `--bg` modes.
@@ -61,7 +61,7 @@ document the integration.
 ## Smoke Test Results
 
 ```
-Jarvis Integration Smoke Test
+UMH Integration Smoke Test
 ========================================
   [PASS] backend_health (29ms)
   [PASS] signal_endpoint (3ms)
@@ -84,7 +84,7 @@ Jarvis Integration Smoke Test
 - [x] Backend health works
 - [x] Frontend can read backend (Vite proxy configured)
 - [x] Smoke test passes (10/10)
-- [x] Port 8093 in use by Jarvis backend
+- [x] Port 8093 in use by UMH backend
 - [x] Port 8091 untouched (verified by smoke test)
 - [x] Port 8092 documented (operator-ui)
 - [x] Tailscale IPs documented
@@ -101,7 +101,7 @@ Jarvis Integration Smoke Test
 ## Files Created
 
 ```
-services/jarvis/
+services/umh/
   __init__.py
   DISCOVERY_REPORT.md
   README_INTEGRATION.md
