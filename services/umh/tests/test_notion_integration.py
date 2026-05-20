@@ -739,6 +739,44 @@ class TestNotionCapabilityHandler:
         assert "append_block" in names
         assert "query_database" in names
 
+    # --- noop tests ---
+
+    def test_noop_success(self, handler: Any) -> None:
+        request = CapabilityRequest(
+            request_id=uuid4(),
+            capability_name="noop",
+            integration_id="notion",
+            params={"page_id": "page-42"},
+            governance_verdict_id=uuid4(),
+            trace_id=uuid4(),
+        )
+
+        response = handler.handle_capability(request)
+        assert response.success
+        assert response.result_data["received"] is True
+        assert response.result_data["page_id"] == "page-42"
+
+    def test_noop_no_api_call(self, handler: Any) -> None:
+        request = CapabilityRequest(
+            request_id=uuid4(),
+            capability_name="noop",
+            integration_id="notion",
+            params={"page_id": "page-42"},
+            governance_verdict_id=uuid4(),
+            trace_id=uuid4(),
+        )
+
+        handler.handle_capability(request)
+        handler._client.pages.create.assert_not_called()
+        handler._client.pages.update.assert_not_called()
+        handler._client.blocks.children.append.assert_not_called()
+        handler._client.request.assert_not_called()
+
+    def test_describe_capabilities_includes_noop(self, handler: Any) -> None:
+        caps = handler.describe_capabilities()
+        names = [c.name for c in caps]
+        assert "noop" in names
+
 
 class TestNotionSignalEmitter:
     def test_satisfies_protocol(self) -> None:

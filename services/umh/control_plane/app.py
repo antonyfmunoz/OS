@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
+import threading
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any
@@ -39,18 +40,23 @@ _pipeline = ExecutionPipeline(executor=_executor)
 _broadcaster: ViewFrameBroadcaster | None = None
 _correlation_map = CorrelationMap()
 _notion_outcome_receiver: Any = None
+_notion_poller: Any = None
+_notion_poller_thread: threading.Thread | None = None
 
 
 def _register_notion_integration() -> None:
     """Wire the Notion integration through IntegrationRegistry."""
-    global _notion_outcome_receiver
+    global _notion_outcome_receiver, _notion_poller
     try:
         from ..integrations.notion.auth import get_notion_client
         from ..integrations.notion.handlers import NotionCapabilityHandler
+        from ..integrations.notion.manifest import load_signal_sources
         from ..integrations.notion.outcomes import NotionOutcomeReceiver
+        from ..integrations.notion.poller import NotionPoller
         from ..integrations.notion.signals import NotionSignalEmitter
 
         client = get_notion_client()
+        emitter = NotionSignalEmitter()
         _notion_outcome_receiver = NotionOutcomeReceiver(client, _correlation_map)
 
         signal_socket = SignalSocket()
@@ -63,7 +69,7 @@ def _register_notion_integration() -> None:
 
         manifest = IntegrationManifest(
             integration_id="notion",
-            signal_emitter=NotionSignalEmitter(),
+            signal_emitter=emitter,
             capability_handler=NotionCapabilityHandler(),
             outcome_receiver=_notion_outcome_receiver,
         )
@@ -72,18 +78,40 @@ def _register_notion_integration() -> None:
         if adapter is not None:
             _executor.register_adapter(adapter)
             logger.info("notion integration adapter registered with executor")
+
+        signal_sources = load_signal_sources()
+        if signal_sources:
+            _notion_poller = NotionPoller(
+                client=client,
+                correlation_map=_correlation_map,
+                signal_emitter=emitter,
+                pipeline_submit_fn=_pipeline.submit_signal,
+                outcome_receiver=_notion_outcome_receiver,
+                signal_sources=signal_sources,
+            )
+            logger.info(
+                "notion poller configured: %d signal source(s): %s",
+                len(signal_sources),
+                ", ".join(s["logical_name"] for s in signal_sources),
+            )
+        else:
+            logger.info("notion poller not started: NOTION_SIGNAL_SOURCES not set")
     except Exception as exc:
         logger.warning("notion integration not loaded: %s", exc)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _broadcaster
+    global _broadcaster, _notion_poller_thread
 
     await _runtime.start()
     logger.info("UMH substrate runtime started")
 
     _register_notion_integration()
+
+    if _notion_poller is not None:
+        _notion_poller_thread = _notion_poller.start()
+        logger.info("notion poller thread started")
 
     loop = asyncio.get_running_loop()
     _broadcaster = ViewFrameBroadcaster(loop=loop, async_callback=broadcast_frame)
@@ -92,6 +120,12 @@ async def lifespan(app: FastAPI):
     logger.info("view socket broadcaster wired to WebSocket endpoint")
 
     yield
+
+    if _notion_poller is not None:
+        _notion_poller.shutdown_event.set()
+        if _notion_poller_thread is not None:
+            _notion_poller_thread.join(timeout=5)
+            logger.info("notion poller thread stopped")
 
     _view_socket.unsubscribe("ws_broadcaster")
     await _runtime.shutdown()

@@ -302,15 +302,23 @@ Implemented:
 - 429 retry with 2s backoff inherited from shared `_retry_once()` path
 - Outcome writeback and signal routing deferred to Phase 4 and Phase 3 respectively
 
-### Phase 3: Signal-Direction Adapters (Inbound Polling)
+### Phase 3: Signal-Direction Adapters (Inbound Polling) ✓ IMPLEMENTED
 
 **Goal:** UMH detects Notion changes and ingests them as signals.
 
-- Build poll-based signal emitter (interval query on `last_edited_time`)
-- Implement correlation map (track pages created by UMH for correlation_id propagation)
-- Wire poller into master loop or separate background thread
-- Add Notion-specific ViewFrame rate limit monitoring (if cockpit needs it)
-- Tests: poller tests, correlation tests, end-to-end signal → pipeline tests
+Implemented:
+- `WatermarkStore` — thread-safe JSONL append-log at `services/umh/data/notion_watermarks.jsonl`. Per-database high-water mark on `last_edited_time`. Latest entry per database wins on load.
+- `NotionPoller` — background daemon thread polling configured databases. Query pages with `last_edited_time > watermark` (ascending), paginated. One retry on 429. Controlled by `threading.Event` for shutdown.
+- `NotionSignalEmitter` — real implementation replacing stub. `build_signal(page, config)` → `(SignalEnvelope, writeback_to)` with correlation_id for outcome routing.
+- `_noop` handler — acknowledges polled signals without external action. Pipeline runs full 10 stages, returns success.
+- `NOTION_SIGNAL_SOURCES` env var — comma-separated database logical names. Each defaults to `operation="noop"`, `poll_interval=30s`.
+- Poller started in FastAPI lifespan (daemon thread), stopped on shutdown via `threading.Event.set()` + `thread.join(timeout=5)`.
+- Correlation map populated per-signal, outcome writeback fires on pipeline completion (Phase 4 path reused).
+- Smoke script: `SMOKE_OPS="signal"` creates page in polled DB → waits poll interval → verifies UMH Status set by writeback.
+- 12 new poller tests, 10 watermark tests, 16 signal emitter tests, 3 noop handler tests.
+
+**Env var format:** `NOTION_SIGNAL_SOURCES=empyrean_creative_tasks,lyfe_tasks`
+**Watermark location:** `services/umh/data/notion_watermarks.jsonl`
 
 ### Phase 4: Outcome Writeback ✓ IMPLEMENTED
 
@@ -356,12 +364,12 @@ Implemented:
 
 5. **Outcome writeback target:** DECIDED — hardcoded "UMH Status" select property on originating Notion page. Notion auto-creates the select option on first write. Convention-based: databases that receive writeback must have this property.
 
-### Must resolve before Phase 3 (signal polling)
+### Resolved (Phase 3)
 
-6. **Signal deduplication:** The poller will see the same page on consecutive polls if it hasn't changed. Deduplication by `(page_id, last_edited_time)` tuple? Or maintain a high-water mark timestamp per database?
+6. **Signal deduplication:** DECIDED — per-database watermark on `last_edited_time`, persisted to JSONL append-log. Poller queries pages with `last_edited_time > watermark` and advances watermark after processing.
 
-7. **Poll interval:** How frequently should the signal emitter poll Notion? Notion rate limit is 3 req/s. With 10+ databases, a full poll cycle could take 3-4 seconds. Interval options: 30s, 60s, 5m. Tradeoff: latency of change detection vs API budget.
+7. **Poll interval:** DECIDED — 30s default, configurable per signal source. With `NOTION_SIGNAL_SOURCES` controlling which databases are polled, API budget is bounded.
 
-8. **Poller thread model:** Background thread in the UMH process, or a separate scheduled script (like the existing `scripts/notion_sync_poller.py`)? Background thread is tighter integration but adds thread management. Separate script is simpler but loses correlation context.
+8. **Poller thread model:** DECIDED — dedicated daemon thread in UMH process, started in FastAPI lifespan, controlled by `threading.Event` for shutdown. Preserves correlation context.
 
-9. **Correlation map persistence:** The correlation map (request_id → page_id) needs to survive process restarts. Options: in-memory (lost on restart), SQLite file, or Neon table. In-memory is simplest for Phase 3; persistence is a Phase 4 concern.
+9. **Correlation map persistence:** DECIDED — in-memory only for Phase 3. Process restart clears map. Acceptable for current scale.
