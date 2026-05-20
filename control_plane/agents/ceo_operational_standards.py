@@ -463,13 +463,13 @@ World-class at Stage 4+ means:
   details that slip become culture.
 """
 
-# ── HORMOZI RULES ─────────────────────────────────
-# All three books encoded as specific rules.
+# ── GROWTH RULES ──────────────────────────────────
+# Three operational sections encoded as specific rules.
 
-HORMOZI_RULES = """
-## HORMOZI OPERATING RULES
+GROWTH_RULES = """
+## GROWTH OPERATING RULES
 
-FROM $100M OFFERS:
+OFFER ARCHITECTURE:
 - Value equation: Dream outcome ×
   Perceived likelihood of achievement /
   Time delay × Effort and sacrifice = value.
@@ -486,7 +486,7 @@ FROM $100M OFFERS:
 - Naming: the right name changes conversion.
   Name the transformation, not the product.
 
-FROM $100M LEADS:
+LEAD GENERATION:
 - Core four: only four ways to get leads.
   Warm outreach (highest conversion, zero cost).
   Cold outreach (volume game).
@@ -509,7 +509,7 @@ FROM $100M LEADS:
   Most businesses don't have a strategy problem.
   They have an insufficient volume problem.
 
-FROM $100M MONEY MODELS:
+UNIT ECONOMICS:
 - Four diagnostic questions:
   Do we have enough people to sell to? (Leads)
   Are we converting the prospects we have? (Sales)
@@ -529,7 +529,7 @@ FROM $100M MONEY MODELS:
   before raising. Businesses report 20-78%
   price increases with minimal churn.
 
-HORMOZI OPERATING PHILOSOPHY:
+GROWTH OPERATING PHILOSOPHY:
 - Speed of implementation is the competitive
   advantage. Act before ready. Iterate from reality.
 - Excellence = high number of extremely
@@ -563,7 +563,7 @@ CEO_OPERATING_STANDARDS = f"""
 
 {STAGE_RULES}
 
-{HORMOZI_RULES}
+{GROWTH_RULES}
 """
 
 
@@ -595,8 +595,8 @@ def get_stage_rules() -> str:
     return STAGE_RULES
 
 
-def get_hormozi_rules() -> str:
-    return HORMOZI_RULES
+def get_growth_rules() -> str:
+    return GROWTH_RULES
 
 
 def get_all_standards() -> str:
