@@ -13,7 +13,16 @@ from services.umh.sockets.protocols import CapabilityDescriptor, CapabilityHealt
 
 from .auth import discover_database_ids, get_notion_client
 from .manifest import CAPABILITY_DESCRIPTORS, INTEGRATION_ID
-from .transforms import build_create_page_payload, extract_create_page_result
+from .transforms import (
+    build_append_block_payload,
+    build_create_page_payload,
+    build_query_database_payload,
+    build_update_page_payload,
+    extract_append_block_result,
+    extract_create_page_result,
+    extract_query_database_result,
+    extract_update_page_result,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +34,7 @@ class NotionCapabilityHandler:
     """Handles capability requests by calling the Notion SDK.
 
     Satisfies CapabilityHandler Protocol structurally.
-    Phase 1: create_page only.
+    Phase 1: create_page. Phase 2: update_page, append_block, query_database.
     """
 
     def __init__(self) -> None:
@@ -47,6 +56,9 @@ class NotionCapabilityHandler:
         t0 = time.monotonic()
         handler_map = {
             "create_page": self._create_page,
+            "update_page": self._update_page,
+            "append_block": self._append_block,
+            "query_database": self._query_database,
         }
 
         handler = handler_map.get(request.capability_name)
@@ -91,9 +103,7 @@ class NotionCapabilityHandler:
     def health(self) -> CapabilityHealth:
         try:
             self._client.users.me()
-            return CapabilityHealth(
-                integration_id=INTEGRATION_ID, status="healthy"
-            )
+            return CapabilityHealth(integration_id=INTEGRATION_ID, status="healthy")
         except Exception as exc:
             return CapabilityHealth(
                 integration_id=INTEGRATION_ID,
@@ -122,6 +132,49 @@ class NotionCapabilityHandler:
         payload = build_create_page_payload(database_id, title, properties)
         response = self._client.pages.create(**payload)
         return extract_create_page_result(response)
+
+    def _update_page(self, params: dict[str, Any]) -> dict[str, Any]:
+        page_id = params.get("page_id", "")
+        if not page_id:
+            raise ValueError("page_id is required for update_page")
+        properties = params.get("properties")
+        if not properties:
+            raise ValueError("properties is required for update_page")
+
+        payload = build_update_page_payload(page_id, properties)
+        response = self._client.pages.update(**payload)
+        return extract_update_page_result(response)
+
+    def _append_block(self, params: dict[str, Any]) -> dict[str, Any]:
+        page_id = params.get("page_id", "")
+        if not page_id:
+            raise ValueError("page_id is required for append_block")
+        children = params.get("children")
+        if not children:
+            raise ValueError("children is required for append_block")
+
+        payload = build_append_block_payload(page_id, children)
+        response = self._client.blocks.children.append(**payload)
+        return extract_append_block_result(response)
+
+    def _query_database(self, params: dict[str, Any]) -> dict[str, Any]:
+        raw_db_id = params.get("database_id", "")
+        if not raw_db_id:
+            raise ValueError("database_id is required for query_database")
+
+        database_id = self._resolve_database_id(raw_db_id)
+        filter_obj = params.get("filter")
+        sorts = params.get("sorts")
+        page_size = params.get("page_size", 100)
+
+        payload = build_query_database_payload(database_id, filter_obj, sorts, page_size)
+        body = {k: v for k, v in payload.items() if k != "database_id"}
+        response = self._client.request(
+            path=f"databases/{database_id}/query",
+            method="POST",
+            body=body,
+        )
+        return extract_query_database_result(response)
 
     def _retry_once(
         self,
