@@ -607,6 +607,382 @@ Manual `tables.py` updates + `@pytest.mark.integration` test in `test_eos_integr
 
 ---
 
+## Phase 2 Design (Capabilities)
+
+Phase 2 adds three write capabilities: `create_event`, `create_client`, `update_venture`.
+Each performs a single INSERT or UPDATE against the EOS Neon database via psycopg2,
+dispatched through the existing `EOSCapabilityHandler.handle_capability()` path.
+
+Phase 0 for this phase = surface open decisions before writing code.
+
+### Drizzle Schema Excerpts (source of truth: `saas/db/schema.ts`)
+
+These are the three target tables. Quoted verbatim from Drizzle so reviewers
+can verify the Python mapping without leaving this file.
+
+#### `events` (lines 264-278)
+
+```typescript
+export const events = pgTable('events', {
+  id:          uuid('id').primaryKey().defaultRandom(),
+  orgId:       uuid('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  eventType:   text('event_type').notNull(),
+  payloadJson: jsonb('payload_json').notNull().default({}),
+  handledBy:   text('handled_by'),
+  createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  orgIdx:     index('idx_events_org_id').on(t.orgId),
+  orgType:    index('idx_events_org_type').on(t.orgId, t.eventType),
+  orgCreated: index('idx_events_org_created').on(t.orgId, t.createdAt),
+}))
+```
+
+- `org_id`: **uuid**, NOT NULL, FK → organizations(id) ON DELETE CASCADE
+- `event_type`: text, NOT NULL
+- `payload_json`: jsonb, NOT NULL, default `{}`
+- `handled_by`: text, nullable
+- `created_at`: timestamptz, NOT NULL, default now()
+
+#### `clients` (lines 442-461)
+
+```typescript
+export const clients = pgTable('clients', {
+  id:        uuid('id').primaryKey().defaultRandom(),
+  orgId:     text('org_id').notNull(),
+  ventureId: text('venture_id').notNull(),
+  name:      text('name').notNull(),
+  email:     text('email').notNull(),
+  phone:     text('phone'),
+  status:    text('status').notNull().default('lead'),
+  source:    text('source').notNull().default('unknown'),
+  notes:     text('notes').default(''),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  orgIdx:     index('idx_clients_org_id').on(t.orgId),
+  ventureIdx: index('idx_clients_venture_id').on(t.ventureId),
+  statusIdx:  index('idx_clients_status').on(t.orgId, t.status),
+}))
+```
+
+- `org_id`: **text** (NOT uuid), NOT NULL, **no FK constraint**
+- `venture_id`: **text** (NOT uuid), NOT NULL, **no FK constraint**
+- `name`: text, NOT NULL
+- `email`: text, NOT NULL
+- `phone`: text, nullable
+- `status`: text, NOT NULL, default `'lead'`
+- `source`: text, NOT NULL, default `'unknown'`
+- `notes`: text, nullable, default `''`
+- `created_at`: timestamptz, NOT NULL, default now()
+- `updated_at`: timestamptz, NOT NULL, default now()
+
+**Schema asymmetry note:** `clients.org_id` and `clients.venture_id` are `text`,
+not `uuid` with FK constraints. This means Postgres will NOT reject an INSERT with
+a nonexistent org_id. The `events` table uses `uuid` org_id with a FK. This split
+affects validation strategy (Decision 3).
+
+#### `ventures` (lines 169-183)
+
+```typescript
+export const ventures = pgTable('ventures', {
+  id:             uuid('id').primaryKey().defaultRandom(),
+  orgId:          uuid('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  name:           text('name').notNull(),
+  stage:          ventureStageEnum('stage').notNull().default('idea'),
+  configJson:     jsonb('config_json').notNull().default({}),
+  monthlyRevenue: numeric('monthly_revenue', { precision: 12, scale: 2 }).notNull().default('0'),
+  monthlyTarget:  numeric('monthly_target', { precision: 12, scale: 2 }).notNull().default('0'),
+  createdAt:      timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  orgIdx: index('idx_ventures_org_id').on(t.orgId),
+}))
+```
+
+- `org_id`: **uuid**, NOT NULL, FK → organizations(id) ON DELETE CASCADE
+- `name`: text, NOT NULL
+- `stage`: enum `venture_stage` (`idea`|`pre_revenue`|`early`|`growth`|`scale`), NOT NULL, default `'idea'`
+- `config_json`: jsonb, NOT NULL, default `{}`
+- `monthly_revenue`: numeric(12,2), NOT NULL, default `'0'`
+- `monthly_target`: numeric(12,2), NOT NULL, default `'0'`
+- `created_at`: timestamptz, NOT NULL, default now()
+
+**Note:** `monthly_revenue` and `monthly_target` are `numeric(12,2)`, which maps
+to Python `Decimal`. Drizzle stores as string (`'0'`). The `update_venture` handler
+must accept numeric or string values and pass them correctly.
+
+---
+
+### Open Decision 1: Org Scoping for Writes
+
+**Question:** How does `org_id` flow from `CapabilityRequest` → handler → INSERT?
+
+`CapabilityRequest.params` is `dict[str, Any]` (untyped). For poll-originated signals,
+the poller already stuffs `org_id` into the signal envelope payload (see `signals.py:build_signal`).
+But for UMH-initiated capability calls (e.g., the cognitive loop decides to create a client),
+there's no poller in the path — the pipeline must supply `org_id` in `params`.
+
+**Options:**
+
+- **A. Required in params (Recommended).** Every write capability requires `params["org_id"]`.
+  Handler validates presence before touching SQL. Callers (pipeline, cognitive loop,
+  external SubmitRequest) must supply it. This is explicit, traceable, and matches how
+  EOS's Hono API scopes every mutation with `x-org-id`.
+
+- B. Session/context wrapper. A `CurrentOrg` thread-local or contextvar that gets set
+  at pipeline entry. Handlers read from context, not params. Reduces boilerplate but
+  hides the dependency and makes testing harder.
+
+- C. Default to the poller's current org. Only works for poll-driven flows. Breaks
+  for UMH-initiated calls.
+
+**Recommendation: A.** `org_id` is always required in `params`. Fail loud if missing.
+This adds one key to every request but prevents silent cross-tenant writes.
+Matches Notion's pattern where `database_id` is always required in params.
+
+---
+
+### Open Decision 2: Schema Authority and Drizzle Mapping
+
+**Question:** `tables.py` currently has one read helper (`fetch_events_since`) and one test
+helper (`insert_test_event`). Adding `insert_event()`, `insert_client()`, `update_venture()`
+means mirroring three Drizzle tables' write schemas. What's the drift detection story?
+
+**Options:**
+
+- **A. Extend `test_eos_integration.py` with column-type assertions (Recommended).**
+  Add `@pytest.mark.integration` tests that query `information_schema.columns` for each
+  target table, asserting column names, data types, and NOT NULL constraints match
+  what `tables.py` assumes. These run with `EOS_INTEGRATION_TEST=1`. This extends
+  Decision 9's existing approach.
+
+- B. Codegen from `schema.ts`. Parse Drizzle definitions and generate Python constants.
+  Fragile — Drizzle's TypeScript DSL is not trivially parseable.
+
+- C. Manual coordination only. Developer reads `schema.ts` and updates `tables.py`.
+  No automated check.
+
+**Recommendation: A.** Add three new integration tests:
+1. `test_clients_schema_matches` — assert columns, types, nullability for clients table
+2. `test_ventures_schema_matches` — same for ventures
+3. `test_events_write_columns_match` — verify events INSERT assumptions
+
+This catches drift on the next integration test run after a Drizzle migration.
+
+---
+
+### Open Decision 3: Validation Strategy
+
+**Question:** Notion's `create_page` accepts arbitrary properties — Notion validates them.
+EOS schema is typed (UUIDs, enums, NOT NULL constraints). Where does validation happen?
+
+The schema asymmetry matters here: `events.org_id` is `uuid` with FK (Postgres rejects bad values),
+but `clients.org_id` is `text` with no FK (Postgres accepts anything).
+
+**Options:**
+
+- **A. Validate in `tables.py` helpers (Recommended).** Each insert/update helper validates
+  required fields, types, and enum values before executing SQL. `insert_client()` checks
+  that `org_id`, `venture_id`, `name`, and `email` are non-empty strings; `status` is
+  one of `lead|prospect|client|fulfilled|churned`. `update_venture()` checks `stage` is
+  a valid `venture_stage` enum value. Postgres errors are a second defense layer, not primary.
+
+- B. Validate in handler methods. `_create_client()` validates before calling `tables.py`.
+  Keeps `tables.py` as pure SQL. Scatters validation across handler methods.
+
+- C. Rely on Postgres errors. Let the INSERT/UPDATE fail and surface the Postgres error
+  message as a `CapabilityResponse(success=False)`. Minimal code but exposes raw DB errors
+  to the pipeline, and the `clients` table won't catch bad org_ids.
+
+**Recommendation: A.** `tables.py` is the single coupling point — it should enforce the
+contract, not just execute SQL. This keeps handlers thin (same pattern as Notion's
+`transforms.py` which builds validated payloads). For `clients`, Python-side validation
+is the ONLY defense since the table lacks FK constraints.
+
+Enum values to validate:
+- `clients.status`: `lead`, `prospect`, `client`, `fulfilled`, `churned`
+- `ventures.stage`: `idea`, `pre_revenue`, `early`, `growth`, `scale`
+
+---
+
+### Open Decision 4: Idempotency
+
+**Question:** If handler crashes between INSERT and outcome emission, retry duplicates
+the row. What's the dedup strategy?
+
+**Options:**
+
+- **A. Accept duplicates for Phase 2 (Recommended).** `create_event` is append-only
+  (event-log semantics — duplicates are tolerable). `create_client` could duplicate
+  a lead row, but the cockpit can filter or merge. `update_venture` is idempotent
+  by nature (UPDATE with same values is a no-op). Revisit for Phase 3+ when
+  `create_transaction` (money) enters scope.
+
+- B. Client-supplied `idempotency_key` column. Caller passes a UUID, handler does
+  `INSERT ... ON CONFLICT (org_id, idempotency_key) DO NOTHING`. Requires schema
+  migration to add the column and unique index.
+
+- C. Handler-side seen-set. Track `(capability_name, hash(params))` in memory for
+  the last N minutes. Fragile — doesn't survive restart, and hash collisions are
+  theoretically possible.
+
+**Recommendation: A.** Phase 2 capabilities are low-stakes writes. `create_event` is
+an event log (dupes are noise, not corruption). `create_client` at worst creates a
+duplicate lead (visible in cockpit, manually mergeable). `update_venture` is naturally
+idempotent. Add `idempotency_key` in Phase 3 when `create_transaction` brings money
+into scope.
+
+---
+
+### Open Decision 5: Atomicity
+
+**Question:** Each capability = single INSERT/UPDATE in its own transaction?
+Or multi-table mutations?
+
+**Options:**
+
+- **A. Single-statement transactions (Recommended).** `create_event` = one INSERT
+  into `events`. `create_client` = one INSERT into `clients`. `update_venture` =
+  one UPDATE on `ventures`. Each runs in its own autocommit-off transaction
+  (psycopg2 default), committed on success, rolled back on exception.
+
+- B. Multi-table mutations. `create_event` also updates a parent table's
+  `last_activity_at`. `update_venture` recalculates `monthly_revenue` from
+  `transactions`. Adds coupling and partial-failure risk.
+
+**Recommendation: A.** One capability = one statement = one transaction.
+No cross-table side effects in Phase 2. If a future capability needs to
+atomically touch two tables (e.g., `create_transaction` + update
+`ventures.monthly_revenue`), that's a Phase 3 design question — solve it
+then with explicit multi-statement transactions, not by overloading Phase 2
+capabilities.
+
+---
+
+### Open Decision 6: Outcome Shape
+
+**Question:** Notion outcomes write back to the source page (status property + callout
+block). EOS write capabilities have no source page — they CREATE new rows.
+What does the outcome look like?
+
+**Options:**
+
+- **A. OutcomeSocket emission + log, carry inserted row_id (Recommended).**
+  The `CapabilityResponse.result_data` already returns `{event_id}`, `{client_id}`,
+  or `{venture_id, updated: true}`. The outcome receiver logs this. The correlation
+  map stores the mapping `correlation_id → (entity_type, entity_id, org_id)`.
+  No writeback to EOS tables in Phase 2 — that's Phase 4's job (update `events.handled_by`,
+  insert audit trail events, etc.).
+
+- B. Immediate writeback. After `create_event`, update the new event's `handled_by`
+  field to `"umh"`. After `create_client`, insert an `events` row recording the
+  creation. Adds complexity and couples outcome to capability.
+
+- C. No outcome at all. Fire-and-forget. Breaks the socket contract and loses
+  audit trail.
+
+**Recommendation: A.** Phase 2 outcomes are `CapabilityResponse` → `OutcomeEnvelope`
+→ `EOSOutcomeReceiver.on_outcome()` → log + correlation cleanup. The inserted
+row_id flows through `result_data` so the pipeline knows what was created.
+Phase 4 adds writeback (same as Notion Phase 4 pattern).
+
+Outcome payload shape for each capability:
+
+| Capability | `result_data` |
+|---|---|
+| `create_event` | `{event_id: uuid}` |
+| `create_client` | `{client_id: uuid}` |
+| `update_venture` | `{venture_id: uuid, updated: true, fields_changed: [...]}` |
+
+---
+
+### Open Decision 7: Permission Model
+
+**Question:** Phase 1 uses `neondb_owner` (BYPASSRLS, full DDL/DML). Phase 2
+adds writes. Should it constrain to a dedicated role?
+
+**Options:**
+
+- **A. Stay with `neondb_owner` for Phase 2 (Recommended).** The system is
+  single-founder, single-VPS. UMH is a trusted system process running on
+  the same machine. The writes are three specific INSERT/UPDATE statements
+  behind Python validation. Adding a `umh_writer` role requires a migration
+  + GRANT statements + testing — overhead that doesn't reduce actual risk
+  in the current deployment topology.
+
+- B. Create `umh_writer` role now. `GRANT INSERT ON events, clients TO umh_writer`.
+  `GRANT UPDATE (monthly_revenue, stage) ON ventures TO umh_writer`. Least-privilege.
+  Prevents accidental DDL or writes to other tables.
+
+- C. Use `eos_app` role (if it exists) with RLS. Requires `SET LOCAL app.current_org_id`
+  per transaction. Most correct but heaviest.
+
+**Recommendation: A.** Defer to Phase 3 or multi-tenant milestone. Document the
+future migration path: create `umh_writer` role, grant specific table + column
+permissions, update `EOS_DATABASE_URL` connection string. The `tables.py` helpers
+already constrain which tables and columns UMH touches — the role would be a
+defense-in-depth layer, not a functional change.
+
+---
+
+### Open Decision 8: Failure Modes
+
+**Question:** Notion Phase 2 returns `success:false` with the API error
+(rate limit, not found, validation). EOS errors are local Postgres, not
+transient external API. Same pattern, or different?
+
+**Options:**
+
+- **A. Same CapabilityResponse pattern, no retry (Recommended).** Postgres
+  errors from the same Neon cluster are either:
+  - Constraint violations (bad data) → not retryable, return `success:false` + error
+  - Connection failures → infrastructure problem, not transient API throttling
+
+  Unlike Notion's 429 (retry after backoff), a local Postgres error means
+  something is structurally wrong. Handler catches `psycopg2.Error`, wraps
+  it in `CapabilityResponse(success=False, error=..., raw_error=...)`.
+  No automatic retry. No circuit breaker.
+
+- B. Add retry with backoff. Treat connection errors as transient (Neon
+  cold-start, network blip). Retry once after 1s.
+
+- C. Circuit breaker. After N consecutive Postgres failures, mark EOS
+  integration as `degraded` and stop accepting capability requests for
+  a cooldown period.
+
+**Recommendation: A for Phase 2.** The connection retry already exists in
+`poller.py:_get_connection()` (reconnect on `OperationalError`). For
+capability handlers, a failed INSERT is almost always bad data, not a
+transient network issue. Surface the error, let the pipeline/governance
+layer decide whether to retry.
+
+Exception: if `_get_connection()` (or equivalent) fails for the handler,
+it should attempt ONE reconnect (same pattern as the poller) before
+returning `success:false`. This is a connection-level retry, not a
+statement-level retry.
+
+---
+
+### Implementation Plan (not yet started)
+
+Pending resolution of the 8 decisions above. Expected scope:
+
+**Files modified:**
+- `services/umh/integrations/eos/manifest.py` — add 3 capability descriptors
+- `services/umh/integrations/eos/tables.py` — add `insert_event()`, `insert_client()`, `update_venture()` with validation
+- `services/umh/integrations/eos/handlers.py` — add `_create_event()`, `_create_client()`, `_update_venture()` handler methods
+- `services/umh/integrations/eos/outcomes.py` — no change (Phase 4)
+- `services/umh/control_plane/app.py` — no change (handler already registered)
+
+**Files created:**
+- None expected (all additions go into existing files)
+
+**Tests:**
+- `services/umh/tests/test_eos_tables.py` — add insert/update helper tests
+- `services/umh/tests/test_eos_handlers.py` — new file, handler unit tests for 3 capabilities
+- `services/umh/tests/test_eos_integration.py` — add schema assertion tests (Decision 2)
+
+---
+
 ## 12. Implementation Status
 
 ### Phase 1: Postgres Poll + Noop Dispatch — **IMPLEMENTED**
