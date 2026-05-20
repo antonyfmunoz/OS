@@ -4,18 +4,23 @@
 Usage:
     python3 scripts/smoke_notion.py <database_id>                    # create_page only (default)
     SMOKE_OPS="create,update,append,query" python3 scripts/smoke_notion.py <database_id>
+    SMOKE_OPS="writeback" python3 scripts/smoke_notion.py <database_id>
 
 The database_id can be a UUID or a logical name from NOTION_*_DB env vars.
-Operations: create (default), update, append, query. Set SMOKE_OPS to run multiple.
+Operations: create (default), update, append, query, writeback.
+Set SMOKE_OPS to run multiple.
 """
 
 from __future__ import annotations
 
+import json
 import os
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+import httpx
 from dotenv import load_dotenv
 
 _repo_root = Path(__file__).resolve().parent.parent
@@ -127,6 +132,101 @@ def smoke_query(client: object, db_id: str) -> None:
         print(f"    page_id={r['page_id']} url={r['url']}")
 
 
+def _ensure_umh_status_property(client: object, db_id: str) -> None:
+    """Ensure the target database has the 'UMH Status' select property."""
+    db = client.databases.retrieve(database_id=db_id)  # type: ignore[union-attr]
+    if "UMH Status" in db.get("properties", {}):
+        return
+    print("  adding 'UMH Status' select property to database...")
+    client.request(  # type: ignore[union-attr]
+        path=f"databases/{db_id}",
+        method="PATCH",
+        body={
+            "properties": {
+                "UMH Status": {
+                    "select": {
+                        "options": [
+                            {"name": "Success", "color": "green"},
+                            {"name": "Error", "color": "red"},
+                            {"name": "Blocked", "color": "orange"},
+                            {"name": "Timeout", "color": "yellow"},
+                            {"name": "Unknown", "color": "gray"},
+                        ]
+                    }
+                }
+            }
+        },
+    )
+    print("  'UMH Status' property created")
+
+
+def smoke_writeback(client: object, db_id: str) -> None:
+    """End-to-end writeback smoke: create page → submit with writeback_to → verify status + callout."""
+    umh_base = os.getenv("UMH_BASE_URL", "http://localhost:8093")
+
+    _ensure_umh_status_property(client, db_id)
+
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    title = f"[UMH-TEST] Writeback smoke {timestamp}"
+    payload = build_create_page_payload(db_id, title)
+    print(f"\n--- writeback (step 1/3: create test page) ---")
+    response = client.pages.create(**payload)  # type: ignore[union-attr]
+    result = extract_create_page_result(response)
+    page_id = result["page_id"]
+    print(f"  created page_id={page_id}")
+
+    print(f"\n--- writeback (step 2/3: submit with writeback_to) ---")
+    submit_payload = {
+        "content": f"writeback smoke test {timestamp}",
+        "risk_class": "READ_ONLY",
+        "adapter_name": "shell",
+        "operation": "generic",
+        "params": {},
+        "pre_approved": True,
+        "writeback_to": {"page_id": page_id, "integration": "notion"},
+    }
+    print(f"  POST {umh_base}/api/umh/submit")
+    resp = httpx.post(f"{umh_base}/api/umh/submit", json=submit_payload, timeout=30)
+    if resp.status_code != 200:
+        raise RuntimeError(f"submit failed: {resp.status_code} {resp.text}")
+    submit_result = resp.json()
+    print(f"  submit response: {json.dumps(submit_result, indent=2)}")
+
+    time.sleep(2)
+
+    print(f"\n--- writeback (step 3/3: verify page updated) ---")
+    page = client.pages.retrieve(page_id=page_id)  # type: ignore[union-attr]
+    props = page.get("properties", {})
+    umh_status = props.get("UMH Status", {})
+    status_select = umh_status.get("select", {})
+    status_name = status_select.get("name", "<not set>") if status_select else "<not set>"
+    print(f"  UMH Status property: {status_name}")
+
+    blocks_resp = client.blocks.children.list(block_id=page_id)  # type: ignore[union-attr]
+    blocks = blocks_resp.get("results", [])
+    callout_found = False
+    for block in blocks:
+        if block.get("type") == "callout":
+            callout = block["callout"]
+            text_parts = callout.get("rich_text", [])
+            if text_parts:
+                content = text_parts[0].get("text", {}).get("content", "")
+                if "[UMH]" in content:
+                    callout_found = True
+                    print(f"  callout block: {content[:120]}")
+                    break
+
+    if status_name in ("Success", "Error", "Blocked", "Timeout", "Unknown"):
+        print(f"  PASS: UMH Status = {status_name}")
+    else:
+        raise RuntimeError(f"UMH Status not set correctly: got '{status_name}'")
+
+    if callout_found:
+        print(f"  PASS: callout block appended")
+    else:
+        raise RuntimeError("callout block not found on page")
+
+
 def main() -> None:
     if len(sys.argv) < 2:
         databases = discover_database_ids()
@@ -134,7 +234,7 @@ def main() -> None:
         for name, uid in sorted(databases.items()):
             print(f"  {name} → {uid}")
         print(f"\nUsage: python3 {sys.argv[0]} <database_id_or_logical_name>")
-        print("Set SMOKE_OPS='create,update,append,query' to test all operations.")
+        print("Set SMOKE_OPS='create,update,append,query,writeback' to test all operations.")
         sys.exit(1)
 
     raw_db_id = sys.argv[1]
@@ -164,8 +264,10 @@ def main() -> None:
                 smoke_append(client, page_id)
             elif op == "query":
                 smoke_query(client, db_id)
+            elif op == "writeback":
+                smoke_writeback(client, db_id)
             else:
-                print(f"\n--- {op} UNKNOWN (valid: create, update, append, query) ---")
+                print(f"\n--- {op} UNKNOWN (valid: create, update, append, query, writeback) ---")
                 failures.append(op)
         except Exception as exc:
             print(f"\n  FAILED: {type(exc).__name__}: {exc}")

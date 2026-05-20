@@ -8,6 +8,7 @@ import sys
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any
+from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,6 +17,7 @@ from pydantic import BaseModel, Field
 from ..governance.risk_classes import RiskClass
 from ..protocols.signal import Signal, SignalSource, SignalUrgency
 from ..sockets.capability_socket import CapabilitySocket
+from ..sockets.envelopes import OutcomeEnvelope
 from ..sockets.outcome_socket import OutcomeSocket
 from ..sockets.registry import IntegrationManifest, IntegrationRegistry
 from ..sockets.signal_socket import SignalSocket
@@ -23,6 +25,7 @@ from ..sockets.view.broadcaster import ViewFrameBroadcaster, make_pipeline_liste
 from ..sockets.view.websocket import broadcast_frame, ws_endpoint
 from ..sockets.view_socket import ViewSocket
 from ..execution.executor import build_default_executor
+from ..integrations.notion.correlation import CorrelationMap, WritebackTarget
 from .pipeline import ExecutionPipeline
 from .runtime import SubstrateRuntime
 
@@ -34,14 +37,21 @@ _view_socket = ViewSocket()
 _executor = build_default_executor()
 _pipeline = ExecutionPipeline(executor=_executor)
 _broadcaster: ViewFrameBroadcaster | None = None
+_correlation_map = CorrelationMap()
+_notion_outcome_receiver: Any = None
 
 
 def _register_notion_integration() -> None:
     """Wire the Notion integration through IntegrationRegistry."""
+    global _notion_outcome_receiver
     try:
+        from ..integrations.notion.auth import get_notion_client
         from ..integrations.notion.handlers import NotionCapabilityHandler
-        from ..integrations.notion.signals import NotionSignalEmitter
         from ..integrations.notion.outcomes import NotionOutcomeReceiver
+        from ..integrations.notion.signals import NotionSignalEmitter
+
+        client = get_notion_client()
+        _notion_outcome_receiver = NotionOutcomeReceiver(client, _correlation_map)
 
         signal_socket = SignalSocket()
         capability_socket = CapabilitySocket()
@@ -55,7 +65,7 @@ def _register_notion_integration() -> None:
             integration_id="notion",
             signal_emitter=NotionSignalEmitter(),
             capability_handler=NotionCapabilityHandler(),
-            outcome_receiver=NotionOutcomeReceiver(),
+            outcome_receiver=_notion_outcome_receiver,
         )
 
         adapter = registry.register(manifest)
@@ -175,6 +185,13 @@ async def violations():
     ]
 
 
+class WritebackTo(BaseModel):
+    """Target for outcome writeback."""
+
+    page_id: str
+    integration: str = "notion"
+
+
 class SubmitRequest(BaseModel):
     """Direct pipeline submission — runs the full 10-stage pipeline."""
 
@@ -184,6 +201,7 @@ class SubmitRequest(BaseModel):
     operation: str = "generic"
     params: dict[str, Any] = Field(default_factory=dict)
     pre_approved: bool = False
+    writeback_to: WritebackTo | None = None
 
 
 @app.post("/api/umh/submit")
@@ -192,6 +210,7 @@ async def pipeline_submit(req: SubmitRequest):
 
     Runs synchronously in a thread pool. ViewFrames are emitted at
     every pipeline stage and broadcast to WebSocket clients.
+    If writeback_to is set, the outcome is written back to the target Notion page.
     """
     if not _runtime.is_running:
         raise HTTPException(status_code=503, detail="Substrate runtime not started")
@@ -200,6 +219,17 @@ async def pipeline_submit(req: SubmitRequest):
         risk = RiskClass[req.risk_class]
     except KeyError:
         raise HTTPException(status_code=400, detail=f"Unknown risk_class: {req.risk_class}")
+
+    correlation_id = uuid4() if req.writeback_to else None
+
+    if req.writeback_to and correlation_id:
+        _correlation_map.register(
+            correlation_id,
+            WritebackTarget(
+                page_id=req.writeback_to.page_id,
+                integration=req.writeback_to.integration,
+            ),
+        )
 
     loop = asyncio.get_running_loop()
     result = await loop.run_in_executor(
@@ -213,6 +243,21 @@ async def pipeline_submit(req: SubmitRequest):
             pre_approved=req.pre_approved,
         ),
     )
+
+    if correlation_id and _notion_outcome_receiver and result.outcome_type:
+        envelope = OutcomeEnvelope(
+            outcome_id=uuid4(),
+            signal_id=result.signal_id,
+            trace_id=result.trace_id,
+            integration_id="notion",
+            outcome_type=result.outcome_type,
+            summary=f"{result.outcome_type}: {req.content[:200]}",
+            correlation_id=correlation_id,
+        )
+        try:
+            _notion_outcome_receiver.on_outcome(envelope)
+        except Exception as exc:
+            logger.error("outcome writeback dispatch failed: %s", exc)
 
     return {
         "trace_id": str(result.trace_id),

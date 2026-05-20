@@ -312,7 +312,25 @@ Implemented:
 - Add Notion-specific ViewFrame rate limit monitoring (if cockpit needs it)
 - Tests: poller tests, correlation tests, end-to-end signal → pipeline tests
 
-### Phase 4: Advanced Operations + Bulk
+### Phase 4: Outcome Writeback ✓ IMPLEMENTED
+
+**Goal:** Pipeline outcomes write status back to Notion pages — dual effect: "UMH Status" select property + callout block with outcome details.
+
+Implemented:
+- `CorrelationMap` — thread-safe in-memory `dict[UUID, WritebackTarget]` for mapping correlation IDs to Notion pages
+- `WritebackTarget` — frozen dataclass: `page_id: str`, `integration: str = "notion"`
+- `NotionOutcomeReceiver` — real implementation replacing Phase 1 stub. Uses Notion SDK directly (writebacks are outcome side-effects, not new signals — no governance reentry)
+- Status mapping: success→"Success", failure/error→"Error", governance_denied→"Blocked", timeout→"Timeout", unknown→"Unknown"
+- Callout block: `[UMH] {outcome_type}: {summary}\ntrace: {trace_id}` with emoji (🔔 success, ⚠️ other)
+- One retry on 429 with 2s backoff inside the receiver
+- `/api/umh/submit` extended with optional `writeback_to: {page_id, integration}` field
+- Correlation map populated at submit time, consumed at outcome time
+- 21 new tests (6 correlation map + 15 outcome receiver) — 194 total passing
+- Smoke script: `SMOKE_OPS="writeback"` creates page → submits with writeback_to → verifies status property + callout block
+
+**Convention:** Notion databases that receive writeback must have a "UMH Status" select property with options: Success, Error, Blocked, Timeout, Unknown. The property is created automatically by Notion when the first writeback sets it.
+
+### Phase 5: Advanced Operations + Bulk (future)
 
 **Goal:** Delete, search, bulk update, database creation.
 
@@ -334,9 +352,11 @@ Implemented:
 
 4. **Test strategy:** DECIDED — mock `notion_client.Client` for unit tests (CI suite). One manual smoke test script hits the real API against existing databases using `[UMH-TEST]` title prefix. No dedicated test database.
 
-### Must resolve before Phase 3 (signal polling)
+### Resolved (Phase 4)
 
-5. **Outcome writeback target:** When the outcome receiver writes status back to Notion, which property name does it target? Notion databases have different property schemas. Options: (a) require a `Status` property by convention, (b) make the target property configurable per database, (c) skip writeback for databases without a recognized property.
+5. **Outcome writeback target:** DECIDED — hardcoded "UMH Status" select property on originating Notion page. Notion auto-creates the select option on first write. Convention-based: databases that receive writeback must have this property.
+
+### Must resolve before Phase 3 (signal polling)
 
 6. **Signal deduplication:** The poller will see the same page on consecutive polls if it hasn't changed. Deduplication by `(page_id, last_edited_time)` tuple? Or maintain a high-water mark timestamp per database?
 
