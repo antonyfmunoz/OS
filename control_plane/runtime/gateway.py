@@ -1226,7 +1226,7 @@ class EntrepreneurOSGateway:
                             get_metric_rules,
                             get_decision_rules,
                             get_stage_rules,
-                            get_hormozi_rules,
+                            get_growth_rules,
                         )
 
                         _ceo_section_map = {
@@ -1242,7 +1242,7 @@ class EntrepreneurOSGateway:
                             _task_class, get_constraint_rules
                         )
                         _ceo_deep = _getter()
-                        _ceo_deep += "\n" + get_hormozi_rules()
+                        _ceo_deep += "\n" + get_growth_rules()
                         if _task_class != "constraint":
                             _ceo_deep += "\n" + get_delegation_rules()
                         prompt_text = (
