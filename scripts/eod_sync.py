@@ -199,7 +199,7 @@ def build_eod_message() -> str:
     sections.append(
         '**⚡ Energy Check-in:**\n'
         '`!energy [1-10] | [what drained you] | [what energized you]`\n'
-        '_Feeds your DRIP Matrix and helps DEX protect your energy._'
+        '_Feeds your Task Yield Matrix and helps DEX protect your energy._'
     )
 
     body = '\n\n'.join(sections) if sections else 'No activity logged today.'
