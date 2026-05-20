@@ -35,6 +35,7 @@ class NotionCapabilityHandler:
 
     Satisfies CapabilityHandler Protocol structurally.
     Phase 1: create_page. Phase 2: update_page, append_block, query_database.
+    Phase 3: noop (signal acknowledgement, no external action).
     """
 
     def __init__(self) -> None:
@@ -59,6 +60,7 @@ class NotionCapabilityHandler:
             "update_page": self._update_page,
             "append_block": self._append_block,
             "query_database": self._query_database,
+            "noop": self._noop,
         }
 
         handler = handler_map.get(request.capability_name)
@@ -175,6 +177,10 @@ class NotionCapabilityHandler:
             body=body,
         )
         return extract_query_database_result(response)
+
+    def _noop(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Acknowledge a signal without making any Notion API call."""
+        return {"received": True, "page_id": params.get("page_id", "")}
 
     def _retry_once(
         self,

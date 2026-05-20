@@ -5,9 +5,10 @@ Usage:
     python3 scripts/smoke_notion.py <database_id>                    # create_page only (default)
     SMOKE_OPS="create,update,append,query" python3 scripts/smoke_notion.py <database_id>
     SMOKE_OPS="writeback" python3 scripts/smoke_notion.py <database_id>
+    SMOKE_OPS="signal" python3 scripts/smoke_notion.py <database_id>
 
 The database_id can be a UUID or a logical name from NOTION_*_DB env vars.
-Operations: create (default), update, append, query, writeback.
+Operations: create (default), update, append, query, writeback, signal.
 Set SMOKE_OPS to run multiple.
 """
 
@@ -227,6 +228,73 @@ def smoke_writeback(client: object, db_id: str) -> None:
         raise RuntimeError("callout block not found on page")
 
 
+def smoke_signal(client: object, db_id: str) -> None:
+    """Signal polling smoke: create page in polled DB → wait for poller → verify writeback.
+
+    Requires NOTION_SIGNAL_SOURCES env var set and UMH server running with poller active.
+    """
+    signal_sources = os.getenv("NOTION_SIGNAL_SOURCES", "")
+    if not signal_sources:
+        print("\n--- signal SKIPPED: NOTION_SIGNAL_SOURCES env var not set ---")
+        print("  Set NOTION_SIGNAL_SOURCES to a comma-separated list of database logical names")
+        return
+
+    umh_base = os.getenv("UMH_BASE_URL", "http://localhost:8093")
+
+    _ensure_umh_status_property(client, db_id)
+
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    title = f"[UMH-TEST] Signal smoke {timestamp}"
+    payload = build_create_page_payload(db_id, title)
+    print(f"\n--- signal (step 1/3: create test page in polled DB) ---")
+    response = client.pages.create(**payload)  # type: ignore[union-attr]
+    result = extract_create_page_result(response)
+    page_id = result["page_id"]
+    print(f"  created page_id={page_id} url={result['url']}")
+
+    poll_interval = 30
+    wait_time = poll_interval + 15
+    print(f"\n--- signal (step 2/3: waiting {wait_time}s for poller cycle) ---")
+    for remaining in range(wait_time, 0, -10):
+        print(f"  {remaining}s remaining...")
+        time.sleep(min(10, remaining))
+
+    print(f"\n--- signal (step 3/3: verify page UMH Status set by writeback) ---")
+    page = client.pages.retrieve(page_id=page_id)  # type: ignore[union-attr]
+    props = page.get("properties", {})
+    umh_status = props.get("UMH Status", {})
+    status_select = umh_status.get("select", {})
+    status_name = status_select.get("name", "<not set>") if status_select else "<not set>"
+    print(f"  UMH Status property: {status_name}")
+
+    blocks_resp = client.blocks.children.list(block_id=page_id)  # type: ignore[union-attr]
+    blocks = blocks_resp.get("results", [])
+    callout_found = False
+    for block in blocks:
+        if block.get("type") == "callout":
+            callout = block["callout"]
+            text_parts = callout.get("rich_text", [])
+            if text_parts:
+                content = text_parts[0].get("text", {}).get("content", "")
+                if "[UMH]" in content:
+                    callout_found = True
+                    print(f"  callout block: {content[:120]}")
+                    break
+
+    if status_name in ("Success", "Error", "Blocked", "Timeout", "Unknown"):
+        print(f"  PASS: UMH Status = {status_name} (poller → pipeline → writeback confirmed)")
+    else:
+        raise RuntimeError(
+            f"UMH Status not set by poller: got '{status_name}'. "
+            f"Check NOTION_SIGNAL_SOURCES includes this database and poller is running."
+        )
+
+    if callout_found:
+        print(f"  PASS: callout block appended by writeback")
+    else:
+        raise RuntimeError("callout block not found — writeback may not have fired")
+
+
 def main() -> None:
     if len(sys.argv) < 2:
         databases = discover_database_ids()
@@ -234,7 +302,7 @@ def main() -> None:
         for name, uid in sorted(databases.items()):
             print(f"  {name} → {uid}")
         print(f"\nUsage: python3 {sys.argv[0]} <database_id_or_logical_name>")
-        print("Set SMOKE_OPS='create,update,append,query,writeback' to test all operations.")
+        print("Set SMOKE_OPS='create,update,append,query,writeback,signal' to test all operations.")
         sys.exit(1)
 
     raw_db_id = sys.argv[1]
@@ -266,8 +334,12 @@ def main() -> None:
                 smoke_query(client, db_id)
             elif op == "writeback":
                 smoke_writeback(client, db_id)
+            elif op == "signal":
+                smoke_signal(client, db_id)
             else:
-                print(f"\n--- {op} UNKNOWN (valid: create, update, append, query, writeback) ---")
+                print(
+                    f"\n--- {op} UNKNOWN (valid: create, update, append, query, writeback, signal) ---"
+                )
                 failures.append(op)
         except Exception as exc:
             print(f"\n  FAILED: {type(exc).__name__}: {exc}")
