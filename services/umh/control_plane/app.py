@@ -120,7 +120,10 @@ def _register_eos_integration() -> None:
 
         eos_correlation_map = EOSCorrelationMap()
         emitter = EOSSignalEmitter()
-        outcome_receiver = EOSOutcomeReceiver(eos_correlation_map)
+        outcome_receiver = EOSOutcomeReceiver(
+            database_url=config["database_url"],
+            correlation_map=eos_correlation_map,
+        )
 
         signal_socket = SignalSocket()
         capability_socket = CapabilitySocket()

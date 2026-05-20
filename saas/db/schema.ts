@@ -174,6 +174,7 @@ export const ventures = pgTable('ventures', {
   configJson:     jsonb('config_json').notNull().default({}),
   monthlyRevenue: numeric('monthly_revenue', { precision: 12, scale: 2 }).notNull().default('0'),
   monthlyTarget:  numeric('monthly_target', { precision: 12, scale: 2 }).notNull().default('0'),
+  umhStatus:      text('umh_status'),
   createdAt:      timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   orgIdx: index('idx_ventures_org_id').on(t.orgId),
@@ -267,6 +268,7 @@ export const events = pgTable('events', {
   eventType:   text('event_type').notNull(),
   payloadJson: jsonb('payload_json').notNull().default({}),
   handledBy:   text('handled_by'),
+  umhStatus:   text('umh_status'),
   createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   orgIdx:     index('idx_events_org_id').on(t.orgId),
@@ -374,6 +376,33 @@ export type Outcome    = typeof outcomes.$inferSelect
 export type NewOutcome = typeof outcomes.$inferInsert
 
 // ─────────────────────────────────────────────────────────────────────────────
+// UMH OUTCOMES
+// Pipeline outcome audit trail — tracks what UMH did to EOS data.
+// Separate from outcomes (interaction-scoped AI quality tracking).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const umhOutcomes = pgTable('umh_outcomes', {
+  id:            uuid('id').primaryKey().defaultRandom(),
+  orgId:         uuid('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  traceId:       text('trace_id').notNull(),
+  sourceTable:   text('source_table').notNull(),
+  sourceRowId:   uuid('source_row_id'),
+  outcomeType:   text('outcome_type').notNull(),
+  severity:      integer('severity').notNull(),
+  payload:       jsonb('payload').notNull().default({}),
+  createdAt:     timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  orgIdx:     index('idx_umh_outcomes_org_id').on(t.orgId),
+  traceIdx:   index('idx_umh_outcomes_trace_id').on(t.traceId),
+  sourceIdx:  index('idx_umh_outcomes_source').on(t.sourceTable, t.sourceRowId),
+  orgCreated: index('idx_umh_outcomes_org_created').on(t.orgId, t.createdAt),
+  typeIdx:    index('idx_umh_outcomes_type').on(t.outcomeType),
+}))
+
+export type UmhOutcome    = typeof umhOutcomes.$inferSelect
+export type NewUmhOutcome = typeof umhOutcomes.$inferInsert
+
+// ─────────────────────────────────────────────────────────────────────────────
 // HUMAN PROFILES
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -449,6 +478,7 @@ export const clients = pgTable('clients', {
   status:    text('status').notNull().default('lead'),  // lead/prospect/client/fulfilled/churned
   source:    text('source').notNull().default('unknown'),
   notes:     text('notes').default(''),
+  umhStatus: text('umh_status'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
