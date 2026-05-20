@@ -752,14 +752,16 @@ class TestNotionSignalEmitter:
 
 class TestNotionOutcomeReceiver:
     def test_satisfies_protocol(self) -> None:
+        from services.umh.integrations.notion.correlation import CorrelationMap
         from services.umh.integrations.notion.outcomes import NotionOutcomeReceiver
 
-        receiver = NotionOutcomeReceiver()
+        receiver = NotionOutcomeReceiver(MagicMock(), CorrelationMap())
         assert isinstance(receiver, OutcomeReceiver)
         assert receiver.integration_id == "notion"
 
     def test_accepts_all_outcomes(self) -> None:
+        from services.umh.integrations.notion.correlation import CorrelationMap
         from services.umh.integrations.notion.outcomes import NotionOutcomeReceiver
 
-        receiver = NotionOutcomeReceiver()
+        receiver = NotionOutcomeReceiver(MagicMock(), CorrelationMap())
         assert receiver.accepts_outcomes() == []
