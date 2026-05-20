@@ -1051,3 +1051,413 @@ dispatched through the existing handler path.
 - `services/umh/tests/test_eos_integration.py` — 3 new schema assertion tests (events, clients, ventures column types)
 
 **Test totals:** 312 passed, 9 skipped (integration), 0 failed.
+
+---
+
+## Phase 3 Design (Outcome Writeback)
+
+Phase 3 replaces the log-only `EOSOutcomeReceiver` stub with real writeback:
+when a UMH pipeline outcome arrives for an EOS-originated signal, the receiver
+writes the result back to EOS Postgres so it's visible in the cockpit and
+queryable for audit.
+
+### Reference: Notion Phase 4 Writeback Pattern
+
+Notion writes back in two shapes:
+1. **Status property** — `UMH Status` select field on the source page (at-a-glance)
+2. **Callout block** — appended to the page body with outcome summary + trace_id (audit trail)
+
+EOS has no "page body" equivalent. The analogous shapes are:
+1. **Column update** — add `umh_status` column to source tables (at-a-glance)
+2. **Audit table** — INSERT into a dedicated `umh_outcomes` table (full audit trail)
+
+### Existing EOS `outcomes` Table — NOT Suitable
+
+The existing `outcomes` table (`saas/db/schema.ts` lines 359-374) is:
+- FK-coupled to `interactions.id` (required, NOT NULL, CASCADE)
+- Typed via `outcome_type_enum` (`positive|negative|neutral|skipped`)
+- Designed for AI execution quality tracking, not pipeline outcome logging
+
+UMH pipeline outcomes have different semantics:
+- Not tied to an `interaction` — tied to a `signal` and `trace`
+- Outcome types: `success|failure|error|governance_denied|timeout`
+- Contain `result_data`, `governance_decision`, `confidence`, `duration_ms`
+- Need to reference the source table and row, not an interaction
+
+Reusing `outcomes` would require breaking its FK constraint, changing its enum,
+and overloading its purpose. A new table is cleaner.
+
+---
+
+### Open Decision 1: Writeback Target Shape
+
+**Question:** Where does UMH write the outcome — source row, audit table, or both?
+
+**Options:**
+
+- A. **UPDATE the source row** with new `umh_status` / `umh_outcome_summary` columns
+  added to `events`, `clients`, and `ventures` tables. Outcomes are co-located
+  with the data they describe. Schema change required (3 ALTER TABLEs).
+
+- B. **INSERT into a new `umh_outcomes` table** tracking `(trace_id, source_table,
+  source_row_id, outcome_type, payload, created_at)`. Outcomes are decoupled,
+  audit-friendly, queryable by trace. Schema change required (1 CREATE TABLE).
+  Requires a JOIN to see per-row outcomes.
+
+- **C. Both (Recommended).** UPDATE source row `umh_status` for at-a-glance
+  cockpit visibility + INSERT into `umh_outcomes` for full audit trail.
+  This mirrors Notion's dual writeback (status property + callout block).
+
+**Recommendation: C.** The dual approach solved the same tension in Notion:
+operators want at-a-glance status on the source object, auditors want the
+full trace history. The source-row UPDATE is a single column (`umh_status text`),
+cheap to add and read. The audit INSERT captures everything the log currently
+captures but makes it queryable.
+
+---
+
+### Open Decision 2: Schema Migration
+
+**Question:** What columns/tables need to be added via Drizzle migration?
+
+#### 2a. Source row columns (for Decision 1 option A or C)
+
+Add `umh_status` column to each table UMH writes outcomes for:
+
+```typescript
+// events — add after handledBy
+umhStatus: text('umh_status'),  // nullable, values: success|failure|error|governance_denied|timeout
+
+// clients — add after updatedAt
+umhStatus: text('umh_status'),  // nullable, same values
+
+// ventures — add after createdAt
+umhStatus: text('umh_status'),  // nullable, same values
+```
+
+All three are:
+- `text` type (not enum — outcome types may expand without migration)
+- Nullable (existing rows have no UMH outcome)
+- No FK constraint
+- No index initially (add when query patterns demand it)
+
+#### 2b. Audit table (for Decision 1 option B or C)
+
+```typescript
+export const umhOutcomes = pgTable('umh_outcomes', {
+  id:              uuid('id').primaryKey().defaultRandom(),
+  orgId:           uuid('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  traceId:         uuid('trace_id').notNull(),
+  signalId:        uuid('signal_id').notNull(),
+  correlationId:   uuid('correlation_id'),
+  sourceTable:     text('source_table').notNull(),    // 'events' | 'clients' | 'ventures'
+  sourceRowId:     uuid('source_row_id').notNull(),
+  outcomeType:     text('outcome_type').notNull(),    // success|failure|error|governance_denied|timeout
+  summary:         text('summary').notNull(),
+  resultData:      jsonb('result_data').notNull().default({}),
+  governanceDecision: text('governance_decision'),
+  confidence:      numeric('confidence', { precision: 4, scale: 3 }),
+  durationMs:      numeric('duration_ms', { precision: 10, scale: 1 }),
+  errorClass:      text('error_class'),               // only for outcome_type=error|failure
+  errorMessage:    text('error_message'),              // only for outcome_type=error|failure
+  stageFailed:     text('stage_failed'),               // pipeline stage where failure occurred
+  createdAt:       timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  orgIdx:       index('idx_umh_outcomes_org_id').on(t.orgId),
+  traceIdx:     index('idx_umh_outcomes_trace_id').on(t.traceId),
+  sourceIdx:    index('idx_umh_outcomes_source').on(t.sourceTable, t.sourceRowId),
+  orgCreated:   index('idx_umh_outcomes_org_created').on(t.orgId, t.createdAt),
+  typeIdx:      index('idx_umh_outcomes_type').on(t.outcomeType),
+}))
+```
+
+#### 2c. Migration safety
+
+Both changes are **purely additive**:
+- `ALTER TABLE events ADD COLUMN umh_status text` — nullable column, no default, no data rewrite
+- `ALTER TABLE clients ADD COLUMN umh_status text` — same
+- `ALTER TABLE ventures ADD COLUMN umh_status text` — same
+- `CREATE TABLE umh_outcomes (...)` — new table, no existing data affected
+
+No existing columns renamed, dropped, or type-changed. No NOT NULL on new columns.
+Drizzle `generate` + `migrate` will produce clean additive SQL. Zero risk to existing data.
+
+---
+
+### Open Decision 3: Polled-Signal vs Capability-Direct Outcomes
+
+**Question:** Poll-originated signals have a pre-existing source row (the polled row).
+Capability-originated signals (`create_event`, `create_client` via `/submit`) don't
+have a pre-existing source — they CREATE the row. How does writeback handle each origin?
+
+**Options:**
+
+- A. **Poll-originated only.** Writeback only applies to signals that came from the
+  poller. Capability-originated outcomes emit via OutcomeSocket but skip writeback.
+  Simple. Loses audit trail for UMH-initiated actions.
+
+- **B. Both origins, using the handler's INSERT result (Recommended).** For poll-originated
+  signals: writeback target = the polled row (already in `EOSCorrelationMap`). For
+  capability-originated signals: the handler's `CapabilityResponse.result_data` contains
+  the new row_id (`event_id`, `client_id`, `venture_id`). The outcome dispatcher
+  registers this in the correlation map AFTER the capability succeeds, before the
+  outcome arrives.
+
+- C. Capability-originated outcomes skip source-row UPDATE but still INSERT into
+  `umh_outcomes`. The source row is too fresh to need a status update — the
+  outcome IS the creation.
+
+**Recommendation: B.** The correlation map already stores
+`EOSWritebackTarget(org_id, table_name, row_id)`. For poll-originated signals,
+the poller registers the target at signal emission time. For capability-originated
+signals, the handler registers the target after a successful INSERT, using the
+returned row_id. When the outcome arrives, the receiver looks up the target
+identically in both cases. The `umh_outcomes` audit INSERT happens for both.
+
+For the source-row `umh_status` UPDATE on capability-direct: the handler could
+set `umh_status` inline during the INSERT (e.g., `INSERT INTO events (..., umh_status)
+VALUES (..., 'success')`) rather than as a separate UPDATE. This is a micro-optimization
+that avoids a round-trip. The receiver still does the audit INSERT.
+
+---
+
+### Open Decision 4: Failure Outcome Handling
+
+**Question:** When a capability errors (`ValueError` validation or `psycopg2.Error`
+DB-level), the OutcomeSocket emits `outcome_type=error`. What's the failure outcome
+payload schema, and do failures still writeback?
+
+**Options:**
+
+- A. **Failures skip writeback entirely.** Only `success` outcomes write back.
+  Failures are logged but not persisted. Simplest. Loses failure audit trail.
+
+- **B. Failures writeback to audit table only, not source row (Recommended).**
+  A failed outcome means the source data may be in an inconsistent state —
+  writing `umh_status='error'` to it could be misleading (e.g., the row was
+  never modified by the failed capability). The audit table captures the full
+  failure context. Source row `umh_status` is only set on `success`, `timeout`,
+  and `governance_denied` (states where the row IS in a known state).
+
+- C. **Failures writeback everywhere.** Source row gets `umh_status='error'`
+  and the audit table gets the full error payload. Maximally visible.
+  Risk: source row `umh_status='error'` may alarm users without context.
+
+**Recommendation: B.** Failure outcome payload schema for `umh_outcomes` INSERT:
+
+| Field | Source | Example |
+|---|---|---|
+| `outcome_type` | `OutcomeEnvelope.outcome_type` | `"error"` |
+| `error_class` | Exception class name from handler | `"ValueError"`, `"psycopg2.IntegrityError"` |
+| `error_message` | Exception message (truncated to 500 chars) | `"org_id is required"` |
+| `stage_failed` | Pipeline stage where failure occurred | `"capability_execution"`, `"governance"` |
+| `summary` | `OutcomeEnvelope.summary` | `"error: create_client validation failed"` |
+
+Source-row `umh_status` UPDATE rules:
+
+| `outcome_type` | Source row `umh_status` | Audit INSERT |
+|---|---|---|
+| `success` | `'success'` | Yes |
+| `timeout` | `'timeout'` | Yes |
+| `governance_denied` | `'governance_denied'` | Yes |
+| `failure` | *(no update)* | Yes |
+| `error` | *(no update)* | Yes |
+
+---
+
+### Open Decision 5: Multi-Capability Correlation
+
+**Question:** If one signal triggers multiple capabilities (Phase 3.5+ intelligent
+routing), do all outcomes writeback to the same source row? Does `umh_status` get
+overwritten?
+
+**Options:**
+
+- A. **Last-write-wins.** Each outcome overwrites `umh_status`. The audit table
+  holds full history. Simple but `umh_status` may flip between states.
+
+- **B. Worst-outcome-wins for source row, all outcomes to audit table (Recommended).**
+  `umh_status` follows a severity ladder: `success < timeout < governance_denied < error`.
+  An UPDATE only sets `umh_status` if the new value is MORE severe than the current.
+  The audit table gets every outcome individually (separate rows with the same
+  `source_table` + `source_row_id`).
+
+- C. **Only the final outcome writes to source row.** Requires tracking
+  "final" in a multi-capability chain, which Phase 3 doesn't have infrastructure for.
+
+**Recommendation: B.** Severity ladder for `umh_status` (lowest → highest):
+
+```
+success → timeout → governance_denied → error
+```
+
+The receiver checks `current umh_status` before UPDATE:
+```sql
+UPDATE events SET umh_status = %s
+WHERE id = %s AND (
+  umh_status IS NULL
+  OR umh_status = 'success'
+  OR (umh_status = 'timeout' AND %s IN ('governance_denied', 'error'))
+  OR (umh_status = 'governance_denied' AND %s = 'error')
+)
+```
+
+In Phase 3.0 (single capability per signal), this is effectively last-write-wins.
+The ladder becomes load-bearing in Phase 3.5+ when multi-capability routing
+arrives. Building it now costs nothing and avoids a migration later.
+
+---
+
+### Open Decision 6: UI Visibility
+
+**Question:** If `umh_status` columns are added to `events`, `clients`, and `ventures`,
+they'll be readable via Drizzle ORM in the saas/ frontend. Is this desired, or should
+UMH columns be hidden from the EOS cockpit?
+
+**Options:**
+
+- **A. Visible by default (Recommended).** The whole point of writeback is cockpit
+  visibility. `umh_status` renders as a badge or tag in the event/client/venture
+  detail views. The frontend can add a `<UmhStatusBadge status={row.umhStatus} />`
+  component that renders nothing when null (backwards-compatible with existing UI).
+
+- B. **Private — filter out in ORM queries.** EOS API routes explicitly exclude
+  `umh_status` from SELECT. UMH columns are internal plumbing, not user-facing.
+  Requires updating every Drizzle select that touches these tables.
+
+- C. **Configurable — org-level toggle.** `organizations.config_json` gains a
+  `show_umh_status: boolean` flag. Frontend checks before rendering. Maximum
+  flexibility, more code.
+
+**Recommendation: A.** UMH status is valuable operational information for the founder.
+"This event was processed successfully by UMH" or "This client triage timed out"
+is exactly the kind of visibility EOS is built to provide. The column being nullable
+means existing rows render without it — no UI regression. Frontend change is a
+presentation concern (a component that shows the badge), not a data concern.
+
+The `umh_outcomes` audit table is also visible via Drizzle, queryable through a
+future "UMH Activity" cockpit view showing recent pipeline outcomes across all
+source tables.
+
+---
+
+### Open Decision 7: Correlation Map Lifecycle
+
+**Question:** `EOSCorrelationMap` is in-memory. If the process restarts mid-flight,
+in-flight outcomes are lost (the correlation_id maps to nothing). Is this acceptable?
+
+**Options:**
+
+- **A. In-memory is fine — accept restart loss (Recommended).** Same decision as
+  Notion Phase 4. Rationale:
+  - Pipeline execution is fast (sub-second for local Postgres operations)
+  - Window of vulnerability = time between signal registration and outcome delivery
+  - Single-VPS process restarts are rare and intentional (deploys, not crashes)
+  - Lost outcomes during restart = missed writeback, not data corruption
+  - The signal itself is already persisted (the polled row exists). Only the
+    writeback is lost — the outcome can be reconstructed from logs if needed.
+
+- B. **Postgres-backed correlation map.** INSERT on register, DELETE on outcome.
+  Survives restart. Adds a table + 2 queries per signal. Overkill for current
+  throughput.
+
+- C. **JSONL append-log** (same pattern as watermarks). Survives restart. Replay
+  on startup. Simpler than Postgres. Risk: stale entries accumulate if outcomes
+  never arrive.
+
+**Recommendation: A.** The restart-loss risk is bounded: it only affects signals
+whose outcome hasn't been delivered yet. At 15s poll intervals and sub-second
+capability execution, the window is ~1 second. The probability of a restart
+hitting that window is negligible. If it ever becomes a real problem (e.g.,
+long-running fulfillment tracking in Phase 3.5+), upgrade to B then.
+
+---
+
+### Open Decision 8: Outcome Socket Integration
+
+**Question:** How does `EOSOutcomeReceiver` wire into the outcome delivery path?
+The Notion receiver is called directly from `app.py` line 366
+(`_notion_outcome_receiver.on_outcome(envelope)`) — NOT through the OutcomeSocket.
+Should EOS follow the same pattern, or go through the socket?
+
+**Options:**
+
+- A. **Direct dispatch from app.py** (same as Notion). The submit handler builds
+  an `OutcomeEnvelope` and calls `eos_outcome_receiver.on_outcome()` directly.
+  Simple. Bypasses the governance loop (outcomes are side-effects, not new signals).
+  Matches existing Notion wiring.
+
+- **B. OutcomeSocket dispatch (Recommended).** The receiver is registered on the
+  `OutcomeSocket` via `_register_eos_integration()` (already happening — see
+  `app.py` line 137: `outcome_receiver=outcome_receiver`). The pipeline's outcome
+  stage calls `outcome_socket.notify(envelope)`, which routes to the correct
+  integration's receiver by `integration_id`. This is the socket pattern's intended
+  path.
+
+  Currently, Notion uses direct dispatch because the outcome socket wasn't fully
+  wired when Notion Phase 4 was built. EOS should use the socket — it's the
+  designed path, and the `EOSOutcomeReceiver` is already registered on it.
+
+- C. **Both — socket dispatch + direct fallback.** Socket is primary, direct call
+  is fallback if the socket is not initialized. Belt and suspenders.
+
+**Recommendation: B.** The OutcomeSocket already exists, the receiver is already
+registered, and the `notify()` path does exactly what direct dispatch does (look
+up receiver by `integration_id`, call `on_outcome()`, catch exceptions). Using
+the socket:
+- Removes the need for `app.py` to hold a reference to the receiver
+- Enables future `notify_all()` broadcasts (e.g., a monitoring receiver that
+  watches all outcomes across all integrations)
+- Is the pattern the socket architecture was designed for
+
+The Notion direct dispatch should be migrated to the socket path as well, but
+that's a separate cleanup — not Phase 3 scope.
+
+Note: the receiver bypasses the governance loop by design. Outcomes are
+side-effects of completed pipeline execution, not new signals. The
+`OutcomeSocket._deliver()` method is fire-and-forget with exception logging.
+No recursion risk.
+
+---
+
+### All 8 Decisions Resolved
+
+| # | Decision | Resolution |
+|---|---|---|
+| 1 | Writeback target shape | C: Both (source row + audit table) |
+| 2 | Schema migration | Additive only: 3 `umh_status` columns + 1 `umh_outcomes` table |
+| 3 | Poll vs capability-direct | B: Both origins via correlation map |
+| 4 | Failure handling | B: Audit table only, no source row update on error/failure |
+| 5 | Multi-capability correlation | B: Worst-outcome-wins for source row, all to audit |
+| 6 | UI visibility | A: Visible by default |
+| 7 | Correlation map lifecycle | A: In-memory, accept restart loss |
+| 8 | Outcome socket integration | B: OutcomeSocket dispatch |
+
+### Phase 3: Outcome Writeback — **IMPLEMENTED**
+
+Dual writeback: source row `umh_status` column (known-state outcomes only) +
+`umh_outcomes` audit table (all outcomes). Severity ladder prevents success
+from overwriting error. Failure/error outcomes skip source-row UPDATE.
+
+**Schema migration:**
+- `saas/db/migrations/0009_umh_outcome_writeback.sql` — additive only
+- 3 `ALTER TABLE ADD COLUMN umh_status text` (events, clients, ventures)
+- 1 `CREATE TABLE umh_outcomes` (9 columns, 5 indexes)
+- Applied to ep-dark-poetry, verified via integration tests
+
+**Files modified:**
+- `saas/db/schema.ts` — `umhStatus` on events/clients/ventures + new `umhOutcomes` table
+- `services/umh/integrations/eos/tables.py` — `SEVERITY_LADDER`, `update_umh_status()`, `insert_umh_outcome()`
+- `services/umh/integrations/eos/outcomes.py` — replaced log-stub with real `EOSOutcomeReceiver`
+- `services/umh/control_plane/app.py` — pass `database_url` to `EOSOutcomeReceiver`
+
+**Files created:**
+- `saas/db/migrations/0009_umh_outcome_writeback.sql`
+- `services/umh/tests/test_eos_outcomes.py` — 27 tests
+- `scripts/smoke_eos_phase3.py` — end-to-end writeback verification
+
+**Tests added:**
+- `services/umh/tests/test_eos_outcomes.py` — 27 tests (severity ladder, Decision 4/5 enforcement, all outcome types × both targets, correlation handling)
+- `services/umh/tests/test_eos_integration.py` — 7 new tests (umh_status columns, umh_outcomes table schema, indexes, e2e writeback)
+
+**Test totals:** 113 passed (106 unit + 7 integration), 9 skipped, 0 failed.

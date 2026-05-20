@@ -4,6 +4,7 @@ Single coupling point between UMH and the EOS schema. All SQL lives here;
 the rest of the integration imports typed row dicts from this module.
 
 Phase 1: events table reads. Phase 2: events/clients inserts, ventures update.
+Phase 3: umh_status column updates + umh_outcomes audit inserts.
 """
 
 from __future__ import annotations
@@ -230,3 +231,117 @@ def update_venture(conn: Any, params: dict[str, Any]) -> dict[str, Any]:
         if row is None:
             raise ValueError(f"venture '{venture_id}' not found for org '{org_id}'")
         return {"venture_id": str(row[0]), "updated": True, "fields_changed": fields_changed}
+
+
+# ---------------------------------------------------------------------------
+# Phase 3: outcome writeback helpers
+# ---------------------------------------------------------------------------
+
+UMH_OUTCOMES_TABLE = "umh_outcomes"
+
+# Severity ladder (ascending). Used by worst-wins UPDATE logic:
+# a source row's umh_status only advances to higher severity, never retreats.
+# This prevents a late-arriving success from overwriting an earlier error when
+# multiple capabilities target the same source row (Phase 3.5+ multi-cap routing).
+SEVERITY_LADDER: dict[str, int] = {
+    "success": 0,
+    "timeout": 1,
+    "governance_denied": 2,
+    "error": 3,
+}
+
+# Outcome types that update the source row's umh_status column.
+# error/failure outcomes only go to the audit table (Decision 4):
+# failed outcomes mean the source data may be in unknown state — writing
+# umh_status='error' to it could be misleading.
+SOURCE_ROW_UPDATE_TYPES = frozenset({"success", "timeout", "governance_denied"})
+
+VALID_SOURCE_TABLES = frozenset({EVENTS_TABLE, CLIENTS_TABLE, VENTURES_TABLE})
+
+
+def outcome_severity(outcome_type: str) -> int:
+    """Return numeric severity for an outcome type. Unknown types get max severity."""
+    return SEVERITY_LADDER.get(outcome_type, len(SEVERITY_LADDER))
+
+
+def update_umh_status(
+    conn: Any,
+    table_name: str,
+    row_id: str,
+    new_status: str,
+) -> bool:
+    """Update umh_status on a source row, only if new severity >= current.
+
+    Returns True if the row was updated, False if skipped (lower severity
+    or row not found). Uses a worst-wins WHERE clause so a success can never
+    overwrite an error.
+    """
+    if table_name not in VALID_SOURCE_TABLES:
+        raise ValueError(
+            f"invalid source table '{table_name}', must be one of: {sorted(VALID_SOURCE_TABLES)}"
+        )
+
+    new_severity = outcome_severity(new_status)
+
+    # Build the worst-wins condition: only update if current is NULL or lower severity
+    severity_checks = []
+    check_values: list[Any] = []
+    for status_val, sev in SEVERITY_LADDER.items():
+        if sev < new_severity:
+            severity_checks.append(f"umh_status = %s")
+            check_values.append(status_val)
+
+    where_parts = ["umh_status IS NULL"]
+    where_parts.extend(severity_checks)
+
+    query = (
+        f"UPDATE {table_name} SET umh_status = %s "
+        f"WHERE id = %s AND ({' OR '.join(where_parts)}) "
+        f"RETURNING id"
+    )
+    params_list = [new_status, row_id] + check_values
+
+    with conn.cursor() as cur:
+        cur.execute(query, params_list)
+        row = cur.fetchone()
+        conn.commit()
+        return row is not None
+
+
+def insert_umh_outcome(
+    conn: Any,
+    trace_id: str,
+    source_table: str,
+    source_row_id: str | None,
+    org_id: str,
+    outcome_type: str,
+    severity: int,
+    payload: dict[str, Any],
+) -> str:
+    """Insert an audit row into umh_outcomes. Returns the new row ID."""
+    if source_table not in VALID_SOURCE_TABLES:
+        raise ValueError(
+            f"invalid source table '{source_table}', must be one of: {sorted(VALID_SOURCE_TABLES)}"
+        )
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO umh_outcomes
+                (org_id, trace_id, source_table, source_row_id, outcome_type, severity, payload)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+            """,
+            (
+                org_id,
+                trace_id,
+                source_table,
+                source_row_id,
+                outcome_type,
+                severity,
+                psycopg2.extras.Json(payload),
+            ),
+        )
+        row = cur.fetchone()
+        conn.commit()
+        return str(row[0])
