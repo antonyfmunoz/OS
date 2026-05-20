@@ -42,6 +42,8 @@ _correlation_map = CorrelationMap()
 _notion_outcome_receiver: Any = None
 _notion_poller: Any = None
 _notion_poller_thread: threading.Thread | None = None
+_eos_poller: Any = None
+_eos_poller_thread: threading.Thread | None = None
 
 
 def _register_notion_integration() -> None:
@@ -100,18 +102,82 @@ def _register_notion_integration() -> None:
         logger.warning("notion integration not loaded: %s", exc)
 
 
+def _register_eos_integration() -> None:
+    """Wire the EOS integration through IntegrationRegistry."""
+    global _eos_poller
+    try:
+        from ..integrations.eos.correlation import EOSCorrelationMap
+        from ..integrations.eos.handlers import EOSCapabilityHandler
+        from ..integrations.eos.manifest import load_eos_config
+        from ..integrations.eos.outcomes import EOSOutcomeReceiver
+        from ..integrations.eos.poller import EOSPoller
+        from ..integrations.eos.signals import EOSSignalEmitter
+
+        config = load_eos_config()
+        if not config:
+            logger.info("eos integration not loaded: EOS_DATABASE_URL not set")
+            return
+
+        eos_correlation_map = EOSCorrelationMap()
+        emitter = EOSSignalEmitter()
+        outcome_receiver = EOSOutcomeReceiver(eos_correlation_map)
+
+        signal_socket = SignalSocket()
+        capability_socket = CapabilitySocket()
+        outcome_socket = OutcomeSocket()
+
+        registry = IntegrationRegistry(
+            signal_socket, capability_socket, outcome_socket, _view_socket
+        )
+
+        manifest = IntegrationManifest(
+            integration_id="eos",
+            signal_emitter=emitter,
+            capability_handler=EOSCapabilityHandler(),
+            outcome_receiver=outcome_receiver,
+        )
+
+        adapter = registry.register(manifest)
+        if adapter is not None:
+            _executor.register_adapter(adapter)
+            logger.info("eos integration adapter registered with executor")
+
+        _eos_poller = EOSPoller(
+            database_url=config["database_url"],
+            correlation_map=eos_correlation_map,
+            signal_emitter=emitter,
+            pipeline_submit_fn=_pipeline.submit_signal,
+            outcome_receiver=outcome_receiver,
+            tables=config["tables"],
+            org_ids=config["org_ids"] if config["org_ids"] else None,
+            poll_interval=config["poll_interval"],
+        )
+        org_scope = ", ".join(config["org_ids"]) if config["org_ids"] else "all"
+        logger.info(
+            "eos poller configured: tables=%s, orgs=%s, interval=%.1fs",
+            config["tables"], org_scope, config["poll_interval"],
+        )
+    except Exception as exc:
+        logger.warning("eos integration not loaded: %s", exc)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _broadcaster, _notion_poller_thread
+    global _broadcaster, _notion_poller_thread, _eos_poller_thread
 
     await _runtime.start()
     logger.info("UMH substrate runtime started")
 
     _register_notion_integration()
+    _register_eos_integration()
 
     if _notion_poller is not None:
         _notion_poller_thread = _notion_poller.start()
         logger.info("notion poller thread started")
+
+    if _eos_poller is not None:
+        _eos_poller_thread = _eos_poller.start()
+        logger.info("eos poller thread started")
 
     loop = asyncio.get_running_loop()
     _broadcaster = ViewFrameBroadcaster(loop=loop, async_callback=broadcast_frame)
@@ -120,6 +186,12 @@ async def lifespan(app: FastAPI):
     logger.info("view socket broadcaster wired to WebSocket endpoint")
 
     yield
+
+    if _eos_poller is not None:
+        _eos_poller.shutdown_event.set()
+        if _eos_poller_thread is not None:
+            _eos_poller_thread.join(timeout=5)
+            logger.info("eos poller thread stopped")
 
     if _notion_poller is not None:
         _notion_poller.shutdown_event.set()
