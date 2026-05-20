@@ -48,11 +48,19 @@ CAPABILITY_DESCRIPTORS: list[CapabilityDescriptor] = [
         description="Update properties on an existing Notion page",
     ),
     CapabilityDescriptor(
+        name="append_block",
+        category=CapabilityCategory.COMMUNICATE,
+        risk_class=RiskClass.EXTERNAL_COMMUNICATION,
+        input_schema={"page_id": "str", "children": "list[dict]"},
+        output_schema={"block_ids": "list", "count": "int"},
+        description="Append content blocks to an existing Notion page",
+    ),
+    CapabilityDescriptor(
         name="query_database",
         category=CapabilityCategory.RETRIEVE,
         risk_class=RiskClass.READ_ONLY,
-        input_schema={"database_id": "str", "filter": "dict"},
-        output_schema={"results": "list", "count": "int"},
-        description="Query a Notion database with optional filter",
+        input_schema={"database_id": "str", "filter": "dict", "sorts": "list", "page_size": "int"},
+        output_schema={"results": "list", "count": "int", "has_more": "bool"},
+        description="Query a Notion database with optional filter and sorts",
     ),
 ]

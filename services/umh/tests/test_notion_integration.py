@@ -46,6 +46,86 @@ class TestTransforms:
         result = extract_create_page_result({})
         assert result == {"page_id": "", "url": ""}
 
+    def test_build_update_page_payload(self) -> None:
+        from services.umh.integrations.notion.transforms import build_update_page_payload
+
+        payload = build_update_page_payload("page-1", {"Status": {"select": {"name": "Done"}}})
+        assert payload["page_id"] == "page-1"
+        assert payload["properties"]["Status"]["select"]["name"] == "Done"
+
+    def test_extract_update_page_result(self) -> None:
+        from services.umh.integrations.notion.transforms import extract_update_page_result
+
+        result = extract_update_page_result({"id": "page-1", "url": "https://notion.so/page-1"})
+        assert result == {"page_id": "page-1", "updated": True}
+
+    def test_build_append_block_payload(self) -> None:
+        from services.umh.integrations.notion.transforms import build_append_block_payload
+
+        children = [{"paragraph": {"rich_text": [{"text": {"content": "Hello"}}]}}]
+        payload = build_append_block_payload("page-1", children)
+        assert payload["block_id"] == "page-1"
+        assert len(payload["children"]) == 1
+
+    def test_extract_append_block_result(self) -> None:
+        from services.umh.integrations.notion.transforms import extract_append_block_result
+
+        response = {"results": [{"id": "block-1"}, {"id": "block-2"}]}
+        result = extract_append_block_result(response)
+        assert result == {"block_ids": ["block-1", "block-2"], "count": 2}
+
+    def test_extract_append_block_result_empty(self) -> None:
+        from services.umh.integrations.notion.transforms import extract_append_block_result
+
+        result = extract_append_block_result({})
+        assert result == {"block_ids": [], "count": 0}
+
+    def test_build_query_database_payload_minimal(self) -> None:
+        from services.umh.integrations.notion.transforms import build_query_database_payload
+
+        payload = build_query_database_payload("db-1")
+        assert payload["database_id"] == "db-1"
+        assert payload["page_size"] == 100
+        assert "filter" not in payload
+        assert "sorts" not in payload
+
+    def test_build_query_database_payload_with_filter_and_sorts(self) -> None:
+        from services.umh.integrations.notion.transforms import build_query_database_payload
+
+        f = {"property": "Status", "select": {"equals": "Active"}}
+        s = [{"property": "Created", "direction": "descending"}]
+        payload = build_query_database_payload("db-1", filter_obj=f, sorts=s, page_size=25)
+        assert payload["filter"] == f
+        assert payload["sorts"] == s
+        assert payload["page_size"] == 25
+
+    def test_build_query_database_payload_clamps_page_size(self) -> None:
+        from services.umh.integrations.notion.transforms import build_query_database_payload
+
+        payload = build_query_database_payload("db-1", page_size=500)
+        assert payload["page_size"] == 100
+
+    def test_extract_query_database_result(self) -> None:
+        from services.umh.integrations.notion.transforms import extract_query_database_result
+
+        response = {
+            "results": [
+                {"id": "p1", "url": "https://notion.so/p1", "properties": {"Name": {}}},
+                {"id": "p2", "url": "https://notion.so/p2", "properties": {"Name": {}}},
+            ],
+            "has_more": True,
+        }
+        result = extract_query_database_result(response)
+        assert result["count"] == 2
+        assert result["has_more"] is True
+        assert result["results"][0]["page_id"] == "p1"
+
+    def test_extract_query_database_result_empty(self) -> None:
+        from services.umh.integrations.notion.transforms import extract_query_database_result
+
+        result = extract_query_database_result({"results": [], "has_more": False})
+        assert result == {"results": [], "count": 0, "has_more": False}
+
 
 class TestAuth:
     def test_discover_database_ids_from_env(self) -> None:
@@ -93,10 +173,13 @@ class TestNotionCapabilityHandler:
     @pytest.fixture()
     def handler(self) -> Any:
         with (
-            patch.dict(os.environ, {
-                "NOTION_API_KEY": "test-key",
-                "NOTION_TEST_TASKS_DB": "db-uuid-123",
-            }),
+            patch.dict(
+                os.environ,
+                {
+                    "NOTION_API_KEY": "test-key",
+                    "NOTION_TEST_TASKS_DB": "db-uuid-123",
+                },
+            ),
             patch("services.umh.integrations.notion.auth.Client") as mock_client_cls,
         ):
             mock_client = MagicMock()
@@ -280,6 +363,381 @@ class TestNotionCapabilityHandler:
     def test_database_id_passthrough_uuid(self, handler: Any) -> None:
         resolved = handler._resolve_database_id("32eda8b9-6e4f-8121-9cae-e31327db0459")
         assert resolved == "32eda8b9-6e4f-8121-9cae-e31327db0459"
+
+    # --- update_page tests ---
+
+    def test_update_page_success(self, handler: Any) -> None:
+        handler._client.pages.update.return_value = {
+            "id": "page-99",
+            "url": "https://notion.so/page-99",
+        }
+
+        request = CapabilityRequest(
+            request_id=uuid4(),
+            capability_name="update_page",
+            integration_id="notion",
+            params={
+                "page_id": "page-99",
+                "properties": {"Status": {"select": {"name": "Done"}}},
+            },
+            governance_verdict_id=uuid4(),
+            trace_id=uuid4(),
+        )
+
+        response = handler.handle_capability(request)
+        assert response.success
+        assert response.result_data["page_id"] == "page-99"
+        assert response.result_data["updated"] is True
+        handler._client.pages.update.assert_called_once()
+
+    def test_update_page_missing_page_id(self, handler: Any) -> None:
+        request = CapabilityRequest(
+            request_id=uuid4(),
+            capability_name="update_page",
+            integration_id="notion",
+            params={"properties": {"Status": {"select": {"name": "Done"}}}},
+            governance_verdict_id=uuid4(),
+            trace_id=uuid4(),
+        )
+
+        response = handler.handle_capability(request)
+        assert not response.success
+        assert "page_id is required" in (response.raw_error or "")
+
+    def test_update_page_missing_properties(self, handler: Any) -> None:
+        request = CapabilityRequest(
+            request_id=uuid4(),
+            capability_name="update_page",
+            integration_id="notion",
+            params={"page_id": "page-99"},
+            governance_verdict_id=uuid4(),
+            trace_id=uuid4(),
+        )
+
+        response = handler.handle_capability(request)
+        assert not response.success
+        assert "properties is required" in (response.raw_error or "")
+
+    def test_update_page_api_error(self, handler: Any) -> None:
+        from notion_client import APIResponseError
+        from httpx import Headers
+
+        handler._client.pages.update.side_effect = APIResponseError(
+            code="object_not_found",
+            status=404,
+            message="page not found",
+            headers=Headers(),
+            raw_body_text="{}",
+        )
+
+        request = CapabilityRequest(
+            request_id=uuid4(),
+            capability_name="update_page",
+            integration_id="notion",
+            params={
+                "page_id": "page-gone",
+                "properties": {"Status": {"select": {"name": "Done"}}},
+            },
+            governance_verdict_id=uuid4(),
+            trace_id=uuid4(),
+        )
+
+        response = handler.handle_capability(request)
+        assert not response.success
+        assert "404" in (response.raw_error or "")
+        assert "object_not_found" in (response.error or "")
+
+    def test_update_page_429_retries(self, handler: Any) -> None:
+        from notion_client import APIResponseError
+        from httpx import Headers
+
+        rate_limit_error = APIResponseError(
+            code="rate_limited",
+            status=429,
+            message="rate limited",
+            headers=Headers(),
+            raw_body_text="{}",
+        )
+
+        handler._client.pages.update.side_effect = [
+            rate_limit_error,
+            {"id": "page-99", "url": "https://notion.so/page-99"},
+        ]
+
+        request = CapabilityRequest(
+            request_id=uuid4(),
+            capability_name="update_page",
+            integration_id="notion",
+            params={
+                "page_id": "page-99",
+                "properties": {"Status": {"select": {"name": "Done"}}},
+            },
+            governance_verdict_id=uuid4(),
+            trace_id=uuid4(),
+        )
+
+        with patch("services.umh.integrations.notion.handlers.time.sleep"):
+            response = handler.handle_capability(request)
+
+        assert response.success
+        assert response.metadata.get("retried") is True
+
+    # --- append_block tests ---
+
+    def test_append_block_success(self, handler: Any) -> None:
+        handler._client.blocks.children.append.return_value = {
+            "results": [{"id": "block-1"}, {"id": "block-2"}],
+        }
+
+        children = [
+            {"paragraph": {"rich_text": [{"text": {"content": "Hello"}}]}},
+            {"paragraph": {"rich_text": [{"text": {"content": "World"}}]}},
+        ]
+
+        request = CapabilityRequest(
+            request_id=uuid4(),
+            capability_name="append_block",
+            integration_id="notion",
+            params={"page_id": "page-99", "children": children},
+            governance_verdict_id=uuid4(),
+            trace_id=uuid4(),
+        )
+
+        response = handler.handle_capability(request)
+        assert response.success
+        assert response.result_data["count"] == 2
+        assert response.result_data["block_ids"] == ["block-1", "block-2"]
+
+    def test_append_block_missing_page_id(self, handler: Any) -> None:
+        request = CapabilityRequest(
+            request_id=uuid4(),
+            capability_name="append_block",
+            integration_id="notion",
+            params={"children": [{"paragraph": {}}]},
+            governance_verdict_id=uuid4(),
+            trace_id=uuid4(),
+        )
+
+        response = handler.handle_capability(request)
+        assert not response.success
+        assert "page_id is required" in (response.raw_error or "")
+
+    def test_append_block_missing_children(self, handler: Any) -> None:
+        request = CapabilityRequest(
+            request_id=uuid4(),
+            capability_name="append_block",
+            integration_id="notion",
+            params={"page_id": "page-99"},
+            governance_verdict_id=uuid4(),
+            trace_id=uuid4(),
+        )
+
+        response = handler.handle_capability(request)
+        assert not response.success
+        assert "children is required" in (response.raw_error or "")
+
+    def test_append_block_api_error(self, handler: Any) -> None:
+        from notion_client import APIResponseError
+        from httpx import Headers
+
+        handler._client.blocks.children.append.side_effect = APIResponseError(
+            code="validation_error",
+            status=400,
+            message="invalid block",
+            headers=Headers(),
+            raw_body_text="{}",
+        )
+
+        request = CapabilityRequest(
+            request_id=uuid4(),
+            capability_name="append_block",
+            integration_id="notion",
+            params={
+                "page_id": "page-99",
+                "children": [{"paragraph": {}}],
+            },
+            governance_verdict_id=uuid4(),
+            trace_id=uuid4(),
+        )
+
+        response = handler.handle_capability(request)
+        assert not response.success
+        assert "400" in (response.raw_error or "")
+
+    def test_append_block_429_retries(self, handler: Any) -> None:
+        from notion_client import APIResponseError
+        from httpx import Headers
+
+        rate_limit_error = APIResponseError(
+            code="rate_limited",
+            status=429,
+            message="rate limited",
+            headers=Headers(),
+            raw_body_text="{}",
+        )
+
+        handler._client.blocks.children.append.side_effect = [
+            rate_limit_error,
+            {"results": [{"id": "block-1"}]},
+        ]
+
+        request = CapabilityRequest(
+            request_id=uuid4(),
+            capability_name="append_block",
+            integration_id="notion",
+            params={
+                "page_id": "page-99",
+                "children": [{"paragraph": {"rich_text": [{"text": {"content": "retry"}}]}}],
+            },
+            governance_verdict_id=uuid4(),
+            trace_id=uuid4(),
+        )
+
+        with patch("services.umh.integrations.notion.handlers.time.sleep"):
+            response = handler.handle_capability(request)
+
+        assert response.success
+        assert response.metadata.get("retried") is True
+
+    # --- query_database tests ---
+
+    def test_query_database_success(self, handler: Any) -> None:
+        handler._client.request.return_value = {
+            "results": [
+                {"id": "p1", "url": "https://notion.so/p1", "properties": {"Name": {}}},
+            ],
+            "has_more": False,
+        }
+
+        request = CapabilityRequest(
+            request_id=uuid4(),
+            capability_name="query_database",
+            integration_id="notion",
+            params={"database_id": "test_tasks"},
+            governance_verdict_id=uuid4(),
+            trace_id=uuid4(),
+        )
+
+        response = handler.handle_capability(request)
+        assert response.success
+        assert response.result_data["count"] == 1
+        assert response.result_data["results"][0]["page_id"] == "p1"
+        assert response.result_data["has_more"] is False
+
+    def test_query_database_with_filter(self, handler: Any) -> None:
+        handler._client.request.return_value = {
+            "results": [],
+            "has_more": False,
+        }
+
+        f = {"property": "Status", "select": {"equals": "Active"}}
+
+        request = CapabilityRequest(
+            request_id=uuid4(),
+            capability_name="query_database",
+            integration_id="notion",
+            params={"database_id": "test_tasks", "filter": f, "page_size": 10},
+            governance_verdict_id=uuid4(),
+            trace_id=uuid4(),
+        )
+
+        response = handler.handle_capability(request)
+        assert response.success
+        call_kwargs = handler._client.request.call_args
+        assert call_kwargs[1]["path"] == "databases/db-uuid-123/query"
+        assert call_kwargs[1]["body"]["page_size"] == 10
+
+    def test_query_database_missing_database_id(self, handler: Any) -> None:
+        request = CapabilityRequest(
+            request_id=uuid4(),
+            capability_name="query_database",
+            integration_id="notion",
+            params={},
+            governance_verdict_id=uuid4(),
+            trace_id=uuid4(),
+        )
+
+        response = handler.handle_capability(request)
+        assert not response.success
+        assert "database_id is required" in (response.raw_error or "")
+
+    def test_query_database_unknown_logical_name(self, handler: Any) -> None:
+        request = CapabilityRequest(
+            request_id=uuid4(),
+            capability_name="query_database",
+            integration_id="notion",
+            params={"database_id": "nonexistent_db"},
+            governance_verdict_id=uuid4(),
+            trace_id=uuid4(),
+        )
+
+        response = handler.handle_capability(request)
+        assert not response.success
+        assert "unknown database" in (response.raw_error or "")
+
+    def test_query_database_api_error(self, handler: Any) -> None:
+        from notion_client import APIResponseError
+        from httpx import Headers
+
+        handler._client.request.side_effect = APIResponseError(
+            code="object_not_found",
+            status=404,
+            message="database not found",
+            headers=Headers(),
+            raw_body_text="{}",
+        )
+
+        request = CapabilityRequest(
+            request_id=uuid4(),
+            capability_name="query_database",
+            integration_id="notion",
+            params={"database_id": "test_tasks"},
+            governance_verdict_id=uuid4(),
+            trace_id=uuid4(),
+        )
+
+        response = handler.handle_capability(request)
+        assert not response.success
+        assert "404" in (response.raw_error or "")
+
+    def test_query_database_429_retries(self, handler: Any) -> None:
+        from notion_client import APIResponseError
+        from httpx import Headers
+
+        rate_limit_error = APIResponseError(
+            code="rate_limited",
+            status=429,
+            message="rate limited",
+            headers=Headers(),
+            raw_body_text="{}",
+        )
+
+        handler._client.request.side_effect = [
+            rate_limit_error,
+            {"results": [{"id": "p1", "url": "u", "properties": {}}], "has_more": False},
+        ]
+
+        request = CapabilityRequest(
+            request_id=uuid4(),
+            capability_name="query_database",
+            integration_id="notion",
+            params={"database_id": "test_tasks"},
+            governance_verdict_id=uuid4(),
+            trace_id=uuid4(),
+        )
+
+        with patch("services.umh.integrations.notion.handlers.time.sleep"):
+            response = handler.handle_capability(request)
+
+        assert response.success
+        assert response.metadata.get("retried") is True
+
+    def test_describe_capabilities_includes_phase2(self, handler: Any) -> None:
+        caps = handler.describe_capabilities()
+        names = [c.name for c in caps]
+        assert "update_page" in names
+        assert "append_block" in names
+        assert "query_database" in names
 
 
 class TestNotionSignalEmitter:

@@ -29,7 +29,8 @@ def get_notion_client() -> Client:
     key = os.getenv("NOTION_API_KEY")
     if not key:
         raise RuntimeError("NOTION_API_KEY not set in environment")
-    return Client(auth=key)
+    # Pin to 2022-06-28: SDK v3 defaults to 2025-09-03 which dropped databases/{id}/query
+    return Client(auth=key, notion_version="2022-06-28")
 
 
 def discover_database_ids() -> dict[str, str]:
@@ -57,7 +58,7 @@ def discover_database_ids() -> dict[str, str]:
         else:
             continue
 
-        logical = key[len("NOTION_"):-len(suffix)].lower()
+        logical = key[len("NOTION_") : -len(suffix)].lower()
         result[logical] = value
 
     return result

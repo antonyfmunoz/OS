@@ -1,6 +1,6 @@
 # Notion Integration — Design Report
 
-Phase 0. Design only — no implementation.
+Phase 0 = design. Phase 1 = create_page (implemented). Phase 2 = update_page, append_block, query_database (implemented).
 
 ---
 
@@ -136,20 +136,20 @@ On exception:
     )
 ```
 
-### Phase 1 operations
+### Implemented operations (Phase 1 + Phase 2)
 
-| Capability | Category | Risk Class | Input | Output |
-|---|---|---|---|---|
-| `create_page` | COMMUNICATE | EXTERNAL_COMMUNICATION | `{title, database_id, properties}` | `{page_id, url}` |
-| `update_page` | COMMUNICATE | EXTERNAL_COMMUNICATION | `{page_id, properties}` | `{page_id, updated: bool}` |
-| `query_database` | RETRIEVE | READ_ONLY | `{database_id, filter?, sorts?, page_size?}` | `{results: list, count: int, has_more: bool}` |
-| `append_block` | COMMUNICATE | EXTERNAL_COMMUNICATION | `{page_id, children: list[block]}` | `{block_ids: list, count: int}` |
-| `get_page` | RETRIEVE | READ_ONLY | `{page_id}` | `{page_id, title, properties, url}` |
+| Capability | Category | Risk Class | Input | Output | Phase |
+|---|---|---|---|---|---|
+| `create_page` | COMMUNICATE | EXTERNAL_COMMUNICATION | `{title, database_id, properties}` | `{page_id, url}` | 1 |
+| `update_page` | COMMUNICATE | EXTERNAL_COMMUNICATION | `{page_id, properties}` | `{page_id, updated: bool}` | 2 |
+| `append_block` | COMMUNICATE | EXTERNAL_COMMUNICATION | `{page_id, children: list[block]}` | `{block_ids: list, count: int}` | 2 |
+| `query_database` | RETRIEVE | READ_ONLY | `{database_id, filter?, sorts?, page_size?}` | `{results: list, count: int, has_more: bool}` | 2 |
 
-### Phase 2+ operations (parked)
+### Future operations (parked)
 
 | Capability | Category | Notes |
 |---|---|---|
+| `get_page` | RETRIEVE | READ_ONLY. Single page retrieval by ID. |
 | `delete_page` (archive) | COMMUNICATE | IRREVERSIBLE_WRITE. Needs explicit governance rule. |
 | `create_database` | COMMUNICATE | EXTERNAL_COMMUNICATION. Heavy operation. |
 | `add_comment` | COMMUNICATE | EXTERNAL_COMMUNICATION. Requires comment API. |
@@ -273,7 +273,7 @@ Per the socket design's deferred-auth decision: we are not at remote integration
 
 ## 8. Phase Split
 
-### Phase 1: Manifest + Handler + End-to-End Single Operation
+### Phase 1: Manifest + Handler + End-to-End Single Operation ✓ IMPLEMENTED
 
 **Goal:** One capability (`create_page`) flows through the full pipeline — signal in, governance check, adapter execution, proof, outcome, trace.
 
@@ -287,16 +287,20 @@ Per the socket design's deferred-auth decision: we are not at remote integration
 - Tests: handler unit tests, transform tests, integration test via curl → pipeline
 - Verify: `curl` to DEX → Notion page created → trace visible in cockpit
 
-### Phase 2: Expanded Operations + Outcome Writeback
+### Phase 2: Expanded Operations ✓ IMPLEMENTED
 
-**Goal:** Full CRUD operations, outcome receiver writes status back to Notion.
+**Goal:** Add `update_page`, `append_block`, `query_database` operations to NotionCapabilityHandler.
 
-- Add `update_page`, `append_block` capabilities
-- Implement outcome → Notion status writeback in `outcomes.py`
-- Add `routing.py` signal routing rules
-- Add rate limiting (3 req/s) with backoff in handler
-- Add `status_changed`, `comment_added`, `database_entry_updated` signal types
-- Tests: outcome writeback tests, rate limit tests
+Implemented:
+- `update_page` — update properties on an existing page (EXTERNAL_COMMUNICATION risk)
+- `append_block` — append content blocks to a page (EXTERNAL_COMMUNICATION risk)
+- `query_database` — query with filters/sorts, return matched pages (READ_ONLY risk)
+- Transform functions: build payload + extract result for each operation
+- 27 new tests (11 transform tests + 16 handler tests) — 173 total passing
+- Smoke script extended: `SMOKE_OPS="create,update,append,query"` for multi-op testing
+- Each operation follows create_page pattern: validate → transform → SDK call → extract
+- 429 retry with 2s backoff inherited from shared `_retry_once()` path
+- Outcome writeback and signal routing deferred to Phase 4 and Phase 3 respectively
 
 ### Phase 3: Signal-Direction Adapters (Inbound Polling)
 
@@ -330,13 +334,11 @@ Per the socket design's deferred-auth decision: we are not at remote integration
 
 4. **Test strategy:** DECIDED — mock `notion_client.Client` for unit tests (CI suite). One manual smoke test script hits the real API against existing databases using `[UMH-TEST]` title prefix. No dedicated test database.
 
-### Must resolve before Phase 2
+### Must resolve before Phase 3 (signal polling)
 
 5. **Outcome writeback target:** When the outcome receiver writes status back to Notion, which property name does it target? Notion databases have different property schemas. Options: (a) require a `Status` property by convention, (b) make the target property configurable per database, (c) skip writeback for databases without a recognized property.
 
 6. **Signal deduplication:** The poller will see the same page on consecutive polls if it hasn't changed. Deduplication by `(page_id, last_edited_time)` tuple? Or maintain a high-water mark timestamp per database?
-
-### Must resolve before Phase 3
 
 7. **Poll interval:** How frequently should the signal emitter poll Notion? Notion rate limit is 3 req/s. With 10+ databases, a full poll cycle could take 3-4 seconds. Interval options: 30s, 60s, 5m. Tradeoff: latency of change detection vs API budget.
 
