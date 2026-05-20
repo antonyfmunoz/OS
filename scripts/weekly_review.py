@@ -182,8 +182,8 @@ async def run_weekly_review():
 
     # Pain Line — recurring delegate tasks
     try:
-        from runtime.buyback_rate import detect_pain_line
-        _pain = detect_pain_line(ctx)
+        from state.metrics.founder_rate import detect_delegation_threshold
+        _pain = detect_delegation_threshold(ctx)
         if _pain:
             sections.append('**⚠️ Pain Line — recurring tasks to delegate:**')
             for _p in _pain[:3]:
