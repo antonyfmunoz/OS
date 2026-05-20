@@ -83,45 +83,45 @@ class TestBuybackRate:
         assert rate['buyback_rate'] == 0.0
 
 
-class TestMartellPatterns:
+class TestLeveragePatterns:
 
     def test_import(self):
-        from understanding.patterns.martell_patterns import (
-            TIME_ASSASSIN_SIGNALS, detect_time_assassin, check_131_rule,
+        from understanding.patterns.leverage_patterns import (
+            LEVERAGE_KILLER_SIGNALS, detect_leverage_killer, check_solution_standard,
         )
 
     def test_detect_staller(self):
-        from understanding.patterns.martell_patterns import detect_time_assassin
-        result = detect_time_assassin("I need more information before I decide")
+        from understanding.patterns.leverage_patterns import detect_leverage_killer
+        result = detect_leverage_killer("I need more information before I decide")
         assert result.get('assassin') == 'staller'
         assert 'intervention' in result
         assert len(result['intervention']) > 10
 
     def test_detect_saver(self):
-        from understanding.patterns.martell_patterns import detect_time_assassin
-        result = detect_time_assassin("I'll do it myself, it's easier if I handle this")
+        from understanding.patterns.leverage_patterns import detect_leverage_killer
+        result = detect_leverage_killer("I'll do it myself, it's easier if I handle this")
         assert result.get('assassin') == 'saver'
 
     def test_no_assassin_clean_text(self):
-        from understanding.patterns.martell_patterns import detect_time_assassin
-        result = detect_time_assassin("Let's review the Q1 revenue numbers")
+        from understanding.patterns.leverage_patterns import detect_leverage_killer
+        result = detect_leverage_killer("Let's review the Q1 revenue numbers")
         assert result == {}
 
-    def test_131_violation_detected(self):
-        from understanding.patterns.martell_patterns import check_131_rule
+    def test_solution_standard_violation_detected(self):
+        from understanding.patterns.leverage_patterns import check_solution_standard
         # Problem statement with no options
-        assert check_131_rule("The problem is we have no leads. What should I do?") is True
+        assert check_solution_standard("The problem is we have no leads. What should I do?") is True
 
-    def test_131_compliant_with_options(self):
-        from understanding.patterns.martell_patterns import check_131_rule
+    def test_solution_standard_compliant_with_options(self):
+        from understanding.patterns.leverage_patterns import check_solution_standard
         # Problem with options present
-        assert check_131_rule(
+        assert check_solution_standard(
             "The problem is low leads. Option 1 is ads. Option 2 is outreach. I recommend outreach."
         ) is False
 
-    def test_131_clean_message(self):
-        from understanding.patterns.martell_patterns import check_131_rule
-        assert check_131_rule("Schedule a call with Jacob for Thursday") is False
+    def test_solution_standard_clean_message(self):
+        from understanding.patterns.leverage_patterns import check_solution_standard
+        assert check_solution_standard("Schedule a call with Jacob for Thursday") is False
 
 
 class TestPerfectWeek:

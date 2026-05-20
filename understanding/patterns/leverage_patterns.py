@@ -1,8 +1,8 @@
 """
-Martell Pattern Detection — identifies Leverage Killer
+Leverage Pattern Detection — identifies Leverage Killer
 behaviors and enforces the Solution Standard.
 
-5 Leverage Killers (Dan Martell):
+5 Leverage Killers:
 1. The Staller — delays decisions, needs more info
 2. The Speed Demon — rushes without systems
 3. The Supervisor — micromanages, can't delegate
@@ -77,7 +77,7 @@ def detect_leverage_killer(text: str) -> dict:
         ),
         'saver': (
             "⚠️ **Leverage Killer detected: The Saver**\n"
-            "You're hoarding a task. Is this actually below your Buyback Rate? "
+            "You're hoarding a task. Is this actually below your Founder Rate? "
             "If so, delegate it now."
         ),
         'self_medicator': (

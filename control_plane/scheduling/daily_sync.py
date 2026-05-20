@@ -1,5 +1,5 @@
 """
-DailySync — Dan Martell's Daily Sync Meeting format.
+DailySync — structured daily briefing format.
 
 DEX drives the meeting. Antony just responds.
 Posted at 6am in #morning-brief via Discord.
@@ -263,7 +263,7 @@ class DailySync:
         except Exception:
             agenda.quarterly_rocks = []
 
-        # ── 3-3-3 Framework (Dan Martell) ────────────────────────────────────
+        # ── 3-3-3 Priority Framework ──────────────────────────────────────────
         try:
             from execution.runtime.model_router import get_router, TaskType
             import json as _pjson333
@@ -275,7 +275,7 @@ class DailySync:
             _cal_ctx = '\n'.join(agenda.calendar_review[:3]) if agenda.calendar_review else 'None'
 
             _333_prompt = f"""You are DEX, EA to Antony Munoz.
-Apply Dan Martell's 3-3-3 EA framework to today.
+Apply the 3-3-3 priority framework to today.
 
 Emails to handle: {_emails_ctx}
 Tasks pending: {_tasks_ctx}

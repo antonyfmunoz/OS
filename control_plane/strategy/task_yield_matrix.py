@@ -1,5 +1,5 @@
 """
-Task Yield Matrix — Dan Martell's task audit framework.
+Task Yield Matrix — task delegation audit framework.
 Delegate, Replace, Invest, Produce.
 Audits tasks by energy impact and financial value.
 """
@@ -20,7 +20,7 @@ PDT = ZoneInfo('America/Los_Angeles')
 # Low Energy + High Value = REPLACE (hire specialist)
 # Low Energy + Low Value = DELEGATE (give to EA/agent)
 
-DRIP_QUADRANTS = {
+YIELD_QUADRANTS = {
     'delegate': {
         'label': 'DELEGATE',
         'description': 'Low energy drain, low financial value. Give to DEX immediately.',
@@ -55,7 +55,7 @@ def classify_task_yield(task: str, ctx=None) -> dict:
         router = get_router()
         model = router.route(TaskType.FAST_RESPONSE)
 
-        result = router.call(model, f"""Apply Dan Martell's Task Yield Matrix to classify this task.
+        result = router.call(model, f"""Apply the Task Yield Matrix to classify this task.
 
 Task: {task}
 
@@ -84,13 +84,13 @@ Return JSON only:
             result = result.split('```')[1].replace('json', '').strip()
         data = json.loads(result)
         quadrant_key = data.get('quadrant', 'delegate')
-        data['quadrant_info'] = DRIP_QUADRANTS.get(quadrant_key, DRIP_QUADRANTS['delegate'])
+        data['quadrant_info'] = YIELD_QUADRANTS.get(quadrant_key, YIELD_QUADRANTS['delegate'])
         return data
     except Exception as e:
         logger.warning(f'[TaskYield] classify failed: {e}')
         return {
             'quadrant': 'delegate',
-            'quadrant_info': DRIP_QUADRANTS['delegate'],
+            'quadrant_info': YIELD_QUADRANTS['delegate'],
             'energy_score': 0,
             'value_score': 0,
             'reasoning': 'Classification unavailable',
