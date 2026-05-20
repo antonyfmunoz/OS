@@ -60,7 +60,7 @@ class UnifiedContext:
     semantic_memory: str | None = None
     conversation_history: str | None = None
     confidentiality: str | None = None
-    martell_patterns: str | None = None
+    leverage_patterns: str | None = None
     no_list: str | None = None
     intent_context: str | None = None
     world_model_context: str | None = None
@@ -440,14 +440,14 @@ class ContextBuilder:
         except Exception as e:
             uc.failed_sources.append(f"confidentiality: {e}")
 
-        # Martell patterns
+        # Leverage patterns
         try:
-            from understanding.patterns.martell_patterns import (
+            from understanding.patterns.leverage_patterns import (
                 detect_leverage_killer, check_solution_standard,
             )
             assassin = detect_leverage_killer(message)
             if assassin and assassin.get("intervention"):
-                uc.martell_patterns = (
+                uc.leverage_patterns = (
                     f"## Behavioral Alert\n{assassin['intervention']}\n"
                     "Note: Surface this observation to the founder in your response."
                 )
@@ -458,12 +458,12 @@ class ContextBuilder:
                     "Apply the Solution Standard: acknowledge the problem, then ask "
                     "for or present 3 options with a clear recommendation."
                 )
-                if uc.martell_patterns:
-                    uc.martell_patterns += f"\n\n{sol}"
+                if uc.leverage_patterns:
+                    uc.leverage_patterns += f"\n\n{sol}"
                 else:
-                    uc.martell_patterns = sol
+                    uc.leverage_patterns = sol
         except Exception as e:
-            uc.failed_sources.append(f"martell_patterns: {e}")
+            uc.failed_sources.append(f"leverage_patterns: {e}")
 
         # No List enforcement
         try:

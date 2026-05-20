@@ -125,7 +125,7 @@ def create_process_capture(task_name: str, description: str, ctx=None) -> str:
         router = get_router()
         model = router.route(TaskType.ANALYSIS)
 
-        prompt = f"""Apply Dan Martell's Process Capture.
+        prompt = f"""Apply Process Capture.
 Convert this task description into a reusable SOP playbook.
 
 Task: {task_name}

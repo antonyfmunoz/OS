@@ -1323,9 +1323,9 @@ class EntrepreneurOSGateway:
             }[team]
 
             if agent_id == "executive_assistant":
-                # DEX — inject EA operational standards + Martell leverage detection
+                # DEX — inject EA operational standards + leverage detection
                 try:
-                    from understanding.patterns.martell_patterns import detect_leverage_killer
+                    from understanding.patterns.leverage_patterns import detect_leverage_killer
 
                     leverage = detect_leverage_killer(prompt)
                     if leverage:
