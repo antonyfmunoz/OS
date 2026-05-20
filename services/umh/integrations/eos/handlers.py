@@ -6,10 +6,13 @@ import logging
 import time
 from typing import Any
 
+import psycopg2
+
 from services.umh.sockets.envelopes import CapabilityRequest, CapabilityResponse
 from services.umh.sockets.protocols import CapabilityDescriptor, CapabilityHealth
 
 from .manifest import CAPABILITY_DESCRIPTORS, INTEGRATION_ID
+from .tables import insert_client, insert_event, update_venture
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +21,12 @@ class EOSCapabilityHandler:
     """Handles capability requests for the EOS integration.
 
     Satisfies CapabilityHandler Protocol structurally.
-    Phase 1: noop only.
+    Phase 1: noop. Phase 2: create_event, create_client, update_venture.
     """
+
+    def __init__(self, database_url: str | None = None) -> None:
+        self._database_url = database_url
+        self._conn: Any = None
 
     @property
     def integration_id(self) -> str:
@@ -30,8 +37,11 @@ class EOSCapabilityHandler:
 
     def handle_capability(self, request: CapabilityRequest) -> CapabilityResponse:
         t0 = time.monotonic()
-        handler_map = {
+        handler_map: dict[str, Any] = {
             "noop": self._noop,
+            "create_event": self._create_event,
+            "create_client": self._create_client,
+            "update_venture": self._update_venture,
         }
 
         handler = handler_map.get(request.capability_name)
@@ -52,6 +62,25 @@ class EOSCapabilityHandler:
                 result_data=result,
                 latency_ms=latency,
             )
+        except ValueError as exc:
+            latency = (time.monotonic() - t0) * 1000
+            return CapabilityResponse(
+                request_id=request.request_id,
+                success=False,
+                error=f"{request.capability_name} validation failed: {exc}",
+                raw_error=f"ValueError: {exc}",
+                latency_ms=latency,
+            )
+        except psycopg2.Error as exc:
+            latency = (time.monotonic() - t0) * 1000
+            self._conn = None
+            return CapabilityResponse(
+                request_id=request.request_id,
+                success=False,
+                error=f"{request.capability_name} failed: database error",
+                raw_error=f"{type(exc).__name__}: {exc}",
+                latency_ms=latency,
+            )
         except Exception as exc:
             latency = (time.monotonic() - t0) * 1000
             return CapabilityResponse(
@@ -63,7 +92,37 @@ class EOSCapabilityHandler:
             )
 
     def health(self) -> CapabilityHealth:
-        return CapabilityHealth(integration_id=INTEGRATION_ID, status="healthy")
+        if not self._database_url:
+            return CapabilityHealth(integration_id=INTEGRATION_ID, status="healthy")
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+            return CapabilityHealth(integration_id=INTEGRATION_ID, status="healthy")
+        except Exception as exc:
+            self._conn = None
+            return CapabilityHealth(
+                integration_id=INTEGRATION_ID,
+                status="unavailable",
+                detail=str(exc),
+            )
+
+    def _get_connection(self) -> Any:
+        """Get or create a Postgres connection with one reconnect attempt."""
+        if self._conn is not None:
+            try:
+                with self._conn.cursor() as cur:
+                    cur.execute("SELECT 1")
+                return self._conn
+            except Exception:
+                self._conn = None
+
+        if not self._database_url:
+            raise RuntimeError("no EOS_DATABASE_URL configured for capability handler")
+
+        self._conn = psycopg2.connect(self._database_url)
+        self._conn.autocommit = False
+        return self._conn
 
     def _noop(self, params: dict[str, Any]) -> dict[str, Any]:
         """Acknowledge a signal without external action."""
@@ -73,3 +132,17 @@ class EOSCapabilityHandler:
             "org_id": params.get("org_id", ""),
             "row_id": params.get("row_id", ""),
         }
+
+    def _create_event(self, params: dict[str, Any]) -> dict[str, Any]:
+        conn = self._get_connection()
+        event_id = insert_event(conn, params)
+        return {"event_id": event_id}
+
+    def _create_client(self, params: dict[str, Any]) -> dict[str, Any]:
+        conn = self._get_connection()
+        client_id = insert_client(conn, params)
+        return {"client_id": client_id}
+
+    def _update_venture(self, params: dict[str, Any]) -> dict[str, Any]:
+        conn = self._get_connection()
+        return update_venture(conn, params)

@@ -32,6 +32,43 @@ CAPABILITY_DESCRIPTORS: list[CapabilityDescriptor] = [
         output_schema={"received": "bool", "table_name": "str", "org_id": "str", "row_id": "str"},
         description="Acknowledge a polled EOS signal without external action",
     ),
+    CapabilityDescriptor(
+        name="create_event",
+        category=CapabilityCategory.COMMUNICATE,
+        risk_class=RiskClass.EXTERNAL_COMMUNICATION,
+        input_schema={"org_id": "str", "event_type": "str", "payload_json": "dict"},
+        output_schema={"event_id": "str"},
+        description="Insert a domain event into the EOS events table",
+    ),
+    CapabilityDescriptor(
+        name="create_client",
+        category=CapabilityCategory.COMMUNICATE,
+        risk_class=RiskClass.EXTERNAL_COMMUNICATION,
+        input_schema={
+            "org_id": "str",
+            "venture_id": "str",
+            "name": "str",
+            "email": "str",
+            "source": "str (optional)",
+            "phone": "str (optional)",
+            "notes": "str (optional)",
+        },
+        output_schema={"client_id": "str"},
+        description="Insert a new client (lead) into the EOS clients table",
+    ),
+    CapabilityDescriptor(
+        name="update_venture",
+        category=CapabilityCategory.COMMUNICATE,
+        risk_class=RiskClass.EXTERNAL_COMMUNICATION,
+        input_schema={
+            "org_id": "str",
+            "venture_id": "str",
+            "monthly_revenue": "str (optional)",
+            "stage": "str (optional)",
+        },
+        output_schema={"venture_id": "str", "updated": "bool", "fields_changed": "list[str]"},
+        description="Update a venture's revenue or stage in the EOS ventures table",
+    ),
 ]
 
 POLLED_TABLES: list[str] = ["events"]
@@ -66,7 +103,11 @@ def load_eos_config() -> dict[str, str | list[str] | float]:
         try:
             poll_interval = float(interval_raw)
         except ValueError:
-            logger.warning("EOS_POLL_INTERVAL invalid '%s', using default %.1f", interval_raw, DEFAULT_POLL_INTERVAL)
+            logger.warning(
+                "EOS_POLL_INTERVAL invalid '%s', using default %.1f",
+                interval_raw,
+                DEFAULT_POLL_INTERVAL,
+            )
 
     return {
         "database_url": database_url,

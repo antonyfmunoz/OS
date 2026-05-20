@@ -133,7 +133,7 @@ def _register_eos_integration() -> None:
         manifest = IntegrationManifest(
             integration_id="eos",
             signal_emitter=emitter,
-            capability_handler=EOSCapabilityHandler(),
+            capability_handler=EOSCapabilityHandler(database_url=config["database_url"]),
             outcome_receiver=outcome_receiver,
         )
 
@@ -155,7 +155,9 @@ def _register_eos_integration() -> None:
         org_scope = ", ".join(config["org_ids"]) if config["org_ids"] else "all"
         logger.info(
             "eos poller configured: tables=%s, orgs=%s, interval=%.1fs",
-            config["tables"], org_scope, config["poll_interval"],
+            config["tables"],
+            org_scope,
+            config["poll_interval"],
         )
     except Exception as exc:
         logger.warning("eos integration not loaded: %s", exc)

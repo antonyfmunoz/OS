@@ -967,24 +967,18 @@ statement-level retry.
 
 ---
 
-### Implementation Plan (not yet started)
+### All 8 Decisions Resolved — A across the board
 
-Pending resolution of the 8 decisions above. Expected scope:
-
-**Files modified:**
-- `services/umh/integrations/eos/manifest.py` — add 3 capability descriptors
-- `services/umh/integrations/eos/tables.py` — add `insert_event()`, `insert_client()`, `update_venture()` with validation
-- `services/umh/integrations/eos/handlers.py` — add `_create_event()`, `_create_client()`, `_update_venture()` handler methods
-- `services/umh/integrations/eos/outcomes.py` — no change (Phase 4)
-- `services/umh/control_plane/app.py` — no change (handler already registered)
-
-**Files created:**
-- None expected (all additions go into existing files)
-
-**Tests:**
-- `services/umh/tests/test_eos_tables.py` — add insert/update helper tests
-- `services/umh/tests/test_eos_handlers.py` — new file, handler unit tests for 3 capabilities
-- `services/umh/tests/test_eos_integration.py` — add schema assertion tests (Decision 2)
+| # | Decision | Resolution |
+|---|---|---|
+| 1 | Org scoping for writes | A: Required in params |
+| 2 | Schema authority / drift | A: Extend integration tests |
+| 3 | Validation strategy | A: Validate in tables.py |
+| 4 | Idempotency | A: Accept duplicates |
+| 5 | Atomicity | A: Single-statement txns |
+| 6 | Outcome shape | A: OutcomeSocket + log, carry row_id |
+| 7 | Permission model | A: Stay with neondb_owner |
+| 8 | Failure modes | A: Same CapabilityResponse, no retry |
 
 ---
 
@@ -1018,3 +1012,42 @@ Pending resolution of the 8 decisions above. Expected scope:
 
 **Smoke test:**
 - `scripts/smoke_eos.py` — insert test event → poll → verify signal → cleanup
+
+### Phase 2: Capabilities (create_event, create_client, update_venture) — **IMPLEMENTED**
+
+Three write capabilities added to `EOSCapabilityHandler`. Each performs a single
+INSERT or UPDATE against the EOS Neon database via psycopg2, validated in `tables.py`,
+dispatched through the existing handler path.
+
+**Capabilities:**
+- `create_event` — INSERT into events table. Returns `{event_id}`.
+- `create_client` — INSERT into clients table. Returns `{client_id}`.
+- `update_venture` — UPDATE ventures table (monthly_revenue and/or stage). Returns `{venture_id, updated, fields_changed}`.
+
+**Validation (tables.py):**
+- All write helpers require `org_id` in params (Decision 1).
+- `insert_client()` validates status ∈ {lead, prospect, client, fulfilled, churned}.
+- `update_venture()` validates stage ∈ {idea, pre_revenue, early, growth, scale}, revenue as non-negative Decimal.
+- `clients.org_id`/`venture_id` are text (no FK) — Python validation is primary defense.
+
+**Error handling (handlers.py):**
+- `ValueError` → `CapabilityResponse(success=False, error="...validation failed...")`.
+- `psycopg2.Error` → `CapabilityResponse(success=False, error="...database error...")`, connection reset.
+- One reconnect attempt in `_get_connection()` (same as poller pattern).
+
+**Files modified:**
+- `services/umh/integrations/eos/manifest.py` — 3 new capability descriptors
+- `services/umh/integrations/eos/tables.py` — `insert_event()`, `insert_client()`, `update_venture()` + validation constants
+- `services/umh/integrations/eos/handlers.py` — `__init__(database_url)`, `_get_connection()`, 3 handler methods
+- `services/umh/control_plane/app.py` — pass `database_url` to `EOSCapabilityHandler`
+
+**Files created:**
+- `services/umh/tests/test_eos_handlers.py` — 18 handler unit tests
+- `scripts/seed_eos_watermarks_to_now.py` — watermark seed utility for DB switchovers
+
+**Tests added:**
+- `services/umh/tests/test_eos_tables.py` — 21 new tests (insert_event, insert_client, update_venture validation)
+- `services/umh/tests/test_eos_handlers.py` — 18 tests (dispatch, create_event, create_client, update_venture, db errors)
+- `services/umh/tests/test_eos_integration.py` — 3 new schema assertion tests (events, clients, ventures column types)
+
+**Test totals:** 312 passed, 9 skipped (integration), 0 failed.
