@@ -583,16 +583,21 @@ Watermark-only on monotonic `created_at` column. Per-(table, org).
 
 **Trade-off:** C is safest. Prove EOS signals flow through UMH pipeline before adding write operations. Add capabilities in Phase 2. This matches the proven Notion cadence.
 
-### 9. Schema Migration Coordination — **RESOLVED: A + C**
+### 9. Target Database + Schema Migration Coordination — **RESOLVED: A + C + D**
 
 Manual `tables.py` updates + `@pytest.mark.integration` test in `test_eos_integration.py` that validates expected columns exist against the real EOS schema. Run with `EOS_DATABASE_URL + EOS_INTEGRATION_TEST=1`.
+
+**Target database for Phase 2:** ep-dark-poetry (us-east-1, OS Neon), where the current `/opt/OS/saas/db/schema.ts` Drizzle schema has been migrated. This is UMH's operational target for Phase 2/4 development. Production EntrepreneurOS Neon (ep-winter-sea, us-west-2) currently runs an older v1 schema (`companies`, `crm_contacts`, `crm_deals`, `agent_actions`, `pipeline_runs`) that predates the v2 events-driven architecture. Production cutover plan: after Phase 2 + Phase 4 are validated against ep-dark-poetry, migrate v2 Drizzle schema to ep-winter-sea (with v1 backup), then swap `EOS_DATABASE_URL` there. Until cutover, ep-dark-poetry is the operational target. EOS is pre-launch (founder is sole user), so even the eventual production target will have bounded blast radius.
+
+Watermarks seeded to NOW via `scripts/seed_eos_watermarks_to_now.py` to skip historical replay. This script will be reused during production cutover.
 
 **Options:**
 - **A. Manual. Developer updates `tables.py` after every EOS migration. Verified by test.** ← CHOSEN
 - B. Codegen. A script reads `saas/db/schema.ts` and generates Python constants. Fragile.
 - **C. Integration test. A test queries `information_schema` and compares to `tables.py` constants. CI catches drift.** ← CHOSEN
+- **D. Watermark seed-to-NOW on database switch. `scripts/seed_eos_watermarks_to_now.py` discovers orgs and seeds watermarks to current timestamp, preventing historical replay.** ← CHOSEN
 
-**Trade-off:** A + C. Manual updates with an integration test that fails if `tables.py` references a column that doesn't exist. Codegen is tempting but schema.ts → Python translation is non-trivial.
+**Trade-off:** A + C for schema drift detection. D for database switchovers. The Phase 0 "shared Postgres" assumption (sub-millisecond local reads) was invalidated when ep-winter-sea was discovered to have a different schema. Corrected: ep-dark-poetry hosts the v2 schema. Cross-region latency is not a factor (both UMH and the target DB are in the same Neon cluster).
 
 ### 10. Correlation Map Scope — **RESOLVED: B**
 
