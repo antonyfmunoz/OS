@@ -3777,13 +3777,13 @@ async def cmd_drip(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from control_plane.strategy.task_yield_matrix import run_drip_audit, format_drip_report
+            from control_plane.strategy.task_yield_matrix import run_yield_audit, format_yield_report
 
             tasks = [t.strip() for t in args.replace("\n", ",").split(",") if t.strip()]
             if not tasks:
                 return "No tasks found. Separate with commas."
-            results = run_drip_audit(tasks)
-            return format_drip_report(results)
+            results = run_yield_audit(tasks)
+            return format_yield_report(results)
         except Exception as e:
             return f"❌ Error: {e}"
 
@@ -3801,13 +3801,13 @@ async def cmd_buyback(ctx: commands.Context, income: str = ""):
         def _run():
             try:
                 from state.metrics.founder_rate import (
-                    calculate_buyback_rate,
-                    store_buyback_rate,
+                    calculate_founder_rate,
+                    store_founder_rate,
                 )
 
                 amount = float(income.replace("$", "").replace(",", ""))
-                rate = calculate_buyback_rate(amount)
-                store_buyback_rate(amount)
+                rate = calculate_founder_rate(amount)
+                store_founder_rate(amount)
                 return (
                     f"💰 **Founder Rate set:**\n"
                     f"Annual income: ${amount:,.0f}\n"
@@ -3824,9 +3824,9 @@ async def cmd_buyback(ctx: commands.Context, income: str = ""):
 
         def _get():
             try:
-                from state.metrics.founder_rate import get_current_buyback_rate
+                from state.metrics.founder_rate import get_current_founder_rate
 
-                rate = get_current_buyback_rate()
+                rate = get_current_founder_rate()
                 if rate:
                     return (
                         f"💰 **Current Founder Rate: ${rate['founder_rate']}/hr**\n"
@@ -3919,9 +3919,9 @@ async def cmd_perfectweek(ctx: commands.Context):
 
     def _run():
         try:
-            from control_plane.scheduling.ideal_week import get_perfect_week
+            from control_plane.scheduling.ideal_week import get_ideal_week
 
-            week = get_perfect_week()
+            week = get_ideal_week()
             lines = ["**📅 Your Perfect Week:**", ""]
             for day, data in week.items():
                 lines.append(f"**{day.capitalize()} — {data['theme']}**")
@@ -3959,9 +3959,9 @@ async def cmd_camcorder(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from control_plane.scheduling.ideal_week import create_camcorder_playbook
+            from control_plane.scheduling.ideal_week import create_process_capture
 
-            playbook = create_camcorder_playbook(task_name, description)
+            playbook = create_process_capture(task_name, description)
             if playbook:
                 preview = playbook[:800]
                 return (
@@ -4219,9 +4219,9 @@ async def cmd_year(ctx: commands.Context):
 
     def _run():
         try:
-            from control_plane.scheduling.ideal_week import get_preloaded_year
+            from control_plane.scheduling.ideal_week import get_annual_architecture
 
-            plan = get_preloaded_year()
+            plan = get_annual_architecture()
             if not plan:
                 return (
                     "📅 No annual plan set yet.\n"
