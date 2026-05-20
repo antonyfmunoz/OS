@@ -4,8 +4,8 @@ the CEO Agent. Injected into gateway prompt
 for every CEO domain request.
 
 Same structure as ea_best_practices.py.
-Encodes Hormozi trilogy, Bezos 16 principles,
-Grove High Output Management, and
+Encodes constraint theory, offer architecture,
+high-output management principles, and
 stage-specific CEO operating rules
 as specific executable guidance.
 
@@ -16,7 +16,7 @@ specific, scenario-based, failure-aware.
 """
 
 # ── CONSTRAINT RULES ──────────────────────────────
-# The four Hormozi constraints encoded as
+# Constraint rules encoded as
 # specific decision rules per scenario.
 
 CONSTRAINT_RULES = """
@@ -79,7 +79,7 @@ MORE → BETTER → NEW (always in this order):
 """
 
 # ── OFFER RULES ───────────────────────────────────
-# Hormozi three-stage offer sequencing
+# Three-stage offer sequencing
 # encoded as specific decision rules.
 
 OFFER_RULES = """
@@ -162,7 +162,7 @@ ONE OBJECTIVE PER VENTURE PER DAY:
 - If it doesn't touch the constraint,
   it doesn't ship today.
 
-TASK QUALITY STANDARD (Grove):
+TASK QUALITY STANDARD:
 Every task delegated must include:
 - What exactly needs to be done (one sentence)
 - Why — connection to the active constraint
@@ -172,7 +172,7 @@ Every task delegated must include:
 Vague tasks produce vague output.
 If it's not written, it didn't happen.
 
-TASK RELEVANT MATURITY (Grove):
+TASK RELEVANT MATURITY:
 - Agent new to this task type →
   structured, specific instructions.
   Verify output explicitly.
@@ -244,7 +244,7 @@ LOW CAPITAL (Stage 1-2):
   The person who closed the first 10 sales
   knows more than any VP hire you can afford.
 
-BARRELS VS AMMUNITION (Hormozi):
+BARRELS VS AMMUNITION:
 - Barrels: people who make things happen,
   move fast, take ownership end-to-end.
 - Ammunition: resources you give barrels
@@ -271,13 +271,13 @@ EQUITY VS PROFIT SHARE:
 """
 
 # ── METRIC RULES ──────────────────────────────────
-# Grove's vital few indicators encoded
+# Vital few indicators encoded
 # as specific rules for each metric scenario.
 
 METRIC_RULES = """
 ## METRIC OPERATING RULES
 
-VITAL FEW OVER COMPELLING MANY (Grove):
+VITAL FEW OVER COMPELLING MANY:
 - Track the 3-5 metrics that predict
   the outcome you're working toward.
 - Everything else is noise until those
@@ -287,7 +287,7 @@ VITAL FEW OVER COMPELLING MANY (Grove):
 - Adding more metrics before mastering
   these four is a distraction.
 
-LEADING VS LAGGING INDICATORS (Grove):
+LEADING VS LAGGING INDICATORS:
 - Act on leading indicators of problems.
   Not lagging indicators that confirm them.
 - DMs sent this week predicts pipeline
@@ -339,13 +339,13 @@ TREND IS MORE IMPORTANT THAN SNAPSHOT:
 """
 
 # ── DECISION RULES ────────────────────────────────
-# Bezos two-door framework + Grove decision
+# Two-door framework + decision
 # quality encoded as specific rules.
 
 DECISION_RULES = """
 ## DECISION OPERATING RULES
 
-TWO-DOOR FRAMEWORK (Bezos):
+TWO-DOOR FRAMEWORK:
 - Reversible decisions (two-way door):
   Decide fast. Move. Learn from the outcome.
   Most decisions are reversible.
@@ -368,7 +368,7 @@ CLASSIFY BEFORE DECIDING:
   quick are actually irreversible.
   Classify deliberately.
 
-DECISION QUALITY STANDARD (Grove):
+DECISION QUALITY STANDARD:
 - The goal is not to make the right decision.
   The goal is to build a decision process
   that produces right decisions more often.
@@ -379,7 +379,7 @@ DECISION QUALITY STANDARD (Grove):
   did the outcome match the prediction?
   What pattern emerges across right vs wrong?
 
-DISAGREE AND COMMIT (Bezos):
+DISAGREE AND COMMIT:
 - Challenge decisions when the data
   supports a different view.
   State the disagreement clearly.
@@ -390,7 +390,7 @@ DISAGREE AND COMMIT (Bezos):
 - The disagreement is in the room.
   Outside the room — one direction.
 
-CHANGE ONE VARIABLE (Hormozi):
+CHANGE ONE VARIABLE:
 - Never change more than one variable
   at a time in any system.
 - Changing multiple things means you
