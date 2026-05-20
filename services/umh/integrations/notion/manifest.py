@@ -1,8 +1,4 @@
-"""Notion integration manifest — declares sockets, signals, capabilities.
-
-This is a template showing the shape. Actual Notion handler implementation
-lives outside UMH. This file is UMH-owned configuration only.
-"""
+"""Notion integration manifest — declares sockets, signals, capabilities."""
 
 from __future__ import annotations
 
