@@ -15,6 +15,10 @@ from pydantic import BaseModel, Field
 
 from ..governance.risk_classes import RiskClass
 from ..protocols.signal import Signal, SignalSource, SignalUrgency
+from ..sockets.capability_socket import CapabilitySocket
+from ..sockets.outcome_socket import OutcomeSocket
+from ..sockets.registry import IntegrationManifest, IntegrationRegistry
+from ..sockets.signal_socket import SignalSocket
 from ..sockets.view.broadcaster import ViewFrameBroadcaster, make_pipeline_listener
 from ..sockets.view.websocket import broadcast_frame, ws_endpoint
 from ..sockets.view_socket import ViewSocket
@@ -27,8 +31,39 @@ logging.basicConfig(level=logging.INFO)
 
 _runtime = SubstrateRuntime()
 _view_socket = ViewSocket()
-_pipeline = ExecutionPipeline(executor=build_default_executor())
+_executor = build_default_executor()
+_pipeline = ExecutionPipeline(executor=_executor)
 _broadcaster: ViewFrameBroadcaster | None = None
+
+
+def _register_notion_integration() -> None:
+    """Wire the Notion integration through IntegrationRegistry."""
+    try:
+        from ..integrations.notion.handlers import NotionCapabilityHandler
+        from ..integrations.notion.signals import NotionSignalEmitter
+        from ..integrations.notion.outcomes import NotionOutcomeReceiver
+
+        signal_socket = SignalSocket()
+        capability_socket = CapabilitySocket()
+        outcome_socket = OutcomeSocket()
+
+        registry = IntegrationRegistry(
+            signal_socket, capability_socket, outcome_socket, _view_socket
+        )
+
+        manifest = IntegrationManifest(
+            integration_id="notion",
+            signal_emitter=NotionSignalEmitter(),
+            capability_handler=NotionCapabilityHandler(),
+            outcome_receiver=NotionOutcomeReceiver(),
+        )
+
+        adapter = registry.register(manifest)
+        if adapter is not None:
+            _executor.register_adapter(adapter)
+            logger.info("notion integration adapter registered with executor")
+    except Exception as exc:
+        logger.warning("notion integration not loaded: %s", exc)
 
 
 @asynccontextmanager
@@ -37,6 +72,8 @@ async def lifespan(app: FastAPI):
 
     await _runtime.start()
     logger.info("UMH substrate runtime started")
+
+    _register_notion_integration()
 
     loop = asyncio.get_running_loop()
     _broadcaster = ViewFrameBroadcaster(loop=loop, async_callback=broadcast_frame)
