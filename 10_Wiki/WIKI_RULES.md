@@ -1,16 +1,18 @@
 ---
 type: wiki_schema
-updated: 2026-04-05
+updated: 2026-05-20
 ---
 
 # Wiki Rules
 
 Schema for the LLM-maintained knowledge layer.
-Karpathy pattern: RAW -> WIKI -> SCHEMA.
+Three-layer memory model: CORPUS -> CANON -> SCHEMA.
+
+CORPUS is immutable ingested material — machine-generated observations, raw signals, data, and reference docs. CANON is curated knowledge — human-readable, LLM-navigable pages with structured frontmatter and wikilinks. SCHEMA is structured types and queryable entities derived from CANON.
 
 ---
 
-## RAW Layer (Immutable)
+## CORPUS Layer (Immutable)
 
 These directories are read-only sources. Claude may read but MUST NEVER modify them.
 
@@ -20,11 +22,11 @@ These directories are read-only sources. Claude may read but MUST NEVER modify t
 - `data/` — data files
 - `docs/` — reference documentation
 
-If new RAW material arrives, it goes into `01_Inbox/`. It is never edited after creation.
+If new CORPUS material arrives, it goes into `01_Inbox/`. It is never edited after creation.
 
 ---
 
-## WIKI Layer
+## CANON Layer
 
 Location: `/opt/OS/10_Wiki/`
 
@@ -68,7 +70,7 @@ sources: []
 ---
 ```
 
-**source** — Summary of ingested RAW material with provenance.
+**source** — Summary of ingested CORPUS material with provenance.
 ```yaml
 ---
 type: source
@@ -85,9 +87,9 @@ Lowercase, hyphenated slugs: `icp-signals.md`, `initiate-arena.md`.
 
 - Use Obsidian `[[wikilinks]]` — never raw file paths or markdown `[text](url)` links
 - Link inline where the reference adds navigational value — if a reader would want to jump to that page, link it
-- Link to RAW files when citing provenance: `[[01_Inbox/raw_notes/Raw Notes]]`
-- Wiki knowledge pages (concepts, entities, decisions, synthesis) should have at least one incoming link from another page
-- Summaries that promoted wiki pages should link to those pages
+- Link to CORPUS files when citing provenance: `[[01_Inbox/raw_notes/Raw Notes]]`
+- CANON knowledge pages (concepts, entities, decisions, synthesis) should have at least one incoming link from another page
+- Summaries that promoted CANON pages should link to those pages
 - When creating a new page, check if existing pages reference the same concept and add `[[links]]` in both directions
 - Do NOT add links mechanically — a dashboard full of dataview queries doesn't need a Related section. A concept page that references another concept does.
 - Vault operational files (dashboards, daily logs, templates) use links only when it aids navigation, not for completeness
@@ -100,7 +102,7 @@ File: `10_Wiki/index.md`
 
 - Entry point for all retrieval
 - Organized by page type (Concepts, Entities, Decisions, Synthesis, Sources)
-- Every new wiki page MUST be added to the index
+- Every new CANON page MUST be added to the index
 - Use wikilinks, not raw paths
 
 ---
@@ -110,7 +112,7 @@ File: `10_Wiki/index.md`
 File: `10_Wiki/log.md`
 
 - Append-only, chronological
-- Every wiki mutation gets an entry
+- Every CANON mutation gets an entry
 - Format:
 
 ```
@@ -124,22 +126,22 @@ Actions: `create`, `update`, `delete`, `merge`, `refactor`
 
 ## Ingestion Rules
 
-To bring RAW material into the wiki:
+To bring CORPUS material into CANON:
 
-1. Read the RAW source completely
+1. Read the CORPUS source completely
 2. Create a `source` page summarizing it with `raw_path` in frontmatter
 3. Extract concepts, entities, or decisions into their own pages
 4. Link the source page to extracted pages
 5. Add all new pages to index.md
 6. Append entries to log.md
 
-Never copy RAW content verbatim. Summarize, structure, and link.
+Never copy CORPUS content verbatim. Summarize, structure, and link.
 
 ---
 
 ## Update Rules
 
-To modify an existing wiki page:
+To modify an existing CANON page:
 
 1. Read the current page
 2. Edit with new information
@@ -152,8 +154,8 @@ To modify an existing wiki page:
 
 1. Start at `10_Wiki/index.md`
 2. Follow wikilinks to relevant page
-3. If page references RAW sources, read those for full detail
-4. If no wiki page exists, check `07_Knowledge/` and `01_Inbox/` directly
+3. If page references CORPUS sources, read those for full detail
+4. If no CANON page exists, check `07_Knowledge/` and `01_Inbox/` directly
 
 ---
 
@@ -171,19 +173,19 @@ Location: `vault/memory/`
 ### summaries/
 - Compressed knowledge extracted from conversations
 - Created manually when a conversation produces reusable insight
-- Should link into wiki pages via wikilinks
+- Should link into CANON pages via wikilinks
 - Format: `summary_YYYY-MM-DD_topic.md`
 
 ### index.md
 - Index of conversation sessions and summaries
 - Links to both conversations/ and summaries/ files
 
-### Pipeline: conversation -> summary -> wiki
+### Pipeline: conversation -> summary -> CANON
 
 1. After a productive conversation, create a summary in `vault/memory/summaries/`
-2. Extract durable knowledge into wiki pages in `10_Wiki/`
-3. Link the summary to the wiki pages it fed
-4. The wiki is the source of truth, not the conversation logs
+2. Extract durable knowledge into CANON pages in `10_Wiki/`
+3. Link the summary to the CANON pages it fed
+4. CANON is the source of truth, not the conversation logs
 
 ---
 
@@ -195,9 +197,9 @@ Location: `vault/memory/`
 - Fix orphan pages (pages with no incoming links)
 - Improve internal linking
 - Archive stale decision pages (mark as `superseded`)
-- Verify RAW provenance links still resolve
+- Verify CORPUS provenance links still resolve
 
-### What Does NOT Go in the Wiki
+### What Does NOT Go in CANON
 
 - Ephemeral task state (use CC tasks or Neon)
 - Session-specific debugging (stays in conversation)
