@@ -1,0 +1,12 @@
+# Layer 2 sync ritual — fast-forward all surfaces every 30 min
+# Canonical version: scripts/cron/sync_all.cron
+# Installed via scripts/install_sync_automation.sh
+#
+# Covers cases the post-merge hook cannot:
+#   - Pushes from Windows or other devices (VPS pull hasn't happened yet)
+#   - GitHub Actions or external CI pushes
+#   - Any drift that accumulates between explicit git operations
+#
+# sync_all.sh --pull only fast-forwards (refuses dirty or non-ff).
+# Safe to run frequently — no-op when already in sync.
+*/30 * * * * /opt/OS/scripts/sync_all.sh --pull >> /opt/OS/logs/sync_all.log 2>&1

@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# post-merge — sync all surfaces after any merge/pull on VPS
+#
+# Canonical version: scripts/hooks/post-merge
+# Installed to .git/hooks/post-merge via scripts/install_sync_automation.sh
+#
+# Fires on: git merge, git pull (which is fetch+merge)
+# Does NOT fire on: git push (no client-side post-push hook in git)
+#
+# Runs in background (&) so it never blocks the merge.
+# Logs to logs/sync_all.log.
+
+/opt/OS/scripts/sync_all.sh --pull >> /opt/OS/logs/sync_all.log 2>&1 &

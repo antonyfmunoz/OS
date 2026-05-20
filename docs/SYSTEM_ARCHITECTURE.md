@@ -7,7 +7,7 @@
 > update the doc — it is the authoritative source for operating model,
 > not a snapshot.
 >
-> Last verified: 2026-05-20 (Layer 1 codebase sync)
+> Last verified: 2026-05-20 (Layer 2 addendum — sync automation)
 
 ---
 
@@ -207,6 +207,44 @@ scripts/sync_all.sh --pull       # fast-forward behind clones
 5. **Push from the device that did the work.** Don't pull from device A
    and push as device B.
 
+### Automation
+
+Two mechanisms keep surfaces in sync automatically:
+
+| Mechanism | Trigger | Latency | Covers |
+|-----------|---------|---------|--------|
+| **`post-merge` hook** | Every `git merge` / `git pull` on VPS | Instant (background) | Pulls from origin, merges on VPS |
+| **Cron `*/30`** | Every 30 minutes | ≤30 min | Pushes from Windows, GitHub Actions, any non-VPS origin |
+
+Both run `sync_all.sh --pull` (fast-forward only, refuses dirty/non-ff).
+Both log to `logs/sync_all.log`.
+
+**What's still manual:** `git push origin main` after a VPS merge. Git
+has no client-side `post-push` hook, so the post-merge hook fires before
+the push has landed on origin. The cron catches it within 30 minutes, or
+run `sync_all.sh --pull` manually after pushing.
+
+**Install/verify:**
+```bash
+scripts/install_sync_automation.sh           # install hook + cron
+scripts/install_sync_automation.sh --check   # verify without changes
+```
+
+Canonical config tracked in repo:
+- `scripts/hooks/post-merge` — hook content (symlinked into `.git/hooks/`)
+- `scripts/cron/sync_all.cron` — cron entry
+- `scripts/install_sync_automation.sh` — idempotent installer
+
+### Bootstrapping a new VPS
+
+After cloning the OS repo to a new VPS:
+
+```bash
+cd /opt/OS
+scripts/install_sync_automation.sh   # hook + cron
+scripts/sync_all.sh --dry-run        # verify connectivity
+```
+
 ---
 
 ## 6. Operational Lessons (System Properties)
@@ -241,6 +279,15 @@ errors), try an escalation ladder of strategies. If all fail, document
 the residue and the system-standard resolution mechanism (e.g., reboot,
 `PendingFileRenameOperations` registry). Don't force-kill blindly.
 
+### Post-merge hook + cron beats post-push
+
+Git has no client-side `post-push` hook. The natural instinct is to sync
+after push, but you can't hook that event. The correct design:
+`post-merge` hook for instant propagation after pulls/merges (the
+receiving side), plus a cron safety net for everything else. Accept that
+VPS-originated merges have a manual push step before sync propagates —
+this matches Rule 5 anyway.
+
 ### Windows-specific gotchas
 
 - `.venv/` symlinks confuse robocopy — use `git clone` instead
@@ -260,6 +307,7 @@ sync ritual capability gap until automated. Current gaps:
 | Gap | Workaround | Status |
 |-----|-----------|--------|
 | Dead `dev\OSv2` directory shell | `rmdir /S /Q` after reboot | Cosmetic, non-blocking |
+| ~~Manual sync ritual triggering~~ | ~~Run sync_all.sh by hand~~ | **Resolved** — post-merge hook + cron (see `scripts/install_sync_automation.sh`) |
 
 ---
 
