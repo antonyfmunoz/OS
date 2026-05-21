@@ -20,7 +20,7 @@ Plan a 7-day content schedule grounded in real ICP signals — not invented topi
 A 7-day content plan: platform, format, hook, body angle, CTA, and the specific signal each piece is derived from. No filler slots. If there is no signal for a day, that day is blank until one is found.
 
 ## Best-Practice Benchmark
-Alex Hormozi model: publish content that attracts the exact person you want and repels everyone else. Volume without signal fidelity is noise. Every post should make the ICP reader feel "this was written for me." Signal-derived content converts because it uses the audience's own language back at them.
+Signal-fidelity model: publish content that attracts the exact person you want and repels everyone else. Volume without signal fidelity is noise. Every post should make the ICP reader feel "this was written for me." Signal-derived content converts because it uses the audience's own language back at them.
 
 ## Decision Criteria
 - Is each piece traceable to a specific signal (post, comment, DM, keyword)?

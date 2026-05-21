@@ -27,7 +27,7 @@ A closed sale or a clear next step. Never ends with "I'll think about it" withou
 
 ## Best-Practice Benchmark
 
-Alex Hormozi $100M Offers close framework:
+Close framework:
 1. Diagnose the problem they can't solve
 2. Agitate the cost of staying stuck
 3. Present the solution as the obvious choice
