@@ -113,6 +113,34 @@ across 8 independent sample points.
 - Files with list/dict data structures: budget 10x
 - Audit estimates are structural lower bounds, not estimates — plan headroom by data-structure category, not flat percentage
 
+### Post-Closure Corroboration
+
+The undercount property held across every cleanup-shaped merge
+after Layer 3.1 closed. Three subsequent arcs independently
+confirmed the pattern:
+
+| Arc | Estimate | Actual | Ratio |
+|---|---|---|---|
+| Archive Bucket D (dormant files) | ~40 | 1,122 | ~28x |
+| Q1 codebase pages migration | 2,416 | 5,805 | 2.4x |
+| Sovereignty-grep tool itself | 19 | 20 | +1 (recursive) |
+
+The Bucket D case exhibited the worst ratio — dormant data files
+compound the same list/dict structure problem that produced the
+12.5x blow-up in knowledge_domains.py. The Q1 codebase pages
+case confirmed the 2-3x range for flat generated content.
+
+The sovereignty-grep case is recursive: the audit tool itself
+undercounted by 1 because a `docs/migrations/` hit was always
+present but below the tool's effective scan window prior to the
+Q2-Q6 wiki doc placement (commit `b94c0e27`). The audit tool
+is itself subject to the undercount law.
+
+Updated planning guidance: budget 2-3x baseline for flat
+content, 10x upper bound for data-structure-heavy files,
+and verify the audit tool's own scan window at spec time.
+When a clean count seems too clean, distrust it.
+
 ---
 
 ## 3. Vocabulary Mappings Library
@@ -429,3 +457,71 @@ self-evident without requiring knowledge of the external source.
 Rule: if the content stands alone without the attribution, strip
 the attribution. The burden of proof is on keeping the branded
 label, not on removing it.
+
+### 5. Post-migration import verification is non-optional
+
+The March 31 partial rename (§7 item 2) showed that renames
+must include all consumers in the same commit. The Wave 3
+structural reorganization (commit `756730dc`, `core/runtime/`
+split to `execution/runtime/` + `adapters/adapter_engine/`)
+demonstrated the detection corollary: even when the
+reorganization is intentional and complete, relative imports
+silently break if the target module moves to a different
+package. Python won't error at parse time — only at import time.
+
+`canonical_runtime_spine_v1.py` used `from .adapter_lifecycle_manager_v1`
+(relative import within `execution/runtime/`), but the module
+had been relocated to `adapters/adapter_engine/`. The broken
+import was latent for weeks. It was caught because an untracked
+test file happened to import the spine — without that test, the
+breakage would have remained invisible.
+
+Rule: after any structural reorganization, run
+`python3 -c "from <pkg> import <mod>"` for every module in the
+dependency graph. Import verification is not a nicety — it is
+the only reliable detection mechanism for relative-import
+breakage post-reorg.
+
+### 6. Verification tools can mask their own failures
+
+A prior handoff claimed "17 → 0 failures" based on
+`pytest --tb=no` output. The count was accurate for tracked
+tests. It masked a collection error: an untracked test file
+could not be imported (broken relative import in its
+dependency chain), so its 59 tests were invisible to the suite.
+The file never reached the "pass/fail" stage — it failed at
+collection, and `--tb=no` suppressed the traceback.
+
+"0 failures" and "1 collection error" coexist without
+contradiction. The failure count measures tests that ran and
+failed. Collection errors measure tests that never ran at all.
+A clean failure count is not evidence of clean collection.
+
+Rule: when a test run reports success, check collection
+separately. `pytest --collect-only <path>` per file in
+suspect scope. The verification tool is itself subject to
+the audit-undercount law (§2) — its reported count is a
+lower bound on the true test surface.
+
+### 7. Dead code in shell scripts has no natural predator
+
+In compiled and interpreted languages, linters catch
+unreferenced symbols. Bash does not. The `EXCLUDES` array in
+`scripts/sovereignty-grep.sh` used ripgrep `--glob` syntax
+for a planned ripgrep migration that never shipped. The script
+settled on `grep` with pipe filters. The array sat inert —
+the shell allocated it, nothing read it, no tool flagged the
+waste.
+
+The danger is not the dead code itself. The danger is that a
+future maintainer edits the array expecting effect. There is
+no signal — no warning, no lint error, no test failure — that
+the variable is inert. The ripgrep `--glob` syntax was the
+only tell, and only if the reader noticed the script uses
+`grep`, not `rg`.
+
+Rule: when a tool choice changes mid-implementation, audit
+for old scaffolding before merging. Treat unreferenced bash
+variables with active suspicion during review. If a shell
+array doesn't flow into any later command, verify by removing
+it and re-running.
