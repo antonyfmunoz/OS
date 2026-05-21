@@ -19,6 +19,9 @@ from execution.runtime.worker_runtime_contracts import (
     MessageBusType,
 )
 
+from adapters.adapter_engine.modality import ModalityType
+from adapters.adapter_engine.participant import ParticipantType
+
 
 @dataclass
 class CapabilityDescriptor:
@@ -42,6 +45,8 @@ class AdapterDescriptor:
     authority_domain: AuthorityDomain
     message_bus: MessageBusType
     capabilities: list[CapabilityDescriptor] = field(default_factory=list)
+    modalities: list[ModalityType] | None = None
+    participant_type: ParticipantType | None = None
     version: str = "v1"
     notes: list[str] = field(default_factory=list)
 
@@ -71,11 +76,40 @@ class AdapterRegistry:
                 return adapter
         return None
 
+    def register_manifest(self, manifest: "AdapterManifest") -> None:
+        """Register an adapter from a Layer 3 AdapterManifest."""
+        from adapters.adapter_engine.adapter_manifest import AdapterManifest
+
+        descriptor = AdapterDescriptor(
+            adapter_id=manifest.adapter_id,
+            adapter_type=manifest.adapter_type,
+            environment_type="",
+            authority_domain=AuthorityDomain.LOCAL_SHELL,
+            message_bus=MessageBusType.DIRECT_CALL,
+            capabilities=list(manifest.capabilities),
+            modalities=list(manifest.modalities),
+            participant_type=manifest.participant_type,
+            version=manifest.version,
+            notes=list(manifest.notes),
+        )
+        self.adapters[manifest.adapter_id] = descriptor
+
     def find_gui_adapter(self) -> AdapterDescriptor | None:
         for adapter in self.adapters.values():
             if adapter.authority_domain == AuthorityDomain.LOCAL_GUI:
                 return adapter
         return None
+
+    def find_by_modality(self, modality: ModalityType) -> list[AdapterDescriptor]:
+        """Find all adapters that use a given communication modality."""
+        return [a for a in self.adapters.values() if a.modalities and modality in a.modalities]
+
+    def find_by_participant_type(
+        self,
+        participant_type: ParticipantType,
+    ) -> list[AdapterDescriptor]:
+        """Find all adapters of a given participant type."""
+        return [a for a in self.adapters.values() if a.participant_type == participant_type]
 
     @classmethod
     def from_json_file(cls, path: Path | str) -> AdapterRegistry:
@@ -101,6 +135,11 @@ class AdapterRegistry:
                         notes=cdata.get("notes", []),
                     )
                 )
+            raw_modalities = adata.get("modalities")
+            modalities = [ModalityType(m) for m in raw_modalities] if raw_modalities else None
+            raw_participant = adata.get("participant_type")
+            participant_type = ParticipantType(raw_participant) if raw_participant else None
+
             registry.adapters[adapter_id] = AdapterDescriptor(
                 adapter_id=adapter_id,
                 adapter_type=adata["adapter_type"],
@@ -108,6 +147,8 @@ class AdapterRegistry:
                 authority_domain=AuthorityDomain(adata["authority_domain"]),
                 message_bus=MessageBusType(adata["message_bus"]),
                 capabilities=caps,
+                modalities=modalities,
+                participant_type=participant_type,
                 version=adata.get("version", "v1"),
                 notes=adata.get("notes", []),
             )
