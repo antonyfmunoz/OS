@@ -1,29 +1,55 @@
-# Handoff — 2026-05-21 Q2-Q6 Confirm Pass + Architecture Doc Promotion
+# Handoff — 2026-05-21 Test Debt Closure
 
 ## Status: COMPLETE
 
-Follows: `2026-05-21_0559_q1-codebase-pages-closure.md`
+Follows: `2026-05-21_0721_q2-q6-confirm-pass-closure.md`
 
-Closes 5 remaining Layer 3 architecture questions as far-phase direction
-confirms. Promotes architecture doc from /tmp/ to canonical wiki at
-`10_Wiki/LAYER_3_UNIFIED_ARCHITECTURE.md`.
+Closes all 17 pre-existing test failures documented since the
+2026-05-20 test-hygiene session. Also fixes 1 collection error in
+`execution_orchestrator_v1.py`.
 
 ## What Changed
 
-**Merge commit**: `b94c0e27` on `main` (q2-q6-confirm-pass)
-**Feature commit**: `9bab2717`
+**Commit**: `75ecce61` on `worktree-test-fixes-and-hygiene`
+**Scope**: 8 files changed, 192 insertions, 68 deletions
 
-All 6 architecture questions resolved. Architecture direction locked.
-Layer 3 Phase 1 implementation unblocked as next initiative.
+### Root cause
 
-## Still Deferred
+All 17 failures traced to the Layer 3.1 sovereignty reorg (Merge 7)
+which moved files from `core/` to `execution/`, `composition/`,
+`control_plane/`, and `interface/` directories. Tests hardcoding old
+paths broke; production code with one stale relative import broke.
 
-- Layer 3 Phase 1 implementation (heavyweight, fresh-session)
-- 17 pre-existing test failures
-- Discord command identifiers
-- Graph pruning verify
-- eos_ai/ status
-- Snapshot-graph tarball script
+### Fixes by file
+
+| File | Failures Fixed | Fix |
+|------|---------------|-----|
+| `execution/runtime/execution_orchestrator_v1.py` | 1 (collection) | Relative → absolute import for AdapterLifecycleManager |
+| `tests/test_actuator_maturity_v1.py` | 2 | `core/actuation/` → `execution/actuation/`, `core/registry/` → `composition/registries/` |
+| `tests/test_live_runtime_identity_v1.py` | 5 | `patch()` paths + file compile path updated |
+| `tests/test_registry_propagation_integrity_v1.py` | 3 | 3 stale file paths updated |
+| `tests/test_relay_execution_transport_v1.py` | 4 | `core.workstation` → `execution.workers.workstation` |
+| `tests/test_persistent_substrate_continuity_engine_v1.py` | 1 | `core.registry` → `composition.registries` |
+| `tests/test_gws_to_canonical_ingestion_v1.py` | 1 | Single-doc-ID assertion → pattern-based validation |
+| `tests/test_work_state.py` | 1 | Backoff bound 10→20 (pressure multiplier) |
+
+### Baseline progression
+
+| Checkpoint | Passed | Failed | Skipped |
+|---|---|---|---|
+| Pre-Layer-3.1 (2026-05-20) | 3968 | 17 | 8 |
+| **Post-test-debt-closure** | **3989** | **0** | **8** |
+
+### Deferred items resolved
+
+- **Graph pruning verify**: PASS — no stale `core/` paths in graph
+- **eos_ai/ status**: CONFIRMED dead — 0 imports, untracked in git, safe to delete
+
+### Deferred items remaining
+
+- Layer 3 Phase 1 implementation (heavyweight, fresh session)
+- Discord command identifiers (`!buyback`, `!drip`, `!perfectweek`) — UX decision, not technical
+- Snapshot-graph tarball script (low priority)
 
 ## What's NOT Next
 
