@@ -87,7 +87,7 @@ The thinking layer. Receives context, reasons about it, produces decisions.
 | portfolio_advisor.py | Board-level intelligence |
 | proactive_engine.py | Unsolicited insight surfacing |
 | user_model.py | Founder behavioral learning |
-| martell_patterns.py | Leverage Killer detection |
+| leverage_patterns.py | Leverage Killer detection |
 
 **14 modules.** This is the largest platform-agnostic domain because UMH
 is fundamentally a reasoning system.
@@ -272,7 +272,7 @@ the platform-agnostic substrate.
 | Module | Purpose |
 |--------|---------|
 | personal_admin.py | Important dates, gifts |
-| email_gps.py | Dan Martell 7-folder email |
+| email_gps.py | 7-folder email |
 | email_reviewer.py | Email classification review |
 | meetings.py | Meeting lifecycle management |
 | founder_capture.py | Task/idea detection from Discord |
@@ -288,7 +288,7 @@ the platform-agnostic substrate.
 | stage_manager.py | Venture stage advancement |
 | ideal_week.py | Ideal week template |
 | travel_manager.py | Trip logistics |
-| task_yield_matrix.py | Dan Martell task audit |
+| task_yield_matrix.py | Task audit |
 | human_intelligence.py | Behavioral profiling |
 
 **19 modules.**

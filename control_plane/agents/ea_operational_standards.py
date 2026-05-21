@@ -63,7 +63,7 @@ EMAIL OPERATING STANDARDS — World Class EA
    - Never auto-respond to a recognized person with a template
    - Sign as DEX when handling, as the founder when he approves
 
-3. PERSON RECOGNITION (Martell Rule):
+3. PERSON RECOGNITION:
    - Check every sender against memory before any action
    - Known person = FOUNDER folder immediately, flag it
    - Never send template response to someone the founder has spoken with

@@ -1264,7 +1264,7 @@ class EntrepreneurOSGateway:
                     if _pa_skill and _pa_skill.content:
                         prompt_text = (
                             f"PORTFOLIO ADVISOR OPERATING STANDARDS "
-                            f"(Munger/Dalio framework):\n{_pa_skill.content}\n\n"
+                            f":\n{_pa_skill.content}\n\n"
                             f"{prompt_text}"
                         )
                         print("[Gateway] Portfolio advisor standards from skill")
@@ -1280,7 +1280,7 @@ class EntrepreneurOSGateway:
                         if _pa_deep:
                             prompt_text = (
                                 f"PORTFOLIO ADVISOR OPERATING STANDARDS "
-                                f"(Munger/Dalio framework):\n{_pa_deep}\n\n"
+                                f":\n{_pa_deep}\n\n"
                                 f"{prompt_text}"
                             )
                             print("[Gateway] Portfolio advisor standards from Python")

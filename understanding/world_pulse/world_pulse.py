@@ -13,7 +13,7 @@ Schedule:
   On demand: /pulse Telegram command → run_pulse_scan()
 
 Monitors:
-  - Key creators (Hormozi, Morgan, Tate, etc.) for new content
+  - Key creators for new content
   - Market signals (self-improvement market, Instagram algorithm, Whop)
   - Sales tactics and outreach best practices
 

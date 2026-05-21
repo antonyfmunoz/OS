@@ -27,7 +27,7 @@ A 3-5 message follow-up sequence with specific timing, channel, and angle for ea
 
 ## Best-Practice Benchmark
 
-Charlie Morgan follow-up methodology: each touch changes the angle, not just repeats the ask. Touch 1: value add. Touch 2: social proof. Touch 3: pattern interrupt. Touch 4: direct close attempt. Touch 5: breakup message.
+Follow-up methodology: each touch changes the angle, not just repeats the ask. Touch 1: value add. Touch 2: social proof. Touch 3: pattern interrupt. Touch 4: direct close attempt. Touch 5: breakup message.
 
 ---
 

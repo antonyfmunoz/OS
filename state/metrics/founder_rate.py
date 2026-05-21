@@ -1,5 +1,5 @@
 """
-Founder Rate — Dan Martell's framework for valuing
+Founder Rate — framework for valuing
 founder time and making delegation decisions.
 Leverage Loop = Annual income / 2000 hours / 4
 """

@@ -1,6 +1,6 @@
 ---
 name: ea-framework
-description: "Load when DEX/EA agent handles calendar management, email triage, meeting scheduling, or any founder time and attention management task. Contains Martell EA operational standards."
+description: "Load when DEX/EA agent handles calendar management, email triage, meeting scheduling, or any founder time and attention management task. Contains EA operational standards."
 allowed-tools: "Read"
 effort: low
 trigger: both
@@ -69,7 +69,7 @@ last_updated: "2026-04-02"
    - Never auto-respond to a recognized person with a template
    - Sign as DEX when handling, as the founder when they approve
 
-3. PERSON RECOGNITION (Martell Rule):
+3. PERSON RECOGNITION:
    - Check every sender against memory before any action
    - Known person = FOUNDER folder immediately, flag it
    - Never send template response to someone the founder has spoken with
