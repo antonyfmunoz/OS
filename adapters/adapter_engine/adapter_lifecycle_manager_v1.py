@@ -18,6 +18,7 @@ from enum import Enum
 from typing import Any
 
 from adapters.adapter_engine.adapter_manifest import AdapterMaturityLevel
+from adapters.adapter_engine.adapter_maturity import MaturityEvidence, compute_adapter_maturity
 from execution.runtime.execution_contracts_v1 import AdapterSelection, _now_iso, _new_id
 
 
@@ -73,6 +74,23 @@ class AdapterHealthRecord:
 
 
 MAX_CONSECUTIVE_FAILURES = 3
+
+
+def _build_evidence(adapter: AdapterHealthRecord) -> MaturityEvidence:
+    """Reconstruct maturity evidence from health record fields.
+
+    Only populates dimensions derivable from lifecycle tracking.
+    Other dimensions (doc_absorption, edge_cases, etc.) default to
+    zero/False until their respective slices wire in.
+    """
+    return MaturityEvidence(
+        # registration implies upstream auth handshake;
+        # refine to explicit credential check when auth slice lands
+        auth_verified=True,
+        capability_count=len(adapter.capabilities),
+        execution_count=adapter.total_executions,
+        success_count=adapter.total_executions - adapter.total_failures,
+    )
 
 
 class AdapterLifecycleManager:
@@ -150,6 +168,7 @@ class AdapterLifecycleManager:
         adapter.last_execution_at = _now_iso()
         if adapter.state == AdapterState.BUSY:
             adapter.state = AdapterState.AVAILABLE
+        adapter.maturity = compute_adapter_maturity(_build_evidence(adapter))
 
     def record_execution_failure(self, adapter_id: str) -> None:
         adapter = self._adapters.get(adapter_id)
@@ -164,6 +183,7 @@ class AdapterLifecycleManager:
             adapter.notes.append(
                 f"Degraded after {adapter.consecutive_failures} consecutive failures"
             )
+        adapter.maturity = compute_adapter_maturity(_build_evidence(adapter))
 
     def mark_offline(self, adapter_id: str, reason: str = "") -> bool:
         adapter = self._adapters.get(adapter_id)
