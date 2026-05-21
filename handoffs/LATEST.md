@@ -1,45 +1,39 @@
-# Handoff — 2026-05-20 Archive-Hygiene Closure
+# Handoff — 2026-05-21 Q1 Codebase Pages Migration
 
 ## Status: COMPLETE
 
-Follows: `2026-05-20_2110_import-os-fix-closure.md`
+Follows: `2026-05-20_2200_archive-hygiene-closure.md`
 
-Closes Bucket D from Layer 3.1 Merge 7 grep — the last deferred
-cleanup item with active-code implications. All remaining sovereignty
-grep hits are now DATA per Leverage Principle.
+Resolves Q1 of the 6 Layer 3 architecture questions — the only Phase 1
+implementation gate. Other 5 batched as far-phase direction confirms.
 
 ## What Changed
 
-**Merge commit**: `d7d1fa4c` on `main` (archive-hygiene-bucket-d)
-**Feature commits**: `4502223d`, `a204e8e5`, `04172e63`
-**Scope**: 1125 files moved, 2 files created, 0 active code modified
+**Merge commit**: `ebcf068b` on `main` (q1-codebase-pages-migration)
+**Feature commits**: `a7944569`, `8375d676`
+**Scope**: 5,805 files deleted from 10_Wiki/codebase/, 12 files updated,
+1 .gitignore entry added
 
-Moved `archive/umh_reference/`, `archive/tools_duplicate/`, and
-`docs/superpowers/plans/` to `_archive/`. Codified sovereignty grep
-exclusions in `scripts/sovereignty-grep.sh` and
-`10_Wiki/SOVEREIGNTY_GREP_EXCLUSIONS.md`.
+Moved auto-generated codebase graph pages from `10_Wiki/codebase/` to
+`data/codebase_pages/` and gitignored the new location. Vault root is
+`/opt/OS/` (.obsidian/ at repo root), so palace bare-wikilink loci
+continue to resolve.
 
-Canonical sovereignty grep: **20 hits remaining, all DATA**.
+## Verification
 
-## Layer 3.1 Downstream Closure
-
-All downstream artifacts of Layer 3.1 sovereignty cleanup are now
-closed:
-
-| Item | Merge | Commit |
-|---|---|---|
-| Test-hygiene (4 broken classes) | test-hygiene-restore-baseline | `4e299a1e` |
-| Collection error (import os) | fix-import-os-test-day-discord | `ef6ab7fc` |
-| Archive-hygiene (Bucket D) | archive-hygiene-bucket-d | `d7d1fa4c` |
+All gates passed: verify_knowledge_system 11/11, sovereignty grep 20 hits,
+session_bootstrap resolves new path, test suite 0 new regressions,
+git status shows 0 codebase_pages entries after regen (gitignored).
 
 ## Still Deferred
 
+- Q2-Q6 batched as architecture doc confirm pass
 - Discord command identifiers (`!buyback`, `!drip`, `!perfectweek`)
-- 6 open architecture questions
 - Architecture doc merge
 - Layer 3 Phase 1 implementation
 - 17 pre-existing test failures
-- Graph pruning (stale entries for deleted files, cosmetic)
+- Graph JSON pruning (stale entries for deleted files, cosmetic)
+- snapshot-graph.sh tarball script
 
 ## What's NOT Next
 
