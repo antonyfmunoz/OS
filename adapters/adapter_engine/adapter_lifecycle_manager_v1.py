@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
+from adapters.adapter_engine.adapter_manifest import AdapterMaturityLevel
 from execution.runtime.execution_contracts_v1 import AdapterSelection, _now_iso, _new_id
 
 
@@ -34,6 +35,7 @@ class AdapterHealthRecord:
     adapter_id: str
     adapter_type: str
     state: AdapterState = AdapterState.AVAILABLE
+    maturity: AdapterMaturityLevel = AdapterMaturityLevel.L0_REGISTERED
     capabilities: list[str] = field(default_factory=list)
     environment_type: str = ""
     last_execution_at: str = ""
@@ -55,6 +57,8 @@ class AdapterHealthRecord:
             "adapter_id": self.adapter_id,
             "adapter_type": self.adapter_type,
             "state": self.state.value,
+            "maturity": self.maturity.value,
+            "maturity_label": self.maturity.name,
             "capabilities": self.capabilities,
             "environment_type": self.environment_type,
             "is_available": self.is_available(),
