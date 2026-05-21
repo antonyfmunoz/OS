@@ -138,9 +138,9 @@ DOMAINS: dict[str, dict] = {
                 'Consistency bias: people act in alignment with public commitments',
             ],
             'historical': [
-                'Cialdini: 7 influence principles — reciprocity, scarcity, authority, consistency, liking, social proof, unity',
-                'Kahneman: System 1 (fast, emotional) dominates System 2 (slow, rational)',
-                'Festinger: cognitive dissonance drives rationalization, not reason',
+                '7 influence principles — reciprocity, scarcity, authority, consistency, liking, social proof, unity',
+                'System 1 (fast, emotional) dominates System 2 (slow, rational)',
+                'Cognitive dissonance drives rationalization, not reason',
             ],
             'functional_expertise': [
                 'Motivational interviewing: evoke change talk — do not argue for change',
@@ -213,9 +213,9 @@ DOMAINS: dict[str, dict] = {
                 'Silence is not awkward — it is pressure; let it work',
             ],
             'historical': [
-                'Carnegie: genuine interest in the other person wins every conversation',
-                'Rosenberg NVC: observations → feelings → needs → requests',
-                'Epictetus: say what you mean, mean what you say, do not use words to impress',
+                'Genuine interest in the other person wins every conversation',
+                'Observations → feelings → needs → requests',
+                'Say what you mean, mean what you say, do not use words to impress',
             ],
             'functional_expertise': [
                 'DM sequence: observation → question → bridge → offer',
@@ -336,9 +336,9 @@ DOMAINS: dict[str, dict] = {
                 'Optionality is valuable but inaction is expensive',
             ],
             'historical': [
-                'Porter: competitive advantage comes from cost leadership, differentiation, or focus',
-                'Christensen: disruption comes from below — build for the underserved',
-                'Thiel: competition is for losers — build monopolies through unique insight',
+                'Competitive advantage comes from cost leadership, differentiation, or focus',
+                'Disruption comes from below — build for the underserved',
+                'Competition is for losers — build monopolies through unique insight',
             ],
             'functional_expertise': [
                 'Theory of constraints: identify binding constraint, subordinate everything else to it',
@@ -392,9 +392,9 @@ DOMAINS: dict[str, dict] = {
                 'Great marketing makes the prospect feel understood before they know you',
             ],
             'historical': [
-                'Ogilvy: the headline is 80 cents of every dollar spent',
-                'Hormozi: $100M Offers — irresistible offers beat ad spend every time',
-                'Gary Halbert: find a starving crowd, then serve them',
+                'The headline is 80 cents of every dollar spent',
+                'Irresistible offer architecture — irresistible offers beat ad spend every time',
+                'Find a starving crowd, then serve them',
             ],
             'functional_expertise': [
                 'Stages of awareness: Unaware → Problem aware → Solution aware → Product aware → Ready to buy',
@@ -449,9 +449,9 @@ DOMAINS: dict[str, dict] = {
                 'Distribution beats product',
             ],
             'historical': [
-                'Challenger Sale: best reps teach, tailor, take control',
-                'Sandler: create no-pressure environment, let prospect sell themselves',
-                'Hormozi: diagnose before prescribing — pain first, solution second',
+                'Best reps teach, tailor, take control',
+                'Create no-pressure environment, let prospect sell themselves',
+                'Diagnose before prescribing — pain first, solution second',
             ],
             'functional_expertise': [
                 'SPIN: Situation→Problem→Implication→Need-payoff questions',
@@ -502,9 +502,9 @@ DOMAINS: dict[str, dict] = {
                 'Cash flow timing kills more businesses than lack of profitability',
             ],
             'historical': [
-                'Buffett: only invest in what you understand — circle of competence',
-                'Graham: margin of safety — buy only when price is significantly below intrinsic value',
-                'Dalio: diversification is the only free lunch — uncorrelated assets reduce risk without reducing return',
+                'Only invest in what you understand — circle of competence',
+                'Margin of safety — buy only when price is significantly below intrinsic value',
+                'Diversification is the only free lunch — uncorrelated assets reduce risk without reducing return',
             ],
             'functional_expertise': [
                 'Unit economics: LTV/CAC ratio must exceed 3:1 for sustainable growth',
@@ -556,9 +556,9 @@ DOMAINS: dict[str, dict] = {
                 'Document before delegating — clarity is the currency of leverage',
             ],
             'historical': [
-                'Toyota Production System: eliminate waste, create flow, pull not push',
-                'EOS (Traction): vision + people + data + issues + process + traction',
-                'Goldratt Theory of Constraints: find, exploit, subordinate, elevate, repeat',
+                'Lean production: eliminate waste, create flow, pull not push',
+                'Business operating framework: vision + people + data + issues + process + traction',
+                'Theory of Constraints: find, exploit, subordinate, elevate, repeat',
             ],
             'functional_expertise': [
                 'Process mapping: swimlane diagrams reveal handoff failures',
@@ -695,9 +695,9 @@ DOMAINS: dict[str, dict] = {
                 'The villain makes the hero meaningful — create a worthy adversary',
             ],
             'historical': [
-                "Campbell's Hero's Journey: call → threshold → trials → revelation → return",
-                "Aristotle's Poetics: story = beginning + middle + end, plus reversal and recognition",
-                'McKee: story is a metaphor for life — it must be true even if fictional',
+                "Hero's Journey: call → threshold → trials → revelation → return",
+                "Classical story structure: story = beginning + middle + end, plus reversal and recognition",
+                'Story is a metaphor for life — it must be true even if fictional',
             ],
             'functional_expertise': [
                 'Short form structure: hook (1s) → setup (5s) → conflict (30s) → payoff (5s)',
