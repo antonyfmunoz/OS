@@ -15,6 +15,22 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from adapters.adapter_engine.adapter_manifest import AdapterMaturityLevel
+from execution.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
+
+# Positional mapping: actuator level N maps to adapter level N.
+# Labels differ (SIMULATED vs REGISTERED, SCREENSHOT_VERIFIED vs OPTIMIZED)
+# but int values align per architecture doc §3.4: "both share the same
+# L0-L7 scale so maturity is comparable across adapter types."
+ACTUATOR_TO_ADAPTER: dict[ActuatorMaturityLevel, AdapterMaturityLevel] = {
+    ActuatorMaturityLevel.L0_SIMULATED: AdapterMaturityLevel.L0_REGISTERED,
+    ActuatorMaturityLevel.L1_PROCESS_STARTED: AdapterMaturityLevel.L1_CONNECTED,
+    ActuatorMaturityLevel.L2_WINDOW_OBSERVED: AdapterMaturityLevel.L2_CAPABILITIES_KNOWN,
+    ActuatorMaturityLevel.L3_FOREGROUND_FOCUSED: AdapterMaturityLevel.L3_TESTED,
+    ActuatorMaturityLevel.L4_NAVIGATION_OBSERVED: AdapterMaturityLevel.L4_EDGE_CASES_MAPPED,
+    ActuatorMaturityLevel.L5_SCREENSHOT_VERIFIED: AdapterMaturityLevel.L5_OPTIMIZED,
+    ActuatorMaturityLevel.L6_FOUNDER_CONFIRMED: AdapterMaturityLevel.L6_EXPERT,
+    ActuatorMaturityLevel.L7_REPLAYABLE_ACTUATION: AdapterMaturityLevel.L7_MASTERFUL,
+}
 
 
 @dataclass
@@ -157,3 +173,29 @@ def validate_maturity_claim(
         p for p in MATURITY_REQUIREMENTS.get(claimed, []) if not _check_predicate(p, evidence)
     ]
     return (actual >= claimed, actual, missing)
+
+
+def actuator_to_adapter_maturity(
+    actuator_level: ActuatorMaturityLevel,
+) -> AdapterMaturityLevel:
+    """Translate CU-specific actuator maturity to the unified adapter scale.
+
+    Both scales are L0-L7 IntEnums. The mapping is positional (same int
+    value) but the function exists for type safety and to document the
+    semantic correspondence between actuator labels (SIMULATED, PROCESS_
+    STARTED, etc.) and adapter labels (REGISTERED, CONNECTED, etc.).
+
+    See architecture doc §3.4 for the semantic mapping rationale.
+    """
+    return ACTUATOR_TO_ADAPTER[actuator_level]
+
+
+def adapter_to_actuator_target(
+    adapter_level: AdapterMaturityLevel,
+) -> ActuatorMaturityLevel:
+    """Given a desired adapter maturity, return the CU actuator level needed.
+
+    Inverse of actuator_to_adapter_maturity. Useful for capability planning:
+    "to reach L5_OPTIMIZED, the CU adapter must achieve L5_SCREENSHOT_VERIFIED."
+    """
+    return ActuatorMaturityLevel(adapter_level.value)
