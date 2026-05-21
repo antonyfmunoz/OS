@@ -15,6 +15,7 @@ related_merges:
   - d47a7572  # 3.1f — code metadata
   - 0bf127f6  # 3.1g — knowledge system
   - 38ced536  # 3.1h — portfolio cluster + residual
+successor: "[[LAYER_3_UNIFIED_ARCHITECTURE]] — canonical Layer 3 architecture reference"
 ---
 
 ## 1. Scope Summary
