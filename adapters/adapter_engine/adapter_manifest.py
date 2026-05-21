@@ -52,6 +52,7 @@ class AdapterManifest:
     capabilities: list[CapabilityDescriptor] = field(default_factory=list)
     maturity: AdapterMaturityLevel = AdapterMaturityLevel.L0_REGISTERED
     version: str = "v1"
+    vendor_docs_url: str | None = None
     notes: list[str] = field(default_factory=list)
 
     def supports(self, action_type: str) -> bool:
@@ -90,5 +91,6 @@ class AdapterManifest:
             "maturity": self.maturity.value,
             "maturity_label": self.maturity.name,
             "version": self.version,
+            "vendor_docs_url": self.vendor_docs_url,
             "notes": self.notes,
         }
