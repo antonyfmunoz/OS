@@ -1,6 +1,6 @@
 ---
 name: ceo-framework
-description: "Load when CEO agent is handling constraint diagnosis, offer decisions, delegation, hiring, metric review, stage transitions, or any strategic decision. Contains Hormozi/Grove/Bezos operational frameworks for world-class CEO judgment."
+description: "Load when CEO agent is handling constraint diagnosis, offer decisions, delegation, hiring, metric review, stage transitions, or any strategic decision. Contains constraint, offer, delegation, hiring, metric, decision, and growth operational frameworks for world-class CEO judgment."
 allowed-tools: "Read"
 effort: low
 trigger: both
@@ -91,7 +91,7 @@ ONE OBJECTIVE PER VENTURE PER DAY:
 - The objective must connect directly to the active constraint.
 - If it doesn't touch the constraint, it doesn't ship today.
 
-TASK QUALITY STANDARD (Grove):
+TASK QUALITY STANDARD:
 Every task delegated must include:
 - What exactly needs to be done (one sentence)
 - Why -- connection to the active constraint
@@ -100,7 +100,7 @@ Every task delegated must include:
 - Deadline
 Vague tasks produce vague output. If it's not written, it didn't happen.
 
-TASK RELEVANT MATURITY (Grove):
+TASK RELEVANT MATURITY:
 - Agent new to this task type -> structured, specific instructions. Verify output explicitly.
 - Agent experienced at this task -> state the objective. Get out of the way. Review results.
 - Never manage all agents the same way. Maturity is task-specific, not agent-wide.
@@ -138,7 +138,7 @@ LOW CAPITAL (Stage 1-2):
 - Document what works BEFORE hiring above it. You cannot manage what you cannot define.
 - Promote from within when revenue supports it. The person who closed the first 10 sales knows more than any VP hire you can afford.
 
-BARRELS VS AMMUNITION (Hormozi):
+BARRELS VS AMMUNITION:
 - Barrels: people who make things happen, move fast, take ownership end-to-end.
 - Ammunition: resources you give barrels so they can execute faster.
 - Hire barrels. Give them ammunition. Never confuse the two.
@@ -158,13 +158,13 @@ EQUITY VS PROFIT SHARE:
 
 ### METRIC OPERATING RULES
 
-VITAL FEW OVER COMPELLING MANY (Grove):
+VITAL FEW OVER COMPELLING MANY:
 - Track the 3-5 metrics that predict the outcome you're working toward.
 - Everything else is noise until those metrics are at benchmark.
 - At Stage 1: DMs sent, reply rate, calls booked, close rate. That is it.
 - Adding more metrics before mastering these four is a distraction.
 
-LEADING VS LAGGING INDICATORS (Grove):
+LEADING VS LAGGING INDICATORS:
 - Act on leading indicators of problems. Not lagging indicators that confirm them.
 - DMs sent this week predicts pipeline next week. Act on low DMs now. Don't wait for an empty pipeline to react.
 - Reply rate dropping this week predicts call volume next week. Act now.
@@ -196,7 +196,7 @@ TREND IS MORE IMPORTANT THAN SNAPSHOT:
 
 ### DECISION OPERATING RULES
 
-TWO-DOOR FRAMEWORK (Bezos):
+TWO-DOOR FRAMEWORK:
 - Reversible decisions (two-way door): Decide fast. Move. Learn from the outcome. Most decisions are reversible. Speed is the competitive advantage here.
 - Irreversible decisions (one-way door): Slow down. Gather data. Consult. These are few but consequential: pricing model, key partnerships, major pivots, senior hires, capital raises. Never apply reversible-decision speed to irreversible decisions.
 
@@ -204,17 +204,17 @@ CLASSIFY BEFORE DECIDING:
 - Ask: if this is wrong, can we undo it within 30 days? Yes -> move fast. No -> slow down.
 - Most decisions founders treat as irreversible are actually reversible. Most decisions founders treat as quick are actually irreversible. Classify deliberately.
 
-DECISION QUALITY STANDARD (Grove):
+DECISION QUALITY STANDARD:
 - The goal is not to make the right decision. The goal is to build a decision process that produces right decisions more often.
 - Log every significant decision with: what was decided, why, what alternatives were considered, what outcome is expected.
 - Review decision quality quarterly: did the outcome match the prediction? What pattern emerges across right vs wrong?
 
-DISAGREE AND COMMIT (Bezos):
+DISAGREE AND COMMIT:
 - Challenge decisions when the data supports a different view. State the disagreement clearly. State the evidence.
 - Once a decision is made: commit fully. Execute without reservation. No passive resistance. No "I told you so."
 - The disagreement is in the room. Outside the room -- one direction.
 
-CHANGE ONE VARIABLE (Hormozi):
+CHANGE ONE VARIABLE:
 - Never change more than one variable at a time in any system.
 - Changing multiple things means you never know what moved the needle.
 - When results are below target: identify the single highest-leverage variable. Change it. Measure. Then decide next change.
@@ -253,32 +253,32 @@ World-class at Stage 4+ means:
 - Org chart formalizes. Reporting formalizes.
 - Excellence = high number of extremely small details done well. At scale, details that slip become culture.
 
-## Hormozi Rules
+## Growth Rules
 
-### HORMOZI OPERATING RULES
+### GROWTH OPERATING RULES
 
-FROM $100M OFFERS:
+OFFER ARCHITECTURE:
 - Value equation: Dream outcome x Perceived likelihood of achievement / Time delay x Effort and sacrifice = value. Increase numerator. Decrease denominator. Price becomes irrelevant when value is clear.
 - Grand slam offer: make saying no feel stupid. Stack value until the offer feels like a steal.
 - Niche selection: go narrow until it hurts. The riches are in the niches. Vague ICP = vague results.
 - Risk reversal: remove the risk of purchase. A guarantee that matches the dream outcome removes the last objection.
 - Naming: the right name changes conversion. Name the transformation, not the product.
 
-FROM $100M LEADS:
+LEAD GENERATION:
 - Core four: only four ways to get leads. Warm outreach (highest conversion, zero cost). Cold outreach (volume game). Organic content (compound over time). Paid ads (scale what's proven). At Stage 1: warm outreach first. Organic content second. Nothing else yet.
 - Dream 100: identify 100 ideal prospects. Work toward them systematically. Higher quality targeting = higher reply rate with the same volume.
 - Lead magnet: give away the what. Sell the how.
 - 70/20/10 testing: 70% proven approach, 20% variation on what works, 10% new experiment. Never abandon a working approach for an untested idea.
 - Volume reveals what works. Most businesses don't have a strategy problem. They have an insufficient volume problem.
 
-FROM $100M MONEY MODELS:
+UNIT ECONOMICS:
 - Four diagnostic questions: Do we have enough people to sell to? (Leads) Are we converting the prospects we have? (Sales) Do customers stay and buy again? (Delivery) Does the bank account reflect the work? (Profit) The first "no" is the constraint.
 - Self-funding equation: Revenue per customer > CAC + service cost within 30 days. When this holds, each customer funds acquisition of the next. Growth is no longer cash-constrained.
 - LTV multiplication: eight ways a customer transacts. Track all eight. Activate in sequence.
 - 28-day billing where subscriptions exist: 13 payments/year vs 12. Instant 8.3% increase.
 - Price raise letter: communicate value clearly before raising. Businesses report 20-78% price increases with minimal churn.
 
-HORMOZI OPERATING PHILOSOPHY:
+GROWTH OPERATING PHILOSOPHY:
 - Speed of implementation is the competitive advantage. Act before ready. Iterate from reality.
 - Excellence = high number of extremely small details done well.
 - Volume before strategy. More before better before new. Always in that order.

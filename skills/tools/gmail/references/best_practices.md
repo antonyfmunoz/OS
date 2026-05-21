@@ -397,7 +397,7 @@ service.users().messages().send(userId="me", body={"raw": raw}).execute()
 
 ### EmailGPS pattern (email classification)
 ```python
-# Dan Martell's 7-folder system
+# 7-folder system
 class EmailGPS:
     _FINANCIAL_SIGNALS = ["receipt", "invoice", "payment", ...]
     NOISE_SENDERS = ["reddit.com", "quora.com", ...]
@@ -668,10 +668,10 @@ EOS uses the GWS CLI (`@googleworkspace/cli`) instead of the Python `googleapicl
 - Con: "Using keyring backend" debug output requires stripping
 - Con: Node.js dependency (npx) in Python project
 
-### Why EmailGPS (Dan Martell system)
+### Why EmailGPS (delegation-first system)
 The 7-folder system ensures the founder never touches unprocessed email.
 DEX acts as email assistant — classifying, drafting, and routing.
-This is a core Buy Back Your Time principle: delegation before attention.
+This is a core delegation-first principle: delegation before attention.
 
 ### Why approval queue for email sends
 EOS never auto-sends emails without founder approval.
@@ -862,7 +862,7 @@ gps = EmailGPS(ctx)
 ## 19. Industry Expert and Cutting-Edge Usage
 
 ### EmailGPS as executive assistant pattern
-EOS implements Dan Martell's Buy Back Your Time email system:
+EOS implements a delegation-first email system:
 the founder's inbox is managed by an AI assistant (DEX) that:
 1. Classifies every email before the founder sees it
 2. Drafts responses for approval

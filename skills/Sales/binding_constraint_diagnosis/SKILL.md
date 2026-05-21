@@ -1,6 +1,6 @@
 ---
 name: binding-constraint-diagnosis
-description: "Identify the one active business constraint from the four Hormozi systems — run at the start of every CEO morning cycle or whenever the founder asks what to focus on."
+description: "Identify the one active business constraint from the four constraint systems — run at the start of every CEO morning cycle or whenever the founder asks what to focus on."
 allowed-tools: "Read, Bash"
 version: 1.0
 effort: high
@@ -15,7 +15,7 @@ context: fork
 
 ## Purpose
 Identify the one active business constraint
-from the four Hormozi systems: Leads, Sales,
+from the four constraint systems: Leads, Sales,
 Delivery, Profit. Run this before generating
 any CEO daily objective.
 

@@ -27,7 +27,7 @@ A response that addresses the real fear behind the stated objection, reframes it
 
 ## Best-Practice Benchmark
 
-Hormozi: the real objection is never the stated one. Feel/felt/found is dated. Use: acknowledge → isolate → test → answer. The objection is never the blocker — insufficient certainty is the blocker. Your job is to build certainty, not defeat resistance.
+The real objection is never the stated one. Feel/felt/found is dated. Use: acknowledge → isolate → test → answer. The objection is never the blocker — insufficient certainty is the blocker. Your job is to build certainty, not defeat resistance.
 
 ---
 

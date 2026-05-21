@@ -27,7 +27,7 @@ A closed sale, or a clear next-step commitment with a specific decision timeline
 
 ## Best-Practice Benchmark
 
-Alex Hormozi $100M Offers close structure: give people a reason to believe (proof), a specific outcome to want (promise), and an exact path that removes friction (plan). The close isn't persuasion — it's removing the remaining uncertainty that's preventing a decision.
+Close structure: give people a reason to believe (proof), a specific outcome to want (promise), and an exact path that removes friction (plan). The close isn't persuasion — it's removing the remaining uncertainty that's preventing a decision.
 
 ---
 

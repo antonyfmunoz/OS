@@ -26,7 +26,7 @@ the Python `google-api-python-client` SDK directly and delegates OAuth token
 management to the CLI's keyring backend.
 
 Core capabilities used by EOS:
-- **Gmail** -- inbox scanning, label management, email classification (Dan Martell GPS system), send emails, batch modify
+- **Gmail** -- inbox scanning, label management, email classification (email GPS system), send emails, batch modify
 - **Calendar** -- event listing, creation, updates, deletion, conflict checking, invite handling, travel time blocking
 - **Drive** -- file search, document export, folder creation, file moves, audit
 - **Docs** -- plain-text export for knowledge ingestion (GWS Document Scanner)
@@ -60,7 +60,7 @@ All methods are safe -- they return `None` or `[]` on error, never crash.
 | `services/handlers/cc_command_handler.py` | Calendar, Gmail, Drive | Claude Code command routing |
 | `scripts/calendar_invite_handler.py` | Calendar | Polls pending invites, AI-assesses, accepts/declines |
 | `eos_ai/orchestrator.py` | Calendar | Morning brief: today's events |
-| `eos_ai/email_gps.py` | Gmail | Dan Martell 7-folder inbox classification |
+| `eos_ai/email_gps.py` | Gmail | 7-folder inbox classification |
 | `eos_ai/eod_closing_loop.py` | Calendar | End-of-day calendar review |
 | `eos_ai/daily_sync.py` | Calendar, Gmail | Daily sync context |
 | `scripts/call_prep.py` | Calendar | Pre-meeting prep briefs |

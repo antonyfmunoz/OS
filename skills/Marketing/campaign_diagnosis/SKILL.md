@@ -20,7 +20,7 @@ Identify the single constraint limiting marketing performance. Not a list of imp
 A structured diagnosis: confirmed root cause, evidence that isolates it from alternatives, and the single highest-leverage intervention. One action, not a list.
 
 ## Best-Practice Benchmark
-Constraint theory applied to marketing: the system has one bottleneck. Optimizing non-bottlenecks does not improve throughput. Hormozi's diagnostic: if reach is up but conversions are flat, the message is wrong. If reach is down, the distribution is wrong. Never improve both simultaneously — you lose the ability to measure causation.
+Constraint theory applied to marketing: the system has one bottleneck. Optimizing non-bottlenecks does not improve throughput. The diagnostic: if reach is up but conversions are flat, the message is wrong. If reach is down, the distribution is wrong. Never improve both simultaneously — you lose the ability to measure causation.
 
 ## Decision Criteria
 Diagnose in this order:

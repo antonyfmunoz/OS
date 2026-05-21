@@ -18,7 +18,7 @@ context: fork
 
 ## What This Tool Does
 
-The Gmail API provides read/write access to email threads, messages, labels, drafts, and settings. EOS uses it as the founder's email interface — DEX reads inbox, classifies emails into Dan Martell's 7-folder GPS system, drafts responses, and routes signals to the intelligence pipeline.
+The Gmail API provides read/write access to email threads, messages, labels, drafts, and settings. EOS uses it as the founder's email interface — DEX reads inbox, classifies emails into the 7-folder GPS system, drafts responses, and routes signals to the intelligence pipeline.
 
 Core capabilities:
 - **Message operations** — list, get, send, modify, trash, delete
@@ -54,7 +54,7 @@ def _run(self, *args, params=None, body=None):
     return json.loads(clean_output)
 ```
 
-### Secondary: `eos_ai/email_gps.py` — EmailGPS (Dan Martell's 7-folder system)
+### Secondary: `eos_ai/email_gps.py` — EmailGPS (7-folder system)
 
 **Folders:**
 | Folder | Purpose |

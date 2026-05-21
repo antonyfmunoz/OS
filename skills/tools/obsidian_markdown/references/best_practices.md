@@ -1019,9 +1019,9 @@ Queried via: `python3 /opt/OS/scripts/query_graph.py <command>`
 
 `/opt/OS/10_Wiki/WIKI_RULES.md` defines the schema for the knowledge
 layer. Key rules:
-- RAW layer (01_Inbox/, data/, docs/) is read-only
-- WIKI layer (10_Wiki/) is AI-maintained
-- Karpathy pattern: RAW -> WIKI -> SCHEMA
+- CORPUS layer (01_Inbox/, data/, docs/) is read-only
+- CANON layer (10_Wiki/) is AI-maintained
+- Three-layer model: CORPUS -> CANON -> SCHEMA
 - All wiki pages use Obsidian-flavored Markdown
 
 ## Key Scripts

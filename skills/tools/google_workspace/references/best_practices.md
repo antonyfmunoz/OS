@@ -910,7 +910,7 @@ This runs daily at 6am via `eos_ai/orchestrator.py`.
 ## Industry Expert and Cutting-Edge Usage
 
 ### AI-powered email triage (what EOS does)
-EOS implements Dan Martell's "Buy Back Your Time" email GPS system -- AI reads
+EOS implements a delegation-first email GPS system -- AI reads
 every email and classifies it before the founder sees it. This is cutting-edge
 because most email automation tools (SaneBox, Clean Email) use rules, not LLMs.
 EOS uses LLM reasoning to understand context, relationships, and urgency.
