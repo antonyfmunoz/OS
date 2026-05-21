@@ -1,39 +1,29 @@
-# Handoff — 2026-05-21 Q1 Codebase Pages Migration
+# Handoff — 2026-05-21 Q2-Q6 Confirm Pass + Architecture Doc Promotion
 
 ## Status: COMPLETE
 
-Follows: `2026-05-20_2200_archive-hygiene-closure.md`
+Follows: `2026-05-21_0559_q1-codebase-pages-closure.md`
 
-Resolves Q1 of the 6 Layer 3 architecture questions — the only Phase 1
-implementation gate. Other 5 batched as far-phase direction confirms.
+Closes 5 remaining Layer 3 architecture questions as far-phase direction
+confirms. Promotes architecture doc from /tmp/ to canonical wiki at
+`10_Wiki/LAYER_3_UNIFIED_ARCHITECTURE.md`.
 
 ## What Changed
 
-**Merge commit**: `ebcf068b` on `main` (q1-codebase-pages-migration)
-**Feature commits**: `a7944569`, `8375d676`
-**Scope**: 5,805 files deleted from 10_Wiki/codebase/, 12 files updated,
-1 .gitignore entry added
+**Merge commit**: `b94c0e27` on `main` (q2-q6-confirm-pass)
+**Feature commit**: `9bab2717`
 
-Moved auto-generated codebase graph pages from `10_Wiki/codebase/` to
-`data/codebase_pages/` and gitignored the new location. Vault root is
-`/opt/OS/` (.obsidian/ at repo root), so palace bare-wikilink loci
-continue to resolve.
-
-## Verification
-
-All gates passed: verify_knowledge_system 11/11, sovereignty grep 20 hits,
-session_bootstrap resolves new path, test suite 0 new regressions,
-git status shows 0 codebase_pages entries after regen (gitignored).
+All 6 architecture questions resolved. Architecture direction locked.
+Layer 3 Phase 1 implementation unblocked as next initiative.
 
 ## Still Deferred
 
-- Q2-Q6 batched as architecture doc confirm pass
-- Discord command identifiers (`!buyback`, `!drip`, `!perfectweek`)
-- Architecture doc merge
-- Layer 3 Phase 1 implementation
+- Layer 3 Phase 1 implementation (heavyweight, fresh-session)
 - 17 pre-existing test failures
-- Graph JSON pruning (stale entries for deleted files, cosmetic)
-- snapshot-graph.sh tarball script
+- Discord command identifiers
+- Graph pruning verify
+- eos_ai/ status
+- Snapshot-graph tarball script
 
 ## What's NOT Next
 
