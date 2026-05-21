@@ -1,5 +1,5 @@
 """
-WeekArchitect — designs the upcoming week using the Perfect Week
+WeekArchitect — designs the upcoming week using the Ideal Week
 template as baseline, overlaid with real calendar events.
 """
 
@@ -17,7 +17,7 @@ PDT = ZoneInfo("America/Los_Angeles")
 
 def architect_week(ctx=None) -> str:
     """
-    Design the upcoming week aligned to the Perfect Week template.
+    Design the upcoming week aligned to the Ideal Week template.
     Returns a formatted week plan string for Discord or file output.
     """
     try:

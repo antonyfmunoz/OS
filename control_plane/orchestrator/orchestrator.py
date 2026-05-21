@@ -1063,7 +1063,7 @@ async def generate_morning_brief(ctx: EntrepreneurOSContext) -> str:
         pass
 
     # Build data-first brief
-    # Try Daily Sync first — Dan Martell's 7-section format
+    # Try Daily Sync first — 7-section briefing format
     try:
         from control_plane.scheduling.daily_sync import DailySyncEngine
 

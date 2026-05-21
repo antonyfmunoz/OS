@@ -255,7 +255,7 @@ def calendly_webhook():
             f"Card moved to Booked in Pipeline."
         )
 
-        # Person recognition — Martell rule check before anything else
+        # Person recognition — pre-meeting intel check
         try:
             from understanding.intelligence.person_recognition import recognize_person, format_person_context
             _recognition = recognize_person(name=name, email=email)

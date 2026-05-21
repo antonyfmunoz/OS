@@ -17,7 +17,7 @@ allowed-tools: Bash, Read, Edit
     evidence=['Source'],
     application='How to use it',
     exception='When it does not apply',
-    source='Hormozi|Carnegie|general',
+    source='offer_theory|influence_theory|general',
     stage_applicability={1: False, 2: True, 3: True},
     validity_conditions=[{
       'context': 'bootstrapped_pre_revenue',

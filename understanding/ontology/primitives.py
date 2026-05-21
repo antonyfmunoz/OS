@@ -89,7 +89,7 @@ PRIMITIVE_LIBRARY: dict[str, KnowledgePrimitive] = {
             'the decision feels obvious.'
         ),
         domain='sales',
-        evidence=['Hormozi $100M Offers framework'],
+        evidence=['irresistible offer architecture'],
         application=(
             'Stack value, reduce risk, increase '
             'certainty of outcome for buyer.'
@@ -98,7 +98,7 @@ PRIMITIVE_LIBRARY: dict[str, KnowledgePrimitive] = {
             'Optimizing an offer for unvalidated '
             'demand is polishing noise.'
         ),
-        source='Hormozi',
+        source='offer_theory',
         stage_applicability={
             1: False,  # no demand proof yet
             2: True,   # first sales proven
@@ -498,8 +498,8 @@ PRIMITIVE_LIBRARY: dict[str, KnowledgePrimitive] = {
         ),
         domain='sales',
         evidence=[
-            'Hormozi pricing frameworks',
-            'Cialdini social proof research',
+            'value-based pricing frameworks',
+            'social proof research',
         ],
         application=(
             'Price based on value delivered '
@@ -511,7 +511,7 @@ PRIMITIVE_LIBRARY: dict[str, KnowledgePrimitive] = {
             'you need social proof fast and '
             'can afford to subsidize early clients.'
         ),
-        source='Hormozi',
+        source='offer_theory',
         stage_applicability={
             1: True,
             2: True,
@@ -543,7 +543,7 @@ PRIMITIVE_LIBRARY: dict[str, KnowledgePrimitive] = {
         ),
         domain='marketing',
         evidence=[
-            'Hormozi content philosophy',
+            'content-as-filter philosophy',
             'Long-term brand building research',
         ],
         application=(
@@ -555,7 +555,7 @@ PRIMITIVE_LIBRARY: dict[str, KnowledgePrimitive] = {
             'Content is a long game. '
             'At Stage 1 outreach closes faster.'
         ),
-        source='Hormozi',
+        source='offer_theory',
         stage_applicability={
             1: False,  # outreach first
             2: True,
