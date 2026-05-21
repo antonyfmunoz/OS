@@ -2,7 +2,7 @@
 Person Recognition — central module for identifying known people
 across all channels: email, Discord, Calendly, Calendar.
 
-The Martell Rule: never auto-respond to a recognized person with
+Recognition protocol: never auto-respond to a recognized person with
 a template. Route to ANTONY immediately. Flag it.
 """
 
@@ -90,7 +90,7 @@ def recognize_person(
         'sources': ['memory', 'crm', 'meetings'],
         'context': str,  # what we know about them
         'last_seen': str,  # ISO date
-        'warning': str,   # if Martell rule applies
+        'warning': str,   # if recognition rule applies
     }
     """
     try:
@@ -250,7 +250,7 @@ def recognize_person(
 
         results['context'] = '\n'.join(context_parts[:5]) if context_parts else ''
 
-        # Martell rule warning
+        # recognition rule warning
         if results['known'] and results['confidence'] in ('high', 'medium'):
             results['warning'] = (
                 f'⚠️ Known person: {name or email}. '

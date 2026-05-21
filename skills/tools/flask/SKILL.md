@@ -58,7 +58,7 @@ on port 8080. Single Flask app with two routes.
 5. Publish `lead_booked` event on EventBus
 6. Update Notion pipeline stage
 7. Send Telegram notification
-8. Person recognition check (Martell rule)
+8. Person recognition check (pre-meeting intel check)
 9. Create meeting record (Neon + Notion)
 10. Auto-create lead file if none exists
 11. Send Discord alert with prep brief

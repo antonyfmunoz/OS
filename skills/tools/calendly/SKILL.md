@@ -32,7 +32,7 @@ EOS does not use the Calendly REST API for reading events. It only receives inbo
 3. Finds or creates lead file in `03_CRM/Leads/`
 4. Updates lead stage to "Booked" in markdown pipeline + Notion CRM
 5. Creates meeting record in Neon + Notion via `meetings.py`
-6. Runs person recognition (Martell rule — known person check)
+6. Runs person recognition (pre-meeting intel check)
 7. Builds prep brief with `build_prep_brief()`
 8. Publishes event to EventBus (`lead_booked`)
 9. Sends Discord alert with prep brief
@@ -59,7 +59,7 @@ Calendly (booking confirmed)
             ├── move_pipeline_card() [markdown kanban]
             ├── update_notion_lead_stage() [Notion API]
             ├── create_meeting_record() [Neon + Notion]
-            ├── recognize_person() [Martell rule]
+            ├── recognize_person() [pre-meeting intel check]
             ├── build_prep_brief() [AI-generated]
             ├── EventBus.publish_async("lead_booked")
             ├── Discord webhook alert

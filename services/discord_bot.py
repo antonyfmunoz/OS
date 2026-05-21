@@ -3922,7 +3922,7 @@ async def cmd_perfectweek(ctx: commands.Context):
             from control_plane.scheduling.ideal_week import get_ideal_week
 
             week = get_ideal_week()
-            lines = ["**📅 Your Perfect Week:**", ""]
+            lines = ["**📅 Your Ideal Week:**", ""]
             for day, data in week.items():
                 lines.append(f"**{day.capitalize()} — {data['theme']}**")
                 lines.append(f"AM: {data['morning']}")

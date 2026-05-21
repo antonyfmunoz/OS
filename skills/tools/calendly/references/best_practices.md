@@ -507,7 +507,7 @@ Calendly booking
           └── Not found → create_lead_file()
         → update_notion_lead_stage() [Notion CRM]
         → create_meeting_record() [Neon + Notion]
-        → recognize_person() [Martell rule]
+        → recognize_person() [pre-meeting intel check]
         → build_prep_brief() [AI-generated]
         → EventBus.publish_async("lead_booked")
         → Discord webhook alert
@@ -792,7 +792,7 @@ Calendly is the bridge between outreach and pipeline.
 - **With Notion:** CRM pipeline updates (update_notion_lead_stage)
 - **With Neon:** Meeting records, event logs, RLHF outcomes
 - **With meetings.py:** Meeting record creation, prep brief generation
-- **With person_recognition:** Known person check (Martell rule)
+- **With person_recognition:** Known person check (pre-meeting intel check)
 - **With EventBus:** Publishes "lead_booked" for downstream handlers
 - **With Discord:** Alert webhook with prep brief
 - **With Telegram:** Booking/cancellation notifications
@@ -808,7 +808,7 @@ Calendly is the bridge between outreach and pipeline.
 - Meeting records: Neon + Notion
 - Prep brief: AI-generated on booking
 - Cancellation recovery: auto-draft email for approval
-- Person recognition: Martell rule check
+- Person recognition: pre-meeting intel check
 
 ### Potential improvements
 - **Idempotency:** Deduplicate webhooks by event UUID
@@ -939,7 +939,7 @@ New handlers can subscribe to "lead_booked" without modifying webhook code.
 # 6. EventBus: "lead_booked"
 # 7. Update Notion CRM (PATCH /v1/pages/{id})
 # 8. Create meeting record (meetings.py → Neon + Notion)
-# 9. Person recognition (Martell rule)
+# 9. Person recognition (pre-meeting intel check)
 # 10. Build prep brief (AI-generated)
 # 11. Discord alert (with prep brief)
 # 12. Telegram notification
