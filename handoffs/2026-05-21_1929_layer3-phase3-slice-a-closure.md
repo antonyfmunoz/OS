@@ -61,21 +61,28 @@ entry point) into LOW risk (purely additive, zero TME changes).
 | Q17 Orchestrator return type | `CapabilityCatalog` object | Write is side effect; matches `discover_sources()` -> `SourcePlan` pattern |
 | Q18 Empty catalog semantics | Valid (is_empty property) | Empty capabilities is legitimate Slice A state |
 
+## Verified Vendor Docs URL
+
+Google reorganized Drive API docs under `/workspace/`. Canonical URL
+verified via web fetch: `https://developers.google.com/workspace/drive`
+(the spec's proposed `/drive/api` redirects there).
+
 ## Verification
 
 - **Slice A tests**: 11/11 pass (from main)
-- **Adapter regression tests**: 75/75 pass
+- **Adapter regression tests**: 75/75 pass (test_adapter_registry_contracts + test_layer3_type_system + test_adapter_maturity)
 - **Full suite collection**: 4291 (4280 baseline + 11 new), zero errors
 - **py_compile**: all 5 files clean
 - **ruff format**: all 5 files clean
 - **Sovereignty**: 20 hits, all DATA
-- **TME zero-touch**: confirmed via git diff
+- **Health endpoint**: not running (pre-existing state, unrelated to this change)
+- **TME zero-touch**: confirmed via git diff — no changes to any TME file
 
 ## New Retro Candidates
 
 | # | Candidate | Source |
 |---|-----------|--------|
-| 19 | "Existing API already handles this" — check existing parameters before adding new ones | Slice A (`300adef5`) |
+| 19 | "Existing API already handles this" pattern — when extending a system, check existing parameters before adding new ones. The adapter_id entry point investigation concluded that TME's official_url already suffices. | Slice A spec phase (`300adef5`) |
 
 ## Deferred Items
 
@@ -83,7 +90,7 @@ entry point) into LOW risk (purely additive, zero TME changes).
 - Phase 3 Slice A — catalog dataclasses + orchestrator + manifest field
 
 ### NEXT priority
-- **Phase 3 Slice B** — LLM capability extraction prompt. Slice A proved the plumbing; B builds the extraction layer that produces real capabilities from fetched vendor docs.
+- **Phase 3 Slice B** — LLM capability extraction prompt. Where the actual Phase 3 value lives. Slice A proved the plumbing; B builds the extraction layer that produces real capabilities from fetched vendor docs. The orchestrator's `discover()` method currently returns empty `capabilities=[]` — Slice B populates them via LLM extraction (prompt design, evidence parsing, confidence scoring).
 
 ### REMAINING operational queue
 - Discord command identifiers (`!buyback`, `!drip`, `!perfectweek`) — UX decision
