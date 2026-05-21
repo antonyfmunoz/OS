@@ -22,6 +22,11 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
+from adapters.adapter_engine.adapter_manifest import AdapterManifest
+from adapters.adapter_engine.adapter_registry_contracts import CapabilityDescriptor
+from adapters.adapter_engine.modality import ModalityType
+from adapters.adapter_engine.participant import ParticipantType
+
 
 class DriveCapabilityType(str, Enum):
     GOOGLE_DRIVE_SAFE_OPEN = "GOOGLE_DRIVE_SAFE_OPEN"
@@ -167,6 +172,18 @@ class GoogleDriveAdapterV1:
 
     ADAPTER_ID = "google-drive-adapter-v1"
     VERSION = "v1"
+    MANIFEST = AdapterManifest(
+        adapter_id="google-drive-adapter-v1",
+        adapter_type="google_drive",
+        modalities=[ModalityType.API],
+        participant_type=ParticipantType.EXTERNAL,
+        capabilities=[
+            CapabilityDescriptor(
+                capability_id="google-drive-safe-open",
+                action_type="GOOGLE_DRIVE_SAFE_OPEN",
+            ),
+        ],
+    )
 
     def __init__(self, config: dict[str, Any]) -> None:
         self._config = config

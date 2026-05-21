@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
-from adapters.adapter_engine.adapter_manifest import AdapterMaturityLevel
+from adapters.adapter_engine.adapter_manifest import AdapterManifest, AdapterMaturityLevel
 from adapters.adapter_engine.adapter_maturity import MaturityEvidence, compute_adapter_maturity
 from execution.runtime.execution_contracts_v1 import AdapterSelection, _now_iso, _new_id
 
@@ -116,6 +116,15 @@ class AdapterLifecycleManager:
         )
         self._adapters[adapter_id] = record
         return record
+
+    def register_from_manifest(self, manifest: AdapterManifest) -> AdapterHealthRecord:
+        """Register an adapter from a Layer 3 AdapterManifest."""
+        capability_strings = [c.action_type for c in manifest.capabilities]
+        return self.register_adapter(
+            adapter_id=manifest.adapter_id,
+            adapter_type=manifest.adapter_type,
+            capabilities=capability_strings,
+        )
 
     def get_adapter(self, adapter_id: str) -> AdapterHealthRecord | None:
         return self._adapters.get(adapter_id)
