@@ -48,20 +48,35 @@ EXCLUDES=(
   --glob '!data/semantic_space/'
 )
 
-if command -v rg &>/dev/null; then
-  CMD=(rg -n -E "$PATTERN" "${EXCLUDES[@]}" "$ROOT")
-else
-  # Fallback to grep with equivalent exclusions
-  CMD=(grep -rnE "$PATTERN"
-    --include='*.py' --include='*.md' --include='*.json'
-    --include='*.txt' --include='*.yaml' --include='*.yml'
-    --exclude-dir=.git --exclude-dir=node_modules
-    --exclude-dir=__pycache__
-    "$ROOT")
-fi
+run_grep() {
+  grep -rnE "$PATTERN" \
+    --include='*.py' --include='*.md' --include='*.json' \
+    --include='*.txt' --include='*.yaml' --include='*.yml' \
+    --exclude-dir='.git' \
+    --exclude-dir='node_modules' \
+    --exclude-dir='__pycache__' \
+    --exclude-dir='worktrees' \
+    --exclude-dir='_archive' \
+    "$ROOT" 2>/dev/null \
+  | grep -v '/handoffs/' \
+  | grep -v '/10_Wiki/LAYER_3.1' \
+  | grep -v '/vault/memory/conversations/' \
+  | grep -v '/data/migration/' \
+  | grep -v '/data/runtime/' \
+  | grep -v '/data/umh/traces/' \
+  | grep -v '/data/merged_graph\.json' \
+  | grep -v '/data/codebase_graph_merged\.json' \
+  | grep -v '/data/codebase_graph\.json' \
+  | grep -v '/data/node_summaries\.json' \
+  | grep -v '/data/semantic_space/' \
+  | grep -v '/10_Wiki/codebase/' \
+  | grep -v '/docs/system/module_inventory\.json' \
+  | grep -v '/docs/system/dependency_data\.json' \
+  || true
+}
 
 if [[ "${1:-}" == "--count" ]]; then
-  "${CMD[@]}" 2>/dev/null | wc -l
+  run_grep | wc -l
 else
-  "${CMD[@]}" 2>/dev/null || true
+  run_grep
 fi
