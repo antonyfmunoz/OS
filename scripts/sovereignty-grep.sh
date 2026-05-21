@@ -62,6 +62,7 @@ run_grep() {
   | grep -v '/10_Wiki/LAYER_3.1' \
   | grep -v '/vault/memory/conversations/' \
   | grep -v '/data/migration/' \
+  | grep -v '/docs/migrations/' \
   | grep -v '/data/runtime/' \
   | grep -v '/data/umh/traces/' \
   | grep -v '/data/merged_graph\.json' \
