@@ -183,6 +183,7 @@ class GoogleDriveAdapterV1:
                 action_type="GOOGLE_DRIVE_SAFE_OPEN",
             ),
         ],
+        vendor_docs_url="https://developers.google.com/workspace/drive",
     )
 
     def __init__(self, config: dict[str, Any]) -> None:
