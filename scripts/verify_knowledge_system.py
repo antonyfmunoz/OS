@@ -50,7 +50,7 @@ REQUIRED_DOCS = [
     ROOT / "cloud.md",
     ROOT / "10_Wiki" / "palace" / "index.md",
     ROOT / "10_Wiki" / "cloud_palace.md",
-    ROOT / "10_Wiki" / "codebase" / "cloud.md",
+    ROOT / "data" / "codebase_pages" / "cloud.md",
     ROOT / "10_Wiki" / "retrieval_rules.md",
     ROOT / "CLAUDE.md",
 ]
@@ -67,10 +67,10 @@ PALACE_SUBDIRS = [
 ]
 
 CODEBASE_VAULT_SUBDIRS = [
-    ROOT / "10_Wiki" / "codebase" / "files",
-    ROOT / "10_Wiki" / "codebase" / "modules",
-    ROOT / "10_Wiki" / "codebase" / "classes",
-    ROOT / "10_Wiki" / "codebase" / "functions",
+    ROOT / "data" / "codebase_pages" / "files",
+    ROOT / "data" / "codebase_pages" / "modules",
+    ROOT / "data" / "codebase_pages" / "classes",
+    ROOT / "data" / "codebase_pages" / "functions",
 ]
 
 EXPECTED_LANGUAGES = {"python", "typescript", "javascript", "sql", "config"}
@@ -112,7 +112,7 @@ def check_codebase_vault() -> CheckResult:
     missing = [str(p.relative_to(ROOT)) for p in CODEBASE_VAULT_SUBDIRS if not p.is_dir()]
     if missing:
         return CheckResult("codebase_vault", "FAIL", f"missing dirs: {missing}")
-    files = sum(1 for _ in (ROOT / "10_Wiki" / "codebase" / "files").glob("*.md"))
+    files = sum(1 for _ in (ROOT / "data" / "codebase_pages" / "files").glob("*.md"))
     if files == 0:
         return CheckResult("codebase_vault", "FAIL", "no file pages generated")
     return CheckResult("codebase_vault", "PASS", f"{files} file pages")

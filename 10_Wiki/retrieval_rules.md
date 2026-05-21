@@ -15,7 +15,7 @@ about the codebase. Skipping a layer wastes the founder's context budget.
    Start here. Rooms name the concern; loci name the file.
    If a room covers your question, your answer lives inside it.
 
-2. **Knowledge Graph** — [[codebase/cloud|10_Wiki/codebase/]] and `data/codebase_graph.json`
+2. **Knowledge Graph** — [[cloud|data/codebase_pages/]] and `data/codebase_graph.json`
    Structural answers: dependencies, dependents, call paths, entry points.
    Query with `scripts/query_graph.py`.
 
@@ -47,7 +47,7 @@ answer yes to one of:
 
 ## Guarantees the system must hold
 
-- Session bootstrap loads [[palace/index|palace]] + [[codebase/cloud|graph rules]] + these rules at start.
+- Session bootstrap loads [[palace/index|palace]] + [[cloud|graph rules]] + these rules at start.
 - Stale graph (> 24h) raises a warning in session bootstrap.
 - Post-merge hook rebuilds graph and palace automatically.
 - Pre-commit hook warns when code changes land without a refresh.

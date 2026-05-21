@@ -21,7 +21,7 @@ You have four layers of pre-computed knowledge. Use them in order:
 | Layer | Location | When to use |
 |-------|----------|-------------|
 | Memory Palace | `10_Wiki/palace/` | First — room-level orientation |
-| Knowledge Graph | `10_Wiki/codebase/` + `data/codebase_graph.json` | Second — structural queries |
+| Knowledge Graph | `data/codebase_pages/` + `data/codebase_graph.json` | Second — structural queries |
 | Summaries | `data/node_summaries.json` | Third — short descriptions |
 | Raw source | everywhere | Last — only when implementation matters |
 

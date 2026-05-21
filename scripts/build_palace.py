@@ -5,7 +5,7 @@ Structure:
     Palace     -> 10_Wiki/palace/index.md
     Wing       -> 10_Wiki/palace/wings/<wing>.md          (top-level module)
     Room       -> 10_Wiki/palace/rooms/<room>.md          (functional cluster)
-    Locus      -> entry inside a room page, wikilinked to 10_Wiki/codebase/
+    Locus      -> entry inside a room page, wikilinked to data/codebase_pages/
 
 A locus is a high-value file promoted into the palace by score:
     score = inbound_centrality * 2
@@ -305,7 +305,7 @@ def render_index(rooms_by_wing: dict[str, list[dict[str, Any]]], stats: dict[str
         "## Cloud Files",
         "",
         "- [[../cloud_palace|cloud_palace.md]] — palace usage rules",
-        "- [[../codebase/cloud|codebase/cloud.md]] — codebase graph rules",
+        "- [[cloud|data/codebase_pages/cloud.md]] — codebase graph rules",
         "- [[../retrieval_rules|retrieval_rules.md]] — retrieval hierarchy",
         "",
     ]

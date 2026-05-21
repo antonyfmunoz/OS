@@ -1005,13 +1005,13 @@ from the current codebase graph and node summaries.
 
 ## Codebase Graph
 
-`/opt/OS/10_Wiki/codebase/` stores the codebase knowledge graph:
-- `codebase/cloud.md` — graph rules and query documentation
-- `codebase/index.md` — graph entry point
-- `codebase/modules/` — per-module documentation
-- `codebase/classes/` — per-class documentation
-- `codebase/functions/` — per-function documentation
-- `codebase/files/` — per-file documentation
+`/opt/OS/data/codebase_pages/` stores the codebase knowledge graph:
+- `codebase_pages/cloud.md` — graph rules and query documentation
+- `codebase_pages/index.md` — graph entry point
+- `codebase_pages/modules/` — per-module documentation
+- `codebase_pages/classes/` — per-class documentation
+- `codebase_pages/functions/` — per-function documentation
+- `codebase_pages/files/` — per-file documentation
 
 Queried via: `python3 /opt/OS/scripts/query_graph.py <command>`
 
