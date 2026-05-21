@@ -410,8 +410,8 @@ cleanup.
 
 ## 7. Strategic Learnings
 
-Four observations distilled from the cleanup, framed for reuse
-in future system-wide refactoring or cleanup initiatives:
+Observations distilled from the cleanup and subsequent Phase 2 work,
+framed for reuse in future system-wide refactoring or cleanup initiatives.
 
 ### 1. Audit hit counts are a structural lower bound
 
@@ -525,3 +525,256 @@ for old scaffolding before merging. Treat unreferenced bash
 variables with active suspicion during review. If a shell
 array doesn't flow into any later command, verify by removing
 it and re-running.
+
+---
+
+*Items 8-18 added from Layer 3 Phase 2 (Slices A-E) and the
+eos_ai/ cleanup. Grouped by category.*
+
+#### Architectural Principles
+
+### 8. Reconstruct-on-demand beats stored derived state
+
+Source: Slice C (`49b313a5`).
+
+Rather than storing a `MaturityEvidence` instance alongside
+`AdapterHealthRecord`, `_build_evidence()` reconstructs evidence
+from existing record fields on every recompute. This creates a
+single extension point — when future slices add new evidence
+sources, they extend the helper rather than coordinate state
+across multiple stores.
+
+The tradeoff is that evidence is not inspectable between
+recomputes. If inspectability becomes needed, promoting evidence
+to a stored field is a 3-line change. But until that need is
+demonstrated, derivation beats duplication.
+
+Rule: when derived state can be cheaply reconstructed from
+canonical fields, prefer derivation over storage. A single
+reconstruction function is easier to audit and extend than a
+synchronized copy.
+
+### 9. Birth-certificate-vs-medical-chart separation
+
+Source: Slice E (`585be683`).
+
+`AdapterManifest` is the declaration-time immutable record of
+what an adapter IS — capabilities, modality, participant type,
+frozen at registration. `AdapterHealthRecord` is the runtime
+mutable record of what the adapter has DONE — execution counts,
+maturity level, last seen. Both reference the same entity
+(`adapter_id`) but serve different queries and evolve at
+different rates.
+
+Conflating them creates a hybrid declaration/runtime record
+that's awkward to evolve: adding a runtime field forces a
+re-deploy of manifest schemas, and adding a manifest field
+bloats runtime queries. The join-by-ID pattern allows each
+store to evolve independently.
+
+Rule: in any system tracking entities that have both intrinsic
+properties and accumulated history, separate the declaration
+store from the history store and join by ID. Declaration is
+immutable and owner-authored; history is mutable and
+system-accumulated.
+
+### 10. Type-narrowing seam at registration
+
+Source: Slice E (`585be683`).
+
+`AdapterManifest.capabilities` is `list[CapabilityDescriptor]`
+(rich type — `capability_id`, `action_type`, constraints).
+`AdapterHealthRecord.capabilities` is `list[str]` (just
+`action_type`). `register_from_manifest()` narrows at the
+registration boundary so downstream consumers work with the
+simpler type. Narrowing at the seam rather than at every query
+site means the cost is paid once.
+
+The alternative — storing `CapabilityDescriptor` in the health
+record and extracting `action_type` at every consumer — would
+couple all downstream code to the manifest's rich type. The
+seam makes manifest evolution invisible to runtime consumers.
+
+Rule: when a system has type asymmetry between declaration and
+runtime models, narrow at the boundary, not at the consumer.
+The boundary is where you have full context to decide what to
+keep; the consumer shouldn't need to know the source shape.
+
+### 11. Dict-vs-cast for fail-loud discoverability
+
+Source: Slice D (`70b44de5`).
+
+`ACTUATOR_TO_ADAPTER` could have been a one-line cast
+(`AdapterMaturityLevel(actuator_level.value)`) since both enums
+are `IntEnum` 0-7. The explicit dict was kept because it:
+(1) documents non-obvious label correspondence
+(`SIMULATED`→`REGISTERED`, `SCREENSHOT_VERIFIED`→`OPTIMIZED`),
+(2) fails loudly with `KeyError` if either enum diverges, and
+(3) is greppable for future readers searching for where the two
+scales connect.
+
+The cast would have been correct but invisible. A future reader
+who `grep`s for "actuator" to find the bridge path would miss
+the cast version entirely. The dict trades runtime brevity for
+discoverability and fail-loudness.
+
+Rule: when a runtime simplification would lose discoverability
+or replace loud failure with silent success, prefer the more
+verbose form. Verbosity that serves future readers is not waste.
+
+### 12. L1-skip as non-sequential algorithm validation
+
+Source: Slice E (`585be683`).
+
+The maturity algorithm walks down from L7, returning the highest
+level where all predicates pass. With `_build_evidence()` setting
+both `auth_verified=True` and `capability_count>0` at
+registration, both L1 and L2 predicates pass — L2 wins. Adapters
+don't earn levels in order; they're placed at the highest level
+their evidence supports.
+
+The L1-skip test (`test_execution_advances_maturity`, test 5 of
+the vertical slice) was the slice's most architecturally valuable
+test. It proved both monotonicity (more evidence → higher level)
+and non-sequentiality (L1 is never observed as a stable state
+when L2 predicates also pass). Without this test, an incorrect
+"earn-in-order" mental model could persist unchallenged.
+
+Rule: when validating algorithmic properties, test the cases
+that distinguish your algorithm from common-but-incorrect
+alternatives. Here, testing L0→L2 directly (skipping L1) is more
+architecturally informative than testing L0→L1→L2 sequentially.
+
+#### Calibration Findings
+
+### 13. Predicate parser convention drift
+
+Source: Slice B (`7e3dd5e6`).
+
+`_check_predicate()` pct branch had two reinforcing bugs. The
+human-readable predicate string `doc_absorption_gt_90pct`
+needed to reconstruct against a differently-named dataclass
+field (`doc_absorption_pct`), and the parser divided by 100
+(yielding 0.9) while the field stored a raw percentage (85.0).
+Both bugs stemmed from two-way convention coupling between
+identifier strings and dataclass field names.
+
+The fix was bidirectional: (1) ensure the parser extracts a
+field name that exists on `MaturityEvidence`, and (2) ensure
+the extracted field's unit matches what the parser compares
+against.
+
+Rule: when parsing string keys to field accessors, test
+bidirectionally — both that the parser extracts a field name
+and that the extracted field exists with the expected unit.
+Convention coupling between naming layers is a hidden fragility.
+
+### 14. Cumulative-subset vs threshold escalation
+
+Source: Slice B (`7e3dd5e6`).
+
+The original test asserted strict subset (`L5_reqs ⊆ L6_reqs`
+as string sets), but L5's `doc_absorption_gt_80pct` becomes
+L6's `doc_absorption_gt_90pct` — same field, stricter bar.
+String-set subset fails because the strings differ. The fix
+extracts the "field base" from predicate strings and checks
+coverage at the semantic level rather than the surface-text
+level.
+
+The insight is that "cumulative" in the maturity model means
+cumulative coverage of dimensions, not cumulative inclusion of
+predicate strings. Higher levels may replace a lower threshold
+with a higher one rather than adding new predicates.
+
+Rule: when "cumulative" requirements are expressed as opaque
+strings encoding comparable thresholds, subset assertions need
+to operate on the underlying structure (field name), not the
+surface text (full predicate string).
+
+### 15. Specs drift, code is truth
+
+Source: Slice C (`49b313a5`).
+
+The advisor execute prompt specified `successful_execution_count`
+matching the spec document. The shipped `MaturityEvidence`
+dataclass field was `success_count`. This would have been a
+`TypeError` at runtime. CC caught it by reconciling against the
+actual dataclass, not the spec language.
+
+Spec documents reflect a point-in-time intent. Dataclass fields
+reflect shipped reality. When the two diverge, the code wins —
+not because specs don't matter, but because code is the
+executable contract and specs are the conversation record.
+
+Rule: when drafting execute prompts that reference dataclass
+field names, reconcile against the shipped definition, not
+prior spec language. Verify field names in the source file,
+not in planning documents.
+
+#### Process Insights
+
+### 16. Worktree rename CWD lock
+
+Source: Slice E (`585be683`).
+
+After `mv` renames the worktree directory, CC's session retains
+its CWD pointer to the now-renamed path. File-writing tools that
+resolve relative paths or check directory state fail with
+"session locked" errors. Bash commands pivot around this by
+running from explicit absolute paths, but the native Edit/Write
+tools remain blocked.
+
+The mitigation is ordering: write the handoff BEFORE the
+worktree rename, or include an explicit `cd /opt/OS` step
+between the rename and the handoff write. The Slice E exec
+prompt did not include this step; subsequent prompts (starting
+with the eos_ai cleanup) did.
+
+Rule: in exec prompts that rename or remove worktrees, place
+all file-writing steps before the rename, or insert an explicit
+CWD reset. CC's tool layer caches the working directory;
+filesystem renames under it produce confusing failures.
+
+### 17. `git ls-tree HEAD` as definitive deadness check
+
+Source: eos_ai cleanup (`d07f3ad1`).
+
+Prior audits reported `eos_ai/` as "dead, 0 imports, safe to
+delete." Verification found the directory was already untracked
+by git — Wave 6 had run `git rm` on all 459 files. The empty
+subdirectories persisted on disk because `git rm` removes file
+entries from the index, not parent directories. A `git rm -r
+eos_ai/` would have errored ("pathspec did not match").
+
+The filesystem-side question (`ls`, `find -type f`) showed 0
+files but 5 directories and 1 symlink, which looked like
+"something's there." The git-side question (`git ls-tree HEAD
+eos_ai/` returning empty) gave the definitive answer: nothing
+is tracked.
+
+Rule: when a directory's git-tracking status is in question,
+ask the git-side question (`git ls-tree HEAD <path>`), not the
+filesystem-side question. Git doesn't track empty directories —
+their presence on disk is not evidence of tracked content.
+
+### 18. Verify-then-act saves wasted ceremony
+
+Source: eos_ai cleanup (`d07f3ad1`).
+
+The exec prompt prescribed branch + worktree + `git rm -r` +
+merge based on a hypothesis about state ("eos_ai/ contains
+tracked files that need removing"). Verification discovered the
+hypothesis was wrong — the files were already untracked. CC
+pivoted to direct filesystem cleanup + CLAUDE.md edit + handoff
+commit, skipping the branch/merge ceremony entirely.
+
+Without verification, CC would have created a branch, hit a
+`git rm` error, and had to backtrack. The verification step
+took 30 seconds; the backtracking would have taken minutes and
+polluted git history with an empty or aborted merge.
+
+Rule: when an exec prompt prescribes a procedure based on
+assumed state, verify the assumption first and let verification
+reshape the procedure if it disagrees. Cheap verification is
+high-leverage — the cost of checking is always lower than the
+cost of undoing.
