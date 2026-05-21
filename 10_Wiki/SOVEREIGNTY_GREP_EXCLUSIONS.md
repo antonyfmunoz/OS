@@ -85,5 +85,5 @@ manually would be overwritten on next rebuild.
 1. Document the path and rationale in this file first.
 2. Classify as DATA or IDENTITY per the Leverage Principle.
 3. Only DATA exclusions are permitted — IDENTITY hits must be fixed.
-4. Add the corresponding `--glob` line to `scripts/sovereignty-grep.sh`.
+4. Add a `| grep -v '/path/'` pipe filter to `run_grep()` in `scripts/sovereignty-grep.sh`.
 5. Commit both files together.
