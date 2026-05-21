@@ -24,7 +24,14 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import os
-sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+
+sys.path.insert(
+    0,
+    os.environ.get("UMH_ROOT")
+    or os.environ.get("OS_ROOT")
+    or os.environ.get("EOS_ROOT")
+    or "/opt/OS",
+)
 
 from execution.workers.workstation.relay_execution_transport_v1 import (
     RelayTransportResult,
@@ -106,7 +113,7 @@ class TestTransportFunctionSignatures:
 
 
 class TestSendAndWaitFlow:
-    @patch("core.workstation.relay_execution_transport_v1.check_ssh_reachable")
+    @patch("execution.workers.workstation.relay_execution_transport_v1.check_ssh_reachable")
     def test_ssh_unreachable_aborts(self, mock_ssh: MagicMock) -> None:
         mock_ssh.return_value = (False, "connection refused")
         result = send_and_wait({"request_id": "REQ-TEST-001"})
@@ -114,9 +121,9 @@ class TestSendAndWaitFlow:
         assert result.ssh_reachable is False
         assert "SSH" in result.transport_error
 
-    @patch("core.workstation.relay_execution_transport_v1.poll_relay_result")
-    @patch("core.workstation.relay_execution_transport_v1.write_request_via_scp")
-    @patch("core.workstation.relay_execution_transport_v1.check_ssh_reachable")
+    @patch("execution.workers.workstation.relay_execution_transport_v1.poll_relay_result")
+    @patch("execution.workers.workstation.relay_execution_transport_v1.write_request_via_scp")
+    @patch("execution.workers.workstation.relay_execution_transport_v1.check_ssh_reachable")
     def test_write_failed_aborts(
         self, mock_ssh: MagicMock, mock_write: MagicMock, mock_poll: MagicMock
     ) -> None:
@@ -127,25 +134,23 @@ class TestSendAndWaitFlow:
         assert result.ssh_reachable is True
         assert result.inbox_written is False
 
-    @patch("core.workstation.relay_execution_transport_v1.poll_relay_result")
-    @patch("core.workstation.relay_execution_transport_v1.write_request_via_scp")
-    @patch("core.workstation.relay_execution_transport_v1.check_ssh_reachable")
+    @patch("execution.workers.workstation.relay_execution_transport_v1.poll_relay_result")
+    @patch("execution.workers.workstation.relay_execution_transport_v1.write_request_via_scp")
+    @patch("execution.workers.workstation.relay_execution_transport_v1.check_ssh_reachable")
     def test_timeout_returns_timeout(
         self, mock_ssh: MagicMock, mock_write: MagicMock, mock_poll: MagicMock
     ) -> None:
         mock_ssh.return_value = (True, "ssh_ok")
         mock_write.return_value = (True, "REQ-TEST-003")
         mock_poll.return_value = None
-        result = send_and_wait(
-            {"request_id": "REQ-TEST-003"}, timeout_seconds=1
-        )
+        result = send_and_wait({"request_id": "REQ-TEST-003"}, timeout_seconds=1)
         assert result.status == "timeout"
         assert result.inbox_written is True
         assert result.result_received is False
 
-    @patch("core.workstation.relay_execution_transport_v1.poll_relay_result")
-    @patch("core.workstation.relay_execution_transport_v1.write_request_via_scp")
-    @patch("core.workstation.relay_execution_transport_v1.check_ssh_reachable")
+    @patch("execution.workers.workstation.relay_execution_transport_v1.poll_relay_result")
+    @patch("execution.workers.workstation.relay_execution_transport_v1.write_request_via_scp")
+    @patch("execution.workers.workstation.relay_execution_transport_v1.check_ssh_reachable")
     def test_completed_returns_relay_result(
         self, mock_ssh: MagicMock, mock_write: MagicMock, mock_poll: MagicMock
     ) -> None:
@@ -282,9 +287,7 @@ class TestTransportWithVisibleActuationProof:
             "machine_name": "DESKTOP-LVGUIQ9",
             "trace_id": "W0-chrome-proof-real",
         }
-        evidence = extract_evidence_from_relay_result(
-            relay_result, founder_confirmed=True
-        )
+        evidence = extract_evidence_from_relay_result(relay_result, founder_confirmed=True)
         proof = classify_visible_actuation(evidence)
         assert proof.maturity_level >= ActuatorMaturityLevel.L1_PROCESS_STARTED
         assert proof.escalation_blocked is False

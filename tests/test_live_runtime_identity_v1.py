@@ -20,9 +20,29 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
-sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS", "services"))
+sys.path.insert(
+    0,
+    os.environ.get("UMH_ROOT")
+    or os.environ.get("OS_ROOT")
+    or os.environ.get("EOS_ROOT")
+    or "/opt/OS",
+)
+_ROOT = (
+    os.environ.get("UMH_ROOT")
+    or os.environ.get("OS_ROOT")
+    or os.environ.get("EOS_ROOT")
+    or "/opt/OS"
+)
+sys.path.insert(
+    0,
+    os.path.join(
+        os.environ.get("UMH_ROOT")
+        or os.environ.get("OS_ROOT")
+        or os.environ.get("EOS_ROOT")
+        or "/opt/OS",
+        "services",
+    ),
+)
 
 
 class TestStaleRuntimeDetection:
@@ -31,11 +51,11 @@ class TestStaleRuntimeDetection:
 
         with (
             patch(
-                "handlers.substrate_command_handler._get_vps_commit_hash",
+                "interface.presence.handlers.substrate_command_handler._get_vps_commit_hash",
                 return_value="abc1234",
             ),
             patch(
-                "handlers.substrate_command_handler._get_origin_commit_hash",
+                "interface.presence.handlers.substrate_command_handler._get_origin_commit_hash",
                 return_value="def5678",
             ),
         ):
@@ -49,11 +69,11 @@ class TestStaleRuntimeDetection:
 
         with (
             patch(
-                "handlers.substrate_command_handler._get_vps_commit_hash",
+                "interface.presence.handlers.substrate_command_handler._get_vps_commit_hash",
                 return_value="abc1234",
             ),
             patch(
-                "handlers.substrate_command_handler._get_origin_commit_hash",
+                "interface.presence.handlers.substrate_command_handler._get_origin_commit_hash",
                 return_value="abc1234",
             ),
         ):
@@ -65,11 +85,11 @@ class TestStaleRuntimeDetection:
 
         with (
             patch(
-                "handlers.substrate_command_handler._get_vps_commit_hash",
+                "interface.presence.handlers.substrate_command_handler._get_vps_commit_hash",
                 return_value="unknown",
             ),
             patch(
-                "handlers.substrate_command_handler._get_origin_commit_hash",
+                "interface.presence.handlers.substrate_command_handler._get_origin_commit_hash",
                 return_value="abc1234",
             ),
         ):
@@ -83,7 +103,7 @@ class TestStaleRuntimeDetection:
         msg.channel.send = AsyncMock()
 
         with patch(
-            "handlers.substrate_command_handler._is_stale_runtime",
+            "interface.presence.handlers.substrate_command_handler._is_stale_runtime",
             return_value=(True, "aaa", "bbb"),
         ):
             result = asyncio.run(handle_substrate_command(msg, "!ping"))
@@ -253,7 +273,9 @@ class TestBotWiringIntegrity:
     def test_handler_compiles(self) -> None:
         import py_compile
 
-        py_compile.compile(f"{_ROOT}/services/handlers/substrate_command_handler.py", doraise=True)
+        py_compile.compile(
+            f"{_ROOT}/interface/presence/handlers/substrate_command_handler.py", doraise=True
+        )
 
 
 class TestContainerIdentity:

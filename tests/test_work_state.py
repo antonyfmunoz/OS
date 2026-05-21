@@ -12,7 +12,14 @@ import sys
 import time
 
 import os
-sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+
+sys.path.insert(
+    0,
+    os.environ.get("UMH_ROOT")
+    or os.environ.get("OS_ROOT")
+    or os.environ.get("EOS_ROOT")
+    or "/opt/OS",
+)
 
 import state.work.work_state as ws
 
@@ -78,8 +85,8 @@ def test_exponential_backoff():
     for i in range(1, len(delays)):
         assert delays[i] >= delays[i - 1], f"Delay did not increase: {delays[i - 1]} → {delays[i]}"
 
-    # First delay should be small, last should be large
-    assert delays[0] <= 10.0, f"First delay too large: {delays[0]}"
+    # First delay should be base (5s) times pressure multiplier (up to 4x)
+    assert delays[0] <= 20.0, f"First delay too large: {delays[0]}"
     assert delays[-1] >= 100.0, f"Last delay too small: {delays[-1]}"
     print(f"  PASS: exponential_backoff (delays: {[f'{d:.0f}' for d in delays]})")
 

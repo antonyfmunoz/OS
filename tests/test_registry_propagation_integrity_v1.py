@@ -19,9 +19,30 @@ from unittest.mock import patch
 import pytest
 
 import os
-sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
-sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS", "services"))
+
+sys.path.insert(
+    0,
+    os.environ.get("UMH_ROOT")
+    or os.environ.get("OS_ROOT")
+    or os.environ.get("EOS_ROOT")
+    or "/opt/OS",
+)
+_ROOT = (
+    os.environ.get("UMH_ROOT")
+    or os.environ.get("OS_ROOT")
+    or os.environ.get("EOS_ROOT")
+    or "/opt/OS"
+)
+sys.path.insert(
+    0,
+    os.path.join(
+        os.environ.get("UMH_ROOT")
+        or os.environ.get("OS_ROOT")
+        or os.environ.get("EOS_ROOT")
+        or "/opt/OS",
+        "services",
+    ),
+)
 
 
 class TestNodeSyncAcceptsCanonicalActions:
@@ -148,7 +169,9 @@ class TestRegistryHashPropagation:
 
     def test_manifest_registry_hash_matches(self) -> None:
         from composition.registries.canonical_command_registry_v1 import get_canonical_registry
-        from interface.presence.handlers.substrate_command_handler import get_command_surface_manifest
+        from interface.presence.handlers.substrate_command_handler import (
+            get_command_surface_manifest,
+        )
 
         reg = get_canonical_registry()
         m = get_command_surface_manifest()
@@ -186,33 +209,45 @@ class TestRouterConfigParity:
 
 class TestSpineExecutionPropagation:
     def test_spine_builder_passes_registry_hash(self) -> None:
-        source = (Path(_ROOT) / "runtime" / "interfaces" / "discord_spine_integration_v1.py").read_text()
+        source = (
+            Path(_ROOT) / "runtime" / "interfaces" / "discord_spine_integration_v1.py"
+        ).read_text()
         assert "registry_hash=_reg.registry_hash()" in source
 
     def test_spine_builder_uses_canonical_registry(self) -> None:
-        source = (Path(_ROOT) / "runtime" / "interfaces" / "discord_spine_integration_v1.py").read_text()
+        source = (
+            Path(_ROOT) / "runtime" / "interfaces" / "discord_spine_integration_v1.py"
+        ).read_text()
         assert "get_canonical_registry" in source
         assert "_reg.command_action_map" in source
 
     def test_spine_execution_passes_action_type_to_sync(self) -> None:
-        source = (Path(_ROOT) / "core" / "runtime" / "live_local_runtime_execution_v1.py").read_text()
+        source = (
+            Path(_ROOT) / "execution" / "runtime" / "live_local_runtime_execution_v1.py"
+        ).read_text()
         assert "requested_command=action_type" in source
 
 
 class TestNoDuplicatedRegistries:
     def test_adapter_no_hardcoded_command_map(self) -> None:
-        source = (Path(_ROOT) / "runtime" / "interfaces" / "discord_interface_adapter_v1.py").read_text()
+        source = (
+            Path(_ROOT) / "runtime" / "interfaces" / "discord_interface_adapter_v1.py"
+        ).read_text()
         assert '"!ping": "ping"' not in source
         assert '"!chrome-proof": "chrome_proof"' not in source
 
     def test_adapter_derives_from_canonical(self) -> None:
-        source = (Path(_ROOT) / "runtime" / "interfaces" / "discord_interface_adapter_v1.py").read_text()
+        source = (
+            Path(_ROOT) / "runtime" / "interfaces" / "discord_interface_adapter_v1.py"
+        ).read_text()
         assert "_REGISTRY.command_action_map" in source
         assert "_REGISTRY.spine_routed_commands" in source
         assert "_REGISTRY.command_contracts" in source
 
     def test_handler_derives_from_canonical(self) -> None:
-        source = (Path(_ROOT) / "services" / "handlers" / "substrate_command_handler.py").read_text()
+        source = (
+            Path(_ROOT) / "interface" / "presence" / "handlers" / "substrate_command_handler.py"
+        ).read_text()
         assert "_CANONICAL.commands" in source
 
 
@@ -236,7 +271,11 @@ class TestFullSpineSimulation:
                 "ingest_safe_doc_cu",
                 "open_application_url",
             ],
-            config_path=Path(_ROOT) / "data" / "runtime" / "spine_gate_proofs" / "config_marker.json",
+            config_path=Path(_ROOT)
+            / "data"
+            / "runtime"
+            / "spine_gate_proofs"
+            / "config_marker.json",
             sync_policy=SyncPolicy.WARN_ONLY,
             registry_hash=reg.registry_hash(),
         )
@@ -264,7 +303,11 @@ class TestFullSpineSimulation:
                 "ingest_safe_doc_cu",
                 "open_application_url",
             ],
-            config_path=Path(_ROOT) / "data" / "runtime" / "spine_gate_proofs" / "config_marker.json",
+            config_path=Path(_ROOT)
+            / "data"
+            / "runtime"
+            / "spine_gate_proofs"
+            / "config_marker.json",
             sync_policy=SyncPolicy.WARN_ONLY,
             registry_hash=reg.registry_hash(),
         )
@@ -283,11 +326,11 @@ class TestRegressionIntegrity:
         import py_compile
 
         files = [
-            f"{_ROOT}/core/runtime/node_sync_gate_v1.py",
-            f"{_ROOT}/core/registry/canonical_command_registry_v1.py",
+            f"{_ROOT}/execution/runtime/node_sync_gate_v1.py",
+            f"{_ROOT}/composition/registries/canonical_command_registry_v1.py",
             f"{_ROOT}/runtime/interfaces/discord_interface_adapter_v1.py",
             f"{_ROOT}/runtime/interfaces/discord_spine_integration_v1.py",
-            f"{_ROOT}/services/handlers/substrate_command_handler.py",
+            f"{_ROOT}/interface/presence/handlers/substrate_command_handler.py",
             f"{_ROOT}/services/discord_bot.py",
         ]
         for f in files:

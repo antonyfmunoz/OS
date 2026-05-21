@@ -24,9 +24,30 @@ from pathlib import Path
 import pytest
 
 import os
-sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
-sys.path.insert(0, os.path.join(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS", "services"))
+
+sys.path.insert(
+    0,
+    os.environ.get("UMH_ROOT")
+    or os.environ.get("OS_ROOT")
+    or os.environ.get("EOS_ROOT")
+    or "/opt/OS",
+)
+_ROOT = (
+    os.environ.get("UMH_ROOT")
+    or os.environ.get("OS_ROOT")
+    or os.environ.get("EOS_ROOT")
+    or "/opt/OS"
+)
+sys.path.insert(
+    0,
+    os.path.join(
+        os.environ.get("UMH_ROOT")
+        or os.environ.get("OS_ROOT")
+        or os.environ.get("EOS_ROOT")
+        or "/opt/OS",
+        "services",
+    ),
+)
 
 
 class TestMaturityLevelComputation:
@@ -602,10 +623,10 @@ class TestRegressionIntegrity:
         import py_compile
 
         files = [
-            f"{_ROOT}/core/actuation/actuator_maturity_v1.py",
-            f"{_ROOT}/core/actuation/actuator_backend_registry_v1.py",
-            f"{_ROOT}/core/actuation/observed_desktop_state_v1.py",
-            f"{_ROOT}/core/actuation/windows_foreground_actuator_v1.py",
+            f"{_ROOT}/execution/actuation/actuator_maturity_v1.py",
+            f"{_ROOT}/execution/actuation/actuator_backend_registry_v1.py",
+            f"{_ROOT}/execution/actuation/observed_desktop_state_v1.py",
+            f"{_ROOT}/execution/actuation/windows_foreground_actuator_v1.py",
         ]
         for f in files:
             py_compile.compile(f, doraise=True)
@@ -614,12 +635,12 @@ class TestRegressionIntegrity:
         import py_compile
 
         files = [
-            f"{_ROOT}/core/registry/canonical_command_registry_v1.py",
-            f"{_ROOT}/core/runtime/node_sync_gate_v1.py",
-            f"{_ROOT}/core/control_plane_router/router_contracts.py",
-            f"{_ROOT}/core/control_plane_router/control_plane_router_v1.py",
+            f"{_ROOT}/composition/registries/canonical_command_registry_v1.py",
+            f"{_ROOT}/execution/runtime/node_sync_gate_v1.py",
+            f"{_ROOT}/control_plane/router/router_contracts.py",
+            f"{_ROOT}/control_plane/router/control_plane_router_v1.py",
             f"{_ROOT}/runtime/interfaces/discord_spine_integration_v1.py",
-            f"{_ROOT}/services/handlers/substrate_command_handler.py",
+            f"{_ROOT}/interface/presence/handlers/substrate_command_handler.py",
             f"{_ROOT}/services/discord_bot.py",
         ]
         for f in files:
