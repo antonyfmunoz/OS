@@ -48,7 +48,7 @@ Each **room** page contains:
 4. Look at the **core loci** table. These are your files.
    Rank is `inbound*2 + outbound + critical*10 + entry*3`.
 
-5. Follow a locus wikilink to its [[codebase/cloud|codebase graph]] page under `10_Wiki/codebase/files/`.
+5. Follow a locus wikilink to its [[cloud|codebase graph]] page under `data/codebase_pages/files/`.
 
 6. Only open the real source file when the graph page does not answer.
 

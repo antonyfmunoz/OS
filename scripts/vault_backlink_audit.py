@@ -36,7 +36,7 @@ VAULT_DIR = VAULT_ROOT / "vault"
 
 # Directories to skip
 SKIP_DIRS = {
-    "10_Wiki/codebase",
+    "data/codebase_pages",
     "10_Wiki/palace",
     "vault/memory/conversations",
 }

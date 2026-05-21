@@ -69,7 +69,7 @@ run_grep() {
   | grep -v '/data/codebase_graph\.json' \
   | grep -v '/data/node_summaries\.json' \
   | grep -v '/data/semantic_space/' \
-  | grep -v '/10_Wiki/codebase/' \
+  | grep -v '/data/codebase_pages/' \
   | grep -v '/docs/system/module_inventory\.json' \
   | grep -v '/docs/system/dependency_data\.json' \
   || true

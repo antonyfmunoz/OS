@@ -75,3 +75,6 @@ CLAUDE.local.md
 # Action system runtime state
 data/action_log.jsonl
 data/action_snapshots/
+
+# Auto-generated codebase graph pages (derivable from data/codebase_graph.json)
+data/codebase_pages/

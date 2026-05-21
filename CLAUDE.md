@@ -53,7 +53,7 @@ scripts/update-graph        # rebuilds graph + palace + summaries end-to-end
   1. `/opt/OS/cloud.md`                       — system context
   2. `/opt/OS/10_Wiki/palace/index.md`        — memory palace entry
   3. `/opt/OS/10_Wiki/cloud_palace.md`        — palace usage rules
-  4. `/opt/OS/10_Wiki/codebase/cloud.md`      — graph rules
+  4. `/opt/OS/data/codebase_pages/cloud.md`    — graph rules
   5. `/opt/OS/10_Wiki/retrieval_rules.md`     — enforced hierarchy
 
 ### Retrieval hierarchy (NON-NEGOTIABLE)
