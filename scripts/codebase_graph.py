@@ -9,7 +9,7 @@ of interconnected markdown files with wikilinks.
 Pipeline:
   1. SCAN   — recursively parse all Python files via ast
   2. GRAPH  — build nodes (file, class, function) and edges (imports, calls, depends_on)
-  3. RENDER — generate Obsidian markdown in 10_Wiki/codebase/
+  3. RENDER — generate Obsidian markdown in data/codebase_pages/
 
 Usage:
     python3 scripts/codebase_graph.py                # full rebuild
@@ -45,7 +45,7 @@ except Exception:  # pragma: no cover — allow running before parsers/ exists
 # ─── Configuration ────────────────────────────────────────────────────────────
 
 ROOT = Path(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-WIKI_DIR = ROOT / "10_Wiki" / "codebase"
+WIKI_DIR = ROOT / "data" / "codebase_pages"
 JSON_OUT = ROOT / "data" / "codebase_graph.json"
 CLOUD_MD = WIKI_DIR / "cloud.md"
 INDEX_MD = WIKI_DIR / "index.md"
@@ -1089,7 +1089,7 @@ def _generate_cloud(graph: CodebaseGraph) -> None:
     # Cloud Context — Codebase Knowledge Graph
 
     This file instructs AI agents on how to use the preloaded
-    codebase knowledge graph stored in `10_Wiki/codebase/`.
+    codebase knowledge graph stored in `data/codebase_pages/`.
 
     ## What This Is
 
@@ -1107,7 +1107,7 @@ def _generate_cloud(graph: CodebaseGraph) -> None:
     ## How to Navigate
 
     ```
-    10_Wiki/codebase/
+    data/codebase_pages/
       index.md          ← Start here. Module list, critical files, entry points.
       cloud.md          ← This file. AI instructions.
       modules/          ← One page per top-level directory (runtime, services, etc.)
