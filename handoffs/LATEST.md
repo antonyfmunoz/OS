@@ -1,60 +1,45 @@
-# Handoff — 2026-05-20 Import-OS Fix Closure
+# Handoff — 2026-05-20 Archive-Hygiene Closure
 
 ## Status: COMPLETE
 
-Follows: `2026-05-20_2040_test-hygiene-closure.md`
+Follows: `2026-05-20_2110_import-os-fix-closure.md`
 
-Trivial 1-line fix. Separate handoff for merge traceability.
+Closes Bucket D from Layer 3.1 Merge 7 grep — the last deferred
+cleanup item with active-code implications. All remaining sovereignty
+grep hits are now DATA per Leverage Principle.
 
 ## What Changed
 
-**Merge commit**: `ef6ab7fc` on `main` (fix-import-os-test-day-discord)
-**Feature commit**: `f39d9a90`
-**Scope**: 1 insertion in
-`tests/integration/transport/test_day_discord_detect.py`
+**Merge commit**: `d7d1fa4c` on `main` (archive-hygiene-bucket-d)
+**Feature commits**: `4502223d`, `a204e8e5`, `04172e63`
+**Scope**: 1125 files moved, 2 files created, 0 active code modified
 
-Added `import os` (line 18, alphabetical between `import re` and
-`import sys`). File used `os.environ.get(...)` at line 21 but never
-imported `os` — caused a `NameError` at collection time, preventing
-pytest from discovering the 4 tests in the file.
+Moved `archive/umh_reference/`, `archive/tools_duplicate/`, and
+`docs/superpowers/plans/` to `_archive/`. Codified sovereignty grep
+exclusions in `scripts/sovereignty-grep.sh` and
+`10_Wiki/SOVEREIGNTY_GREP_EXCLUSIONS.md`.
 
-## Baseline Progression
+Canonical sovereignty grep: **20 hits remaining, all DATA**.
 
-| Checkpoint | Passed | Deselected | Collection errors |
-|---|---|---|---|
-| Pre-Layer-3.1 | 73 | 11 | unknown |
-| Post-Layer-3.1 (Merge 7) | 66 | 18 | 1 |
-| Post-test-hygiene | 84 | 0 | 1 |
-| **Post-import-os-fix** | **88** | **0** | **0** |
+## Layer 3.1 Downstream Closure
 
-Full suite: 3997 collected, 0 errors. The +4 are the 4 tests in
-`test_day_discord_detect.py` that were previously uncollectable.
+All downstream artifacts of Layer 3.1 sovereignty cleanup are now
+closed:
 
-## Verification Gates
+| Item | Merge | Commit |
+|---|---|---|
+| Test-hygiene (4 broken classes) | test-hygiene-restore-baseline | `4e299a1e` |
+| Collection error (import os) | fix-import-os-test-day-discord | `ef6ab7fc` |
+| Archive-hygiene (Bucket D) | archive-hygiene-bucket-d | `d7d1fa4c` |
 
-| Gate | Result |
-|---|---|
-| py_compile | PASS |
-| Collection (test_day_discord_detect.py) | 4 collected, 0 errors |
-| Test run (test_day_discord_detect.py) | 4/4 passed |
-| Full-suite collection | 3997 collected, 0 errors |
-| Regression suite (84/0) | PASS |
-| uvicorn /api/umh/health | Healthy |
+## Still Deferred
 
-## Updated Deferred Queue (delta)
-
-### CLOSED by this merge
-
-- **1-line fix: test_day_discord_detect.py** — collection error resolved
-
-### Still deferred (unchanged)
-
-- 17 pre-existing test failures across 7 test files
-- Archive-hygiene merge
-- Discord command identifiers
+- Discord command identifiers (`!buyback`, `!drip`, `!perfectweek`)
 - 6 open architecture questions
 - Architecture doc merge
 - Layer 3 Phase 1 implementation
+- 17 pre-existing test failures
+- Graph pruning (stale entries for deleted files, cosmetic)
 
 ## What's NOT Next
 
