@@ -1,9 +1,7 @@
 """
-EmailGPS — Dan Martell's 7-folder email management system for DEX.
+EmailGPS — 7-folder email management system for DEX.
 
 Antony never touches email until DEX has processed it first. Ever.
-"I am no longer ever, ever allowed to touch an email that wasn't first
-checked by my assistant." — Dan Martell, Buy Back Your Time
 
 Folders:
   ANTONY        → his eyes only, needs direct attention

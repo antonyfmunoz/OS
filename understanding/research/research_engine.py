@@ -15,7 +15,7 @@ Usage:
     re  = ResearchEngine(ctx)
 
     gaps = re.detect_knowledge_gaps()
-    result = re.research_topic('Tony Robbins offer structure and churn patterns')
+    result = re.research_topic('competitor offer structure and churn patterns')
     summary = re.run_gap_fill_cycle()
 """
 
@@ -101,8 +101,8 @@ class ResearchEngine:
             "Identify 3-5 specific knowledge gaps. Each gap must be a precise topic "
             "— not a category. Examples of specificity:\n"
             "  BAD:  'competitor knowledge'\n"
-            "  GOOD: 'Tony Robbins offer structure, pricing, and why customers "
-            "         churn after Unleash the Power Within events'\n\n"
+            "  GOOD: 'competitor offer structure, pricing, and why customers "
+            "         churn after their flagship transformation events'\n\n"
             "Focus on knowledge that would directly improve: competitor analysis, "
             "ICP psychology, platform mechanics, offer design, outreach conversion, "
             "or pricing strategy for the 18-25 men personal development market.\n\n"
@@ -189,8 +189,8 @@ class ResearchEngine:
             "A knowledge gap is a specific topic the AI needs to know deeply. "
             "Be precise:\n"
             "  BAD:  'competitor knowledge'\n"
-            "  GOOD: 'Tony Robbins UPW event structure, ticket pricing, and the "
-            "         specific complaints his customers post after events'\n\n"
+            "  GOOD: 'competitor flagship event structure, ticket pricing, and the "
+            "         specific complaints their customers post after events'\n\n"
             "VENTURES:\n\n"
             + "\n\n".join(venture_blocks)
             + "\n\n"
