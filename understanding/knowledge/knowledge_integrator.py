@@ -15,7 +15,7 @@ Categories:
   conversation     — distilled conversation insights
   outcome          — what happened after an action
   world_event      — significant external events
-  creator_content  — content from tracked creators (Hormozi, Carnegie, Voss, etc.)
+  creator_content  — content from tracked creators
   business_insight — business-specific learnings
   world_pulse      — continuous monitoring of market sources
 
@@ -27,10 +27,10 @@ Usage:
     ki = KnowledgeIntegrator(ctx)
 
     ki.integrate(
-        content='Hormozi: The key to scaling offers is risk removal.',
-        source='hormozi_youtube',
+        content='Creator: The key to scaling offers is risk removal.',
+        source='creator_youtube',
         category='creator_content',
-        metadata={'creator': 'Alex Hormozi'},
+        metadata={'creator': 'Example Creator'},
     )
 
     results = ki.query_knowledge('offer guarantee conversion')
@@ -193,10 +193,7 @@ class KnowledgeIntegrator:
         content: str,
         url: str = '',
     ) -> bool:
-        """
-        Store content from a known creator permanently.
-        Tracks: Hormozi, Carnegie, Voss, Morgan, Hormozi, etc.
-        """
+        """Store content from a known creator permanently."""
         return self.integrate(
             content=f'{creator}: {title}\n{content}',
             source=url or creator,
