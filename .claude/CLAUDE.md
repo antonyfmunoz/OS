@@ -108,7 +108,6 @@ Focus: proving the system works before UI layer.
 /opt/OS/  (repository root — pending rename to /opt/UMH)
   core/            — substrate contracts, primitives, invariants, governance foundations
   runtime/         — single live runtime (cognition, execution, memory, transport)
-  eos_ai/          — dead shim layer (zero consumers, pending removal)
   services/        — daemons and interfaces (discord_bot.py, etc.)
   scripts/         — operator tooling (cron scripts, utilities)
   saas/            — SaaS product (TypeScript/React) — EOS application projection
