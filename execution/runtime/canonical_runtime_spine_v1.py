@@ -48,7 +48,7 @@ from .execution_contracts_v1 import (
     _new_id,
     _now_iso,
 )
-from .adapter_lifecycle_manager_v1 import AdapterLifecycleManager
+from adapters.adapter_engine.adapter_lifecycle_manager_v1 import AdapterLifecycleManager
 from .capability_router_v1 import CapabilityRouter
 from .environment_registry_v1 import EnvironmentRegistry
 from .execution_orchestrator_v1 import ExecutionOrchestrator
