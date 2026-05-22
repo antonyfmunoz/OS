@@ -1,0 +1,208 @@
+{
+  "schema_version": 1,
+  "plan": {
+    "tool_slug": "google_drive",
+    "sources": [
+      {
+        "url": "https://developers.google.com/workspace/drive",
+        "tier": "official_docs",
+        "label": "google_drive \u2014 explicit official url",
+        "origin": "request"
+      }
+    ],
+    "notes": [
+      "checked tool_doc_registry.md",
+      "docs_site_discovery: https://developers.google.com/llms.txt \u2014 HTTP 404: Not Found",
+      "docs_site_discovery: https://developers.google.com/sitemap.xml is a sitemap index with 40 child sitemap(s); descending into first 3",
+      "docs_site_discovery: child sitemap https://developers.google.com/sitemap_11_of_40.xml \u2014 timeout after 15s",
+      "docs_site_discovery: child sitemap https://developers.google.com/sitemap_35_of_40.xml \u2014 timeout after 15s",
+      "docs_site_discovery: child sitemap https://developers.google.com/sitemap_23_of_40.xml \u2014 timeout after 15s",
+      "docs_site_discovery: https://developers.google.com/sitemap_index.xml \u2014 HTTP 404: Not Found",
+      "docs_site_discovery: no sitemap found under https://developers.google.com",
+      "structured_crawl: no eligible seeds (approved refs were all aggregators, non-HTTP, or non-doc-shaped)",
+      "source quality (pre-fetch): 1 high / 0 medium / 0 low"
+    ]
+  },
+  "artifact": {
+    "tool_slug": "google_drive",
+    "mode": "research",
+    "generated_at": "2026-01-01T00:00:00+00:00",
+    "sources": [
+      {
+        "ref": {
+          "url": "https://developers.google.com/workspace/drive",
+          "tier": "official_docs",
+          "label": "google_drive \u2014 explicit official url",
+          "origin": "request"
+        },
+        "status": "skipped",
+        "http_status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "bytes": 168253,
+        "raw_path": "raw/01_developers.google.com_workspace_drive.txt",
+        "error": "phase5 classifier: unrecognised content: tech_vocab=7 (density=6.3/1k), api_markers=5, http_methods=0",
+        "fetched_at": "2026-01-01T00:00:00+00:00"
+      }
+    ],
+    "section_coverage": [
+      {
+        "section": "Authentication",
+        "has_source": false,
+        "source_urls": [],
+        "note": "no successful fetches \u2014 section cannot be researched from this run"
+      },
+      {
+        "section": "Core Operations with Exact Signatures",
+        "has_source": false,
+        "source_urls": [],
+        "note": "no successful fetches \u2014 section cannot be researched from this run"
+      },
+      {
+        "section": "Pagination Patterns",
+        "has_source": false,
+        "source_urls": [],
+        "note": "no successful fetches \u2014 section cannot be researched from this run"
+      },
+      {
+        "section": "Rate Limits",
+        "has_source": false,
+        "source_urls": [],
+        "note": "no successful fetches \u2014 section cannot be researched from this run"
+      },
+      {
+        "section": "Error Codes and Recovery",
+        "has_source": false,
+        "source_urls": [],
+        "note": "no successful fetches \u2014 section cannot be researched from this run"
+      },
+      {
+        "section": "SDK Idioms",
+        "has_source": false,
+        "source_urls": [],
+        "note": "no successful fetches \u2014 section cannot be researched from this run"
+      },
+      {
+        "section": "Anti-Patterns",
+        "has_source": false,
+        "source_urls": [],
+        "note": "no successful fetches \u2014 section cannot be researched from this run"
+      },
+      {
+        "section": "Data Model",
+        "has_source": false,
+        "source_urls": [],
+        "note": "no successful fetches \u2014 section cannot be researched from this run"
+      },
+      {
+        "section": "Webhooks and Events",
+        "has_source": false,
+        "source_urls": [],
+        "note": "no successful fetches \u2014 section cannot be researched from this run"
+      },
+      {
+        "section": "Limits",
+        "has_source": false,
+        "source_urls": [],
+        "note": "no successful fetches \u2014 section cannot be researched from this run"
+      },
+      {
+        "section": "Cost Model",
+        "has_source": false,
+        "source_urls": [],
+        "note": "no successful fetches \u2014 section cannot be researched from this run"
+      },
+      {
+        "section": "Version Pinning",
+        "has_source": false,
+        "source_urls": [],
+        "note": "no successful fetches \u2014 section cannot be researched from this run"
+      },
+      {
+        "section": "Design Intent and Tradeoffs",
+        "has_source": false,
+        "source_urls": [],
+        "note": "no successful fetches \u2014 section cannot be researched from this run"
+      },
+      {
+        "section": "Problem-Solution Map and Hidden Capabilities",
+        "has_source": false,
+        "source_urls": [],
+        "note": "no successful fetches \u2014 section cannot be researched from this run"
+      },
+      {
+        "section": "Operational Behavior and Edge Cases",
+        "has_source": false,
+        "source_urls": [],
+        "note": "no successful fetches \u2014 section cannot be researched from this run"
+      },
+      {
+        "section": "Ecosystem Position and Composition",
+        "has_source": false,
+        "source_urls": [],
+        "note": "no successful fetches \u2014 section cannot be researched from this run"
+      },
+      {
+        "section": "Trajectory and Evolution",
+        "has_source": false,
+        "source_urls": [],
+        "note": "no successful fetches \u2014 section cannot be researched from this run"
+      },
+      {
+        "section": "Conceptual Model and Solution Recipes",
+        "has_source": false,
+        "source_urls": [],
+        "note": "no successful fetches \u2014 section cannot be researched from this run"
+      },
+      {
+        "section": "Industry Expert and Cutting-Edge Usage",
+        "has_source": false,
+        "source_urls": [],
+        "note": "no successful fetches \u2014 section cannot be researched from this run"
+      }
+    ],
+    "notes": [
+      "checked tool_doc_registry.md",
+      "docs_site_discovery: https://developers.google.com/llms.txt \u2014 HTTP 404: Not Found",
+      "docs_site_discovery: https://developers.google.com/sitemap.xml is a sitemap index with 40 child sitemap(s); descending into first 3",
+      "docs_site_discovery: child sitemap https://developers.google.com/sitemap_11_of_40.xml \u2014 timeout after 15s",
+      "docs_site_discovery: child sitemap https://developers.google.com/sitemap_35_of_40.xml \u2014 timeout after 15s",
+      "docs_site_discovery: child sitemap https://developers.google.com/sitemap_23_of_40.xml \u2014 timeout after 15s",
+      "docs_site_discovery: https://developers.google.com/sitemap_index.xml \u2014 HTTP 404: Not Found",
+      "docs_site_discovery: no sitemap found under https://developers.google.com",
+      "structured_crawl: no eligible seeds (approved refs were all aggregators, non-HTTP, or non-doc-shaped)",
+      "source quality (pre-fetch): 1 high / 0 medium / 0 low",
+      "1/1 source(s) did not pass the fetch+signal gate \u2014 see sources section",
+      "phase5 classifier dropped 1 source(s) as unknown content (no technical vocabulary / API markers)"
+    ],
+    "quality": "high",
+    "signal_reports": [
+      {
+        "url": "https://developers.google.com/workspace/drive",
+        "raw_path": "/tmp/test-run/raw/01_placeholder.txt",
+        "sanitized_chars": 119562,
+        "prose_blocks": 10,
+        "prose_chars": 1111,
+        "passes": true,
+        "reason": "passes prose density gate"
+      }
+    ],
+    "source_type_reports": [
+      {
+        "url": "https://developers.google.com/workspace/drive",
+        "source_type": "unknown",
+        "tech_vocab_hits": 7,
+        "api_marker_hits": 5,
+        "code_block_count": 0,
+        "prose_chars": 1111,
+        "confidence": "low",
+        "reason": "unrecognised content: tech_vocab=7 (density=6.3/1k), api_markers=5, http_methods=0",
+        "rendered_by_headless": false
+      }
+    ],
+    "extracted_patterns": {
+      "usage": [],
+      "api": [],
+      "workflows": []
+    }
+  }
+}
