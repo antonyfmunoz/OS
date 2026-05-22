@@ -51,3 +51,17 @@ export interface InfraNode {
     cost?: number
   }
 }
+
+export interface MeshNode {
+  id: string
+  name: string
+  os: string
+  osVersion: string
+  status: 'connected' | 'degraded' | 'disconnected'
+  capabilities: string[]
+  metrics: Record<string, number>
+  lastHeartbeat: string
+  tailscaleIp: string
+  connectedAt: string
+  daemonVersion: string
+}

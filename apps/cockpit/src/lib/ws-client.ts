@@ -8,7 +8,8 @@
 
 import { CockpitSocket } from './websocket.ts'
 import { useCockpitStore } from '../stores/cockpitStore.ts'
-import type { TraceEvent } from '../types/domain.ts'
+import type { TraceEvent, MeshNode } from '../types/domain.ts'
+import type { MeshNodeResponse } from '../api/client.ts'
 
 interface ViewFrame {
   frame_id: string
@@ -87,8 +88,43 @@ function summarizeAction(frame: ViewFrame): string {
   }
 }
 
-function handleMessage(_type: string, data: unknown): void {
+function mapMeshNode(raw: MeshNodeResponse): MeshNode {
+  return {
+    id: raw.id,
+    name: raw.name,
+    os: raw.os,
+    osVersion: raw.os_version,
+    status: raw.status,
+    capabilities: raw.capabilities,
+    metrics: raw.metrics,
+    lastHeartbeat: raw.last_heartbeat,
+    tailscaleIp: raw.tailscale_ip,
+    connectedAt: raw.connected_at,
+    daemonVersion: raw.daemon_version,
+  }
+}
+
+function handleMessage(type: string, data: unknown): void {
   const store = useCockpitStore.getState()
+
+  if (type === 'mesh.node_connected' || type === 'mesh.node_heartbeat') {
+    const frame = data as ViewFrame
+    const raw = frame.data as unknown as MeshNodeResponse
+    if (raw?.id) {
+      store.upsertMeshNode(mapMeshNode(raw))
+    }
+    return
+  }
+
+  if (type === 'mesh.node_disconnected') {
+    const frame = data as ViewFrame
+    const raw = frame.data as unknown as MeshNodeResponse
+    if (raw?.id) {
+      store.removeMeshNode(raw.id)
+    }
+    return
+  }
+
   const frame = data as ViewFrame
   if (!frame?.frame_id) return
 

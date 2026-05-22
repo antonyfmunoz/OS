@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import type { RouteId } from '../types/routes.ts'
 import type { PresenceMode } from '../types/presence.ts'
 import type { AwarenessTier, GlobalLayer } from '../types/awareness.ts'
-import type { SystemPulse, ModelBadge, TraceEvent, ApprovalItem, InfraNode } from '../types/domain.ts'
+import type { SystemPulse, ModelBadge, TraceEvent, ApprovalItem, InfraNode, MeshNode } from '../types/domain.ts'
 import {
   api,
   type AgentResponse,
@@ -35,6 +35,7 @@ interface CockpitState {
   traces: TraceEvent[]
   approvals: ApprovalItem[]
   infraNodes: InfraNode[]
+  meshNodes: MeshNode[]
   agents: AgentResponse[]
   memory: MemoryEntryResponse[]
   skills: SkillResponse[]
@@ -61,6 +62,10 @@ interface CockpitState {
   addTrace: (trace: TraceEvent) => void
   setApprovals: (approvals: ApprovalItem[]) => void
   updateApproval: (id: string, status: ApprovalItem['status']) => void
+
+  setMeshNodes: (nodes: MeshNode[]) => void
+  upsertMeshNode: (node: MeshNode) => void
+  removeMeshNode: (id: string) => void
 
   fetchAll: () => Promise<void>
 }
@@ -93,6 +98,7 @@ export const useCockpitStore = create<CockpitState>((set, get) => ({
   traces: [],
   approvals: [],
   infraNodes: [],
+  meshNodes: [],
   agents: [],
   memory: [],
   skills: [],
@@ -130,6 +136,22 @@ export const useCockpitStore = create<CockpitState>((set, get) => ({
       approvals: s.approvals.map((a) =>
         a.id === id ? { ...a, status } : a,
       ),
+    })),
+
+  setMeshNodes: (meshNodes) => set({ meshNodes }),
+  upsertMeshNode: (node) =>
+    set((s) => {
+      const idx = s.meshNodes.findIndex((n) => n.id === node.id)
+      if (idx >= 0) {
+        const next = [...s.meshNodes]
+        next[idx] = node
+        return { meshNodes: next }
+      }
+      return { meshNodes: [...s.meshNodes, node] }
+    }),
+  removeMeshNode: (id) =>
+    set((s) => ({
+      meshNodes: s.meshNodes.filter((n) => n.id !== id),
     })),
 
   fetchAll: async () => {
@@ -218,13 +240,13 @@ export const useCockpitStore = create<CockpitState>((set, get) => ({
         metrics: n.metrics,
       }))
 
-      const meshNodes = unwrap(meshRes, [])
+      const meshNodesRaw = unwrap(meshRes, [])
       const statusMap: Record<string, 'healthy' | 'degraded' | 'down'> = {
         connected: 'healthy',
         degraded: 'degraded',
         disconnected: 'down',
       }
-      const meshInfra: InfraNode[] = (meshNodes || []).map((n) => ({
+      const meshInfra: InfraNode[] = (meshNodesRaw || []).map((n) => ({
         id: `mesh-${n.id}`,
         name: `${n.name} (${n.os})`,
         type: 'compute' as const,
@@ -233,12 +255,27 @@ export const useCockpitStore = create<CockpitState>((set, get) => ({
       }))
       mappedInfra.push(...meshInfra)
 
+      const mappedMesh: MeshNode[] = (meshNodesRaw || []).map((n) => ({
+        id: n.id,
+        name: n.name,
+        os: n.os,
+        osVersion: n.os_version,
+        status: n.status,
+        capabilities: n.capabilities,
+        metrics: n.metrics,
+        lastHeartbeat: n.last_heartbeat,
+        tailscaleIp: n.tailscale_ip,
+        connectedAt: n.connected_at,
+        daemonVersion: n.daemon_version,
+      }))
+
       set({
         loading: false,
         pulse: mappedPulse,
         models: mappedModels,
         approvals: mappedApprovals,
         infraNodes: mappedInfra,
+        meshNodes: mappedMesh,
         agents: unwrap(agentsRes, []),
         memory: unwrap(memoryRes, []),
         skills: unwrap(skillsRes, []),
