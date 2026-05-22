@@ -88,6 +88,32 @@ class CEOAgent:
 
     # ─── delegate_objective ──────────────────────────────────────────────────
 
+    _DEPT_KEYWORDS: dict[str, list[str]] = {
+        "sales": ["sell", "revenue", "outreach", "lead", "prospect", "close",
+                   "pipeline", "deal", "customer", "client", "dm", "cold"],
+        "research": ["research", "analyze", "investigate", "competitor",
+                      "market", "data", "insight", "benchmark", "survey"],
+        "content": ["content", "brand", "post", "write", "video", "social",
+                     "newsletter", "blog", "tweet", "creative", "campaign"],
+        "ops": ["ops", "system", "deploy", "automate", "process", "infra",
+                "monitor", "fix", "maintain", "optimize", "workflow"],
+        "finance": ["finance", "budget", "cost", "expense", "invoice",
+                     "pricing", "margin", "cash", "accounting", "tax"],
+    }
+
+    @staticmethod
+    def _deterministic_decompose(objective: str, departments: tuple) -> list[dict]:
+        """Keyword-based department routing — deterministic fallback."""
+        obj_lower = objective.lower()
+        matched: list[dict] = []
+        for dept in departments:
+            keywords = CEOAgent._DEPT_KEYWORDS.get(dept, [])
+            if any(kw in obj_lower for kw in keywords):
+                matched.append({"department": dept, "sub_objective": objective})
+        if not matched:
+            matched.append({"department": "sales", "sub_objective": objective})
+        return matched
+
     def delegate_objective(self, objective: str, venture_id: str) -> dict:
         """
         Formally activate the correct department agents beneath the CEO.
@@ -96,48 +122,48 @@ class CEOAgent:
         """
         import json
         from control_plane.coordination.coordination_engine import CoordinationEngine
-        from control_plane.runtime.gateway import get_gateway as _get_gw
 
-        # Step 1: break objective into department-level sub-objectives via gateway
-        _gw = _get_gw()
-        _gw_result = _gw.handle(
-            {
-                "type": "agent_task",
-                "prompt": (
-                    "Break this company objective into department-level sub-objectives.\n\n"
-                    f"OBJECTIVE: {objective}\n\n"
-                    "Departments available: sales, research, content, ops, finance\n\n"
-                    "For each relevant department, specify the sub-objective that department owns.\n"
-                    "Return a JSON array:\n"
-                    '[{"department": "sales", "sub_objective": "..."}]\n\n'
-                    "Only include departments that have actual work to do. "
-                    "Return ONLY the JSON array. No markdown."
-                ),
-                "sub_agent": "ceo_agent",
-                "task_type": "ANALYZE",
-                "venture_id": venture_id,
-                "username": "system",
-            }
-        )
+        # Step 1: deterministic department routing first
+        dept_tasks_raw = self._deterministic_decompose(objective, self._DEPARTMENTS)
 
-        class _DecompResult:
-            output = _gw_result.get("output", "")
+        # Step 1b: try AI for richer decomposition
+        try:
+            from control_plane.runtime.gateway import get_gateway as _get_gw
 
-        decomp = _DecompResult()
+            _gw = _get_gw()
+            _gw_result = _gw.handle(
+                {
+                    "type": "agent_task",
+                    "prompt": (
+                        "Break this company objective into department-level sub-objectives.\n\n"
+                        f"OBJECTIVE: {objective}\n\n"
+                        "Departments available: sales, research, content, ops, finance\n\n"
+                        "For each relevant department, specify the sub-objective that department owns.\n"
+                        "Return a JSON array:\n"
+                        '[{"department": "sales", "sub_objective": "..."}]\n\n'
+                        "Only include departments that have actual work to do. "
+                        "Return ONLY the JSON array. No markdown."
+                    ),
+                    "sub_agent": "ceo_agent",
+                    "task_type": "ANALYZE",
+                    "venture_id": venture_id,
+                    "username": "system",
+                }
+            )
 
-        dept_tasks_raw: list[dict] = []
-        if decomp.output:
-            try:
-                raw = decomp.output.strip()
+            ai_output = _gw_result.get("output", "")
+            if ai_output:
+                raw = ai_output.strip()
                 if raw.startswith("```"):
                     parts = raw.split("```")
                     raw = parts[1] if len(parts) > 1 else raw
                     if raw.startswith("json"):
                         raw = raw[4:]
                 parsed = json.loads(raw.strip(), strict=False)
-                dept_tasks_raw = parsed if isinstance(parsed, list) else []
-            except Exception:
-                dept_tasks_raw = []
+                if isinstance(parsed, list) and len(parsed) > 0:
+                    dept_tasks_raw = parsed
+        except Exception as e:
+            print(f"[CEOAgent] AI decomposition failed (using deterministic): {e}")
 
         # Step 2: route each department sub-objective through CoordinationEngine
         coordination = CoordinationEngine(self.ctx)
@@ -763,35 +789,35 @@ def run_ceo_morning_delegation(
                 print(f"[CEOMorning] Intel: {_ce}")
 
             today = datetime.datetime.now(_PDT).strftime("%A %B %d")
-            _gw = _get_gw()
-            _gw_result = _gw.handle(
-                {
-                    "type": "agent_task",
-                    "prompt": (
-                        f"You are the CEO of {venture_name}.\n\n"
-                        f"Stage: {stage}\n"
-                        f"North star: {north_star}\n"
-                        f"Binding constraint: {constraint}\n"
-                        + (f"{constraint_context}\n\n" if constraint_context else "\n")
-                        + f"Today is {today}.\n\n"
-                        f"What is the single most important objective "
-                        f"for your specialist agents to work on today "
-                        f"to move the needle on the binding constraint?\n\n"
-                        f"State it in one clear sentence."
-                    ),
-                    "sub_agent": "ceo_agent",
-                    "task_type": "FAST_RESPONSE",
-                    "venture_id": venture_id,
-                    "username": "system",
-                }
-            )
-
-            class _ObjResult:
-                output = _gw_result.get("output", "")
-
-            objective_result = _ObjResult()
-
-            today_objective = (objective_result.output or f"Advance {binding_constraint}").strip()
+            today_objective = f"Advance {binding_constraint}" if binding_constraint else f"Advance {north_star}"
+            try:
+                _gw = _get_gw()
+                _gw_result = _gw.handle(
+                    {
+                        "type": "agent_task",
+                        "prompt": (
+                            f"You are the CEO of {venture_name}.\n\n"
+                            f"Stage: {stage}\n"
+                            f"North star: {north_star}\n"
+                            f"Binding constraint: {constraint}\n"
+                            + (f"{constraint_context}\n\n" if constraint_context else "\n")
+                            + f"Today is {today}.\n\n"
+                            f"What is the single most important objective "
+                            f"for your specialist agents to work on today "
+                            f"to move the needle on the binding constraint?\n\n"
+                            f"State it in one clear sentence."
+                        ),
+                        "sub_agent": "ceo_agent",
+                        "task_type": "FAST_RESPONSE",
+                        "venture_id": venture_id,
+                        "username": "system",
+                    }
+                )
+                ai_objective = _gw_result.get("output", "").strip()
+                if ai_objective:
+                    today_objective = ai_objective
+            except Exception as _obj_err:
+                print(f"[CEOMorning] Objective AI failed (using deterministic): {_obj_err}")
 
             # Delegate to specialist agents
             coordination = _CE(venture_ctx)
@@ -1339,13 +1365,29 @@ class EntrepreneurOSOrchestrator:
             "moving toward the north star. Name it precisely."
         )
 
-        result = self._runtime.run(
-            task_type=TaskType.ANALYZE,
-            prompt=prompt,
-            max_tokens=1200,
-            agent="orchestrator",
-        )
-        brief_text = result.output
+        brief_text = ""
+        try:
+            result = self._runtime.run(
+                task_type=TaskType.ANALYZE,
+                prompt=prompt,
+                max_tokens=1200,
+                agent="orchestrator",
+            )
+            brief_text = result.output or ""
+        except Exception as e:
+            print(f"[Orchestrator] Brief AI generation failed: {e}")
+
+        if not brief_text.strip():
+            brief_text = (
+                "## Current Status\n"
+                "AI intelligence layer offline — review venture data above.\n\n"
+                "## Binding Constraint\n"
+                "Revenue: get to first sale. All other constraints are downstream.\n\n"
+                "## Highest-Leverage Action Today\n"
+                "Send 20 outreach messages before noon.\n\n"
+                "## One Thing To Stop\n"
+                "Building infrastructure before validating demand."
+            )
 
         # Persist brief to disk
         DAILY_DIR.mkdir(parents=True, exist_ok=True)
@@ -1395,12 +1437,34 @@ class EntrepreneurOSOrchestrator:
             "recurring. Name exactly what to add, monitor, or gate."
         )
 
-        result = self._runtime.run(
-            task_type=TaskType.ANALYZE,
-            prompt=prompt,
-            max_tokens=1000,
-            agent="orchestrator.postmortem",
-        )
+        pm_text = ""
+        try:
+            result = self._runtime.run(
+                task_type=TaskType.ANALYZE,
+                prompt=prompt,
+                max_tokens=1000,
+                agent="orchestrator.postmortem",
+            )
+            pm_text = result.output or ""
+        except Exception as e:
+            print(f"[Orchestrator] Postmortem AI generation failed: {e}")
+
+        if not pm_text.strip():
+            log_preview = error_log[:500].replace("\n", "\n> ")
+            pm_text = (
+                "## Timeline\n"
+                "AI analysis unavailable — review error log below.\n\n"
+                f"> {log_preview}\n\n"
+                "## Root Cause\n"
+                "Manual investigation required — intelligence providers were offline "
+                "when this postmortem was generated.\n\n"
+                "## Fix\n"
+                f"1. Check {affected_component} logs for the exact failure point\n"
+                f"2. Review recent changes to {affected_component}\n"
+                "3. Test the fix in isolation before deploying\n\n"
+                "## Prevention\n"
+                "Add health check and alerting for this component."
+            )
 
         today = datetime.date.today().isoformat()
         safe_component = affected_component.replace("/", "_").replace(".", "_")[:40]
@@ -1414,7 +1478,7 @@ class EntrepreneurOSOrchestrator:
             f"**Failure:** {failure_description}\n\n"
             f"---\n\n"
         )
-        pm_path.write_text(header + result.output, encoding="utf-8")
+        pm_path.write_text(header + pm_text, encoding="utf-8")
         print(f"[Orchestrator] Postmortem written → {pm_path}")
 
         return str(pm_path)
