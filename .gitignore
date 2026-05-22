@@ -78,3 +78,6 @@ data/action_snapshots/
 
 # Auto-generated codebase graph pages (derivable from data/codebase_graph.json)
 data/codebase_pages/
+
+# Node mesh runtime (tokens, metrics logs)
+data/umh/mesh/
