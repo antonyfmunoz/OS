@@ -66,14 +66,16 @@ async def models():
     desc = config.describe()
     result = []
     for cap_name, info in desc.items():
-        result.append({
-            "id": cap_name,
-            "name": cap_name.replace("_", " ").title(),
-            "provider": info.get("preferred_provider", "unknown"),
-            "status": "active" if info.get("local_first") else "active",
-            "latency_ms": 0,
-            "cost_per_m_token": info.get("max_cost_hint", 0),
-        })
+        result.append(
+            {
+                "id": cap_name,
+                "name": cap_name.replace("_", " ").title(),
+                "provider": info.get("preferred_provider", "unknown"),
+                "status": "active" if info.get("local_first") else "active",
+                "latency_ms": 0,
+                "cost_per_m_token": info.get("max_cost_hint", 0),
+            }
+        )
     return result
 
 
@@ -81,7 +83,9 @@ def _ping_latency(ip: str) -> float | None:
     try:
         out = subprocess.run(
             ["ping", "-c", "1", "-W", "2", ip],
-            capture_output=True, text=True, timeout=3,
+            capture_output=True,
+            text=True,
+            timeout=3,
         )
         for line in out.stdout.split("\n"):
             if "time=" in line:
@@ -108,18 +112,22 @@ async def infra():
     network_nodes: list[dict] = []
     service_nodes: list[dict] = []
 
-    compute_nodes.append({
-        "id": "n-vps",
-        "name": "VPS Primary (Linux)",
-        "type": "compute",
-        "status": "healthy",
-        "metrics": {"cpu": cpu, "memory": mem.percent, "disk": disk.percent, "cost": 24},
-    })
+    compute_nodes.append(
+        {
+            "id": "n-vps",
+            "name": "VPS Primary (Linux)",
+            "type": "compute",
+            "status": "healthy",
+            "metrics": {"cpu": cpu, "memory": mem.percent, "disk": disk.percent, "cost": 24},
+        }
+    )
 
     try:
         out = subprocess.run(
             ["tailscale", "status", "--json"],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         if out.returncode == 0:
             ts_data = json.loads(out.stdout)
@@ -140,28 +148,34 @@ async def infra():
                     if lat is not None:
                         metrics["latency"] = lat
 
-                compute_nodes.append({
-                    "id": f"n-ts-{ip or name}",
-                    "name": f"{name} ({os_name.capitalize()})",
-                    "type": "compute",
-                    "status": "healthy" if online else "down",
-                    "metrics": metrics,
-                })
+                compute_nodes.append(
+                    {
+                        "id": f"n-ts-{ip or name}",
+                        "name": f"{name} ({os_name.capitalize()})",
+                        "type": "compute",
+                        "status": "healthy" if online else "down",
+                        "metrics": metrics,
+                    }
+                )
 
-            network_nodes.append({
-                "id": "n-tailscale",
-                "name": "Tailscale Mesh",
-                "type": "network",
-                "status": "healthy",
-                "metrics": {"latency": 0},
-            })
+            network_nodes.append(
+                {
+                    "id": "n-tailscale",
+                    "name": "Tailscale Mesh",
+                    "type": "network",
+                    "status": "healthy",
+                    "metrics": {"latency": 0},
+                }
+            )
     except Exception:
         pass
 
     try:
         out = subprocess.run(
             ["docker", "ps", "--format", "{{.Names}}\t{{.Status}}"],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         for line in out.stdout.strip().split("\n"):
             if not line:
@@ -170,13 +184,15 @@ async def infra():
             name = parts[0]
             status_str = parts[1] if len(parts) > 1 else ""
             is_up = "Up" in status_str
-            service_nodes.append({
-                "id": f"n-{name}",
-                "name": name,
-                "type": "service",
-                "status": "healthy" if is_up else "down",
-                "metrics": {},
-            })
+            service_nodes.append(
+                {
+                    "id": f"n-{name}",
+                    "name": name,
+                    "type": "service",
+                    "status": "healthy" if is_up else "down",
+                    "metrics": {},
+                }
+            )
     except Exception:
         pass
 
@@ -200,17 +216,19 @@ async def agents():
                 if line.startswith("description:"):
                     role = line.split(":", 1)[1].strip().strip('"').strip("'")
                     break
-            result.append({
-                "id": f"agent-{name}",
-                "name": name,
-                "role": role or f"Agent: {name}",
-                "model": "opus-4.6",
-                "status": "idle",
-                "tier": "operational",
-                "capabilities": [],
-                "last_active": datetime.now(timezone.utc).isoformat(),
-                "tasks_completed": 0,
-            })
+            result.append(
+                {
+                    "id": f"agent-{name}",
+                    "name": name,
+                    "role": role or f"Agent: {name}",
+                    "model": "opus-4.6",
+                    "status": "idle",
+                    "tier": "operational",
+                    "capabilities": [],
+                    "last_active": datetime.now(timezone.utc).isoformat(),
+                    "tasks_completed": 0,
+                }
+            )
     return result
 
 
@@ -220,20 +238,28 @@ async def memory():
     result = []
     for e in entries:
         mem_type = e.get("memory_type", "TEXT_BLOB")
-        type_map = {"canonical": "STRUCTURED", "instance": "PARTIAL", "domain_projection": "DOMAIN_PROJECTION"}
+        type_map = {
+            "canonical": "STRUCTURED",
+            "instance": "PARTIAL",
+            "domain_projection": "DOMAIN_PROJECTION",
+        }
         mapped_type = type_map.get(mem_type, "TEXT_BLOB")
 
-        result.append({
-            "id": e.get("memory_id", ""),
-            "label": (e.get("label") or "")[:80],
-            "description": (e.get("content") or "")[:300],
-            "memory_type": mapped_type,
-            "authority_tier": "T5",
-            "source_document": e.get("source_document_id", ""),
-            "primitive_type": e.get("primitive_type", "state"),
-            "created_at": e.get("timestamp", ""),
-            "domain_id": e.get("lineage", {}).get("domain_id") if mapped_type == "DOMAIN_PROJECTION" else None,
-        })
+        result.append(
+            {
+                "id": e.get("memory_id", ""),
+                "label": (e.get("label") or "")[:80],
+                "description": (e.get("content") or "")[:300],
+                "memory_type": mapped_type,
+                "authority_tier": "T5",
+                "source_document": e.get("source_document_id", ""),
+                "primitive_type": e.get("primitive_type", "state"),
+                "created_at": e.get("timestamp", ""),
+                "domain_id": e.get("lineage", {}).get("domain_id")
+                if mapped_type == "DOMAIN_PROJECTION"
+                else None,
+            }
+        )
     return result
 
 
@@ -255,16 +281,20 @@ async def skills():
                 elif line.startswith("effort:"):
                     effort = line.split(":", 1)[1].strip()
 
-            result.append({
-                "id": f"skill-{name}",
-                "name": name,
-                "description": description or f"Skill: {name}",
-                "trigger": trigger if trigger in ("scheduled", "conversational", "both") else "conversational",
-                "category": "tool",
-                "usage_count": 0,
-                "last_used": datetime.now(timezone.utc).isoformat(),
-                "effort": effort if effort in ("low", "medium", "high", "max") else "medium",
-            })
+            result.append(
+                {
+                    "id": f"skill-{name}",
+                    "name": name,
+                    "description": description or f"Skill: {name}",
+                    "trigger": trigger
+                    if trigger in ("scheduled", "conversational", "both")
+                    else "conversational",
+                    "category": "tool",
+                    "usage_count": 0,
+                    "last_used": datetime.now(timezone.utc).isoformat(),
+                    "effort": effort if effort in ("low", "medium", "high", "max") else "medium",
+                }
+            )
     return result
 
 
@@ -274,16 +304,18 @@ async def observations():
     result = []
     for e in entries:
         prov = e.get("provenance", {})
-        result.append({
-            "id": e.get("memory_id", ""),
-            "label": (e.get("label") or "")[:80],
-            "description": (e.get("content") or "")[:300],
-            "primitive_type": e.get("primitive_type", "state"),
-            "evidence": prov.get("evidence", "")[:500] if prov else "",
-            "source_document": e.get("source_document_id", ""),
-            "relationships": [],
-            "created_at": e.get("timestamp", ""),
-        })
+        result.append(
+            {
+                "id": e.get("memory_id", ""),
+                "label": (e.get("label") or "")[:80],
+                "description": (e.get("content") or "")[:300],
+                "primitive_type": e.get("primitive_type", "state"),
+                "evidence": prov.get("evidence", "")[:500] if prov else "",
+                "source_document": e.get("source_document_id", ""),
+                "relationships": [],
+                "created_at": e.get("timestamp", ""),
+            }
+        )
     return result
 
 
@@ -298,16 +330,25 @@ async def tasks():
     recent = traces[-100:]
     result = []
     for t in recent:
-        status_map = {"pending": "pending", "running": "in_progress", "completed": "completed", "failed": "blocked"}
-        result.append({
-            "id": t.get("trace_id", ""),
-            "title": (t.get("input_signal") or "unknown")[:100],
-            "status": status_map.get(t.get("status", "pending"), "pending"),
-            "agent": t.get("adapter_used") or "system",
-            "priority": "medium",
-            "created_at": t.get("created_at", ""),
-            "updated_at": t.get("completed_at") or t.get("started_at") or t.get("created_at", ""),
-        })
+        status_map = {
+            "pending": "pending",
+            "running": "in_progress",
+            "completed": "completed",
+            "failed": "blocked",
+        }
+        result.append(
+            {
+                "id": t.get("trace_id", ""),
+                "title": (t.get("input_signal") or "unknown")[:100],
+                "status": status_map.get(t.get("status", "pending"), "pending"),
+                "agent": t.get("adapter_used") or "system",
+                "priority": "medium",
+                "created_at": t.get("created_at", ""),
+                "updated_at": t.get("completed_at")
+                or t.get("started_at")
+                or t.get("created_at", ""),
+            }
+        )
     result.reverse()
     return result
 
@@ -324,7 +365,14 @@ async def tracking():
     for e in entries:
         doc_id = e.get("source_document_id", "unknown")
         if doc_id not in docs:
-            docs[doc_id] = {"id": doc_id, "name": doc_id, "entity_type": "document", "last_changed": e.get("timestamp", ""), "change_count": 0, "status": "active"}
+            docs[doc_id] = {
+                "id": doc_id,
+                "name": doc_id,
+                "entity_type": "document",
+                "last_changed": e.get("timestamp", ""),
+                "change_count": 0,
+                "status": "active",
+            }
         docs[doc_id]["change_count"] += 1
         ts = e.get("timestamp", "")
         if ts > docs[doc_id]["last_changed"]:
@@ -370,6 +418,28 @@ async def settings():
         "governance": {"auto_approve_low": True, "critical_block": True},
         "notifications": {"discord": True, "file": True},
     }
+
+
+@router.get("/mesh/nodes")
+async def mesh_nodes():
+    """Returns connected mesh nodes with status and latest metrics."""
+    from services.umh.node_mesh.server import NodeMeshServer
+
+    server: NodeMeshServer | None = _get_mesh_server()
+    if server is None:
+        return []
+    nodes = server.node_registry.all_nodes()
+    return [n.to_api_dict() for n in nodes]
+
+
+def _get_mesh_server():
+    """Lazy import to avoid circular dependency at module load."""
+    try:
+        from services.umh.control_plane.app import _mesh_server
+
+        return _mesh_server
+    except (ImportError, AttributeError):
+        return None
 
 
 @router.get("/profile")

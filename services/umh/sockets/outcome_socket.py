@@ -70,5 +70,11 @@ class OutcomeSocket:
                 exc,
             )
 
+    def unregister_receiver(self, integration_id: str) -> None:
+        """Remove an integration's outcome receiver. Idempotent."""
+        if integration_id in self._receivers:
+            del self._receivers[integration_id]
+            logger.info("outcome receiver unregistered: %s", integration_id)
+
     def registered_receivers(self) -> list[str]:
         return list(self._receivers.keys())
