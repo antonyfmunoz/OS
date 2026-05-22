@@ -190,13 +190,19 @@ Windows Beast (GPU workhorse — C:\dev\dev\):
 Before storing any large artifact, ask:
 does this node's role require it? If no, don't put it here.
 
-## Key files
-runtime/cognitive_loop.py  — core loop
-runtime/agent_hierarchy.py — org chart
-runtime/ai_identity.py     — step 0 principles
-runtime/primitives.py      — 13 primitives
-runtime/agent_runtime.py   — LLM dispatch
-services/discord_bot.py — primary interface
+## Key files (post-unification)
+substrate/types.py              — single Pydantic type system (30+ models)
+substrate/__init__.py           — Substrate public API (execute, query, register, status)
+substrate/control_plane/        — identity, context, governance, memory, registry, router
+substrate/execution/spine.py    — 8-stage execution pipeline
+substrate/execution/trace.py    — trace recorder
+substrate/execution/feedback.py — feedback capture
+substrate/ontology/             — laws, primitives, relationships
+adapters/models/model_router.py — intelligence routing (call_with_fallback)
+adapters/models/llm_adapter.py  — LLM adapter wrapping model_router
+transports/discord/bot.py       — Discord bot (substrate-wired)
+transports/discord/signal_factory.py — message → SignalEnvelope
+services/discord_bot.py         — legacy Discord bot (compatibility)
 
 ## Obsidian Backlinks
 When writing .md files in knowledge/ or vault/:
@@ -233,7 +239,7 @@ deploy-service, new-agent, new-skill,
 new-primitive, debug-agent
 
 ## Intelligence Routing
-- All agent calls route through runtime/model_router.py
+- All agent calls route through adapters/models/model_router.py
 - call_with_fallback() is the single module-level entry point
 - Provider contract: return None/empty on failure, non-empty content on success
 - cc_sdk is option 0: CLI via Max subscription, Opus 4.6, no API cost
@@ -242,12 +248,12 @@ new-primitive, debug-agent
 - cc_sdk subprocess env: `_get_subprocess_env()` injects OAuth token from
   ancestor Claude Code process and blanks ANTHROPIC_API_KEY. Token cached per session.
 - cc_sdk validates output against error signatures before returning
-  (runtime/cc_sdk.py `_is_error_leak()`). Auth/quota/transport errors
+  (adapters/models/cc_sdk.py `_is_error_leak()`). Auth/quota/transport errors
   leaked as streamed text return None so the router falls through.
 - CEO/strategic agents always use best available (pass agent_type='ceo' or force_opus=True)
 - Current routing chain: cc_sdk (Opus 4.6 via subscription) → Gemini 2.5 Flash → Groq → Ollama
 - When credits restored: Anthropic (CC_MODEL_MAP) → Gemini → Ollama
-- agent_runtime.py has its own fallback via _claude_available flag — do not break
+- adapters/models/agent_runtime.py has its own fallback via _claude_available flag — do not break
 - MCP_CONNECTION_NONBLOCKING=true always
 
 ## Deterministic-First Principle (NON-NEGOTIABLE)
@@ -298,7 +304,7 @@ AI is a cognitive enhancement, not a dependency.
 - gemini-2.0-flash deprecated for new users → use gemini-2.5-flash
 - Codex exec requires stdin pipe and has reconnect issues → not in fallback chain
 - Business stage pre_revenue → economy mode → forces Haiku. Override: pass agent_type='ceo' to call_with_fallback
-- GROQ + PERPLEXITY keys in runtime/.env and services/.env — both in fallback chain
+- GROQ + PERPLEXITY keys in eos_ai/.env and services/.env — both in fallback chain
 - gemini binary not installed — Gemini via Python SDK only
 - .claude/agents/ subagents require CC auth to run (blocked until Anthropic credits restored)
 - CC_MODEL_MAP exists in model_router.py — used when Anthropic comes back online
@@ -308,10 +314,11 @@ AI is a cognitive enhancement, not a dependency.
 - Never hardcode `anthropic.Anthropic()` in services — always use model_router.call_with_fallback
 
 ## Ingestion (canonical path)
-CANONICAL — runtime.ingestion.GenericIngestionOrchestrator is the
-single ingestion path. Sources:
-  - LocalFileSource (runtime.ingestion.local_file_source)
-  - GWSSource       (runtime.ingestion.gws_source)
+CANONICAL — substrate.execution.ingestion is the single ingestion path.
+Legacy orchestrator at runtime.ingestion still exists for compatibility.
+Sources:
+  - LocalFileSource (adapters/data_source_adapters/local_file_source.py)
+  - GWSSource       (adapters/data_source_adapters/gws_source.py)
 
 Pipeline: perceive → interpret → decompose → bridge → map → persist → query_back
 
@@ -319,10 +326,6 @@ UMH operates at the ontology layer (domain-agnostic substrate).
 Domain bridges produce domain-typed projections from ontology
 observations. The substrate works regardless of which domains are
 registered. See: docs/system/domain_bridge_contract_v1.md
-
-Registered domains:
-  - business (runtime.domain_bridge.business) — V1 structural mapping
-  - creator, life — future (CreatorOS, LYFEOS)
 
 Decomposition uses LLM extraction (via model_router) with heuristic
 fallback. Output schema per observation:
@@ -334,44 +337,5 @@ fallback. Output schema per observation:
   - relationships: typed edges (RelationshipType enum)
   See: docs/system/decomposition_extraction_contract_v1.md
 
-Persist stage writes ALL observations from decomposer output — one
-memory entry per observation (N-of-N, not 1-of-N). Each entry tagged
-with source_document_id + source_decomposition_id for group retrieval.
-MemoryWrite.memory_ids_written lists all IDs; entries_written gives count.
-
-Persist also writes domain projections as separate memory entries
-(memory_type: "domain_projection") with domain_id and
-ontology_observation_ref back-reference.
-
-Authority tier on Source protocol (runtime.ingestion.authority_tier):
-  - T1_CANONICAL (1) to T9_OLD_CHATS (9)
-  - Each Source declares its tier (default T5_DEFAULT)
-  - Tier propagates unchanged: source → signal → interpretation →
-    observation → projection → memory entry → query result
-  - Pure metadata — query ranking unchanged in V1
-  - Legacy entries (pre-tier) default to T5_DEFAULT via
-    get_authority_tier(entry)
-
-FullLiveIngestionSpine (core/runtime/full_live_ingestion_spine_v1.py)
-is a separate GWS-specific pipeline with its own ledger, replay, and
-governance contracts. It is NOT a wrapper — it uses different stages
-and output shapes. No production callers; tests only.
-
-Memory store (2026-05-13):
-  63 entries: 43 STRUCTURED + 2 PARTIAL + 10 TEXT_BLOB (legacy, preserved)
-              + 8 domain projections
-  Re-ingest: 10 TEXT_BLOB entries from Email Sequence (doc-1aZiPZ0ijSvLQsL6)
-  re-ingested via cc_sdk/Opus 4.6 → 10 STRUCTURED observations +
-  3 business:sales projections. Legacy entries preserved additively.
-  Report: data/audits/2026-05-13_reingest_text_blobs_report.md
-
 Proofs:
-  data/runtime/canonical_memory_store/proofs/2026-05-12_ingestion_e2e/
-  data/runtime/canonical_memory_store/proofs/2026-05-12_orchestrator_e2e/
-  data/runtime/canonical_memory_store/proofs/2026-05-12_orchestrator_unification/
-  data/runtime/canonical_memory_store/proofs/2026-05-12_decomposer_depth_upgrade/
-  data/runtime/canonical_memory_store/proofs/2026-05-12_persist_all/
-  data/runtime/canonical_memory_store/proofs/2026-05-12_domain_bridge/
-  data/runtime/canonical_memory_store/proofs/2026-05-12_authority_tier/
-  data/runtime/canonical_memory_store/proofs/2026-05-13_cc_sdk_timeout_fix/
-  data/runtime/canonical_memory_store/proofs/2026-05-13_reingest_text_blobs/
+  data/runtime/canonical_memory_store/proofs/

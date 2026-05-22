@@ -52,7 +52,9 @@ class TestActivityStream:
 
         trace_file = tmp_path / "traces.jsonl"
         trace_file.write_text(
-            json.dumps({"trace_id": "t-001", "input_signal": "hello", "created_at": "2026-05-22T00:00:00Z"})
+            json.dumps(
+                {"trace_id": "t-001", "input_signal": "hello", "created_at": "2026-05-22T00:00:00Z"}
+            )
             + "\n"
             + json.dumps({"_type": "trace_update", "trace_id": "t-001", "status": "failed"})
             + "\n"
@@ -139,9 +141,7 @@ class TestDexChannel:
 
         from transports.api.cockpit import dex_converse
 
-        result = asyncio.get_event_loop().run_until_complete(
-            dex_converse({"content": ""})
-        )
+        result = asyncio.get_event_loop().run_until_complete(dex_converse({"content": ""}))
         assert result.get("error") == "organism not running"
 
     def test_dex_converse_requires_organism(self):
@@ -149,7 +149,5 @@ class TestDexChannel:
 
         from transports.api.cockpit import dex_converse
 
-        result = asyncio.get_event_loop().run_until_complete(
-            dex_converse({"content": "hello"})
-        )
+        result = asyncio.get_event_loop().run_until_complete(dex_converse({"content": "hello"}))
         assert result.get("error") == "organism not running"

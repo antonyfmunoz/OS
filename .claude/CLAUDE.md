@@ -85,34 +85,35 @@ Status taxonomy:
   DORMANT            — code exists, modules not imported by anything live
   DEPRECATED         — scheduled for removal
 
-- runtime/db.py                 — CONFIRMED_RUNTIME (Neon conn, used by all services)
-- runtime/memory.py             — CONFIRMED_RUNTIME (AgentMemory + ConversationMemory, Neon writes)
-- runtime/agent_runtime.py      — CONFIRMED_RUNTIME (multi-model router, discord bot uses it)
-- runtime/cognitive_loop.py     — PARTIALLY_VERIFIED (imports clean, 8-stage loop, param=input)
-- runtime/authority_engine.py   — PARTIALLY_VERIFIED (imports clean, 4 risk classes)
-- runtime/portfolio_advisor.py  — PARTIALLY_VERIFIED (imports clean, board view logic)
-- runtime/orchestrator.py       — PARTIALLY_VERIFIED (EOSOrchestrator class, cron logic present)
-- runtime/model_preferences.py  — CONFIRMED_RUNTIME (ModelPreferences, used by model_router)
-- runtime/media_processor.py    — PARTIALLY_VERIFIED (imports clean, voice synthesis logic)
-- services/telegram_control.py — DORMANT (not running in Docker, service disabled)
-- services/discord_bot.py      — CONFIRMED_RUNTIME (os-discord container, daily use)
-- runtime/work_state.py         — CONFIRMED_RUNTIME (pressure tracking, used by discord bot)
-- core/workstation/constitutional_*_v1.py — PROOF_ONLY (report generators, not runtime-enforced)
+- substrate/types.py                     — CONFIRMED_RUNTIME (single type system, 30+ Pydantic models)
+- substrate/__init__.py                  — CONFIRMED_RUNTIME (Substrate public API)
+- substrate/control_plane/governance.py  — CONFIRMED_RUNTIME (deterministic risk classification)
+- substrate/control_plane/router.py      — CONFIRMED_RUNTIME (signal lifecycle orchestration)
+- substrate/execution/spine.py           — CONFIRMED_RUNTIME (8-stage execution pipeline)
+- substrate/execution/trace.py           — CONFIRMED_RUNTIME (trace recording + Neon persistence)
+- substrate/execution/feedback.py        — CONFIRMED_RUNTIME (quality scoring + learning loop)
+- adapters/models/model_router.py        — CONFIRMED_RUNTIME (intelligence routing, call_with_fallback)
+- adapters/models/llm_adapter.py         — CONFIRMED_RUNTIME (LLM adapter wrapping model_router)
+- transports/discord/bot.py              — CONFIRMED_RUNTIME (substrate-wired Discord bot)
+- transports/discord/signal_factory.py   — CONFIRMED_RUNTIME (message → SignalEnvelope)
+- services/discord_bot.py                — CONFIRMED_RUNTIME (legacy compatibility, os-discord container)
 
 ## Current build phase
 Single-user validation phase — one org, multiple ventures.
 Org and venture IDs loaded from BIS at runtime.
 Focus: proving the system works before UI layer.
 
-## Project structure
-/opt/OS/  (repository root — pending rename to /opt/UMH)
-  core/            — substrate contracts, primitives, invariants, governance foundations
-  runtime/         — single live runtime (cognition, execution, memory, transport)
-  services/        — daemons and interfaces (discord_bot.py, etc.)
-  scripts/         — operator tooling (cron scripts, utilities)
+## Project structure (post-unification)
+/opt/OS/  (repository root)
+  substrate/       — unified 6-tier substrate (types, control plane, execution, ontology, organism, learning)
+  adapters/        — external system adapters (models, GWS, calendar, browser, capabilities)
+  transports/      — interface surfaces (discord, API, node mesh)
+  services/        — legacy daemons + UMH services (being migrated to transports/)
+  scripts/         — operator tooling (cron scripts, verification, graph rebuild)
+  knowledge/       — wiki, memory palace, concept docs (formerly 10_Wiki/)
+  projections/     — application projections (EOS, CreatorOS — being built)
   saas/            — SaaS product (TypeScript/React) — EOS application projection
   03_CRM/          — pipeline and lead management — EOS application data
-  orchestrator/    — scheduled tasks and approvals
   .claude/         — Claude Code project config (this file)
 
 ## Docker restart: use `docker restart`, not `docker compose restart`
@@ -131,89 +132,17 @@ Both exist — `os-monitor` is the container name. Use `docker restart os-monito
 Read /opt/OS/ARCHITECTURE.md before any significant build decision.
 
 ## Ingestion (canonical path)
-CANONICAL — runtime.ingestion.GenericIngestionOrchestrator is the
-single ingestion path. Sources:
-  - LocalFileSource (runtime.ingestion.local_file_source)
-  - GWSSource       (runtime.ingestion.gws_source)
+CANONICAL — substrate.execution.ingestion is the single ingestion path.
+Legacy orchestrator at runtime.ingestion still exists for compatibility.
+Sources:
+  - LocalFileSource (adapters/data_source_adapters/local_file_source.py)
+  - GWSSource       (adapters/data_source_adapters/gws_source.py)
 
 Pipeline: perceive → interpret → decompose → bridge → map → persist → query_back
 
-UMH operates at the ontology layer (domain-agnostic substrate).
-Domain bridges produce domain-typed projections from ontology
-observations. The substrate works regardless of which domains are
-registered. See: docs/system/domain_bridge_contract_v1.md
-
-Registered domains:
-  - business (runtime.domain_bridge.business) — V1 structural mapping
-  - creator, life — future (CreatorOS, LYFEOS)
-
-Decomposition uses LLM extraction (via model_router) with heuristic
-fallback. Output schema per observation:
-  - primitive_type: PrimitiveType enum (state/change/constraint/resource/
-    signal/action/outcome/feedback/goal/time)
-  - label: semantic name (≤80 chars, no markdown)
-  - description: adds context beyond label (≤300 chars)
-  - evidence: verbatim span from source
-  - relationships: typed edges (RelationshipType enum)
-  See: docs/system/decomposition_extraction_contract_v1.md
-
-Persist stage writes ALL observations from decomposer output — one
-memory entry per observation (N-of-N, not 1-of-N). Each entry tagged
-with source_document_id + source_decomposition_id for group retrieval.
-MemoryWrite.memory_ids_written lists all IDs; entries_written gives count.
-
-Persist also writes domain projections as separate memory entries
-(memory_type: "domain_projection") with domain_id and
-ontology_observation_ref back-reference.
-
-Authority tier on Source protocol (runtime.ingestion.authority_tier):
-  - T1_CANONICAL (1) to T9_OLD_CHATS (9)
-  - Each Source declares its tier (default T5_DEFAULT)
-  - Tier propagates unchanged: source → signal → interpretation →
-    observation → projection → memory entry → query result
-  - Pure metadata — query ranking unchanged in V1
-  - Legacy entries (pre-tier) default to T5_DEFAULT via
-    get_authority_tier(entry)
-
-FullLiveIngestionSpine (core/runtime/full_live_ingestion_spine_v1.py)
-is a separate GWS-specific pipeline with its own ledger, replay, and
-governance contracts. It is NOT a wrapper — it uses different stages
-and output shapes. No production callers; tests only.
-
-cc_sdk (runtime/cc_sdk.py) — option 0, CLI via Max subscription:
+cc_sdk (adapters/models/cc_sdk.py) — option 0, CLI via Max subscription:
   - Timeout: 120s default, env var CC_SDK_TIMEOUT_SECONDS to override.
-    Opus 4.6 calls typically take 30-90s (startup + auth + inference).
-  - `_get_subprocess_env()` builds env overrides for CLI subprocess.
-    Injects CLAUDE_CODE_OAUTH_TOKEN from ancestor process via /proc walk.
-    Blanks ANTHROPIC_API_KEY. Token cached per session.
+  - `_get_subprocess_env()` injects OAuth token from ancestor process.
   - CLI authenticates via subscription (Opus 4.6, no API cost)
-  - Diagnostic: data/audits/2026-05-13_cli_subprocess_auth_diagnostic.md
 
-cc_sdk output validation (runtime/cc_sdk.py):
-  - `_is_error_leak(content)` checks output against error signatures
-    before returning to call_with_fallback()
-  - Catches auth/quota/transport errors leaked as streamed text
-  - Returns None on detection → router falls through to next provider
-  - Signatures: authentication_error, rate_limit_error, overloaded_error,
-    invalid_request_error, credit balance, invalid x-api-key
-  - Does NOT touch the _stream() catch-all (legitimate for MCP shutdown)
-
-Memory store (2026-05-13):
-  63 entries: 43 STRUCTURED + 2 PARTIAL + 10 TEXT_BLOB (legacy, preserved)
-              + 8 domain projections
-  Re-ingest: 10 TEXT_BLOB entries from Email Sequence (doc-1aZiPZ0ijSvLQsL6)
-  re-ingested via cc_sdk/Opus 4.6 → 10 STRUCTURED observations +
-  3 business:sales projections. Legacy entries preserved additively.
-  Report: data/audits/2026-05-13_reingest_text_blobs_report.md
-
-Proofs:
-  data/runtime/canonical_memory_store/proofs/2026-05-12_ingestion_e2e/
-  data/runtime/canonical_memory_store/proofs/2026-05-12_orchestrator_e2e/
-  data/runtime/canonical_memory_store/proofs/2026-05-12_orchestrator_unification/
-  data/runtime/canonical_memory_store/proofs/2026-05-12_decomposer_depth_upgrade/
-  data/runtime/canonical_memory_store/proofs/2026-05-12_persist_all/
-  data/runtime/canonical_memory_store/proofs/2026-05-12_domain_bridge/
-  data/runtime/canonical_memory_store/proofs/2026-05-12_authority_tier/
-  data/runtime/canonical_memory_store/proofs/2026-05-12_fix_cc_sdk/
-  data/runtime/canonical_memory_store/proofs/2026-05-13_cc_sdk_timeout_fix/
-  data/runtime/canonical_memory_store/proofs/2026-05-13_reingest_text_blobs/
+Proofs: data/runtime/canonical_memory_store/proofs/

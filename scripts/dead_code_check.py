@@ -4,9 +4,11 @@
 Every .py file under substrate/ (excluding __init__.py) should be
 imported by at least one other file. This is invariant #9.
 """
+
 import os
 import re
 import sys
+
 
 def main():
     substrate_files = []
@@ -20,9 +22,7 @@ def main():
     dead = []
     for path in substrate_files:
         module = path.replace("/", ".").replace(".py", "")
-        pattern = re.compile(
-            rf"from\s+{re.escape(module)}|import\s+{re.escape(module)}"
-        )
+        pattern = re.compile(rf"from\s+{re.escape(module)}|import\s+{re.escape(module)}")
         found = False
         for root, dirs, files in os.walk("."):
             dirs[:] = [d for d in dirs if d not in ("__pycache__", ".git", ".claude", "_archive")]
@@ -52,6 +52,7 @@ def main():
     else:
         print(f"OK: all {len(substrate_files)} substrate files are imported")
         sys.exit(0)
+
 
 if __name__ == "__main__":
     main()

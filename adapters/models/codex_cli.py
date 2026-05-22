@@ -66,6 +66,7 @@ class CodexResult:
 def _track_result(success: bool) -> None:
     try:
         from state.providers.provider_state import get_system_state
+
         state = get_system_state()
         if success:
             state.record_provider_success("codex")
@@ -108,6 +109,7 @@ def query_codex_sync(
 
     try:
         from state.providers.provider_state import get_system_state
+
         if not get_system_state().allow_execution():
             logger.info("[codex] blocked by backpressure gate")
             return None
@@ -115,10 +117,12 @@ def query_codex_sync(
         pass
 
     cmd = [
-        "codex", "exec",
+        "codex",
+        "exec",
         "--json",
         "--ephemeral",
-        "--sandbox", sandbox,
+        "--sandbox",
+        sandbox,
         "--skip-git-repo-check",
     ]
     if model:
