@@ -18,10 +18,12 @@ import {
   Server,
   User,
   Settings,
+  Terminal,
 } from 'lucide-react'
 
 export type RouteId =
   | 'command-center'
+  | 'dex-channel'
   | 'agents'
   | 'tasks'
   | 'activity'
@@ -49,6 +51,7 @@ export interface RouteEntry {
 
 export const ROUTES: RouteEntry[] = [
   { id: 'command-center', label: 'Command Center', icon: LayoutDashboard, group: 'core' },
+  { id: 'dex-channel', label: 'DEX Channel', icon: Terminal, group: 'core' },
   { id: 'agents', label: 'Agents', icon: Bot, group: 'core' },
   { id: 'tasks', label: 'Tasks', icon: ListChecks, group: 'core' },
   { id: 'activity', label: 'Activity', icon: Activity, group: 'core' },

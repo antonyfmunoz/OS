@@ -8,6 +8,7 @@ import { useCockpitStore } from './stores/cockpitStore.ts'
 import { connectWebSocket, disconnectWebSocket } from './lib/ws-client.ts'
 
 import { CommandCenter } from './views/CommandCenter.tsx'
+import { DexChannel } from './views/DexChannel.tsx'
 import { Agents } from './views/Agents.tsx'
 import { Tasks } from './views/Tasks.tsx'
 import { Activity } from './views/Activity.tsx'
@@ -30,6 +31,7 @@ import type { ReactNode } from 'react'
 
 const VIEW_MAP: Record<RouteId, () => ReactNode> = {
   'command-center': CommandCenter,
+  'dex-channel': DexChannel,
   agents: Agents,
   tasks: Tasks,
   activity: Activity,

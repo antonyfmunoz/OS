@@ -60,6 +60,41 @@ function DetailPanel({ msg, onClose }: { msg: CommsMessage; onClose: () => void 
   )
 }
 
+function SendPanel() {
+  const [recipient, setRecipient] = useState('')
+  const [content, setContent] = useState('')
+  const [sending, setSending] = useState(false)
+  const [feedback, setFeedback] = useState<string | null>(null)
+
+  const handleSend = async () => {
+    if (!recipient.trim() || !content.trim() || sending) return
+    setSending(true)
+    try {
+      const { api: apiClient } = await import('../api/client.ts')
+      await apiClient.commsSend(recipient.trim(), content.trim())
+      setFeedback(`Sent to ${recipient}`)
+      setContent('')
+      useCockpitStore.getState().fetchAll()
+    } catch {
+      setFeedback('Send failed')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <div className="wv-card p-3 mb-4">
+      <div className="wv-label mb-2">SEND MESSAGE</div>
+      <div className="flex gap-2 mb-2">
+        <input type="text" value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder="Recipient (agent id)..." className="w-40 bg-surface border border-border text-text-primary text-[11px] font-mono px-2 py-1 placeholder:text-text-tertiary focus:border-cyan-dim focus:outline-none" />
+        <input type="text" value={content} onChange={(e) => setContent(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} placeholder="Message content..." className="flex-1 bg-surface border border-border text-text-primary text-[11px] font-mono px-2 py-1 placeholder:text-text-tertiary focus:border-cyan-dim focus:outline-none" />
+        <button onClick={handleSend} disabled={sending || !recipient.trim() || !content.trim()} className="px-3 py-1 text-[10px] font-mono uppercase tracking-wider bg-cyan/10 text-cyan border border-cyan-dim hover:bg-cyan/20 transition-colors disabled:opacity-40">{sending ? '...' : 'Send'}</button>
+      </div>
+      {feedback && <div className="text-[10px] text-text-tertiary">{feedback}</div>}
+    </div>
+  )
+}
+
 export function Comms() {
   const { comms } = useCockpitStore()
   const [dirFilter, setDirFilter] = useState<DirFilter>('all')
@@ -82,6 +117,7 @@ export function Comms() {
         <h1 className="text-[14px] font-mono uppercase tracking-widest text-text-secondary">Comms</h1>
         <span className="text-[10px] font-mono text-text-tertiary uppercase">{comms.length} messages</span>
       </div>
+      <SendPanel />
       <StatsBar messages={comms} />
       <div className="wv-card p-3 mb-4 flex items-center gap-3 flex-wrap">
         <div className="flex gap-1">

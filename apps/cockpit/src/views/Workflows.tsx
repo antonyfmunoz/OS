@@ -47,6 +47,23 @@ function WorkflowCard({ workflow, selected, onClick }: { workflow: WorkflowRespo
 }
 
 function DetailPanel({ workflow, onClose }: { workflow: WorkflowResponse; onClose: () => void }) {
+  const [triggering, setTriggering] = useState(false)
+  const [triggerResult, setTriggerResult] = useState<string | null>(null)
+
+  const handleTrigger = async () => {
+    setTriggering(true)
+    try {
+      const { api } = await import('../api/client.ts')
+      const res = await api.workflowTrigger(workflow.id)
+      setTriggerResult(res.ok ? `Triggered (trace: ${res.trace_id?.slice(0, 8)}...)` : 'Trigger failed')
+      useCockpitStore.getState().fetchAll()
+    } catch {
+      setTriggerResult('Error triggering workflow')
+    } finally {
+      setTriggering(false)
+    }
+  }
+
   return (
     <div className="w-96 border-l border-border flex flex-col bg-surface">
       <div className="flex items-center justify-between p-4 border-b border-border">
@@ -62,6 +79,14 @@ function DetailPanel({ workflow, onClose }: { workflow: WorkflowResponse; onClos
         </div>
         <div><div className="wv-label mb-1">AVG DURATION</div><div className="text-[11px] text-text-secondary">{workflow.avg_duration_ms > 0 ? `${(workflow.avg_duration_ms / 1000).toFixed(1)}s` : 'N/A'}</div></div>
         <div><div className="wv-label mb-1">LAST RUN</div><div className="text-[11px] text-text-secondary">{workflow.last_run ? new Date(workflow.last_run).toLocaleString() : 'Never'}</div></div>
+        <button
+          onClick={handleTrigger}
+          disabled={triggering}
+          className="w-full mt-2 px-4 py-2 text-[10px] font-mono uppercase tracking-wider bg-cyan/10 text-cyan border border-cyan-dim hover:bg-cyan/20 transition-colors disabled:opacity-40"
+        >
+          {triggering ? 'Triggering...' : 'Trigger Run'}
+        </button>
+        {triggerResult && <div className="text-[10px] text-text-tertiary">{triggerResult}</div>}
       </div>
     </div>
   )

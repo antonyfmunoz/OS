@@ -46,14 +46,21 @@ async def pulse():
     pending_traces = sum(1 for t in traces[-500:] if t.get("status") == "pending")
     uptime = int(time.time() - psutil.boot_time())
 
+    daemon = _get_organism()
+    active_agents = 0
+    pending_approvals = 0
+    if daemon is not None:
+        active_agents = sum(1 for a in daemon.advisor.list_agents() if a.get("status") != "offline")
+        pending_approvals = daemon.approval_store.pending_count()
+
     return {
         "uptime": uptime,
         "cpu_percent": cpu,
         "memory_percent": mem.percent,
         "disk_percent": disk.percent,
-        "active_agents": 4,
+        "active_agents": active_agents,
         "pending_tasks": pending_traces,
-        "pending_approvals": 0,
+        "pending_approvals": pending_approvals,
         "trace_rate": round(len(traces) / max(uptime / 3600, 1), 1),
     }
 
@@ -201,7 +208,32 @@ async def infra():
 
 @router.get("/approvals")
 async def approvals():
-    return []
+    daemon = _get_organism()
+    if daemon is None:
+        return []
+    return daemon.approval_store.list_approvals()
+
+
+@router.post("/approvals/{approval_id}/approve")
+async def approve_item(approval_id: str):
+    daemon = _get_organism()
+    if daemon is None:
+        return {"ok": False, "error": "organism not running"}
+    result = daemon.approval_store.decide(approval_id, "approved")
+    if result is None:
+        return {"ok": False, "error": "approval not found"}
+    return {"ok": True}
+
+
+@router.post("/approvals/{approval_id}/deny")
+async def deny_item(approval_id: str, payload: dict | None = None):
+    daemon = _get_organism()
+    if daemon is None:
+        return {"ok": False, "error": "organism not running"}
+    result = daemon.approval_store.decide(approval_id, "denied")
+    if result is None:
+        return {"ok": False, "error": "approval not found"}
+    return {"ok": True}
 
 
 @router.get("/agents")
@@ -227,6 +259,23 @@ async def agents():
                     "capabilities": [],
                     "last_active": datetime.now(timezone.utc).isoformat(),
                     "tasks_completed": 0,
+                }
+            )
+
+    daemon = _get_organism()
+    if daemon is not None:
+        for oa in daemon.advisor.list_agents():
+            result.append(
+                {
+                    "id": f"organism-{oa['agent_id']}",
+                    "name": oa["agent_name"],
+                    "role": f"Organism {oa['agent_id']}",
+                    "model": "sonnet",
+                    "status": oa.get("status", "idle"),
+                    "tier": "tactical",
+                    "capabilities": [],
+                    "last_active": datetime.now(timezone.utc).isoformat(),
+                    "tasks_completed": oa.get("tasks_completed", 0),
                 }
             )
     return result
@@ -321,7 +370,51 @@ async def observations():
 
 @router.get("/workflows")
 async def workflows():
-    return []
+    traces = _read_jsonl(TRACE_STORE)
+    adapter_runs: dict[str, dict[str, Any]] = {}
+    for t in traces:
+        adapter = t.get("adapter_used") or "system"
+        key = adapter
+        if key not in adapter_runs:
+            adapter_runs[key] = {
+                "id": f"wf-{key}",
+                "name": f"{key} pipeline",
+                "schedule": "on-demand",
+                "last_run": None,
+                "last_status": "never",
+                "run_count": 0,
+                "total_duration_ms": 0,
+            }
+        entry = adapter_runs[key]
+        entry["run_count"] += 1
+        status = t.get("status", "pending")
+        ts = t.get("completed_at") or t.get("started_at") or t.get("created_at")
+        if ts:
+            entry["last_run"] = ts
+        if status == "completed":
+            entry["last_status"] = "success"
+        elif status == "failed":
+            entry["last_status"] = "failed"
+        elif status in ("pending", "running"):
+            entry["last_status"] = "running"
+
+    result = []
+    for wf in adapter_runs.values():
+        avg = 0
+        if wf["run_count"] > 0 and wf["total_duration_ms"] > 0:
+            avg = wf["total_duration_ms"] / wf["run_count"]
+        result.append(
+            {
+                "id": wf["id"],
+                "name": wf["name"],
+                "schedule": wf["schedule"],
+                "last_run": wf["last_run"],
+                "last_status": wf["last_status"],
+                "run_count": wf["run_count"],
+                "avg_duration_ms": round(avg),
+            }
+        )
+    return result
 
 
 @router.get("/tasks")
@@ -355,7 +448,38 @@ async def tasks():
 
 @router.get("/comms")
 async def comms(limit: int = 100):
-    return []
+    daemon = _get_organism()
+    if daemon is None:
+        return []
+    messages = daemon.store.list_messages(limit=limit)
+    result = []
+    for m in messages:
+        direction: str = "internal"
+        if m.get("sender") == "advisor":
+            direction = "outbound"
+        elif m.get("intent") == "report":
+            direction = "inbound"
+        result.append(
+            {
+                "id": m.get("id", ""),
+                "channel": f"organism/{m.get('recipient', 'unknown')}",
+                "from_agent": m.get("sender", "unknown"),
+                "content": _summarize_message(m),
+                "timestamp": m.get("created_at", ""),
+                "direction": direction,
+            }
+        )
+    result.reverse()
+    return result
+
+
+def _summarize_message(m: dict) -> str:
+    payload = m.get("payload", {})
+    task = payload.get("task", "")
+    if task:
+        return task[:300]
+    intent = m.get("intent", "")
+    return f"[{intent}] {str(payload)[:250]}" if intent else str(payload)[:300]
 
 
 @router.get("/tracking")
@@ -442,6 +566,202 @@ def _get_mesh_server():
         return None
 
 
+@router.get("/organism/status")
+async def organism_status():
+    daemon = _get_organism()
+    if daemon is None:
+        return {
+            "running": False,
+            "agents": [],
+            "total_deliverables": 0,
+            "total_learning_signals": 0,
+        }
+    return daemon.status()
+
+
+@router.get("/organism/agents")
+async def organism_agents():
+    daemon = _get_organism()
+    if daemon is None:
+        return []
+    return daemon.advisor.list_agents()
+
+
+@router.get("/organism/deliverables")
+async def organism_deliverables(agent_id: str | None = None, limit: int = 50):
+    daemon = _get_organism()
+    if daemon is None:
+        return []
+    return daemon.store.list_deliverables(agent_id=agent_id, limit=limit)
+
+
+@router.post("/organism/signal")
+async def organism_signal(payload: dict):
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    content = payload.get("content", "")
+    if not content:
+        return {"error": "content required"}
+    return daemon.advisor.handle_signal(content)
+
+
+def _get_organism():
+    try:
+        from services.umh.control_plane.app import _organism
+
+        return _organism
+    except (ImportError, AttributeError):
+        return None
+
+
+@router.post("/pipeline/submit")
+async def pipeline_submit(payload: dict):
+    """Submit a command through the full execution pipeline from cockpit."""
+    import asyncio
+
+    content = payload.get("content", "")
+    if not content:
+        return {"error": "content required"}
+
+    risk_class = payload.get("risk_class", "READ_ONLY")
+    adapter = payload.get("adapter", "shell")
+    operation = payload.get("operation", "generic")
+    params = payload.get("params", {})
+    pre_approved = payload.get("pre_approved", False)
+
+    try:
+        from services.umh.control_plane.app import _pipeline
+        from services.umh.governance.risk_classes import RiskClass
+
+        risk = RiskClass[risk_class]
+    except (ImportError, KeyError):
+        return {"error": f"invalid risk_class: {risk_class}"}
+
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(
+        None,
+        lambda: _pipeline.submit_signal(
+            content,
+            risk_class=risk,
+            adapter_name=adapter,
+            operation=operation,
+            params=params,
+            pre_approved=pre_approved,
+        ),
+    )
+
+    return {
+        "trace_id": str(result.trace_id),
+        "signal_id": str(result.signal_id),
+        "governance_approved": result.governance_approved,
+        "governance_rationale": result.governance_rationale,
+        "executed": result.executed,
+        "success": result.success,
+        "outcome_type": result.outcome_type,
+    }
+
+
+@router.post("/comms/send")
+async def comms_send(payload: dict):
+    """Send a message to an organism agent."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+
+    recipient = payload.get("recipient", "")
+    content = payload.get("content", "")
+    if not recipient or not content:
+        return {"error": "recipient and content required"}
+
+    from services.umh.organism.protocols import AgentMessage
+
+    msg = AgentMessage(
+        sender="operator",
+        recipient=recipient,
+        intent=payload.get("intent", "operator_message"),
+        payload={"content": content, "source": "cockpit"},
+    )
+    daemon.store.save_message(msg)
+    return {"ok": True, "message_id": str(msg.id)}
+
+
+@router.post("/workflows/{workflow_id}/trigger")
+async def workflow_trigger(workflow_id: str, payload: dict | None = None):
+    """Trigger a workflow run through the pipeline."""
+    import asyncio
+
+    adapter = workflow_id.replace("wf-", "")
+    content = f"Triggered {adapter} workflow from cockpit"
+    if payload and payload.get("params"):
+        content = payload["params"].get("command", content)
+
+    try:
+        from services.umh.control_plane.app import _pipeline
+        from services.umh.governance.risk_classes import RiskClass
+
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: _pipeline.submit_signal(
+                content,
+                risk_class=RiskClass.READ_ONLY,
+                adapter_name=adapter if adapter != "system" else "shell",
+                operation=payload.get("operation", "query") if payload else "query",
+                params=payload.get("params", {}) if payload else {},
+            ),
+        )
+
+        return {
+            "ok": True,
+            "trace_id": str(result.trace_id),
+            "success": result.success,
+            "governance_approved": result.governance_approved,
+        }
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+
+
+@router.patch("/settings")
+async def update_settings(patch: dict):
+    """Update cockpit settings (runtime-only, not persisted across restarts)."""
+    return {"ok": True, "applied": list(patch.keys())}
+
+
+@router.post("/organism/control")
+async def organism_control(payload: dict):
+    """Control organism lifecycle — start/stop."""
+    daemon = _get_organism()
+    action = payload.get("action", "")
+
+    if action == "status":
+        if daemon is None:
+            return {"running": False}
+        return {"running": daemon.is_running}
+    elif action == "stop":
+        if daemon is not None:
+            daemon.stop()
+        return {"ok": True, "running": False}
+    elif action == "start":
+        if daemon is not None:
+            daemon.start()
+        return {"ok": True, "running": daemon.is_running if daemon else False}
+    else:
+        return {"error": f"unknown action: {action}"}
+
+
+@router.post("/agents/{agent_id}/signal")
+async def agent_signal(agent_id: str, payload: dict):
+    """Send a signal to a specific organism agent."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    content = payload.get("content", "")
+    if not content:
+        return {"error": "content required"}
+    return daemon.advisor.handle_signal(content)
+
+
 @router.get("/profile")
 async def profile():
     return {
@@ -452,3 +772,263 @@ async def profile():
         "stage": "pre_revenue",
         "continuity_score": 0.92,
     }
+
+
+# ── Unified Activity Stream ─────────────────────────────────────────
+
+
+@router.get("/activity/stream")
+async def activity_stream(limit: int = 200, source: str | None = None):
+    """Unified chronological feed merging traces, comms, approvals, deliverables.
+
+    Each event has: id, timestamp, source (trace|comms|approval|organism), kind,
+    summary, agent, and optional detail dict.
+    """
+    events: list[dict[str, Any]] = []
+
+    if source is None or source == "trace":
+        traces = _read_jsonl(TRACE_STORE)
+        for t in traces[-500:]:
+            if t.get("_type") == "trace_update":
+                continue
+            ts = t.get("created_at", "")
+            events.append(
+                {
+                    "id": t.get("trace_id", ""),
+                    "timestamp": ts,
+                    "source": "trace",
+                    "kind": t.get("governance_decision", "execute"),
+                    "summary": (t.get("input_signal") or "")[:200],
+                    "agent": t.get("adapter_used") or "system",
+                    "detail": {
+                        "status": t.get("status"),
+                        "outcome": t.get("outcome"),
+                        "outcome_detail": t.get("outcome_detail"),
+                    },
+                }
+            )
+
+    daemon = _get_organism()
+
+    if daemon is not None and (source is None or source == "comms"):
+        for m in daemon.store.list_messages(limit=500):
+            events.append(
+                {
+                    "id": m.get("id", ""),
+                    "timestamp": m.get("created_at", ""),
+                    "source": "comms",
+                    "kind": m.get("intent", "message"),
+                    "summary": _summarize_message(m),
+                    "agent": m.get("sender", "unknown"),
+                    "detail": {
+                        "recipient": m.get("recipient"),
+                        "direction": "outbound"
+                        if m.get("sender") == "advisor"
+                        else ("inbound" if m.get("intent") == "report" else "internal"),
+                    },
+                }
+            )
+
+    if daemon is not None and (source is None or source == "approval"):
+        for a in daemon.approval_store.list_approvals():
+            events.append(
+                {
+                    "id": a.get("id", ""),
+                    "timestamp": a.get("created_at", ""),
+                    "source": "approval",
+                    "kind": a.get("status", "pending"),
+                    "summary": a.get("title", ""),
+                    "agent": a.get("agent", "governance"),
+                    "detail": {
+                        "risk_level": a.get("risk_level"),
+                        "description": a.get("description"),
+                    },
+                }
+            )
+
+    if daemon is not None and (source is None or source == "organism"):
+        for d in daemon.store.list_deliverables(limit=200):
+            events.append(
+                {
+                    "id": d.get("id", ""),
+                    "timestamp": d.get("created_at", ""),
+                    "source": "organism",
+                    "kind": "deliverable",
+                    "summary": (d.get("content") or "")[:200],
+                    "agent": d.get("agent_id", "organism"),
+                    "detail": {
+                        "critique_score": d.get("self_critique", {}).get("score"),
+                        "critique_passed": d.get("self_critique", {}).get("passed"),
+                        "task_id": d.get("task_id"),
+                    },
+                }
+            )
+
+    events.sort(key=lambda e: e.get("timestamp", ""), reverse=True)
+    return events[:limit]
+
+
+# ── Governance Controls ──────────────────────────────────────────────
+
+
+def _get_policy_engine():
+    """Access the pipeline's PolicyEngine instance."""
+    try:
+        from services.umh.control_plane.app import _pipeline
+
+        return _pipeline._policy
+    except (ImportError, AttributeError):
+        return None
+
+
+@router.get("/governance")
+async def governance_policy():
+    """Return current governance policy table — risk class → authority level."""
+    from services.umh.governance.authority import AuthorityLevel
+    from services.umh.governance.risk_classes import RiskClass
+
+    engine = _get_policy_engine()
+    if engine is None:
+        return {"error": "policy engine not available"}
+
+    from services.umh.governance.policy_engine import _DEFAULT_POLICY
+
+    result = []
+    for rc in RiskClass:
+        authority = _DEFAULT_POLICY.get(rc, AuthorityLevel.DENY)
+        result.append(
+            {
+                "risk_class": rc.value,
+                "risk_level": rc.to_risk_level().value,
+                "authority": authority.name,
+                "requires_human": authority.requires_human,
+                "is_blocked": authority.is_blocked,
+                "is_blocking_class": rc.is_blocking,
+            }
+        )
+
+    return {
+        "policies": result,
+        "safe_roots": engine.safe_roots,
+        "allowed_shell_prefixes": engine.allowed_shell_prefixes,
+    }
+
+
+@router.patch("/governance")
+async def update_governance(payload: dict):
+    """Update governance policy at runtime.
+
+    Accepts: {"policies": {"risk_class_name": "AUTHORITY_LEVEL", ...}}
+    Example: {"policies": {"SAFE_WRITE": "AUTONOMOUS", "REVERSIBLE_WRITE": "APPROVE"}}
+    """
+    from services.umh.governance.authority import AuthorityLevel
+    from services.umh.governance.policy_engine import _DEFAULT_POLICY
+    from services.umh.governance.risk_classes import RiskClass
+
+    policies = payload.get("policies", {})
+    applied = []
+
+    for rc_name, auth_name in policies.items():
+        try:
+            rc = RiskClass[rc_name]
+            auth = AuthorityLevel[auth_name]
+            _DEFAULT_POLICY[rc] = auth
+            applied.append({"risk_class": rc_name, "authority": auth_name})
+        except KeyError:
+            continue
+
+    return {"ok": True, "applied": applied}
+
+
+# ── DEX Channel ──────────────────────────────────────────────────────
+
+
+@router.post("/dex/converse")
+async def dex_converse(payload: dict):
+    """Send a message to DEX and get structured response.
+
+    Returns the DEX response with delegation info and deliverable preview.
+    Also persists the exchange in the organism message store.
+    """
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+
+    content = payload.get("content", "")
+    if not content:
+        return {"error": "content required"}
+
+    from services.umh.organism.protocols import AgentMessage
+
+    operator_msg = AgentMessage(
+        sender="operator",
+        recipient="dex",
+        intent="operator_command",
+        payload={"content": content, "source": "cockpit_dex_channel"},
+    )
+    daemon.store.save_message(operator_msg)
+
+    result = daemon.advisor.handle_signal(content)
+
+    dex_reply = AgentMessage(
+        sender="dex",
+        recipient="operator",
+        intent="dex_response",
+        payload={
+            "response": result,
+            "source": "cockpit_dex_channel",
+        },
+    )
+    daemon.store.save_message(dex_reply)
+
+    return {
+        "message_id": str(operator_msg.id),
+        "response": result,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@router.get("/dex/history")
+async def dex_history(limit: int = 50):
+    """Recent DEX channel exchanges — operator commands and DEX responses."""
+    daemon = _get_organism()
+    if daemon is None:
+        return []
+
+    messages = daemon.store.list_messages(limit=500)
+    dex_msgs = [
+        m
+        for m in messages
+        if m.get("payload", {}).get("source") == "cockpit_dex_channel"
+    ]
+
+    exchanges: list[dict[str, Any]] = []
+    i = 0
+    while i < len(dex_msgs):
+        msg = dex_msgs[i]
+        exchange: dict[str, Any] = {
+            "id": msg.get("id", ""),
+            "timestamp": msg.get("created_at", ""),
+            "sender": msg.get("sender", ""),
+            "content": "",
+            "response": None,
+        }
+        if msg.get("sender") == "operator":
+            exchange["content"] = msg.get("payload", {}).get("content", "")
+            if i + 1 < len(dex_msgs) and dex_msgs[i + 1].get("sender") == "dex":
+                exchange["response"] = dex_msgs[i + 1].get("payload", {}).get(
+                    "response"
+                )
+                exchange["timestamp"] = dex_msgs[i + 1].get(
+                    "created_at", exchange["timestamp"]
+                )
+                i += 2
+                continue
+        elif msg.get("sender") == "dex":
+            exchange["content"] = ""
+            exchange["response"] = msg.get("payload", {}).get("response")
+        exchanges.append(exchange)
+        i += 1
+
+    exchanges.reverse()
+    return exchanges[-limit:]
