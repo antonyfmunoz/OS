@@ -482,14 +482,20 @@ class ModelRouter:
         prompt: str,
         system: str = "",
         max_tokens: int = 1000,
+        images: list[tuple[bytes, str]] | None = None,
     ) -> str:
-        """Universal model call — routes to correct API by provider."""
+        """Universal model call — routes to correct API by provider.
+
+        Args:
+            images: Optional list of (image_bytes, mime_type) tuples for vision tasks.
+                    Only Gemini and Anthropic support images; other providers ignore them.
+        """
         self._last_input_tokens = 0
         self._last_output_tokens = 0
         provider = model_config.provider
 
         if provider == ModelProvider.ANTHROPIC:
-            result = self._call_anthropic(model_config, prompt, system, max_tokens)
+            result = self._call_anthropic(model_config, prompt, system, max_tokens, images)
         elif provider == ModelProvider.PERPLEXITY:
             result = self._call_openai_compatible(model_config, prompt, system, max_tokens)
         elif provider == ModelProvider.GROQ:
@@ -497,7 +503,7 @@ class ModelRouter:
         elif provider == ModelProvider.OLLAMA:
             result = self._call_ollama(model_config, prompt, system, max_tokens)
         elif provider == ModelProvider.GEMINI:
-            result = self._call_gemini(model_config, prompt, system, max_tokens)
+            result = self._call_gemini(model_config, prompt, system, max_tokens, images)
         else:
             logger.warning("[ModelRouter] Unknown provider: %s", provider)
             return ""
@@ -511,6 +517,7 @@ class ModelRouter:
         prompt: str,
         system: str = "",
         max_tokens: int = 1000,
+        images: list[tuple[bytes, str]] | None = None,
     ) -> str:
         """
         Try models in priority order until one returns a non-empty response.
@@ -526,16 +533,21 @@ class ModelRouter:
         if not candidates:
             candidates = [c for c in MODEL_REGISTRY.values() if c.available]
 
+        # If images provided, prefer vision-capable providers
+        if images:
+            vision_providers = {ModelProvider.GEMINI, ModelProvider.ANTHROPIC}
+            vision_candidates = [c for c in candidates if c.provider in vision_providers]
+            if vision_candidates:
+                candidates = vision_candidates
+
         candidates.sort(key=lambda x: PROVIDER_PRIORITY.get(x.provider, 99))
 
         for config in candidates:
             if not config.available:
                 continue
-            result = self.call(config, prompt, system, max_tokens)
+            result = self.call(config, prompt, system, max_tokens, images)
             if result:
                 return result
-            # Call returned '' — provider may have just marked itself unavailable
-            # Loop continues to next candidate automatically
 
         logger.warning("[ModelRouter] All candidates exhausted for %s", task_type.name)
         return ""
@@ -546,15 +558,37 @@ class ModelRouter:
         prompt: str,
         system: str,
         max_tokens: int,
+        images: list[tuple[bytes, str]] | None = None,
     ) -> str:
         try:
             import anthropic
+            import base64
 
             client = anthropic.Anthropic(api_key=os.getenv(config.api_key_env))
+
+            # Build content blocks — text + optional images
+            if images:
+                content: list[dict] = []
+                for img_bytes, mime_type in images:
+                    content.append(
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": mime_type,
+                                "data": base64.b64encode(img_bytes).decode(),
+                            },
+                        }
+                    )
+                content.append({"type": "text", "text": prompt})
+                messages = [{"role": "user", "content": content}]
+            else:
+                messages = [{"role": "user", "content": prompt}]
+
             kwargs: dict = {
                 "model": config.model_id,
                 "max_tokens": max_tokens,
-                "messages": [{"role": "user", "content": prompt}],
+                "messages": messages,
             }
             if system:
                 kwargs["system"] = system
@@ -572,7 +606,6 @@ class ModelRouter:
                 or "invalid x-api-key" in err_str
             )
             if _fatal:
-                # All Anthropic models share the same account — mark them all unavailable
                 logger.warning(
                     "[ModelRouter] Anthropic unavailable — marking all models down: %s",
                     err_str[:120],
@@ -669,13 +702,32 @@ class ModelRouter:
         prompt: str,
         system: str,
         max_tokens: int,
+        images: list[tuple[bytes, str]] | None = None,
     ) -> str:
         try:
+            import base64
             from google import genai  # type: ignore
             from google.genai import types as genai_types  # type: ignore
 
             client = genai.Client(api_key=os.getenv(config.api_key_env))
-            contents = prompt
+
+            # Build contents — text + optional inline images
+            if images:
+                parts: list[dict] = []
+                for img_bytes, mime_type in images:
+                    parts.append(
+                        {
+                            "inline_data": {
+                                "mime_type": mime_type,
+                                "data": base64.b64encode(img_bytes).decode(),
+                            }
+                        }
+                    )
+                parts.append({"text": prompt})
+                contents = parts
+            else:
+                contents = prompt
+
             cfg = genai_types.GenerateContentConfig(
                 max_output_tokens=max_tokens,
                 system_instruction=system or None,
@@ -760,6 +812,7 @@ def call_with_fallback(
     agent_type: str | None = None,
     force_opus: bool = False,
     raw_input: str | None = None,
+    images: list[tuple[bytes, str]] | None = None,
 ) -> RoutingResult:
     """
     Main routing entry point for all EOS agent calls.
@@ -778,6 +831,9 @@ def call_with_fallback(
                    context via CLAUDE.md — sending the augmented prompt would
                    redundantly paste system context into the tmux pane and exceed
                    the 8000-char send limit.
+        images: Optional list of (image_bytes, mime_type) tuples for vision tasks.
+                Routes to Gemini or Anthropic (vision-capable providers).
+                Claude CLI and cc_sdk backends skip images (text-only).
     """
     if isinstance(task_type, TaskType):
         task_type_str = task_type.value
@@ -798,6 +854,10 @@ def call_with_fallback(
     is_ceo = _is_ceo_agent(agent_type) or force_opus
     if is_ceo:
         task_type_str = TaskType.STRATEGIC.value
+
+    # Vision: images present → force multimodal task type (skip CLI/cc_sdk text-only paths)
+    if images:
+        task_type_str = TaskType.MULTIMODAL.value
 
     # Determine if this is a fast-path task
     is_fast = task_type_str in _FAST_TASK_TYPES and not is_ceo
@@ -954,7 +1014,7 @@ def call_with_fallback(
         candidates.sort(key=lambda x: x.cost_per_1k)
 
         for config in candidates:
-            output = router.call(config, prompt, system or "", haiku_cap)
+            output = router.call(config, prompt, system or "", haiku_cap, images)
             if output:
                 # Check quality — escalate if too low
                 if _should_escalate(output, config.provider.value):
@@ -1012,7 +1072,7 @@ def call_with_fallback(
         remaining.sort(key=lambda x: priority.get(x.provider, 99))
 
         for config in remaining:
-            output = router.call(config, prompt, system or "", 2000)
+            output = router.call(config, prompt, system or "", 2000, images)
             if output:
                 latency_ms = int((time.time() - start) * 1000)
                 logger.info(
@@ -1078,7 +1138,7 @@ def call_with_fallback(
             if not config.available:
                 continue
             _tried_providers.add(config.provider)
-            output = router.call(config, prompt, system or "", 2000)
+            output = router.call(config, prompt, system or "", 2000, images)
             if output:
                 latency_ms = int((time.time() - start) * 1000)
                 logger.info(
@@ -1113,7 +1173,7 @@ def call_with_fallback(
         for config in remaining:
             if not config.available:
                 continue
-            output = router.call(config, prompt, system or "", 2000)
+            output = router.call(config, prompt, system or "", 2000, images)
             if output:
                 latency_ms = int((time.time() - start) * 1000)
                 logger.info(

@@ -347,6 +347,62 @@ async def voice_tts(request: Request) -> Any:
     )
 
 
+# ─── Vision helpers ──────────────────────────────────────────────────────────
+
+_MAX_VISION_FRAME_BYTES = 2 * 1024 * 1024  # 2 MB cap per frame
+
+
+async def _vision_analyze(
+    image_b64: str,
+    prompt: str = "",
+    mime_type: str = "image/jpeg",
+) -> dict[str, Any]:
+    """Route an image + prompt through model_router with vision."""
+    import base64
+
+    start = time.time()
+    image_bytes = base64.b64decode(image_b64)
+    if len(image_bytes) > _MAX_VISION_FRAME_BYTES:
+        return {"text": "Image too large (max 2 MB).", "duration_ms": 0}
+
+    vision_prompt = prompt or "Describe what you see in this image concisely."
+
+    try:
+        from execution.runtime.model_router import call_with_fallback
+
+        result = await asyncio.to_thread(
+            call_with_fallback,
+            prompt=vision_prompt,
+            task_type="multimodal",
+            images=[(image_bytes, mime_type)],
+        )
+        duration_ms = int((time.time() - start) * 1000)
+        output = result.output if hasattr(result, "output") else str(result)
+        return {
+            "text": output or "No vision response.",
+            "provider": getattr(result, "provider", "unknown"),
+            "duration_ms": duration_ms,
+        }
+    except Exception as e:
+        logger.warning(f"Vision analysis failed: {e}")
+        duration_ms = int((time.time() - start) * 1000)
+        return {"text": f"Vision error: {e}", "duration_ms": duration_ms}
+
+
+@app.post("/api/vision/analyze", dependencies=[Depends(verify_api_key)])
+async def vision_analyze(request: Request) -> dict[str, Any]:
+    """Analyze an image. Accepts base64 JPEG/PNG + optional text prompt."""
+    body = await request.json()
+    image_b64 = body.get("image", "")
+    prompt = body.get("prompt", "")
+    mime_type = body.get("mime_type", "image/jpeg")
+
+    if not image_b64:
+        raise HTTPException(status_code=400, detail="image field required (base64)")
+
+    return await _vision_analyze(image_b64, prompt, mime_type)
+
+
 # ─── WebSocket ─────────────────────────────────────────────────────────────────
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket) -> None:
@@ -440,6 +496,36 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                             "type": "chat_response",
                             "text": f"Error: {e}",
                             "model_used": "none",
+                            "duration_ms": 0,
+                        }
+                    )
+
+            elif msg_type == "vision_frame":
+                image_b64 = msg.get("image", "")
+                prompt = msg.get("prompt", "")
+                mime_type = msg.get("mime_type", "image/jpeg")
+
+                if not image_b64:
+                    await ws.send_json({"type": "error", "text": "Empty image"})
+                    continue
+
+                await ws.send_json({"type": "vision_ack", "text": "analyzing"})
+
+                try:
+                    result = await _vision_analyze(image_b64, prompt, mime_type)
+                    await ws.send_json(
+                        {
+                            "type": "vision_response",
+                            "text": result.get("text", ""),
+                            "provider": result.get("provider", "unknown"),
+                            "duration_ms": result.get("duration_ms", 0),
+                        }
+                    )
+                except Exception as e:
+                    await ws.send_json(
+                        {
+                            "type": "vision_response",
+                            "text": f"Vision error: {e}",
                             "duration_ms": 0,
                         }
                     )
