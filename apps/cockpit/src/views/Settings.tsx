@@ -3,6 +3,25 @@ import { useCockpitStore } from '../stores/cockpitStore.ts'
 import { api, type SettingsResponse } from '../api/client.ts'
 import { clsx } from 'clsx'
 
+const AUTHORITY_LEVELS = ['AUTONOMOUS', 'NOTIFY', 'APPROVE', 'ESCALATE', 'DENY'] as const
+type AuthorityLevel = (typeof AUTHORITY_LEVELS)[number]
+
+const AUTHORITY_COLOR: Record<AuthorityLevel, string> = {
+  AUTONOMOUS: 'text-ok border-ok-dim bg-ok/10',
+  NOTIFY: 'text-cyan border-cyan-dim bg-cyan/10',
+  APPROVE: 'text-warn border-warn-dim bg-warn/10',
+  ESCALATE: 'text-violet border-violet-dim bg-violet/10',
+  DENY: 'text-danger border-danger-dim bg-danger/10',
+}
+
+const RISK_LEVEL_COLOR: Record<string, string> = {
+  negligible: 'wv-badge-ok',
+  low: 'wv-badge-ok',
+  medium: 'wv-badge-warn',
+  high: 'wv-badge-danger',
+  critical: 'wv-badge-violet',
+}
+
 function Toggle({ enabled, onToggle, label }: { enabled: boolean; onToggle: () => void; label: string }) {
   return (
     <button onClick={onToggle} className="flex items-center justify-between w-full group">
@@ -11,6 +30,77 @@ function Toggle({ enabled, onToggle, label }: { enabled: boolean; onToggle: () =
         {enabled ? 'on' : 'off'}
       </span>
     </button>
+  )
+}
+
+function GovernancePolicyPanel() {
+  const { governance } = useCockpitStore()
+  const [updating, setUpdating] = useState<string | null>(null)
+
+  if (!governance) {
+    return (
+      <div className="wv-card p-4">
+        <div className="wv-label mb-3">GOVERNANCE POLICY</div>
+        <div className="text-[11px] text-text-tertiary text-center py-4">Loading governance data...</div>
+      </div>
+    )
+  }
+
+  const handleAuthorityChange = async (riskClass: string, authority: AuthorityLevel) => {
+    setUpdating(riskClass)
+    await api.updateGovernance({ [riskClass]: authority })
+    useCockpitStore.getState().fetchAll()
+    setUpdating(null)
+  }
+
+  return (
+    <div className="wv-card overflow-hidden">
+      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+        <span className="wv-label">GOVERNANCE POLICY</span>
+        <span className="text-[9px] text-text-tertiary font-mono uppercase">
+          {governance.safe_roots.length} safe root{governance.safe_roots.length !== 1 ? 's' : ''}
+        </span>
+      </div>
+      <div className="divide-y divide-border/50">
+        <div className="flex items-center gap-3 px-4 py-2 text-[10px] font-mono text-text-tertiary uppercase tracking-wider">
+          <span className="w-44">RISK CLASS</span>
+          <span className="w-20">LEVEL</span>
+          <span className="flex-1">AUTHORITY REQUIRED</span>
+        </div>
+        {governance.policies.map((p) => {
+          const riskClassKey = p.risk_class.toUpperCase()
+          const currentAuth = p.authority as AuthorityLevel
+          return (
+            <div key={p.risk_class} className="flex items-center gap-3 px-4 py-2.5">
+              <span className="text-[11px] text-text-primary font-mono w-44 truncate">
+                {p.risk_class}
+              </span>
+              <span className={clsx('wv-badge w-20 text-center', RISK_LEVEL_COLOR[p.risk_level] ?? 'wv-badge-cyan')}>
+                {p.risk_level}
+              </span>
+              <div className="flex-1 flex gap-1">
+                {AUTHORITY_LEVELS.map((auth) => (
+                  <button
+                    key={auth}
+                    onClick={() => handleAuthorityChange(riskClassKey, auth)}
+                    disabled={updating === riskClassKey}
+                    className={clsx(
+                      'px-2 py-1 text-[9px] font-mono uppercase tracking-wider border transition-colors',
+                      currentAuth === auth
+                        ? AUTHORITY_COLOR[auth]
+                        : 'text-text-tertiary border-border hover:text-text-secondary hover:border-border-active',
+                      updating === riskClassKey && 'opacity-40',
+                    )}
+                  >
+                    {auth}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
@@ -29,18 +119,6 @@ function RoutingTable({ routing, onToggle }: { routing: { provider: string; prio
             <span className={clsx('w-16 text-right', r.enabled ? 'text-ok' : 'text-text-tertiary')}>{r.enabled ? 'ON' : 'OFF'}</span>
           </button>
         ))}
-      </div>
-    </div>
-  )
-}
-
-function GovernancePanel({ governance, onToggle }: { governance: { auto_approve_low: boolean; critical_block: boolean }; onToggle: (key: string) => void }) {
-  return (
-    <div className="wv-card p-4">
-      <div className="wv-label mb-3">GOVERNANCE POLICIES</div>
-      <div className="space-y-3">
-        <Toggle enabled={governance.auto_approve_low} onToggle={() => onToggle('auto_approve_low')} label="Auto-approve low risk" />
-        <Toggle enabled={governance.critical_block} onToggle={() => onToggle('critical_block')} label="Block critical actions" />
       </div>
     </div>
   )
@@ -85,10 +163,6 @@ export function Settings() {
     update({ model_routing: next })
   }
 
-  const toggleGovernance = (key: string) => {
-    update({ governance: { ...active.governance, [key]: !active.governance[key as keyof typeof active.governance] } })
-  }
-
   const toggleNotifications = (key: string) => {
     update({ notifications: { ...active.notifications, [key]: !active.notifications[key as keyof typeof active.notifications] } })
   }
@@ -100,11 +174,9 @@ export function Settings() {
         {local && <span className="text-[9px] text-warn font-mono uppercase">modified (runtime-only)</span>}
       </div>
       <div className="flex-1 overflow-y-auto space-y-4">
+        <GovernancePolicyPanel />
         <RoutingTable routing={active.model_routing} onToggle={toggleRouting} />
-        <div className="grid grid-cols-2 gap-4">
-          <GovernancePanel governance={active.governance} onToggle={toggleGovernance} />
-          <NotificationsPanel notifications={active.notifications} onToggle={toggleNotifications} />
-        </div>
+        <NotificationsPanel notifications={active.notifications} onToggle={toggleNotifications} />
       </div>
     </div>
   )

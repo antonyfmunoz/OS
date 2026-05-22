@@ -772,3 +772,263 @@ async def profile():
         "stage": "pre_revenue",
         "continuity_score": 0.92,
     }
+
+
+# ── Unified Activity Stream ─────────────────────────────────────────
+
+
+@router.get("/activity/stream")
+async def activity_stream(limit: int = 200, source: str | None = None):
+    """Unified chronological feed merging traces, comms, approvals, deliverables.
+
+    Each event has: id, timestamp, source (trace|comms|approval|organism), kind,
+    summary, agent, and optional detail dict.
+    """
+    events: list[dict[str, Any]] = []
+
+    if source is None or source == "trace":
+        traces = _read_jsonl(TRACE_STORE)
+        for t in traces[-500:]:
+            if t.get("_type") == "trace_update":
+                continue
+            ts = t.get("created_at", "")
+            events.append(
+                {
+                    "id": t.get("trace_id", ""),
+                    "timestamp": ts,
+                    "source": "trace",
+                    "kind": t.get("governance_decision", "execute"),
+                    "summary": (t.get("input_signal") or "")[:200],
+                    "agent": t.get("adapter_used") or "system",
+                    "detail": {
+                        "status": t.get("status"),
+                        "outcome": t.get("outcome"),
+                        "outcome_detail": t.get("outcome_detail"),
+                    },
+                }
+            )
+
+    daemon = _get_organism()
+
+    if daemon is not None and (source is None or source == "comms"):
+        for m in daemon.store.list_messages(limit=500):
+            events.append(
+                {
+                    "id": m.get("id", ""),
+                    "timestamp": m.get("created_at", ""),
+                    "source": "comms",
+                    "kind": m.get("intent", "message"),
+                    "summary": _summarize_message(m),
+                    "agent": m.get("sender", "unknown"),
+                    "detail": {
+                        "recipient": m.get("recipient"),
+                        "direction": "outbound"
+                        if m.get("sender") == "advisor"
+                        else ("inbound" if m.get("intent") == "report" else "internal"),
+                    },
+                }
+            )
+
+    if daemon is not None and (source is None or source == "approval"):
+        for a in daemon.approval_store.list_approvals():
+            events.append(
+                {
+                    "id": a.get("id", ""),
+                    "timestamp": a.get("created_at", ""),
+                    "source": "approval",
+                    "kind": a.get("status", "pending"),
+                    "summary": a.get("title", ""),
+                    "agent": a.get("agent", "governance"),
+                    "detail": {
+                        "risk_level": a.get("risk_level"),
+                        "description": a.get("description"),
+                    },
+                }
+            )
+
+    if daemon is not None and (source is None or source == "organism"):
+        for d in daemon.store.list_deliverables(limit=200):
+            events.append(
+                {
+                    "id": d.get("id", ""),
+                    "timestamp": d.get("created_at", ""),
+                    "source": "organism",
+                    "kind": "deliverable",
+                    "summary": (d.get("content") or "")[:200],
+                    "agent": d.get("agent_id", "organism"),
+                    "detail": {
+                        "critique_score": d.get("self_critique", {}).get("score"),
+                        "critique_passed": d.get("self_critique", {}).get("passed"),
+                        "task_id": d.get("task_id"),
+                    },
+                }
+            )
+
+    events.sort(key=lambda e: e.get("timestamp", ""), reverse=True)
+    return events[:limit]
+
+
+# ── Governance Controls ──────────────────────────────────────────────
+
+
+def _get_policy_engine():
+    """Access the pipeline's PolicyEngine instance."""
+    try:
+        from services.umh.control_plane.app import _pipeline
+
+        return _pipeline._policy
+    except (ImportError, AttributeError):
+        return None
+
+
+@router.get("/governance")
+async def governance_policy():
+    """Return current governance policy table — risk class → authority level."""
+    from services.umh.governance.authority import AuthorityLevel
+    from services.umh.governance.risk_classes import RiskClass
+
+    engine = _get_policy_engine()
+    if engine is None:
+        return {"error": "policy engine not available"}
+
+    from services.umh.governance.policy_engine import _DEFAULT_POLICY
+
+    result = []
+    for rc in RiskClass:
+        authority = _DEFAULT_POLICY.get(rc, AuthorityLevel.DENY)
+        result.append(
+            {
+                "risk_class": rc.value,
+                "risk_level": rc.to_risk_level().value,
+                "authority": authority.name,
+                "requires_human": authority.requires_human,
+                "is_blocked": authority.is_blocked,
+                "is_blocking_class": rc.is_blocking,
+            }
+        )
+
+    return {
+        "policies": result,
+        "safe_roots": engine.safe_roots,
+        "allowed_shell_prefixes": engine.allowed_shell_prefixes,
+    }
+
+
+@router.patch("/governance")
+async def update_governance(payload: dict):
+    """Update governance policy at runtime.
+
+    Accepts: {"policies": {"risk_class_name": "AUTHORITY_LEVEL", ...}}
+    Example: {"policies": {"SAFE_WRITE": "AUTONOMOUS", "REVERSIBLE_WRITE": "APPROVE"}}
+    """
+    from services.umh.governance.authority import AuthorityLevel
+    from services.umh.governance.policy_engine import _DEFAULT_POLICY
+    from services.umh.governance.risk_classes import RiskClass
+
+    policies = payload.get("policies", {})
+    applied = []
+
+    for rc_name, auth_name in policies.items():
+        try:
+            rc = RiskClass[rc_name]
+            auth = AuthorityLevel[auth_name]
+            _DEFAULT_POLICY[rc] = auth
+            applied.append({"risk_class": rc_name, "authority": auth_name})
+        except KeyError:
+            continue
+
+    return {"ok": True, "applied": applied}
+
+
+# ── DEX Channel ──────────────────────────────────────────────────────
+
+
+@router.post("/dex/converse")
+async def dex_converse(payload: dict):
+    """Send a message to DEX and get structured response.
+
+    Returns the DEX response with delegation info and deliverable preview.
+    Also persists the exchange in the organism message store.
+    """
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+
+    content = payload.get("content", "")
+    if not content:
+        return {"error": "content required"}
+
+    from services.umh.organism.protocols import AgentMessage
+
+    operator_msg = AgentMessage(
+        sender="operator",
+        recipient="dex",
+        intent="operator_command",
+        payload={"content": content, "source": "cockpit_dex_channel"},
+    )
+    daemon.store.save_message(operator_msg)
+
+    result = daemon.advisor.handle_signal(content)
+
+    dex_reply = AgentMessage(
+        sender="dex",
+        recipient="operator",
+        intent="dex_response",
+        payload={
+            "response": result,
+            "source": "cockpit_dex_channel",
+        },
+    )
+    daemon.store.save_message(dex_reply)
+
+    return {
+        "message_id": str(operator_msg.id),
+        "response": result,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@router.get("/dex/history")
+async def dex_history(limit: int = 50):
+    """Recent DEX channel exchanges — operator commands and DEX responses."""
+    daemon = _get_organism()
+    if daemon is None:
+        return []
+
+    messages = daemon.store.list_messages(limit=500)
+    dex_msgs = [
+        m
+        for m in messages
+        if m.get("payload", {}).get("source") == "cockpit_dex_channel"
+    ]
+
+    exchanges: list[dict[str, Any]] = []
+    i = 0
+    while i < len(dex_msgs):
+        msg = dex_msgs[i]
+        exchange: dict[str, Any] = {
+            "id": msg.get("id", ""),
+            "timestamp": msg.get("created_at", ""),
+            "sender": msg.get("sender", ""),
+            "content": "",
+            "response": None,
+        }
+        if msg.get("sender") == "operator":
+            exchange["content"] = msg.get("payload", {}).get("content", "")
+            if i + 1 < len(dex_msgs) and dex_msgs[i + 1].get("sender") == "dex":
+                exchange["response"] = dex_msgs[i + 1].get("payload", {}).get(
+                    "response"
+                )
+                exchange["timestamp"] = dex_msgs[i + 1].get(
+                    "created_at", exchange["timestamp"]
+                )
+                i += 2
+                continue
+        elif msg.get("sender") == "dex":
+            exchange["content"] = ""
+            exchange["response"] = msg.get("payload", {}).get("response")
+        exchanges.append(exchange)
+        i += 1
+
+    exchanges.reverse()
+    return exchanges[-limit:]

@@ -16,6 +16,9 @@ import {
   type AnalyticsSnapshot,
   type SettingsResponse,
   type ProfileResponse,
+  type ActivityEvent,
+  type GovernanceResponse,
+  type DexExchange,
 } from '../api/client.ts'
 
 interface CockpitState {
@@ -50,6 +53,9 @@ interface CockpitState {
   organismAgents: OrganismAgent[]
   organismDeliverables: OrganismDeliverable[]
   organismRunning: boolean
+  activityStream: ActivityEvent[]
+  governance: GovernanceResponse | null
+  dexHistory: DexExchange[]
 
   setPersonaName: (name: string) => void
   setRoute: (route: RouteId) => void
@@ -116,6 +122,9 @@ export const useCockpitStore = create<CockpitState>((set, get) => ({
   organismAgents: [],
   organismDeliverables: [],
   organismRunning: false,
+  activityStream: [],
+  governance: null,
+  dexHistory: [],
 
   setPersonaName: (personaName) => set({ personaName }),
   setRoute: (route) => set({ route }),
@@ -181,6 +190,9 @@ export const useCockpitStore = create<CockpitState>((set, get) => ({
         profileRes,
         meshRes,
         orgStatusRes,
+        activityRes,
+        governanceRes,
+        dexHistoryRes,
       ] = await Promise.allSettled([
         api.pulse(),
         api.models(),
@@ -199,6 +211,9 @@ export const useCockpitStore = create<CockpitState>((set, get) => ({
         api.profile(),
         api.meshNodes(),
         api.organismStatus(),
+        api.activityStream(200),
+        api.governance(),
+        api.dexHistory(50),
       ])
 
       const unwrap = <T>(r: PromiseSettledResult<T>, fallback: T): T =>
@@ -316,6 +331,9 @@ export const useCockpitStore = create<CockpitState>((set, get) => ({
         analytics: unwrap(analyticsRes, null),
         settings: unwrap(settingsRes, null),
         profile: unwrap(profileRes, null),
+        activityStream: unwrap(activityRes, []),
+        governance: unwrap(governanceRes, null),
+        dexHistory: unwrap(dexHistoryRes, []),
       })
     } catch (err) {
       set({ loading: false, error: String(err) })

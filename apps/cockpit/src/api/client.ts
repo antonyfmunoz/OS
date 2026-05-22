@@ -202,6 +202,45 @@ export interface OrganismSignalResponse {
   timestamp: string
 }
 
+export interface ActivityEvent {
+  id: string
+  timestamp: string
+  source: 'trace' | 'comms' | 'approval' | 'organism'
+  kind: string
+  summary: string
+  agent: string
+  detail: Record<string, unknown>
+}
+
+export interface GovernancePolicyEntry {
+  risk_class: string
+  risk_level: string
+  authority: string
+  requires_human: boolean
+  is_blocked: boolean
+  is_blocking_class: boolean
+}
+
+export interface GovernanceResponse {
+  policies: GovernancePolicyEntry[]
+  safe_roots: string[]
+  allowed_shell_prefixes: string[]
+}
+
+export interface DexExchange {
+  id: string
+  timestamp: string
+  sender: string
+  content: string
+  response: Record<string, unknown> | null
+}
+
+export interface DexConverseResponse {
+  message_id: string
+  response: Record<string, unknown>
+  timestamp: string
+}
+
 export const api = {
   health: () => request<HealthResponse>('/health'),
   pulse: () => request<PulseResponse>('/pulse'),
@@ -295,4 +334,29 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(patch),
     }),
+
+  activityStream: (limit?: number, source?: string) => {
+    const params = new URLSearchParams()
+    if (limit) params.set('limit', String(limit))
+    if (source) params.set('source', source)
+    const qs = params.toString()
+    return request<ActivityEvent[]>(`/activity/stream${qs ? `?${qs}` : ''}`)
+  },
+
+  governance: () => request<GovernanceResponse>('/governance'),
+
+  updateGovernance: (policies: Record<string, string>) =>
+    request<{ ok: boolean; applied: { risk_class: string; authority: string }[] }>('/governance', {
+      method: 'PATCH',
+      body: JSON.stringify({ policies }),
+    }),
+
+  dexConverse: (content: string) =>
+    request<DexConverseResponse>('/dex/converse', {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    }),
+
+  dexHistory: (limit?: number) =>
+    request<DexExchange[]>(`/dex/history${limit ? `?limit=${limit}` : ''}`),
 }
