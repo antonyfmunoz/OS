@@ -3,6 +3,7 @@ import { LeftRail } from './components/LeftRail.tsx'
 import { StatusBar } from './components/StatusBar.tsx'
 import { PresenceLayer } from './components/PresenceOverlay.tsx'
 import { VoiceOrb } from './components/VoiceOrb.tsx'
+import { CameraFeed } from './components/CameraFeed.tsx'
 import { useCockpitStore } from './stores/cockpitStore.ts'
 import { connectWebSocket, disconnectWebSocket } from './lib/ws-client.ts'
 
@@ -68,6 +69,7 @@ export function App() {
         <StatusBar />
       </div>
       <PresenceLayer />
+      <CameraFeed />
       <VoiceOrb />
     </div>
   )

@@ -1569,6 +1569,35 @@ async def on_message(message: discord.Message):
                         pass
                 return
 
+        # Handle image attachments → vision analysis
+        for att in message.attachments:
+            if att.content_type and att.content_type.startswith("image/"):
+                async with message.channel.typing():
+                    try:
+                        img_bytes = await att.read()
+                        mime = att.content_type or "image/jpeg"
+                        prompt = message.content.strip() or "Describe what you see in this image."
+                        loop = asyncio.get_event_loop()
+                        from execution.runtime.model_router import call_with_fallback as _vision_cwf
+
+                        result = await loop.run_in_executor(
+                            None,
+                            lambda: _vision_cwf(
+                                prompt=prompt,
+                                task_type="multimodal",
+                                images=[(img_bytes, mime)],
+                            ),
+                        )
+                        output = result.output if hasattr(result, "output") else str(result)
+                        if output:
+                            await message.reply(f"👁️ {output}")
+                        else:
+                            await message.reply("I couldn't analyze that image right now.")
+                    except Exception as e:
+                        logger.warning(f"Vision analysis failed: {e}")
+                        await message.reply("Vision analysis failed — try again.")
+                return
+
     text = message.content.strip()
     if not text:
         await bot.process_commands(message)
