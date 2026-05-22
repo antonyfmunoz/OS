@@ -232,6 +232,7 @@ Cross-cutting analysis that connects multiple sources or concepts.
 - [[phase-96-8bi-repo-stabilization]] — Documents the W0 critical stabilization that resolved 74 merge conflicts, fixed phantom imports, and corrected overclaimed component statuses to restore repository trust.
 - [[ingestion-pipeline-duality]] — Documents why the FullLiveIngestionSpine and GenericIngestionOrchestrator implement fundamentally different pipeline contracts and cannot be unified via simple delegation.
 - [[decomposer-depth-audit-2026-05-12]] — Captures the finding that the decomposer emits typed containers but with shallow semantic depth, persists only 1 of N observations, and needs a depth upgrade to match hand-built proof quality.
+- [[umh-unified-system-synthesis]] — Complete synthesis of the 8-tab UMH Google Drive canonical document (13,949 words) into a single coherent system reference covering architecture, primitives, roadmap, strategy, and codebase gap analysis.
 
 ## Sources
 
