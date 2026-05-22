@@ -89,6 +89,7 @@ load_dotenv(_REPO_ROOT / "runtime" / ".env")
 
 # Pin top-level runtime before control_plane.runtime shadows the name
 import importlib.util as _ilu
+
 _rt_spec = _ilu.find_spec("runtime", [str(_REPO_ROOT)])
 if _rt_spec and "runtime" not in sys.modules:
     _rt_mod = _ilu.module_from_spec(_rt_spec)
@@ -1334,8 +1335,23 @@ async def _listen_loop(
             if not should_respond:
                 return
 
+            # ── Voice-first: play ack BEFORE LLM call (eliminates dead air) ──
+            try:
+                from execution.transport.voice_first import (
+                    needs_ack,
+                    play_ack,
+                    VOICE_SYSTEM_SUFFIX,
+                )
+
+                if needs_ack(text):
+                    asyncio.create_task(play_ack(vc))
+                _voice_prompt_suffix = VOICE_SYSTEM_SUFFIX
+            except Exception:
+                _voice_prompt_suffix = ""
+
             context_summary = _ve.intelligent.get_context_summary()
             prompt = f"{context_summary}\n\nCurrent: {text}" if context_summary else text
+            prompt += _voice_prompt_suffix
 
             # Auto-detect meeting context
             if not _active_meeting.get("type"):
@@ -1403,18 +1419,45 @@ async def _listen_loop(
 
             _ve.intelligent.add_to_context(text, classification, response)
 
-            if text_channel:
+            # ── Voice-first response path ─────────────────────────────
+            # Speak FIRST, then post text as transcript/subtitle.
+            try:
+                from execution.transport.voice_first import (
+                    voice_first_respond,
+                )
+
                 user = bot.get_user(user_id)
                 name = user.display_name if user else "You"
-                msg = f"🎙️ **{name}:** {text}\n**{AI_NAME}:** {response}"
-                await _send_reply(text_channel, msg)
-
-            audio_out = await loop.run_in_executor(None, _ve.speak, response[:300])
-            if audio_out and os.path.exists(audio_out):
-                while vc.is_playing():
-                    await asyncio.sleep(0.3)
-                if vc.is_connected():
-                    vc.play(discord.FFmpegPCMAudio(audio_out))
+                vf_result = await voice_first_respond(
+                    vc,
+                    utterance=text,
+                    response=response,
+                    voice_engine=_ve,
+                    text_channel=text_channel,
+                    user_name=name,
+                    ai_name=AI_NAME,
+                    ack_already_played=True,
+                )
+                if vf_result.spoke:
+                    print(
+                        f"[Voice] voice-first: spoke={vf_result.spoke} ack={vf_result.ack_played}"
+                    )
+                elif vf_result.error:
+                    print(f"[Voice] voice-first degraded: {vf_result.error}")
+            except Exception as _vf_err:
+                print(f"[Voice] voice-first import/call failed, falling back: {_vf_err}")
+                # Fallback: original text-first path
+                if text_channel:
+                    user = bot.get_user(user_id)
+                    name = user.display_name if user else "You"
+                    msg = f"\U0001f3a4 **{name}:** {text}\n**{AI_NAME}:** {response}"
+                    await _send_reply(text_channel, msg)
+                audio_out = await loop.run_in_executor(None, _ve.speak, response[:300])
+                if audio_out and os.path.exists(audio_out):
+                    while vc.is_playing():
+                        await asyncio.sleep(0.3)
+                    if vc.is_connected():
+                        vc.play(discord.FFmpegPCMAudio(audio_out))
 
             try:
                 _ki.integrate(
@@ -2589,12 +2632,16 @@ async def cmd_mfa(ctx: commands.Context, service: str, *, code: str):
     try:
         from services.local_bridge_client import send_mfa_response
 
-        response_type = "approved" if code.lower().strip() in ("approved", "approve", "yes") else "code"
+        response_type = (
+            "approved" if code.lower().strip() in ("approved", "approve", "yes") else "code"
+        )
         ok = send_mfa_response(service.lower(), code.strip(), response_type)
         if ok:
             await ctx.reply(f"✅ MFA response delivered to **{service}** ({response_type})")
         else:
-            await ctx.reply(f"❌ Failed to deliver MFA response — bridge unreachable or no pending challenge")
+            await ctx.reply(
+                f"❌ Failed to deliver MFA response — bridge unreachable or no pending challenge"
+            )
     except Exception as e:
         await ctx.reply(f"Error: {e}")
 
@@ -2678,7 +2725,9 @@ async def cmd_status(ctx: commands.Context):
 
         def _portfolio_scan():
             try:
-                from control_plane.strategy.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
+                from control_plane.strategy.portfolio_advisor import (
+                    PortfolioAdvisor as PortfolioAgent,
+                )
 
                 pa = PortfolioAgent(_ctx_eos)
                 ventures = pa.scan_all_ventures()
@@ -3777,7 +3826,10 @@ async def cmd_drip(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from control_plane.strategy.task_yield_matrix import run_yield_audit, format_yield_report
+            from control_plane.strategy.task_yield_matrix import (
+                run_yield_audit,
+                format_yield_report,
+            )
 
             tasks = [t.strip() for t in args.replace("\n", ",").split(",") if t.strip()]
             if not tasks:
