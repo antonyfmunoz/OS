@@ -2,8 +2,8 @@
 
 V1: keyword-based structural rules only. No LLM dependency.
 Maps ontology observations to CreatorOS creator domain primitives
-covering content creation, audience, distribution, monetization,
-brand, and production.
+covering content, audience, distribution, monetization, brand,
+production, products, communities, campaigns, and storefronts.
 """
 
 from __future__ import annotations
@@ -270,6 +270,174 @@ _DOMAIN_KEYWORD_MAP: dict[str, dict[str, list[str]]] = {
             "gear",
         ],
     },
+    "products": {
+        "course": [
+            "online course",
+            "course launch",
+            "cohort-based course",
+            "course curriculum",
+            "course module",
+            "teachable",
+            "kajabi",
+            "thinkific",
+        ],
+        "subscription": [
+            "subscription product",
+            "recurring subscription",
+            "subscription tier",
+            "subscription model",
+            "saas subscription",
+        ],
+        "digital_download": [
+            "digital download",
+            "ebook",
+            "template pack",
+            "preset pack",
+            "printable",
+            "gumroad",
+            "lemon squeezy",
+        ],
+        "service_offer": [
+            "service offer",
+            "coaching package",
+            "consulting package",
+            "done-for-you",
+            "service productize",
+            "retainer",
+        ],
+        "event": [
+            "live event",
+            "workshop",
+            "webinar",
+            "masterclass",
+            "virtual summit",
+            "conference",
+            "meetup",
+        ],
+        "_domain_generic": [
+            "product",
+            "offer",
+            "launch",
+            "sell",
+            "price",
+        ],
+    },
+    "communities": {
+        "channels": [
+            "community channel",
+            "discord channel",
+            "slack channel",
+            "forum channel",
+            "topic channel",
+        ],
+        "roles": [
+            "community role",
+            "moderator",
+            "admin role",
+            "member role",
+            "community manager",
+        ],
+        "tiers": [
+            "membership tier",
+            "community tier",
+            "access tier",
+            "vip tier",
+            "free tier",
+            "premium tier",
+        ],
+        "ugc": [
+            "user generated content",
+            "ugc",
+            "member content",
+            "community content",
+            "member spotlight",
+        ],
+        "_domain_generic": [
+            "community",
+            "member",
+            "discord",
+            "skool",
+            "circle",
+        ],
+    },
+    "campaigns": {
+        "launch_campaign": [
+            "launch campaign",
+            "product launch",
+            "launch sequence",
+            "launch plan",
+            "launch funnel",
+        ],
+        "email_campaign": [
+            "email campaign",
+            "email sequence",
+            "drip campaign",
+            "nurture sequence",
+            "welcome sequence",
+        ],
+        "ad_campaign": [
+            "ad campaign",
+            "paid campaign",
+            "ad creative",
+            "ad inventory",
+            "campaign budget",
+        ],
+        "promotion": [
+            "promotion",
+            "flash sale",
+            "discount code",
+            "coupon",
+            "limited offer",
+            "black friday",
+        ],
+        "_domain_generic": [
+            "campaign",
+            "promo",
+            "marketing campaign",
+            "outreach campaign",
+        ],
+    },
+    "storefronts": {
+        "storefront_design": [
+            "storefront",
+            "shop page",
+            "product page",
+            "landing page",
+            "checkout page",
+            "sales page",
+        ],
+        "entitlements": [
+            "entitlement",
+            "access control",
+            "gated content",
+            "paywall",
+            "drip access",
+            "content lock",
+        ],
+        "automations": [
+            "automation",
+            "workflow automation",
+            "zapier",
+            "make.com",
+            "n8n",
+            "auto-deliver",
+            "trigger automation",
+        ],
+        "series_collections": [
+            "series",
+            "collection",
+            "playlist",
+            "content series",
+            "video series",
+            "course series",
+        ],
+        "_domain_generic": [
+            "store",
+            "shop",
+            "ecommerce",
+            "commerce",
+        ],
+    },
 }
 
 _BRIDGEABLE_ONTOLOGY_TYPES = frozenset(
@@ -293,7 +461,8 @@ class CreatorBridge:
     def describes(self) -> str:
         return (
             "Maps ontology observations to creator domain primitives "
-            "(content, audience, distribution, monetization, brand, production) "
+            "(content, audience, distribution, monetization, brand, production, "
+            "products, communities, campaigns, storefronts) "
             "using structural keyword matching."
         )
 

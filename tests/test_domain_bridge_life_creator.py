@@ -117,6 +117,241 @@ class TestLifeBridgeMapping:
         assert proj.domain_primitive_type == "mindfulness"
 
 
+class TestLifeBridgeMissions:
+    def test_daily_mission_maps(self):
+        bridge = LifeBridge()
+        obs = _make_obs(
+            "obs-mission1",
+            "action",
+            "Complete daily mission: 10K steps and journal",
+            "Daily quest assigned by NOVA system.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["life_domain"] == "missions"
+        assert proj.domain_primitive_type == "daily_mission"
+
+    def test_shadow_mission_maps(self):
+        bridge = LifeBridge()
+        obs = _make_obs(
+            "obs-shadow1",
+            "action",
+            "Shadow work mission: confront shadow of procrastination",
+            "Shadow integration exercise for personal growth.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["life_domain"] == "missions"
+        assert proj.domain_primitive_type == "shadow_mission"
+
+    def test_project_mission_maps(self):
+        bridge = LifeBridge()
+        obs = _make_obs(
+            "obs-projmission1",
+            "goal",
+            "Project mission: build portfolio website milestone",
+            "Project quest with deliverable checkpoint.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["life_domain"] == "missions"
+        assert proj.domain_primitive_type == "project_mission"
+
+
+class TestLifeBridgeThreads:
+    def test_transformation_thread_maps(self):
+        bridge = LifeBridge()
+        obs = _make_obs(
+            "obs-thread1",
+            "state",
+            "Transformation thread: introvert to confident speaker",
+            "Character arc tracking growth in public speaking.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["life_domain"] == "threads"
+        assert proj.domain_primitive_type == "transformation_thread"
+
+    def test_skill_thread_maps(self):
+        bridge = LifeBridge()
+        obs = _make_obs(
+            "obs-thread2",
+            "goal",
+            "Skill thread: mastery thread in data engineering",
+            "Competence thread tracking skill progression.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["life_domain"] == "threads"
+        assert proj.domain_primitive_type == "skill_thread"
+
+
+class TestLifeBridgeRituals:
+    def test_morning_ritual_maps(self):
+        bridge = LifeBridge()
+        obs = _make_obs(
+            "obs-ritual1",
+            "action",
+            "Execute morning ritual at sunrise",
+            "AM ritual and morning protocol for daily activation.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["life_domain"] == "rituals"
+        assert proj.domain_primitive_type == "morning_ritual"
+
+    def test_weekly_ritual_maps(self):
+        bridge = LifeBridge()
+        obs = _make_obs(
+            "obs-ritual2",
+            "action",
+            "Weekly review ritual: assess progress and plan next week",
+            "Sunday review and weekly reflection protocol.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["life_domain"] == "rituals"
+        assert proj.domain_primitive_type == "weekly_ritual"
+
+    def test_yearly_ritual_maps(self):
+        bridge = LifeBridge()
+        obs = _make_obs(
+            "obs-ritual3",
+            "action",
+            "Year-end review and annual reflection on 2026",
+            "Yearly ritual for assessing life trajectory.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["life_domain"] == "rituals"
+        assert proj.domain_primitive_type == "yearly_ritual"
+
+
+class TestLifeBridgeReflections:
+    def test_journal_entry_maps(self):
+        bridge = LifeBridge()
+        obs = _make_obs(
+            "obs-reflect1",
+            "action",
+            "Write daily journal entry about today's wins",
+            "Journaling practice for written reflection.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["life_domain"] == "reflections"
+        assert proj.domain_primitive_type == "journal_entry"
+
+    def test_chronilog_maps(self):
+        bridge = LifeBridge()
+        obs = _make_obs(
+            "obs-chronilog1",
+            "state",
+            "Chronilog entry: life chronicle update for Q2 2026",
+            "Timeline entry documenting life chronicle progression.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["life_domain"] == "reflections"
+        assert proj.domain_primitive_type == "chronilog"
+
+
+class TestLifeBridgeGamification:
+    def test_xp_maps(self):
+        bridge = LifeBridge()
+        obs = _make_obs(
+            "obs-xp1",
+            "resource",
+            "Earn XP for completing morning training session",
+            "Experience points reward for habit completion.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["life_domain"] == "gamification"
+        assert proj.domain_primitive_type == "xp_system"
+
+    def test_streak_maps(self):
+        bridge = LifeBridge()
+        obs = _make_obs(
+            "obs-streak1",
+            "state",
+            "30 day streak on meditation practice",
+            "Consecutive days maintaining streak count.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["life_domain"] == "gamification"
+        assert proj.domain_primitive_type == "streaks"
+
+    def test_level_maps(self):
+        bridge = LifeBridge()
+        obs = _make_obs(
+            "obs-level1",
+            "state",
+            "Player level 12 — rank up to next tier",
+            "Level progression in the gamification system.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["life_domain"] == "gamification"
+        assert proj.domain_primitive_type == "levels"
+
+
+class TestLifeBridgePlayerProfile:
+    def test_archetype_maps(self):
+        bridge = LifeBridge()
+        obs = _make_obs(
+            "obs-archetype1",
+            "state",
+            "Archetype calibration: warrior-scholar player archetype",
+            "Character class assignment based on behavior patterns.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["life_domain"] == "player_profile"
+        assert proj.domain_primitive_type == "archetype"
+
+    def test_character_stats_maps(self):
+        bridge = LifeBridge()
+        obs = _make_obs(
+            "obs-stats1",
+            "state",
+            "Character stats: strength 8, wisdom 6, charisma 7",
+            "Player stats from character sheet assessment.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["life_domain"] == "player_profile"
+        assert proj.domain_primitive_type == "character_stats"
+
+
+class TestLifeBridgeSystems:
+    def test_energy_management_maps(self):
+        bridge = LifeBridge()
+        obs = _make_obs(
+            "obs-energy1",
+            "state",
+            "Energy management: track circadian energy levels",
+            "Energy tracking and optimization throughout the day.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["life_domain"] == "systems"
+        assert proj.domain_primitive_type == "energy_management"
+
+    def test_focus_management_maps(self):
+        bridge = LifeBridge()
+        obs = _make_obs(
+            "obs-focus1",
+            "action",
+            "Deep work focus session: 90 min flow state block",
+            "Focus management for attention and productivity.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["life_domain"] == "systems"
+        assert proj.domain_primitive_type == "focus_management"
+
+
 class TestLifeBridgeNoMatch:
     def test_non_life_observation(self):
         bridge = LifeBridge()
@@ -248,6 +483,196 @@ class TestCreatorBridgeMapping:
         assert proj is not None
         assert proj.properties["creator_domain"] == "audience"
         assert proj.domain_primitive_type == "email_list"
+
+
+class TestCreatorBridgeProducts:
+    def test_course_maps_to_products(self):
+        bridge = CreatorBridge()
+        obs = _make_obs(
+            "obs-course1",
+            "resource",
+            "Launch cohort-based course on Kajabi",
+            "Online course curriculum with 8 modules.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["creator_domain"] == "products"
+        assert proj.domain_primitive_type == "course"
+
+    def test_digital_download_maps(self):
+        bridge = CreatorBridge()
+        obs = _make_obs(
+            "obs-download1",
+            "resource",
+            "Sell template pack as digital download on Gumroad",
+            "Preset pack and printable bundle for creators.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["creator_domain"] == "products"
+        assert proj.domain_primitive_type == "digital_download"
+
+    def test_event_maps(self):
+        bridge = CreatorBridge()
+        obs = _make_obs(
+            "obs-event1",
+            "action",
+            "Host live event workshop on content strategy",
+            "Virtual summit masterclass for audience.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["creator_domain"] == "products"
+        assert proj.domain_primitive_type == "event"
+
+    def test_service_offer_maps(self):
+        bridge = CreatorBridge()
+        obs = _make_obs(
+            "obs-service1",
+            "resource",
+            "Coaching package: service offer with retainer",
+            "Service productize for consulting clients.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["creator_domain"] == "products"
+        assert proj.domain_primitive_type == "service_offer"
+
+
+class TestCreatorBridgeCommunities:
+    def test_tiers_maps(self):
+        bridge = CreatorBridge()
+        obs = _make_obs(
+            "obs-tier1",
+            "resource",
+            "Set up premium tier and VIP tier membership",
+            "Community tier with access tier differentiation.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["creator_domain"] == "communities"
+        assert proj.domain_primitive_type == "tiers"
+
+    def test_ugc_maps(self):
+        bridge = CreatorBridge()
+        obs = _make_obs(
+            "obs-ugc1",
+            "goal",
+            "Launch user generated content campaign from members",
+            "UGC and member spotlight to boost community content.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["creator_domain"] == "communities"
+        assert proj.domain_primitive_type == "ugc"
+
+    def test_roles_maps(self):
+        bridge = CreatorBridge()
+        obs = _make_obs(
+            "obs-roles1",
+            "action",
+            "Assign community role: moderator and admin role",
+            "Community manager setup for member role permissions.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["creator_domain"] == "communities"
+        assert proj.domain_primitive_type == "roles"
+
+
+class TestCreatorBridgeCampaigns:
+    def test_launch_campaign_maps(self):
+        bridge = CreatorBridge()
+        obs = _make_obs(
+            "obs-launch1",
+            "action",
+            "Execute launch campaign for product launch sequence",
+            "Launch funnel with email nurture and landing page.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["creator_domain"] == "campaigns"
+        assert proj.domain_primitive_type == "launch_campaign"
+
+    def test_email_campaign_maps(self):
+        bridge = CreatorBridge()
+        obs = _make_obs(
+            "obs-emailcamp1",
+            "action",
+            "Build drip campaign and welcome sequence for email list",
+            "Email campaign with nurture sequence automation.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["creator_domain"] == "campaigns"
+        assert proj.domain_primitive_type == "email_campaign"
+
+    def test_promotion_maps(self):
+        bridge = CreatorBridge()
+        obs = _make_obs(
+            "obs-promo1",
+            "action",
+            "Run flash sale promotion with discount code",
+            "Limited offer coupon for black friday.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["creator_domain"] == "campaigns"
+        assert proj.domain_primitive_type == "promotion"
+
+
+class TestCreatorBridgeStorefronts:
+    def test_storefront_design_maps(self):
+        bridge = CreatorBridge()
+        obs = _make_obs(
+            "obs-store1",
+            "action",
+            "Design storefront with product page and sales page",
+            "Landing page and checkout page for digital products.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["creator_domain"] == "storefronts"
+        assert proj.domain_primitive_type == "storefront_design"
+
+    def test_entitlements_maps(self):
+        bridge = CreatorBridge()
+        obs = _make_obs(
+            "obs-entitle1",
+            "state",
+            "Configure entitlement rules: gated content paywall",
+            "Access control and drip access for content lock.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["creator_domain"] == "storefronts"
+        assert proj.domain_primitive_type == "entitlements"
+
+    def test_automations_maps(self):
+        bridge = CreatorBridge()
+        obs = _make_obs(
+            "obs-auto1",
+            "action",
+            "Set up workflow automation via Zapier and Make.com",
+            "Trigger automation for auto-deliver on purchase.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["creator_domain"] == "storefronts"
+        assert proj.domain_primitive_type == "automations"
+
+    def test_series_collections_maps(self):
+        bridge = CreatorBridge()
+        obs = _make_obs(
+            "obs-series1",
+            "resource",
+            "Create video series and content series collection",
+            "Playlist and course series for organized content.",
+        )
+        proj = bridge.bridge(obs)
+        assert proj is not None
+        assert proj.properties["creator_domain"] == "storefronts"
+        assert proj.domain_primitive_type == "series_collections"
 
 
 class TestCreatorBridgeNoMatch:

@@ -1,8 +1,9 @@
 """Life domain bridge — structural mapping from ontology to life primitives.
 
 V1: keyword-based structural rules only. No LLM dependency.
-Maps ontology observations to LyfeOS life domain primitives
-covering health, habits, relationships, finance, growth, and mindset.
+Maps ontology observations to LyfeOS life domain primitives covering
+health, habits, relationships, finance, growth, environment, missions,
+rituals, reflections, gamification, player profile, and archetypes.
 """
 
 from __future__ import annotations
@@ -240,6 +241,256 @@ _DOMAIN_KEYWORD_MAP: dict[str, dict[str, list[str]]] = {
             "setup",
         ],
     },
+    "missions": {
+        "daily_mission": [
+            "daily mission",
+            "daily quest",
+            "daily challenge",
+            "today's mission",
+            "day mission",
+        ],
+        "skill_mission": [
+            "skill mission",
+            "skill quest",
+            "skill challenge",
+            "skill building mission",
+            "learn skill",
+        ],
+        "project_mission": [
+            "project mission",
+            "project quest",
+            "project milestone",
+            "project challenge",
+            "build project",
+        ],
+        "belief_mission": [
+            "belief mission",
+            "belief challenge",
+            "mindset mission",
+            "limiting belief",
+            "belief rewrite",
+        ],
+        "shadow_mission": [
+            "shadow mission",
+            "shadow work",
+            "shadow challenge",
+            "confront shadow",
+            "shadow integration",
+        ],
+        "reflection_mission": [
+            "reflection mission",
+            "reflection quest",
+            "self-reflection challenge",
+            "introspection mission",
+        ],
+        "system_mission": [
+            "system mission",
+            "system quest",
+            "system building",
+            "system optimization",
+            "automate system",
+        ],
+        "_domain_generic": [
+            "mission",
+            "quest",
+            "challenge",
+            "assignment",
+        ],
+    },
+    "threads": {
+        "transformation_thread": [
+            "transformation thread",
+            "transformation arc",
+            "character arc",
+            "growth thread",
+            "evolution thread",
+        ],
+        "skill_thread": [
+            "skill thread",
+            "skill arc",
+            "mastery thread",
+            "competence thread",
+        ],
+        "identity_thread": [
+            "identity thread",
+            "identity arc",
+            "who i am becoming",
+            "identity shift",
+        ],
+        "_domain_generic": [
+            "thread",
+            "arc",
+            "progression",
+            "journey",
+        ],
+    },
+    "rituals": {
+        "morning_ritual": [
+            "morning ritual",
+            "am ritual",
+            "sunrise ritual",
+            "morning protocol",
+            "dawn practice",
+        ],
+        "evening_ritual": [
+            "evening ritual",
+            "pm ritual",
+            "sunset ritual",
+            "evening protocol",
+            "wind-down ritual",
+        ],
+        "weekly_ritual": [
+            "weekly ritual",
+            "weekly review",
+            "weekly reflection",
+            "sunday review",
+            "weekly reset",
+        ],
+        "monthly_ritual": [
+            "monthly ritual",
+            "monthly review",
+            "monthly reflection",
+            "month-end review",
+            "monthly reset",
+        ],
+        "yearly_ritual": [
+            "yearly ritual",
+            "annual review",
+            "year-end review",
+            "annual reflection",
+            "yearly reset",
+        ],
+        "_domain_generic": [
+            "ritual",
+            "ceremony",
+            "protocol",
+            "practice",
+        ],
+    },
+    "reflections": {
+        "journal_entry": [
+            "journal entry",
+            "journaling",
+            "daily journal",
+            "written reflection",
+            "diary entry",
+        ],
+        "insight": [
+            "insight",
+            "realization",
+            "lesson learned",
+            "epiphany",
+            "breakthrough",
+        ],
+        "chronilog": [
+            "chronilog",
+            "life log",
+            "timeline entry",
+            "chronicle",
+            "life chronicle",
+        ],
+        "_domain_generic": [
+            "reflection",
+            "reflect",
+            "introspection",
+            "self-awareness",
+        ],
+    },
+    "gamification": {
+        "xp_system": [
+            "xp",
+            "experience points",
+            "earn xp",
+            "xp reward",
+            "level up xp",
+        ],
+        "streaks": [
+            "streak",
+            "day streak",
+            "consecutive days",
+            "streak count",
+            "maintain streak",
+        ],
+        "levels": [
+            "level",
+            "player level",
+            "rank up",
+            "tier up",
+            "level progression",
+        ],
+        "achievements": [
+            "achievement",
+            "badge",
+            "trophy",
+            "unlock",
+            "milestone badge",
+        ],
+        "_domain_generic": [
+            "gamification",
+            "gamify",
+            "game mechanics",
+            "points",
+            "rewards",
+        ],
+    },
+    "player_profile": {
+        "character_stats": [
+            "character stats",
+            "core stats",
+            "stat sheet",
+            "character sheet",
+            "player stats",
+        ],
+        "archetype": [
+            "archetype",
+            "player archetype",
+            "personality archetype",
+            "archetype calibration",
+            "character class",
+        ],
+        "embodiment": [
+            "embodiment",
+            "embodied practice",
+            "somatic",
+            "body-mind",
+            "embodiment progression",
+        ],
+        "_domain_generic": [
+            "player profile",
+            "character",
+            "avatar",
+            "player",
+        ],
+    },
+    "systems": {
+        "energy_management": [
+            "energy management",
+            "energy level",
+            "energy tracking",
+            "energy optimization",
+            "circadian energy",
+        ],
+        "focus_management": [
+            "focus management",
+            "deep work",
+            "flow state",
+            "focus session",
+            "attention management",
+        ],
+        "recovery_system": [
+            "recovery system",
+            "active recovery",
+            "deload",
+            "recovery protocol",
+            "rest protocol",
+        ],
+        "_domain_generic": [
+            "system",
+            "operating system",
+            "life system",
+            "personal system",
+        ],
+    },
 }
 
 _BRIDGEABLE_ONTOLOGY_TYPES = frozenset(
@@ -263,8 +514,9 @@ class LifeBridge:
     def describes(self) -> str:
         return (
             "Maps ontology observations to life domain primitives "
-            "(health, habits, relationships, personal_finance, personal_growth, environment) "
-            "using structural keyword matching."
+            "(health, habits, relationships, personal_finance, personal_growth, "
+            "environment, missions, threads, rituals, reflections, gamification, "
+            "player_profile, systems) using structural keyword matching."
         )
 
     def bridge(self, observation: PrimitiveObservation) -> DomainProjection | None:
