@@ -12,7 +12,7 @@ from services.umh.sockets.protocols import SignalDescriptor
 
 from .correlation import LyfeOSWritebackTarget
 from .manifest import INTEGRATION_ID, SIGNAL_DESCRIPTORS
-from .tables import GoalRow, HabitLogRow, HealthMetricRow
+from .tables import DailyLogRow, QuestRow, UserStatsRow
 
 logger = logging.getLogger(__name__)
 
@@ -30,117 +30,139 @@ class LyfeOSSignalEmitter:
     def describe_signals(self) -> list[SignalDescriptor]:
         return list(SIGNAL_DESCRIPTORS)
 
-    def build_habit_signal(
+    def build_quest_signal(
         self,
-        row: HabitLogRow,
+        row: QuestRow,
     ) -> tuple[SignalEnvelope, LyfeOSWritebackTarget]:
-        """Build a SignalEnvelope from a habit log row."""
+        """Build a SignalEnvelope from a quest row."""
         correlation_id = uuid4()
-        status = "completed" if row.completed else "missed"
-        content = f"[habit_logs] {row.habit_name}: {status}"
-        if row.notes:
-            content += f" — {row.notes[:80]}"
+        status = "completed" if row.completed else row.mission_status
+        content = f"[quests] {row.title}: {status} (difficulty={row.difficulty})"
+        if row.description:
+            content += f" — {row.description[:80]}"
 
         envelope = SignalEnvelope(
             integration_id=INTEGRATION_ID,
-            content_type="lyfeos_habits_logged",
+            content_type="lyfeos_quest_completed",
             payload={
-                "table_name": "habit_logs",
-                "row_id": row.id,
-                "user_id": row.user_id,
-                "habit_name": row.habit_name,
+                "table_name": "quests",
+                "row_id": str(row.id),
+                "user_id": str(row.user_id),
+                "title": row.title,
+                "category": row.category,
                 "completed": row.completed,
-                "notes": row.notes,
-                "logged_at": row.logged_at.isoformat(),
+                "difficulty": row.difficulty,
+                "energy_cost": row.energy_cost,
+                "experience_reward": row.experience_reward,
+                "is_ritualized": row.is_ritualized,
+                "mission_status": row.mission_status,
+                "created_at": row.created_at.isoformat(),
                 "adapter_name": "lyfeos",
                 "operation": "noop",
             },
             raw_content=content,
-            source_identifier=f"lyfeos:habit_logs:{row.id}",
+            source_identifier=f"lyfeos:quests:{row.id}",
             correlation_id=correlation_id,
             urgency=SignalUrgency.NORMAL,
-            metadata={"user_id": row.user_id, "table_name": "habit_logs"},
+            metadata={"user_id": str(row.user_id), "table_name": "quests"},
         )
 
         target = LyfeOSWritebackTarget(
             user_id=row.user_id,
-            table_name="habit_logs",
-            row_id=row.id,
+            table_name="quests",
+            row_id=str(row.id),
         )
 
         return envelope, target
 
-    def build_goal_signal(
+    def build_daily_log_signal(
         self,
-        row: GoalRow,
+        row: DailyLogRow,
     ) -> tuple[SignalEnvelope, LyfeOSWritebackTarget]:
-        """Build a SignalEnvelope from a goal row."""
+        """Build a SignalEnvelope from a daily log row."""
         correlation_id = uuid4()
-        content = f"[goals] {row.title}: {row.status} ({row.progress_pct}%)"
+        content = (
+            f"[user_daily_logs] {row.date}: "
+            f"mental={row.mental_state} physical={row.physical_state} "
+            f"emotional={row.emotional_state}"
+        )
+        if row.gratitude:
+            content += f" — {row.gratitude[:60]}"
 
         envelope = SignalEnvelope(
             integration_id=INTEGRATION_ID,
-            content_type="lyfeos_goals_updated",
+            content_type="lyfeos_daily_log_created",
             payload={
-                "table_name": "goals",
-                "row_id": row.id,
-                "user_id": row.user_id,
-                "title": row.title,
-                "progress_pct": row.progress_pct,
-                "status": row.status,
+                "table_name": "user_daily_logs",
+                "row_id": str(row.id),
+                "user_id": str(row.user_id),
+                "date": row.date,
+                "mental_state": row.mental_state,
+                "physical_state": row.physical_state,
+                "emotional_state": row.emotional_state,
+                "gratitude": row.gratitude or "",
+                "went_well": row.went_well or "",
+                "created_at": row.created_at.isoformat(),
+                "adapter_name": "lyfeos",
+                "operation": "noop",
+            },
+            raw_content=content,
+            source_identifier=f"lyfeos:user_daily_logs:{row.id}",
+            correlation_id=correlation_id,
+            urgency=SignalUrgency.LOW,
+            metadata={"user_id": str(row.user_id), "table_name": "user_daily_logs"},
+        )
+
+        target = LyfeOSWritebackTarget(
+            user_id=row.user_id,
+            table_name="user_daily_logs",
+            row_id=str(row.id),
+        )
+
+        return envelope, target
+
+    def build_stats_signal(
+        self,
+        row: UserStatsRow,
+    ) -> tuple[SignalEnvelope, LyfeOSWritebackTarget]:
+        """Build a SignalEnvelope from a user stats row."""
+        correlation_id = uuid4()
+        content = (
+            f"[user_stats] level={row.level} "
+            f"xp={row.experience_current}/{row.experience_max} "
+            f"streak={row.streak_days}d"
+        )
+
+        envelope = SignalEnvelope(
+            integration_id=INTEGRATION_ID,
+            content_type="lyfeos_stats_updated",
+            payload={
+                "table_name": "user_stats",
+                "row_id": str(row.id),
+                "user_id": str(row.user_id),
+                "level": row.level,
+                "experience_current": row.experience_current,
+                "experience_max": row.experience_max,
+                "energy_points_current": row.energy_points_current,
+                "energy_points_max": row.energy_points_max,
+                "health_points_current": row.health_points_current,
+                "health_points_max": row.health_points_max,
+                "streak_days": row.streak_days,
                 "updated_at": row.updated_at.isoformat(),
                 "adapter_name": "lyfeos",
                 "operation": "noop",
             },
             raw_content=content,
-            source_identifier=f"lyfeos:goals:{row.id}",
+            source_identifier=f"lyfeos:user_stats:{row.id}",
             correlation_id=correlation_id,
             urgency=SignalUrgency.NORMAL,
-            metadata={"user_id": row.user_id, "table_name": "goals"},
+            metadata={"user_id": str(row.user_id), "table_name": "user_stats"},
         )
 
         target = LyfeOSWritebackTarget(
             user_id=row.user_id,
-            table_name="goals",
-            row_id=row.id,
-        )
-
-        return envelope, target
-
-    def build_health_signal(
-        self,
-        row: HealthMetricRow,
-    ) -> tuple[SignalEnvelope, LyfeOSWritebackTarget]:
-        """Build a SignalEnvelope from a health metric row."""
-        correlation_id = uuid4()
-        unit_str = f" {row.unit}" if row.unit else ""
-        content = f"[health_metrics] {row.metric_type}: {row.value}{unit_str}"
-
-        envelope = SignalEnvelope(
-            integration_id=INTEGRATION_ID,
-            content_type="lyfeos_health_logged",
-            payload={
-                "table_name": "health_metrics",
-                "row_id": row.id,
-                "user_id": row.user_id,
-                "metric_type": row.metric_type,
-                "value": row.value,
-                "unit": row.unit,
-                "logged_at": row.logged_at.isoformat(),
-                "adapter_name": "lyfeos",
-                "operation": "noop",
-            },
-            raw_content=content,
-            source_identifier=f"lyfeos:health_metrics:{row.id}",
-            correlation_id=correlation_id,
-            urgency=SignalUrgency.LOW,
-            metadata={"user_id": row.user_id, "table_name": "health_metrics"},
-        )
-
-        target = LyfeOSWritebackTarget(
-            user_id=row.user_id,
-            table_name="health_metrics",
-            row_id=row.id,
+            table_name="user_stats",
+            row_id=str(row.id),
         )
 
         return envelope, target

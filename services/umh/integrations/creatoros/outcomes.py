@@ -144,7 +144,7 @@ class CreatorOSOutcomeReceiver:
                 trace_id=str(envelope.trace_id),
                 source_table=target.table_name,
                 source_row_id=target.row_id,
-                creator_id=target.creator_id,
+                user_id=target.user_id,
                 outcome_type=mapped_status,
                 severity=severity,
                 payload=payload,

@@ -12,7 +12,7 @@ from services.umh.sockets.envelopes import CapabilityRequest, CapabilityResponse
 from services.umh.sockets.protocols import CapabilityDescriptor, CapabilityHealth
 
 from .manifest import CAPABILITY_DESCRIPTORS, INTEGRATION_ID
-from .tables import insert_client, insert_event, update_venture
+from .tables import insert_activity, insert_contact, insert_deal, update_deal_stage
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,6 @@ class EOSCapabilityHandler:
     """Handles capability requests for the EOS integration.
 
     Satisfies CapabilityHandler Protocol structurally.
-    Phase 1: noop. Phase 2: create_event, create_client, update_venture.
     """
 
     def __init__(self, database_url: str | None = None) -> None:
@@ -39,9 +38,10 @@ class EOSCapabilityHandler:
         t0 = time.monotonic()
         handler_map: dict[str, Any] = {
             "noop": self._noop,
-            "create_event": self._create_event,
-            "create_client": self._create_client,
-            "update_venture": self._update_venture,
+            "create_contact": self._create_contact,
+            "create_deal": self._create_deal,
+            "update_deal_stage": self._update_deal_stage,
+            "log_activity": self._log_activity,
         }
 
         handler = handler_map.get(request.capability_name)
@@ -129,20 +129,25 @@ class EOSCapabilityHandler:
         return {
             "received": True,
             "table_name": params.get("table_name", ""),
-            "org_id": params.get("org_id", ""),
+            "user_id": params.get("user_id", ""),
             "row_id": params.get("row_id", ""),
         }
 
-    def _create_event(self, params: dict[str, Any]) -> dict[str, Any]:
+    def _create_contact(self, params: dict[str, Any]) -> dict[str, Any]:
         conn = self._get_connection()
-        event_id = insert_event(conn, params)
-        return {"event_id": event_id}
+        contact_id = insert_contact(conn, params)
+        return {"contact_id": contact_id}
 
-    def _create_client(self, params: dict[str, Any]) -> dict[str, Any]:
+    def _create_deal(self, params: dict[str, Any]) -> dict[str, Any]:
         conn = self._get_connection()
-        client_id = insert_client(conn, params)
-        return {"client_id": client_id}
+        deal_id = insert_deal(conn, params)
+        return {"deal_id": deal_id}
 
-    def _update_venture(self, params: dict[str, Any]) -> dict[str, Any]:
+    def _update_deal_stage(self, params: dict[str, Any]) -> dict[str, Any]:
         conn = self._get_connection()
-        return update_venture(conn, params)
+        return update_deal_stage(conn, params)
+
+    def _log_activity(self, params: dict[str, Any]) -> dict[str, Any]:
+        conn = self._get_connection()
+        activity_id = insert_activity(conn, params)
+        return {"activity_id": activity_id}

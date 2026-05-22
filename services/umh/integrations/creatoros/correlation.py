@@ -9,9 +9,12 @@ from uuid import UUID
 
 @dataclass(frozen=True)
 class CreatorOSWritebackTarget:
-    """Where to write back a CreatorOS outcome."""
+    """Where to write back a CreatorOS outcome.
 
-    creator_id: str
+    user_id is integer — matches the CreatorOS users.id serial PK.
+    """
+
+    user_id: int
     table_name: str
     row_id: str
     integration: str = "creatoros"

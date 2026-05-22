@@ -11,14 +11,14 @@ from uuid import UUID
 class EOSWritebackTarget:
     """Where to write back an EOS outcome."""
 
-    org_id: str
+    user_id: str
     table_name: str
     row_id: str
     integration: str = "eos"
 
 
 class EOSCorrelationMap:
-    """Maps correlation_id → writeback target. Thread-safe, in-memory only."""
+    """Maps correlation_id -> writeback target. Thread-safe, in-memory only."""
 
     def __init__(self) -> None:
         self._lock = threading.Lock()

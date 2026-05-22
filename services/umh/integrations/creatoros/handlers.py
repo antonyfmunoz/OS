@@ -12,7 +12,7 @@ from services.umh.sockets.envelopes import CapabilityRequest, CapabilityResponse
 from services.umh.sockets.protocols import CapabilityDescriptor, CapabilityHealth
 
 from .manifest import CAPABILITY_DESCRIPTORS, INTEGRATION_ID
-from .tables import insert_audience_metric, insert_content, update_analytics
+from .tables import insert_post, insert_product, insert_revenue
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +38,9 @@ class CreatorOSCapabilityHandler:
         t0 = time.monotonic()
         handler_map: dict[str, Any] = {
             "noop": self._noop,
-            "create_content": self._create_content,
-            "update_analytics": self._update_analytics,
-            "record_audience_metric": self._record_audience_metric,
+            "create_post": self._create_post,
+            "create_product": self._create_product,
+            "record_revenue": self._record_revenue,
         }
 
         handler = handler_map.get(request.capability_name)
@@ -126,20 +126,21 @@ class CreatorOSCapabilityHandler:
         return {
             "received": True,
             "table_name": params.get("table_name", ""),
-            "creator_id": params.get("creator_id", ""),
+            "user_id": params.get("user_id", 0),
             "row_id": params.get("row_id", ""),
         }
 
-    def _create_content(self, params: dict[str, Any]) -> dict[str, Any]:
+    def _create_post(self, params: dict[str, Any]) -> dict[str, Any]:
         conn = self._get_connection()
-        content_id = insert_content(conn, params)
-        return {"content_id": content_id}
+        post_id = insert_post(conn, params)
+        return {"post_id": post_id}
 
-    def _update_analytics(self, params: dict[str, Any]) -> dict[str, Any]:
+    def _create_product(self, params: dict[str, Any]) -> dict[str, Any]:
         conn = self._get_connection()
-        return update_analytics(conn, params)
+        product_id = insert_product(conn, params)
+        return {"product_id": product_id}
 
-    def _record_audience_metric(self, params: dict[str, Any]) -> dict[str, Any]:
+    def _record_revenue(self, params: dict[str, Any]) -> dict[str, Any]:
         conn = self._get_connection()
-        metric_id = insert_audience_metric(conn, params)
-        return {"metric_id": metric_id}
+        revenue_id = insert_revenue(conn, params)
+        return {"revenue_id": revenue_id}

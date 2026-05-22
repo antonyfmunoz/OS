@@ -12,7 +12,7 @@ from services.umh.sockets.envelopes import CapabilityRequest, CapabilityResponse
 from services.umh.sockets.protocols import CapabilityDescriptor, CapabilityHealth
 
 from .manifest import CAPABILITY_DESCRIPTORS, INTEGRATION_ID
-from .tables import insert_habit_log, insert_health_metric, update_goal
+from .tables import insert_daily_log, insert_quest, update_quest
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +38,9 @@ class LyfeOSCapabilityHandler:
         t0 = time.monotonic()
         handler_map: dict[str, Any] = {
             "noop": self._noop,
-            "log_habit": self._log_habit,
-            "update_goal": self._update_goal,
-            "log_health_metric": self._log_health_metric,
+            "create_quest": self._create_quest,
+            "complete_quest": self._complete_quest,
+            "log_daily_reflection": self._log_daily_reflection,
         }
 
         handler = handler_map.get(request.capability_name)
@@ -126,20 +126,22 @@ class LyfeOSCapabilityHandler:
         return {
             "received": True,
             "table_name": params.get("table_name", ""),
-            "user_id": params.get("user_id", ""),
+            "user_id": params.get("user_id", 0),
             "row_id": params.get("row_id", ""),
         }
 
-    def _log_habit(self, params: dict[str, Any]) -> dict[str, Any]:
+    def _create_quest(self, params: dict[str, Any]) -> dict[str, Any]:
         conn = self._get_connection()
-        log_id = insert_habit_log(conn, params)
+        quest_id = insert_quest(conn, params)
+        return {"quest_id": quest_id}
+
+    def _complete_quest(self, params: dict[str, Any]) -> dict[str, Any]:
+        conn = self._get_connection()
+        if "completed" not in params:
+            params["completed"] = True
+        return update_quest(conn, params)
+
+    def _log_daily_reflection(self, params: dict[str, Any]) -> dict[str, Any]:
+        conn = self._get_connection()
+        log_id = insert_daily_log(conn, params)
         return {"log_id": log_id}
-
-    def _update_goal(self, params: dict[str, Any]) -> dict[str, Any]:
-        conn = self._get_connection()
-        return update_goal(conn, params)
-
-    def _log_health_metric(self, params: dict[str, Any]) -> dict[str, Any]:
-        conn = self._get_connection()
-        metric_id = insert_health_metric(conn, params)
-        return {"metric_id": metric_id}

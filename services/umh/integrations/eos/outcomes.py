@@ -1,11 +1,7 @@
 """EOS outcome receiver — writes pipeline outcomes back to EOS Postgres.
 
-Phase 3: dual writeback (source row umh_status + umh_outcomes audit table).
-Replaces the Phase 1 log-only stub.
-
-Satisfies OutcomeReceiver Protocol structurally. Uses direct Postgres via
-psycopg2 — writebacks are outcome side-effects, not new signals, so they
-bypass governance reentry (same pattern as NotionOutcomeReceiver).
+Dual writeback (source row umh_status + umh_outcomes audit table).
+Satisfies OutcomeReceiver Protocol structurally.
 """
 
 from __future__ import annotations
@@ -40,17 +36,9 @@ _STATUS_MAP: dict[str, str] = {
 class EOSOutcomeReceiver:
     """Receives pipeline outcomes and writes them back to EOS Postgres.
 
-    Dual writeback (Decision 1 = C):
-    - Source row: UPDATE umh_status on events/clients/ventures (known-state outcomes only)
+    Dual writeback:
+    - Source row: UPDATE umh_status on crm_contacts/crm_deals/crm_activities/tasks/agent_actions
     - Audit table: INSERT into umh_outcomes (all outcomes)
-
-    Severity ladder (Decision 5): source row umh_status only advances to
-    higher severity, never retreats. Prevents success overwriting error
-    when multiple capabilities target the same source row.
-
-    Failure handling (Decision 4): error/failure outcomes write ONLY to
-    the audit table — they do NOT update umh_status on the source row,
-    because failed outcomes mean the source data may be in unknown state.
     """
 
     def __init__(
@@ -127,7 +115,6 @@ class EOSOutcomeReceiver:
         mapped_status = _STATUS_MAP.get(envelope.outcome_type, envelope.outcome_type)
         severity = outcome_severity(mapped_status)
 
-        # Decision 4: only known-state outcomes update the source row
         if mapped_status in SOURCE_ROW_UPDATE_TYPES and target.row_id:
             try:
                 updated = update_umh_status(
@@ -143,12 +130,6 @@ class EOSOutcomeReceiver:
                         target.row_id,
                         mapped_status,
                     )
-                else:
-                    logger.debug(
-                        "eos writeback: %s.%s umh_status not updated (higher severity already set)",
-                        target.table_name,
-                        target.row_id,
-                    )
             except Exception as exc:
                 logger.error(
                     "eos writeback source row update failed: %s for %s.%s",
@@ -157,7 +138,6 @@ class EOSOutcomeReceiver:
                     target.row_id,
                 )
 
-        # Always insert into audit table
         payload = _build_audit_payload(envelope)
         try:
             audit_id = insert_umh_outcome(
@@ -165,7 +145,7 @@ class EOSOutcomeReceiver:
                 trace_id=str(envelope.trace_id),
                 source_table=target.table_name,
                 source_row_id=target.row_id,
-                org_id=target.org_id,
+                user_id=target.user_id,
                 outcome_type=mapped_status,
                 severity=severity,
                 payload=payload,

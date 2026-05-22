@@ -11,7 +11,7 @@ from uuid import UUID
 class LyfeOSWritebackTarget:
     """Where to write back a LyfeOS outcome."""
 
-    user_id: str
+    user_id: int
     table_name: str
     row_id: str
     integration: str = "lyfeos"

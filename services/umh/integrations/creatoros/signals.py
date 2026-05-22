@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 from uuid import uuid4
 
 from services.umh.protocols.signal import SignalUrgency
@@ -12,7 +11,7 @@ from services.umh.sockets.protocols import SignalDescriptor
 
 from .correlation import CreatorOSWritebackTarget
 from .manifest import INTEGRATION_ID, SIGNAL_DESCRIPTORS
-from .tables import AnalyticsRow, AudienceMetricRow, ContentRow
+from .tables import PostRow, ProductRow, RevenueRow
 
 logger = logging.getLogger(__name__)
 
@@ -30,120 +29,120 @@ class CreatorOSSignalEmitter:
     def describe_signals(self) -> list[SignalDescriptor]:
         return list(SIGNAL_DESCRIPTORS)
 
-    def build_content_signal(
+    def build_post_signal(
         self,
-        row: ContentRow,
+        row: PostRow,
     ) -> tuple[SignalEnvelope, CreatorOSWritebackTarget]:
-        """Build a SignalEnvelope from a content row."""
+        """Build a SignalEnvelope from a post row."""
         correlation_id = uuid4()
-        content = f"[content] {row.platform}/{row.content_type}: {row.title} ({row.status})"
+        content = (
+            f"[post] {row.media_type}: "
+            f"{row.content[:80] if row.content else '(empty)'} "
+            f"(likes:{row.likes} comments:{row.comments})"
+        )
 
         envelope = SignalEnvelope(
             integration_id=INTEGRATION_ID,
-            content_type="creatoros_content_published",
+            content_type="creatoros_post_created",
             payload={
-                "table_name": "content",
-                "row_id": row.id,
-                "creator_id": row.creator_id,
-                "platform": row.platform,
-                "content_type": row.content_type,
-                "title": row.title,
-                "status": row.status,
-                "published_at": row.published_at.isoformat() if row.published_at else None,
+                "table_name": "posts",
+                "row_id": str(row.id),
+                "user_id": str(row.user_id),
+                "content": row.content,
+                "media_type": row.media_type,
+                "likes": row.likes,
+                "comments": row.comments,
                 "created_at": row.created_at.isoformat(),
                 "adapter_name": "creatoros",
                 "operation": "noop",
             },
             raw_content=content,
-            source_identifier=f"creatoros:content:{row.id}",
+            source_identifier=f"creatoros:posts:{row.id}",
             correlation_id=correlation_id,
             urgency=SignalUrgency.NORMAL,
-            metadata={"creator_id": row.creator_id, "table_name": "content"},
+            metadata={"user_id": str(row.user_id), "table_name": "posts"},
         )
 
         target = CreatorOSWritebackTarget(
-            creator_id=row.creator_id,
-            table_name="content",
-            row_id=row.id,
+            user_id=row.user_id,
+            table_name="posts",
+            row_id=str(row.id),
         )
 
         return envelope, target
 
-    def build_analytics_signal(
+    def build_product_signal(
         self,
-        row: AnalyticsRow,
+        row: ProductRow,
     ) -> tuple[SignalEnvelope, CreatorOSWritebackTarget]:
-        """Build a SignalEnvelope from an analytics row."""
+        """Build a SignalEnvelope from a product row."""
         correlation_id = uuid4()
-        content = (
-            f"[analytics] content:{row.content_id} — "
-            f"views:{row.views} likes:{row.likes} comments:{row.comments} shares:{row.shares}"
-        )
+        content = f"[product] {row.title} — ${row.price:.2f} ({row.category}) rating:{row.rating}"
 
         envelope = SignalEnvelope(
             integration_id=INTEGRATION_ID,
-            content_type="creatoros_analytics_updated",
+            content_type="creatoros_product_listed",
             payload={
-                "table_name": "analytics",
-                "row_id": row.id,
-                "creator_id": row.creator_id,
-                "content_id": row.content_id,
-                "views": row.views,
-                "likes": row.likes,
-                "comments": row.comments,
-                "shares": row.shares,
-                "updated_at": row.updated_at.isoformat(),
+                "table_name": "products",
+                "row_id": str(row.id),
+                "user_id": str(row.user_id),
+                "title": row.title,
+                "description": row.description,
+                "price": row.price,
+                "category": row.category,
+                "rating": row.rating,
+                "review_count": row.review_count,
+                "created_at": row.created_at.isoformat(),
                 "adapter_name": "creatoros",
                 "operation": "noop",
             },
             raw_content=content,
-            source_identifier=f"creatoros:analytics:{row.id}",
+            source_identifier=f"creatoros:products:{row.id}",
             correlation_id=correlation_id,
-            urgency=SignalUrgency.LOW,
-            metadata={"creator_id": row.creator_id, "table_name": "analytics"},
+            urgency=SignalUrgency.NORMAL,
+            metadata={"user_id": str(row.user_id), "table_name": "products"},
         )
 
         target = CreatorOSWritebackTarget(
-            creator_id=row.creator_id,
-            table_name="analytics",
-            row_id=row.id,
+            user_id=row.user_id,
+            table_name="products",
+            row_id=str(row.id),
         )
 
         return envelope, target
 
-    def build_audience_signal(
+    def build_revenue_signal(
         self,
-        row: AudienceMetricRow,
+        row: RevenueRow,
     ) -> tuple[SignalEnvelope, CreatorOSWritebackTarget]:
-        """Build a SignalEnvelope from an audience metric row."""
+        """Build a SignalEnvelope from a revenue row."""
         correlation_id = uuid4()
-        content = f"[audience_metrics] {row.platform} {row.metric_type}: {row.value}"
+        content = f"[revenue] ${row.amount:.2f} from {row.source or 'unknown'}"
 
         envelope = SignalEnvelope(
             integration_id=INTEGRATION_ID,
-            content_type="creatoros_audience_milestone",
+            content_type="creatoros_revenue_recorded",
             payload={
-                "table_name": "audience_metrics",
-                "row_id": row.id,
-                "creator_id": row.creator_id,
-                "platform": row.platform,
-                "metric_type": row.metric_type,
-                "value": row.value,
-                "recorded_at": row.recorded_at.isoformat(),
+                "table_name": "revenue",
+                "row_id": str(row.id),
+                "user_id": str(row.user_id),
+                "amount": row.amount,
+                "source": row.source,
+                "date": row.date.isoformat(),
                 "adapter_name": "creatoros",
                 "operation": "noop",
             },
             raw_content=content,
-            source_identifier=f"creatoros:audience_metrics:{row.id}",
+            source_identifier=f"creatoros:revenue:{row.id}",
             correlation_id=correlation_id,
             urgency=SignalUrgency.HIGH,
-            metadata={"creator_id": row.creator_id, "table_name": "audience_metrics"},
+            metadata={"user_id": str(row.user_id), "table_name": "revenue"},
         )
 
         target = CreatorOSWritebackTarget(
-            creator_id=row.creator_id,
-            table_name="audience_metrics",
-            row_id=row.id,
+            user_id=row.user_id,
+            table_name="revenue",
+            row_id=str(row.id),
         )
 
         return envelope, target
