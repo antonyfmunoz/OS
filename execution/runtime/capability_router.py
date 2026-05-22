@@ -296,10 +296,29 @@ _INTENT_PATTERNS: list[tuple[re.Pattern, Capability]] = [
         re.IGNORECASE,
     ), Capability.CODE_REVIEW),
 
+    # Code write — implementing, writing, building code
+    (re.compile(
+        r"(write|implement|build|create|add)\s+(a\s+|the\s+|this\s+)?(function|method|class|module|endpoint|api|component|feature|handler|service|middleware)"
+        r"|implement\s+the\b"
+        r"|build\s+the\s+(api|endpoint|module|service|backend|frontend)"
+        r"|code\s+(this|the|a)\b",
+        re.IGNORECASE,
+    ), Capability.CODE_WRITE),
+
+    # Shell execute — running scripts, commands, migrations
+    (re.compile(
+        r"run\s+(this\s+|the\s+|a\s+)?(script|command|migration|test)"
+        r"|execute\s+(this\s+|the\s+|a\s+)?(script|command|migration|query)"
+        r"|bash\s+-c\b"
+        r"|shell\s+(command|exec)",
+        re.IGNORECASE,
+    ), Capability.SHELL_EXECUTE),
+
     # Social scraping (before generic web_scrape — "scrape instagram" is social, not generic)
     (re.compile(
         r"scrape\s+(instagram|twitter|tiktok|linkedin|reddit|youtube)"
         r"|get\s+(instagram|twitter|tiktok)\s+(followers|posts|comments|data)"
+        r"|get\s+(data|info|posts|followers|comments)\s+(from|on)\s+(instagram|twitter|tiktok|linkedin|reddit|youtube)"
         r"|monitor\s+(instagram|twitter|tiktok|social)",
         re.IGNORECASE,
     ), Capability.SOCIAL_SCRAPE),
@@ -307,7 +326,7 @@ _INTENT_PATTERNS: list[tuple[re.Pattern, Capability]] = [
     # Web scrape — extracting data from specific URLs
     (re.compile(
         r"\bscrape\b"
-        r"|extract\s+(data|content|info)\s+from\s+(https?://|the\s+(url|page|site))"
+        r"|extract\s+(data|content|info)\s+from\s+(https?://|(this|the|that|a)\s+(url|page|site|link))"
         r"|crawl\s+(this|the|https?://)"
         r"|get\s+(the\s+)?(html|content|data)\s+(from|of)\s+",
         re.IGNORECASE,
@@ -338,10 +357,12 @@ _INTENT_PATTERNS: list[tuple[re.Pattern, Capability]] = [
     (re.compile(
         r"open\s+(the\s+)?browser"
         r"|navigate\s+to\b"
-        r"|click\s+(on|the)\b"
+        r"|click\s+(on|the|through)\b"
         r"|fill\s+(out|in)\s+(the\s+)?form"
         r"|log\s*in\s+to\b"
-        r"|browser\s+automat",
+        r"|browser\s+automat"
+        r"|automate\s+(the\s+)?(login|signup|checkout|flow|form|page)"
+        r"|automate\s+(this\s+)?(ui|web|browser)",
         re.IGNORECASE,
     ), Capability.BROWSER_AUTOMATE),
 
@@ -427,6 +448,7 @@ _INTENT_PATTERNS: list[tuple[re.Pattern, Capability]] = [
     # Payment
     (re.compile(
         r"(process|create|send)\s+(a\s+)?(payment|invoice|charge)"
+        r"|charge\s+(the\s+)?(customer|client|user|card|account)"
         r"|stripe\b"
         r"|checkout\s+(link|page|session)",
         re.IGNORECASE,
