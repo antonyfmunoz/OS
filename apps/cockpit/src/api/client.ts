@@ -245,6 +245,51 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
+  pipelineSubmit: (payload: {
+    content: string
+    risk_class?: string
+    adapter?: string
+    operation?: string
+    params?: Record<string, unknown>
+    pre_approved?: boolean
+  }) =>
+    request<{
+      trace_id: string
+      signal_id: string
+      governance_approved: boolean
+      governance_rationale: string
+      executed: boolean
+      success: boolean | null
+      outcome_type: string | null
+    }>('/pipeline/submit', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  commsSend: (recipient: string, content: string, intent?: string) =>
+    request<{ ok: boolean; message_id: string }>('/comms/send', {
+      method: 'POST',
+      body: JSON.stringify({ recipient, content, intent }),
+    }),
+
+  workflowTrigger: (workflowId: string, params?: Record<string, unknown>) =>
+    request<{ ok: boolean; trace_id: string; success: boolean | null }>(`/workflows/${workflowId}/trigger`, {
+      method: 'POST',
+      body: JSON.stringify({ params }),
+    }),
+
+  organismControl: (action: 'start' | 'stop' | 'status') =>
+    request<{ ok?: boolean; running: boolean }>('/organism/control', {
+      method: 'POST',
+      body: JSON.stringify({ action }),
+    }),
+
+  agentSignal: (agentId: string, content: string) =>
+    request<OrganismSignalResponse>(`/agents/${agentId}/signal`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    }),
+
   updateSettings: (patch: Partial<SettingsResponse>) =>
     request<{ ok: boolean }>('/settings', {
       method: 'PATCH',

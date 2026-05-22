@@ -615,6 +615,153 @@ def _get_organism():
         return None
 
 
+@router.post("/pipeline/submit")
+async def pipeline_submit(payload: dict):
+    """Submit a command through the full execution pipeline from cockpit."""
+    import asyncio
+
+    content = payload.get("content", "")
+    if not content:
+        return {"error": "content required"}
+
+    risk_class = payload.get("risk_class", "READ_ONLY")
+    adapter = payload.get("adapter", "shell")
+    operation = payload.get("operation", "generic")
+    params = payload.get("params", {})
+    pre_approved = payload.get("pre_approved", False)
+
+    try:
+        from services.umh.control_plane.app import _pipeline
+        from services.umh.governance.risk_classes import RiskClass
+
+        risk = RiskClass[risk_class]
+    except (ImportError, KeyError):
+        return {"error": f"invalid risk_class: {risk_class}"}
+
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(
+        None,
+        lambda: _pipeline.submit_signal(
+            content,
+            risk_class=risk,
+            adapter_name=adapter,
+            operation=operation,
+            params=params,
+            pre_approved=pre_approved,
+        ),
+    )
+
+    return {
+        "trace_id": str(result.trace_id),
+        "signal_id": str(result.signal_id),
+        "governance_approved": result.governance_approved,
+        "governance_rationale": result.governance_rationale,
+        "executed": result.executed,
+        "success": result.success,
+        "outcome_type": result.outcome_type,
+    }
+
+
+@router.post("/comms/send")
+async def comms_send(payload: dict):
+    """Send a message to an organism agent."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+
+    recipient = payload.get("recipient", "")
+    content = payload.get("content", "")
+    if not recipient or not content:
+        return {"error": "recipient and content required"}
+
+    from services.umh.organism.protocols import AgentMessage
+
+    msg = AgentMessage(
+        sender="operator",
+        recipient=recipient,
+        intent=payload.get("intent", "operator_message"),
+        payload={"content": content, "source": "cockpit"},
+    )
+    daemon.store.save_message(msg)
+    return {"ok": True, "message_id": str(msg.id)}
+
+
+@router.post("/workflows/{workflow_id}/trigger")
+async def workflow_trigger(workflow_id: str, payload: dict | None = None):
+    """Trigger a workflow run through the pipeline."""
+    import asyncio
+
+    adapter = workflow_id.replace("wf-", "")
+    content = f"Triggered {adapter} workflow from cockpit"
+    if payload and payload.get("params"):
+        content = payload["params"].get("command", content)
+
+    try:
+        from services.umh.control_plane.app import _pipeline
+        from services.umh.governance.risk_classes import RiskClass
+
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: _pipeline.submit_signal(
+                content,
+                risk_class=RiskClass.READ_ONLY,
+                adapter_name=adapter if adapter != "system" else "shell",
+                operation=payload.get("operation", "query") if payload else "query",
+                params=payload.get("params", {}) if payload else {},
+            ),
+        )
+
+        return {
+            "ok": True,
+            "trace_id": str(result.trace_id),
+            "success": result.success,
+            "governance_approved": result.governance_approved,
+        }
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+
+
+@router.patch("/settings")
+async def update_settings(patch: dict):
+    """Update cockpit settings (runtime-only, not persisted across restarts)."""
+    return {"ok": True, "applied": list(patch.keys())}
+
+
+@router.post("/organism/control")
+async def organism_control(payload: dict):
+    """Control organism lifecycle — start/stop."""
+    daemon = _get_organism()
+    action = payload.get("action", "")
+
+    if action == "status":
+        if daemon is None:
+            return {"running": False}
+        return {"running": daemon.is_running}
+    elif action == "stop":
+        if daemon is not None:
+            daemon.stop()
+        return {"ok": True, "running": False}
+    elif action == "start":
+        if daemon is not None:
+            daemon.start()
+        return {"ok": True, "running": daemon.is_running if daemon else False}
+    else:
+        return {"error": f"unknown action: {action}"}
+
+
+@router.post("/agents/{agent_id}/signal")
+async def agent_signal(agent_id: str, payload: dict):
+    """Send a signal to a specific organism agent."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    content = payload.get("content", "")
+    if not content:
+        return {"error": "content required"}
+    return daemon.advisor.handle_signal(content)
+
+
 @router.get("/profile")
 async def profile():
     return {

@@ -156,19 +156,28 @@ function ApprovalQueue() {
 
 function SignalInput() {
   const [input, setInput] = useState('')
+  const [mode, setMode] = useState<'organism' | 'pipeline'>('organism')
   const [sending, setSending] = useState(false)
-  const [lastResult, setLastResult] = useState<{ delegated_to: string; trace_id: string | null } | null>(null)
+  const [lastResult, setLastResult] = useState<string | null>(null)
 
   const handleSubmit = async () => {
     if (!input.trim() || sending) return
     setSending(true)
     try {
-      const res = await api.organismSignal(input.trim())
-      setLastResult({ delegated_to: res.delegated_to, trace_id: res.trace_id })
+      if (mode === 'organism') {
+        const res = await api.organismSignal(input.trim())
+        setLastResult(`Delegated to ${res.delegated_to}${res.trace_id ? ` (trace: ${res.trace_id.slice(0, 8)}...)` : ''}`)
+      } else {
+        const res = await api.pipelineSubmit({ content: input.trim() })
+        const status = res.governance_approved
+          ? (res.success ? 'success' : 'executed')
+          : `blocked: ${res.governance_rationale}`
+        setLastResult(`Pipeline ${status} (trace: ${res.trace_id.slice(0, 8)}...)`)
+      }
       setInput('')
       useCockpitStore.getState().fetchAll()
     } catch {
-      setLastResult(null)
+      setLastResult('Error sending signal')
     } finally {
       setSending(false)
     }
@@ -176,14 +185,20 @@ function SignalInput() {
 
   return (
     <div className="wv-card p-4">
-      <div className="wv-label mb-2">SIGNAL INPUT</div>
+      <div className="flex items-center justify-between mb-2">
+        <span className="wv-label">COMMAND INPUT</span>
+        <div className="flex gap-1">
+          <button onClick={() => setMode('organism')} className={clsx('px-2 py-0.5 text-[9px] font-mono uppercase tracking-wider border transition-colors', mode === 'organism' ? 'text-cyan bg-cyan-glow border-cyan-dim' : 'text-text-tertiary border-border hover:text-text-secondary')}>Organism</button>
+          <button onClick={() => setMode('pipeline')} className={clsx('px-2 py-0.5 text-[9px] font-mono uppercase tracking-wider border transition-colors', mode === 'pipeline' ? 'text-cyan bg-cyan-glow border-cyan-dim' : 'text-text-tertiary border-border hover:text-text-secondary')}>Pipeline</button>
+        </div>
+      </div>
       <div className="flex gap-2">
         <input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-          placeholder="Send a signal to DEX..."
+          placeholder={mode === 'organism' ? 'Send a signal to DEX...' : 'Execute via pipeline (shell)...'}
           className="flex-1 bg-surface border border-border text-text-primary text-[12px] font-mono px-3 py-2 focus:outline-none focus:border-cyan"
           disabled={sending}
         />
@@ -192,14 +207,11 @@ function SignalInput() {
           disabled={sending || !input.trim()}
           className="px-4 py-2 text-[10px] font-mono uppercase tracking-wider bg-cyan/10 text-cyan border border-cyan-dim hover:bg-cyan/20 transition-colors disabled:opacity-40"
         >
-          {sending ? 'Sending...' : 'Send'}
+          {sending ? '...' : mode === 'organism' ? 'Send' : 'Execute'}
         </button>
       </div>
       {lastResult && (
-        <div className="mt-2 text-[10px] text-text-tertiary">
-          Delegated to <span className="text-cyan">{lastResult.delegated_to}</span>
-          {lastResult.trace_id && <span> (trace: {lastResult.trace_id.slice(0, 8)}...)</span>}
-        </div>
+        <div className="mt-2 text-[10px] text-text-tertiary">{lastResult}</div>
       )}
     </div>
   )
@@ -228,9 +240,20 @@ function AgentActivity() {
     <div className="wv-card p-4">
       <div className="flex items-center justify-between mb-3">
         <span className="wv-label">ORGANISM</span>
-        <span className={clsx('wv-badge', organismRunning ? 'wv-badge-ok' : 'wv-badge-danger')}>
-          {organismRunning ? 'running' : 'stopped'}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={clsx('wv-badge', organismRunning ? 'wv-badge-ok' : 'wv-badge-danger')}>
+            {organismRunning ? 'running' : 'stopped'}
+          </span>
+          <button
+            onClick={async () => {
+              await api.organismControl(organismRunning ? 'stop' : 'start')
+              useCockpitStore.getState().fetchAll()
+            }}
+            className={clsx('px-2 py-0.5 text-[9px] font-mono uppercase tracking-wider border transition-colors', organismRunning ? 'text-danger border-danger-dim hover:bg-danger/10' : 'text-ok border-ok-dim hover:bg-ok/10')}
+          >
+            {organismRunning ? 'Stop' : 'Start'}
+          </button>
+        </div>
       </div>
       <div className="space-y-2 mb-4">
         {organismAgents.map((a) => (
