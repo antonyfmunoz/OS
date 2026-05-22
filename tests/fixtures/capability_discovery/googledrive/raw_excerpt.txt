@@ -1,0 +1,297 @@
+# Google Drive API v3 Reference
+
+## Service Information
+
+**Base URL:** `https://www.googleapis.com`
+
+**Discovery Document:** `https://www.googleapis.com/discovery/v1/apis/drive/v3/rest`
+
+**Service Endpoint:** `https://www.googleapis.com`
+
+---
+
+## REST Resources and Methods
+
+### v3.about
+
+**Resource:** Get information about the user, Drive, and system capabilities
+
+- **Method:** `get`
+  - **Endpoint:** `GET /drive/v3/about`
+  - **Description:** Retrieves user information, user's Drive details, and system capabilities
+
+### v3.accessproposals
+
+**Resource:** Manage access proposals on files
+
+- **Method:** `get`
+  - **Endpoint:** `GET /drive/v3/files/{fileId}/accessproposals/{proposalId}`
+  - **Description:** Retrieves a specific access proposal by ID
+
+- **Method:** `list`
+  - **Endpoint:** `GET /drive/v3/files/{fileId}/accessproposals`
+  - **Description:** Lists all access proposals on a file
+
+- **Method:** `resolve`
+  - **Endpoint:** `POST /drive/v3/files/{fileId}/accessproposals/{proposalId}:resolve`
+  - **Description:** Approves or denies an access proposal
+
+### v3.approvals
+
+**Resource:** Manage file approvals and review workflows
+
+- **Method:** `approve`
+  - **Endpoint:** `POST /drive/v3/files/{fileId}/approvals/{approvalId}:approve`
+  - **Description:** Approves an approval
+
+- **Method:** `cancel`
+  - **Endpoint:** `POST /drive/v3/files/{fileId}/approvals/{approvalId}:cancel`
+  - **Description:** Cancels an approval
+
+- **Method:** `comment`
+  - **Endpoint:** `POST /drive/v3/files/{fileId}/approvals/{approvalId}:comment`
+  - **Description:** Adds a comment to an approval
+
+- **Method:** `decline`
+  - **Endpoint:** `POST /drive/v3/files/{fileId}/approvals/{approvalId}:decline`
+  - **Description:** Declines an approval
+
+- **Method:** `get`
+  - **Endpoint:** `GET /drive/v3/files/{fileId}/approvals/{approvalId}`
+  - **Description:** Gets an approval by ID
+
+- **Method:** `list`
+  - **Endpoint:** `GET /drive/v3/files/{fileId}/approvals`
+  - **Description:** Lists all approvals on a file
+
+- **Method:** `reassign`
+  - **Endpoint:** `POST /drive/v3/files/{fileId}/approvals/{approvalId}:reassign`
+  - **Description:** Reassigns reviewers on an approval
+
+- **Method:** `start`
+  - **Endpoint:** `POST /drive/v3/files/{fileId}/approvals:start`
+  - **Description:** Initiates an approval workflow on a file
+
+### v3.apps
+
+**Resource:** Manage installed applications
+
+- **Method:** `get`
+  - **Endpoint:** `GET /drive/v3/apps/{appId}`
+  - **Description:** Retrieves details for a specific application
+
+- **Method:** `list`
+  - **Endpoint:** `GET /drive/v3/apps`
+  - **Description:** Lists all applications installed for the user
+
+### v3.changes
+
+**Resource:** Track file and Drive changes
+
+- **Method:** `getStartPageToken`
+  - **Endpoint:** `GET /drive/v3/changes/startPageToken`
+  - **Description:** Obtains the starting page token for listing future changes
+
+- **Method:** `list`
+  - **Endpoint:** `GET /drive/v3/changes`
+  - **Description:** Lists changes for a user or shared drive
+
+- **Method:** `watch`
+  - **Endpoint:** `POST /drive/v3/changes/watch`
+  - **Description:** Subscribes to change notifications for a user
+
+### v3.channels
+
+**Resource:** Manage push notification channels
+
+- **Method:** `stop`
+  - **Endpoint:** `POST /drive/v3/channels/stop`
+  - **Description:** Stops watching resources through a notification channel
+
+### v3.comments
+
+**Resource:** Manage file comments and discussions
+
+- **Method:** `create`
+  - **Endpoint:** `POST /drive/v3/files/{fileId}/comments`
+  - **Description:** Creates a new comment on a file
+
+- **Method:** `delete`
+  - **Endpoint:** `DELETE /drive/v3/files/{fileId}/comments/{commentId}`
+  - **Description:** Deletes a comment
+
+- **Method:** `get`
+  - **Endpoint:** `GET /drive/v3/files/{fileId}/comments/{commentId}`
+  - **Description:** Retrieves a comment by ID
+
+- **Method:** `list`
+  - **Endpoint:** `GET /drive/v3/files/{fileId}/comments`
+  - **Description:** Lists all comments on a file
+
+- **Method:** `update`
+  - **Endpoint:** `PATCH /drive/v3/files/{fileId}/comments/{commentId}`
+  - **Description:** Updates a comment with patch semantics
+
+### v3.drives
+
+**Resource:** Manage shared drives
+
+- **Method:** `create`
+  - **Endpoint:** `POST /drive/v3/drives`
+  - **Description:** Creates a new shared drive
+
+- **Method:** `delete`
+  - **Endpoint:** `DELETE /drive/v3/drives/{driveId}`
+  - **Description:** Permanently deletes a shared drive (requires organizer access)
+
+- **Method:** `get`
+  - **Endpoint:** `GET /drive/v3/drives/{driveId}`
+  - **Description:** Retrieves a shared drive's metadata by ID
+
+- **Method:** `hide`
+  - **Endpoint:** `POST /drive/v3/drives/{driveId}/hide`
+  - **Description:** Hides a shared drive from the default view
+
+- **Method:** `list`
+  - **Endpoint:** `GET /drive/v3/drives`
+  - **Description:** Lists all of the user's shared drives
+
+- **Method:** `unhide`
+  - **Endpoint:** `POST /drive/v3/drives/{driveId}/unhide`
+  - **Description:** Restores a hidden shared drive to the default view
+
+- **Method:** `update`
+  - **Endpoint:** `PATCH /drive/v3/drives/{driveId}`
+  - **Description:** Updates a shared drive's metadata
+
+### v3.files
+
+**Resource:** Manage files and file operations
+
+- **Method:** `copy`
+  - **Endpoint:** `POST /drive/v3/files/{fileId}/copy`
+  - **Description:** Creates a copy of a file with optional patch updates
+
+- **Method:** `create`
+  - **Endpoint:** `POST /drive/v3/files` or `POST /upload/drive/v3/files`
+  - **Description:** Creates a new file
+
+- **Method:** `delete`
+  - **Endpoint:** `DELETE /drive/v3/files/{fileId}`
+  - **Description:** Permanently deletes a file owned by the user
+
+- **Method:** `download`
+  - **Endpoint:** `POST /drive/v3/files/{fileId}/download`
+  - **Description:** Downloads file content
+
+- **Method:** `emptyTrash`
+  - **Endpoint:** `DELETE /drive/v3/files/trash`
+  - **Description:** Permanently deletes all trashed files
+
+- **Method:** `export`
+  - **Endpoint:** `GET /drive/v3/files/{fileId}/export`
+  - **Description:** Exports a Google Workspace document to requested MIME type
+
+- **Method:** `generateIds`
+  - **Endpoint:** `GET /drive/v3/files/generateIds`
+  - **Description:** Generates file IDs for use in create or copy requests
+
+- **Method:** `get`
+  - **Endpoint:** `GET /drive/v3/files/{fileId}`
+  - **Description:** Retrieves a file's metadata or content by ID
+
+- **Method:** `list`
+  - **Endpoint:** `GET /drive/v3/files`
+  - **Description:** Lists the user's files
+
+- **Method:** `listLabels`
+  - **Endpoint:** `GET /drive/v3/files/{fileId}/listLabels`
+  - **Description:** Lists all labels applied to a file
+
+- **Method:** `modifyLabels`
+  - **Endpoint:** `POST /drive/v3/files/{fileId}/modifyLabels`
+  - **Description:** Modifies the set of labels on a file
+
+- **Method:** `update`
+  - **Endpoint:** `PATCH /drive/v3/files/{fileId}` or `PATCH /upload/drive/v3/files/{fileId}`
+  - **Description:** Updates file metadata, content, or both
+
+- **Method:** `watch`
+  - **Endpoint:** `POST /drive/v3/files/{fileId}/watch`
+  - **Description:** Subscribes to change notifications for a file
+
+### v3.operations
+
+**Resource:** Monitor long-running operations
+
+- **Method:** `get`
+  - **Endpoint:** `GET /drive/v3/operations/{name}`
+  - **Description:** Retrieves the latest state of a long-running operation
+
+### v3.permissions
+
+**Resource:** Manage file and shared drive permissions
+
+- **Method:** `create`
+  - **Endpoint:** `POST /drive/v3/files/{fileId}/permissions`
+  - **Description:** Creates a permission for a file or shared drive
+
+- **Method:** `delete`
+  - **Endpoint:** `DELETE /drive/v3/files/{fileId}/permissions/{permissionId}`
+  - **Description:** Deletes a permission
+
+- **Method:** `get`
+  - **Endpoint:** `GET /drive/v3/files/{fileId}/permissions/{permissionId}`
+  - **Description:** Retrieves a permission by ID
+
+- **Method:** `list`
+  - **Endpoint:** `GET /drive/v3/files/{fileId}/permissions`
+  - **Description:** Lists all permissions on a file or shared drive
+
+- **Method:** `update`
+  - **Endpoint:** `PATCH /drive/v3/files/{fileId}/permissions/{permissionId}`
+  - **Description:** Updates a permission with patch semantics
+
+### v3.replies
+
+**Resource:** Manage comment replies
+
+- **Method:** `create`
+  - **Endpoint:** `POST /drive/v3/files/{fileId}/comments/{commentId}/replies`
+  - **Description:** Creates a reply to a comment
+
+- **Method:** `delete`
+  - **Endpoint:** `DELETE /drive/v3/files/{fileId}/comments/{commentId}/replies/{replyId}`
+  - **Description:** Deletes a reply
+
+- **Method:** `get`
+  - **Endpoint:** `GET /drive/v3/files/{fileId}/comments/{commentId}/replies/{replyId}`
+  - **Description:** Retrieves a reply by ID
+
+- **Method:** `list`
+  - **Endpoint:** `GET /drive/v3/files/{fileId}/comments/{commentId}/replies`
+  - **Description:** Lists all replies to a comment
+
+- **Method:** `update`
+  - **Endpoint:** `PATCH /drive/v3/files/{fileId}/comments/{commentId}/replies/{replyId}`
+  - **Description:** Updates a reply with patch semantics
+
+### v3.revisions
+
+**Resource:** Manage file revisions and version history
+
+- **Method:** `delete`
+  - **Endpoint:** `DELETE /drive/v3/files/{fileId}/revisions/{revisionId}`
+  - **Description:** Permanently deletes a file version
+
+- **Method:** `get`
+  - **Endpoint:** `GET /drive/v3/files/{fileId}/revisions/{revisionId}`
+  - **Description:** Retrieves a revision's metadata or content by ID
+
+- **Method:** `list`
+  - **Endpoint:** `GET /drive/v3/files/{fileId}/revisions`
+  - **Description:** Lists all revisions of a file
+
+- **Method:** `update`
+  - **Endpoint:** `PATCH /drive/v3/files/{fileId}/revisions/{revisionId}`
+  - **Description:** Updates a revision with patch semantics
