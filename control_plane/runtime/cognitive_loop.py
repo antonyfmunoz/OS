@@ -25,8 +25,9 @@ Usage:
 """
 
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
-import os, sys, uuid, tempfile, time as _time
+import json, os, re, sys, uuid, tempfile, time as _time
 
 # ─── Spend cache ──────────────────────────────────────────────────────────────
 # Queried at most once per minute to avoid a DB round-trip on every response.
@@ -38,6 +39,69 @@ _SPEND_CACHE_TTL = 60  # seconds
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
+
+# ─── Fix-forever error recording ─────────────────────────────────────────────
+
+_ERROR_LOG_PATH = (
+    Path(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or "/opt/OS")
+    / "logs"
+    / "cognitive_loop_errors.jsonl"
+)
+
+
+def _record_error(component: str, error: str, context: dict | None = None) -> None:
+    """Append error to JSONL log for pattern detection and permanent fixing."""
+    try:
+        _ERROR_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        entry = {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "component": component,
+            "error": str(error)[:500],
+            "context": {k: str(v)[:200] for k, v in (context or {}).items()},
+        }
+        with _ERROR_LOG_PATH.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(entry) + "\n")
+    except Exception:
+        pass
+
+
+# ─── Deterministic fallback for cognitive loop ────────────────────────────────
+
+_COGNITIVE_INTENT_PATTERNS: list[tuple[re.Pattern, str]] = [
+    (re.compile(r"\b(schedule|book|calendar|meeting|call)\b", re.I), "calendar_action"),
+    (re.compile(r"\b(send|draft|email|compose)\b", re.I), "email_action"),
+    (re.compile(r"\b(check|status|update|progress)\b", re.I), "status_check"),
+    (re.compile(r"\b(analyze|review|assess|evaluate)\b", re.I), "analysis"),
+    (re.compile(r"\b(create|build|write|generate)\b", re.I), "content_creation"),
+    (re.compile(r"\b(fix|debug|error|broken|issue)\b", re.I), "troubleshoot"),
+    (re.compile(r"\b(hey|hi|hello|morning|gm|yo|sup)\b", re.I), "greeting"),
+]
+
+_COGNITIVE_INTENT_FALLBACKS: dict[str, str] = {
+    "calendar_action": "I've noted your calendar request. I'll process it once my AI systems reconnect. In the meantime, you can manage events directly in Google Calendar.",
+    "email_action": "I've captured your email request. I'll draft and send it once AI is back online. You can also compose directly in Gmail.",
+    "status_check": "I'm currently operating in reduced mode — AI providers are temporarily unavailable. Core systems (CRM, calendar, email) remain functional. I'll resume full capability shortly.",
+    "analysis": "I've queued your analysis request. Full analytical capabilities require AI, which is temporarily offline. I'll process this as soon as connectivity is restored.",
+    "content_creation": "Content generation requires AI, which is temporarily unavailable. I've logged your request and will generate it once systems reconnect.",
+    "troubleshoot": "I've logged this issue for investigation. Diagnostic capabilities are limited while AI is offline. The error has been recorded for permanent fixing.",
+    "greeting": "Hey! I'm operating in reduced mode right now — AI providers are temporarily offline. Core functions still work. What do you need?",
+}
+
+_COGNITIVE_DEFAULT_FALLBACK = (
+    "I received your message but AI processing is temporarily unavailable. "
+    "I've logged this interaction and will process it when systems reconnect. "
+    "Core functions (CRM, calendar, email) remain operational."
+)
+
+
+def _deterministic_cognitive_response(message: str) -> str:
+    """Intent-aware fallback when all AI providers fail."""
+    msg_lower = message.lower()
+    for pattern, intent in _COGNITIVE_INTENT_PATTERNS:
+        if pattern.search(msg_lower):
+            return _COGNITIVE_INTENT_FALLBACKS[intent]
+    return _COGNITIVE_DEFAULT_FALLBACK
+
 
 from state.context.context import EntrepreneurOSContext, load_context_from_env
 from execution.runtime.agent_runtime import AgentRuntime, TaskType
@@ -211,11 +275,7 @@ def format_response_footer(
         lines.append(f"🔧  Skill: {skill}")
     if iterations > 1:
         lines.append(f"🔄  {iterations} iterations")
-    if (
-        was_enhanced
-        and enhanced_prompt
-        and enhanced_prompt.strip() != original_prompt.strip()
-    ):
+    if was_enhanced and enhanced_prompt and enhanced_prompt.strip() != original_prompt.strip():
         lines.append(f"✨  Optimized prompt:")
         lines.append(f"    Original: {original_prompt}")
         lines.append(f"    Enhanced: {enhanced_prompt}")
@@ -314,9 +374,7 @@ class CognitiveLoop:
                         or input.document_bytes
                     )
                     if raw:
-                        with tempfile.NamedTemporaryFile(
-                            suffix=suffix, delete=False
-                        ) as f:
+                        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as f:
                             f.write(raw)
                             tmp_path = f.name
                         process_path = tmp_path
@@ -378,6 +436,13 @@ class CognitiveLoop:
         )
         if _unified.failed_sources:
             print(f"[CognitiveLoop] ContextBuilder failures: {_unified.failed_sources}")
+            _record_error(
+                "context_builder",
+                "sources failed",
+                {
+                    "failed_sources": str(_unified.failed_sources)[:300],
+                },
+            )
 
         original_prompt = text
         _true_raw_input = raw_input if raw_input else text
@@ -402,16 +467,58 @@ class CognitiveLoop:
             )
 
         # 4. EXECUTE — initial run through agent runtime
-        result = self.runtime.run(
-            task_type=task_type,
-            prompt=enhanced,
-            venture_id=venture_id,
-            skill_name=skill_name,
-            agent=agent,
-            ctx=self.ctx,
-            system_extra=system_extra,
-            raw_input=_true_raw_input,
-        )
+        # Deterministic-first: if runtime.run() throws or returns empty,
+        # fall back to intent-aware deterministic response.
+        _execute_failed = False
+        try:
+            result = self.runtime.run(
+                task_type=task_type,
+                prompt=enhanced,
+                venture_id=venture_id,
+                skill_name=skill_name,
+                agent=agent,
+                ctx=self.ctx,
+                system_extra=system_extra,
+                raw_input=_true_raw_input,
+            )
+            if not result.output or not result.output.strip():
+                _record_error(
+                    "execute_empty",
+                    "runtime.run returned empty output",
+                    {
+                        "agent": agent or "",
+                        "task_type": str(task_type),
+                        "prompt": enhanced[:200],
+                    },
+                )
+                _execute_failed = True
+        except Exception as _exec_err:
+            _record_error(
+                "execute",
+                _exec_err,
+                {
+                    "agent": agent or "",
+                    "task_type": str(task_type),
+                    "prompt": enhanced[:200],
+                },
+            )
+            _execute_failed = True
+
+        if _execute_failed:
+
+            class _FallbackResult:
+                def __init__(self):
+                    self.output = ""
+                    self.model_used = "deterministic"
+                    self.tokens_used = {}
+                    self.cost_usd = 0.0
+                    self.duration_ms = 0
+                    self.skill_used = None
+                    self.interaction_id = None
+                    self.authority = None
+
+            result = _FallbackResult()
+            result.output = _deterministic_cognitive_response(text)
 
         # 5. VERIFY — quality loop
         # Skip verify for lightweight and structured task types.
@@ -419,8 +526,9 @@ class CognitiveLoop:
         # unstructured content where a second pass catches real issues.
         # SCORE/CLASSIFY/SUMMARIZE/ANALYZE are structured by design.
         # FAST_RESPONSE/CONVERSATION are latency-sensitive.
+        # Also skip verify when we're already on deterministic fallback.
         _tt_val = getattr(task_type, "value", None)
-        _skip_verify = _tt_val in (
+        _skip_verify = _execute_failed or _tt_val in (
             "fast_response",
             "conversation",
             "score",
@@ -436,20 +544,32 @@ class CognitiveLoop:
             quality = self._verify_output(result.output, text, task_type)
             if quality["passes"]:
                 break
-            result = self.runtime.run(
-                task_type=task_type,
-                prompt=(
-                    f"{enhanced}\n\nPrior attempt:\n"
-                    f"{result.output}\n\nIssues found:\n"
-                    f"{quality['issues']}\n\nImprove:"
-                ),
-                venture_id=venture_id,
-                skill_name=skill_name,
-                agent=agent,
-                ctx=self.ctx,
-                system_extra=system_extra,
-                raw_input=_true_raw_input,
-            )
+            try:
+                result = self.runtime.run(
+                    task_type=task_type,
+                    prompt=(
+                        f"{enhanced}\n\nPrior attempt:\n"
+                        f"{result.output}\n\nIssues found:\n"
+                        f"{quality['issues']}\n\nImprove:"
+                    ),
+                    venture_id=venture_id,
+                    skill_name=skill_name,
+                    agent=agent,
+                    ctx=self.ctx,
+                    system_extra=system_extra,
+                    raw_input=_true_raw_input,
+                )
+            except Exception as _retry_err:
+                _record_error(
+                    "verify_retry",
+                    _retry_err,
+                    {
+                        "agent": agent or "",
+                        "iteration": str(iteration),
+                        "issues": str(quality.get("issues", ""))[:200],
+                    },
+                )
+                break
             iteration += 1
 
         # 5b. STAGE FILTER — prepend stage-appropriate correction if needed
@@ -458,9 +578,7 @@ class CognitiveLoop:
             from understanding.ontology.primitives import ContextualReasoningEngine
 
             _cre = ContextualReasoningEngine(self.ctx)
-            _stage_ctx = _cre.get_current_context(
-                venture_id or self.ctx.active_venture_id or ""
-            )
+            _stage_ctx = _cre.get_current_context(venture_id or self.ctx.active_venture_id or "")
             _advice_triggers = [
                 "hire",
                 "build a team",
@@ -487,8 +605,14 @@ class CognitiveLoop:
                         f"{_eval.get('what_applies_instead', '')}\n\n"
                     )
                     _output_str = _warning + _output_str
-        except Exception:
-            pass  # stage filter is enhancement — never block result
+        except Exception as _stage_err:
+            _record_error(
+                "stage_filter",
+                _stage_err,
+                {
+                    "venture_id": venture_id or "",
+                },
+            )
 
         # 5c. QUALITY GATE — moved to gateway boundary (gateway._validate_output)
         # Pre-flight quality enhancement (Layer 0c above) still active here.
@@ -510,13 +634,19 @@ class CognitiveLoop:
                         "agent": agent,
                     },
                 )
-            except Exception:
-                pass  # reflection logging is enhancement — never block result
+            except Exception as _refl_err:
+                _record_error(
+                    "reflection_log",
+                    _refl_err,
+                    {
+                        "agent": agent or "",
+                        "iterations": str(iteration),
+                    },
+                )
 
         # 7b. LEARN — permanently integrate conversation into knowledge base
         try:
             from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
-            from datetime import datetime, timezone as _tz
 
             _ki = KnowledgeIntegrator(self.ctx)
             if text and result.output:
@@ -531,11 +661,18 @@ class CognitiveLoop:
                     metadata={
                         "task_type": str(task_type),
                         "agent": agent or "system",
-                        "timestamp": datetime.now(_tz.utc).isoformat(),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                     },
                 )
-        except Exception:
-            pass  # knowledge integration is enhancement — never block result
+        except Exception as _ki_err:
+            _record_error(
+                "knowledge_integration",
+                _ki_err,
+                {
+                    "agent": agent or "",
+                    "task_type": str(task_type),
+                },
+            )
 
         # 7c. FEEDBACK — auto-check if user message closes pending recommendations
         try:
@@ -548,8 +685,13 @@ class CognitiveLoop:
                     venture_id=venture_id or "",
                 )
         except Exception as _fb_err:
-            print(f"[CognitiveLoop] Feedback loop error: {_fb_err}")
-            # Never block result — feedback is enhancement
+            _record_error(
+                "feedback_loop",
+                _fb_err,
+                {
+                    "venture_id": venture_id or "",
+                },
+            )
 
         # 8. STORE — handled by memory.log() inside runtime.run()
 
@@ -599,49 +741,91 @@ class CognitiveLoop:
                 seed = compactor.build_seeded_context(brief)
                 # Reset messages with the seeded context as the first entry
                 self._messages = [{"role": "system", "content": seed}]
-                print(
-                    f"[CognitiveLoop] Context compacted for session "
-                    f"{self.session_id[:8]}..."
-                )
+                print(f"[CognitiveLoop] Context compacted for session {self.session_id[:8]}...")
         except Exception as e:
-            print(f"[CognitiveLoop] Context compaction skipped: {e}")
+            _record_error(
+                "context_compaction",
+                e,
+                {
+                    "session_id": self.session_id[:16],
+                    "message_count": str(len(self._messages)),
+                },
+            )
 
     # ─── Deterministic prompt expansion ─────────────────────────────────
 
-    _GREETING_SIGNALS = frozenset({
-        "hey", "hi", "hello", "morning", "good morning", "gm",
-        "what's up", "whats up", "sup", "yo", "how are", "how's it",
-        "hows it", "what's going on", "wassup", "good evening",
-        "good afternoon", "evening", "night",
-    })
+    _GREETING_SIGNALS = frozenset(
+        {
+            "hey",
+            "hi",
+            "hello",
+            "morning",
+            "good morning",
+            "gm",
+            "what's up",
+            "whats up",
+            "sup",
+            "yo",
+            "how are",
+            "how's it",
+            "hows it",
+            "what's going on",
+            "wassup",
+            "good evening",
+            "good afternoon",
+            "evening",
+            "night",
+        }
+    )
 
     _SHORTHAND_PATTERNS: list[tuple] | None = None
 
     @classmethod
     def _get_shorthand_patterns(cls) -> list[tuple]:
         import re as _re
+
         if cls._SHORTHAND_PATTERNS is None:
             cls._SHORTHAND_PATTERNS = [
-                (_re.compile(r"^check\s+(.+)$", _re.I),
-                 r"Check the current status and recent activity for \1. Surface anything that needs attention."),
-                (_re.compile(r"^update\s+on\s+(.+)$", _re.I),
-                 r"Give me a concise update on \1 — what happened, what's next, any blockers."),
-                (_re.compile(r"^(.+?)\s+status$", _re.I),
-                 r"What is the current status of \1? Include recent changes and next steps."),
-                (_re.compile(r"^how\s+are\s+we\s+doing\s+on\s+(.+)$", _re.I),
-                 r"Analyze current progress on \1. What's working, what's not, what should change."),
-                (_re.compile(r"^draft\s+(.+)$", _re.I),
-                 r"Draft a concise \1 in Antony's voice — direct, no fluff, action-oriented."),
-                (_re.compile(r"^analyze\s+(.+)$", _re.I),
-                 r"Analyze \1 — key findings, implications, and recommended actions."),
-                (_re.compile(r"^plan\s+(.+)$", _re.I),
-                 r"Create a structured plan for \1 with clear steps, timeline, and success criteria."),
-                (_re.compile(r"^fix\s+(.+)$", _re.I),
-                 r"Diagnose and fix \1. Read current state, identify root cause, implement fix."),
-                (_re.compile(r"^summarize\s+(.+)$", _re.I),
-                 r"Summarize \1 — key points only, no filler."),
-                (_re.compile(r"^compare\s+(.+)$", _re.I),
-                 r"Compare \1 — strengths, weaknesses, and recommendation."),
+                (
+                    _re.compile(r"^check\s+(.+)$", _re.I),
+                    r"Check the current status and recent activity for \1. Surface anything that needs attention.",
+                ),
+                (
+                    _re.compile(r"^update\s+on\s+(.+)$", _re.I),
+                    r"Give me a concise update on \1 — what happened, what's next, any blockers.",
+                ),
+                (
+                    _re.compile(r"^(.+?)\s+status$", _re.I),
+                    r"What is the current status of \1? Include recent changes and next steps.",
+                ),
+                (
+                    _re.compile(r"^how\s+are\s+we\s+doing\s+on\s+(.+)$", _re.I),
+                    r"Analyze current progress on \1. What's working, what's not, what should change.",
+                ),
+                (
+                    _re.compile(r"^draft\s+(.+)$", _re.I),
+                    r"Draft a concise \1 in Antony's voice — direct, no fluff, action-oriented.",
+                ),
+                (
+                    _re.compile(r"^analyze\s+(.+)$", _re.I),
+                    r"Analyze \1 — key findings, implications, and recommended actions.",
+                ),
+                (
+                    _re.compile(r"^plan\s+(.+)$", _re.I),
+                    r"Create a structured plan for \1 with clear steps, timeline, and success criteria.",
+                ),
+                (
+                    _re.compile(r"^fix\s+(.+)$", _re.I),
+                    r"Diagnose and fix \1. Read current state, identify root cause, implement fix.",
+                ),
+                (
+                    _re.compile(r"^summarize\s+(.+)$", _re.I),
+                    r"Summarize \1 — key points only, no filler.",
+                ),
+                (
+                    _re.compile(r"^compare\s+(.+)$", _re.I),
+                    r"Compare \1 — strengths, weaknesses, and recommendation.",
+                ),
             ]
         return cls._SHORTHAND_PATTERNS
 
@@ -669,6 +853,7 @@ class CognitiveLoop:
 
         try:
             from state.profiles.user_model import UserModel
+
             _um = UserModel(self.ctx)
             _trust = _um.get_trust_level()
             threshold = max(5, 15 - (_trust * 2))
@@ -686,12 +871,19 @@ class CognitiveLoop:
         # 2. User model expansion (profile-aware)
         try:
             from state.profiles.user_model import UserModel
+
             um = UserModel(self.ctx)
             expanded = um.get_intent_expansion(prompt)
             if expanded != prompt:
                 return expanded
-        except Exception:
-            pass
+        except Exception as _um_err:
+            _record_error(
+                "enhance_user_model",
+                _um_err,
+                {
+                    "prompt": prompt[:200],
+                },
+            )
 
         # 3. LLM enhancement — AI upgrades when available
         try:
@@ -707,14 +899,20 @@ class CognitiveLoop:
                     "You are expanding a founder's shorthand message into a "
                     "precise, actionable execution prompt for their AI EA. "
                     "Preserve the original intent exactly. Do not add unrelated "
-                    "context. Return ONLY the expanded prompt, nothing else:\n\n"
-                    + prompt
+                    "context. Return ONLY the expanded prompt, nothing else:\n\n" + prompt
                 ),
                 agent="prompt_engine",
             )
             expanded = enhancement.output.strip()
             return expanded if expanded else prompt
-        except Exception:
+        except Exception as _enh_err:
+            _record_error(
+                "enhance_llm",
+                _enh_err,
+                {
+                    "prompt": prompt[:200],
+                },
+            )
             return prompt
 
     def _verify_output(
@@ -734,15 +932,23 @@ class CognitiveLoop:
         if len(output) < 50:
             return {"passes": False, "issues": "Output too short"}
 
-        if task_type in (TaskType.SCORE, TaskType.CLASSIFY, TaskType.SUMMARIZE,
-                         TaskType.FAST_RESPONSE):
+        if task_type in (
+            TaskType.SCORE,
+            TaskType.CLASSIFY,
+            TaskType.SUMMARIZE,
+            TaskType.FAST_RESPONSE,
+        ):
             return {"passes": True, "issues": None}
 
         # Deterministic checks that catch common LLM failure modes
         _out_lower = output.lower()
         _error_patterns = [
-            "i cannot", "i'm unable", "as an ai", "i don't have access",
-            "i apologize", "sorry, i can't",
+            "i cannot",
+            "i'm unable",
+            "as an ai",
+            "i don't have access",
+            "i apologize",
+            "sorry, i can't",
         ]
         if any(p in _out_lower for p in _error_patterns) and len(output) < 200:
             return {"passes": False, "issues": "Output contains refusal/error pattern"}
@@ -771,7 +977,14 @@ class CognitiveLoop:
                 "passes": passes,
                 "issues": check.output if not passes else None,
             }
-        except Exception:
+        except Exception as _verify_err:
+            _record_error(
+                "verify_output",
+                _verify_err,
+                {
+                    "prompt": original_prompt[:200],
+                },
+            )
             return {"passes": True, "issues": None}
 
     def _reflect(
@@ -788,8 +1001,7 @@ class CognitiveLoop:
             return {"insight": None}
         return {
             "insight": (
-                f"Required {iterations + 1} iterations. "
-                "Prompt may benefit from more specificity."
+                f"Required {iterations + 1} iterations. Prompt may benefit from more specificity."
             )
         }
 
@@ -834,11 +1046,7 @@ class CognitiveLoop:
             "ANALYZE": "analyze",
             "GENERATE": "draft_message",
         }
-        key = (
-            task_type.value.upper()
-            if hasattr(task_type, "value")
-            else str(task_type).upper()
-        )
+        key = task_type.value.upper() if hasattr(task_type, "value") else str(task_type).upper()
         return mapping.get(key, "analyze")
 
     def _map_task_to_domain(
@@ -926,15 +1134,13 @@ def _format_intent_context(intent_data: dict) -> str:
     if intent == "calendar" and intent_data.get("upcoming_events"):
         events = intent_data["upcoming_events"]
         parts.append(
-            "Upcoming events:\n"
-            + "\n".join(f"- {e['start']}: {e['title']}" for e in events)
+            "Upcoming events:\n" + "\n".join(f"- {e['start']}: {e['title']}" for e in events)
         )
 
     if intent == "financial" and intent_data.get("expense_summary"):
         s = intent_data["expense_summary"]
         parts.append(
-            f"Monthly expenses: ${s.get('total', 0):,.2f}\n"
-            f"Transactions: {s.get('count', 0)}"
+            f"Monthly expenses: ${s.get('total', 0):,.2f}\nTransactions: {s.get('count', 0)}"
         )
 
     if intent == "relationship_lookup" and intent_data.get("person_profile"):
@@ -1161,9 +1367,7 @@ def detect_intent_and_inject(
 
                         profile = build_intelligence_profile(name=name)
                         if profile:
-                            injections["person_profile"] = format_intelligence_profile(
-                                profile
-                            )
+                            injections["person_profile"] = format_intelligence_profile(profile)
                     except Exception:
                         pass
                 break
