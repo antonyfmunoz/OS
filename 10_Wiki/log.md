@@ -626,3 +626,6 @@ Promoted from summary. The Action/Execution Separation concept states that actio
 
 ## [2026-05-13T21:50:45-07:00] create | universal-mastery-doctrine
 Promoted from summary. The Universal Mastery Doctrine is a parent doctrine that guides the implementation of mastery engines and adapters in the UMH system.
+
+## [2026-05-21T10:30:00-07:00] create | synthesis/umh-unified-system-synthesis.md
+Complete synthesis of the 8-tab UMH Google Drive canonical document (13,949 words) into a single coherent system reference. Covers architecture (6 tiers), 24 subsystems, 10 primitives, 11 laws, 108-phase roadmap, release strategy, strategic context, and codebase gap analysis against the locked spec.
