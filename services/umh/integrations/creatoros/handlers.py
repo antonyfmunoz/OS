@@ -1,4 +1,4 @@
-"""EOS capability handler — implements CapabilityHandler Protocol."""
+"""CreatorOS capability handler — implements CapabilityHandler Protocol."""
 
 from __future__ import annotations
 
@@ -12,13 +12,13 @@ from services.umh.sockets.envelopes import CapabilityRequest, CapabilityResponse
 from services.umh.sockets.protocols import CapabilityDescriptor, CapabilityHealth
 
 from .manifest import CAPABILITY_DESCRIPTORS, INTEGRATION_ID
-from .tables import insert_activity, insert_contact, insert_deal, update_deal_stage
+from .tables import insert_post, insert_product, insert_revenue
 
 logger = logging.getLogger(__name__)
 
 
-class EOSCapabilityHandler:
-    """Handles capability requests for the EOS integration.
+class CreatorOSCapabilityHandler:
+    """Handles capability requests for the CreatorOS integration.
 
     Satisfies CapabilityHandler Protocol structurally.
     """
@@ -38,10 +38,9 @@ class EOSCapabilityHandler:
         t0 = time.monotonic()
         handler_map: dict[str, Any] = {
             "noop": self._noop,
-            "create_contact": self._create_contact,
-            "create_deal": self._create_deal,
-            "update_deal_stage": self._update_deal_stage,
-            "log_activity": self._log_activity,
+            "create_post": self._create_post,
+            "create_product": self._create_product,
+            "record_revenue": self._record_revenue,
         }
 
         handler = handler_map.get(request.capability_name)
@@ -108,7 +107,6 @@ class EOSCapabilityHandler:
             )
 
     def _get_connection(self) -> Any:
-        """Get or create a Postgres connection with one reconnect attempt."""
         if self._conn is not None:
             try:
                 with self._conn.cursor() as cur:
@@ -118,36 +116,31 @@ class EOSCapabilityHandler:
                 self._conn = None
 
         if not self._database_url:
-            raise RuntimeError("no EOS_DATABASE_URL configured for capability handler")
+            raise RuntimeError("no CREATOROS_DATABASE_URL configured for capability handler")
 
         self._conn = psycopg2.connect(self._database_url)
         self._conn.autocommit = False
         return self._conn
 
     def _noop(self, params: dict[str, Any]) -> dict[str, Any]:
-        """Acknowledge a signal without external action."""
         return {
             "received": True,
             "table_name": params.get("table_name", ""),
-            "user_id": params.get("user_id", ""),
+            "user_id": params.get("user_id", 0),
             "row_id": params.get("row_id", ""),
         }
 
-    def _create_contact(self, params: dict[str, Any]) -> dict[str, Any]:
+    def _create_post(self, params: dict[str, Any]) -> dict[str, Any]:
         conn = self._get_connection()
-        contact_id = insert_contact(conn, params)
-        return {"contact_id": contact_id}
+        post_id = insert_post(conn, params)
+        return {"post_id": post_id}
 
-    def _create_deal(self, params: dict[str, Any]) -> dict[str, Any]:
+    def _create_product(self, params: dict[str, Any]) -> dict[str, Any]:
         conn = self._get_connection()
-        deal_id = insert_deal(conn, params)
-        return {"deal_id": deal_id}
+        product_id = insert_product(conn, params)
+        return {"product_id": product_id}
 
-    def _update_deal_stage(self, params: dict[str, Any]) -> dict[str, Any]:
+    def _record_revenue(self, params: dict[str, Any]) -> dict[str, Any]:
         conn = self._get_connection()
-        return update_deal_stage(conn, params)
-
-    def _log_activity(self, params: dict[str, Any]) -> dict[str, Any]:
-        conn = self._get_connection()
-        activity_id = insert_activity(conn, params)
-        return {"activity_id": activity_id}
+        revenue_id = insert_revenue(conn, params)
+        return {"revenue_id": revenue_id}

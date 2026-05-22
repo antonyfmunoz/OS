@@ -16,7 +16,15 @@ from services.umh.sockets.envelopes import OutcomeEnvelope
 
 from .correlation import EOSCorrelationMap, EOSWritebackTarget
 from .signals import EOSSignalEmitter
-from .tables import EventRow, fetch_events_since, fetch_org_ids
+from .tables import (
+    CrmActivityRow,
+    CrmContactRow,
+    CrmDealRow,
+    fetch_activities_since,
+    fetch_contacts_since,
+    fetch_deals_since,
+    fetch_user_ids,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +34,10 @@ _DEFAULT_WATERMARK = "2000-01-01T00:00:00+00:00"
 class EOSPoller:
     """Polls EOS Postgres tables for new rows on a background thread.
 
-    For each configured table × each in-scope org:
-    1. Load watermark (created_at high-water mark) keyed on (table, org_id)
+    For each configured table x each in-scope user:
+    1. Load watermark (created_at high-water mark) keyed on (table, user_id)
     2. Query rows with created_at > watermark, sorted ascending, LIMIT 100
-    3. For each row: build signal → register correlation → submit to pipeline
+    3. For each row: build signal -> register correlation -> submit to pipeline
     4. Advance watermark and persist to JSONL
     """
 
@@ -41,7 +49,7 @@ class EOSPoller:
         pipeline_submit_fn: Callable[..., Any],
         outcome_receiver: Any,
         tables: list[str],
-        org_ids: list[str] | None = None,
+        user_ids: list[str] | None = None,
         poll_interval: float = 15.0,
         watermark_store: WatermarkStore | None = None,
         shutdown_event: threading.Event | None = None,
@@ -52,7 +60,7 @@ class EOSPoller:
         self._submit_fn = pipeline_submit_fn
         self._outcome_receiver = outcome_receiver
         self._tables = tables
-        self._org_ids_whitelist = org_ids or []
+        self._user_ids_whitelist = user_ids or []
         self._poll_interval = poll_interval
         self._watermarks = watermark_store or WatermarkStore(
             path=self._default_watermark_path()
@@ -64,6 +72,7 @@ class EOSPoller:
     @staticmethod
     def _default_watermark_path():
         from pathlib import Path
+
         return Path(__file__).resolve().parent.parent.parent / "data" / "eos_watermarks.jsonl"
 
     @property
@@ -79,15 +88,14 @@ class EOSPoller:
         )
         self._thread.start()
         logger.info(
-            "eos poller started: tables=%s, org_whitelist=%s, interval=%.1fs",
+            "eos poller started: tables=%s, user_whitelist=%s, interval=%.1fs",
             self._tables,
-            self._org_ids_whitelist or "all",
+            self._user_ids_whitelist or "all",
             self._poll_interval,
         )
         return self._thread
 
     def _get_connection(self) -> Any:
-        """Get or create a psycopg2 connection with one retry on failure."""
         if self._conn is not None:
             try:
                 with self._conn.cursor() as cur:
@@ -112,31 +120,33 @@ class EOSPoller:
                 pass
             self._conn = None
 
-    def _resolve_org_ids(self, conn: Any) -> list[str]:
-        """Return org IDs to poll: whitelist if set, otherwise discover all."""
-        if self._org_ids_whitelist:
-            return list(self._org_ids_whitelist)
-        return fetch_org_ids(conn)
+    def _resolve_user_ids(self, conn: Any) -> list[str]:
+        """Return user IDs to poll: whitelist if set, otherwise discover all."""
+        if self._user_ids_whitelist:
+            return list(self._user_ids_whitelist)
+        return fetch_user_ids(conn)
 
     def _run_loop(self) -> None:
         while not self.shutdown_event.is_set():
             try:
                 conn = self._get_connection()
-                org_ids = self._resolve_org_ids(conn)
+                user_ids = self._resolve_user_ids(conn)
 
                 for table_name in self._tables:
                     if self.shutdown_event.is_set():
                         break
-                    for org_id in org_ids:
+                    for user_id in user_ids:
                         if self.shutdown_event.is_set():
                             break
                         try:
-                            self._poll_table_org(conn, table_name, org_id)
+                            self._poll_table_user(conn, table_name, user_id)
                         except Exception as exc:
                             logger.error(
                                 "eos poller error for %s/%s: %s: %s",
-                                table_name, org_id,
-                                type(exc).__name__, exc,
+                                table_name,
+                                user_id,
+                                type(exc).__name__,
+                                exc,
                             )
 
             except Exception as exc:
@@ -147,17 +157,20 @@ class EOSPoller:
 
         self._close_connection()
 
-    def _watermark_key(self, table_name: str, org_id: str) -> str:
-        """Composite watermark key: table:org_id."""
-        return f"{table_name}:{org_id}"
+    def _watermark_key(self, table_name: str, user_id: str) -> str:
+        return f"{table_name}:{user_id}"
 
-    def _poll_table_org(self, conn: Any, table_name: str, org_id: str) -> None:
-        """Poll a single (table, org) pair."""
-        wm_key = self._watermark_key(table_name, org_id)
+    def _poll_table_user(self, conn: Any, table_name: str, user_id: str) -> None:
+        """Poll a single (table, user) pair."""
+        wm_key = self._watermark_key(table_name, user_id)
         watermark = self._watermarks.get_watermark(wm_key)
 
-        if table_name == "events":
-            rows = fetch_events_since(conn, org_id, watermark)
+        if table_name == "crm_contacts":
+            rows = fetch_contacts_since(conn, user_id, watermark)
+        elif table_name == "crm_deals":
+            rows = fetch_deals_since(conn, user_id, watermark)
+        elif table_name == "crm_activities":
+            rows = fetch_activities_since(conn, user_id, watermark)
         else:
             return
 
@@ -165,8 +178,11 @@ class EOSPoller:
             return
 
         logger.info(
-            "eos poller: %d new rows in %s for org %s since %s",
-            len(rows), table_name, org_id[:8], watermark,
+            "eos poller: %d new rows in %s for user %s since %s",
+            len(rows),
+            table_name,
+            user_id[:8],
+            watermark,
         )
 
         latest_watermark = watermark
@@ -181,9 +197,18 @@ class EOSPoller:
 
         self._watermarks.record_watermark(wm_key, latest_watermark)
 
-    def _process_row(self, row: EventRow, table_name: str) -> None:
+    def _process_row(
+        self, row: CrmContactRow | CrmDealRow | CrmActivityRow, table_name: str
+    ) -> None:
         """Build signal, register correlation, submit to pipeline."""
-        envelope, writeback_target = self._emitter.build_signal(row, table_name)
+        if isinstance(row, CrmContactRow):
+            envelope, writeback_target = self._emitter.build_contact_signal(row)
+        elif isinstance(row, CrmDealRow):
+            envelope, writeback_target = self._emitter.build_deal_signal(row)
+        elif isinstance(row, CrmActivityRow):
+            envelope, writeback_target = self._emitter.build_activity_signal(row)
+        else:
+            return
 
         if envelope.correlation_id:
             self._correlation_map.register(
@@ -225,7 +250,9 @@ class EOSPoller:
 
         except Exception as exc:
             logger.error(
-                "eos poller submit failed for %s/%s row %s: %s: %s",
-                table_name, row.org_id[:8], row.id[:8],
-                type(exc).__name__, exc,
+                "eos poller submit failed for %s row %s: %s: %s",
+                table_name,
+                row.id[:8],
+                type(exc).__name__,
+                exc,
             )

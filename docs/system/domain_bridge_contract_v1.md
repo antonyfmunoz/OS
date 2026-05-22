@@ -59,9 +59,9 @@ Global instance: `runtime.domain_bridge.registry.default_registry`
 
 | Domain | Module | Mapping type | Status |
 |--------|--------|-------------|--------|
-| business | `runtime.domain_bridge.business` | Structural (keyword) | V1 active |
-| creator | — | — | Future (CreatorOS) |
-| life | — | — | Future (LYFEOS) |
+| business | `understanding.domains.business` | Structural (keyword) | V1 active |
+| creator | `understanding.domains.creator` | Structural (keyword) | V1 active |
+| life | `understanding.domains.life` | Structural (keyword) | V1 active |
 
 ## Business bridge V1 rules
 
