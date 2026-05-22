@@ -606,60 +606,71 @@ class CognitiveLoop:
         except Exception as e:
             print(f"[CognitiveLoop] Context compaction skipped: {e}")
 
+    # ─── Deterministic prompt expansion ─────────────────────────────────
+
+    _GREETING_SIGNALS = frozenset({
+        "hey", "hi", "hello", "morning", "good morning", "gm",
+        "what's up", "whats up", "sup", "yo", "how are", "how's it",
+        "hows it", "what's going on", "wassup", "good evening",
+        "good afternoon", "evening", "night",
+    })
+
+    _SHORTHAND_PATTERNS: list[tuple] | None = None
+
+    @classmethod
+    def _get_shorthand_patterns(cls) -> list[tuple]:
+        import re as _re
+        if cls._SHORTHAND_PATTERNS is None:
+            cls._SHORTHAND_PATTERNS = [
+                (_re.compile(r"^check\s+(.+)$", _re.I),
+                 r"Check the current status and recent activity for \1. Surface anything that needs attention."),
+                (_re.compile(r"^update\s+on\s+(.+)$", _re.I),
+                 r"Give me a concise update on \1 — what happened, what's next, any blockers."),
+                (_re.compile(r"^(.+?)\s+status$", _re.I),
+                 r"What is the current status of \1? Include recent changes and next steps."),
+                (_re.compile(r"^how\s+are\s+we\s+doing\s+on\s+(.+)$", _re.I),
+                 r"Analyze current progress on \1. What's working, what's not, what should change."),
+                (_re.compile(r"^draft\s+(.+)$", _re.I),
+                 r"Draft a concise \1 in Antony's voice — direct, no fluff, action-oriented."),
+                (_re.compile(r"^analyze\s+(.+)$", _re.I),
+                 r"Analyze \1 — key findings, implications, and recommended actions."),
+                (_re.compile(r"^plan\s+(.+)$", _re.I),
+                 r"Create a structured plan for \1 with clear steps, timeline, and success criteria."),
+                (_re.compile(r"^fix\s+(.+)$", _re.I),
+                 r"Diagnose and fix \1. Read current state, identify root cause, implement fix."),
+                (_re.compile(r"^summarize\s+(.+)$", _re.I),
+                 r"Summarize \1 — key points only, no filler."),
+                (_re.compile(r"^compare\s+(.+)$", _re.I),
+                 r"Compare \1 — strengths, weaknesses, and recommendation."),
+            ]
+        return cls._SHORTHAND_PATTERNS
+
+    def _deterministic_expand(self, prompt: str) -> str | None:
+        for pattern, replacement in self._get_shorthand_patterns():
+            m = pattern.match(prompt.strip())
+            if m:
+                return m.expand(replacement)
+        return None
+
     def _enhance_prompt(self, prompt: str) -> str:
-        """
-        Expand prompts shorter than the trust-adjusted threshold into precise,
-        actionable form.
+        """Deterministic-first prompt expansion.
 
-        Threshold shrinks as trust grows (system knows the user better):
-          trust 1-2: expand if < 15 words (default — user is new)
-          trust 3:   expand if < 11 words
-          trust 4:   expand if <  7 words
-          trust 5:   expand if <  5 words (minimal friction — shorthand mastered)
-
-        Priority order:
-          1. UserModel.get_intent_expansion() — uses founder's communication
-             profile. Only active at trust_level >= 3. Takes priority because
-             it understands domain-specific shorthand.
-          2. Generic Haiku enhancement — fires when user model can't expand
-             or trust_level is too low.
+        0. Greeting guard — never enhance greetings
+        1. Deterministic shorthand patterns (regex)
+        2. UserModel intent expansion (profile-aware, deterministic)
+        3. LLM enhancement (cognitive upgrade when available)
         """
-        # Greeting guard — never enhance casual greetings or status checks
-        # Must be first — before threshold check and before any expansion path
-        _greeting_signals = [
-            "hey",
-            "hi",
-            "hello",
-            "morning",
-            "good morning",
-            "gm",
-            "what's up",
-            "whats up",
-            "sup",
-            "yo",
-            "how are",
-            "how's it",
-            "hows it",
-            "what's going on",
-            "wassup",
-            "good evening",
-            "good afternoon",
-            "evening",
-            "night",
-        ]
         _p = prompt.lower().strip().rstrip("?!.")
         if any(
             _p == g or _p.startswith(g + " ") or _p.startswith(g + ",")
-            for g in _greeting_signals
+            for g in self._GREETING_SIGNALS
         ):
-            return prompt  # Never enhance greetings
+            return prompt
 
         try:
             from state.profiles.user_model import UserModel
-
             _um = UserModel(self.ctx)
             _trust = _um.get_trust_level()
-            # trust 1→15, trust 2→13, trust 3→11, trust 4→9, trust 5→5
             threshold = max(5, 15 - (_trust * 2))
         except Exception:
             threshold = 15
@@ -667,84 +678,33 @@ class CognitiveLoop:
         if len(prompt.split()) >= threshold:
             return prompt
 
-        # Guard: never enhance greetings or casual messages
-        _greeting_signals = [
-            "hey",
-            "hi",
-            "hello",
-            "morning",
-            "good morning",
-            "what's up",
-            "whats up",
-            "sup",
-            "yo",
-            "how are",
-            "how's it",
-            "hows it",
-            "what's going on",
-        ]
-        _prompt_lower = prompt.lower().strip()
-        if any(
-            _prompt_lower.startswith(g) or _prompt_lower == g for g in _greeting_signals
-        ):
-            return prompt  # Never enhance greetings
+        # 1. Deterministic shorthand expansion
+        det = self._deterministic_expand(prompt)
+        if det:
+            return det
 
-        # 1. User model expansion (profile-aware, higher fidelity)
+        # 2. User model expansion (profile-aware)
         try:
             from state.profiles.user_model import UserModel
-
             um = UserModel(self.ctx)
             expanded = um.get_intent_expansion(prompt)
             if expanded != prompt:
                 return expanded
         except Exception:
-            pass  # user model is enhancement — never block execution
+            pass
 
-        # 2. Generic Haiku enhancement fallback
+        # 3. LLM enhancement — AI upgrades when available
         try:
-            # Build context-aware enhancement prompt
-            _ctx_hint = ""
-            try:
-                _ctx_hint = (
-                    f"Business context: Lyfe Institute (Initiate Arena, $750, "
-                    f"90-day program, men 18-25). "
-                    f"Empyrean Creative (AI infrastructure, creative studio). "
-                    f"DEX is the name of the AI Executive Assistant — "
-                    f"never expand DEX as decentralized exchange. "
-                    f"Founder: Antony Munoz. North star: $10K/month. Stage 1 validation.\n\n"
-                )
-            except Exception:
-                pass
-
-            # Detect greetings and casual messages — never enhance these
-            _greeting_signals = [
-                "hey",
-                "hi",
-                "hello",
-                "morning",
-                "good morning",
-                "what's up",
-                "whats up",
-                "sup",
-                "yo",
-                "how are",
-                "how's it",
-                "hows it",
-                "what's going on",
-            ]
-            _prompt_lower = prompt.lower().strip()
-            _is_greeting = any(
-                _prompt_lower.startswith(g) or _prompt_lower == g
-                for g in _greeting_signals
-            )
-            if _is_greeting:
-                return prompt  # Never enhance greetings
-
             enhancement = self.runtime.run(
                 task_type=TaskType.CLASSIFY,
                 prompt=(
-                    _ctx_hint
-                    + "You are expanding a founder's shorthand message into a "
+                    "Business context: Lyfe Institute (Initiate Arena, $750, "
+                    "90-day program, men 18-25). "
+                    "Empyrean Creative (AI infrastructure, creative studio). "
+                    "DEX is the name of the AI Executive Assistant — "
+                    "never expand DEX as decentralized exchange. "
+                    "Founder: Antony Munoz. North star: $10K/month. Stage 1 validation.\n\n"
+                    "You are expanding a founder's shorthand message into a "
                     "precise, actionable execution prompt for their AI EA. "
                     "Preserve the original intent exactly. Do not add unrelated "
                     "context. Return ONLY the expanded prompt, nothing else:\n\n"
@@ -763,17 +723,38 @@ class CognitiveLoop:
         original_prompt: str,
         task_type: TaskType,
     ) -> dict:
+        """Deterministic-first quality check.
+
+        Layer 0 (deterministic): length, emptiness, error pattern detection.
+        Layer 1 (AI): LLM PASS/FAIL review for GENERATE tasks when available.
         """
-        Quick quality check. Returns {'passes': bool, 'issues': str|None}.
-        Scoring and classification tasks always pass — they are structured
-        by design. Generation tasks get a Haiku PASS/FAIL review.
-        """
+        if not output or not output.strip():
+            return {"passes": False, "issues": "Output is empty"}
+
         if len(output) < 50:
             return {"passes": False, "issues": "Output too short"}
 
-        if task_type in (TaskType.SCORE, TaskType.CLASSIFY):
+        if task_type in (TaskType.SCORE, TaskType.CLASSIFY, TaskType.SUMMARIZE,
+                         TaskType.FAST_RESPONSE):
             return {"passes": True, "issues": None}
 
+        # Deterministic checks that catch common LLM failure modes
+        _out_lower = output.lower()
+        _error_patterns = [
+            "i cannot", "i'm unable", "as an ai", "i don't have access",
+            "i apologize", "sorry, i can't",
+        ]
+        if any(p in _out_lower for p in _error_patterns) and len(output) < 200:
+            return {"passes": False, "issues": "Output contains refusal/error pattern"}
+
+        prompt_words = set(original_prompt.lower().split())
+        output_words = set(_out_lower.split())
+        if len(prompt_words) > 3:
+            overlap = prompt_words & output_words
+            if len(overlap) < 2:
+                return {"passes": False, "issues": "Output doesn't reference the request topic"}
+
+        # AI quality check — cognitive enhancement when available
         try:
             check = self.runtime.run(
                 task_type=TaskType.CLASSIFY,
@@ -791,7 +772,7 @@ class CognitiveLoop:
                 "issues": check.output if not passes else None,
             }
         except Exception:
-            return {"passes": True, "issues": None}  # never block on checker failure
+            return {"passes": True, "issues": None}
 
     def _reflect(
         self,

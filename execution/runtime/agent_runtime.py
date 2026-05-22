@@ -345,24 +345,36 @@ class AgentRuntime:
 
         # 3. Call the API — single path through model_router fallback chain:
         #    cc_sdk → Anthropic → Gemini → Ollama
+        #    Deterministic fallback if entire chain fails.
         from execution.runtime.model_router import call_with_fallback as _router_call
 
         _start = time.time()
+        output = ""
+        model = "deterministic/fallback"
+        tokens_used = {"input": 0, "output": 0, "total": 0}
 
-        routing_result = _router_call(
-            prompt=prompt,
-            system=system_prompt,
-            task_type=task_type.value,
-            agent_type=agent,
-            raw_input=raw_input,
-        )
-        output = routing_result.output
-        model = f"{routing_result.provider}/{routing_result.model}"
-        tokens_used = {
-            "input": routing_result.input_tokens,
-            "output": routing_result.output_tokens,
-            "total": routing_result.tokens_used,
-        }
+        try:
+            routing_result = _router_call(
+                prompt=prompt,
+                system=system_prompt,
+                task_type=task_type.value,
+                agent_type=agent,
+                raw_input=raw_input,
+            )
+            output = routing_result.output
+            model = f"{routing_result.provider}/{routing_result.model}"
+            tokens_used = {
+                "input": routing_result.input_tokens,
+                "output": routing_result.output_tokens,
+                "total": routing_result.tokens_used,
+            }
+        except Exception as _router_exc:
+            print(f"[AgentRuntime] All LLM providers failed: {_router_exc}")
+
+        if not output or not output.strip():
+            _tt = task_type.value if hasattr(task_type, "value") else str(task_type)
+            output = self._deterministic_fallback(prompt, _tt, skill_used)
+            model = "deterministic/fallback"
 
         _duration_ms = int((time.time() - _start) * 1000)
         _cost_usd = calculate_cost(model, tokens_used)
@@ -403,6 +415,28 @@ class AgentRuntime:
         result.authority = ae.check_can_execute(action_type)
 
         return result
+
+    @staticmethod
+    def _deterministic_fallback(prompt: str, task_type: str, skill_used: str | None) -> str:
+        """Produce a usable response when the entire LLM chain is down."""
+        _fallbacks = {
+            "score": "Unable to score — all intelligence providers are currently unavailable. "
+                     "The input has been logged. Retry shortly or score manually.",
+            "classify": "Classification unavailable — all providers offline. Input logged for retry.",
+            "summarize": f"Summary unavailable — providers offline.\n\nOriginal input (first 500 chars):\n{prompt[:500]}",
+            "fast_response": "I'm currently unable to process requests — all intelligence providers "
+                             "are offline. Your message has been logged and I'll respond when service resumes.",
+        }
+        if task_type in _fallbacks:
+            return _fallbacks[task_type]
+
+        return (
+            f"All intelligence providers are currently unavailable. "
+            f"Your {task_type} request has been logged.\n\n"
+            f"Request summary: {prompt[:200]}\n\n"
+            f"The system will retry automatically when providers come back online. "
+            f"You can also retry manually."
+        )
 
     def run_team_task(
         self,
