@@ -114,6 +114,30 @@ async def infra():
     except Exception:
         pass
 
+    try:
+        out = subprocess.run(
+            ["tailscale", "status", "--json"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if out.returncode == 0:
+            ts_data = json.loads(out.stdout)
+            peers = ts_data.get("Peer", {})
+            for _key, peer in peers.items():
+                hostname = peer.get("HostName", "unknown")
+                os_name = peer.get("OS", "")
+                online = peer.get("Online", False)
+                ip_addrs = peer.get("TailscaleIPs", [])
+                ip = ip_addrs[0] if ip_addrs else ""
+                nodes.append({
+                    "id": f"n-ts-{hostname}",
+                    "name": f"{hostname} ({os_name})",
+                    "type": "compute",
+                    "status": "healthy" if online else "down",
+                    "metrics": {"latency": 0},
+                })
+    except Exception:
+        pass
+
     return nodes
 
 
