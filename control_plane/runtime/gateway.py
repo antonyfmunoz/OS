@@ -218,6 +218,27 @@ AUTOMATION_TRIGGERS: dict[str, list[str]] = {
 }
 
 
+_ERROR_LOG_PATH = Path(
+    os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or "/opt/OS"
+) / "logs" / "gateway_errors.jsonl"
+
+
+def _record_error(component: str, error: str, context: dict | None = None) -> None:
+    """Append error to JSONL log. Every error is recorded for pattern detection."""
+    try:
+        _ERROR_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        entry = {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "component": component,
+            "error": str(error)[:500],
+            "context": {k: str(v)[:200] for k, v in (context or {}).items()},
+        }
+        with _ERROR_LOG_PATH.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(entry) + "\n")
+    except Exception:
+        pass
+
+
 def _utcnow() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -397,6 +418,7 @@ class EntrepreneurOSGateway:
                             "new_name": new_name,
                         }
                 except Exception as e:
+                    _record_error("rename_ai", e, {"new_name": new_name})
                     print(f"[Gateway] rename_ai failed: {e}")
 
         return None
@@ -407,17 +429,38 @@ class EntrepreneurOSGateway:
         t = text.lower()
         return any(s in t for s in EMAIL_INSTRUCTION_SIGNALS)
 
+    _EMAIL_FOLDERS = (
+        "antony", "to respond", "review", "responded",
+        "waiting on", "receipts-financials", "newsletters",
+    )
+
+    @staticmethod
+    def _deterministic_extract_email_instruction(text: str) -> dict | None:
+        """Regex-based folder instruction extraction — deterministic fallback."""
+        t = text.lower()
+        folder = None
+        for f in EntrepreneurOSGateway._EMAIL_FOLDERS:
+            if f in t:
+                folder = f.title()
+                break
+        if not folder:
+            return None
+        return {"folder_name": folder, "instruction": text}
+
     def _handle_email_instruction(self, request: dict) -> dict | None:
         """
         Detect and process founder email folder correction instructions.
         Updates the folder definition in Neon so all future classifications
-        use the new rule.
-        Returns a result dict if fired, else None.
+        use the new rule. Deterministic extraction first, AI refines.
         """
         text = request.get("prompt", "")
         if not text or not self._detect_email_instruction(text):
             return None
 
+        # Deterministic extraction first
+        data = self._deterministic_extract_email_instruction(text)
+
+        # Try AI for richer extraction
         try:
             from state.context.context import load_context_from_env
             from adapters.google_workspace.email_gps import EmailGPS
@@ -442,34 +485,44 @@ class EntrepreneurOSGateway:
                 max_tokens=120,
             )
 
-            import json, re as _json_re
+            import re as _json_re
 
             match = _json_re.search(r"\{.*\}", extraction, _json_re.DOTALL)
-            if not match:
-                return None
+            if match:
+                ai_data = json.loads(match.group())
+                if ai_data.get("folder_name"):
+                    data = ai_data
+        except Exception as e:
+            _record_error("email_instruction_ai", e, {"text": text[:200]})
+            print(f"[Gateway] Email instruction AI failed (using deterministic): {e}")
 
-            data = json.loads(match.group())
-            folder = data.get("folder_name", "")
-            instruction = data.get("instruction", text)
+        if not data or not data.get("folder_name"):
+            return None
 
-            if not folder:
-                return None
+        folder = data["folder_name"]
+        instruction = data.get("instruction", text)
 
+        try:
+            from state.context.context import load_context_from_env
+            from adapters.google_workspace.email_gps import EmailGPS
+
+            ctx_eos = load_context_from_env()
+            gps = EmailGPS(ctx_eos)
             new_purpose = gps.update_folder_purpose(folder, instruction)
             if new_purpose:
                 return {
                     "status": "ok",
                     "output": (
-                        f'✅ Updated "{folder}" definition.\n\n'
+                        f'Updated "{folder}" definition.\n\n'
                         f"New rule: {new_purpose}\n\n"
                         f"All future emails will use this definition. "
                         f"Run `!inbox` to apply to new emails."
                     ),
                     "action": "email_folder_update",
                 }
-
         except Exception as e:
-            print(f"[Gateway] Email instruction handler: {e}")
+            _record_error("email_instruction_update", e, {"folder": folder})
+            print(f"[Gateway] Email folder update failed: {e}")
 
         return None
 
@@ -800,8 +853,16 @@ class EntrepreneurOSGateway:
             else:
                 result = {"status": "error", "error": f"Unhandled type: {rtype}"}
         except Exception as exc:
+            _record_error(f"route_{rtype}", exc, {
+                "type": rtype, "prompt": prompt[:200] if prompt else "",
+            })
             self._log_gateway_event(request, "error", str(exc))
-            return {"status": "error", "error": str(exc)}
+            from execution.runtime.execution_spine import _deterministic_response
+            fallback_output = _deterministic_response(prompt) if prompt else (
+                "All intelligence providers are currently unavailable. "
+                "Your request has been logged and will be processed when service resumes."
+            )
+            return {"status": "ok", "output": fallback_output, "fallback": True}
 
         # 3b. Prepend stage transition message if one fired
         if stage_context and result.get("output"):
@@ -881,6 +942,7 @@ class EntrepreneurOSGateway:
             )
             return result or ""
         except Exception as e:
+            _record_error("web_search", e, {"query": query[:200]})
             print(f"[WebSearch] {e}")
             return ""
 
@@ -1064,6 +1126,9 @@ class EntrepreneurOSGateway:
             logging.getLogger(__name__).error(
                 f"ExecutionSpine failed, falling back to CognitiveLoop: {_spine_err}"
             )
+            _record_error("execution_spine", _spine_err, {
+                "agent": _spine_agent, "prompt": prompt[:200],
+            })
 
         # ── CognitiveLoop fallback — existing code below unchanged ───────────
         loop = CognitiveLoop(ctx)
@@ -1730,10 +1795,30 @@ class EntrepreneurOSGateway:
             import logging
 
             logging.getLogger(__name__).error(f"[Brief] Route failed: {e}")
+            _record_error("route_brief", e)
+            # Data-driven fallback — pull what we can from Neon
+            fallback_lines = ["MORNING BRIEF (offline mode)", ""]
+            try:
+                from state.business.venture_knowledge import VentureKnowledgeBase
+
+                for vid in VentureKnowledgeBase.list_ventures():
+                    v = VentureKnowledgeBase.get(vid)
+                    pct = (
+                        round(v.monthly_revenue / v.monthly_target * 100, 1)
+                        if v.monthly_target > 0
+                        else 0.0
+                    )
+                    fallback_lines.append(
+                        f"{vid}: ${v.monthly_revenue:,.0f}/${v.monthly_target:,.0f} ({pct}%)"
+                    )
+            except Exception:
+                fallback_lines.append("Venture data unavailable.")
+            fallback_lines.append("")
+            fallback_lines.append("Focus: revenue. Send 20 outreach messages today.")
             return {
                 "status": "ok",
-                "output": "Brief unavailable.",
-                "error": str(e),
+                "output": "\n".join(fallback_lines),
+                "fallback": True,
             }
 
     # ─── Approval queue ───────────────────────────────────────────────────────
@@ -1850,50 +1935,55 @@ class EntrepreneurOSGateway:
             results.append(result)
         return results
 
+    _INTENT_KEYWORDS: dict[str, tuple[str, ...]] = {
+        "CONVERSATION": ("hey ", "hi ", "hello", "what's up", "how are you",
+                         "good morning", "good evening", "sup ", "yo "),
+        "BRIEF": ("morning brief", "status update", "how are things",
+                  "what's happening", "daily brief", "give me a summary"),
+        "STRATEGY": ("strategic", "priorities", "what should i focus",
+                     "what matters most", "north star", "binding constraint"),
+        "OUTREACH": ("dm ", "leads", "pipeline", "prospect", "reply rate",
+                     "who replied", "follow up", "outreach", "cold email"),
+        "RESEARCH": ("market research", "competitor", "industry", " icp ",
+                     "research ", "what's working in the market"),
+        "CONTENT": ("content idea", "hook", "caption", "what to post",
+                    "thumbnail", "reel", "tweet"),
+        "DECISION": ("should i", "evaluating", "is this a good idea",
+                     "advice on", "which option", "decide between"),
+        "TASK": ("do this", "run this", "handle this", "delegate",
+                 "make this happen", "execute this", "deploy"),
+        "INTEL": ("signal", "market move", "alert", "what's happening out there",
+                  "intelligence report"),
+        "PORTFOLIO": ("all companies", "overall status", "capital allocation",
+                      "big picture", "portfolio", "across ventures"),
+        "JOURNAL": ("here's what happened", "reporting back", "fyi",
+                    "logging ", "update:", "here is what"),
+        "MODEL": ("model preference", "switching model", "cost mode",
+                  "which ai", "which model", "use opus", "use haiku"),
+    }
+
     def classify_intent(self, text: str) -> str:
         """
         Classify a natural language message into one of the known intents.
-        Single Haiku call. Returns the intent word in uppercase.
-        Falls back to 'UNKNOWN' on any failure.
+        Deterministic keyword matching first, AI refines ambiguous cases.
         """
-        _SYSTEM = (
-            "You are an intent router for an AI business operating system. "
-            "Classify the message into exactly one intent. "
-            "Reply with ONLY the intent word, nothing else.\n\n"
-            "INTENTS:\n"
-            "CONVERSATION — casual greeting, hey DEX, what's up, how are you, "
-            "what are we doing, chat, small talk, checking in\n"
-            "BRIEF — status updates, what's happening, morning brief, how are things, summary\n"
-            "STRATEGY — strategic advice, priorities, what should I focus on, what matters most\n"
-            "OUTREACH — DMs, leads, pipeline, prospects, reply rates, who replied, follow up\n"
-            "RESEARCH — market, competitors, industry, ICP, what's working in the market\n"
-            "CONTENT — content ideas, hooks, posts, captions, what to post\n"
-            "DECISION — should I do X, evaluating options, is this a good idea, advice on a choice\n"
-            "TASK — do this, run this, handle this, delegate, make this happen\n"
-            "INTEL — signals, market moves, alerts, what's happening out there\n"
-            "PORTFOLIO — all companies, overall status, capital allocation, big picture\n"
-            "JOURNAL — logging an update, here's what happened, reporting back, FYI\n"
-            "MODEL — model preferences, switching models, cost mode, which AI are you using\n"
-            "UNKNOWN — cannot determine intent clearly"
-        )
-        _VALID = {
-            "CONVERSATION",
-            "BRIEF",
-            "STRATEGY",
-            "OUTREACH",
-            "RESEARCH",
-            "CONTENT",
-            "DECISION",
-            "TASK",
-            "INTEL",
-            "PORTFOLIO",
-            "JOURNAL",
-            "MODEL",
-            "UNKNOWN",
-        }
+        t = text.lower()
+
+        for intent, keywords in self._INTENT_KEYWORDS.items():
+            if any(kw in t for kw in keywords):
+                return intent
+
+        # No keyword match — try AI for ambiguous cases
+        _VALID = set(self._INTENT_KEYWORDS.keys()) | {"UNKNOWN"}
         try:
             from execution.runtime.model_router import call_with_fallback, TaskType
 
+            _SYSTEM = (
+                "Classify this message into exactly one intent. "
+                "Reply with ONLY the intent word.\n"
+                "INTENTS: " + ", ".join(sorted(self._INTENT_KEYWORDS.keys()))
+                + ", UNKNOWN"
+            )
             result = call_with_fallback(
                 prompt=text,
                 system=_SYSTEM,
@@ -1902,7 +1992,8 @@ class EntrepreneurOSGateway:
             intent = result.output.strip().upper().split()[0]
             return intent if intent in _VALID else "UNKNOWN"
         except Exception as e:
-            print(f"[Gateway] classify_intent failed: {e}")
+            _record_error("classify_intent", e, {"text": text[:200]})
+            print(f"[Gateway] classify_intent AI failed: {e}")
             return "UNKNOWN"
 
     def get_pending_approvals(self) -> list[dict]:
