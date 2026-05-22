@@ -83,8 +83,55 @@ def get_pending_invites() -> list[dict]:
         return []
 
 
+import re as _re
+
+_SPAM_RE = _re.compile(
+    r"\b(webinar|demo\s+request|unsubscribe|newsletter|survey|promo|freebie"
+    r"|limited.time|act.now|exclusive.offer|no.reply)\b",
+    _re.IGNORECASE,
+)
+_BUSINESS_RE = _re.compile(
+    r"\b(sync|standup|stand.up|check.in|1.on.1|1:1|onboarding|kickoff"
+    r"|strategy|review|interview|intro|discovery|coaching|call|meeting"
+    r"|consultation|follow.up|debrief)\b",
+    _re.IGNORECASE,
+)
+_TRUSTED_DOMAINS = frozenset({
+    "gmail.com", "google.com", "notion.so", "calendly.com",
+})
+
+
+def _deterministic_assess(invite: dict) -> dict:
+    """Rules-based invite assessment. Always produces a usable result."""
+    title = invite.get("title", "").lower()
+    organizer = invite.get("organizer", "").lower()
+    desc = invite.get("description", "").lower()
+    combined = f"{title} {desc}"
+
+    if _SPAM_RE.search(combined):
+        return {"recommendation": "decline", "reason": "Matches spam pattern", "confidence": "high"}
+
+    org_domain = organizer.split("@")[-1] if "@" in organizer else ""
+    is_trusted = org_domain in _TRUSTED_DOMAINS
+
+    if _BUSINESS_RE.search(combined):
+        if is_trusted:
+            return {"recommendation": "accept", "reason": f"Business meeting from trusted domain ({org_domain})", "confidence": "high"}
+        return {"recommendation": "flag", "reason": "Business meeting from unknown sender", "confidence": "medium"}
+
+    if is_trusted:
+        return {"recommendation": "flag", "reason": f"Trusted domain ({org_domain}) but unclear purpose", "confidence": "medium"}
+
+    return {"recommendation": "flag", "reason": "Unknown sender and unclear purpose", "confidence": "low"}
+
+
 def assess_invite(invite: dict) -> dict:
-    """Use LLM to assess invite and recommend accept/decline."""
+    """Deterministic assessment first, AI refinement when available."""
+    deterministic = _deterministic_assess(invite)
+
+    if deterministic["confidence"] == "high":
+        return deterministic
+
     try:
         from execution.runtime.model_router import ModelRouter, TaskType
         from state.context.context import load_context_from_env
@@ -101,6 +148,8 @@ Rules:
 - Decline: spam, irrelevant, conflicts with deep work
 - Flag for Antony: anything with significant business or financial implications
 
+Deterministic pre-assessment: {deterministic['recommendation']} ({deterministic['reason']})
+
 Invite:
 Title: {invite['title']}
 From: {invite['organizer_name']} ({invite['organizer']})
@@ -114,8 +163,8 @@ Respond with JSON only:
         if '```' in result:
             result = result.split('```')[1].replace('json', '').strip()
         return json.loads(result)
-    except Exception as e:
-        return {'recommendation': 'flag', 'reason': f'Assessment failed: {e}', 'confidence': 'low'}
+    except Exception:
+        return deterministic
 
 
 def respond_to_invite(event_id: str, response: str) -> bool:

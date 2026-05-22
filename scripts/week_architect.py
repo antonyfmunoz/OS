@@ -84,10 +84,26 @@ Return a structured week design as plain text with:
 
 Be direct. Under 300 words."""
 
+    _day_themes = {
+        0: "Monday — Planning & deep work",
+        1: "Tuesday — Sales calls & outreach",
+        2: "Wednesday — Operations & follow-ups",
+        3: "Thursday — Sales calls & outreach",
+        4: "Friday — Wrap-up & review",
+    }
+    det_lines = []
+    for d in range(5):
+        det_lines.append(f"**{_day_themes.get(d, f'Day {d}')}**")
+    det_lines.append(f"\n**Binding constraint:** {constraint_name} — {constraint}")
+    det_lines.append(f"\n**Calendar:** {events_text[:300]}")
+    week_design = "\n".join(det_lines)
+
     try:
-        week_design = router.call(model, prompt).strip()
-    except Exception as e:
-        week_design = f'Week design unavailable: {e}'
+        ai_design = router.call(model, prompt).strip()
+        if ai_design and len(ai_design) > 50:
+            week_design = ai_design
+    except Exception:
+        pass
 
     message = (
         f'## Week Architecture — {now.strftime("%B %d")}\n\n'

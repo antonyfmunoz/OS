@@ -208,9 +208,17 @@ def main():
                 except Exception:
                     pass
 
-                _cp_agenda = _cp_router.call(_cp_model, f"""This is a recurring meeting.
+                _cp_loops_text = _cp_open_loops or 'None captured'
+                _cp_agenda = (
+                    f"Standing agenda for {_cp_title}:\n"
+                    f"- Updates since last session\n"
+                    f"- Open loops: {_cp_loops_text}\n"
+                    f"- Decisions needed"
+                )
+                try:
+                    _cp_ai = _cp_router.call(_cp_model, f"""This is a recurring meeting.
 Title: {_cp_title}
-Open loops from last session: {_cp_open_loops or 'None captured'}
+Open loops from last session: {_cp_loops_text}
 
 Draft a concise standing agenda for this recurring meeting.
 Include:
@@ -220,6 +228,10 @@ Include:
 - Decisions needed
 
 Under 100 words. Direct format.""").strip()
+                    if _cp_ai and len(_cp_ai) > 20:
+                        _cp_agenda = _cp_ai
+                except Exception:
+                    pass
 
                 brief += f'\n\n**🔄 Recurring meeting agenda:**\n{_cp_agenda}'
 

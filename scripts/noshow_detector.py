@@ -103,13 +103,22 @@ async def detect_noshows():
             except Exception as e:
                 print(f'[NoShow] Notion update failed for {person}: {e}')
 
+            draft = (
+                f"Subject: Missed you today\n\n"
+                f"Hey {person},\n\n"
+                f"Looks like we missed each other — no worries at all. "
+                f"If you'd like to reschedule, grab a time here: [Calendly link]\n\n"
+                f"— Antony"
+            )
             try:
-                draft = router.call(model, f"""Draft a brief no-show recovery email for {person}.
+                ai_draft = router.call(model, f"""Draft a brief no-show recovery email for {person}.
 Warm, no pressure, offer to reschedule.
 Under 4 sentences. Include [Calendly link] placeholder.
 Subject line included.""").strip()
-            except Exception as e:
-                draft = f'[Draft unavailable: {e}]'
+                if ai_draft and len(ai_draft) > 20:
+                    draft = ai_draft
+            except Exception:
+                pass
 
             # Queue for approval
             try:

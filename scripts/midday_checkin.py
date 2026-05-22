@@ -70,7 +70,9 @@ async def midday_checkin():
     afternoon_text = '\n'.join(afternoon) if afternoon else 'Clear afternoon'
     pending_text = f'{len(pending)} items pending approval' if pending else 'Nothing pending'
 
-    summary = router.call(model, f"""You are DEX, EA to the founder.
+    summary = f"Afternoon: {afternoon_text}. {pending_text}."
+    try:
+        ai_summary = router.call(model, f"""You are DEX, EA to the founder.
 Mid-day check-in. Be brief — 3 sentences max.
 
 Afternoon schedule:
@@ -80,6 +82,10 @@ Pending items: {pending_text}
 
 Surface anything urgent. Confirm afternoon is on track.
 Suggest one afternoon priority if relevant.""").strip()
+        if ai_summary and len(ai_summary) > 15:
+            summary = ai_summary
+    except Exception:
+        pass
 
     message = (
         f'🌤️ **Mid-day — {now.strftime("%-I:%M %p")}**\n\n'
