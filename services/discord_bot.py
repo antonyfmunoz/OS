@@ -197,11 +197,16 @@ from interface.presence.handlers.intent_handler import run_gateway as _handler_r
 from interface.presence.handlers.intent_handler import CHANNEL_MAP as _HANDLER_CHANNEL_MAP
 from interface.presence.handlers.pipeline_handler import handle_pipeline_update
 from interface.presence.handlers.cc_command_handler import try_inline_commands
-from interface.presence.handlers.substrate_command_handler import (
-    handle_substrate_command,
-    is_substrate_command,
-    log_startup as _substrate_log_startup,
-)
+try:
+    from interface.presence.handlers.substrate_command_handler import (
+        handle_substrate_command,
+        is_substrate_command,
+        log_startup as _substrate_log_startup,
+    )
+except ImportError:
+    async def handle_substrate_command(_msg, _text): pass
+    is_substrate_command = lambda _content: False
+    _substrate_log_startup = lambda: None
 
 # ─── Initialise ───────────────────────────────────────────────────────────────
 
