@@ -1,7 +1,7 @@
 ---
 type: palace-wing
 wing: core
-generated: 2026-05-07
+generated: 2026-05-21
 ---
 
 # Wing — core

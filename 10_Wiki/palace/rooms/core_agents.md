@@ -2,7 +2,7 @@
 type: palace-room
 room_id: core_agents
 wing: core
-generated: 2026-05-07
+generated: 2026-05-21
 ---
 
 # Room — Core Agents
@@ -21,21 +21,18 @@ These are the files you most often need; open them before grepping.
 
 | # | Locus | Score | Flags | One-liner |
 |---|-------|-------|-------|-----------|
-| 1 | [[core-primitives-py]] | 26 | — | L0 Ontological Primitives — the immutable atoms of EOS. |
-| 2 | [[core-action_system-control_plane-py]] | 14 | — | Control Plane — the public entry point for the EOS Action System. |
-| 3 | [[core-capability-py]] | 14 | — | capability.py — Permission + risk matrix for the unified EOS AI OS. |
-| 4 | [[core-action_system-logging-py]] | 12 | — | Append-only JSONL loggers for execution and decision records. |
-| 5 | [[core-environment-py]] | 12 | — | environment.py — Execution environment model for the EOS AI OS sandbox layer. |
-| 6 | [[core-orchestrator-pipeline-py]] | 10 | — | Pipeline — sequential composition of Control Plane actions. |
-| 7 | [[core-composer-py]] | 9 | — | Composition Engine — converts intent + context into executable primitive structu |
-| 8 | [[core-domain-eos-py]] | 9 | — | EOS domain compositions — L2 business structures mapped to L0 primitives. |
-| 9 | [[core-security-cli-py]] | 9 | `entry` | cli.py — Operator CLI for the EOS security layer. |
-| 10 | [[core-orchestrator-steps-py]] | 7 | — | Reusable orchestrator step helpers. |
-| 11 | [[core-tool_mastery_manager-coverage-py]] | 7 | — | Unified coverage evaluator for the Tool Mastery Manager. |
-| 12 | [[core-action_system-deferred-py]] | 6 | — | Durable persistence for deferred actions. |
-| 13 | [[core-connectors-base-py]] | 6 | — | Connector Base — common interface for real data ingestion. |
-| 14 | [[core-orchestrator-loop-py]] | 6 | — | Autonomous loop — deterministic orchestration cycle. |
-| 15 | [[core-security-environments-py]] | 6 | — | environments.py — Environment policy layer for the security module. |
+| 1 | [[core-environment-py]] | 10 | — | environment.py — Execution environment model for the EOS AI OS sandbox layer. |
+| 2 | [[core-capability-py]] | 6 | — | capability.py — Permission + risk matrix for the unified EOS AI OS. |
+| 3 | [[core-optimizer-py]] | 5 | `entry` | optimizer.py — Feedback loop for the EOS AI OS. |
+| 4 | [[core-observability-py]] | 4 | — | observability.py — Read-only view over the EOS AI OS. |
+| 5 | [[core-agent_harness-py]] | 3 | — | agent_harness.py — Unified execution surface for every agent in EOS. |
+| 6 | [[core-execution_contract-py]] | 2 | — | ExecutionContract — unified execution entry point for all EOS AI operations. |
+| 7 | [[core-advisor-py]] | 1 | — | advisor.py — Conditional intelligence layer for the EOS AI OS. |
+| 8 | [[core-persistent_agents-py]] | 1 | — | persistent_agents.py — Long-running stateful agents in the EOS OS. |
+| 9 | [[core-coord_assignment-py]] | 0 | — | Semantic Space v1.1 — Coordinate Assignment (Hybrid Index) |
+| 10 | [[core-paths-py]] | 0 | — | Centralized root path resolution for the UMH harness. |
+| 11 | [[core-semantic_space-py]] | 0 | — | Semantic Space v1.2 — Hybrid Coordinate Index with Cosine Reranking |
+| 12 | [[core-wiki_navigation-py]] | 0 | — | Wiki Navigation Layer — bridges graph nodes and Obsidian wiki pages. |
 
 ## Traversal
 
@@ -46,19 +43,16 @@ These are the files you most often need; open them before grepping.
 ## Raw Paths
 
 ```
-  core/primitives.py
-  core/action_system/control_plane.py
-  core/capability.py
-  core/action_system/logging.py
   core/environment.py
-  core/orchestrator/pipeline.py
-  core/composer.py
-  core/domain/eos.py
-  core/security/cli.py
-  core/orchestrator/steps.py
-  core/tool_mastery_manager/coverage.py
-  core/action_system/deferred.py
-  core/connectors/base.py
-  core/orchestrator/loop.py
-  core/security/environments.py
+  core/capability.py
+  core/optimizer.py
+  core/observability.py
+  core/agent_harness.py
+  core/execution_contract.py
+  core/advisor.py
+  core/persistent_agents.py
+  core/coord_assignment.py
+  core/paths.py
+  core/semantic_space.py
+  core/wiki_navigation.py
 ```

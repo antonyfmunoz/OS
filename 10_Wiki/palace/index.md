@@ -1,7 +1,7 @@
 ---
 type: palace-index
-generated: 2026-05-07T16:18:47.144482+00:00
-source_graph_generated: 2026-05-07T16:18:40.984885+00:00
+generated: 2026-05-21T05:36:21.682447+00:00
+source_graph_generated: 2026-05-21T05:35:53.500373+00:00
 graph_stale: False
 ---
 
@@ -11,12 +11,12 @@ graph_stale: False
 A navigable map of the codebase organized as rooms you already know.
 Use this BEFORE scanning the file tree — it tells you where to stand.
 
-**Loci promoted:** 82  
+**Loci promoted:** 42  
 **Rooms:** 7  
 **Wings:** 4  
-**Source graph generated:** 2026-05-07T16:18:40.984885+00:00  
-**Graph age:** 0.0 h  
-**Palace generated:** 2026-05-07T16:18:47.144504+00:00
+**Source graph generated:** 2026-05-21T05:35:53.500373+00:00  
+**Graph age:** 0.01 h  
+**Palace generated:** 2026-05-21T05:36:21.682463+00:00
 
 ## Usage
 
@@ -29,7 +29,7 @@ See [[../retrieval_rules|retrieval_rules.md]] for the enforced hierarchy.
 
 ## Wings
 
-### eos_ai
+### runtime
 
 - [[rooms/intelligence_core|Intelligence Core]] — Cognition loop, routing, identity, primitives — the mind of EOS.
 - [[rooms/memory_persistence|Memory & Persistence]] — Neon-backed memory, session state, authority, context.
@@ -51,5 +51,5 @@ See [[../retrieval_rules|retrieval_rules.md]] for the enforced hierarchy.
 ## Cloud Files
 
 - [[../cloud_palace|cloud_palace.md]] — palace usage rules
-- [[../codebase/cloud|codebase/cloud.md]] — codebase graph rules
+- [[cloud|data/codebase_pages/cloud.md]] — codebase graph rules
 - [[../retrieval_rules|retrieval_rules.md]] — retrieval hierarchy
