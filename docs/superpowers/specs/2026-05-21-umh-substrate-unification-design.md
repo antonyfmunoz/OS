@@ -1,7 +1,7 @@
 # UMH Substrate Unification — Architecture Contract
 
-**Date:** 2026-05-21
-**Status:** Draft v2 — world-class rewrite
+**Date:** 2026-05-21 (updated 2026-05-22)
+**Status:** Draft v2.1 — re-audited against codebase as of 2026-05-22
 **Approach:** Bottom-up substrate migration with aggressive pruning
 **Timeline:** 4–6 weeks, 7 phases
 **North Star:** Canonical UMH end-state spec (Google Drive doc, 8 tabs, 13,949 words)
@@ -10,24 +10,41 @@
 
 ## 1. Problem
 
-The `/opt/OS` repository contains ~320,000 lines of Python across 1,124 files.
-Only ~10,000 lines (15 files) carry production traffic. The rest breaks down as:
+The `/opt/OS` repository contains ~333,000 lines of Python across 1,194 files.
+Only ~15,000 lines (~25 files) carry production traffic. The rest breaks down as:
 
 | Category | Lines | Files | Production callers |
 |----------|------:|------:|:------------------:|
-| Disconnected UMH substrate (`services/umh/`) | ~12,000 | 68 | **0** |
+| UMH substrate (`services/umh/`) | ~32,800 | 192 | **partial** (organism daemon, cockpit API, node mesh have callers) |
 | Constitutional engines / workstation workers | ~20,000 | 45 | test-only |
 | v1 contracts (superseded) | ~15,000 | 40+ | **0** |
 | Duplicate implementations (2–4× for every core concept) | ~30,000 | 80+ | partial |
 | Transport infrastructure (not wired to substrate) | ~25,000 | 60+ | partial |
-| Production code (model routing, memory, governance, Discord) | ~10,000 | 15 | **all** |
+| Production code (model routing, memory, governance, Discord) | ~15,000 | 25 | **all** |
+| Organism runtime + node mesh + integrations | ~7,500 | 46 | test-only (built but not wired to production) |
+| Windows daemon + desktop adapters | ~1,278 | 14 | VPS: no; Windows node: yes |
+| Capability router + intent handler | ~1,020 | 2 | partial (intent_handler called by gateway) |
 
 Two complete, incompatible type systems coexist:
 
 - **Runtime dataclasses** — `str` IDs, no validation, no relationships. Used by everything running.
-- **UMH Pydantic protocols** — `UUID` IDs, validated fields, typed enums. Used by nothing running.
+- **UMH Pydantic protocols** — `UUID` IDs, validated fields, typed enums. Used by organism runtime only (not production path).
 
-Three parallel execution paths exist: `CognitiveLoop`, `ExecutionSpine`, and direct `AgentRuntime` calls. The canonical spec requires exactly **one**.
+Three parallel execution paths exist: `CognitiveLoop`, `ExecutionSpine`, and direct `AgentRuntime` calls. A fourth path — `ExecutionPipeline` in `services/umh/` — is wired to the organism daemon but has no production callers. The canonical spec requires exactly **one**.
+
+Since v2 of this spec (2026-05-21), 67 commits have added:
+- **Deterministic-first fallbacks** across model_router, cognitive_loop, gateway, agent_runtime, discord_bot, execution_spine, orchestrator
+- **Fix-forever error recording** at every LLM call site
+- **Organism runtime** — multi-agent society with advisor, worker cells, approval store (1,554 lines)
+- **Node mesh** — WebSocket-based multi-device coordination (850 lines)
+- **Integration framework** — CreatorOS + LyfeOS adapters with signal/handler/outcome pattern (5,148 lines)
+- **Windows daemon** — desktop adapters for clipboard, shell, filesystem, tray UI (1,278 lines)
+- **Capability router** — intent-driven tool selection (610 lines)
+- **Intent handler** — centralized deterministic intent classification (410 lines)
+- **Voice-first transport** — speak before text, acknowledge during generation (370 lines)
+- **Cockpit API** — 40 live backend endpoints for governance UI (1,034 lines)
+- **CLI agent adapters** — Codex, Hermes, OpenCode (616 lines total)
+- **Domain bridges** — creator.py (515 lines) and life.py (568 lines)
 
 ---
 
@@ -53,7 +70,7 @@ These are **locked**. They do not require further discussion.
 | 1 | Pydantic `BaseModel` with `UUID` IDs is the sole type system | UMH protocols already define it; runtime dataclasses are weaker |
 | 2 | `SignalEnvelope` is the universal input type for all transports | Every transport (Discord, API, WebSocket, cron) produces one shape |
 | 3 | `PrimitiveType` (10 values) and `OntologicalCategory` (8 values) are orthogonal dimensions — both survive | PrimitiveType = what it is; OntologicalCategory = what kind of being it is |
-| 4 | `model_router.call_with_fallback()` is the sole LLM adapter — wrapped, not replaced | 1,254 lines, circuit breaker, multi-provider, production-proven |
+| 4 | `model_router.call_with_fallback()` is the sole LLM adapter — wrapped, not replaced | 1,516 lines, circuit breaker, multi-provider, deterministic fallbacks, production-proven |
 | 5 | No Neon schema destruction — new tables added alongside existing | 35,485 interactions, 35,277 embeddings, 27,851 events |
 | 6 | `substrate/__init__.py` is the only public API for projections | Hard boundary: projections never import `substrate.control_plane.*` |
 | 7 | Full rebuild window — Discord bot offline during migration | Founder-approved; no users to serve yet |
@@ -92,14 +109,26 @@ These are **locked**. They do not require further discussion.
 │   │       ├── decomposer.py      # PrimitiveDecomposer
 │   │       ├── sources.py         # LocalFileSource, GWSSource
 │   │       └── domain_bridge.py   # Domain projection layer
+│   ├── organism/                  # Organism runtime (from services/umh/organism/)
+│   │   ├── daemon.py              # OrganismDaemon — agent lifecycle management
+│   │   ├── advisor.py             # Advisor — multi-agent orchestration
+│   │   ├── worker_cell.py         # WorkerCell — distributed execution units
+│   │   ├── approval_store.py      # ApprovalStore — governance layer
+│   │   ├── agents.py              # Agent definitions
+│   │   ├── agent_runtime.py       # Organism-specific agent runtime (192 lines)
+│   │   ├── store.py               # OrganismStore — state persistence
+│   │   └── protocols.py           # Pydantic models: Deliverable, AgentMessage, WorkerSpec, CritiqueResult, LearningSignal
 │   └── learning/                  # Cross-tier: Evolution (post-MVP)
 │
 ├── adapters/                      # Tier 3: External system interfaces
 │   ├── __init__.py
 │   ├── protocol.py                # Adapter Protocol (Section 8)
 │   ├── models/                    # LLM routing
-│   │   ├── model_router.py        # Surviving 1,254-line router
+│   │   ├── model_router.py        # Surviving 1,516-line router (deterministic-first)
 │   │   ├── cc_sdk.py              # Claude Code CLI adapter (464 lines)
+│   │   ├── codex_cli.py           # Codex CLI agent adapter (258 lines)
+│   │   ├── hermes_cli.py          # Hermes CLI agent adapter (178 lines)
+│   │   ├── opencode_cli.py        # OpenCode CLI agent adapter (180 lines)
 │   │   └── llm_adapter.py         # Protocol wrapper around model_router
 │   ├── google_workspace/          # GWS connector + scanner (3,531 lines)
 │   ├── browser/                   # Browser automation adapter
@@ -119,12 +148,19 @@ These are **locked**. They do not require further discussion.
 │
 ├── transports/                    # User-facing interfaces
 │   ├── discord/                   # Discord bot
-│   │   ├── bot.py                 # Refactored from services/discord_bot.py
-│   │   └── signal_factory.py      # Message → SignalEnvelope
+│   │   ├── bot.py                 # Refactored from services/discord_bot.py (5,481 lines)
+│   │   ├── signal_factory.py      # Message → SignalEnvelope
+│   │   └── voice_first.py         # Voice-first response path (370 lines)
 │   ├── api/                       # REST + WebSocket operator API
 │   │   ├── operator.py            # Refactored from services/operator_api.py
+│   │   ├── cockpit.py             # Cockpit governance API (1,034 lines, 40 endpoints)
 │   │   └── signal_factory.py
-│   └── cockpit/                   # React dashboard (wire post-MVP)
+│   ├── cockpit/                   # React dashboard
+│   └── node_mesh/                 # Multi-device WebSocket mesh (850 lines)
+│       ├── server.py              # NodeMeshServer — device coordination
+│       ├── registry.py            # ConnectedNode registry
+│       ├── config.py              # MeshConfig
+│       └── metrics_buffer.py      # MetricsBuffer
 │
 ├── knowledge/                     # Curated knowledge (replaces 10_Wiki/)
 │   ├── index.md
@@ -148,6 +184,16 @@ These are **locked**. They do not require further discussion.
 │   │   └── skill_registry.py
 │   ├── profiles/                  # User/human model data
 │   └── preferences/               # Model preferences
+│
+├── integrations/                  # Platform integration adapters
+│   ├── creatoros/                 # CreatorOS signal/handler/outcome pattern (7 files)
+│   ├── lyfeos/                    # LyfeOS signal/handler/outcome pattern (7 files)
+│   └── node_mesh/                 # Node mesh integration handlers
+│
+├── daemon/                        # Windows node daemon (1,278 lines)
+│   ├── umh_node/                  # Node client, governance, metrics, workspace
+│   │   └── adapters/              # Clipboard, desktop, filesystem, shell
+│   └── umh_desktop/               # System tray UI
 │
 ├── composition/                   # Tool Mastery Engine (operator tooling)
 ├── scripts/                       # Operator scripts, cron jobs
@@ -281,6 +327,8 @@ class SignalSource(str, Enum):
     SCHEDULED = "scheduled"
     INTERNAL_EVENT = "internal_event"
     ADAPTER = "adapter"
+    NODE_MESH = "node_mesh"
+    ORGANISM = "organism"
 
 class SignalUrgency(str, Enum):
     IMMEDIATE = "immediate"
@@ -542,6 +590,8 @@ class ComponentType(str, Enum):
     SKILL = "skill"
     WORKFLOW = "workflow"
     TRANSPORT = "transport"
+    NODE = "node"
+    INTEGRATION = "integration"
 
 class ComponentStatus(str, Enum):
     ACTIVE = "active"
@@ -764,10 +814,12 @@ class SignalRouter(Protocol):
 **Invariant:** `route()` is the single entry point from transports. It orchestrates the full lifecycle: identity → context → governance → spine.
 
 **Source mapping:**
-- `control_plane/runtime/gateway.py` → `EntrepreneurOSGateway.handle()` flow: capability tagging → schema validation → approval gate → memory → route by type
+- `control_plane/runtime/gateway.py` (2,063 lines) → `EntrepreneurOSGateway.handle()` flow: capability tagging → schema validation → approval gate → memory → route by type. Now includes deterministic-first intent classification and fix-forever error recording.
+- `interface/presence/handlers/intent_handler.py` (410 lines) → centralized deterministic intent classification with pattern matching fallback
+- `execution/runtime/capability_router.py` (610 lines) → intent-driven tool selection and dynamic routing
 - `services/umh/control_plane/pipeline.py` → `ExecutionPipeline.submit_signal()` 10-stage pipeline
 
-**Concrete implementation:** ~300 lines. This is the integration point that wires all subsystems together.
+**Concrete implementation:** ~350 lines. This is the integration point that wires all subsystems together. Absorbs the deterministic intent classification from gateway + intent_handler.
 
 ### 7.7 ExecutionSpine
 
@@ -780,24 +832,27 @@ class ExecutionSpine(Protocol):
 **Invariant:** Every call to `execute()` produces exactly one `TraceRecord` and one `FeedbackRecord` in Neon. No exception.
 
 **Source mapping:**
-- `control_plane/runtime/cognitive_loop.py` → 8 stages: PERCEIVE, UNDERSTAND, PLAN, EXECUTE, VERIFY, REFLECT, LEARN, STORE
-- `execution/runtime/execution_spine.py` → thin execution path
+- `control_plane/runtime/cognitive_loop.py` (1,448 lines) → 8 stages: PERCEIVE, UNDERSTAND, PLAN, EXECUTE, VERIFY, REFLECT, LEARN, STORE. Now includes deterministic-first fallbacks and fix-forever error recording at every LLM call site.
+- `execution/runtime/execution_spine.py` → thin execution path with deterministic intent-aware fallback responses
+- `execution/runtime/agent_runtime.py` (628 lines) → multi-model dispatch with deterministic-first + fix-forever
 - `services/umh/control_plane/pipeline.py` → 10-stage pipeline: signal → trace → govern → work_packet → execute → proof → outcome → trace_store → memory_candidate → memory_promote
 
 **Merged spine stages:**
 
 | # | Stage | What it does | Source |
 |---|-------|-------------|--------|
-| 1 | Interpret | Decompose signal into primitives + extract intent | CogLoop.PERCEIVE + UMH Interpretation |
+| 1 | Interpret | Deterministic intent classification → LLM decomposition if needed | gateway intent_handler (deterministic-first) + CogLoop.PERCEIVE + UMH Interpretation |
 | 2 | Recall | Semantic memory search for relevant context | CogLoop.UNDERSTAND + AgentMemory.semantic_search |
-| 3 | Lookup | Registry query for capable adapters/agents | UMH pipeline + registry |
+| 3 | Lookup | Registry query for capable adapters/agents + capability routing | capability_router + UMH pipeline + registry |
 | 4 | Compose | Build execution plan (prompt + model selection + params) | CogLoop.PLAN + UMH WorkPacket |
 | 5 | Route | Select adapter and dispatch | model_router.call_with_fallback() |
-| 6 | Execute | Invoke adapter, get response | CogLoop.EXECUTE + UMH executor |
-| 7 | Trace | Record full execution provenance | UMH TraceStore |
+| 6 | Execute | Invoke adapter, get response; deterministic fallback if all LLMs fail | CogLoop.EXECUTE + UMH executor + deterministic spine fallback |
+| 7 | Trace | Record full execution provenance + error recording | UMH TraceStore + fix-forever error log |
 | 8 | Feedback | Capture outcome observation + quality signal | CogLoop.REFLECT/LEARN + UMH OutcomeClassifier |
 
-**Concrete implementation:** ~400 lines. The heart of the substrate.
+**Deterministic-first principle in the spine:** Every LLM call site has a deterministic fallback path (regex/rules/templates) that produces a usable result when all providers are down. The spine never returns empty — it always has an intent-aware deterministic response available. This was applied across all production files in 67 commits since this spec was first written.
+
+**Concrete implementation:** ~450 lines. The heart of the substrate.
 
 ### 7.8 TraceRecorder
 
@@ -861,9 +916,11 @@ class Adapter(Protocol):
 class LLMAdapter:
     """Wraps model_router.call_with_fallback() as a substrate Adapter.
 
-    Does NOT modify model_router internals. The 1,254-line router,
-    circuit breaker, multi-provider fallback, and cc_sdk integration
-    survive as-is.
+    Does NOT modify model_router internals. The 1,516-line router,
+    circuit breaker, multi-provider fallback, deterministic-first
+    fallbacks, fix-forever error recording, and cc_sdk integration
+    survive as-is. New CLI adapters (Codex, Hermes, OpenCode) are
+    already integrated into the provider chain.
     """
 
     adapter_id: UUID = Field(default_factory=uuid4)
@@ -908,7 +965,7 @@ class LLMAdapter:
         return ["text_generation", "analysis", "code", "vision", "conversation"]
 ```
 
-**call_with_fallback signature (production, 1,254 lines):**
+**call_with_fallback signature (production, 1,516 lines):**
 
 ```python
 def call_with_fallback(
@@ -1292,15 +1349,20 @@ python3 -m pytest tests/adapters/ -v
 **Goal:** All user interfaces produce `SignalEnvelope` and route through `substrate.execute()`.
 
 **Actions:**
-1. Refactor `services/discord_bot.py` (5,342 lines) → `transports/discord/bot.py`
+1. Refactor `services/discord_bot.py` (5,481 lines) → `transports/discord/bot.py`
    - Strip direct gateway/cognitive_loop calls
    - Add `signal_factory.py` — every Discord message → `SignalEnvelope`
    - Call `substrate.execute(envelope)` for all responses
    - Preserve voice/vision attachment handling (multimodal envelopes)
+   - Migrate `execution/transport/voice_first.py` (370 lines) → `transports/discord/voice_first.py`
 2. Refactor `services/operator_api.py` → `transports/api/operator.py`
    - All REST and WebSocket endpoints → `SignalEnvelope` → `substrate.execute()`
-3. Move `apps/cockpit/` → `transports/cockpit/` (wire post-MVP)
-4. Rebuild Docker containers with new import paths
+3. Migrate `services/umh/control_plane/cockpit_api.py` (1,034 lines, 40 endpoints) → `transports/api/cockpit.py`
+   - Already serves live UMH data; rewire to call substrate.execute() and substrate.query()
+4. Migrate `services/umh/node_mesh/` (850 lines) → `transports/node_mesh/`
+   - NodeMeshServer already uses WebSocket + SignalSocket pattern; rewire to substrate
+5. Move `apps/cockpit/` → `transports/cockpit/` (React dashboard)
+6. Rebuild Docker containers with new import paths
 
 **Verification gate:**
 ```bash
@@ -1442,31 +1504,41 @@ python3 -m pytest tests/acceptance/test_eos_outreach_flow.py -v
 
 ---
 
-## 14. What Gets Deleted (~250,000 lines)
+## 14. What Gets Deleted (~230,000 lines)
 
 | Category | Approx Lines | Files | Value Already Extracted? |
 |----------|------------:|------:|:------------------------:|
 | `execution/workers/workstation/` constitutional engines | ~20,000 | 45 | No — future organism runtime (post-MVP) |
-| `execution/transport/` bulk transport infra | ~20,000 | 60 | Partial — patterns inform `transports/` |
-| `execution/runtime/` v1 contracts | ~15,000 | 40+ | Yes — superseded by `substrate/types.py` |
-| `services/umh/` remainder after extraction | ~8,000 | 30 | Yes — protocols + pipeline merged |
+| `execution/transport/` bulk transport infra (excluding voice_first.py) | ~19,600 | 59 | Partial — patterns inform `transports/` |
+| `execution/runtime/` v1 contracts (excluding model_router, agent_runtime, capability_router) | ~12,000 | 37 | Yes — superseded by `substrate/types.py` |
+| `services/umh/` remainder after extraction (protocols, pipeline, governance, observability, sockets, foundation, execution, memory, awareness, model_routing, launch, proofs, tests, workstation, data) | ~15,000 | 80 | Yes — protocols + pipeline + organism + node_mesh + integrations extracted |
 | `control_plane/` non-core subdirs (actions, delegation, coordination, events, goals, strategy, onboarding, scheduling) | ~10,000 | 35 | No — premature, rebuild on substrate when needed |
 | `core/` most files | ~4,000 | 20 | Partial — contracts superseded by substrate |
-| `understanding/` non-ontology remainder | ~5,000 | 15 | Yes — ontology merged |
+| `understanding/` non-ontology remainder (excluding domain bridges) | ~4,000 | 12 | Yes — ontology merged |
 | `execution/environments/` work packet builders | ~3,000 | 10 | No — rebuild on adapter interface |
 | `execution/workflows/` | ~1,000 | 5 | No — rebuild on substrate composition |
 | `execution/agents/` browser agent | ~600 | 3 | No — rebuild as browser adapter |
 | `execution/tasks/` task executor | ~300 | 2 | Yes — merged into spine |
 | `execution/engine/` | ~300 | 2 | Yes — superseded by spine |
 | `runtime/` (root-level stubs) | ~800 | 8 | Yes — everything useful already in state/ |
-| `interface/` (after transport extraction) | ~4,000 | 15 | Yes — merged into transports |
+| `interface/` (after intent_handler extraction) | ~3,600 | 14 | Yes — intent_handler merged into router |
 | `observability/` (after trace extraction) | ~900 | 5 | Yes — merged into substrate trace |
 | `operations/` (after memory merge) | ~2,400 | 10 | Yes — merged into substrate memory |
+| `archive/` legacy archive | ~23,000 | 93 | No — already archived, safe to delete |
+| `.agents/` agent soul docs | ~9,000 | 35 | Partial — agent definitions migrate to registry |
 | Dead test files (tests for deleted code) | ~20,000 | 100+ | No — tests for code that no longer exists |
 | Miscellaneous duplicates and dead imports | ~5,000+ | 50+ | N/A |
 
-**Total deleted: ~250,000 lines across ~500+ files.**
-**Total surviving: ~80,000–100,000 lines across ~200 files.**
+**What survives extraction from `services/umh/` (migrated, not deleted):**
+- `organism/` (1,554 lines, 9 files) → `substrate/organism/`
+- `node_mesh/` (850 lines, 6 files) → `transports/node_mesh/`
+- `integrations/` (5,148 lines, 21 files) → `integrations/`
+- `control_plane/cockpit_api.py` (1,034 lines) → `transports/api/cockpit.py`
+- `protocols/*.py` (14 files) → `substrate/types.py`
+- `control_plane/pipeline.py` → patterns into `substrate/execution/spine.py`
+
+**Total deleted: ~230,000 lines across ~600+ files.**
+**Total surviving: ~100,000–110,000 lines across ~250 files.**
 
 **Pre-deletion safeguard:** `git tag pre-unification` preserves full history. Every deleted directory is archived in git, not lost.
 
@@ -1500,33 +1572,54 @@ After substrate MVP, the remaining 13 of 24 subsystems build on this foundation.
 
 | Current Location | New Location | Lines | Status |
 |------------------|-------------|------:|--------|
-| `execution/runtime/model_router.py` | `adapters/models/model_router.py` | 1,254 | CONFIRMED_RUNTIME |
+| `execution/runtime/model_router.py` | `adapters/models/model_router.py` | 1,516 | CONFIRMED_RUNTIME |
 | `adapters/model_adapters/cc_sdk.py` | `adapters/models/cc_sdk.py` | 464 | CONFIRMED_RUNTIME |
-| `state/memory/memory.py` | `state/memory/memory.py` | ~400 | CONFIRMED_RUNTIME |
+| `adapters/model_adapters/codex_cli.py` | `adapters/models/codex_cli.py` | 258 | CONFIRMED_RUNTIME |
+| `adapters/model_adapters/hermes_cli.py` | `adapters/models/hermes_cli.py` | 178 | CONFIRMED_RUNTIME |
+| `adapters/model_adapters/opencode_cli.py` | `adapters/models/opencode_cli.py` | 180 | CONFIRMED_RUNTIME |
+| `execution/runtime/agent_runtime.py` | `adapters/models/agent_runtime.py` | 628 | CONFIRMED_RUNTIME |
+| `state/memory/memory.py` | `state/memory/memory.py` | 1,039 | CONFIRMED_RUNTIME |
 | `state/storage/db.py` | `state/storage/db.py` | ~100 | CONFIRMED_RUNTIME |
 | `state/context/context.py` | `state/context/context.py` | ~200 | CONFIRMED_RUNTIME |
 | `state/business/business_instance.py` | `state/business/business_instance.py` | ~200 | CONFIRMED_RUNTIME |
-| `governance/policy/authority_engine.py` | → merged into `substrate/control_plane/governance.py` | ~500 | CONFIRMED_RUNTIME |
+| `governance/policy/authority_engine.py` | → merged into `substrate/control_plane/governance.py` | 225 | CONFIRMED_RUNTIME |
 | `control_plane/identity/ai_identity.py` | → merged into `substrate/control_plane/identity.py` | ~300 | CONFIRMED_RUNTIME |
-| `services/discord_bot.py` | `transports/discord/bot.py` | 5,342 | CONFIRMED_RUNTIME |
-| `services/operator_api.py` | `transports/api/operator.py` | ~1,000 | CONFIRMED_RUNTIME |
+| `services/discord_bot.py` | `transports/discord/bot.py` | 5,481 | CONFIRMED_RUNTIME |
+| `services/operator_api.py` | `transports/api/operator.py` | 554 | CONFIRMED_RUNTIME |
 | `adapters/google_workspace/` | `adapters/google_workspace/` | 3,531 | CONFIRMED_RUNTIME |
 | `execution/voice/` | `adapters/capabilities/voice/` | ~1,000 | CONFIRMED_RUNTIME |
 | `state/registries/skill_registry.py` | `state/registries/skill_registry.py` | ~200 | CONFIRMED_RUNTIME |
+| `execution/transport/voice_first.py` | `transports/discord/voice_first.py` | 370 | NEW — voice-first response path |
+| `execution/runtime/capability_router.py` | → merged into `substrate/control_plane/router.py` | 610 | NEW — intent-driven tool selection |
+| `interface/presence/handlers/intent_handler.py` | → merged into `substrate/control_plane/router.py` | 410 | NEW — deterministic intent classification |
+
+### New subsystems extracted from `services/umh/` (relocate intact)
+
+| Current Location | New Location | Lines | Files | Status |
+|------------------|-------------|------:|------:|--------|
+| `services/umh/organism/` | `substrate/organism/` | 1,554 | 9 | Built, tested, not wired to production |
+| `services/umh/node_mesh/` | `transports/node_mesh/` | 850 | 6 | Built, tested, not wired to production |
+| `services/umh/integrations/creatoros/` | `integrations/creatoros/` | ~2,500 | 7 | Built, tested |
+| `services/umh/integrations/lyfeos/` | `integrations/lyfeos/` | ~2,500 | 7 | Built, tested |
+| `services/umh/control_plane/cockpit_api.py` | `transports/api/cockpit.py` | 1,034 | 1 | 40 live endpoints |
+| `understanding/domains/creator.py` | `substrate/ontology/domains/creator.py` | 515 | 1 | NEW — creator domain bridge |
+| `understanding/domains/life.py` | `substrate/ontology/domains/life.py` | 568 | 1 | NEW — life domain bridge |
+| `daemon/` | `daemon/` (stays) | 1,278 | 14 | Windows node — runs on desktop, not VPS |
 
 ### Valuable code merged into substrate (extract patterns, delete originals)
 
 | Current Location | Merges Into | Value Extracted |
 |------------------|-------------|-----------------|
-| `control_plane/runtime/cognitive_loop.py` | `substrate/execution/spine.py` | 8-stage execution pattern |
-| `control_plane/runtime/gateway.py` | `substrate/control_plane/router.py` | Signal routing, intent classification |
-| `execution/runtime/execution_spine.py` | `substrate/execution/spine.py` | Thin execution structure |
+| `control_plane/runtime/cognitive_loop.py` (1,448 lines) | `substrate/execution/spine.py` | 8-stage execution pattern + deterministic fallbacks |
+| `control_plane/runtime/gateway.py` (2,063 lines) | `substrate/control_plane/router.py` | Signal routing, deterministic intent classification, fix-forever error recording |
+| `execution/runtime/execution_spine.py` | `substrate/execution/spine.py` | Thin execution structure + deterministic intent-aware fallback |
 | `services/umh/foundation/primitives.py` | `substrate/ontology/primitives.py` | OntologicalCategory, TemporalMode |
 | `services/umh/foundation/laws.py` | `substrate/ontology/laws.py` | Law definitions |
 | `services/umh/protocols/*.py` | `substrate/types.py` | All Pydantic protocol models |
 | `services/umh/governance/` | `substrate/control_plane/governance.py` | Policy engine patterns |
 | `services/umh/observability/` | `substrate/execution/trace.py` | Trace store, outcome classifier |
 | `services/umh/control_plane/pipeline.py` | `substrate/execution/spine.py` | 10-stage pipeline pattern |
+| `services/umh/organism/protocols.py` | `substrate/types.py` | Deliverable, AgentMessage, WorkerSpec, CritiqueResult, LearningSignal |
 | `understanding/ontology/primitives.py` | `substrate/ontology/primitives.py` | PrimitiveType enum |
 | `understanding/ontology/primitive_decomposition_v1.py` | `substrate/execution/ingestion/decomposer.py` | LLM extraction logic |
 | `learning/feedback/feedback_loop.py` | `substrate/execution/feedback.py` | Feedback capture |
