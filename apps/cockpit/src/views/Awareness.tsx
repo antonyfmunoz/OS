@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { clsx } from 'clsx'
 import { useCockpitStore } from '../stores/cockpitStore.ts'
-import { MOCK_GLOBAL_EVENTS, MOCK_SYNTHESES } from '../lib/mockData.ts'
 import { relativeTime } from '../lib/time.ts'
-import type { AwarenessTier, GlobalLayer } from '../types/awareness.ts'
+import type { AwarenessTier, GlobalLayer, GlobalEvent, AISynthesis } from '../types/awareness.ts'
 
 const TIERS: { id: AwarenessTier; label: string; desc: string }[] = [
   { id: 'embodied', label: 'Embodied', desc: 'Physical self — health, location, biometrics' },
@@ -107,7 +106,6 @@ function TacticalMap() {
           <div className="text-[10px] text-text-tertiary mt-1">Globe/Mapbox/Deck.gl integration point</div>
         </div>
       </div>
-      {/* Grid overlay */}
       <svg className="absolute inset-0 w-full h-full opacity-5">
         <defs>
           <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
@@ -120,21 +118,21 @@ function TacticalMap() {
   )
 }
 
-function EventFeed() {
+function EventFeed({ events }: { events: GlobalEvent[] }) {
   const { globalLayers } = useCockpitStore()
   const [filter, setFilter] = useState<'all' | 'critical' | 'warning'>('all')
 
-  const filtered = MOCK_GLOBAL_EVENTS
+  const filtered = events
     .filter((e) => globalLayers.has(e.layer))
     .filter((e) => filter === 'all' || e.severity === filter)
     .sort((a, b) => b.relevance - a.relevance)
 
-  const severityColor = {
+  const severityColor: Record<string, string> = {
     info: 'text-text-secondary',
     warning: 'text-warn',
     critical: 'text-danger',
   }
-  const severityBadge = {
+  const severityBadge: Record<string, string> = {
     info: 'wv-badge-cyan',
     warning: 'wv-badge-warn',
     critical: 'wv-badge-danger',
@@ -178,7 +176,7 @@ function EventFeed() {
         ))}
         {filtered.length === 0 && (
           <div className="text-center text-text-tertiary text-[11px] py-8">
-            No events matching active layers
+            No events — awaiting live feed adapters
           </div>
         )}
       </div>
@@ -186,11 +184,14 @@ function EventFeed() {
   )
 }
 
-function SynthesisRail() {
+function SynthesisRail({ syntheses }: { syntheses: AISynthesis[] }) {
   return (
     <div className="w-80 flex flex-col gap-3">
       <div className="wv-label px-1">AI SYNTHESIS</div>
-      {MOCK_SYNTHESES.map((s) => (
+      {syntheses.length === 0 && (
+        <div className="wv-card p-3 text-center text-text-tertiary text-[11px]">No syntheses available</div>
+      )}
+      {syntheses.map((s) => (
         <div key={s.id} className="wv-card p-3">
           <div className="flex items-center justify-between mb-1">
             <span className="text-[11px] text-cyan">{s.title}</span>
@@ -207,15 +208,18 @@ function SynthesisRail() {
 }
 
 function GlobalView() {
+  const events: GlobalEvent[] = []
+  const syntheses: AISynthesis[] = []
+
   return (
     <div className="flex-1 flex flex-col gap-3 overflow-hidden">
       <LayerToggles />
       <div className="flex gap-3 flex-1 min-h-0">
         <div className="flex-1 flex flex-col gap-3">
           <TacticalMap />
-          <EventFeed />
+          <EventFeed events={events} />
         </div>
-        <SynthesisRail />
+        <SynthesisRail syntheses={syntheses} />
       </div>
     </div>
   )
