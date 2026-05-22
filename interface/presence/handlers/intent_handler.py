@@ -9,14 +9,31 @@ import os
 import re
 import sys
 import uuid as _uuid_mod
-from datetime import datetime
+from datetime import datetime, timezone
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
-_REPO_ROOT = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-)
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
+
+_INTENT_HANDLER_ERROR_LOG = Path(_REPO_ROOT) / "logs" / "intent_handler_errors.jsonl"
+
+
+def _record_error(component: str, error: Exception | str, context: dict | None = None) -> None:
+    try:
+        _INTENT_HANDLER_ERROR_LOG.parent.mkdir(parents=True, exist_ok=True)
+        record = {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "component": component,
+            "error": str(error),
+            "error_type": type(error).__name__ if isinstance(error, Exception) else "str",
+            "context": context or {},
+        }
+        with open(_INTENT_HANDLER_ERROR_LOG, "a") as f:
+            f.write(json.dumps(record) + "\n")
+    except Exception:
+        pass
 
 
 # Channel name → intent routing hint
@@ -133,9 +150,10 @@ def run_gateway(
         channel_sessions[channel_name] = str(_uuid_mod.uuid4())
         try:
             from execution.transport.storage import get_storage
+
             get_storage().put(f"session:{channel_name}", channel_sessions[channel_name])
-        except Exception:
-            pass
+        except Exception as _ss_err:
+            _record_error("session_storage_persist", _ss_err, {"channel": channel_name})
     session_id = channel_sessions[channel_name]
 
     # Classify intent
@@ -159,16 +177,24 @@ def run_gateway(
                 agent="bypass_handler",
             )
         except Exception as _mo_err:
+            _record_error("memory_only_write", _mo_err, {"channel": channel_name, "user": username})
             print(f"[IntentHandler] memory_only write failed: {_mo_err}")
         try:
             ki.integrate(
                 content=f"Discord #{channel_name}\nUser: {text[:300]}\nSystem: [handled by bypass]",
                 source="discord_conversation",
                 category="conversation",
-                metadata={"channel": channel_name, "user": username, "intent": intent, "memory_only": True},
+                metadata={
+                    "channel": channel_name,
+                    "user": username,
+                    "intent": intent,
+                    "memory_only": True,
+                },
             )
-        except Exception:
-            pass
+        except Exception as _ki_mo_err:
+            _record_error(
+                "ki_integrate_memory_only", _ki_mo_err, {"channel": channel_name, "user": username}
+            )
         return ""
 
     # Use channel hint if intent is UNKNOWN
@@ -195,8 +221,8 @@ def run_gateway(
                     req["known_person"] = _name
                     req["person_context"] = _rec.get("context", "")
                     break
-    except Exception:
-        pass
+    except Exception as _pr_err:
+        _record_error("person_recognition", _pr_err, {"text_preview": text[:100]})
 
     # Cloning loop — detect when text answers an open DEX question
     try:
@@ -284,8 +310,10 @@ Return JSON: {{"answers": true, "answer_summary": "brief summary"}}""",
                             "dex_cloning_loop",
                         ),
                     )
-    except Exception:
-        pass
+    except Exception as _cl_err:
+        _record_error(
+            "cloning_loop", _cl_err, {"channel": channel_name, "text_preview": text[:100]}
+        )
 
     # No List enforcement
     try:
@@ -294,8 +322,8 @@ Return JSON: {{"answers": true, "answer_summary": "brief summary"}}""",
         _nl_violations = check_against_no_list(text)
         if _nl_violations:
             req["no_list_violations"] = _nl_violations
-    except Exception:
-        pass
+    except Exception as _nl_err:
+        _record_error("no_list_check", _nl_err, {"text_preview": text[:100]})
 
     # Resolve Discord mode context — registry-first, env fallback.
     # mode_context injects routing metadata into thread-local state
@@ -343,6 +371,9 @@ Return JSON: {{"answers": true, "answer_summary": "brief summary"}}""",
                 policy_version=_mode_session.get("policy_version"),
             )
     except Exception as _mode_err:
+        _record_error(
+            "mode_context_setup", _mode_err, {"guild_id": guild_id, "channel_id": channel_id}
+        )
         print(f"[IntentHandler] mode_context setup failed: {_mode_err}")
 
     # Gateway handles all classification and routing — wrapped in mode_context
@@ -358,23 +389,22 @@ Return JSON: {{"answers": true, "answer_summary": "brief summary"}}""",
         return f"Something went wrong: {result.get('error', 'unknown error')}"
 
     if result.get("status") == "pending":
-        return (
-            f"Queued for approval — use `!approve {result['approval_id']}` to execute."
-        )
+        return f"Queued for approval — use `!approve {result['approval_id']}` to execute."
 
     output = result.get("output") or result.get("brief") or ""
 
     # Integrate into permanent knowledge
     try:
         ki.integrate(
-            content=(
-                f"Discord #{channel_name}\nUser: {text[:300]}\nSystem: {output[:300]}"
-            ),
+            content=(f"Discord #{channel_name}\nUser: {text[:300]}\nSystem: {output[:300]}"),
             source="discord_conversation",
             category="conversation",
             metadata={"channel": channel_name, "user": username, "intent": intent},
         )
     except Exception as e:
+        _record_error(
+            "ki_integrate_final", e, {"channel": channel_name, "user": username, "intent": intent}
+        )
         print(f"[Discord] KI integrate failed (non-blocking): {e}")
 
     return output
