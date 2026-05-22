@@ -185,6 +185,23 @@ export interface MeshNodeResponse {
   daemon_version: string
 }
 
+export interface OrganismStatusResponse {
+  running: boolean
+  agents: { agent_id: string; agent_name: string; status: string; tasks_completed: number }[]
+  total_deliverables: number
+  total_learning_signals: number
+  recent_deliverables: Record<string, unknown>[]
+  timestamp: string
+}
+
+export interface OrganismSignalResponse {
+  signal: string
+  delegated_to: string
+  deliverable: Record<string, unknown> | null
+  trace_id: string | null
+  timestamp: string
+}
+
 export const api = {
   health: () => request<HealthResponse>('/health'),
   pulse: () => request<PulseResponse>('/pulse'),
@@ -213,6 +230,14 @@ export const api = {
   analytics: () => request<AnalyticsSnapshot>('/analytics'),
   settings: () => request<SettingsResponse>('/settings'),
   profile: () => request<ProfileResponse>('/profile'),
+
+  organismStatus: () => request<OrganismStatusResponse>('/organism/status'),
+  organismAgents: () => request<OrganismStatusResponse['agents']>('/organism/agents'),
+  organismSignal: (content: string) =>
+    request<OrganismSignalResponse>('/organism/signal', {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    }),
 
   submitSignal: (payload: { content: string; risk?: string }) =>
     request<{ id: string }>('/signal', {

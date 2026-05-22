@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import type { RouteId } from '../types/routes.ts'
 import type { PresenceMode } from '../types/presence.ts'
 import type { AwarenessTier, GlobalLayer } from '../types/awareness.ts'
-import type { SystemPulse, ModelBadge, TraceEvent, ApprovalItem, InfraNode, MeshNode } from '../types/domain.ts'
+import type { SystemPulse, ModelBadge, TraceEvent, ApprovalItem, InfraNode, MeshNode, OrganismAgent, OrganismDeliverable } from '../types/domain.ts'
 import {
   api,
   type AgentResponse,
@@ -47,6 +47,9 @@ interface CockpitState {
   analytics: AnalyticsSnapshot | null
   settings: SettingsResponse | null
   profile: ProfileResponse | null
+  organismAgents: OrganismAgent[]
+  organismDeliverables: OrganismDeliverable[]
+  organismRunning: boolean
 
   setPersonaName: (name: string) => void
   setRoute: (route: RouteId) => void
@@ -110,6 +113,9 @@ export const useCockpitStore = create<CockpitState>((set, get) => ({
   analytics: null,
   settings: null,
   profile: null,
+  organismAgents: [],
+  organismDeliverables: [],
+  organismRunning: false,
 
   setPersonaName: (personaName) => set({ personaName }),
   setRoute: (route) => set({ route }),
@@ -174,6 +180,7 @@ export const useCockpitStore = create<CockpitState>((set, get) => ({
         settingsRes,
         profileRes,
         meshRes,
+        orgStatusRes,
       ] = await Promise.allSettled([
         api.pulse(),
         api.models(),
@@ -191,6 +198,7 @@ export const useCockpitStore = create<CockpitState>((set, get) => ({
         api.settings(),
         api.profile(),
         api.meshNodes(),
+        api.organismStatus(),
       ])
 
       const unwrap = <T>(r: PromiseSettledResult<T>, fallback: T): T =>
@@ -269,6 +277,24 @@ export const useCockpitStore = create<CockpitState>((set, get) => ({
         daemonVersion: n.daemon_version,
       }))
 
+      const orgStatus = unwrap(orgStatusRes, null)
+      const organismAgents: OrganismAgent[] = orgStatus?.agents?.map((a: any) => ({
+        agent_id: a.agent_id,
+        agent_name: a.agent_name,
+        status: a.status,
+        tasks_completed: a.tasks_completed,
+      })) ?? []
+
+      const organismDeliverables: OrganismDeliverable[] = orgStatus?.recent_deliverables?.map((d: any) => ({
+        id: d.id,
+        agent_id: d.agent_id,
+        task_id: d.task_id,
+        content: d.content,
+        self_critique: d.self_critique,
+        parent_trace_id: d.parent_trace_id,
+        created_at: d.created_at,
+      })) ?? []
+
       set({
         loading: false,
         pulse: mappedPulse,
@@ -276,6 +302,9 @@ export const useCockpitStore = create<CockpitState>((set, get) => ({
         approvals: mappedApprovals,
         infraNodes: mappedInfra,
         meshNodes: mappedMesh,
+        organismAgents,
+        organismDeliverables,
+        organismRunning: orgStatus?.running ?? false,
         agents: unwrap(agentsRes, []),
         memory: unwrap(memoryRes, []),
         skills: unwrap(skillsRes, []),

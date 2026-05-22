@@ -442,6 +442,50 @@ def _get_mesh_server():
         return None
 
 
+@router.get("/organism/status")
+async def organism_status():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"running": False, "agents": [], "total_deliverables": 0, "total_learning_signals": 0}
+    return daemon.status()
+
+
+@router.get("/organism/agents")
+async def organism_agents():
+    daemon = _get_organism()
+    if daemon is None:
+        return []
+    return daemon.advisor.list_agents()
+
+
+@router.get("/organism/deliverables")
+async def organism_deliverables(agent_id: str | None = None, limit: int = 50):
+    daemon = _get_organism()
+    if daemon is None:
+        return []
+    return daemon.store.list_deliverables(agent_id=agent_id, limit=limit)
+
+
+@router.post("/organism/signal")
+async def organism_signal(payload: dict):
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    content = payload.get("content", "")
+    if not content:
+        return {"error": "content required"}
+    return daemon.advisor.handle_signal(content)
+
+
+def _get_organism():
+    try:
+        from services.umh.control_plane.app import _organism
+
+        return _organism
+    except (ImportError, AttributeError):
+        return None
+
+
 @router.get("/profile")
 async def profile():
     return {
