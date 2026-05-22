@@ -54,6 +54,7 @@ export function App() {
 
   useEffect(() => {
     connectWebSocket()
+    useCockpitStore.getState().fetchAll()
     return () => disconnectWebSocket()
   }, [])
 
