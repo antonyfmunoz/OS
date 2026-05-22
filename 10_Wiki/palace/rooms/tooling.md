@@ -2,7 +2,7 @@
 type: palace-room
 room_id: tooling
 wing: scripts
-generated: 2026-05-07
+generated: 2026-05-21
 ---
 
 # Room — Tooling & Scripts
@@ -21,21 +21,21 @@ These are the files you most often need; open them before grepping.
 
 | # | Locus | Score | Flags | One-liner |
 |---|-------|-------|-------|-----------|
-| 1 | [[scripts-_tme_common-py]] | 16 | — |  |
-| 2 | [[scripts-substrate_audio_loop_smoke_test-py]] | 13 | `entry` | Audio loop smoke test. |
-| 3 | [[scripts-substrate_durable_result_smoke_test-py]] | 13 | `entry` | Substrate durable-result smoke test. |
-| 4 | [[scripts-substrate_operator_state_smoke_test-py]] | 13 | `entry` | Operator state engine smoke test. |
-| 5 | [[scripts-substrate_result_loop_smoke_test-py]] | 12 | `entry` | Substrate station full round-trip smoke test. |
-| 6 | [[scripts-substrate_transport_report_smoke_test-py]] | 12 | `entry` | Unified transport report smoke test. |
-| 7 | [[scripts-security_smoke_test-py]] | 11 | `entry` | security_smoke_test.py — End-to-end smoke test for core.security. |
-| 8 | [[scripts-substrate_stt_producer_smoke_test-py]] | 11 | `entry` | STT producer smoke test. |
-| 9 | [[scripts-substrate_voice_session_smoke_test-py]] | 11 | `entry` | Voice session smoke test. |
-| 10 | [[scripts-action_system-py]] | 10 | `entry` | action_system.py — Controlled execution layer on top of the EOS cognition stack. |
-| 11 | [[scripts-substrate_google_meet_smoke_test-py]] | 10 | `entry` | Google Meet source adapter smoke test. |
-| 12 | [[scripts-substrate_ptt_binding_smoke_test-py]] | 10 | `entry` | PTT binding smoke test. |
-| 13 | [[scripts-substrate_smoke_test-py]] | 10 | `entry` | Substrate station MVP smoke test. |
-| 14 | [[scripts-workflow_engine-py]] | 10 | `entry` | WorkflowEngine — goal-driven, graph-aware, agent-executed workflows. |
-| 15 | [[scripts-orchestrator_status-py]] | 9 | `entry` | orchestrator_status.py — operator-friendly snapshot of the Control Plane. |
+| 1 | [[scripts-_tme_common-py]] | 14 | — | Shared helpers for Tool Mastery Engine system scripts. |
+| 2 | [[scripts-action_system-py]] | 10 | `entry` | action_system.py — Controlled execution layer on top of the EOS cognition stack. |
+| 3 | [[scripts-workflow_engine-py]] | 10 | `entry` | WorkflowEngine — goal-driven, graph-aware, agent-executed workflows. |
+| 4 | [[scripts-query_graph-py]] | 9 | `entry` | query_graph.py — Retrieval layer over the EOS codebase knowledge graph. |
+| 5 | [[scripts-smoke_eos-py]] | 8 | `entry` | Smoke test — exercises EOS integration polling against a real EOS database. |
+| 6 | [[scripts-sandbox_smoke_test-py]] | 7 | `entry` | sandbox_smoke_test.py — End-to-end proof that the sandbox layer works. |
+| 7 | [[scripts-smoke_eos_phase3-py]] | 7 | `entry` | Smoke test — exercises EOS Phase 3 outcome writeback against a real database. |
+| 8 | [[scripts-check_skill_staleness-py]] | 6 | `entry` | check_skill_staleness.py — Tool Mastery Engine staleness audit. |
+| 9 | [[scripts-incremental_graph-py]] | 6 | `entry` | incremental_graph.py — Dirty-set incremental updates for the codebase graph. |
+| 10 | [[scripts-sandbox_safety_verifier-py]] | 6 | `entry` | sandbox_safety_verifier.py — Adversarial tests for the sandbox boundary. |
+| 11 | [[scripts-seed_eos_watermarks_to_now-py]] | 6 | `entry` | Seed EOS watermarks to NOW — skip historical replay on next poller start. |
+| 12 | [[scripts-codebase_graph-py]] | 5 | `entry` | codebase_graph.py — Persistent codebase knowledge graph for EOS. |
+| 13 | [[scripts-query_skills-py]] | 5 | `entry` | query_skills.py — Tool Mastery Engine CLI registry. |
+| 14 | [[scripts-smoke_notion-py]] | 5 | `entry` | Smoke test — exercises Notion integration operations against a real workspace. |
+| 15 | [[scripts-build_palace-py]] | 4 | `entry` | build_palace.py — Generates the EOS memory palace from the graph. |
 
 ## Traversal
 
@@ -47,18 +47,18 @@ These are the files you most often need; open them before grepping.
 
 ```
   scripts/_tme_common.py
-  scripts/substrate_audio_loop_smoke_test.py
-  scripts/substrate_durable_result_smoke_test.py
-  scripts/substrate_operator_state_smoke_test.py
-  scripts/substrate_result_loop_smoke_test.py
-  scripts/substrate_transport_report_smoke_test.py
-  scripts/security_smoke_test.py
-  scripts/substrate_stt_producer_smoke_test.py
-  scripts/substrate_voice_session_smoke_test.py
   scripts/action_system.py
-  scripts/substrate_google_meet_smoke_test.py
-  scripts/substrate_ptt_binding_smoke_test.py
-  scripts/substrate_smoke_test.py
   scripts/workflow_engine.py
-  scripts/orchestrator_status.py
+  scripts/query_graph.py
+  scripts/smoke_eos.py
+  scripts/sandbox_smoke_test.py
+  scripts/smoke_eos_phase3.py
+  scripts/check_skill_staleness.py
+  scripts/incremental_graph.py
+  scripts/sandbox_safety_verifier.py
+  scripts/seed_eos_watermarks_to_now.py
+  scripts/codebase_graph.py
+  scripts/query_skills.py
+  scripts/smoke_notion.py
+  scripts/build_palace.py
 ```

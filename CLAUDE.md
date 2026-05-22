@@ -166,6 +166,30 @@ Services: os-discord, os-bot, os-monitor, os-webhook
 LLM: Gemini 2.5 Flash (primary), Ollama gemma3:4b (fallback)
 Stage: loaded from BIS at runtime
 
+## Node Role Discipline (NON-NEGOTIABLE)
+Each device in the organism has a defined role.
+Only store what that node needs. Never duplicate across nodes.
+
+VPS (coordination brain — lightweight, always-on):
+- Runtime code, services, orchestration only
+- Trinity app repos: shared/schema.ts ONLY — no .git,
+  no attached_assets, no client/server/migrations, no uploads
+- No large models (tiny fallback only, e.g. qwen2.5:0.5b)
+- No node_modules for inactive frontends
+- No archive dirs, old proofs, or ingestion intermediaries
+- Worktrees: remove immediately after merge
+- Branches: delete local branches after merge
+- Run git gc --prune=now after bulk branch cleanup
+
+Windows Beast (GPU workhorse — C:\dev\dev\):
+- Full Trinity repos with complete git history
+- Large local models
+- Heavy compute, media processing
+- Full OS repo mirror
+
+Before storing any large artifact, ask:
+does this node's role require it? If no, don't put it here.
+
 ## Key files
 runtime/cognitive_loop.py  — core loop
 runtime/agent_hierarchy.py — org chart

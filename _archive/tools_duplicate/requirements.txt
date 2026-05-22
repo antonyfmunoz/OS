@@ -1,7 +1,0 @@
-# EOS cognition stack — scripts/ runtime deps
-# Installed on VPS via: pip3 install --break-system-packages -r scripts/requirements.txt
-# Scope: graph builder, watcher, palace, summarizer, graphify adapter.
-# DO NOT merge into services/requirements.txt — services run in Docker
-# and should not pull graph-tooling deps.
-
-watchdog>=4.0.0,<7.0.0
