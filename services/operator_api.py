@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import subprocess
+import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -25,7 +26,7 @@ from fastapi import (
     WebSocketDisconnect,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 
@@ -261,10 +262,95 @@ async def ingest_trigger(request: Request) -> dict[str, Any]:
         return {"triggered": False, "error": str(e)}
 
 
+# ─── Voice-first helpers ──────────────────────────────────────────────────────
+
+_VOICE_ACK_DIR = UMH_ROOT / "data" / "voice_acks"
+
+
+def _generate_tts(text: str) -> str | None:
+    """Generate WAV from text via espeak. Returns path or None."""
+    try:
+        fd, path = tempfile.mkstemp(suffix=".wav", prefix="cockpit_tts_")
+        os.close(fd)
+        result = subprocess.run(
+            ["espeak", "-s", "150", "-w", path, text[:500]],
+            capture_output=True,
+            timeout=15,
+        )
+        if result.returncode == 0 and os.path.exists(path):
+            return path
+        os.unlink(path)
+    except Exception as e:
+        logger.warning(f"TTS generation failed: {e}")
+    return None
+
+
+async def _voice_respond(transcript: str) -> dict[str, Any]:
+    """Route a voice transcript through model_router and prepare voice response."""
+    from execution.transport.voice_first import (
+        VOICE_SYSTEM_SUFFIX,
+        prepare_voice_response,
+    )
+
+    start = time.time()
+
+    # Route through model_router (same chain as Discord voice)
+    try:
+        from runtime.model_router import call_with_fallback
+
+        voice_prompt = transcript + VOICE_SYSTEM_SUFFIX
+        raw_response = await asyncio.to_thread(
+            call_with_fallback,
+            prompt=voice_prompt,
+            task_type="conversation",
+        )
+        if not raw_response:
+            raw_response = "I couldn't process that right now."
+    except Exception as e:
+        logger.warning(f"Voice model_router failed: {e}")
+        raw_response = "I'm having trouble connecting to the intelligence layer."
+
+    duration_ms = int((time.time() - start) * 1000)
+    spoken_text = prepare_voice_response(raw_response)
+
+    # Generate TTS audio
+    tts_path = await asyncio.to_thread(_generate_tts, spoken_text)
+
+    return {
+        "text": raw_response,
+        "spoken_text": spoken_text,
+        "duration_ms": duration_ms,
+        "tts_path": tts_path,
+    }
+
+
+@app.post("/api/voice/tts", dependencies=[Depends(verify_api_key)])
+async def voice_tts(request: Request) -> Any:
+    """Generate TTS WAV from text. Returns audio/wav."""
+    body = await request.json()
+    text = body.get("text", "")
+    if not text:
+        raise HTTPException(status_code=400, detail="text field required")
+
+    from execution.transport.voice_first import prepare_voice_response
+
+    cleaned = prepare_voice_response(text)
+    path = await asyncio.to_thread(_generate_tts, cleaned)
+    if not path:
+        raise HTTPException(status_code=500, detail="TTS generation failed")
+
+    return FileResponse(
+        path,
+        media_type="audio/wav",
+        filename="response.wav",
+        background=None,
+    )
+
+
 # ─── WebSocket ─────────────────────────────────────────────────────────────────
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket) -> None:
-    """WebSocket for streaming chat and real-time events."""
+    """WebSocket for streaming chat, voice transcripts, and real-time events."""
     await ws.accept()
     try:
         while True:
@@ -277,32 +363,74 @@ async def websocket_endpoint(ws: WebSocket) -> None:
 
             msg_type = msg.get("type", "")
 
-            if msg_type == "chat":
+            if msg_type == "voice_transcript":
+                # Voice-first: browser sends STT transcript, we respond with
+                # text + TTS audio URL
+                transcript = msg.get("transcript", "")
+                if not transcript:
+                    await ws.send_json({"type": "error", "text": "Empty transcript"})
+                    continue
+
+                # Send ack immediately (browser plays ack sound client-side)
+                await ws.send_json({"type": "voice_ack", "text": "processing"})
+
+                try:
+                    result = await _voice_respond(transcript)
+                    response_msg: dict[str, Any] = {
+                        "type": "voice_response",
+                        "text": result["text"],
+                        "spoken_text": result["spoken_text"],
+                        "duration_ms": result["duration_ms"],
+                    }
+
+                    # If TTS was generated, send the audio as binary after the JSON
+                    tts_path = result.get("tts_path")
+                    if tts_path and os.path.exists(tts_path):
+                        response_msg["has_audio"] = True
+                        await ws.send_json(response_msg)
+                        with open(tts_path, "rb") as f:
+                            await ws.send_bytes(f.read())
+                        try:
+                            os.unlink(tts_path)
+                        except Exception:
+                            pass
+                    else:
+                        response_msg["has_audio"] = False
+                        await ws.send_json(response_msg)
+
+                except Exception as e:
+                    await ws.send_json(
+                        {
+                            "type": "voice_response",
+                            "text": f"Error: {e}",
+                            "spoken_text": "",
+                            "duration_ms": 0,
+                            "has_audio": False,
+                        }
+                    )
+
+            elif msg_type == "chat":
                 message = msg.get("message", "")
                 if not message:
                     await ws.send_json({"type": "error", "text": "Empty message"})
                     continue
 
-                if not _HAS_COGNITIVE_LOOP:
-                    await ws.send_json(
-                        {
-                            "type": "chat_response",
-                            "text": "CognitiveLoop not available in this context",
-                            "model_used": "none",
-                            "duration_ms": 0,
-                        }
-                    )
-                    continue
-
+                # Route through model_router (fixes _HAS_COGNITIVE_LOOP NameError)
                 start = time.time()
                 try:
-                    result = await asyncio.to_thread(_cognitive_loop.run, raw_prompt=message)
+                    from runtime.model_router import call_with_fallback
+
+                    result = await asyncio.to_thread(
+                        call_with_fallback,
+                        prompt=message,
+                        task_type="conversation",
+                    )
                     duration_ms = int((time.time() - start) * 1000)
                     await ws.send_json(
                         {
                             "type": "chat_response",
-                            "text": result.output if hasattr(result, "output") else str(result),
-                            "model_used": getattr(result, "model_used", "unknown"),
+                            "text": result or "No response from model router",
+                            "model_used": "model_router",
                             "duration_ms": duration_ms,
                         }
                     )
@@ -315,6 +443,7 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                             "duration_ms": 0,
                         }
                     )
+
             elif msg_type == "ping":
                 await ws.send_json({"type": "pong"})
             else:

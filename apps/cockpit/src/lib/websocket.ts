@@ -42,9 +42,14 @@ export class CockpitSocket {
     this.ws = null
   }
 
-  send(type: string, data?: unknown): void {
+  send(type: string, data?: Record<string, unknown>): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({ type, data }))
+      this.ws.send(JSON.stringify({ type, ...data }))
     }
+  }
+
+  /** Expose raw WebSocket for binary frame interception (voice audio). */
+  get rawWs(): WebSocket | null {
+    return this.ws
   }
 }

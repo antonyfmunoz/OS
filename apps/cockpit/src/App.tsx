@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { LeftRail } from './components/LeftRail.tsx'
 import { StatusBar } from './components/StatusBar.tsx'
 import { PresenceLayer } from './components/PresenceOverlay.tsx'
+import { VoiceOrb } from './components/VoiceOrb.tsx'
 import { useCockpitStore } from './stores/cockpitStore.ts'
 import { connectWebSocket, disconnectWebSocket } from './lib/ws-client.ts'
 
@@ -66,6 +67,7 @@ export function App() {
         <StatusBar />
       </div>
       <PresenceLayer />
+      <VoiceOrb />
     </div>
   )
 }
