@@ -13,6 +13,7 @@ from substrate.control_plane.governance import ConcreteGovernanceEngine, Governa
 from substrate.control_plane.identity import ConcreteIdentityResolver, IdentityResolver
 from substrate.control_plane.memory import ConcreteMemorySystem, MemorySystem
 from substrate.control_plane.registry import ConcreteComponentRegistry, ComponentRegistry
+from substrate.control_plane.router import ConcreteSignalRouter, SignalRouter
 from substrate.types import (
     Component,
     ComponentType,
@@ -222,3 +223,9 @@ class TestComponentRegistry:
         registry = ConcreteComponentRegistry()
         result = asyncio.run(registry.get(uuid4()))
         assert result is None
+
+
+class TestSignalRouter:
+    def test_implements_protocol(self):
+        router = ConcreteSignalRouter.__new__(ConcreteSignalRouter)
+        assert isinstance(router, SignalRouter)
