@@ -7,8 +7,16 @@ sys.path.insert(0, "/opt/OS")
 import asyncio
 from uuid import uuid4
 
+from substrate.execution.feedback import ConcreteFeedbackCapture, FeedbackCapture
 from substrate.execution.trace import ConcreteTraceRecorder, TraceRecorder
-from substrate.types import TraceEventType, TraceRecord
+from substrate.types import (
+    ExecutionOutcome,
+    ExecutionResult,
+    FeedbackRecord,
+    FeedbackType,
+    TraceEventType,
+    TraceRecord,
+)
 
 
 class TestTraceRecorder:
@@ -73,3 +81,52 @@ class TestTraceRecorder:
         recorder = ConcreteTraceRecorder()
         result = asyncio.run(recorder.get(uuid4()))
         assert result is None
+
+
+class TestFeedbackCapture:
+    """Tests for ConcreteFeedbackCapture."""
+
+    def test_implements_protocol(self) -> None:
+        capture = ConcreteFeedbackCapture()
+        assert isinstance(capture, FeedbackCapture)
+
+    def test_capture_produces_feedback(self) -> None:
+        capture = ConcreteFeedbackCapture()
+        trace = TraceRecord(signal_id=uuid4())
+        trace.add_event(TraceEventType.SIGNAL_RECEIVED, "test")
+        trace.complete(success=True)
+        result = ExecutionResult(
+            signal_id=trace.signal_id,
+            trace_id=trace.id,
+            outcome=ExecutionOutcome.SUCCESS,
+            output="response",
+        )
+        feedback = asyncio.run(capture.capture(trace, result))
+        assert isinstance(feedback, FeedbackRecord)
+        assert feedback.trace_id == trace.id
+
+    def test_success_gets_higher_quality(self) -> None:
+        capture = ConcreteFeedbackCapture()
+        trace = TraceRecord(signal_id=uuid4())
+        trace.complete(success=True)
+        result = ExecutionResult(
+            signal_id=trace.signal_id,
+            trace_id=trace.id,
+            outcome=ExecutionOutcome.SUCCESS,
+            output="good",
+        )
+        feedback = asyncio.run(capture.capture(trace, result))
+        assert feedback.outcome_quality >= 0.5
+
+    def test_failure_gets_lower_quality(self) -> None:
+        capture = ConcreteFeedbackCapture()
+        trace = TraceRecord(signal_id=uuid4())
+        trace.complete(success=False)
+        result = ExecutionResult(
+            signal_id=trace.signal_id,
+            trace_id=trace.id,
+            outcome=ExecutionOutcome.FAILURE,
+            error="broke",
+        )
+        feedback = asyncio.run(capture.capture(trace, result))
+        assert feedback.outcome_quality < 0.5
