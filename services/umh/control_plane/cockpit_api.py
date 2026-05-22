@@ -77,20 +77,86 @@ async def models():
     return result
 
 
+def _ping_latency(ip: str) -> float | None:
+    try:
+        out = subprocess.run(
+            ["ping", "-c", "1", "-W", "2", ip],
+            capture_output=True, text=True, timeout=3,
+        )
+        for line in out.stdout.split("\n"):
+            if "time=" in line:
+                return round(float(line.split("time=")[1].split(" ")[0]), 1)
+    except Exception:
+        pass
+    return None
+
+
+def _device_name(peer: dict) -> str:
+    dns = peer.get("DNSName", "")
+    if dns:
+        return dns.split(".")[0].replace("-", " ").title()
+    return peer.get("HostName", "unknown")
+
+
 @router.get("/infra")
 async def infra():
     cpu = psutil.cpu_percent(interval=0.1)
     mem = psutil.virtual_memory()
     disk = psutil.disk_usage("/")
-    nodes = [
-        {
-            "id": "n-vps",
-            "name": "VPS Primary",
-            "type": "compute",
-            "status": "healthy",
-            "metrics": {"cpu": cpu, "memory": mem.percent, "disk": disk.percent},
-        },
-    ]
+
+    compute_nodes: list[dict] = []
+    network_nodes: list[dict] = []
+    service_nodes: list[dict] = []
+
+    compute_nodes.append({
+        "id": "n-vps",
+        "name": "VPS Primary (Linux)",
+        "type": "compute",
+        "status": "healthy",
+        "metrics": {"cpu": cpu, "memory": mem.percent, "disk": disk.percent, "cost": 24},
+    })
+
+    try:
+        out = subprocess.run(
+            ["tailscale", "status", "--json"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if out.returncode == 0:
+            ts_data = json.loads(out.stdout)
+            peers = ts_data.get("Peer", {})
+            online_count = 0
+            for _key, peer in peers.items():
+                name = _device_name(peer)
+                os_name = peer.get("OS", "")
+                online = peer.get("Online", False)
+                ip_addrs = peer.get("TailscaleIPs", [])
+                ip = ip_addrs[0] if ip_addrs else ""
+                if online:
+                    online_count += 1
+
+                metrics: dict[str, Any] = {}
+                if online and ip:
+                    lat = _ping_latency(ip)
+                    if lat is not None:
+                        metrics["latency"] = lat
+
+                compute_nodes.append({
+                    "id": f"n-ts-{ip or name}",
+                    "name": f"{name} ({os_name.capitalize()})",
+                    "type": "compute",
+                    "status": "healthy" if online else "down",
+                    "metrics": metrics,
+                })
+
+            network_nodes.append({
+                "id": "n-tailscale",
+                "name": "Tailscale Mesh",
+                "type": "network",
+                "status": "healthy",
+                "metrics": {"latency": 0},
+            })
+    except Exception:
+        pass
 
     try:
         out = subprocess.run(
@@ -104,7 +170,7 @@ async def infra():
             name = parts[0]
             status_str = parts[1] if len(parts) > 1 else ""
             is_up = "Up" in status_str
-            nodes.append({
+            service_nodes.append({
                 "id": f"n-{name}",
                 "name": name,
                 "type": "service",
@@ -114,31 +180,7 @@ async def infra():
     except Exception:
         pass
 
-    try:
-        out = subprocess.run(
-            ["tailscale", "status", "--json"],
-            capture_output=True, text=True, timeout=5,
-        )
-        if out.returncode == 0:
-            ts_data = json.loads(out.stdout)
-            peers = ts_data.get("Peer", {})
-            for _key, peer in peers.items():
-                hostname = peer.get("HostName", "unknown")
-                os_name = peer.get("OS", "")
-                online = peer.get("Online", False)
-                ip_addrs = peer.get("TailscaleIPs", [])
-                ip = ip_addrs[0] if ip_addrs else ""
-                nodes.append({
-                    "id": f"n-ts-{hostname}",
-                    "name": f"{hostname} ({os_name})",
-                    "type": "compute",
-                    "status": "healthy" if online else "down",
-                    "metrics": {"latency": 0},
-                })
-    except Exception:
-        pass
-
-    return nodes
+    return compute_nodes + network_nodes + service_nodes
 
 
 @router.get("/approvals")
