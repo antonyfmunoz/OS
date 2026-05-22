@@ -6,15 +6,21 @@ sys.path.insert(0, "/opt/OS")
 
 import asyncio
 
+from uuid import UUID
+
 from substrate.control_plane.context import ConcreteContextAssembler, ContextAssembler
 from substrate.control_plane.governance import ConcreteGovernanceEngine, GovernanceEngine
 from substrate.control_plane.identity import ConcreteIdentityResolver, IdentityResolver
+from substrate.control_plane.memory import ConcreteMemorySystem, MemorySystem
 from substrate.types import (
     ExecutionContext,
     ExecutionPlan,
     GovernanceDecision,
     GovernanceVerdict,
     Identity,
+    MemoryEntry,
+    MemoryQuery,
+    MemoryType,
     RiskClass,
     SignalEnvelope,
     SignalSource,
@@ -139,3 +145,18 @@ class TestGovernanceEngine:
         ctx = ExecutionContext(signal_id=signal.id, identity=identity)
         verdict = asyncio.run(engine.classify(signal, ctx))
         assert verdict.risk_class == RiskClass.LOW
+
+
+class TestMemorySystem:
+    def test_implements_protocol(self):
+        system = ConcreteMemorySystem()
+        assert isinstance(system, MemorySystem)
+
+    def test_store_returns_uuid(self):
+        system = ConcreteMemorySystem()
+        entry = MemoryEntry(
+            memory_type=MemoryType.FACT,
+            content="test fact",
+        )
+        result_id = asyncio.run(system.store(entry))
+        assert isinstance(result_id, UUID)
