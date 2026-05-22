@@ -226,17 +226,23 @@ export function Approvals() {
   const selectedItem = approvals.find((a) => a.id === selectedId) ?? null
   const pendingCount = approvals.filter((a) => a.status === 'pending').length
 
-  const handleApprove = () => {
+  const handleApprove = async () => {
     if (selectedId) {
+      const { api } = await import('../api/client.ts')
+      await api.approveItem(selectedId)
       updateApproval(selectedId, 'approved')
       setSelectedId(null)
+      useCockpitStore.getState().fetchAll()
     }
   }
 
-  const handleDeny = (_rationale: string) => {
+  const handleDeny = async (_rationale: string) => {
     if (selectedId) {
+      const { api } = await import('../api/client.ts')
+      await api.denyItem(selectedId, _rationale)
       updateApproval(selectedId, 'denied')
       setSelectedId(null)
+      useCockpitStore.getState().fetchAll()
     }
   }
 

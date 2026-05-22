@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import type { RouteId } from '../types/routes.ts'
 import type { PresenceMode } from '../types/presence.ts'
 import type { AwarenessTier, GlobalLayer } from '../types/awareness.ts'
-import type { SystemPulse, ModelBadge, TraceEvent, ApprovalItem, InfraNode } from '../types/domain.ts'
+import type { SystemPulse, ModelBadge, TraceEvent, ApprovalItem, InfraNode, MeshNode, OrganismAgent, OrganismDeliverable } from '../types/domain.ts'
 import {
   api,
   type AgentResponse,
@@ -16,6 +16,9 @@ import {
   type AnalyticsSnapshot,
   type SettingsResponse,
   type ProfileResponse,
+  type ActivityEvent,
+  type GovernanceResponse,
+  type DexExchange,
 } from '../api/client.ts'
 
 interface CockpitState {
@@ -35,6 +38,7 @@ interface CockpitState {
   traces: TraceEvent[]
   approvals: ApprovalItem[]
   infraNodes: InfraNode[]
+  meshNodes: MeshNode[]
   agents: AgentResponse[]
   memory: MemoryEntryResponse[]
   skills: SkillResponse[]
@@ -46,6 +50,12 @@ interface CockpitState {
   analytics: AnalyticsSnapshot | null
   settings: SettingsResponse | null
   profile: ProfileResponse | null
+  organismAgents: OrganismAgent[]
+  organismDeliverables: OrganismDeliverable[]
+  organismRunning: boolean
+  activityStream: ActivityEvent[]
+  governance: GovernanceResponse | null
+  dexHistory: DexExchange[]
 
   setPersonaName: (name: string) => void
   setRoute: (route: RouteId) => void
@@ -61,6 +71,10 @@ interface CockpitState {
   addTrace: (trace: TraceEvent) => void
   setApprovals: (approvals: ApprovalItem[]) => void
   updateApproval: (id: string, status: ApprovalItem['status']) => void
+
+  setMeshNodes: (nodes: MeshNode[]) => void
+  upsertMeshNode: (node: MeshNode) => void
+  removeMeshNode: (id: string) => void
 
   fetchAll: () => Promise<void>
 }
@@ -93,6 +107,7 @@ export const useCockpitStore = create<CockpitState>((set, get) => ({
   traces: [],
   approvals: [],
   infraNodes: [],
+  meshNodes: [],
   agents: [],
   memory: [],
   skills: [],
@@ -104,6 +119,12 @@ export const useCockpitStore = create<CockpitState>((set, get) => ({
   analytics: null,
   settings: null,
   profile: null,
+  organismAgents: [],
+  organismDeliverables: [],
+  organismRunning: false,
+  activityStream: [],
+  governance: null,
+  dexHistory: [],
 
   setPersonaName: (personaName) => set({ personaName }),
   setRoute: (route) => set({ route }),
@@ -132,6 +153,22 @@ export const useCockpitStore = create<CockpitState>((set, get) => ({
       ),
     })),
 
+  setMeshNodes: (meshNodes) => set({ meshNodes }),
+  upsertMeshNode: (node) =>
+    set((s) => {
+      const idx = s.meshNodes.findIndex((n) => n.id === node.id)
+      if (idx >= 0) {
+        const next = [...s.meshNodes]
+        next[idx] = node
+        return { meshNodes: next }
+      }
+      return { meshNodes: [...s.meshNodes, node] }
+    }),
+  removeMeshNode: (id) =>
+    set((s) => ({
+      meshNodes: s.meshNodes.filter((n) => n.id !== id),
+    })),
+
   fetchAll: async () => {
     set({ loading: true, error: null })
     try {
@@ -152,6 +189,10 @@ export const useCockpitStore = create<CockpitState>((set, get) => ({
         settingsRes,
         profileRes,
         meshRes,
+        orgStatusRes,
+        activityRes,
+        governanceRes,
+        dexHistoryRes,
       ] = await Promise.allSettled([
         api.pulse(),
         api.models(),
@@ -169,6 +210,10 @@ export const useCockpitStore = create<CockpitState>((set, get) => ({
         api.settings(),
         api.profile(),
         api.meshNodes(),
+        api.organismStatus(),
+        api.activityStream(200),
+        api.governance(),
+        api.dexHistory(50),
       ])
 
       const unwrap = <T>(r: PromiseSettledResult<T>, fallback: T): T =>
@@ -218,13 +263,13 @@ export const useCockpitStore = create<CockpitState>((set, get) => ({
         metrics: n.metrics,
       }))
 
-      const meshNodes = unwrap(meshRes, [])
+      const meshNodesRaw = unwrap(meshRes, [])
       const statusMap: Record<string, 'healthy' | 'degraded' | 'down'> = {
         connected: 'healthy',
         degraded: 'degraded',
         disconnected: 'down',
       }
-      const meshInfra: InfraNode[] = (meshNodes || []).map((n) => ({
+      const meshInfra: InfraNode[] = (meshNodesRaw || []).map((n) => ({
         id: `mesh-${n.id}`,
         name: `${n.name} (${n.os})`,
         type: 'compute' as const,
@@ -233,12 +278,48 @@ export const useCockpitStore = create<CockpitState>((set, get) => ({
       }))
       mappedInfra.push(...meshInfra)
 
+      const mappedMesh: MeshNode[] = (meshNodesRaw || []).map((n) => ({
+        id: n.id,
+        name: n.name,
+        os: n.os,
+        osVersion: n.os_version,
+        status: n.status,
+        capabilities: n.capabilities,
+        metrics: n.metrics,
+        lastHeartbeat: n.last_heartbeat,
+        tailscaleIp: n.tailscale_ip,
+        connectedAt: n.connected_at,
+        daemonVersion: n.daemon_version,
+      }))
+
+      const orgStatus = unwrap(orgStatusRes, null)
+      const organismAgents: OrganismAgent[] = orgStatus?.agents?.map((a: any) => ({
+        agent_id: a.agent_id,
+        agent_name: a.agent_name,
+        status: a.status,
+        tasks_completed: a.tasks_completed,
+      })) ?? []
+
+      const organismDeliverables: OrganismDeliverable[] = orgStatus?.recent_deliverables?.map((d: any) => ({
+        id: d.id,
+        agent_id: d.agent_id,
+        task_id: d.task_id,
+        content: d.content,
+        self_critique: d.self_critique,
+        parent_trace_id: d.parent_trace_id,
+        created_at: d.created_at,
+      })) ?? []
+
       set({
         loading: false,
         pulse: mappedPulse,
         models: mappedModels,
         approvals: mappedApprovals,
         infraNodes: mappedInfra,
+        meshNodes: mappedMesh,
+        organismAgents,
+        organismDeliverables,
+        organismRunning: orgStatus?.running ?? false,
         agents: unwrap(agentsRes, []),
         memory: unwrap(memoryRes, []),
         skills: unwrap(skillsRes, []),
@@ -250,6 +331,9 @@ export const useCockpitStore = create<CockpitState>((set, get) => ({
         analytics: unwrap(analyticsRes, null),
         settings: unwrap(settingsRes, null),
         profile: unwrap(profileRes, null),
+        activityStream: unwrap(activityRes, []),
+        governance: unwrap(governanceRes, null),
+        dexHistory: unwrap(dexHistoryRes, []),
       })
     } catch (err) {
       set({ loading: false, error: String(err) })

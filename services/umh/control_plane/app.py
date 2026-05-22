@@ -45,6 +45,7 @@ _notion_poller_thread: threading.Thread | None = None
 _eos_poller: Any = None
 _eos_poller_thread: threading.Thread | None = None
 _mesh_server: Any = None
+_organism: Any = None
 
 
 def _register_notion_integration() -> None:
@@ -193,6 +194,19 @@ def _register_node_mesh() -> None:
         logger.warning("node mesh not started: %s", exc)
 
 
+def _register_organism() -> None:
+    """Start the organism daemon with the shared pipeline and view socket."""
+    global _organism
+    try:
+        from ..organism.daemon import OrganismDaemon
+
+        _organism = OrganismDaemon(pipeline=_pipeline, view_socket=_view_socket)
+        _organism.start()
+        logger.info("organism daemon started")
+    except Exception as exc:
+        logger.warning("organism daemon not started: %s", exc)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _broadcaster, _notion_poller_thread, _eos_poller_thread
@@ -203,6 +217,7 @@ async def lifespan(app: FastAPI):
     _register_notion_integration()
     _register_eos_integration()
     _register_node_mesh()
+    _register_organism()
 
     if _notion_poller is not None:
         _notion_poller_thread = _notion_poller.start()
@@ -219,6 +234,10 @@ async def lifespan(app: FastAPI):
     logger.info("view socket broadcaster wired to WebSocket endpoint")
 
     yield
+
+    if _organism is not None:
+        _organism.stop()
+        logger.info("organism daemon stopped")
 
     if _mesh_server is not None:
         _mesh_server.stop()

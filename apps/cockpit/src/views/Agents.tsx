@@ -76,6 +76,26 @@ function AgentCard({ agent, selected, onClick }: { agent: AgentResponse; selecte
 }
 
 function DetailPanel({ agent, onClose }: { agent: AgentResponse; onClose: () => void }) {
+  const [signalInput, setSignalInput] = useState('')
+  const [sending, setSending] = useState(false)
+  const [feedback, setFeedback] = useState<string | null>(null)
+
+  const handleSignal = async () => {
+    if (!signalInput.trim() || sending) return
+    setSending(true)
+    try {
+      const { api } = await import('../api/client.ts')
+      const res = await api.agentSignal(agent.id, signalInput.trim())
+      setFeedback(`Delegated to ${res.delegated_to}`)
+      setSignalInput('')
+      useCockpitStore.getState().fetchAll()
+    } catch {
+      setFeedback('Signal failed')
+    } finally {
+      setSending(false)
+    }
+  }
+
   return (
     <div className="w-96 border-l border-border flex flex-col bg-surface">
       <div className="flex items-center justify-between p-4 border-b border-border">
@@ -116,10 +136,18 @@ function DetailPanel({ agent, onClose }: { agent: AgentResponse; onClose: () => 
         <div>
           <div className="wv-label mb-2">CAPABILITIES</div>
           <div className="flex flex-wrap gap-1.5">
-            {agent.capabilities.map((c) => (
+            {agent.capabilities.length > 0 ? agent.capabilities.map((c) => (
               <span key={c} className="wv-badge wv-badge-cyan">{c}</span>
-            ))}
+            )) : <span className="text-[10px] text-text-tertiary">No capabilities listed</span>}
           </div>
+        </div>
+        <div className="border-t border-border pt-4">
+          <div className="wv-label mb-2">SEND SIGNAL</div>
+          <div className="flex gap-2">
+            <input type="text" value={signalInput} onChange={(e) => setSignalInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSignal()} placeholder="Task for this agent..." className="flex-1 bg-surface border border-border text-text-primary text-[11px] font-mono px-2 py-1 placeholder:text-text-tertiary focus:border-cyan-dim focus:outline-none" />
+            <button onClick={handleSignal} disabled={sending || !signalInput.trim()} className="px-2 py-1 text-[9px] font-mono uppercase tracking-wider bg-cyan/10 text-cyan border border-cyan-dim hover:bg-cyan/20 transition-colors disabled:opacity-40">{sending ? '...' : 'Go'}</button>
+          </div>
+          {feedback && <div className="text-[10px] text-text-tertiary mt-1">{feedback}</div>}
         </div>
       </div>
     </div>

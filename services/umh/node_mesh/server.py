@@ -25,6 +25,7 @@ from services.umh.sockets.capability_socket import CapabilitySocket
 from services.umh.sockets.outcome_socket import OutcomeSocket
 from services.umh.sockets.registry import IntegrationManifest, IntegrationRegistry
 from services.umh.sockets.signal_socket import SignalSocket
+from services.umh.sockets.envelopes import ViewFrame
 from services.umh.sockets.view_socket import ViewSocket
 
 logger = logging.getLogger(__name__)
@@ -56,6 +57,7 @@ class NodeMeshServer:
             outcome_socket,
             view_socket,
         )
+        self._view_socket = view_socket
         self._pipeline_submit_fn = pipeline_submit_fn
         self._server: Any = None
         self._loop: asyncio.AbstractEventLoop | None = None
@@ -86,6 +88,23 @@ class NodeMeshServer:
         if self._thread is not None:
             self._thread.join(timeout=5)
         logger.info("node mesh server stopped")
+
+    def _emit_mesh_event(self, event_type: str, node: ConnectedNode) -> None:
+        from datetime import datetime, timezone
+        from uuid import uuid4
+
+        frame = ViewFrame(
+            frame_id=uuid4(),
+            timestamp=datetime.now(timezone.utc),
+            event_type=event_type,
+            stage=0,
+            data=node.to_api_dict(),
+            integration_id=f"node-{node.node_id}",
+        )
+        try:
+            self._view_socket.broadcast(frame)
+        except Exception as exc:
+            logger.debug("mesh event broadcast failed: %s", exc)
 
     def _run_loop(self) -> None:
         self._loop = asyncio.new_event_loop()
@@ -251,6 +270,7 @@ class NodeMeshServer:
             )
         )
 
+        self._emit_mesh_event("mesh.node_connected", node)
         logger.info("node connected: %s (%s %s)", node_id, node.os, node.hostname)
         return node_id
 
@@ -278,6 +298,10 @@ class NodeMeshServer:
         self._metrics.record(snapshot)
 
         self._check_anomalies(node_id, metrics)
+
+        node = self._registry.get(node_id)
+        if node:
+            self._emit_mesh_event("mesh.node_heartbeat", node)
 
         if msg_id is not None:
             await ws.send(
@@ -405,8 +429,12 @@ class NodeMeshServer:
         logger.info("node adapter unregistered: %s", integration_id)
 
     def _unregister_node(self, node_id: str) -> None:
+        node = self._registry.get(node_id)
         self._unregister_integration(node_id)
         self._registry.remove(node_id)
+        if node:
+            node.status = "disconnected"
+            self._emit_mesh_event("mesh.node_disconnected", node)
         logger.info("node fully unregistered: %s", node_id)
 
     async def _health_check_loop(self) -> None:
