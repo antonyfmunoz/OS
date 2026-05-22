@@ -37,6 +37,7 @@ Setup:
 """
 
 import asyncio
+import json as _json_mod
 import logging
 import os
 
@@ -45,7 +46,7 @@ import re
 import sys
 import tempfile
 import traceback
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -63,6 +64,28 @@ def _handle_task_exception(loop, context):
         if "_MissingSentinel" in msg or "poll_event" in msg or "poll_voice_ws" in msg:
             return  # silently ignore voice WS errors
     loop.default_exception_handler(context)
+
+
+_DISCORD_BOT_ERROR_LOG = (
+    Path(__file__).resolve().parent.parent / "logs" / "discord_bot_errors.jsonl"
+)
+
+
+def _record_error(component: str, error: Exception | str, context: dict | None = None) -> None:
+    """Append a structured error record to discord_bot_errors.jsonl."""
+    try:
+        _DISCORD_BOT_ERROR_LOG.parent.mkdir(parents=True, exist_ok=True)
+        record = {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "component": component,
+            "error": str(error),
+            "error_type": type(error).__name__ if isinstance(error, Exception) else "str",
+            "context": context or {},
+        }
+        with open(_DISCORD_BOT_ERROR_LOG, "a") as f:
+            f.write(_json_mod.dumps(record) + "\n")
+    except Exception:
+        pass
 
 
 import discord
@@ -161,6 +184,7 @@ try:
             flush=True,
         )
 except Exception as _voice_responder_install_err:  # noqa: BLE001
+    _record_error("voice_responder_install", _voice_responder_install_err)
     print(
         f"[Discord] WARNING: failed to install router-backed voice responder: "
         f"{_voice_responder_install_err} — Discord pseudo-live will echo stub",
@@ -305,6 +329,7 @@ def transcribe_with_groq(audio_path: str) -> str:
         print(f"[Groq STT] Transcribed: {text[:50]}")
         return text
     except Exception as e:
+        _record_error("groq_stt", e, {"audio_path": audio_path})
         print(f"[Groq STT] Error: {e}")
         return ""
 
@@ -420,6 +445,7 @@ def _run_day_command(
         else:
             return {"status": "error", "detail": f"unknown command: {cmd}"}
     except Exception as e:
+        _record_error("day_ritual", e, {"command": cmd})
         print(f"[DayRitual] error in {cmd}: {e}")
         return {"status": "error", "detail": str(e)}
 
@@ -527,6 +553,7 @@ async def _send_day_response(invoking_channel, formatted_text: str) -> None:
             if _mb_chan:
                 await _send_reply(_mb_chan, formatted_text)
     except Exception as _mirror_exc:
+        _record_error("day_mirror", _mirror_exc)
         print(f"[DayRitual] mirror to #morning-brief failed: {_mirror_exc}")
 
 
@@ -885,8 +912,8 @@ async def start_meeting_mode(
         from execution.transport.storage import get_storage
 
         get_storage().put("active_meeting", dict(_active_meeting))
-    except Exception:
-        pass
+    except Exception as _ms_err:
+        _record_error("meeting_storage_save", _ms_err)
 
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(
@@ -960,8 +987,8 @@ async def end_active_meeting(channel=None) -> None:
         from execution.transport.storage import get_storage
 
         get_storage().put("active_meeting", dict(_active_meeting))
-    except Exception:
-        pass
+    except Exception as _mc_err:
+        _record_error("meeting_storage_clear", _mc_err)
 
 
 # ─── Startup ──────────────────────────────────────────────────────────────────
@@ -999,6 +1026,7 @@ async def _warmup_cc_sdk():
         else:
             logger.warning("[Startup] cc_sdk warm failed")
     except Exception as e:
+        _record_error("cc_sdk_warmup", e)
         logger.warning("[Startup] cc_sdk warm error: %s", e)
 
 
@@ -1025,8 +1053,8 @@ async def on_ready():
             try:
                 await guild.voice_client.disconnect(force=True)
                 print("[Voice] Cleaned up stale voice client on ready")
-            except Exception:
-                pass
+            except Exception as _vc_err:
+                _record_error("voice_cleanup_ready", _vc_err)
 
     # Short grace period: Discord replays voice state events during RESUME
     # right around on_ready. Wait for that window to pass before allowing
@@ -1056,6 +1084,7 @@ async def on_ready():
             _active_meeting["key_points"] = _meeting_state.get("key_points", [])
             print(f"[Discord] Restored active meeting: {_meeting_state['type']}")
     except Exception as _restore_err:
+        _record_error("session_restore", _restore_err)
         print(f"[Discord] Session restore failed (non-blocking): {_restore_err}")
 
     await bot.change_presence(
@@ -1074,6 +1103,7 @@ async def on_ready():
         start_ambient_refresh_loop(_ctx_eos)
         print("[Discord] Ambient refresh started")
     except Exception as e:
+        _record_error("ambient_refresh", e)
         print(f"[Discord] Ambient refresh skipped: {e}")
 
     _substrate_log_startup()
@@ -1093,6 +1123,7 @@ async def on_ready():
 
         await start_webhook_server(bot, AI_NAME)
     except Exception as e:
+        _record_error("cc_webhook_receiver", e)
         print(f"[Discord] CC webhook receiver failed to start: {e}")
 
     # ── Wire up session watcher → Discord bridge ───────────────────────────
@@ -1110,6 +1141,7 @@ async def on_ready():
         start_watcher("vps", "dex_product_main", on_event=bridge.on_watcher_event)
         print("[Discord] Session watchers + Discord bridge started")
     except Exception as e:
+        _record_error("session_watcher_bridge", e)
         print(f"[Discord] Session watcher/bridge setup failed: {e}")
 
     # ── Start Station Daemon (background heartbeat loop) ─────────────────
@@ -1119,6 +1151,7 @@ async def on_ready():
         start_station_daemon()
         print("[Discord] Station daemon started")
     except Exception as e:
+        _record_error("station_daemon", e)
         print(f"[Discord] Station daemon failed to start: {e}")
 
 
@@ -1181,8 +1214,8 @@ async def on_voice_state_update(
                     try:
                         await member.guild.voice_client.disconnect(force=True)
                         await asyncio.sleep(1)
-                    except Exception:
-                        pass
+                    except Exception as _vd1:
+                        _record_error("voice_disconnect_pre_connect", _vd1)
 
                 vc = await target_channel.connect(
                     timeout=15.0,
@@ -1198,21 +1231,22 @@ async def on_voice_state_update(
                     if member.guild.voice_client:
                         try:
                             await member.guild.voice_client.disconnect(force=True)
-                        except Exception:
-                            pass
+                        except Exception as _vd2:
+                            _record_error("voice_disconnect_4006_retry", _vd2)
                     await asyncio.sleep(wait)
                     continue
                 print(f"[Voice] Connect closed: {e}")
                 return
             except Exception as e:
+                _record_error("voice_connect", e)
                 print(f"[Voice] Connect failed: {e}")
                 if "Already connected" in str(e):
                     if member.guild.voice_client:
                         try:
                             await member.guild.voice_client.disconnect(force=True)
                             await asyncio.sleep(2)
-                        except Exception:
-                            pass
+                        except Exception as _vd3:
+                            _record_error("voice_disconnect_already_connected", _vd3)
                     continue
                 return
         else:
@@ -1225,8 +1259,8 @@ async def on_voice_state_update(
             print("[Voice] WS not initialized — aborting")
             try:
                 await vc.disconnect(force=True)
-            except Exception:
-                pass
+            except Exception as _vd4:
+                _record_error("voice_disconnect_ws_missing", _vd4)
             return
 
         print(f"[Voice] WS ready: {type(vc.ws).__name__}")
@@ -1243,8 +1277,8 @@ async def on_voice_state_update(
         if member.guild.voice_client:
             try:
                 await member.guild.voice_client.disconnect()
-            except Exception:
-                pass
+            except Exception as _vd5:
+                _record_error("voice_disconnect_founder_left", _vd5)
         if general:
             await _send_reply(
                 general,
@@ -1261,8 +1295,8 @@ async def on_voice_state_update(
         if member.guild.voice_client:
             try:
                 await member.guild.voice_client.move_to(after.channel)
-            except Exception:
-                pass
+            except Exception as _vd6:
+                _record_error("voice_move_founder_switched", _vd6)
         if general:
             await _send_reply(general, f"👁️ **{AI_NAME} followed you to {after.channel.name}.**")
 
@@ -1287,8 +1321,8 @@ async def _listen_loop(
             text = await loop.run_in_executor(None, transcribe_with_groq, audio_path)
             try:
                 os.remove(audio_path)
-            except Exception:
-                pass
+            except Exception as _rm_err:
+                _record_error("audio_temp_cleanup", _rm_err, {"path": audio_path})
 
             if not text or len(text.split()) < 2:
                 return
@@ -1327,6 +1361,7 @@ async def _listen_loop(
                     voice_client=vc,
                 )
             except Exception as _mirror_err:  # noqa: BLE001
+                _record_error("voice_substrate_mirror", _mirror_err)
                 print(f"[Voice] substrate mirror skipped: {_mirror_err}")
 
             should_respond, classification = _ve.should_respond(text, 0.0)
@@ -1346,7 +1381,8 @@ async def _listen_loop(
                 if needs_ack(text):
                     asyncio.create_task(play_ack(vc))
                 _voice_prompt_suffix = VOICE_SYSTEM_SUFFIX
-            except Exception:
+            except Exception as _vf_ack_err:
+                _record_error("voice_first_ack", _vf_ack_err)
                 _voice_prompt_suffix = ""
 
             context_summary = _ve.intelligent.get_context_summary()
@@ -1445,6 +1481,7 @@ async def _listen_loop(
                 elif vf_result.error:
                     print(f"[Voice] voice-first degraded: {vf_result.error}")
             except Exception as _vf_err:
+                _record_error("voice_first_call", _vf_err)
                 print(f"[Voice] voice-first import/call failed, falling back: {_vf_err}")
                 # Fallback: original text-first path
                 if text_channel:
@@ -1470,9 +1507,11 @@ async def _listen_loop(
                     },
                 )
             except Exception as e:
+                _record_error("voice_ki_integrate", e)
                 print(f"[Voice] KI integrate failed: {e}")
 
         except Exception as e:
+            _record_error("voice_utterance", e)
             print(f"[Voice] Utterance error: {e}")
             import traceback
 
@@ -1484,6 +1523,7 @@ async def _listen_loop(
         vc.start_recording(sink, lambda *a: None, None)
         print("[Voice] Silence detection active")
     except Exception as e:
+        _record_error("voice_start_recording", e)
         print(f"[Voice] Failed to start: {e}")
         import traceback
 
@@ -1502,8 +1542,8 @@ async def _listen_loop(
     sink.cleanup()
     try:
         vc.stop_recording()
-    except Exception:
-        pass
+    except Exception as _sr_err:
+        _record_error("voice_stop_recording", _sr_err)
 
     print("[Voice] Loop ended")
 
@@ -1523,8 +1563,8 @@ async def on_message(message: discord.Message):
 
         record_signal()
         reset_idle_counter()
-    except Exception:
-        pass
+    except Exception as _ws_err:
+        _record_error("work_state_signal", _ws_err)
 
     # Handle audio file attachments → transcribe → route → speak back
     if message.attachments:
@@ -1565,8 +1605,8 @@ async def on_message(message: discord.Message):
                         await message.reply("Could not transcribe that audio.")
                     try:
                         Path(tmp).unlink(missing_ok=True)
-                    except Exception:
-                        pass
+                    except Exception as _tmp_err:
+                        _record_error("temp_audio_cleanup", _tmp_err)
                 return
 
         # Handle image attachments → vision analysis
@@ -1594,6 +1634,7 @@ async def on_message(message: discord.Message):
                         else:
                             await message.reply("I couldn't analyze that image right now.")
                     except Exception as e:
+                        _record_error("vision_analysis", e)
                         logger.warning(f"Vision analysis failed: {e}")
                         await message.reply("Vision analysis failed — try again.")
                 return
@@ -1633,8 +1674,8 @@ async def on_message(message: discord.Message):
                 correlation_id=group.group_id,
             )
             _ib_store.append(_ib_event)
-        except Exception:
-            pass  # tracing failure must never block the request path
+        except Exception as _ev_err:
+            _record_error("event_spine_finalized", _ev_err)
         # Archive buffered inbound verbatim (logical message, not individual chunks)
         try:
             _archive_inbound(
@@ -1649,8 +1690,8 @@ async def on_message(message: discord.Message):
                     "channel_id": _cid_str,
                 },
             )
-        except Exception:
-            pass  # archive failure must never block message path
+        except Exception as _ar_err:
+            _record_error("archive_buffered", _ar_err)
         # Replace text with combined buffer and fall through to normal processing
         text = group.combined_text
         await _send_reply(
@@ -1718,8 +1759,8 @@ async def on_message(message: discord.Message):
                 correlation_id=group.group_id,
             )
             _ib_store.append(_ib_event)
-        except Exception:
-            pass
+        except Exception as _ev2_err:
+            _record_error("event_spine_received", _ev2_err)
         count = group.message_count
         await message.add_reaction("📝")
         if count % 3 == 0:
@@ -1800,6 +1841,7 @@ async def on_message(message: discord.Message):
                         provision_result["results"]["discord"] = "provisioned"
                         print("[Onboarding] Discord structure provisioned")
                     except Exception as _de:
+                        _record_error("onboarding_discord_provision", _de)
                         provision_result["results"]["discord"] = f"error: {_de}"
 
                     completion = _onboarding.get_completion_message(
@@ -1808,6 +1850,7 @@ async def on_message(message: discord.Message):
                     )
                     await _send_reply(message.channel, completion)
                 except Exception as _pe:
+                    _record_error("onboarding_provision", _pe)
                     print(f"[Onboarding] Provisioning error: {_pe}")
                     await _send_reply(
                         message.channel,
@@ -1842,8 +1885,8 @@ async def on_message(message: discord.Message):
                 "channel_name": channel_name,
             },
         )
-    except Exception:
-        pass  # archive failure must never block message path
+    except Exception as _ar2_err:
+        _record_error("archive_single", _ar2_err)
 
     # ── Substrate commands (spine/router routed) ───────────────────────
     if is_substrate_command(text):
@@ -1892,8 +1935,10 @@ async def on_message(message: discord.Message):
                 _trace_text = format_trace_for_discord(_orch_trace)
                 await _send_reply(message.channel, _trace_text)
             except Exception as _trace_err:  # noqa: BLE001
+                _record_error("orchestration_trace", _trace_err)
                 print(f"[Orchestration] trace format error: {_trace_err}", flush=True)
     except Exception as _orch_err:  # noqa: BLE001
+        _record_error("orchestration_ingress", _orch_err)
         print(f"[Orchestration] ingress error: {_orch_err}", flush=True)
 
     if _orch_handled:
@@ -1948,6 +1993,7 @@ async def on_message(message: discord.Message):
             user_id=str(message.author.id),
         )
     except Exception as _ple:  # noqa: BLE001
+        _record_error("pseudolive_hook", _ple)
         print(f"[PseudoLive] hook error: {_ple}")
         _pl_result = None
 
@@ -1980,6 +2026,7 @@ async def on_message(message: discord.Message):
                     try:
                         _pl_delivery_ok = await _send_reply(message.channel, _visible_content)
                     except Exception as _se:  # noqa: BLE001
+                        _record_error("pseudolive_send", _se)
                         print(f"[PseudoLive] send failed: {_se}")
 
                 # ── Post-delivery finalization ───────────────────────
@@ -2001,8 +2048,8 @@ async def on_message(message: discord.Message):
                                 f"session={_pl_session_check} — terminally finalized"
                             )
                             _pl_terminal = True
-                    except Exception:
-                        pass
+                    except Exception as _lc_err:
+                        _record_error("pseudolive_lifecycle_check", _lc_err)
 
                     if not _pl_terminal:
                         try:
@@ -2040,6 +2087,7 @@ async def on_message(message: discord.Message):
                                 if _pl_fin_result.clear_executed:
                                     print("[PseudoLive] Auto-clear executed")
                         except Exception as _fin_e:  # noqa: BLE001
+                            _record_error("pseudolive_finalization", _fin_e)
                             print(f"[PseudoLive] finalization failed: {_fin_e}")
 
                 _deferred = _pl_result.get("deferred_tts") or {}
@@ -2056,6 +2104,7 @@ async def on_message(message: discord.Message):
                             issued_by=f"discord_text:{_tts_role}",
                         )
                     except Exception as _te:  # noqa: BLE001
+                        _record_error("pseudolive_tts", _te)
                         print(f"[PseudoLive] deferred TTS failed: {_te}")
             else:
                 print(
@@ -2157,8 +2206,8 @@ async def on_message(message: discord.Message):
             capture(_pending["text"], venture_id=_venture_id)
             _icon = "💡" if _pending["type"] == "idea" else "✅"
             await _send_reply(message.channel, f"{_icon} Added to your list.")
-        except Exception:
-            pass
+        except Exception as _cap_err:
+            _record_error("founder_capture_resolve", _cap_err, {"venture_id": _venture_id})
         _fc_gid = str(message.guild.id) if message.guild else None
         _fc_cid = str(message.channel.id)
         loop = asyncio.get_event_loop()
@@ -2266,8 +2315,8 @@ async def on_message(message: discord.Message):
             if _capture_result.get("captured"):
                 _icon = "💡" if _ctype == "idea" else "✅"
                 await _send_reply(message.channel, f"{_icon} Added to your list.")
-    except Exception:
-        pass  # Never let capture break the main flow
+    except Exception as _cap2_err:
+        _record_error("founder_capture", _cap2_err)
 
     # ── Multi-part accumulation ───────────────────────────────────────────────
     part_info = _detect_part(text)
@@ -2379,8 +2428,8 @@ async def on_message(message: discord.Message):
                 founder_member = message.guild.get_member(FOUNDER_ID)
                 if founder_member and founder_member.voice and founder_member.voice.channel:
                     founder_in_voice = True
-        except Exception:
-            pass
+        except Exception as _fv_err:
+            _record_error("founder_voice_check", _fv_err)
 
         # Always post text response
         await _send_response(message, output)
@@ -2404,8 +2453,8 @@ async def on_message(message: discord.Message):
                     def cleanup(error):
                         try:
                             os.remove(audio_path)
-                        except Exception:
-                            pass
+                        except Exception as _cl_err:
+                            _record_error("tts_audio_cleanup", _cl_err)
 
                     vc.play(
                         discord.FFmpegPCMAudio(audio_path),
@@ -2413,6 +2462,7 @@ async def on_message(message: discord.Message):
                     )
                     print(f"[Voice] Speaking: {output[:50]}...")
             except Exception as e:
+                _record_error("voice_tts", e)
                 print(f"[Voice] TTS check: {e}")
 
     await bot.process_commands(message)
@@ -2475,6 +2525,7 @@ class DiscordServerManager:
             print(f"[Discord] Permission denied creating #{name}")
             return None
         except Exception as e:
+            _record_error("ensure_channel", e)
             print(f"[Discord] Error creating #{name}: {e}")
             return None
 
@@ -2631,6 +2682,7 @@ async def _setup_server_structure(guild: discord.Guild) -> None:
         await mgr.setup_eos_structure()
         await mgr.align_structure()
     except Exception as e:
+        _record_error("server_setup", e)
         print(f"[Discord] Server setup error: {e}")
 
 
@@ -2649,6 +2701,7 @@ async def cmd_answer(ctx: commands.Context, session_name: str, *, text: str):
         result = await get_bridge().handle_answer_command(session_name, text)
         await ctx.reply(result)
     except Exception as e:
+        _record_error("cmd_answer", e)
         await ctx.reply(f"Error: {e}")
 
 
@@ -2672,6 +2725,7 @@ async def cmd_mfa(ctx: commands.Context, service: str, *, code: str):
                 f"❌ Failed to deliver MFA response — bridge unreachable or no pending challenge"
             )
     except Exception as e:
+        _record_error("cmd_mfa", e)
         await ctx.reply(f"Error: {e}")
 
 
@@ -2691,6 +2745,7 @@ async def cmd_fire_export(ctx: commands.Context, service: str = "all"):
         else:
             await ctx.reply(f"❌ Failed: {result.get('error', 'unknown')}")
     except Exception as e:
+        _record_error("cmd_fire_export", e)
         await ctx.reply(f"Error: {e}")
 
 
@@ -2728,6 +2783,7 @@ async def cmd_watcher_status(ctx: commands.Context):
                 )
         await ctx.reply("\n".join(lines))
     except Exception as e:
+        _record_error("cmd_watcher_status", e)
         await ctx.reply(f"Error: {e}")
 
 
@@ -2762,6 +2818,7 @@ async def cmd_status(ctx: commands.Context):
                 ventures = pa.scan_all_ventures()
                 return pa.generate_portfolio_brief(ventures)
             except Exception as e:
+                _record_error("portfolio_scan", e)
                 return f"Portfolio scan failed: {e}"
 
         output = await loop.run_in_executor(None, _portfolio_scan)
@@ -2856,6 +2913,7 @@ async def cmd_outcome(ctx: commands.Context, *, args: str = ""):
         else:
             await ctx.reply("⚠️ Captured locally but Notion sync failed — check NOTION_MEETINGS_ID.")
     except Exception as e:
+        _record_error("cmd_outcome", e)
         await ctx.reply(f"❌ Failed: {e}")
 
 
@@ -2929,6 +2987,7 @@ async def cmd_accept(ctx: commands.Context, event_id: str = ""):
         ok = respond_to_invite(event_id, "accepted")
         await ctx.reply("✅ Accepted." if ok else "❌ Failed to accept.")
     except Exception as e:
+        _record_error("cmd_accept", e)
         await ctx.reply(f"❌ Error: {e}")
 
 
@@ -2944,6 +3003,7 @@ async def cmd_decline(ctx: commands.Context, event_id: str = ""):
         ok = respond_to_invite(event_id, "declined")
         await ctx.reply("❌ Declined." if ok else "❌ Failed to decline.")
     except Exception as e:
+        _record_error("cmd_decline", e)
         await ctx.reply(f"❌ Error: {e}")
 
 
@@ -3044,8 +3104,8 @@ async def cmd_approve_followup(ctx: commands.Context):
                             (row["id"],),
                         )
                     return
-            except Exception:
-                pass
+            except Exception as _qg_err:
+                _record_error("quality_gate", _qg_err)
 
         # Send the email
         if to_email:
@@ -3091,6 +3151,7 @@ async def cmd_approve_followup(ctx: commands.Context):
                 f"✅ Approved (no recipient email on file).\nDraft:\n```\n{draft[:400]}\n```"
             )
     except Exception as e:
+        _record_error("cmd_unknown", e)
         await ctx.reply(f"❌ Error: {e}")
 
 
@@ -3153,6 +3214,7 @@ async def cmd_force_send(ctx: commands.Context):
         else:
             await ctx.reply("❌ Send failed. Check GWS token.")
     except Exception as e:
+        _record_error("cmd_force_send", e)
         await ctx.reply(f"❌ Error: {e}")
 
 
@@ -3185,6 +3247,7 @@ async def cmd_confidential(ctx: commands.Context, *, args: str = ""):
             f"{'Metadata only' if level == 'restricted' else 'Memory only — not logged'}"
         )
     except Exception as e:
+        _record_error("cmd_confidential", e)
         await ctx.reply(f"❌ Error: {e}")
 
 
@@ -3227,6 +3290,7 @@ async def cmd_pending(ctx: commands.Context):
         lines.append("\n`!approve_followup` sends the most recent one.")
         await ctx.reply("\n".join(lines))
     except Exception as e:
+        _record_error("cmd_pending", e)
         await ctx.reply(f"❌ Error: {e}")
 
 
@@ -3261,6 +3325,7 @@ async def cmd_relationship(ctx: commands.Context, *, name: str = ""):
 
         await ctx.reply("\n".join(_rel_lines))
     except Exception as e:
+        _record_error("cmd_relationship", e)
         await ctx.reply(f"❌ Error: {e}")
 
 
@@ -3285,6 +3350,7 @@ async def cmd_nurture(ctx: commands.Context, *, name: str = ""):
         )
         try:
             from execution.runtime.model_router import get_router, TaskType
+
             _router = get_router()
             _model = _router.route(TaskType.FAST_RESPONSE)
             ai_draft = _router.call(
@@ -3303,13 +3369,14 @@ Subject: [subject]
             ).strip()
             if ai_draft and len(ai_draft) > 20:
                 draft = ai_draft
-        except Exception:
-            pass
+        except Exception as _nd_err:
+            _record_error("nurture_ai_draft", _nd_err, {"contact": name})
 
         await ctx.reply(
             f"📧 Check-in draft for {name}:\n```\n{draft[:500]}\n```\n`!approve_followup` to send."
         )
     except Exception as e:
+        _record_error("cmd_nurture", e)
         await ctx.reply(f"❌ Error: {e}")
 
 
@@ -3329,6 +3396,7 @@ async def cmd_expenses(ctx: commands.Context):
         lines.append(f"\n_{summary['count']} transactions_")
         await ctx.reply("\n".join(lines))
     except Exception as e:
+        _record_error("cmd_expenses", e)
         await ctx.reply(f"❌ Error: {e}")
 
 
@@ -3430,6 +3498,7 @@ async def cmd_sync(ctx: commands.Context):
                 dse = DailySyncEngine(_ctx_eos)
                 return dse.run_sync()
             except Exception as e:
+                _record_error("cmd_run_helper", e)
                 return f"Daily sync error: {e}"
 
         loop = asyncio.get_event_loop()
@@ -3450,6 +3519,7 @@ async def cmd_inbox(ctx: commands.Context):
                 processed = gps.process_inbox(limit=20)
                 return gps.generate_inbox_report(processed)
             except Exception as e:
+                _record_error("cmd_run_helper", e)
                 return f"Email GPS error: {e}"
 
         loop = asyncio.get_event_loop()
@@ -3483,7 +3553,8 @@ async def cmd_draft(ctx: commands.Context):
                                 "queued_at": data.get("queued_at", ""),
                             }
                         )
-                except Exception:
+                except Exception as _dp_err:
+                    _record_error("draft_parse", _dp_err, {"file": str(f)})
                     continue
 
             if not drafts:
@@ -3539,6 +3610,7 @@ async def cmd_cal(ctx: commands.Context, period: str = "today"):
                     lines.append(f"  {start} — {title}")
                 return "\n".join(lines)
             except Exception as e:
+                _record_error("cmd_run_helper", e)
                 return f"Calendar error: {e}"
 
         loop = asyncio.get_event_loop()
@@ -3584,6 +3656,7 @@ async def cmd_focus(ctx: commands.Context, hours: str = "2"):
                     )
                 return "❌ Failed to create focus block — GWS calendar error."
             except Exception as e:
+                _record_error("cmd_run_helper", e)
                 return f"❌ Error: {e}"
 
         loop = asyncio.get_event_loop()
@@ -3610,6 +3683,7 @@ async def cmd_waiting(ctx: commands.Context):
                     lines.append(f"  • {e.from_name or e.from_address}: {e.subject[:50]}")
                 return "\n".join(lines)
             except Exception as e:
+                _record_error("cmd_run_helper", e)
                 return f"Waiting On error: {e}"
 
         loop = asyncio.get_event_loop()
@@ -3629,6 +3703,7 @@ async def cmd_verify_inbox(ctx: commands.Context):
                 gps = EmailGPS(_ctx_eos)
                 return gps.verify_existing_labels(sample=5)
             except Exception as e:
+                _record_error("cmd_run_helper", e)
                 return f"Verify inbox error: {e}"
 
         loop = asyncio.get_event_loop()
@@ -3663,6 +3738,7 @@ async def cmd_folder_update(ctx: commands.Context, folder: str = "", *, instruct
                     )
                 return f'❌ Could not update "{folder}". Check the folder name and try again.'
             except Exception as e:
+                _record_error("cmd_run_helper", e)
                 return f"Folder update error: {e}"
 
         loop = asyncio.get_event_loop()
@@ -3689,6 +3765,7 @@ async def cmd_delegated(ctx: commands.Context):
                 lines.append(f"• {task} → {to} (due {due})")
             return "\n".join(lines)
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     loop = asyncio.get_event_loop()
@@ -3731,6 +3808,7 @@ async def cmd_subscriptions(ctx: commands.Context):
                     lines.append(f"• {r['vendor']} in {r['days_until']}d — ${r['amount']}")
             return "\n".join(lines)
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     loop = asyncio.get_event_loop()
@@ -3764,6 +3842,7 @@ async def cmd_add_sub(ctx: commands.Context, *, args: str = ""):
                 return f"✅ Added: {vendor} — ${amount}/{cycle} — renews {renewal}"
             return "❌ Failed to add subscription."
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     loop = asyncio.get_event_loop()
@@ -3879,6 +3958,7 @@ async def cmd_drip(ctx: commands.Context, *, args: str = ""):
             results = run_yield_audit(tasks)
             return format_yield_report(results)
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     await ctx.reply(f"🔍 Running Task Yield audit on {len(args.split(','))} tasks...")
@@ -3910,6 +3990,7 @@ async def cmd_buyback(ctx: commands.Context, income: str = ""):
                     f"{rate['interpretation']}"
                 )
             except Exception as e:
+                _record_error("cmd_run_helper", e)
                 return f"❌ Error: {e}"
 
         loop = asyncio.get_event_loop()
@@ -3932,6 +4013,7 @@ async def cmd_buyback(ctx: commands.Context, income: str = ""):
                     "Example: `!founderrate 120000`"
                 )
             except Exception as e:
+                _record_error("cmd__get", e)
                 return f"❌ Error: {e}"
 
         loop = asyncio.get_event_loop()
@@ -3970,6 +4052,7 @@ async def cmd_logtime(ctx: commands.Context, *, args: str = ""):
                 return f"⏱️ Logged: {activity} — {minutes}min — {energy_label}"
             return "❌ Failed to log."
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     loop = asyncio.get_event_loop()
@@ -4000,6 +4083,7 @@ async def cmd_timeaudit(ctx: commands.Context):
                 f"Low value work: {summary['low_value_pct']}%"
             )
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     loop = asyncio.get_event_loop()
@@ -4027,6 +4111,7 @@ async def cmd_perfectweek(ctx: commands.Context):
                 lines.append("")
             return "\n".join(lines)
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     loop = asyncio.get_event_loop()
@@ -4065,6 +4150,7 @@ async def cmd_camcorder(ctx: commands.Context, *, args: str = ""):
                 )
             return "❌ Playbook creation failed."
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     loop = asyncio.get_event_loop()
@@ -4089,6 +4175,7 @@ async def cmd_drive(ctx: commands.Context):
                 lines.append(f"• {f.get('name', 'Unknown')} ({f.get('id', '')})")
             return "\n".join(lines)
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     loop = asyncio.get_event_loop()
@@ -4122,6 +4209,7 @@ async def cmd_driveaudit(ctx: commands.Context):
                 lines.append("✅ Drive looks clean.")
             return "\n".join(lines)
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     loop = asyncio.get_event_loop()
@@ -4146,6 +4234,7 @@ async def cmd_createfolder(ctx: commands.Context, *, name: str = ""):
                 return f"📁 Folder created: **{name}**\nID: {result['id']}"
             return "❌ Failed to create folder."
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     loop = asyncio.get_event_loop()
@@ -4177,6 +4266,7 @@ async def cmd_trip(ctx: commands.Context, *, args: str = ""):
             log_trip(title, destination, start, end)
             return f"✈️ **Travel Brief: {title}**\n\n{brief}"
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     await ctx.reply("✈️ Building travel brief...")
@@ -4205,6 +4295,7 @@ async def cmd_nolist(ctx: commands.Context):
                 lines.append(f"• {item['item']}" + (f" — {reason}" if reason else ""))
             return "\n".join(lines)
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     loop = asyncio.get_event_loop()
@@ -4234,6 +4325,7 @@ async def cmd_noadd(ctx: commands.Context, *, args: str = ""):
                 )
             return "❌ Failed to add."
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     loop = asyncio.get_event_loop()
@@ -4300,6 +4392,7 @@ async def cmd_energy(ctx: commands.Context, *, args: str = ""):
                 )
             return "\n".join(lines)
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     loop = asyncio.get_event_loop()
@@ -4339,6 +4432,7 @@ async def cmd_year(ctx: commands.Context):
                     lines.append(f"• {v}")
             return "\n".join(lines)
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     loop = asyncio.get_event_loop()
@@ -4365,6 +4459,7 @@ async def cmd_rocks(ctx: commands.Context):
                 lines.append(f"{i}. {rock}")
             return "\n".join(lines)
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     loop = asyncio.get_event_loop()
@@ -4409,6 +4504,7 @@ async def cmd_invoices(ctx: commands.Context):
                 lines.append(f"\n🔴 {len(overdue)} overdue")
             return "\n".join(lines)
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     loop = asyncio.get_event_loop()
@@ -4451,6 +4547,7 @@ async def cmd_invoice(ctx: commands.Context, *, args: str = ""):
                 )
             return "❌ Failed to create invoice."
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     await ctx.reply("📄 Creating invoice...")
@@ -4469,6 +4566,7 @@ async def cmd_expensereport(ctx: commands.Context, month: str = ""):
 
             return generate_expense_report(month or None)
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     loop = asyncio.get_event_loop()
@@ -4487,6 +4585,7 @@ async def cmd_budget(ctx: commands.Context, target: str = "10000"):
             t = float(target.replace("$", "").replace(",", ""))
             return generate_budget_vs_actual(revenue_target=t)
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     loop = asyncio.get_event_loop()
@@ -4522,6 +4621,7 @@ async def cmd_briefdoc(ctx: commands.Context, *, args: str = ""):
                 return out
             return f"❌ Failed: {result.get('error')}"
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     await ctx.reply("📝 Creating briefing doc...")
@@ -4554,6 +4654,7 @@ async def cmd_board(ctx: commands.Context, *, args: str = ""):
                 return f"📋 **Board Update:**\n```\n{result['content'][:1200]}\n```"
             return "❌ Failed to generate."
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     await ctx.reply("📋 Generating board update...")
@@ -4580,6 +4681,7 @@ async def cmd_investor(ctx: commands.Context, *, args: str = ""):
                 return f"📊 **Investor Update:**\n```\n{result['content'][:1200]}\n```"
             return "❌ Failed to generate."
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     await ctx.reply("📊 Generating investor update...")
@@ -4617,6 +4719,7 @@ async def cmd_slides(ctx: commands.Context, *, args: str = ""):
                 return "\n".join(lines)
             return f"❌ Failed: {result.get('error')}"
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     await ctx.reply("📊 Creating presentation outline...")
@@ -4649,6 +4752,7 @@ async def cmd_factcheck(ctx: commands.Context, *, claim: str = ""):
                 f"{result['explanation']}"
             )
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     loop = asyncio.get_event_loop()
@@ -4688,6 +4792,7 @@ async def cmd_dates(ctx: commands.Context):
                     lines.append(f"   _{d['notes']}_")
             return "\n".join(lines)
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     loop = asyncio.get_event_loop()
@@ -4720,6 +4825,7 @@ async def cmd_adddate(ctx: commands.Context, *, args: str = ""):
                 return f"📅 Date added: **{parts[0]}** — {parts[2]} on {parts[1]}"
             return "❌ Failed to add date."
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     loop = asyncio.get_event_loop()
@@ -4748,6 +4854,7 @@ async def cmd_gift(ctx: commands.Context, *, args: str = ""):
             ideas = research_gift(person, occasion, budget)
             return f"🎁 **Gift ideas for {person} — {occasion}:**\n{ideas[:1500]}"
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     await ctx.reply("🎁 Researching gifts...")
@@ -4779,6 +4886,7 @@ async def cmd_flights(ctx: commands.Context, *, args: str = ""):
             )
             return f"✈️ **Flight research — {parts[0]} → {parts[1]}:**\n{result}"
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     await ctx.reply("✈️ Researching flights...")
@@ -4808,6 +4916,7 @@ async def cmd_hotels(ctx: commands.Context, *, args: str = ""):
             result = research_hotels(city, check_in, check_out, budget)
             return f"🏨 **Hotels — {city}:**\n{result}"
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     await ctx.reply("🏨 Researching hotels...")
@@ -4834,6 +4943,7 @@ async def cmd_restaurants(ctx: commands.Context, *, args: str = ""):
             result = research_restaurants(city, occasion, budget)
             return f"🍽️ **Restaurants — {city}:**\n{result}"
         except Exception as e:
+            _record_error("cmd_run_helper", e)
             return f"❌ Error: {e}"
 
     await ctx.reply("🍽️ Researching restaurants...")
@@ -4874,6 +4984,7 @@ async def cmd_proofread(ctx: commands.Context, *, content: str = ""):
 
         await _send_reply(ctx.channel, "\n".join(lines))
     except Exception as e:
+        _record_error("cmd_proofread", e)
         await ctx.reply(f"❌ Error: {e}")
 
 
@@ -4903,6 +5014,7 @@ async def cmd_minutes(ctx: commands.Context, *, args: str = ""):
         else:
             await ctx.reply("❌ Failed to draft minutes.")
     except Exception as e:
+        _record_error("cmd_minutes", e)
         await ctx.reply(f"❌ Error: {e}")
 
 
@@ -4916,6 +5028,7 @@ async def cmd_okr(ctx: commands.Context, subcommand: str = "report", *, args: st
             report = generate_okr_report()
             await _send_reply(ctx.channel, report)
         except Exception as e:
+            _record_error("cmd_okr", e)
             await ctx.reply(f"❌ Error: {e}")
 
     elif subcommand == "set":
@@ -4953,6 +5066,7 @@ async def cmd_okr(ctx: commands.Context, subcommand: str = "report", *, args: st
             else:
                 await ctx.reply("❌ Failed to set OKR.")
         except Exception as e:
+            _record_error("cmd_okr", e)
             await ctx.reply(f"❌ Error: {e}")
     else:
         await ctx.reply("Usage: `!okr report` or `!okr set [venture] | [objective] | [KRs...]`")
@@ -4983,6 +5097,7 @@ async def cmd_event(ctx: commands.Context, *, args: str = ""):
                     lines.append(f"  ⚠️ {incomplete} checklist items open")
             await ctx.reply("\n".join(lines))
         except Exception as e:
+            _record_error("cmd_event", e)
             await ctx.reply(f"❌ Error: {e}")
         return
 
@@ -5014,6 +5129,7 @@ async def cmd_event(ctx: commands.Context, *, args: str = ""):
             else:
                 await ctx.reply("❌ Failed to create event.")
         except Exception as e:
+            _record_error("cmd_event", e)
             await ctx.reply(f"❌ Error: {e}")
     else:
         await ctx.reply(
@@ -5044,6 +5160,7 @@ async def cmd_talkingpoints(ctx: commands.Context, *, args: str = ""):
         points = draft_talking_points(topic, audience, duration, fmt)
         await _send_reply(ctx.channel, points)
     except Exception as e:
+        _record_error("cmd_talkingpoints", e)
         await ctx.reply(f"❌ Error: {e}")
 
 
@@ -5075,6 +5192,7 @@ async def cmd_pr(ctx: commands.Context, *, args: str = ""):
         else:
             await ctx.reply("❌ Failed to log PR inquiry.")
     except Exception as e:
+        _record_error("cmd_pr", e)
         await ctx.reply(f"❌ Error: {e}")
 
 
@@ -5093,6 +5211,7 @@ async def cmd_board_update(ctx: commands.Context, venture_id: str = ""):
         brief = generate_board_update_brief(venture_id)
         await _send_reply(ctx.channel, f"📋 **Board Update — {venture_id}:**\n{brief}")
     except Exception as e:
+        _record_error("cmd_board_update", e)
         await ctx.reply(f"❌ Error: {e}")
 
 
@@ -5118,6 +5237,7 @@ async def cmd_announce(ctx: commands.Context, *, args: str = ""):
         )
         await ctx.reply(f"📢 **Announcement draft:**\n```\n{draft[:1500]}\n```")
     except Exception as e:
+        _record_error("cmd_announce", e)
         await ctx.reply(f"❌ Error: {e}")
 
 
@@ -5141,6 +5261,7 @@ async def cmd_crisis(ctx: commands.Context, *, args: str = ""):
         )
         await ctx.reply(f"🚨 **Crisis communication draft:**\n```\n{draft[:1500]}\n```")
     except Exception as e:
+        _record_error("cmd_crisis", e)
         await ctx.reply(f"❌ Error: {e}")
 
 
@@ -5169,6 +5290,7 @@ async def cmd_itinerary(ctx: commands.Context, *, args: str = ""):
             f"✈️ **Itinerary: {parts[0]}**\n```\n{itinerary[:1500]}\n```\nSaved to Drive."
         )
     except Exception as e:
+        _record_error("cmd_itinerary", e)
         await ctx.reply(f"❌ Error: {e}")
 
 
@@ -5227,6 +5349,7 @@ async def cmd_approve_task(ctx: commands.Context, task_id: str = ""):
             f"Result: {result_preview}"
         )
     except Exception as e:
+        _record_error("cmd_approve_task", e)
         await ctx.reply(f"❌ Error: {e}")
 
 
@@ -5261,6 +5384,7 @@ async def cmd_tasks(ctx: commands.Context):
 
         await _send_reply(ctx.channel, "\n".join(lines))
     except Exception as e:
+        _record_error("cmd_tasks", e)
         await ctx.reply(f"❌ Error: {e}")
 
 
@@ -5303,6 +5427,7 @@ async def cmd_agent_results(ctx: commands.Context):
 
         await _send_reply(ctx.channel, "\n".join(lines))
     except Exception as e:
+        _record_error("cmd_agent_results", e)
         await ctx.reply(f"❌ Error: {e}")
 
 
@@ -5337,6 +5462,7 @@ async def cmd_trace(ctx: commands.Context, limit: int = 5):
         lines.append("```")
         await _send_reply(ctx.channel, "\n".join(lines))
     except Exception as e:
+        _record_error("cmd_trace", e)
         await ctx.reply(f"Trace error: {e}", tts=False)
 
 
