@@ -1,6 +1,4 @@
-version: '3.8'
-
-# NOTE: top-level env_file is not valid in compose v3.8.
+# NOTE: top-level env_file is not valid in compose.
 # Each service declares its own env_file below.
 
 networks:
@@ -8,30 +6,6 @@ networks:
     driver: bridge
 
 services:
-  os-bot:
-    build: .
-    container_name: os-bot
-    restart: always
-    working_dir: /app
-    command: python3 services/telegram_control.py
-    networks:
-      - eos_network
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    volumes:
-      - ${UMH_ROOT:-/opt/OS}:/app
-    env_file:
-      - services/.env
-    environment:
-      - PYTHONPATH=/app
-      - TZ=America/Los_Angeles
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - OLLAMA_BASE_URL=http://host.docker.internal:11434
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-
   os-monitor:
     build: .
     container_name: os-monitor
