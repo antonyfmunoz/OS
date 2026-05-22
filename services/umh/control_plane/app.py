@@ -195,12 +195,12 @@ def _register_node_mesh() -> None:
 
 
 def _register_organism() -> None:
-    """Start the organism daemon with the shared pipeline."""
+    """Start the organism daemon with the shared pipeline and view socket."""
     global _organism
     try:
         from ..organism.daemon import OrganismDaemon
 
-        _organism = OrganismDaemon(pipeline=_pipeline)
+        _organism = OrganismDaemon(pipeline=_pipeline, view_socket=_view_socket)
         _organism.start()
         logger.info("organism daemon started")
     except Exception as exc:

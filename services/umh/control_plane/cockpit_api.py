@@ -46,14 +46,21 @@ async def pulse():
     pending_traces = sum(1 for t in traces[-500:] if t.get("status") == "pending")
     uptime = int(time.time() - psutil.boot_time())
 
+    daemon = _get_organism()
+    active_agents = 0
+    pending_approvals = 0
+    if daemon is not None:
+        active_agents = sum(1 for a in daemon.advisor.list_agents() if a.get("status") != "offline")
+        pending_approvals = daemon.approval_store.pending_count()
+
     return {
         "uptime": uptime,
         "cpu_percent": cpu,
         "memory_percent": mem.percent,
         "disk_percent": disk.percent,
-        "active_agents": 4,
+        "active_agents": active_agents,
         "pending_tasks": pending_traces,
-        "pending_approvals": 0,
+        "pending_approvals": pending_approvals,
         "trace_rate": round(len(traces) / max(uptime / 3600, 1), 1),
     }
 
@@ -201,7 +208,32 @@ async def infra():
 
 @router.get("/approvals")
 async def approvals():
-    return []
+    daemon = _get_organism()
+    if daemon is None:
+        return []
+    return daemon.approval_store.list_approvals()
+
+
+@router.post("/approvals/{approval_id}/approve")
+async def approve_item(approval_id: str):
+    daemon = _get_organism()
+    if daemon is None:
+        return {"ok": False, "error": "organism not running"}
+    result = daemon.approval_store.decide(approval_id, "approved")
+    if result is None:
+        return {"ok": False, "error": "approval not found"}
+    return {"ok": True}
+
+
+@router.post("/approvals/{approval_id}/deny")
+async def deny_item(approval_id: str, payload: dict | None = None):
+    daemon = _get_organism()
+    if daemon is None:
+        return {"ok": False, "error": "organism not running"}
+    result = daemon.approval_store.decide(approval_id, "denied")
+    if result is None:
+        return {"ok": False, "error": "approval not found"}
+    return {"ok": True}
 
 
 @router.get("/agents")
@@ -227,6 +259,23 @@ async def agents():
                     "capabilities": [],
                     "last_active": datetime.now(timezone.utc).isoformat(),
                     "tasks_completed": 0,
+                }
+            )
+
+    daemon = _get_organism()
+    if daemon is not None:
+        for oa in daemon.advisor.list_agents():
+            result.append(
+                {
+                    "id": f"organism-{oa['agent_id']}",
+                    "name": oa["agent_name"],
+                    "role": f"Organism {oa['agent_id']}",
+                    "model": "sonnet",
+                    "status": oa.get("status", "idle"),
+                    "tier": "tactical",
+                    "capabilities": [],
+                    "last_active": datetime.now(timezone.utc).isoformat(),
+                    "tasks_completed": oa.get("tasks_completed", 0),
                 }
             )
     return result
@@ -321,7 +370,51 @@ async def observations():
 
 @router.get("/workflows")
 async def workflows():
-    return []
+    traces = _read_jsonl(TRACE_STORE)
+    adapter_runs: dict[str, dict[str, Any]] = {}
+    for t in traces:
+        adapter = t.get("adapter_used") or "system"
+        key = adapter
+        if key not in adapter_runs:
+            adapter_runs[key] = {
+                "id": f"wf-{key}",
+                "name": f"{key} pipeline",
+                "schedule": "on-demand",
+                "last_run": None,
+                "last_status": "never",
+                "run_count": 0,
+                "total_duration_ms": 0,
+            }
+        entry = adapter_runs[key]
+        entry["run_count"] += 1
+        status = t.get("status", "pending")
+        ts = t.get("completed_at") or t.get("started_at") or t.get("created_at")
+        if ts:
+            entry["last_run"] = ts
+        if status == "completed":
+            entry["last_status"] = "success"
+        elif status == "failed":
+            entry["last_status"] = "failed"
+        elif status in ("pending", "running"):
+            entry["last_status"] = "running"
+
+    result = []
+    for wf in adapter_runs.values():
+        avg = 0
+        if wf["run_count"] > 0 and wf["total_duration_ms"] > 0:
+            avg = wf["total_duration_ms"] / wf["run_count"]
+        result.append(
+            {
+                "id": wf["id"],
+                "name": wf["name"],
+                "schedule": wf["schedule"],
+                "last_run": wf["last_run"],
+                "last_status": wf["last_status"],
+                "run_count": wf["run_count"],
+                "avg_duration_ms": round(avg),
+            }
+        )
+    return result
 
 
 @router.get("/tasks")
@@ -355,7 +448,38 @@ async def tasks():
 
 @router.get("/comms")
 async def comms(limit: int = 100):
-    return []
+    daemon = _get_organism()
+    if daemon is None:
+        return []
+    messages = daemon.store.list_messages(limit=limit)
+    result = []
+    for m in messages:
+        direction: str = "internal"
+        if m.get("sender") == "advisor":
+            direction = "outbound"
+        elif m.get("intent") == "report":
+            direction = "inbound"
+        result.append(
+            {
+                "id": m.get("id", ""),
+                "channel": f"organism/{m.get('recipient', 'unknown')}",
+                "from_agent": m.get("sender", "unknown"),
+                "content": _summarize_message(m),
+                "timestamp": m.get("created_at", ""),
+                "direction": direction,
+            }
+        )
+    result.reverse()
+    return result
+
+
+def _summarize_message(m: dict) -> str:
+    payload = m.get("payload", {})
+    task = payload.get("task", "")
+    if task:
+        return task[:300]
+    intent = m.get("intent", "")
+    return f"[{intent}] {str(payload)[:250]}" if intent else str(payload)[:300]
 
 
 @router.get("/tracking")
@@ -446,7 +570,12 @@ def _get_mesh_server():
 async def organism_status():
     daemon = _get_organism()
     if daemon is None:
-        return {"running": False, "agents": [], "total_deliverables": 0, "total_learning_signals": 0}
+        return {
+            "running": False,
+            "agents": [],
+            "total_deliverables": 0,
+            "total_learning_signals": 0,
+        }
     return daemon.status()
 
 

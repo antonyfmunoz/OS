@@ -12,6 +12,7 @@ from services.umh.organism.agent_runtime import AgentRuntime
 from services.umh.organism.protocols import AgentMessage, Deliverable
 from services.umh.organism.store import OrganismStore
 from services.umh.organism.worker_cell import WorkerCell
+from services.umh.sockets.envelopes import ViewFrame
 
 logger = logging.getLogger(__name__)
 
@@ -52,9 +53,11 @@ class Advisor:
         self,
         store: OrganismStore | None = None,
         worker: WorkerCell | None = None,
+        view_socket: Any = None,
     ) -> None:
         self._store = store or OrganismStore()
         self._worker = worker or WorkerCell()
+        self._view_socket = view_socket
         self._agents: dict[str, AgentRuntime] = {}
         self._init_agents()
 
@@ -71,6 +74,14 @@ class Advisor:
         agent = self._agents.get(agent_id)
         if agent is None:
             return {"error": f"no agent found for: {content[:100]}"}
+
+        self._emit_event(
+            "organism.signal_received",
+            {
+                "content": content[:200],
+                "routed_to": agent_id,
+            },
+        )
 
         adapter, operation, params = self._decompose_to_execution(content, agent_id)
 
@@ -89,7 +100,27 @@ class Advisor:
         )
 
         self._store.save_message(msg)
+
+        self._emit_event(
+            "organism.task_delegated",
+            {
+                "agent_id": agent_id,
+                "task": content[:200],
+                "message_id": str(msg.id),
+            },
+        )
+
         deliverable = agent.handle_task(msg)
+
+        self._emit_event(
+            "organism.deliverable_produced",
+            {
+                "agent_id": agent_id,
+                "deliverable_id": str(deliverable.id) if deliverable else None,
+                "critique_score": deliverable.self_critique.score if deliverable else None,
+                "critique_passed": deliverable.self_critique.passed if deliverable else None,
+            },
+        )
 
         result = {
             "signal": content,
@@ -102,6 +133,22 @@ class Advisor:
         }
 
         return result
+
+    def _emit_event(self, event_type: str, data: dict[str, Any]) -> None:
+        if self._view_socket is None:
+            return
+        frame = ViewFrame(
+            frame_id=uuid4(),
+            timestamp=datetime.now(timezone.utc),
+            event_type=event_type,
+            stage=0,
+            data=data,
+            integration_id="organism",
+        )
+        try:
+            self._view_socket.broadcast(frame)
+        except Exception as exc:
+            logger.debug("organism event broadcast failed: %s", exc)
 
     def _route_to_agent(self, content: str) -> str:
         words = set(content.lower().split())
