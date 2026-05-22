@@ -7,8 +7,18 @@ sys.path.insert(0, "/opt/OS")
 import asyncio
 
 from substrate.control_plane.context import ConcreteContextAssembler, ContextAssembler
+from substrate.control_plane.governance import ConcreteGovernanceEngine, GovernanceEngine
 from substrate.control_plane.identity import ConcreteIdentityResolver, IdentityResolver
-from substrate.types import ExecutionContext, Identity, SignalEnvelope, SignalSource
+from substrate.types import (
+    ExecutionContext,
+    ExecutionPlan,
+    GovernanceDecision,
+    GovernanceVerdict,
+    Identity,
+    RiskClass,
+    SignalEnvelope,
+    SignalSource,
+)
 
 
 class TestIdentityResolver:
@@ -57,3 +67,75 @@ class TestContextAssembler:
         assert isinstance(ctx, ExecutionContext)
         assert ctx.signal_id == signal.id
         assert ctx.identity == identity
+
+
+class TestGovernanceEngine:
+    def test_implements_protocol(self):
+        engine = ConcreteGovernanceEngine()
+        assert isinstance(engine, GovernanceEngine)
+
+    def test_classify_critical_action(self):
+        engine = ConcreteGovernanceEngine()
+        signal = SignalEnvelope(
+            source=SignalSource.USER,
+            content="send email to all leads",
+            user_id="test-user",
+            organization_id="munoz-holdings",
+        )
+        identity = Identity(
+            user_id="test-user",
+            organization_id="munoz-holdings",
+            ai_name="DEX",
+            ai_personality="professional",
+            autonomy_level=1,
+            business_stage="pre_revenue",
+        )
+        ctx = ExecutionContext(
+            signal_id=signal.id,
+            identity=identity,
+        )
+        verdict = asyncio.run(engine.classify(signal, ctx))
+        assert isinstance(verdict, GovernanceVerdict)
+        assert verdict.risk_class == RiskClass.CRITICAL
+        assert verdict.decision == GovernanceDecision.DENY
+
+    def test_classify_low_risk_action(self):
+        engine = ConcreteGovernanceEngine()
+        signal = SignalEnvelope(
+            source=SignalSource.USER,
+            content="analyze this data",
+            user_id="test-user",
+            organization_id="munoz-holdings",
+        )
+        identity = Identity(
+            user_id="test-user",
+            organization_id="munoz-holdings",
+            ai_name="DEX",
+            ai_personality="professional",
+            autonomy_level=1,
+            business_stage="pre_revenue",
+        )
+        ctx = ExecutionContext(signal_id=signal.id, identity=identity)
+        verdict = asyncio.run(engine.classify(signal, ctx))
+        assert verdict.risk_class == RiskClass.LOW
+        assert verdict.decision == GovernanceDecision.APPROVE
+
+    def test_classify_unknown_defaults_low(self):
+        engine = ConcreteGovernanceEngine()
+        signal = SignalEnvelope(
+            source=SignalSource.USER,
+            content="do something completely novel",
+            user_id="test",
+            organization_id="org",
+        )
+        identity = Identity(
+            user_id="test",
+            organization_id="org",
+            ai_name="DEX",
+            ai_personality="professional",
+            autonomy_level=1,
+            business_stage="pre_revenue",
+        )
+        ctx = ExecutionContext(signal_id=signal.id, identity=identity)
+        verdict = asyncio.run(engine.classify(signal, ctx))
+        assert verdict.risk_class == RiskClass.LOW
