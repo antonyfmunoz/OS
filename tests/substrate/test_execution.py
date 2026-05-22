@@ -8,12 +8,20 @@ import asyncio
 from uuid import uuid4
 
 from substrate.execution.feedback import ConcreteFeedbackCapture, FeedbackCapture
+from substrate.execution.spine import ConcreteExecutionSpine, ExecutionSpine
 from substrate.execution.trace import ConcreteTraceRecorder, TraceRecorder
 from substrate.types import (
+    ExecutionContext,
     ExecutionOutcome,
     ExecutionResult,
     FeedbackRecord,
     FeedbackType,
+    GovernanceDecision,
+    GovernanceVerdict,
+    Identity,
+    RiskClass,
+    SignalEnvelope,
+    SignalSource,
     TraceEventType,
     TraceRecord,
 )
@@ -130,3 +138,158 @@ class TestFeedbackCapture:
         )
         feedback = asyncio.run(capture.capture(trace, result))
         assert feedback.outcome_quality < 0.5
+
+
+class TestExecutionSpine:
+    """Tests for ConcreteExecutionSpine — 8-stage pipeline."""
+
+    def _make_spine(self) -> ConcreteExecutionSpine:
+        from substrate.control_plane.memory import ConcreteMemorySystem
+        from substrate.control_plane.registry import ConcreteComponentRegistry
+
+        return ConcreteExecutionSpine(
+            memory=ConcreteMemorySystem(),
+            registry=ConcreteComponentRegistry(),
+            trace_recorder=ConcreteTraceRecorder(),
+            feedback_capture=ConcreteFeedbackCapture(),
+        )
+
+    def _make_signal(self, content: str = "hello test") -> SignalEnvelope:
+        return SignalEnvelope(
+            source=SignalSource.SYSTEM,
+            content=content,
+            user_id="test",
+            organization_id="test-org",
+        )
+
+    def _make_context(self, signal_id) -> ExecutionContext:
+        identity = Identity(
+            user_id="test",
+            organization_id="test-org",
+            ai_name="DEX",
+            ai_personality="professional",
+            autonomy_level=1,
+            business_stage="pre_revenue",
+        )
+        return ExecutionContext(signal_id=signal_id, identity=identity)
+
+    def _make_verdict(
+        self,
+        signal_id,
+        decision: GovernanceDecision = GovernanceDecision.APPROVE,
+        risk_class: RiskClass = RiskClass.LOW,
+        rationale: str = "test approved",
+    ) -> GovernanceVerdict:
+        return GovernanceVerdict(
+            signal_id=signal_id,
+            risk_class=risk_class,
+            decision=decision,
+            rationale=rationale,
+        )
+
+    def test_implements_protocol(self) -> None:
+        spine = ConcreteExecutionSpine.__new__(ConcreteExecutionSpine)
+        assert isinstance(spine, ExecutionSpine)
+
+    def test_execute_returns_result(self) -> None:
+        spine = self._make_spine()
+        signal = self._make_signal("hello test")
+        context = self._make_context(signal.id)
+        verdict = self._make_verdict(signal.id)
+
+        result = asyncio.run(spine.execute(signal, context, verdict))
+        assert isinstance(result, ExecutionResult)
+        assert result.signal_id == signal.id
+        assert result.trace_id is not None
+        assert result.outcome == ExecutionOutcome.SUCCESS
+
+    def test_execute_blocked_returns_blocked(self) -> None:
+        spine = self._make_spine()
+        signal = self._make_signal("send email to everyone")
+        context = self._make_context(signal.id)
+        verdict = self._make_verdict(
+            signal.id,
+            decision=GovernanceDecision.DENY,
+            risk_class=RiskClass.CRITICAL,
+            rationale="too risky",
+        )
+
+        result = asyncio.run(spine.execute(signal, context, verdict))
+        assert result.outcome == ExecutionOutcome.BLOCKED
+        assert result.governance_decision == GovernanceDecision.DENY
+        assert result.output == "too risky"
+
+    def test_deterministic_fallback_greeting(self) -> None:
+        """Deterministic-first: greeting intent produces a greeting response."""
+        spine = self._make_spine()
+        signal = self._make_signal("hello there")
+        context = self._make_context(signal.id)
+        verdict = self._make_verdict(signal.id)
+
+        result = asyncio.run(spine.execute(signal, context, verdict))
+        assert result.outcome == ExecutionOutcome.SUCCESS
+        # Without live LLM, falls back to deterministic greeting
+        assert result.provider == "deterministic"
+        assert "Hello" in result.output
+
+    def test_deterministic_fallback_question(self) -> None:
+        """Deterministic-first: question intent produces a question response."""
+        spine = self._make_spine()
+        signal = self._make_signal("what is the current status?")
+        context = self._make_context(signal.id)
+        verdict = self._make_verdict(signal.id)
+
+        result = asyncio.run(spine.execute(signal, context, verdict))
+        assert result.outcome == ExecutionOutcome.SUCCESS
+        assert result.provider == "deterministic"
+
+    def test_deterministic_fallback_command(self) -> None:
+        """Deterministic-first: command intent produces a command response."""
+        spine = self._make_spine()
+        signal = self._make_signal("create a new project")
+        context = self._make_context(signal.id)
+        verdict = self._make_verdict(signal.id)
+
+        result = asyncio.run(spine.execute(signal, context, verdict))
+        assert result.outcome == ExecutionOutcome.SUCCESS
+        assert result.provider == "deterministic"
+        assert "process" in result.output.lower() or "request" in result.output.lower()
+
+    def test_classify_intent_unknown(self) -> None:
+        """Unknown content falls back to unknown intent."""
+        spine = ConcreteExecutionSpine()
+        assert spine._classify_intent("asdf jkl") == "unknown"
+
+    def test_classify_intent_greeting(self) -> None:
+        spine = ConcreteExecutionSpine()
+        assert spine._classify_intent("hello world") == "greeting"
+
+    def test_classify_intent_question(self) -> None:
+        spine = ConcreteExecutionSpine()
+        assert spine._classify_intent("what is this?") == "question"
+
+    def test_execute_without_subsystems(self) -> None:
+        """Spine works with no memory, no registry, no trace, no feedback."""
+        spine = ConcreteExecutionSpine()
+        signal = self._make_signal("hey")
+        context = self._make_context(signal.id)
+        verdict = self._make_verdict(signal.id)
+
+        result = asyncio.run(spine.execute(signal, context, verdict))
+        assert result.outcome == ExecutionOutcome.SUCCESS
+        assert result.duration_ms > 0
+
+    def test_execute_escalated_is_blocked(self) -> None:
+        """Escalated verdict is not executable — returns BLOCKED."""
+        spine = ConcreteExecutionSpine()
+        signal = self._make_signal("do something dangerous")
+        context = self._make_context(signal.id)
+        verdict = self._make_verdict(
+            signal.id,
+            decision=GovernanceDecision.ESCALATE,
+            risk_class=RiskClass.HIGH,
+            rationale="needs human review",
+        )
+
+        result = asyncio.run(spine.execute(signal, context, verdict))
+        assert result.outcome == ExecutionOutcome.BLOCKED
