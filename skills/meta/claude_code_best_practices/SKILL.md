@@ -211,7 +211,7 @@ effort: high|medium|low
 
 Reference: `/opt/OS/.claude/skills/obsidian-markdown/SKILL.md`
 
-All `.md` files in `10_Wiki/`:
+All `.md` files in `knowledge/`:
 - YAML frontmatter with `type` property
 - `[[wikilinks]]` for internal vault navigation
 - `tags` and `aliases` on human-authored files
@@ -353,7 +353,7 @@ print(f'  --- {total - fails}/{total} pass')
 - All 11 .claude/skills/ have frontmatter (v2.0)
 - 5 external skills absorbed into TME (obsidian-markdown, obsidian-bases, obsidian-cli, json-canvas, defuddle)
 - 2 duplicate .claude/skills/ removed (notebooklm, ollama — TME authoritative)
-- 10_Wiki wikilinks (v2.0)
+- knowledge wikilinks (v2.0)
 
 ### Remaining Gaps
 

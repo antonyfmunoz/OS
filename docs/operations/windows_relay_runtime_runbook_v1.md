@@ -151,7 +151,7 @@ pulling on Windows.
 **Cause:** Line ending conversion (CRLF vs LF) or generated graph/palace
 files that differ between VPS and local.
 
-**Fix:** These are generated files. Run `git checkout -- 10_Wiki/` to
+**Fix:** These are generated files. Run `git checkout -- knowledge/` to
 discard generated changes, or commit them. The graph files are rebuilt
 by `scripts/update-graph` and are safe to regenerate.
 

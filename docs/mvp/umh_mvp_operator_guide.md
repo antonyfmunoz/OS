@@ -52,7 +52,7 @@ behind an approval workflow. Current capabilities:
   You cannot run `curl`, `pip`, `git`, `apt`, or anything else.
 - **No file write/delete through plans** -- while `file_write` and `file_delete` are
   known operations, they are sandboxed to `/opt/OS/data`, `/opt/OS/logs`,
-  `/opt/OS/10_Wiki`, and `/tmp`. No templates currently generate write operations.
+  `/opt/OS/knowledge`, and `/tmp`. No templates currently generate write operations.
 - **No task resume from CLI** -- paused tasks can only be resumed via the API, not the CLI.
 - **No parallel step execution** -- all task steps run sequentially.
 - **No plan editing** -- once a plan is created, it cannot be modified. Create a new one.
@@ -851,7 +851,7 @@ newlines) are blocked by the security guard before the allowlist check.
 File operations are restricted to these directory roots:
 - `/opt/OS/data`
 - `/opt/OS/logs`
-- `/opt/OS/10_Wiki`
+- `/opt/OS/knowledge`
 - `/tmp`
 
 Additionally, paths containing these patterns are denied:

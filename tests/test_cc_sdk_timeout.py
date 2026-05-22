@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or "/opt/OS")
 
-from adapters.model_adapters.cc_sdk import DEFAULT_TIMEOUT_SECONDS, _resolve_timeout
+from adapters.models.cc_sdk import DEFAULT_TIMEOUT_SECONDS, _resolve_timeout
 
 
 class TestResolveTimeout:

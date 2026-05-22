@@ -26,7 +26,7 @@ Access model:
 EOS consequences:
 - The CLI is **unusable on a headless VPS** where Obsidian cannot run
   with a GUI. EOS vault operations on the server use direct file I/O
-  against the vault directory (`/opt/OS/10_Wiki/`), not the CLI.
+  against the vault directory (`/opt/OS/knowledge/`), not the CLI.
 - For local development machines (macOS/Windows/Linux with desktop),
   the CLI provides richer access: live search indexing, backlink
   resolution, plugin reload, and DOM inspection.
@@ -649,7 +649,7 @@ Integration anti-patterns:
   data. Sync between them creates drift.
 
 EOS composition:
-- The vault at `/opt/OS/10_Wiki/` is managed by direct file I/O on
+- The vault at `/opt/OS/knowledge/` is managed by direct file I/O on
   the VPS (no GUI available). The CLI skill exists for local machines
   where Obsidian runs with a desktop.
 - The `scripts/vault_backlink_audit.py` operates on files directly,
@@ -808,9 +808,9 @@ headless visual regression tests:
 EOS integrates with Obsidian at the vault level, not the CLI level,
 because the primary execution environment is a headless VPS:
 
-- **Wiki system** (`/opt/OS/10_Wiki/`) is managed via direct file I/O
+- **Wiki system** (`/opt/OS/knowledge/`) is managed via direct file I/O
   and Python scripts (`scripts/vault_backlink_audit.py`).
-- **Memory palace** (`10_Wiki/palace/`) is built and queried by
+- **Memory palace** (`knowledge/palace/`) is built and queried by
   `scripts/query_graph.py` without CLI dependency.
 - **Knowledge graph** uses `data/node_summaries.json` generated from
   file parsing, not CLI search.

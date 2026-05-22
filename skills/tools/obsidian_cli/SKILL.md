@@ -32,7 +32,7 @@ Run `obsidian help` to see all available commands. This is always the authoritat
 
 ## EOS Integration
 
-EOS uses Obsidian as the vault layer for wiki content at `/opt/OS/10_Wiki/`. The CLI enables:
+EOS uses Obsidian as the vault layer for wiki content at `/opt/OS/knowledge/`. The CLI enables:
 
 - Automated note creation and updates from EOS agents
 - Search and retrieval for the knowledge retrieval hierarchy
