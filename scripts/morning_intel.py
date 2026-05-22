@@ -97,13 +97,31 @@ async def build_intel_brief():
     except Exception:
         portfolio_context = ""
 
-    # 4. Synthesize with LLM
+    # 4. Deterministic brief first, AI enhancement when available
     signals_text = "\n".join(signals[:5]) if signals else "No new signals overnight"
     knowledge_text = (
         "\n---\n".join(knowledge_snippets[:2]) if knowledge_snippets else ""
     )
 
-    prompt = f"""You are DEX, EA to Antony Munoz, founder of:
+    det_parts = []
+    det_parts.append("**Signals**")
+    if signals:
+        for s in signals[:3]:
+            det_parts.append(f"- {s[:120]}")
+    else:
+        det_parts.append("- No new signals overnight")
+    det_parts.append("")
+    if portfolio_context:
+        det_parts.append(f"**Portfolio**: {portfolio_context}")
+        det_parts.append("")
+    if knowledge_snippets:
+        det_parts.append("**Recent Intel**")
+        for k in knowledge_snippets[:2]:
+            det_parts.append(f"- {k[:120]}")
+    brief = "\n".join(det_parts)
+
+    try:
+        prompt = f"""You are DEX, EA to Antony Munoz, founder of:
 - Lyfe Institute (coaching men 18-25, $750, Instagram DMs)
 - Empyrean Creative (B2B AI infrastructure)
 - Antony F. Munoz (personal brand, Twitch)
@@ -126,10 +144,11 @@ Generate a concise morning intelligence brief covering:
 Under 200 words total. Direct. High signal only.
 No fluff. If there's nothing meaningful, say so briefly."""
 
-    try:
-        brief = router.call(model, prompt).strip()
-    except Exception as e:
-        brief = f"Intelligence synthesis unavailable: {e}"
+        ai_brief = router.call(model, prompt).strip()
+        if ai_brief and len(ai_brief) > 30:
+            brief = ai_brief
+    except Exception:
+        pass
 
     sections.append(brief)
     sections.append("")
