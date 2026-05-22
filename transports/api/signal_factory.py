@@ -1,4 +1,5 @@
 """API signal factory — converts HTTP requests to SignalEnvelopes."""
+
 from __future__ import annotations
 
 from typing import Any
