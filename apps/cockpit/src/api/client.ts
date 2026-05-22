@@ -171,12 +171,27 @@ export interface ProfileResponse {
   continuity_score: number
 }
 
+export interface MeshNodeResponse {
+  id: string
+  name: string
+  os: string
+  os_version: string
+  status: 'connected' | 'degraded' | 'disconnected'
+  capabilities: string[]
+  metrics: Record<string, number>
+  last_heartbeat: string
+  tailscale_ip: string
+  connected_at: string
+  daemon_version: string
+}
+
 export const api = {
   health: () => request<HealthResponse>('/health'),
   pulse: () => request<PulseResponse>('/pulse'),
   models: () => request<ModelResponse[]>('/models'),
   traces: () => request<{ traces: unknown[] }>('/traces'),
   infra: () => request<InfraNodeResponse[]>('/infra'),
+  meshNodes: () => request<MeshNodeResponse[]>('/mesh/nodes'),
 
   approvals: () => request<ApprovalResponse[]>('/approvals'),
   approveItem: (id: string) =>

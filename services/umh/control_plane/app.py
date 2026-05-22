@@ -44,6 +44,7 @@ _notion_poller: Any = None
 _notion_poller_thread: threading.Thread | None = None
 _eos_poller: Any = None
 _eos_poller_thread: threading.Thread | None = None
+_mesh_server: Any = None
 
 
 def _register_notion_integration() -> None:
@@ -166,6 +167,32 @@ def _register_eos_integration() -> None:
         logger.warning("eos integration not loaded: %s", exc)
 
 
+def _register_node_mesh() -> None:
+    """Start the node mesh WebSocket server for remote device connections."""
+    global _mesh_server
+    try:
+        from ..node_mesh.config import load_mesh_config
+        from ..node_mesh.server import NodeMeshServer
+        from ..sockets.capability_socket import CapabilitySocket
+        from ..sockets.outcome_socket import OutcomeSocket
+        from ..sockets.signal_socket import SignalSocket
+
+        config = load_mesh_config()
+        _mesh_server = NodeMeshServer(
+            config=config,
+            executor=_executor,
+            signal_socket=SignalSocket(),
+            capability_socket=CapabilitySocket(),
+            outcome_socket=OutcomeSocket(),
+            view_socket=_view_socket,
+            pipeline_submit_fn=_pipeline.submit_signal,
+        )
+        _mesh_server.start()
+        logger.info("node mesh server started on port %d", config.port)
+    except Exception as exc:
+        logger.warning("node mesh not started: %s", exc)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _broadcaster, _notion_poller_thread, _eos_poller_thread
@@ -175,6 +202,7 @@ async def lifespan(app: FastAPI):
 
     _register_notion_integration()
     _register_eos_integration()
+    _register_node_mesh()
 
     if _notion_poller is not None:
         _notion_poller_thread = _notion_poller.start()
@@ -191,6 +219,10 @@ async def lifespan(app: FastAPI):
     logger.info("view socket broadcaster wired to WebSocket endpoint")
 
     yield
+
+    if _mesh_server is not None:
+        _mesh_server.stop()
+        logger.info("node mesh server stopped")
 
     if _eos_poller is not None:
         _eos_poller.shutdown_event.set()

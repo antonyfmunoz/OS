@@ -94,6 +94,13 @@ class SignalSocket:
 
         return uuid4()
 
+    def unregister_emitter(self, integration_id: str) -> None:
+        """Remove an integration's signal emitter. Idempotent."""
+        if integration_id in self._emitters:
+            del self._emitters[integration_id]
+            del self._catalogs[integration_id]
+            logger.info("signal emitter unregistered: %s", integration_id)
+
     def registered_integrations(self) -> list[str]:
         return list(self._emitters.keys())
 

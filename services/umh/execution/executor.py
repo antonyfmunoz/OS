@@ -59,6 +59,10 @@ class WorkPacketExecutor:
     def register_adapter(self, adapter: AdapterProtocol) -> None:
         self._adapters[adapter.name] = adapter
 
+    def unregister_adapter(self, name: str) -> None:
+        """Remove a named adapter. Idempotent."""
+        self._adapters.pop(name, None)
+
     def get_adapter(self, name: str) -> AdapterProtocol | None:
         return self._adapters.get(name)
 

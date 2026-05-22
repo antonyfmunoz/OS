@@ -126,7 +126,7 @@ class IntegrationRegistry:
         """
         iid = manifest.integration_id
         if iid in self._registered:
-            raise ValueError(f"integration '{iid}' already registered")
+            self.unregister(iid)
 
         if manifest.signal_emitter is not None:
             self._signal.register_emitter(manifest.signal_emitter)
@@ -151,9 +151,19 @@ class IntegrationRegistry:
         return adapter
 
     def unregister(self, integration_id: str) -> None:
-        """Remove an integration. Idempotent."""
-        self._registered.pop(integration_id, None)
+        """Remove an integration and clean up all socket registrations. Idempotent."""
+        manifest = self._registered.pop(integration_id, None)
         self._adapters.pop(integration_id, None)
+        if manifest is None:
+            return
+        if manifest.signal_emitter is not None:
+            self._signal.unregister_emitter(integration_id)
+        if manifest.capability_handler is not None:
+            self._capability.unregister_handler(integration_id)
+        if manifest.outcome_receiver is not None:
+            self._outcome.unregister_receiver(integration_id)
+        if manifest.view_subscriber is not None:
+            self._view.unsubscribe(integration_id)
 
     def registered(self) -> list[str]:
         return list(self._registered.keys())

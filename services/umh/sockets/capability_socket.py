@@ -81,6 +81,13 @@ class CapabilitySocket:
                 latency_ms=duration,
             )
 
+    def unregister_handler(self, integration_id: str) -> None:
+        """Remove an integration's capability handler. Idempotent."""
+        if integration_id in self._handlers:
+            del self._handlers[integration_id]
+            del self._catalogs[integration_id]
+            logger.info("capability handler unregistered: %s", integration_id)
+
     def capability_catalog(self) -> dict[str, list[CapabilityDescriptor]]:
         return dict(self._catalogs)
 

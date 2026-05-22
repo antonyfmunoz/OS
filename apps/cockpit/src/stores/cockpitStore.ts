@@ -151,6 +151,7 @@ export const useCockpitStore = create<CockpitState>((set, get) => ({
         analyticsRes,
         settingsRes,
         profileRes,
+        meshRes,
       ] = await Promise.allSettled([
         api.pulse(),
         api.models(),
@@ -167,6 +168,7 @@ export const useCockpitStore = create<CockpitState>((set, get) => ({
         api.analytics(),
         api.settings(),
         api.profile(),
+        api.meshNodes(),
       ])
 
       const unwrap = <T>(r: PromiseSettledResult<T>, fallback: T): T =>
@@ -215,6 +217,21 @@ export const useCockpitStore = create<CockpitState>((set, get) => ({
         status: n.status,
         metrics: n.metrics,
       }))
+
+      const meshNodes = unwrap(meshRes, [])
+      const statusMap: Record<string, 'healthy' | 'degraded' | 'down'> = {
+        connected: 'healthy',
+        degraded: 'degraded',
+        disconnected: 'down',
+      }
+      const meshInfra: InfraNode[] = (meshNodes || []).map((n) => ({
+        id: `mesh-${n.id}`,
+        name: `${n.name} (${n.os})`,
+        type: 'compute' as const,
+        status: statusMap[n.status] ?? 'down',
+        metrics: n.metrics,
+      }))
+      mappedInfra.push(...meshInfra)
 
       set({
         loading: false,
