@@ -250,6 +250,17 @@ new-primitive, debug-agent
 - agent_runtime.py has its own fallback via _claude_available flag — do not break
 - MCP_CONNECTION_NONBLOCKING=true always
 
+## Deterministic-First Principle (NON-NEGOTIABLE)
+The deterministic layer is the spine — it always works.
+AI is a cognitive enhancement, not a dependency.
+- Every LLM call MUST have a deterministic fallback that produces a usable result
+- Rules/regex/lookup tables run first. AI refines when available.
+- Test: "all LLM providers are down — does the system still produce output?" Must be yes.
+- Pattern: build deterministic result → try AI enhancement → use AI if better, keep deterministic if not
+- Never introduce an LLM call without answering: "what happens when this fails?"
+- Routing, classification, validation, scheduling = deterministic spine
+- Content generation, synthesis, creative work = AI-enhanced (with template fallback)
+
 ## Boris Cherny Principles (Applied to UMH)
 - MOST IMPORTANT: give Claude a way to verify its output. Every agent task needs a verification step before marking complete.
 - Plan first: read everything, plan completely, then execute. Never write code against summaries.

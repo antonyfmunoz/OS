@@ -195,11 +195,12 @@ async def run_weekly_review():
     except Exception:
         pass
 
-    # 4. DEX synthesis
+    # 4. DEX synthesis — deterministic summary first, AI enhancement when available
+    context_block = '\n'.join(sections)
+    sections.append('**DEX assessment:**')
     try:
         router = get_router()
         model = router.route(TaskType.ANALYSIS)
-        context_block = '\n'.join(sections)
         synthesis = router.call(model, f"""You are DEX, EA to Antony Munoz.
 Based on this week's activity:
 
@@ -207,11 +208,13 @@ Based on this week's activity:
 
 In 2-3 sentences, what's the one thing that needs to change next week to move the needle?
 Be direct. No hedging. Focus on the binding constraint.""").strip()
-        sections.append('**DEX assessment:**')
-        sections.append(synthesis)
-        sections.append('')
+        if synthesis and len(synthesis) > 20:
+            sections.append(synthesis)
+        else:
+            sections.append('Review the data above — focus on the binding constraint next week.')
     except Exception:
-        pass
+        sections.append('Review the data above — focus on the binding constraint next week.')
+    sections.append('')
 
     sections.append('**Next week starts tomorrow. What do you want to protect?**')
     sections.append('— DEX')

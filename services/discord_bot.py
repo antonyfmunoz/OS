@@ -3271,17 +3271,25 @@ async def cmd_nurture(ctx: commands.Context, *, name: str = ""):
         await ctx.reply("Usage: `!nurture [contact name]`")
         return
     try:
-        from execution.runtime.model_router import get_router, TaskType
         from understanding.intelligence.person_recognition import build_intelligence_profile
 
-        _router = get_router()
-        _model = _router.route(TaskType.FAST_RESPONSE)
         profile = build_intelligence_profile(name=name)
         notes = getattr(profile, "notes", None) or "No prior context available"
         last_contact = getattr(profile, "last_contact", None) or "unknown"
-        draft = _router.call(
-            _model,
-            f"""Draft a warm check-in message for {name}.
+
+        draft = (
+            f"Subject: Hey {name}\n\n"
+            f"Hey {name}, been a minute — hope you're doing well. "
+            f"Would love to catch up when you have time.\n\n"
+            f"— Antony"
+        )
+        try:
+            from execution.runtime.model_router import get_router, TaskType
+            _router = get_router()
+            _model = _router.route(TaskType.FAST_RESPONSE)
+            ai_draft = _router.call(
+                _model,
+                f"""Draft a warm check-in message for {name}.
 
 Context: {notes}
 Last contact: {last_contact}
@@ -3292,7 +3300,12 @@ Antony's voice — casual, genuine, no agenda.
 Subject: [subject]
 [body]
 [Antony]""",
-        ).strip()
+            ).strip()
+            if ai_draft and len(ai_draft) > 20:
+                draft = ai_draft
+        except Exception:
+            pass
+
         await ctx.reply(
             f"📧 Check-in draft for {name}:\n```\n{draft[:500]}\n```\n`!approve_followup` to send."
         )
