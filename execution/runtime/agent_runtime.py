@@ -18,9 +18,12 @@ Usage:
     print(result.output)
 """
 
+import json
 import os
+import re
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 
@@ -57,6 +60,38 @@ def calculate_cost(model: str, tokens_used: dict[str, int]) -> float:
     input_cost = tokens_used.get("input", 0) / 1_000_000 * rates["input"]
     output_cost = tokens_used.get("output", 0) / 1_000_000 * rates["output"]
     return round(input_cost + output_cost, 8)
+
+
+_AGENT_RUNTIME_ERROR_LOG = (
+    Path(__file__).resolve().parent.parent.parent / "logs" / "agent_runtime_errors.jsonl"
+)
+
+
+def _record_error(component: str, error: Exception | str, context: dict | None = None) -> None:
+    """Append a structured error record to agent_runtime_errors.jsonl."""
+    try:
+        _AGENT_RUNTIME_ERROR_LOG.parent.mkdir(parents=True, exist_ok=True)
+        record = {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "component": component,
+            "error": str(error),
+            "error_type": type(error).__name__ if isinstance(error, Exception) else "str",
+            "context": context or {},
+        }
+        with open(_AGENT_RUNTIME_ERROR_LOG, "a") as f:
+            f.write(json.dumps(record) + "\n")
+    except Exception:
+        pass
+
+
+_RUNTIME_INTENT_PATTERNS: list[tuple[re.Pattern, str]] = [
+    (re.compile(r"\b(score|rank|qualify|rate)\b", re.I), "score"),
+    (re.compile(r"\b(classify|categorize|detect|identify)\b", re.I), "classify"),
+    (re.compile(r"\b(analyze|review|assess|evaluate)\b", re.I), "analyze"),
+    (re.compile(r"\b(create|build|write|generate|draft|compose)\b", re.I), "generate"),
+    (re.compile(r"\b(summarize|digest|brief|recap)\b", re.I), "summarize"),
+    (re.compile(r"\b(hey|hi|hello|morning|gm|yo|sup)\b", re.I), "greeting"),
+]
 
 
 class TaskType(Enum):
@@ -113,9 +148,7 @@ class RateLimiter:
         counts[hour_key] = hour_count + 1
 
         # Purge keys not in current window to prevent unbounded growth
-        cls._counts[org_id] = {
-            k: v for k, v in counts.items() if k in (minute_key, hour_key)
-        }
+        cls._counts[org_id] = {k: v for k, v in counts.items() if k in (minute_key, hour_key)}
         return True
 
 
@@ -158,12 +191,14 @@ class AgentRuntime:
         """Deprecated: use model_router.call_with_fallback() instead.
         Kept for backward compatibility — logs warning on use."""
         import warnings
+
         warnings.warn(
             "AgentRuntime.client is deprecated — use model_router.call_with_fallback()",
             DeprecationWarning,
             stacklevel=2,
         )
         import anthropic
+
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         return anthropic.Anthropic(api_key=api_key) if api_key else None
 
@@ -239,7 +274,8 @@ class AgentRuntime:
                 from control_plane.agents.agent_hierarchy import AgentHierarchy
 
                 agent = AgentHierarchy().get_primary_interface()
-            except Exception:
+            except Exception as _hier_err:
+                _record_error("agent_hierarchy", _hier_err, {"fallback": "executive_assistant"})
                 agent = "executive_assistant"
 
         soul_doc_loaded = False
@@ -256,13 +292,13 @@ class AgentRuntime:
                 _bis = _bim.get_bis(_primary_vid)
                 _user_soul_doc = getattr(_bis, "ai_soul_doc_path", "") if _bis else ""
                 if _user_soul_doc and Path(_user_soul_doc).exists():
-                    system_parts.append(
-                        Path(_user_soul_doc).read_text(encoding="utf-8")
-                    )
+                    system_parts.append(Path(_user_soul_doc).read_text(encoding="utf-8"))
                     print(f"[AgentRuntime] User soul doc: {_user_soul_doc}")
                     soul_doc_loaded = True
-            except Exception:
-                pass  # fall through to hierarchy soul doc
+            except Exception as _bis_err:
+                _record_error(
+                    "bis_soul_doc", _bis_err, {"venture_id": venture_id or "lyfe_institute"}
+                )
 
         # Fall back to hierarchy soul doc (agents/{agent}.md)
         if not soul_doc_loaded:
@@ -270,8 +306,8 @@ class AgentRuntime:
             if agent not in ("gateway.direct",) and _soul_path.exists():
                 try:
                     system_parts.append(_soul_path.read_text(encoding="utf-8"))
-                except Exception:
-                    pass
+                except Exception as _soul_err:
+                    _record_error("soul_doc_read", _soul_err, {"path": str(_soul_path)})
 
         # 0. Prepend any caller-supplied extra context (e.g. human profile)
         if system_extra:
@@ -299,22 +335,20 @@ class AgentRuntime:
                     "Use them to inform your approach — especially outcomes.\n\n"
                     + "\n".join(past_lines)
                 )
-        except Exception:
-            pass  # semantic retrieval is enhancement — never block execution
+        except Exception as _sem_err:
+            _record_error("semantic_search", _sem_err, {"venture_id": venture_id})
 
         # 1. Inject venture context
         if venture_id:
             try:
-                venture_context = VentureKnowledgeBase.to_agent_context(
-                    venture_id, detail="full"
-                )
+                venture_context = VentureKnowledgeBase.to_agent_context(venture_id, detail="full")
                 system_parts.append(
                     "## VENTURE CONTEXT\n\n"
                     "Use the following venture intelligence to inform your analysis. "
-                    "Match language and positioning exactly to this venture.\n\n"
-                    + venture_context
+                    "Match language and positioning exactly to this venture.\n\n" + venture_context
                 )
             except KeyError as e:
+                _record_error("venture_context", e, {"venture_id": venture_id})
                 print(f"[AgentRuntime] Warning: {e}")
 
         # 2. Inject skill instructions
@@ -337,9 +371,7 @@ class AgentRuntime:
             if relevant:
                 skill = relevant[0]
                 skill_used = skill.skill_id
-                system_parts.append(
-                    "## SKILL INSTRUCTIONS (auto-selected)\n\n" + skill.content
-                )
+                system_parts.append("## SKILL INSTRUCTIONS (auto-selected)\n\n" + skill.content)
 
         system_prompt = "\n\n---\n\n".join(system_parts) if system_parts else None
 
@@ -369,6 +401,9 @@ class AgentRuntime:
                 "total": routing_result.tokens_used,
             }
         except Exception as _router_exc:
+            _record_error(
+                "router_call", _router_exc, {"task_type": task_type.value, "agent": agent}
+            )
             print(f"[AgentRuntime] All LLM providers failed: {_router_exc}")
 
         if not output or not output.strip():
@@ -389,46 +424,74 @@ class AgentRuntime:
         )
 
         # 4. Persist to memory + embed for future semantic retrieval
-        input_summary = prompt[:200].replace("\n", " ")
-        interaction_id = self._memory.log(
-            agent_result=result,
-            venture_id=venture_id,
-            input_summary=input_summary,
-            agent=agent,
-            task_type=task_type.value,
-        )
-        result.interaction_id = interaction_id
-        self._memory.embed_and_store(interaction_id, input_summary)
+        try:
+            input_summary = prompt[:200].replace("\n", " ")
+            interaction_id = self._memory.log(
+                agent_result=result,
+                venture_id=venture_id,
+                input_summary=input_summary,
+                agent=agent,
+                task_type=task_type.value,
+            )
+            result.interaction_id = interaction_id
+            self._memory.embed_and_store(interaction_id, input_summary)
+        except Exception as _mem_err:
+            _record_error("memory_persist", _mem_err, {"agent": agent, "venture_id": venture_id})
 
         # 5. Authority check — classify action and attach to result
-        action_tasks = {
-            "score": "analyze",
-            "classify": "classify",
-            "generate": "draft_message",
-            "analyze": "analyze",
-        }
-        action_type = action_tasks.get(
-            task_type.value if hasattr(task_type, "value") else str(task_type),
-            "analyze",
-        )
-        ae = AuthorityEngine(ctx or load_context_from_env())
-        result.authority = ae.check_can_execute(action_type)
+        try:
+            action_tasks = {
+                "score": "analyze",
+                "classify": "classify",
+                "generate": "draft_message",
+                "analyze": "analyze",
+            }
+            action_type = action_tasks.get(
+                task_type.value if hasattr(task_type, "value") else str(task_type),
+                "analyze",
+            )
+            ae = AuthorityEngine(ctx or load_context_from_env())
+            result.authority = ae.check_can_execute(action_type)
+        except Exception as _auth_err:
+            _record_error("authority_check", _auth_err, {"task_type": task_type.value})
 
         return result
 
     @staticmethod
     def _deterministic_fallback(prompt: str, task_type: str, skill_used: str | None) -> str:
-        """Produce a usable response when the entire LLM chain is down."""
-        _fallbacks = {
+        """Produce a usable response when the entire LLM chain is down.
+
+        Layer 0: task_type-specific fallbacks (exact match).
+        Layer 1: intent pattern detection from prompt content.
+        Layer 2: generic fallback with request echo.
+        """
+        _task_fallbacks = {
             "score": "Unable to score — all intelligence providers are currently unavailable. "
-                     "The input has been logged. Retry shortly or score manually.",
+            "The input has been logged. Retry shortly or score manually.",
             "classify": "Classification unavailable — all providers offline. Input logged for retry.",
             "summarize": f"Summary unavailable — providers offline.\n\nOriginal input (first 500 chars):\n{prompt[:500]}",
             "fast_response": "I'm currently unable to process requests — all intelligence providers "
-                             "are offline. Your message has been logged and I'll respond when service resumes.",
+            "are offline. Your message has been logged and I'll respond when service resumes.",
         }
-        if task_type in _fallbacks:
-            return _fallbacks[task_type]
+        if task_type in _task_fallbacks:
+            return _task_fallbacks[task_type]
+
+        _intent_responses = {
+            "score": "Scoring queued. AI providers are temporarily offline — input logged for retry.",
+            "classify": "Classification queued. Input logged — will process when providers resume.",
+            "analyze": "Analysis queued. Full analytical capabilities require AI, which is temporarily "
+            "offline. Your request has been logged.",
+            "generate": "Content generation requires AI, which is temporarily offline. "
+            "Your request has been logged and will be processed when service resumes.",
+            "summarize": f"Summary unavailable — providers offline.\n\nOriginal (first 500 chars):\n{prompt[:500]}",
+            "greeting": "Hey! Operating in reduced mode — AI providers temporarily offline. "
+            "Core functions are still available.",
+        }
+        for pattern, intent in _RUNTIME_INTENT_PATTERNS:
+            if pattern.search(prompt):
+                if intent in _intent_responses:
+                    return _intent_responses[intent]
+                break
 
         return (
             f"All intelligence providers are currently unavailable. "
@@ -490,6 +553,7 @@ class AgentRuntime:
                         "Do not reference this profile explicitly in your output."
                     )
             except Exception as e:
+                _record_error("human_profile", e, {"username": username, "method": "run_team_task"})
                 print(f"[AgentRuntime] Human profile load failed for @{username}: {e}")
 
         return self.run(
@@ -547,6 +611,9 @@ class AgentRuntime:
                         "Do not reference this profile explicitly in your output."
                     )
             except Exception as e:
+                _record_error(
+                    "human_profile", e, {"username": username, "method": "run_with_auto_skill"}
+                )
                 print(f"[AgentRuntime] Human profile load failed for @{username}: {e}")
 
         return self.run(
