@@ -32,7 +32,7 @@ Core capabilities:
 
 ## EOS Integration
 
-EOS uses Obsidian as the vault layer for the Wiki system (`/opt/OS/10_Wiki/`). All wiki pages, palace rooms, and knowledge artifacts are Obsidian Markdown files. The backlink rules in CLAUDE.md govern when and how to use `[[wikilinks]]` in EOS files.
+EOS uses Obsidian as the vault layer for the Wiki system (`/opt/OS/knowledge/`). All wiki pages, palace rooms, and knowledge artifacts are Obsidian Markdown files. The backlink rules in CLAUDE.md govern when and how to use `[[wikilinks]]` in EOS files.
 
 **Relevant EOS rules:**
 - Use `[[wikilinks]]` inline where a reader would want to navigate.

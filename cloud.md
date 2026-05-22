@@ -20,14 +20,14 @@ You have four layers of pre-computed knowledge. Use them in order:
 
 | Layer | Location | When to use |
 |-------|----------|-------------|
-| Memory Palace | `10_Wiki/palace/` | First — room-level orientation |
+| Memory Palace | `knowledge/palace/` | First — room-level orientation |
 | Knowledge Graph | `data/codebase_pages/` + `data/codebase_graph.json` | Second — structural queries |
 | Summaries | `data/node_summaries.json` | Third — short descriptions |
 | Raw source | everywhere | Last — only when implementation matters |
 
 ## The enforced hierarchy
 
-See `10_Wiki/retrieval_rules.md`. The rules are:
+See `knowledge/retrieval_rules.md`. The rules are:
 
 1. Palace → which room owns this concern
 2. Graph → what depends on what, where does it live

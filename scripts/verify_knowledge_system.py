@@ -48,10 +48,10 @@ class CheckResult:
 
 REQUIRED_DOCS = [
     ROOT / "cloud.md",
-    ROOT / "10_Wiki" / "palace" / "index.md",
-    ROOT / "10_Wiki" / "cloud_palace.md",
+    ROOT / "knowledge" / "palace" / "index.md",
+    ROOT / "knowledge" / "cloud_palace.md",
     ROOT / "data" / "codebase_pages" / "cloud.md",
-    ROOT / "10_Wiki" / "retrieval_rules.md",
+    ROOT / "knowledge" / "retrieval_rules.md",
     ROOT / "CLAUDE.md",
 ]
 
@@ -62,8 +62,8 @@ REQUIRED_DATA = [
 ]
 
 PALACE_SUBDIRS = [
-    ROOT / "10_Wiki" / "palace" / "rooms",
-    ROOT / "10_Wiki" / "palace" / "wings",
+    ROOT / "knowledge" / "palace" / "rooms",
+    ROOT / "knowledge" / "palace" / "wings",
 ]
 
 CODEBASE_VAULT_SUBDIRS = [
@@ -94,8 +94,8 @@ def check_palace_structure() -> CheckResult:
     missing = [str(p.relative_to(ROOT)) for p in PALACE_SUBDIRS if not p.is_dir()]
     if missing:
         return CheckResult("palace_structure", "FAIL", f"missing dirs: {missing}")
-    rooms = list((ROOT / "10_Wiki" / "palace" / "rooms").glob("*.md"))
-    wings = list((ROOT / "10_Wiki" / "palace" / "wings").glob("*.md"))
+    rooms = list((ROOT / "knowledge" / "palace" / "rooms").glob("*.md"))
+    wings = list((ROOT / "knowledge" / "palace" / "wings").glob("*.md"))
     if not rooms:
         return CheckResult("palace_structure", "FAIL", "no room pages generated")
     if not wings:

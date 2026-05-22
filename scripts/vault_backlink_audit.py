@@ -3,7 +3,7 @@
 Vault Backlink Health + Retrieval Signal Report
 
 Surfaces backlinking opportunities and retrieval-quality signals
-across 10_Wiki/ and vault/.
+across knowledge/ and vault/.
 
 Reports:
 1. Wiki knowledge pages with zero incoming links (true orphans)
@@ -31,13 +31,13 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 VAULT_ROOT = Path(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-WIKI_DIR = VAULT_ROOT / "10_Wiki"
+WIKI_DIR = VAULT_ROOT / "knowledge"
 VAULT_DIR = VAULT_ROOT / "vault"
 
 # Directories to skip
 SKIP_DIRS = {
     "data/codebase_pages",
-    "10_Wiki/palace",
+    "knowledge/palace",
     "vault/memory/conversations",
 }
 

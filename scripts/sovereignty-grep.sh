@@ -3,7 +3,7 @@
 #
 # Searches for external-name attribution that should have been renamed
 # during Layer 3.1 sovereignty cleanup. Exclusions are documented at:
-#   10_Wiki/SOVEREIGNTY_GREP_EXCLUSIONS.md
+#   knowledge/SOVEREIGNTY_GREP_EXCLUSIONS.md
 #
 # Usage:
 #   scripts/sovereignty-grep.sh          # full audit
@@ -25,7 +25,7 @@ run_grep() {
     --exclude-dir='_archive' \
     "$ROOT" 2>/dev/null \
   | grep -v '/handoffs/' \
-  | grep -v '/10_Wiki/LAYER_3.1' \
+  | grep -v '/knowledge/LAYER_3.1' \
   | grep -v '/vault/memory/conversations/' \
   | grep -v '/data/migration/' \
   | grep -v '/docs/migrations/' \

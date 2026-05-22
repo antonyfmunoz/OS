@@ -11,7 +11,7 @@ about the codebase. Skipping a layer wastes the founder's context budget.
 
 ## The order
 
-1. **Memory Palace** — [[palace/index|10_Wiki/palace/]]
+1. **Memory Palace** — [[palace/index|knowledge/palace/]]
    Start here. Rooms name the concern; loci name the file.
    If a room covers your question, your answer lives inside it.
 

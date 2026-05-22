@@ -2,9 +2,9 @@
 """build_palace.py — Generates the EOS memory palace from the graph.
 
 Structure:
-    Palace     -> 10_Wiki/palace/index.md
-    Wing       -> 10_Wiki/palace/wings/<wing>.md          (top-level module)
-    Room       -> 10_Wiki/palace/rooms/<room>.md          (functional cluster)
+    Palace     -> knowledge/palace/index.md
+    Wing       -> knowledge/palace/wings/<wing>.md          (top-level module)
+    Room       -> knowledge/palace/rooms/<room>.md          (functional cluster)
     Locus      -> entry inside a room page, wikilinked to data/codebase_pages/
 
 A locus is a high-value file promoted into the palace by score:
@@ -35,7 +35,7 @@ from scripts.query_graph import GraphQuery
 STALE_GRAPH_HOURS = 24
 
 ROOT = Path(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-PALACE_DIR = ROOT / "10_Wiki" / "palace"
+PALACE_DIR = ROOT / "knowledge" / "palace"
 WINGS_DIR = PALACE_DIR / "wings"
 ROOMS_DIR = PALACE_DIR / "rooms"
 CANDIDATES_DIR = PALACE_DIR / "candidates"
@@ -327,7 +327,7 @@ def _graph_freshness(q: GraphQuery) -> tuple[bool, float]:
 def _render_candidate_room(cluster: dict[str, Any]) -> str:
     """Render a Graphify-derived cluster as an UNCURATED candidate room.
 
-    Candidate rooms live in 10_Wiki/palace/candidates/ and are explicitly
+    Candidate rooms live in knowledge/palace/candidates/ and are explicitly
     *not* wired into the wing index — they surface for human review only.
     This preserves the curated palace as source of truth while letting
     overlay signal become visible when present.
@@ -433,7 +433,7 @@ def build(verbose: bool = True, with_overlay: bool = False) -> dict[str, Any]:
                 "id": c.get("id"),
                 "label": c.get("label"),
                 "size": c.get("size", len(c.get("members", []))),
-                "path": f"10_Wiki/palace/candidates/{c.get('id')}.md",
+                "path": f"knowledge/palace/candidates/{c.get('id')}.md",
             }
             for c in clusters
         ]

@@ -26,8 +26,8 @@ after any successful execution to capture.
 ---
 
 ## Wiki System
-Read /opt/OS/10_Wiki/WIKI_RULES.md before any knowledge work.
-Wiki index: /opt/OS/10_Wiki/index.md
+Read /opt/OS/knowledge/WIKI_RULES.md before any knowledge work.
+Wiki index: /opt/OS/knowledge/index.md
 
 ---
 
@@ -51,10 +51,10 @@ scripts/update-graph        # rebuilds graph + palace + summaries end-to-end
 ### Load order (first → last)
 
   1. `/opt/OS/cloud.md`                       — system context
-  2. `/opt/OS/10_Wiki/palace/index.md`        — memory palace entry
-  3. `/opt/OS/10_Wiki/cloud_palace.md`        — palace usage rules
+  2. `/opt/OS/knowledge/palace/index.md`        — memory palace entry
+  3. `/opt/OS/knowledge/cloud_palace.md`        — palace usage rules
   4. `/opt/OS/data/codebase_pages/cloud.md`    — graph rules
-  5. `/opt/OS/10_Wiki/retrieval_rules.md`     — enforced hierarchy
+  5. `/opt/OS/knowledge/retrieval_rules.md`     — enforced hierarchy
 
 ### Retrieval hierarchy (NON-NEGOTIABLE)
 
@@ -62,7 +62,7 @@ scripts/update-graph        # rebuilds graph + palace + summaries end-to-end
 Palace  →  Graph  →  Summaries  →  Raw Source  →  Logs / Transcripts
 ```
 
-- **Palace first** — `10_Wiki/palace/rooms/<room>.md` names the concern and
+- **Palace first** — `knowledge/palace/rooms/<room>.md` names the concern and
   the highest-value files for it.
 - **Graph second** — `python3 scripts/query_graph.py <cmd>` answers every
   structural question (deps, dependents, path, critical, centrality, search).
@@ -199,7 +199,7 @@ runtime/agent_runtime.py   — LLM dispatch
 services/discord_bot.py — primary interface
 
 ## Obsidian Backlinks
-When writing .md files in 10_Wiki/ or vault/:
+When writing .md files in knowledge/ or vault/:
 - Use `[[wikilinks]]` inline where a reader would want to navigate
 - New wiki pages: check existing pages for bidirectional linking opportunities
 - Summaries: link to promoted wiki pages

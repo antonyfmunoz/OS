@@ -59,12 +59,12 @@ Read-only inventory and structured extraction from all known local sources and e
 
 | Category | Location | Count |
 |----------|----------|-------|
-| Concepts | `10_Wiki/entities/concepts/` | ~15 |
-| Decisions | `10_Wiki/entities/decisions/` | ~10 |
-| Palace rooms | `10_Wiki/palace/rooms/` | ~8 |
-| Index | `10_Wiki/index.md` | 1 |
-| Cloud palace | `10_Wiki/cloud_palace.md` | 1 |
-| Retrieval rules | `10_Wiki/retrieval_rules.md` | 1 |
+| Concepts | `knowledge/entities/concepts/` | ~15 |
+| Decisions | `knowledge/entities/decisions/` | ~10 |
+| Palace rooms | `knowledge/palace/rooms/` | ~8 |
+| Index | `knowledge/index.md` | 1 |
+| Cloud palace | `knowledge/cloud_palace.md` | 1 |
+| Retrieval rules | `knowledge/retrieval_rules.md` | 1 |
 
 ### Vault (5 directories, 540+ files)
 

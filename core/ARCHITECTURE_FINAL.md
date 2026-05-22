@@ -67,7 +67,7 @@ Cross-cutting:
 | Layer | Component | File | Status after this pass |
 |-------|-----------|------|------------------------|
 | L0 | Codebase graph | `data/codebase_graph.json` + `scripts/query_graph.py` | existing — unchanged |
-| L0 | Memory palace | `10_Wiki/palace/` + `data/palace.json` | existing — unchanged |
+| L0 | Memory palace | `knowledge/palace/` + `data/palace.json` | existing — unchanged |
 | L0 | Memory | `eos_ai/memory.py` (AgentMemory + ConversationMemory) | existing — harness wraps |
 | L0 | Model router | `eos_ai/model_router.py` (`call_with_fallback`) | existing — harness uses |
 | L1 | Action system | `scripts/action_system.py` | existing — capability gate added |
