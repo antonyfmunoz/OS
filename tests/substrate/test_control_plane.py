@@ -12,7 +12,12 @@ from substrate.control_plane.context import ConcreteContextAssembler, ContextAss
 from substrate.control_plane.governance import ConcreteGovernanceEngine, GovernanceEngine
 from substrate.control_plane.identity import ConcreteIdentityResolver, IdentityResolver
 from substrate.control_plane.memory import ConcreteMemorySystem, MemorySystem
+from substrate.control_plane.registry import ConcreteComponentRegistry, ComponentRegistry
 from substrate.types import (
+    Component,
+    ComponentType,
+    ComponentStatus,
+    RegistrationResult,
     ExecutionContext,
     ExecutionPlan,
     GovernanceDecision,
@@ -160,3 +165,60 @@ class TestMemorySystem:
         )
         result_id = asyncio.run(system.store(entry))
         assert isinstance(result_id, UUID)
+
+
+class TestComponentRegistry:
+    def test_implements_protocol(self):
+        registry = ConcreteComponentRegistry()
+        assert isinstance(registry, ComponentRegistry)
+
+    def test_register_and_lookup(self):
+        registry = ConcreteComponentRegistry()
+        adapter = Component(
+            component_type=ComponentType.ADAPTER,
+            name="test-adapter",
+            capabilities=["text_generation"],
+        )
+        result = asyncio.run(registry.register(adapter))
+        assert isinstance(result, RegistrationResult)
+        assert result.success is True
+
+        found = asyncio.run(registry.lookup(component_type=ComponentType.ADAPTER))
+        assert any(c.name == "test-adapter" for c in found)
+
+    def test_lookup_by_type_filters(self):
+        registry = ConcreteComponentRegistry()
+        adapter1 = Component(component_type=ComponentType.ADAPTER, name="a1")
+        adapter2 = Component(component_type=ComponentType.ADAPTER, name="a2")
+        agent = Component(component_type=ComponentType.AGENT, name="agent1")
+        asyncio.run(registry.register(adapter1))
+        asyncio.run(registry.register(adapter2))
+        asyncio.run(registry.register(agent))
+
+        adapters = asyncio.run(registry.lookup(component_type=ComponentType.ADAPTER))
+        assert len(adapters) == 2
+        agents = asyncio.run(registry.lookup(component_type=ComponentType.AGENT))
+        assert len(agents) == 1
+
+    def test_deregister(self):
+        registry = ConcreteComponentRegistry()
+        comp = Component(component_type=ComponentType.SKILL, name="temp-skill")
+        asyncio.run(registry.register(comp))
+        assert asyncio.run(registry.deregister(comp.id)) is True
+        found = asyncio.run(registry.lookup(component_type=ComponentType.SKILL))
+        assert not any(c.id == comp.id for c in found)
+
+    def test_get_by_id(self):
+        registry = ConcreteComponentRegistry()
+        comp = Component(component_type=ComponentType.AGENT, name="lookup-agent")
+        asyncio.run(registry.register(comp))
+        result = asyncio.run(registry.get(comp.id))
+        assert result is not None
+        assert result.name == "lookup-agent"
+
+    def test_get_missing_returns_none(self):
+        from uuid import uuid4
+
+        registry = ConcreteComponentRegistry()
+        result = asyncio.run(registry.get(uuid4()))
+        assert result is None
