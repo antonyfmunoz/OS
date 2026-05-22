@@ -8,20 +8,70 @@ Every LLM call in the system should flow through here:
 Guarantees on every execution:
     1. Authority validation
     2. LLM call via model_router.call_with_fallback()
-    3. Mandatory memory writes (messages + interactions)
-    4. Session persistence to SubstrateStorage
-    5. Async embedding attempt
+    3. Deterministic fallback if all providers fail
+    4. Mandatory memory writes (messages + interactions)
+    5. Session persistence to SubstrateStorage
+    6. Async embedding attempt
 """
 
 import os
+import re
 import sys
-import threading
 import uuid
 from datetime import datetime, timezone
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
+
+
+# ─── Deterministic intent detection for fallback responses ───────────────────
+
+_INTENT_PATTERNS: list[tuple[re.Pattern, str]] = [
+    (re.compile(r"\b(schedule|book|calendar|meeting|call)\b", re.I),
+     "calendar_action"),
+    (re.compile(r"\b(send|draft|email|compose)\b", re.I),
+     "email_action"),
+    (re.compile(r"\b(check|status|update|progress)\b", re.I),
+     "status_check"),
+    (re.compile(r"\b(analyze|review|assess|evaluate)\b", re.I),
+     "analysis"),
+    (re.compile(r"\b(create|build|write|generate|draft)\b", re.I),
+     "content_creation"),
+    (re.compile(r"\b(fix|debug|error|broken|issue)\b", re.I),
+     "troubleshoot"),
+]
+
+_INTENT_FALLBACKS: dict[str, str] = {
+    "calendar_action": "I can't access my intelligence layer right now, but your calendar request "
+                       "has been logged. You can check your calendar directly at calendar.google.com "
+                       "or retry this request shortly.",
+    "email_action": "Intelligence providers are offline — your email request has been logged. "
+                    "You can draft directly in Gmail or retry shortly.",
+    "status_check": "I'm unable to pull a status report right now — all providers are offline. "
+                    "Your request has been logged and I'll deliver it when service resumes.",
+    "analysis": "Analysis unavailable — all intelligence providers are currently offline. "
+                "Your request has been logged for processing when service resumes.",
+    "content_creation": "Content generation is offline right now — all providers are unavailable. "
+                        "Your request has been logged and will be processed when service resumes.",
+    "troubleshoot": "I can't diagnose this right now — intelligence providers are offline. "
+                    "Your request has been logged. Check logs directly or retry shortly.",
+}
+
+_DEFAULT_FALLBACK = (
+    "All intelligence providers are currently unavailable. "
+    "Your message has been logged and will be processed when service resumes. "
+    "You can also retry shortly."
+)
+
+
+def _deterministic_response(message: str) -> str:
+    """Produce a context-aware fallback when all LLM providers are down."""
+    msg_lower = message.lower()
+    for pattern, intent in _INTENT_PATTERNS:
+        if pattern.search(msg_lower):
+            return _INTENT_FALLBACKS[intent]
+    return _DEFAULT_FALLBACK
 
 
 class ExecutionSpine:
@@ -43,8 +93,9 @@ class ExecutionSpine:
         """
         Execute a single LLM operation with mandatory memory writes.
 
-        Returns the response string. Never raises — returns an error
-        message string on failure so callers always get a printable result.
+        Returns the response string. Never raises — returns a
+        deterministic fallback on failure so callers always get a
+        context-aware, printable result.
         """
         session_id = session_id or str(uuid.uuid4())
         _start = datetime.now(timezone.utc)
@@ -70,7 +121,7 @@ class ExecutionSpine:
             print(f"[ExecutionSpine] Authority check failed (proceeding): {e}")
             ctx = None
 
-        # 2. LLM call via model_router
+        # 2. LLM call via model_router — deterministic fallback if chain fails
         system_prompt = ""
         try:
             system_prompt = unified_context.to_system_prompt()
@@ -88,11 +139,11 @@ class ExecutionSpine:
                 task_type=task_type,
             )
             response = routing_result.output if routing_result else ""
-            if not response:
-                response = "[ExecutionSpine] No response from model chain."
         except Exception as e:
             print(f"[ExecutionSpine] LLM call failed: {e}")
-            response = f"I encountered an error processing your request: {e}"
+
+        if not response or not response.strip():
+            response = _deterministic_response(message)
 
         # 3. Mandatory memory writes
         # 3a. ConversationMemory — messages table
