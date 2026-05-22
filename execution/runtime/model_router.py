@@ -899,6 +899,36 @@ def call_with_fallback(
 
     start = time.time()
 
+    # ── Capability routing: detect if a specialized tool should handle this ──
+    try:
+        from execution.runtime.capability_router import (
+            detect_capability,
+            route_capability,
+            _LLM_ONLY_CAPABILITIES,
+        )
+
+        _cap = detect_capability(prompt, task_type_str, context={"agent_type": agent_type})
+        if _cap not in _LLM_ONLY_CAPABILITIES:
+            _cap_result = route_capability(
+                prompt, task_type=task_type_str,
+                context={"agent_type": agent_type}, system=system,
+            )
+            if _cap_result:
+                latency_ms = int((time.time() - start) * 1000)
+                logger.info(
+                    "[Router] capability_router handled via %s (%dms)",
+                    _cap_result.provider_id, latency_ms,
+                )
+                return RoutingResult(
+                    output=_cap_result.output,
+                    provider=_cap_result.provider_id,
+                    model=f"cap:{_cap_result.capability}",
+                    task_type=task_type_str,
+                    latency_ms=latency_ms,
+                )
+    except Exception as _cap_exc:
+        logger.debug("[Router] capability_router skipped: %s", _cap_exc)
+
     # ── Backend #0: Claude CLI persistent tmux session ──
     # Shared first backend for all routed calls (fast + heavy paths). This is
     # the router's single seam for "Claude Code CLI first"; if it returns any
