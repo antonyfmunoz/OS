@@ -54,7 +54,7 @@ ABSTRACTION_DEFAULT = 0.50
 
 # Path nudges: keywords in file path that shift Y
 _PATH_NUDGE_LOW = {"logs", "state", "event", "data"}
-_PATH_NUDGE_HIGH = {"docs", "wiki", "policy", "strategy", "10_Wiki"}
+_PATH_NUDGE_HIGH = {"docs", "wiki", "policy", "strategy", "knowledge"}
 
 PCA_META_PATH = "data/semantic_space/pca_v1.json"
 EMBEDDING_STORE_PATH = "data/semantic_space/embeddings_v1.json"

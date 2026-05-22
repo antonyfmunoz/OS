@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Promote durable knowledge from summaries into 10_Wiki/.
+Promote durable knowledge from summaries into knowledge/.
 
 Reads wiki_candidates from summary frontmatter, creates wiki pages
 following WIKI_RULES.md, updates index.md and log.md.
@@ -27,7 +27,7 @@ from datetime import datetime, timezone
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
-WIKI_DIR = f"{_ROOT}/10_Wiki"
+WIKI_DIR = f"{_ROOT}/knowledge"
 SUMMARIES_DIR = f"{_ROOT}/vault/memory/summaries"
 WIKI_INDEX = os.path.join(WIKI_DIR, "index.md")
 WIKI_LOG = os.path.join(WIKI_DIR, "log.md")
@@ -179,7 +179,7 @@ def build_wiki_page(
 
 
 def update_wiki_index(page_slug: str, page_type: str, description: str) -> None:
-    """Add entry to 10_Wiki/index.md under the correct section."""
+    """Add entry to knowledge/index.md under the correct section."""
     with open(WIKI_INDEX) as f:
         content = f.read()
 
@@ -237,7 +237,7 @@ def update_wiki_index(page_slug: str, page_type: str, description: str) -> None:
 
 
 def append_wiki_log(action: str, page_slug: str, description: str) -> None:
-    """Append entry to 10_Wiki/log.md."""
+    """Append entry to knowledge/log.md."""
     now = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
     entry = f"\n## [{now}] {action} | {page_slug}\n{description}\n"
 

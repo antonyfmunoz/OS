@@ -16,7 +16,7 @@ authentication tokens, API keys, or OAuth flows. Canvas files are read
 and written directly on the filesystem. Access control is governed by
 filesystem permissions and, in Obsidian, by vault-level access settings.
 
-In EOS, canvas files live inside the Obsidian vault at `/opt/OS/10_Wiki/`
+In EOS, canvas files live inside the Obsidian vault at `/opt/OS/knowledge/`
 or `/opt/OS/data/vault/`. Standard filesystem permissions apply. No
 secrets are required to create or read `.canvas` files.
 
@@ -802,7 +802,7 @@ for module, deps in modules.items():
                           from_side="left", to_side="right",
                           label="depends on")
 
-canvas.save("/opt/OS/10_Wiki/architecture.canvas")
+canvas.save("/opt/OS/knowledge/architecture.canvas")
 ```
 
 ### Recipe 2: Kanban board with status groups
@@ -822,7 +822,7 @@ for j, (task, status) in enumerate(tasks):
     gx = group_ids[status][1]
     canvas.add_text(gx + 20, 50 + j * 120, 260, 80, f"## {task}")
 
-canvas.save("/opt/OS/10_Wiki/board.canvas")
+canvas.save("/opt/OS/knowledge/board.canvas")
 ```
 
 ### Recipe 3: Research synthesis canvas
@@ -847,7 +847,7 @@ for kind, ref, sx, sy in sources:
     canvas.connect(sid, center, from_side="right", to_side="left",
                   label="informs")
 
-canvas.save("/opt/OS/10_Wiki/research.canvas")
+canvas.save("/opt/OS/knowledge/research.canvas")
 ```
 
 ### Recipe 4: Decision tree with branching edges
@@ -865,7 +865,7 @@ canvas.connect(q1, yes1, from_side="right", to_side="left",
 canvas.connect(q1, no1, from_side="left", to_side="right",
               label="No", color="1")
 
-canvas.save("/opt/OS/10_Wiki/decision_tree.canvas")
+canvas.save("/opt/OS/knowledge/decision_tree.canvas")
 ```
 
 ### Recipe 5: Auto-generated dependency graph
@@ -901,7 +901,7 @@ for py_file in sorted(module_dir.glob("*.py")):
                     canvas.connect(positions[name], positions[dep],
                                   label="imports")
 
-canvas.save("/opt/OS/10_Wiki/deps.canvas")
+canvas.save("/opt/OS/knowledge/deps.canvas")
 ```
 
 ---
@@ -956,7 +956,7 @@ canvas.save("/opt/OS/10_Wiki/deps.canvas")
 ### EOS-specific cutting-edge usage
 
 1. **Memory palace rooms as canvases** -- Each room in the memory
-   palace (10_Wiki/palace/rooms/) could have a companion canvas
+   palace (knowledge/palace/rooms/) could have a companion canvas
    that spatially arranges the room's key files and concepts.
 
 2. **Agent hierarchy visualization** -- Auto-generate a canvas from
@@ -978,7 +978,7 @@ canvas.save("/opt/OS/10_Wiki/deps.canvas")
 
 ## Where canvas files live
 
-- **Wiki canvases:** `/opt/OS/10_Wiki/*.canvas` -- architecture diagrams,
+- **Wiki canvases:** `/opt/OS/knowledge/*.canvas` -- architecture diagrams,
   concept maps, visual indexes for wiki sections.
 - **Vault canvases:** `/opt/OS/data/vault/*.canvas` -- personal planning,
   project boards, research synthesis.

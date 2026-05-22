@@ -28,7 +28,7 @@ This document incorporates the 10 corrections from the Layer 3 alignment session
 6. **CAPABILITY DISCOVERY**: Multi-source — API introspection, vendor docs, internet research, operational testing
 7. **ADAPTER MATURITY**: Measurable property per adapter. Starts low, grows toward masterful
 8. **ONBOARDING FLOW**: Post-install setup for mass-market. Automated diagnostic → auto-create adapters → build world model
-9. **10_Wiki**: IS the memory system. Leverage principle = no redundancy with canonical_memory_store
+9. **knowledge/**: IS the memory system. Leverage principle = no redundancy with canonical_memory_store
 10. **TRINITY**: EOS, LyfeOS, CreatorOS are ecosystem participants (socket subtype). Generic external tools use general adapter pattern
 
 ---
@@ -76,7 +76,7 @@ WIKI_RULES.md explicitly declares the `CORPUS → CANON → SCHEMA` pattern. The
 │  ─ machine-queryable, API-surfaced                          │
 ├─────────────────────────────────────────────────────────────┤
 │  CANON (curated knowledge pages)                            │
-│  ─ 10_Wiki/ — 205 curated pages (concept/entity/decision/  │
+│  ─ knowledge/ — 205 curated pages (concept/entity/decision/  │
 │    synthesis/source), [[wikilinks]], YAML frontmatter       │
 │  ─ human-readable, LLM-navigable via index.md + palace      │
 │  ─ THE authoritative knowledge layer for UMH sessions       │
@@ -99,7 +99,7 @@ Adapter → canonical pipeline → CORPUS (canonical_memory_store)
                           curation/promotion (manual or LLM-assisted)
                                     │
                                     ▼
-                            CANON (10_Wiki/)
+                            CANON (knowledge/)
                                     │
                           entity extraction (future)
                                     │
@@ -109,18 +109,18 @@ Adapter → canonical pipeline → CORPUS (canonical_memory_store)
 
 ### 1.4 Leverage Principle (No Redundancy)
 
-- `canonical_memory_store` and `10_Wiki/` are NOT competing stores. They are adjacent layers.
+- `canonical_memory_store` and `knowledge/` are NOT competing stores. They are adjacent layers.
 - CORPUS observations are machine-generated, high-volume, append-only.
 - CANON pages are curated, low-volume, editable.
 - A CORPUS observation may be *promoted* to a CANON page. The observation persists in CORPUS (immutable). The CANON page is the authoritative, human-readable form.
 - The existing WIKI_RULES.md ingestion rules (lines 127-137) already describe this promotion: read CORPUS → create source page → extract concepts/entities → link.
 - Missing: automated promotion pipeline (CORPUS → CANON). Currently manual. Phase 6 builds this.
 
-### 1.5 The 10_Wiki/codebase/ Problem
+### 1.5 The knowledge/codebase/ Problem
 
-5,804 of 6,032 .md files in 10_Wiki/ are auto-generated codebase docs, not curated knowledge. These belong in a separate surface (e.g., `data/codebase_docs/` or a separate index). They dilute wiki signal. Migration recommendation:
+5,804 of 6,032 .md files in knowledge/ are auto-generated codebase docs, not curated knowledge. These belong in a separate surface (e.g., `data/codebase_docs/` or a separate index). They dilute wiki signal. Migration recommendation:
 
-- Move `10_Wiki/codebase/` → `data/codebase_docs/`
+- Move `knowledge/codebase/` → `data/codebase_docs/`
 - Or: gate them behind a separate index entry (`codebase_index.md`) that the palace doesn't traverse
 - Decision deferred: this is a wiki maintenance task, not a Layer 3 blocker
 
@@ -519,7 +519,7 @@ The onboarding flow runs once (or re-runs on demand) and bootstraps UMH's world 
 | `AdapterDescriptor` / `AdapterRegistry` | `adapters/adapter_engine/adapter_registry_contracts.py` | Extended with `modalities` and `participant_type` fields. | Additive fields |
 | `AdapterLifecycleManager` | `adapters/adapter_engine/adapter_lifecycle_manager_v1.py` | Continues as health tracker. Separate from maturity. | No change |
 | `Source` protocol | `understanding/perception/source.py` | Unchanged. Every adapter produces Sources for ingestion. | No change |
-| `10_Wiki/codebase/` (5,804 auto-docs) | `10_Wiki/codebase/` | Move to `data/codebase_docs/` or gate behind separate index. | Deferred maintenance |
+| `knowledge/codebase/` (5,804 auto-docs) | `knowledge/codebase/` | Move to `data/codebase_docs/` or gate behind separate index. | Deferred maintenance |
 | `headless_fetcher.py` | `composition/mastery/research/headless_fetcher.py` | Shared Playwright backend with browser-use. No code change. | Configuration only |
 
 ### 7.2 What Does NOT Move
@@ -594,14 +594,14 @@ The onboarding flow runs once (or re-runs on demand) and bootstraps UMH's world 
 
 ### Phase 6: CORPUS → CANON Promotion Pipeline
 **Goal**: Automated/semi-automated promotion of CORPUS observations to CANON pages.  
-**Scope**: LLM-assisted curation: select high-value observations → generate CANON page draft → write to 10_Wiki/ → update index.md + log.md.  
+**Scope**: LLM-assisted curation: select high-value observations → generate CANON page draft → write to knowledge/ → update index.md + log.md.  
 **Files**:
 - New: `understanding/curation/promotion.py` (CORPUS → CANON promotion orchestrator)
 - New: `understanding/curation/wiki_writer.py` (generates CANON page from observation + template)
-- Uses: `canonical_memory_store` as source, `10_Wiki/WIKI_RULES.md` as format contract
+- Uses: `canonical_memory_store` as source, `knowledge/WIKI_RULES.md` as format contract
 - New: tests  
 **Dependencies**: Phase 1 (for adapter-sourced observations to promote)  
-**Risk**: MEDIUM — writes to 10_Wiki/, must follow WIKI_RULES.md exactly
+**Risk**: MEDIUM — writes to knowledge/, must follow WIKI_RULES.md exactly
 
 ---
 
@@ -615,7 +615,7 @@ The onboarding flow runs once (or re-runs on demand) and bootstraps UMH's world 
 | D4 | Maturity separate from health | Maturity = knowledge depth (grows over time). Health = operational state (changes per-second). Different dimensions, different update cadences. |
 | D5 | browser-use as CU harness | Python-native, wraps Playwright, MIT, 79k stars, full agent loop. See §5.3. |
 | D6 | TME reuse for capability discovery | TME already does: source discovery → doc fetch → content extraction → knowledge write. Same pipeline, different output target. |
-| D7 | 10_Wiki + canonical_memory_store = layers, not competitors | CANON pages are curated knowledge. CORPUS entries are machine-generated observations. Adjacent layers in a promotion pipeline. |
+| D7 | knowledge + canonical_memory_store = layers, not competitors | CANON pages are curated knowledge. CORPUS entries are machine-generated observations. Adjacent layers in a promotion pipeline. |
 | D8 | Notion stays EXTERNAL with socket wiring | No breaking changes. Socket wiring is available to EXTERNAL adapters, just not required. |
 | D9 | Shell diagnostic before browser diagnostic | T1 → T2 → T3 ordering. Cheapest/fastest first. Browser is expensive — use last. |
 | D10 | Onboarding is re-runnable | `umh diagnostic --full` reruns everything. Idempotent. Updates don't destroy. |
@@ -624,7 +624,7 @@ The onboarding flow runs once (or re-runs on demand) and bootstraps UMH's world 
 
 ## 10. Architecture Questions (All RESOLVED — 2026-05-21)
 
-1. **10_Wiki/codebase/ migration** — RESOLVED at `ebcf068b`.
+1. **knowledge/codebase/ migration** — RESOLVED at `ebcf068b`.
    Pages moved to gitignored `data/codebase_pages/`. Palace bare-wikilinks resolve via vault root `/opt/OS/`. Bearing principle: retrieval hierarchy treats codebase pages as derivable CORPUS; they violated CANON namespace. Git churn eliminated.
 
 2. **Notion promotion timing** — RESOLVED: no migration.

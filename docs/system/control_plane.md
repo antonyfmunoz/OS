@@ -334,7 +334,7 @@ python3 /opt/OS/scripts/deferred.py approve 25c42826-...
 
 ## Related
 
-- Tool Mastery Engine: `/opt/OS/10_Wiki/tool_mastery_engine_system.md`
+- Tool Mastery Engine: `/opt/OS/knowledge/tool_mastery_engine_system.md`
 - Authority engine: `eos_ai/authority_engine.py` (existing risk classes)
 - Reference CLI: `scripts/control_plane_run.py`
 - Deferred CLI: `scripts/deferred.py`

@@ -28,7 +28,7 @@ If new CORPUS material arrives, it goes into `01_Inbox/`. It is never edited aft
 
 ## CANON Layer
 
-Location: `/opt/OS/10_Wiki/`
+Location: `/opt/OS/knowledge/`
 
 ### Page Types
 
@@ -98,7 +98,7 @@ Lowercase, hyphenated slugs: `icp-signals.md`, `initiate-arena.md`.
 
 ## Index
 
-File: `10_Wiki/index.md`
+File: `knowledge/index.md`
 
 - Entry point for all retrieval
 - Organized by page type (Concepts, Entities, Decisions, Synthesis, Sources)
@@ -109,7 +109,7 @@ File: `10_Wiki/index.md`
 
 ## Log
 
-File: `10_Wiki/log.md`
+File: `knowledge/log.md`
 
 - Append-only, chronological
 - Every CANON mutation gets an entry
@@ -152,7 +152,7 @@ To modify an existing CANON page:
 
 ## Retrieval Strategy
 
-1. Start at `10_Wiki/index.md`
+1. Start at `knowledge/index.md`
 2. Follow wikilinks to relevant page
 3. If page references CORPUS sources, read those for full detail
 4. If no CANON page exists, check `07_Knowledge/` and `01_Inbox/` directly
@@ -183,7 +183,7 @@ Location: `vault/memory/`
 ### Pipeline: conversation -> summary -> CANON
 
 1. After a productive conversation, create a summary in `vault/memory/summaries/`
-2. Extract durable knowledge into CANON pages in `10_Wiki/`
+2. Extract durable knowledge into CANON pages in `knowledge/`
 3. Link the summary to the CANON pages it fed
 4. CANON is the source of truth, not the conversation logs
 

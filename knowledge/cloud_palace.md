@@ -6,13 +6,13 @@ authority: mandatory
 
 # Cloud Palace — Memory Palace Usage Rules
 
-The memory palace at `10_Wiki/palace/` is a navigable, room-based view
+The memory palace at `knowledge/palace/` is a navigable, room-based view
 of the codebase. This file tells AI agents how to use it.
 
 ## Structure
 
 ```
-10_Wiki/palace/
+knowledge/palace/
   index.md            ← entry point. Lists wings and rooms.
   wings/              ← one page per top-level module (eos_ai, services, scripts, core)
   rooms/              ← one page per functional cluster (intelligence_core, substrate, ...)
@@ -65,7 +65,7 @@ To add a new room:
 1. Edit `scripts/build_palace.py` → `ROOM_DEFS`
 2. Provide `id`, `name`, `wing`, `purpose`, `prefixes`.
 3. Run `python3 scripts/build_palace.py`.
-4. New room page appears at `10_Wiki/palace/rooms/<id>.md`.
+4. New room page appears at `knowledge/palace/rooms/<id>.md`.
 
 To retune locus promotion weights: edit `score_file()` in the same script.
 
