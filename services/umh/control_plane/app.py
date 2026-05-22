@@ -227,6 +227,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from .cockpit_api import router as cockpit_router
+
+app.include_router(cockpit_router)
 app.add_api_websocket_route("/ws", ws_endpoint)
 
 
