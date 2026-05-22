@@ -1769,7 +1769,6 @@ def start_ambient_refresh_loop(ctx: EntrepreneurOSContext) -> None:
     instant wake on signal.
 
     Called by:
-      - telegram_control.py at startup
       - discord_bot.py at startup
       - orchestrator __main__ (no-op in cron context — process exits)
     """

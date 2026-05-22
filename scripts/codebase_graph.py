@@ -92,7 +92,6 @@ CRITICAL_FILES = {
     "runtime/ai_identity.py",
     "runtime/primitives.py",
     "services/discord_bot.py",
-    "services/telegram_control.py",
 }
 
 # Entry point patterns (server start, main block, CLI)

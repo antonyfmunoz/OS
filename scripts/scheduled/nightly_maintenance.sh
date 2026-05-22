@@ -49,7 +49,6 @@ if webhook:
 Step 1 — Service health check:
   docker ps --format '{{.Names}}: {{.Status}}'
   docker logs os-discord --tail 5
-  docker logs os-bot --tail 5
   If any container is not Up — restart it with docker compose restart [service].
 
 Step 2 — Import check:

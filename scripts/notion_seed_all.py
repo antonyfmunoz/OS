@@ -380,7 +380,7 @@ def seed_empyrean() -> None:
             'integration': 'Direct API',
             'ai_op': True,
             'desc': 'Natural language commands → EOS from iPhone via Termius.',
-            'access': 'BOT_TOKEN in .env. 13_Scripts/telegram_control.py',
+            'access': 'BOT_TOKEN in .env. services/discord_bot.py',
             'cost': 0,
         },
     ]

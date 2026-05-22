@@ -264,7 +264,7 @@ TOOLS = [
         'status': 'Active',
         'ai_operable': True,
         'desc': 'Primary founder → EOS command interface',
-        'access': 'BOT_TOKEN in .env. 13_Scripts/telegram_control.py',
+        'access': 'BOT_TOKEN in .env. services/discord_bot.py',
         'cost': 0,
     },
     {

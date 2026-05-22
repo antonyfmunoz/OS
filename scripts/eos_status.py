@@ -40,7 +40,7 @@ def docker_status() -> str:
             ["docker", "ps", "-a", "--format", "{{.Names}}\t{{.Status}}"],
             text=True, timeout=5,
         )
-        intended = {"os-discord", "os-bot", "os-monitor", "os-webhook"}
+        intended = {"os-discord", "os-monitor", "os-webhook", "os-operator"}
         rows = []
         seen = set()
         for line in out.strip().split("\n"):

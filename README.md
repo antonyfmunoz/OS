@@ -54,9 +54,9 @@ docker compose up -d
 | Service | What it does |
 |---|---|
 | `os-discord` | Your AI — primary interface in Discord |
-| `os-bot` | Telegram bot (optional, secondary interface) |
 | `os-webhook` | Calendly booking integration |
 | `os-monitor` | Instagram DM monitor |
+| `os-operator` | Operator workstation API + cockpit |
 
 ## Intelligence layers
 
