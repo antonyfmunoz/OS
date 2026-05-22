@@ -3,9 +3,9 @@
 
 Prints, in order:
     1. cloud.md (root system context)
-    2. 10_Wiki/palace/index.md (palace index)
+    2. knowledge/palace/index.md (palace index)
     3. data/codebase_pages/cloud.md (graph rules)
-    4. 10_Wiki/retrieval_rules.md (enforced hierarchy)
+    4. knowledge/retrieval_rules.md (enforced hierarchy)
     5. Graph freshness + stale warning
 
 This is the ONLY bootstrap that guarantees context. Any session-start
@@ -32,10 +32,10 @@ from scripts.query_graph import GraphQuery
 ROOT = Path(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 LOAD_ORDER = [
     ROOT / "cloud.md",
-    ROOT / "10_Wiki" / "palace" / "index.md",
-    ROOT / "10_Wiki" / "cloud_palace.md",
+    ROOT / "knowledge" / "palace" / "index.md",
+    ROOT / "knowledge" / "cloud_palace.md",
     ROOT / "data" / "codebase_pages" / "cloud.md",
-    ROOT / "10_Wiki" / "retrieval_rules.md",
+    ROOT / "knowledge" / "retrieval_rules.md",
 ]
 
 DATA_ARTIFACTS = {

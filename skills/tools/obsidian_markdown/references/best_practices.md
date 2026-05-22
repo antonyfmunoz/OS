@@ -21,7 +21,7 @@ Files live on disk. Access is filesystem-level.
   files recursively from the vault root.
 - The `.obsidian/` directory inside the vault stores settings, plugins,
   themes, workspace state, and hotkeys. This directory is vault-specific.
-- EOS vault path: `/opt/OS/10_Wiki/`
+- EOS vault path: `/opt/OS/knowledge/`
 - Programmatic access: direct file read/write via Python (`open()`,
   `pathlib.Path`). No SDK or client needed.
 - Obsidian watches the filesystem for changes. Edits made by external
@@ -218,7 +218,7 @@ quotes, and tables go on a blank line immediately after the block.
 
 ````markdown
 ```query
-tag:#project path:10_Wiki
+tag:#project path:knowledge
 ```
 ````
 
@@ -235,7 +235,7 @@ filesystem pagination patterns (`os.scandir()`, `pathlib.Path.glob()`).
 For Dataview queries returning large result sets, use `LIMIT`:
 ```dataview
 TABLE file.mtime AS Modified
-FROM "10_Wiki"
+FROM "knowledge"
 SORT file.mtime DESC
 LIMIT 50
 ```
@@ -319,7 +319,7 @@ Key classes: `App`, `Vault`, `MetadataCache`, `TFile`, `TFolder`,
 
 ```dataview
 TABLE tags, file.ctime AS Created
-FROM "10_Wiki/palace/rooms"
+FROM "knowledge/palace/rooms"
 WHERE contains(tags, "architecture")
 SORT file.mtime DESC
 ```
@@ -340,7 +340,7 @@ DataviewJS: full JavaScript access via `dv` API object.
 from pathlib import Path
 import yaml
 
-VAULT = Path('/opt/OS/10_Wiki')
+VAULT = Path('/opt/OS/knowledge')
 
 def read_frontmatter(note_path: Path) -> dict:
     """Extract YAML frontmatter from a note."""
@@ -986,12 +986,12 @@ canonical source for all structured knowledge in the system.
 
 ## Vault Location
 
-`/opt/OS/10_Wiki/` is the EOS Obsidian vault. All wiki pages, palace
+`/opt/OS/knowledge/` is the EOS Obsidian vault. All wiki pages, palace
 rooms, knowledge artifacts, and codebase documentation live here.
 
 ## Memory Palace
 
-`/opt/OS/10_Wiki/palace/` implements a Memory Palace pattern:
+`/opt/OS/knowledge/palace/` implements a Memory Palace pattern:
 - `palace/index.md` — entry point listing all wings and rooms
 - `palace/wings/` — high-level domain groupings
 - `palace/rooms/` — individual concern rooms with curated file lists
@@ -1017,10 +1017,10 @@ Queried via: `python3 /opt/OS/scripts/query_graph.py <command>`
 
 ## Wiki Rules
 
-`/opt/OS/10_Wiki/WIKI_RULES.md` defines the schema for the knowledge
+`/opt/OS/knowledge/WIKI_RULES.md` defines the schema for the knowledge
 layer. Key rules:
 - CORPUS layer (01_Inbox/, data/, docs/) is read-only
-- CANON layer (10_Wiki/) is AI-maintained
+- CANON layer (knowledge/) is AI-maintained
 - Three-layer model: CORPUS -> CANON -> SCHEMA
 - All wiki pages use Obsidian-flavored Markdown
 
@@ -1051,7 +1051,7 @@ From CLAUDE.md:
 1. **Wikilink resolution is filename-based, not path-based.** If two
    notes have the same filename in different folders, `[[Note]]` is
    ambiguous. Obsidian picks one (shortest path or first found). In EOS,
-   ensure unique filenames across the entire `10_Wiki/` vault. The
+   ensure unique filenames across the entire `knowledge/` vault. The
    `vault_backlink_audit.py` script does NOT check for duplicate filenames —
    this is a manual verification step.
 

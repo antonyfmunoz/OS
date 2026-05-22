@@ -28,7 +28,7 @@ Core capabilities:
 
 ## EOS Integration
 
-Canvas files live in the Obsidian vault at `/opt/OS/10_Wiki/` or `/opt/OS/data/vault/`. They are used for visual planning, architecture diagrams, mind maps, and project boards. The Wiki system treats `.canvas` files as first-class documents alongside `.md` files.
+Canvas files live in the Obsidian vault at `/opt/OS/knowledge/` or `/opt/OS/data/vault/`. They are used for visual planning, architecture diagrams, mind maps, and project boards. The Wiki system treats `.canvas` files as first-class documents alongside `.md` files.
 
 **Agents that use JSON Canvas:** Any agent producing visual plans, architecture maps, or relationship diagrams writes `.canvas` files into the vault.
 

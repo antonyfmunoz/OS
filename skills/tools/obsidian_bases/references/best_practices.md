@@ -679,7 +679,7 @@ as notes change.
 # File: /opt/OS/data/vault/bases/wiki-room.base
 filters:
   and:
-    - file.inFolder("10_Wiki/palace/rooms")
+    - file.inFolder("knowledge/palace/rooms")
     - 'file.ext == "md"'
 
 formulas:
@@ -852,9 +852,9 @@ EOS vault lives at `/opt/OS/data/vault/`. Base files go here or in
 subdirectories. Claude Code creates and edits them via Write/Edit tools.
 
 ### Wiki integration
-EOS wiki pages in `10_Wiki/` use frontmatter properties (tags, categories,
+EOS wiki pages in `knowledge/` use frontmatter properties (tags, categories,
 dates). Bases can surface wiki content as structured views:
-- Room index: `file.inFolder("10_Wiki/palace/rooms")`
+- Room index: `file.inFolder("knowledge/palace/rooms")`
 - Knowledge by topic: `file.hasTag("topic-name")`
 - Stale pages: formula on `file.mtime` to find outdated content
 

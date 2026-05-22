@@ -8,7 +8,7 @@ import pytest
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or "/opt/OS")
 
-from adapters.model_adapters.cc_sdk import _find_ancestor_oauth, _get_subprocess_env
+from adapters.models.cc_sdk import _find_ancestor_oauth, _get_subprocess_env
 
 
 class TestFindAncestorOauth:
@@ -44,7 +44,7 @@ class TestFindAncestorOauth:
 
 class TestGetSubprocessEnv:
     def test_loads_oauth_when_missing_from_environ(self):
-        import adapters.model_adapters.cc_sdk as cc_mod
+        import adapters.models.cc_sdk as cc_mod
 
         old_cached = cc_mod._cached_oauth
         try:
@@ -60,7 +60,7 @@ class TestGetSubprocessEnv:
             cc_mod._cached_oauth = old_cached
 
     def test_preserves_existing_oauth(self):
-        import adapters.model_adapters.cc_sdk as cc_mod
+        import adapters.models.cc_sdk as cc_mod
 
         old_cached = cc_mod._cached_oauth
         try:
@@ -80,7 +80,7 @@ class TestGetSubprocessEnv:
             cc_mod._cached_oauth = old_cached
 
     def test_strips_anthropic_api_key(self):
-        import adapters.model_adapters.cc_sdk as cc_mod
+        import adapters.models.cc_sdk as cc_mod
 
         old_cached = cc_mod._cached_oauth
         try:
@@ -96,7 +96,7 @@ class TestGetSubprocessEnv:
             cc_mod._cached_oauth = old_cached
 
     def test_handles_missing_sessions_file(self):
-        import adapters.model_adapters.cc_sdk as cc_mod
+        import adapters.models.cc_sdk as cc_mod
 
         old_cached = cc_mod._cached_oauth
         try:
@@ -112,7 +112,7 @@ class TestGetSubprocessEnv:
             cc_mod._cached_oauth = old_cached
 
     def test_caches_oauth_token(self):
-        import adapters.model_adapters.cc_sdk as cc_mod
+        import adapters.models.cc_sdk as cc_mod
 
         old_cached = cc_mod._cached_oauth
         try:

@@ -853,10 +853,10 @@ All EOS Google Ads code goes through this. No direct
 
 ### Wiki entries
 
-- `10_Wiki/integrations/google_ads_setup.md` — one-time OAuth and
+- `knowledge/integrations/google_ads_setup.md` — one-time OAuth and
   developer token bootstrapping
-- `10_Wiki/runbooks/google_ads_v_bump.md` — version upgrade procedure
-- `10_Wiki/runbooks/enhanced_conversions_for_leads.md` — CRM sync setup
+- `knowledge/runbooks/google_ads_v_bump.md` — version upgrade procedure
+- `knowledge/runbooks/enhanced_conversions_for_leads.md` — CRM sync setup
 
 ## Gotchas
 
