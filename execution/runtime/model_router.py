@@ -28,6 +28,9 @@ from enum import Enum
 from pathlib import Path
 
 from adapters.model_adapters.cc_sdk import query_cc_sync, CCResult
+from adapters.model_adapters.codex_cli import query_codex_sync, CodexResult
+from adapters.model_adapters.hermes_cli import query_hermes_sync, HermesResult
+from adapters.model_adapters.opencode_cli import query_opencode_sync, OpenCodeResult
 
 # Load .env so GEMINI_API_KEY is available when model_router is used standalone
 # (agent_runtime does this too — safe to call twice, dotenv is idempotent)
@@ -137,6 +140,9 @@ class ModelProvider(Enum):
     GROQ = "groq"
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    CODEX = "codex"
+    HERMES = "hermes"
+    OPENCODE = "opencode"
     MANUS = "manus"
     # Acquired by Meta Dec 2025 for $2B+
     # Future API access via Meta ecosystem
@@ -221,7 +227,10 @@ PROVIDER_PRIORITY: dict = {
     ModelProvider.ANTHROPIC: 4,
     ModelProvider.PERPLEXITY: 5,
     ModelProvider.OLLAMA: 6,
-    ModelProvider.MANUS: 7,
+    ModelProvider.CODEX: 7,
+    ModelProvider.HERMES: 8,
+    ModelProvider.OPENCODE: 9,
+    ModelProvider.MANUS: 10,
 }
 
 # Fast-path priority — used for fast_response/conversation tasks
@@ -236,7 +245,10 @@ PROVIDER_PRIORITY_FAST: dict = {
     ModelProvider.CC_SDK: 4,
     ModelProvider.PERPLEXITY: 5,
     ModelProvider.OLLAMA: 6,
-    ModelProvider.MANUS: 7,
+    ModelProvider.CODEX: 7,
+    ModelProvider.HERMES: 8,
+    ModelProvider.OPENCODE: 9,
+    ModelProvider.MANUS: 10,
 }
 
 # Task types that use the fast-path priority
@@ -265,6 +277,9 @@ PROVIDER_QUALITY: dict = {
     "groq": 0.55,  # Llama 3.3 70B
     "perplexity": 0.60,  # Sonar (search-augmented)
     "ollama": 0.35,  # Local qwen2.5:0.5b — emergency fallback only, low quality
+    "codex": 0.80,  # GPT-5.5 via Codex CLI — strong coding, adversarial review
+    "hermes": 0.70,  # Model-agnostic via Hermes Agent — depends on configured provider
+    "opencode": 0.75,  # Multi-provider via OpenCode — depends on configured model
 }
 
 MODEL_REGISTRY: dict[str, ModelConfig] = {
@@ -351,6 +366,28 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
     # MANUS: Fully autonomous agent — acquired by Meta Dec 2025 for $2B+
     # API access TBD post-acquisition. Monitor manus.im and developers.facebook.com
     # Available via browser (ManusAgent) even without native API key
+    # CLI AGENTS: availability checked by binary presence, not API key
+    "codex-agent": ModelConfig(
+        provider=ModelProvider.CODEX,
+        model_id="gpt-5.5",
+        api_key_env="",
+        strengths=[TaskType.CODE, TaskType.ANALYZE],
+        cost_per_1k=0.0,
+    ),
+    "hermes-agent": ModelConfig(
+        provider=ModelProvider.HERMES,
+        model_id="hermes-default",
+        api_key_env="",
+        strengths=[TaskType.CODE, TaskType.AUTONOMOUS],
+        cost_per_1k=0.0,
+    ),
+    "opencode-agent": ModelConfig(
+        provider=ModelProvider.OPENCODE,
+        model_id="opencode-default",
+        api_key_env="",
+        strengths=[TaskType.CODE, TaskType.ANALYZE],
+        cost_per_1k=0.0,
+    ),
     "manus": ModelConfig(
         provider=ModelProvider.MANUS,
         model_id="manus-agent",
@@ -360,7 +397,7 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
             TaskType.BROWSER_CONTROL,
         ],
         cost_per_1k=0.0,
-        available=False,  # No programmatic API — browser-only. Re-enable when Meta ships API.
+        available=False,
         base_url="https://manus.im",
     ),
 }
@@ -435,10 +472,23 @@ class ModelRouter:
     def _check_availability(self) -> None:
         # cc_sdk available if claude CLI is installed (import succeeded at module level)
         self._cc_sdk_available = query_cc_sync is not None
+
+        from adapters.model_adapters.codex_cli import is_available as _codex_avail
+        from adapters.model_adapters.hermes_cli import is_available as _hermes_avail
+        from adapters.model_adapters.opencode_cli import is_available as _opencode_avail
+
+        _cli_checks = {
+            ModelProvider.OLLAMA: _ollama_available,
+            ModelProvider.CODEX: _codex_avail,
+            ModelProvider.HERMES: _hermes_avail,
+            ModelProvider.OPENCODE: _opencode_avail,
+        }
+
         for config in MODEL_REGISTRY.values():
-            if not config.api_key_env:
-                # Local model (Ollama) — check if actually running
-                config.available = config.provider == ModelProvider.OLLAMA and _ollama_available()
+            if config.provider in _cli_checks:
+                config.available = _cli_checks[config.provider]()
+            elif not config.api_key_env:
+                config.available = False
             elif os.getenv(config.api_key_env):
                 config.available = True
             else:
@@ -504,6 +554,12 @@ class ModelRouter:
             result = self._call_ollama(model_config, prompt, system, max_tokens)
         elif provider == ModelProvider.GEMINI:
             result = self._call_gemini(model_config, prompt, system, max_tokens, images)
+        elif provider == ModelProvider.CODEX:
+            result = self._call_codex(prompt, system, max_tokens)
+        elif provider == ModelProvider.HERMES:
+            result = self._call_hermes(prompt, system)
+        elif provider == ModelProvider.OPENCODE:
+            result = self._call_opencode(prompt, system)
         else:
             logger.warning("[ModelRouter] Unknown provider: %s", provider)
             return ""
@@ -747,6 +803,29 @@ class ModelRouter:
             return response.text or ""
         except Exception as e:
             logger.warning("[ModelRouter] Gemini error: %s", e)
+        return ""
+
+    def _call_codex(self, prompt: str, system: str, max_tokens: int) -> str:
+        full_prompt = f"{system}\n\n{prompt}" if system else prompt
+        result = query_codex_sync(full_prompt)
+        if result:
+            self._last_input_tokens = result.input_tokens
+            self._last_output_tokens = result.output_tokens
+            return result.output
+        return ""
+
+    def _call_hermes(self, prompt: str, system: str) -> str:
+        full_prompt = f"{system}\n\n{prompt}" if system else prompt
+        result = query_hermes_sync(full_prompt)
+        if result:
+            return result.output
+        return ""
+
+    def _call_opencode(self, prompt: str, system: str) -> str:
+        full_prompt = f"{system}\n\n{prompt}" if system else prompt
+        result = query_opencode_sync(full_prompt)
+        if result:
+            return result.output
         return ""
 
     def get_status(self) -> str:
@@ -1242,13 +1321,29 @@ def adversarial_code_review(
     context: str | None = None,
 ) -> str:
     """
-    Adversarial review stub.
+    Adversarial code review via Codex CLI.
 
-    Full pattern (when Codex is available):
-      CC writes → Codex reviews adversarially → CC synthesizes
-
-    Currently: Codex subprocess is unstable. Returns input unchanged.
-    Restore when Codex exec is stable or Anthropic credits available.
+    Pattern: CC writes → Codex reviews adversarially → CC synthesizes.
+    Falls back to returning input unchanged if Codex is unavailable.
     """
-    logger.info("[Router] adversarial_code_review: Codex unavailable, returning input")
+    from adapters.model_adapters.codex_cli import is_available as codex_available
+
+    if not codex_available():
+        logger.info("[Router] adversarial_code_review: Codex CLI not available, returning input")
+        return code_or_plan
+
+    review_prompt = (
+        "Review the following code/plan for bugs, security issues, edge cases, "
+        "and design problems. Be adversarial — assume something is wrong and find it.\n\n"
+    )
+    if context:
+        review_prompt += f"Context: {context}\n\n"
+    review_prompt += f"```\n{code_or_plan}\n```"
+
+    result = query_codex_sync(review_prompt, sandbox="read-only", timeout=90)
+    if result and result.output:
+        logger.info("[Router] adversarial_code_review: Codex returned %d chars", len(result.output))
+        return result.output
+
+    logger.info("[Router] adversarial_code_review: Codex returned empty, returning input")
     return code_or_plan
