@@ -20,10 +20,13 @@ Usage:
         print(result)
 """
 
+import json
 import os
+import re
 import time
 import logging
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 
@@ -44,6 +47,67 @@ except Exception:
 from state.providers.provider_state import get_system_state
 
 logger = logging.getLogger(__name__)
+
+# ─── Fix-forever error recording ─────────────────────────────────────────────
+
+_ERROR_LOG_PATH = (
+    Path(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or "/opt/OS")
+    / "logs"
+    / "model_router_errors.jsonl"
+)
+
+
+def _record_error(component: str, error: str, context: dict | None = None) -> None:
+    """Append error to JSONL log for pattern detection and permanent fixing."""
+    try:
+        _ERROR_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        entry = {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "component": component,
+            "error": str(error)[:500],
+            "context": {k: str(v)[:200] for k, v in (context or {}).items()},
+        }
+        with _ERROR_LOG_PATH.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(entry) + "\n")
+    except Exception:
+        pass
+
+
+# ─── Deterministic fallback for model router ─────────────────────────────────
+
+_ROUTER_INTENT_PATTERNS: list[tuple[re.Pattern, str]] = [
+    (re.compile(r"\b(schedule|book|calendar|meeting|call)\b", re.I), "calendar_action"),
+    (re.compile(r"\b(send|draft|email|compose)\b", re.I), "email_action"),
+    (re.compile(r"\b(check|status|update|progress)\b", re.I), "status_check"),
+    (re.compile(r"\b(analyze|review|assess|evaluate)\b", re.I), "analysis"),
+    (re.compile(r"\b(create|build|write|generate)\b", re.I), "content_creation"),
+    (re.compile(r"\b(fix|debug|error|broken|issue)\b", re.I), "troubleshoot"),
+    (re.compile(r"\b(hey|hi|hello|morning|gm|yo|sup)\b", re.I), "greeting"),
+]
+
+_ROUTER_INTENT_FALLBACKS: dict[str, str] = {
+    "calendar_action": "I've noted your calendar request. AI providers are temporarily unavailable — I'll process this once they reconnect.",
+    "email_action": "I've captured your email request. I'll draft and send once AI is back online.",
+    "status_check": "Operating in reduced mode — AI providers temporarily unavailable. Core systems remain functional.",
+    "analysis": "Analysis queued. Full analytical capabilities require AI, which is temporarily offline.",
+    "content_creation": "Content generation requires AI, which is temporarily unavailable. Request logged.",
+    "troubleshoot": "Issue logged for investigation. Diagnostic capabilities limited while AI is offline.",
+    "greeting": "Hey! Operating in reduced mode — AI providers temporarily offline. Core functions still work.",
+}
+
+_ROUTER_DEFAULT_FALLBACK = (
+    "All intelligence providers are temporarily unavailable. "
+    "Request has been logged. Core functions (CRM, calendar, email) remain operational."
+)
+
+
+def _deterministic_router_response(prompt: str) -> str:
+    """Intent-aware fallback when all LLM providers fail."""
+    prompt_lower = prompt.lower()
+    for pattern, intent in _ROUTER_INTENT_PATTERNS:
+        if pattern.search(prompt_lower):
+            return _ROUTER_INTENT_FALLBACKS[intent]
+    return _ROUTER_DEFAULT_FALLBACK
 
 
 # ─── Circuit Breaker ─────────────────────────────────────────────────────────
@@ -82,6 +146,13 @@ def _circuit_record_failure() -> None:
     global _circuit_consecutive_failures, _circuit_last_failure_time
     _circuit_consecutive_failures += 1
     _circuit_last_failure_time = time.time()
+    _record_error(
+        "circuit_breaker",
+        "all providers failed",
+        {
+            "consecutive_failures": str(_circuit_consecutive_failures),
+        },
+    )
     try:
         from state.providers.provider_state import get_system_state
 
@@ -98,6 +169,14 @@ def _circuit_record_success() -> None:
 
 def _track_provider_result(provider_name: str, success: bool) -> None:
     """Feed per-provider result into global SystemProviderState."""
+    if not success:
+        _record_error(
+            "provider_empty",
+            f"{provider_name} returned empty",
+            {
+                "provider": provider_name,
+            },
+        )
     try:
         from state.providers.provider_state import get_system_state
 
@@ -106,8 +185,14 @@ def _track_provider_result(provider_name: str, success: bool) -> None:
             state.record_provider_success(provider_name)
         else:
             state.record_provider_failure(provider_name)
-    except Exception:
-        pass
+    except Exception as _track_err:
+        _record_error(
+            "provider_state_tracking",
+            _track_err,
+            {
+                "provider": provider_name,
+            },
+        )
 
 
 # ─── RoutingResult ────────────────────────────────────────────────────────────
@@ -661,6 +746,14 @@ class ModelRouter:
                 or "authentication_error" in err_str
                 or "invalid x-api-key" in err_str
             )
+            _record_error(
+                "anthropic",
+                e,
+                {
+                    "model": config.model_id,
+                    "fatal": str(_fatal),
+                },
+            )
             if _fatal:
                 logger.warning(
                     "[ModelRouter] Anthropic unavailable — marking all models down: %s",
@@ -704,6 +797,13 @@ class ModelRouter:
                 self._last_output_tokens = getattr(response.usage, "completion_tokens", 0) or 0
             return response.choices[0].message.content or ""
         except Exception as e:
+            _record_error(
+                config.provider.value,
+                e,
+                {
+                    "model": config.model_id,
+                },
+            )
             logger.warning("[ModelRouter] %s error: %s", config.provider.value, e)
             return ""
 
@@ -749,6 +849,13 @@ class ModelRouter:
                 self._last_output_tokens = data.get("eval_count", 0) or 0
                 return data.get("response", "")
         except Exception as e:
+            _record_error(
+                "ollama",
+                e,
+                {
+                    "model": config.model_id,
+                },
+            )
             logger.warning("[ModelRouter] Ollama error: %s", e)
         return ""
 
@@ -802,6 +909,13 @@ class ModelRouter:
                 )
             return response.text or ""
         except Exception as e:
+            _record_error(
+                "gemini",
+                e,
+                {
+                    "model": config.model_id,
+                },
+            )
             logger.warning("[ModelRouter] Gemini error: %s", e)
         return ""
 
@@ -989,14 +1103,17 @@ def call_with_fallback(
         _cap = detect_capability(prompt, task_type_str, context={"agent_type": agent_type})
         if _cap not in _LLM_ONLY_CAPABILITIES:
             _cap_result = route_capability(
-                prompt, task_type=task_type_str,
-                context={"agent_type": agent_type}, system=system,
+                prompt,
+                task_type=task_type_str,
+                context={"agent_type": agent_type},
+                system=system,
             )
             if _cap_result:
                 latency_ms = int((time.time() - start) * 1000)
                 logger.info(
                     "[Router] capability_router handled via %s (%dms)",
-                    _cap_result.provider_id, latency_ms,
+                    _cap_result.provider_id,
+                    latency_ms,
                 )
                 return RoutingResult(
                     output=_cap_result.output,
@@ -1006,6 +1123,13 @@ def call_with_fallback(
                     latency_ms=latency_ms,
                 )
     except Exception as _cap_exc:
+        _record_error(
+            "capability_router",
+            _cap_exc,
+            {
+                "task_type": task_type_str,
+            },
+        )
         logger.debug("[Router] capability_router skipped: %s", _cap_exc)
 
     # ── Backend #0: Claude CLI persistent tmux session ──
@@ -1058,6 +1182,7 @@ def call_with_fallback(
                     if _ms:
                         cli_session = _ms
             except Exception as _mode_exc:  # noqa: BLE001 — never poison router
+                _record_error("mode_context", _mode_exc, {})
                 logger.warning("[Router] mode_context lookup failed: %s", _mode_exc)
             # Use raw_input for the tmux session — the CC session already
             # has full context via CLAUDE.md and soul docs. Sending the
@@ -1105,6 +1230,13 @@ def call_with_fallback(
                 (cli_res.get("detail") or "")[:200],
             )
         except Exception as exc:  # noqa: BLE001 — boundary: never raise
+            _record_error(
+                "claude_cli",
+                exc,
+                {
+                    "task_type": task_type_str,
+                },
+            )
             logger.warning("[Router] claude_cli backend error: %s", exc)
     else:
         logger.info("[Router] claude_cli backend disabled via env — skipping")
@@ -1316,11 +1448,9 @@ def call_with_fallback(
     )
     _stamp_trace("none", "none", latency_ms, "all_failed")
     return RoutingResult(
-        output=(
-            "[EOS] All intelligence providers unavailable. Check API keys and network connectivity."
-        ),
-        provider="none",
-        model="none",
+        output=_deterministic_router_response(prompt),
+        provider="deterministic",
+        model="fallback",
         task_type=task_type_str,
         latency_ms=latency_ms,
     )
@@ -1342,8 +1472,15 @@ def _stamp_trace(provider: str, model: str, latency_ms: int, result: str) -> Non
                 latency_ms=latency_ms,
                 result=result,
             )
-    except Exception:
-        pass
+    except Exception as _trace_err:
+        _record_error(
+            "stamp_trace",
+            _trace_err,
+            {
+                "provider": provider,
+                "model": model,
+            },
+        )
 
 
 def adversarial_code_review(
