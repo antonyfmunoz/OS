@@ -83,10 +83,6 @@ class NodeMeshServer:
     def stop(self) -> None:
         self._shutdown_event.set()
         self._metrics.stop_flush_loop()
-        if self._health_task is not None and self._loop is not None:
-            self._loop.call_soon_threadsafe(self._health_task.cancel)
-        if self._loop is not None and self._loop.is_running():
-            self._loop.call_soon_threadsafe(self._loop.stop)
         if self._thread is not None:
             self._thread.join(timeout=5)
         logger.info("node mesh server stopped")
@@ -110,7 +106,10 @@ class NodeMeshServer:
             self._server = server
             logger.info("node mesh server listening on :%d", self._config.port)
             while not self._shutdown_event.is_set():
-                await asyncio.sleep(1)
+                await asyncio.sleep(0.5)
+
+            server.close()
+            await server.wait_closed()
 
         self._health_task.cancel()
 
