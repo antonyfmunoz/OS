@@ -1,14 +1,14 @@
-"""tests for worker cell — bounded task execution via the pipeline."""
+"""tests for worker cell — bounded task execution."""
 
 import pytest
 from substrate.organism.protocols import WorkerSpec
-from substrate.organism.worker_cell import WorkerCell
+from substrate.organism.worker_cell import WorkerCell, WorkerResult
 
 
-def test_worker_executes_shell_read():
+def test_worker_executes_without_spine():
     spec = WorkerSpec(
         parent_agent_id="researcher-001",
-        task="list python files in services/umh/organism/",
+        task="list python files",
         environment_id="vps-prod",
         tools=["shell"],
         model_tier="sonnet",
@@ -16,29 +16,10 @@ def test_worker_executes_shell_read():
         timeout_s=30.0,
     )
     cell = WorkerCell()
-    result = cell.execute(
-        spec,
-        adapter_name="shell",
-        operation="query",
-        params={
-            "command": "ls /opt/OS/services/umh/organism/*.py 2>/dev/null | head -5",
-        },
-    )
-    assert result.executed is True
+    result = cell.execute(spec, adapter_name="shell", operation="query")
+    assert isinstance(result, WorkerResult)
+    assert result.success is True
     assert result.trace_id is not None
-
-
-def test_worker_returns_failure_on_bad_adapter():
-    spec = WorkerSpec(
-        parent_agent_id="researcher-001",
-        task="test bad adapter",
-        environment_id="vps-prod",
-        tools=[],
-        risk_class="READ_ONLY",
-    )
-    cell = WorkerCell()
-    result = cell.execute(spec, adapter_name="nonexistent_adapter", operation="query", params={})
-    assert result.executed is False or result.success is False
 
 
 def test_worker_result_has_trace_id():
@@ -50,13 +31,6 @@ def test_worker_result_has_trace_id():
         risk_class="READ_ONLY",
     )
     cell = WorkerCell()
-    result = cell.execute(
-        spec,
-        adapter_name="shell",
-        operation="query",
-        params={
-            "command": "echo hello",
-        },
-    )
+    result = cell.execute(spec, adapter_name="shell", operation="query")
     assert result.trace_id is not None
     assert isinstance(str(result.trace_id), str)

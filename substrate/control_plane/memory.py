@@ -28,6 +28,9 @@ class MemorySystem(Protocol):
 class ConcreteMemorySystem:
     """Wraps existing AgentMemory + ConversationMemory."""
 
+    def is_available(self) -> bool:
+        return self._agent_memory is not None
+
     def __init__(self) -> None:
         import sys
 

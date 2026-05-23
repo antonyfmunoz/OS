@@ -35,6 +35,9 @@ class ConcreteComponentRegistry:
     def __init__(self) -> None:
         self._components: dict[UUID, Component] = {}
 
+    def count(self) -> int:
+        return len(self._components)
+
     async def register(self, component: Component) -> RegistrationResult:
         self._components[component.id] = component
         return RegistrationResult(component_id=component.id, success=True)

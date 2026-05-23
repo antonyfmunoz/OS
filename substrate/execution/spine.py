@@ -15,6 +15,7 @@ Source mapping:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 import time
@@ -109,8 +110,9 @@ def _record_error(component: str, error: str, context: dict[str, Any] | None = N
         }
         with _ERROR_LOG_PATH.open("a", encoding="utf-8") as f:
             f.write(json.dumps(entry) + "\n")
-    except Exception:
-        pass
+    except Exception as log_err:
+        import logging
+        logging.getLogger(__name__).warning("Failed to write error log: %s", log_err)
 
 
 # ─── Concrete execution spine ──────────────────────────────────────────────
@@ -152,10 +154,19 @@ class ConcreteExecutionSpine:
         signal: SignalEnvelope,
         context: ExecutionContext,
         verdict: GovernanceVerdict,
+        *,
+        trace: TraceRecord | None = None,
     ) -> ExecutionResult:
-        """Execute the full 8-stage pipeline for a signal."""
+        """Execute the full 8-stage pipeline for a signal.
+
+        When called from the router, pass the router's trace to avoid
+        double-persistence. The spine populates the trace but does NOT
+        persist it — the caller is responsible for persistence.
+        """
         start = time.monotonic()
-        trace = TraceRecord(signal_id=signal.id)
+        owns_trace = trace is None
+        if trace is None:
+            trace = TraceRecord(signal_id=signal.id)
 
         # Stage 0: Governance gate
         if not verdict.is_executable():
@@ -240,7 +251,7 @@ class ConcreteExecutionSpine:
                 sys.path.insert(0, "/opt/OS")
                 from adapters.models.model_router import call_with_fallback
 
-                llm_response = call_with_fallback(prompt)
+                llm_response = await asyncio.to_thread(call_with_fallback, prompt)
                 if llm_response and hasattr(llm_response, "output") and llm_response.output.strip():
                     output = llm_response.output.strip()
                     provider = llm_response.provider
@@ -285,32 +296,29 @@ class ConcreteExecutionSpine:
                 governance_decision=verdict.decision,
             )
 
-            # Stage 8: Feedback
-            if self._feedback:
-                try:
-                    feedback = await self._feedback.capture(trace, result)
-                    await self._feedback.persist(feedback)
-                    trace.add_event(
-                        TraceEventType.FEEDBACK_CAPTURED,
-                        "Feedback captured",
-                    )
-                except Exception as e:
-                    _record_error(
-                        "spine.feedback",
-                        str(e),
-                        {"signal_id": str(signal.id)},
-                    )
-
-            # Persist trace
-            if self._trace:
-                try:
-                    await self._trace.persist(trace)
-                except Exception as e:
-                    _record_error(
-                        "spine.trace_persist",
-                        str(e),
-                        {"signal_id": str(signal.id)},
-                    )
+            # Stage 8: Feedback + trace persistence
+            # Only persist when spine owns the trace (direct call, not from router).
+            # When called from the router, the router handles persistence.
+            if owns_trace:
+                if self._feedback:
+                    try:
+                        feedback = await self._feedback.capture(trace, result)
+                        await self._feedback.persist(feedback)
+                    except Exception as e:
+                        _record_error(
+                            "spine.feedback",
+                            str(e),
+                            {"signal_id": str(signal.id)},
+                        )
+                if self._trace:
+                    try:
+                        await self._trace.persist(trace)
+                    except Exception as e:
+                        _record_error(
+                            "spine.trace_persist",
+                            str(e),
+                            {"signal_id": str(signal.id)},
+                        )
 
             return result
 
@@ -323,7 +331,7 @@ class ConcreteExecutionSpine:
             )
             trace.add_event(TraceEventType.ERROR, str(e)[:300])
             trace.complete(success=False)
-            if self._trace:
+            if owns_trace and self._trace:
                 try:
                     await self._trace.persist(trace)
                 except Exception:
