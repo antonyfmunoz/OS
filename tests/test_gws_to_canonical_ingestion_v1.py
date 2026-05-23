@@ -40,7 +40,7 @@ from adapters.adapter_engine.substrate_decomposer_v1 import (
     DecompositionResult,
     decompose_document,
 )
-from state.memory.contracts.canonical_memory_store_v1 import CanonicalMemoryStore
+from substrate.state.memory.contracts.canonical_memory_store_v1 import CanonicalMemoryStore
 from substrate.understanding.ontology.primitive_decomposition_v1 import PrimitiveType
 
 CANONICAL_RECORD = Path(

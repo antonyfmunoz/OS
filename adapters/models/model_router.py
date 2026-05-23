@@ -44,7 +44,7 @@ try:
 except Exception:
     pass
 
-from state.providers.provider_state import get_system_state
+from substrate.state.providers.provider_state import get_system_state
 
 logger = logging.getLogger(__name__)
 
@@ -154,7 +154,7 @@ def _circuit_record_failure() -> None:
         },
     )
     try:
-        from state.providers.provider_state import get_system_state
+        from substrate.state.providers.provider_state import get_system_state
 
         get_system_state().record_all_providers_failed()
     except Exception:
@@ -178,7 +178,7 @@ def _track_provider_result(provider_name: str, success: bool) -> None:
             },
         )
     try:
-        from state.providers.provider_state import get_system_state
+        from substrate.state.providers.provider_state import get_system_state
 
         state = get_system_state()
         if success:

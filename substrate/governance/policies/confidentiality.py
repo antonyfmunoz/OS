@@ -82,8 +82,8 @@ def create_confidential_session(
     Logs metadata only — no content stored.
     """
     try:
-        from state.context.context import load_context_from_env
-        from state.memory.memory import AgentMemory
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
         now = datetime.now(PDT)
 

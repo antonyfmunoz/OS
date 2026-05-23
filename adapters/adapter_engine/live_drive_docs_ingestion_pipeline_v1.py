@@ -47,7 +47,7 @@ from execution.runtime.worker_supervisor_v1 import (
     WorkerSupervisor,
     WorkerType,
 )
-from state.transformation_state_ledger import (
+from substrate.state.transformation_state_ledger import (
     StateArtifactReference,
     StateLedgerRecord,
     TransformationStage,

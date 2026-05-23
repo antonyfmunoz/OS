@@ -33,8 +33,8 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from state.storage.db import ORG_ID
-from state.memory.memory import AgentMemory
+from substrate.state.storage.db import ORG_ID
+from substrate.state.memory.memory import AgentMemory
 
 
 def _utcnow() -> str:
@@ -252,7 +252,7 @@ def _handle_lead_booked(payload: dict) -> dict:
     """
     lead_booked → log 'booked' outcome to memory.db + notify orchestrator.
     """
-    from state.memory.memory import AgentMemory
+    from substrate.state.memory.memory import AgentMemory
 
     username = payload.get("username", "unknown")
     booking_time = payload.get("booking_time", "")
@@ -284,7 +284,7 @@ def _handle_lead_closed(payload: dict) -> dict:
     """
     lead_closed → log 'closed' outcome + run human profile update.
     """
-    from state.memory.memory import AgentMemory
+    from substrate.state.memory.memory import AgentMemory
 
     username = payload.get("username", "unknown")
     venture_id = payload.get("venture_id", "lyfe_institute")
@@ -312,7 +312,7 @@ def _handle_lead_closed(payload: dict) -> dict:
     # Run human profile update
     try:
         from substrate.understanding.intelligence.human_intelligence import HumanIntelligenceEngine
-        from state.context.context import load_context_from_env
+        from substrate.state.context.context import load_context_from_env
 
         engine = HumanIntelligenceEngine(load_context_from_env())
         profiles = engine.run_profile_cycle()
@@ -327,7 +327,7 @@ def _handle_lead_lost(payload: dict) -> dict:
     """
     lead_lost → log 'no_reply' outcome + store objection data for RLHF.
     """
-    from state.memory.memory import AgentMemory
+    from substrate.state.memory.memory import AgentMemory
 
     username = payload.get("username", "unknown")
     objection = payload.get("objection", "")

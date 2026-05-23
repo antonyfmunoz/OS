@@ -38,7 +38,7 @@ from control_plane.router.router_contracts import (
     RuntimeProofReference,
     WorkPacket,
 )
-from state.memory.contracts.canonical_memory_query_contracts import (
+from substrate.state.memory.contracts.canonical_memory_query_contracts import (
     FORBIDDEN_QUERY_ACTIONS,
     CanonicalMemoryQuery,
     MemoryLineageReference,
@@ -48,7 +48,7 @@ from state.memory.contracts.canonical_memory_query_contracts import (
 )
 from adapters.adapter_engine.adapter_registry_contracts import AdapterRegistry
 from execution.runtime.worker_runtime_contracts import ProofStatus, RuntimeProofRecord
-from state.transformation_state_ledger import (
+from substrate.state.transformation_state_ledger import (
     GOVERNANCE_REQUIRED_STAGES,
     VALID_TRANSITIONS,
     StateArtifactReference,

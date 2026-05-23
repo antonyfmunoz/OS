@@ -32,7 +32,7 @@ class ConcreteIdentityResolver:
         sys.path.insert(0, "/opt/OS")
 
         try:
-            from state.business.business_instance import get_ai_name, get_business_stage
+            from substrate.state.business.business_instance import get_ai_name, get_business_stage
 
             ai_name = get_ai_name()
             business_stage = get_business_stage()
@@ -41,7 +41,7 @@ class ConcreteIdentityResolver:
             business_stage = "pre_revenue"
 
         try:
-            from state.context.context import load_context_from_env
+            from substrate.state.context.context import load_context_from_env
 
             ctx = load_context_from_env()
             personality = ctx.get("personality", "professional")

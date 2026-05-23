@@ -123,10 +123,10 @@ if _rt_spec and "runtime" not in sys.modules:
         _rt_spec.loader.exec_module(_rt_mod)
 
 from control_plane.runtime.gateway import EntrepreneurOSGateway
-from state.context.context import load_context_from_env
+from substrate.state.context.context import load_context_from_env
 from substrate.understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
 from execution.voice.voice_engine import VoiceEngine
-from state.business.business_instance import get_ai_name
+from substrate.state.business.business_instance import get_ai_name
 from transports.discord.discord_utils import chunk_message, post_to_webhook
 from execution.transport.session_discord_bridge import send_reply as _send_reply
 from execution.transport.discord_text_transport import (
@@ -1045,7 +1045,7 @@ async def _warmup_cc_sdk():
     """
     await asyncio.sleep(10)
     try:
-        from state.work.work_state import _measure_pressure, Pressure
+        from substrate.state.work.work_state import _measure_pressure, Pressure
 
         p = _measure_pressure()
         if p in (Pressure.HIGH, Pressure.CRITICAL):
@@ -1602,7 +1602,7 @@ async def on_message(message: discord.Message):
 
     # Wake idle system — a real user message is a work signal
     try:
-        from state.work.work_state import record_signal, reset_idle_counter
+        from substrate.state.work.work_state import record_signal, reset_idle_counter
 
         record_signal()
         reset_idle_counter()
@@ -3068,8 +3068,8 @@ async def cmd_approve(ctx: commands.Context, approval_id: str = ""):
 async def cmd_approve_followup(ctx: commands.Context):
     """Approve and send the most recent pending follow-up email draft."""
     try:
-        from state.context.context import load_context_from_env
-        from state.storage.db import get_conn
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.storage.db import get_conn
         from adapters.google_workspace.gws_connector import GWSConnector
         from substrate.governance.quality.quality_gate import gate_outgoing_email
         import json as _json
@@ -3202,8 +3202,8 @@ async def cmd_approve_followup(ctx: commands.Context):
 async def cmd_force_send(ctx: commands.Context):
     """Force-send an email that failed the quality gate."""
     try:
-        from state.context.context import load_context_from_env
-        from state.storage.db import get_conn
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.storage.db import get_conn
         from adapters.google_workspace.gws_connector import GWSConnector
         import json as _json
 
@@ -3298,8 +3298,8 @@ async def cmd_confidential(ctx: commands.Context, *, args: str = ""):
 async def cmd_pending(ctx: commands.Context):
     """Show all pending approval emails."""
     try:
-        from state.context.context import load_context_from_env
-        from state.storage.db import get_conn
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.storage.db import get_conn
         import json as _json
 
         _ctx = load_context_from_env()
@@ -3427,7 +3427,7 @@ Subject: [subject]
 async def cmd_expenses(ctx: commands.Context):
     """Show month-to-date expenses. Usage: !expenses"""
     try:
-        from state.finance.expense_tracker import get_monthly_summary
+        from substrate.state.finance.expense_tracker import get_monthly_summary
 
         summary = get_monthly_summary()
         if not summary.get("total"):
@@ -3822,7 +3822,7 @@ async def cmd_subscriptions(ctx: commands.Context):
 
     def _run():
         try:
-            from state.finance.subscription_tracker import (
+            from substrate.state.finance.subscription_tracker import (
                 get_subscriptions,
                 get_upcoming_renewals,
                 get_monthly_subscription_total,
@@ -3869,7 +3869,7 @@ async def cmd_add_sub(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from state.finance.subscription_tracker import add_subscription
+            from substrate.state.finance.subscription_tracker import add_subscription
 
             vendor = parts[0]
             amount = float(parts[1])
@@ -4017,7 +4017,7 @@ async def cmd_buyback(ctx: commands.Context, income: str = ""):
 
         def _run():
             try:
-                from state.metrics.founder_rate import (
+                from substrate.state.metrics.founder_rate import (
                     calculate_founder_rate,
                     store_founder_rate,
                 )
@@ -4042,7 +4042,7 @@ async def cmd_buyback(ctx: commands.Context, income: str = ""):
 
         def _get():
             try:
-                from state.metrics.founder_rate import get_current_founder_rate
+                from substrate.state.metrics.founder_rate import get_current_founder_rate
 
                 rate = get_current_founder_rate()
                 if rate:
@@ -4076,7 +4076,7 @@ async def cmd_logtime(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from state.metrics.founder_rate import log_time_block
+            from substrate.state.metrics.founder_rate import log_time_block
 
             parts = args.split("|")
             activity = parts[0].strip()
@@ -4109,7 +4109,7 @@ async def cmd_timeaudit(ctx: commands.Context):
 
     def _run():
         try:
-            from state.metrics.founder_rate import get_time_audit_summary
+            from substrate.state.metrics.founder_rate import get_time_audit_summary
 
             summary = get_time_audit_summary(days=7)
             if not summary.get("total_hours"):
@@ -4324,7 +4324,7 @@ async def cmd_nolist(ctx: commands.Context):
 
     def _run():
         try:
-            from state.metrics.founder_rate import get_no_list
+            from substrate.state.metrics.founder_rate import get_no_list
 
             items = get_no_list()
             if not items:
@@ -4355,7 +4355,7 @@ async def cmd_noadd(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from state.metrics.founder_rate import add_to_no_list
+            from substrate.state.metrics.founder_rate import add_to_no_list
 
             parts = args.split("|", 1)
             item = parts[0].strip()
@@ -4386,8 +4386,8 @@ async def cmd_energy(ctx: commands.Context, *, args: str = ""):
     def _run():
         try:
             import json as _ej
-            from state.context.context import load_context_from_env
-            from state.storage.db import get_conn
+            from substrate.state.context.context import load_context_from_env
+            from substrate.state.storage.db import get_conn
             from zoneinfo import ZoneInfo as _ZI
             from datetime import datetime as _dt
 
@@ -4519,7 +4519,7 @@ async def cmd_invoices(ctx: commands.Context):
 
     def _run():
         try:
-            from state.finance.expense_tracker import get_invoices, get_overdue_invoices
+            from substrate.state.finance.expense_tracker import get_invoices, get_overdue_invoices
 
             all_inv = get_invoices()
             overdue = get_overdue_invoices()
@@ -4567,7 +4567,7 @@ async def cmd_invoice(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from state.finance.expense_tracker import create_invoice, generate_invoice_text
+            from substrate.state.finance.expense_tracker import create_invoice, generate_invoice_text
 
             parts = [p.strip() for p in args.split("|")]
             inv = create_invoice(
@@ -4605,7 +4605,7 @@ async def cmd_expensereport(ctx: commands.Context, month: str = ""):
 
     def _run():
         try:
-            from state.finance.expense_tracker import generate_expense_report
+            from substrate.state.finance.expense_tracker import generate_expense_report
 
             return generate_expense_report(month or None)
         except Exception as e:
@@ -4623,7 +4623,7 @@ async def cmd_budget(ctx: commands.Context, target: str = "10000"):
 
     def _run():
         try:
-            from state.finance.expense_tracker import generate_budget_vs_actual
+            from substrate.state.finance.expense_tracker import generate_budget_vs_actual
 
             t = float(target.replace("$", "").replace(",", ""))
             return generate_budget_vs_actual(revenue_target=t)
@@ -4681,7 +4681,7 @@ async def cmd_board(ctx: commands.Context, *, args: str = ""):
         try:
             from adapters.google_workspace.doc_creator import create_briefing_doc
             from control_plane.strategy.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
-            from state.context.context import load_context_from_env
+            from substrate.state.context.context import load_context_from_env
 
             ctx_eos = load_context_from_env()
             pa = PortfolioAgent(ctx_eos)
@@ -5066,7 +5066,7 @@ async def cmd_okr(ctx: commands.Context, subcommand: str = "report", *, args: st
     """OKR tracking. Usage: !okr report | !okr set [venture] | [objective] | [KR, target, unit]"""
     if subcommand == "report":
         try:
-            from state.metrics.okr_tracker import generate_okr_report
+            from substrate.state.metrics.okr_tracker import generate_okr_report
 
             report = generate_okr_report()
             await _send_reply(ctx.channel, report)
@@ -5082,7 +5082,7 @@ async def cmd_okr(ctx: commands.Context, subcommand: str = "report", *, args: st
             )
             return
         try:
-            from state.metrics.okr_tracker import set_okr
+            from substrate.state.metrics.okr_tracker import set_okr
 
             parts = [p.strip() for p in args.split("|")]
             venture_id = parts[0]
@@ -5345,8 +5345,8 @@ async def cmd_approve_task(ctx: commands.Context, task_id: str = ""):
         return
     try:
         import json as _json
-        from state.context.context import load_context_from_env
-        from state.storage.db import get_conn
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.storage.db import get_conn
 
         _ctx = load_context_from_env()
 
@@ -5400,7 +5400,7 @@ async def cmd_approve_task(ctx: commands.Context, task_id: str = ""):
 async def cmd_tasks(ctx: commands.Context):
     """Show pending task queue split by human vs AI."""
     try:
-        from state.context.context import load_context_from_env
+        from substrate.state.context.context import load_context_from_env
         from control_plane.coordination.coordination_engine import CoordinationEngine
 
         _ctx = load_context_from_env()
@@ -5436,8 +5436,8 @@ async def cmd_agent_results(ctx: commands.Context):
     """Show last 24h agent task results."""
     try:
         import json as _json
-        from state.context.context import load_context_from_env
-        from state.storage.db import get_conn
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.storage.db import get_conn
 
         _ctx = load_context_from_env()
 

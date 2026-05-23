@@ -20,7 +20,7 @@ Categories:
   world_pulse      — continuous monitoring of market sources
 
 Usage:
-    from state.context.context import load_context_from_env
+    from substrate.state.context.context import load_context_from_env
     from substrate.understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
 
     ctx = load_context_from_env()
@@ -39,8 +39,8 @@ Usage:
 import uuid
 from typing import Optional
 
-from state.context.context import EntrepreneurOSContext
-from state.memory.memory import AgentMemory
+from substrate.state.context.context import EntrepreneurOSContext
+from substrate.state.memory.memory import AgentMemory
 from substrate.understanding.embedding.embedding_engine import EmbeddingEngine
 
 VALID_CATEGORIES = {
@@ -99,7 +99,7 @@ class KnowledgeIntegrator:
 
         # Store as interaction — satisfies embeddings FK and enables semantic search
         try:
-            from state.storage.db import get_conn, ORG_ID, USER_ID
+            from substrate.state.storage.db import get_conn, ORG_ID, USER_ID
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     """

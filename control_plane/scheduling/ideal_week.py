@@ -67,8 +67,8 @@ DEFAULT_IDEAL_WEEK = {
 def get_ideal_week(ctx=None) -> dict:
     """Get stored ideal week template or return default."""
     try:
-        from state.context.context import load_context_from_env
-        from state.storage.db import get_conn
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -93,8 +93,8 @@ def get_ideal_week(ctx=None) -> dict:
 def save_ideal_week(template: dict, ctx=None) -> bool:
     """Save a custom ideal week template."""
     try:
-        from state.context.context import load_context_from_env
-        from state.memory.memory import AgentMemory
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
 
         AgentMemory().log_event(
@@ -119,7 +119,7 @@ def create_process_capture(task_name: str, description: str, ctx=None) -> str:
     """
     try:
         from execution.runtime.model_router import get_router, TaskType
-        from state.context.context import load_context_from_env
+        from substrate.state.context.context import load_context_from_env
         ctx = ctx or load_context_from_env()
 
         router = get_router()
@@ -166,7 +166,7 @@ as Antony would, without asking questions."""
             f.write(playbook)
 
         try:
-            from state.registries.skill_registry_v2 import SkillRegistryV2, SkillV2, SkillDomain, TrustLevel
+            from substrate.state.registries.skill_registry_v2 import SkillRegistryV2, SkillV2, SkillDomain, TrustLevel
             registry = SkillRegistryV2(ctx)
             skill = SkillV2(
                 id=f'process_capture_{safe_name}',
@@ -202,8 +202,8 @@ def save_annual_architecture(year_plan: dict, ctx=None) -> bool:
     }
     """
     try:
-        from state.context.context import load_context_from_env
-        from state.memory.memory import AgentMemory
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
         AgentMemory().log_event(
             org_id=str(ctx.org_id),
@@ -223,8 +223,8 @@ def save_annual_architecture(year_plan: dict, ctx=None) -> bool:
 def get_annual_architecture(ctx=None) -> dict:
     """Get the most recently saved annual plan."""
     try:
-        from state.context.context import load_context_from_env
-        from state.storage.db import get_conn
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
         with get_conn(ctx.org_id) as cur:
             cur.execute('''

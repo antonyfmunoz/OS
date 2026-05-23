@@ -270,7 +270,7 @@ class ActivityLog:
         """Best-effort — never raises, never blocks the scheduler."""
         try:
             from execution.runtime.agent_runtime import AgentResult
-            from state.memory.memory import AgentMemory
+            from substrate.state.memory.memory import AgentMemory
 
             summary = (
                 f"job={job.id} status={result.get('status', '?')} "

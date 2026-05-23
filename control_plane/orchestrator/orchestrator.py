@@ -29,10 +29,10 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from execution.runtime.agent_runtime import AgentRuntime, TaskType
-from state.context.context import EntrepreneurOSContext
-from state.storage.db import get_conn, resolve_venture
-from state.memory.memory import AgentMemory
-from state.business.venture_knowledge import VentureKnowledgeBase
+from substrate.state.context.context import EntrepreneurOSContext
+from substrate.state.storage.db import get_conn, resolve_venture
+from substrate.state.memory.memory import AgentMemory
+from substrate.state.business.venture_knowledge import VentureKnowledgeBase
 
 VAULT = Path(_REPO_ROOT)
 DAILY_DIR = VAULT / "orchestrator" / "daily"
@@ -390,7 +390,7 @@ def run_full_morning_cycle(ctx: EntrepreneurOSContext, return_content: bool = Fa
 
     # 0. Sync Claude skills to Neon on startup
     try:
-        from state.registries.claude_skill_registry import ClaudeSkillRegistryManager
+        from substrate.state.registries.claude_skill_registry import ClaudeSkillRegistryManager
 
         csrm = ClaudeSkillRegistryManager()
         csrm.sync_to_neon(ctx)
@@ -710,7 +710,7 @@ def run_ceo_morning_delegation(
     venture_list = ventures or getattr(ctx, "ventures", [])
     if not venture_list:
         try:
-            from state.business.business_instance import BusinessInstanceManager
+            from substrate.state.business.business_instance import BusinessInstanceManager
 
             _default_vid = BusinessInstanceManager(ctx).get_default_venture_id()
             if _default_vid:
@@ -727,7 +727,7 @@ def run_ceo_morning_delegation(
 
         try:
             # Scope context to this venture
-            from state.context.context import EntrepreneurOSContext as _EC
+            from substrate.state.context.context import EntrepreneurOSContext as _EC
 
             venture_ctx = _EC(
                 org_id=ctx.org_id,
@@ -1023,8 +1023,8 @@ async def generate_morning_brief(ctx: EntrepreneurOSContext) -> str:
         _ctx_ventures = []
     if not _ctx_ventures:
         try:
-            from state.context.context import load_context_from_env as _lctx
-            from state.business.business_instance import BusinessInstanceManager as _BIM
+            from substrate.state.context.context import load_context_from_env as _lctx
+            from substrate.state.business.business_instance import BusinessInstanceManager as _BIM
 
             _c = _lctx()
             _ctx_ventures = getattr(_c, "ventures", []) or []
@@ -1048,7 +1048,7 @@ async def generate_morning_brief(ctx: EntrepreneurOSContext) -> str:
 
     for venture_id, name, icon in companies:
         try:
-            from state.business.business_instance import BusinessInstanceManager
+            from substrate.state.business.business_instance import BusinessInstanceManager
             from learning.evolution.evolution_engine import EvolutionEngine
             from substrate.understanding.ontology.primitives import PRIMITIVE_LIBRARY
 
@@ -1329,7 +1329,7 @@ class EntrepreneurOSOrchestrator:
         # Behavioral patterns — inject into brief for pattern-aware recommendations
         pattern_context = ""
         try:
-            from state.context.context import load_context_from_env as _lctx
+            from substrate.state.context.context import load_context_from_env as _lctx
             from substrate.understanding.patterns.pattern_engine import PatternEngine as _PE
 
             _ctx_pe = _lctx()
@@ -1501,7 +1501,7 @@ class EntrepreneurOSOrchestrator:
         # Email GPS — 6am inbox processing pass (DEX handles email before Antony)
         try:
             from adapters.google_workspace.email_gps import EmailGPS
-            from state.context.context import load_context_from_env as _lcfe
+            from substrate.state.context.context import load_context_from_env as _lcfe
 
             _ctx = _lcfe()
             gps = EmailGPS(_ctx)
@@ -1555,7 +1555,7 @@ class EntrepreneurOSOrchestrator:
         if datetime.date.today().weekday() == 6:  # Sunday = 6
             try:
                 from control_plane.strategy.strategy_engine import StrategyEngine
-                from state.context.context import load_context_from_env
+                from substrate.state.context.context import load_context_from_env
 
                 ctx = load_context_from_env()
                 se = StrategyEngine(ctx)
@@ -1590,7 +1590,7 @@ class EntrepreneurOSOrchestrator:
         reality_summary = ""
         try:
             from substrate.understanding.reality.reality_engine import RealityIntelligenceEngine
-            from state.context.context import load_context_from_env
+            from substrate.state.context.context import load_context_from_env
 
             ctx = load_context_from_env()
             rie = RealityIntelligenceEngine(ctx)
@@ -1617,7 +1617,7 @@ class EntrepreneurOSOrchestrator:
         if datetime.date.today().weekday() == 2:  # Wednesday = 2
             try:
                 from substrate.understanding.research.research_engine import ResearchEngine
-                from state.context.context import load_context_from_env
+                from substrate.state.context.context import load_context_from_env
 
                 ctx = load_context_from_env()
                 re_engine = ResearchEngine(ctx)
@@ -1636,7 +1636,7 @@ class EntrepreneurOSOrchestrator:
         if datetime.date.today().weekday() == 5:  # Saturday = 5
             try:
                 from learning.evolution.evolution_engine import EvolutionEngine
-                from state.context.context import load_context_from_env
+                from substrate.state.context.context import load_context_from_env
 
                 ctx = load_context_from_env()
                 ee = EvolutionEngine(ctx)
@@ -1650,7 +1650,7 @@ class EntrepreneurOSOrchestrator:
         domain_summary = ""
         if datetime.date.today().weekday() == 5:  # Saturday = 5
             try:
-                from state.context.context import load_context_from_env
+                from substrate.state.context.context import load_context_from_env
                 from substrate.understanding.research.research_engine import ResearchEngine
 
                 ctx_d = load_context_from_env()
@@ -1669,7 +1669,7 @@ class EntrepreneurOSOrchestrator:
         ai_scan_summary = ""
         if datetime.date.today().weekday() == 5:  # Saturday = 5
             try:
-                from state.context.context import load_context_from_env
+                from substrate.state.context.context import load_context_from_env
                 from substrate.understanding.research.research_engine import ResearchEngine
 
                 ctx_ai = load_context_from_env()
@@ -1690,7 +1690,7 @@ class EntrepreneurOSOrchestrator:
         if datetime.date.today().weekday() == 5:  # Saturday = 5
             try:
                 from substrate.understanding.embedding.embedding_engine import EmbeddingEngine
-                from state.context.context import load_context_from_env
+                from substrate.state.context.context import load_context_from_env
 
                 ctx_ee = load_context_from_env()
                 ee = EmbeddingEngine()
@@ -1704,7 +1704,7 @@ class EntrepreneurOSOrchestrator:
         world_pulse_summary = ""
         if datetime.date.today().weekday() == 5:  # Saturday = 5
             try:
-                from state.context.context import load_context_from_env
+                from substrate.state.context.context import load_context_from_env
                 from substrate.understanding.world_pulse.world_pulse import WorldPulse
 
                 ctx_wp = load_context_from_env()
@@ -1728,7 +1728,7 @@ class EntrepreneurOSOrchestrator:
         # Pattern detection cycle — runs every morning
         pattern_summary = ""
         try:
-            from state.context.context import load_context_from_env
+            from substrate.state.context.context import load_context_from_env
             from substrate.understanding.knowledge.knowledge_graph import KnowledgeGraph
 
             ctx_kg = load_context_from_env()
@@ -1812,7 +1812,7 @@ def refresh_ambient_state(ctx: EntrepreneurOSContext) -> None:
     """
     try:
         from substrate.understanding.reality.reality_context import RealityContext
-        from state.session.session_state import SessionState
+        from substrate.state.session.session_state import SessionState
 
         rc = RealityContext(ctx)
         reality = rc.get_current_reality()
@@ -1841,7 +1841,7 @@ def start_ambient_refresh_loop(ctx: EntrepreneurOSContext) -> None:
 
     def _refresh_loop() -> None:
         while True:
-            from state.work.work_state import detect_work_state, record_signal
+            from substrate.state.work.work_state import detect_work_state, record_signal
 
             ws = detect_work_state()
 
@@ -1860,7 +1860,7 @@ def start_ambient_refresh_loop(ctx: EntrepreneurOSContext) -> None:
 
             # Backpressure gate — moderate pressure, skip heavy work
             try:
-                from state.providers.provider_state import get_system_state
+                from substrate.state.providers.provider_state import get_system_state
 
                 _sys = get_system_state()
                 if not _sys.allow_execution():
@@ -1902,7 +1902,7 @@ def start_ambient_refresh_loop(ctx: EntrepreneurOSContext) -> None:
 # ─── CLI entry point ─────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    from state.context.context import load_context_from_env
+    from substrate.state.context.context import load_context_from_env
     from substrate.understanding.knowledge.knowledge_domains import KnowledgeDomainRegistry
     from substrate.understanding.research.research_engine import ResearchEngine
 
@@ -1921,7 +1921,7 @@ if __name__ == "__main__":
 
     run_full_morning_cycle(_ctx)
     try:
-        from state.context.context import load_ventures_from_env
+        from substrate.state.context.context import load_ventures_from_env
 
         _ventures = load_ventures_from_env()
         run_ceo_morning_delegation(_ctx, _ventures)

@@ -16,8 +16,8 @@ import json
 import uuid
 from datetime import datetime, timezone
 
-from state.context.context import EntrepreneurOSContext
-from state.storage.db import get_conn
+from substrate.state.context.context import EntrepreneurOSContext
+from substrate.state.storage.db import get_conn
 
 
 def _utcnow() -> str:
@@ -138,7 +138,7 @@ class ContextCompactor:
                 brief["last_action"] = result.output[:500]
 
         # Persist to Neon
-        from state.stores.context_compaction_store import ContextCompactionStore
+        from substrate.state.stores.context_compaction_store import ContextCompactionStore
         ContextCompactionStore().insert_compaction(
             org_id=self.ctx.org_id,
             session_id=session_id,

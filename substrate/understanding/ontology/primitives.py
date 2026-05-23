@@ -14,7 +14,7 @@ Stage 1 (Validation) primitives reject premature advice about hiring, scaling,
 paid ads, and outsourcing — the system corrects itself before returning output.
 
 Usage:
-    from state.context.context import load_context_from_env
+    from substrate.state.context.context import load_context_from_env
     from substrate.understanding.ontology.primitives import (
         PrimitiveRegistry, ContextualReasoningEngine,
         PRIMITIVE_LIBRARY, KnowledgePrimitive,
@@ -33,7 +33,7 @@ Usage:
 """
 
 from dataclasses import dataclass, field
-from state.context.context import EntrepreneurOSContext
+from substrate.state.context.context import EntrepreneurOSContext
 
 
 # ─── KnowledgePrimitive ───────────────────────────────────────────────────────
@@ -792,7 +792,7 @@ class PrimitiveRegistry:
     def _get_stage(self, venture_id: str) -> int:
         """Read BIS stage. Returns 1 on any failure (safe default)."""
         try:
-            from state.business.business_instance import BusinessInstanceManager
+            from substrate.state.business.business_instance import BusinessInstanceManager
             bim     = BusinessInstanceManager(self.ctx)
             ctx_str = bim.get_context_for_agents(venture_id)
             for line in ctx_str.split('\n'):
@@ -852,7 +852,7 @@ class ContextualReasoningEngine:
         # Resolve default venture from BIM if not passed — no hardcoded venture
         if not venture_id:
             try:
-                from state.business.business_instance import BusinessInstanceManager as _BIM
+                from substrate.state.business.business_instance import BusinessInstanceManager as _BIM
                 venture_id = _BIM(self.ctx).get_default_venture_id()
             except Exception:
                 venture_id = None

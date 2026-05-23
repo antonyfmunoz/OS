@@ -10,7 +10,7 @@ Refreshed every 30 minutes via orchestrator background cycle.
 Stored in SessionState.set_ambient() for zero-latency PERCEIVE injection.
 
 Usage:
-    from state.context.context import load_context_from_env
+    from substrate.state.context.context import load_context_from_env
     from substrate.understanding.reality.reality_context import RealityContext
 
     ctx     = load_context_from_env()
@@ -19,7 +19,7 @@ Usage:
     # {'lyfe_institute': [{'content': '...', 'tier': 'HIGH', ...}, ...]}
 """
 
-from state.context.context import EntrepreneurOSContext
+from substrate.state.context.context import EntrepreneurOSContext
 
 
 class RealityContext:
@@ -49,7 +49,7 @@ class RealityContext:
             'avg_active_hour':     17.0,
         }
         try:
-            from state.storage.db import get_conn
+            from substrate.state.storage.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     """
@@ -100,7 +100,7 @@ class RealityContext:
         """
         try:
             from substrate.understanding.reality.reality_engine import RealityIntelligenceEngine
-            from state.business.venture_knowledge import VentureKnowledgeBase
+            from substrate.state.business.venture_knowledge import VentureKnowledgeBase
 
             rie   = RealityIntelligenceEngine(self.ctx)
             result: dict = {}

@@ -244,7 +244,7 @@ class OnboardingEngine:
 
         # ── Step 2: Create BIS in Neon ────────────────────────────────────────
         try:
-            from state.business.business_instance import BusinessInstanceManager
+            from substrate.state.business.business_instance import BusinessInstanceManager
 
             bim = BusinessInstanceManager(self.ctx)
 

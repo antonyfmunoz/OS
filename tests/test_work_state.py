@@ -21,7 +21,7 @@ sys.path.insert(
     or "/opt/OS",
 )
 
-import state.work.work_state as ws
+import substrate.state.work.work_state as ws
 
 
 def _reset_module_state():
@@ -148,7 +148,7 @@ def test_max_idle_cap():
 
 def test_provider_state_pressure_delegation():
     """provider_state._check_resource_pressure delegates to work_state."""
-    from state.providers.provider_state import SystemProviderState
+    from substrate.state.providers.provider_state import SystemProviderState
 
     sps = SystemProviderState()
     result = sps._check_resource_pressure()

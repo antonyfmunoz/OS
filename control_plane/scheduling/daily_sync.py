@@ -69,7 +69,7 @@ class DailySync:
         # dex_task events only — questions go to S7.
         try:
             import json
-            from state.storage.db import get_conn
+            from substrate.state.storage.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute('''
                     SELECT payload_json
@@ -156,7 +156,7 @@ class DailySync:
         # Normalized dedup: strip "TASK:" prefix, case-insensitive.
         try:
             import json
-            from state.storage.db import get_conn
+            from substrate.state.storage.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute('''
                     SELECT payload_json FROM events
@@ -410,7 +410,7 @@ Return JSON only:
         # Only populated if there are real questions DEX cannot resolve alone.
         try:
             import json as _json
-            from state.storage.db import get_conn
+            from substrate.state.storage.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute('''
                     SELECT payload_json FROM events
@@ -433,7 +433,7 @@ Return JSON only:
 
         # Subscription renewal alerts
         try:
-            from state.finance.subscription_tracker import get_upcoming_renewals
+            from substrate.state.finance.subscription_tracker import get_upcoming_renewals
             renewals = get_upcoming_renewals(days=7)
             if renewals:
                 agenda.subscription_alerts = [

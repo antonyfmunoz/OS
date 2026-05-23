@@ -86,8 +86,8 @@ Reply with exactly one of: lyfe_institute | empyrean_creative | personal_brand""
 def capture_to_neon(text: str, capture_type: str, ctx=None) -> bool:
     """Write a captured task/idea to the Neon events table."""
     try:
-        from state.memory.memory import AgentMemory
-        from state.context.context import load_context_from_env
+        from substrate.state.memory.memory import AgentMemory
+        from substrate.state.context.context import load_context_from_env
 
         ctx = ctx or load_context_from_env()
 
@@ -202,7 +202,7 @@ def capture(text: str, ctx=None, venture_id: str = None) -> dict:
 
     # BBR check — should DEX handle this without flagging Antony?
     try:
-        from state.metrics.founder_rate import get_current_founder_rate
+        from substrate.state.metrics.founder_rate import get_current_founder_rate
         from control_plane.strategy.task_yield_matrix import classify_task_yield
         rate = get_current_founder_rate()
         if rate:

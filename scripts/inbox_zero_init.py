@@ -24,7 +24,7 @@ from pathlib import Path
 
 from adapters.google_workspace.email_gps import EmailGPS, EmailFolder, ProcessedEmail
 from adapters.google_workspace.gws_connector import GWSConnector
-from state.context.context import load_context_from_env
+from substrate.state.context.context import load_context_from_env
 
 ctx = load_context_from_env()
 gps = EmailGPS(ctx)

@@ -49,7 +49,7 @@ def build_travel_brief(
     """Build a complete travel logistics brief."""
     try:
         from execution.runtime.model_router import get_router, TaskType
-        from state.context.context import load_context_from_env as _lctx
+        from substrate.state.context.context import load_context_from_env as _lctx
         router = get_router()
 
         # Substrate-neutral traveler/home base framing from ctx.
@@ -118,8 +118,8 @@ def log_trip(
 ) -> bool:
     """Log a trip to Neon."""
     try:
-        from state.context.context import load_context_from_env
-        from state.memory.memory import AgentMemory
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
 
         AgentMemory().log_event(
@@ -297,8 +297,8 @@ def log_loyalty_program(
 ) -> bool:
     """Track a travel loyalty program membership."""
     try:
-        from state.context.context import load_context_from_env
-        from state.memory.memory import AgentMemory
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
 
         AgentMemory().log_event(
@@ -330,7 +330,7 @@ def reconcile_trip_expenses(
     expenses: [{"description": str, "amount": float, "category": str}]
     """
     try:
-        from state.finance.expense_tracker import store_expense
+        from substrate.state.finance.expense_tracker import store_expense
         total = 0.0
         stored = 0
         for exp in expenses:

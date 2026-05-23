@@ -39,7 +39,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from state.storage.db import get_conn, ORG_ID
+from substrate.state.storage.db import get_conn, ORG_ID
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -360,8 +360,8 @@ class EntrepreneurOSGateway:
         if not prompt or rtype not in ("agent_task", "brief"):
             return None, session_id, channel
         try:
-            from state.memory.memory import ConversationMemory
-            from state.context.context import load_context_from_env
+            from substrate.state.memory.memory import ConversationMemory
+            from substrate.state.context.context import load_context_from_env
 
             ctx = load_context_from_env()
             cm = ConversationMemory(ctx)
@@ -398,8 +398,8 @@ class EntrepreneurOSGateway:
             if match:
                 new_name = match.group(1).upper()
                 try:
-                    from state.context.context import load_context_from_env
-                    from state.business.business_instance import BusinessInstanceManager
+                    from substrate.state.context.context import load_context_from_env
+                    from substrate.state.business.business_instance import BusinessInstanceManager
 
                     ctx = load_context_from_env()
                     bim = BusinessInstanceManager(ctx)
@@ -462,7 +462,7 @@ class EntrepreneurOSGateway:
 
         # Try AI for richer extraction
         try:
-            from state.context.context import load_context_from_env
+            from substrate.state.context.context import load_context_from_env
             from adapters.google_workspace.email_gps import EmailGPS
             from execution.runtime.model_router import get_router, TaskType
 
@@ -503,7 +503,7 @@ class EntrepreneurOSGateway:
         instruction = data.get("instruction", text)
 
         try:
-            from state.context.context import load_context_from_env
+            from substrate.state.context.context import load_context_from_env
             from adapters.google_workspace.email_gps import EmailGPS
 
             ctx_eos = load_context_from_env()
@@ -743,8 +743,8 @@ class EntrepreneurOSGateway:
         stage_context = ""
         if prompt and request.get("type") in ("agent_task", "brief"):
             try:
-                from state.lifecycle.stage_manager import detect_stage_transition, StageManager
-                from state.context.context import load_context_from_env as _load_ctx
+                from substrate.state.lifecycle.stage_manager import detect_stage_transition, StageManager
+                from substrate.state.context.context import load_context_from_env as _load_ctx
 
                 transition = detect_stage_transition(prompt)
                 if transition.get("detected"):
@@ -754,7 +754,7 @@ class EntrepreneurOSGateway:
                     # Venture from request, then BIM default. Text-keyword routing
                     # was venture-specific leakage and has been removed — venture
                     # selection must come from explicit request or BIM lookup.
-                    from state.business.business_instance import BusinessInstanceManager as _BIM
+                    from substrate.state.business.business_instance import BusinessInstanceManager as _BIM
 
                     _bim_st = _BIM(ctx_eos)
                     venture_id = (
@@ -779,11 +779,11 @@ class EntrepreneurOSGateway:
         if prompt and request.get("type") in ("agent_task", "brief"):
             try:
                 from learning.self_model.self_awareness import SelfAwarenessEngine, ChangeType
-                from state.context.context import load_context_from_env as _load_ctx_sa
+                from substrate.state.context.context import load_context_from_env as _load_ctx_sa
 
                 ctx_sa = _load_ctx_sa()
                 sae = SelfAwarenessEngine(ctx_sa)
-                from state.business.business_instance import BusinessInstanceManager as _BIM_sa
+                from substrate.state.business.business_instance import BusinessInstanceManager as _BIM_sa
 
                 _bim_sa = _BIM_sa(ctx_sa)
                 venture_id_sa = (
@@ -825,7 +825,7 @@ class EntrepreneurOSGateway:
                 # before they reach the cognitive loop
                 try:
                     from substrate.understanding.intelligence.input_intelligence import InputIntelligence
-                    from state.context.context import load_context_from_env as _load_ii_ctx
+                    from substrate.state.context.context import load_context_from_env as _load_ii_ctx
 
                     _prompt = request.get("prompt", "")
                     _venture_id = request.get("venture_id")
@@ -977,7 +977,7 @@ class EntrepreneurOSGateway:
         try:
             from substrate.governance.quality.quality_gate import QualityTransformationGate
 
-            from state.context.context import load_context_from_env
+            from substrate.state.context.context import load_context_from_env
 
             ctx = load_context_from_env()
             gate = QualityTransformationGate(ctx)
@@ -1026,7 +1026,7 @@ class EntrepreneurOSGateway:
     def _route_agent_task(self, request: dict, session_id: str = None, cm=None) -> dict:
         from execution.runtime.agent_runtime import AgentRuntime, TaskType
         from control_plane.runtime.cognitive_loop import CognitiveLoop
-        from state.context.context import load_context_from_env
+        from substrate.state.context.context import load_context_from_env
 
         prompt = request["prompt"]
         # Preserve the true raw user message before any gateway augmentation.
@@ -1266,7 +1266,7 @@ class EntrepreneurOSGateway:
             # CEO deep standards — try skill first, fall back to Python module
             if agent_id in _CEO_AGENTS:
                 try:
-                    from state.registries.skill_registry import get_skill_registry
+                    from substrate.state.registries.skill_registry import get_skill_registry
 
                     _sr = get_skill_registry()
                     _ceo_skill = _sr.get_skill("ceo_framework")
@@ -1322,7 +1322,7 @@ class EntrepreneurOSGateway:
             # Portfolio advisor deep standards — try skill first, fall back to Python module
             if agent_id == "portfolio_advisor":
                 try:
-                    from state.registries.skill_registry import get_skill_registry
+                    from substrate.state.registries.skill_registry import get_skill_registry
 
                     _sr_pa = get_skill_registry()
                     _pa_skill = _sr_pa.get_skill("portfolio_framework")
@@ -1399,7 +1399,7 @@ class EntrepreneurOSGateway:
                     pass
 
                 try:
-                    from state.registries.skill_registry import get_skill_registry
+                    from substrate.state.registries.skill_registry import get_skill_registry
 
                     _sr_ea = get_skill_registry()
                     _ea_skill = _sr_ea.get_skill("ea_framework")
@@ -1618,7 +1618,7 @@ class EntrepreneurOSGateway:
 
         # Decision log — detect and permanently record decisions
         try:
-            from state.logs.decision_log import DecisionLog
+            from substrate.state.logs.decision_log import DecisionLog
 
             _dl = DecisionLog(ctx)
             if _dl.detect_decision(prompt):
@@ -1685,7 +1685,7 @@ class EntrepreneurOSGateway:
             _fetch_last_orchestrator_run,
             _cost_est,
         )
-        from state.business.venture_knowledge import VentureKnowledgeBase
+        from substrate.state.business.venture_knowledge import VentureKnowledgeBase
 
         rows_7d = _fetch_7d_raw()
         total_interactions = _fetch_total_interactions()
@@ -1769,7 +1769,7 @@ class EntrepreneurOSGateway:
         """Notion-first brief: run morning cycle, write to Notion, return URL."""
         try:
             from control_plane.orchestrator.orchestrator import run_full_morning_cycle
-            from state.context.context import load_context_from_env
+            from substrate.state.context.context import load_context_from_env
 
             ctx = load_context_from_env()
             result = run_full_morning_cycle(ctx, return_content=True)
@@ -1799,7 +1799,7 @@ class EntrepreneurOSGateway:
             # Data-driven fallback — pull what we can from Neon
             fallback_lines = ["MORNING BRIEF (offline mode)", ""]
             try:
-                from state.business.venture_knowledge import VentureKnowledgeBase
+                from substrate.state.business.venture_knowledge import VentureKnowledgeBase
 
                 for vid in VentureKnowledgeBase.list_ventures():
                     v = VentureKnowledgeBase.get(vid)
@@ -2043,7 +2043,7 @@ def ingest_external_context(
 
     Returns the interaction_id (UUID).
     """
-    from state.memory.memory import AgentMemory
+    from substrate.state.memory.memory import AgentMemory
     from execution.runtime.agent_runtime import AgentResult
 
     result = AgentResult(

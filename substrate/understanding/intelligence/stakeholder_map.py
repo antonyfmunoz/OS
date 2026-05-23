@@ -31,8 +31,8 @@ def add_stakeholder(
     status: active/inactive/prospect/client/partner/investor
     """
     try:
-        from state.context.context import load_context_from_env
-        from state.memory.memory import AgentMemory
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
 
         AgentMemory().log_event(
@@ -59,8 +59,8 @@ def add_stakeholder(
 def get_stakeholders(venture: str = None, ctx=None) -> list[dict]:
     """Get all stakeholders, optionally filtered by venture."""
     try:
-        from state.context.context import load_context_from_env
-        from state.storage.db import get_conn
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -188,8 +188,8 @@ def generate_board_update_brief(venture_id: str, ctx=None) -> str:
     """Generate a concise board/advisor update for a venture."""
     import json as _j
     try:
-        from state.context.context import load_context_from_env
-        from state.storage.db import get_conn
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.storage.db import get_conn
         from execution.runtime.model_router import get_router, TaskType
         ctx = ctx or load_context_from_env()
         router = get_router()

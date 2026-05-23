@@ -97,7 +97,7 @@ class EmailGPS:
         """Seed default GPS folder definitions into Neon on first run.
         Safe to run multiple times — uses INSERT ... ON CONFLICT DO NOTHING."""
         try:
-            from state.storage.db import get_conn
+            from substrate.state.storage.db import get_conn
 
             defaults = [
                 {
@@ -213,7 +213,7 @@ class EmailGPS:
                 },
             ]
 
-            from state.stores.email_folder_store import EmailFolderStore
+            from substrate.state.stores.email_folder_store import EmailFolderStore
             EmailFolderStore().seed_folders(
                 org_id=self.ctx.org_id,
                 folders=defaults,
@@ -228,7 +228,7 @@ class EmailGPS:
     def _load_folder_definitions(self) -> list:
         """Load folder definitions from Neon. Used to build AI classification prompt."""
         try:
-            from state.storage.db import get_conn
+            from substrate.state.storage.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     '''
@@ -262,7 +262,7 @@ class EmailGPS:
         """Update a folder's purpose in Neon based on founder instruction.
         Future classifications use the updated definition."""
         try:
-            from state.storage.db import get_conn
+            from substrate.state.storage.db import get_conn
 
             # Load current purpose
             with get_conn(self.ctx.org_id) as cur:
@@ -297,7 +297,7 @@ class EmailGPS:
                 return ''
 
             # Save to Neon
-            from state.stores.email_folder_store import EmailFolderStore
+            from substrate.state.stores.email_folder_store import EmailFolderStore
             EmailFolderStore().update_purpose(
                 org_id=self.ctx.org_id,
                 folder_name=folder_name,
@@ -647,7 +647,7 @@ Return JSON only:
             return 0
 
         try:
-            from state.memory.memory import AgentMemory
+            from substrate.state.memory.memory import AgentMemory
             stored = 0
             mem = AgentMemory()
             for task in tasks:
@@ -1167,7 +1167,7 @@ Return JSON only:
     ) -> None:
         """Write email_classified event to Neon for nightly review."""
         try:
-            from state.memory.memory import AgentMemory
+            from substrate.state.memory.memory import AgentMemory
             AgentMemory().log_event(
                 org_id=self.ctx.org_id,
                 event_type='email_classified',

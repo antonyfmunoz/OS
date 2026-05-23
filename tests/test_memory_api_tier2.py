@@ -19,19 +19,19 @@ load_dotenv(os.path.join("/opt/OS", "services", ".env"))
 
 
 def test_merge_event_payload_exists():
-    from state.memory.memory import AgentMemory
+    from substrate.state.memory.memory import AgentMemory
     assert hasattr(AgentMemory, "merge_event_payload")
 
 
 def test_merge_event_payload_signature():
-    from state.memory.memory import AgentMemory
+    from substrate.state.memory.memory import AgentMemory
     sig = inspect.signature(AgentMemory.merge_event_payload)
     params = list(sig.parameters.keys())
     assert params == ["self", "org_id", "event_id", "updates"]
 
 
 def test_merge_event_payload_annotations():
-    from state.memory.memory import AgentMemory
+    from substrate.state.memory.memory import AgentMemory
     hints = AgentMemory.merge_event_payload.__annotations__
     assert hints.get("org_id") is str
     assert hints.get("event_id") is str

@@ -103,11 +103,11 @@ def _deterministic_cognitive_response(message: str) -> str:
     return _COGNITIVE_DEFAULT_FALLBACK
 
 
-from state.context.context import EntrepreneurOSContext, load_context_from_env
+from substrate.state.context.context import EntrepreneurOSContext, load_context_from_env
 from execution.runtime.agent_runtime import AgentRuntime, TaskType
-from state.memory.memory import AgentMemory
+from substrate.state.memory.memory import AgentMemory
 from substrate.governance.policy.authority_engine import AuthorityEngine
-from state.business.venture_knowledge import VentureKnowledgeBase
+from substrate.state.business.venture_knowledge import VentureKnowledgeBase
 
 
 @dataclass
@@ -156,7 +156,7 @@ def _get_neon_spend(org_id: str) -> dict:
     if _spend_cache and (now - _spend_cache_ts) < _SPEND_CACHE_TTL:
         return _spend_cache
 
-    from state.storage.db import get_conn
+    from substrate.state.storage.db import get_conn
     from execution.runtime.agent_runtime import COST_PER_MILLION_TOKENS
 
     fallback = {"today": 0.0, "month": 0.0, "all_time": 0.0}
@@ -852,7 +852,7 @@ class CognitiveLoop:
             return prompt
 
         try:
-            from state.profiles.user_model import UserModel
+            from substrate.state.profiles.user_model import UserModel
 
             _um = UserModel(self.ctx)
             _trust = _um.get_trust_level()
@@ -870,7 +870,7 @@ class CognitiveLoop:
 
         # 2. User model expansion (profile-aware)
         try:
-            from state.profiles.user_model import UserModel
+            from substrate.state.profiles.user_model import UserModel
 
             um = UserModel(self.ctx)
             expanded = um.get_intent_expansion(prompt)
@@ -1206,7 +1206,7 @@ def detect_intent_and_inject(
     ):
         injections["intent"] = "okr_check"
         try:
-            from state.metrics.okr_tracker import generate_okr_report
+            from substrate.state.metrics.okr_tracker import generate_okr_report
 
             report = generate_okr_report(ctx)
             injections["okr_data"] = report
@@ -1230,7 +1230,7 @@ def detect_intent_and_inject(
     ):
         injections["intent"] = "send_email"
         try:
-            from state.storage.db import get_conn
+            from substrate.state.storage.db import get_conn
             import json as _j
 
             with get_conn(ctx.org_id) as cur:
@@ -1328,7 +1328,7 @@ def detect_intent_and_inject(
     ):
         injections["intent"] = "financial"
         try:
-            from state.finance.expense_tracker import get_monthly_summary
+            from substrate.state.finance.expense_tracker import get_monthly_summary
 
             summary = get_monthly_summary(ctx)
             injections["expense_summary"] = summary
@@ -1387,7 +1387,7 @@ def detect_intent_and_inject(
     ):
         injections["intent"] = "tasks"
         try:
-            from state.storage.db import get_conn
+            from substrate.state.storage.db import get_conn
             import json as _j
 
             with get_conn(ctx.org_id) as cur:

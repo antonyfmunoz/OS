@@ -144,7 +144,7 @@ class ProactiveIntelligenceEngine:
         """
         signals: list[ProactiveSignal] = []
 
-        from state.memory.memory import ConversationMemory
+        from substrate.state.memory.memory import ConversationMemory
         from learning.evolution.evolution_engine import EvolutionEngine
         from substrate.understanding.ontology.primitives import PRIMITIVE_LIBRARY
 
@@ -217,7 +217,7 @@ class ProactiveIntelligenceEngine:
         signals: list[ProactiveSignal] = []
 
         from learning.evolution.evolution_engine import EvolutionEngine
-        from state.memory.memory import ConversationMemory
+        from substrate.state.memory.memory import ConversationMemory
 
         ee = EvolutionEngine(self.ctx)
         cm = ConversationMemory(self.ctx)
@@ -268,7 +268,7 @@ class ProactiveIntelligenceEngine:
         """
         signals: list[ProactiveSignal] = []
 
-        from state.memory.memory import ConversationMemory
+        from substrate.state.memory.memory import ConversationMemory
         from learning.evolution.evolution_engine import EvolutionEngine
 
         cm = ConversationMemory(self.ctx)
@@ -319,8 +319,8 @@ class ProactiveIntelligenceEngine:
         """
         signals: list[ProactiveSignal] = []
 
-        from state.memory.memory import ConversationMemory
-        from state.business.business_instance import BusinessInstanceManager
+        from substrate.state.memory.memory import ConversationMemory
+        from substrate.state.business.business_instance import BusinessInstanceManager
 
         cm  = ConversationMemory(self.ctx)
         bim = BusinessInstanceManager(self.ctx)

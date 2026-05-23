@@ -115,8 +115,8 @@ def extract_task(page: dict) -> dict:
 
 def write_to_neon(task: dict, venture_id: str) -> bool:
     try:
-        from state.storage.db import get_conn
-        from state.context.context import load_context_from_env
+        from substrate.state.storage.db import get_conn
+        from substrate.state.context.context import load_context_from_env
 
         ctx = load_context_from_env()
         payload = json.dumps({
@@ -192,8 +192,8 @@ def sync_neon_to_notion() -> int:
     Finds dex_task events flagged with needs_notion_sync and syncs them back.
     """
     try:
-        from state.storage.db import get_conn
-        from state.context.context import load_context_from_env
+        from substrate.state.storage.db import get_conn
+        from substrate.state.context.context import load_context_from_env
 
         ctx = load_context_from_env()
         updated = 0

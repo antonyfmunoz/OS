@@ -6,7 +6,7 @@ across multiple sessions. Surfaces avoidance behaviors, building-over-selling
 tendencies, low follow-through, and late working habits.
 
 Usage:
-    from state.context.context import load_context_from_env
+    from substrate.state.context.context import load_context_from_env
     from substrate.understanding.patterns.pattern_engine import PatternEngine
 
     ctx = load_context_from_env()
@@ -18,7 +18,7 @@ Usage:
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
-from state.context.context import EntrepreneurOSContext
+from substrate.state.context.context import EntrepreneurOSContext
 
 
 @dataclass
@@ -45,7 +45,7 @@ class PatternEngine:
         """
         patterns: list[Pattern] = []
         try:
-            from state.storage.db import get_conn
+            from substrate.state.storage.db import get_conn
             cutoff = (datetime.now() - timedelta(days=days_back)).isoformat()
 
             with get_conn(self.ctx.org_id) as cur:

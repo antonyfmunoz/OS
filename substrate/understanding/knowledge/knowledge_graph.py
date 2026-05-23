@@ -14,8 +14,8 @@ Table: entity_links
 import json
 from datetime import datetime, timezone
 
-from state.context.context import EntrepreneurOSContext
-from state.storage.db import get_conn, resolve_venture, ORG_ID
+from substrate.state.context.context import EntrepreneurOSContext
+from substrate.state.storage.db import get_conn, resolve_venture, ORG_ID
 
 
 def _utcnow() -> str:
@@ -67,7 +67,7 @@ class KnowledgeGraph:
         Write a directed edge from_entity → to_entity.
         Returns the new link id (UUID string).
         """
-        from state.stores.entity_link_store import EntityLinkStore
+        from substrate.state.stores.entity_link_store import EntityLinkStore
         return EntityLinkStore().insert_link(
             org_id=self.ctx.org_id,
             from_type=from_type,
@@ -438,7 +438,7 @@ class KnowledgeGraph:
         high_patterns = [p for p in patterns if p.get("signal_tier") == "HIGH"]
         if high_patterns:
             try:
-                from state.memory.memory import AgentMemory
+                from substrate.state.memory.memory import AgentMemory
                 mem = AgentMemory()
                 for p in high_patterns[:5]:
                     mem.log_event(

@@ -8,7 +8,7 @@ position, competitive dynamics, resource allocation, and what
 not to do — grounded in real data from Neon, not templates.
 
 Usage:
-    from state.context.context import load_context_from_env
+    from substrate.state.context.context import load_context_from_env
     from control_plane.strategy.strategy_engine import StrategyEngine, DecisionEngine
 
     ctx = load_context_from_env()
@@ -36,12 +36,12 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from state.context.context import EntrepreneurOSContext, load_context_from_env
+from substrate.state.context.context import EntrepreneurOSContext, load_context_from_env
 from control_plane.runtime.cognitive_loop import CognitiveLoop
 from execution.runtime.agent_runtime import TaskType
-from state.storage.db import get_conn, resolve_venture
-from state.memory.memory import AgentMemory
-from state.business.venture_knowledge import VentureKnowledgeBase
+from substrate.state.storage.db import get_conn, resolve_venture
+from substrate.state.memory.memory import AgentMemory
+from substrate.state.business.venture_knowledge import VentureKnowledgeBase
 
 STRATEGY_DIR = Path(_REPO_ROOT) / "orchestrator" / "strategy"
 

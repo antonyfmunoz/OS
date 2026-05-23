@@ -162,8 +162,8 @@ Keep it under 500 words. Client-facing quality.""",
 
         # Log to Neon
         try:
-            from state.context.context import load_context_from_env
-            from state.memory.memory import AgentMemory
+            from substrate.state.context.context import load_context_from_env
+            from substrate.state.memory.memory import AgentMemory
             ctx = ctx or load_context_from_env()
             AgentMemory().log_event(
                 org_id=str(ctx.org_id),

@@ -8,7 +8,7 @@ stored in the Neon skills table — injected into future relevant agent calls.
 Runs weekly on Wednesdays via orchestrator cron.
 
 Usage:
-    from state.context.context import load_context_from_env
+    from substrate.state.context.context import load_context_from_env
     from substrate.understanding.research.research_engine import ResearchEngine
 
     ctx = load_context_from_env()
@@ -33,12 +33,12 @@ if _REPO_ROOT not in sys.path:
 
 load_dotenv(Path(__file__).parent / ".env")
 
-from state.context.context import EntrepreneurOSContext
+from substrate.state.context.context import EntrepreneurOSContext
 from control_plane.runtime.cognitive_loop import CognitiveLoop
 from execution.runtime.agent_runtime import TaskType
-from state.storage.db import get_conn
-from state.memory.memory import AgentMemory
-from state.business.venture_knowledge import VentureKnowledgeBase
+from substrate.state.storage.db import get_conn
+from substrate.state.memory.memory import AgentMemory
+from substrate.state.business.venture_knowledge import VentureKnowledgeBase
 from control_plane.strategy.strategy_engine import _parse_labeled_sections
 
 
@@ -374,7 +374,7 @@ class ResearchEngine:
 
         # Upsert: insert or update if name already exists for this org
         try:
-            from state.stores.skill_store import SkillStore
+            from substrate.state.stores.skill_store import SkillStore
             SkillStore().upsert_skill(
                 org_id=self.ctx.org_id,
                 name=skill_name,
@@ -466,7 +466,7 @@ class ResearchEngine:
         Updates COST_PER_MILLION_TOKENS in-memory for this session.
         """
         import os as _os
-        from state.preferences.model_preferences import PROVIDER_CONFIGS
+        from substrate.state.preferences.model_preferences import PROVIDER_CONFIGS
         from substrate.understanding.knowledge.knowledge_domains import KnowledgeDomainRegistry
 
         use_perplexity = bool(_os.getenv('PERPLEXITY_API_KEY'))

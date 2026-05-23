@@ -8,7 +8,7 @@ Reports to Portfolio Agent.
 
 Usage:
     from control_plane.agents.ceo_agent import CEOAgent
-    from state.context.context import load_context_from_env
+    from substrate.state.context.context import load_context_from_env
 
     ctx = load_context_from_env()
     ceo = CEOAgent(ctx)
@@ -21,7 +21,7 @@ Usage:
 import json
 import os
 from typing import Optional
-from state.context.context import EntrepreneurOSContext
+from substrate.state.context.context import EntrepreneurOSContext
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 
@@ -59,7 +59,7 @@ class CEOAgent:
         primitives: dict = {}
 
         try:
-            from state.storage.db import get_conn
+            from substrate.state.storage.db import get_conn
 
             with get_conn(self.ctx.org_id) as cur:
 
@@ -129,8 +129,8 @@ class CEOAgent:
         # Fill stage from BIS manager if not in events
         if 'stage' not in primitives or 'current_revenue' not in primitives:
             try:
-                from state.business.business_instance import BusinessInstanceManager
-                from state.storage.db import get_conn, resolve_venture
+                from substrate.state.business.business_instance import BusinessInstanceManager
+                from substrate.state.storage.db import get_conn, resolve_venture
                 with get_conn(self.ctx.org_id) as cur:
                     venture_id = self.ctx.active_venture_id or 'lyfe_institute'
                     resolve_venture(venture_id)
@@ -283,8 +283,8 @@ class CEOAgent:
 
             # Write new stage to BIS
             try:
-                from state.business.business_instance import BusinessInstanceManager
-                from state.storage.db import get_conn, resolve_venture
+                from substrate.state.business.business_instance import BusinessInstanceManager
+                from substrate.state.storage.db import get_conn, resolve_venture
                 venture_id = self.ctx.active_venture_id or 'lyfe_institute'
                 with get_conn(self.ctx.org_id) as cur:
                     resolve_venture(venture_id)

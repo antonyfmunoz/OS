@@ -152,7 +152,7 @@ def main():
         print("[CallPrep] No calls in the next 25-45 minutes")
         return
 
-    from state.context.context import load_context_from_env
+    from substrate.state.context.context import load_context_from_env
     ctx = load_context_from_env()
 
     for event in upcoming:
@@ -307,7 +307,7 @@ Under 100 words. Direct format.""").strip()
                     continue
 
                 from adapters.calendar.meetings import draft_meeting_agenda
-                from state.storage.db import get_conn
+                from substrate.state.storage.db import get_conn
 
                 _agenda = draft_meeting_agenda(
                     title=_event.get('title', _event.get('summary', 'Our call')),
@@ -366,7 +366,7 @@ Under 100 words. Direct format.""").strip()
         from datetime import timezone as _tz
         from dateutil.parser import parse as _tparse
         from adapters.google_workspace.gws_connector import GWSConnector as _TGWS
-        from state.context.context import load_context_from_env as _tctx
+        from substrate.state.context.context import load_context_from_env as _tctx
         from adapters.calendar.travel_manager import detect_travel_event, build_travel_brief, log_trip
 
         _t_ctx = _tctx()

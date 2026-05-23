@@ -164,8 +164,8 @@ def run_gateway(
     # Used by bypass paths that already handled the response (pipeline updates, etc).
     if memory_only:
         try:
-            from state.context.context import load_context_from_env
-            from state.memory.memory import ConversationMemory
+            from substrate.state.context.context import load_context_from_env
+            from substrate.state.memory.memory import ConversationMemory
 
             _mo_ctx = load_context_from_env()
             _mo_cm = ConversationMemory(_mo_ctx)
@@ -226,8 +226,8 @@ def run_gateway(
 
     # Cloning loop — detect when text answers an open DEX question
     try:
-        from state.context.context import load_context_from_env
-        from state.storage.db import get_conn
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.storage.db import get_conn
 
         _cl_ctx = load_context_from_env()
 
@@ -317,7 +317,7 @@ Return JSON: {{"answers": true, "answer_summary": "brief summary"}}""",
 
     # No List enforcement
     try:
-        from state.metrics.founder_rate import check_against_no_list
+        from substrate.state.metrics.founder_rate import check_against_no_list
 
         _nl_violations = check_against_no_list(text)
         if _nl_violations:

@@ -94,7 +94,7 @@ def recognize_person(
     }
     """
     try:
-        from state.context.context import load_context_from_env
+        from substrate.state.context.context import load_context_from_env
         ctx = ctx or load_context_from_env()
 
         results = {
@@ -111,7 +111,7 @@ def recognize_person(
         # 1. Semantic memory search
         if name or email:
             try:
-                from state.memory.memory import AgentMemory
+                from substrate.state.memory.memory import AgentMemory
                 mem = AgentMemory()
                 query = f'{name} {email}'.strip()
                 hits = mem.semantic_search(query=query, limit=5, min_similarity=0.5)
@@ -201,7 +201,7 @@ def recognize_person(
         # 4. Neon pipeline events
         if name or email:
             try:
-                from state.storage.db import get_conn
+                from substrate.state.storage.db import get_conn
                 with get_conn(ctx.org_id) as cur:
                     cur.execute('''
                         SELECT payload_json, created_at
@@ -336,7 +336,7 @@ def build_intelligence_profile(
     all available data sources and using LLM to synthesize.
     """
     try:
-        from state.context.context import load_context_from_env
+        from substrate.state.context.context import load_context_from_env
         ctx = ctx or load_context_from_env()
 
         profile = HumanIntelligenceProfile(name=name, email=email, company=company)
@@ -501,7 +501,7 @@ def score_relationship_health(
         import requests as _req
         from dotenv import load_dotenv
         load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
-        from state.context.context import load_context_from_env
+        from substrate.state.context.context import load_context_from_env
         ctx = ctx or load_context_from_env()
 
         now = datetime.now(PDT)

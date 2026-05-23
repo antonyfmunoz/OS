@@ -9,7 +9,7 @@ Also absorbs single-user venture health scanning (formerly PortfolioAgent).
 One class — full portfolio intelligence.
 
 Usage:
-    from state.context.context import load_context_from_env
+    from substrate.state.context.context import load_context_from_env
     from control_plane.strategy.portfolio_advisor import PortfolioAdvisor, VentureHealth
 
     ctx = load_context_from_env()
@@ -25,8 +25,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
-from state.context.context import EntrepreneurOSContext, load_context_from_env
-from state.storage.db import get_conn
+from substrate.state.context.context import EntrepreneurOSContext, load_context_from_env
+from substrate.state.storage.db import get_conn
 from execution.runtime.agent_runtime import AgentRuntime, TaskType
 
 
@@ -377,7 +377,7 @@ trajectory of the next 90 days.]"""
         try:
             from control_plane.strategy.task_yield_matrix import run_yield_audit
             import json as _json
-            from state.storage.db import get_conn as _get_conn
+            from substrate.state.storage.db import get_conn as _get_conn
             with _get_conn(self.ctx.org_id) as _cur:
                 _cur.execute(
                     """SELECT payload_json FROM events
@@ -538,8 +538,8 @@ trajectory of the next 90 days.]"""
         # If no events-based ventures, fall back to VentureKnowledgeBase
         if not ventures:
             try:
-                from state.business.venture_knowledge import VentureKnowledgeBase
-                from state.business.business_instance import BusinessInstanceManager
+                from substrate.state.business.venture_knowledge import VentureKnowledgeBase
+                from substrate.state.business.business_instance import BusinessInstanceManager
 
                 bim = BusinessInstanceManager(self.ctx)
                 for vid in VentureKnowledgeBase.list_ventures():

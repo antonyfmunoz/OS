@@ -20,8 +20,8 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent / ".env")
 load_dotenv(Path(__file__).parent.parent / "services" / ".env")
 
-from state.context.context import EntrepreneurOSContext
-from state.storage.db import get_conn, resolve_venture
+from substrate.state.context.context import EntrepreneurOSContext
+from substrate.state.storage.db import get_conn, resolve_venture
 from control_plane.events.event_bus import EventBus
 from substrate.governance.policy.authority_engine import AuthorityEngine
 
@@ -102,7 +102,7 @@ class CoordinationEngine:
         """
         venture_uuid = resolve_venture(venture_id) if venture_id else None
 
-        from state.stores.task_store import TaskStore
+        from substrate.state.stores.task_store import TaskStore
         task_id = TaskStore().create_task(
             org_id=self.ctx.org_id,
             venture_id=venture_uuid,
@@ -252,7 +252,7 @@ class CoordinationEngine:
                 if short_row:
                     task_id = str(short_row["id"])
 
-        from state.stores.task_store import TaskStore
+        from substrate.state.stores.task_store import TaskStore
         row = TaskStore().update_status(
             org_id=self.ctx.org_id,
             task_id=task_id,
@@ -264,7 +264,7 @@ class CoordinationEngine:
             return {"error": f"task {task_id} not found"}
 
         try:
-            from state.memory.memory import AgentMemory
+            from substrate.state.memory.memory import AgentMemory
 
             AgentMemory().log_event(
                 org_id=self.ctx.org_id,

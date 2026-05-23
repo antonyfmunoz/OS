@@ -21,7 +21,7 @@ All findings are permanently integrated into the knowledge base via
 KnowledgeIntegrator so the system compounds intelligence over time.
 
 Usage:
-    from state.context.context import load_context_from_env
+    from substrate.state.context.context import load_context_from_env
     from substrate.understanding.world_pulse.world_pulse import WorldPulse
 
     ctx = load_context_from_env()
@@ -36,7 +36,7 @@ Usage:
     print(f"{pulse['total_integrated']} items integrated")
 """
 
-from state.context.context import EntrepreneurOSContext
+from substrate.state.context.context import EntrepreneurOSContext
 from substrate.understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
 
 
@@ -303,7 +303,7 @@ class WorldPulse:
         # Check Claude skills for source doc updates
         skills_needing_review: list[str] = []
         try:
-            from state.registries.claude_skill_registry import ClaudeSkillRegistryManager
+            from substrate.state.registries.claude_skill_registry import ClaudeSkillRegistryManager
             csrm = ClaudeSkillRegistryManager()
             skills_needing_review = csrm.check_for_updates()
             if skills_needing_review:
@@ -435,7 +435,7 @@ class WorldPulse:
         # Check Claude skills for source doc updates
         skills_needing_review: list[str] = []
         try:
-            from state.registries.claude_skill_registry import ClaudeSkillRegistryManager
+            from substrate.state.registries.claude_skill_registry import ClaudeSkillRegistryManager
             csrm = ClaudeSkillRegistryManager()
             skills_needing_review = csrm.check_for_updates()
             if skills_needing_review:

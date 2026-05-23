@@ -12,7 +12,7 @@ Signal Tiers:
   BACKGROUND — low-confidence signals, noise, tangential mentions
 
 Usage:
-    from state.context.context import load_context_from_env
+    from substrate.state.context.context import load_context_from_env
     from substrate.understanding.reality.reality_engine import RealityIntelligenceEngine
 
     ctx = load_context_from_env()
@@ -37,13 +37,13 @@ if _REPO_ROOT not in sys.path:
 load_dotenv(Path(__file__).parent / ".env")
 load_dotenv(Path(_REPO_ROOT) / "services" / ".env")
 
-from state.context.context import EntrepreneurOSContext
+from substrate.state.context.context import EntrepreneurOSContext
 from control_plane.runtime.cognitive_loop import CognitiveLoop
 from control_plane.events.event_bus import EventBus
 from execution.runtime.agent_runtime import TaskType
-from state.business.venture_knowledge import VentureKnowledgeBase
+from substrate.state.business.venture_knowledge import VentureKnowledgeBase
 from control_plane.strategy.strategy_engine import StrategyEngine, _parse_labeled_sections
-from state.memory.memory import AgentMemory
+from substrate.state.memory.memory import AgentMemory
 
 
 SIGNAL_TIERS = ("CRITICAL", "HIGH", "NORMAL", "BACKGROUND")
