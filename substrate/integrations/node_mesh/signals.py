@@ -25,32 +25,32 @@ class NodeSignalEmitter:
     def describe_signals(self) -> list[SignalDescriptor]:
         return [
             SignalDescriptor(
-                "node.system.metrics",
-                "System telemetry (CPU, memory, disk, battery)",
+                content_type="node.system.metrics",
+                description="System telemetry (CPU, memory, disk, battery)",
                 default_urgency=SignalUrgency.LOW,
                 default_risk_class=RiskClass.READ_ONLY,
             ),
             SignalDescriptor(
-                "node.workspace.window_change",
-                "Active window changed",
+                content_type="node.workspace.window_change",
+                description="Active window changed",
                 default_urgency=SignalUrgency.LOW,
                 default_risk_class=RiskClass.READ_ONLY,
             ),
             SignalDescriptor(
-                "node.filesystem.change",
-                "File created, modified, or deleted",
+                content_type="node.filesystem.change",
+                description="File created, modified, or deleted",
                 default_urgency=SignalUrgency.NORMAL,
                 default_risk_class=RiskClass.READ_ONLY,
             ),
             SignalDescriptor(
-                "node.connected",
-                "Node came online",
+                content_type="node.connected",
+                description="Node came online",
                 default_urgency=SignalUrgency.NORMAL,
                 default_risk_class=RiskClass.READ_ONLY,
             ),
             SignalDescriptor(
-                "node.disconnected",
-                "Node went offline",
+                content_type="node.disconnected",
+                description="Node went offline",
                 default_urgency=SignalUrgency.HIGH,
                 default_risk_class=RiskClass.READ_ONLY,
             ),
