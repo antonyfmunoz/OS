@@ -36,7 +36,7 @@ class CapabilityBridge:
         """Lazy-load model_router to avoid circular imports."""
         if self._model_router is None:
             try:
-                from runtime.model_router import call_with_fallback
+                from adapters.models.model_router import call_with_fallback
 
                 self._model_router = call_with_fallback
             except ImportError:
@@ -68,7 +68,7 @@ class CapabilityBridge:
     def is_available(self) -> bool:
         """Check if the model router is importable."""
         try:
-            from runtime.model_router import call_with_fallback
+            from adapters.models.model_router import call_with_fallback
 
             return True
         except ImportError:

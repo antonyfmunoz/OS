@@ -56,7 +56,7 @@ from execution.environments.windows_desktop_request_builder import (
 )
 from adapters.adapter_engine.adapter_registry_contracts import AdapterRegistry
 from execution.runtime.worker_runtime_contracts import ProofStatus
-from runtime.interfaces.discord_spine_integration_v1 import (
+from transports.discord.spine_integration_v1 import (
     SpineExecutionConfig,
     SpineRoutedResult,
     build_spine_infrastructure,

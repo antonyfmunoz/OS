@@ -38,7 +38,7 @@ from control_plane.router.router_contracts import (
 )
 from adapters.adapter_engine.adapter_registry_contracts import AdapterRegistry
 from execution.runtime.worker_runtime_contracts import ProofStatus, RuntimeProofRecord
-from runtime.interfaces.discord_interface_adapter_v1 import (
+from transports.discord.interface_adapter_v1 import (
 
     build_work_packet_for_router,
     format_router_result,

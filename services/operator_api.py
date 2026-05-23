@@ -252,7 +252,7 @@ async def ingest_trigger(request: Request) -> dict[str, Any]:
 
     # Attempt to trigger ingestion via the orchestrator
     try:
-        from runtime.ingestion import GenericIngestionOrchestrator
+        from understanding.perception.orchestrator import GenericIngestionOrchestrator
 
         orchestrator = GenericIngestionOrchestrator()
         result = await asyncio.to_thread(orchestrator.ingest, source=source, path=path)
@@ -296,7 +296,7 @@ async def _voice_respond(transcript: str) -> dict[str, Any]:
 
     # Route through model_router (same chain as Discord voice)
     try:
-        from runtime.model_router import call_with_fallback
+        from adapters.models.model_router import call_with_fallback
 
         voice_prompt = transcript + VOICE_SYSTEM_SUFFIX
         raw_response = await asyncio.to_thread(
@@ -474,7 +474,7 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                 # Route through model_router (fixes _HAS_COGNITIVE_LOOP NameError)
                 start = time.time()
                 try:
-                    from runtime.model_router import call_with_fallback
+                    from adapters.models.model_router import call_with_fallback
 
                     result = await asyncio.to_thread(
                         call_with_fallback,
