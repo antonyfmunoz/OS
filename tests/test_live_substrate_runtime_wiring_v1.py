@@ -21,17 +21,6 @@ from pathlib import Path
 
 import pytest
 
-import importlib as _il
-_missing = []
-for _m in ("substrate.execution.workers", "substrate.execution.environments"):
-    try:
-        _il.import_module(_m)
-    except ModuleNotFoundError:
-        _missing.append(_m)
-if _missing:
-    pytest.skip(f"Skipping: missing {', '.join(_missing)}", allow_module_level=True)
-
-
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 

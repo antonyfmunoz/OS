@@ -33,19 +33,12 @@ from .live_runtime_contracts_v1 import (
     _content_hash,
     _new_id,
 )
-try:
-    from substrate.execution.workers.workstation.workstation_operational_embodiment_engine_v1 import (
-        WorkstationOperationalEmbodimentEngine,
-    )
-except ModuleNotFoundError:
-    WorkstationOperationalEmbodimentEngine = None  # type: ignore[assignment,misc]
-
-try:
-    from substrate.execution.workers.workstation.browser_gui_embodiment_engine_v1 import (
-        BrowserGUIEmbodimentEngine,
-    )
-except ModuleNotFoundError:
-    BrowserGUIEmbodimentEngine = None  # type: ignore[assignment,misc]
+from substrate.execution.workers.workstation.workstation_operational_embodiment_engine_v1 import (
+    WorkstationOperationalEmbodimentEngine,
+)
+from substrate.execution.workers.workstation.browser_gui_embodiment_engine_v1 import (
+    BrowserGUIEmbodimentEngine,
+)
 
 
 class LiveExecutionCoordinator:
