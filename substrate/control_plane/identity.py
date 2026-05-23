@@ -26,6 +26,13 @@ class ConcreteIdentityResolver:
     state module is unavailable (no DB, test environment, etc.).
     """
 
+    FOUNDATION_VALUES: dict[str, str] = {
+        "reality": "Ground everything in observable truth",
+        "intelligence": "Compound capability through every interaction",
+        "personalization": "Adapt to user context and preferences",
+        "execution": "Produce tangible outcomes, not just plans",
+    }
+
     async def resolve(self, signal: SignalEnvelope) -> Identity:
         import sys
 
