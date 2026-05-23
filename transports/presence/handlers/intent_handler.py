@@ -17,23 +17,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__f
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-_INTENT_HANDLER_ERROR_LOG = Path(_REPO_ROOT) / "logs" / "intent_handler_errors.jsonl"
-
-
-def _record_error(component: str, error: Exception | str, context: dict | None = None) -> None:
-    try:
-        _INTENT_HANDLER_ERROR_LOG.parent.mkdir(parents=True, exist_ok=True)
-        record = {
-            "ts": datetime.now(timezone.utc).isoformat(),
-            "component": component,
-            "error": str(error),
-            "error_type": type(error).__name__ if isinstance(error, Exception) else "str",
-            "context": context or {},
-        }
-        with open(_INTENT_HANDLER_ERROR_LOG, "a") as f:
-            f.write(json.dumps(record) + "\n")
-    except Exception:
-        pass
+from substrate.observability.error_recorder import record_error as _record_error
 
 
 # Channel name → intent routing hint

@@ -95,24 +95,7 @@ _DETERMINISTIC_RESPONSES: dict[str, str] = {
 
 # ─── Fix-forever error recording ───────────────────────────────────────────
 
-_ERROR_LOG_PATH = Path("/opt/OS/logs/spine_errors.jsonl")
-
-
-def _record_error(component: str, error: str, context: dict[str, Any] | None = None) -> None:
-    """Fix-forever error recording. Every error logged with context for pattern detection."""
-    try:
-        _ERROR_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        entry = {
-            "ts": datetime.now(timezone.utc).isoformat(),
-            "component": component,
-            "error": str(error)[:500],
-            "context": {k: str(v)[:200] for k, v in (context or {}).items()},
-        }
-        with _ERROR_LOG_PATH.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(entry) + "\n")
-    except Exception as log_err:
-        import logging
-        logging.getLogger(__name__).warning("Failed to write error log: %s", log_err)
+from substrate.observability.error_recorder import record_error as _record_error
 
 
 # ─── Concrete execution spine ──────────────────────────────────────────────

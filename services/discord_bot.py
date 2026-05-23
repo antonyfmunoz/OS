@@ -66,26 +66,7 @@ def _handle_task_exception(loop, context):
     loop.default_exception_handler(context)
 
 
-_DISCORD_BOT_ERROR_LOG = (
-    Path(__file__).resolve().parent.parent / "logs" / "discord_bot_errors.jsonl"
-)
-
-
-def _record_error(component: str, error: Exception | str, context: dict | None = None) -> None:
-    """Append a structured error record to discord_bot_errors.jsonl."""
-    try:
-        _DISCORD_BOT_ERROR_LOG.parent.mkdir(parents=True, exist_ok=True)
-        record = {
-            "ts": datetime.now(timezone.utc).isoformat(),
-            "component": component,
-            "error": str(error),
-            "error_type": type(error).__name__ if isinstance(error, Exception) else "str",
-            "context": context or {},
-        }
-        with open(_DISCORD_BOT_ERROR_LOG, "a") as f:
-            f.write(_json_mod.dumps(record) + "\n")
-    except Exception:
-        pass
+from substrate.observability.error_recorder import record_error as _record_error
 
 
 import discord
@@ -3238,7 +3219,7 @@ async def cmd_confidential(ctx: commands.Context, *, args: str = ""):
         )
         return
     try:
-        from substrate.governance.policies.confidentiality import create_confidential_session
+        from substrate.governance.policy.confidentiality import create_confidential_session
 
         topic = parts[0]
         parties = [p.strip() for p in parts[1].split(",")] if len(parts) > 1 else ["Antony"]

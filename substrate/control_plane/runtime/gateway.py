@@ -27,6 +27,7 @@ Usage:
 """
 
 import json
+import logging
 import os
 import re as _re
 import sys
@@ -34,6 +35,8 @@ import threading
 import uuid as _uuid_mod
 from datetime import datetime, timezone
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
@@ -218,25 +221,7 @@ AUTOMATION_TRIGGERS: dict[str, list[str]] = {
 }
 
 
-_ERROR_LOG_PATH = Path(
-    os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or "/opt/OS"
-) / "logs" / "gateway_errors.jsonl"
-
-
-def _record_error(component: str, error: str, context: dict | None = None) -> None:
-    """Append error to JSONL log. Every error is recorded for pattern detection."""
-    try:
-        _ERROR_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        entry = {
-            "ts": datetime.now(timezone.utc).isoformat(),
-            "component": component,
-            "error": str(error)[:500],
-            "context": {k: str(v)[:200] for k, v in (context or {}).items()},
-        }
-        with _ERROR_LOG_PATH.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(entry) + "\n")
-    except Exception:
-        pass
+from substrate.observability.error_recorder import record_error as _record_error
 
 
 def _utcnow() -> str:
@@ -1363,8 +1348,8 @@ class EntrepreneurOSGateway:
                     leverage = detect_leverage_killer(prompt)
                     if leverage:
                         prompt = leverage["intervention"] + "\n\n" + prompt
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"suppressed {type(e).__name__}: {e}", exc_info=True)
 
                 try:
                     from substrate.state.registries.skill_registry import get_skill_registry
@@ -1445,7 +1430,7 @@ class EntrepreneurOSGateway:
 
             if not agent_to_use:
                 try:
-                    from substrate.control_plane.routing.intent_router import IntentRouter, IntentDomain
+                    from substrate.control_plane.router.intent_router import IntentRouter, IntentDomain
 
                     ir = IntentRouter(ctx)
                     domain = ir.route(prompt)
