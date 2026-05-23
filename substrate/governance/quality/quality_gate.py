@@ -172,7 +172,7 @@ class QualityTransformationGate:
         Reality lens: is this grounded in what is actually true?
         Penalizes generic patterns. Rewards situation-specific reference.
         """
-        from control_plane.signals.signal_hierarchy import SignalTier
+        from substrate.control_plane.signals.signal_hierarchy import SignalTier
 
         transformations: list[str] = []
         score = 0.7  # baseline
@@ -345,7 +345,7 @@ class QualityTransformationGate:
         Intelligence without execution is philosophy.
         Every output must move the north star.
         """
-        from control_plane.signals.signal_hierarchy import SignalTier
+        from substrate.control_plane.signals.signal_hierarchy import SignalTier
 
         transformations: list[str] = []
         score = 0.6  # lower baseline — action must be earned
@@ -425,7 +425,7 @@ def quality_check(
     issues (list[str]), suggestions (list[str]), revised_version (str).
     """
     try:
-        from execution.runtime.model_router import get_router, TaskType
+        from substrate.execution.runtime.model_router import get_router, TaskType
 
         router = get_router()
         model = router.route(TaskType.FAST_RESPONSE)

@@ -185,7 +185,7 @@ def build_eod_message() -> str:
 
     # Overdue delegations
     try:
-        from control_plane.delegation.delegation_tracker import get_overdue_delegations
+        from substrate.control_plane.delegation.delegation_tracker import get_overdue_delegations
         overdue_dels = get_overdue_delegations(ctx)
         if overdue_dels:
             section = [f'**🔄 Overdue delegations ({len(overdue_dels)}):**']

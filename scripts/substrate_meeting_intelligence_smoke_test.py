@@ -22,7 +22,7 @@ import time
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from execution.transport import meeting_intelligence as mi  # noqa: E402
+from substrate.execution.transport import meeting_intelligence as mi  # noqa: E402
 
 
 def _force_model_failure():

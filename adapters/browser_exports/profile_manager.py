@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 load_dotenv(_REPO_ROOT / "runtime" / ".env")
 load_dotenv(_REPO_ROOT / "services" / ".env", override=True)
 
-from execution.agents.browser_agent import BrowserAgent
+from substrate.execution.agents.browser_agent import BrowserAgent
 
 logger = logging.getLogger(__name__)
 

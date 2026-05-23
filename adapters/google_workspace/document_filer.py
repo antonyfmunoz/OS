@@ -36,7 +36,7 @@ def classify_document(
 ) -> dict:
     """Classify a document and determine where to file it."""
     try:
-        from execution.runtime.model_router import get_router, TaskType
+        from substrate.execution.runtime.model_router import get_router, TaskType
         router = get_router()
 
         import json as _json

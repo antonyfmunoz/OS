@@ -100,7 +100,7 @@ def get_stakeholders(venture: str = None, ctx=None) -> list[dict]:
 def generate_stakeholder_brief(venture: str, ctx=None) -> str:
     """Generate a stakeholder map brief for a venture."""
     try:
-        from execution.runtime.model_router import get_router, TaskType
+        from substrate.execution.runtime.model_router import get_router, TaskType
         from substrate.understanding.intelligence.person_recognition import score_relationship_health
         router = get_router()
         model = router.route(TaskType.FAST_RESPONSE) or router.route(TaskType.ANALYSIS)
@@ -190,7 +190,7 @@ def generate_board_update_brief(venture_id: str, ctx=None) -> str:
     try:
         from substrate.state.context.context import load_context_from_env
         from substrate.state.storage.db import get_conn
-        from execution.runtime.model_router import get_router, TaskType
+        from substrate.execution.runtime.model_router import get_router, TaskType
         ctx = ctx or load_context_from_env()
         router = get_router()
         model = router.route(TaskType.ANALYSIS)

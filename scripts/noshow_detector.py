@@ -23,7 +23,7 @@ GENERAL_CHANNEL_ID = 1486289444830056540
 
 async def detect_noshows():
     from substrate.state.context.context import load_context_from_env
-    from execution.runtime.model_router import get_router, TaskType
+    from substrate.execution.runtime.model_router import get_router, TaskType
 
     ctx = load_context_from_env()
 

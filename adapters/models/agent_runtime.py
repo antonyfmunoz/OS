@@ -271,7 +271,7 @@ class AgentRuntime:
         # When no agent specified, default to executive_assistant.
         if agent == "default":
             try:
-                from control_plane.agents.agent_hierarchy import AgentHierarchy
+                from substrate.control_plane.agents.agent_hierarchy import AgentHierarchy
 
                 agent = AgentHierarchy().get_primary_interface()
             except Exception as _hier_err:
@@ -527,7 +527,7 @@ class AgentRuntime:
         Returns:
             AgentResult with output, model, token counts, skill used, and interaction_id.
         """
-        from control_plane.agents.agent_teams import route as team_route
+        from substrate.control_plane.agents.agent_teams import route as team_route
 
         config = team_route(team, sub_agent)
         agent_label = f"{team}.{sub_agent}"

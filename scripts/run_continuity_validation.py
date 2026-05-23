@@ -19,7 +19,7 @@ from pathlib import Path
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from execution.runtime.substrate_continuity_engine_v1 import SubstrateContinuityEngine
+from substrate.execution.runtime.substrate_continuity_engine_v1 import SubstrateContinuityEngine
 
 TEST_STORE = Path("data/runtime/substrate_continuity")
 TEST_LOOPS = Path("data/runtime/open_loop_registry")

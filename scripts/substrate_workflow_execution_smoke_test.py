@@ -31,7 +31,7 @@ def main() -> None:
 
     # 1. builder_dev in builder mode executes
     def test_builder_dev_in_builder_mode():
-        from execution.transport.workflow_execution import execute_workflow_if_allowed
+        from substrate.execution.transport.workflow_execution import execute_workflow_if_allowed
 
         result = execute_workflow_if_allowed(
             "fix the bug in gateway.py", mode="builder", target="local"
@@ -49,7 +49,7 @@ def main() -> None:
 
     # 2. builder_dev in product mode is blocked
     def test_builder_dev_blocked_in_product_mode():
-        from execution.transport.workflow_execution import execute_workflow_if_allowed
+        from substrate.execution.transport.workflow_execution import execute_workflow_if_allowed
 
         result = execute_workflow_if_allowed(
             "fix the bug in gateway.py", mode="product", target="vps"
@@ -65,7 +65,7 @@ def main() -> None:
 
     # 3. product_runtime in product mode executes
     def test_product_runtime_in_product_mode():
-        from execution.transport.workflow_execution import execute_workflow_if_allowed
+        from substrate.execution.transport.workflow_execution import execute_workflow_if_allowed
 
         result = execute_workflow_if_allowed(
             "run the onboarding workflow", mode="product", target="vps"
@@ -80,7 +80,7 @@ def main() -> None:
 
     # 4. content_ops executes with correct metadata
     def test_content_ops():
-        from execution.transport.workflow_execution import execute_workflow_if_allowed
+        from substrate.execution.transport.workflow_execution import execute_workflow_if_allowed
 
         result = execute_workflow_if_allowed(
             "write a blog post about AI", mode="builder", target="local"
@@ -93,7 +93,7 @@ def main() -> None:
 
     # 5. analysis executes with correct metadata
     def test_analysis():
-        from execution.transport.workflow_execution import execute_workflow_if_allowed
+        from substrate.execution.transport.workflow_execution import execute_workflow_if_allowed
 
         result = execute_workflow_if_allowed(
             "analyze the conversion funnel data", mode="product", target="vps"
@@ -105,7 +105,7 @@ def main() -> None:
 
     # 6. system_ops executes with correct metadata
     def test_system_ops():
-        from execution.transport.workflow_execution import execute_workflow_if_allowed
+        from substrate.execution.transport.workflow_execution import execute_workflow_if_allowed
 
         result = execute_workflow_if_allowed(
             "check system health status", mode="builder", target="local"
@@ -117,7 +117,7 @@ def main() -> None:
 
     # 7. conversation intent returns not executed
     def test_conversation_not_executed():
-        from execution.transport.workflow_execution import execute_workflow_if_allowed
+        from substrate.execution.transport.workflow_execution import execute_workflow_if_allowed
 
         result = execute_workflow_if_allowed(
             "hello how are you", mode="builder", target="local"
@@ -129,7 +129,7 @@ def main() -> None:
 
     # 8. skill_tool intent returns not executed
     def test_skill_tool_not_executed():
-        from execution.transport.workflow_execution import execute_workflow_if_allowed
+        from substrate.execution.transport.workflow_execution import execute_workflow_if_allowed
 
         result = execute_workflow_if_allowed(
             "search google for python tips", mode="builder", target="local"
@@ -221,15 +221,15 @@ def main() -> None:
         """Importing workflow_execution must not pull in hot-path modules."""
         import importlib
 
-        mod_name = "execution.transport.workflow_execution"
+        mod_name = "substrate.execution.transport.workflow_execution"
         if mod_name in sys.modules:
             del sys.modules[mod_name]
         importlib.import_module(mod_name)
         for forbidden in [
-            "control_plane.runtime.gateway",
-            "control_plane.runtime.cognitive_loop",
-            "execution.runtime.model_router",
-            "execution.runtime.agent_runtime",
+            "substrate.control_plane.runtime.gateway",
+            "substrate.control_plane.runtime.cognitive_loop",
+            "substrate.execution.runtime.model_router",
+            "substrate.execution.runtime.agent_runtime",
             "runtime.primitives",
         ]:
             assert forbidden not in sys.modules, (
@@ -240,7 +240,7 @@ def main() -> None:
 
     # 12. structured workflow result metadata present
     def test_result_metadata_shape():
-        from execution.transport.workflow_execution import (
+        from substrate.execution.transport.workflow_execution import (
             LAYER_NAME,
             LAYER_VERSION,
             execute_workflow_if_allowed,
@@ -267,7 +267,7 @@ def main() -> None:
 
     # 13. target defaults are correct
     def test_target_defaults():
-        from execution.transport.workflow_execution import execute_workflow_if_allowed
+        from substrate.execution.transport.workflow_execution import execute_workflow_if_allowed
 
         # builder mode should default target to "local"
         result = execute_workflow_if_allowed("fix the crash", mode="builder")
@@ -283,7 +283,7 @@ def main() -> None:
     # 14. mode boundary preserved
     def test_mode_boundary_preserved():
         """Product mode must never silently execute builder_dev workflows."""
-        from execution.transport.workflow_execution import execute_workflow_if_allowed
+        from substrate.execution.transport.workflow_execution import execute_workflow_if_allowed
 
         builder_texts = [
             "fix the bug in the router",
@@ -304,7 +304,7 @@ def main() -> None:
     # 15. existing workflow delegation smoke still passes
     def test_delegation_smoke_still_passes():
         """Workflow delegation layer must still work independently."""
-        from execution.transport.workflow_delegation import (
+        from substrate.execution.transport.workflow_delegation import (
             classify_workflow_intent,
             resolve_workflow_policy,
         )

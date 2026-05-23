@@ -29,19 +29,19 @@ import sys
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from execution.transport.result_store import (  # noqa: E402
+from substrate.execution.transport.result_store import (  # noqa: E402
     get_result_store,
     reset_result_store_for_tests,
 )
-from execution.transport.station_bus import get_station_bus  # noqa: E402
-from execution.transport.station_daemon import StationDaemon  # noqa: E402
-from execution.transport.voice_eos_responder import (  # noqa: E402
+from substrate.execution.transport.station_bus import get_station_bus  # noqa: E402
+from substrate.execution.transport.station_daemon import StationDaemon  # noqa: E402
+from substrate.execution.transport.voice_eos_responder import (  # noqa: E402
     EOS_VOICE_ROLES,
     install_default_eos_voice_responder,
     is_eos_voice_responder_installed,
     uninstall_eos_voice_responder,
 )
-from execution.transport.voice_session import (  # noqa: E402
+from substrate.execution.transport.voice_session import (  # noqa: E402
     VoiceSessionRuntime,
     VoiceSessionStatus,
     VoiceTurnSource,
@@ -118,7 +118,7 @@ class _MockRouter:
 def _install_mock_router(mock: _MockRouter) -> None:
     """Patch the lazily-imported call_with_fallback inside the adapter.
 
-    The adapter imports `from execution.runtime.model_router import call_with_fallback`
+    The adapter imports `from substrate.execution.runtime.model_router import call_with_fallback`
     INSIDE its responder function (to avoid module-load coupling), so the
     canonical patch point is the source module.
     """
@@ -299,10 +299,10 @@ def main() -> int:
     import importlib
 
     for mod in (
-        "control_plane.runtime.gateway",
-        "control_plane.runtime.cognitive_loop",
-        "execution.runtime.model_router",
-        "execution.runtime.agent_runtime",
+        "substrate.control_plane.runtime.gateway",
+        "substrate.control_plane.runtime.cognitive_loop",
+        "substrate.execution.runtime.model_router",
+        "substrate.execution.runtime.agent_runtime",
         "runtime.primitives",
     ):
         try:

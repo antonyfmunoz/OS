@@ -14,7 +14,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from execution.runtime.agent_runtime import AgentRuntime
+from substrate.execution.runtime.agent_runtime import AgentRuntime
 from substrate.state.memory.memory import AgentMemory
 
 _mem = AgentMemory()
@@ -460,7 +460,7 @@ kanban_stage: New
 
     # Publish new_lead event — triggers icp_qualifier handler async (non-blocking)
     try:
-        from control_plane.events.event_bus import EventBus
+        from substrate.control_plane.events.event_bus import EventBus
         EventBus().publish_async("new_lead", {
             "username":   username,
             "score":      result["score"],

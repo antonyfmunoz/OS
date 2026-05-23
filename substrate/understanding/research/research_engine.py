@@ -34,12 +34,12 @@ if _REPO_ROOT not in sys.path:
 load_dotenv(Path(__file__).parent / ".env")
 
 from substrate.state.context.context import EntrepreneurOSContext
-from control_plane.runtime.cognitive_loop import CognitiveLoop
-from execution.runtime.agent_runtime import TaskType
+from substrate.control_plane.runtime.cognitive_loop import CognitiveLoop
+from substrate.execution.runtime.agent_runtime import TaskType
 from substrate.state.storage.db import get_conn
 from substrate.state.memory.memory import AgentMemory
 from substrate.state.business.venture_knowledge import VentureKnowledgeBase
-from control_plane.strategy.strategy_engine import _parse_labeled_sections
+from substrate.control_plane.strategy.strategy_engine import _parse_labeled_sections
 
 
 class ResearchEngine:

@@ -238,7 +238,7 @@ def calendly_webhook():
                               notes=f"Calendly invitee.created — {event_time}")
         # Publish lead_booked event — triggers handler async (non-blocking)
         try:
-            from control_plane.events.event_bus import EventBus
+            from substrate.control_plane.events.event_bus import EventBus
             EventBus().publish_async("lead_booked", {
                 "username":     username,
                 "booking_time": event_time,
@@ -368,7 +368,7 @@ def calendly_webhook():
 
         # Cancellation recovery flow
         try:
-            from execution.runtime.model_router import get_router, TaskType
+            from substrate.execution.runtime.model_router import get_router, TaskType
             import os as _os
             _router = get_router()
             _model = _router.route(TaskType.FAST_RESPONSE)

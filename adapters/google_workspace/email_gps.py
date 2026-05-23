@@ -277,7 +277,7 @@ class EmailGPS:
                 current_purpose = row['purpose'] if row else ''
 
             # Use AI to update purpose
-            from execution.runtime.model_router import get_router, TaskType
+            from substrate.execution.runtime.model_router import get_router, TaskType
             router = get_router(self.ctx)
 
             new_purpose = router.call_with_fallback(
@@ -495,7 +495,7 @@ class EmailGPS:
     ) -> EmailFolder:
         """AI classifies with full business context and judgment criteria."""
         try:
-            from execution.runtime.model_router import get_router, TaskType
+            from substrate.execution.runtime.model_router import get_router, TaskType
             router = get_router(self.ctx)
 
             definitions = self._load_folder_definitions()
@@ -575,7 +575,7 @@ class EmailGPS:
     def draft_response(self, email: ProcessedEmail) -> str:
         """Generate DEX response draft for TO_RESPOND emails."""
         try:
-            from execution.runtime.model_router import get_router, TaskType
+            from substrate.execution.runtime.model_router import get_router, TaskType
             router = get_router(self.ctx)
 
             body = router.call_with_fallback(
@@ -610,7 +610,7 @@ class EmailGPS:
     ) -> list[str]:
         """Extract action items and commitments from email."""
         try:
-            from execution.runtime.model_router import get_router, TaskType
+            from substrate.execution.runtime.model_router import get_router, TaskType
             import json as _json
             router = get_router(self.ctx)
 
@@ -739,7 +739,7 @@ Return JSON only:
                     # Queue draft for approval — writes to orchestrator/approvals/pending/
                     if email.draft_response:
                         try:
-                            from control_plane.runtime.gateway import EntrepreneurOSGateway
+                            from substrate.control_plane.runtime.gateway import EntrepreneurOSGateway
                             gw = EntrepreneurOSGateway()
                             approval_id = gw.queue_for_approval({
                                 "type":       "email_draft",
@@ -874,7 +874,7 @@ Return JSON only:
     def _browser_unsubscribe(self, url: str) -> bool:
         """Click unsubscribe link via headless browser."""
         try:
-            from execution.agents.browser_agent import BrowserAgent
+            from substrate.execution.agents.browser_agent import BrowserAgent
 
             async def do_unsub(u: str) -> bool:
                 agent = BrowserAgent(headless=True)
