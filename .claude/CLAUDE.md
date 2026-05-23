@@ -103,17 +103,29 @@ Single-user validation phase — one org, multiple ventures.
 Org and venture IDs loaded from BIS at runtime.
 Focus: proving the system works before UI layer.
 
-## Project structure (post-unification)
+## Project structure (post-convergence)
 /opt/OS/  (repository root)
-  substrate/       — unified 6-tier substrate (types, control plane, execution, ontology, organism, learning)
-  adapters/        — external system adapters (models, GWS, calendar, browser, capabilities)
-  transports/      — interface surfaces (discord, API, node mesh)
-  services/        — legacy daemons + UMH services (being migrated to transports/)
+  substrate/       — unified type system, public API (types.py, __init__.py)
+  control_plane/   — identity, context, governance, memory, registry, router
+  execution/       — 8-stage pipeline (spine.py), trace, feedback, actuation, voice
+  governance/      — accountability, policies, quality, validation
+  understanding/   — perception, interpretation, domains, ontology, world model, signals
+  composition/     — mastery registries
+  interface/       — channel surfaces (discord, presence)
+  adapters/        — external system adapters (models, GWS, browser, capabilities)
+  transports/      — interface transport layer (discord, API, node mesh)
+  integrations/    — domain-specific integrations (creatoros, lyfeos)
+  services/        — legacy daemons (discord_bot.py, operator_api.py, higgsfield_webhook.py)
+  state/           — persistence layer (business, memory, profiles, session, storage, tenancy)
+  projections/     — application projections (EOS)
+  daemon/          — Windows node daemon (umh_node, umh_desktop)
   scripts/         — operator tooling (cron scripts, verification, graph rebuild)
-  knowledge/       — wiki, memory palace, concept docs (formerly 10_Wiki/)
-  projections/     — application projections (EOS, CreatorOS — being built)
+  knowledge/       — wiki, memory palace, concept docs
+  data/            — generated data, proofs, audits, graph files
+  docs/            — architecture specs, contracts
+  skills/          — Claude Code tool skills
   saas/            — SaaS product (TypeScript/React) — EOS application projection
-  03_CRM/          — pipeline and lead management — EOS application data
+  runtime/         — legacy runtime (compatibility layer)
   .claude/         — Claude Code project config (this file)
 
 ## Docker restart: use `docker restart`, not `docker compose restart`
