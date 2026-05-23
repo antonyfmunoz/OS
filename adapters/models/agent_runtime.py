@@ -62,26 +62,7 @@ def calculate_cost(model: str, tokens_used: dict[str, int]) -> float:
     return round(input_cost + output_cost, 8)
 
 
-_AGENT_RUNTIME_ERROR_LOG = (
-    Path(__file__).resolve().parent.parent.parent / "logs" / "agent_runtime_errors.jsonl"
-)
-
-
-def _record_error(component: str, error: Exception | str, context: dict | None = None) -> None:
-    """Append a structured error record to agent_runtime_errors.jsonl."""
-    try:
-        _AGENT_RUNTIME_ERROR_LOG.parent.mkdir(parents=True, exist_ok=True)
-        record = {
-            "ts": datetime.now(timezone.utc).isoformat(),
-            "component": component,
-            "error": str(error),
-            "error_type": type(error).__name__ if isinstance(error, Exception) else "str",
-            "context": context or {},
-        }
-        with open(_AGENT_RUNTIME_ERROR_LOG, "a") as f:
-            f.write(json.dumps(record) + "\n")
-    except Exception:
-        pass
+from substrate.observability.error_recorder import record_error as _record_error
 
 
 _RUNTIME_INTENT_PATTERNS: list[tuple[re.Pattern, str]] = [

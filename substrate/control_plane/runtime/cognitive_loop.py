@@ -27,7 +27,9 @@ Usage:
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-import json, os, re, sys, uuid, tempfile, time as _time
+import json, logging, os, re, sys, uuid, tempfile, time as _time
+
+logger = logging.getLogger(__name__)
 
 # ─── Spend cache ──────────────────────────────────────────────────────────────
 # Queried at most once per minute to avoid a DB round-trip on every response.
@@ -42,27 +44,7 @@ if _REPO_ROOT not in sys.path:
 
 # ─── Fix-forever error recording ─────────────────────────────────────────────
 
-_ERROR_LOG_PATH = (
-    Path(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or "/opt/OS")
-    / "logs"
-    / "cognitive_loop_errors.jsonl"
-)
-
-
-def _record_error(component: str, error: str, context: dict | None = None) -> None:
-    """Append error to JSONL log for pattern detection and permanent fixing."""
-    try:
-        _ERROR_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        entry = {
-            "ts": datetime.now(timezone.utc).isoformat(),
-            "component": component,
-            "error": str(error)[:500],
-            "context": {k: str(v)[:200] for k, v in (context or {}).items()},
-        }
-        with _ERROR_LOG_PATH.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(entry) + "\n")
-    except Exception:
-        pass
+from substrate.observability.error_recorder import record_error as _record_error
 
 
 # ─── Deterministic fallback for cognitive loop ────────────────────────────────
