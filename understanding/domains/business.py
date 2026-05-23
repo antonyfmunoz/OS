@@ -10,9 +10,9 @@ V2 TODO: LLM-based semantic disambiguation for ambiguous cases
 
 from __future__ import annotations
 
-from understanding.ontology.primitive_decomposition_v1 import PrimitiveObservation
-from .contract import DomainProjection, make_projection_id
-from .registry import default_registry
+from substrate.ontology.primitives import PrimitiveObservation
+from substrate.ontology.domains.contract import DomainProjection, make_projection_id
+from substrate.ontology.domains.registry import default_registry
 
 
 _DOMAIN_KEYWORD_MAP: dict[str, dict[str, list[str]]] = {

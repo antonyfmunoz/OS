@@ -8,10 +8,10 @@ memory entry that back-references its source observation.
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
 
-from understanding.ontology.primitive_decomposition_v1 import PrimitiveObservation
+from substrate.ontology.primitives import PrimitiveObservation
 
 
 @runtime_checkable
