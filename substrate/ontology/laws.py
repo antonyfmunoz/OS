@@ -1,111 +1,199 @@
-"""Governing laws for the UMH substrate.
+"""Governing laws — enacted constraints that govern UMH like physics governs reality.
 
-Laws are constraints that the substrate enforces. They are loaded once
-at boot and checked by the GovernanceEngine during signal classification.
+Each law is a Pydantic model with a check() method. Laws are not descriptions —
+they are executable validators called during governance classification.
 
-The canonical law definitions live in services/umh/foundation/laws.py
-as Pydantic models. This module provides a lightweight registry that
-merges those foundation laws with the spec's 8 invariants into a single
-list-of-dicts interface for governance checks.
+Source mapping:
+- services/umh/foundation/laws.py → Law model, LawCategory, Severity, 6 foundation laws
+- Spec Section 22 → 8 invariant assertions
+- Spec Section 10 → 12 invariant laws (canonical)
 """
 
 from __future__ import annotations
 
+from enum import Enum
+from typing import Any
+from uuid import UUID, uuid4
 
-def get_laws() -> list[dict[str, str]]:
-    """Return the governing laws registry.
+from pydantic import BaseModel, Field
 
-    Returns a merged set of laws:
-    - The 6 foundation laws from services/umh/foundation/laws.py
-    - The 8 spec invariants (some overlap, deduplicated by name)
 
-    Each law dict has: name, description, enforcement.
-    """
-    # Spec invariants — the minimum set from ARCHITECTURE.md
-    _SPEC_LAWS: list[dict[str, str]] = [
-        {
-            "name": "identity_before_execution",
-            "description": "Every execution must resolve identity first",
-            "enforcement": "hard",
-        },
-        {
-            "name": "governance_before_action",
-            "description": "No adapter call without governance classification",
-            "enforcement": "hard",
-        },
-        {
-            "name": "trace_everything",
-            "description": "Every execution produces a trace record",
-            "enforcement": "hard",
-        },
-        {
-            "name": "feedback_closes_loops",
-            "description": "Every trace gets a feedback record",
-            "enforcement": "hard",
-        },
-        {
-            "name": "registry_is_truth",
-            "description": "Unregistered components do not exist to the substrate",
-            "enforcement": "hard",
-        },
-        {
-            "name": "memory_discipline",
-            "description": "No direct Neon writes outside state/",
-            "enforcement": "hard",
-        },
-        {
-            "name": "deterministic_first",
-            "description": "Every LLM call has a deterministic fallback",
-            "enforcement": "hard",
-        },
-        {
-            "name": "pydantic_only",
-            "description": "No runtime dataclasses in substrate/",
-            "enforcement": "hard",
-        },
-    ]
+class LawCategory(str, Enum):
+    ONTOLOGICAL = "ontological"
+    EPISTEMIC = "epistemic"
+    GOVERNANCE = "governance"
+    CAUSAL = "causal"
+    BOUNDARY = "boundary"
+    CONTROL = "control"
+    EXECUTION = "execution"
 
-    # Foundation laws from services/umh/foundation/laws.py, translated
-    # to the same dict shape. These represent the substrate's own
-    # operational constraints.
-    _FOUNDATION_LAWS: list[dict[str, str]] = [
-        {
-            "name": "signal_intake",
-            "description": "All external input enters the substrate exclusively through the signal intake pathway",
-            "enforcement": "hard",
-        },
-        {
-            "name": "no_direct_execution",
-            "description": "No execution may occur without a governance decision",
-            "enforcement": "hard",
-        },
-        {
-            "name": "adapter_mediation",
-            "description": "All interaction with external systems must be mediated by the adapter protocol",
-            "enforcement": "hard",
-        },
-        {
-            "name": "memory_pathway",
-            "description": "All durable state writes must go through the memory candidate/update pathway",
-            "enforcement": "hard",
-        },
-        {
-            "name": "traceability",
-            "description": "Every execution must produce a trace. Untraceable operations are illegal",
-            "enforcement": "hard",
-        },
-        {
-            "name": "epistemic_humility",
-            "description": "The substrate must track confidence and uncertainty",
-            "enforcement": "soft",
-        },
-    ]
 
-    # Merge: spec laws first, then foundation laws (skip duplicates by name)
-    seen: set[str] = set()
-    merged: list[dict[str, str]] = []
-    for law in _SPEC_LAWS + _FOUNDATION_LAWS:
-        if law["name"] not in seen:
-            seen.add(law["name"])
-            merged.append(law)
-    return merged
+class Severity(str, Enum):
+    HARD_BLOCK = "hard_block"
+    SOFT_BLOCK = "soft_block"
+    WARNING = "warning"
+    LOG_ONLY = "log_only"
+
+
+class Law(BaseModel):
+    """An enacted constraint on the substrate. check() returns None if satisfied, violation string if not."""
+
+    id: UUID = Field(default_factory=uuid4)
+    category: LawCategory
+    name: str = Field(max_length=120)
+    statement: str = Field(max_length=500)
+    severity: Severity = Severity.HARD_BLOCK
+    context_key: str = Field(default="", max_length=120)
+    expected_value: Any = True
+
+    def check(self, context: dict[str, Any]) -> str | None:
+        """Check if this law is satisfied. Returns None if ok, violation message if not."""
+        if not self.context_key:
+            return None
+        actual = context.get(self.context_key)
+        if actual == self.expected_value:
+            return None
+        return (
+            f"Law '{self.name}' violated: {self.statement} "
+            f"(expected {self.context_key}={self.expected_value}, got {actual})"
+        )
+
+
+# ─── The 14 substrate laws (merged foundation + spec invariants) ──────────────
+
+_ALL_LAWS: list[Law] = [
+    Law(
+        category=LawCategory.CONTROL,
+        name="control_plane_exclusivity",
+        statement="All signals pass through the Control Plane",
+        context_key="routed_through_control_plane",
+        expected_value=True,
+    ),
+    Law(
+        category=LawCategory.EXECUTION,
+        name="single_execution_spine",
+        statement="One canonical runtime path for all execution",
+        context_key="executed_through_spine",
+        expected_value=True,
+    ),
+    Law(
+        category=LawCategory.GOVERNANCE,
+        name="governance_before_action",
+        statement="No execution without governance classification",
+        context_key="has_governance_verdict",
+        expected_value=True,
+    ),
+    Law(
+        category=LawCategory.CONTROL,
+        name="typed_contracts_only",
+        statement="All inter-module communication uses explicit schemas",
+        context_key="uses_typed_contract",
+        expected_value=True,
+    ),
+    Law(
+        category=LawCategory.ONTOLOGICAL,
+        name="memory_discipline",
+        statement="All durable state writes through Memory/Storage subsystem",
+        context_key="writes_through_memory_system",
+        expected_value=True,
+    ),
+    Law(
+        category=LawCategory.EXECUTION,
+        name="environment_explicitness",
+        statement="Every action declares target environment",
+        context_key="has_environment_declaration",
+        expected_value=True,
+    ),
+    Law(
+        category=LawCategory.EPISTEMIC,
+        name="trace_completeness",
+        statement="Every execution produces an inspectable trace",
+        context_key="has_trace",
+        expected_value=True,
+    ),
+    Law(
+        category=LawCategory.CONTROL,
+        name="deterministic_plus_ai",
+        statement="Intelligence is subordinate to control",
+        context_key="has_deterministic_fallback",
+        expected_value=True,
+    ),
+    Law(
+        category=LawCategory.BOUNDARY,
+        name="external_boundary",
+        statement="No external system accessed directly — all through adapters",
+        context_key="uses_adapter_boundary",
+        expected_value=True,
+    ),
+    Law(
+        category=LawCategory.EXECUTION,
+        name="action_execution_separation",
+        statement="Action, capability, adapter, environment, worker, actuation, work packet, proof are distinct",
+        context_key="entities_separated",
+        expected_value=True,
+    ),
+    Law(
+        category=LawCategory.GOVERNANCE,
+        name="mastery_law",
+        statement="Verify competence before execution",
+        context_key="mastery_verified",
+        expected_value=True,
+        severity=Severity.SOFT_BLOCK,
+    ),
+    Law(
+        category=LawCategory.ONTOLOGICAL,
+        name="reality_mimicry",
+        statement="Model after effective real-world patterns when technically useful",
+        severity=Severity.LOG_ONLY,
+    ),
+    Law(
+        category=LawCategory.BOUNDARY,
+        name="signal_intake",
+        statement="All external input enters through signal intake pathway",
+        context_key="entered_through_signal",
+        expected_value=True,
+    ),
+    Law(
+        category=LawCategory.EPISTEMIC,
+        name="epistemic_humility",
+        statement="Track confidence and uncertainty",
+        context_key="has_confidence_score",
+        expected_value=True,
+        severity=Severity.SOFT_BLOCK,
+    ),
+]
+
+
+class LawRegistry:
+    """Registry of all substrate laws. Instantiate once at boot."""
+
+    def __init__(self) -> None:
+        self._laws: dict[str, Law] = {law.name: law for law in _ALL_LAWS}
+
+    def all(self) -> list[Law]:
+        """Return all registered laws."""
+        return list(self._laws.values())
+
+    def get(self, name: str) -> Law | None:
+        """Return law by name, or None if not found."""
+        return self._laws.get(name)
+
+    def check_all(self, context: dict[str, Any]) -> list[str]:
+        """Check all laws. Returns list of violation messages (empty = all pass)."""
+        violations = []
+        for law in self._laws.values():
+            result = law.check(context)
+            if result and law.severity in (Severity.HARD_BLOCK, Severity.SOFT_BLOCK):
+                violations.append(result)
+        return violations
+
+    def hard_violations(self, context: dict[str, Any]) -> list[str]:
+        """Check only HARD_BLOCK laws."""
+        violations = []
+        for law in self._laws.values():
+            if law.severity != Severity.HARD_BLOCK:
+                continue
+            result = law.check(context)
+            if result:
+                violations.append(result)
+        return violations
