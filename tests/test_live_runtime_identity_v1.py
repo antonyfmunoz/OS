@@ -174,14 +174,14 @@ class TestSubstrateInterceptOrder:
 
     def test_substrate_before_orchestration(self) -> None:
         source = (Path(_ROOT) / "services" / "discord_bot.py").read_text()
-        substrate_pos = source.index("is_substrate_command(text)")
-        orch_pos = source.index("Orchestration ingress (mode-gated)")
+        substrate_pos = source.index("if is_substrate_command(text):")
+        orch_pos = source.index("_handle_orchestration_ingress", substrate_pos)
         assert substrate_pos < orch_pos
 
     def test_substrate_before_cc_injection(self) -> None:
         source = (Path(_ROOT) / "services" / "discord_bot.py").read_text()
         call_site = source.index("if is_substrate_command(text):")
-        cc_pos = source.index("Session-first CC injection", call_site)
+        cc_pos = source.index("_handle_cc_injection", call_site)
         assert call_site < cc_pos
 
     def test_substrate_after_archive(self) -> None:
