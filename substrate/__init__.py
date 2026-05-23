@@ -36,9 +36,9 @@ class Substrate:
     def __init__(self) -> None:
         self._started_at = time.monotonic()
         self.identity = ConcreteIdentityResolver()
-        self.context = ConcreteContextAssembler()
         self.governance = ConcreteGovernanceEngine()
         self.memory = ConcreteMemorySystem()
+        self.context = ConcreteContextAssembler(memory_system=self.memory)
         self.registry = ConcreteComponentRegistry()
         self.trace = ConcreteTraceRecorder()
         self.feedback = ConcreteFeedbackCapture()
