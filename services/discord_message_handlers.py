@@ -884,9 +884,10 @@ async def _handle_founder_capture(
                     for i, v in enumerate(_ventures_list)
                     if i < len(_num_emojis)
                 )
+                _icon = '\U0001f4a1' if _ctype == 'idea' else '\u2705'
                 await _send_reply(
                     message.channel,
-                    f"{'\U0001f4a1' if _ctype == 'idea' else '✅'} Got it. Which venture is this for?\n"
+                    f"{_icon} Got it. Which venture is this for?\n"
                     f"{_choices}",
                 )
                 _pending_captures[_channel_id] = {"text": text, "type": _ctype}
