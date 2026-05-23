@@ -1,0 +1,39 @@
+{
+  "signal_id": "SIG-01c90e3af8ad",
+  "new_canonical_memory_entry_id": "mem-0eb593b2306c4555",
+  "governance_decision": "autonomous",
+  "governance_scope": {
+    "source_id": "SIG-01c90e3af8ad",
+    "assigned_scope": "project_memory",
+    "global_canon_allowed_by_default": false,
+    "abstraction_applied": false,
+    "founder_approved": false,
+    "promotion_path": "source_to_instance_memory",
+    "notes": "Generic orchestrator ingestion. Project-scoped."
+  },
+  "provenance_chain": {
+    "signal_id": "SIG-01c90e3af8ad",
+    "decomposition_id": "decomp-735ac132abdc44b5",
+    "candidate_id": "cand-6b509b8547c74e98",
+    "memory_id": "mem-0eb593b2306c4555",
+    "receipt_id": "receipt-39cece7defa240c3"
+  },
+  "confidence_score": 0.95,
+  "timestamp_utc": "2026-05-22T03:13:13.363084+00:00",
+  "persist_duration_ms": 6.16,
+  "memories_jsonl_before": 63,
+  "memories_jsonl_after": 73,
+  "memory_ids_written": [
+    "mem-0eb593b2306c4555",
+    "mem-8306573db55747ec",
+    "mem-216334327fc644b6",
+    "mem-98d23dc5439e4606",
+    "mem-8de27014df224425",
+    "mem-2e3f46f7c0e34af1",
+    "mem-671a5b756f0e47e6",
+    "mem-ad9b563dfc304616",
+    "mem-84ce95a6fafa4363",
+    "mem-be208fcffca44e7e"
+  ],
+  "entries_written": 10
+}

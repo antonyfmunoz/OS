@@ -1,0 +1,52 @@
+{
+  "signal_id": "SIG-e83ce1c52e01",
+  "query_string": "} from \"./lib/queryClient\"; import { QueryClientProvider",
+  "query_derivation": "Words 10-16 from source content as distinctive phrase",
+  "retrieval_method": "term_overlap_scoring",
+  "retrieved_entries": [
+    {
+      "rank": 1,
+      "memory_id": "mem-79ce6898d0d54601",
+      "label": "Decomposition phase must not be skipped",
+      "score": 0.1667,
+      "is_new_entry": false,
+      "authority_tier": 8
+    },
+    {
+      "rank": 2,
+      "memory_id": "mem-a02e37e2641f4783",
+      "label": "Orchestrator separates source from pipeline",
+      "score": 0.1667,
+      "is_new_entry": false,
+      "authority_tier": 8
+    },
+    {
+      "rank": 3,
+      "memory_id": "mem-e8206f590dd24850",
+      "label": "Orchestrator must not modify existing contracts",
+      "score": 0.1667,
+      "is_new_entry": false,
+      "authority_tier": 8
+    },
+    {
+      "rank": 4,
+      "memory_id": "mem-9a228b85f57e45ac",
+      "label": "[business:growth] Decomposition phase must not be skipped",
+      "score": 0.1667,
+      "is_new_entry": false,
+      "authority_tier": 8
+    },
+    {
+      "rank": 5,
+      "memory_id": "mem-a11451e8f4ba4b11",
+      "label": "Decomposition phase must never be skipped",
+      "score": 0.1667,
+      "is_new_entry": false,
+      "authority_tier": 8
+    }
+  ],
+  "new_entry_appears_in_results": false,
+  "new_entry_rank": 8,
+  "total_entries_searched": 74,
+  "query_duration_ms": 2.64
+}

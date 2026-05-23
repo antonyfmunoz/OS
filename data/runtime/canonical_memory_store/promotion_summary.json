@@ -347,6 +347,72 @@
       "receipt_id": "receipt-ac10b38be7254bcc",
       "label": "[business:sales] Qualification framing inverts sales dynamic",
       "type": "projection:outreach_before_content"
+    },
+    {
+      "memory_id": "mem-0eb593b2306c4555",
+      "receipt_id": "receipt-39cece7defa240c3",
+      "label": "Project identity as rest-express v1.0.0 ESM module",
+      "type": "state"
+    },
+    {
+      "memory_id": "mem-8306573db55747ec",
+      "receipt_id": "receipt-6b9d4955453c4cb8",
+      "label": "Development server launch via tsx",
+      "type": "action"
+    },
+    {
+      "memory_id": "mem-216334327fc644b6",
+      "receipt_id": "receipt-4b908cfe7d69454c",
+      "label": "Production build via Vite frontend and esbuild server bundling",
+      "type": "action"
+    },
+    {
+      "memory_id": "mem-98d23dc5439e4606",
+      "receipt_id": "receipt-1b5ba20f95e14f9d",
+      "label": "Production runtime requires NODE_ENV=production",
+      "type": "constraint"
+    },
+    {
+      "memory_id": "mem-8de27014df224425",
+      "receipt_id": "receipt-d89fae1ce5e34f21",
+      "label": "Multi-provider AI SDK integration (Anthropic, Google, OpenAI)",
+      "type": "resource"
+    },
+    {
+      "memory_id": "mem-2e3f46f7c0e34af1",
+      "receipt_id": "receipt-383279ad8cde4a41",
+      "label": "Comprehensive Radix UI primitive component library",
+      "type": "resource"
+    },
+    {
+      "memory_id": "mem-671a5b756f0e47e6",
+      "receipt_id": "receipt-d4698c6e3046458a",
+      "label": "Neon serverless Postgres with Drizzle ORM data layer",
+      "type": "resource"
+    },
+    {
+      "memory_id": "mem-ad9b563dfc304616",
+      "receipt_id": "receipt-65b7b59ee2bd469e",
+      "label": "Firebase dual-mode integration (client and admin)",
+      "type": "state"
+    },
+    {
+      "memory_id": "mem-84ce95a6fafa4363",
+      "receipt_id": "receipt-4d2f64d7b5c64619",
+      "label": "Express server with Passport session authentication",
+      "type": "resource"
+    },
+    {
+      "memory_id": "mem-be208fcffca44e7e",
+      "receipt_id": "receipt-545e316d46b74ebe",
+      "label": "Schema push to database via Drizzle Kit",
+      "type": "action"
+    },
+    {
+      "memory_id": "mem-c7ccb4699469443d",
+      "receipt_id": "receipt-904fa8e8c9994a4d",
+      "label": "Document ingested: App.tsx",
+      "type": "signal"
     }
   ],
   "promoted_instance": [
