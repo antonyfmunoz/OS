@@ -9,13 +9,14 @@ from __future__ import annotations
 
 import ast
 import importlib.util
+import os
 import re
 import sys
 from pathlib import Path
 
 from .base import ParsedFile, ParsedImport, ParsedSymbol, Parser
 
-ROOT = Path("/opt/OS")
+ROOT = Path(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or "/opt/OS")
 ENTRY_PATTERNS = [
     r'if\s+__name__\s*==\s*["\']__main__["\']',
     r"app\.run\(",

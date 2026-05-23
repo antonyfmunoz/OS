@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
 from .base import ParsedFile, ParsedImport, ParsedSymbol, Parser
 
-ROOT = Path("/opt/OS")
+ROOT = Path(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or "/opt/OS")
 
 RE_CREATE = re.compile(
     r"""create\s+(?:or\s+replace\s+)?(?:table|view|materialized\s+view)\s+(?:if\s+not\s+exists\s+)?['"`]?(?P<name>[\w.]+)['"`]?""",
