@@ -2,7 +2,7 @@
 
 import sys
 
-sys.path.insert(0, "/opt/OS/.claude/worktrees/substrate-unification")
+sys.path.insert(0, "/opt/OS/.claude/worktrees/full-convergence")
 
 from unittest.mock import MagicMock
 
