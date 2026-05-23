@@ -13,8 +13,8 @@ load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT')
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'services', '.env'))
 
 from adapters.google_workspace.email_gps import EmailGPS
-from state.context.context import load_context_from_env
-from interface.discord.discord_utils import post_to_webhook
+from substrate.state.context.context import load_context_from_env
+from transports.discord.discord_utils import post_to_webhook
 
 ctx       = load_context_from_env()
 gps       = EmailGPS(ctx)

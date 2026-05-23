@@ -24,10 +24,10 @@ GENERAL_CHANNEL_ID = 1486289444830056540
 
 
 async def build_intel_brief():
-    from state.context.context import load_context_from_env
-    from state.storage.db import get_conn
-    from execution.runtime.model_router import get_router, TaskType
-    from control_plane.strategy.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
+    from substrate.state.context.context import load_context_from_env
+    from substrate.state.storage.db import get_conn
+    from substrate.execution.runtime.model_router import get_router, TaskType
+    from substrate.control_plane.strategy.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
     import json as _json
 
     ctx = load_context_from_env()

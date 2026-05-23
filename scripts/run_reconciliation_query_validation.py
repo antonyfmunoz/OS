@@ -15,8 +15,8 @@ from pathlib import Path
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from state.memory.contracts.canonical_memory_reconciliation_engine_v1 import ReconciliationEngine
-from state.memory.contracts.canonical_memory_store_v1 import CanonicalMemoryStore
+from substrate.state.memory.contracts.canonical_memory_reconciliation_engine_v1 import ReconciliationEngine
+from substrate.state.memory.contracts.canonical_memory_store_v1 import CanonicalMemoryStore
 
 STORE_DIR = Path("data/runtime/reconciliation_memory_store")
 RECEIPTS_DIR = Path("data/runtime/reconciliation_receipts")

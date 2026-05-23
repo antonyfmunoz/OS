@@ -40,8 +40,8 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-from composition.mastery.management.coverage import evaluate_coverage  # noqa: E402
-from composition.mastery.management.paths import SKILLS_TOOLS_DIR  # noqa: E402
+from substrate.composition.mastery.management.coverage import evaluate_coverage  # noqa: E402
+from substrate.composition.mastery.management.paths import SKILLS_TOOLS_DIR  # noqa: E402
 
 VALID_WORK_TYPES = ("research", "refresh", "repair")
 
@@ -121,8 +121,8 @@ def _drain_author_queue(*, tool_filter: str | None, json_only: bool) -> int:
     ``scripts/tool_mastery_author.py`` with the inputs that were queued
     by the Research Agent.
     """
-    from control_plane.actions.control_plane import resume_action
-    from control_plane.actions.deferred import list_deferred
+    from substrate.control_plane.actions.control_plane import resume_action
+    from substrate.control_plane.actions.deferred import list_deferred
 
     deferred = list_deferred()
     matches = [
@@ -231,8 +231,8 @@ def main() -> int:
     if args.execute:
         # delegate to the research agent; honest v1 — plans are replaced
         # by a real run with artifacts under logs/tool_mastery_research/
-        from composition.mastery.research.agent import run as _run_research
-        from composition.mastery.research.models import (
+        from substrate.composition.mastery.research.agent import run as _run_research
+        from substrate.composition.mastery.research.models import (
             ResearchMode,
             ResearchRequest,
         )

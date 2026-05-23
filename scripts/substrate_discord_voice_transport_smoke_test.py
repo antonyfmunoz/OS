@@ -29,11 +29,11 @@ import sys
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from execution.transport.audio_loop import (  # noqa: E402
+from substrate.execution.transport.audio_loop import (  # noqa: E402
     get_audio_loop_store,
     reset_audio_loop_store_for_tests,
 )
-from execution.transport.discord_voice_transport import (  # noqa: E402
+from substrate.execution.transport.discord_voice_transport import (  # noqa: E402
     DiscordVoiceTransport,
     get_default_discord_voice_transport,
     get_transport_history,
@@ -41,9 +41,9 @@ from execution.transport.discord_voice_transport import (  # noqa: E402
     reset_default_discord_voice_transports_for_tests,
     reset_transport_history_for_tests,
 )
-from execution.transport.station_bus import get_station_bus  # noqa: E402
-from execution.transport.station_daemon import StationDaemon  # noqa: E402
-from execution.transport.voice_session import (  # noqa: E402
+from substrate.execution.transport.station_bus import get_station_bus  # noqa: E402
+from substrate.execution.transport.station_daemon import StationDaemon  # noqa: E402
+from substrate.execution.transport.voice_session import (  # noqa: E402
     VoiceSessionStatus,
     VoiceTurnSource,
     get_voice_session_store,
@@ -184,10 +184,10 @@ def main() -> int:
     import importlib
 
     for mod in (
-        "control_plane.runtime.gateway",
-        "control_plane.runtime.cognitive_loop",
-        "execution.runtime.model_router",
-        "execution.runtime.agent_runtime",
+        "substrate.control_plane.runtime.gateway",
+        "substrate.control_plane.runtime.cognitive_loop",
+        "substrate.execution.runtime.model_router",
+        "substrate.execution.runtime.agent_runtime",
         "runtime.primitives",
     ):
         try:

@@ -52,9 +52,9 @@ app.add_middleware(
 # ─── ExecutionSpine import (production path) ──────────────────────────────────
 _HAS_SPINE = False
 try:
-    from execution.runtime.execution_spine import ExecutionSpine
-    from control_plane.context.context_builder import ContextBuilder
-    from state.context.context import load_context_from_env
+    from substrate.execution.runtime.execution_spine import ExecutionSpine
+    from substrate.control_plane.context.context_builder import ContextBuilder
+    from substrate.state.context.context import load_context_from_env
 
     _spine = ExecutionSpine()
     _ctx_builder = ContextBuilder()
@@ -265,7 +265,7 @@ async def ingest_trigger(request: Request) -> dict[str, Any]:
 
     # Attempt to trigger ingestion via the orchestrator
     try:
-        from runtime.ingestion import GenericIngestionOrchestrator
+        from substrate.understanding.perception.orchestrator import GenericIngestionOrchestrator
 
         orchestrator = GenericIngestionOrchestrator()
         result = await asyncio.to_thread(orchestrator.ingest, source=source, path=path)
@@ -300,7 +300,7 @@ def _generate_tts(text: str) -> str | None:
 
 async def _voice_respond(transcript: str) -> dict[str, Any]:
     """Route a voice transcript through model_router and prepare voice response."""
-    from execution.transport.voice_first import (
+    from substrate.execution.transport.voice_first import (
         VOICE_SYSTEM_SUFFIX,
         prepare_voice_response,
     )
@@ -309,7 +309,7 @@ async def _voice_respond(transcript: str) -> dict[str, Any]:
 
     # Route through model_router (same chain as Discord voice)
     try:
-        from runtime.model_router import call_with_fallback
+        from adapters.models.model_router import call_with_fallback
 
         voice_prompt = transcript + VOICE_SYSTEM_SUFFIX
         raw_response = await asyncio.to_thread(
@@ -345,7 +345,7 @@ async def voice_tts(request: Request) -> Any:
     if not text:
         raise HTTPException(status_code=400, detail="text field required")
 
-    from execution.transport.voice_first import prepare_voice_response
+    from substrate.execution.transport.voice_first import prepare_voice_response
 
     cleaned = prepare_voice_response(text)
     path = await asyncio.to_thread(_generate_tts, cleaned)
@@ -381,7 +381,7 @@ async def _vision_analyze(
     vision_prompt = prompt or "Describe what you see in this image concisely."
 
     try:
-        from execution.runtime.model_router import call_with_fallback
+        from substrate.execution.runtime.model_router import call_with_fallback
 
         result = await asyncio.to_thread(
             call_with_fallback,
@@ -487,7 +487,7 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                 # Route through model_router (fixes _HAS_COGNITIVE_LOOP NameError)
                 start = time.time()
                 try:
-                    from runtime.model_router import call_with_fallback
+                    from adapters.models.model_router import call_with_fallback
 
                     result = await asyncio.to_thread(
                         call_with_fallback,

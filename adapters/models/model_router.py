@@ -9,7 +9,7 @@ Used directly by WorldPulse and other modules that need a simple
 "give me the best model for this task" API.
 
 Usage:
-    from execution.runtime.model_router import get_router, TaskType
+    from substrate.execution.runtime.model_router import get_router, TaskType
 
     router = get_router()
     print(router.get_status())
@@ -44,7 +44,7 @@ try:
 except Exception:
     pass
 
-from state.providers.provider_state import get_system_state
+from substrate.state.providers.provider_state import get_system_state
 
 logger = logging.getLogger(__name__)
 
@@ -154,7 +154,7 @@ def _circuit_record_failure() -> None:
         },
     )
     try:
-        from state.providers.provider_state import get_system_state
+        from substrate.state.providers.provider_state import get_system_state
 
         get_system_state().record_all_providers_failed()
     except Exception:
@@ -178,7 +178,7 @@ def _track_provider_result(provider_name: str, success: bool) -> None:
             },
         )
     try:
-        from state.providers.provider_state import get_system_state
+        from substrate.state.providers.provider_state import get_system_state
 
         state = get_system_state()
         if success:
@@ -1094,7 +1094,7 @@ def call_with_fallback(
 
     # ── Capability routing: detect if a specialized tool should handle this ──
     try:
-        from execution.runtime.capability_router import (
+        from substrate.execution.runtime.capability_router import (
             detect_capability,
             route_capability,
             _LLM_ONLY_CAPABILITIES,
@@ -1147,7 +1147,7 @@ def call_with_fallback(
     )
     if cli_enabled:
         try:
-            from execution.transport.claude_responder import (
+            from substrate.execution.transport.claude_responder import (
                 DEFAULT_SESSION_NAME,
                 DEFAULT_TARGET,
                 respond_via_claude_session,
@@ -1168,7 +1168,7 @@ def call_with_fallback(
             # and product contexts isolated without forking the pipeline.
             mode_label = None
             try:
-                from execution.transport.discord_mode_routing import (
+                from substrate.execution.transport.discord_mode_routing import (
                     current_mode_context,
                 )
 
@@ -1461,7 +1461,7 @@ def _stamp_trace(provider: str, model: str, latency_ms: int, result: str) -> Non
     if "fail" not in result:
         _circuit_record_success()
     try:
-        from execution.transport.execution_trace import get_current_trace, finalize_trace
+        from substrate.execution.transport.execution_trace import get_current_trace, finalize_trace
 
         trace = get_current_trace()
         if trace is not None:

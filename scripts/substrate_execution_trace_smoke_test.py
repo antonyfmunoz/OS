@@ -33,7 +33,7 @@ def _header(msg: str) -> None:
 
 
 def main() -> int:
-    from execution.transport.execution_trace import (
+    from substrate.execution.transport.execution_trace import (
         _TraceHistory,
         clear_current_trace,
         finalize_trace,
@@ -275,7 +275,7 @@ def main() -> int:
     # ── 17. Hot-path import clean ────────────────────────────────────────
     _header("17. hot-path import")
     try:
-        mod = importlib.import_module("execution.transport.execution_trace")
+        mod = importlib.import_module("substrate.execution.transport.execution_trace")
         import_ok = mod is not None
     except Exception as exc:
         import_ok = False
@@ -383,9 +383,9 @@ def main() -> int:
     with open(transport_path) as f:
         transport_src = f.read()
     # Must not import cognitive_loop directly
-    has_cognitive_import = "from control_plane.runtime.cognitive_loop" in transport_src
+    has_cognitive_import = "from substrate.control_plane.runtime.cognitive_loop" in transport_src
     # Must not import gateway directly
-    has_gateway_import = "from control_plane.runtime.gateway" in transport_src
+    has_gateway_import = "from substrate.control_plane.runtime.gateway" in transport_src
     check(
         "24. discord_text_transport does not import cognitive_loop or gateway",
         not has_cognitive_import and not has_gateway_import,

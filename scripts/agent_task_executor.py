@@ -101,8 +101,8 @@ def execute_agent_task(task: dict, ctx) -> dict:
     Execute a single agent task through the cognitive loop.
     Returns a result dict with status, output, agent_id, display_name, tokens.
     """
-    from control_plane.runtime.cognitive_loop import CognitiveLoop
-    from execution.runtime.agent_runtime import TaskType
+    from substrate.control_plane.runtime.cognitive_loop import CognitiveLoop
+    from substrate.execution.runtime.agent_runtime import TaskType
 
     agent_id = task.get('assignee_id', 'default_agent')
     description = task.get('description', '')
@@ -174,8 +174,8 @@ def requires_approval(task: dict, result: dict) -> bool:
 
 async def run_executor():
     """Main executor loop — poll, execute, mark complete, surface to Discord."""
-    from state.context.context import load_context_from_env
-    from control_plane.coordination.coordination_engine import CoordinationEngine
+    from substrate.state.context.context import load_context_from_env
+    from substrate.control_plane.coordination.coordination_engine import CoordinationEngine
 
     print(f'[Executor] Starting — {datetime.now(PDT).strftime("%Y-%m-%d %H:%M:%S %Z")}')
 
@@ -239,7 +239,7 @@ async def run_executor():
                 requires_approval=needs_approval,
             )
             if notion_page_id:
-                from state.stores.task_store import TaskStore
+                from substrate.state.stores.task_store import TaskStore
                 TaskStore().set_notion_page_id(
                     org_id=str(ctx.org_id),
                     task_id=task_id,
@@ -262,7 +262,7 @@ async def run_executor():
         }
 
         try:
-            from state.memory.memory import AgentMemory
+            from substrate.state.memory.memory import AgentMemory
             AgentMemory().log_event(
                 org_id=str(ctx.org_id),
                 event_type='agent_task_result',

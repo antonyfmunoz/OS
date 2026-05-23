@@ -50,7 +50,7 @@ def section(title: str) -> None:
 
 section("1. Product mode — internal leakage detection")
 
-from execution.transport.mode_behavior import shape_reply, detect_internal_leakage
+from substrate.execution.transport.mode_behavior import shape_reply, detect_internal_leakage
 
 # Text with internal references
 internal_text = (
@@ -116,7 +116,7 @@ _result(
 
 section("3. /clear — session clear via bridge")
 
-from execution.transport.session_control import clear_session
+from substrate.execution.transport.session_control import clear_session
 
 # This will fail if tmux is not available or session doesn't exist —
 # that's expected in CI. We validate the function exists, is callable,
@@ -142,7 +142,7 @@ _result(
 
 section("4. /reset — session reset via bridge")
 
-from execution.transport.session_control import reset_session
+from substrate.execution.transport.session_control import reset_session
 
 result = reset_session("vps", "dex_smoke_test_nonexistent")
 _result(
@@ -165,7 +165,7 @@ _result(
 
 section("5. Auto-clear — message counting + threshold trigger")
 
-from execution.transport.session_control import (
+from substrate.execution.transport.session_control import (
     get_message_count,
     maybe_auto_clear,
     reset_counters_for_tests,
@@ -213,15 +213,15 @@ reset_counters_for_tests()
 section("6. Tripwire — shared router, no bypass")
 
 # Verify mode_behavior does NOT import any hot-path modules
-import execution.transport.mode_behavior as mb
+import substrate.execution.transport.mode_behavior as mb
 
 mb_source = inspect.getsource(mb)
 hot_path_imports = [
-    "from control_plane.runtime.gateway",
-    "from control_plane.runtime.cognitive_loop",
-    "from execution.runtime.model_router",
-    "from execution.runtime.agent_runtime",
-    "from understanding.ontology.primitives",
+    "from substrate.control_plane.runtime.gateway",
+    "from substrate.control_plane.runtime.cognitive_loop",
+    "from substrate.execution.runtime.model_router",
+    "from substrate.execution.runtime.agent_runtime",
+    "from substrate.understanding.ontology.primitives",
 ]
 for hp in hot_path_imports:
     _result(
@@ -231,7 +231,7 @@ for hp in hot_path_imports:
     )
 
 # Verify session_control does NOT import hot-path modules
-import execution.transport.session_control as sc
+import substrate.execution.transport.session_control as sc
 
 sc_source = inspect.getsource(sc)
 for hp in hot_path_imports:
@@ -242,7 +242,7 @@ for hp in hot_path_imports:
     )
 
 # Verify maybe_mirror still calls ingest_text_message (router path)
-from execution.transport import discord_text_transport as dtt
+from substrate.execution.transport import discord_text_transport as dtt
 
 dtt_source = inspect.getsource(dtt.maybe_mirror_discord_text_message)
 _result(
@@ -255,7 +255,7 @@ _result(
 
 section("7. TTS — body-only behavior preserved")
 
-from execution.transport.discord_text_transport import build_tts_reply_envelope
+from substrate.execution.transport.discord_text_transport import build_tts_reply_envelope
 
 os.environ["EOS_DISCORD_TEXT_TRANSPORT_ENABLED"] = "true"
 os.environ["EOS_DISCORD_TEXT_REPLY_TTS_ENABLED"] = "true"
@@ -301,11 +301,11 @@ else:
 section("8. No hot-path regressions — import verification")
 
 modules_to_check = [
-    "execution.transport.mode_behavior",
-    "execution.transport.session_control",
-    "execution.transport.discord_text_transport",
-    "execution.transport.discord_mode_routing",
-    "execution.transport.claude_session_bridge",
+    "substrate.execution.transport.mode_behavior",
+    "substrate.execution.transport.session_control",
+    "substrate.execution.transport.discord_text_transport",
+    "substrate.execution.transport.discord_mode_routing",
+    "substrate.execution.transport.claude_session_bridge",
 ]
 
 for mod_name in modules_to_check:

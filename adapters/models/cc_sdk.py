@@ -105,7 +105,7 @@ class CCResult:
 def _track_cc_sdk_result(success: bool) -> None:
     """Feed cc_sdk outcome into the global provider state."""
     try:
-        from state.providers.provider_state import get_system_state
+        from substrate.state.providers.provider_state import get_system_state
 
         state = get_system_state()
         if success:
@@ -401,7 +401,7 @@ def query_cc_sync(
         timeout = _resolve_timeout()
     # Backpressure: don't spawn subprocesses when system is degraded
     try:
-        from state.providers.provider_state import get_system_state
+        from substrate.state.providers.provider_state import get_system_state
 
         if not get_system_state().allow_execution():
             logger.info("[cc_sdk] blocked by backpressure gate")

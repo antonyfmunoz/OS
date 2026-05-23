@@ -23,7 +23,7 @@ from adapters.adapter_engine.capability_catalog import (
     CatalogEntry,
 )
 from adapters.adapter_engine.modality import ModalityType
-from composition.mastery.research.source_discovery import discover_sources
+from substrate.composition.mastery.research.source_discovery import discover_sources
 
 _CAP_ID_RE = re.compile(r"^[a-z][a-z0-9_-]+$")
 _MAX_EVIDENCE_LEN = 500
@@ -167,8 +167,8 @@ class CapabilityDiscoveryOrchestrator:
 
     def _run_research(self, adapter_type: str, vendor_url: str) -> tuple[dict | None, str]:
         """Run TME research agent. Returns (artifact_data, raw_excerpt)."""
-        from composition.mastery.research.agent import run as research_run
-        from composition.mastery.research.models import (
+        from substrate.composition.mastery.research.agent import run as research_run
+        from substrate.composition.mastery.research.models import (
             ResearchMode,
             ResearchRequest,
             ResearchStatus,
@@ -248,7 +248,7 @@ class CapabilityDiscoveryOrchestrator:
 
         for attempt in range(2):
             try:
-                from execution.runtime.model_router import (
+                from substrate.execution.runtime.model_router import (
                     TaskType,
                     call_with_fallback,
                 )

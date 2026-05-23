@@ -31,7 +31,7 @@ import time
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from execution.transport import meeting_intelligence as mi  # noqa: E402
+from substrate.execution.transport import meeting_intelligence as mi  # noqa: E402
 
 
 class _FakeResult:
@@ -295,7 +295,7 @@ def main() -> int:
     import control_plane.runtime.cognitive_loop  # noqa: F401
     import execution.runtime.model_router  # noqa: F401
     import execution.runtime.agent_runtime  # noqa: F401
-    import understanding.ontology.primitives  # noqa: F401
+    import substrate.understanding.ontology.primitives  # noqa: F401
 
     print("EXECUTION INTELLIGENCE SMOKE TEST PASSED")
     return 0

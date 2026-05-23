@@ -31,14 +31,14 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-from control_plane.router.control_plane_router_v1 import ControlPlaneRouterV1
-from control_plane.router.router_contracts import (
+from substrate.control_plane.router.control_plane_router_v1 import ControlPlaneRouterV1
+from substrate.control_plane.router.router_contracts import (
     RouterDecision,
     RouterStatus,
     RuntimeProofReference,
     WorkPacket,
 )
-from state.memory.contracts.canonical_memory_query_contracts import (
+from substrate.state.memory.contracts.canonical_memory_query_contracts import (
     FORBIDDEN_QUERY_ACTIONS,
     CanonicalMemoryQuery,
     MemoryLineageReference,
@@ -47,8 +47,8 @@ from state.memory.contracts.canonical_memory_query_contracts import (
     QueryScope,
 )
 from adapters.adapter_engine.adapter_registry_contracts import AdapterRegistry
-from execution.runtime.worker_runtime_contracts import ProofStatus, RuntimeProofRecord
-from state.transformation_state_ledger import (
+from substrate.execution.runtime.worker_runtime_contracts import ProofStatus, RuntimeProofRecord
+from substrate.state.transformation_state_ledger import (
     GOVERNANCE_REQUIRED_STAGES,
     VALID_TRANSITIONS,
     StateArtifactReference,
@@ -59,7 +59,7 @@ from state.transformation_state_ledger import (
     make_state_id,
     make_trace_id,
 )
-from runtime.interfaces.discord_interface_adapter_v1 import (
+from transports.discord.interface_adapter_v1 import (
 
     build_work_packet_for_router,
     format_router_result,

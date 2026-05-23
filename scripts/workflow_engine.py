@@ -436,7 +436,7 @@ class StepExecutor:
 
     # ── Lazy imports so `--help` and dry-run don't require full env ──────
     def _router_call(self) -> Callable[..., Any]:
-        from execution.runtime.model_router import call_with_fallback
+        from substrate.execution.runtime.model_router import call_with_fallback
 
         return call_with_fallback
 
@@ -913,8 +913,8 @@ class WorkflowEngine:
         if not self.env.is_production:
             return
         try:
-            from execution.runtime.agent_runtime import AgentResult
-            from state.memory.memory import AgentMemory
+            from substrate.execution.runtime.agent_runtime import AgentResult
+            from substrate.state.memory.memory import AgentMemory
 
             summary_bits = []
             for s in wf.steps:

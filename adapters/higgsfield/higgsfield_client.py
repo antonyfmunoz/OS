@@ -12,7 +12,6 @@ Thin layer over the first-party `higgsfield-client` Python SDK that:
 
 See /opt/OS/skills/tools/higgsfield/ for the full skill reference.
 """
-
 from __future__ import annotations
 
 import json
@@ -20,24 +19,9 @@ import os
 import sys
 from dotenv import load_dotenv
 
-# /opt/OS on sys.path so we can import state.storage.db
-sys.path.insert(
-    0,
-    os.environ.get("UMH_ROOT")
-    or os.environ.get("OS_ROOT")
-    or os.environ.get("EOS_ROOT")
-    or "/opt/OS",
-)
-load_dotenv(
-    os.path.join(
-        os.environ.get("UMH_ROOT")
-        or os.environ.get("OS_ROOT")
-        or os.environ.get("EOS_ROOT")
-        or "/opt/OS",
-        "runtime",
-        ".env",
-    )
-)
+# /opt/OS on sys.path so we can import substrate.state.storage.db
+sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 
 # Shim the verbose EOS env var names to the SDK's expected names BEFORE
 # importing the SDK (the SDK reads env vars at call time, not import time,
@@ -50,7 +34,7 @@ if _EOS_KEY and _EOS_SECRET:
 
 import higgsfield_client as hf  # noqa: E402
 
-from state.storage.db import get_conn  # noqa: E402
+from substrate.state.storage.db import get_conn  # noqa: E402
 
 WEBHOOK_URL = os.getenv(
     "HIGGSFIELD_WEBHOOK_URL",
@@ -101,8 +85,7 @@ def generate(
         # status url format: .../requests/{request_id}/status
         request_id = urls["status_url"].rstrip("/").rsplit("/", 2)[-2]
 
-    from state.stores.higgsfield_store import HiggsFieldStore
-
+    from substrate.state.stores.higgsfield_store import HiggsFieldStore
     HiggsFieldStore().insert_job(
         request_id=request_id,
         venture=venture,
@@ -122,8 +105,7 @@ def get_status(request_id: str) -> str:
 def cancel(request_id: str) -> None:
     """Cancel a queued request."""
     hf.cancel(request_id)
-    from state.stores.higgsfield_store import HiggsFieldStore
-
+    from substrate.state.stores.higgsfield_store import HiggsFieldStore
     HiggsFieldStore().update_status(request_id=request_id, status="Cancelled")
 
 

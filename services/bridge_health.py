@@ -175,7 +175,7 @@ def _kill_bridge_via_ssh() -> dict[str, Any]:
 def _surface_error(message: str) -> None:
     """Surface a bridge lifecycle error to Discord."""
     try:
-        from interface.discord.discord_utils import post_to_webhook
+        from transports.discord.discord_utils import post_to_webhook
 
         post_to_webhook(
             content=f"🚨 **Bridge Lifecycle Error**\n```\n{message}\n```",
@@ -218,7 +218,7 @@ def _surface_setup_gate() -> None:
         "After this, bridge auto-recovery works forever. Zero awareness needed."
     )
     try:
-        from interface.discord.discord_utils import post_to_webhook
+        from transports.discord.discord_utils import post_to_webhook
 
         post_to_webhook(content=msg, title="", username="DEX-WATCHDOG")
     except Exception:

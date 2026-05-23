@@ -77,7 +77,7 @@ class ConcreteComponentRegistry:
             import sys
 
             sys.path.insert(0, "/opt/OS")
-            from state.storage.db import get_conn
+            from substrate.state.storage.db import get_conn
 
             with get_conn("munoz-holdings") as cur:
                 cur.execute("SELECT id, name FROM agents WHERE active = true")

@@ -1,32 +1,20 @@
-"""Worker cell — bounded task execution through the substrate spine.
-
-Legacy pipeline removed during convergence. WorkerCell now routes through
-the substrate execution spine, falling back to a no-op result when the
-spine is unavailable.
-"""
+"""Worker cell — bounded task execution through the existing pipeline."""
 
 from __future__ import annotations
 
-import logging
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID
 
-from pydantic import BaseModel, Field
-
+from substrate.execution.pipeline import ExecutionPipeline, PipelineResult
+from substrate.execution.executor import build_default_executor
+from substrate.governance.risk_classes import RiskClass
 from substrate.organism.protocols import WorkerSpec
-
-logger = logging.getLogger(__name__)
-
-
-class WorkerResult(BaseModel):
-    success: bool = True
-    output: str = ""
-    trace_id: UUID = Field(default_factory=uuid4)
+from substrate.types import SignalSource
 
 
 class WorkerCell:
-    def __init__(self, spine: Any = None) -> None:
-        self._spine = spine
+    def __init__(self, pipeline: ExecutionPipeline | None = None) -> None:
+        self._pipeline = pipeline or ExecutionPipeline(executor=build_default_executor())
 
     def execute(
         self,
@@ -35,10 +23,24 @@ class WorkerCell:
         adapter_name: str = "shell",
         operation: str = "query",
         params: dict[str, Any] | None = None,
-    ) -> WorkerResult:
-        if self._spine is None:
-            logger.warning("WorkerCell: no spine wired, returning no-op result for %s", spec.task[:80])
-            return WorkerResult(success=True, output="no spine available")
+    ) -> PipelineResult:
+        try:
+            risk = RiskClass[spec.risk_class]
+        except KeyError:
+            risk = RiskClass.READ_ONLY
 
-        logger.info("WorkerCell: executing task via spine: %s", spec.task[:80])
-        return WorkerResult(success=True, output="executed via spine")
+        return self._pipeline.submit_signal(
+            spec.task,
+            source=SignalSource.INTERNAL_EVENT,
+            risk_class=risk,
+            adapter_name=adapter_name,
+            operation=operation,
+            params=params or {},
+            metadata={
+                "worker_cell_id": str(spec.id),
+                "parent_agent_id": spec.parent_agent_id,
+                "environment_id": spec.environment_id,
+                "model_tier": spec.model_tier,
+                "parent_trace_id": str(spec.parent_trace_id) if spec.parent_trace_id else None,
+            },
+        )

@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from adapters.adapter_engine.adapter_manifest import AdapterMaturityLevel
-from execution.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
+from substrate.execution.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
 
 # Positional mapping: actuator level N maps to adapter level N.
 # Labels differ (SIMULATED vs REGISTERED, SCREENSHOT_VERIFIED vs OPTIMIZED)

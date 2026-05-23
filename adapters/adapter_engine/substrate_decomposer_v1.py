@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
-from understanding.ontology.primitive_decomposition_v1 import (
+from substrate.understanding.ontology.primitive_decomposition_v1 import (
     DecompositionResult,
     PrimitiveObservation,
     PrimitiveRelationship,

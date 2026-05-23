@@ -202,8 +202,8 @@ async def _ingest_claude_export(extract_dir: Path) -> bool:
         return False
 
     from adapters.data_source_adapters.local_file_source import LocalFileSource
-    from governance.policy.authority_tier import T2_PRIMARY
-    from understanding.perception.orchestrator import GenericIngestionOrchestrator
+    from substrate.governance.policy.authority_tier import T2_PRIMARY
+    from substrate.understanding.perception.orchestrator import GenericIngestionOrchestrator
 
     orchestrator = GenericIngestionOrchestrator(
         memory_store_path=_MEMORY_STORE,
@@ -228,8 +228,8 @@ async def _ingest_chatgpt_export(extract_dir: Path) -> bool:
             return False
 
     from adapters.data_source_adapters.local_file_source import LocalFileSource
-    from governance.policy.authority_tier import T2_PRIMARY
-    from understanding.perception.orchestrator import GenericIngestionOrchestrator
+    from substrate.governance.policy.authority_tier import T2_PRIMARY
+    from substrate.understanding.perception.orchestrator import GenericIngestionOrchestrator
 
     orchestrator = GenericIngestionOrchestrator(
         memory_store_path=_MEMORY_STORE,
@@ -260,8 +260,8 @@ async def _ingest_instagram_export(extract_dir: Path) -> bool:
         logger.warning("No saved_posts.json in Instagram export — ingesting as generic")
         # Fall through to generic ingestion of all JSON files
         from adapters.data_source_adapters.local_file_source import LocalFileSource
-        from governance.policy.authority_tier import T4_SUPPORTING
-        from understanding.perception.orchestrator import GenericIngestionOrchestrator
+        from substrate.governance.policy.authority_tier import T4_SUPPORTING
+        from substrate.understanding.perception.orchestrator import GenericIngestionOrchestrator
 
         orchestrator = GenericIngestionOrchestrator(
             memory_store_path=_MEMORY_STORE,

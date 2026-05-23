@@ -36,7 +36,7 @@ class ConcreteMemorySystem:
 
         sys.path.insert(0, "/opt/OS")
         try:
-            from state.memory.memory import AgentMemory, ConversationMemory
+            from substrate.state.memory.memory import AgentMemory, ConversationMemory
 
             self._agent_memory = AgentMemory()
             self._conversation_memory = ConversationMemory()
