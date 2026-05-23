@@ -5,7 +5,7 @@ Lightweight keyword routing layer. Runs before the cognitive loop
 so the right agent gets context injected before it responds.
 
 Usage:
-    from substrate.control_plane.routing.intent_router import IntentRouter, IntentDomain
+    from substrate.control_plane.router.intent_router import IntentRouter, IntentDomain
     ir = IntentRouter(ctx)
     domain = ir.route("How is my portfolio doing?")
     agent  = ir.get_agent(domain)
