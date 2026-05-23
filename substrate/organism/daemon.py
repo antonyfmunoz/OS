@@ -9,7 +9,7 @@ from substrate.organism.advisor import Advisor
 from substrate.organism.approval_store import ApprovalStore
 from substrate.organism.store import OrganismStore
 from substrate.organism.worker_cell import WorkerCell
-from services.umh.control_plane.pipeline import ExecutionPipeline
+from substrate.execution.pipeline import ExecutionPipeline
 
 logger = logging.getLogger(__name__)
 

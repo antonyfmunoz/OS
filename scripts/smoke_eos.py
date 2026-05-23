@@ -38,11 +38,11 @@ for _env in _env_candidates:
 sys.path.insert(0, str(_repo_root))
 
 import psycopg2
-from services.umh.integrations.eos.correlation import EOSCorrelationMap
-from services.umh.integrations.eos.poller import EOSPoller
-from services.umh.integrations.eos.signals import EOSSignalEmitter
-from services.umh.integrations.eos.tables import fetch_org_ids, insert_test_event
-from services.umh.integrations.notion.watermarks import WatermarkStore
+from substrate.integrations.eos.correlation import EOSCorrelationMap
+from substrate.integrations.eos.poller import EOSPoller
+from substrate.integrations.eos.signals import EOSSignalEmitter
+from substrate.integrations.eos.tables import fetch_org_ids, insert_test_event
+from substrate.integrations.notion.watermarks import WatermarkStore
 
 MARKER = "[UMH-TEST]"
 

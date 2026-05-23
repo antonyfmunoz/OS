@@ -17,51 +17,51 @@ from substrate.sockets.protocols import (
 )
 
 # EOS imports
-from services.umh.integrations.eos.correlation import (
+from substrate.integrations.eos.correlation import (
     EOSCorrelationMap,
     EOSWritebackTarget,
 )
-from services.umh.integrations.eos.handlers import EOSCapabilityHandler
-from services.umh.integrations.eos.manifest import (
+from substrate.integrations.eos.handlers import EOSCapabilityHandler
+from substrate.integrations.eos.manifest import (
     INTEGRATION_ID as EOS_ID,
     load_eos_config,
 )
-from services.umh.integrations.eos.signals import EOSSignalEmitter
-from services.umh.integrations.eos.tables import (
+from substrate.integrations.eos.signals import EOSSignalEmitter
+from substrate.integrations.eos.tables import (
     CrmActivityRow,
     CrmContactRow,
     CrmDealRow,
 )
 
 # LyfeOS imports
-from services.umh.integrations.lyfeos.correlation import (
+from substrate.integrations.lyfeos.correlation import (
     LyfeOSCorrelationMap,
     LyfeOSWritebackTarget,
 )
-from services.umh.integrations.lyfeos.handlers import LyfeOSCapabilityHandler
-from services.umh.integrations.lyfeos.manifest import (
+from substrate.integrations.lyfeos.handlers import LyfeOSCapabilityHandler
+from substrate.integrations.lyfeos.manifest import (
     INTEGRATION_ID as LYFEOS_ID,
     load_lyfeos_config,
 )
-from services.umh.integrations.lyfeos.signals import LyfeOSSignalEmitter
-from services.umh.integrations.lyfeos.tables import (
+from substrate.integrations.lyfeos.signals import LyfeOSSignalEmitter
+from substrate.integrations.lyfeos.tables import (
     DailyLogRow,
     QuestRow,
     UserStatsRow,
 )
 
 # CreatorOS imports
-from services.umh.integrations.creatoros.correlation import (
+from substrate.integrations.creatoros.correlation import (
     CreatorOSCorrelationMap,
     CreatorOSWritebackTarget,
 )
-from services.umh.integrations.creatoros.handlers import CreatorOSCapabilityHandler
-from services.umh.integrations.creatoros.manifest import (
+from substrate.integrations.creatoros.handlers import CreatorOSCapabilityHandler
+from substrate.integrations.creatoros.manifest import (
     INTEGRATION_ID as CREATOROS_ID,
     load_creatoros_config,
 )
-from services.umh.integrations.creatoros.signals import CreatorOSSignalEmitter
-from services.umh.integrations.creatoros.tables import (
+from substrate.integrations.creatoros.signals import CreatorOSSignalEmitter
+from substrate.integrations.creatoros.tables import (
     PostRow,
     ProductRow,
     RevenueRow,

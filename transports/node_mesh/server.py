@@ -17,7 +17,7 @@ from typing import Any, Callable
 import websockets
 from websockets.asyncio.server import ServerConnection
 
-from services.umh.execution.executor import WorkPacketExecutor
+from substrate.execution.executor import WorkPacketExecutor
 from transports.node_mesh.config import MeshConfig
 from transports.node_mesh.metrics_buffer import MetricsBuffer, MetricsSnapshot
 from transports.node_mesh.registry import ConnectedNode, NodeCapability, NodeRegistry
@@ -413,7 +413,7 @@ class NodeMeshServer:
 
     def _register_integration(self, node: ConnectedNode) -> None:
         """Create and register a proxy IntegrationManifest for this node."""
-        from services.umh.integrations.node_mesh.manifest import build_node_manifest
+        from substrate.integrations.node_mesh.manifest import build_node_manifest
 
         integration_id = f"node-{node.node_id}"
         manifest = build_node_manifest(node)

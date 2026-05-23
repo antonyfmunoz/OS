@@ -36,8 +36,8 @@ for _env in _env_candidates:
 
 sys.path.insert(0, str(_repo_root))
 
-from services.umh.integrations.notion.auth import discover_database_ids, get_notion_client
-from services.umh.integrations.notion.transforms import (
+from substrate.integrations.notion.auth import discover_database_ids, get_notion_client
+from substrate.integrations.notion.transforms import (
     build_append_block_payload,
     build_create_page_payload,
     build_query_database_payload,

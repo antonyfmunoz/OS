@@ -37,9 +37,9 @@ for _env in _env_candidates:
 sys.path.insert(0, str(_repo_root))
 
 import psycopg2
-from services.umh.integrations.eos.correlation import EOSCorrelationMap, EOSWritebackTarget
-from services.umh.integrations.eos.outcomes import EOSOutcomeReceiver
-from services.umh.integrations.eos.tables import fetch_org_ids
+from substrate.integrations.eos.correlation import EOSCorrelationMap, EOSWritebackTarget
+from substrate.integrations.eos.outcomes import EOSOutcomeReceiver
+from substrate.integrations.eos.tables import fetch_org_ids
 from substrate.sockets.envelopes import OutcomeEnvelope
 
 
