@@ -24,7 +24,7 @@ from substrate.understanding.ontology.primitive_decomposition_v1 import (
     PrimitiveType,
     RelationshipType,
 )
-import understanding.domains.business  # noqa: F401  — auto-registers BusinessBridge
+import substrate.understanding.domains.business  # noqa: F401  — auto-registers BusinessBridge
 from substrate.understanding.domains.contract import DomainProjection
 from substrate.understanding.domains.registry import default_registry as _bridge_registry
 from substrate.governance.policy.authority_tier import T5_DEFAULT, get_authority_tier

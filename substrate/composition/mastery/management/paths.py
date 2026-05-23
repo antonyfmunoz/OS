@@ -1,15 +1,11 @@
-"""Path resolution for the Tool Mastery Manager.
-
-Everything in the manager imports paths from here rather than hardcoding.
-Root resolution delegated to core.paths (UMH_ROOT → OS_ROOT → EOS_ROOT → /opt/OS).
-"""
+"""Path resolution for the Tool Mastery Manager."""
 
 from __future__ import annotations
 
 import os
 from pathlib import Path
 
-from core.paths import ROOT as EOS_ROOT
+EOS_ROOT = Path(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 SKILLS_TOOLS_DIR = EOS_ROOT / "skills" / "tools"
 CONFIG_DIR = EOS_ROOT / "config"
