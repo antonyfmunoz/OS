@@ -334,12 +334,11 @@ Return JSON: {{"answers": true, "answer_summary": "brief summary"}}""",
             mode_context as _mc,
             resolve_discord_mode,
         )
-        from runtime.session_registry import get_registry
-
+        # runtime/ removed in convergence — session_registry no longer exists
+        # Fall through to mode_session resolution without registry lookup
         _discord_mode = resolve_discord_mode(guild_id, channel_id)
 
-        _reg = get_registry()
-        _reg_session = _reg.resolve_by_channel(str(channel_id)) if channel_id else None
+        _reg_session = None  # registry unavailable
 
         if _reg_session:
             _mode_cm = _mc(

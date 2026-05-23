@@ -434,19 +434,13 @@ def _handle_skill_threshold(payload: dict) -> dict:
     skill_threshold → trigger skill_improvement.check_and_improve.
     Runs the improvement cycle for the named skill (or all if not specified).
     """
-    from learning.skills.skill_improvement import SkillImprovementEngine
-
+    # learning/ removed in convergence — SkillImprovementEngine no longer exists
     skill_id = payload.get("skill_id")
     print(
-        f"[EventBus:skill_threshold] running improvement cycle"
-        + (f" for {skill_id}" if skill_id else " (all skills)")
+        f"[EventBus:skill_threshold] skipped — SkillImprovementEngine removed"
+        + (f" (was for {skill_id})" if skill_id else "")
     )
-
-    engine = SkillImprovementEngine()
-    summary = engine.run_improvement_cycle()
-    improved = [s for s in summary if s.get("action") == "improved"]
-    print(f"[EventBus:skill_threshold] {len(improved)} skill(s) improved")
-    return {"improved": len(improved), "summary": summary}
+    return {"improved": 0, "summary": [], "skipped": "learning/ removed in convergence"}
 
 
 def _handle_goal_activated(payload: dict) -> dict:

@@ -52,26 +52,8 @@ def _stream_step_event(
 ) -> None:
     """Best-effort streaming event emission for pipeline steps."""
     try:
-        from runtime.platforms.eos.streaming_bridge import StreamEventType, stream_event
-
-        type_map = {
-            "step_started": StreamEventType.STEP_STARTED,
-            "step_completed": StreamEventType.STEP_COMPLETED,
-            "error": StreamEventType.ERROR,
-        }
-        etype = type_map.get(event_type_name, StreamEventType.INFO)
-        stream_event(
-            etype,
-            message,
-            payload={
-                "pipeline_id": pipeline.pipeline_id,
-                "pipeline_title": pipeline.title,
-                "step_id": step.step_id,
-                "step_index": str(step.step_index),
-                "step_title": step.title or "",
-            },
-            source="pipeline_execution",
-        )
+        # runtime/ removed in convergence — streaming_bridge no longer exists
+        pass
     except Exception as exc:
         _log(f"stream step event failed: {exc}")
 

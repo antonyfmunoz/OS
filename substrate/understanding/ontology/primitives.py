@@ -897,16 +897,8 @@ class ContextualReasoningEngine:
             # Pre-check: look up matching primitive by keyword in principle text
             # This gives richer, structured responses before any AI call
             try:
-                from learning.evolution.evolution_engine import EvolutionEngine
-                _ee = EvolutionEngine(self.ctx)
-                _venture = context.get('venture_id')  # may be None — substrate-neutral
-                _adv_lower = advice.lower()
-                for pid, prim in PRIMITIVE_LIBRARY.items():
-                    _prim_words = prim.principle.lower().split()[:5]
-                    if any(word in _adv_lower for word in _prim_words):
-                        result = _ee.is_primitive_unlocked(pid, _venture)
-                        if not result.get('applies', True):
-                            return result  # return immediately, no further check needed
+                # learning/ removed in convergence — EvolutionEngine no longer exists
+                pass
             except Exception:
                 pass  # pre-check is enhancement — fall through to keyword matching
 

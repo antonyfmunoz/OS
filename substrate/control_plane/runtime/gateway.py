@@ -775,43 +775,11 @@ class EntrepreneurOSGateway:
             except Exception as _st_err:
                 print(f"[Gateway] Stage transition failed: {_st_err}")
 
-        # 2d. Self-awareness — detect any non-stage business change and process it
+        # 2d. Self-awareness — disabled (learning/ removed in convergence)
         if prompt and request.get("type") in ("agent_task", "brief"):
             try:
-                from learning.self_model.self_awareness import SelfAwarenessEngine, ChangeType
-                from substrate.state.context.context import load_context_from_env as _load_ctx_sa
-
-                ctx_sa = _load_ctx_sa()
-                sae = SelfAwarenessEngine(ctx_sa)
-                from substrate.state.business.business_instance import BusinessInstanceManager as _BIM_sa
-
-                _bim_sa = _BIM_sa(ctx_sa)
-                venture_id_sa = (
-                    request.get("venture_id") or _bim_sa.get_default_venture_id()
-                )
-                change = (
-                    sae.detect_change_from_text(prompt, venture_id_sa)
-                    if venture_id_sa
-                    else None
-                )
-                if change and change.change_type not in (
-                    # Skip FIRST_SALE — stage_manager already handles the transition
-                    ChangeType.FIRST_SALE,
-                ):
-                    import asyncio as _asyncio
-
-                    try:
-                        loop_sa = _asyncio.get_event_loop()
-                        if loop_sa.is_running():
-                            # Already in an async context — schedule as a task
-                            _asyncio.ensure_future(sae.process_change(change))
-                        else:
-                            loop_sa.run_until_complete(sae.process_change(change))
-                    except RuntimeError:
-                        new_loop = _asyncio.new_event_loop()
-                        new_loop.run_until_complete(sae.process_change(change))
-                        new_loop.close()
-                    print(f"[SelfAwareness] Processed: {change.change_type.value}")
+                # learning/ removed in convergence — SelfAwarenessEngine no longer exists
+                pass
             except Exception as _sa_err:
                 print(f"[SelfAwareness] {_sa_err}")
 
@@ -1578,30 +1546,10 @@ class EntrepreneurOSGateway:
         except Exception as _ki_err:
             print(f"[Gateway] Knowledge integration failed: {_ki_err}")
 
-        # Feedback loop — log advice as recommendation; detect outcome reports
+        # Feedback loop — disabled (learning/ removed in convergence)
         try:
-            from learning.feedback.feedback_loop import FeedbackLoop
-
-            fl = FeedbackLoop(ctx)
-            if any(
-                signal in (result.output or "").lower()
-                for signal in [
-                    "send",
-                    "do this",
-                    "focus on",
-                    "action:",
-                    "next step",
-                    "today:",
-                    "one thing:",
-                    "start with",
-                ]
-            ):
-                fl.log_recommendation(
-                    content=(result.output or "")[:500],
-                    venture_id=venture_id or "",
-                    context=prompt[:200],
-                )
-            fl.log_outcome(prompt, venture_id or "")
+            # learning/ removed in convergence — FeedbackLoop no longer exists
+            pass
         except Exception as e:
             print(f"[FeedbackLoop] {e}")
 
