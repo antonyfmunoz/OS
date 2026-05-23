@@ -109,7 +109,7 @@ def post_to_webhook(
     # chunk_message() is the actual fix; validator provides awareness.
     # Never replace content here — that would corrupt the chunking.
     try:
-        from governance.validation.output_validator import OutputValidator
+        from substrate.governance.validation.output_validator import OutputValidator
         validator = OutputValidator()
         result = validator.validate_discord_message(content, 'webhook')
         if result.violations:

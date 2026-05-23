@@ -10,7 +10,7 @@ The founder's sovereignty is always preserved — the system never judges,
 it simply asks what happened.
 
 Usage:
-    from governance.accountability.accountability import AccountabilityEngine
+    from substrate.governance.accountability.accountability import AccountabilityEngine
     ae = AccountabilityEngine(ctx)
     commitment = ae.detect_commitment('I will send 20 DMs today', 'lyfe_institute')
     pending = ae.get_pending_follow_ups()

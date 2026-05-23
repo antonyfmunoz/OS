@@ -146,7 +146,7 @@ class ContextBuilder:
 
         # Layer 0c: Quality requirements
         try:
-            from governance.quality.quality_gate import QualityTransformationGate, TransformationResult
+            from substrate.governance.quality.quality_gate import QualityTransformationGate, TransformationResult
             qtg = QualityTransformationGate(ctx)
             pre_result = TransformationResult(
                 original="", transformed="",
@@ -235,7 +235,7 @@ class ContextBuilder:
 
         # Layer 1e-vi: Cross-session behavioral patterns
         try:
-            from understanding.patterns.pattern_engine import PatternEngine
+            from substrate.understanding.patterns.pattern_engine import PatternEngine
             pe = PatternEngine(ctx)
             patterns = pe.analyze(days_back=14)
             if patterns:
@@ -306,7 +306,7 @@ class ContextBuilder:
 
         # Layer 1f: Primitives
         try:
-            from understanding.ontology.primitives import PrimitiveRegistry
+            from substrate.understanding.ontology.primitives import PrimitiveRegistry
             pr = PrimitiveRegistry(ctx)
             prim_ctx = pr.compose_business_context(
                 venture_id or getattr(ctx, "active_venture_id", "") or ""
@@ -364,7 +364,7 @@ class ContextBuilder:
 
         # Human intelligence
         try:
-            from understanding.intelligence.human_intelligence import HumanIntelligenceEngine
+            from substrate.understanding.intelligence.human_intelligence import HumanIntelligenceEngine
             from state.storage.db import get_conn
             hi = HumanIntelligenceEngine(ctx)
             text_lower = (message or "").lower()
@@ -427,7 +427,7 @@ class ContextBuilder:
 
         # Confidentiality
         try:
-            from governance.policies.confidentiality import detect_confidential_context
+            from substrate.governance.policies.confidentiality import detect_confidential_context
             conf = detect_confidential_context(message)
             if conf.get("is_confidential"):
                 level = conf.get("level", "restricted")
@@ -442,7 +442,7 @@ class ContextBuilder:
 
         # Leverage patterns
         try:
-            from understanding.patterns.leverage_patterns import (
+            from substrate.understanding.patterns.leverage_patterns import (
                 detect_leverage_killer, check_solution_standard,
             )
             assassin = detect_leverage_killer(message)
@@ -497,7 +497,7 @@ class ContextBuilder:
 
         # World model context — canonical + instance entries relevant to this message
         try:
-            from understanding.world_model.world_model import WorldModel
+            from substrate.understanding.world_model.world_model import WorldModel
             _wm = WorldModel(org_id=str(ctx.org_id))
             _wm_ctx = _wm.get_context_for_prompt(message)
             if _wm_ctx:

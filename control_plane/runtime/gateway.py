@@ -824,7 +824,7 @@ class EntrepreneurOSGateway:
                 # Input Intelligence Layer — elevate underpowered inputs
                 # before they reach the cognitive loop
                 try:
-                    from understanding.intelligence.input_intelligence import InputIntelligence
+                    from substrate.understanding.intelligence.input_intelligence import InputIntelligence
                     from state.context.context import load_context_from_env as _load_ii_ctx
 
                     _prompt = request.get("prompt", "")
@@ -975,7 +975,7 @@ class EntrepreneurOSGateway:
                 break
 
         try:
-            from governance.quality.quality_gate import QualityTransformationGate
+            from substrate.governance.quality.quality_gate import QualityTransformationGate
 
             from state.context.context import load_context_from_env
 
@@ -1354,7 +1354,7 @@ class EntrepreneurOSGateway:
 
             # Universal agent standards
             try:
-                from governance.principles.principle_engine import PrincipleEngine
+                from substrate.governance.principles.principle_engine import PrincipleEngine
 
                 _pe = PrincipleEngine(ctx)
                 _standards = _pe.format_agent_standards(agent_id)
@@ -1366,7 +1366,7 @@ class EntrepreneurOSGateway:
 
             # Domain-specific principles
             try:
-                from governance.principles.principle_engine import PrincipleEngine
+                from substrate.governance.principles.principle_engine import PrincipleEngine
 
                 _pe_d = PrincipleEngine(ctx)
                 _domain = _AGENT_DOMAIN_MAP.get(agent_id, "ops")
@@ -1390,7 +1390,7 @@ class EntrepreneurOSGateway:
             if agent_id == "executive_assistant":
                 # DEX — inject EA operational standards + leverage detection
                 try:
-                    from understanding.patterns.leverage_patterns import detect_leverage_killer
+                    from substrate.understanding.patterns.leverage_patterns import detect_leverage_killer
 
                     leverage = detect_leverage_killer(prompt)
                     if leverage:
@@ -1561,7 +1561,7 @@ class EntrepreneurOSGateway:
 
         # Permanently integrate this exchange into the knowledge base
         try:
-            from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
+            from substrate.understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
 
             _ki = KnowledgeIntegrator(ctx)
             if prompt and result.output:
@@ -1607,7 +1607,7 @@ class EntrepreneurOSGateway:
 
         # Accountability — detect and log commitments in founder's message
         try:
-            from governance.accountability.accountability import AccountabilityEngine
+            from substrate.governance.accountability.accountability import AccountabilityEngine
 
             ae = AccountabilityEngine(ctx)
             commitment = ae.detect_commitment(prompt, venture_id or "")

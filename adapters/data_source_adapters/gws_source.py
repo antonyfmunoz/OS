@@ -5,8 +5,8 @@ from __future__ import annotations
 import hashlib
 from typing import Any
 
-from governance.policy.authority_tier import T5_DEFAULT, validate_tier
-from understanding.perception.source import RawContent, Source
+from substrate.governance.policy.authority_tier import T5_DEFAULT, validate_tier
+from substrate.understanding.perception.source import RawContent, Source
 
 
 class GWSSource:

@@ -23,7 +23,7 @@ load_dotenv(Path(__file__).parent.parent / "services" / ".env")
 from state.context.context import EntrepreneurOSContext
 from state.storage.db import get_conn, resolve_venture
 from control_plane.events.event_bus import EventBus
-from governance.policy.authority_engine import AuthorityEngine
+from substrate.governance.policy.authority_engine import AuthorityEngine
 
 
 def _utcnow() -> str:
@@ -33,7 +33,7 @@ def _utcnow() -> str:
 def _notify(text: str) -> None:
     """Send notification via channel router."""
     try:
-        from interface.channels.channel import get_channel_router
+        from transports.channels.channel import get_channel_router
 
         router = get_channel_router()
         router.notify(text)

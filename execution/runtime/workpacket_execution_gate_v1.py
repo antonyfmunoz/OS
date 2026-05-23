@@ -34,7 +34,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from governance.policy.execution_authority_engine_v1 import (
+from substrate.governance.policy.execution_authority_engine_v1 import (
     AuthorityClass,
     AuthorityDecision,
     CapabilityAuthority,

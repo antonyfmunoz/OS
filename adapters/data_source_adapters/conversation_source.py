@@ -10,8 +10,8 @@ from typing import Any
 
 sys.path.insert(0, "/opt/OS")
 
-from governance.policy.authority_tier import T9_OLD_CHATS, validate_tier
-from understanding.perception.source import RawContent, Source
+from substrate.governance.policy.authority_tier import T9_OLD_CHATS, validate_tier
+from substrate.understanding.perception.source import RawContent, Source
 
 
 @dataclass

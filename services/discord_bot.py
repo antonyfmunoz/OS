@@ -124,10 +124,10 @@ if _rt_spec and "runtime" not in sys.modules:
 
 from control_plane.runtime.gateway import EntrepreneurOSGateway
 from state.context.context import load_context_from_env
-from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
+from substrate.understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
 from execution.voice.voice_engine import VoiceEngine
 from state.business.business_instance import get_ai_name
-from interface.discord.discord_utils import chunk_message, post_to_webhook
+from transports.discord.discord_utils import chunk_message, post_to_webhook
 from execution.transport.session_discord_bridge import send_reply as _send_reply
 from execution.transport.discord_text_transport import (
     maybe_mirror_discord_text_message as _maybe_pseudo_live_text,
@@ -193,12 +193,12 @@ except Exception as _voice_responder_install_err:  # noqa: BLE001
 
 # ─── Handler imports ─────────────────────────────────────────────────────────
 
-from interface.presence.handlers.intent_handler import run_gateway as _handler_run_gateway
-from interface.presence.handlers.intent_handler import CHANNEL_MAP as _HANDLER_CHANNEL_MAP
-from interface.presence.handlers.pipeline_handler import handle_pipeline_update
-from interface.presence.handlers.cc_command_handler import try_inline_commands
+from transports.presence.handlers.intent_handler import run_gateway as _handler_run_gateway
+from transports.presence.handlers.intent_handler import CHANNEL_MAP as _HANDLER_CHANNEL_MAP
+from transports.presence.handlers.pipeline_handler import handle_pipeline_update
+from transports.presence.handlers.cc_command_handler import try_inline_commands
 try:
-    from interface.presence.handlers.substrate_command_handler import (
+    from transports.presence.handlers.substrate_command_handler import (
         handle_substrate_command,
         is_substrate_command,
         log_startup as _substrate_log_startup,
@@ -2206,7 +2206,7 @@ async def on_message(message: discord.Message):
             text.strip().replace("\ufe0f\u20e3", ""), _DEFAULT_VENTURE_ID
         )
         try:
-            from understanding.signals.founder_capture import capture
+            from substrate.understanding.signals.founder_capture import capture
 
             capture(_pending["text"], venture_id=_venture_id)
             _icon = "💡" if _pending["type"] == "idea" else "✅"
@@ -2249,7 +2249,7 @@ async def on_message(message: discord.Message):
 
     # ── Founder capture — detect tasks/ideas, write to Your list + Notion ────
     try:
-        from understanding.signals.founder_capture import should_capture, capture
+        from substrate.understanding.signals.founder_capture import should_capture, capture
 
         _should, _ctype = should_capture(text)
         if _should:
@@ -3033,7 +3033,7 @@ async def cmd_approve_followup(ctx: commands.Context):
         from state.context.context import load_context_from_env
         from state.storage.db import get_conn
         from adapters.google_workspace.gws_connector import GWSConnector
-        from governance.quality.quality_gate import gate_outgoing_email
+        from substrate.governance.quality.quality_gate import gate_outgoing_email
         import json as _json
 
         _ctx = load_context_from_env()
@@ -3238,7 +3238,7 @@ async def cmd_confidential(ctx: commands.Context, *, args: str = ""):
         )
         return
     try:
-        from governance.policies.confidentiality import create_confidential_session
+        from substrate.governance.policies.confidentiality import create_confidential_session
 
         topic = parts[0]
         parties = [p.strip() for p in parts[1].split(",")] if len(parts) > 1 else ["Antony"]
@@ -3306,7 +3306,7 @@ async def cmd_relationship(ctx: commands.Context, *, name: str = ""):
         await ctx.reply("Usage: `!relationship [contact name]`")
         return
     try:
-        from understanding.intelligence.person_recognition import (
+        from substrate.understanding.intelligence.person_recognition import (
             score_relationship_health,
             build_intelligence_profile,
         )
@@ -3341,7 +3341,7 @@ async def cmd_nurture(ctx: commands.Context, *, name: str = ""):
         await ctx.reply("Usage: `!nurture [contact name]`")
         return
     try:
-        from understanding.intelligence.person_recognition import build_intelligence_profile
+        from substrate.understanding.intelligence.person_recognition import build_intelligence_profile
 
         profile = build_intelligence_profile(name=name)
         notes = getattr(profile, "notes", None) or "No prior context available"
@@ -4964,7 +4964,7 @@ async def cmd_proofread(ctx: commands.Context, *, content: str = ""):
         await ctx.reply("Usage: `!proofread [paste your email or message here]`")
         return
     try:
-        from governance.quality.quality_gate import quality_check
+        from substrate.governance.quality.quality_gate import quality_check
 
         await ctx.reply("🔍 Running quality check...")
         result = quality_check(content)
@@ -5210,7 +5210,7 @@ async def cmd_board_update(ctx: commands.Context, venture_id: str = ""):
         )
         return
     try:
-        from understanding.intelligence.stakeholder_map import generate_board_update_brief
+        from substrate.understanding.intelligence.stakeholder_map import generate_board_update_brief
 
         await ctx.reply("📋 Generating board update...")
         brief = generate_board_update_brief(venture_id)

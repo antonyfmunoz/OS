@@ -106,7 +106,7 @@ def _deterministic_cognitive_response(message: str) -> str:
 from state.context.context import EntrepreneurOSContext, load_context_from_env
 from execution.runtime.agent_runtime import AgentRuntime, TaskType
 from state.memory.memory import AgentMemory
-from governance.policy.authority_engine import AuthorityEngine
+from substrate.governance.policy.authority_engine import AuthorityEngine
 from state.business.venture_knowledge import VentureKnowledgeBase
 
 
@@ -575,7 +575,7 @@ class CognitiveLoop:
         # 5b. STAGE FILTER — prepend stage-appropriate correction if needed
         _output_str = result.output or ""
         try:
-            from understanding.ontology.primitives import ContextualReasoningEngine
+            from substrate.understanding.ontology.primitives import ContextualReasoningEngine
 
             _cre = ContextualReasoningEngine(self.ctx)
             _stage_ctx = _cre.get_current_context(venture_id or self.ctx.active_venture_id or "")
@@ -646,7 +646,7 @@ class CognitiveLoop:
 
         # 7b. LEARN — permanently integrate conversation into knowledge base
         try:
-            from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
+            from substrate.understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
 
             _ki = KnowledgeIntegrator(self.ctx)
             if text and result.output:
@@ -1360,7 +1360,7 @@ def detect_intent_and_inject(
                 name = name_part.split("?")[0].strip().title()
                 if name:
                     try:
-                        from understanding.intelligence.person_recognition import (
+                        from substrate.understanding.intelligence.person_recognition import (
                             build_intelligence_profile,
                             format_intelligence_profile,
                         )

@@ -96,7 +96,7 @@ class OutputValidator:
                 fix_applied='Chunked via discord_utils.chunk_message()',
             ))
             # Auto-fix: chunk and join with separator for the fixed_output field
-            from interface.discord.discord_utils import chunk_message
+            from transports.discord.discord_utils import chunk_message
             chunks = chunk_message(content)
             fixed = '\n---\n'.join(chunks)
 
@@ -255,7 +255,7 @@ class OutputValidator:
         ]
         if critical:
             try:
-                from interface.discord.discord_utils import post_to_webhook
+                from transports.discord.discord_utils import post_to_webhook
                 msg = (
                     f'🚨 **Output Validation Failed**\n'
                     f'Context: {context}\n\n'
