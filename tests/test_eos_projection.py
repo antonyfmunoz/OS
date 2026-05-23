@@ -39,3 +39,25 @@ class TestEOSProjection:
         agents = await substrate.registry.lookup(component_type=ComponentType.AGENT)
         names = [a.name for a in agents]
         assert "eos-ceo" in names
+
+
+class TestEOSAgentRegistration:
+    @pytest.fixture
+    def substrate(self):
+        return Substrate()
+
+    @pytest.mark.asyncio
+    async def test_all_eos_agents_register(self, substrate):
+        from projections.eos.agents.ceo import register_ceo_agent
+        from projections.eos.agents.sales import register_sales_agent
+        from projections.eos.agents.marketing import register_marketing_agent
+
+        r1 = await register_ceo_agent(substrate)
+        r2 = await register_sales_agent(substrate)
+        r3 = await register_marketing_agent(substrate)
+
+        assert r1.success and r2.success and r3.success
+
+        agents = await substrate.registry.lookup(component_type=ComponentType.AGENT)
+        names = {a.name for a in agents}
+        assert {"eos-ceo", "eos-sales", "eos-marketing"}.issubset(names)
