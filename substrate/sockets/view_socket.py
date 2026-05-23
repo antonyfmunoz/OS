@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import logging
 
-from services.umh.sockets.envelopes import ViewFrame
-from services.umh.sockets.protocols import ViewSubscriber
+from substrate.sockets.envelopes import ViewFrame
+from substrate.sockets.protocols import ViewSubscriber
 
 logger = logging.getLogger(__name__)
 

@@ -7,8 +7,8 @@ import time
 from typing import Any
 from uuid import UUID
 
-from services.umh.sockets.envelopes import CapabilityRequest, CapabilityResponse
-from services.umh.sockets.protocols import (
+from substrate.sockets.envelopes import CapabilityRequest, CapabilityResponse
+from substrate.sockets.protocols import (
     CapabilityDescriptor,
     CapabilityHandler,
     CapabilityHealth,

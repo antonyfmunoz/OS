@@ -8,8 +8,8 @@ from typing import Any
 
 from notion_client import APIResponseError
 
-from services.umh.sockets.envelopes import CapabilityRequest, CapabilityResponse
-from services.umh.sockets.protocols import CapabilityDescriptor, CapabilityHealth
+from substrate.sockets.envelopes import CapabilityRequest, CapabilityResponse
+from substrate.sockets.protocols import CapabilityDescriptor, CapabilityHealth
 
 from .auth import discover_database_ids, get_notion_client
 from .manifest import CAPABILITY_DESCRIPTORS, INTEGRATION_ID

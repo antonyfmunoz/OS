@@ -9,7 +9,7 @@ import pytest
 from services.umh.integrations.eos.correlation import EOSWritebackTarget
 from services.umh.integrations.eos.signals import EOSSignalEmitter
 from services.umh.integrations.eos.tables import EventRow
-from services.umh.sockets.envelopes import SignalEnvelope
+from substrate.sockets.envelopes import SignalEnvelope
 
 
 def _make_event_row(

@@ -40,7 +40,7 @@ import psycopg2
 from services.umh.integrations.eos.correlation import EOSCorrelationMap, EOSWritebackTarget
 from services.umh.integrations.eos.outcomes import EOSOutcomeReceiver
 from services.umh.integrations.eos.tables import fetch_org_ids
-from services.umh.sockets.envelopes import OutcomeEnvelope
+from substrate.sockets.envelopes import OutcomeEnvelope
 
 
 def _ok(msg: str) -> None:

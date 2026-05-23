@@ -7,7 +7,7 @@ import json
 import logging
 from typing import Any
 
-from services.umh.sockets.envelopes import OutcomeEnvelope
+from substrate.sockets.envelopes import OutcomeEnvelope
 
 logger = logging.getLogger(__name__)
 

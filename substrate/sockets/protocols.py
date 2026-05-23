@@ -14,7 +14,7 @@ from typing import Any, Protocol, runtime_checkable
 from services.umh.governance.risk_classes import RiskClass
 from services.umh.protocols.capability import CapabilityCategory
 from services.umh.protocols.signal import SignalUrgency
-from services.umh.sockets.envelopes import (
+from substrate.sockets.envelopes import (
     CapabilityRequest,
     CapabilityResponse,
     OutcomeEnvelope,

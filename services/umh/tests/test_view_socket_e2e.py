@@ -19,20 +19,20 @@ import pytest
 from starlette.testclient import TestClient
 
 from services.umh.control_plane.pipeline import ExecutionPipeline
-from services.umh.sockets.envelopes import ViewFrame
-from services.umh.sockets.view.broadcaster import (
+from substrate.sockets.envelopes import ViewFrame
+from substrate.sockets.view.broadcaster import (
     ViewFrameBroadcaster,
     make_pipeline_listener,
     _serialize_frame,
     STAGE_FROM_EVENT,
 )
-from services.umh.sockets.view.websocket import (
+from substrate.sockets.view.websocket import (
     ConnectionManager,
     broadcast_frame,
     manager as global_manager,
     ws_endpoint,
 )
-from services.umh.sockets.view_socket import ViewSocket
+from substrate.sockets.view_socket import ViewSocket
 
 
 class TestSerializeFrame:
@@ -76,7 +76,7 @@ class TestBroadcasterProtocol:
     """Verify ViewFrameBroadcaster satisfies ViewSubscriber protocol."""
 
     def test_satisfies_view_subscriber(self) -> None:
-        from services.umh.sockets.protocols import ViewSubscriber
+        from substrate.sockets.protocols import ViewSubscriber
 
         loop = asyncio.new_event_loop()
         try:

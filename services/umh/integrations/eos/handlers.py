@@ -8,8 +8,8 @@ from typing import Any
 
 import psycopg2
 
-from services.umh.sockets.envelopes import CapabilityRequest, CapabilityResponse
-from services.umh.sockets.protocols import CapabilityDescriptor, CapabilityHealth
+from substrate.sockets.envelopes import CapabilityRequest, CapabilityResponse
+from substrate.sockets.protocols import CapabilityDescriptor, CapabilityHealth
 
 from .manifest import CAPABILITY_DESCRIPTORS, INTEGRATION_ID
 from .tables import insert_activity, insert_contact, insert_deal, update_deal_stage

@@ -23,8 +23,8 @@ sys.path.insert(0, "/opt/OS/.claude/worktrees/layer3-phase2-slice-d-handoff")
 
 
 def test_signal_socket_unregister():
-    from services.umh.sockets.signal_socket import SignalSocket
-    from services.umh.sockets.protocols import SignalDescriptor
+    from substrate.sockets.signal_socket import SignalSocket
+    from substrate.sockets.protocols import SignalDescriptor
 
     class FakeEmitter:
         @property
@@ -47,9 +47,9 @@ def test_signal_socket_unregister():
 
 
 def test_capability_socket_unregister():
-    from services.umh.sockets.capability_socket import CapabilitySocket
-    from services.umh.sockets.protocols import CapabilityDescriptor, CapabilityHealth
-    from services.umh.sockets.envelopes import CapabilityRequest, CapabilityResponse
+    from substrate.sockets.capability_socket import CapabilitySocket
+    from substrate.sockets.protocols import CapabilityDescriptor, CapabilityHealth
+    from substrate.sockets.envelopes import CapabilityRequest, CapabilityResponse
     from services.umh.governance.risk_classes import RiskClass
     from services.umh.protocols.capability import CapabilityCategory
 
@@ -81,7 +81,7 @@ def test_capability_socket_unregister():
 
 
 def test_outcome_socket_unregister():
-    from services.umh.sockets.outcome_socket import OutcomeSocket
+    from substrate.sockets.outcome_socket import OutcomeSocket
 
     class FakeReceiver:
         @property
@@ -106,17 +106,17 @@ def test_outcome_socket_unregister():
 
 
 def test_registry_reregistration():
-    from services.umh.sockets.capability_socket import CapabilitySocket
-    from services.umh.sockets.outcome_socket import OutcomeSocket
-    from services.umh.sockets.signal_socket import SignalSocket
-    from services.umh.sockets.view_socket import ViewSocket
-    from services.umh.sockets.registry import IntegrationManifest, IntegrationRegistry
-    from services.umh.sockets.protocols import (
+    from substrate.sockets.capability_socket import CapabilitySocket
+    from substrate.sockets.outcome_socket import OutcomeSocket
+    from substrate.sockets.signal_socket import SignalSocket
+    from substrate.sockets.view_socket import ViewSocket
+    from substrate.sockets.registry import IntegrationManifest, IntegrationRegistry
+    from substrate.sockets.protocols import (
         CapabilityDescriptor,
         CapabilityHealth,
         SignalDescriptor,
     )
-    from services.umh.sockets.envelopes import CapabilityResponse
+    from substrate.sockets.envelopes import CapabilityResponse
     from services.umh.governance.risk_classes import RiskClass
     from services.umh.protocols.capability import CapabilityCategory
 
@@ -297,7 +297,7 @@ def test_node_registry_stale_detection():
 
 def test_node_signal_emitter():
     from services.umh.integrations.node_mesh.signals import NodeSignalEmitter
-    from services.umh.sockets.protocols import SignalEmitter
+    from substrate.sockets.protocols import SignalEmitter
 
     emitter = NodeSignalEmitter("test-node")
     assert isinstance(emitter, SignalEmitter)
@@ -313,7 +313,7 @@ def test_node_signal_emitter():
 def test_node_capability_handler_descriptors():
     from services.umh.integrations.node_mesh.handlers import NodeCapabilityHandler
     from services.umh.node_mesh.registry import ConnectedNode, NodeCapability
-    from services.umh.sockets.protocols import CapabilityHandler
+    from substrate.sockets.protocols import CapabilityHandler
 
     node = ConnectedNode(
         node_id="test-node",
@@ -341,7 +341,7 @@ def test_node_capability_handler_descriptors():
 
 def test_node_outcome_receiver():
     from services.umh.integrations.node_mesh.outcomes import NodeOutcomeReceiver
-    from services.umh.sockets.protocols import OutcomeReceiver
+    from substrate.sockets.protocols import OutcomeReceiver
 
     receiver = NodeOutcomeReceiver("test-node", ws=None)
     assert isinstance(receiver, OutcomeReceiver)
@@ -353,7 +353,7 @@ def test_node_outcome_receiver():
 def test_build_node_manifest():
     from services.umh.integrations.node_mesh.manifest import build_node_manifest
     from services.umh.node_mesh.registry import ConnectedNode, NodeCapability
-    from services.umh.sockets.registry import IntegrationManifest
+    from substrate.sockets.registry import IntegrationManifest
 
     node = ConnectedNode(
         node_id="win-pc",

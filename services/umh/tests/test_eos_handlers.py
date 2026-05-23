@@ -9,7 +9,7 @@ from uuid import uuid4
 import pytest
 
 from services.umh.integrations.eos.handlers import EOSCapabilityHandler
-from services.umh.sockets.envelopes import CapabilityRequest
+from substrate.sockets.envelopes import CapabilityRequest
 
 
 def _make_request(

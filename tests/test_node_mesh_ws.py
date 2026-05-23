@@ -18,10 +18,10 @@ import websockets
 from services.umh.execution.executor import WorkPacketExecutor
 from services.umh.node_mesh.config import MeshConfig
 from services.umh.node_mesh.server import NodeMeshServer
-from services.umh.sockets.capability_socket import CapabilitySocket
-from services.umh.sockets.outcome_socket import OutcomeSocket
-from services.umh.sockets.signal_socket import SignalSocket
-from services.umh.sockets.view_socket import ViewSocket
+from substrate.sockets.capability_socket import CapabilitySocket
+from substrate.sockets.outcome_socket import OutcomeSocket
+from substrate.sockets.signal_socket import SignalSocket
+from substrate.sockets.view_socket import ViewSocket
 
 
 async def run_test():

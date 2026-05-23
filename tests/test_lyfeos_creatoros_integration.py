@@ -11,7 +11,7 @@ _worktree = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _worktree not in sys.path:
     sys.path.insert(0, _worktree)
 
-from services.umh.sockets.protocols import (
+from substrate.sockets.protocols import (
     CapabilityHandler,
     SignalEmitter,
 )
@@ -86,7 +86,7 @@ class TestEOSProtocols:
         assert handler.integration_id == EOS_ID
 
     def test_handler_noop(self):
-        from services.umh.sockets.envelopes import CapabilityRequest
+        from substrate.sockets.envelopes import CapabilityRequest
 
         handler = EOSCapabilityHandler()
         req = CapabilityRequest(
@@ -102,7 +102,7 @@ class TestEOSProtocols:
         assert resp.result_data["received"] is True
 
     def test_handler_unsupported_capability(self):
-        from services.umh.sockets.envelopes import CapabilityRequest
+        from substrate.sockets.envelopes import CapabilityRequest
 
         handler = EOSCapabilityHandler()
         req = CapabilityRequest(
@@ -225,7 +225,7 @@ class TestLyfeOSProtocols:
         assert handler.integration_id == LYFEOS_ID
 
     def test_handler_noop(self):
-        from services.umh.sockets.envelopes import CapabilityRequest
+        from substrate.sockets.envelopes import CapabilityRequest
 
         handler = LyfeOSCapabilityHandler()
         req = CapabilityRequest(
@@ -241,7 +241,7 @@ class TestLyfeOSProtocols:
         assert resp.result_data["received"] is True
 
     def test_handler_unsupported_capability(self):
-        from services.umh.sockets.envelopes import CapabilityRequest
+        from substrate.sockets.envelopes import CapabilityRequest
 
         handler = LyfeOSCapabilityHandler()
         req = CapabilityRequest(
@@ -372,7 +372,7 @@ class TestCreatorOSProtocols:
         assert handler.integration_id == CREATOROS_ID
 
     def test_handler_noop(self):
-        from services.umh.sockets.envelopes import CapabilityRequest
+        from substrate.sockets.envelopes import CapabilityRequest
 
         handler = CreatorOSCapabilityHandler()
         req = CapabilityRequest(
@@ -388,7 +388,7 @@ class TestCreatorOSProtocols:
         assert resp.result_data["received"] is True
 
     def test_handler_unsupported_capability(self):
-        from services.umh.sockets.envelopes import CapabilityRequest
+        from substrate.sockets.envelopes import CapabilityRequest
 
         handler = CreatorOSCapabilityHandler()
         req = CapabilityRequest(
