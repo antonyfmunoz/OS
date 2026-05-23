@@ -10,7 +10,7 @@ import unittest
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from composition.mastery.management.active_tool_context import (
+from substrate.composition.mastery.management.active_tool_context import (
     ActiveToolContext,
     create_active_tool_context,
     should_continue_context,
@@ -18,7 +18,7 @@ from composition.mastery.management.active_tool_context import (
     summarize_active_tool_context,
     update_active_tool_context,
 )
-from composition.mastery.management.tool_mastery_resolver import (
+from substrate.composition.mastery.management.tool_mastery_resolver import (
     ResolvedCapabilityMention,
     ResolvedMasteryPack,
     ResolvedToolMention,

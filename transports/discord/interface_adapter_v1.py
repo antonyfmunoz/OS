@@ -86,7 +86,7 @@ def _log_error(msg: str) -> None:
 
 DEFAULT_CONFIG_PATH = f"{_ROOT}/config/discord_interface_adapter_v1.json"
 
-from composition.registries.canonical_command_registry_v1 import get_canonical_registry
+from substrate.composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
 
 _REGISTRY = get_canonical_registry()

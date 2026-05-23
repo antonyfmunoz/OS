@@ -131,7 +131,7 @@ class RuntimeBootstrapStateV1:
 
     def bootstrap(self, auto_heal: bool = True) -> BootstrapValidation:
         """Run the full bootstrap lifecycle."""
-        from composition.registries.canonical_command_registry_v1 import get_canonical_registry
+        from substrate.composition.registries.canonical_command_registry_v1 import get_canonical_registry
 
         v = BootstrapValidation(runtime_id=self._runtime_id)
         self._emit_ledger("BOOTSTRAP_START", {"runtime_id": self._runtime_id})

@@ -70,7 +70,7 @@ def ensure_tool_mastery(tool: str, *, dry_run: bool = False) -> dict[str, Any]:
     the Control Plane's point of view even when it now has teeth.
     """
     try:
-        from composition.mastery.management.ensure import ensure_mastery
+        from substrate.composition.mastery.management.ensure import ensure_mastery
 
         result = ensure_mastery(tool, dry_run=dry_run)
         payload = result.to_dict()
@@ -98,7 +98,7 @@ def ensure_mastery_before_tool_execution(
     Never raises.
     """
     try:
-        from composition.mastery.management.mastery_assurance import (
+        from substrate.composition.mastery.management.mastery_assurance import (
             ensure_mastery_before_execution,
         )
 
@@ -127,7 +127,7 @@ def resolve_mastery_for_user_intent(
     Never raises.
     """
     try:
-        from composition.mastery.management.tool_mastery_resolver import (
+        from substrate.composition.mastery.management.tool_mastery_resolver import (
             resolve_mastery_for_task,
         )
 
