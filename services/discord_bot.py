@@ -109,29 +109,29 @@ from substrate.understanding.knowledge.knowledge_integrator import KnowledgeInte
 from substrate.execution.voice.voice_engine import VoiceEngine
 from substrate.state.business.business_instance import get_ai_name
 from transports.discord.discord_utils import chunk_message, post_to_webhook
-from substrate.execution.transport.session_discord_bridge import send_reply as _send_reply
-from substrate.execution.transport.discord_text_transport import (
+from substrate.execution.bridge.session_discord_bridge import send_reply as _send_reply
+from substrate.execution.bridge.discord_text_transport import (
     maybe_mirror_discord_text_message as _maybe_pseudo_live_text,
 )
 
 # Graceful import for substrate modules that may not exist yet
 try:
-    from substrate.execution.transport.message_framing import get_inbound_buffer
+    from substrate.execution.bridge.message_framing import get_inbound_buffer
 except ImportError:
     get_inbound_buffer = None
 
-from substrate.execution.transport.event_spine import (
+from substrate.execution.bridge.event_spine import (
     EventType as _FrameEventType,
     create_event as _frame_create_event,
 )
 
 try:
-    from substrate.execution.transport.event_store import get_event_store as _frame_get_event_store
+    from substrate.execution.bridge.event_store import get_event_store as _frame_get_event_store
 except ImportError:
     _frame_get_event_store = None
 
 try:
-    from substrate.execution.transport.interaction_archive import (
+    from substrate.execution.bridge.interaction_archive import (
         archive_inbound as _archive_inbound,
         Interface as _ArchiveInterface,
     )
@@ -147,7 +147,7 @@ except ImportError:
 # multiple times. The substrate architecture is preserved — we are only
 # replacing the pluggable responder hook the substrate already exposes.
 try:
-    from substrate.execution.transport.voice_eos_responder import (
+    from substrate.execution.bridge.voice_eos_responder import (
         install_default_eos_voice_responder as _install_voice_router_responder,
         is_eos_voice_responder_installed as _is_voice_router_responder_installed,
     )
@@ -415,7 +415,7 @@ def _run_day_command(
     continuity_text: str | None = None,
 ) -> dict:
     try:
-        from substrate.execution.transport.day_workflows import close_day, open_day
+        from substrate.execution.bridge.day_workflows import close_day, open_day
 
         if cmd == "open_day":
             return open_day(
@@ -895,7 +895,7 @@ async def start_meeting_mode(
     _active_meeting["notes"] = []
     _active_meeting["key_points"] = []
     try:
-        from substrate.execution.transport.storage import get_storage
+        from substrate.execution.bridge.storage import get_storage
 
         get_storage().put("active_meeting", dict(_active_meeting))
     except Exception as _ms_err:
@@ -970,7 +970,7 @@ async def end_active_meeting(channel=None) -> None:
     _active_meeting["notes"] = []
     _active_meeting["key_points"] = []
     try:
-        from substrate.execution.transport.storage import get_storage
+        from substrate.execution.bridge.storage import get_storage
 
         get_storage().put("active_meeting", dict(_active_meeting))
     except Exception as _mc_err:
@@ -1050,7 +1050,7 @@ async def on_ready():
 
     # ── Restore persisted session state from SubstrateStorage ──────────
     try:
-        from substrate.execution.transport.storage import get_storage
+        from substrate.execution.bridge.storage import get_storage
 
         _store = get_storage()
         _restored = 0
@@ -1117,8 +1117,8 @@ async def on_ready():
     # permission requests, questions).  SessionDiscordBridge renders them
     # as interactive Discord messages with buttons.
     try:
-        from substrate.execution.transport.session_discord_bridge import get_bridge
-        from substrate.execution.transport.session_watcher import start_watcher
+        from substrate.execution.bridge.session_discord_bridge import get_bridge
+        from substrate.execution.bridge.session_watcher import start_watcher
 
         bridge = get_bridge()
         bridge.set_bot(bot)
@@ -1132,7 +1132,7 @@ async def on_ready():
 
     # ── Start Station Daemon (background heartbeat loop) ─────────────────
     try:
-        from substrate.execution.transport.station_daemon import start_station_daemon
+        from substrate.execution.bridge.station_daemon import start_station_daemon
 
         start_station_daemon()
         print("[Discord] Station daemon started")
@@ -1321,7 +1321,7 @@ async def _listen_loop(
             # voice_session / audio_loop / SPEAK_TEXT alongside the existing
             # gateway routing. Never raises. Returns None when disabled.
             try:
-                from substrate.execution.transport.discord_voice_transport import (
+                from substrate.execution.bridge.discord_voice_transport import (
                     maybe_mirror_discord_utterance,
                 )
 
@@ -1358,7 +1358,7 @@ async def _listen_loop(
 
             # ── Voice-first: play ack BEFORE LLM call (eliminates dead air) ──
             try:
-                from substrate.execution.transport.voice_first import (
+                from substrate.execution.bridge.voice_first import (
                     needs_ack,
                     play_ack,
                     VOICE_SYSTEM_SUFFIX,
@@ -1444,7 +1444,7 @@ async def _listen_loop(
             # ── Voice-first response path ─────────────────────────────
             # Speak FIRST, then post text as transcript/subtitle.
             try:
-                from substrate.execution.transport.voice_first import (
+                from substrate.execution.bridge.voice_first import (
                     voice_first_respond,
                 )
 
@@ -1888,7 +1888,7 @@ async def _handle_orchestration_ingress(
     Returns True if orchestration accepted the message."""
     _orch_handled = False
     try:
-        from substrate.execution.transport.discord_ingress_adapter import ingest_and_emit
+        from substrate.execution.bridge.discord_ingress_adapter import ingest_and_emit
 
         _orch_result = ingest_and_emit(
             text=text,
@@ -1906,7 +1906,7 @@ async def _handle_orchestration_ingress(
             )
             # Structured trace reply (best-effort)
             try:
-                from substrate.execution.transport.operator_trace import (
+                from substrate.execution.bridge.operator_trace import (
                     OperatorTrace,
                     format_trace_for_discord,
                 )
@@ -2025,7 +2025,7 @@ async def _handle_pseudolive(
         if _pl_fin.get("should_finalize"):
             _pl_terminal = False
             try:
-                from substrate.execution.transport.run_lifecycle import (
+                from substrate.execution.bridge.run_lifecycle import (
                     is_run_terminally_finalized as _pl_term_check,
                 )
 
@@ -2042,7 +2042,7 @@ async def _handle_pseudolive(
             if not _pl_terminal:
                 try:
                     _pl_session = _pl_fin.get("source_session", "")
-                    from substrate.execution.transport.run_lifecycle import (
+                    from substrate.execution.bridge.run_lifecycle import (
                         propose_run_completion as _pl_propose,
                     )
 
@@ -2057,7 +2057,7 @@ async def _handle_pseudolive(
                     if not _pl_proposal.accepted:
                         print(f"[PseudoLive] Proposal rejected: {_pl_proposal.reason}")
                     else:
-                        from substrate.execution.transport.task_finalization import (
+                        from substrate.execution.bridge.task_finalization import (
                             finalize_completed_task as _pl_finalize,
                         )
 
@@ -2084,7 +2084,7 @@ async def _handle_pseudolive(
         _tts_role = _deferred.get("role_slug") or "ea_orchestrator"
         if _tts_node and _tts_text:
             try:
-                from substrate.execution.transport.station_helpers import propose_speak_text
+                from substrate.execution.bridge.station_helpers import propose_speak_text
 
                 propose_speak_text(
                     _tts_node,
@@ -2820,7 +2820,7 @@ async def cmd_answer(ctx: commands.Context, session_name: str, *, text: str):
         await ctx.reply("Founder only.")
         return
     try:
-        from substrate.execution.transport.session_discord_bridge import get_bridge
+        from substrate.execution.bridge.session_discord_bridge import get_bridge
 
         result = await get_bridge().handle_answer_command(session_name, text)
         await ctx.reply(result)
@@ -2882,13 +2882,13 @@ async def cmd_watcher_status(ctx: commands.Context):
     try:
         import time as _time
 
-        from substrate.execution.transport.session_watcher import _WATCHERS, _WATCHERS_LOCK
+        from substrate.execution.bridge.session_watcher import _WATCHERS, _WATCHERS_LOCK
 
         with _WATCHERS_LOCK:
             if not _WATCHERS:
                 await ctx.reply("No watchers running.")
                 return
-            from substrate.execution.transport.discord_output_policy import get_display_name
+            from substrate.execution.bridge.discord_output_policy import get_display_name
 
             lines = []
             for name, w in _WATCHERS.items():
@@ -5559,7 +5559,7 @@ async def cmd_agent_results(ctx: commands.Context):
 async def cmd_trace(ctx: commands.Context, limit: int = 5):
     """Show recent execution traces (builder mode only)."""
     try:
-        from substrate.execution.transport.discord_mode_routing import resolve_discord_mode
+        from substrate.execution.bridge.discord_mode_routing import resolve_discord_mode
 
         gid = str(ctx.guild.id) if ctx.guild else None
         cid = str(ctx.channel.id)
@@ -5569,7 +5569,7 @@ async def cmd_trace(ctx: commands.Context, limit: int = 5):
             await ctx.reply("Trace output is not available in product mode.")
             return
 
-        from substrate.execution.transport.execution_trace import (
+        from substrate.execution.bridge.execution_trace import (
             format_trace_compact,
             get_trace_history,
         )

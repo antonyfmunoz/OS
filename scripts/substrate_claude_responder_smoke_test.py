@@ -25,9 +25,9 @@ import uuid
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from substrate.execution.transport import claude_responder as cr  # noqa: E402
-from substrate.execution.transport import claude_session_bridge as csb  # noqa: E402
-from substrate.execution.transport import discord_text_transport as dtt  # noqa: E402
+from substrate.execution.bridge import claude_responder as cr  # noqa: E402
+from substrate.execution.bridge import claude_session_bridge as csb  # noqa: E402
+from substrate.execution.bridge import discord_text_transport as dtt  # noqa: E402
 
 FAILURES: list[str] = []
 
@@ -132,7 +132,7 @@ def main() -> int:
                 json.dumps({k: v for k, v in live.items() if k != "ask"}),
             )
         finally:
-            from substrate.execution.transport.claude_session_bridge import _run_tmux
+            from substrate.execution.bridge.claude_session_bridge import _run_tmux
             _run_tmux(["kill-session", "-t", scratch])
 
     # 6. Discord wiring — responder flag OFF → legacy substrate path (or
@@ -192,7 +192,7 @@ def main() -> int:
         )
     finally:
         if csb.detect_tmux_available().get("available"):
-            from substrate.execution.transport.claude_session_bridge import _run_tmux
+            from substrate.execution.bridge.claude_session_bridge import _run_tmux
             _run_tmux(["kill-session", "-t", scratch2])
         for key in (
             "EOS_DISCORD_TEXT_TRANSPORT_ENABLED",

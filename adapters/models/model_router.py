@@ -1127,7 +1127,7 @@ def call_with_fallback(
     )
     if cli_enabled:
         try:
-            from substrate.execution.transport.claude_responder import (
+            from substrate.execution.bridge.claude_responder import (
                 DEFAULT_SESSION_NAME,
                 DEFAULT_TARGET,
                 respond_via_claude_session,
@@ -1148,7 +1148,7 @@ def call_with_fallback(
             # and product contexts isolated without forking the pipeline.
             mode_label = None
             try:
-                from substrate.execution.transport.discord_mode_routing import (
+                from substrate.execution.bridge.discord_mode_routing import (
                     current_mode_context,
                 )
 
@@ -1441,7 +1441,7 @@ def _stamp_trace(provider: str, model: str, latency_ms: int, result: str) -> Non
     if "fail" not in result:
         _circuit_record_success()
     try:
-        from substrate.execution.transport.execution_trace import get_current_trace, finalize_trace
+        from substrate.execution.bridge.execution_trace import get_current_trace, finalize_trace
 
         trace = get_current_trace()
         if trace is not None:

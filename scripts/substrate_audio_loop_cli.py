@@ -29,7 +29,7 @@ def _dumps(obj) -> str:
 
 def cmd_report(args: argparse.Namespace) -> int:
     try:
-        from substrate.execution.transport.result_query import audio_loop_snapshot
+        from substrate.execution.bridge.result_query import audio_loop_snapshot
 
         snap = audio_loop_snapshot(node_id=None)
         print(_dumps(snap))
@@ -41,7 +41,7 @@ def cmd_report(args: argparse.Namespace) -> int:
 
 def cmd_report_node(args: argparse.Namespace) -> int:
     try:
-        from substrate.execution.transport.result_query import (
+        from substrate.execution.bridge.result_query import (
             audio_loop_snapshot,
             recent_audio_loop_transcripts,
         )
@@ -61,7 +61,7 @@ def cmd_report_node(args: argparse.Namespace) -> int:
 
 def cmd_inject_transcript(args: argparse.Namespace) -> int:
     try:
-        from substrate.execution.transport.transcript_inject import inject_transcript
+        from substrate.execution.bridge.transcript_inject import inject_transcript
 
         result = inject_transcript(
             args.node,
@@ -79,7 +79,7 @@ def cmd_inject_transcript(args: argparse.Namespace) -> int:
 
 def cmd_prime(args: argparse.Namespace) -> int:
     try:
-        from substrate.execution.transport.audio_loop import mark_primed
+        from substrate.execution.bridge.audio_loop import mark_primed
 
         state = mark_primed(
             args.node,

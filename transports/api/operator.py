@@ -300,7 +300,7 @@ def _generate_tts(text: str) -> str | None:
 
 async def _voice_respond(transcript: str) -> dict[str, Any]:
     """Route a voice transcript through model_router and prepare voice response."""
-    from substrate.execution.transport.voice_first import (
+    from substrate.execution.bridge.voice_first import (
         VOICE_SYSTEM_SUFFIX,
         prepare_voice_response,
     )
@@ -345,7 +345,7 @@ async def voice_tts(request: Request) -> Any:
     if not text:
         raise HTTPException(status_code=400, detail="text field required")
 
-    from substrate.execution.transport.voice_first import prepare_voice_response
+    from substrate.execution.bridge.voice_first import prepare_voice_response
 
     cleaned = prepare_voice_response(text)
     path = await asyncio.to_thread(_generate_tts, cleaned)

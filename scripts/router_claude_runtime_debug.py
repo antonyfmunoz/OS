@@ -24,8 +24,8 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 
 def main() -> int:
     from substrate.execution.runtime import model_router as mr
-    from substrate.execution.transport import claude_responder as cr
-    from substrate.execution.transport import claude_session_bridge as csb
+    from substrate.execution.bridge import claude_responder as cr
+    from substrate.execution.bridge import claude_session_bridge as csb
 
     def k(d: dict) -> dict:
         return {getattr(k, "value", str(k)): v for k, v in d.items()}

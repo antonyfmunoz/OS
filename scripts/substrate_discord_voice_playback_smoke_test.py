@@ -37,26 +37,26 @@ import sys
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from substrate.execution.transport.audio_loop import (  # noqa: E402
+from substrate.execution.bridge.audio_loop import (  # noqa: E402
     reset_audio_loop_store_for_tests,
 )
-from substrate.execution.transport.discord_voice_playback import (  # noqa: E402
+from substrate.execution.bridge.discord_voice_playback import (  # noqa: E402
     DiscordVoicePlayback,
     get_playback_history,
     playback_env_enabled,
     probe_playback_capability,
     reset_playback_history_for_tests,
 )
-from substrate.execution.transport.discord_voice_transport import (  # noqa: E402
+from substrate.execution.bridge.discord_voice_transport import (  # noqa: E402
     DiscordVoiceTransport,
     get_transport_history,
     maybe_attach_discord_voice_client,
     reset_default_discord_voice_transports_for_tests,
     reset_transport_history_for_tests,
 )
-from substrate.execution.transport.station_bus import get_station_bus  # noqa: E402
-from substrate.execution.transport.station_daemon import StationDaemon  # noqa: E402
-from substrate.execution.transport.voice_session import (  # noqa: E402
+from substrate.execution.bridge.station_bus import get_station_bus  # noqa: E402
+from substrate.execution.bridge.station_daemon import StationDaemon  # noqa: E402
+from substrate.execution.bridge.voice_session import (  # noqa: E402
     get_voice_session_store,
     reset_voice_session_store_for_tests,
 )
