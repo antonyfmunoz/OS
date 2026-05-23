@@ -53,6 +53,12 @@ class PromotionReceipt:
         }
 
 
+# NOTE: The canonical MemoryEntry is a Pydantic model in substrate.types
+# (generic: memory_type enum, content, confidence, tags).
+# This is the store-scoped version with provenance lineage and promotion tracking.
+from substrate.types import MemoryEntry as CanonicalMemoryEntry  # noqa: F401
+
+
 @dataclass
 class MemoryEntry:
     """A single entry in the canonical memory store."""

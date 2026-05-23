@@ -210,6 +210,12 @@ class QueryProof:
         }
 
 
+# NOTE: The canonical IngestionResult is a Pydantic model in substrate.types
+# (simple: source_uri, observations_count, projections_count, success, error).
+# This is the pipeline-scoped version with full stage-by-stage detail.
+from substrate.types import IngestionResult as CanonicalIngestionResult  # noqa: F401
+
+
 @dataclass
 class IngestionResult:
     """Complete result of a generic ingestion cycle."""
