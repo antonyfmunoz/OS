@@ -34,17 +34,10 @@ from .live_runtime_contracts_v1 import (
     _now_iso,
 )
 from .substrate_continuity_engine_v1 import SubstrateContinuityEngine
-try:
-    from substrate.execution.workers.workstation.workstation_continuity_bridge_v1 import (
-        WorkstationContinuityBridge,
-    )
-except ModuleNotFoundError:
-    WorkstationContinuityBridge = None  # type: ignore[assignment,misc]
-
-try:
-    from substrate.execution.workers.workstation.browser_continuity_bridge_v1 import BrowserContinuityBridge
-except ModuleNotFoundError:
-    BrowserContinuityBridge = None  # type: ignore[assignment,misc]
+from substrate.execution.workers.workstation.workstation_continuity_bridge_v1 import (
+    WorkstationContinuityBridge,
+)
+from substrate.execution.workers.workstation.browser_continuity_bridge_v1 import BrowserContinuityBridge
 
 
 class LiveContinuityCoordinator:
