@@ -10,9 +10,10 @@ and returns a typed PipelineResult with all generated artifact IDs.
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
 from typing import Any, Callable
 from uuid import UUID, uuid4
+
+from pydantic import BaseModel, Field
 
 from substrate.execution.executor import WorkPacketExecutor
 from substrate.governance.policy_engine import PolicyEngine
@@ -47,8 +48,7 @@ from substrate.workstation.state import (
 )
 
 
-@dataclass
-class PipelineResult:
+class PipelineResult(BaseModel):
     """Typed result from a single pipeline execution."""
 
     trace_id: UUID

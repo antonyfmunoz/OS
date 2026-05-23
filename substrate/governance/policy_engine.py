@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID, uuid4
+
+from pydantic import BaseModel, ConfigDict, Field
 
 from substrate.governance.authority import AuthorityLevel
 from substrate.governance.risk_classes import RiskClass
@@ -18,15 +19,16 @@ from substrate.types import (
 )
 
 
-@dataclass(frozen=True)
-class PolicyVerdict:
+class PolicyVerdict(BaseModel):
     """Result of policy evaluation before converting to protocol GovernanceVerdict."""
+
+    model_config = ConfigDict(frozen=True)
 
     risk_class: RiskClass
     authority_required: AuthorityLevel
     decision: GovernanceDecision
     rationale: str
-    conditions: list[GovernanceCondition] = field(default_factory=list)
+    conditions: list[GovernanceCondition] = Field(default_factory=list)
 
 
 # path overrides keyed by (risk_class, context_key) → authority level
