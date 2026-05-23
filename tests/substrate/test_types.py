@@ -100,7 +100,7 @@ class TestGovernanceVerdict:
         )
         assert v.is_executable() is False
 
-    def test_conditional_is_executable(self):
+    def test_conditional_is_not_executable(self):
         v = GovernanceVerdict(
             signal_id=UUID("12345678-1234-1234-1234-123456789abc"),
             risk_class=RiskClass.HIGH,
@@ -108,7 +108,7 @@ class TestGovernanceVerdict:
             rationale="needs conditions",
             conditions=["approval from founder"],
         )
-        assert v.is_executable() is True
+        assert v.is_executable() is False
 
 
 class TestExecutionResult:

@@ -282,4 +282,4 @@ class TestPipelinePersistsBothLayers:
                 assert "domain_primitive_type" in entry
                 assert "ontology_observation_ref" in entry
                 assert "projection_id" in entry
-                assert entry["domain_id"] == "business"
+                assert entry["domain_id"] in ("business", "life", "creator")

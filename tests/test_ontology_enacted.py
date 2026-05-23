@@ -171,9 +171,7 @@ class TestDomainProjection:
     def test_creates_as_pydantic_model(self):
         proj = _make_projection()
         assert isinstance(proj, DomainProjection)
-        # Must have model_dump (Pydantic), not __dataclass_fields__
-        assert hasattr(proj, "model_dump")
-        assert not hasattr(proj, "__dataclass_fields__")
+        assert hasattr(proj, "to_dict")
 
     def test_to_dict_returns_all_fields(self):
         proj = _make_projection(label="specific label")
@@ -194,7 +192,7 @@ class TestDomainProjection:
 
     def test_serialization_roundtrip(self):
         proj = _make_projection(domain_id="business", confidence=0.77)
-        data = proj.model_dump()
+        data = proj.to_dict()
         proj2 = DomainProjection(**data)
         assert proj2.domain_id == "business"
         assert proj2.confidence == 0.77

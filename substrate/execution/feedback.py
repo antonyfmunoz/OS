@@ -22,6 +22,7 @@ _QUALITY_MAP: dict[ExecutionOutcome, float] = {
     ExecutionOutcome.BLOCKED: 0.5,
     ExecutionOutcome.FAILURE: 0.2,
     ExecutionOutcome.TIMEOUT: 0.1,
+    ExecutionOutcome.REJECTED: 0.1,
 }
 
 

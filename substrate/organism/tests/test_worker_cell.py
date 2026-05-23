@@ -2,7 +2,8 @@
 
 import pytest
 from substrate.organism.protocols import WorkerSpec
-from substrate.organism.worker_cell import WorkerCell, WorkerResult
+from substrate.organism.worker_cell import WorkerCell
+from substrate.execution.pipeline import PipelineResult
 
 
 def test_worker_executes_without_spine():
@@ -17,7 +18,7 @@ def test_worker_executes_without_spine():
     )
     cell = WorkerCell()
     result = cell.execute(spec, adapter_name="shell", operation="query")
-    assert isinstance(result, WorkerResult)
+    assert isinstance(result, PipelineResult)
     assert result.success is True
     assert result.trace_id is not None
 

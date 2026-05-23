@@ -33,12 +33,19 @@ from .live_runtime_contracts_v1 import (
     _content_hash,
     _new_id,
 )
-from substrate.execution.workers.workstation.workstation_operational_embodiment_engine_v1 import (
-    WorkstationOperationalEmbodimentEngine,
-)
-from substrate.execution.workers.workstation.browser_gui_embodiment_engine_v1 import (
-    BrowserGUIEmbodimentEngine,
-)
+try:
+    from substrate.execution.workers.workstation.workstation_operational_embodiment_engine_v1 import (
+        WorkstationOperationalEmbodimentEngine,
+    )
+except ModuleNotFoundError:
+    WorkstationOperationalEmbodimentEngine = None  # type: ignore[assignment,misc]
+
+try:
+    from substrate.execution.workers.workstation.browser_gui_embodiment_engine_v1 import (
+        BrowserGUIEmbodimentEngine,
+    )
+except ModuleNotFoundError:
+    BrowserGUIEmbodimentEngine = None  # type: ignore[assignment,misc]
 
 
 class LiveExecutionCoordinator:
@@ -53,8 +60,18 @@ class LiveExecutionCoordinator:
         workstation_engine: WorkstationOperationalEmbodimentEngine | None = None,
         browser_engine: BrowserGUIEmbodimentEngine | None = None,
     ) -> None:
-        self._workstation = workstation_engine or WorkstationOperationalEmbodimentEngine()
-        self._browser = browser_engine or BrowserGUIEmbodimentEngine()
+        if workstation_engine is not None:
+            self._workstation = workstation_engine
+        elif WorkstationOperationalEmbodimentEngine is not None:
+            self._workstation = WorkstationOperationalEmbodimentEngine()
+        else:
+            self._workstation = None
+        if browser_engine is not None:
+            self._browser = browser_engine
+        elif BrowserGUIEmbodimentEngine is not None:
+            self._browser = BrowserGUIEmbodimentEngine()
+        else:
+            self._browser = None
         self._executions: int = 0
         self._successes: int = 0
         self._denials: int = 0
