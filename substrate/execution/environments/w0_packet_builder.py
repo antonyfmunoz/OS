@@ -22,7 +22,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from control_plane.invariants.spine_lineage_contracts import (
+from substrate.control_plane.invariants.spine_lineage_contracts import (
     CoherenceEnvelope,
     CoherenceStatus,
     SpineLineage,
