@@ -427,7 +427,7 @@ class ContextBuilder:
 
         # Confidentiality
         try:
-            from substrate.governance.policies.confidentiality import detect_confidential_context
+            from substrate.governance.policy.confidentiality import detect_confidential_context
             conf = detect_confidential_context(message)
             if conf.get("is_confidential"):
                 level = conf.get("level", "restricted")

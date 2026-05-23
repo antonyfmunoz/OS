@@ -1,1 +1,1 @@
-"""Domain integrations — EOS, CreatorOS, LyfeOS, Notion, Node Mesh."""
+"""Domain integrations — EOS, CreatorOS, LyfeOS, Notion, Node Mesh, bridge, CORS, health."""

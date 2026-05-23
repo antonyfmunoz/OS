@@ -369,8 +369,8 @@ class CognitiveLoop:
                             biz_ctx = VentureKnowledgeBase.to_agent_context(
                                 venture_id, detail="brief"
                             )
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug(f"suppressed {type(e).__name__}: {e}", exc_info=True)
 
                     mp = MediaProcessor()
                     text = mp.process(
@@ -388,8 +388,8 @@ class CognitiveLoop:
                     if tmp_path:
                         try:
                             os.unlink(tmp_path)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug(f"suppressed {type(e).__name__}: {e}", exc_info=True)
                 else:
                     text = input.text or ""
             else:
@@ -1165,8 +1165,8 @@ def detect_intent_and_inject(
             from adapters.calendar.meetings import draft_meeting_minutes  # noqa: F401
 
             injections["capability_available"] = True
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"suppressed {type(e).__name__}: {e}", exc_info=True)
 
     # OKR intent
     elif any(
@@ -1187,8 +1187,8 @@ def detect_intent_and_inject(
 
             report = generate_okr_report(ctx)
             injections["okr_data"] = report
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"suppressed {type(e).__name__}: {e}", exc_info=True)
 
     # Email send intent
     elif any(
@@ -1236,8 +1236,8 @@ def detect_intent_and_inject(
                     "Confirm with founder then send via "
                     "gws_connector.send_email()"
                 )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"suppressed {type(e).__name__}: {e}", exc_info=True)
 
     # Calendar/scheduling intent
     elif any(
@@ -1269,8 +1269,8 @@ def detect_intent_and_inject(
                 }
                 for e in events[:10]
             ]
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"suppressed {type(e).__name__}: {e}", exc_info=True)
 
     # Travel intent
     elif any(
@@ -1309,8 +1309,8 @@ def detect_intent_and_inject(
 
             summary = get_monthly_summary(ctx)
             injections["expense_summary"] = summary
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"suppressed {type(e).__name__}: {e}", exc_info=True)
 
     # People/relationship intent
     elif any(
@@ -1345,8 +1345,8 @@ def detect_intent_and_inject(
                         profile = build_intelligence_profile(name=name)
                         if profile:
                             injections["person_profile"] = format_intelligence_profile(profile)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"suppressed {type(e).__name__}: {e}", exc_info=True)
                 break
 
     # Task/action items intent
@@ -1388,8 +1388,8 @@ def detect_intent_and_inject(
                 if p.get("task"):
                     tasks.append(p["task"])
             injections["pending_tasks"] = tasks
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"suppressed {type(e).__name__}: {e}", exc_info=True)
 
     # Drive/document intent
     elif any(

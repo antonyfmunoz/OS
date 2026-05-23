@@ -1002,7 +1002,7 @@ class EntrepreneurOSGateway:
 
         # ── ExecutionSpine — new unified path ────────────────────────────────
         # Attempts the new spine. On ANY failure, falls back to the existing
-        # CognitiveLoop branches below. This is the Phase 2 transition layer.
+        # CognitiveLoop branches below. This is the transition layer.
         try:
             from substrate.control_plane.context.context_builder import ContextBuilder
             from substrate.execution.runtime.execution_spine import ExecutionSpine
