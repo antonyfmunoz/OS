@@ -16,8 +16,8 @@ sys.path.insert(0, "/opt/OS/.claude/worktrees/layer3-phase2-slice-d-handoff")
 import websockets
 
 from services.umh.execution.executor import WorkPacketExecutor
-from services.umh.node_mesh.config import MeshConfig
-from services.umh.node_mesh.server import NodeMeshServer
+from transports.node_mesh.config import MeshConfig
+from transports.node_mesh.server import NodeMeshServer
 from services.umh.sockets.capability_socket import CapabilitySocket
 from services.umh.sockets.outcome_socket import OutcomeSocket
 from services.umh.sockets.signal_socket import SignalSocket

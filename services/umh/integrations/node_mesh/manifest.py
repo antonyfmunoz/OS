@@ -5,7 +5,7 @@ from __future__ import annotations
 from services.umh.integrations.node_mesh.handlers import NodeCapabilityHandler
 from services.umh.integrations.node_mesh.outcomes import NodeOutcomeReceiver
 from services.umh.integrations.node_mesh.signals import NodeSignalEmitter
-from services.umh.node_mesh.registry import ConnectedNode
+from transports.node_mesh.registry import ConnectedNode
 from services.umh.sockets.registry import IntegrationManifest
 
 
