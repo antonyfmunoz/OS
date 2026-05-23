@@ -1,4 +1,4 @@
-"""Domain bridge protocol and projection dataclass.
+"""Domain bridge protocol and projection model.
 
 A DomainBridge maps ontology-level PrimitiveObservations into
 domain-typed DomainProjections. Each projection is a separate
@@ -8,8 +8,9 @@ memory entry that back-references its source observation.
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
+
+from pydantic import BaseModel, Field
 
 from substrate.ontology.primitives import PrimitiveObservation
 
@@ -35,8 +36,7 @@ class DomainBridge(Protocol):
         ...
 
 
-@dataclass
-class DomainProjection:
+class DomainProjection(BaseModel):
     """A domain-typed projection of an ontology observation.
 
     Persisted as a separate memory entry alongside the source
@@ -53,21 +53,11 @@ class DomainProjection:
     ontology_observation_ref: str
     confidence: float
     evidence: str
-    authority_tier: int = 5
+    authority_tier: int = Field(default=5)
 
     def to_dict(self) -> dict[str, Any]:
-        return {
-            "projection_id": self.projection_id,
-            "domain_id": self.domain_id,
-            "domain_primitive_type": self.domain_primitive_type,
-            "label": self.label,
-            "description": self.description,
-            "properties": self.properties,
-            "ontology_observation_ref": self.ontology_observation_ref,
-            "confidence": self.confidence,
-            "evidence": self.evidence,
-            "authority_tier": self.authority_tier,
-        }
+        """Return a plain dict representation (backward compat)."""
+        return self.model_dump()
 
 
 def make_projection_id() -> str:
