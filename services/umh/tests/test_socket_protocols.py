@@ -8,8 +8,7 @@ from uuid import uuid4
 import pytest
 
 from services.umh.governance.risk_classes import RiskClass
-from services.umh.protocols.capability import CapabilityCategory
-from services.umh.protocols.signal import SignalUrgency
+from substrate.types import CapabilityCategory, SignalUrgency
 from substrate.sockets.envelopes import (
     CapabilityRequest,
     CapabilityResponse,

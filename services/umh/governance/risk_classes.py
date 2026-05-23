@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from enum import Enum
 
-from services.umh.protocols.governance import RiskLevel
+from substrate.types import RiskLevel
 
 
 class RiskClass(str, Enum):
@@ -43,10 +43,12 @@ _CLASS_TO_LEVEL: dict[RiskClass, RiskLevel] = {
     RiskClass.PHYSICAL_WORLD: RiskLevel.CRITICAL,
 }
 
-_BLOCKING_CLASSES: frozenset[RiskClass] = frozenset({
-    RiskClass.IRREVERSIBLE_WRITE,
-    RiskClass.EXTERNAL_COMMUNICATION,
-    RiskClass.FINANCIAL,
-    RiskClass.SECURITY_SENSITIVE,
-    RiskClass.PHYSICAL_WORLD,
-})
+_BLOCKING_CLASSES: frozenset[RiskClass] = frozenset(
+    {
+        RiskClass.IRREVERSIBLE_WRITE,
+        RiskClass.EXTERNAL_COMMUNICATION,
+        RiskClass.FINANCIAL,
+        RiskClass.SECURITY_SENSITIVE,
+        RiskClass.PHYSICAL_WORLD,
+    }
+)

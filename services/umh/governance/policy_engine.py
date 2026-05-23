@@ -9,11 +9,11 @@ from uuid import UUID, uuid4
 
 from services.umh.governance.authority import AuthorityLevel
 from services.umh.governance.risk_classes import RiskClass
-from services.umh.protocols.governance import (
+from substrate.types import (
     GovernanceCondition,
     GovernanceDecision,
     GovernanceRequest,
-    GovernanceVerdict,
+    PipelineGovernanceVerdict as GovernanceVerdict,
     RiskLevel,
 )
 

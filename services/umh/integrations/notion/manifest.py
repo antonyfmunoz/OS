@@ -5,8 +5,7 @@ from __future__ import annotations
 import os
 
 from services.umh.governance.risk_classes import RiskClass
-from services.umh.protocols.capability import CapabilityCategory
-from services.umh.protocols.signal import SignalUrgency
+from substrate.types import CapabilityCategory, SignalUrgency
 from substrate.sockets.protocols import CapabilityDescriptor, SignalDescriptor
 
 from .auth import discover_database_ids

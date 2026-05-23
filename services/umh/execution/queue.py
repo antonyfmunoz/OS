@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Iterator
 from uuid import UUID
 
-from services.umh.protocols.work_packet import WorkPacket, WorkPacketPriority, WorkPacketStatus
+from substrate.types import WorkPacket, WorkPacketPriority, WorkPacketStatus
 
 _PRIORITY_ORDER: dict[WorkPacketPriority, int] = {
     WorkPacketPriority.CRITICAL: 0,

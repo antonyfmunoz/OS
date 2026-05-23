@@ -6,7 +6,7 @@ import logging
 from typing import Any
 from uuid import uuid4
 
-from services.umh.protocols.signal import SignalUrgency
+from substrate.types import SignalUrgency
 from substrate.sockets.envelopes import SignalEnvelope
 from substrate.sockets.protocols import SignalDescriptor
 

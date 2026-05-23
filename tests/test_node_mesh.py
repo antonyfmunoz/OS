@@ -51,7 +51,7 @@ def test_capability_socket_unregister():
     from substrate.sockets.protocols import CapabilityDescriptor, CapabilityHealth
     from substrate.sockets.envelopes import CapabilityRequest, CapabilityResponse
     from services.umh.governance.risk_classes import RiskClass
-    from services.umh.protocols.capability import CapabilityCategory
+    from substrate.types import CapabilityCategory
 
     class FakeHandler:
         @property
@@ -118,7 +118,7 @@ def test_registry_reregistration():
     )
     from substrate.sockets.envelopes import CapabilityResponse
     from services.umh.governance.risk_classes import RiskClass
-    from services.umh.protocols.capability import CapabilityCategory
+    from substrate.types import CapabilityCategory
 
     class FakeEmitter:
         @property

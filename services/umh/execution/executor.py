@@ -9,10 +9,15 @@ from uuid import UUID
 
 from services.umh.execution.proof_generator import ProofGenerator
 from services.umh.governance.risk_classes import RiskClass
-from services.umh.protocols.execution_result import ExecutionOutcome, ExecutionResult
-from services.umh.protocols.governance import GovernanceDecision, GovernanceVerdict
-from services.umh.protocols.proof import Proof
-from services.umh.protocols.work_packet import WorkPacket, WorkPacketStatus
+from substrate.types import (
+    ExecutionOutcome,
+    GovernanceDecision,
+    PipelineExecutionResult as ExecutionResult,
+    PipelineGovernanceVerdict as GovernanceVerdict,
+    Proof,
+    WorkPacket,
+    WorkPacketStatus,
+)
 
 
 class AdapterProtocol(Protocol):
