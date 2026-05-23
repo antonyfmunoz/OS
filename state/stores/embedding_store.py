@@ -4,7 +4,6 @@ from state.storage.db import get_conn
 
 
 class EmbeddingStore:
-
     def upsert_embedding(
         self,
         org_id: str,
@@ -16,8 +15,7 @@ class EmbeddingStore:
         """Delete-then-insert embedding for an interaction. Returns True on success."""
         with get_conn(org_id) as cur:
             cur.execute(
-                "DELETE FROM embeddings "
-                "WHERE interaction_id = %s AND org_id = %s",
+                "DELETE FROM embeddings WHERE interaction_id = %s AND org_id = %s",
                 (interaction_id, org_id),
             )
             cur.execute(

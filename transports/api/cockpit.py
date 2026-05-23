@@ -996,11 +996,7 @@ async def dex_history(limit: int = 50):
         return []
 
     messages = daemon.store.list_messages(limit=500)
-    dex_msgs = [
-        m
-        for m in messages
-        if m.get("payload", {}).get("source") == "cockpit_dex_channel"
-    ]
+    dex_msgs = [m for m in messages if m.get("payload", {}).get("source") == "cockpit_dex_channel"]
 
     exchanges: list[dict[str, Any]] = []
     i = 0
@@ -1016,12 +1012,8 @@ async def dex_history(limit: int = 50):
         if msg.get("sender") == "operator":
             exchange["content"] = msg.get("payload", {}).get("content", "")
             if i + 1 < len(dex_msgs) and dex_msgs[i + 1].get("sender") == "dex":
-                exchange["response"] = dex_msgs[i + 1].get("payload", {}).get(
-                    "response"
-                )
-                exchange["timestamp"] = dex_msgs[i + 1].get(
-                    "created_at", exchange["timestamp"]
-                )
+                exchange["response"] = dex_msgs[i + 1].get("payload", {}).get("response")
+                exchange["timestamp"] = dex_msgs[i + 1].get("created_at", exchange["timestamp"])
                 i += 2
                 continue
         elif msg.get("sender") == "dex":

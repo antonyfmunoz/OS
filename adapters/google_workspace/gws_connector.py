@@ -18,9 +18,10 @@ import time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path as _Path
 from dotenv import load_dotenv as _load_dotenv
+
 _ROOT = _Path(__file__).parent.parent
-_load_dotenv(_ROOT / 'services' / '.env')
-_load_dotenv(_ROOT / 'runtime' / '.env', override=True)
+_load_dotenv(_ROOT / "services" / ".env")
+_load_dotenv(_ROOT / "runtime" / ".env", override=True)
 
 # Circuit breaker: if the CLI times out, skip further calls for this long.
 # File-based so cron-spawned processes see each other's failures.
@@ -47,7 +48,6 @@ def _trip_cooldown() -> None:
 
 
 class GWSConnector:
-
     # ── Core runner ───────────────────────────────────────────────────────────
 
     def _run(
@@ -79,9 +79,7 @@ class GWSConnector:
             cmd += ["--json", json.dumps(body)]
 
         try:
-            result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=_GWS_TIMEOUT
-            )
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=_GWS_TIMEOUT)
         except subprocess.TimeoutExpired:
             _trip_cooldown()
             print(
@@ -95,17 +93,12 @@ class GWSConnector:
 
         if result.returncode != 0:
             stderr = (result.stderr or "").strip().splitlines()[-1:] or [""]
-            print(
-                f"[GWS] CLI exit={result.returncode}: {' '.join(args)} "
-                f"— {stderr[0]}"
-            )
+            print(f"[GWS] CLI exit={result.returncode}: {' '.join(args)} — {stderr[0]}")
             return None
 
         output = result.stdout
         lines = output.split("\n")
-        clean = "\n".join(
-            l for l in lines if not l.startswith("Using keyring")
-        )
+        clean = "\n".join(l for l in lines if not l.startswith("Using keyring"))
         clean = clean.strip()
         if not clean:
             return None
@@ -118,56 +111,60 @@ class GWSConnector:
     # ── Calendar ──────────────────────────────────────────────────────────────
 
     def get_today_events(self) -> list[dict]:
-        now   = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc)
         start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
-        end   = now.replace(hour=23, minute=59, second=59, microsecond=0).isoformat()
-        data  = self._run(
-            "calendar", "events", "list",
+        end = now.replace(hour=23, minute=59, second=59, microsecond=0).isoformat()
+        data = self._run(
+            "calendar",
+            "events",
+            "list",
             params={
-                "calendarId":   "primary",
-                "timeMin":      start,
-                "timeMax":      end,
-                "maxResults":   20,
+                "calendarId": "primary",
+                "timeMin": start,
+                "timeMax": end,
+                "maxResults": 20,
                 "singleEvents": True,
-                "orderBy":      "startTime",
+                "orderBy": "startTime",
             },
         )
         if not data:
             return []
         return [
             {
-                "title":       e.get("summary", "Untitled"),
-                "start":       e.get("start", {}).get("dateTime") or e.get("start", {}).get("date"),
-                "end":         e.get("end",   {}).get("dateTime") or e.get("end",   {}).get("date"),
-                "location":    e.get("location", ""),
+                "title": e.get("summary", "Untitled"),
+                "start": e.get("start", {}).get("dateTime") or e.get("start", {}).get("date"),
+                "end": e.get("end", {}).get("dateTime") or e.get("end", {}).get("date"),
+                "location": e.get("location", ""),
                 "description": e.get("description", "")[:200],
-                "meet_link":   e.get("hangoutLink", ""),
+                "meet_link": e.get("hangoutLink", ""),
             }
             for e in data.get("items", [])
         ]
 
     def get_upcoming_events(self, days: int = 7) -> list[dict]:
-        now  = datetime.now(timezone.utc)
-        end  = now + timedelta(days=days)
+        now = datetime.now(timezone.utc)
+        end = now + timedelta(days=days)
         data = self._run(
-            "calendar", "events", "list",
+            "calendar",
+            "events",
+            "list",
             params={
-                "calendarId":   "primary",
-                "timeMin":      now.isoformat(),
-                "timeMax":      end.isoformat(),
-                "maxResults":   20,
+                "calendarId": "primary",
+                "timeMin": now.isoformat(),
+                "timeMax": end.isoformat(),
+                "maxResults": 20,
                 "singleEvents": True,
-                "orderBy":      "startTime",
+                "orderBy": "startTime",
             },
         )
         if not data:
             return []
         return [
             {
-                "title":     e.get("summary", "Untitled"),
-                "start":     e.get("start", {}).get("dateTime") or e.get("start", {}).get("date"),
-                "end":       e.get("end",   {}).get("dateTime") or e.get("end",   {}).get("date"),
-                "location":  e.get("location", ""),
+                "title": e.get("summary", "Untitled"),
+                "start": e.get("start", {}).get("dateTime") or e.get("start", {}).get("date"),
+                "end": e.get("end", {}).get("dateTime") or e.get("end", {}).get("date"),
+                "location": e.get("location", ""),
                 "meet_link": e.get("hangoutLink", ""),
             }
             for e in data.get("items", [])
@@ -187,10 +184,12 @@ class GWSConnector:
         Returns dict with title, start, meet_link, event_id or None on failure.
         """
         import uuid as _uuid
+
         now = datetime.now(timezone.utc)
         if start_iso:
             try:
                 from dateutil.parser import parse as _parse
+
                 start_dt = _parse(start_iso)
             except Exception:
                 start_dt = now + timedelta(minutes=5)
@@ -200,13 +199,13 @@ class GWSConnector:
         end_dt = start_dt + timedelta(minutes=duration_minutes)
 
         params: dict = {
-            "calendarId":           "primary",
+            "calendarId": "primary",
             "conferenceDataVersion": 1,
             "body": {
-                "summary":     title,
+                "summary": title,
                 "description": description,
-                "start":  {"dateTime": start_dt.isoformat(), "timeZone": "UTC"},
-                "end":    {"dateTime": end_dt.isoformat(),   "timeZone": "UTC"},
+                "start": {"dateTime": start_dt.isoformat(), "timeZone": "UTC"},
+                "end": {"dateTime": end_dt.isoformat(), "timeZone": "UTC"},
                 "reminders": {
                     "useDefault": False,
                     "overrides": [{"method": "popup", "minutes": 10}],
@@ -226,9 +225,9 @@ class GWSConnector:
         if not data:
             return None
         return {
-            "event_id":  data.get("id", ""),
-            "title":     data.get("summary", title),
-            "start":     data.get("start", {}).get("dateTime", ""),
+            "event_id": data.get("id", ""),
+            "title": data.get("summary", title),
+            "start": data.get("start", {}).get("dateTime", ""),
             "meet_link": data.get("hangoutLink", ""),
         }
 
@@ -242,7 +241,9 @@ class GWSConnector:
     ) -> dict | None:
         """Update an existing calendar event."""
         event = self._run(
-            "calendar", "events", "get",
+            "calendar",
+            "events",
+            "get",
             params={"calendarId": "primary", "eventId": event_id},
         )
         if not event:
@@ -254,12 +255,15 @@ class GWSConnector:
             event["description"] = description
         if start_iso:
             from dateutil.parser import parse as _parse
+
             start_dt = _parse(start_iso)
             end_dt = start_dt + timedelta(minutes=duration_minutes or 60)
             event["start"] = {"dateTime": start_dt.isoformat(), "timeZone": "UTC"}
-            event["end"]   = {"dateTime": end_dt.isoformat(),   "timeZone": "UTC"}
+            event["end"] = {"dateTime": end_dt.isoformat(), "timeZone": "UTC"}
         updated = self._run(
-            "calendar", "events", "update",
+            "calendar",
+            "events",
+            "update",
             params={"calendarId": "primary", "eventId": event_id, "body": event},
         )
         if not updated:
@@ -269,7 +273,9 @@ class GWSConnector:
     def delete_calendar_event(self, event_id: str) -> bool:
         """Delete a calendar event."""
         self._run(
-            "calendar", "events", "delete",
+            "calendar",
+            "events",
+            "delete",
             params={"calendarId": "primary", "eventId": event_id},
         )
         return True  # delete returns empty body; absence of exception = success
@@ -283,11 +289,11 @@ class GWSConnector:
         now = datetime.now(timezone.utc)
         time_max = now + timedelta(days=days)
         params: dict = {
-            "calendarId":   "primary",
-            "timeMin":      now.isoformat(),
-            "timeMax":      time_max.isoformat(),
+            "calendarId": "primary",
+            "timeMin": now.isoformat(),
+            "timeMax": time_max.isoformat(),
             "singleEvents": True,
-            "orderBy":      "startTime",
+            "orderBy": "startTime",
         }
         if query:
             params["q"] = query
@@ -317,27 +323,29 @@ class GWSConnector:
             events = self.list_calendar_events(days=1)
             conflicts = []
             for event in events:
-                ev_start = event.get('start', {})
-                ev_start_str = ev_start.get('dateTime', ev_start.get('date', ''))
+                ev_start = event.get("start", {})
+                ev_start_str = ev_start.get("dateTime", ev_start.get("date", ""))
                 if not ev_start_str:
                     continue
                 try:
                     ev_dt = _parse(ev_start_str)
-                    ev_end_str = event.get('end', {}).get(
-                        'dateTime', event.get('end', {}).get('date', '')
+                    ev_end_str = event.get("end", {}).get(
+                        "dateTime", event.get("end", {}).get("date", "")
                     )
                     ev_end_dt = _parse(ev_end_str) if ev_end_str else ev_dt + timedelta(hours=1)
                     if check_start < ev_end_dt and check_end > ev_dt:
-                        conflicts.append({
-                            'title': event.get('summary', 'Untitled'),
-                            'start': ev_start_str,
-                            'end': ev_end_str,
-                        })
+                        conflicts.append(
+                            {
+                                "title": event.get("summary", "Untitled"),
+                                "start": ev_start_str,
+                                "end": ev_end_str,
+                            }
+                        )
                 except Exception:
                     continue
             return conflicts
         except Exception as e:
-            print(f'[GWS] check_conflicts failed: {e}')
+            print(f"[GWS] check_conflicts failed: {e}")
             return []
 
     def block_travel_time(
@@ -352,14 +360,15 @@ class GWSConnector:
         Returns dict with before_event and after_event created.
         """
         try:
-            result = self._run('calendar', 'events', 'get',
-                params={'calendarId': 'primary', 'eventId': event_id})
+            result = self._run(
+                "calendar", "events", "get", params={"calendarId": "primary", "eventId": event_id}
+            )
             if not result:
                 return {}
 
-            start_str = result.get('start', {}).get('dateTime', '')
-            end_str = result.get('end', {}).get('dateTime', '')
-            title = result.get('summary', 'Event')
+            start_str = result.get("start", {}).get("dateTime", "")
+            end_str = result.get("end", {}).get("dateTime", "")
+            title = result.get("summary", "Event")
 
             if not start_str or not end_str:
                 return {}
@@ -376,26 +385,26 @@ class GWSConnector:
             created = {}
 
             before = self.create_calendar_event(
-                title=f'🚗 Travel → {title}',
+                title=f"🚗 Travel → {title}",
                 start_iso=travel_before_start.isoformat(),
                 duration_minutes=travel_minutes,
-                description=f'Travel to: {location}',
+                description=f"Travel to: {location}",
             )
             if before:
-                created['before'] = before
+                created["before"] = before
 
             after = self.create_calendar_event(
-                title=f'🚗 Travel ← {title}',
+                title=f"🚗 Travel ← {title}",
                 start_iso=travel_after_start.isoformat(),
                 duration_minutes=travel_minutes,
-                description=f'Travel from: {location}',
+                description=f"Travel from: {location}",
             )
             if after:
-                created['after'] = after
+                created["after"] = after
 
             return created
         except Exception as e:
-            print(f'[GWS] block_travel_time failed: {e}')
+            print(f"[GWS] block_travel_time failed: {e}")
             return {}
 
     def detect_timezone_from_email(self, email: str) -> str:
@@ -404,31 +413,31 @@ class GWSConnector:
         Returns timezone string e.g. 'America/New_York'.
         Falls back to 'America/Los_Angeles' (Antony's TZ).
         """
-        if not email or '@' not in email:
-            return 'America/Los_Angeles'
+        if not email or "@" not in email:
+            return "America/Los_Angeles"
 
-        domain = email.split('@')[-1].lower()
+        domain = email.split("@")[-1].lower()
 
         TZ_MAP = {
-            '.co.uk': 'Europe/London',
-            '.uk': 'Europe/London',
-            '.au': 'Australia/Sydney',
-            '.ca': 'America/Toronto',
-            '.de': 'Europe/Berlin',
-            '.fr': 'Europe/Paris',
-            '.jp': 'Asia/Tokyo',
-            '.in': 'Asia/Kolkata',
-            '.sg': 'Asia/Singapore',
-            '.nz': 'Pacific/Auckland',
-            '.br': 'America/Sao_Paulo',
-            '.mx': 'America/Mexico_City',
+            ".co.uk": "Europe/London",
+            ".uk": "Europe/London",
+            ".au": "Australia/Sydney",
+            ".ca": "America/Toronto",
+            ".de": "Europe/Berlin",
+            ".fr": "Europe/Paris",
+            ".jp": "Asia/Tokyo",
+            ".in": "Asia/Kolkata",
+            ".sg": "Asia/Singapore",
+            ".nz": "Pacific/Auckland",
+            ".br": "America/Sao_Paulo",
+            ".mx": "America/Mexico_City",
         }
 
         for suffix, tz in TZ_MAP.items():
             if domain.endswith(suffix):
                 return tz
 
-        return 'America/Los_Angeles'
+        return "America/Los_Angeles"
 
     def format_time_for_attendee(
         self,
@@ -444,21 +453,21 @@ class GWSConnector:
             from dateutil.parser import parse as _parse
 
             dt = _parse(dt_iso)
-            pdt = ZoneInfo('America/Los_Angeles')
+            pdt = ZoneInfo("America/Los_Angeles")
             attendee_tz_str = self.detect_timezone_from_email(attendee_email)
             attendee_tz = ZoneInfo(attendee_tz_str)
 
             dt_pdt = dt.astimezone(pdt)
             dt_attendee = dt.astimezone(attendee_tz)
 
-            pdt_str = dt_pdt.strftime('%A %B %d at %-I:%M %p PDT')
+            pdt_str = dt_pdt.strftime("%A %B %d at %-I:%M %p PDT")
 
-            if attendee_tz_str == 'America/Los_Angeles':
+            if attendee_tz_str == "America/Los_Angeles":
                 return pdt_str
 
-            attendee_str = dt_attendee.strftime('%-I:%M %p')
-            tz_abbr = dt_attendee.strftime('%Z')
-            return f'{pdt_str} ({attendee_str} {tz_abbr} your time)'
+            attendee_str = dt_attendee.strftime("%-I:%M %p")
+            tz_abbr = dt_attendee.strftime("%Z")
+            return f"{pdt_str} ({attendee_str} {tz_abbr} your time)"
         except Exception as e:
             return dt_iso[:16]
 
@@ -468,21 +477,23 @@ class GWSConnector:
 
     def get_tasks(self) -> list[dict]:
         data = self._run(
-            "tasks", "tasks", "list",
+            "tasks",
+            "tasks",
+            "list",
             params={
-                "tasklist":      self.TASKLIST_ID,
+                "tasklist": self.TASKLIST_ID,
                 "showCompleted": False,
-                "maxResults":    50,
+                "maxResults": 50,
             },
         )
         if not data:
             return []
         return [
             {
-                "id":     t.get("id"),
-                "title":  t.get("title", ""),
-                "notes":  t.get("notes", ""),
-                "due":    t.get("due", ""),
+                "id": t.get("id"),
+                "title": t.get("title", ""),
+                "notes": t.get("notes", ""),
+                "due": t.get("due", ""),
                 "status": t.get("status", ""),
             }
             for t in data.get("items", [])
@@ -497,7 +508,7 @@ class GWSConnector:
     ) -> dict | None:
         params: dict = {
             "tasklist": self.TASKLIST_ID,
-            "title":    title,
+            "title": title,
         }
         if notes:
             params["notes"] = notes
@@ -507,11 +518,13 @@ class GWSConnector:
 
     def complete_task(self, task_id: str) -> bool:
         result = self._run(
-            "tasks", "tasks", "patch",
+            "tasks",
+            "tasks",
+            "patch",
             params={
                 "tasklist": self.TASKLIST_ID,
-                "task":     task_id,
-                "status":   "completed",
+                "task": task_id,
+                "status": "completed",
             },
         )
         return result is not None
@@ -520,11 +533,13 @@ class GWSConnector:
 
     def search_drive(self, query: str, max_results: int = 10) -> list[dict]:
         data = self._run(
-            "drive", "files", "list",
+            "drive",
+            "files",
+            "list",
             params={
-                "q":        query,
+                "q": query,
                 "pageSize": max_results,
-                "fields":   "files(id,name,mimeType,modifiedTime)",
+                "fields": "files(id,name,mimeType,modifiedTime)",
             },
         )
         if not data:
@@ -536,7 +551,11 @@ class GWSConnector:
         try:
             result = subprocess.run(
                 [
-                    "npx", "@googleworkspace/cli", "drive", "files", "export",
+                    "npx",
+                    "@googleworkspace/cli",
+                    "drive",
+                    "files",
+                    "export",
                     "--params",
                     json.dumps({"fileId": file_id, "mimeType": "text/plain"}),
                 ],
@@ -552,28 +571,33 @@ class GWSConnector:
         """Create a folder in Google Drive."""
         try:
             params: dict = {
-                'name': name,
-                'mimeType': 'application/vnd.google-apps.folder',
+                "name": name,
+                "mimeType": "application/vnd.google-apps.folder",
             }
             if parent_id:
-                params['parents'] = [parent_id]
-            result = self._run('drive', 'files', 'create', params=params)
+                params["parents"] = [parent_id]
+            result = self._run("drive", "files", "create", params=params)
             return result or {}
         except Exception as e:
-            print(f'[GWS] create_folder failed: {e}')
+            print(f"[GWS] create_folder failed: {e}")
             return {}
 
     def move_file(self, file_id: str, new_parent_id: str) -> bool:
         """Move a file to a different folder."""
         try:
-            result = self._run('drive', 'files', 'update', params={
-                'fileId': file_id,
-                'addParents': new_parent_id,
-                'removeParents': 'root',
-            })
+            result = self._run(
+                "drive",
+                "files",
+                "update",
+                params={
+                    "fileId": file_id,
+                    "addParents": new_parent_id,
+                    "removeParents": "root",
+                },
+            )
             return bool(result)
         except Exception as e:
-            print(f'[GWS] move_file failed: {e}')
+            print(f"[GWS] move_file failed: {e}")
             return False
 
     def list_files(
@@ -584,59 +608,69 @@ class GWSConnector:
     ) -> list[dict]:
         """List files in Drive, optionally filtered by folder or query."""
         try:
-            params: dict = {'maxResults': max_results}
+            params: dict = {"maxResults": max_results}
             if folder_id:
-                params['q'] = f"'{folder_id}' in parents"
+                params["q"] = f"'{folder_id}' in parents"
             elif query:
-                params['q'] = query
-            result = self._run('drive', 'files', 'list', params=params)
-            return result.get('files', []) if result else []
+                params["q"] = query
+            result = self._run("drive", "files", "list", params=params)
+            return result.get("files", []) if result else []
         except Exception as e:
-            print(f'[GWS] list_files failed: {e}')
+            print(f"[GWS] list_files failed: {e}")
             return []
 
     def rename_file(self, file_id: str, new_name: str) -> bool:
         """Rename a file or folder."""
         try:
-            result = self._run('drive', 'files', 'update', params={
-                'fileId': file_id,
-                'name': new_name,
-            })
+            result = self._run(
+                "drive",
+                "files",
+                "update",
+                params={
+                    "fileId": file_id,
+                    "name": new_name,
+                },
+            )
             return bool(result)
         except Exception as e:
-            print(f'[GWS] rename_file failed: {e}')
+            print(f"[GWS] rename_file failed: {e}")
             return False
 
     def create_document(
         self,
         title: str,
-        content: str = '',
+        content: str = "",
         folder_id: str = None,
     ) -> dict:
         """Create a new Google Doc."""
         try:
             params: dict = {
-                'name': title,
-                'mimeType': 'application/vnd.google-apps.document',
+                "name": title,
+                "mimeType": "application/vnd.google-apps.document",
             }
             if folder_id:
-                params['parents'] = [folder_id]
-            result = self._run('drive', 'files', 'create', params=params)
+                params["parents"] = [folder_id]
+            result = self._run("drive", "files", "create", params=params)
             return result or {}
         except Exception as e:
-            print(f'[GWS] create_document failed: {e}')
+            print(f"[GWS] create_document failed: {e}")
             return {}
 
     def get_drive_structure(self, max_folders: int = 20) -> list[dict]:
         """Get the top-level folder structure of Drive."""
         try:
-            result = self._run('drive', 'files', 'list', params={
-                'q': "mimeType='application/vnd.google-apps.folder' and 'root' in parents",
-                'maxResults': max_folders,
-            })
-            return result.get('files', []) if result else []
+            result = self._run(
+                "drive",
+                "files",
+                "list",
+                params={
+                    "q": "mimeType='application/vnd.google-apps.folder' and 'root' in parents",
+                    "maxResults": max_folders,
+                },
+            )
+            return result.get("files", []) if result else []
         except Exception as e:
-            print(f'[GWS] get_drive_structure failed: {e}')
+            print(f"[GWS] get_drive_structure failed: {e}")
             return []
 
     def audit_drive(self) -> dict:
@@ -645,25 +679,35 @@ class GWSConnector:
         - Files in root (should be in folders)
         - Untitled documents
         """
-        issues: dict = {'root_files': [], 'untitled': [], 'orphaned': []}
+        issues: dict = {"root_files": [], "untitled": [], "orphaned": []}
         try:
-            root_files = self._run('drive', 'files', 'list', params={
-                'q': "'root' in parents and mimeType!='application/vnd.google-apps.folder'",
-                'maxResults': 20,
-            })
+            root_files = self._run(
+                "drive",
+                "files",
+                "list",
+                params={
+                    "q": "'root' in parents and mimeType!='application/vnd.google-apps.folder'",
+                    "maxResults": 20,
+                },
+            )
             if root_files:
-                issues['root_files'] = root_files.get('files', [])
+                issues["root_files"] = root_files.get("files", [])
 
-            untitled = self._run('drive', 'files', 'list', params={
-                'q': "name contains 'Untitled'",
-                'maxResults': 10,
-            })
+            untitled = self._run(
+                "drive",
+                "files",
+                "list",
+                params={
+                    "q": "name contains 'Untitled'",
+                    "maxResults": 10,
+                },
+            )
             if untitled:
-                issues['untitled'] = untitled.get('files', [])
+                issues["untitled"] = untitled.get("files", [])
 
             return issues
         except Exception as e:
-            print(f'[GWS] audit_drive failed: {e}')
+            print(f"[GWS] audit_drive failed: {e}")
             return issues
 
     # ── Gmail ─────────────────────────────────────────────────────────────────
@@ -683,25 +727,27 @@ class GWSConnector:
         messages = []
         for msg in data.get("messages", [])[:max_results]:
             detail = self._run(
-                "gmail", "users", "messages", "get",
+                "gmail",
+                "users",
+                "messages",
+                "get",
                 params={
-                    "userId":          "me",
-                    "id":              msg["id"],
-                    "format":          "metadata",
+                    "userId": "me",
+                    "id": msg["id"],
+                    "format": "metadata",
                     "metadataHeaders": ["Subject", "From", "Date"],
                 },
             )
             if detail:
                 headers = {
-                    h["name"]: h["value"]
-                    for h in detail.get("payload", {}).get("headers", [])
+                    h["name"]: h["value"] for h in detail.get("payload", {}).get("headers", [])
                 }
                 messages.append(
                     {
-                        "id":      msg["id"],
+                        "id": msg["id"],
                         "subject": headers.get("Subject", ""),
-                        "from":    headers.get("From", ""),
-                        "date":    headers.get("Date", ""),
+                        "from": headers.get("From", ""),
+                        "date": headers.get("Date", ""),
                         "snippet": detail.get("snippet", "")[:200],
                     }
                 )
@@ -719,7 +765,7 @@ class GWSConnector:
 
     def audit_inbox(
         self,
-        save_path: str = f'{_ROOT}/data/gmail_audit.json',
+        save_path: str = f"{_ROOT}/data/gmail_audit.json",
     ) -> dict:
         """
         Read-only audit of current Gmail state.
@@ -731,85 +777,90 @@ class GWSConnector:
 
         # List all labels
         labels_data = self._run(
-            'gmail', 'users', 'labels', 'list',
-            params={'userId': 'me'},
+            "gmail",
+            "users",
+            "labels",
+            "list",
+            params={"userId": "me"},
         )
-        labels: list[dict] = (
-            labels_data.get('labels', []) if labels_data else []
-        )
+        labels: list[dict] = labels_data.get("labels", []) if labels_data else []
 
         # Count total inbox messages (IDs only — no detail fetch)
         messages_data = self._run(
-            'gmail', 'users', 'messages', 'list',
-            params={'userId': 'me', 'maxResults': 500, 'q': 'in:inbox'},
+            "gmail",
+            "users",
+            "messages",
+            "list",
+            params={"userId": "me", "maxResults": 500, "q": "in:inbox"},
         )
-        message_list: list[dict] = (
-            messages_data.get('messages', []) if messages_data else []
-        )
+        message_list: list[dict] = messages_data.get("messages", []) if messages_data else []
         total_inbox = len(message_list)
 
         # Fetch metadata for up to 20 sample emails
         samples: list[dict] = []
         for msg in message_list[:20]:
             detail = self._run(
-                'gmail', 'users', 'messages', 'get',
+                "gmail",
+                "users",
+                "messages",
+                "get",
                 params={
-                    'userId':          'me',
-                    'id':              msg['id'],
-                    'format':          'metadata',
-                    'metadataHeaders': ['Subject', 'From', 'Date'],
+                    "userId": "me",
+                    "id": msg["id"],
+                    "format": "metadata",
+                    "metadataHeaders": ["Subject", "From", "Date"],
                 },
             )
             if detail:
-                hdrs = {
-                    h['name']: h['value']
-                    for h in detail.get('payload', {}).get('headers', [])
-                }
-                samples.append({
-                    'id':      msg['id'],
-                    'from':    hdrs.get('From', ''),
-                    'subject': hdrs.get('Subject', ''),
-                    'date':    hdrs.get('Date', ''),
-                })
+                hdrs = {h["name"]: h["value"] for h in detail.get("payload", {}).get("headers", [])}
+                samples.append(
+                    {
+                        "id": msg["id"],
+                        "from": hdrs.get("From", ""),
+                        "subject": hdrs.get("Subject", ""),
+                        "date": hdrs.get("Date", ""),
+                    }
+                )
 
         # Count messages per user-created label (estimate)
         label_counts: dict[str, int] = {}
         for label in labels:
-            if label.get('type') == 'user':
+            if label.get("type") == "user":
                 count_data = self._run(
-                    'gmail', 'users', 'messages', 'list',
+                    "gmail",
+                    "users",
+                    "messages",
+                    "list",
                     params={
-                        'userId':     'me',
-                        'maxResults': 1,
-                        'q':          f'label:{label["name"]}',
+                        "userId": "me",
+                        "maxResults": 1,
+                        "q": f"label:{label['name']}",
                     },
                 )
                 if count_data is not None:
-                    label_counts[label['name']] = (
-                        count_data.get('resultSizeEstimate', 0)
-                    )
+                    label_counts[label["name"]] = count_data.get("resultSizeEstimate", 0)
 
         audit = {
-            'existing_labels': [
+            "existing_labels": [
                 {
-                    'id':   l['id'],
-                    'name': l['name'],
-                    'type': l.get('type', ''),
+                    "id": l["id"],
+                    "name": l["name"],
+                    "type": l.get("type", ""),
                 }
                 for l in labels
             ],
-            'total_inbox':     total_inbox,
-            'label_counts':    label_counts,
-            'sample_senders':  list({s['from'] for s in samples}),
-            'sample_subjects': [s['subject'] for s in samples[:10]],
+            "total_inbox": total_inbox,
+            "label_counts": label_counts,
+            "sample_senders": list({s["from"] for s in samples}),
+            "sample_subjects": [s["subject"] for s in samples[:10]],
         }
 
         _P(save_path).parent.mkdir(parents=True, exist_ok=True)
         _P(save_path).write_text(_json.dumps(audit, indent=2))
 
-        print(f'[Audit] Labels: {len(labels)}')
-        print(f'[Audit] Inbox emails: {total_inbox}')
-        print(f'[Audit] Saved → {save_path}')
+        print(f"[Audit] Labels: {len(labels)}")
+        print(f"[Audit] Inbox emails: {total_inbox}")
+        print(f"[Audit] Saved → {save_path}")
 
         return audit
 
@@ -819,12 +870,15 @@ class GWSConnector:
     ) -> list[dict]:
         """Get ALL inbox emails (read + unread) for Inbox Zero processing."""
         params: dict = {
-            "userId":     "me",
+            "userId": "me",
             "maxResults": max_results,
-            "q":          "in:inbox",
+            "q": "in:inbox",
         }
         data = self._run(
-            "gmail", "users", "messages", "list",
+            "gmail",
+            "users",
+            "messages",
+            "list",
             params=params,
         )
         if not data:
@@ -833,32 +887,39 @@ class GWSConnector:
         messages = []
         for msg in data.get("messages", [])[:max_results]:
             detail = self._run(
-                "gmail", "users", "messages", "get",
+                "gmail",
+                "users",
+                "messages",
+                "get",
                 params={
-                    "userId":          "me",
-                    "id":              msg["id"],
-                    "format":          "metadata",
+                    "userId": "me",
+                    "id": msg["id"],
+                    "format": "metadata",
                     "metadataHeaders": ["Subject", "From", "Date"],
                 },
             )
             if detail:
                 headers = {
-                    h["name"]: h["value"]
-                    for h in detail.get("payload", {}).get("headers", [])
+                    h["name"]: h["value"] for h in detail.get("payload", {}).get("headers", [])
                 }
-                messages.append({
-                    "id":      msg["id"],
-                    "subject": headers.get("Subject", ""),
-                    "from":    headers.get("From", ""),
-                    "date":    headers.get("Date", ""),
-                    "snippet": detail.get("snippet", "")[:200],
-                })
+                messages.append(
+                    {
+                        "id": msg["id"],
+                        "subject": headers.get("Subject", ""),
+                        "from": headers.get("From", ""),
+                        "date": headers.get("Date", ""),
+                        "snippet": detail.get("snippet", "")[:200],
+                    }
+                )
         return messages
 
     def get_or_create_label(self, label_name: str) -> str | None:
         """Return Gmail label ID for label_name, creating it if needed."""
         data = self._run(
-            "gmail", "users", "labels", "list",
+            "gmail",
+            "users",
+            "labels",
+            "list",
             params={"userId": "me"},
         )
         if data:
@@ -867,7 +928,10 @@ class GWSConnector:
                     return label["id"]
         # Not found — create it
         result = self._run(
-            "gmail", "users", "labels", "create",
+            "gmail",
+            "users",
+            "labels",
+            "create",
             params={"userId": "me"},
             body={"name": label_name},
         )
@@ -888,7 +952,10 @@ class GWSConnector:
         if remove_label_ids:
             body["removeLabelIds"] = remove_label_ids
         result = self._run(
-            "gmail", "users", "messages", "modify",
+            "gmail",
+            "users",
+            "messages",
+            "modify",
             params={"userId": "me", "id": message_id},
             body=body,
         )
@@ -897,7 +964,10 @@ class GWSConnector:
     def delete_label(self, label_id: str) -> bool:
         """Permanently delete a Gmail label by ID."""
         result = self._run(
-            "gmail", "users", "labels", "delete",
+            "gmail",
+            "users",
+            "labels",
+            "delete",
             params={"userId": "me", "id": label_id},
         )
         # delete returns empty body on success (None from _run), check stderr
@@ -914,15 +984,18 @@ class GWSConnector:
 
         while len(results) < max_results:
             params: dict = {
-                "userId":     "me",
-                "labelIds":   [label_id],
+                "userId": "me",
+                "labelIds": [label_id],
                 "maxResults": min(500, max_results - len(results)),
             }
             if page_token:
                 params["pageToken"] = page_token
 
             data = self._run(
-                "gmail", "users", "messages", "list",
+                "gmail",
+                "users",
+                "messages",
+                "list",
                 params=params,
             )
             if not data:
@@ -950,7 +1023,10 @@ class GWSConnector:
         if remove_label_ids:
             body["removeLabelIds"] = remove_label_ids
         result = self._run(
-            "gmail", "users", "messages", "batchModify",
+            "gmail",
+            "users",
+            "messages",
+            "batchModify",
             params={"userId": "me"},
             body=body,
         )
@@ -963,25 +1039,28 @@ class GWSConnector:
     ) -> dict:
         """Fetch specific headers from a message. Returns {header_name: value}."""
         data = self._run(
-            "gmail", "users", "messages", "get",
+            "gmail",
+            "users",
+            "messages",
+            "get",
             params={
-                "userId":          "me",
-                "id":              message_id,
-                "format":          "metadata",
+                "userId": "me",
+                "id": message_id,
+                "format": "metadata",
                 "metadataHeaders": headers,
             },
         )
         if not data:
             return {}
-        return {
-            h["name"]: h["value"]
-            for h in data.get("payload", {}).get("headers", [])
-        }
+        return {h["name"]: h["value"] for h in data.get("payload", {}).get("headers", [])}
 
     def list_all_labels(self) -> list[dict]:
         """Return all Gmail labels with id, name, type."""
         data = self._run(
-            "gmail", "users", "labels", "list",
+            "gmail",
+            "users",
+            "labels",
+            "list",
             params={"userId": "me"},
         )
         if not data:
@@ -1008,27 +1087,29 @@ class GWSConnector:
             from email.mime.text import MIMEText
             from email.mime.multipart import MIMEMultipart
 
-            msg = MIMEMultipart('alternative')
-            msg['To'] = to_email
-            msg['Subject'] = subject
+            msg = MIMEMultipart("alternative")
+            msg["To"] = to_email
+            msg["Subject"] = subject
             if cc:
-                msg['Cc'] = ', '.join(cc)
+                msg["Cc"] = ", ".join(cc)
             if reply_to:
-                msg['Reply-To'] = reply_to
+                msg["Reply-To"] = reply_to
 
             # Plain text part
-            msg.attach(MIMEText(body, 'plain'))
+            msg.attach(MIMEText(body, "plain"))
 
-            raw = base64.urlsafe_b64encode(
-                msg.as_bytes()
-            ).decode('utf-8')
+            raw = base64.urlsafe_b64encode(msg.as_bytes()).decode("utf-8")
 
-            result = self._run('gmail', 'users.messages', 'send',
+            result = self._run(
+                "gmail",
+                "users.messages",
+                "send",
                 params={
-                    'userId': 'me',
-                    'raw': raw,
-                })
+                    "userId": "me",
+                    "raw": raw,
+                },
+            )
             return result or {}
         except Exception as e:
-            print(f'[GWS] send_email failed: {e}')
+            print(f"[GWS] send_email failed: {e}")
             return {}

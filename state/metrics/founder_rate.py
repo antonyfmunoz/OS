@@ -11,9 +11,9 @@ from pathlib import Path as _Path
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
-load_dotenv(_Path(__file__).parent / '.env')
+load_dotenv(_Path(__file__).parent / ".env")
 logger = logging.getLogger(__name__)
-PDT = ZoneInfo('America/Los_Angeles')
+PDT = ZoneInfo("America/Los_Angeles")
 
 
 def calculate_founder_rate(
@@ -28,12 +28,11 @@ def calculate_founder_rate(
     founder_rate = hourly_rate / 4
 
     return {
-        'annual_income': annual_income,
-        'hourly_rate': round(hourly_rate, 2),
-        'founder_rate': round(founder_rate, 2),
-        'interpretation': (
-            f'Delegate any task that can be done for '
-            f'${founder_rate:.2f}/hour or less.'
+        "annual_income": annual_income,
+        "hourly_rate": round(hourly_rate, 2),
+        "founder_rate": round(founder_rate, 2),
+        "interpretation": (
+            f"Delegate any task that can be done for ${founder_rate:.2f}/hour or less."
         ),
     }
 
@@ -43,18 +42,19 @@ def store_founder_rate(annual_income: float, ctx=None) -> bool:
     try:
         from state.context.context import load_context_from_env
         from state.memory.memory import AgentMemory
+
         ctx = ctx or load_context_from_env()
         rate = calculate_founder_rate(annual_income)
 
         AgentMemory().log_event(
             org_id=str(ctx.org_id),
-            event_type='founder_rate',
-            payload={**rate, 'set_at': datetime.now(PDT).isoformat()},
-            handled_by='dex_founder_rate',
+            event_type="founder_rate",
+            payload={**rate, "set_at": datetime.now(PDT).isoformat()},
+            handled_by="dex_founder_rate",
         )
         return True
     except Exception as e:
-        logger.warning(f'[FounderRate] store failed: {e}')
+        logger.warning(f"[FounderRate] store failed: {e}")
         return False
 
 
@@ -63,25 +63,26 @@ def get_current_founder_rate(ctx=None) -> dict:
     try:
         from state.context.context import load_context_from_env
         from state.storage.db import get_conn
+
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
             cur.execute(
-                '''SELECT payload_json FROM events
+                """SELECT payload_json FROM events
                    WHERE org_id = %s AND event_type = 'founder_rate'
-                   ORDER BY created_at DESC LIMIT 1''',
+                   ORDER BY created_at DESC LIMIT 1""",
                 (str(ctx.org_id),),
             )
             row = cur.fetchone()
 
         if row:
-            payload = row['payload_json']
+            payload = row["payload_json"]
             if isinstance(payload, str):
                 payload = json.loads(payload)
             return payload
         return {}
     except Exception as e:
-        logger.warning(f'[FounderRate] get failed: {e}')
+        logger.warning(f"[FounderRate] get failed: {e}")
         return {}
 
 
@@ -99,23 +100,24 @@ def log_time_block(
     try:
         from state.context.context import load_context_from_env
         from state.memory.memory import AgentMemory
+
         ctx = ctx or load_context_from_env()
 
         AgentMemory().log_event(
             org_id=str(ctx.org_id),
-            event_type='time_audit_block',
+            event_type="time_audit_block",
             payload={
-                'activity': activity,
-                'duration_minutes': duration_minutes,
-                'energy': energy,
-                'estimated_value': estimated_value,
-                'logged_at': datetime.now(PDT).isoformat(),
+                "activity": activity,
+                "duration_minutes": duration_minutes,
+                "energy": energy,
+                "estimated_value": estimated_value,
+                "logged_at": datetime.now(PDT).isoformat(),
             },
-            handled_by='dex_time_audit',
+            handled_by="dex_time_audit",
         )
         return True
     except Exception as e:
-        logger.warning(f'[FounderRate] log_time_block failed: {e}')
+        logger.warning(f"[FounderRate] log_time_block failed: {e}")
         return False
 
 
@@ -124,14 +126,15 @@ def get_time_audit_summary(days: int = 7, ctx=None) -> dict:
     try:
         from state.context.context import load_context_from_env
         from state.storage.db import get_conn
+
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
             cur.execute(
-                '''SELECT payload_json FROM events
+                """SELECT payload_json FROM events
                    WHERE org_id = %s AND event_type = 'time_audit_block'
                    AND created_at >= NOW() - INTERVAL '1 day' * %s
-                   ORDER BY created_at DESC''',
+                   ORDER BY created_at DESC""",
                 (str(ctx.org_id), int(days)),
             )
             rows = cur.fetchall()
@@ -143,12 +146,12 @@ def get_time_audit_summary(days: int = 7, ctx=None) -> dict:
         activities = []
 
         for r in rows:
-            payload = r['payload_json']
+            payload = r["payload_json"]
             if isinstance(payload, str):
                 payload = json.loads(payload)
-            mins = payload.get('duration_minutes', 0)
-            energy = payload.get('energy', 0)
-            value = payload.get('estimated_value', 0)
+            mins = payload.get("duration_minutes", 0)
+            energy = payload.get("energy", 0)
+            value = payload.get("estimated_value", 0)
 
             total_minutes += mins
             energy_weighted += energy * mins
@@ -161,40 +164,41 @@ def get_time_audit_summary(days: int = 7, ctx=None) -> dict:
         avg_energy = energy_weighted / total_minutes if total_minutes > 0 else 0
 
         return {
-            'total_hours': round(total_minutes / 60, 1),
-            'avg_energy': round(avg_energy, 2),
-            'high_value_pct': round(
-                high_value_minutes / total_minutes * 100, 1
-            ) if total_minutes > 0 else 0,
-            'low_value_pct': round(
-                low_value_minutes / total_minutes * 100, 1
-            ) if total_minutes > 0 else 0,
-            'activities': activities,
+            "total_hours": round(total_minutes / 60, 1),
+            "avg_energy": round(avg_energy, 2),
+            "high_value_pct": round(high_value_minutes / total_minutes * 100, 1)
+            if total_minutes > 0
+            else 0,
+            "low_value_pct": round(low_value_minutes / total_minutes * 100, 1)
+            if total_minutes > 0
+            else 0,
+            "activities": activities,
         }
     except Exception as e:
-        logger.warning(f'[FounderRate] audit summary failed: {e}')
+        logger.warning(f"[FounderRate] audit summary failed: {e}")
         return {}
 
 
-def add_to_no_list(item: str, reason: str = '', ctx=None) -> bool:
+def add_to_no_list(item: str, reason: str = "", ctx=None) -> bool:
     """Add something to Antony's No List."""
     try:
         from state.context.context import load_context_from_env
         from state.memory.memory import AgentMemory
+
         ctx = ctx or load_context_from_env()
         AgentMemory().log_event(
             org_id=str(ctx.org_id),
-            event_type='no_list',
+            event_type="no_list",
             payload={
-                'item': item,
-                'reason': reason,
-                'added_at': datetime.now(PDT).isoformat(),
+                "item": item,
+                "reason": reason,
+                "added_at": datetime.now(PDT).isoformat(),
             },
-            handled_by='dex_no_list',
+            handled_by="dex_no_list",
         )
         return True
     except Exception as e:
-        logger.warning(f'[NoList] add failed: {e}')
+        logger.warning(f"[NoList] add failed: {e}")
         return False
 
 
@@ -203,28 +207,32 @@ def get_no_list(ctx=None) -> list[dict]:
     try:
         from state.context.context import load_context_from_env
         from state.storage.db import get_conn
+
         ctx = ctx or load_context_from_env()
         with get_conn(ctx.org_id) as cur:
-            cur.execute('''
+            cur.execute(
+                """
                 SELECT payload_json FROM events
                 WHERE org_id = %s
                 AND event_type = 'no_list'
                 ORDER BY created_at DESC
-            ''', (str(ctx.org_id),))
+            """,
+                (str(ctx.org_id),),
+            )
             rows = cur.fetchall()
         results = []
         seen: set[str] = set()
         for r in rows:
-            p = r['payload_json']
+            p = r["payload_json"]
             if isinstance(p, str):
                 p = json.loads(p)
-            item = p.get('item', '')
+            item = p.get("item", "")
             if item and item not in seen:
                 seen.add(item)
                 results.append(p)
         return results
     except Exception as e:
-        logger.warning(f'[NoList] get failed: {e}')
+        logger.warning(f"[NoList] get failed: {e}")
         return []
 
 
@@ -232,11 +240,7 @@ def check_against_no_list(text: str, ctx=None) -> list[str]:
     """Return any No List items found in text."""
     no_list = get_no_list(ctx)
     text_lower = text.lower()
-    return [
-        item['item']
-        for item in no_list
-        if item.get('item', '').lower() in text_lower
-    ]
+    return [item["item"] for item in no_list if item.get("item", "").lower() in text_lower]
 
 
 def detect_delegation_threshold(ctx=None) -> list[dict]:
@@ -248,10 +252,12 @@ def detect_delegation_threshold(ctx=None) -> list[dict]:
     try:
         from state.context.context import load_context_from_env
         from state.storage.db import get_conn
+
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT
                     payload_json->>'task' as task_text,
                     COUNT(*) as occurrence_count
@@ -263,21 +269,23 @@ def detect_delegation_threshold(ctx=None) -> list[dict]:
                 HAVING COUNT(*) >= 3
                 ORDER BY COUNT(*) DESC
                 LIMIT 10
-            """, (str(ctx.org_id),))
+            """,
+                (str(ctx.org_id),),
+            )
             rows = cur.fetchall()
 
         return [
             {
-                'task': r['task_text'] or '',
-                'occurrences': r['occurrence_count'],
-                'recommendation': (
-                    f'This has appeared {r["occurrence_count"]}x. '
-                    'Build a playbook or delegate permanently.'
+                "task": r["task_text"] or "",
+                "occurrences": r["occurrence_count"],
+                "recommendation": (
+                    f"This has appeared {r['occurrence_count']}x. "
+                    "Build a playbook or delegate permanently."
                 ),
             }
             for r in rows
-            if r['task_text'] and len(r['task_text']) > 10
+            if r["task_text"] and len(r["task_text"]) > 10
         ]
     except Exception as e:
-        logger.warning(f'[FounderRate] detect_delegation_threshold failed: {e}')
+        logger.warning(f"[FounderRate] detect_delegation_threshold failed: {e}")
         return []

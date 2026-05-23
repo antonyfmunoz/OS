@@ -25,7 +25,7 @@ def load_ventures_from_env() -> list:
     Falls back to empty list if not configured.
     Format: VENTURES_JSON env var containing JSON array.
     """
-    raw = os.getenv('VENTURES_JSON', '[]')
+    raw = os.getenv("VENTURES_JSON", "[]")
     try:
         return json.loads(raw)
     except Exception:

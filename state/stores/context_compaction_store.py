@@ -6,7 +6,6 @@ from state.storage.db import get_conn
 
 
 class ContextCompactionStore:
-
     def insert_compaction(
         self,
         org_id: str,

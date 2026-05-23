@@ -196,24 +196,18 @@ class UserModel:
         top_tasks_str = ", ".join(f"{k}×{v}" for k, v in top_tasks)
 
         detailed_count = sum(1 for l in word_lengths if l >= 15)
-        preferred_depth = (
-            "detailed" if detailed_count > len(word_lengths) * 0.4 else "brief"
-        )
+        preferred_depth = "detailed" if detailed_count > len(word_lengths) * 0.4 else "brief"
 
         # Sample inputs for AI synthesis
         sample_sorted = sorted(interactions[:40], key=lambda x: len(x["input"]))
         sample_text = "\n".join(
-            f"  [{i['task_type']}] {i['input'][:150]}"
-            for i in sample_sorted[:20]
-            if i["input"]
+            f"  [{i['task_type']}] {i['input'][:150]}" for i in sample_sorted[:20] if i["input"]
         )
 
         # ── Guard: skip LLM call if sample data lacks real content ────────────
         # If all samples are identical or very short channel names, there's
         # nothing behavioral to analyze — return a static profile.
-        unique_inputs = set(
-            i["input"].strip().lower() for i in interactions if i["input"].strip()
-        )
+        unique_inputs = set(i["input"].strip().lower() for i in interactions if i["input"].strip())
         meaningful_inputs = [
             inp
             for inp in unique_inputs
@@ -384,6 +378,7 @@ class UserModel:
 
         try:
             from state.stores.profile_store import ProfileStore
+
             ProfileStore().upsert_user_profile(
                 org_id=self.ctx.org_id,
                 user_id=self.ctx.user_id,

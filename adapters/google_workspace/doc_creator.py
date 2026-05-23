@@ -11,17 +11,26 @@ from zoneinfo import ZoneInfo
 import os
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
+load_dotenv(
+    os.path.join(
+        os.environ.get("UMH_ROOT")
+        or os.environ.get("OS_ROOT")
+        or os.environ.get("EOS_ROOT")
+        or "/opt/OS",
+        "runtime",
+        ".env",
+    )
+)
 logger = logging.getLogger(__name__)
-PDT = ZoneInfo('America/Los_Angeles')
+PDT = ZoneInfo("America/Los_Angeles")
 
 
 def create_briefing_doc(
     title: str,
     topic: str,
-    context: str = '',
-    audience: str = 'Antony',
-    doc_type: str = 'briefing',
+    context: str = "",
+    audience: str = "Antony",
+    doc_type: str = "briefing",
     ctx=None,
 ) -> dict:
     """
@@ -32,10 +41,11 @@ def create_briefing_doc(
     try:
         from execution.runtime.model_router import get_router, TaskType
         from adapters.google_workspace.gws_connector import GWSConnector
+
         router = get_router()
 
         templates = {
-            'briefing': f"""Create a concise executive briefing document.
+            "briefing": f"""Create a concise executive briefing document.
 
 Title: {title}
 Topic: {topic}
@@ -44,7 +54,7 @@ Audience: {audience}
 
 Format:
 # {title}
-**Date:** {datetime.now(PDT).strftime('%B %d, %Y')}
+**Date:** {datetime.now(PDT).strftime("%B %d, %Y")}
 **Prepared by:** DEX
 
 ## Executive Summary
@@ -63,8 +73,7 @@ Format:
 [What needs to happen and by when]
 
 Keep it under 400 words. Direct. No fluff.""",
-
-            'board_update': f"""Create a board update document.
+            "board_update": f"""Create a board update document.
 
 Company context: Munoz Conglomerate — Lyfe Institute,
 Empyrean Creative, Personal Brand
@@ -72,7 +81,7 @@ Topic: {topic}
 Context: {context}
 
 Format:
-# Board Update — {datetime.now(PDT).strftime('%B %Y')}
+# Board Update — {datetime.now(PDT).strftime("%B %Y")}
 
 ## Performance Highlights
 [Key metrics and wins]
@@ -90,14 +99,13 @@ Format:
 [What support is needed]
 
 Keep it under 500 words. Numbers over narrative.""",
-
-            'investor_update': f"""Create a monthly investor update.
+            "investor_update": f"""Create a monthly investor update.
 
 Context: {context}
 Topic: {topic}
 
 Format:
-# Investor Update — {datetime.now(PDT).strftime('%B %Y')}
+# Investor Update — {datetime.now(PDT).strftime("%B %Y")}
 
 ## The One-Line Summary
 [What happened this month in one sentence]
@@ -118,8 +126,7 @@ Format:
 [What you're focused on]
 
 Keep it conversational and honest. Under 400 words.""",
-
-            'proposal': f"""Create a business proposal.
+            "proposal": f"""Create a business proposal.
 
 Title: {title}
 Topic: {topic}
@@ -150,13 +157,13 @@ Format:
 Keep it under 500 words. Client-facing quality.""",
         }
 
-        prompt = templates.get(doc_type, templates['briefing'])
+        prompt = templates.get(doc_type, templates["briefing"])
         content = router.call_with_fallback(TaskType.ANALYSIS, prompt).strip()
 
         # Save to Google Drive
         gws = GWSConnector()
         drive_result = gws.create_document(
-            title=f'{title} — {datetime.now(PDT).strftime("%Y-%m-%d")}',
+            title=f"{title} — {datetime.now(PDT).strftime('%Y-%m-%d')}",
             content=content,
         )
 
@@ -164,37 +171,38 @@ Keep it under 500 words. Client-facing quality.""",
         try:
             from state.context.context import load_context_from_env
             from state.memory.memory import AgentMemory
+
             ctx = ctx or load_context_from_env()
             AgentMemory().log_event(
                 org_id=str(ctx.org_id),
-                event_type='document_created',
+                event_type="document_created",
                 payload={
-                    'title': title,
-                    'type': doc_type,
-                    'drive_id': drive_result.get('id', ''),
-                    'created_at': datetime.now(PDT).isoformat(),
+                    "title": title,
+                    "type": doc_type,
+                    "drive_id": drive_result.get("id", ""),
+                    "created_at": datetime.now(PDT).isoformat(),
                 },
-                handled_by='dex_doc_creator',
+                handled_by="dex_doc_creator",
             )
         except Exception:
             pass
 
         return {
-            'content': content,
-            'drive_file': drive_result,
-            'title': title,
-            'type': doc_type,
+            "content": content,
+            "drive_file": drive_result,
+            "title": title,
+            "type": doc_type,
         }
     except Exception as e:
-        logger.warning(f'[DocCreator] create_briefing_doc failed: {e}')
-        return {'content': '', 'error': str(e)}
+        logger.warning(f"[DocCreator] create_briefing_doc failed: {e}")
+        return {"content": "", "error": str(e)}
 
 
 def create_presentation_outline(
     title: str,
     topic: str,
     slides: int = 10,
-    audience: str = '',
+    audience: str = "",
     ctx=None,
 ) -> dict:
     """
@@ -205,13 +213,16 @@ def create_presentation_outline(
         from execution.runtime.model_router import get_router, TaskType
         from adapters.google_workspace.gws_connector import GWSConnector
         import json as _json
+
         router = get_router()
 
-        raw = router.call_with_fallback(TaskType.ANALYSIS, f"""Create a {slides}-slide presentation outline.
+        raw = router.call_with_fallback(
+            TaskType.ANALYSIS,
+            f"""Create a {slides}-slide presentation outline.
 
 Title: {title}
 Topic: {topic}
-Audience: {audience or 'Business audience'}
+Audience: {audience or "Business audience"}
 
 For each slide provide:
 - Slide number
@@ -232,36 +243,37 @@ Format as JSON:
       "speaker_note": "what to say"
     }}
   ]
-}}""").strip()
+}}""",
+        ).strip()
 
-        if '```' in raw:
-            raw = raw.split('```')[1].replace('json', '').strip()
+        if "```" in raw:
+            raw = raw.split("```")[1].replace("json", "").strip()
 
         slides_data = _json.loads(raw)
 
         # Build doc content for Drive
-        doc_content = f'# {title}\n\n'
-        for slide in slides_data.get('slides', []):
-            doc_content += f'## Slide {slide["number"]}: {slide["title"]}\n'
-            doc_content += f'**Key message:** {slide["key_message"]}\n\n'
-            for bullet in slide.get('bullets', []):
-                doc_content += f'- {bullet}\n'
-            doc_content += f'\n*Speaker note: {slide.get("speaker_note", "")}*\n\n'
+        doc_content = f"# {title}\n\n"
+        for slide in slides_data.get("slides", []):
+            doc_content += f"## Slide {slide['number']}: {slide['title']}\n"
+            doc_content += f"**Key message:** {slide['key_message']}\n\n"
+            for bullet in slide.get("bullets", []):
+                doc_content += f"- {bullet}\n"
+            doc_content += f"\n*Speaker note: {slide.get('speaker_note', '')}*\n\n"
 
         gws = GWSConnector()
         drive_result = gws.create_document(
-            title=f'{title} — Presentation Outline',
+            title=f"{title} — Presentation Outline",
             content=doc_content,
         )
 
         return {
-            'slides': slides_data,
-            'drive_file': drive_result,
-            'slide_count': len(slides_data.get('slides', [])),
+            "slides": slides_data,
+            "drive_file": drive_result,
+            "slide_count": len(slides_data.get("slides", [])),
         }
     except Exception as e:
-        logger.warning(f'[DocCreator] create_presentation_outline failed: {e}')
-        return {'slides': {}, 'error': str(e)}
+        logger.warning(f"[DocCreator] create_presentation_outline failed: {e}")
+        return {"slides": {}, "error": str(e)}
 
 
 def fact_check(claim: str, ctx=None) -> dict:
@@ -272,9 +284,12 @@ def fact_check(claim: str, ctx=None) -> dict:
     try:
         from execution.runtime.model_router import get_router, TaskType
         import json as _json
+
         router = get_router()
 
-        raw = router.call_with_fallback(TaskType.ANALYSIS, f"""Fact-check this claim.
+        raw = router.call_with_fallback(
+            TaskType.ANALYSIS,
+            f"""Fact-check this claim.
 
 Claim: {claim}
 
@@ -282,21 +297,22 @@ Return JSON only:
 {{"verdict": "TRUE|FALSE|PARTIALLY TRUE|UNVERIFIABLE",
   "explanation": "why",
   "confidence": "high|medium|low",
-  "verify": ["thing to check 1", "thing to check 2"]}}""").strip()
+  "verify": ["thing to check 1", "thing to check 2"]}}""",
+        ).strip()
 
-        if '```' in raw:
-            raw = raw.split('```')[1].replace('json', '').strip()
+        if "```" in raw:
+            raw = raw.split("```")[1].replace("json", "").strip()
         return _json.loads(raw)
     except Exception as e:
-        return {'verdict': 'UNVERIFIABLE', 'explanation': str(e), 'confidence': 'low', 'verify': []}
+        return {"verdict": "UNVERIFIABLE", "explanation": str(e), "confidence": "low", "verify": []}
 
 
 def draft_announcement(
     topic: str,
     audience: str,
     key_message: str,
-    context: str = '',
-    announcement_type: str = 'internal',
+    context: str = "",
+    announcement_type: str = "internal",
     ctx=None,
 ) -> str:
     """
@@ -305,16 +321,19 @@ def draft_announcement(
     """
     try:
         from execution.runtime.model_router import get_router, TaskType
+
         router = get_router()
 
         templates = {
-            'internal': 'internal team announcement',
-            'team': 'team memo',
-            'public': 'public announcement',
-            'press_release': 'press release',
+            "internal": "internal team announcement",
+            "team": "team memo",
+            "public": "public announcement",
+            "press_release": "press release",
         }
 
-        return router.call_with_fallback(TaskType.FAST_RESPONSE, f"""Draft a {templates.get(announcement_type, 'announcement')}.
+        return router.call_with_fallback(
+            TaskType.FAST_RESPONSE,
+            f"""Draft a {templates.get(announcement_type, "announcement")}.
 
 Topic: {topic}
 Audience: {audience}
@@ -324,9 +343,10 @@ Author: Antony Munoz
 
 Voice: direct, warm, clear. No corporate speak.
 Include: what's happening, why it matters, what people need to do or know.
-Keep it concise and actionable. Format appropriately for the type.""").strip()
+Keep it concise and actionable. Format appropriately for the type.""",
+        ).strip()
     except Exception as e:
-        return f'Announcement draft unavailable: {e}'
+        return f"Announcement draft unavailable: {e}"
 
 
 def draft_crisis_communication(
@@ -339,9 +359,12 @@ def draft_crisis_communication(
     """Draft crisis communication following acknowledge-factual-action structure."""
     try:
         from execution.runtime.model_router import get_router, TaskType
+
         router = get_router()
 
-        return router.call_with_fallback(TaskType.FAST_RESPONSE, f"""Draft a crisis communication.
+        return router.call_with_fallback(
+            TaskType.FAST_RESPONSE,
+            f"""Draft a crisis communication.
 
 Situation: {situation}
 Affected parties: {affected_parties}
@@ -361,6 +384,7 @@ Subject: [clear subject line]
 
 [Body — structured, under 200 words]
 
-[Antony Munoz]""").strip()
+[Antony Munoz]""",
+        ).strip()
     except Exception as e:
-        return f'Crisis communication unavailable: {e}'
+        return f"Crisis communication unavailable: {e}"

@@ -22,28 +22,30 @@ from enum import Enum
 
 # ─── OSModule enum ────────────────────────────────────────────────────────────
 
+
 class OSModule(Enum):
-    ENTREPRENEUR = 'entrepreneur_os'
-    CREATOR      = 'creator_os'
-    LYFE         = 'lyfe_os'
+    ENTREPRENEUR = "entrepreneur_os"
+    CREATOR = "creator_os"
+    LYFE = "lyfe_os"
 
 
 # ─── OSModuleConfig ───────────────────────────────────────────────────────────
 
+
 @dataclass
 class OSModuleConfig:
-    id:               str
-    name:             str
-    description:      str
-    status:           str   # 'active' | 'coming' | 'planned'
-    version:          str
+    id: str
+    name: str
+    description: str
+    status: str  # 'active' | 'coming' | 'planned'
+    version: str
 
     # What this OS owns
-    domain:           str
-    primary_question: str   # the question this OS answers
+    domain: str
+    primary_question: str  # the question this OS answers
 
     # Agents this OS activates
-    agents:           list[str]
+    agents: list[str]
 
     # Primitive domains this OS uses
     primitive_domains: list[str]
@@ -61,176 +63,164 @@ class OSModuleConfig:
 # ─── OS_REGISTRY ──────────────────────────────────────────────────────────────
 
 OS_REGISTRY: dict[OSModule, OSModuleConfig] = {
-
     OSModule.ENTREPRENEUR: OSModuleConfig(
-        id='entrepreneur_os',
-        name='EntrepreneurOS',
+        id="entrepreneur_os",
+        name="EntrepreneurOS",
         description=(
-            'Run your business. Stage-aware intelligence '
-            'that knows what applies at your exact stage '
-            'and filters everything else out.'
+            "Run your business. Stage-aware intelligence "
+            "that knows what applies at your exact stage "
+            "and filters everything else out."
         ),
-        status='active',
-        version='1.0',
-        domain='business',
-        primary_question=(
-            'What is the highest leverage action '
-            'to grow my business right now?'
-        ),
+        status="active",
+        version="1.0",
+        domain="business",
+        primary_question=("What is the highest leverage action to grow my business right now?"),
         agents=[
-            'executive_assistant',
-            'portfolio_advisor',
-            'lyfe_institute_ceo',
-            'empyrean_ceo',
-            'lyfe_developer_agent',
-            'empyrean_developer_agent',
+            "executive_assistant",
+            "portfolio_advisor",
+            "lyfe_institute_ceo",
+            "empyrean_ceo",
+            "lyfe_developer_agent",
+            "empyrean_developer_agent",
         ],
         primitive_domains=[
-            'sales',
-            'marketing',
-            'hiring',
-            'finance',
-            'growth',
-            'validation',
+            "sales",
+            "marketing",
+            "hiring",
+            "finance",
+            "growth",
+            "validation",
         ],
         skill_categories=[
-            'Sales',
-            'Marketing',
-            'CustomerSuccess',
-            'Research',
-            'Ops',
+            "Sales",
+            "Marketing",
+            "CustomerSuccess",
+            "Research",
+            "Ops",
         ],
         context_injections=[
-            'bis_venture_context',
-            'primitive_context',
-            'template_context',
-            'evolution_context',
-            'hierarchy_context',
-            'reality_context',
+            "bis_venture_context",
+            "primitive_context",
+            "template_context",
+            "evolution_context",
+            "hierarchy_context",
+            "reality_context",
         ],
         shares_with={
-            'creator_os': [
-                'audience_intelligence',
-                'icp_signals',
+            "creator_os": [
+                "audience_intelligence",
+                "icp_signals",
             ],
-            'lyfe_os': [
-                'energy_state',
-                'focus_capacity',
-                'meeting_schedule',
+            "lyfe_os": [
+                "energy_state",
+                "focus_capacity",
+                "meeting_schedule",
             ],
         },
     ),
-
     OSModule.CREATOR: OSModuleConfig(
-        id='creator_os',
-        name='CreatorOS',
+        id="creator_os",
+        name="CreatorOS",
         description=(
-            'Run your brand and content. '
-            'Audience intelligence, content strategy, '
-            'and distribution — all stage-aware.'
+            "Run your brand and content. "
+            "Audience intelligence, content strategy, "
+            "and distribution — all stage-aware."
         ),
-        status='coming',
-        version='0.1',
-        domain='content',
-        primary_question=(
-            'What content should I create today '
-            'to grow the right audience?'
-        ),
+        status="coming",
+        version="0.1",
+        domain="content",
+        primary_question=("What content should I create today to grow the right audience?"),
         agents=[
-            'creator_ea',
-            'content_strategist',
-            'audience_analyst',
-            'brand_guardian',
-            'distribution_agent',
+            "creator_ea",
+            "content_strategist",
+            "audience_analyst",
+            "brand_guardian",
+            "distribution_agent",
         ],
         primitive_domains=[
-            'content',
-            'audience',
-            'brand',
-            'distribution',
-            'monetization',
+            "content",
+            "audience",
+            "brand",
+            "distribution",
+            "monetization",
         ],
         skill_categories=[
-            'Content',
-            'Audience',
-            'Brand',
-            'Distribution',
+            "Content",
+            "Audience",
+            "Brand",
+            "Distribution",
         ],
         context_injections=[
-            'content_calendar_context',
-            'audience_intelligence',
-            'brand_context',
-            'content_primitive_context',
-            'distribution_context',
+            "content_calendar_context",
+            "audience_intelligence",
+            "brand_context",
+            "content_primitive_context",
+            "distribution_context",
         ],
         shares_with={
-            'entrepreneur_os': [
-                'offer_context',
-                'icp_definition',
-                'stage_guidance',
+            "entrepreneur_os": [
+                "offer_context",
+                "icp_definition",
+                "stage_guidance",
             ],
-            'lyfe_os': [
-                'energy_state',
-                'creative_capacity',
+            "lyfe_os": [
+                "energy_state",
+                "creative_capacity",
             ],
         },
     ),
-
     OSModule.LYFE: OSModuleConfig(
-        id='lyfe_os',
-        name='LYFEOS',
+        id="lyfe_os",
+        name="LYFEOS",
         description=(
-            'Run your life. Health, energy, '
-            'relationships, habits — all optimized '
-            'for peak performance and fulfillment.'
+            "Run your life. Health, energy, "
+            "relationships, habits — all optimized "
+            "for peak performance and fulfillment."
         ),
-        status='coming',
-        version='0.1',
-        domain='life',
-        primary_question=(
-            'What should I do today to maximize '
-            'my energy, health, and fulfillment?'
-        ),
+        status="coming",
+        version="0.1",
+        domain="life",
+        primary_question=("What should I do today to maximize my energy, health, and fulfillment?"),
         agents=[
-            'life_ea',
-            'health_agent',
-            'energy_optimizer',
-            'relationship_agent',
-            'habit_tracker',
-            'growth_coach',
+            "life_ea",
+            "health_agent",
+            "energy_optimizer",
+            "relationship_agent",
+            "habit_tracker",
+            "growth_coach",
         ],
         primitive_domains=[
-            'health',
-            'energy',
-            'relationships',
-            'habits',
-            'mindset',
-            'purpose',
+            "health",
+            "energy",
+            "relationships",
+            "habits",
+            "mindset",
+            "purpose",
         ],
         skill_categories=[
-            'Health',
-            'Energy',
-            'Relationships',
-            'Habits',
-            'Mindset',
+            "Health",
+            "Energy",
+            "Relationships",
+            "Habits",
+            "Mindset",
         ],
         context_injections=[
-            'energy_state',
-            'habit_context',
-            'relationship_context',
-            'life_primitive_context',
-            'xp_and_progress',
+            "energy_state",
+            "habit_context",
+            "relationship_context",
+            "life_primitive_context",
+            "xp_and_progress",
         ],
         shares_with={
-            'entrepreneur_os': [
-                'energy_state',
-                'focus_capacity',
-                'schedule_context',
+            "entrepreneur_os": [
+                "energy_state",
+                "focus_capacity",
+                "schedule_context",
             ],
-            'creator_os': [
-                'energy_state',
-                'creative_capacity',
-                'mood_context',
+            "creator_os": [
+                "energy_state",
+                "creative_capacity",
+                "mood_context",
             ],
         },
     ),
@@ -238,6 +228,7 @@ OS_REGISTRY: dict[OSModule, OSModuleConfig] = {
 
 
 # ─── OSRegistryManager ────────────────────────────────────────────────────────
+
 
 class OSRegistryManager:
     """
@@ -255,11 +246,7 @@ class OSRegistryManager:
 
     def get_active_modules(self) -> list[OSModuleConfig]:
         """Return all OS modules with status='active'."""
-        return [
-            config
-            for config in self.registry.values()
-            if config.status == 'active'
-        ]
+        return [config for config in self.registry.values() if config.status == "active"]
 
     def get_user_modules(
         self,
@@ -298,23 +285,23 @@ class OSRegistryManager:
         """
         modules = self.get_user_modules(subscriptions)
         if not modules:
-            return ''
+            return ""
 
-        lines = ['ACTIVE OS MODULES:']
+        lines = ["ACTIVE OS MODULES:"]
         for m in modules:
-            lines.append(f'  {m.name}: {m.primary_question}')
+            lines.append(f"  {m.name}: {m.primary_question}")
 
         # Cross-OS context if multiple active
         if len(modules) > 1:
             cross = self.get_cross_os_context(subscriptions)
             if cross:
-                lines.append('')
-                lines.append('CROSS-OS INTELLIGENCE ACTIVE:')
-                lines.append('Multiple OS modules sharing context.')
-                lines.append('Life state informs business decisions.')
-                lines.append('Business context informs content strategy.')
+                lines.append("")
+                lines.append("CROSS-OS INTELLIGENCE ACTIVE:")
+                lines.append("Multiple OS modules sharing context.")
+                lines.append("Life state informs business decisions.")
+                lines.append("Business context informs content strategy.")
 
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     def get_all_modules(self) -> dict[OSModule, OSModuleConfig]:
         return self.registry

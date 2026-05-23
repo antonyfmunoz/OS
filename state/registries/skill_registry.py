@@ -13,14 +13,13 @@ MIN_CONTENT_LENGTH = 500
 
 @dataclass
 class Skill:
-    skill_id: str       # snake_case identifier derived from filename
-    name: str           # human-readable name parsed from # header or filename
-    content: str        # full markdown content
-    file_path: str      # absolute path to source file
+    skill_id: str  # snake_case identifier derived from filename
+    name: str  # human-readable name parsed from # header or filename
+    content: str  # full markdown content
+    file_path: str  # absolute path to source file
 
 
 class SkillRegistry:
-
     # Class-level flag — set to None to signal callers to reinstantiate.
     # Used by /sync command and skill_improvement after rewriting a skill.
     _instance: "SkillRegistry | None" = None
@@ -81,6 +80,7 @@ class SkillRegistry:
         """
         try:
             from state.storage.db import get_conn
+
             with get_conn(org_id) as cur:
                 cur.execute(
                     "SELECT name, content FROM skills WHERE org_id = %s",
@@ -91,7 +91,7 @@ class SkillRegistry:
             loaded_db = 0
             for row in rows:
                 skill_id = re.sub(r"[^a-z0-9]+", "_", row["name"].lower()).strip("_")
-                content  = row["content"] or ""
+                content = row["content"] or ""
                 if len(content) < MIN_CONTENT_LENGTH:
                     continue
                 name = self._parse_name(content, Path(skill_id))
@@ -115,12 +115,15 @@ class SkillRegistry:
         """
         try:
             from understanding.embedding.embedder import embed
+
             for skill in self._skills.values():
                 text = f"{skill.name}\n\n{skill.content[:800]}"
                 self._skill_embeddings[skill.skill_id] = embed(text)
             print(f"[SkillRegistry] Cached embeddings for {len(self._skill_embeddings)} skills.")
         except Exception as e:
-            print(f"[SkillRegistry] Embedding cache skipped ({e}) — falling back to keyword matching.")
+            print(
+                f"[SkillRegistry] Embedding cache skipped ({e}) — falling back to keyword matching."
+            )
 
     def _parse_name(self, content: str, path: Path) -> str:
         match = re.search(r"^#\s+(?:Skill:\s*)?(.+)", content, re.MULTILINE)
@@ -192,6 +195,7 @@ class SkillRegistry:
         if self._skill_embeddings:
             try:
                 from understanding.embedding.embedder import embed, cosine_similarity
+
                 query_vec = embed(task_description)
                 scored: list[tuple[float, Skill]] = []
                 for skill_id, skill_vec in self._skill_embeddings.items():
@@ -207,16 +211,43 @@ class SkillRegistry:
         # ── Keyword fallback ──────────────────────────────────────────────────
         task_words = set(re.findall(r"[a-z]+", task_description.lower()))
         stop = {
-            "the", "a", "an", "and", "or", "for", "to", "of", "in", "with",
-            "this", "that", "is", "are", "it", "be", "as", "at", "by", "from",
-            "on", "was", "we", "i", "you", "he", "she", "they", "them", "their",
+            "the",
+            "a",
+            "an",
+            "and",
+            "or",
+            "for",
+            "to",
+            "of",
+            "in",
+            "with",
+            "this",
+            "that",
+            "is",
+            "are",
+            "it",
+            "be",
+            "as",
+            "at",
+            "by",
+            "from",
+            "on",
+            "was",
+            "we",
+            "i",
+            "you",
+            "he",
+            "she",
+            "they",
+            "them",
+            "their",
         }
         task_words -= stop
         kw_scored: list[tuple[int, Skill]] = []
         for skill in self._skills.values():
-            skill_text  = (skill.name + " " + skill.content).lower()
+            skill_text = (skill.name + " " + skill.content).lower()
             skill_words = set(re.findall(r"[a-z]+", skill_text)) - stop
-            overlap     = len(task_words & skill_words)
+            overlap = len(task_words & skill_words)
             if overlap > 0:
                 kw_scored.append((overlap, skill))
         kw_scored.sort(key=lambda x: x[0], reverse=True)

@@ -28,11 +28,17 @@ from datetime import datetime, timezone
 from state.context.context import EntrepreneurOSContext
 
 
-VALID_PRODUCTS: list[str] = ['LYFEOS', 'creatorOS', 'eos']
+VALID_PRODUCTS: list[str] = ["LYFEOS", "creatorOS", "eos"]
 VALID_CATEGORIES: list[str] = [
-    'health', 'content_performance', 'finance',
-    'goals', 'audience', 'habits', 'calendar',
-    'tasks', 'all',
+    "health",
+    "content_performance",
+    "finance",
+    "goals",
+    "audience",
+    "habits",
+    "calendar",
+    "tasks",
+    "all",
 ]
 
 
@@ -65,6 +71,7 @@ class OSTrinity:
         """
         try:
             from state.stores.permission_store import PermissionStore
+
             PermissionStore().grant_permission(
                 org_id=self.ctx.org_id,
                 user_id=user_id,
@@ -91,6 +98,7 @@ class OSTrinity:
         """
         try:
             from state.stores.permission_store import PermissionStore
+
             PermissionStore().revoke_permission(
                 org_id=self.ctx.org_id,
                 user_id=user_id,
@@ -115,6 +123,7 @@ class OSTrinity:
         Default is always DENIED — no implicit cross-product data access.
         """
         from state.storage.db import get_conn
+
         try:
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
@@ -130,7 +139,7 @@ class OSTrinity:
                     (user_id, source_product, target_product, data_category),
                 )
                 row = cur.fetchone()
-                return bool(row and row['permitted'])
+                return bool(row and row["permitted"])
         except Exception as e:
             print(f"[OSTrinity] check_permission failed: {e}")
             return False  # fail closed — always deny on error
@@ -140,6 +149,7 @@ class OSTrinity:
         Return all permission records for this user (active and revoked).
         """
         from state.storage.db import get_conn
+
         try:
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
@@ -154,13 +164,12 @@ class OSTrinity:
                 )
                 return [
                     {
-                        'source':     row['source_product'],
-                        'target':     row['target_product'],
-                        'category':   row['data_category'],
-                        'permitted':  bool(row['permitted']),
-                        'granted_at': (
-                            row['granted_at'].isoformat()
-                            if row['granted_at'] else None
+                        "source": row["source_product"],
+                        "target": row["target_product"],
+                        "category": row["data_category"],
+                        "permitted": bool(row["permitted"]),
+                        "granted_at": (
+                            row["granted_at"].isoformat() if row["granted_at"] else None
                         ),
                     }
                     for row in cur.fetchall()
@@ -189,6 +198,7 @@ class OSTrinity:
 
         try:
             from state.stores.profile_store import ProfileStore
+
             ProfileStore().upsert_intelligence_profile(
                 org_id=self.ctx.org_id,
                 user_id=user_id,
@@ -205,6 +215,7 @@ class OSTrinity:
         Returns None if no profile has been created yet.
         """
         from state.storage.db import get_conn
+
         try:
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
@@ -233,17 +244,16 @@ class OSTrinity:
                         return {}
 
                 return {
-                    'communication_style':      _parse(row['communication_style']),
-                    'peak_performance_windows': _parse(row['peak_performance_windows']),
-                    'decision_patterns':        _parse(row['decision_patterns']),
-                    'content_strengths':        _parse(row['content_strengths']),
-                    'learning_style':           _parse(row['learning_style']),
-                    'stress_indicators':        _parse(row['stress_indicators']),
-                    'north_star':               row['north_star'] or '',
-                    'cross_product_insights':   _parse(row['cross_product_insights']),
-                    'last_updated': (
-                        row['last_updated'].isoformat()
-                        if row['last_updated'] else None
+                    "communication_style": _parse(row["communication_style"]),
+                    "peak_performance_windows": _parse(row["peak_performance_windows"]),
+                    "decision_patterns": _parse(row["decision_patterns"]),
+                    "content_strengths": _parse(row["content_strengths"]),
+                    "learning_style": _parse(row["learning_style"]),
+                    "stress_indicators": _parse(row["stress_indicators"]),
+                    "north_star": row["north_star"] or "",
+                    "cross_product_insights": _parse(row["cross_product_insights"]),
+                    "last_updated": (
+                        row["last_updated"].isoformat() if row["last_updated"] else None
                     ),
                 }
         except Exception as e:
@@ -259,6 +269,7 @@ class OSTrinity:
         Returns True if sync succeeded (even partially).
         """
         from state.storage.db import get_conn
+
         try:
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
@@ -278,19 +289,16 @@ class OSTrinity:
         if not row:
             return False
 
-        pj = row['profile_json']
-        profile: dict = (
-            pj if isinstance(pj, dict)
-            else json.loads(pj or '{}')
-        )
+        pj = row["profile_json"]
+        profile: dict = pj if isinstance(pj, dict) else json.loads(pj or "{}")
 
         updates: dict = {}
-        if profile.get('communication_style'):
-            updates['communication_style'] = {'eos': profile['communication_style']}
-        if profile.get('north_star'):
-            updates['north_star'] = profile['north_star']
-        if profile.get('decision_style'):
-            updates['decision_patterns'] = {'style': profile['decision_style']}
+        if profile.get("communication_style"):
+            updates["communication_style"] = {"eos": profile["communication_style"]}
+        if profile.get("north_star"):
+            updates["north_star"] = profile["north_star"]
+        if profile.get("decision_style"):
+            updates["decision_patterns"] = {"style": profile["decision_style"]}
 
         if not updates:
             return False
@@ -311,9 +319,11 @@ class OSTrinity:
         Returns True on success.
         """
         from state.storage.db import get_conn
+
         try:
             with get_conn(self.ctx.org_id) as cur:
                 from state.stores.permission_store import PermissionStore
+
                 PermissionStore().register_product(
                     org_id=self.ctx.org_id,
                     user_id=user_id,
@@ -328,6 +338,7 @@ class OSTrinity:
     def get_connected_products(self, user_id: str) -> list[str]:
         """Return list of product names currently connected for this user."""
         from state.storage.db import get_conn
+
         try:
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
@@ -337,7 +348,7 @@ class OSTrinity:
                     """,
                     (user_id,),
                 )
-                return [row['product'] for row in cur.fetchall()]
+                return [row["product"] for row in cur.fetchall()]
         except Exception as e:
             print(f"[OSTrinity] get_connected_products failed: {e}")
             return []
@@ -348,34 +359,30 @@ class OSTrinity:
         """
         Human-readable OS Trinity status for Telegram /trinity command.
         """
-        perms    = self.get_user_permissions(user_id)
+        perms = self.get_user_permissions(user_id)
         products = self.get_connected_products(user_id)
-        profile  = self.get_intelligence_profile(user_id)
+        profile = self.get_intelligence_profile(user_id)
 
-        lines = ['OS Trinity Status\n']
-        lines.append(
-            f'Connected products: {", ".join(products) or "EOS only"}'
-        )
+        lines = ["OS Trinity Status\n"]
+        lines.append(f"Connected products: {', '.join(products) or 'EOS only'}")
 
         if perms:
-            active = [p for p in perms if p['permitted']]
+            active = [p for p in perms if p["permitted"]]
             if active:
-                lines.append('\nActive permissions:')
+                lines.append("\nActive permissions:")
                 for p in active:
-                    lines.append(
-                        f'  {p["source"]} -> {p["target"]} ({p["category"]})'
-                    )
+                    lines.append(f"  {p['source']} -> {p['target']} ({p['category']})")
             else:
-                lines.append('\nNo active cross-product permissions')
+                lines.append("\nNo active cross-product permissions")
         else:
-            lines.append('\nNo cross-product permissions set')
-            lines.append('Default: all products siloed')
+            lines.append("\nNo cross-product permissions set")
+            lines.append("Default: all products siloed")
 
         if profile:
-            lines.append('\nHarness profile: active')
-            ns = profile.get('north_star', 'not set')
-            lines.append(f'North star: {ns[:80]}')
+            lines.append("\nHarness profile: active")
+            ns = profile.get("north_star", "not set")
+            lines.append(f"North star: {ns[:80]}")
         else:
-            lines.append('\nHarness profile: not yet created')
+            lines.append("\nHarness profile: not yet created")
 
-        return '\n'.join(lines)
+        return "\n".join(lines)

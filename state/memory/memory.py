@@ -33,22 +33,29 @@ DB_PATH = Path(__file__).parent / "memory.db"
 
 
 _OUTCOME_TYPES = {
-    "reply", "no_reply", "booked", "closed", "ignored",
-    "showed", "noshow", "lost", "opened",
+    "reply",
+    "no_reply",
+    "booked",
+    "closed",
+    "ignored",
+    "showed",
+    "noshow",
+    "lost",
+    "opened",
 }
 
 # Map Python outcome types → Neon outcome_type enum values
 # outcome_type enum: positive | negative | neutral | skipped
 _OUTCOME_MAP: dict[str, str] = {
-    "reply":    "positive",
-    "booked":   "positive",
-    "closed":   "positive",
-    "showed":   "positive",
-    "opened":   "neutral",
+    "reply": "positive",
+    "booked": "positive",
+    "closed": "positive",
+    "showed": "positive",
+    "opened": "neutral",
     "no_reply": "neutral",
-    "ignored":  "skipped",
-    "noshow":   "negative",
-    "lost":     "negative",
+    "ignored": "skipped",
+    "noshow": "negative",
+    "lost": "negative",
 }
 
 
@@ -69,10 +76,10 @@ def _tokens_to_neon(tokens_json: str | dict) -> dict:
     else:
         t = tokens_json or {}
     return {
-        "prompt":     t.get("input",  t.get("prompt",     0)),
+        "prompt": t.get("input", t.get("prompt", 0)),
         "completion": t.get("output", t.get("completion", 0)),
-        "total":      t.get("total",  0),
-        "cost_usd":   t.get("cost_usd", 0.0),
+        "total": t.get("total", 0),
+        "cost_usd": t.get("cost_usd", 0.0),
     }
 
 
@@ -99,12 +106,12 @@ class AgentMemory:
         Called automatically by AgentRuntime.run(). Returns interaction_id (UUID).
         """
         output_summary = agent_result.output[:300].replace("\n", " ")
-        tokens_neon    = _tokens_to_neon(agent_result.tokens_used)
+        tokens_neon = _tokens_to_neon(agent_result.tokens_used)
 
         with get_conn() as cur:
             # Resolve inside the connection — caches are loaded by get_conn()
             venture_uuid = resolve_venture(venture_id)
-            skill_uuid   = resolve_skill(agent_result.skill_used)
+            skill_uuid = resolve_skill(agent_result.skill_used)
             cur.execute(
                 """
                 INSERT INTO interactions
@@ -115,19 +122,23 @@ class AgentMemory:
                 RETURNING id
                 """,
                 (
-                    ORG_ID, USER_ID, venture_uuid, skill_uuid,
-                    task_type, agent_result.model_used,
-                    input_summary, output_summary,
+                    ORG_ID,
+                    USER_ID,
+                    venture_uuid,
+                    skill_uuid,
+                    task_type,
+                    agent_result.model_used,
+                    input_summary,
+                    output_summary,
                     json.dumps(tokens_neon),
-                    agent, lead_username,
+                    agent,
+                    lead_username,
                 ),
             )
             interaction_id = str(cur.fetchone()["id"])
 
         # Async embed — never blocks the main log() call
-        content_to_embed = (
-            f"{input_summary or ''} {output_summary or ''}"
-        ).strip()
+        content_to_embed = (f"{input_summary or ''} {output_summary or ''}").strip()
         if content_to_embed:
             import threading
             from understanding.embedding.embedding_engine import EmbeddingEngine
@@ -145,6 +156,7 @@ class AgentMemory:
         try:
             from state.context.context import load_context_from_env
             from understanding.knowledge.knowledge_graph import KnowledgeGraph
+
             kg = KnowledgeGraph(load_context_from_env())
             kg.auto_link_interaction(interaction_id)
         except Exception:
@@ -165,6 +177,7 @@ class AgentMemory:
                     try:
                         from state.context.context import load_context_from_env as _lctx
                         from state.profiles.user_model import UserModel as _UM
+
                         _UM(_lctx()).update_profile()
                     except Exception:
                         pass
@@ -192,17 +205,19 @@ class AgentMemory:
         Called by icp_scorer when a lead is qualified and a lead file is created.
         Returns the new interaction_id (UUID) — store it in the lead file if needed.
         """
-        tokens_neon    = _tokens_to_neon({
-            "input":  input_tokens,
-            "output": output_tokens,
-            "total":  input_tokens + output_tokens,
-        })
-        input_summary  = comment_text[:200].replace("\n", " ")
+        tokens_neon = _tokens_to_neon(
+            {
+                "input": input_tokens,
+                "output": output_tokens,
+                "total": input_tokens + output_tokens,
+            }
+        )
+        input_summary = comment_text[:200].replace("\n", " ")
         output_summary = f"score={score}, archetype={archetype}"
 
         with get_conn() as cur:
             venture_uuid = resolve_venture(venture_id)
-            skill_uuid   = resolve_skill("analyze_icp_signal")
+            skill_uuid = resolve_skill("analyze_icp_signal")
             cur.execute(
                 """
                 INSERT INTO interactions
@@ -213,10 +228,16 @@ class AgentMemory:
                 RETURNING id
                 """,
                 (
-                    ORG_ID, USER_ID, venture_uuid, skill_uuid,
-                    model_used, input_summary, output_summary,
+                    ORG_ID,
+                    USER_ID,
+                    venture_uuid,
+                    skill_uuid,
+                    model_used,
+                    input_summary,
+                    output_summary,
                     json.dumps(tokens_neon),
-                    "icp_scorer", username,
+                    "icp_scorer",
+                    username,
                 ),
             )
             return str(cur.fetchone()["id"])
@@ -234,6 +255,7 @@ class AgentMemory:
             try:
                 from control_plane.orchestrator.orchestrator import check_outcome_milestone
                 from state.context.context import load_context_from_env
+
                 check_outcome_milestone(load_context_from_env(), outcome_count)
             except Exception:
                 pass
@@ -257,8 +279,7 @@ class AgentMemory:
         """
         if outcome_type not in _OUTCOME_TYPES:
             raise ValueError(
-                f"Invalid outcome_type '{outcome_type}'. "
-                f"Must be one of: {sorted(_OUTCOME_TYPES)}"
+                f"Invalid outcome_type '{outcome_type}'. Must be one of: {sorted(_OUTCOME_TYPES)}"
             )
         neon_type = _OUTCOME_MAP[outcome_type]
 
@@ -305,8 +326,7 @@ class AgentMemory:
         """
         if outcome_type not in _OUTCOME_TYPES:
             raise ValueError(
-                f"Invalid outcome_type '{outcome_type}'. "
-                f"Must be one of: {sorted(_OUTCOME_TYPES)}"
+                f"Invalid outcome_type '{outcome_type}'. Must be one of: {sorted(_OUTCOME_TYPES)}"
             )
         neon_type = _OUTCOME_MAP[outcome_type]
         notes_with_source = f"[{source}] {notes}" if notes else f"[{source}]"
@@ -336,15 +356,20 @@ class AgentMemory:
             username = notes.lstrip().split()[0].lstrip("@")
             if username:
                 import threading
+
                 def _refresh_profile(uname: str) -> None:
                     try:
-                        from understanding.intelligence.human_intelligence import HumanIntelligenceEngine
+                        from understanding.intelligence.human_intelligence import (
+                            HumanIntelligenceEngine,
+                        )
                         from state.context.context import load_context_from_env
+
                         ctx = load_context_from_env()
                         hie = HumanIntelligenceEngine(ctx)
                         hie.build_profile(uname)
                     except Exception:
                         pass
+
                 threading.Thread(
                     target=_refresh_profile,
                     args=(username,),
@@ -367,9 +392,9 @@ class AgentMemory:
         """
         payload = {
             "lead_username": username,
-            "outcome_type":  outcome_type,
-            "score":         score,
-            "notes":         notes,
+            "outcome_type": outcome_type,
+            "score": score,
+            "notes": notes,
         }
         with get_conn() as cur:
             cur.execute(
@@ -384,15 +409,18 @@ class AgentMemory:
 
         # Chain 2: refresh this lead's behavioral profile async
         import threading
+
         def _refresh_orphaned_profile(uname: str) -> None:
             try:
                 from understanding.intelligence.human_intelligence import HumanIntelligenceEngine
                 from state.context.context import load_context_from_env
+
                 ctx = load_context_from_env()
                 hie = HumanIntelligenceEngine(ctx)
                 hie.build_profile(uname)
             except Exception:
                 pass
+
         threading.Thread(
             target=_refresh_orphaned_profile,
             args=(username,),
@@ -574,6 +602,7 @@ class AgentMemory:
         produces matching 384-dim vectors. Returns True on success.
         """
         from understanding.embedding.embedding_engine import EmbeddingEngine
+
         return EmbeddingEngine().embed_interaction(interaction_id, text, ORG_ID)
 
     def semantic_search(
@@ -590,6 +619,7 @@ class AgentMemory:
         """
         try:
             from understanding.embedding.embedding_engine import EmbeddingEngine
+
             engine = EmbeddingEngine()
             query_vec = engine.embed(query)
             if not query_vec:
@@ -606,6 +636,7 @@ class AgentMemory:
                     if resolved_venture_id:
                         try:
                             import uuid as _uuid_lib
+
                             _uuid_lib.UUID(resolved_venture_id)
                             venture_filter = " AND i.venture_id = %s"
                             params.append(resolved_venture_id)
@@ -647,6 +678,7 @@ class AgentMemory:
 
         except Exception as e:
             import logging
+
             logging.getLogger(__name__).warning(f"semantic_search failed: {e}")
             return []
 
@@ -694,9 +726,9 @@ class Message:
     org_id: str
     session_id: str
     sequence_num: int
-    role: str          # 'user' | 'assistant'
-    content: str       # word for word, always
-    channel: str       # discord, telegram, voice
+    role: str  # 'user' | 'assistant'
+    content: str  # word for word, always
+    channel: str  # discord, telegram, voice
     agent: str
     created_at: object
     metadata: dict
@@ -718,8 +750,8 @@ class ConversationMemory:
         session_id: str,
         role: str,
         content: str,
-        channel: str = 'unknown',
-        agent: str = 'executive_assistant',
+        channel: str = "unknown",
+        agent: str = "executive_assistant",
         metadata: dict | None = None,
     ) -> str:
         """Store a message word for word. Returns message id."""
@@ -727,42 +759,49 @@ class ConversationMemory:
             meta = metadata or {}
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
-                    '''
+                    """
                     SELECT COALESCE(MAX(sequence_num), 0) + 1 AS next_seq
                     FROM messages
                     WHERE org_id = %s AND session_id = %s
-                    ''',
+                    """,
                     (self.ctx.org_id, session_id),
                 )
-                seq = cur.fetchone()['next_seq']
+                seq = cur.fetchone()["next_seq"]
                 message_id = str(_uuid.uuid4())
                 cur.execute(
-                    '''
+                    """
                     INSERT INTO messages (
                         id, org_id, session_id, sequence_num,
                         role, content, channel, agent, metadata
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    ''',
+                    """,
                     (
-                        message_id, self.ctx.org_id, session_id, seq,
-                        role, content, channel, agent,
+                        message_id,
+                        self.ctx.org_id,
+                        session_id,
+                        seq,
+                        role,
+                        content,
+                        channel,
+                        agent,
                         json.dumps(meta),
                     ),
                 )
                 # Embed and store
                 try:
                     from understanding.embedding.embedder import embed
+
                     vec = embed(content)
                     cur.execute(
-                        'UPDATE messages SET embedding = %s WHERE id = %s',
+                        "UPDATE messages SET embedding = %s WHERE id = %s",
                         (vec.tolist(), message_id),
                     )
                 except Exception as e:
-                    print(f'[ConversationMemory] embed failed: {e}')
+                    print(f"[ConversationMemory] embed failed: {e}")
                 return message_id
         except Exception as e:
-            print(f'[ConversationMemory] store failed: {e}')
-            return ''
+            print(f"[ConversationMemory] store failed: {e}")
+            return ""
 
     def get_session(
         self,
@@ -772,21 +811,21 @@ class ConversationMemory:
         """Return all messages in session order."""
         try:
             with get_conn(self.ctx.org_id) as cur:
-                q = '''
+                q = """
                     SELECT id, org_id, session_id, sequence_num,
                            role, content, channel, agent, created_at, metadata
                     FROM messages
                     WHERE org_id = %s AND session_id = %s
                     ORDER BY sequence_num ASC
-                '''
+                """
                 params: list = [self.ctx.org_id, session_id]
                 if limit:
-                    q += ' LIMIT %s'
+                    q += " LIMIT %s"
                     params.append(limit)
                 cur.execute(q, params)
                 return [self._row(r) for r in cur.fetchall()]
         except Exception as e:
-            print(f'[ConversationMemory] get_session failed: {e}')
+            print(f"[ConversationMemory] get_session failed: {e}")
             return []
 
     def get_recent(
@@ -799,29 +838,29 @@ class ConversationMemory:
             with get_conn(self.ctx.org_id) as cur:
                 if channel:
                     cur.execute(
-                        '''
+                        """
                         SELECT id, org_id, session_id, sequence_num,
                                role, content, channel, agent, created_at, metadata
                         FROM messages
                         WHERE org_id = %s AND channel = %s
                         ORDER BY created_at DESC LIMIT %s
-                        ''',
+                        """,
                         (self.ctx.org_id, channel, limit),
                     )
                 else:
                     cur.execute(
-                        '''
+                        """
                         SELECT id, org_id, session_id, sequence_num,
                                role, content, channel, agent, created_at, metadata
                         FROM messages
                         WHERE org_id = %s
                         ORDER BY created_at DESC LIMIT %s
-                        ''',
+                        """,
                         (self.ctx.org_id, limit),
                     )
                 return [self._row(r) for r in cur.fetchall()]
         except Exception as e:
-            print(f'[ConversationMemory] get_recent failed: {e}')
+            print(f"[ConversationMemory] get_recent failed: {e}")
             return []
 
     def get_by_position(
@@ -837,32 +876,32 @@ class ConversationMemory:
             with get_conn(self.ctx.org_id) as cur:
                 if position > 0:
                     cur.execute(
-                        '''
+                        """
                         SELECT id, org_id, session_id, sequence_num,
                                role, content, channel, agent, created_at, metadata
                         FROM messages
                         WHERE org_id = %s AND session_id = %s
                         ORDER BY sequence_num ASC
                         LIMIT 1 OFFSET %s
-                        ''',
+                        """,
                         (self.ctx.org_id, session_id, position - 1),
                     )
                 else:
                     cur.execute(
-                        '''
+                        """
                         SELECT id, org_id, session_id, sequence_num,
                                role, content, channel, agent, created_at, metadata
                         FROM messages
                         WHERE org_id = %s AND session_id = %s
                         ORDER BY sequence_num DESC
                         LIMIT 1 OFFSET %s
-                        ''',
+                        """,
                         (self.ctx.org_id, session_id, abs(position) - 1),
                     )
                 row = cur.fetchone()
                 return self._row(row) if row else None
         except Exception as e:
-            print(f'[ConversationMemory] get_by_position failed: {e}')
+            print(f"[ConversationMemory] get_by_position failed: {e}")
             return None
 
     def search(
@@ -876,7 +915,7 @@ class ConversationMemory:
             with get_conn(self.ctx.org_id) as cur:
                 if session_id:
                     cur.execute(
-                        '''
+                        """
                         SELECT id, org_id, session_id, sequence_num,
                                role, content, channel, agent, created_at, metadata
                         FROM messages
@@ -884,12 +923,12 @@ class ConversationMemory:
                           AND to_tsvector('english', content)
                               @@ plainto_tsquery('english', %s)
                         ORDER BY created_at DESC LIMIT %s
-                        ''',
+                        """,
                         (self.ctx.org_id, session_id, query, limit),
                     )
                 else:
                     cur.execute(
-                        '''
+                        """
                         SELECT id, org_id, session_id, sequence_num,
                                role, content, channel, agent, created_at, metadata
                         FROM messages
@@ -897,12 +936,12 @@ class ConversationMemory:
                           AND to_tsvector('english', content)
                               @@ plainto_tsquery('english', %s)
                         ORDER BY created_at DESC LIMIT %s
-                        ''',
+                        """,
                         (self.ctx.org_id, query, limit),
                     )
                 return [self._row(r) for r in cur.fetchall()]
         except Exception as e:
-            print(f'[ConversationMemory] search failed: {e}')
+            print(f"[ConversationMemory] search failed: {e}")
             return []
 
     def get_session_summary(self, session_id: str) -> dict:
@@ -910,24 +949,24 @@ class ConversationMemory:
         try:
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
-                    '''
+                    """
                     SELECT COUNT(*) AS total,
                            MIN(created_at) AS started,
                            MAX(created_at) AS last_active
                     FROM messages
                     WHERE org_id = %s AND session_id = %s
-                    ''',
+                    """,
                     (self.ctx.org_id, session_id),
                 )
                 row = cur.fetchone()
                 return {
-                    'session_id':     session_id,
-                    'total_messages': row['total'],
-                    'started_at':     str(row['started']),
-                    'last_active':    str(row['last_active']),
+                    "session_id": session_id,
+                    "total_messages": row["total"],
+                    "started_at": str(row["started"]),
+                    "last_active": str(row["last_active"]),
                 }
         except Exception as e:
-            print(f'[ConversationMemory] get_session_summary failed: {e}')
+            print(f"[ConversationMemory] get_session_summary failed: {e}")
             return {}
 
     def format_session_for_prompt(
@@ -938,18 +977,18 @@ class ConversationMemory:
         """Format recent session history for injection into cognitive loop."""
         messages = self.get_session(session_id, limit=limit)
         if not messages:
-            return ''
-        lines = ['CONVERSATION HISTORY:']
+            return ""
+        lines = ["CONVERSATION HISTORY:"]
         for msg in messages:
-            prefix = 'Founder' if msg.role == 'user' else 'AI'
-            lines.append(f'{prefix}: {msg.content}')
-        return '\n'.join(lines)
+            prefix = "Founder" if msg.role == "user" else "AI"
+            lines.append(f"{prefix}: {msg.content}")
+        return "\n".join(lines)
 
     def format_channel_history_for_prompt(
         self,
         channel: str,
         limit: int = 40,
-        query: str = '',
+        query: str = "",
     ) -> str:
         """Format message history for a channel.
 
@@ -962,31 +1001,32 @@ class ConversationMemory:
                 if query:
                     try:
                         from understanding.embedding.embedder import embed
+
                         vec = embed(query)
                         cur.execute(
-                            '''
+                            """
                             SELECT id, role, content, created_at
                             FROM messages
                             WHERE org_id = %s AND channel = %s
                               AND embedding IS NOT NULL
                             ORDER BY embedding <=> %s::vector
                             LIMIT 20
-                            ''',
+                            """,
                             (self.ctx.org_id, channel, vec.tolist()),
                         )
                         semantic_rows = cur.fetchall()
                     except Exception as e:
-                        print(f'[ConversationMemory] semantic fetch failed: {e}')
+                        print(f"[ConversationMemory] semantic fetch failed: {e}")
                         semantic_rows = []
 
                     cur.execute(
-                        '''
+                        """
                         SELECT id, role, content, created_at
                         FROM messages
                         WHERE org_id = %s AND channel = %s
                         ORDER BY created_at DESC
                         LIMIT 10
-                        ''',
+                        """,
                         (self.ctx.org_id, channel),
                     )
                     recency_rows = cur.fetchall()
@@ -995,45 +1035,49 @@ class ConversationMemory:
                     seen: set = set()
                     merged = []
                     for row in list(semantic_rows) + list(recency_rows):
-                        rid = str(row['id'])
+                        rid = str(row["id"])
                         if rid not in seen:
                             seen.add(rid)
                             merged.append(row)
-                    rows = sorted(merged, key=lambda r: r['created_at'])
+                    rows = sorted(merged, key=lambda r: r["created_at"])
                 else:
                     cur.execute(
-                        '''
+                        """
                         SELECT id, role, content, created_at
                         FROM messages
                         WHERE org_id = %s AND channel = %s
                         ORDER BY created_at DESC
                         LIMIT %s
-                        ''',
+                        """,
                         (self.ctx.org_id, channel, limit),
                     )
                     rows = list(reversed(cur.fetchall()))
 
             if not rows:
-                return ''
-            lines = ['CONVERSATION HISTORY:']
+                return ""
+            lines = ["CONVERSATION HISTORY:"]
             for row in rows:
-                prefix = 'Founder' if row['role'] == 'user' else 'AI'
+                prefix = "Founder" if row["role"] == "user" else "AI"
                 lines.append(f"{prefix}: {row['content']}")
-            return '\n'.join(lines)
+            return "\n".join(lines)
         except Exception as e:
-            print(f'[ConversationMemory] format_channel_history_for_prompt failed: {e}')
-            return ''
+            print(f"[ConversationMemory] format_channel_history_for_prompt failed: {e}")
+            return ""
 
     def _row(self, row: dict) -> Message:
         return Message(
-            id=str(row['id']),
-            org_id=str(row['org_id']),
-            session_id=str(row['session_id']),
-            sequence_num=int(row['sequence_num']),
-            role=str(row['role']),
-            content=str(row['content']),
-            channel=str(row['channel']),
-            agent=str(row['agent']),
-            created_at=row['created_at'],
-            metadata=row['metadata'] if isinstance(row['metadata'], dict) else json.loads(row['metadata']) if row['metadata'] else {},
+            id=str(row["id"]),
+            org_id=str(row["org_id"]),
+            session_id=str(row["session_id"]),
+            sequence_num=int(row["sequence_num"]),
+            role=str(row["role"]),
+            content=str(row["content"]),
+            channel=str(row["channel"]),
+            agent=str(row["agent"]),
+            created_at=row["created_at"],
+            metadata=row["metadata"]
+            if isinstance(row["metadata"], dict)
+            else json.loads(row["metadata"])
+            if row["metadata"]
+            else {},
         )

@@ -6,7 +6,6 @@ from state.storage.db import get_conn
 
 
 class SkillStore:
-
     def get_by_name(
         self,
         org_id: str,
@@ -21,7 +20,11 @@ class SkillStore:
             row = cur.fetchone()
         if row is None:
             return None
-        return {"id": str(row["id"]), "content": row["content"] or "", "version": int(row["version"] or 1)}
+        return {
+            "id": str(row["id"]),
+            "content": row["content"] or "",
+            "version": int(row["version"] or 1),
+        }
 
     def upsert_skill(
         self,

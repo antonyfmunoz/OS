@@ -2,11 +2,10 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-STATE_FILE = Path(__file__).parent / 'session_state.json'
+STATE_FILE = Path(__file__).parent / "session_state.json"
 
 
 class SessionState:
-
     # ─── Ambient state ────────────────────────────────────────────────────────
     # In-memory cache of the current market reality snapshot.
     # Refreshed every 30 minutes by orchestrator.refresh_ambient_state().
@@ -35,15 +34,15 @@ class SessionState:
         context: dict | None = None,
     ) -> dict:
         state = {
-            'timestamp': datetime.now(timezone.utc).isoformat(),
-            'phase': phase,
-            'last_completed': last_completed,
-            'in_progress': in_progress,
-            'files_modified': files_modified or [],
-            'next_steps': next_steps or [],
-            'context': context or {},
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "phase": phase,
+            "last_completed": last_completed,
+            "in_progress": in_progress,
+            "files_modified": files_modified or [],
+            "next_steps": next_steps or [],
+            "context": context or {},
         }
-        with open(STATE_FILE, 'w') as f:
+        with open(STATE_FILE, "w") as f:
             json.dump(state, f, indent=2)
         return state
 
@@ -58,7 +57,7 @@ class SessionState:
     def get_resume_context(cls) -> str:
         state = cls.load()
         if not state:
-            return 'No previous session state found.'
+            return "No previous session state found."
         lines = [
             f"Last session: {state['timestamp']}",
             f"Phase: {state['phase']}",
@@ -66,13 +65,13 @@ class SessionState:
             f"In progress: {state.get('in_progress') or 'nothing'}",
             f"Files modified: {', '.join(state.get('files_modified', [])) or 'none'}",
         ]
-        if state.get('next_steps'):
-            lines.append('Next steps:')
-            for step in state['next_steps']:
-                lines.append(f'  - {step}')
-        if state.get('context'):
+        if state.get("next_steps"):
+            lines.append("Next steps:")
+            for step in state["next_steps"]:
+                lines.append(f"  - {step}")
+        if state.get("context"):
             lines.append(f"Context: {state['context']}")
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     @classmethod
     def clear(cls):
@@ -83,8 +82,8 @@ class SessionState:
     def update_progress(cls, last_completed: str, in_progress: str | None = None):
         """Load current state, update only last_completed and in_progress, preserve all other fields."""
         state = cls.load() or {}
-        state['last_completed'] = last_completed
-        state['in_progress'] = in_progress
-        state['timestamp'] = datetime.now(timezone.utc).isoformat()
-        with open(STATE_FILE, 'w') as f:
+        state["last_completed"] = last_completed
+        state["in_progress"] = in_progress
+        state["timestamp"] = datetime.now(timezone.utc).isoformat()
+        with open(STATE_FILE, "w") as f:
             json.dump(state, f, indent=2)

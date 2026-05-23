@@ -45,37 +45,39 @@ class ScraplingConnector:
         try:
             if stealth:
                 from scrapling import StealthyFetcher
+
                 page = StealthyFetcher().fetch(url)
             else:
                 from scrapling import Fetcher
+
                 page = Fetcher().get(url)
 
-            title_el = page.find('title')
-            title = title_el.text if title_el else ''
+            title_el = page.find("title")
+            title = title_el.text if title_el else ""
 
             text = page.get_all_text()
 
             links = [
-                a.attrib.get('href', '')
-                for a in page.find_all('a')
-                if a.attrib.get('href', '').startswith('http')
+                a.attrib.get("href", "")
+                for a in page.find_all("a")
+                if a.attrib.get("href", "").startswith("http")
             ][:20]
 
             return {
-                'url':    url,
-                'title':  title,
-                'text':   text[:5000],
-                'links':  links,
-                'status': 'ok',
+                "url": url,
+                "title": title,
+                "text": text[:5000],
+                "links": links,
+                "status": "ok",
             }
 
         except Exception as e:
             return {
-                'url':    url,
-                'title':  '',
-                'text':   '',
-                'links':  [],
-                'status': f'error: {e}',
+                "url": url,
+                "title": "",
+                "text": "",
+                "links": [],
+                "status": f"error: {e}",
             }
 
     def search_and_fetch(
@@ -93,24 +95,19 @@ class ScraplingConnector:
         Returns:
             List of page dicts from fetch().
         """
-        search_url = (
-            f"https://www.google.com/search?q="
-            f"{urllib.parse.quote(query)}"
-        )
+        search_url = f"https://www.google.com/search?q={urllib.parse.quote(query)}"
 
         search_page = self.fetch(search_url)
 
         # Extract non-Google result links
         result_links = [
-            l for l in search_page.get('links', [])
-            if 'google' not in l
-            and l.startswith('http')
+            l for l in search_page.get("links", []) if "google" not in l and l.startswith("http")
         ][:num_results]
 
         results = []
         for link in result_links:
             page = self.fetch(link)
-            if page.get('status') == 'ok':
+            if page.get("status") == "ok":
                 results.append(page)
 
         return results
@@ -118,7 +115,7 @@ class ScraplingConnector:
     def monitor_competitor(
         self,
         url: str,
-        last_content: str = '',
+        last_content: str = "",
     ) -> dict:
         """
         Fetch a competitor page and detect content changes.
@@ -132,16 +129,13 @@ class ScraplingConnector:
             {url, changed, new_content, status}
         """
         page = self.fetch(url)
-        new_content = page.get('text', '')
-        changed = (
-            last_content != ''
-            and new_content != last_content
-        )
+        new_content = page.get("text", "")
+        changed = last_content != "" and new_content != last_content
 
         return {
-            'url':         url,
-            'changed':     changed,
-            'new_content': new_content,
-            'title':       page.get('title', ''),
-            'status':      page.get('status'),
+            "url": url,
+            "changed": changed,
+            "new_content": new_content,
+            "title": page.get("title", ""),
+            "status": page.get("status"),
         }
