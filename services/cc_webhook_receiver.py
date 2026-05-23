@@ -189,8 +189,8 @@ async def start_webhook_server(
 
         # Build a WatcherEvent and format it through the bridge
         try:
-            from execution.transport.session_watcher import SessionState, WatcherEvent
-            from execution.transport.session_discord_bridge import format_event
+            from substrate.execution.transport.session_watcher import SessionState, WatcherEvent
+            from substrate.execution.transport.session_discord_bridge import format_event
 
             state_map = {
                 "plan": SessionState.PLAN_MODE,

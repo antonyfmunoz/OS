@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from execution.runtime.worker_runtime_contracts import (
+from substrate.execution.runtime.worker_runtime_contracts import (
     AuthorityDomain,
     MessageBusType,
 )

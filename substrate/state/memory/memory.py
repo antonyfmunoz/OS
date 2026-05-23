@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from execution.runtime.agent_runtime import AgentResult
+    from substrate.execution.runtime.agent_runtime import AgentResult
 
 from substrate.state.storage.db import get_conn, resolve_venture, resolve_skill, ORG_ID, USER_ID
 
@@ -232,7 +232,7 @@ class AgentMemory:
 
         def _alert() -> None:
             try:
-                from control_plane.orchestrator.orchestrator import check_outcome_milestone
+                from substrate.control_plane.orchestrator.orchestrator import check_outcome_milestone
                 from substrate.state.context.context import load_context_from_env
                 check_outcome_milestone(load_context_from_env(), outcome_count)
             except Exception:

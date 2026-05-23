@@ -18,7 +18,7 @@ from adapters.adapter_engine.adapter_maturity import (
     actuator_to_adapter_maturity,
     adapter_to_actuator_target,
 )
-from execution.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
+from substrate.execution.actuation.actuator_maturity_v1 import ActuatorMaturityLevel
 
 
 class TestActuatorToAdapterMapping(unittest.TestCase):

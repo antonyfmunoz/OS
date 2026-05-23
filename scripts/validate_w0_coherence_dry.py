@@ -17,20 +17,20 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-from control_plane.invariants.coherence_gate import (
+from substrate.control_plane.invariants.coherence_gate import (
     coherence_gate_allows_execution,
     evaluate_coherence_before_execution,
 )
-from control_plane.invariants.spine_lineage_contracts import (
+from substrate.control_plane.invariants.spine_lineage_contracts import (
     CoherenceStatus,
     SpineStage,
     SpineStageStatus,
 )
-from execution.environments.execution_binding_validator import (
+from substrate.execution.environments.execution_binding_validator import (
     validate_execution_binding_dict,
 )
-from execution.environments.packet_validator import validate_w0_packet_dict
-from execution.environments.w0_packet_builder import build_w0_001_packet
+from substrate.execution.environments.packet_validator import validate_w0_packet_dict
+from substrate.execution.environments.w0_packet_builder import build_w0_001_packet
 
 REPORT_DIR = Path(_ROOT) / "data" / "dry_validation"
 REPORT_DIR.mkdir(parents=True, exist_ok=True)

@@ -30,31 +30,31 @@ import sys
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from execution.transport.local_listener import (  # noqa: E402
+from substrate.execution.transport.local_listener import (  # noqa: E402
     get_trigger_history,
 )
-from execution.transport.operator_presence import line_for_transition  # noqa: E402
-from execution.transport.operator_state import (  # noqa: E402
+from substrate.execution.transport.operator_presence import line_for_transition  # noqa: E402
+from substrate.execution.transport.operator_state import (  # noqa: E402
     OperatorMode,
     get_operator_state_store,
     reset_operator_state_store_for_tests,
 )
-from execution.transport.result_query import operator_state_snapshot  # noqa: E402
-from execution.transport.ritual_body import RitualPolicy  # noqa: E402
-from execution.transport.ritual_runner import (  # noqa: E402
+from substrate.execution.transport.result_query import operator_state_snapshot  # noqa: E402
+from substrate.execution.transport.ritual_body import RitualPolicy  # noqa: E402
+from substrate.execution.transport.ritual_runner import (  # noqa: E402
     finish_close_day,
     finish_open_day,
     start_close_day,
     start_open_day,
 )
-from execution.transport.station_bus import get_station_bus  # noqa: E402
-from execution.transport.station_daemon import StationDaemon  # noqa: E402
-from execution.transport.voice_session import (  # noqa: E402
+from substrate.execution.transport.station_bus import get_station_bus  # noqa: E402
+from substrate.execution.transport.station_daemon import StationDaemon  # noqa: E402
+from substrate.execution.transport.voice_session import (  # noqa: E402
     VoiceSessionRuntime,
     get_voice_session_store,
     reset_voice_session_store_for_tests,
 )
-from execution.transport.wake_producer import (  # noqa: E402
+from substrate.execution.transport.wake_producer import (  # noqa: E402
     get_wake_producer_history,
     get_wake_producer_runtime,
     reset_wake_producer_runtime_for_tests,
@@ -219,10 +219,10 @@ def main() -> int:
     import importlib
 
     for mod in (
-        "control_plane.runtime.gateway",
-        "control_plane.runtime.cognitive_loop",
-        "execution.runtime.model_router",
-        "execution.runtime.agent_runtime",
+        "substrate.control_plane.runtime.gateway",
+        "substrate.control_plane.runtime.cognitive_loop",
+        "substrate.execution.runtime.model_router",
+        "substrate.execution.runtime.agent_runtime",
         "runtime.primitives",
     ):
         try:

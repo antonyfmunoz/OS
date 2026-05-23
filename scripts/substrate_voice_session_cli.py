@@ -24,7 +24,7 @@ import sys
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from execution.transport.voice_session import (  # noqa: E402
+from substrate.execution.transport.voice_session import (  # noqa: E402
     VoiceSessionRuntime,
     voice_session_report,
 )
@@ -38,7 +38,7 @@ def _maybe_install_eos_responder() -> None:
     substrate stub if anything goes wrong.
     """
     try:
-        from execution.transport.voice_eos_responder import (
+        from substrate.execution.transport.voice_eos_responder import (
             install_default_eos_voice_responder,
         )
 
@@ -89,7 +89,7 @@ def cmd_report(args: argparse.Namespace) -> int:
     # Surface responder mode at the top level so operators can see it without
     # crawling per-session metadata.
     try:
-        from execution.transport.voice_eos_responder import (
+        from substrate.execution.transport.voice_eos_responder import (
             is_eos_voice_responder_installed,
         )
 

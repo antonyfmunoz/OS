@@ -155,12 +155,12 @@ def main() -> int:
     print("\n[5] discord shared path is wired to runtime.model_router")
     import inspect
 
-    from execution.transport import voice_eos_responder as ver
+    from substrate.execution.transport import voice_eos_responder as ver
 
     src = inspect.getsource(ver._eos_voice_responder)
     check(
         "voice_eos_responder imports call_with_fallback",
-        "from execution.runtime.model_router import call_with_fallback" in src,
+        "from substrate.execution.runtime.model_router import call_with_fallback" in src,
     )
     check(
         "voice_eos_responder calls call_with_fallback",
@@ -169,7 +169,7 @@ def main() -> int:
 
     # And prove that discord_text_transport routes into the same voice
     # substrate (ingest_text_message), not a private bypass.
-    from execution.transport import discord_text_transport as dtt
+    from substrate.execution.transport import discord_text_transport as dtt
 
     mirror_src = inspect.getsource(dtt.maybe_mirror_discord_text_message)
     check(

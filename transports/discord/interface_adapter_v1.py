@@ -33,16 +33,16 @@ _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.ge
 
 import discord
 
-from control_plane.router.control_plane_router_v1 import (
+from substrate.control_plane.router.control_plane_router_v1 import (
     ControlPlaneRouterV1,
     load_config as load_router_config,
 )
-from control_plane.router.router_contracts import (
+from substrate.control_plane.router.router_contracts import (
     RouterResult,
     RouterStatus,
     WorkPacket,
 )
-from execution.environments.windows_desktop_request_builder import (
+from substrate.execution.environments.windows_desktop_request_builder import (
     build_ping_request,
     build_w0_chrome_open_request,
     build_w0_chrome_proof_request,
@@ -55,7 +55,7 @@ from execution.environments.windows_desktop_request_builder import (
     build_w0_real_foreground_cu_ingestion_request,
 )
 from adapters.adapter_engine.adapter_registry_contracts import AdapterRegistry
-from execution.runtime.worker_runtime_contracts import ProofStatus
+from substrate.execution.runtime.worker_runtime_contracts import ProofStatus
 from transports.discord.spine_integration_v1 import (
     SpineExecutionConfig,
     SpineRoutedResult,

@@ -59,7 +59,7 @@ def should_capture(text: str) -> tuple[bool, str]:
 def _classify_venture(text: str) -> str:
     """Classify which venture a capture belongs to using the model router."""
     try:
-        from execution.runtime.model_router import get_router
+        from substrate.execution.runtime.model_router import get_router
         router = get_router()
         prompt = f"""Classify which venture this task belongs to.
 
@@ -72,7 +72,7 @@ Task: "{text}"
 
 Reply with exactly one of: lyfe_institute | empyrean_creative | personal_brand"""
 
-        from execution.runtime.model_router import TaskType
+        from substrate.execution.runtime.model_router import TaskType
         model = router.route(TaskType.FAST_RESPONSE)
         result = router.call(model, prompt).strip().lower()
         if result in ('lyfe_institute', 'empyrean_creative', 'personal_brand'):
@@ -203,7 +203,7 @@ def capture(text: str, ctx=None, venture_id: str = None) -> dict:
     # BBR check — should DEX handle this without flagging Antony?
     try:
         from substrate.state.metrics.founder_rate import get_current_founder_rate
-        from control_plane.strategy.task_yield_matrix import classify_task_yield
+        from substrate.control_plane.strategy.task_yield_matrix import classify_task_yield
         rate = get_current_founder_rate()
         if rate:
             drip = classify_task_yield(text)

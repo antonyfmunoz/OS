@@ -355,8 +355,8 @@ class BusinessInstanceManager:
 
         if gaps:
             try:
-                from control_plane.runtime.cognitive_loop import CognitiveLoop
-                from execution.runtime.agent_runtime import TaskType
+                from substrate.control_plane.runtime.cognitive_loop import CognitiveLoop
+                from substrate.execution.runtime.agent_runtime import TaskType
                 loop = CognitiveLoop(self.ctx)
                 gap_prompt = (
                     f"For a {bis.business_model} business called '{bis.name}' "

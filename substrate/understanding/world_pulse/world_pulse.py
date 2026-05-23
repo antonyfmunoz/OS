@@ -178,7 +178,7 @@ class WorldPulse:
         """
         signals: list[dict] = []
         try:
-            from execution.runtime.model_router import get_router, TaskType as RouterTaskType
+            from substrate.execution.runtime.model_router import get_router, TaskType as RouterTaskType
             router = get_router()
 
             # Build a substrate-neutral venture context string from ctx.ventures

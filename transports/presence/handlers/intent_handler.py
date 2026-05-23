@@ -149,7 +149,7 @@ def run_gateway(
     if channel_name not in channel_sessions:
         channel_sessions[channel_name] = str(_uuid_mod.uuid4())
         try:
-            from execution.transport.storage import get_storage
+            from substrate.execution.transport.storage import get_storage
 
             get_storage().put(f"session:{channel_name}", channel_sessions[channel_name])
         except Exception as _ss_err:
@@ -253,7 +253,7 @@ def run_gateway(
                 _q_payload = json.loads(_q_payload)
             _question = _q_payload.get("question", "")
 
-            from execution.runtime.model_router import call_with_fallback as _cl_cwf
+            from substrate.execution.runtime.model_router import call_with_fallback as _cl_cwf
 
             _cl_result = _cl_cwf(
                 prompt=f"""Does this message answer this question?
@@ -330,7 +330,7 @@ Return JSON: {{"answers": true, "answer_summary": "brief summary"}}""",
     # so model_router's Claude CLI backend targets the correct session.
     _mode_cm = None
     try:
-        from execution.transport.discord_mode_routing import (
+        from substrate.execution.transport.discord_mode_routing import (
             mode_context as _mc,
             resolve_discord_mode,
         )
@@ -354,7 +354,7 @@ Return JSON: {{"answers": true, "answer_summary": "brief summary"}}""",
                 policy_version=None,
             )
         else:
-            from execution.transport.discord_mode_routing import resolve_mode_session
+            from substrate.execution.transport.discord_mode_routing import resolve_mode_session
 
             _mode_session = resolve_mode_session(
                 _discord_mode, guild_id=guild_id, channel_id=channel_id

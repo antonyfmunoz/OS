@@ -29,7 +29,7 @@ from substrate.understanding.domains.contract import DomainProjection
 from substrate.understanding.domains.registry import default_registry as _bridge_registry
 from substrate.governance.policy.authority_tier import T5_DEFAULT, get_authority_tier
 from substrate.understanding.perception.source import RawContent, Source
-from execution.transport.memory_scope_contracts import (
+from substrate.execution.transport.memory_scope_contracts import (
     MemoryScope,
     MemoryScopeAssignment,
     PromotionPath,
@@ -540,7 +540,7 @@ DOCUMENT SOURCE: {source_path}
 
         for attempt in range(2):
             try:
-                from execution.runtime.model_router import call_with_fallback, TaskType
+                from substrate.execution.runtime.model_router import call_with_fallback, TaskType
 
                 result = call_with_fallback(
                     prompt=prompt,

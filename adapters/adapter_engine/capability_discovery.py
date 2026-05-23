@@ -248,7 +248,7 @@ class CapabilityDiscoveryOrchestrator:
 
         for attempt in range(2):
             try:
-                from execution.runtime.model_router import (
+                from substrate.execution.runtime.model_router import (
                     TaskType,
                     call_with_fallback,
                 )
