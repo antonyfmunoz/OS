@@ -6,7 +6,7 @@ Two concerns live here:
        out to scripts/query_skills.py so the Control Plane's pre-execute
        hook can attach a "is there a relevant skill for this?" hint to
        every action result. This is the advisory path that has existed
-       since Phase 1. It never fails loudly — TME is advisory.
+       from the beginning. It never fails loudly — TME is advisory.
 
     2. Active mastery assurance (new) — `ensure_tool_mastery` calls into
        `core.tool_mastery_manager.ensure_mastery`, which evaluates

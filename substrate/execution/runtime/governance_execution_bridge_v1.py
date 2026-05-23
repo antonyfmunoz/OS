@@ -10,7 +10,7 @@ Rules:
   4. High/Critical risk commands require explicit approval
   5. All decisions are persisted with full lineage
 
-UMH substrate subsystem. Phase 96.8BO.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

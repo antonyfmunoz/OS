@@ -8,7 +8,7 @@ Orchestrates the full governed ingestion chain:
 
 No dry-run mode. Real chain only.
 
-UMH substrate subsystem. Phase 96.8AB.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

@@ -20,7 +20,7 @@ Composes:
   - runtime_presence_state_v1 (workstation state)
   - worker_supervisor_v1 (worker lifecycle)
 
-UMH substrate subsystem. Phase 96.8AE.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

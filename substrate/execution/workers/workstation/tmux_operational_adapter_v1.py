@@ -10,7 +10,7 @@ NOT allowed:
   - hidden background loops
   - unmonitored session creation
 
-UMH substrate subsystem. Phase 96.8BP.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

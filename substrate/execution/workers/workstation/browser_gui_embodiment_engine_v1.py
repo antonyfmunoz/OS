@@ -18,7 +18,7 @@ Provides:
   - Continuity snapshot
   - Replay validation
 
-UMH substrate subsystem. Phase 96.8BQ.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

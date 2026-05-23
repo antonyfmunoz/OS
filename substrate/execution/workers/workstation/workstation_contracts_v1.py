@@ -9,7 +9,7 @@ Data shapes for workstation-level operational state:
 All contracts are immutable after creation. All carry provenance.
 All serialize deterministically.
 
-UMH substrate subsystem. Phase 96.8BP.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

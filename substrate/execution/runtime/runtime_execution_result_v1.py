@@ -4,7 +4,7 @@ Deterministic execution result with proof chain. Every runtime
 execution produces a result with hash-verified evidence, adapter
 boundary proof, and execution trace linkage.
 
-UMH substrate subsystem. Phase 96.8AE.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

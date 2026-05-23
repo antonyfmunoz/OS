@@ -6,7 +6,7 @@ and adapters can fulfill them. Pure lookup — no ML, no scoring.
 The router answers: "What does this command need, and who can provide it?"
 The governance bridge answers: "Is this command allowed?"
 
-UMH substrate subsystem. Phase 96.8BO.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

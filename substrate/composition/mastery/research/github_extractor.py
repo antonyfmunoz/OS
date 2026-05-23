@@ -1,6 +1,6 @@
 """GitHub repo extractor for the Tool Mastery Research Agent.
 
-Phase 1 unlock: when source discovery yields a ``github.com/owner/repo``
+When source discovery yields a ``github.com/owner/repo``
 URL, that URL alone is almost worthless — the landing page is a
 JS-heavy SPA shell that the signal gate correctly drops. The *actual*
 high-signal technical material lives inside the repo as files:
@@ -26,7 +26,7 @@ Honest boundaries:
     - We pin raw URLs to a commit SHA, not to HEAD, so re-runs are
       reproducible even if the upstream default branch advances.
     - We cap total expanded files per repo to keep the fetch budget
-      honest. Deeper exploration is a Phase 2+ concern.
+      honest. Deeper exploration is a future concern.
 """
 
 from __future__ import annotations
@@ -210,7 +210,7 @@ def _path_in_any_dir(path: str, prefixes: tuple[str, ...]) -> bool:
 
 
 def _prioritise_files(entries: list[dict]) -> list[str]:
-    """Rank blob paths by Phase 1 priority. Returns an ordered path list."""
+    """Rank blob paths by discovery priority. Returns an ordered path list."""
     paths = [str(e.get("path") or "") for e in entries if e.get("path")]
     seen: set[str] = set()
     ordered: list[str] = []

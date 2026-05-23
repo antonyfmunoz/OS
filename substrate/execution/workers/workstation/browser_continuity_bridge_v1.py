@@ -6,7 +6,7 @@ and visible actuation into the continuity store.
 
 Persist to: data/runtime/browser_continuity/
 
-UMH substrate subsystem. Phase 96.8BQ.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

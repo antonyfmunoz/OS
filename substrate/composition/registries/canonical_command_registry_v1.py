@@ -5,7 +5,7 @@ Every runtime system that needs command information reads from
 this registry — surface display, router dispatch, execution
 gate, node sync, and supervisor.
 
-Phase 96.8AL. UMH substrate.
+UMH substrate.
 """
 
 from __future__ import annotations

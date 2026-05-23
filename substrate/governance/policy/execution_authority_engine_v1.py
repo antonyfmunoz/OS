@@ -21,7 +21,7 @@ Authority evaluation dimensions:
   - confidence threshold
   - proof requirement
 
-UMH substrate subsystem. Phase 96.8AC.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

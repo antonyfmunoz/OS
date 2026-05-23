@@ -20,7 +20,7 @@ Gate validation dimensions:
   - packet not expired
   - no structural hard blocks
 
-UMH substrate subsystem. Phase 96.8AD.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

@@ -251,7 +251,7 @@ def discover_sources(
         seen.add(ref.url)
         unique.append(ref)
 
-    # GitHub repo expansion (Phase 1 unlock): any github.com/owner/repo
+    # GitHub repo expansion: any github.com/owner/repo
     # URL is replaced in-place with the prioritised set of raw files
     # inside that repo. The original repo URL is kept as a trailing
     # low-priority reference so provenance of *why* those raw files
@@ -282,7 +282,7 @@ def discover_sources(
             expanded.append(ref)
     unique = expanded
 
-    # Phase 2: Docs Site Discovery.
+    # Docs Site Discovery.
     #
     # For every unique non-raw-github host that landed on the plan,
     # probe /llms.txt and /sitemap.xml once. Any discovered doc-shaped
@@ -313,10 +313,10 @@ def discover_sources(
         )
         unique.extend(discovered)
 
-    # Phase 3: Structured Crawl Expansion.
+    # Structured Crawl Expansion.
     #
-    # Take the already-approved doc pages (registry + Phase 1 github
-    # expansion + Phase 2 sitemap/llms discoveries) and follow their
+    # Take the already-approved doc pages (registry + github
+    # expansion + sitemap/llms discoveries) and follow their
     # in-page links ONE hop, same host only, doc-shaped paths only,
     # under strict per-host and per-run caps. This exists for SPA
     # vendor sites that publish no sitemap and no llms.txt — clo3d

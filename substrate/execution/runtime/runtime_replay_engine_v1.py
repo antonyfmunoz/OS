@@ -6,7 +6,7 @@ verdicts, same capability selections. No re-execution of side effects.
 
 Replay verifies the DECISION PATH, not the EXECUTION.
 
-UMH substrate subsystem. Phase 96.8BO.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

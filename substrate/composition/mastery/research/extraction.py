@@ -1,7 +1,7 @@
 """Structured knowledge extraction for the Tool Mastery Research Agent.
 
-Phase 5 of the research agent. Where Phase 1–4 focused on *access* (find,
-fetch, render, filter), Phase 5 focuses on *understanding*: converting
+The extraction layer of the research agent. Where earlier stages focused on *access* (find,
+fetch, render, filter), this stage focuses on *understanding*: converting
 raw prose and rendered docs into structured, reusable mastery knowledge.
 
 Two responsibilities live here:
@@ -91,7 +91,7 @@ def preprocess_for_extraction(raw_text: str) -> str:
     while leaving code fences, JSON blobs, install commands, and
     parameter tables fully intact.
 
-    Phase 8: converts heading tags to markdown heading markers BEFORE
+    Converts heading tags to markdown heading markers BEFORE
     generic tag stripping so heading-dependent extractors
     (design_rationale, quickstart_flow, conceptual_explanation) can
     fire on real HTML doc content. Also preserves block-level element
@@ -103,7 +103,7 @@ def preprocess_for_extraction(raw_text: str) -> str:
     cleaned = _STYLE_BLOCK_RE.sub(" ", cleaned)
     cleaned = _NOSCRIPT_BLOCK_RE.sub(" ", cleaned)
 
-    # Phase 8 — heading preservation: <h1>…</h1> → "\n# …\n"
+    # Heading preservation: <h1>…</h1> → "\n# …\n"
     # Must run before _TAG_RE strips all tags indiscriminately.
     def _heading_to_md(m: re.Match) -> str:
         level = int(m.group(1))
@@ -116,7 +116,7 @@ def preprocess_for_extraction(raw_text: str) -> str:
 
     cleaned = _HEADING_TAG_RE.sub(_heading_to_md, cleaned)
 
-    # Phase 8 — block boundary preservation: ensure block-level elements
+    # Block boundary preservation: ensure block-level elements
     # produce line breaks so content segmentation is preserved.
     cleaned = _BLOCK_BOUNDARY_RE.sub("\n", cleaned)
 
@@ -426,7 +426,7 @@ _MAX_EXCERPT_CHARS = 500
 def _heading_with_body(plain: str, match: re.Match, max_chars: int = 400) -> str:
     """Extract a heading line plus its following body content.
 
-    Phase 8: headings converted from HTML now sit between double-newline
+    Headings converted from HTML now sit between double-newline
     boundaries. A naive ``split("\\n\\n", 1)[0]`` only captures the heading
     itself. This helper skips past blank lines after the heading to grab
     up to two non-empty paragraphs of body text.
@@ -857,7 +857,7 @@ def _extract_design_intent(plain: str, url: str) -> list[ExtractedPattern]:
     if headings:
         excerpts = []
         for m in headings[:3]:
-            # Phase 8: use heading+body extractor that bridges blank lines.
+            # Use heading+body extractor that bridges blank lines.
             chunk = _heading_with_body(plain, m, max_chars=350)
             if len(chunk) > 40:
                 excerpts.append(chunk)
@@ -1058,7 +1058,7 @@ def _extract_conceptual_model(plain: str, url: str) -> list[ExtractedPattern]:
     if qs_headings:
         excerpts = []
         for m in qs_headings[:3]:
-            # Phase 8: use heading+body extractor that bridges blank lines.
+            # Use heading+body extractor that bridges blank lines.
             body = _heading_with_body(plain, m, max_chars=400)
             if len(body) > 40:
                 excerpts.append(body)

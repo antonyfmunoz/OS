@@ -5,7 +5,7 @@ Every query is policy-bounded and produces a QueryProofArtifact.
 
 Core principle: no memory retrieval without lineage traceability.
 
-UMH substrate subsystem. Phase 96.8V.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

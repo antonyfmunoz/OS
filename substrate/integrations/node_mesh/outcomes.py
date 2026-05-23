@@ -16,7 +16,7 @@ class NodeOutcomeReceiver:
     """Proxies OutcomeReceiver protocol to a remote node over WebSocket.
 
     Fire-and-forget: sends outcome notification if the node is connected,
-    logs a warning if not. No queuing in Phase 1.
+    logs a warning if not. No queuing yet.
     """
 
     def __init__(self, node_id: str, ws: Any) -> None:

@@ -8,7 +8,7 @@ Transport chain:
   → Windows relay reads inbox → executes → writes outbox
   → VPS polls outbox via SSH → reads result
 
-UMH substrate subsystem. Phase 96.8AR.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

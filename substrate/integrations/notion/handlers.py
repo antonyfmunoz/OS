@@ -34,8 +34,8 @@ class NotionCapabilityHandler:
     """Handles capability requests by calling the Notion SDK.
 
     Satisfies CapabilityHandler Protocol structurally.
-    Phase 1: create_page. Phase 2: update_page, append_block, query_database.
-    Phase 3: noop (signal acknowledgement, no external action).
+    Supports create_page, update_page, append_block, query_database,
+    and noop (signal acknowledgement, no external action).
     """
 
     def __init__(self) -> None:

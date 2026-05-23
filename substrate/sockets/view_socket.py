@@ -16,7 +16,7 @@ class ViewSocket:
     Registered as an on_event() listener on ExecutionPipeline.
     Every _emit() call produces a ViewFrame broadcast to all
     subscribers. The cockpit's WebSocketBridge is the primary
-    subscriber (Phase 2).
+    subscriber.
     """
 
     def __init__(self) -> None:

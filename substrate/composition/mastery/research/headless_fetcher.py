@@ -1,6 +1,6 @@
 """Headless rendering fetch path for the Tool Mastery Research Agent.
 
-Phase 4 unlock: docs sites built as client-rendered SPAs (Next.js,
+Headless rendering unlock: docs sites built as client-rendered SPAs (Next.js,
 Docusaurus, Mintlify, Nuxt, etc.) return an empty shell to urllib.
 The prose lives in hydrated DOM, not the HTTP body. This module
 reaches *through* that shell with a real browser (Playwright Chromium)

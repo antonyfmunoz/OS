@@ -6,7 +6,7 @@ Generates parity confidence scores and captures discrepancies.
 
 Never treats CU/OCR as identical to API without confidence downgrade.
 
-UMH substrate subsystem. Phase 96.8AB.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

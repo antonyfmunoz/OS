@@ -10,7 +10,7 @@ DOES NOT replay destructive GUI actions. Only the decision path.
 
 Persist proofs to: data/runtime/browser_replay_proofs/
 
-UMH substrate subsystem. Phase 96.8BQ.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

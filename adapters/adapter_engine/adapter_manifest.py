@@ -21,7 +21,7 @@ from adapters.adapter_engine.adapter_registry_contracts import CapabilityDescrip
 class AdapterMaturityLevel(IntEnum):
     """How well UMH understands an adapter's capabilities.
 
-    Modality-agnostic. Phase 2 adds evidence models per dimension;
+    Modality-agnostic. Future work adds evidence models per dimension;
     the enum values are stable.
     """
 

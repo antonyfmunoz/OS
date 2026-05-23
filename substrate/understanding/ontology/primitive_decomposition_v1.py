@@ -4,7 +4,7 @@ Decomposes observations into the substrate's primitive ontology.
 Every observation is expressed as a set of typed primitives with
 explicit relationships, confidence scores, and uncertainty markers.
 
-UMH substrate subsystem. Phase 96.8W.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

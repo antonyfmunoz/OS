@@ -16,7 +16,7 @@ BLOCKED unconditionally:
   mkfs, dd, mv (outside safe dirs), cp (outside safe dirs),
   bash -c (arbitrary), sh -c (arbitrary)
 
-UMH substrate subsystem. Phase 96.8BP.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

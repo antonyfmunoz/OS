@@ -12,7 +12,7 @@ Composes existing infrastructure:
   - WorkstationPresenceState (runtime_presence_state_v1.py)
   - ProofArtifactType (runtime_execution_result_v1.py)
 
-UMH substrate subsystem. Phase 96.8AH.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

@@ -12,7 +12,7 @@ Coordinates the execution flow within a governance-approved envelope:
 Does NOT bypass governance — requires approved envelope.
 Does NOT execute directly — uses adapter lifecycle manager.
 
-UMH substrate subsystem. Phase 96.8BO.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

@@ -6,7 +6,7 @@ repeated patterns, and governance-gated decisions.
 
 Deterministic. Rule-based. All promotions produce governance receipts.
 
-UMH substrate subsystem. Phase 96.8BN.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

@@ -4,7 +4,7 @@ Represents a Windows workstation relay node that can receive
 commands from the VPS control plane and execute real GUI actions.
 This is the identity and contract layer — not execution.
 
-UMH substrate subsystem. Phase 96.8AO.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

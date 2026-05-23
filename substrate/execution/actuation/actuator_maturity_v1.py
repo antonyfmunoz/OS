@@ -4,7 +4,7 @@ Defines 8 maturity levels (L0-L7) for GUI actuation. Each level
 requires specific observed evidence. No actuator can claim maturity
 above the evidence it provides.
 
-UMH substrate subsystem. Phase 96.8AN.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

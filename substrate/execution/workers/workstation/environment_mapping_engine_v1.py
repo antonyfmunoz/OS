@@ -15,7 +15,7 @@ Discovery domains:
 No hidden scanning. No credential scraping. No autonomous mutation.
 All discovery through visible foreground CU + relay transport.
 
-UMH substrate subsystem. Phase 96.8AT.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

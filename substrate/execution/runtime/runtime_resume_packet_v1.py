@@ -3,7 +3,7 @@
 Generates resumable context packets from continuity state,
 open loops, recent outcomes, and relevant canonical memories.
 
-UMH substrate subsystem. Phase 96.8BN.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

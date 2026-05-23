@@ -11,7 +11,7 @@ Composes the existing SubstrateContinuityEngine (96.8BN),
 WorkstationContinuityBridge (96.8BP), and
 BrowserContinuityBridge (96.8BQ) into one coordinator.
 
-UMH substrate subsystem. Phase 96.8BR.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

@@ -11,7 +11,7 @@ Three environments at launch:
 
 Deterministic. No ML. No autonomy.
 
-UMH substrate subsystem. Phase 96.8BO.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

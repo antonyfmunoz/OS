@@ -46,10 +46,10 @@ class Action:
     validation: dict[str, Any] = field(default_factory=dict)
     approval: dict[str, Any] = field(default_factory=dict)
     result: dict[str, Any] = field(default_factory=dict)
-    # Optional idempotency key (Phase 4). When set, run_action consults
+    # Optional idempotency key. When set, run_action consults
     # the idempotency sentinel store before proposing. Backwards-compat:
-    # `load_deferred` filters unknown keys, so pre-Phase-4 files load
-    # with the default of None, and post-Phase-4 files load on old code
+    # `load_deferred` filters unknown keys, so older files load
+    # with the default of None, and newer files load on old code
     # with the field silently dropped.
     idempotency_key: str | None = None
 

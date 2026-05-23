@@ -21,7 +21,7 @@ The single approved execution flow for all governed runtime operations.
 No parallel execution spines. No hidden execution paths.
 No direct adapter execution. No governance bypass.
 
-UMH substrate subsystem. Phase 96.8BO.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

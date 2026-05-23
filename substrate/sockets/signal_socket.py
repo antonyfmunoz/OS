@@ -85,7 +85,7 @@ class SignalSocket:
     def _dispatch(self, envelope: SignalEnvelope) -> UUID:
         """Convert envelope and submit to pipeline.
 
-        Returns signal_id. Override point for Phase 2+ wiring.
+        Returns signal_id. Override point for future wiring.
         Default implementation returns a generated UUID without
         pipeline submission — the pipeline wire is added when a
         concrete consumer exists.

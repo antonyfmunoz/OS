@@ -1,5 +1,5 @@
 """
-Memory scope contracts for Phase 96.4.
+Memory scope contracts.
 
 W0-001 data defaults to instance memory, not global UMH canon.
 CanonicalSourceRecord means normalized schema, not universal truth.

@@ -7,7 +7,7 @@ the source-of-truth registrations. Detects:
   - VPS/origin/local commit drift
   - Command surface hash mismatch
 
-UMH substrate subsystem. Phase 96.8AJ.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

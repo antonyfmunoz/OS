@@ -20,7 +20,7 @@ BLOCKED unconditionally:
   - OAuth/SSO callbacks
   - file download/upload
 
-UMH substrate subsystem. Phase 96.8BQ.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

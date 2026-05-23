@@ -1,15 +1,15 @@
 """
-GoalSelector — goal selection + system focus layer (Phase 9D + 9E + 9F).
+GoalSelector — goal selection + system focus layer.
 
 Determines WHICH goals the system pursues, not how to execute them.
 Goals compete for attention through a weighted scoring model.
 Only ACTIVE goals produce tasks — everything else is silent.
 
-Phase 9E adds outcome-driven reweighting: goals that succeed rise,
+Outcome-driven reweighting: goals that succeed rise,
 goals that fail drop. Performance profiles are updated in real time
 via EventBus and scored with exponential time decay.
 
-Phase 9F adds cross-goal learning and opportunity cost:
+Cross-goal learning and opportunity cost:
 - Goals are scored RELATIVE to alternatives, not just individually
 - Active goals are penalized when deferred alternatives outperform them
 - Swap pressure with hysteresis: sustained superiority triggers replacement
@@ -97,12 +97,12 @@ DEFAULT_FOCUS_BUDGET = 3
 # Outcome decay: 24-hour half-life in seconds
 DECAY_HALF_LIFE = 86400.0
 
-# Phase 9F: Cross-goal learning + opportunity cost
+# Cross-goal learning + opportunity cost
 OPPORTUNITY_COST_WEIGHT = 0.10
 SWAP_THRESHOLD = 0.05
 SWAP_SUSTAINED_CYCLES = 3
 
-# Phase 9G: Multi-timescale decision + strategic horizon
+# Multi-timescale decision + strategic horizon
 SHORT_TERM_HALF_LIFE = 21600.0  # 6 hours in seconds
 MEDIUM_TERM_HALF_LIFE = 86400.0  # 24 hours (same as original DECAY_HALF_LIFE)
 LONG_TERM_HALF_LIFE = 604800.0  # 7 days in seconds
@@ -116,7 +116,7 @@ HORIZON_WEIGHTS = {
 STABILITY_BONUS_THRESHOLD = 0.6
 STABILITY_BONUS_MAX = 0.03
 
-# Phase 9H: Failure-aware priority decay
+# Failure-aware priority decay
 FAILURE_THRESHOLD = 5
 DECAY_FACTOR = 0.7
 MIN_PRIORITY_MULTIPLIER = 0.3
@@ -181,7 +181,7 @@ class PerformanceProfile:
         )
 
 
-# ─── Multi-horizon profile (Phase 9G) ─────────────────────────────────────
+# ─── Multi-horizon profile ─────────────────────────────────────
 
 
 @dataclass
@@ -264,7 +264,7 @@ class Goal:
     priority_decay_multiplier: float = 1.0
 
 
-# ─── Opportunity Cost Layer (Phase 9F) ──────────────────────────────────────
+# ─── Opportunity Cost Layer ──────────────────────────────────────
 
 
 class OpportunityCostLayer:
@@ -395,7 +395,7 @@ class OpportunityCostLayer:
         }
 
 
-# ─── Strategic Horizon Layer (Phase 9G) ────────────────────────────────────
+# ─── Strategic Horizon Layer ────────────────────────────────────
 
 
 class StrategicHorizonLayer:
@@ -611,7 +611,7 @@ class GoalSelector:
         )
         goal.base_score = base
 
-        # Performance adjustment (Phase 9G: multi-horizon)
+        # Performance adjustment (multi-horizon)
         perf_adj = self.strategic_horizon.compute_horizon_adjustment(goal)
         explanation.extend(self.strategic_horizon.build_explanation(goal))
 
@@ -668,10 +668,10 @@ class GoalSelector:
             else:
                 g.state = GoalState.DEFERRED
 
-        # Phase 9F: Apply opportunity cost penalties to active goals
+        # Apply opportunity cost penalties to active goals
         self.opportunity_cost.compute_relative_penalties(scorable, self.focus_budget)
 
-        # Phase 9F: Evaluate swap pressure (hysteresis-gated)
+        # Evaluate swap pressure (hysteresis-gated)
         active_goals = [g for g in scorable if g.state == GoalState.ACTIVE]
         deferred_goals = [g for g in scorable if g.state == GoalState.DEFERRED]
         swaps = self.opportunity_cost.evaluate_swap_pressure(active_goals, deferred_goals)
@@ -1129,7 +1129,7 @@ class OutcomeTracker:
         profile = self._compute_profile(goal_id)
         horizons = self._compute_horizons(goal_id)
 
-        # 3. Update failure streak + priority decay (Phase 9H)
+        # 3. Update failure streak + priority decay
         failure_streak, decay_multiplier = self._update_failure_decay(goal_id, outcome_type)
 
         # 4. Update goal's performance + horizons + decay columns
@@ -1158,7 +1158,7 @@ class OutcomeTracker:
         goal_id: str,
         outcome_type: str,
     ) -> tuple[int, float]:
-        """Update failure streak and priority decay multiplier (Phase 9H).
+        """Update failure streak and priority decay multiplier.
 
         Returns (failure_streak, priority_decay_multiplier) for persistence.
         Emits goal_priority_decayed event when decay is applied.

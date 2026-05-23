@@ -3,11 +3,10 @@
 Captures execution telemetry: latency, outcome, proof artifacts,
 governance decisions, adapter usage. All records append to JSONL.
 
-Integrates with SubstrateContinuityEngine from Phase 96.8BN for
-continuity updates and with RuntimeMemoryGovernanceBridge for
-memory promotion decisions.
+Integrates with SubstrateContinuityEngine for continuity updates
+and with RuntimeMemoryGovernanceBridge for memory promotion decisions.
 
-UMH substrate subsystem. Phase 96.8BO.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

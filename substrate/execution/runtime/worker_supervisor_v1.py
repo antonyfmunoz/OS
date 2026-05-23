@@ -7,7 +7,7 @@ The founder should NOT manually switch terminals, restart adapters,
 invoke relay scripts, or trigger local workers — except where
 explicit governance requires human approval or visual confirmation.
 
-UMH substrate subsystem. Phase 96.8AB.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

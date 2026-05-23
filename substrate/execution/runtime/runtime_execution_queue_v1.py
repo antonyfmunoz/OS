@@ -5,7 +5,7 @@ Wraps execution envelopes with queue lifecycle tracking.
 
 Queue states: PENDING → IN_PROGRESS → COMPLETED | FAILED | EXPIRED
 
-UMH substrate subsystem. Phase 96.8BO.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

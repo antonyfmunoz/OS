@@ -13,7 +13,7 @@ orchestration history, rewrite governance outcomes, rewrite replay
 outcomes, overwrite maturity evidence, auto-promote canonical memory,
 or mutate canonical structures autonomously.
 
-UMH substrate subsystem. Phase 96.8AX.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

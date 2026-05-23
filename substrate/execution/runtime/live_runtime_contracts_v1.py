@@ -5,13 +5,13 @@ Data shapes for the live substrate runtime spine:
   RuntimeExecutionPlan → RuntimeExecutionStep →
   RuntimeOutcome → RuntimeContinuation → RuntimeLineageReceipt
 
-These sit above the Phase 96.8BO execution contracts,
+These sit above the base execution contracts,
 adding cognition, planning, continuation, and lineage dimensions.
 
 All contracts are immutable after creation. All carry provenance.
 All serialize deterministically.
 
-UMH substrate subsystem. Phase 96.8BR.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

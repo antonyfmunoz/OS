@@ -12,7 +12,7 @@ Key invariant: maturity level can NEVER exceed the evidence.
 - No screenshot → capped at L4
 - No founder confirmation → capped at L5
 
-UMH substrate subsystem. Phase 96.8AN.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

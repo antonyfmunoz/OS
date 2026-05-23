@@ -7,7 +7,7 @@ Persists and retrieves workstation operational state:
 
 Persist to: data/runtime/workstation_state/
 
-UMH substrate subsystem. Phase 96.8BP.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

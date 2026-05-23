@@ -6,7 +6,7 @@ Status is stored as a sidecar JSON file next to each deferred action:
     /opt/OS/logs/deferred/<action_id>.status.json   # optional sidecar
 
 Absent sidecar = `pending`. This keeps the default path unchanged from
-Phase 2 and means existing deferred actions get the correct default
+the original design and means existing deferred actions get the correct default
 without any migration. Operators only write a sidecar when they need
 to annotate: acknowledged, snoozed, or stale.
 

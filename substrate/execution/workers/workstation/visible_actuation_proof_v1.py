@@ -6,7 +6,7 @@ PID, real HWND, foreground focus, screenshot, and founder confirmation.
 
 No dry-run paths. No simulated evidence.
 
-UMH substrate subsystem. Phase 96.8AQ.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

@@ -4,7 +4,7 @@ Validates work packets before execution. Catches missing approvals,
 expired packets, blocked action violations, missing governance,
 missing proof requirements, and missing/invalid execution bindings.
 
-Phase 96.8F: validates execution_binding field on W0 packets.
+Validates execution_binding field on W0 packets.
 
 UMH substrate subsystem. EOS is one platform consumer.
 """

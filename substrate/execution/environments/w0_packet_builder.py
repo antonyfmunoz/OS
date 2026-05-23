@@ -3,12 +3,12 @@
 Generates the W0-001 CU rerun packet with all required routing fields
 so the local worker validates without manual patching.
 
-Phase 96.8F: packets include an explicit execution_binding with all
-6 layers (environment, execution surface, application, target service,
+Packets include an explicit execution_binding with all 6 layers
+(environment, execution surface, application, target service,
 capability, proof) so the system never collapses these into a single
 vague "backend."
 
-Phase 96.8G: packets include a coherence_envelope proving the packet
+Packets also include a coherence_envelope proving the packet
 descended from the canonical UMH spine. For W0 vertical-slice testing,
 stages without full subsystem implementations use explicit MVP stub
 artifacts — labeled, reasoned, and trace-linked.
@@ -236,7 +236,7 @@ def build_w0_001_packet() -> dict[str, Any]:
         "execution_binding": build_w0_chrome_gws_binding().to_dict(),
         "coherence_envelope": _build_w0_001_coherence_envelope(),
         "notes": [
-            "Phase 96.8G packet — includes coherence envelope with canonical spine lineage",
+            "Includes coherence envelope with canonical spine lineage",
             "Direct Chrome executable launch required (not explorer/default-browser)",
             "Visible-window proof required before VERIFY_ACTIVE_GOOGLE_ACCOUNT gate",
             "Primary dispatch: local pull from VPS outbox",

@@ -7,7 +7,7 @@ lineage references, and governance metadata.
 
 Core principle: no transformation without saved state.
 
-UMH substrate subsystem. Phase 96.8V.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

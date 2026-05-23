@@ -5,7 +5,7 @@ or instance (time-bound, context-specific fact).
 
 Deterministic. Replay-safe. IDs derived from content hashes.
 
-UMH substrate subsystem. Phase 96.8BJ.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

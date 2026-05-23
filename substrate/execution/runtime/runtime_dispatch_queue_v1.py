@@ -6,7 +6,7 @@ dequeues and processes them. Idempotent dispatch with dedup.
 
 Composes: core/environment_bridge/queue_paths.py
 
-UMH substrate subsystem. Phase 96.8AE.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations
