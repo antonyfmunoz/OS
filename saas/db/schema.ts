@@ -451,9 +451,9 @@ export const embeddings = pgTable('embeddings', {
   id:             uuid('id').primaryKey().defaultRandom(),
   interactionId:  uuid('interaction_id').notNull().references(() => interactions.id, { onDelete: 'cascade' }),
   orgId:          uuid('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
-  embedding:      vectorType('embedding', { dimensions: 768 }),
+  embedding:      vectorType('embedding', { dimensions: 384 }),
   contentPreview: text('content_preview'),
-  embeddingModel: text('embedding_model').default('text-embedding-004'),
+  embeddingModel: text('embedding_model').default('BAAI/bge-small-en-v1.5'),
   createdAt:      timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   interactionIdx: index('idx_embeddings_interaction_id').on(t.interactionId),
