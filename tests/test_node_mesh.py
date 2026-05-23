@@ -32,7 +32,7 @@ def test_signal_socket_unregister():
             return "test-emitter"
 
         def describe_signals(self):
-            return [SignalDescriptor("test.signal", "test")]
+            return [SignalDescriptor(content_type="test.signal", description="test")]
 
     sock = SignalSocket()
     sock.register_emitter(FakeEmitter())
@@ -60,14 +60,14 @@ def test_capability_socket_unregister():
 
         def describe_capabilities(self):
             return [
-                CapabilityDescriptor("test.cap", CapabilityCategory.COMPUTE, RiskClass.READ_ONLY)
+                CapabilityDescriptor(name="test.cap", category=CapabilityCategory.COMPUTE, risk_class=RiskClass.READ_ONLY)
             ]
 
         def handle_capability(self, req):
             return CapabilityResponse(request_id=req.request_id, success=True)
 
         def health(self):
-            return CapabilityHealth("test-handler", "healthy")
+            return CapabilityHealth(integration_id="test-handler", status="healthy")
 
     sock = CapabilitySocket()
     sock.register_handler(FakeHandler())
@@ -126,7 +126,7 @@ def test_registry_reregistration():
             return "test-reregister"
 
         def describe_signals(self):
-            return [SignalDescriptor("test.signal", "test")]
+            return [SignalDescriptor(content_type="test.signal", description="test")]
 
     class FakeHandler:
         @property
@@ -135,14 +135,14 @@ def test_registry_reregistration():
 
         def describe_capabilities(self):
             return [
-                CapabilityDescriptor("test.cap", CapabilityCategory.COMPUTE, RiskClass.READ_ONLY)
+                CapabilityDescriptor(name="test.cap", category=CapabilityCategory.COMPUTE, risk_class=RiskClass.READ_ONLY)
             ]
 
         def handle_capability(self, req):
             return CapabilityResponse(request_id=req.request_id, success=True)
 
         def health(self):
-            return CapabilityHealth("test-reregister", "healthy")
+            return CapabilityHealth(integration_id="test-reregister", status="healthy")
 
     class FakeReceiver:
         @property
