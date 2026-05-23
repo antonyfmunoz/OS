@@ -5,9 +5,9 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from services.umh.control_plane.pipeline import ExecutionPipeline, PipelineResult
-from services.umh.execution.executor import build_default_executor
-from services.umh.governance.risk_classes import RiskClass
+from substrate.execution.pipeline import ExecutionPipeline, PipelineResult
+from substrate.execution.executor import build_default_executor
+from substrate.governance.risk_classes import RiskClass
 from substrate.organism.protocols import WorkerSpec
 from substrate.types import SignalSource
 

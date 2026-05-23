@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
-from services.umh.governance.risk_classes import RiskClass
+from substrate.governance.risk_classes import RiskClass
 from substrate.types import CapabilityCategory, SignalUrgency
 from substrate.sockets.envelopes import (
     CapabilityRequest,

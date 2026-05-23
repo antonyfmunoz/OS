@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import uuid4
 
-from services.umh.governance.risk_classes import RiskClass
+from substrate.governance.risk_classes import RiskClass
 from substrate.sockets.capability_socket import CapabilitySocket
 from substrate.sockets.envelopes import CapabilityRequest, CapabilityResponse
 from substrate.sockets.outcome_socket import OutcomeSocket
