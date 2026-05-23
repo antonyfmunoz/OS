@@ -22,7 +22,7 @@ import time
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from substrate.execution.transport import meeting_intelligence as mi  # noqa: E402
+from substrate.execution.bridge import meeting_intelligence as mi  # noqa: E402
 
 
 def _force_model_failure():
@@ -67,7 +67,7 @@ def main() -> int:
     mi.get_meeting_summary_store().put(live)
 
     # Monkey-patch propose_speak_text to avoid real station dispatch.
-    import execution.transport.station_helpers as sh
+    import execution.bridge.station_helpers as sh
 
     calls: list[dict] = []
 

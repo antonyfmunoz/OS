@@ -1,4 +1,4 @@
-import substrate.execution.transport  # noqa: F401 — ensure namespace pkg resolves before collection
+import substrate.execution.bridge  # noqa: F401 — ensure namespace pkg resolves before collection
 
 
 def pytest_ignore_collect(collection_path, config):

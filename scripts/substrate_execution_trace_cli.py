@@ -24,7 +24,7 @@ def _print_json(obj) -> None:
 
 
 def _history():
-    from substrate.execution.transport.execution_trace import get_trace_history
+    from substrate.execution.bridge.execution_trace import get_trace_history
 
     return get_trace_history()
 
@@ -67,7 +67,7 @@ def cmd_by_session(args: argparse.Namespace) -> int:
 
 
 def cmd_compact(args: argparse.Namespace) -> int:
-    from substrate.execution.transport.execution_trace import format_trace_compact
+    from substrate.execution.bridge.execution_trace import format_trace_compact
 
     traces = _history().latest(limit=args.limit)
     for t in traces:

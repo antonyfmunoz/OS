@@ -35,38 +35,38 @@ import time
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from substrate.execution.transport.audio_loop import (  # noqa: E402
+from substrate.execution.bridge.audio_loop import (  # noqa: E402
     AudioLoopStatus,
     get_audio_loop_store,
     reset_audio_loop_store_for_tests,
 )
-from substrate.execution.transport.local_listener import (  # noqa: E402
+from substrate.execution.bridge.local_listener import (  # noqa: E402
     get_trigger_history,
 )
-from substrate.execution.transport.operator_state import (  # noqa: E402
+from substrate.execution.bridge.operator_state import (  # noqa: E402
     OperatorMode,
     get_operator_state_store,
     reset_operator_state_store_for_tests,
 )
-from substrate.execution.transport.operator_transitions import (  # noqa: E402
+from substrate.execution.bridge.operator_transitions import (  # noqa: E402
     TransitionTrigger,
     _record_transition,
     decide_transition,
 )
-from substrate.execution.transport.result_query import (  # noqa: E402
+from substrate.execution.bridge.result_query import (  # noqa: E402
     audio_loop_snapshot,
     recent_audio_loop_transcripts,
 )
-from substrate.execution.transport.station_bus import get_station_bus  # noqa: E402
-from substrate.execution.transport.station_daemon import StationDaemon  # noqa: E402
-from substrate.execution.transport.transcript_inject import inject_transcript  # noqa: E402
-from substrate.execution.transport.voice_session import (  # noqa: E402
+from substrate.execution.bridge.station_bus import get_station_bus  # noqa: E402
+from substrate.execution.bridge.station_daemon import StationDaemon  # noqa: E402
+from substrate.execution.bridge.transcript_inject import inject_transcript  # noqa: E402
+from substrate.execution.bridge.voice_session import (  # noqa: E402
     VoiceSessionRuntime,
     VoiceSessionStatus,
     get_voice_session_store,
     reset_voice_session_store_for_tests,
 )
-from substrate.execution.transport.wake_producer import (  # noqa: E402
+from substrate.execution.bridge.wake_producer import (  # noqa: E402
     get_wake_producer_history,
     get_wake_producer_runtime,
     reset_wake_producer_runtime_for_tests,

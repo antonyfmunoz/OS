@@ -90,7 +90,7 @@ def _reset_env() -> None:
 
 def test_workload_lightweight_question() -> None:
     _header("1. 'what backend are you using' → lightweight")
-    from substrate.execution.transport.workload_policy import classify_workload
+    from substrate.execution.bridge.workload_policy import classify_workload
 
     r = classify_workload("what backend are you using", mode="builder")
     check(
@@ -102,7 +102,7 @@ def test_workload_lightweight_question() -> None:
 
 def test_workload_heavyweight_fix() -> None:
     _header("2. 'fix this bug in the auth system' → heavyweight")
-    from substrate.execution.transport.workload_policy import classify_workload
+    from substrate.execution.bridge.workload_policy import classify_workload
 
     r = classify_workload("fix this bug in the auth system", mode="builder")
     check(
@@ -114,7 +114,7 @@ def test_workload_heavyweight_fix() -> None:
 
 def test_workload_standard_draft() -> None:
     _header("3. 'draft a short post about AI trends' → standard")
-    from substrate.execution.transport.workload_policy import classify_workload
+    from substrate.execution.bridge.workload_policy import classify_workload
 
     r = classify_workload("draft a short post about AI trends", mode="builder")
     check(
@@ -126,7 +126,7 @@ def test_workload_standard_draft() -> None:
 
 def test_workload_workflow_kind_override() -> None:
     _header("4. builder_dev workflow_kind → heavyweight regardless of text")
-    from substrate.execution.transport.workload_policy import classify_workload
+    from substrate.execution.bridge.workload_policy import classify_workload
 
     r = classify_workload(
         "hello", mode="builder", workflow_kind="builder_dev"
@@ -145,7 +145,7 @@ def test_workload_workflow_kind_override() -> None:
 
 def test_workload_hello_lightweight() -> None:
     _header("5. 'hello' → lightweight")
-    from substrate.execution.transport.workload_policy import classify_workload
+    from substrate.execution.bridge.workload_policy import classify_workload
 
     r = classify_workload("hello", mode="product")
     check(
@@ -157,7 +157,7 @@ def test_workload_hello_lightweight() -> None:
 
 def test_workload_short_text_lightweight() -> None:
     _header("6. Short text (<30 chars, no keywords) → lightweight")
-    from substrate.execution.transport.workload_policy import classify_workload
+    from substrate.execution.bridge.workload_policy import classify_workload
 
     r = classify_workload("sup", mode="builder")
     check(
@@ -174,7 +174,7 @@ def test_workload_short_text_lightweight() -> None:
 
 def test_workload_force_override() -> None:
     _header("7. metadata force_workload → heavyweight override")
-    from substrate.execution.transport.workload_policy import classify_workload
+    from substrate.execution.bridge.workload_policy import classify_workload
 
     r = classify_workload(
         "hello", mode="builder", metadata={"force_workload": "heavyweight"}
@@ -193,7 +193,7 @@ def test_workload_force_override() -> None:
 
 def test_workload_weight_order() -> None:
     _header("8. workload_weight_order comparisons")
-    from substrate.execution.transport.workload_policy import workload_weight_order
+    from substrate.execution.bridge.workload_policy import workload_weight_order
 
     check(
         "lightweight < standard",
@@ -228,7 +228,7 @@ def test_workload_weight_order() -> None:
 
 def test_resource_snapshot_keys() -> None:
     _header("9. current_resource_snapshot returns valid dict")
-    from substrate.execution.transport.resource_guard import current_resource_snapshot
+    from substrate.execution.bridge.resource_guard import current_resource_snapshot
 
     snap = current_resource_snapshot()
     check("snapshot is dict", isinstance(snap, dict))
@@ -240,7 +240,7 @@ def test_resource_snapshot_keys() -> None:
 
 def test_guard_disabled_default() -> None:
     _header("10. Guard disabled (default) → always allowed, pressure low")
-    from substrate.execution.transport.resource_guard import evaluate_resource_guard
+    from substrate.execution.bridge.resource_guard import evaluate_resource_guard
 
     _reset_env()
     # Default is disabled
@@ -257,7 +257,7 @@ def test_guard_disabled_default() -> None:
 
 def test_guard_enabled_high_pressure_heavyweight() -> None:
     _header("11. Guard enabled + high pressure + heavyweight → not allowed")
-    from substrate.execution.transport.resource_guard import evaluate_resource_guard
+    from substrate.execution.bridge.resource_guard import evaluate_resource_guard
 
     _reset_env()
     os.environ["EOS_RESOURCE_GUARD_ENABLED"] = "1"
@@ -276,7 +276,7 @@ def test_guard_enabled_high_pressure_heavyweight() -> None:
 
 def test_guard_product_mode_override() -> None:
     _header("12. Guard enabled + high pressure + product → always allowed")
-    from substrate.execution.transport.resource_guard import evaluate_resource_guard
+    from substrate.execution.bridge.resource_guard import evaluate_resource_guard
 
     _reset_env()
     os.environ["EOS_RESOURCE_GUARD_ENABLED"] = "1"
@@ -298,7 +298,7 @@ def test_guard_product_mode_override() -> None:
 
 def test_guard_moderate_force_local() -> None:
     _header("13. Moderate pressure + heavyweight + HEAVYWORK_FORCE_LOCAL → local")
-    from substrate.execution.transport.resource_guard import evaluate_resource_guard
+    from substrate.execution.bridge.resource_guard import evaluate_resource_guard
 
     _reset_env()
     os.environ["EOS_RESOURCE_GUARD_ENABLED"] = "1"
@@ -325,7 +325,7 @@ def test_guard_moderate_force_local() -> None:
 
 def test_guard_low_pressure_allowed() -> None:
     _header("14. Guard enabled + low pressure → allowed on current target")
-    from substrate.execution.transport.resource_guard import evaluate_resource_guard
+    from substrate.execution.bridge.resource_guard import evaluate_resource_guard
 
     _reset_env()
     os.environ["EOS_RESOURCE_GUARD_ENABLED"] = "1"
@@ -353,7 +353,7 @@ def test_guard_low_pressure_allowed() -> None:
 
 def test_low_message_count_low_pressure() -> None:
     _header("15. Low message count → low pressure, should_clear False")
-    from substrate.execution.transport.context_lifecycle import detect_context_pressure
+    from substrate.execution.bridge.context_lifecycle import detect_context_pressure
 
     _reset_env()
     r = detect_context_pressure(
@@ -367,7 +367,7 @@ def test_low_message_count_low_pressure() -> None:
 
 def test_high_count_degradation_high_pressure() -> None:
     _header("16. High message count + degradation → high pressure, should_clear True")
-    from substrate.execution.transport.context_lifecycle import detect_context_pressure
+    from substrate.execution.bridge.context_lifecycle import detect_context_pressure
 
     _reset_env()
     r = detect_context_pressure(
@@ -383,7 +383,7 @@ def test_high_count_degradation_high_pressure() -> None:
 
 def test_all_signals_max_pressure() -> None:
     _header("17. All signals maxed → pressure_score near 1.0")
-    from substrate.execution.transport.context_lifecycle import detect_context_pressure
+    from substrate.execution.bridge.context_lifecycle import detect_context_pressure
 
     _reset_env()
     r = detect_context_pressure(
@@ -411,7 +411,7 @@ def test_all_signals_max_pressure() -> None:
 
 def test_checkpoint_builds_correctly() -> None:
     _header("18. Checkpoint builds with restore_prompt under 500 chars")
-    from substrate.execution.transport.context_lifecycle import build_context_checkpoint
+    from substrate.execution.bridge.context_lifecycle import build_context_checkpoint
 
     cp = build_context_checkpoint(
         "dex_builder_main",
@@ -436,7 +436,7 @@ def test_checkpoint_builds_correctly() -> None:
 
 def test_restore_from_checkpoint() -> None:
     _header("19. restore_from_checkpoint returns correct session data")
-    from substrate.execution.transport.context_lifecycle import (
+    from substrate.execution.bridge.context_lifecycle import (
         build_context_checkpoint,
         restore_from_checkpoint,
     )
@@ -616,9 +616,9 @@ def test_no_second_cognition_pipeline() -> None:
 
 def test_all_modules_have_all_exports() -> None:
     _header("24. All modules have __all__ exports")
-    import execution.transport.workload_policy as wp
-    import execution.transport.resource_guard as rg
-    import execution.transport.context_lifecycle as cl
+    import execution.bridge.workload_policy as wp
+    import execution.bridge.resource_guard as rg
+    import execution.bridge.context_lifecycle as cl
 
     check("workload_policy has __all__", hasattr(wp, "__all__") and len(wp.__all__) > 0)
     check("resource_guard has __all__", hasattr(rg, "__all__") and len(rg.__all__) > 0)
@@ -627,7 +627,7 @@ def test_all_modules_have_all_exports() -> None:
 
 def test_session_control_maybe_auto_clear_functional() -> None:
     _header("25. session_control.maybe_auto_clear still functional")
-    from substrate.execution.transport.session_control import (
+    from substrate.execution.bridge.session_control import (
         get_message_count,
         maybe_auto_clear,
         reset_counters_for_tests,
@@ -661,7 +661,7 @@ def test_session_control_maybe_auto_clear_functional() -> None:
 
 def test_resource_guard_enabled_toggle() -> None:
     _header("26. EOS_RESOURCE_GUARD_ENABLED toggle")
-    from substrate.execution.transport.resource_guard import evaluate_resource_guard
+    from substrate.execution.bridge.resource_guard import evaluate_resource_guard
 
     synthetic = {"mem_used_pct": 90.0, "swap_used_pct": 30.0, "load_per_cpu": 2.0}
 
@@ -691,7 +691,7 @@ def test_resource_guard_enabled_toggle() -> None:
 
 def test_context_guard_enabled_toggle() -> None:
     _header("27. EOS_CONTEXT_GUARD_ENABLED toggle")
-    from substrate.execution.transport.context_lifecycle import detect_context_pressure
+    from substrate.execution.bridge.context_lifecycle import detect_context_pressure
 
     # Default is enabled — use enough signals to exceed 0.75 threshold
     _reset_env()
