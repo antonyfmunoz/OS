@@ -858,3 +858,11 @@ def main(argv: Optional[list[str]] = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+def start_station_daemon() -> None:
+    """Start a StationDaemon with defaults in a background thread."""
+    import threading
+    daemon = StationDaemon()
+    t = threading.Thread(target=daemon.run, daemon=True, name="station-daemon")
+    t.start()
