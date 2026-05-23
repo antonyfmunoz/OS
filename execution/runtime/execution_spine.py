@@ -103,7 +103,7 @@ class ExecutionSpine:
         # 1. Authority validation
         try:
             from state.context.context import load_context_from_env
-            from governance.policy.authority_engine import AuthorityEngine
+            from substrate.governance.policy.authority_engine import AuthorityEngine
 
             ctx = load_context_from_env()
             ae = AuthorityEngine(ctx)

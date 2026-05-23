@@ -114,7 +114,7 @@ class ProactiveIntelligenceEngine:
             print(f'[Proactive] Reality scan failed: {e}')
 
         try:
-            from governance.accountability.accountability import AccountabilityEngine
+            from substrate.governance.accountability.accountability import AccountabilityEngine
             ae = AccountabilityEngine(self.ctx)
             pending = ae.get_pending_follow_ups()
             for commitment in pending:
@@ -146,7 +146,7 @@ class ProactiveIntelligenceEngine:
 
         from state.memory.memory import ConversationMemory
         from learning.evolution.evolution_engine import EvolutionEngine
-        from understanding.ontology.primitives import PRIMITIVE_LIBRARY
+        from substrate.understanding.ontology.primitives import PRIMITIVE_LIBRARY
 
         cm = ConversationMemory(self.ctx)
         ee = EvolutionEngine(self.ctx)

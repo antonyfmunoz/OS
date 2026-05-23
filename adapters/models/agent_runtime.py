@@ -36,7 +36,7 @@ load_dotenv(Path(__file__).parent / ".env")
 from state.context.context import EntrepreneurOSContext, load_context_from_env
 from state.business.venture_knowledge import VentureKnowledgeBase
 from state.registries.skill_registry import SkillRegistry, get_skill_registry
-from governance.policy.authority_engine import AuthorityEngine
+from substrate.governance.policy.authority_engine import AuthorityEngine
 from state.preferences.model_preferences import ModelPreferences
 
 
@@ -536,7 +536,7 @@ class AgentRuntime:
         system_extra: str | None = None
         if username and config.task_type in (TaskType.GENERATE, TaskType.ANALYZE):
             try:
-                from understanding.intelligence.human_intelligence import HumanIntelligenceEngine
+                from substrate.understanding.intelligence.human_intelligence import HumanIntelligenceEngine
 
                 engine = HumanIntelligenceEngine()
                 profile = engine.get_profile(username)
@@ -594,7 +594,7 @@ class AgentRuntime:
         system_extra: str | None = None
         if username and task_type in (TaskType.GENERATE, TaskType.ANALYZE):
             try:
-                from understanding.intelligence.human_intelligence import HumanIntelligenceEngine
+                from substrate.understanding.intelligence.human_intelligence import HumanIntelligenceEngine
 
                 engine = HumanIntelligenceEngine()
                 profile = engine.get_profile(username)

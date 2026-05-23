@@ -23,8 +23,8 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from governance.policy.authority_tier import T4_SUPPORTING, validate_tier
-from understanding.perception.source import RawContent, Source
+from substrate.governance.policy.authority_tier import T4_SUPPORTING, validate_tier
+from substrate.understanding.perception.source import RawContent, Source
 
 logger = logging.getLogger(__name__)
 

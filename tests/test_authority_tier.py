@@ -10,9 +10,9 @@ import pytest
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or "/opt/OS")
 
-from understanding.ontology.primitive_decomposition_v1 import PrimitiveObservation, PrimitiveType
-from understanding.domains.business import BusinessBridge
-from governance.policy.authority_tier import (
+from substrate.understanding.ontology.primitive_decomposition_v1 import PrimitiveObservation, PrimitiveType
+from substrate.understanding.domains.business import BusinessBridge
+from substrate.governance.policy.authority_tier import (
     T1_CANONICAL,
     T2_ACTIVE,
     T5_DEFAULT,
@@ -24,7 +24,7 @@ from governance.policy.authority_tier import (
 )
 from adapters.data_source_adapters.gws_source import GWSSource
 from adapters.data_source_adapters.local_file_source import LocalFileSource
-from understanding.perception.orchestrator import GenericIngestionOrchestrator
+from substrate.understanding.perception.orchestrator import GenericIngestionOrchestrator
 
 
 TIERED_LLM_RESPONSE = json.dumps(

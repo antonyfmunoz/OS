@@ -22,8 +22,8 @@ from pathlib import Path
 sys.path.insert(0, "/opt/OS")
 
 from adapters.data_source_adapters.local_file_source import LocalFileSource
-from governance.policy.authority_tier import T3_REFERENCE
-from understanding.perception.orchestrator import GenericIngestionOrchestrator
+from substrate.governance.policy.authority_tier import T3_REFERENCE
+from substrate.understanding.perception.orchestrator import GenericIngestionOrchestrator
 
 logging.basicConfig(
     level=logging.INFO,

@@ -45,7 +45,7 @@ POSTMORTEM_DIR = VAULT / "orchestrator" / "postmortems"
 def _notify(text: str) -> None:
     """Send notification via channel router."""
     try:
-        from interface.channels.channel import get_channel_router
+        from transports.channels.channel import get_channel_router
 
         router = get_channel_router()
         router.notify(text)
@@ -57,7 +57,7 @@ def _send_discord_webhook(
     env_var: str, content: str, title: str = "", username: str = "DEX"
 ) -> None:
     """Post to a Discord channel via incoming webhook URL stored in env."""
-    from interface.discord.discord_utils import post_to_webhook
+    from transports.discord.discord_utils import post_to_webhook
 
     webhook_url = os.getenv(env_var, "")
     if not webhook_url:
@@ -484,7 +484,7 @@ def run_full_morning_cycle(ctx: EntrepreneurOSContext, return_content: bool = Fa
     # 4. Reality signals — overnight scan
     critical_signals: list[dict] = []
     try:
-        from understanding.reality.reality_engine import RealityIntelligenceEngine
+        from substrate.understanding.reality.reality_engine import RealityIntelligenceEngine
 
         rie = RealityIntelligenceEngine(ctx)
         signals = rie.process_signal_queue()
@@ -500,7 +500,7 @@ def run_full_morning_cycle(ctx: EntrepreneurOSContext, return_content: bool = Fa
     # 5. Pending approvals across all companies
     pending: list = []
     try:
-        from governance.policy.authority_engine import AuthorityEngine
+        from substrate.governance.policy.authority_engine import AuthorityEngine
 
         ae = AuthorityEngine(ctx)
         pending = ae.get_pending()
@@ -511,7 +511,7 @@ def run_full_morning_cycle(ctx: EntrepreneurOSContext, return_content: bool = Fa
     # 6. Knowledge graph patterns
     patterns: list[dict] = []
     try:
-        from understanding.knowledge.knowledge_graph import KnowledgeGraph
+        from substrate.understanding.knowledge.knowledge_graph import KnowledgeGraph
 
         kg = KnowledgeGraph(ctx)
         for vid in VentureKnowledgeBase.list_ventures():
@@ -622,7 +622,7 @@ def run_full_morning_cycle(ctx: EntrepreneurOSContext, return_content: bool = Fa
 
     # 8c. World pulse — daily market intel; full GWS rescan on Saturdays only
     try:
-        from understanding.world_pulse.world_pulse import WorldPulse
+        from substrate.understanding.world_pulse.world_pulse import WorldPulse
 
         wp = WorldPulse(ctx)
         if datetime.datetime.now().weekday() == 5:  # Saturday
@@ -1050,7 +1050,7 @@ async def generate_morning_brief(ctx: EntrepreneurOSContext) -> str:
         try:
             from state.business.business_instance import BusinessInstanceManager
             from learning.evolution.evolution_engine import EvolutionEngine
-            from understanding.ontology.primitives import PRIMITIVE_LIBRARY
+            from substrate.understanding.ontology.primitives import PRIMITIVE_LIBRARY
 
             bim = BusinessInstanceManager(ctx)
             ee = EvolutionEngine(ctx)
@@ -1079,7 +1079,7 @@ async def generate_morning_brief(ctx: EntrepreneurOSContext) -> str:
     # Pull reality signals
     reality_section = ""
     try:
-        from understanding.reality.reality_context import RealityContextEngine
+        from substrate.understanding.reality.reality_context import RealityContextEngine
 
         rce = RealityContextEngine(ctx)
         reality = rce.get_ambient_state()
@@ -1330,7 +1330,7 @@ class EntrepreneurOSOrchestrator:
         pattern_context = ""
         try:
             from state.context.context import load_context_from_env as _lctx
-            from understanding.patterns.pattern_engine import PatternEngine as _PE
+            from substrate.understanding.patterns.pattern_engine import PatternEngine as _PE
 
             _ctx_pe = _lctx()
             _patterns = _PE(_ctx_pe).analyze(days_back=7)
@@ -1536,7 +1536,7 @@ class EntrepreneurOSOrchestrator:
         # Human intelligence profile cycle
         profile_summary = ""
         try:
-            from understanding.intelligence.human_intelligence import HumanIntelligenceEngine
+            from substrate.understanding.intelligence.human_intelligence import HumanIntelligenceEngine
 
             hi_engine = HumanIntelligenceEngine()
             hi_result = hi_engine.run_profile_cycle()
@@ -1589,7 +1589,7 @@ class EntrepreneurOSOrchestrator:
         # Reality intelligence signal scan — runs every morning (6am pass)
         reality_summary = ""
         try:
-            from understanding.reality.reality_engine import RealityIntelligenceEngine
+            from substrate.understanding.reality.reality_engine import RealityIntelligenceEngine
             from state.context.context import load_context_from_env
 
             ctx = load_context_from_env()
@@ -1616,7 +1616,7 @@ class EntrepreneurOSOrchestrator:
         research_summary = ""
         if datetime.date.today().weekday() == 2:  # Wednesday = 2
             try:
-                from understanding.research.research_engine import ResearchEngine
+                from substrate.understanding.research.research_engine import ResearchEngine
                 from state.context.context import load_context_from_env
 
                 ctx = load_context_from_env()
@@ -1651,7 +1651,7 @@ class EntrepreneurOSOrchestrator:
         if datetime.date.today().weekday() == 5:  # Saturday = 5
             try:
                 from state.context.context import load_context_from_env
-                from understanding.research.research_engine import ResearchEngine
+                from substrate.understanding.research.research_engine import ResearchEngine
 
                 ctx_d = load_context_from_env()
                 re_d = ResearchEngine(ctx_d)
@@ -1670,7 +1670,7 @@ class EntrepreneurOSOrchestrator:
         if datetime.date.today().weekday() == 5:  # Saturday = 5
             try:
                 from state.context.context import load_context_from_env
-                from understanding.research.research_engine import ResearchEngine
+                from substrate.understanding.research.research_engine import ResearchEngine
 
                 ctx_ai = load_context_from_env()
                 re_ai = ResearchEngine(ctx_ai)
@@ -1689,7 +1689,7 @@ class EntrepreneurOSOrchestrator:
         # Embedding backfill — runs weekly on Saturdays
         if datetime.date.today().weekday() == 5:  # Saturday = 5
             try:
-                from understanding.embedding.embedding_engine import EmbeddingEngine
+                from substrate.understanding.embedding.embedding_engine import EmbeddingEngine
                 from state.context.context import load_context_from_env
 
                 ctx_ee = load_context_from_env()
@@ -1705,7 +1705,7 @@ class EntrepreneurOSOrchestrator:
         if datetime.date.today().weekday() == 5:  # Saturday = 5
             try:
                 from state.context.context import load_context_from_env
-                from understanding.world_pulse.world_pulse import WorldPulse
+                from substrate.understanding.world_pulse.world_pulse import WorldPulse
 
                 ctx_wp = load_context_from_env()
                 wp = WorldPulse(ctx_wp)
@@ -1729,7 +1729,7 @@ class EntrepreneurOSOrchestrator:
         pattern_summary = ""
         try:
             from state.context.context import load_context_from_env
-            from understanding.knowledge.knowledge_graph import KnowledgeGraph
+            from substrate.understanding.knowledge.knowledge_graph import KnowledgeGraph
 
             ctx_kg = load_context_from_env()
             kg = KnowledgeGraph(ctx_kg)
@@ -1811,7 +1811,7 @@ def refresh_ambient_state(ctx: EntrepreneurOSContext) -> None:
     reality context is always available without a fresh LLM call per message.
     """
     try:
-        from understanding.reality.reality_context import RealityContext
+        from substrate.understanding.reality.reality_context import RealityContext
         from state.session.session_state import SessionState
 
         rc = RealityContext(ctx)
@@ -1903,8 +1903,8 @@ def start_ambient_refresh_loop(ctx: EntrepreneurOSContext) -> None:
 
 if __name__ == "__main__":
     from state.context.context import load_context_from_env
-    from understanding.knowledge.knowledge_domains import KnowledgeDomainRegistry
-    from understanding.research.research_engine import ResearchEngine
+    from substrate.understanding.knowledge.knowledge_domains import KnowledgeDomainRegistry
+    from substrate.understanding.research.research_engine import ResearchEngine
 
     _ctx = load_context_from_env()
 

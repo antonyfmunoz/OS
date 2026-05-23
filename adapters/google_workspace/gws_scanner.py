@@ -402,7 +402,7 @@ class GWSDocumentScanner:
         """
         ingested = 0
         try:
-            from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
+            from substrate.understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
             ki = KnowledgeIntegrator(self.ctx)
 
             for doc in documents:
@@ -656,7 +656,7 @@ class GWSDocumentScanner:
 
         # Post to Discord
         try:
-            from interface.discord.discord_utils import post_to_webhook
+            from transports.discord.discord_utils import post_to_webhook
             post_to_webhook(
                 profile,
                 title='📊 EOS LEARNING REPORT',
