@@ -10,7 +10,7 @@ V2 TODO: LLM-based semantic disambiguation for ambiguous cases
 
 from __future__ import annotations
 
-from understanding.ontology.primitive_decomposition_v1 import PrimitiveObservation
+from substrate.understanding.ontology.primitive_decomposition_v1 import PrimitiveObservation
 from .contract import DomainProjection, make_projection_id
 from .registry import default_registry
 

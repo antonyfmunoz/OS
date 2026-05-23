@@ -21,7 +21,7 @@ from pathlib import Path
 sys.path.insert(0, "/opt/OS")
 
 from adapters.data_source_adapters.github_source import GitHubRepoWalker
-from understanding.perception.orchestrator import GenericIngestionOrchestrator
+from substrate.understanding.perception.orchestrator import GenericIngestionOrchestrator
 
 # Paths
 CONFIG_PATH = Path("/opt/OS/data/config/github_repos.json")

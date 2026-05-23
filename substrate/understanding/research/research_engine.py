@@ -9,7 +9,7 @@ Runs weekly on Wednesdays via orchestrator cron.
 
 Usage:
     from state.context.context import load_context_from_env
-    from understanding.research.research_engine import ResearchEngine
+    from substrate.understanding.research.research_engine import ResearchEngine
 
     ctx = load_context_from_env()
     re  = ResearchEngine(ctx)
@@ -273,7 +273,7 @@ class ResearchEngine:
         # Permanently integrate scraped pages into knowledge base
         if _scraped_pages:
             try:
-                from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
+                from substrate.understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
                 ki = KnowledgeIntegrator(self.ctx)
                 ki.integrate_search_result(topic, _scraped_pages)
             except Exception as _ki_e:
@@ -467,7 +467,7 @@ class ResearchEngine:
         """
         import os as _os
         from state.preferences.model_preferences import PROVIDER_CONFIGS
-        from understanding.knowledge.knowledge_domains import KnowledgeDomainRegistry
+        from substrate.understanding.knowledge.knowledge_domains import KnowledgeDomainRegistry
 
         use_perplexity = bool(_os.getenv('PERPLEXITY_API_KEY'))
 
@@ -509,7 +509,7 @@ class ResearchEngine:
 
         # Permanently integrate into knowledge base
         try:
-            from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
+            from substrate.understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
             from datetime import datetime as _dt
             ki = KnowledgeIntegrator(self.ctx)
             ki.integrate(
@@ -592,7 +592,7 @@ class ResearchEngine:
 
         Returns summary dict with scores and updated domain keys.
         """
-        from understanding.knowledge.knowledge_domains import KnowledgeDomainRegistry
+        from substrate.understanding.knowledge.knowledge_domains import KnowledgeDomainRegistry
 
         print("[ResearchEngine] ── Domain update cycle start ──")
         registry = KnowledgeDomainRegistry()

@@ -415,7 +415,7 @@ class EmailGPS:
 
         # 3. Central person recognition — checks CRM, meetings, memory, Neon
         try:
-            from understanding.intelligence.person_recognition import recognize_person
+            from substrate.understanding.intelligence.person_recognition import recognize_person
             result = recognize_person(
                 name=email.from_name or '',
                 email=email.from_address,

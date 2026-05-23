@@ -15,7 +15,7 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-from understanding.interpretation.interpretation_engine_v1 import (
+from substrate.understanding.interpretation.interpretation_engine_v1 import (
     FORBIDDEN_INTERPRETATION_ACTIONS,
     INTERPRETATION_STAGE_ORDER,
     ConfidenceEnvelope,
@@ -27,7 +27,7 @@ from understanding.interpretation.interpretation_engine_v1 import (
     InterpretationStage,
     _DeterministicIdGenerator,
 )
-from understanding.ontology.primitive_decomposition_v1 import (
+from substrate.understanding.ontology.primitive_decomposition_v1 import (
     REQUIRED_PRIMITIVE_TYPES,
     DecompositionResult,
     PrimitiveObservation,

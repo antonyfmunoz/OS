@@ -21,7 +21,7 @@ Categories:
 
 Usage:
     from state.context.context import load_context_from_env
-    from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
+    from substrate.understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
 
     ctx = load_context_from_env()
     ki = KnowledgeIntegrator(ctx)
@@ -41,7 +41,7 @@ from typing import Optional
 
 from state.context.context import EntrepreneurOSContext
 from state.memory.memory import AgentMemory
-from understanding.embedding.embedding_engine import EmbeddingEngine
+from substrate.understanding.embedding.embedding_engine import EmbeddingEngine
 
 VALID_CATEGORIES = {
     'web_search',

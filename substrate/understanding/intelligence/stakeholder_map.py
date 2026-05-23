@@ -101,7 +101,7 @@ def generate_stakeholder_brief(venture: str, ctx=None) -> str:
     """Generate a stakeholder map brief for a venture."""
     try:
         from execution.runtime.model_router import get_router, TaskType
-        from understanding.intelligence.person_recognition import score_relationship_health
+        from substrate.understanding.intelligence.person_recognition import score_relationship_health
         router = get_router()
         model = router.route(TaskType.FAST_RESPONSE) or router.route(TaskType.ANALYSIS)
 

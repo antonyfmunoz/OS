@@ -10,16 +10,16 @@ import pytest
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or "/opt/OS")
 
-from understanding.ontology.primitive_decomposition_v1 import (
+from substrate.understanding.ontology.primitive_decomposition_v1 import (
     PrimitiveType,
     RelationshipType,
 )
-from understanding.perception.orchestrator import (
+from substrate.understanding.perception.orchestrator import (
     GenericIngestionOrchestrator,
     InterpretationResult,
     Signal,
 )
-from understanding.perception.source import RawContent
+from substrate.understanding.perception.source import RawContent
 
 
 VALID_LLM_RESPONSE = json.dumps(

@@ -111,7 +111,7 @@ class StageManager:
         Synchronous — safe to call from gateway.py.
         """
         from state.business.business_instance import BusinessInstanceManager
-        from understanding.ontology.primitives import PRIMITIVE_LIBRARY
+        from substrate.understanding.ontology.primitives import PRIMITIVE_LIBRARY
 
         bim = BusinessInstanceManager(self.ctx)
         bis = bim.get_bis(venture_id)
@@ -186,7 +186,7 @@ class StageManager:
     ) -> None:
         """Update Notion Stage Guidance and Morning Brief pages."""
         from notion_client import Client
-        from understanding.ontology.primitives import PRIMITIVE_LIBRARY
+        from substrate.understanding.ontology.primitives import PRIMITIVE_LIBRARY
 
         client = Client(auth=os.getenv('NOTION_API_KEY'))
         date = datetime.now().strftime('%Y-%m-%d %H:%M')

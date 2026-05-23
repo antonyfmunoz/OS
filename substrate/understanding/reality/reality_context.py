@@ -11,7 +11,7 @@ Stored in SessionState.set_ambient() for zero-latency PERCEIVE injection.
 
 Usage:
     from state.context.context import load_context_from_env
-    from understanding.reality.reality_context import RealityContext
+    from substrate.understanding.reality.reality_context import RealityContext
 
     ctx     = load_context_from_env()
     rc      = RealityContext(ctx)
@@ -99,7 +99,7 @@ class RealityContext:
             Empty dict on any failure (never blocks callers).
         """
         try:
-            from understanding.reality.reality_engine import RealityIntelligenceEngine
+            from substrate.understanding.reality.reality_engine import RealityIntelligenceEngine
             from state.business.venture_knowledge import VentureKnowledgeBase
 
             rie   = RealityIntelligenceEngine(self.ctx)

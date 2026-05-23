@@ -130,7 +130,7 @@ class AgentMemory:
         ).strip()
         if content_to_embed:
             import threading
-            from understanding.embedding.embedding_engine import EmbeddingEngine
+            from substrate.understanding.embedding.embedding_engine import EmbeddingEngine
 
             def _embed_async(iid: str, content: str, oid: str) -> None:
                 EmbeddingEngine().embed_interaction(iid, content, oid)
@@ -144,7 +144,7 @@ class AgentMemory:
         # Auto-link interaction into knowledge graph
         try:
             from state.context.context import load_context_from_env
-            from understanding.knowledge.knowledge_graph import KnowledgeGraph
+            from substrate.understanding.knowledge.knowledge_graph import KnowledgeGraph
             kg = KnowledgeGraph(load_context_from_env())
             kg.auto_link_interaction(interaction_id)
         except Exception:
@@ -338,7 +338,7 @@ class AgentMemory:
                 import threading
                 def _refresh_profile(uname: str) -> None:
                     try:
-                        from understanding.intelligence.human_intelligence import HumanIntelligenceEngine
+                        from substrate.understanding.intelligence.human_intelligence import HumanIntelligenceEngine
                         from state.context.context import load_context_from_env
                         ctx = load_context_from_env()
                         hie = HumanIntelligenceEngine(ctx)
@@ -386,7 +386,7 @@ class AgentMemory:
         import threading
         def _refresh_orphaned_profile(uname: str) -> None:
             try:
-                from understanding.intelligence.human_intelligence import HumanIntelligenceEngine
+                from substrate.understanding.intelligence.human_intelligence import HumanIntelligenceEngine
                 from state.context.context import load_context_from_env
                 ctx = load_context_from_env()
                 hie = HumanIntelligenceEngine(ctx)
@@ -573,7 +573,7 @@ class AgentMemory:
         write path. Schema is vector(384); fastembed BAAI/bge-small-en-v1.5
         produces matching 384-dim vectors. Returns True on success.
         """
-        from understanding.embedding.embedding_engine import EmbeddingEngine
+        from substrate.understanding.embedding.embedding_engine import EmbeddingEngine
         return EmbeddingEngine().embed_interaction(interaction_id, text, ORG_ID)
 
     def semantic_search(
@@ -589,7 +589,7 @@ class AgentMemory:
         Returns ranked results — most similar first.
         """
         try:
-            from understanding.embedding.embedding_engine import EmbeddingEngine
+            from substrate.understanding.embedding.embedding_engine import EmbeddingEngine
             engine = EmbeddingEngine()
             query_vec = engine.embed(query)
             if not query_vec:
@@ -751,7 +751,7 @@ class ConversationMemory:
                 )
                 # Embed and store
                 try:
-                    from understanding.embedding.embedder import embed
+                    from substrate.understanding.embedding.embedder import embed
                     vec = embed(content)
                     cur.execute(
                         'UPDATE messages SET embedding = %s WHERE id = %s',
@@ -961,7 +961,7 @@ class ConversationMemory:
             with get_conn(self.ctx.org_id) as cur:
                 if query:
                     try:
-                        from understanding.embedding.embedder import embed
+                        from substrate.understanding.embedding.embedder import embed
                         vec = embed(query)
                         cur.execute(
                             '''

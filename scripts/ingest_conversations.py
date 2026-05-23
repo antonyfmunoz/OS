@@ -41,7 +41,7 @@ LOG_DIR = BASE_DIR / "data" / "runtime" / "ingestion_logs"
 def _get_orchestrator():  # type: ignore[no-untyped-def]
     """Import and return the orchestrator (deferred to avoid import at module level)."""
     try:
-        from understanding.perception.orchestrator import GenericIngestionOrchestrator
+        from substrate.understanding.perception.orchestrator import GenericIngestionOrchestrator
 
         return GenericIngestionOrchestrator()
     except ImportError as e:

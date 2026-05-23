@@ -25,7 +25,7 @@ GENERAL_CHANNEL_ID = int(os.getenv('DISCORD_GENERAL_CHANNEL_ID', '0'))
 
 async def check_and_remind():
     from adapters.google_workspace.gws_connector import GWSConnector
-    from understanding.intelligence.person_recognition import build_intelligence_profile
+    from substrate.understanding.intelligence.person_recognition import build_intelligence_profile
 
     gws = GWSConnector()
     now = datetime.now(PDT)
