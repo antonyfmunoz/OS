@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
-PDT = ZoneInfo('America/Los_Angeles')
+PDT = ZoneInfo("America/Los_Angeles")
 
 
 def get_subscriptions(ctx=None) -> list[dict]:
@@ -17,30 +17,34 @@ def get_subscriptions(ctx=None) -> list[dict]:
     try:
         from state.context.context import load_context_from_env
         from state.storage.db import get_conn
+
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT payload_json, created_at FROM events
                 WHERE org_id = %s
                 AND event_type = 'subscription'
                 ORDER BY created_at DESC
-            """, (str(ctx.org_id),))
+            """,
+                (str(ctx.org_id),),
+            )
             rows = cur.fetchall()
 
         subs = []
         seen_vendors: set[str] = set()
         for r in rows:
-            payload = r['payload_json']
+            payload = r["payload_json"]
             if isinstance(payload, str):
                 payload = json.loads(payload)
-            vendor = payload.get('vendor', '')
+            vendor = payload.get("vendor", "")
             if vendor not in seen_vendors:
                 seen_vendors.add(vendor)
                 subs.append(payload)
         return subs
     except Exception as e:
-        logger.warning(f'[SubTracker] get_subscriptions failed: {e}')
+        logger.warning(f"[SubTracker] get_subscriptions failed: {e}")
         return []
 
 
@@ -49,33 +53,34 @@ def add_subscription(
     amount: float,
     billing_cycle: str,
     next_renewal: str,
-    category: str = 'Software/SaaS',
-    notes: str = '',
+    category: str = "Software/SaaS",
+    notes: str = "",
     ctx=None,
 ) -> bool:
     """Add or update a subscription record."""
     try:
         from state.context.context import load_context_from_env
         from state.memory.memory import AgentMemory
+
         ctx = ctx or load_context_from_env()
 
         AgentMemory().log_event(
             org_id=str(ctx.org_id),
-            event_type='subscription',
+            event_type="subscription",
             payload={
-                'vendor': vendor,
-                'amount': amount,
-                'billing_cycle': billing_cycle,
-                'next_renewal': next_renewal,
-                'category': category,
-                'notes': notes,
-                'added_at': datetime.now(PDT).isoformat(),
+                "vendor": vendor,
+                "amount": amount,
+                "billing_cycle": billing_cycle,
+                "next_renewal": next_renewal,
+                "category": category,
+                "notes": notes,
+                "added_at": datetime.now(PDT).isoformat(),
             },
-            handled_by='dex_subscriptions',
+            handled_by="dex_subscriptions",
         )
         return True
     except Exception as e:
-        logger.warning(f'[SubTracker] add_subscription failed: {e}')
+        logger.warning(f"[SubTracker] add_subscription failed: {e}")
         return False
 
 
@@ -86,7 +91,7 @@ def get_upcoming_renewals(days: int = 14, ctx=None) -> list[dict]:
     cutoff = now + timedelta(days=days)
     upcoming = []
     for s in subs:
-        renewal = s.get('next_renewal', '')
+        renewal = s.get("next_renewal", "")
         if not renewal:
             continue
         try:
@@ -97,11 +102,11 @@ def get_upcoming_renewals(days: int = 14, ctx=None) -> list[dict]:
                 renewal_dt = renewal_dt.astimezone(PDT)
             if now <= renewal_dt <= cutoff:
                 s = dict(s)
-                s['days_until'] = (renewal_dt.date() - now.date()).days
+                s["days_until"] = (renewal_dt.date() - now.date()).days
                 upcoming.append(s)
         except Exception:
             continue
-    return sorted(upcoming, key=lambda x: x.get('days_until', 99))
+    return sorted(upcoming, key=lambda x: x.get("days_until", 99))
 
 
 def get_monthly_subscription_total(ctx=None) -> float:
@@ -109,12 +114,12 @@ def get_monthly_subscription_total(ctx=None) -> float:
     subs = get_subscriptions(ctx)
     total = 0.0
     for s in subs:
-        amount = float(s.get('amount', 0))
-        cycle = s.get('billing_cycle', 'monthly').lower()
-        if cycle == 'annual':
+        amount = float(s.get("amount", 0))
+        cycle = s.get("billing_cycle", "monthly").lower()
+        if cycle == "annual":
             total += amount / 12
-        elif cycle == 'monthly':
+        elif cycle == "monthly":
             total += amount
-        elif cycle == 'weekly':
+        elif cycle == "weekly":
             total += amount * 4.33
     return total

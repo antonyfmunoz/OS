@@ -13,7 +13,6 @@ def _j(val: object) -> str | None:
 
 
 class ProfileStore:
-
     def upsert_human_profile(
         self,
         org_id: str,
@@ -32,8 +31,13 @@ class ProfileStore:
                               profile_json = EXCLUDED.profile_json,
                               updated_at   = EXCLUDED.updated_at
                 """,
-                (org_id, username, venture_uuid, json.dumps(profile),
-                 datetime.now(timezone.utc).isoformat()),
+                (
+                    org_id,
+                    username,
+                    venture_uuid,
+                    json.dumps(profile),
+                    datetime.now(timezone.utc).isoformat(),
+                ),
             )
 
     def upsert_user_profile(
@@ -88,20 +92,25 @@ class ProfileStore:
                     """,
                     (
                         _j(updates.get("communication_style"))
-                        if "communication_style" in updates else None,
+                        if "communication_style" in updates
+                        else None,
                         _j(updates.get("peak_performance_windows"))
-                        if "peak_performance_windows" in updates else None,
+                        if "peak_performance_windows" in updates
+                        else None,
                         _j(updates.get("decision_patterns"))
-                        if "decision_patterns" in updates else None,
+                        if "decision_patterns" in updates
+                        else None,
                         _j(updates.get("content_strengths"))
-                        if "content_strengths" in updates else None,
-                        _j(updates.get("learning_style"))
-                        if "learning_style" in updates else None,
+                        if "content_strengths" in updates
+                        else None,
+                        _j(updates.get("learning_style")) if "learning_style" in updates else None,
                         _j(updates.get("stress_indicators"))
-                        if "stress_indicators" in updates else None,
+                        if "stress_indicators" in updates
+                        else None,
                         updates.get("north_star"),
                         _j(updates.get("cross_product_insights"))
-                        if "cross_product_insights" in updates else None,
+                        if "cross_product_insights" in updates
+                        else None,
                         datetime.now(timezone.utc),
                         user_id,
                     ),

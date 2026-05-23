@@ -8,7 +8,6 @@ from state.storage.db import get_conn
 
 
 class ApprovalStore:
-
     def create_approval(
         self,
         org_id: str,

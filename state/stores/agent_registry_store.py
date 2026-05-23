@@ -6,7 +6,6 @@ from state.storage.db import get_conn
 
 
 class AgentRegistryStore:
-
     def register_agent(
         self,
         org_id: str,

@@ -194,8 +194,7 @@ _TEMPLATES: dict[str, Template] = {
         domain="business",
         level=3,
         description=(
-            "Sell done-for-you services to businesses. "
-            "Revenue from retainers or projects."
+            "Sell done-for-you services to businesses. Revenue from retainers or projects."
         ),
         primitive_ids=_BUSINESS_PRIMITIVE_BASE + ["feedback", "time"],
         slots=_common_business_slots()
@@ -283,9 +282,7 @@ _TEMPLATES: dict[str, Template] = {
         name="Ecommerce / Physical Products",
         domain="business",
         level=3,
-        description=(
-            "Sell physical or digital products online. Revenue from transactions."
-        ),
+        description=("Sell physical or digital products online. Revenue from transactions."),
         primitive_ids=_BUSINESS_PRIMITIVE_BASE + ["resource", "signal"],
         slots=_common_business_slots()
         + [
@@ -327,9 +324,7 @@ _TEMPLATES: dict[str, Template] = {
         name="SaaS / Software Product",
         domain="business",
         level=3,
-        description=(
-            "Build software, sell subscriptions. Revenue compounds with retention."
-        ),
+        description=("Build software, sell subscriptions. Revenue compounds with retention."),
         primitive_ids=_BUSINESS_PRIMITIVE_BASE + ["feedback", "signal", "time"],
         slots=_common_business_slots()
         + [

@@ -29,8 +29,12 @@ logger = logging.getLogger("node_mesh")
 
 def main() -> None:
     config = load_mesh_config()
-    logger.info("loaded mesh config: port=%d, max_nodes=%d, tokens=%d",
-                config.port, config.max_nodes, len(config.node_tokens))
+    logger.info(
+        "loaded mesh config: port=%d, max_nodes=%d, tokens=%d",
+        config.port,
+        config.max_nodes,
+        len(config.node_tokens),
+    )
 
     server = NodeMeshServer(
         config=config,

@@ -7,7 +7,6 @@ from state.storage.db import get_conn, resolve_venture
 
 
 class VentureStore:
-
     def save_venture(
         self,
         org_id: str,

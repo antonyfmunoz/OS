@@ -111,9 +111,7 @@ def _paragraph(text: str) -> dict:
     return {
         "object": "block",
         "type": "paragraph",
-        "paragraph": {
-            "rich_text": [{"type": "text", "text": {"content": text[:2000]}}]
-        },
+        "paragraph": {"rich_text": [{"type": "text", "text": {"content": text[:2000]}}]},
     }
 
 
@@ -125,9 +123,7 @@ def _bulleted(text: str) -> dict:
     return {
         "object": "block",
         "type": "bulleted_list_item",
-        "bulleted_list_item": {
-            "rich_text": [{"type": "text", "text": {"content": text[:2000]}}]
-        },
+        "bulleted_list_item": {"rich_text": [{"type": "text", "text": {"content": text[:2000]}}]},
     }
 
 
@@ -164,9 +160,7 @@ def _create_page(
         return url
 
     # If page creation failed, the DB ID may be dead — log for diagnosis
-    logger.warning(
-        f"[NotionPublisher] Page creation failed for DB {parent_db_id[:12]}..."
-    )
+    logger.warning(f"[NotionPublisher] Page creation failed for DB {parent_db_id[:12]}...")
     return ""
 
 
@@ -296,9 +290,7 @@ class NotionPublisher:
             logger.info(f"[NotionPublisher] Brief already exists: {existing}")
             return existing
 
-        blocks = _brief_blocks(
-            content, f"Morning Brief — {today.strftime('%B %d, %Y')}"
-        )
+        blocks = _brief_blocks(content, f"Morning Brief — {today.strftime('%B %d, %Y')}")
         url = _create_page(db_id, title, blocks)
 
         # If primary DB failed, try Documents DB as fallback
@@ -418,9 +410,7 @@ class NotionPublisher:
                 summary_parts.append(f"Revenue: ${venture['revenue']:,.0f}")
             if venture.get("summary"):
                 summary_parts.append(venture["summary"])
-            blocks.append(
-                _paragraph("\n".join(summary_parts) if summary_parts else "No data")
-            )
+            blocks.append(_paragraph("\n".join(summary_parts) if summary_parts else "No data"))
 
         return _create_page(db_id, title, blocks)
 

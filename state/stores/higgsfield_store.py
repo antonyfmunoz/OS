@@ -6,7 +6,6 @@ from state.storage.db import get_conn
 
 
 class HiggsFieldStore:
-
     def insert_job(
         self,
         request_id: str,

@@ -21,7 +21,12 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-_DEFAULT_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+_DEFAULT_ROOT = (
+    os.environ.get("UMH_ROOT")
+    or os.environ.get("OS_ROOT")
+    or os.environ.get("EOS_ROOT")
+    or "/opt/OS"
+)
 
 
 # ─── Skill dataclass ──────────────────────────────────────────────────────────
@@ -189,6 +194,7 @@ class ClaudeSkillRegistryManager:
         synced = 0
         try:
             from state.stores.skill_store import SkillStore
+
             store = SkillStore()
             for skill_id, skill in self.registry.items():
                 content = self.read_skill(skill_id)

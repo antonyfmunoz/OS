@@ -31,8 +31,13 @@ from datetime import datetime
 from pathlib import Path
 
 from state.context.context import EntrepreneurOSContext
-_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
+_ROOT = (
+    os.environ.get("UMH_ROOT")
+    or os.environ.get("OS_ROOT")
+    or os.environ.get("EOS_ROOT")
+    or "/opt/OS"
+)
 
 
 @dataclass
@@ -40,13 +45,13 @@ class GWSDocument:
     id: str
     name: str
     content: str
-    doc_type: str       # 'doc', 'sheet', 'slide'
+    doc_type: str  # 'doc', 'sheet', 'slide'
     modified: str
     url: str
-    relevance: str      # 'high', 'medium', 'low'
-    venture_id: str     # which company it relates to
-    summary: str = ''
-    key_context: str = ''
+    relevance: str  # 'high', 'medium', 'low'
+    venture_id: str  # which company it relates to
+    summary: str = ""
+    key_context: str = ""
     tags: list[str] = field(default_factory=list)
 
 
@@ -65,23 +70,20 @@ class GWSDocumentScanner:
 
     def _run(self, *args, params: dict | None = None) -> dict | list | None:
         """Run a gws CLI command and return parsed JSON, or None on error."""
-        cmd = ['npx', '@googleworkspace/cli'] + list(args)
+        cmd = ["npx", "@googleworkspace/cli"] + list(args)
         if params:
-            cmd += ['--params', json.dumps(params)]
+            cmd += ["--params", json.dumps(params)]
         try:
-            result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=60
-            )
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
             output = result.stdout
-            clean = '\n'.join(
-                l for l in output.split('\n')
-                if not l.startswith('Using keyring')
+            clean = "\n".join(
+                l for l in output.split("\n") if not l.startswith("Using keyring")
             ).strip()
             if not clean:
                 return None
             return json.loads(clean)
         except Exception as e:
-            print(f'[GWS] Command failed: {e}')
+            print(f"[GWS] Command failed: {e}")
             return None
 
     # ── Drive operations ──────────────────────────────────────────────────────
@@ -89,16 +91,18 @@ class GWSDocumentScanner:
     def list_all_docs(self, limit: int = 200) -> list[dict]:
         """List all Google Docs in Drive."""
         data = self._run(
-            'drive', 'files', 'list',
+            "drive",
+            "files",
+            "list",
             params={
-                'q':        "mimeType='application/vnd.google-apps.document'",
-                'pageSize': limit,
-                'fields':   'files(id,name,mimeType,modifiedTime,webViewLink)',
+                "q": "mimeType='application/vnd.google-apps.document'",
+                "pageSize": limit,
+                "fields": "files(id,name,mimeType,modifiedTime,webViewLink)",
             },
         )
         if not data or not isinstance(data, dict):
             return []
-        return data.get('files', [])
+        return data.get("files", [])
 
     def read_doc(self, doc_id: str) -> str:
         """
@@ -110,37 +114,43 @@ class GWSDocumentScanner:
         import tempfile
         import os
         import shutil
+
         tmp_dir = tempfile.mkdtemp()
         try:
             result = subprocess.run(
                 [
-                    'npx', '@googleworkspace/cli', 'drive', 'files', 'export',
-                    '--params',
-                    json.dumps({'fileId': doc_id, 'mimeType': 'text/plain'}),
+                    "npx",
+                    "@googleworkspace/cli",
+                    "drive",
+                    "files",
+                    "export",
+                    "--params",
+                    json.dumps({"fileId": doc_id, "mimeType": "text/plain"}),
                 ],
-                capture_output=True, text=True, timeout=60,
+                capture_output=True,
+                text=True,
+                timeout=60,
                 cwd=tmp_dir,
             )
             stdout = result.stdout
-            clean = '\n'.join(
-                l for l in stdout.split('\n')
-                if not l.startswith('Using keyring')
+            clean = "\n".join(
+                l for l in stdout.split("\n") if not l.startswith("Using keyring")
             ).strip()
 
             try:
                 meta = json.loads(clean)
-                saved_file = meta.get('saved_file', '')
+                saved_file = meta.get("saved_file", "")
                 if saved_file:
                     file_path = os.path.join(tmp_dir, saved_file)
                     if os.path.exists(file_path):
-                        return Path(file_path).read_text(errors='replace').strip()
+                        return Path(file_path).read_text(errors="replace").strip()
             except (json.JSONDecodeError, TypeError):
                 return clean
 
-            return ''
+            return ""
         except Exception as e:
-            print(f'[GWS] Read doc failed: {e}')
-            return ''
+            print(f"[GWS] Read doc failed: {e}")
+            return ""
         finally:
             try:
                 shutil.rmtree(tmp_dir, ignore_errors=True)
@@ -156,6 +166,7 @@ class GWSDocumentScanner:
         """
         try:
             from state.storage.db import get_conn
+
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     """
@@ -173,13 +184,9 @@ class GWSDocumentScanner:
                     (self.ctx.org_id,),
                 )
                 rows = cur.fetchall()
-                return {
-                    row['doc_id']: row['modified'] or ''
-                    for row in rows
-                    if row['doc_id']
-                }
+                return {row["doc_id"]: row["modified"] or "" for row in rows if row["doc_id"]}
         except Exception as e:
-            print(f'[GWS] get_already_ingested failed: {e}')
+            print(f"[GWS] get_already_ingested failed: {e}")
             return {}
 
     def is_new_or_modified(
@@ -204,86 +211,131 @@ class GWSDocumentScanner:
         """
         if not content.strip():
             return {
-                'relevance_score': 0,
-                'venture_id': 'none',
-                'summary': 'empty document',
-                'key_context': '',
-                'keep': False,
+                "relevance_score": 0,
+                "venture_id": "none",
+                "summary": "empty document",
+                "key_context": "",
+                "keep": False,
             }
 
         try:
             from execution.runtime.agent_runtime import AgentRuntime, TaskType
+
             rt = AgentRuntime(self.ctx)
 
             result = rt.run(
                 task_type=TaskType.ANALYZE,
                 prompt=(
                     f'Document: "{name}"\n\n'
-                    f'Content (first 1500 chars):\n'
-                    f'{content[:1500]}\n\n'
-                    f'This belongs to Antony Munoz who runs:\n'
-                    f'- Lyfe Institute (coaching, $750 Initiate Arena)\n'
-                    f'- Empyrean Creative (B2B AI services)\n'
-                    f'- Personal Brand (content business)\n'
-                    f'- EntrepreneurOS (AI OS platform)\n\n'
-                    f'Return ONLY valid JSON:\n'
-                    f'{{\n'
+                    f"Content (first 1500 chars):\n"
+                    f"{content[:1500]}\n\n"
+                    f"This belongs to Antony Munoz who runs:\n"
+                    f"- Lyfe Institute (coaching, $750 Initiate Arena)\n"
+                    f"- Empyrean Creative (B2B AI services)\n"
+                    f"- Personal Brand (content business)\n"
+                    f"- EntrepreneurOS (AI OS platform)\n\n"
+                    f"Return ONLY valid JSON:\n"
+                    f"{{\n"
                     f'  "relevance_score": <1-10>,\n'
                     f'  "venture_id": <"lyfe_institute"|"empyrean_creative"|"personal_brand"|"eos_platform"|"general"|"irrelevant">,\n'
                     f'  "summary": <one sentence>,\n'
                     f'  "key_context": <most important 150 chars>,\n'
                     f'  "keep": <true|false>\n'
-                    f'}}'
+                    f"}}"
                 ),
-                agent='executive_assistant',
+                agent="executive_assistant",
                 max_tokens=300,
             )
 
-            output = result.output or ''
-            match = re.search(r'\{[^{}]*\}', output, re.DOTALL)
+            output = result.output or ""
+            match = re.search(r"\{[^{}]*\}", output, re.DOTALL)
             if match:
                 parsed = json.loads(match.group())
-                if 'relevance_score' in parsed:
+                if "relevance_score" in parsed:
                     return parsed
 
         except Exception as e:
-            print(f'[GWS] AI understand failed: {e}')
+            print(f"[GWS] AI understand failed: {e}")
 
         return self._keyword_assess(name, content)
 
     def _keyword_assess(self, name: str, content: str) -> dict:
         """Keyword-based fallback when AI is unavailable."""
-        text = (name + ' ' + content).lower()
+        text = (name + " " + content).lower()
         keywords = [
-            'entrepreneur', 'eos', 'lyfe', 'empyrean', 'initiate', 'business',
-            'offer', 'strategy', 'plan', 'goal', 'revenue', 'client', 'sales',
-            'marketing', 'brand', 'content', 'coaching', 'product', 'service',
-            'personal', 'antony', 'afm', 'munoz', 'creator', 'audience',
-            'outreach', 'mission', 'vision', 'system', 'process', 'workflow',
-            'build', 'phase', 'roadmap', 'milestone', 'notes', 'ideas',
-            'brainstorm', 'life', 'health', 'habits', 'growth', 'instagram',
-            'linkedin', 'tiktok', 'launch', 'funnel', 'icp', 'kpi',
+            "entrepreneur",
+            "eos",
+            "lyfe",
+            "empyrean",
+            "initiate",
+            "business",
+            "offer",
+            "strategy",
+            "plan",
+            "goal",
+            "revenue",
+            "client",
+            "sales",
+            "marketing",
+            "brand",
+            "content",
+            "coaching",
+            "product",
+            "service",
+            "personal",
+            "antony",
+            "afm",
+            "munoz",
+            "creator",
+            "audience",
+            "outreach",
+            "mission",
+            "vision",
+            "system",
+            "process",
+            "workflow",
+            "build",
+            "phase",
+            "roadmap",
+            "milestone",
+            "notes",
+            "ideas",
+            "brainstorm",
+            "life",
+            "health",
+            "habits",
+            "growth",
+            "instagram",
+            "linkedin",
+            "tiktok",
+            "launch",
+            "funnel",
+            "icp",
+            "kpi",
         ]
         hits = sum(1 for k in keywords if k in text)
 
-        venture_id = 'general'
-        if any(k in text for k in ['lyfe', 'initiate', 'coaching', 'arena']):
-            venture_id = 'lyfe_institute'
-        elif any(k in text for k in ['empyrean', 'b2b', 'agency', 'retainer']):
-            venture_id = 'empyrean_creative'
-        elif any(k in text for k in ['personal brand', 'creator', 'audience', 'content']):
-            venture_id = 'personal_brand'
-        elif any(k in text for k in ['eos', 'entrepreneur os', 'entrepreneuros', 'harness', 'operating system']):
-            venture_id = 'eos_platform'
+        venture_id = "general"
+        if any(k in text for k in ["lyfe", "initiate", "coaching", "arena"]):
+            venture_id = "lyfe_institute"
+        elif any(k in text for k in ["empyrean", "b2b", "agency", "retainer"]):
+            venture_id = "empyrean_creative"
+        elif any(k in text for k in ["personal brand", "creator", "audience", "content"]):
+            venture_id = "personal_brand"
+        elif any(
+            k in text
+            for k in ["eos", "entrepreneur os", "entrepreneuros", "harness", "operating system"]
+        ):
+            venture_id = "eos_platform"
 
         score = min(hits * 1.5, 10)
 
         return {
-            'relevance_score': score,
-            'venture_id': venture_id,
-            'summary': f'{name} — {hits} relevant keywords',
-            'key_context': content[:150],
-            'keep': score >= 2 or hits >= 1,
+            "relevance_score": score,
+            "venture_id": venture_id,
+            "summary": f"{name} — {hits} relevant keywords",
+            "key_context": content[:150],
+            "keep": score >= 2 or hits >= 1,
         }
 
     # ── Full scan ─────────────────────────────────────────────────────────────
@@ -297,14 +349,14 @@ class GWSDocumentScanner:
         Scan all Google Docs. Every doc is read and AI-assessed.
         incremental=True skips docs already in Neon that haven't changed.
         """
-        print('[GWS] Starting scan...')
-        print(f'[GWS] Mode: {"incremental" if incremental else "full"}')
+        print("[GWS] Starting scan...")
+        print(f"[GWS] Mode: {'incremental' if incremental else 'full'}")
 
         already_ingested = self.get_already_ingested()
-        print(f'[GWS] Already in Neon: {len(already_ingested)} docs')
+        print(f"[GWS] Already in Neon: {len(already_ingested)} docs")
 
         docs_list = self.list_all_docs(limit)
-        print(f'[GWS] In Drive: {len(docs_list)} docs')
+        print(f"[GWS] In Drive: {len(docs_list)} docs")
         print()
 
         documents: list[GWSDocument] = []
@@ -312,73 +364,67 @@ class GWSDocumentScanner:
         empty = 0
 
         for i, doc_meta in enumerate(docs_list):
-            doc_id   = doc_meta.get('id', '')
-            name     = doc_meta.get('name', '')
-            modified = doc_meta.get('modifiedTime', '')
-            url      = doc_meta.get('webViewLink', '')
+            doc_id = doc_meta.get("id", "")
+            name = doc_meta.get("name", "")
+            modified = doc_meta.get("modifiedTime", "")
+            url = doc_meta.get("webViewLink", "")
 
             # Skip unchanged docs in incremental mode
-            if incremental and not self.is_new_or_modified(
-                doc_id, modified, already_ingested
-            ):
+            if incremental and not self.is_new_or_modified(doc_id, modified, already_ingested):
                 skipped += 1
                 continue
 
-            print(f'[GWS] [{i+1}/{len(docs_list)}] {name[:55]}')
+            print(f"[GWS] [{i + 1}/{len(docs_list)}] {name[:55]}")
 
             content = self.read_doc(doc_id)
 
             if not content.strip():
                 empty += 1
-                print('[GWS]   Empty — skipped')
+                print("[GWS]   Empty — skipped")
                 continue
 
             # AI understands the document
             time.sleep(0.3)  # rate limit
             understanding = self.understand_doc(name, content)
 
-            score      = understanding.get('relevance_score', 0)
-            keep       = understanding.get('keep', True)
-            venture_id = understanding.get('venture_id', 'general')
-            summary    = understanding.get('summary', name)
-            key_ctx    = understanding.get('key_context', '')
+            score = understanding.get("relevance_score", 0)
+            keep = understanding.get("keep", True)
+            venture_id = understanding.get("venture_id", "general")
+            summary = understanding.get("summary", name)
+            key_ctx = understanding.get("key_context", "")
 
-            print(
-                f'[GWS]   Score: {score}/10 | {venture_id} | Keep: {keep}'
-            )
+            print(f"[GWS]   Score: {score}/10 | {venture_id} | Keep: {keep}")
 
             # Only discard confirmed noise (score 0-2 AND keep=False)
             if score < 3 and not keep:
-                print('[GWS]   Discarded as noise')
+                print("[GWS]   Discarded as noise")
                 continue
 
-            relevance = (
-                'high'   if score >= 7
-                else 'medium' if score >= 4
-                else 'low'
-            )
+            relevance = "high" if score >= 7 else "medium" if score >= 4 else "low"
 
-            documents.append(GWSDocument(
-                id=doc_id,
-                name=name,
-                content=content,
-                doc_type='doc',
-                modified=modified,
-                url=url,
-                relevance=relevance,
-                venture_id=venture_id,
-                summary=summary,
-                key_context=key_ctx,
-                tags=[venture_id, relevance],
-            ))
+            documents.append(
+                GWSDocument(
+                    id=doc_id,
+                    name=name,
+                    content=content,
+                    doc_type="doc",
+                    modified=modified,
+                    url=url,
+                    relevance=relevance,
+                    venture_id=venture_id,
+                    summary=summary,
+                    key_context=key_ctx,
+                    tags=[venture_id, relevance],
+                )
+            )
 
         self._scan_skipped = skipped  # expose for WorldPulse report
 
         print()
-        print('[GWS] Scan complete:')
-        print(f'  To ingest:          {len(documents)}')
-        print(f'  Skipped (unchanged): {skipped}')
-        print(f'  Empty:              {empty}')
+        print("[GWS] Scan complete:")
+        print(f"  To ingest:          {len(documents)}")
+        print(f"  Skipped (unchanged): {skipped}")
+        print(f"  Empty:              {empty}")
         print()
 
         # Show breakdown by venture
@@ -386,9 +432,9 @@ class GWSDocumentScanner:
         for doc in documents:
             by_venture.setdefault(doc.venture_id, []).append(doc)
         for venture, vdocs in sorted(by_venture.items()):
-            print(f'  {venture}: {len(vdocs)} docs')
+            print(f"  {venture}: {len(vdocs)} docs")
             for d in vdocs:
-                print(f'    [{d.relevance}] {d.name[:55]}')
+                print(f"    [{d.relevance}] {d.name[:55]}")
 
         return documents
 
@@ -403,6 +449,7 @@ class GWSDocumentScanner:
         ingested = 0
         try:
             from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
+
             ki = KnowledgeIntegrator(self.ctx)
 
             for doc in documents:
@@ -411,43 +458,42 @@ class GWSDocumentScanner:
 
                 chunk_size = 3000
                 chunks = [
-                    doc.content[i:i + chunk_size]
-                    for i in range(0, len(doc.content), chunk_size)
+                    doc.content[i : i + chunk_size] for i in range(0, len(doc.content), chunk_size)
                 ]
 
                 for j, chunk in enumerate(chunks):
                     ki.integrate(
                         content=(
-                            f'Google Doc: {doc.name}\n'
-                            f'Venture: {doc.venture_id}\n'
-                            f'Relevance: {doc.relevance}\n'
-                            f'Summary: {doc.summary}\n'
-                            f'Part {j+1}/{len(chunks)}:\n'
-                            f'{chunk}'
+                            f"Google Doc: {doc.name}\n"
+                            f"Venture: {doc.venture_id}\n"
+                            f"Relevance: {doc.relevance}\n"
+                            f"Summary: {doc.summary}\n"
+                            f"Part {j + 1}/{len(chunks)}:\n"
+                            f"{chunk}"
                         ),
-                        source='google_docs',
-                        category='business_insight',
+                        source="google_docs",
+                        category="business_insight",
                         metadata={
-                            'doc_id':       doc.id,
-                            'doc_name':     doc.name,
-                            'modified':     doc.modified,
-                            'relevance':    doc.relevance,
-                            'venture_id':   doc.venture_id,
-                            'summary':      doc.summary,
-                            'chunk':        j + 1,
-                            'total_chunks': len(chunks),
-                            'url':          doc.url,
+                            "doc_id": doc.id,
+                            "doc_name": doc.name,
+                            "modified": doc.modified,
+                            "relevance": doc.relevance,
+                            "venture_id": doc.venture_id,
+                            "summary": doc.summary,
+                            "chunk": j + 1,
+                            "total_chunks": len(chunks),
+                            "url": doc.url,
                         },
                     )
 
                 ingested += 1
                 print(
-                    f'[GWS] Ingested: {doc.name[:50]} '
-                    f'({len(chunks)} chunk{"s" if len(chunks) > 1 else ""})'
+                    f"[GWS] Ingested: {doc.name[:50]} "
+                    f"({len(chunks)} chunk{'s' if len(chunks) > 1 else ''})"
                 )
 
         except Exception as e:
-            print(f'[GWS] Ingest failed: {e}')
+            print(f"[GWS] Ingest failed: {e}")
 
         return ingested
 
@@ -466,10 +512,10 @@ class GWSDocumentScanner:
         text = text.strip()
 
         ends_complete = (
-            text.endswith('.')
-            or text.endswith('!')
-            or text.endswith('?')
-            or text.endswith('*')
+            text.endswith(".")
+            or text.endswith("!")
+            or text.endswith("?")
+            or text.endswith("*")
             or text.endswith('"')
             or text[-1].isdigit()
         )
@@ -477,22 +523,23 @@ class GWSDocumentScanner:
         if not ends_complete:
             try:
                 from execution.runtime.agent_runtime import TaskType
+
                 continuation = rt.run(
                     task_type=TaskType.GENERATE,
                     prompt=(
-                        f'Complete this sentence (continue from where it was '
-                        f'cut off, do not repeat what was already said):\n\n'
-                        f'...{text[-200:]}'
+                        f"Complete this sentence (continue from where it was "
+                        f"cut off, do not repeat what was already said):\n\n"
+                        f"...{text[-200:]}"
                     ),
-                    agent='executive_assistant',
+                    agent="executive_assistant",
                     max_tokens=200,
                 )
                 if continuation.output:
-                    last_words = ' '.join(text.split()[-5:])
+                    last_words = " ".join(text.split()[-5:])
                     cont = continuation.output
                     if last_words.lower() in cont.lower():
                         idx = cont.lower().find(last_words.lower())
-                        cont = cont[idx + len(last_words):]
+                        cont = cont[idx + len(last_words) :]
                     return text + cont
             except Exception:
                 pass
@@ -509,162 +556,151 @@ class GWSDocumentScanner:
         Saves to /opt/OS/data/founder_profile.md for cognitive loop injection.
         """
         if not documents:
-            return 'No documents to profile.'
+            return "No documents to profile."
 
         # Group high/medium docs by venture
         by_venture: dict[str, list[str]] = {
-            'lyfe_institute':    [],
-            'empyrean_creative': [],
-            'eos_platform':      [],
-            'personal_brand':    [],
-            'general':           [],
+            "lyfe_institute": [],
+            "empyrean_creative": [],
+            "eos_platform": [],
+            "personal_brand": [],
+            "general": [],
         }
         for doc in documents:
-            if doc.relevance in ('high', 'medium'):
+            if doc.relevance in ("high", "medium"):
                 entry = (
-                    f'[{doc.name}]\n'
-                    f'Summary: {doc.summary or ""}\n'
-                    f'Context: {doc.key_context or ""}\n'
-                    f'Content: {doc.content[:800]}\n'
+                    f"[{doc.name}]\n"
+                    f"Summary: {doc.summary or ''}\n"
+                    f"Context: {doc.key_context or ''}\n"
+                    f"Content: {doc.content[:800]}\n"
                 )
                 by_venture.setdefault(doc.venture_id, []).append(entry)
 
         from execution.runtime.agent_runtime import AgentRuntime, TaskType
+
         rt = AgentRuntime(self.ctx)
         sections: list[str] = []
 
         # ── Section 1: Lyfe Institute ─────────────────────────────────────────
-        lyfe_content = '\n'.join(by_venture.get('lyfe_institute', [])[:5])
+        lyfe_content = "\n".join(by_venture.get("lyfe_institute", [])[:5])
         if lyfe_content:
-            print('[GWS] Profiling: Lyfe Institute...')
+            print("[GWS] Profiling: Lyfe Institute...")
             result = rt.run(
                 task_type=TaskType.ANALYZE,
                 prompt=(
-                    f'Based on these docs about Lyfe Institute:\n\n'
-                    f'{lyfe_content[:2500]}\n\n'
-                    f'What did EOS learn about this business? Cover:\n'
-                    f'1. The exact offer and pricing\n'
-                    f'2. Current stage and progress\n'
-                    f'3. ICP description\n'
-                    f'4. Current strategy\n'
-                    f'5. What has been tried\n'
-                    f'6. Gaps or missing pieces\n'
-                    f'Be specific. 200 words max.'
+                    f"Based on these docs about Lyfe Institute:\n\n"
+                    f"{lyfe_content[:2500]}\n\n"
+                    f"What did EOS learn about this business? Cover:\n"
+                    f"1. The exact offer and pricing\n"
+                    f"2. Current stage and progress\n"
+                    f"3. ICP description\n"
+                    f"4. Current strategy\n"
+                    f"5. What has been tried\n"
+                    f"6. Gaps or missing pieces\n"
+                    f"Be specific. 200 words max."
                 ),
-                agent='executive_assistant',
+                agent="executive_assistant",
                 max_tokens=800,
             )
-            output = self._complete_if_truncated(
-                result.output or '', rt, 'lyfe_institute'
-            )
-            sections.append(f'## Lyfe Institute\n{output or "No data"}')
+            output = self._complete_if_truncated(result.output or "", rt, "lyfe_institute")
+            sections.append(f"## Lyfe Institute\n{output or 'No data'}")
 
         # ── Section 2: Empyrean Creative ──────────────────────────────────────
-        emp_content = '\n'.join(by_venture.get('empyrean_creative', [])[:5])
+        emp_content = "\n".join(by_venture.get("empyrean_creative", [])[:5])
         if emp_content:
-            print('[GWS] Profiling: Empyrean Creative...')
+            print("[GWS] Profiling: Empyrean Creative...")
             result = rt.run(
                 task_type=TaskType.ANALYZE,
                 prompt=(
-                    f'Based on these docs about Empyrean Creative:\n\n'
-                    f'{emp_content[:2500]}\n\n'
-                    f'What did EOS learn about this business? Cover:\n'
-                    f'1. What services are offered\n'
-                    f'2. Target client profile\n'
-                    f'3. Current stage and progress\n'
-                    f'4. What has been built vs planned\n'
-                    f'5. Current strategy\n'
-                    f'6. Gaps or missing pieces\n'
-                    f'Be specific. 200 words max.'
+                    f"Based on these docs about Empyrean Creative:\n\n"
+                    f"{emp_content[:2500]}\n\n"
+                    f"What did EOS learn about this business? Cover:\n"
+                    f"1. What services are offered\n"
+                    f"2. Target client profile\n"
+                    f"3. Current stage and progress\n"
+                    f"4. What has been built vs planned\n"
+                    f"5. Current strategy\n"
+                    f"6. Gaps or missing pieces\n"
+                    f"Be specific. 200 words max."
                 ),
-                agent='executive_assistant',
+                agent="executive_assistant",
                 max_tokens=800,
             )
-            output = self._complete_if_truncated(
-                result.output or '', rt, 'empyrean_creative'
-            )
-            sections.append(f'## Empyrean Creative\n{output or "No data"}')
+            output = self._complete_if_truncated(result.output or "", rt, "empyrean_creative")
+            sections.append(f"## Empyrean Creative\n{output or 'No data'}")
 
         # ── Section 3: Other projects ─────────────────────────────────────────
-        eos_content = '\n'.join(by_venture.get('eos_platform', [])[:3])
-        gen_content = '\n'.join(by_venture.get('general', [])[:3])
-        other_content = (eos_content + '\n' + gen_content).strip()
+        eos_content = "\n".join(by_venture.get("eos_platform", [])[:3])
+        gen_content = "\n".join(by_venture.get("general", [])[:3])
+        other_content = (eos_content + "\n" + gen_content).strip()
         if other_content:
-            print('[GWS] Profiling: Other projects...')
+            print("[GWS] Profiling: Other projects...")
             result = rt.run(
                 task_type=TaskType.ANALYZE,
                 prompt=(
-                    f'Based on these docs:\n\n'
-                    f'{other_content[:2500]}\n\n'
-                    f'What other projects and ideas did EOS find? Cover:\n'
-                    f'1. EntrepreneurOS — what stage, what was planned\n'
-                    f'2. CreatorOS — what was planned\n'
-                    f'3. LYFEOS — what was planned\n'
-                    f'4. Any other projects mentioned\n'
-                    f'5. Ideas not yet acted on\n'
-                    f'Be specific. 200 words max.'
+                    f"Based on these docs:\n\n"
+                    f"{other_content[:2500]}\n\n"
+                    f"What other projects and ideas did EOS find? Cover:\n"
+                    f"1. EntrepreneurOS — what stage, what was planned\n"
+                    f"2. CreatorOS — what was planned\n"
+                    f"3. LYFEOS — what was planned\n"
+                    f"4. Any other projects mentioned\n"
+                    f"5. Ideas not yet acted on\n"
+                    f"Be specific. 200 words max."
                 ),
-                agent='executive_assistant',
+                agent="executive_assistant",
                 max_tokens=800,
             )
-            output = self._complete_if_truncated(
-                result.output or '', rt, 'other_projects'
-            )
-            sections.append(f'## Other Projects\n{output or "No data"}')
+            output = self._complete_if_truncated(result.output or "", rt, "other_projects")
+            sections.append(f"## Other Projects\n{output or 'No data'}")
 
         # ── Section 4: Founder patterns ───────────────────────────────────────
-        all_entries = [
-            entry
-            for venture_docs in by_venture.values()
-            for entry in venture_docs[:2]
-        ]
-        all_content = '\n'.join(all_entries)
+        all_entries = [entry for venture_docs in by_venture.values() for entry in venture_docs[:2]]
+        all_content = "\n".join(all_entries)
         if all_content:
-            print('[GWS] Profiling: Founder patterns...')
+            print("[GWS] Profiling: Founder patterns...")
             result = rt.run(
                 task_type=TaskType.ANALYZE,
                 prompt=(
-                    f'Based on all these docs from Antony Munoz:\n\n'
-                    f'{all_content[:2500]}\n\n'
-                    f'What patterns emerge about how he thinks and operates?\n'
-                    f'1. Core philosophy and values\n'
-                    f'2. Recurring frameworks he uses\n'
-                    f'3. Strengths evident in the docs\n'
-                    f'4. Gaps or blind spots noticed\n'
-                    f'5. What he cares most about\n'
-                    f'Be specific and honest. 200 words max.'
+                    f"Based on all these docs from Antony Munoz:\n\n"
+                    f"{all_content[:2500]}\n\n"
+                    f"What patterns emerge about how he thinks and operates?\n"
+                    f"1. Core philosophy and values\n"
+                    f"2. Recurring frameworks he uses\n"
+                    f"3. Strengths evident in the docs\n"
+                    f"4. Gaps or blind spots noticed\n"
+                    f"5. What he cares most about\n"
+                    f"Be specific and honest. 200 words max."
                 ),
-                agent='executive_assistant',
+                agent="executive_assistant",
                 max_tokens=800,
             )
-            output = self._complete_if_truncated(
-                result.output or '', rt, 'founder_patterns'
-            )
-            sections.append(f'## Founder Patterns\n{output or "No data"}')
+            output = self._complete_if_truncated(result.output or "", rt, "founder_patterns")
+            sections.append(f"## Founder Patterns\n{output or 'No data'}")
 
         profile = (
-            f'# What EOS Learned from Your Docs\n'
-            f'Generated: {datetime.now().strftime("%Y-%m-%d %H:%M")}\n'
-            f'Based on: {len(documents)} documents\n\n'
-            + '\n\n'.join(sections)
+            f"# What EOS Learned from Your Docs\n"
+            f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n"
+            f"Based on: {len(documents)} documents\n\n" + "\n\n".join(sections)
         )
 
         profile_path = Path(_ROOT) / "data" / "founder_profile.md"
         profile_path.parent.mkdir(parents=True, exist_ok=True)
         profile_path.write_text(profile)
-        print(f'[GWS] Full profile saved: {profile_path}')
+        print(f"[GWS] Full profile saved: {profile_path}")
 
         # Post to Discord
         try:
             from interface.discord.discord_utils import post_to_webhook
+
             post_to_webhook(
                 profile,
-                title='📊 EOS LEARNING REPORT',
-                username='DEX',
+                title="📊 EOS LEARNING REPORT",
+                username="DEX",
             )
-            print('[GWS] Profile posted to Discord')
+            print("[GWS] Profile posted to Discord")
         except Exception as _e:
-            print(f'[GWS] Discord post failed: {_e}')
+            print(f"[GWS] Discord post failed: {_e}")
 
         return profile
 
@@ -677,10 +713,10 @@ class GWSDocumentScanner:
         summary_path.parent.mkdir(parents=True, exist_ok=True)
 
         lines = [
-            '# GWS Document Context',
-            f'Last scanned: {datetime.now().strftime("%Y-%m-%d %H:%M")}',
-            f'Total documents: {len(documents)}',
-            '',
+            "# GWS Document Context",
+            f"Last scanned: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            f"Total documents: {len(documents)}",
+            "",
         ]
 
         by_venture: dict[str, list[GWSDocument]] = {}
@@ -688,15 +724,15 @@ class GWSDocumentScanner:
             by_venture.setdefault(doc.venture_id, []).append(doc)
 
         for venture, docs in sorted(by_venture.items()):
-            lines.append(f'## {venture}')
+            lines.append(f"## {venture}")
             for doc in docs:
-                lines.append(f'### {doc.name}')
-                lines.append(f'Relevance: {doc.relevance}')
+                lines.append(f"### {doc.name}")
+                lines.append(f"Relevance: {doc.relevance}")
                 if doc.summary:
-                    lines.append(f'Summary: {doc.summary}')
+                    lines.append(f"Summary: {doc.summary}")
                 if doc.key_context:
-                    lines.append(f'Key: {doc.key_context[:200]}')
-                lines.append('')
+                    lines.append(f"Key: {doc.key_context[:200]}")
+                lines.append("")
 
-        summary_path.write_text('\n'.join(lines))
-        print(f'[GWS] Context saved: {summary_path}')
+        summary_path.write_text("\n".join(lines))
+        print(f"[GWS] Context saved: {summary_path}")

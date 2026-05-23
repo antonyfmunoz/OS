@@ -4,7 +4,6 @@ from state.storage.db import get_conn
 
 
 class TaskStore:
-
     def create_task(
         self,
         org_id: str,
@@ -79,7 +78,6 @@ class TaskStore:
         """Link a Notion page to a task."""
         with get_conn(org_id) as cur:
             cur.execute(
-                "UPDATE tasks SET notion_page_id = %s "
-                "WHERE id::text = %s AND org_id = %s",
+                "UPDATE tasks SET notion_page_id = %s WHERE id::text = %s AND org_id = %s",
                 (notion_page_id, task_id, org_id),
             )

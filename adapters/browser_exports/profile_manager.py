@@ -19,7 +19,9 @@ from execution.agents.browser_agent import BrowserAgent
 
 logger = logging.getLogger(__name__)
 
-_PROFILES_DIR = Path(os.getenv("PLAYWRIGHT_USER_DATA_DIR", str(_REPO_ROOT / "data" / "runtime" / "browser_profiles")))
+_PROFILES_DIR = Path(
+    os.getenv("PLAYWRIGHT_USER_DATA_DIR", str(_REPO_ROOT / "data" / "runtime" / "browser_profiles"))
+)
 
 
 class ProfileManager(BrowserAgent):

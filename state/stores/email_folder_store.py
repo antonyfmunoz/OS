@@ -4,7 +4,6 @@ from state.storage.db import get_conn
 
 
 class EmailFolderStore:
-
     def seed_folders(
         self,
         org_id: str,

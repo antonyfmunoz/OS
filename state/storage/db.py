@@ -27,15 +27,15 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent / ".env")
 
 _DATABASE_URL = os.environ["DATABASE_URL"]
-ORG_ID        = os.environ["EOS_ORG_ID"]
-USER_ID       = os.environ["EOS_USER_ID"]
+ORG_ID = os.environ["EOS_ORG_ID"]
+USER_ID = os.environ["EOS_USER_ID"]
 
 # ─── ID resolution caches ─────────────────────────────────────────────────────
 # Maps Python string slugs → Postgres UUIDs. Loaded once per process.
 
 _venture_cache: dict[str, str] = {}  # "lyfe_institute" → "<uuid>"
-_skill_cache:   dict[str, str] = {}  # "analyze_icp_signal" → "<uuid>"
-_caches_loaded: bool            = False
+_skill_cache: dict[str, str] = {}  # "analyze_icp_signal" → "<uuid>"
+_caches_loaded: bool = False
 
 
 def _load_caches(cur: psycopg2.extensions.cursor) -> None:
@@ -60,6 +60,7 @@ def _load_caches(cur: psycopg2.extensions.cursor) -> None:
 
 # ─── Connection context manager ───────────────────────────────────────────────
 
+
 @contextmanager
 def get_conn(org_id: str = ORG_ID) -> Generator:
     """
@@ -77,8 +78,8 @@ def get_conn(org_id: str = ORG_ID) -> Generator:
         conn = psycopg2.connect(_DATABASE_URL)
     except Exception as e:
         # Strip credentials from the error before it can appear in logs/tracebacks
-        safe_msg = re.sub(r'://[^@]+@', '://***:***@', str(e))
-        raise psycopg2.OperationalError(f'Neon connection failed: {safe_msg}') from None
+        safe_msg = re.sub(r"://[^@]+@", "://***:***@", str(e))
+        raise psycopg2.OperationalError(f"Neon connection failed: {safe_msg}") from None
     try:
         with conn:  # transaction — commits on clean exit, rolls back on exception
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -92,6 +93,7 @@ def get_conn(org_id: str = ORG_ID) -> Generator:
 
 
 # ─── ID resolution helpers ────────────────────────────────────────────────────
+
 
 def resolve_venture(slug: str | None) -> str | None:
     """

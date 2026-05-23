@@ -6,7 +6,7 @@ from state.storage.db import get_conn
 
 @dataclass
 class Venture:
-    stage: str                          # building | scaling | optimizing
+    stage: str  # building | scaling | optimizing
     monthly_revenue: float
     monthly_target: float
     primary_icp: str
@@ -22,9 +22,7 @@ class Venture:
 
 
 class VentureKnowledgeBase:
-
     _ventures: dict[str, Venture] = {
-
         # ─────────────────────────────────────────────────────────────────────
         # EMPYREAN CREATIVE (aka Empyrean Studio / Lyfe Studio)
         #
@@ -49,7 +47,7 @@ class VentureKnowledgeBase:
         "empyrean_creative": Venture(
             stage="building",
             monthly_revenue=0.0,  # TODO: update with real revenue when B2B clients close
-            monthly_target=0.0,   # TODO: no monthly target documented — set when B2B offer goes active
+            monthly_target=0.0,  # TODO: no monthly target documented — set when B2B offer goes active
             primary_icp=(
                 "TODO: no ICP language found in any Drive document or local file. "
                 "The Empyrean Studios (Agency Brand) doc in Drive exists but contains no content. "
@@ -102,7 +100,6 @@ class VentureKnowledgeBase:
                 "Empyrean B2B offer gets real attention after $10K/mo is stable",
             ],
         ),
-
         # ─────────────────────────────────────────────────────────────────────
         # LYFE INSTITUTE
         #
@@ -195,19 +192,19 @@ class VentureKnowledgeBase:
             ],
             winning_content_angles=[
                 # Sources: Market intelligence report (local) + Antony's planning doc (Drive)
-                "\"You don't have a discipline problem. You have a structure problem.\"",
+                '"You don\'t have a discipline problem. You have a structure problem."',
                 "\"You're not confused. You're undisciplined.\"",
-                "\"You don't lack purpose. You lack structure.\"",
-                "\"Scrolling is the new sedation.\"",
-                "\"You don't need more podcasts. You need constraints.\"",
-                "\"Capable people go broke on potential. Builders go broke on execution.\"",
-                "\"If every week disappears, your environment is built for consumption — not output.\"",
-                "\"Starting is easy. Finishing is a skill. Here's how to build it.\"",
-                "\"Every unfinished project is a loan against your future self-belief.\"",
-                "Myth-bust: \"Working harder isn't the fix if your week has no architecture.\"",
-                "Discussion prompt: \"What's the gap between who you think you are and what you shipped this week?\"",
-                "Discussion prompt: \"How many half-finished projects are sitting in your notes right now?\"",
-                "Vulnerable/story: \"I used to abandon everything I started — here's what actually changed that.\"",
+                '"You don\'t lack purpose. You lack structure."',
+                '"Scrolling is the new sedation."',
+                '"You don\'t need more podcasts. You need constraints."',
+                '"Capable people go broke on potential. Builders go broke on execution."',
+                '"If every week disappears, your environment is built for consumption — not output."',
+                '"Starting is easy. Finishing is a skill. Here\'s how to build it."',
+                '"Every unfinished project is a loan against your future self-belief."',
+                'Myth-bust: "Working harder isn\'t the fix if your week has no architecture."',
+                'Discussion prompt: "What\'s the gap between who you think you are and what you shipped this week?"',
+                'Discussion prompt: "How many half-finished projects are sitting in your notes right now?"',
+                'Vulnerable/story: "I used to abandon everything I started — here\'s what actually changed that."',
                 "Document the rebuild publicly — show wake time, focus blocks, outreach numbers, honest struggles. "
                 "The hero is the system, not you.",
             ],
@@ -301,8 +298,7 @@ class VentureKnowledgeBase:
     def get(cls, venture_id: str) -> Venture:
         if venture_id not in cls._ventures:
             raise KeyError(
-                f"Unknown venture: '{venture_id}'. "
-                f"Valid options: {list(cls._ventures.keys())}"
+                f"Unknown venture: '{venture_id}'. Valid options: {list(cls._ventures.keys())}"
             )
         return cls._ventures[venture_id]
 

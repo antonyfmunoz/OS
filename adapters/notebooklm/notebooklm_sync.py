@@ -27,8 +27,13 @@ from datetime import datetime
 from pathlib import Path
 
 from state.context.context import EntrepreneurOSContext
-_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
+_ROOT = (
+    os.environ.get("UMH_ROOT")
+    or os.environ.get("OS_ROOT")
+    or os.environ.get("EOS_ROOT")
+    or "/opt/OS"
+)
 
 
 @dataclass
@@ -41,15 +46,14 @@ class NotebookConfig:
 
 
 class NotebookLMSync:
-
     def __init__(self, ctx: EntrepreneurOSContext):
         self.ctx = ctx
         # Notebook IDs stored in .env after: nlm notebook create "Name"
         self.notebooks: dict[str, str] = {
-            'lyfe_institute':    os.getenv('NOTEBOOKLM_LYFE_ID', ''),
-            'empyrean_creative': os.getenv('NOTEBOOKLM_EMPYREAN_ID', ''),
-            'personal_brand':    os.getenv('NOTEBOOKLM_BRAND_ID', ''),
-            'world_pulse':       os.getenv('NOTEBOOKLM_PULSE_ID', ''),
+            "lyfe_institute": os.getenv("NOTEBOOKLM_LYFE_ID", ""),
+            "empyrean_creative": os.getenv("NOTEBOOKLM_EMPYREAN_ID", ""),
+            "personal_brand": os.getenv("NOTEBOOKLM_BRAND_ID", ""),
+            "world_pulse": os.getenv("NOTEBOOKLM_PULSE_ID", ""),
         }
 
     # ── helpers ───────────────────────────────────────────────────────────────
@@ -58,17 +62,17 @@ class NotebookLMSync:
         """Run nlm source add and return success."""
         try:
             result = subprocess.run(
-                ['nlm', 'source', 'add', notebook_id, '--file', file_path],
+                ["nlm", "source", "add", notebook_id, "--file", file_path],
                 capture_output=True,
                 text=True,
                 timeout=60,
             )
             return result.returncode == 0
         except Exception as e:
-            print(f'[NotebookLMSync] nlm source add failed: {e}')
+            print(f"[NotebookLMSync] nlm source add failed: {e}")
             return False
 
-    def _write_tmp(self, content: str, suffix: str = '.txt') -> str:
+    def _write_tmp(self, content: str, suffix: str = ".txt") -> str:
         """Write content to a temp file and return its path."""
         tmp = tempfile.mktemp(suffix=suffix)
         Path(tmp).write_text(content)
@@ -78,7 +82,7 @@ class NotebookLMSync:
 
     def sync_pipeline_to_notebook(
         self,
-        venture_id: str = 'lyfe_institute',
+        venture_id: str = "lyfe_institute",
     ) -> bool:
         """
         Export pipeline data from Neon and upload to the venture's notebook.
@@ -89,7 +93,7 @@ class NotebookLMSync:
 
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
-                    '''
+                    """
                     SELECT
                         payload_json->>'name'    AS name,
                         payload_json->>'stage'   AS stage,
@@ -102,46 +106,48 @@ class NotebookLMSync:
                       AND payload_json->>'venture_id' = %s
                     ORDER BY created_at DESC
                     LIMIT 50
-                    ''',
+                    """,
                     (self.ctx.org_id, venture_id),
                 )
                 rows = cur.fetchall()
 
             if not rows:
-                print(f'[NotebookLMSync] No pipeline data for {venture_id}')
+                print(f"[NotebookLMSync] No pipeline data for {venture_id}")
                 return False
 
             lines = [
-                f'# {venture_id} Pipeline Data',
-                f'Exported: {datetime.now().strftime("%Y-%m-%d")}',
-                f'Total entries: {len(rows)}',
-                '',
+                f"# {venture_id} Pipeline Data",
+                f"Exported: {datetime.now().strftime('%Y-%m-%d')}",
+                f"Total entries: {len(rows)}",
+                "",
             ]
             for row in rows:
-                lines.extend([
-                    f'## {row[0] or "Unknown"}',
-                    f'Stage: {row[1] or "—"}',
-                    f'Channel: {row[3] or "—"}',
-                    f'Notes: {row[2] or "—"}',
-                    f'Date: {str(row[4])[:10]}',
-                    '',
-                ])
+                lines.extend(
+                    [
+                        f"## {row[0] or 'Unknown'}",
+                        f"Stage: {row[1] or '—'}",
+                        f"Channel: {row[3] or '—'}",
+                        f"Notes: {row[2] or '—'}",
+                        f"Date: {str(row[4])[:10]}",
+                        "",
+                    ]
+                )
 
-            notebook_id = self.notebooks.get(venture_id, '')
+            notebook_id = self.notebooks.get(venture_id, "")
             if not notebook_id:
-                print(f'[NotebookLMSync] No notebook ID for {venture_id}')
+                print(f"[NotebookLMSync] No notebook ID for {venture_id}")
                 return False
 
-            tmp = self._write_tmp('\n'.join(lines))
+            tmp = self._write_tmp("\n".join(lines))
             success = self._nlm_source_add(notebook_id, tmp)
             Path(tmp).unlink(missing_ok=True)
 
             if success:
-                print(f'[NotebookLMSync] Pipeline synced: {venture_id}')
+                print(f"[NotebookLMSync] Pipeline synced: {venture_id}")
             return success
 
         except Exception as e:
-            print(f'[NotebookLMSync] Pipeline sync failed: {e}')
+            print(f"[NotebookLMSync] Pipeline sync failed: {e}")
             return False
 
     def sync_world_pulse_to_notebook(self, report: str) -> bool:
@@ -150,23 +156,23 @@ class NotebookLMSync:
         Called by WorldPulse.run_pulse_scan() after each Saturday scan.
         """
         try:
-            notebook_id = self.notebooks.get('world_pulse', '')
+            notebook_id = self.notebooks.get("world_pulse", "")
             if not notebook_id:
-                print('[NotebookLMSync] NOTEBOOKLM_PULSE_ID not set')
+                print("[NotebookLMSync] NOTEBOOKLM_PULSE_ID not set")
                 return False
 
-            date_str = datetime.now().strftime('%Y-%m-%d')
-            content = f'# World Pulse Report — {date_str}\n\n{report}'
+            date_str = datetime.now().strftime("%Y-%m-%d")
+            content = f"# World Pulse Report — {date_str}\n\n{report}"
             tmp = self._write_tmp(content)
             success = self._nlm_source_add(notebook_id, tmp)
             Path(tmp).unlink(missing_ok=True)
 
             if success:
-                print(f'[NotebookLMSync] World pulse report synced: {date_str}')
+                print(f"[NotebookLMSync] World pulse report synced: {date_str}")
             return success
 
         except Exception as e:
-            print(f'[NotebookLMSync] Pulse sync failed: {e}')
+            print(f"[NotebookLMSync] Pulse sync failed: {e}")
             return False
 
     def sync_founder_profile(self) -> bool:
@@ -175,16 +181,16 @@ class NotebookLMSync:
         Keeps NotebookLM current with latest context docs from /opt/OS/data/.
         """
         docs = [
-            f'{_ROOT}/data/founder_profile.md',
-            f'{_ROOT}/data/brand_identity.md',
-            f'{_ROOT}/data/funnel_strategy.md',
-            f'{_ROOT}/data/workbook_framework.md',
-            f'{_ROOT}/data/gws_context.md',
+            f"{_ROOT}/data/founder_profile.md",
+            f"{_ROOT}/data/brand_identity.md",
+            f"{_ROOT}/data/funnel_strategy.md",
+            f"{_ROOT}/data/workbook_framework.md",
+            f"{_ROOT}/data/gws_context.md",
         ]
 
         synced = 0
         for venture_id, notebook_id in self.notebooks.items():
-            if not notebook_id or venture_id == 'world_pulse':
+            if not notebook_id or venture_id == "world_pulse":
                 continue
             for doc_path in docs:
                 if not Path(doc_path).exists():
@@ -192,7 +198,7 @@ class NotebookLMSync:
                 if self._nlm_source_add(notebook_id, doc_path):
                     synced += 1
 
-        print(f'[NotebookLMSync] Founder profile synced — {synced} uploads')
+        print(f"[NotebookLMSync] Founder profile synced — {synced} uploads")
         return synced > 0
 
     # ── NotebookLM → Neon ────────────────────────────────────────────────────
@@ -203,43 +209,44 @@ class NotebookLMSync:
         Stores the answer in Neon as a notebooklm_insight event for DEX.
         Returns the answer string.
         """
-        notebook_id = self.notebooks.get(venture_id, '')
+        notebook_id = self.notebooks.get(venture_id, "")
         if not notebook_id:
-            return ''
+            return ""
 
         try:
             result = subprocess.run(
-                ['nlm', 'notebook', 'query', notebook_id, '--question', question],
+                ["nlm", "notebook", "query", notebook_id, "--question", question],
                 capture_output=True,
                 text=True,
                 timeout=90,
             )
-            answer = result.stdout.strip() if result.returncode == 0 else ''
+            answer = result.stdout.strip() if result.returncode == 0 else ""
 
             if answer:
                 from state.memory.memory import AgentMemory
+
                 AgentMemory().log_event(
                     org_id=str(self.ctx.org_id),
-                    event_type='notebooklm_insight',
+                    event_type="notebooklm_insight",
                     payload={
-                        'venture_id': venture_id,
-                        'question':   question,
-                        'answer':     answer[:2000],
-                        'source':     'notebooklm',
+                        "venture_id": venture_id,
+                        "question": question,
+                        "answer": answer[:2000],
+                        "source": "notebooklm",
                     },
-                    handled_by='notebooklm_sync',
+                    handled_by="notebooklm_sync",
                 )
-                print(f'[NotebookLMSync] Query stored: {question[:50]}')
+                print(f"[NotebookLMSync] Query stored: {question[:50]}")
 
             return answer
 
         except Exception as e:
-            print(f'[NotebookLMSync] Query failed: {e}')
-            return ''
+            print(f"[NotebookLMSync] Query failed: {e}")
+            return ""
 
     def get_recent_insights(
         self,
-        venture_id: str = '',
+        venture_id: str = "",
         limit: int = 5,
     ) -> list[dict]:
         """
@@ -247,10 +254,11 @@ class NotebookLMSync:
         """
         try:
             from state.storage.db import get_conn
+
             with get_conn(self.ctx.org_id) as cur:
                 if venture_id:
                     cur.execute(
-                        '''
+                        """
                         SELECT payload_json, created_at
                         FROM events
                         WHERE org_id = %s
@@ -258,19 +266,19 @@ class NotebookLMSync:
                           AND payload_json->>'venture_id' = %s
                         ORDER BY created_at DESC
                         LIMIT %s
-                        ''',
+                        """,
                         (self.ctx.org_id, venture_id, limit),
                     )
                 else:
                     cur.execute(
-                        '''
+                        """
                         SELECT payload_json, created_at
                         FROM events
                         WHERE org_id = %s
                           AND event_type = 'notebooklm_insight'
                         ORDER BY created_at DESC
                         LIMIT %s
-                        ''',
+                        """,
                         (self.ctx.org_id, limit),
                     )
                 rows = cur.fetchall()
@@ -284,7 +292,7 @@ class NotebookLMSync:
             return results
 
         except Exception as e:
-            print(f'[NotebookLMSync] get_recent_insights failed: {e}')
+            print(f"[NotebookLMSync] get_recent_insights failed: {e}")
             return []
 
     # ── cross-reference ───────────────────────────────────────────────────────
@@ -296,12 +304,10 @@ class NotebookLMSync:
         """
         results: dict[str, bool] = {}
 
-        results['founder_profile'] = self.sync_founder_profile()
+        results["founder_profile"] = self.sync_founder_profile()
 
-        for venture_id in ('lyfe_institute', 'empyrean_creative'):
-            results[f'pipeline_{venture_id}'] = self.sync_pipeline_to_notebook(
-                venture_id
-            )
+        for venture_id in ("lyfe_institute", "empyrean_creative"):
+            results[f"pipeline_{venture_id}"] = self.sync_pipeline_to_notebook(venture_id)
 
-        print(f'[NotebookLMSync] Cross-reference complete: {results}')
+        print(f"[NotebookLMSync] Cross-reference complete: {results}")
         return results

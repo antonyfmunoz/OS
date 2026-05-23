@@ -827,7 +827,11 @@ def _run_substrate(
     msg.channel.id = channel_id or "0"
     msg.attachments = []
 
-    _org = str(_ctx_eos.org_id) if hasattr(_ctx_eos, "org_id") and _ctx_eos.org_id else "munoz-holdings"
+    _org = (
+        str(_ctx_eos.org_id)
+        if hasattr(_ctx_eos, "org_id") and _ctx_eos.org_id
+        else "munoz-holdings"
+    )
     signal = message_to_signal(msg, organization_id=_org)
 
     try:

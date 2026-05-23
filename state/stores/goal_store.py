@@ -6,7 +6,6 @@ from state.storage.db import get_conn
 
 
 class GoalStore:
-
     def upsert_goal(
         self,
         org_id: str,
@@ -63,13 +62,24 @@ class GoalStore:
                     updated_at = EXCLUDED.updated_at
                 """,
                 (
-                    goal_id, org_id, title, description, state,
-                    priority, expected_impact, estimated_cost,
-                    confidence, dependency_unlock, venture_id,
-                    json.dumps(blocked_by), score, rank,
+                    goal_id,
+                    org_id,
+                    title,
+                    description,
+                    state,
+                    priority,
+                    expected_impact,
+                    estimated_cost,
+                    confidence,
+                    dependency_unlock,
+                    venture_id,
+                    json.dumps(blocked_by),
+                    score,
+                    rank,
                     json.dumps(score_explanation),
                     json.dumps(performance),
-                    created_at, updated_at,
+                    created_at,
+                    updated_at,
                 ),
             )
 
@@ -97,7 +107,9 @@ class GoalStore:
                     WHERE id = %s AND org_id = %s
                     """,
                     (
-                        g["state"], g["score"], g["rank"],
+                        g["state"],
+                        g["score"],
+                        g["rank"],
                         json.dumps(g["score_explanation"]),
                         g["dependency_unlock"],
                         json.dumps(g["performance"]),
@@ -109,7 +121,8 @@ class GoalStore:
                         json.dumps(g["horizon_adjustments"]),
                         g["failure_streak"],
                         g["priority_decay_multiplier"],
-                        g["id"], org_id,
+                        g["id"],
+                        org_id,
                     ),
                 )
 
@@ -139,7 +152,8 @@ class GoalStore:
                     failure_streak,
                     priority_decay_multiplier,
                     updated_at,
-                    goal_id, org_id,
+                    goal_id,
+                    org_id,
                 ),
             )
 
@@ -163,8 +177,12 @@ class GoalStore:
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """,
                 (
-                    org_id, goal_id, outcome_type, task_type,
-                    execution_time, impact_delta,
+                    org_id,
+                    goal_id,
+                    outcome_type,
+                    task_type,
+                    execution_time,
+                    impact_delta,
                     json.dumps(metadata),
                 ),
             )

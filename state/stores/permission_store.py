@@ -8,7 +8,6 @@ from state.storage.db import get_conn
 
 
 class PermissionStore:
-
     def grant_permission(
         self,
         org_id: str,

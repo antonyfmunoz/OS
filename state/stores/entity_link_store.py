@@ -6,7 +6,6 @@ from state.storage.db import get_conn
 
 
 class EntityLinkStore:
-
     def insert_link(
         self,
         org_id: str,
@@ -29,8 +28,10 @@ class EntityLinkStore:
                 """,
                 (
                     org_id,
-                    from_type, from_id,
-                    to_type, to_id,
+                    from_type,
+                    from_id,
+                    to_type,
+                    to_id,
                     relationship,
                     json.dumps(metadata) if metadata else None,
                 ),

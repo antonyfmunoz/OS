@@ -6,7 +6,6 @@ from state.storage.db import get_conn
 
 
 class PreferenceStore:
-
     def ensure_defaults(self, org_id: str) -> None:
         """Insert default preferences if no row exists for this org."""
         with get_conn(org_id) as cur:
@@ -25,7 +24,10 @@ class PreferenceStore:
     ) -> None:
         """Update a single preference field. Caller validates field name."""
         _ALLOWED = {
-            "cost_mode", "prefer_local", "session_override", "per_task_overrides",
+            "cost_mode",
+            "prefer_local",
+            "session_override",
+            "per_task_overrides",
         }
         if field not in _ALLOWED:
             raise ValueError(f"field must be one of {_ALLOWED}")
@@ -37,10 +39,7 @@ class PreferenceStore:
             )
             val = json.dumps(value) if isinstance(value, dict) else value
         else:
-            sql = (
-                f"UPDATE model_preferences SET {field} = %s, "
-                "updated_at = NOW() WHERE org_id = %s"
-            )
+            sql = f"UPDATE model_preferences SET {field} = %s, updated_at = NOW() WHERE org_id = %s"
             val = value
 
         with get_conn(org_id) as cur:
