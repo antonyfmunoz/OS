@@ -5,7 +5,7 @@ from __future__ import annotations
 from substrate.integrations.node_mesh.handlers import NodeCapabilityHandler
 from substrate.integrations.node_mesh.outcomes import NodeOutcomeReceiver
 from substrate.integrations.node_mesh.signals import NodeSignalEmitter
-from transports.node_mesh.registry import ConnectedNode
+from substrate.integrations.node_mesh.types import ConnectedNode
 from substrate.sockets.registry import IntegrationManifest
 
 

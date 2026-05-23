@@ -96,8 +96,8 @@ class OutputValidator:
                 fix_applied='Chunked via discord_utils.chunk_message()',
             ))
             # Auto-fix: chunk and join with separator for the fixed_output field
-            from transports.discord.discord_utils import chunk_message
-            chunks = chunk_message(content)
+            from substrate.sockets.notification import chunk_content
+            chunks = chunk_content(content)
             fixed = '\n---\n'.join(chunks)
 
         # Check 2: Empty output
@@ -255,7 +255,7 @@ class OutputValidator:
         ]
         if critical:
             try:
-                from transports.discord.discord_utils import post_to_webhook
+                from substrate.sockets.notification import notify_webhook
                 msg = (
                     f'🚨 **Output Validation Failed**\n'
                     f'Context: {context}\n\n'
@@ -263,7 +263,7 @@ class OutputValidator:
                 )
                 webhook = os.getenv('DISCORD_BRIEF_WEBHOOK', '')
                 if webhook:
-                    post_to_webhook(
+                    notify_webhook(
                         msg,
                         title='System Self-Check',
                         username='EOS Monitor',

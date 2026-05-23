@@ -5455,6 +5455,15 @@ async def cmd_trace(ctx: commands.Context, limit: int = 5):
 # ─── Entry point ──────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
+    # Register transport implementations into substrate socket layer
+    from substrate.sockets.notification import register_notifier, register_chunker
+    from substrate.sockets.channel_port import register_channel_router
+    from transports.discord.discord_utils import post_to_webhook, chunk_message
+    from transports.channels.channel import get_channel_router as _get_channel_router
+    register_notifier(post_to_webhook)
+    register_chunker(chunk_message)
+    register_channel_router(_get_channel_router)
+
     token = os.getenv("DISCORD_BOT_TOKEN")
     if not token:
         print("[Discord] DISCORD_BOT_TOKEN not set in .env — exiting")
