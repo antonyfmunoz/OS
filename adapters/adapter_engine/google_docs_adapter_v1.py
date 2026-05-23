@@ -11,7 +11,7 @@ Capability types:
   GOOGLE_DOCS_CU_EXTRACT — extraction via Computer Use
   GOOGLE_DOCS_API_EXTRACT — extraction via Docs API
 
-UMH substrate subsystem. Phase 96.8AB.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

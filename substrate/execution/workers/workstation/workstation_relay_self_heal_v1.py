@@ -4,7 +4,7 @@ VPS-side relay health assessment and self-heal logic.
 Reads heartbeat, detects staleness, reports autostart state,
 and determines whether relay is available for execution dispatch.
 
-UMH substrate subsystem. Phase 96.8AP.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

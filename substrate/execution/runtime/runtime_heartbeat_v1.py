@@ -6,7 +6,7 @@ tracking, timeout detection, and health state transitions.
 
 Composes: core/environment_bridge/heartbeat.py
 
-UMH substrate subsystem. Phase 96.8AE.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

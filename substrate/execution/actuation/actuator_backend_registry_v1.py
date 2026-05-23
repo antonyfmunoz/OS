@@ -4,7 +4,7 @@ Tracks available actuator backends and selects the best one for a
 given actuation request. The registry does not execute — it selects.
 Execution is delegated to the backend itself.
 
-UMH substrate subsystem. Phase 96.8AN.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations
@@ -92,7 +92,7 @@ REGISTERED_BACKENDS: tuple[ActuatorBackendEntry, ...] = (
         security_risk="low",
         requires_display_session=True,
         python_support=False,
-        recommended_use="Primary actuator backend. Already proven in Phase 96.8Q.",
+        recommended_use="Primary actuator backend. Already proven in production.",
         notes="Uses Start-Process for Chrome, Get-Process for HWND, "
         "GetForegroundWindow for focus, System.Drawing for screenshots.",
     ),

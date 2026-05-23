@@ -119,7 +119,7 @@ class LoadedArtifact:
     planned_sources: list[dict[str, Any]] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
     load_errors: list[str] = field(default_factory=list)
-    # Phase 5 — structured patterns extracted by the research agent.
+    # Structured patterns extracted by the research agent.
     # Flat dict with three buckets (usage / api / workflows). Each entry
     # matches extraction.ExtractedPattern.to_dict().
     extracted_patterns: dict[str, list[dict[str, Any]]] = field(
@@ -180,7 +180,7 @@ def load_artifact(artifact_path: Path) -> LoadedArtifact:
         loaded.load_errors.append("artifact has no tool_slug")
         return loaded
 
-    # Phase 5 — research agent may have emitted structured patterns.
+    # Research agent may have emitted structured patterns.
     # Accept older artifacts that don't carry this key.
     raw_patterns = artifact.get("extracted_patterns") or {}
     if isinstance(raw_patterns, dict):

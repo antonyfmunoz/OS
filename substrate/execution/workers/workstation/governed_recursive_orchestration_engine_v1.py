@@ -13,7 +13,7 @@ The engine CANNOT: auto-deploy infrastructure, auto-promote maturity,
 auto-modify canonical registries, auto-merge recursive plans, bypass
 founder approval, or bypass governance replay contracts.
 
-UMH substrate subsystem. Phase 96.8AW.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

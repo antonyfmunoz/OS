@@ -10,7 +10,7 @@ Deferred actions (medium/high risk without explicit approval) are
 persisted to /opt/OS/logs/deferred/ and announced via the notifier
 stack so they can be resumed later with `resume_action(action_id)`.
 
-Phase 4 adds an optional `idempotency_key` kwarg. When set, the
+An optional `idempotency_key` kwarg. When set, the
 Control Plane consults `core.action_system.idempotency` BEFORE
 proposing. Duplicate calls within the TTL return a synthetic Action
 with status="skipped_duplicate" pointing at the original action_id.

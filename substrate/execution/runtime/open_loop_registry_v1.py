@@ -5,7 +5,7 @@ failed executions, interrupted workflows, and deferred actions.
 
 Deterministic. Append-only ledger with resolution tracking.
 
-UMH substrate subsystem. Phase 96.8BN.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

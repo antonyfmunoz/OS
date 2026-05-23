@@ -11,7 +11,7 @@ generate upgrade plans.
 The engine CANNOT: autonomously modify infrastructure, escalate
 maturity, promote candidates, deploy adapters, or bypass governance.
 
-UMH substrate subsystem. Phase 96.8AV.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

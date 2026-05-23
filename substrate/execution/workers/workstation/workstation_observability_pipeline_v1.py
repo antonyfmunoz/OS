@@ -6,7 +6,7 @@ continuity updates.
 
 Persist to: data/runtime/workstation_observability/
 
-UMH substrate subsystem. Phase 96.8BP.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

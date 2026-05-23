@@ -10,7 +10,7 @@ This module is the single entry point for dispatching governed
 work to the local runtime. It composes all prior substrate layers
 into an operational execution loop.
 
-UMH substrate subsystem. Phase 96.8AE.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

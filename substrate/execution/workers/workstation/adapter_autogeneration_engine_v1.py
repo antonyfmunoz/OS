@@ -16,7 +16,7 @@ No maturity claims without evidence.
 No bypass of foreground CU requirements.
 No bypass of replay requirements.
 
-UMH substrate subsystem. Phase 96.8AU.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

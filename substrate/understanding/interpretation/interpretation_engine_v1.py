@@ -8,7 +8,7 @@ Interpretation stages:
   observation → pattern_detection → primitive_mapping
   → hypothesis_generation → uncertainty_analysis
 
-UMH substrate subsystem. Phase 96.8W.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

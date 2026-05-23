@@ -6,7 +6,7 @@ DOM summaries, continuity updates, execution latency.
 
 Persist to: data/runtime/browser_observability/
 
-UMH substrate subsystem. Phase 96.8BQ.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

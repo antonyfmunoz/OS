@@ -10,7 +10,7 @@ Resolves routing decisions for the live runtime spine:
 All routing decisions emit lineage receipts.
 All routing is deterministic and replay-safe.
 
-UMH substrate subsystem. Phase 96.8BR.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

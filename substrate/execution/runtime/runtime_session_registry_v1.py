@@ -5,7 +5,7 @@ to an environment with tracked packets, heartbeat, and health.
 The registry is the single source of truth for what's currently
 running.
 
-UMH substrate subsystem. Phase 96.8AE.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

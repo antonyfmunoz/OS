@@ -20,7 +20,7 @@ No parallel execution spines. No hidden execution paths.
 No direct adapter execution. No governance bypass.
 No implicit state mutation.
 
-UMH substrate subsystem. Phase 96.8BR.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

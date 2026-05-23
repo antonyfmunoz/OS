@@ -66,7 +66,7 @@ class SectionDraft:
     source_urls: list[str] = field(default_factory=list)
     raw_paths: list[str] = field(default_factory=list)
     rationale: str = ""  # why this section looks the way it does
-    # Phase 6 — how this draft was grounded. One of:
+    # How this draft was grounded. One of:
     #   "pattern"   — rendered from ≥1 structured pattern
     #   "prose"     — rendered from raw-capture keyword excerpts
     #   "uncovered" — honest placeholder

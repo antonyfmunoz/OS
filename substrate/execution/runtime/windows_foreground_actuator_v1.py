@@ -20,7 +20,7 @@ Composes existing infrastructure:
 The actuator emits proof events at each stage. It does NOT
 infer visibility — it requires OBSERVED state from the relay.
 
-UMH substrate subsystem. Phase 96.8AI.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

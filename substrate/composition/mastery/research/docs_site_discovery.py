@@ -1,7 +1,7 @@
 """Docs site discovery for the Tool Mastery Research Agent.
 
-Phase 2 unlock: many vendor docs sites are JS-rendered SPAs whose root
-HTML contains nothing but a bootstrap <script>. Phase 1's GitHub repo
+Docs site discovery unlock: many vendor docs sites are JS-rendered SPAs whose root
+HTML contains nothing but a bootstrap <script>. The GitHub repo
 extractor solved the repo case, but sites like clo3d.com, higgsfield.ai,
 or remotion.dev expose most of their prose through a sitemap we never
 probed. This module fixes that by probing two well-defined discovery
@@ -15,7 +15,7 @@ surfaces per candidate host:
 
 Honest boundaries:
     - No HTML parsing. We do not scrape HREFs out of landing pages —
-      that's Phase 3 (structured crawl). This module only consumes
+      that's the structured crawl module. This module only consumes
       sources the site itself publishes in machine-readable form.
     - No guessing. If neither surface exists we emit an explanatory
       note and return an empty expansion list.
@@ -48,7 +48,7 @@ TIMEOUT_SECONDS = 15
 MAX_BYTES = 2_000_000  # cap per discovery file
 
 # How many URLs we'll surface from a single host's sitemap or llms.txt.
-# Phase 2 is about unblocking, not flooding. The fetcher's budget
+# Discovery is about unblocking, not flooding. The fetcher's budget
 # (DEFAULT_MAX_FETCHES=20) still gets the final word; this cap just
 # keeps one site from crowding every other source out of the plan.
 MAX_URLS_PER_SITE = 12
@@ -130,8 +130,8 @@ _SITEMAP_NS = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
 # package page (e.g. pypi.org/project/<slug>) is already surfaced as
 # a registry / search-discovery entry; we don't need the sitemap.
 #
-# github.com and raw.githubusercontent.com are covered by the Phase 1
-# extractor and also skipped here to avoid double work.
+# github.com and raw.githubusercontent.com are covered by the
+# GitHub repo extractor and also skipped here to avoid double work.
 _DISCOVERY_SKIP_HOSTS: frozenset[str] = frozenset(
     {
         "github.com",
@@ -457,7 +457,7 @@ def _topically_relevant(url: str, tool_slug: str | None) -> bool:
     length>=3 tokens) appears in EITHER the host OR the path. Hosts
     count because vendor sites like ``www.remotion.dev`` make the slug
     structurally part of the origin rather than repeating it in every
-    path; rejecting those would cripple the Phase 2 unlock.
+    path; rejecting those would cripple docs site discovery.
 
     Tokens are slug-split on ``_`` / ``-`` so ``fl_studio`` matches
     both ``fl-studio`` and ``flstudio``.

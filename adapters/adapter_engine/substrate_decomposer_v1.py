@@ -4,7 +4,7 @@ Rule-based extraction of primitives from document text.
 Deterministic: same input always produces same output (no LLM).
 Replay-safe: IDs are derived from content hashes, not random UUIDs.
 
-UMH substrate subsystem. Phase 96.8BJ.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

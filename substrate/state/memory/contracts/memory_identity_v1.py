@@ -3,7 +3,7 @@
 Supports lineage chains, supersession, reconciliation references,
 and canonical/instance isolation.
 
-UMH substrate subsystem. Phase 96.8BM.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

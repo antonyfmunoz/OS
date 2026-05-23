@@ -6,7 +6,7 @@ which should persist as canonical memory, which are resumable.
 
 Deterministic. Rule-based. No ML.
 
-UMH substrate subsystem. Phase 96.8BN.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

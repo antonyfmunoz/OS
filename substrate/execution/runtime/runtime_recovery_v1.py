@@ -5,7 +5,7 @@ worker crashes, timeout, adapter failures, and connectivity
 loss. Recovery follows governance — no unsupervised retry of
 high-risk operations.
 
-UMH substrate subsystem. Phase 96.8AE.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

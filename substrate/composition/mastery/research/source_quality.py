@@ -73,7 +73,7 @@ _HIGH_HOST_EXACT: frozenset[str] = frozenset(
         "pkg.go.dev",
         "rubygems.org",
         "hexdocs.pm",
-        # GitHub raw file endpoint — Phase 1 repo extractor pins to
+        # GitHub raw file endpoint — the repo extractor pins to
         # a commit SHA and pulls README/docs/examples from here.
         "raw.githubusercontent.com",
     }

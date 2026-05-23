@@ -5,7 +5,7 @@ environment is active, idle, executing, awaiting approval,
 disconnected, or recovering. This is the foundation of
 persistent Jarvis-style operational continuity.
 
-UMH substrate subsystem. Phase 96.8AE.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

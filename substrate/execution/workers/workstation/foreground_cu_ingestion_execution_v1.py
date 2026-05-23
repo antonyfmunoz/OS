@@ -18,7 +18,7 @@ Canonical candidate: reusable structures, abstractions, frameworks,
 Instance candidate: founder-specific data, conversations, notes,
   business details, environment observations — identity-bound.
 
-UMH substrate subsystem. Phase 96.8AS.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

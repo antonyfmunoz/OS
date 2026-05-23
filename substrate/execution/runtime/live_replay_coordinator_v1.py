@@ -11,7 +11,7 @@ Does NOT replay execution. Only the decision path.
 
 Persist proofs to: data/runtime/live_replay_proofs/
 
-UMH substrate subsystem. Phase 96.8BR.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

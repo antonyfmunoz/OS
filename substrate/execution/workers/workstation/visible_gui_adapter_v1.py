@@ -18,7 +18,7 @@ BLOCKED unconditionally:
   - clipboard manipulation
   - keystroke injection
 
-UMH substrate subsystem. Phase 96.8BQ.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

@@ -134,7 +134,7 @@ def _run_phase5_extraction(
     UNKNOWN — these should be demoted to SKIPPED by the caller so the
     Author Agent never sees them.
 
-    Lazy imports from the Author Agent are required because the Phase 5
+    Lazy imports from the Author Agent are required because the extraction
     pipeline wants to share the exact same sanitiser + prose-block splitter
     the author uses, keeping research and author aligned on what "prose"
     means. Adding an import at the top of this module would create a
@@ -206,7 +206,7 @@ def build_artifact(
     ok = _ok_sources(fetched)
     reports, low_signal_urls = _run_signal_pass(ok, run_dir=run_dir)
 
-    # Phase 4 — JS rendering unlock.
+    # JS rendering unlock.
     # For OK sources the signal gate dropped, check whether the static
     # body looks like an SPA shell. If so, re-render with a headless
     # browser, rewrite the capture in-place, and re-measure signal on
@@ -288,7 +288,7 @@ def build_artifact(
 
     ok_after_filter = _ok_sources(filtered_fetched)
 
-    # Phase 5 — content-based classification + pattern extraction.
+    # Content-based classification + pattern extraction.
     # Runs on sources that survived the signal gate + headless render.
     # Anything classified UNKNOWN is demoted to SKIPPED so the Author
     # Agent never sees cookie-consent / marketing prose that happened
@@ -373,7 +373,7 @@ def build_artifact(
     # If there were no fetches at all, "low" is the honest default.
     quality = classify_quality(reports) if reports else "low"
 
-    # Phase 5 artifact contributions — keep only extractions for sources
+    # Artifact contributions — keep only extractions for sources
     # that actually survived to ok_after_filter (UNKNOWN ones were dropped
     # above, so filter the list down before serialising).
     surviving_urls = {s.ref.url for s in ok_after_filter}
@@ -453,7 +453,7 @@ def _render_summary(artifact: ResearchArtifact, plan: SourcePlan) -> str:
     lines.append("")
 
     if artifact.source_type_reports:
-        lines.append("## Phase 5 — source type classification")
+        lines.append("## Source type classification")
         lines.append("")
         for r in artifact.source_type_reports:
             lines.append(
@@ -469,7 +469,7 @@ def _render_summary(artifact: ResearchArtifact, plan: SourcePlan) -> str:
         + len(patt.get("workflows", []))
     )
     if total_p:
-        lines.append("## Phase 5 — extracted patterns")
+        lines.append("## Extracted patterns")
         lines.append("")
         for bucket in ("usage", "api", "workflows"):
             items = patt.get(bucket, [])

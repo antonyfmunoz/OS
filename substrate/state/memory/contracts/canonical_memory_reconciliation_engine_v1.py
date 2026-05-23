@@ -6,7 +6,7 @@ strengthening opportunities across multi-document ingestion.
 Deterministic. Rule-based. No vector similarity. No opaque AI scoring.
 All decisions produce inspectable receipts with provenance lineage.
 
-UMH substrate subsystem. Phase 96.8BM.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations
@@ -246,7 +246,7 @@ class ReconciliationEngine:
         cand_confidence = candidate.get("confidence", 0.0)
         cand_id = candidate.get("candidate_id", "")
 
-        # Phase 1: exact duplicate by fingerprint
+        # Step 1: exact duplicate by fingerprint
         if cand_fp in self._fingerprint_index:
             matched_id = self._fingerprint_index[cand_fp]
             matched = self._get_memory(matched_id)
@@ -263,7 +263,7 @@ class ReconciliationEngine:
                 strength_after=self._get_strength(matched_id),
             )
 
-        # Phase 2: label + type overlap (semantic near-duplicate or strengthening)
+        # Step 2: label + type overlap (semantic near-duplicate or strengthening)
         best_match: dict[str, Any] | None = None
         best_score = 0.0
         best_memory_id = ""
@@ -329,7 +329,7 @@ class ReconciliationEngine:
                     strength_after=existing_strength + 1,
                 )
 
-        # Phase 3: no match — new memory
+        # Step 3: no match — new memory
         return ReconciliationDecision(
             decision_id=deterministic_id("recon", f"{cand_id}:new"),
             candidate_id=cand_id,

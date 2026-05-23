@@ -327,7 +327,7 @@ def _split_prose_blocks(plain: str) -> list[str]:
 class SectionEvidence:
     """Result of scanning the raw captures for one TME section.
 
-    Phase 6 note: ``patterns`` carries structured signals (install
+    Note: ``patterns`` carries structured signals (install
     commands, setup flows, schemas, workflows) extracted by the research
     agent. The author renderer prefers these over ``excerpts`` because
     they are higher-signal and map cleanly to concrete markdown
@@ -414,7 +414,7 @@ def _scan_capture_for_section(
     return matched, excerpts, blocks_with_hits
 
 
-# Phase 5 — pattern-kind → TME section routing. Mirrors the table in
+# Pattern-kind → TME section routing. Mirrors the table in
 # core.tool_mastery_research_agent.extraction.PATTERN_SECTION_MAP. We copy
 # the map here rather than import so the author agent stays independent
 # of the research agent package at import time.
@@ -478,7 +478,7 @@ def _apply_pattern_evidence(
         + list(extracted_patterns.get("api") or [])
         + list(extracted_patterns.get("workflows") or [])
     )
-    # Phase 6 — patterns are stored as first-class structured evidence
+    # Patterns are stored as first-class structured evidence
     # on each section (draft.py renders them differently from prose).
     # Rules enforced here:
     #   1. Drop low-confidence patterns outright.
@@ -601,7 +601,7 @@ def map_sections(artifact: LoadedArtifact) -> list[SectionEvidence]:
             )
         )
 
-    # Phase 5 — fold structured patterns from the research agent into
+    # Fold structured patterns from the research agent into
     # the evidence list. Patterns can upgrade an uncovered section to
     # sourced because they carry their own provenance + confidence.
     if artifact.extracted_patterns:

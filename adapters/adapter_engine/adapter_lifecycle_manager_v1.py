@@ -7,7 +7,7 @@ Adapter states: AVAILABLE → BUSY → AVAILABLE
                 AVAILABLE → DEGRADED → AVAILABLE | OFFLINE
                 AVAILABLE → OFFLINE → AVAILABLE (via explicit recovery)
 
-UMH substrate subsystem. Phase 96.8BO.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

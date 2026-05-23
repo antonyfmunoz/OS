@@ -3,7 +3,7 @@
 Stores promoted canonical and instance memories with full provenance lineage.
 JSONL-backed: one record per line, append-only, deterministic IDs.
 
-UMH substrate subsystem. Phase 96.8BJ.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

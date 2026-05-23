@@ -5,7 +5,7 @@ and emits normalized documents ready for primitive decomposition.
 
 This is a translation layer only. It does NOT re-extract or re-scan.
 
-UMH substrate subsystem. Phase 96.8BJ.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

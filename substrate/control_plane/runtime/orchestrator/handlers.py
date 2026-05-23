@@ -19,7 +19,7 @@ Handlers follow three rules:
 3. Always return a dict with an "ok" key so the orchestrator and
    loop reports can distinguish success from failure uniformly.
 
-Three handlers ship in Phase 6:
+Three signal handlers:
 
 - handle_deferred_stale        — log + file-notify operator about a
                                  stale deferred action. No approval.

@@ -4,7 +4,7 @@ Initializes all required runtime directories, proof folders,
 config markers, and registry caches. Provides a single bootstrap
 lifecycle that all runtime systems depend on.
 
-Phase 96.8AL. UMH substrate.
+UMH substrate.
 """
 
 from __future__ import annotations

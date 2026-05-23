@@ -153,10 +153,10 @@ class ResearchArtifact:
     quality: str = "low"
     # Per-source signal reports (pre-author-agent prose density check).
     signal_reports: list[dict[str, Any]] = field(default_factory=list)
-    # Phase 5 — per-source content classification reports.
+    # Per-source content classification reports.
     # Each entry is a SourceTypeReport.to_dict().
     source_type_reports: list[dict[str, Any]] = field(default_factory=list)
-    # Phase 5 — structured patterns extracted from OK, classified sources.
+    # Structured patterns extracted from OK, classified sources.
     # Shape: {"usage": [...], "api": [...], "workflows": [...]}.
     # Each pattern dict carries kind, excerpt, url, confidence, occurrences,
     # and structured flags so the Author Agent can route by kind.

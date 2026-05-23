@@ -15,7 +15,7 @@ If local is behind, the gate either:
 
 No WorkPacket crosses the VPS→local boundary unless this gate passes.
 
-UMH substrate subsystem. Phase 96.8AF.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

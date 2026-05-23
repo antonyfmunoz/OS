@@ -4,7 +4,7 @@ Append-only JSONL persistence for runtime continuity data:
 events, traces, outcomes, context updates, continuity snapshots,
 open loops, and resume packets.
 
-UMH substrate subsystem. Phase 96.8BN.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

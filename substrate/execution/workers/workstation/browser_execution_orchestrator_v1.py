@@ -12,7 +12,7 @@ Coordinates browser/GUI execution through the governed pipeline:
 
 No browser/GUI adapter can be called directly outside this orchestrator.
 
-UMH substrate subsystem. Phase 96.8BQ.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

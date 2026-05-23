@@ -10,7 +10,7 @@ Coordinates execution across governed adapters:
 The execution coordinator cannot execute directly.
 It only coordinates governed adapters through their engines.
 
-UMH substrate subsystem. Phase 96.8BR.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

@@ -6,7 +6,7 @@ context updates, continuity state, session summaries, resume packets.
 All contracts are immutable after creation. All carry provenance.
 All serialize deterministically.
 
-UMH substrate subsystem. Phase 96.8BN.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

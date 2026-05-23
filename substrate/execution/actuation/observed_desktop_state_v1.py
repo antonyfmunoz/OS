@@ -8,7 +8,7 @@ Composes with the existing ObservedDesktopState in
 windows_foreground_actuator_v1.py but adds maturity-aware
 classification and proof evidence extraction.
 
-UMH substrate subsystem. Phase 96.8AN.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

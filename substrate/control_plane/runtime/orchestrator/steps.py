@@ -18,7 +18,7 @@ Also exposes two ActionStep factories for use inside a Pipeline:
     - script_step(...)   → ActionStep that invokes a shell script
     - api_step(...)      → ActionStep for call_api actions
 
-These make pipeline composition (Phase 4 of the orchestrator build)
+These make pipeline composition
 read closer to declarative config than boilerplate.
 """
 

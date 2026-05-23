@@ -9,7 +9,7 @@ Tracks:
   - continuity sessions
   - runtime lineage
 
-UMH substrate subsystem. Phase 96.8BR.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

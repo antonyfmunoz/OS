@@ -16,7 +16,7 @@ or mutate canonical structures autonomously.
 
 All governance evolution remains founder-governed.
 
-UMH substrate subsystem. Phase 96.8AY.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

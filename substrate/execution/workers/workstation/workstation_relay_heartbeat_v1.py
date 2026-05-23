@@ -4,7 +4,7 @@ Extends the existing RuntimeHeartbeat with workstation-specific
 fields (desktop state, Chrome availability, relay identity).
 Read/write from the canonical heartbeat path.
 
-UMH substrate subsystem. Phase 96.8AO.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

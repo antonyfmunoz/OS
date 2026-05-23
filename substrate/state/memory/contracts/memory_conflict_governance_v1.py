@@ -6,7 +6,7 @@ Surfaces conflicts for human review. Does NOT auto-resolve.
 Conflicts are persisted, queryable, and linked to their
 reconciliation receipts.
 
-UMH substrate subsystem. Phase 96.8BM.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

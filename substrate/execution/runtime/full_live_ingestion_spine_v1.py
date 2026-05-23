@@ -1,7 +1,7 @@
 """Full Live Ingestion Spine v1 for the UMH substrate layer.
 
-Composes the governed execution spine (Phase 96.8AF) with the
-Drive/Docs ingestion pipeline (Phase 96.8AB) into a single
+Composes the governed execution spine with the
+Drive/Docs ingestion pipeline into a single
 end-to-end ingestion chain:
 
   Discord !ingest-safe-doc
@@ -14,7 +14,7 @@ Identity-scoped: every artifact carries source_account_id,
 adapter_instance_id, and governance_scope. This prevents
 memory contamination across future ingestion lanes.
 
-UMH substrate subsystem. Phase 96.8AG.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

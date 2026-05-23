@@ -3,7 +3,7 @@
 Handles proof artifacts from real workstation relay execution.
 Reads relay output, classifies maturity, and persists proof.
 
-UMH substrate subsystem. Phase 96.8AO.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

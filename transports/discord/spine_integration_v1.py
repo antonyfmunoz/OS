@@ -4,11 +4,11 @@ Wires Discord commands through the full governed execution spine:
   Discord command → WorkPacket → Authority → Gate → Dispatch
   → Supervisor → Worker → Proof → Ledger → Reply
 
-This module composes existing infrastructure from Phase 96.8AE
-(LiveLocalRuntimeExecution) with the Discord interface adapter.
+This module composes existing infrastructure from
+LiveLocalRuntimeExecution with the Discord interface adapter.
 No new abstractions — pure composition.
 
-UMH substrate subsystem. Phase 96.8AF.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

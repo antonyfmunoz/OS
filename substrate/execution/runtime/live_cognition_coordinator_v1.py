@@ -11,7 +11,7 @@ Coordinates the cognitive phase of runtime spine traversal:
 The cognition coordinator does NOT execute.
 It only produces plans and context for the execution coordinator.
 
-UMH substrate subsystem. Phase 96.8BR.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

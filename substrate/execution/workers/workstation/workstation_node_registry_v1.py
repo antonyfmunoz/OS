@@ -3,7 +3,7 @@
 Tracks known workstation relay nodes and provides lookups
 for the control plane. Currently single-node (founder's workstation).
 
-UMH substrate subsystem. Phase 96.8AO.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

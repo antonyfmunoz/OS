@@ -10,7 +10,7 @@ Modes:
   audit_mode          — logging-only, no execution
   overnight_safe_mode — minimal safe operations, heightened governance
 
-UMH substrate subsystem. Phase 96.8BP.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

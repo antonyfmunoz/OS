@@ -11,7 +11,7 @@ Coordinates workstation execution through the governed pipeline:
 
 No adapter can be called directly from outside this orchestrator.
 
-UMH substrate subsystem. Phase 96.8BP.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

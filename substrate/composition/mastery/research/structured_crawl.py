@@ -1,8 +1,8 @@
 """Structured crawl expansion for the Tool Mastery Research Agent.
 
-Phase 3 unlock: some vendor docs sites expose almost no machine-
+Structured crawl unlock: some vendor docs sites expose almost no machine-
 readable surface (no sitemap, no llms.txt, SPA shell, bot-walled
-aggregator search). For those tools, Phases 1 and 2 cannot find
+aggregator search). For those tools, registry and sitemap discovery cannot find
 anything past a single landing page. The only remaining honest move
 is to take an *already-approved* doc page and follow its in-page
 links — ONE step, same host only, doc-shaped paths only — to see
@@ -14,7 +14,7 @@ rooted exclusively in trusted entry points:
     - registry / official_url hints
     - accepted candidate approvals
     - GitHub extractor outputs
-    - sitemap / llms.txt discoveries (Phase 2)
+    - sitemap / llms.txt discoveries
 
 Hard guardrails (intentional — the whole feature is the guardrails):
 
@@ -24,10 +24,10 @@ Hard guardrails (intentional — the whole feature is the guardrails):
     * ``MAX_NEW_URLS_PER_HOST``  — per-host cap so one chatty nav bar
                                    cannot crowd other tools out of budget.
     * Same host only             — no cross-origin link following, ever.
-    * Doc-path allowlist         — inherits Phase 2 ``_DOC_PATH_HINTS``.
-    * Reject list                — inherits Phase 2 ``_REJECT_PATH_HINTS``.
+    * Doc-path allowlist         — inherits ``_DOC_PATH_HINTS`` from docs site discovery.
+    * Reject list                — inherits ``_REJECT_PATH_HINTS`` from docs site discovery.
     * Topical relevance          — same ``_topically_relevant`` rule as
-                                   Phase 2: slug must appear in host or path.
+                                   slug must appear in host or path.
     * No querystring-heavy URLs  — if the query string is longer than
                                    the path, we treat it as an app route.
     * No fragment-only hits      — ``/foo#bar`` collapses to ``/foo``.
@@ -182,7 +182,7 @@ def _http_get(url: str) -> tuple[bytes | None, str | None]:
         return None, f"network error: {err}"
     if "html" not in ctype and "xml" not in ctype:
         # We only follow links out of HTML pages. XML (sitemaps) is
-        # already handled by Phase 2; plain text, JSON, binaries are
+        # already handled by sitemap discovery; plain text, JSON, binaries are
         # not crawl surfaces.
         return None, f"non-html content-type: {ctype or 'unknown'}"
     return body[:MAX_BYTES], None
@@ -255,8 +255,8 @@ def crawl_approved_docs(
     Parameters
     ----------
     approved_refs:
-        SourceRefs from trusted upstream discovery (registry, Phase 1
-        GitHub expansion, Phase 2 sitemap/llms). Non-HTTP refs and
+        SourceRefs from trusted upstream discovery (registry,
+        GitHub expansion, sitemap/llms discovery). Non-HTTP refs and
         refs pointing at aggregator hosts in ``_DISCOVERY_SKIP_HOSTS``
         are skipped.
     tool_slug:

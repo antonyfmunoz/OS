@@ -1,6 +1,6 @@
 """Draft authored section content from SectionEvidence.
 
-Phase 6 — Author Intelligence. Takes the evidence output of mapping.py
+Author Intelligence. Takes the evidence output of mapping.py
 and renders it as markdown. Pattern-priority: structured signals (install
 commands, setup flows, JSON schema fields, workflow sequences) are
 rendered as concrete markdown primitives (code fences, ordered lists),
@@ -67,7 +67,7 @@ _PATTERN_LABELS: dict[str, str] = {
     "stepwise_workflow": "stepwise workflow",
     "ordered_workflow": "ordered workflow",
     "workflow_sequence": "workflow sequence",
-    # Phase 7 — code/config extraction kinds
+    # Code/config extraction kinds
     "version_header": "version header",
     "version_constraint": "version constraint",
     "pinned_dependencies": "pinned dependencies",
@@ -108,7 +108,7 @@ def _render_ordered_list(excerpt: str) -> list[str]:
 def _render_pattern(pattern: dict) -> list[str]:
     """Render a single structured pattern as markdown lines.
 
-    Phase 6 grounding contract: every pattern block starts with a
+    Grounding contract: every pattern block starts with a
     `[SOURCE: url]` line and names its pattern kind, so the reader can
     see both the evidence and the provenance at once.
     """
@@ -152,7 +152,7 @@ def _render_prose_excerpt(excerpt: str, index: int) -> list[str]:
 def _looks_marketing(text: str) -> bool:
     """Detect marketing/fluff phrases that should be rejected.
 
-    Phase 6 quality constraint: generic summaries and marketing language
+    Quality constraint: generic summaries and marketing language
     are not mastery signal. We prefer concrete patterns over vague
     prose. This gate catches the most obvious offenders without trying
     to be an LLM.
@@ -209,7 +209,7 @@ def _render_sourced_content(ev: SectionEvidence) -> tuple[str, str, int]:
             include_prose = True
         elif prose_urls_new:
             # Multi-source synthesis: prose adds a distinct URL not
-            # already covered by a pattern. Phase 6 allows this because
+            # already covered by a pattern. This is allowed because
             # we still ground each excerpt against its own source.
             include_prose = True
 
@@ -283,7 +283,7 @@ def _has_usable_evidence(ev: SectionEvidence) -> bool:
 def build_drafts(evidence: list[SectionEvidence]) -> list[SectionDraft]:
     """Convert every piece of evidence into a SectionDraft.
 
-    Phase 6 honest-fallback rule: a section with zero patterns AND no
+    Honest-fallback rule: a section with zero patterns AND no
     non-marketing prose remains uncovered even if ``ev.sourced`` is
     True. We do not force completion.
     """

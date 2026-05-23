@@ -5,7 +5,7 @@ session summaries, restart summaries, operator briefings.
 
 Deterministic. No LLM calls. Pure data aggregation.
 
-UMH substrate subsystem. Phase 96.8BN.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

@@ -12,7 +12,7 @@ same risk classification.
 
 Persist proofs to: data/runtime/workstation_replay_proofs/
 
-UMH substrate subsystem. Phase 96.8BP.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

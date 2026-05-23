@@ -9,7 +9,7 @@ Capability types:
   GOOGLE_DRIVE_SAFE_OPEN — open a pre-configured safe Drive URL
   (no arbitrary navigation)
 
-UMH substrate subsystem. Phase 96.8AB.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

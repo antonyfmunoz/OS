@@ -87,7 +87,7 @@ def register_default_workflows(orch: Orchestrator | None = None) -> list[str]:
         orch.register_workflow(name, _wrap_main(module_path))
         registered.append(name)
 
-    # Phase 6: signal handler workflows. These close the loop that
+    # Signal handler workflows. These close the loop that
     # `core.orchestrator.loop` opens — the loop observes + emits, the
     # handlers react. They are registered as plain callables because
     # they call `run_action()` internally when any side effect is

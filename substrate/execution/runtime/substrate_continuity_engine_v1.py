@@ -7,7 +7,7 @@ Preserves deterministic replay and source provenance.
 
 Observe + persist only. Does NOT mutate runtime behavior.
 
-UMH substrate subsystem. Phase 96.8BN.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

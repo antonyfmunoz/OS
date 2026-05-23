@@ -2,7 +2,7 @@
 
 Typed descriptors for worker runtimes, environment authority,
 and runtime proof records. These are architectural primitives
-that formalize what Phase 96.8J-K proved empirically.
+that formalize what earlier runtime builds proved empirically.
 
 UMH substrate subsystem. EOS is one platform consumer.
 """

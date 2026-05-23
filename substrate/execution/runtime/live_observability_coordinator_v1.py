@@ -9,7 +9,7 @@ Unifies all observability across the live runtime spine:
 
 Persist to: data/runtime/live_runtime_observability/
 
-UMH substrate subsystem. Phase 96.8BR.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations

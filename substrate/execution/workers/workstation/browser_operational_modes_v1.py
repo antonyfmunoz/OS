@@ -10,7 +10,7 @@ Modes:
   internal_navigation_mode — local/internal URL navigation, no external
   restricted_execution_mode — controlled visible actions on approved targets
 
-UMH substrate subsystem. Phase 96.8BQ.
+UMH substrate subsystem.
 """
 
 from __future__ import annotations
