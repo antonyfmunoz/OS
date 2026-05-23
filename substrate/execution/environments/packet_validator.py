@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from control_plane.invariants.spine_coherence_validator import validate_coherence_envelope_dict
+from substrate.control_plane.invariants.spine_coherence_validator import validate_coherence_envelope_dict
 from .execution_binding_validator import validate_execution_binding_dict
 from .work_packet import (
     WorkPacket,
