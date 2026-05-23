@@ -190,19 +190,22 @@ Windows Beast (GPU workhorse — C:\dev\dev\):
 Before storing any large artifact, ask:
 does this node's role require it? If no, don't put it here.
 
-## Key files (post-unification)
-substrate/types.py              — single Pydantic type system (30+ models)
-substrate/__init__.py           — Substrate public API (execute, query, register, status)
-substrate/control_plane/        — identity, context, governance, memory, registry, router
-substrate/execution/spine.py    — 8-stage execution pipeline
-substrate/execution/trace.py    — trace recorder
-substrate/execution/feedback.py — feedback capture
-substrate/ontology/             — laws, primitives, relationships
-adapters/models/model_router.py — intelligence routing (call_with_fallback)
-adapters/models/llm_adapter.py  — LLM adapter wrapping model_router
-transports/discord/bot.py       — Discord bot (substrate-wired)
-transports/discord/signal_factory.py — message → SignalEnvelope
-services/discord_bot.py         — legacy Discord bot (compatibility)
+## Key files (post-convergence 2026-05-23)
+substrate/types.py                    — single Pydantic type system (30+ models)
+substrate/__init__.py                 — Substrate public API (execute, query, register, status)
+substrate/control_plane/runtime/      — gateway.py, cognitive_loop.py (core runtime)
+substrate/execution/spine.py          — 8-stage execution pipeline
+substrate/execution/bridge/           — session management, mode routing, voice sessions
+substrate/sockets/notification.py     — abstract notification port (transports register at boot)
+substrate/sockets/channel_port.py     — abstract channel router port
+substrate/observability/error_recorder.py — centralized error recording (single source of truth)
+substrate/ontology/                   — laws, primitives, relationships
+adapters/models/model_router.py       — intelligence routing (call_with_fallback)
+services/discord_bot.py               — production Discord bot entrypoint
+services/discord_message_handlers.py  — extracted message handler functions
+services/discord_bot_commands.py      — extracted bot command functions
+transports/presence/handlers/substrate_command_handler.py — substrate command dispatch
+transports/presence/handlers/report_handlers.py           — extracted report handlers
 
 ## Obsidian Backlinks
 When writing .md files in knowledge/ or vault/:
@@ -339,3 +342,45 @@ fallback. Output schema per observation:
 
 Proofs:
   data/runtime/canonical_memory_store/proofs/
+
+## Completion Standards (NON-NEGOTIABLE)
+These rules exist because every one was violated and caused real failures.
+
+- NEVER claim "done" without running a verification pass that tries to break your own work
+- NEVER answer "is it done?" from memory — audit the actual codebase state and answer from observation
+- The user should NEVER have to ask for the same thing twice. If they repeat themselves, you failed.
+- After code changes to services/, restart affected Docker containers and verify clean startup from logs
+- Docker containers run Python 3.11 — never use Python 3.12+ syntax (backslash in f-string expressions, etc.)
+- Before reporting completion: run full test suite, grep for stale imports, check dependency direction, verify no god files, test in deployment env
+- After fixing things, re-audit as a hostile reviewer trying to find what you missed
+- The verification pass must be MORE thorough than the implementation pass
+
+## Codebase Quality Standards (enforced always)
+These are constraints, not aspirations. Every commit must maintain them.
+
+- No Python file over 3,000 lines — split before moving on
+- substrate/ NEVER imports from transports/ or services/ — use abstract ports in substrate/sockets/
+- No duplicate function definitions across files — centralize in one canonical location
+- No silent except-pass — every caught exception gets at minimum logger.debug()
+- No stale comments (phase markers, old system names, dead TODOs)
+- No hardcoded /opt/OS paths — use os.environ.get("UMH_ROOT") or "/opt/OS"
+- Architecture names must be accurate (UMH, not AgentOS or EOS for the system itself)
+- After refactoring: check that tests asserting on source code strings still match
+
+## UMH Architecture Contract (post-convergence 2026-05-23)
+Four canonical packages — all code lives here or imports from here:
+  substrate/    — the UMH brain (control plane, execution, governance, state, understanding)
+  adapters/     — external system adapters (models, calendar, google workspace, browser)
+  transports/   — I/O surfaces (discord, API, presence handlers, node mesh)
+  projections/  — platform-specific views (EOS agents, workflows)
+
+Support directories (not code):
+  services/     — deployment entrypoints (discord_bot.py, APIs)
+  daemon/       — Windows node daemon
+  scripts/      — operational scripts
+  tests/        — test suite
+
+Dependency direction: projections → transports → adapters → substrate
+  substrate is the innermost layer. It never reaches outward.
+  If substrate needs transport functionality, create an abstract port
+  in substrate/sockets/ and register the concrete implementation at startup.
