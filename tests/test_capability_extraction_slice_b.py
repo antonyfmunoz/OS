@@ -204,7 +204,7 @@ class TestFullOrchestratorMocked:
         mock_research_result.artifact_path = str(artifact_path)
         mock_research_result.run_dir = str(artifact_dir)
 
-        from composition.mastery.research.models import ResearchStatus
+        from substrate.composition.mastery.research.models import ResearchStatus
 
         mock_research_result.status = ResearchStatus.OK
 

@@ -31,7 +31,7 @@ from adapters.adapter_engine.capability_discovery import (
 from adapters.adapter_engine.google_drive_adapter_v1 import GoogleDriveAdapterV1
 from adapters.adapter_engine.modality import ModalityType
 from adapters.adapter_engine.participant import ParticipantType
-from composition.mastery.research.models import SourcePlan
+from substrate.composition.mastery.research.models import SourcePlan
 
 
 class TestCatalogEntryConstructs:

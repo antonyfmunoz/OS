@@ -30,7 +30,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__f
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from composition.registries.canonical_command_registry_v1 import get_canonical_registry
+from substrate.composition.registries.canonical_command_registry_v1 import get_canonical_registry
 from transports.discord.interface_adapter_v1 import (
     COMMAND_ACTION_MAP,
     COMMAND_CONTRACT,

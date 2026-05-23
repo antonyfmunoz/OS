@@ -141,8 +141,8 @@ def _run_phase5_extraction(
     research → author hard dependency for test collection.
     """
 
-    from composition.mastery.authoring.loader import sanitize_text
-    from composition.mastery.authoring.mapping import (
+    from substrate.composition.mastery.authoring.loader import sanitize_text
+    from substrate.composition.mastery.authoring.mapping import (
         _split_prose_blocks,
         _strip_html,
     )

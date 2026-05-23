@@ -21,20 +21,20 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
-from composition.mastery.authoring.loader import (
+from substrate.composition.mastery.authoring.loader import (
     LoadedArtifact,
     RawCapture,
     load_artifact,
     sanitize_text,
 )
-from composition.mastery.authoring.mapping import (
+from substrate.composition.mastery.authoring.mapping import (
     _split_prose_blocks,
     _strip_html,
     map_sections,
 )
-from composition.mastery.authoring.draft import build_drafts
-from composition.mastery.research.artifact import TME_SECTIONS
-from composition.mastery.research.extraction import (
+from substrate.composition.mastery.authoring.draft import build_drafts
+from substrate.composition.mastery.research.artifact import TME_SECTIONS
+from substrate.composition.mastery.research.extraction import (
 
     extract_from_source,
     merge_extractions,
