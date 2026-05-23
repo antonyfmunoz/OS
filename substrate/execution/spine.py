@@ -7,14 +7,19 @@ If all providers fail, returns a heuristic response based on intent classificati
 
 Source mapping:
 - cognitive_loop.py (1,448 lines) → 8 stages
+- gateway.py (2,063 lines) → intent classification, routing, fix-forever
+- intent_handler.py (410 lines) → deterministic intent patterns
+- capability_router.py (610 lines) → capability selection
 - execution_spine.py → thin execution
-- pipeline.py → 10-stage pipeline
 """
 
 from __future__ import annotations
 
+import json
 import re
 import time
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 from uuid import UUID, uuid4
 
@@ -45,14 +50,35 @@ class ExecutionSpine(Protocol):
 
 
 # ─── Deterministic intent classification ────────────────────────────────────
+# Merged from gateway.py, intent_handler.py, and cognitive_loop.py.
+# Order matters: more specific patterns first, general patterns last.
 
-_INTENT_PATTERNS: dict[str, re.Pattern] = {
-    "greeting": re.compile(r"\b(hi|hello|hey|good morning|good evening)\b", re.I),
-    "question": re.compile(r"\?$|^(what|how|why|when|where|who|can you)\b", re.I),
-    "command": re.compile(r"^(do|make|create|build|run|start|stop|send|update|delete)\b", re.I),
-    "status": re.compile(r"\b(status|progress|update|report)\b", re.I),
-    "analysis": re.compile(r"\b(analyze|assess|evaluate|review|check)\b", re.I),
-}
+_INTENT_PATTERNS: list[tuple[re.Pattern, str]] = [
+    (re.compile(r"\b(schedule|book|calendar|meeting|appointment|remind)\b", re.I), "schedule"),
+    (re.compile(r"\b(send|email|message|notify|alert|dm)\b", re.I), "send"),
+    (re.compile(r"\b(status|progress|update|report|check|pipeline|dashboard)\b", re.I), "status"),
+    (
+        re.compile(r"\b(analy[sz]e|assess|evaluate|review|research|investigate|compare)\b", re.I),
+        "analysis",
+    ),
+    (
+        re.compile(
+            r"\?$|^(what|how|why|when|where|who|can you|could you|is there|are there)\b", re.I
+        ),
+        "question",
+    ),
+    (
+        re.compile(
+            r"^(do|make|create|build|run|start|stop|deploy|fix|update|delete|add|remove|set)\b",
+            re.I,
+        ),
+        "command",
+    ),
+    (
+        re.compile(r"\b(hi|hello|hey|good morning|good evening|good afternoon|yo|sup)\b", re.I),
+        "greeting",
+    ),
+]
 
 _DETERMINISTIC_RESPONSES: dict[str, str] = {
     "greeting": "Hello! I'm here and ready to help. What would you like to work on?",
@@ -60,23 +86,53 @@ _DETERMINISTIC_RESPONSES: dict[str, str] = {
     "command": "I'll process that request. Working on it now.",
     "status": "Let me check the current status for you.",
     "analysis": "I'll analyze that for you. Let me review the relevant information.",
+    "schedule": "I'll help you schedule that. Let me check availability.",
+    "send": "I'll prepare that communication. Let me draft it for your review.",
     "unknown": "I've received your message and I'm processing it.",
 }
 
 
+# ─── Fix-forever error recording ───────────────────────────────────────────
+
+_ERROR_LOG_PATH = Path("/opt/OS/logs/spine_errors.jsonl")
+
+
+def _record_error(component: str, error: str, context: dict[str, Any] | None = None) -> None:
+    """Fix-forever error recording. Every error logged with context for pattern detection."""
+    try:
+        _ERROR_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        entry = {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "component": component,
+            "error": str(error)[:500],
+            "context": {k: str(v)[:200] for k, v in (context or {}).items()},
+        }
+        with _ERROR_LOG_PATH.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(entry) + "\n")
+    except Exception:
+        pass
+
+
+# ─── Concrete execution spine ──────────────────────────────────────────────
+
+
 class ConcreteExecutionSpine:
-    """8-stage execution pipeline with deterministic-first fallback.
+    """8-stage execution pipeline with deterministic-first + AI enhancement.
 
     Stages:
         0. Governance check (pre-gate)
         1. Interpret — deterministic intent classification via regex
         2. Recall — memory search for relevant context
         3. Lookup — find capable adapters in registry
-        4. Compose — build prompt with assembled context
+        4. Compose — build prompt with identity, memory, conversation history
         5. Route — select provider (deterministic: model_router chain)
         6. Execute — call provider, fall back to heuristic response
         7. Trace — record execution trace
         8. Feedback — capture quality signal for learning loop
+
+    Deterministic-first principle: always produce a deterministic response
+    first, then try AI enhancement. If AI produces a better result, use it.
+    If AI fails, the deterministic result is already available.
     """
 
     def __init__(
@@ -124,7 +180,7 @@ class ConcreteExecutionSpine:
             trace.add_event(TraceEventType.SIGNAL_RECEIVED, f"Intent: {intent}")
 
             # Stage 2: Recall — memory search
-            memories = []
+            memories: list[Any] = []
             if self._memory:
                 try:
                     query = MemoryQuery(query_text=signal.content, limit=5)
@@ -133,19 +189,22 @@ class ConcreteExecutionSpine:
                         TraceEventType.MEMORY_RECALLED,
                         f"Recalled {len(memories)} memories",
                     )
-                except Exception:
+                except Exception as e:
+                    _record_error("spine.recall", str(e), {"signal_id": str(signal.id)})
                     trace.add_event(
                         TraceEventType.MEMORY_RECALLED,
                         "Memory recall failed, continuing",
                     )
 
             # Stage 3: Lookup — find capable adapters
-            adapters = []
+            adapters: list[Any] = []
             if self._registry:
                 try:
                     from substrate.types import ComponentType
 
-                    adapters = await self._registry.lookup(component_type=ComponentType.ADAPTER)
+                    adapters = await self._registry.lookup(
+                        component_type=ComponentType.ADAPTER,
+                    )
                     trace.add_event(
                         TraceEventType.ADAPTER_CALLED,
                         f"Found {len(adapters)} adapters",
@@ -153,16 +212,25 @@ class ConcreteExecutionSpine:
                 except Exception:
                     pass
 
-            # Stage 4: Compose — build prompt with context
+            # Stage 4: Compose — build prompt with full context
             memory_context = "\n".join(m.content for m in memories[:3]) if memories else ""
-            prompt = self._compose_prompt(signal.content, context, memory_context, intent)
+            prompt = self._compose_prompt(
+                signal.content,
+                context,
+                memory_context,
+                intent,
+            )
             trace.add_event(
                 TraceEventType.PLAN_COMPOSED,
                 f"Prompt composed ({len(prompt)} chars)",
             )
 
-            # Stage 5-6: Route + Execute — try LLM, fall back to deterministic
-            output = ""
+            # Stage 5-6: Route + Execute — deterministic result THEN AI enhancement
+            deterministic_output = _DETERMINISTIC_RESPONSES.get(
+                intent,
+                _DETERMINISTIC_RESPONSES["unknown"],
+            )
+            output = deterministic_output
             provider = "deterministic"
             model = "heuristic"
 
@@ -173,18 +241,25 @@ class ConcreteExecutionSpine:
                 from adapters.models.model_router import call_with_fallback
 
                 llm_response = call_with_fallback(prompt)
-                if llm_response and llm_response.strip():
+                if llm_response and hasattr(llm_response, "output") and llm_response.output.strip():
+                    output = llm_response.output.strip()
+                    provider = llm_response.provider
+                    model = llm_response.model
+                elif isinstance(llm_response, str) and llm_response.strip():
                     output = llm_response.strip()
                     provider = "model_router"
                     model = "auto"
-                    trace.add_event(
-                        TraceEventType.ADAPTER_RESPONDED,
-                        f"LLM response: {len(output)} chars",
-                    )
-                else:
-                    raise ValueError("Empty LLM response")
-            except Exception:
-                output = _DETERMINISTIC_RESPONSES.get(intent, _DETERMINISTIC_RESPONSES["unknown"])
+
+                trace.add_event(
+                    TraceEventType.ADAPTER_RESPONDED,
+                    f"AI response: {len(output)} chars via {provider}",
+                )
+            except Exception as e:
+                _record_error(
+                    "spine.execute",
+                    str(e),
+                    {"signal_id": str(signal.id), "intent": intent},
+                )
                 trace.add_event(
                     TraceEventType.ADAPTER_RESPONDED,
                     f"Deterministic fallback: {intent}",
@@ -215,21 +290,37 @@ class ConcreteExecutionSpine:
                 try:
                     feedback = await self._feedback.capture(trace, result)
                     await self._feedback.persist(feedback)
-                    trace.add_event(TraceEventType.FEEDBACK_CAPTURED, "Feedback captured")
-                except Exception:
-                    pass
+                    trace.add_event(
+                        TraceEventType.FEEDBACK_CAPTURED,
+                        "Feedback captured",
+                    )
+                except Exception as e:
+                    _record_error(
+                        "spine.feedback",
+                        str(e),
+                        {"signal_id": str(signal.id)},
+                    )
 
             # Persist trace
             if self._trace:
                 try:
                     await self._trace.persist(trace)
-                except Exception:
-                    pass
+                except Exception as e:
+                    _record_error(
+                        "spine.trace_persist",
+                        str(e),
+                        {"signal_id": str(signal.id)},
+                    )
 
             return result
 
         except Exception as e:
             duration = (time.monotonic() - start) * 1000
+            _record_error(
+                "spine.execute_outer",
+                str(e),
+                {"signal_id": str(signal.id)},
+            )
             trace.add_event(TraceEventType.ERROR, str(e)[:300])
             trace.complete(success=False)
             if self._trace:
@@ -246,8 +337,12 @@ class ConcreteExecutionSpine:
             )
 
     def _classify_intent(self, content: str) -> str:
-        """Deterministic intent classification via regex patterns."""
-        for intent, pattern in _INTENT_PATTERNS.items():
+        """Deterministic intent classification via regex patterns.
+
+        Patterns are ordered: specific intents first (schedule, send),
+        general intents last (command, greeting). First match wins.
+        """
+        for pattern, intent in _INTENT_PATTERNS:
             if pattern.search(content):
                 return intent
         return "unknown"
@@ -259,7 +354,11 @@ class ConcreteExecutionSpine:
         memory_context: str,
         intent: str,
     ) -> str:
-        """Build the execution prompt with full context."""
+        """Build the execution prompt with full context.
+
+        Includes: identity, personality, memory context,
+        conversation history, detected intent, and user message.
+        """
         parts = [
             f"You are {context.identity.ai_name}, an AI operating in "
             f"{context.identity.business_stage} stage.",
@@ -267,6 +366,12 @@ class ConcreteExecutionSpine:
         ]
         if memory_context:
             parts.append(f"\nRelevant context:\n{memory_context}")
+        if context.conversation_history:
+            recent = context.conversation_history[-5:]
+            history = "\n".join(
+                f"{m.get('role', 'user')}: {m.get('content', '')[:200]}" for m in recent
+            )
+            parts.append(f"\nRecent conversation:\n{history}")
         parts.append(f"\nIntent detected: {intent}")
         parts.append(f"\nUser message: {content}")
         parts.append("\nRespond helpfully and concisely.")
