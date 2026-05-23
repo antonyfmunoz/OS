@@ -7,10 +7,13 @@ Substrate.register().
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import time
 
 from substrate.types import (
     Component,
+    ComponentType,
     ExecutionResult,
     MemoryEntry,
     MemoryQuery,
@@ -28,6 +31,8 @@ from substrate.control_plane.router import ConcreteSignalRouter
 from substrate.execution.trace import ConcreteTraceRecorder
 from substrate.execution.feedback import ConcreteFeedbackCapture
 from substrate.execution.spine import ConcreteExecutionSpine
+
+logger = logging.getLogger(__name__)
 
 
 class Substrate:
@@ -58,6 +63,42 @@ class Substrate:
             trace_recorder=self.trace,
             feedback_capture=self.feedback,
         )
+        self._register_boot_adapters()
+
+    def _register_boot_adapters(self) -> None:
+        """Register built-in adapters at boot time.
+
+        Runs synchronously during __init__. Uses run_until_complete when no
+        event loop is running; schedules as a task when one is already active.
+        """
+        try:
+            loop = asyncio.get_running_loop()
+            # Already inside a running loop — schedule as a background task.
+            loop.create_task(self._do_register_boot_adapters())
+        except RuntimeError:
+            # No running event loop — safe to run synchronously.
+            asyncio.run(self._do_register_boot_adapters())
+
+    async def _do_register_boot_adapters(self) -> None:
+        """Async implementation: build and register the LLM adapter component."""
+        try:
+            from adapters.models.llm_adapter import LLMAdapter
+
+            adapter = LLMAdapter()
+            component = Component(
+                component_type=ComponentType.ADAPTER,
+                name=adapter.name,
+                capabilities=adapter.capabilities(),
+                metadata={
+                    "adapter_id": str(adapter.adapter_id),
+                    "adapter_type": adapter.adapter_type,
+                },
+            )
+            await self.registry.register(component)
+            logger.debug("Boot adapter registered: %s", adapter.name)
+        except Exception as exc:
+            # Non-fatal — substrate can still operate without LLM at boot.
+            logger.warning("Failed to register boot adapter: %s", exc)
 
     async def execute(self, signal: SignalEnvelope) -> ExecutionResult:
         """Route a signal through the full substrate lifecycle."""
@@ -83,7 +124,9 @@ class Substrate:
             "feedback": "ok",
             "spine": "ok",
         }
-        healthy = all(v == "ok" for v in subsystems.values())
+        # "degraded" means reduced capability (e.g. no Neon backing), not broken.
+        # Only "error" or "unavailable" states make the substrate unhealthy.
+        healthy = all(v in ("ok", "degraded") for v in subsystems.values())
         return SubstrateStatus(
             healthy=healthy,
             subsystems=subsystems,
