@@ -162,10 +162,8 @@ class GovernanceVerdict(BaseModel):
     decided_by: str = Field(default="substrate", max_length=80)
 
     def is_executable(self) -> bool:
-        return self.decision in (
-            GovernanceDecision.APPROVE,
-            GovernanceDecision.CONDITIONAL,
-        )
+        # CONDITIONAL excluded until condition enforcement is implemented
+        return self.decision == GovernanceDecision.APPROVE
 
 
 # ─── Execution ───────────────────────────────────────────────────────────────

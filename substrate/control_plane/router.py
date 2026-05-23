@@ -86,7 +86,7 @@ class ConcreteSignalRouter:
                     await self._feedback.persist(fb)
                 return result
 
-            result = await self._spine.execute(signal, context, verdict)
+            result = await self._spine.execute(signal, context, verdict, trace=trace)
 
             trace.complete(success=result.is_success())
             if self._trace:

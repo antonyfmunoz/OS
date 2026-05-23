@@ -41,6 +41,9 @@ class ConcreteTraceRecorder:
     def __init__(self) -> None:
         self._traces: dict[UUID, TraceRecord] = {}
 
+    def count(self) -> int:
+        return len(self._traces)
+
     async def start(self, signal_id: UUID) -> TraceRecord:
         """Start a new trace for the given signal."""
         trace = TraceRecord(signal_id=signal_id)

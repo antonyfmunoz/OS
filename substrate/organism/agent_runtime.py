@@ -91,16 +91,10 @@ class AgentRuntime:
                 params=params,
             )
 
-            if pipeline_result.executed and pipeline_result.success:
+            if pipeline_result.success:
                 result_content = f"Execution successful (trace: {pipeline_result.trace_id})"
-                if pipeline_result.outcome_type:
-                    result_content += f", outcome: {pipeline_result.outcome_type}"
-            elif pipeline_result.executed:
-                result_content = (
-                    f"Execution completed with issues (trace: {pipeline_result.trace_id})"
-                )
             else:
-                result_content = f"Execution blocked: {pipeline_result.governance_rationale}"
+                result_content = f"Execution completed with issues (trace: {pipeline_result.trace_id})"
 
             self._status = AgentStatus.CRITIQUING
             critique = self._self_critique(task, result_content, iteration)
@@ -122,8 +116,8 @@ class AgentRuntime:
                     self._max_iterations,
                 )
 
-        assert best_result is not None
-        assert best_critique is not None
+        if best_result is None or best_critique is None:
+            raise RuntimeError("Agent execution loop completed without producing a result")
 
         deliverable = Deliverable(
             agent_id=self.agent_id,

@@ -118,19 +118,17 @@ class Substrate:
             "identity": "ok",
             "context": "ok",
             "governance": "ok",
-            "memory": "ok" if self.memory._agent_memory is not None else "degraded",
+            "memory": "ok" if self.memory.is_available() else "degraded",
             "registry": "ok",
             "trace": "ok",
             "feedback": "ok",
             "spine": "ok",
         }
-        # "degraded" means reduced capability (e.g. no Neon backing), not broken.
-        # Only "error" or "unavailable" states make the substrate unhealthy.
         healthy = all(v in ("ok", "degraded") for v in subsystems.values())
         return SubstrateStatus(
             healthy=healthy,
             subsystems=subsystems,
-            adapter_count=len(self.registry._components),
-            trace_count=len(self.trace._traces),
+            adapter_count=self.registry.count(),
+            trace_count=self.trace.count(),
             uptime_seconds=time.monotonic() - self._started_at,
         )
