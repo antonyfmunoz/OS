@@ -59,7 +59,7 @@ from state.transformation_state_ledger import (
     make_state_id,
     make_trace_id,
 )
-from runtime.interfaces.discord_interface_adapter_v1 import (
+from transports.discord.interface_adapter_v1 import (
 
     build_work_packet_for_router,
     format_router_result,

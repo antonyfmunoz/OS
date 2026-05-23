@@ -31,7 +31,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from composition.registries.canonical_command_registry_v1 import get_canonical_registry
-from runtime.interfaces.discord_interface_adapter_v1 import (
+from transports.discord.interface_adapter_v1 import (
     COMMAND_ACTION_MAP,
     COMMAND_CONTRACT,
     SPINE_ROUTED_COMMANDS,
@@ -39,7 +39,7 @@ from runtime.interfaces.discord_interface_adapter_v1 import (
     build_work_packet_for_router,
     format_router_result,
 )
-from runtime.interfaces.discord_spine_integration_v1 import (
+from transports.discord.spine_integration_v1 import (
     SpineExecutionConfig,
     build_spine_infrastructure,
     execute_spine_command,
