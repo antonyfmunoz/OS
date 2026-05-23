@@ -1,16 +1,25 @@
-"""Ontology primitives — the foundational classification system for UMH.
+"""Ontology primitives — the computational physics of UMH.
 
-PrimitiveType, OntologicalCategory, and PrimitiveObservation are defined
-in substrate.types (the single type authority). This module re-exports
-them and adds ontology-specific utilities.
+These are not metadata descriptions. They are enacted constraints
+that govern the system the way physics governs reality.
+
+10 primitives, 8 categories, 10 relationship types, 4 temporal modes, 5 causal roles.
 """
 
-from __future__ import annotations
-
 from substrate.types import (
+    CausalRole,
     OntologicalCategory,
     PrimitiveObservation,
     PrimitiveType,
+    RelationshipType,
+    TemporalMode,
 )
 
-__all__ = ["PrimitiveType", "OntologicalCategory", "PrimitiveObservation"]
+__all__ = [
+    "CausalRole",
+    "OntologicalCategory",
+    "PrimitiveObservation",
+    "PrimitiveType",
+    "RelationshipType",
+    "TemporalMode",
+]
