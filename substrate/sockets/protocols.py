@@ -8,8 +8,9 @@ integration code. The import graph never crosses the boundary.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
+
+from pydantic import BaseModel, ConfigDict, Field
 
 from substrate.governance.risk_classes import RiskClass
 from substrate.types import CapabilityCategory, SignalUrgency
@@ -21,9 +22,10 @@ from substrate.sockets.envelopes import (
 )
 
 
-@dataclass(frozen=True)
-class SignalDescriptor:
+class SignalDescriptor(BaseModel):
     """Declares a signal type an integration can emit."""
+
+    model_config = ConfigDict(frozen=True)
 
     content_type: str
     description: str
@@ -31,23 +33,25 @@ class SignalDescriptor:
     default_risk_class: RiskClass = RiskClass.READ_ONLY
 
 
-@dataclass(frozen=True)
-class CapabilityDescriptor:
+class CapabilityDescriptor(BaseModel):
     """Declares a capability an integration provides."""
+
+    model_config = ConfigDict(frozen=True)
 
     name: str
     category: CapabilityCategory
     risk_class: RiskClass
-    input_schema: dict[str, Any] = field(default_factory=dict)
-    output_schema: dict[str, Any] = field(default_factory=dict)
+    input_schema: dict[str, Any] = Field(default_factory=dict)
+    output_schema: dict[str, Any] = Field(default_factory=dict)
     description: str = ""
     cost_estimate: float = 0.0
     rate_limit: int | None = None
 
 
-@dataclass(frozen=True)
-class CapabilityHealth:
+class CapabilityHealth(BaseModel):
     """Current health status of an integration's capability layer."""
+
+    model_config = ConfigDict(frozen=True)
 
     integration_id: str
     status: str  # "healthy", "degraded", "unavailable"
