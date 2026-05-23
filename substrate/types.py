@@ -391,6 +391,21 @@ class RelationshipType(str, Enum):
     CONFLICTS_WITH = "conflicts_with"
 
 
+class TemporalMode(str, Enum):
+    INSTANTANEOUS = "instantaneous"
+    DURATIVE = "durative"
+    ATEMPORAL = "atemporal"
+    PERIODIC = "periodic"
+
+
+class CausalRole(str, Enum):
+    CAUSE = "cause"
+    EFFECT = "effect"
+    CONDITION = "condition"
+    PREVENTION = "prevention"
+    MAINTENANCE = "maintenance"
+
+
 class PrimitiveObservation(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     primitive_type: PrimitiveType
