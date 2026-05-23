@@ -88,7 +88,7 @@ def run_setup() -> None:
     Interactive onboarding wizard. Collects inputs, creates BIS,
     and writes the user's personalised EA soul doc.
     """
-    print('\n=== EOS Setup Wizard ===\n')
+    print('\n=== UMH Setup Wizard ===\n')
 
     def _ask(prompt: str, default: str = '') -> str:
         suffix = f' [{default}]' if default else ''

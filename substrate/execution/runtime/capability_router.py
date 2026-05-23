@@ -1,5 +1,5 @@
 """
-capability_router — Intent-driven tool selection for EOS.
+capability_router — Intent-driven tool selection for UMH.
 
 Routes tasks to the best available tool/agent/service based on what the
 task actually requires, not just which LLM should think about it.
