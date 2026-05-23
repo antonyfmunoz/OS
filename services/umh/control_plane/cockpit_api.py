@@ -547,7 +547,7 @@ async def settings():
 @router.get("/mesh/nodes")
 async def mesh_nodes():
     """Returns connected mesh nodes with status and latest metrics."""
-    from services.umh.node_mesh.server import NodeMeshServer
+    from transports.node_mesh.server import NodeMeshServer
 
     server: NodeMeshServer | None = _get_mesh_server()
     if server is None:

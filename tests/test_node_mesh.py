@@ -213,7 +213,7 @@ def test_executor_unregister():
 
 
 def test_metrics_buffer():
-    from services.umh.node_mesh.metrics_buffer import MetricsBuffer, MetricsSnapshot
+    from transports.node_mesh.metrics_buffer import MetricsBuffer, MetricsSnapshot
 
     buf = MetricsBuffer(buffer_size=5)
 
@@ -239,7 +239,7 @@ def test_metrics_buffer():
 
 
 def test_node_registry():
-    from services.umh.node_mesh.registry import ConnectedNode, NodeCapability, NodeRegistry
+    from transports.node_mesh.registry import ConnectedNode, NodeCapability, NodeRegistry
 
     reg = NodeRegistry(heartbeat_timeout_s=1.0)
 
@@ -273,7 +273,7 @@ def test_node_registry():
 
 
 def test_node_registry_stale_detection():
-    from services.umh.node_mesh.registry import ConnectedNode, NodeCapability, NodeRegistry
+    from transports.node_mesh.registry import ConnectedNode, NodeCapability, NodeRegistry
 
     reg = NodeRegistry(heartbeat_timeout_s=0.1)
     node = ConnectedNode(
@@ -312,7 +312,7 @@ def test_node_signal_emitter():
 
 def test_node_capability_handler_descriptors():
     from services.umh.integrations.node_mesh.handlers import NodeCapabilityHandler
-    from services.umh.node_mesh.registry import ConnectedNode, NodeCapability
+    from transports.node_mesh.registry import ConnectedNode, NodeCapability
     from services.umh.sockets.protocols import CapabilityHandler
 
     node = ConnectedNode(
@@ -352,7 +352,7 @@ def test_node_outcome_receiver():
 
 def test_build_node_manifest():
     from services.umh.integrations.node_mesh.manifest import build_node_manifest
-    from services.umh.node_mesh.registry import ConnectedNode, NodeCapability
+    from transports.node_mesh.registry import ConnectedNode, NodeCapability
     from services.umh.sockets.registry import IntegrationManifest
 
     node = ConnectedNode(
