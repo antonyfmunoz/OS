@@ -252,7 +252,7 @@ async def ingest_trigger(request: Request) -> dict[str, Any]:
 
     # Attempt to trigger ingestion via the orchestrator
     try:
-        from understanding.perception.orchestrator import GenericIngestionOrchestrator
+        from substrate.understanding.perception.orchestrator import GenericIngestionOrchestrator
 
         orchestrator = GenericIngestionOrchestrator()
         result = await asyncio.to_thread(orchestrator.ingest, source=source, path=path)

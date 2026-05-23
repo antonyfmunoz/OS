@@ -13,7 +13,7 @@ Signal Tiers:
 
 Usage:
     from state.context.context import load_context_from_env
-    from understanding.reality.reality_engine import RealityIntelligenceEngine
+    from substrate.understanding.reality.reality_engine import RealityIntelligenceEngine
 
     ctx = load_context_from_env()
     rie = RealityIntelligenceEngine(ctx)
@@ -83,7 +83,7 @@ _HIGH_KEYWORDS = [
 def _notify(text: str) -> None:
     """Send notification via channel router."""
     try:
-        from interface.channels.channel import get_channel_router
+        from transports.channels.channel import get_channel_router
 
         router = get_channel_router()
         router.notify(text)

@@ -22,7 +22,7 @@ KnowledgeIntegrator so the system compounds intelligence over time.
 
 Usage:
     from state.context.context import load_context_from_env
-    from understanding.world_pulse.world_pulse import WorldPulse
+    from substrate.understanding.world_pulse.world_pulse import WorldPulse
 
     ctx = load_context_from_env()
     wp = WorldPulse(ctx)
@@ -37,7 +37,7 @@ Usage:
 """
 
 from state.context.context import EntrepreneurOSContext
-from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
+from substrate.understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
 
 
 # ─── Perplexity market intel queries ──────────────────────────────────────────
@@ -327,7 +327,7 @@ class WorldPulse:
         # Post compact report to Discord
         try:
             from datetime import datetime as _dt
-            from interface.discord.discord_utils import post_to_webhook
+            from transports.discord.discord_utils import post_to_webhook
             now = _dt.now().strftime('%Y-%m-%d %H:%M')
             market_lines = [
                 s for s in results_summary
@@ -486,7 +486,7 @@ class WorldPulse:
                 skills_needing_review=skills_needing_review,
                 sources_scanned=results_summary,
             )
-            from interface.discord.discord_utils import post_to_webhook
+            from transports.discord.discord_utils import post_to_webhook
             post_to_webhook(
                 report,
                 title='🌍 WORLD PULSE REPORT',

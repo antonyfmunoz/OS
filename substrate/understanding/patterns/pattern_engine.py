@@ -7,7 +7,7 @@ tendencies, low follow-through, and late working habits.
 
 Usage:
     from state.context.context import load_context_from_env
-    from understanding.patterns.pattern_engine import PatternEngine
+    from substrate.understanding.patterns.pattern_engine import PatternEngine
 
     ctx = load_context_from_env()
     pe = PatternEngine(ctx)

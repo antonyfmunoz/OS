@@ -110,7 +110,7 @@ def research_gift(
     """
     try:
         from execution.runtime.model_router import get_router, TaskType
-        from understanding.intelligence.person_recognition import build_intelligence_profile
+        from substrate.understanding.intelligence.person_recognition import build_intelligence_profile
         router = get_router()
         model = router.route(TaskType.FAST_RESPONSE)
 

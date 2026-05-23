@@ -212,7 +212,7 @@ def run_gateway(
     try:
         _names = re.findall(r"\b[A-Z][a-z]+ [A-Z][a-z]+\b", text)
         if _names:
-            from understanding.intelligence.person_recognition import recognize_person
+            from substrate.understanding.intelligence.person_recognition import recognize_person
 
             for _name in _names[:2]:
                 _rec = recognize_person(name=_name)

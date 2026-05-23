@@ -12,11 +12,11 @@ for mod_name in list(sys.modules):
     if mod_name.startswith("understanding"):
         del sys.modules[mod_name]
 
-from understanding.domains.contract import DomainBridge, DomainProjection
-from understanding.domains.life import LifeBridge
-from understanding.domains.creator import CreatorBridge
-from understanding.domains.registry import default_registry
-from understanding.ontology.primitive_decomposition_v1 import PrimitiveObservation, PrimitiveType
+from substrate.understanding.domains.contract import DomainBridge, DomainProjection
+from substrate.understanding.domains.life import LifeBridge
+from substrate.understanding.domains.creator import CreatorBridge
+from substrate.understanding.domains.registry import default_registry
+from substrate.understanding.ontology.primitive_decomposition_v1 import PrimitiveObservation, PrimitiveType
 
 
 def _make_obs(

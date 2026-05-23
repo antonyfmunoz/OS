@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
 
-from governance.policy.authority_tier import T5_DEFAULT
+from substrate.governance.policy.authority_tier import T5_DEFAULT
 
 
 @dataclass

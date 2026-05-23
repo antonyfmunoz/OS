@@ -489,7 +489,7 @@ def build_prep_brief(
     """
     try:
         from state.context.context import load_context_from_env
-        from understanding.intelligence.person_recognition import (
+        from substrate.understanding.intelligence.person_recognition import (
             build_intelligence_profile,
             format_intelligence_profile,
         )
@@ -596,7 +596,7 @@ def draft_meeting_agenda(
     try:
         from state.context.context import load_context_from_env
         from execution.runtime.model_router import get_router, TaskType
-        from understanding.intelligence.person_recognition import build_intelligence_profile
+        from substrate.understanding.intelligence.person_recognition import build_intelligence_profile
         ctx = ctx or load_context_from_env()
         router = get_router()
         model = router.route(TaskType.FAST_RESPONSE)

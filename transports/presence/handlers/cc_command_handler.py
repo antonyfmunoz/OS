@@ -234,7 +234,7 @@ async def handle_competitive(message, text: str) -> bool:
     _parts = text.split()
     _venture = _parts[1] if len(_parts) > 1 else "empyrean_creative"
     try:
-        from understanding.intelligence.competitive_intel import synthesize_competitive_landscape
+        from substrate.understanding.intelligence.competitive_intel import synthesize_competitive_landscape
 
         _analysis = synthesize_competitive_landscape(_venture)
         await message.channel.send(
@@ -364,7 +364,7 @@ async def handle_stakeholders(message, text: str) -> bool:
     _parts = text.split()
     _venture = _parts[1] if len(_parts) > 1 else None
     try:
-        from understanding.intelligence.stakeholder_map import (
+        from substrate.understanding.intelligence.stakeholder_map import (
             get_stakeholders,
             generate_stakeholder_brief,
         )
@@ -411,7 +411,7 @@ async def handle_add_stakeholder(message, text: str) -> bool:
         )
         return True
     try:
-        from understanding.intelligence.stakeholder_map import add_stakeholder
+        from substrate.understanding.intelligence.stakeholder_map import add_stakeholder
 
         _name = _parts[0].strip()
         _venture = _parts[1].strip()

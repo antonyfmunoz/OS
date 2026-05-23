@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
-from understanding.ontology.primitive_decomposition_v1 import (
+from substrate.understanding.ontology.primitive_decomposition_v1 import (
     DecompositionResult,
     PrimitiveObservation,
     PrimitiveRelationship,

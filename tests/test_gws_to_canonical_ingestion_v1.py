@@ -41,7 +41,7 @@ from adapters.adapter_engine.substrate_decomposer_v1 import (
     decompose_document,
 )
 from state.memory.contracts.canonical_memory_store_v1 import CanonicalMemoryStore
-from understanding.ontology.primitive_decomposition_v1 import PrimitiveType
+from substrate.understanding.ontology.primitive_decomposition_v1 import PrimitiveType
 
 CANONICAL_RECORD = Path(
     "data/canonical_source_records/w0_001/Antony_Munoz_Email_Sequence_1aZiPZ0i.json"

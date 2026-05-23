@@ -11,7 +11,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
-from understanding.ontology.primitive_decomposition_v1 import PrimitiveObservation
+from substrate.understanding.ontology.primitive_decomposition_v1 import PrimitiveObservation
 
 
 @runtime_checkable

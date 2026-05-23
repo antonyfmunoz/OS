@@ -12,7 +12,7 @@ Domain state (current research) is persisted to the Neon skills table
 under the naming convention: domain_{key}.
 
 Usage:
-    from understanding.knowledge.knowledge_domains import KnowledgeDomainRegistry
+    from substrate.understanding.knowledge.knowledge_domains import KnowledgeDomainRegistry
 
     registry = KnowledgeDomainRegistry()
 
