@@ -677,13 +677,8 @@ class CognitiveLoop:
         # 7c. FEEDBACK — auto-check if user message closes pending recommendations
         try:
             if text and modality == "text":
-                from learning.feedback.feedback_loop import FeedbackLoop
-
-                _fl = FeedbackLoop(self.ctx)
-                _fl.log_outcome(
-                    text=text,
-                    venture_id=venture_id or "",
-                )
+                # learning/ removed in convergence — FeedbackLoop no longer exists
+                pass
         except Exception as _fb_err:
             _record_error(
                 "feedback_loop",

@@ -1049,13 +1049,12 @@ async def generate_morning_brief(ctx: EntrepreneurOSContext) -> str:
     for venture_id, name, icon in companies:
         try:
             from substrate.state.business.business_instance import BusinessInstanceManager
-            from learning.evolution.evolution_engine import EvolutionEngine
+            # learning/ removed in convergence — EvolutionEngine no longer exists
             from substrate.understanding.ontology.primitives import PRIMITIVE_LIBRARY
 
             bim = BusinessInstanceManager(ctx)
-            ee = EvolutionEngine(ctx)
             bis = bim.get_bis(venture_id)
-            stage = ee.get_current_stage(venture_id)
+            stage = 1  # default — EvolutionEngine removed
 
             active = [
                 pid
@@ -1514,21 +1513,11 @@ class EntrepreneurOSOrchestrator:
         brief = self.morning_brief()
         print("[Orchestrator] Brief generated.")
 
-        # Skill improvement cycle
+        # Skill improvement cycle — disabled (learning/ removed in convergence)
         improvement_summary = ""
         try:
-            from learning.skills.skill_improvement import SkillImprovementEngine
-
-            engine = SkillImprovementEngine()
-            summary = engine.run_improvement_cycle()
-            improved = [s for s in summary if s["action"] == "improved"]
-            skipped = [s for s in summary if s["action"] != "improved"]
-            improvement_summary = (
-                f"\n\n---\nSkill Improvement: {len(improved)} improved, {len(skipped)} skipped"
-            )
-            if improved:
-                names = ", ".join(s["skill_id"] for s in improved)
-                improvement_summary += f"\nImproved: {names}"
+            # learning/ removed in convergence — SkillImprovementEngine no longer exists
+            improvement_summary = "\n\nSkill improvement skipped: learning/ removed in convergence"
         except Exception as e:
             improvement_summary = f"\n\nSkill improvement skipped: {e}"
             print(f"[Orchestrator] Skill improvement error: {e}")
@@ -1566,22 +1555,12 @@ class EntrepreneurOSOrchestrator:
                 strategy_summary = f"\n\nStrategy review skipped: {e}"
                 print(f"[Orchestrator] Strategy review error: {e}")
 
-        # Self-organization cycle — runs weekly on Mondays
+        # Self-organization cycle — disabled (learning/ removed in convergence)
         self_org_summary = ""
         if datetime.date.today().weekday() == 0:  # Monday = 0
             try:
-                from learning.skills.skill_improvement import SkillImprovementEngine
-
-                si_engine = SkillImprovementEngine()
-                created = si_engine.run_self_organization_cycle()
-                if created:
-                    names = ", ".join(s["skill_id"] for s in created)
-                    self_org_summary = (
-                        f"\n\nSelf-Organization: {len(created)} new skill(s) proposed\n"
-                        f"Created: {names}"
-                    )
-                else:
-                    self_org_summary = "\n\nSelf-Organization: no new patterns detected"
+                # learning/ removed in convergence — SkillImprovementEngine no longer exists
+                self_org_summary = "\n\nSelf-Organization skipped: learning/ removed in convergence"
             except Exception as e:
                 self_org_summary = f"\n\nSelf-organization skipped: {e}"
                 print(f"[Orchestrator] Self-organization error: {e}")
@@ -1631,17 +1610,12 @@ class EntrepreneurOSOrchestrator:
                 research_summary = f"\n\nResearch engine skipped: {e}"
                 print(f"[Orchestrator] Research engine error: {e}")
 
-        # Evolution cycle — runs weekly on Saturdays
+        # Evolution cycle — disabled (learning/ removed in convergence)
         evolution_summary = ""
         if datetime.date.today().weekday() == 5:  # Saturday = 5
             try:
-                from learning.evolution.evolution_engine import EvolutionEngine
-                from substrate.state.context.context import load_context_from_env
-
-                ctx = load_context_from_env()
-                ee = EvolutionEngine(ctx)
-                evo_result = ee.run_weekly_evolution_cycle()
-                evolution_summary = f"\n\n{ee.format_evolution_summary(evo_result)}"
+                # learning/ removed in convergence — EvolutionEngine no longer exists
+                evolution_summary = "\n\nEvolution cycle skipped: learning/ removed in convergence"
             except Exception as e:
                 evolution_summary = f"\n\nEvolution cycle skipped: {e}"
                 print(f"[Orchestrator] Evolution engine error: {e}")
