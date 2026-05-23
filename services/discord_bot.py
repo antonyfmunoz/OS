@@ -122,35 +122,35 @@ if _rt_spec and "runtime" not in sys.modules:
     if _rt_spec.loader:
         _rt_spec.loader.exec_module(_rt_mod)
 
-from control_plane.runtime.gateway import EntrepreneurOSGateway
-from state.context.context import load_context_from_env
-from understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
-from execution.voice.voice_engine import VoiceEngine
-from state.business.business_instance import get_ai_name
-from interface.discord.discord_utils import chunk_message, post_to_webhook
-from execution.transport.session_discord_bridge import send_reply as _send_reply
-from execution.transport.discord_text_transport import (
+from substrate.control_plane.runtime.gateway import EntrepreneurOSGateway
+from substrate.state.context.context import load_context_from_env
+from substrate.understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
+from substrate.execution.voice.voice_engine import VoiceEngine
+from substrate.state.business.business_instance import get_ai_name
+from transports.discord.discord_utils import chunk_message, post_to_webhook
+from substrate.execution.transport.session_discord_bridge import send_reply as _send_reply
+from substrate.execution.transport.discord_text_transport import (
     maybe_mirror_discord_text_message as _maybe_pseudo_live_text,
 )
 
 # Graceful import for substrate modules that may not exist yet
 try:
-    from execution.transport.message_framing import get_inbound_buffer
+    from substrate.execution.transport.message_framing import get_inbound_buffer
 except ImportError:
     get_inbound_buffer = None
 
-from execution.transport.event_spine import (
+from substrate.execution.transport.event_spine import (
     EventType as _FrameEventType,
     create_event as _frame_create_event,
 )
 
 try:
-    from execution.transport.event_store import get_event_store as _frame_get_event_store
+    from substrate.execution.transport.event_store import get_event_store as _frame_get_event_store
 except ImportError:
     _frame_get_event_store = None
 
 try:
-    from execution.transport.interaction_archive import (
+    from substrate.execution.transport.interaction_archive import (
         archive_inbound as _archive_inbound,
         Interface as _ArchiveInterface,
     )
@@ -166,7 +166,7 @@ except ImportError:
 # multiple times. The substrate architecture is preserved — we are only
 # replacing the pluggable responder hook the substrate already exposes.
 try:
-    from execution.transport.voice_eos_responder import (
+    from substrate.execution.transport.voice_eos_responder import (
         install_default_eos_voice_responder as _install_voice_router_responder,
         is_eos_voice_responder_installed as _is_voice_router_responder_installed,
     )
@@ -193,12 +193,12 @@ except Exception as _voice_responder_install_err:  # noqa: BLE001
 
 # ─── Handler imports ─────────────────────────────────────────────────────────
 
-from interface.presence.handlers.intent_handler import run_gateway as _handler_run_gateway
-from interface.presence.handlers.intent_handler import CHANNEL_MAP as _HANDLER_CHANNEL_MAP
-from interface.presence.handlers.pipeline_handler import handle_pipeline_update
-from interface.presence.handlers.cc_command_handler import try_inline_commands
+from transports.presence.handlers.intent_handler import run_gateway as _handler_run_gateway
+from transports.presence.handlers.intent_handler import CHANNEL_MAP as _HANDLER_CHANNEL_MAP
+from transports.presence.handlers.pipeline_handler import handle_pipeline_update
+from transports.presence.handlers.cc_command_handler import try_inline_commands
 try:
-    from interface.presence.handlers.substrate_command_handler import (
+    from transports.presence.handlers.substrate_command_handler import (
         handle_substrate_command,
         is_substrate_command,
         log_startup as _substrate_log_startup,
@@ -215,7 +215,7 @@ _gateway = EntrepreneurOSGateway()  # singleton — no ctx arg
 _ki = KnowledgeIntegrator(_ctx_eos)
 _ve = VoiceEngine()
 
-from control_plane.onboarding.onboarding_engine import OnboardingEngine as _OnboardingEngine
+from substrate.control_plane.onboarding.onboarding_engine import OnboardingEngine as _OnboardingEngine
 
 _onboarding = _OnboardingEngine(_ctx_eos)
 
@@ -434,7 +434,7 @@ def _run_day_command(
     continuity_text: str | None = None,
 ) -> dict:
     try:
-        from execution.transport.day_workflows import close_day, open_day
+        from substrate.execution.transport.day_workflows import close_day, open_day
 
         if cmd == "open_day":
             return open_day(
@@ -914,7 +914,7 @@ async def start_meeting_mode(
     _active_meeting["notes"] = []
     _active_meeting["key_points"] = []
     try:
-        from execution.transport.storage import get_storage
+        from substrate.execution.transport.storage import get_storage
 
         get_storage().put("active_meeting", dict(_active_meeting))
     except Exception as _ms_err:
@@ -989,7 +989,7 @@ async def end_active_meeting(channel=None) -> None:
     _active_meeting["notes"] = []
     _active_meeting["key_points"] = []
     try:
-        from execution.transport.storage import get_storage
+        from substrate.execution.transport.storage import get_storage
 
         get_storage().put("active_meeting", dict(_active_meeting))
     except Exception as _mc_err:
@@ -1007,7 +1007,7 @@ async def _warmup_cc_sdk():
     """
     await asyncio.sleep(10)
     try:
-        from state.work.work_state import _measure_pressure, Pressure
+        from substrate.state.work.work_state import _measure_pressure, Pressure
 
         p = _measure_pressure()
         if p in (Pressure.HIGH, Pressure.CRITICAL):
@@ -1069,7 +1069,7 @@ async def on_ready():
 
     # ── Restore persisted session state from SubstrateStorage ──────────
     try:
-        from execution.transport.storage import get_storage
+        from substrate.execution.transport.storage import get_storage
 
         _store = get_storage()
         _restored = 0
@@ -1103,7 +1103,7 @@ async def on_ready():
 
     # Start ambient refresh (same as Telegram bot)
     try:
-        from control_plane.orchestrator.orchestrator import start_ambient_refresh_loop
+        from substrate.control_plane.orchestrator.orchestrator import start_ambient_refresh_loop
 
         start_ambient_refresh_loop(_ctx_eos)
         print("[Discord] Ambient refresh started")
@@ -1136,8 +1136,8 @@ async def on_ready():
     # permission requests, questions).  SessionDiscordBridge renders them
     # as interactive Discord messages with buttons.
     try:
-        from execution.transport.session_discord_bridge import get_bridge
-        from execution.transport.session_watcher import start_watcher
+        from substrate.execution.transport.session_discord_bridge import get_bridge
+        from substrate.execution.transport.session_watcher import start_watcher
 
         bridge = get_bridge()
         bridge.set_bot(bot)
@@ -1151,7 +1151,7 @@ async def on_ready():
 
     # ── Start Station Daemon (background heartbeat loop) ─────────────────
     try:
-        from execution.transport.station_daemon import start_station_daemon
+        from substrate.execution.transport.station_daemon import start_station_daemon
 
         start_station_daemon()
         print("[Discord] Station daemon started")
@@ -1340,7 +1340,7 @@ async def _listen_loop(
             # voice_session / audio_loop / SPEAK_TEXT alongside the existing
             # gateway routing. Never raises. Returns None when disabled.
             try:
-                from execution.transport.discord_voice_transport import (
+                from substrate.execution.transport.discord_voice_transport import (
                     maybe_mirror_discord_utterance,
                 )
 
@@ -1377,7 +1377,7 @@ async def _listen_loop(
 
             # ── Voice-first: play ack BEFORE LLM call (eliminates dead air) ──
             try:
-                from execution.transport.voice_first import (
+                from substrate.execution.transport.voice_first import (
                     needs_ack,
                     play_ack,
                     VOICE_SYSTEM_SUFFIX,
@@ -1463,7 +1463,7 @@ async def _listen_loop(
             # ── Voice-first response path ─────────────────────────────
             # Speak FIRST, then post text as transcript/subtitle.
             try:
-                from execution.transport.voice_first import (
+                from substrate.execution.transport.voice_first import (
                     voice_first_respond,
                 )
 
@@ -1564,7 +1564,7 @@ async def on_message(message: discord.Message):
 
     # Wake idle system — a real user message is a work signal
     try:
-        from state.work.work_state import record_signal, reset_idle_counter
+        from substrate.state.work.work_state import record_signal, reset_idle_counter
 
         record_signal()
         reset_idle_counter()
@@ -1623,7 +1623,7 @@ async def on_message(message: discord.Message):
                         mime = att.content_type or "image/jpeg"
                         prompt = message.content.strip() or "Describe what you see in this image."
                         loop = asyncio.get_event_loop()
-                        from execution.runtime.model_router import call_with_fallback as _vision_cwf
+                        from substrate.execution.runtime.model_router import call_with_fallback as _vision_cwf
 
                         result = await loop.run_in_executor(
                             None,
@@ -1905,7 +1905,7 @@ async def on_message(message: discord.Message):
     # When disabled (default), falls through to the existing CC/PseudoLive chain.
     _orch_handled = False
     try:
-        from execution.transport.discord_ingress_adapter import ingest_and_emit
+        from substrate.execution.transport.discord_ingress_adapter import ingest_and_emit
 
         _orch_result = ingest_and_emit(
             text=text,
@@ -1923,7 +1923,7 @@ async def on_message(message: discord.Message):
             )
             # Structured trace reply (best-effort)
             try:
-                from execution.transport.operator_trace import (
+                from substrate.execution.transport.operator_trace import (
                     OperatorTrace,
                     format_trace_for_discord,
                 )
@@ -2042,7 +2042,7 @@ async def on_message(message: discord.Message):
                     # Hard guard: drop if lifecycle is sealed
                     _pl_terminal = False
                     try:
-                        from execution.transport.run_lifecycle import (
+                        from substrate.execution.transport.run_lifecycle import (
                             is_run_terminally_finalized as _pl_term_check,
                         )
 
@@ -2059,7 +2059,7 @@ async def on_message(message: discord.Message):
                     if not _pl_terminal:
                         try:
                             _pl_session = _pl_fin.get("source_session", "")
-                            from execution.transport.run_lifecycle import (
+                            from substrate.execution.transport.run_lifecycle import (
                                 propose_run_completion as _pl_propose,
                             )
 
@@ -2074,7 +2074,7 @@ async def on_message(message: discord.Message):
                             if not _pl_proposal.accepted:
                                 print(f"[PseudoLive] Proposal rejected: {_pl_proposal.reason}")
                             else:
-                                from execution.transport.task_finalization import (
+                                from substrate.execution.transport.task_finalization import (
                                     finalize_completed_task as _pl_finalize,
                                 )
 
@@ -2101,7 +2101,7 @@ async def on_message(message: discord.Message):
                 _tts_role = _deferred.get("role_slug") or "ea_orchestrator"
                 if _tts_node and _tts_text:
                     try:
-                        from execution.transport.station_helpers import propose_speak_text
+                        from substrate.execution.transport.station_helpers import propose_speak_text
 
                         propose_speak_text(
                             _tts_node,
@@ -2206,7 +2206,7 @@ async def on_message(message: discord.Message):
             text.strip().replace("\ufe0f\u20e3", ""), _DEFAULT_VENTURE_ID
         )
         try:
-            from understanding.signals.founder_capture import capture
+            from substrate.understanding.signals.founder_capture import capture
 
             capture(_pending["text"], venture_id=_venture_id)
             _icon = "💡" if _pending["type"] == "idea" else "✅"
@@ -2249,7 +2249,7 @@ async def on_message(message: discord.Message):
 
     # ── Founder capture — detect tasks/ideas, write to Your list + Notion ────
     try:
-        from understanding.signals.founder_capture import should_capture, capture
+        from substrate.understanding.signals.founder_capture import should_capture, capture
 
         _should, _ctype = should_capture(text)
         if _should:
@@ -2701,7 +2701,7 @@ async def cmd_answer(ctx: commands.Context, session_name: str, *, text: str):
         await ctx.reply("Founder only.")
         return
     try:
-        from execution.transport.session_discord_bridge import get_bridge
+        from substrate.execution.transport.session_discord_bridge import get_bridge
 
         result = await get_bridge().handle_answer_command(session_name, text)
         await ctx.reply(result)
@@ -2763,13 +2763,13 @@ async def cmd_watcher_status(ctx: commands.Context):
     try:
         import time as _time
 
-        from execution.transport.session_watcher import _WATCHERS, _WATCHERS_LOCK
+        from substrate.execution.transport.session_watcher import _WATCHERS, _WATCHERS_LOCK
 
         with _WATCHERS_LOCK:
             if not _WATCHERS:
                 await ctx.reply("No watchers running.")
                 return
-            from execution.transport.discord_output_policy import get_display_name
+            from substrate.execution.transport.discord_output_policy import get_display_name
 
             lines = []
             for name, w in _WATCHERS.items():
@@ -2815,7 +2815,7 @@ async def cmd_status(ctx: commands.Context):
 
         def _portfolio_scan():
             try:
-                from control_plane.strategy.portfolio_advisor import (
+                from substrate.control_plane.strategy.portfolio_advisor import (
                     PortfolioAdvisor as PortfolioAgent,
                 )
 
@@ -3030,10 +3030,10 @@ async def cmd_approve(ctx: commands.Context, approval_id: str = ""):
 async def cmd_approve_followup(ctx: commands.Context):
     """Approve and send the most recent pending follow-up email draft."""
     try:
-        from state.context.context import load_context_from_env
-        from state.storage.db import get_conn
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.storage.db import get_conn
         from adapters.google_workspace.gws_connector import GWSConnector
-        from governance.quality.quality_gate import gate_outgoing_email
+        from substrate.governance.quality.quality_gate import gate_outgoing_email
         import json as _json
 
         _ctx = load_context_from_env()
@@ -3164,8 +3164,8 @@ async def cmd_approve_followup(ctx: commands.Context):
 async def cmd_force_send(ctx: commands.Context):
     """Force-send an email that failed the quality gate."""
     try:
-        from state.context.context import load_context_from_env
-        from state.storage.db import get_conn
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.storage.db import get_conn
         from adapters.google_workspace.gws_connector import GWSConnector
         import json as _json
 
@@ -3238,7 +3238,7 @@ async def cmd_confidential(ctx: commands.Context, *, args: str = ""):
         )
         return
     try:
-        from governance.policies.confidentiality import create_confidential_session
+        from substrate.governance.policies.confidentiality import create_confidential_session
 
         topic = parts[0]
         parties = [p.strip() for p in parts[1].split(",")] if len(parts) > 1 else ["Antony"]
@@ -3260,8 +3260,8 @@ async def cmd_confidential(ctx: commands.Context, *, args: str = ""):
 async def cmd_pending(ctx: commands.Context):
     """Show all pending approval emails."""
     try:
-        from state.context.context import load_context_from_env
-        from state.storage.db import get_conn
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.storage.db import get_conn
         import json as _json
 
         _ctx = load_context_from_env()
@@ -3306,7 +3306,7 @@ async def cmd_relationship(ctx: commands.Context, *, name: str = ""):
         await ctx.reply("Usage: `!relationship [contact name]`")
         return
     try:
-        from understanding.intelligence.person_recognition import (
+        from substrate.understanding.intelligence.person_recognition import (
             score_relationship_health,
             build_intelligence_profile,
         )
@@ -3341,7 +3341,7 @@ async def cmd_nurture(ctx: commands.Context, *, name: str = ""):
         await ctx.reply("Usage: `!nurture [contact name]`")
         return
     try:
-        from understanding.intelligence.person_recognition import build_intelligence_profile
+        from substrate.understanding.intelligence.person_recognition import build_intelligence_profile
 
         profile = build_intelligence_profile(name=name)
         notes = getattr(profile, "notes", None) or "No prior context available"
@@ -3354,7 +3354,7 @@ async def cmd_nurture(ctx: commands.Context, *, name: str = ""):
             f"— Antony"
         )
         try:
-            from execution.runtime.model_router import get_router, TaskType
+            from substrate.execution.runtime.model_router import get_router, TaskType
 
             _router = get_router()
             _model = _router.route(TaskType.FAST_RESPONSE)
@@ -3389,7 +3389,7 @@ Subject: [subject]
 async def cmd_expenses(ctx: commands.Context):
     """Show month-to-date expenses. Usage: !expenses"""
     try:
-        from state.finance.expense_tracker import get_monthly_summary
+        from substrate.state.finance.expense_tracker import get_monthly_summary
 
         summary = get_monthly_summary()
         if not summary.get("total"):
@@ -3498,7 +3498,7 @@ async def cmd_sync(ctx: commands.Context):
 
         def _run():
             try:
-                from control_plane.scheduling.daily_sync import DailySyncEngine
+                from substrate.control_plane.scheduling.daily_sync import DailySyncEngine
 
                 dse = DailySyncEngine(_ctx_eos)
                 return dse.run_sync()
@@ -3757,7 +3757,7 @@ async def cmd_delegated(ctx: commands.Context):
 
     def _run():
         try:
-            from control_plane.delegation.delegation_tracker import get_overdue_delegations
+            from substrate.control_plane.delegation.delegation_tracker import get_overdue_delegations
 
             overdue = get_overdue_delegations()
             if not overdue:
@@ -3784,7 +3784,7 @@ async def cmd_subscriptions(ctx: commands.Context):
 
     def _run():
         try:
-            from state.finance.subscription_tracker import (
+            from substrate.state.finance.subscription_tracker import (
                 get_subscriptions,
                 get_upcoming_renewals,
                 get_monthly_subscription_total,
@@ -3831,7 +3831,7 @@ async def cmd_add_sub(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from state.finance.subscription_tracker import add_subscription
+            from substrate.state.finance.subscription_tracker import add_subscription
 
             vendor = parts[0]
             amount = float(parts[1])
@@ -3952,7 +3952,7 @@ async def cmd_drip(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from control_plane.strategy.task_yield_matrix import (
+            from substrate.control_plane.strategy.task_yield_matrix import (
                 run_yield_audit,
                 format_yield_report,
             )
@@ -3979,7 +3979,7 @@ async def cmd_buyback(ctx: commands.Context, income: str = ""):
 
         def _run():
             try:
-                from state.metrics.founder_rate import (
+                from substrate.state.metrics.founder_rate import (
                     calculate_founder_rate,
                     store_founder_rate,
                 )
@@ -4004,7 +4004,7 @@ async def cmd_buyback(ctx: commands.Context, income: str = ""):
 
         def _get():
             try:
-                from state.metrics.founder_rate import get_current_founder_rate
+                from substrate.state.metrics.founder_rate import get_current_founder_rate
 
                 rate = get_current_founder_rate()
                 if rate:
@@ -4038,7 +4038,7 @@ async def cmd_logtime(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from state.metrics.founder_rate import log_time_block
+            from substrate.state.metrics.founder_rate import log_time_block
 
             parts = args.split("|")
             activity = parts[0].strip()
@@ -4071,7 +4071,7 @@ async def cmd_timeaudit(ctx: commands.Context):
 
     def _run():
         try:
-            from state.metrics.founder_rate import get_time_audit_summary
+            from substrate.state.metrics.founder_rate import get_time_audit_summary
 
             summary = get_time_audit_summary(days=7)
             if not summary.get("total_hours"):
@@ -4102,7 +4102,7 @@ async def cmd_perfectweek(ctx: commands.Context):
 
     def _run():
         try:
-            from control_plane.scheduling.ideal_week import get_ideal_week
+            from substrate.control_plane.scheduling.ideal_week import get_ideal_week
 
             week = get_ideal_week()
             lines = ["**📅 Your Ideal Week:**", ""]
@@ -4143,7 +4143,7 @@ async def cmd_camcorder(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from control_plane.scheduling.ideal_week import create_process_capture
+            from substrate.control_plane.scheduling.ideal_week import create_process_capture
 
             playbook = create_process_capture(task_name, description)
             if playbook:
@@ -4286,7 +4286,7 @@ async def cmd_nolist(ctx: commands.Context):
 
     def _run():
         try:
-            from state.metrics.founder_rate import get_no_list
+            from substrate.state.metrics.founder_rate import get_no_list
 
             items = get_no_list()
             if not items:
@@ -4317,7 +4317,7 @@ async def cmd_noadd(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from state.metrics.founder_rate import add_to_no_list
+            from substrate.state.metrics.founder_rate import add_to_no_list
 
             parts = args.split("|", 1)
             item = parts[0].strip()
@@ -4348,8 +4348,8 @@ async def cmd_energy(ctx: commands.Context, *, args: str = ""):
     def _run():
         try:
             import json as _ej
-            from state.context.context import load_context_from_env
-            from state.storage.db import get_conn
+            from substrate.state.context.context import load_context_from_env
+            from substrate.state.storage.db import get_conn
             from zoneinfo import ZoneInfo as _ZI
             from datetime import datetime as _dt
 
@@ -4411,7 +4411,7 @@ async def cmd_year(ctx: commands.Context):
 
     def _run():
         try:
-            from control_plane.scheduling.ideal_week import get_annual_architecture
+            from substrate.control_plane.scheduling.ideal_week import get_annual_architecture
 
             plan = get_annual_architecture()
             if not plan:
@@ -4451,7 +4451,7 @@ async def cmd_rocks(ctx: commands.Context):
 
     def _run():
         try:
-            from control_plane.scheduling.ideal_week import get_current_quarter_rocks
+            from substrate.control_plane.scheduling.ideal_week import get_current_quarter_rocks
             from datetime import datetime as _rdt
 
             rocks = get_current_quarter_rocks()
@@ -4481,7 +4481,7 @@ async def cmd_invoices(ctx: commands.Context):
 
     def _run():
         try:
-            from state.finance.expense_tracker import get_invoices, get_overdue_invoices
+            from substrate.state.finance.expense_tracker import get_invoices, get_overdue_invoices
 
             all_inv = get_invoices()
             overdue = get_overdue_invoices()
@@ -4529,7 +4529,7 @@ async def cmd_invoice(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from state.finance.expense_tracker import create_invoice, generate_invoice_text
+            from substrate.state.finance.expense_tracker import create_invoice, generate_invoice_text
 
             parts = [p.strip() for p in args.split("|")]
             inv = create_invoice(
@@ -4567,7 +4567,7 @@ async def cmd_expensereport(ctx: commands.Context, month: str = ""):
 
     def _run():
         try:
-            from state.finance.expense_tracker import generate_expense_report
+            from substrate.state.finance.expense_tracker import generate_expense_report
 
             return generate_expense_report(month or None)
         except Exception as e:
@@ -4585,7 +4585,7 @@ async def cmd_budget(ctx: commands.Context, target: str = "10000"):
 
     def _run():
         try:
-            from state.finance.expense_tracker import generate_budget_vs_actual
+            from substrate.state.finance.expense_tracker import generate_budget_vs_actual
 
             t = float(target.replace("$", "").replace(",", ""))
             return generate_budget_vs_actual(revenue_target=t)
@@ -4642,8 +4642,8 @@ async def cmd_board(ctx: commands.Context, *, args: str = ""):
     def _run():
         try:
             from adapters.google_workspace.doc_creator import create_briefing_doc
-            from control_plane.strategy.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
-            from state.context.context import load_context_from_env
+            from substrate.control_plane.strategy.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
+            from substrate.state.context.context import load_context_from_env
 
             ctx_eos = load_context_from_env()
             pa = PortfolioAgent(ctx_eos)
@@ -4774,7 +4774,7 @@ async def cmd_dates(ctx: commands.Context):
 
     def _run():
         try:
-            from control_plane.scheduling.personal_admin import get_upcoming_dates
+            from substrate.control_plane.scheduling.personal_admin import get_upcoming_dates
 
             dates = get_upcoming_dates(days=60)
             if not dates:
@@ -4817,7 +4817,7 @@ async def cmd_adddate(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from control_plane.scheduling.personal_admin import add_important_date
+            from substrate.control_plane.scheduling.personal_admin import add_important_date
 
             parts = [p.strip() for p in args.split("|")]
             ok = add_important_date(
@@ -4850,7 +4850,7 @@ async def cmd_gift(ctx: commands.Context, *, args: str = ""):
 
     def _run():
         try:
-            from control_plane.scheduling.personal_admin import research_gift
+            from substrate.control_plane.scheduling.personal_admin import research_gift
 
             parts = [p.strip() for p in args.split("|")]
             person = parts[0]
@@ -4964,7 +4964,7 @@ async def cmd_proofread(ctx: commands.Context, *, content: str = ""):
         await ctx.reply("Usage: `!proofread [paste your email or message here]`")
         return
     try:
-        from governance.quality.quality_gate import quality_check
+        from substrate.governance.quality.quality_gate import quality_check
 
         await ctx.reply("🔍 Running quality check...")
         result = quality_check(content)
@@ -5028,7 +5028,7 @@ async def cmd_okr(ctx: commands.Context, subcommand: str = "report", *, args: st
     """OKR tracking. Usage: !okr report | !okr set [venture] | [objective] | [KR, target, unit]"""
     if subcommand == "report":
         try:
-            from state.metrics.okr_tracker import generate_okr_report
+            from substrate.state.metrics.okr_tracker import generate_okr_report
 
             report = generate_okr_report()
             await _send_reply(ctx.channel, report)
@@ -5044,7 +5044,7 @@ async def cmd_okr(ctx: commands.Context, subcommand: str = "report", *, args: st
             )
             return
         try:
-            from state.metrics.okr_tracker import set_okr
+            from substrate.state.metrics.okr_tracker import set_okr
 
             parts = [p.strip() for p in args.split("|")]
             venture_id = parts[0]
@@ -5082,7 +5082,7 @@ async def cmd_event(ctx: commands.Context, *, args: str = ""):
     """Manage events. Usage: !event list | !event [name] | [type] | [date] | [location] | [budget]"""
     if not args or args.strip() == "list":
         try:
-            from control_plane.events.event_manager import get_events
+            from substrate.control_plane.events.event_manager import get_events
 
             events = get_events()
             if not events:
@@ -5109,7 +5109,7 @@ async def cmd_event(ctx: commands.Context, *, args: str = ""):
     if "|" in args:
         parts = [p.strip() for p in args.split("|")]
         try:
-            from control_plane.events.event_manager import create_event
+            from substrate.control_plane.events.event_manager import create_event
 
             budget = 0.0
             if len(parts) > 4:
@@ -5155,7 +5155,7 @@ async def cmd_talkingpoints(ctx: commands.Context, *, args: str = ""):
         )
         return
     try:
-        from control_plane.events.event_manager import draft_talking_points
+        from substrate.control_plane.events.event_manager import draft_talking_points
 
         await ctx.reply("📝 Drafting talking points...")
         topic = parts[0]
@@ -5179,7 +5179,7 @@ async def cmd_pr(ctx: commands.Context, *, args: str = ""):
         )
         return
     try:
-        from control_plane.events.event_manager import log_pr_media_inquiry
+        from substrate.control_plane.events.event_manager import log_pr_media_inquiry
 
         parts = [p.strip() for p in args.split("|")]
         ok = log_pr_media_inquiry(
@@ -5210,7 +5210,7 @@ async def cmd_board_update(ctx: commands.Context, venture_id: str = ""):
         )
         return
     try:
-        from understanding.intelligence.stakeholder_map import generate_board_update_brief
+        from substrate.understanding.intelligence.stakeholder_map import generate_board_update_brief
 
         await ctx.reply("📋 Generating board update...")
         brief = generate_board_update_brief(venture_id)
@@ -5307,8 +5307,8 @@ async def cmd_approve_task(ctx: commands.Context, task_id: str = ""):
         return
     try:
         import json as _json
-        from state.context.context import load_context_from_env
-        from state.storage.db import get_conn
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.storage.db import get_conn
 
         _ctx = load_context_from_env()
 
@@ -5362,8 +5362,8 @@ async def cmd_approve_task(ctx: commands.Context, task_id: str = ""):
 async def cmd_tasks(ctx: commands.Context):
     """Show pending task queue split by human vs AI."""
     try:
-        from state.context.context import load_context_from_env
-        from control_plane.coordination.coordination_engine import CoordinationEngine
+        from substrate.state.context.context import load_context_from_env
+        from substrate.control_plane.coordination.coordination_engine import CoordinationEngine
 
         _ctx = load_context_from_env()
         coordination = CoordinationEngine(_ctx)
@@ -5398,8 +5398,8 @@ async def cmd_agent_results(ctx: commands.Context):
     """Show last 24h agent task results."""
     try:
         import json as _json
-        from state.context.context import load_context_from_env
-        from state.storage.db import get_conn
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.storage.db import get_conn
 
         _ctx = load_context_from_env()
 
@@ -5440,7 +5440,7 @@ async def cmd_agent_results(ctx: commands.Context):
 async def cmd_trace(ctx: commands.Context, limit: int = 5):
     """Show recent execution traces (builder mode only)."""
     try:
-        from execution.transport.discord_mode_routing import resolve_discord_mode
+        from substrate.execution.transport.discord_mode_routing import resolve_discord_mode
 
         gid = str(ctx.guild.id) if ctx.guild else None
         cid = str(ctx.channel.id)
@@ -5450,7 +5450,7 @@ async def cmd_trace(ctx: commands.Context, limit: int = 5):
             await ctx.reply("Trace output is not available in product mode.")
             return
 
-        from execution.transport.execution_trace import (
+        from substrate.execution.transport.execution_trace import (
             format_trace_compact,
             get_trace_history,
         )

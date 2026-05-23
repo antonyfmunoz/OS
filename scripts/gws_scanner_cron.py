@@ -63,7 +63,7 @@ def main() -> None:
     logger.info("Mode: %s | Limit: %d", "full" if args.full else "incremental", args.limit)
 
     try:
-        from state.context.context import load_context_from_env
+        from substrate.state.context.context import load_context_from_env
         from adapters.google_workspace.gws_scanner import GWSDocumentScanner
 
         ctx = load_context_from_env()

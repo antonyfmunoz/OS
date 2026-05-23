@@ -60,7 +60,7 @@ def _assert(cond: bool, msg: str) -> None:
 
 _section("install router-backed voice responder")
 
-from execution.transport.voice_eos_responder import (
+from substrate.execution.transport.voice_eos_responder import (
     install_default_eos_voice_responder,
     is_eos_voice_responder_installed,
     uninstall_eos_voice_responder,
@@ -73,7 +73,7 @@ _assert(is_eos_voice_responder_installed(), "install_default_eos_voice_responder
 
 _section("monkey-patch model_router.call_with_fallback")
 
-import execution.runtime.model_router as _mr
+import substrate.execution.runtime.model_router as _mr
 
 _calls: list[dict] = []
 
@@ -102,7 +102,7 @@ try:
 
     _section("drive maybe_mirror_discord_text_message (happy path)")
 
-    from execution.transport.discord_text_transport import (
+    from substrate.execution.transport.discord_text_transport import (
         maybe_mirror_discord_text_message,
     )
 
@@ -177,7 +177,7 @@ finally:
 
 _section("default responder still returns stub when installed alone")
 
-from execution.transport.voice_session import (
+from substrate.execution.transport.voice_session import (
     VoiceSession,
     VoiceSessionStatus,
     _default_responder,

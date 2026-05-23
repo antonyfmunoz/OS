@@ -17,16 +17,16 @@ from pathlib import Path
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from execution.runtime.execution_contracts_v1 import SignalSource
-from execution.runtime.environment_registry_v1 import EnvironmentRegistry
-from execution.runtime.capability_router_v1 import CapabilityRouter
+from substrate.execution.runtime.execution_contracts_v1 import SignalSource
+from substrate.execution.runtime.environment_registry_v1 import EnvironmentRegistry
+from substrate.execution.runtime.capability_router_v1 import CapabilityRouter
 from adapters.adapter_engine.adapter_lifecycle_manager_v1 import AdapterLifecycleManager
-from execution.runtime.governance_execution_bridge_v1 import GovernanceExecutionBridge
-from execution.runtime.runtime_execution_queue_v1 import RuntimeExecutionQueue
-from execution.runtime.runtime_observability_pipeline_v1 import RuntimeObservabilityPipeline
-from execution.runtime.execution_orchestrator_v1 import ExecutionOrchestrator
-from execution.runtime.canonical_runtime_spine_v1 import CanonicalRuntimeSpine
-from execution.runtime.runtime_replay_engine_v1 import RuntimeReplayEngine
+from substrate.execution.runtime.governance_execution_bridge_v1 import GovernanceExecutionBridge
+from substrate.execution.runtime.runtime_execution_queue_v1 import RuntimeExecutionQueue
+from substrate.execution.runtime.runtime_observability_pipeline_v1 import RuntimeObservabilityPipeline
+from substrate.execution.runtime.execution_orchestrator_v1 import ExecutionOrchestrator
+from substrate.execution.runtime.canonical_runtime_spine_v1 import CanonicalRuntimeSpine
+from substrate.execution.runtime.runtime_replay_engine_v1 import RuntimeReplayEngine
 
 PROOF_DIR = Path("data/runtime/operationalization_proofs")
 

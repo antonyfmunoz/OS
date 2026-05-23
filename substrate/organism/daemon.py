@@ -9,6 +9,7 @@ from substrate.organism.advisor import Advisor
 from substrate.organism.approval_store import ApprovalStore
 from substrate.organism.store import OrganismStore
 from substrate.organism.worker_cell import WorkerCell
+from substrate.execution.pipeline import ExecutionPipeline
 
 logger = logging.getLogger(__name__)
 
@@ -27,14 +28,14 @@ def _map_risk_level(data: dict[str, Any]) -> str:
 class OrganismDaemon:
     def __init__(
         self,
-        spine: Any = None,
+        pipeline: ExecutionPipeline | None = None,
         store_dir: str = "data/umh/organism",
         view_socket: Any = None,
     ) -> None:
         self._store = OrganismStore(store_dir=store_dir)
         self._approval_store = ApprovalStore(store_dir=store_dir)
-        self._spine = spine
-        worker = WorkerCell(spine=spine)
+        self._pipeline = pipeline
+        worker = WorkerCell(pipeline=pipeline) if pipeline else WorkerCell()
         self._advisor = Advisor(store=self._store, worker=worker, view_socket=view_socket)
         self._view_socket = view_socket
         self._started = False
@@ -53,6 +54,8 @@ class OrganismDaemon:
 
     def start(self) -> None:
         self._started = True
+        if self._pipeline is not None:
+            self._pipeline.on_event(self._on_pipeline_event)
         logger.info("organism daemon started: %d agents", len(self._advisor.list_agents()))
 
     def _on_pipeline_event(self, event_type: str, data: dict[str, Any]) -> None:

@@ -85,7 +85,7 @@ class ConcreteTraceRecorder:
             from dotenv import load_dotenv
 
             load_dotenv("/opt/OS/runtime/.env", override=True)
-            from state.storage.db import get_conn
+            from substrate.state.storage.db import get_conn
 
             events_json = [
                 {

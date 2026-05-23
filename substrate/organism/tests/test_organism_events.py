@@ -3,7 +3,7 @@
 import pytest
 from substrate.organism.advisor import Advisor
 from substrate.organism.store import OrganismStore
-from services.umh.sockets.envelopes import ViewFrame
+from substrate.sockets.envelopes import ViewFrame
 
 
 class FakeViewSocket:

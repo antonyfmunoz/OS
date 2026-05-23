@@ -22,9 +22,9 @@ load_dotenv("/opt/OS/services/.env")
 
 import os
 
-from services.umh.integrations.eos.manifest import POLLED_TABLES
-from services.umh.integrations.eos.tables import fetch_org_ids
-from services.umh.integrations.notion.watermarks import WatermarkStore
+from substrate.integrations.eos.manifest import POLLED_TABLES
+from substrate.integrations.eos.tables import fetch_org_ids
+from substrate.integrations.notion.watermarks import WatermarkStore
 
 WATERMARK_PATH = Path("/opt/OS/services/umh/data/eos_watermarks.jsonl")
 

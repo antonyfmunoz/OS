@@ -36,8 +36,8 @@ from typing import Any
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 try:
-    from understanding.perception.parsers import REGISTRY as PARSER_REGISTRY
-    from understanding.perception.parsers.base import ParsedFile
+    from substrate.understanding.perception.parsers import REGISTRY as PARSER_REGISTRY
+    from substrate.understanding.perception.parsers.base import ParsedFile
 except Exception:  # pragma: no cover — allow running before parsers/ exists
     PARSER_REGISTRY = []  # type: ignore[assignment]
     ParsedFile = None  # type: ignore[assignment,misc]
@@ -433,7 +433,7 @@ def scan_codebase(target_module: str | None = None) -> CodebaseGraph:
             if mod in module_to_path:
                 resolved = module_to_path[mod]
             else:
-                # Try parent module (from state.storage.db import get_conn)
+                # Try parent module (from substrate.state.storage.db import get_conn)
                 for known_mod, known_path in module_to_path.items():
                     if mod.startswith(known_mod) or known_mod.startswith(mod):
                         resolved = known_path

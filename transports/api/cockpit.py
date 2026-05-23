@@ -67,7 +67,7 @@ async def pulse():
 
 @router.get("/models")
 async def models():
-    from services.umh.model_routing.config import load_routing_config
+    from adapters.models.routing.config import load_routing_config
 
     config = load_routing_config()
     desc = config.describe()
@@ -559,7 +559,7 @@ async def mesh_nodes():
 def _get_mesh_server():
     """Lazy import to avoid circular dependency at module load."""
     try:
-        from services.umh.control_plane.app import _mesh_server
+        from transports.api.app import _mesh_server
 
         return _mesh_server
     except (ImportError, AttributeError):
@@ -608,7 +608,7 @@ async def organism_signal(payload: dict):
 
 def _get_organism():
     try:
-        from services.umh.control_plane.app import _organism
+        from transports.api.app import _organism
 
         return _organism
     except (ImportError, AttributeError):
@@ -631,8 +631,8 @@ async def pipeline_submit(payload: dict):
     pre_approved = payload.get("pre_approved", False)
 
     try:
-        from services.umh.control_plane.app import _pipeline
-        from services.umh.governance.risk_classes import RiskClass
+        from transports.api.app import _pipeline
+        from substrate.governance.risk_classes import RiskClass
 
         risk = RiskClass[risk_class]
     except (ImportError, KeyError):
@@ -697,8 +697,8 @@ async def workflow_trigger(workflow_id: str, payload: dict | None = None):
         content = payload["params"].get("command", content)
 
     try:
-        from services.umh.control_plane.app import _pipeline
-        from services.umh.governance.risk_classes import RiskClass
+        from transports.api.app import _pipeline
+        from substrate.governance.risk_classes import RiskClass
 
         loop = asyncio.get_running_loop()
         result = await loop.run_in_executor(
@@ -874,7 +874,7 @@ async def activity_stream(limit: int = 200, source: str | None = None):
 def _get_policy_engine():
     """Access the pipeline's PolicyEngine instance."""
     try:
-        from services.umh.control_plane.app import _pipeline
+        from transports.api.app import _pipeline
 
         return _pipeline._policy
     except (ImportError, AttributeError):
@@ -884,14 +884,14 @@ def _get_policy_engine():
 @router.get("/governance")
 async def governance_policy():
     """Return current governance policy table — risk class → authority level."""
-    from services.umh.governance.authority import AuthorityLevel
-    from services.umh.governance.risk_classes import RiskClass
+    from substrate.governance.authority import AuthorityLevel
+    from substrate.governance.risk_classes import RiskClass
 
     engine = _get_policy_engine()
     if engine is None:
         return {"error": "policy engine not available"}
 
-    from services.umh.governance.policy_engine import _DEFAULT_POLICY
+    from substrate.governance.policy_engine import _DEFAULT_POLICY
 
     result = []
     for rc in RiskClass:
@@ -921,9 +921,9 @@ async def update_governance(payload: dict):
     Accepts: {"policies": {"risk_class_name": "AUTHORITY_LEVEL", ...}}
     Example: {"policies": {"SAFE_WRITE": "AUTONOMOUS", "REVERSIBLE_WRITE": "APPROVE"}}
     """
-    from services.umh.governance.authority import AuthorityLevel
-    from services.umh.governance.policy_engine import _DEFAULT_POLICY
-    from services.umh.governance.risk_classes import RiskClass
+    from substrate.governance.authority import AuthorityLevel
+    from substrate.governance.policy_engine import _DEFAULT_POLICY
+    from substrate.governance.risk_classes import RiskClass
 
     policies = payload.get("policies", {})
     applied = []

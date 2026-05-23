@@ -22,9 +22,9 @@ GENERAL_CHANNEL_ID = int(os.getenv('DISCORD_GENERAL_CHANNEL_ID', '0'))
 
 async def midday_checkin():
     from adapters.google_workspace.gws_connector import GWSConnector
-    from state.context.context import load_context_from_env
-    from state.storage.db import get_conn
-    from execution.runtime.model_router import get_router, TaskType
+    from substrate.state.context.context import load_context_from_env
+    from substrate.state.storage.db import get_conn
+    from substrate.execution.runtime.model_router import get_router, TaskType
     from dateutil.parser import parse as _parse
 
     ctx = load_context_from_env()

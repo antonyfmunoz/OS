@@ -22,8 +22,8 @@ GENERAL_CHANNEL_ID = 1486289444830056540
 
 
 async def detect_noshows():
-    from state.context.context import load_context_from_env
-    from execution.runtime.model_router import get_router, TaskType
+    from substrate.state.context.context import load_context_from_env
+    from substrate.execution.runtime.model_router import get_router, TaskType
 
     ctx = load_context_from_env()
 
@@ -122,7 +122,7 @@ Subject line included.""").strip()
 
             # Queue for approval
             try:
-                from state.storage.db import get_conn
+                from substrate.state.storage.db import get_conn
                 import json as _json
                 with get_conn(ctx.org_id) as cur:
                     cur.execute('''

@@ -29,13 +29,13 @@ from typing import Any
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from control_plane.actions.deferred import list_deferred  # noqa: E402
-from control_plane.actions.logging import (  # noqa: E402
+from substrate.control_plane.actions.deferred import list_deferred  # noqa: E402
+from substrate.control_plane.actions.logging import (  # noqa: E402
     DECISION_LOG_DIR,
     EXECUTION_LOG_DIR,
 )
-from control_plane.runtime.orchestrator.loop import HEARTBEAT_PATH  # noqa: E402
-from control_plane.runtime.orchestrator.orchestrator import (  # noqa: E402
+from substrate.control_plane.runtime.orchestrator.loop import HEARTBEAT_PATH  # noqa: E402
+from substrate.control_plane.runtime.orchestrator.orchestrator import (  # noqa: E402
     STATE_PATH,
     default_orchestrator,
 )
@@ -44,12 +44,12 @@ from control_plane.runtime.orchestrator.orchestrator import (  # noqa: E402
 # stale at 3x expected cadence to tolerate a missed run without
 # screaming.
 LOOP_STALE_THRESHOLD_S = 15 * 60
-from control_plane.runtime.orchestrator.signals import (  # noqa: E402
+from substrate.control_plane.runtime.orchestrator.signals import (  # noqa: E402
     get_handlers,
     list_pending,
     list_signals,
 )
-from control_plane.runtime.orchestrator.workflows import register_default_workflows  # noqa: E402
+from substrate.control_plane.runtime.orchestrator.workflows import register_default_workflows  # noqa: E402
 
 
 # ---------------------------------------------------------------------------

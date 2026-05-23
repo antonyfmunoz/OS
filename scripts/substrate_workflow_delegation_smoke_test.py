@@ -63,7 +63,7 @@ def _reset_env() -> None:
 
 def test_builder_dev_classification() -> None:
     _header("Builder-dev classification")
-    from execution.transport.workflow_delegation import classify_workflow_intent
+    from substrate.execution.transport.workflow_delegation import classify_workflow_intent
 
     cases = [
         ("fix the bug in the router", "workflow", "builder_dev"),
@@ -87,7 +87,7 @@ def test_builder_dev_classification() -> None:
 
 def test_product_runtime_classification() -> None:
     _header("Product-runtime classification")
-    from execution.transport.workflow_delegation import classify_workflow_intent
+    from substrate.execution.transport.workflow_delegation import classify_workflow_intent
 
     cases = [
         ("run the onboarding workflow for this user", "workflow", "product_runtime"),
@@ -106,7 +106,7 @@ def test_product_runtime_classification() -> None:
 
 def test_conversation_classification() -> None:
     _header("Conversation classification")
-    from execution.transport.workflow_delegation import classify_workflow_intent
+    from substrate.execution.transport.workflow_delegation import classify_workflow_intent
 
     cases = [
         "what backend are you using",
@@ -128,7 +128,7 @@ def test_conversation_classification() -> None:
 
 def test_skill_tool_classification() -> None:
     _header("Skill/tool classification")
-    from execution.transport.workflow_delegation import classify_workflow_intent
+    from substrate.execution.transport.workflow_delegation import classify_workflow_intent
 
     cases = [
         "use the brave search tool to find competitors",
@@ -147,7 +147,7 @@ def test_skill_tool_classification() -> None:
 
 def test_content_ops_classification() -> None:
     _header("Content ops classification")
-    from execution.transport.workflow_delegation import classify_workflow_intent
+    from substrate.execution.transport.workflow_delegation import classify_workflow_intent
 
     cases = [
         ("create a new post about the launch", "workflow", "content_ops"),
@@ -165,7 +165,7 @@ def test_content_ops_classification() -> None:
 
 def test_analysis_classification() -> None:
     _header("Analysis classification")
-    from execution.transport.workflow_delegation import classify_workflow_intent
+    from substrate.execution.transport.workflow_delegation import classify_workflow_intent
 
     cases = [
         ("analyze the funnel data from last week", "workflow", "analysis"),
@@ -183,7 +183,7 @@ def test_analysis_classification() -> None:
 
 def test_system_ops_classification() -> None:
     _header("System ops classification")
-    from execution.transport.workflow_delegation import classify_workflow_intent
+    from substrate.execution.transport.workflow_delegation import classify_workflow_intent
 
     cases = [
         ("check the system status", "workflow", "system_ops"),
@@ -201,7 +201,7 @@ def test_system_ops_classification() -> None:
 
 def test_planning_only_exclusion() -> None:
     _header("Planning-only exclusion (pass through to CC session)")
-    from execution.transport.workflow_delegation import classify_workflow_intent
+    from substrate.execution.transport.workflow_delegation import classify_workflow_intent
 
     cases = [
         "plan out how you would add a health check endpoint to the EOS API",
@@ -241,7 +241,7 @@ def test_planning_only_exclusion() -> None:
 
 def test_empty_input() -> None:
     _header("Empty input")
-    from execution.transport.workflow_delegation import classify_workflow_intent
+    from substrate.execution.transport.workflow_delegation import classify_workflow_intent
 
     for text in ("", "   ", None):
         r = classify_workflow_intent(text or "", "builder")
@@ -257,7 +257,7 @@ def test_empty_input() -> None:
 
 def test_builder_allows_builder_dev() -> None:
     _header("Builder mode allows builder_dev")
-    from execution.transport.workflow_delegation import (
+    from substrate.execution.transport.workflow_delegation import (
         classify_workflow_intent,
         resolve_workflow_policy,
     )
@@ -270,7 +270,7 @@ def test_builder_allows_builder_dev() -> None:
 
 def test_product_blocks_builder_dev() -> None:
     _header("Product mode blocks builder_dev")
-    from execution.transport.workflow_delegation import (
+    from substrate.execution.transport.workflow_delegation import (
         classify_workflow_intent,
         resolve_workflow_policy,
     )
@@ -291,7 +291,7 @@ def test_product_blocks_builder_dev() -> None:
 
 def test_product_allows_product_runtime() -> None:
     _header("Product mode allows product_runtime")
-    from execution.transport.workflow_delegation import (
+    from substrate.execution.transport.workflow_delegation import (
         classify_workflow_intent,
         resolve_workflow_policy,
     )
@@ -305,7 +305,7 @@ def test_product_allows_product_runtime() -> None:
 
 def test_unknown_mode_restricts() -> None:
     _header("Unknown mode restricts workflow kinds")
-    from execution.transport.workflow_delegation import (
+    from substrate.execution.transport.workflow_delegation import (
         classify_workflow_intent,
         resolve_workflow_policy,
     )
@@ -321,7 +321,7 @@ def test_unknown_mode_restricts() -> None:
 
 def test_conversation_always_allowed() -> None:
     _header("Conversation always allowed in any mode")
-    from execution.transport.workflow_delegation import (
+    from substrate.execution.transport.workflow_delegation import (
         classify_workflow_intent,
         resolve_workflow_policy,
     )
@@ -341,7 +341,7 @@ def test_conversation_always_allowed() -> None:
 
 def test_enrich_metadata() -> None:
     _header("Metadata enrichment")
-    from execution.transport.workflow_delegation import enrich_metadata
+    from substrate.execution.transport.workflow_delegation import enrich_metadata
 
     meta: dict = {
         "transport": "discord",
@@ -366,7 +366,7 @@ def test_enrich_metadata() -> None:
 
 def test_enrich_preserves_existing() -> None:
     _header("Enrichment preserves existing metadata")
-    from execution.transport.workflow_delegation import enrich_metadata
+    from substrate.execution.transport.workflow_delegation import enrich_metadata
 
     meta: dict = {
         "transport": "discord",
@@ -389,7 +389,7 @@ def test_enrich_preserves_existing() -> None:
 
 def test_extra_keywords() -> None:
     _header("Extra keyword env vars")
-    from execution.transport.workflow_delegation import classify_workflow_intent
+    from substrate.execution.transport.workflow_delegation import classify_workflow_intent
 
     _reset_env()
     os.environ["EOS_WORKFLOW_EXTRA_BUILDER_KEYWORDS"] = "yolo,ship it"
@@ -414,7 +414,7 @@ def test_extra_keywords() -> None:
 
 def test_determinism() -> None:
     _header("Classification determinism")
-    from execution.transport.workflow_delegation import classify_workflow_intent
+    from substrate.execution.transport.workflow_delegation import classify_workflow_intent
 
     text = "deploy the latest build and check the logs"
     r1 = classify_workflow_intent(text, "builder")
@@ -427,7 +427,7 @@ def test_determinism() -> None:
 
 def test_policy_dict_shape() -> None:
     _header("Policy dict shape completeness")
-    from execution.transport.workflow_delegation import (
+    from substrate.execution.transport.workflow_delegation import (
         classify_workflow_intent,
         resolve_workflow_policy,
     )
@@ -457,7 +457,7 @@ def test_no_hotpath_imports() -> None:
     import importlib
     import ast
 
-    src = importlib.util.find_spec("execution.transport.workflow_delegation")
+    src = importlib.util.find_spec("substrate.execution.transport.workflow_delegation")
     assert src and src.origin
     with open(src.origin) as f:
         tree = ast.parse(f.read())
@@ -487,7 +487,7 @@ def test_no_second_router() -> None:
     import importlib
     import ast
 
-    src = importlib.util.find_spec("execution.transport.workflow_delegation")
+    src = importlib.util.find_spec("substrate.execution.transport.workflow_delegation")
     assert src and src.origin
     with open(src.origin) as f:
         content = f.read()
@@ -506,7 +506,7 @@ def test_no_second_router() -> None:
 
 def test_product_local_delegation_coexists_with_workflow() -> None:
     _header("Product local delegation + workflow metadata coexistence")
-    from execution.transport.workflow_delegation import enrich_metadata
+    from substrate.execution.transport.workflow_delegation import enrich_metadata
 
     meta: dict = {
         "transport": "discord",
@@ -534,7 +534,7 @@ def test_transport_integration_returns_workflow_fields() -> None:
     import ast
     import importlib
 
-    src = importlib.util.find_spec("execution.transport.discord_text_transport")
+    src = importlib.util.find_spec("substrate.execution.transport.discord_text_transport")
     assert src and src.origin
     with open(src.origin) as f:
         content = f.read()

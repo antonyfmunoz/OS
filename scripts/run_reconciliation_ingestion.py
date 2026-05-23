@@ -21,8 +21,8 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 from adapters.adapter_engine.gws_scanner_bridge_v1 import normalize_from_scanner_outputs
 from adapters.adapter_engine.substrate_candidate_gen_v1 import generate_candidates
 from adapters.adapter_engine.substrate_decomposer_v1 import decompose_document
-from state.memory.contracts.canonical_memory_reconciliation_engine_v1 import ReconciliationEngine
-from state.memory.contracts.canonical_memory_store_v1 import CanonicalMemoryStore
+from substrate.state.memory.contracts.canonical_memory_reconciliation_engine_v1 import ReconciliationEngine
+from substrate.state.memory.contracts.canonical_memory_store_v1 import CanonicalMemoryStore
 
 DOCUMENTS = [
     {

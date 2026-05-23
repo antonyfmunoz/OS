@@ -95,9 +95,9 @@ class TestGovernanceControls:
     def test_governance_update_modifies_policy(self):
         import asyncio
 
-        from services.umh.governance.authority import AuthorityLevel
-        from services.umh.governance.policy_engine import _DEFAULT_POLICY
-        from services.umh.governance.risk_classes import RiskClass
+        from substrate.governance.authority import AuthorityLevel
+        from substrate.governance.policy_engine import _DEFAULT_POLICY
+        from substrate.governance.risk_classes import RiskClass
         from transports.api.cockpit import update_governance
 
         original = _DEFAULT_POLICY[RiskClass.SAFE_WRITE]

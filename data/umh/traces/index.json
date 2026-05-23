@@ -1,0 +1,236 @@
+{
+  "trace-9a4d6062494ce25b": {
+    "status": "completed",
+    "created_at": "2026-05-23T07:11:53.581213+00:00",
+    "outcome": "success",
+    "input_signal_preview": "Audit cognitive_loop.py for state mutations outside canonical paths",
+    "completed_at": "1779520313.5816886"
+  },
+  "trace-ac02108c90453a9c": {
+    "status": "blocked",
+    "created_at": "2026-05-23T07:11:53.586923+00:00",
+    "outcome": "governance_denied",
+    "input_signal_preview": "Create a new file at /tmp/test_organism.txt with content 'hello'"
+  },
+  "trace-5d9f5d92ae9cd4f6": {
+    "status": "blocked",
+    "created_at": "2026-05-23T07:11:53.588039+00:00",
+    "outcome": "governance_denied",
+    "input_signal_preview": "Create a new file at /tmp/test_organism.txt with content 'hello'"
+  },
+  "trace-0acde37d0b33d759": {
+    "status": "completed",
+    "created_at": "2026-05-23T07:11:53.599765+00:00",
+    "outcome": "success",
+    "input_signal_preview": "echo hello",
+    "completed_at": "1779520313.600295"
+  },
+  "trace-98c9006a15d7674e": {
+    "status": "completed",
+    "created_at": "2026-05-23T07:11:53.608538+00:00",
+    "outcome": "success",
+    "input_signal_preview": "echo test",
+    "completed_at": "1779520313.6099303"
+  },
+  "trace-a76f903e54a46f7f": {
+    "status": "completed",
+    "created_at": "2026-05-23T07:11:53.617795+00:00",
+    "outcome": "success",
+    "input_signal_preview": "echo status",
+    "completed_at": "1779520313.6181126"
+  },
+  "trace-1e4f331d040ee528": {
+    "status": "completed",
+    "created_at": "2026-05-23T07:11:53.992482+00:00",
+    "outcome": "success",
+    "input_signal_preview": "Audit the services/umh/organism/ directory for any missing __init__.py files",
+    "completed_at": "1779520313.9929373"
+  },
+  "trace-0642a9f6ec93f2e1": {
+    "status": "completed",
+    "created_at": "2026-05-23T07:11:53.999906+00:00",
+    "outcome": "success",
+    "input_signal_preview": "Check for unused imports in app.py",
+    "completed_at": "1779520314.0004728"
+  },
+  "trace-4264fc076eb401ee": {
+    "status": "completed",
+    "created_at": "2026-05-23T07:11:54.005401+00:00",
+    "outcome": "success",
+    "input_signal_preview": "Search for TODO comments in the codebase",
+    "completed_at": "1779520314.0057237"
+  },
+  "trace-9fb9d07ea0c402e8": {
+    "status": "completed",
+    "created_at": "2026-05-23T07:11:54.013147+00:00",
+    "outcome": "success",
+    "input_signal_preview": "List all Python files in services/umh/",
+    "completed_at": "1779520314.013555"
+  },
+  "trace-2398b0a9cebb4be6": {
+    "status": "completed",
+    "created_at": "2026-05-23T07:11:54.019815+00:00",
+    "outcome": "success",
+    "input_signal_preview": "Audit services/umh/organism/ for missing files",
+    "completed_at": "1779520314.020332"
+  },
+  "trace-0f8521f86da0d587": {
+    "status": "completed",
+    "created_at": "2026-05-23T07:11:54.027256+00:00",
+    "outcome": "success",
+    "input_signal_preview": "Check for unused imports",
+    "completed_at": "1779520314.0278037"
+  },
+  "trace-329a5652fd7644fb": {
+    "status": "completed",
+    "created_at": "2026-05-23T07:11:54.035312+00:00",
+    "outcome": "success",
+    "input_signal_preview": "Search for TODO comments",
+    "completed_at": "1779520314.035828"
+  },
+  "trace-a609948f14285390": {
+    "status": "completed",
+    "created_at": "2026-05-23T07:11:54.044240+00:00",
+    "outcome": "success",
+    "input_signal_preview": "List files",
+    "completed_at": "1779520314.0447"
+  },
+  "trace-d69aaee0dfd41ecd": {
+    "status": "completed",
+    "created_at": "2026-05-23T07:11:54.069361+00:00",
+    "outcome": "success",
+    "input_signal_preview": "list python files in services/umh/organism/",
+    "completed_at": "1779520314.0700033"
+  },
+  "trace-3fa3442186101994": {
+    "status": "failed",
+    "created_at": "2026-05-23T07:11:54.072632+00:00",
+    "outcome": "error",
+    "input_signal_preview": "test bad adapter",
+    "completed_at": "1779520314.073027"
+  },
+  "trace-6bcb00e1e7b229bb": {
+    "status": "completed",
+    "created_at": "2026-05-23T07:11:54.077029+00:00",
+    "outcome": "success",
+    "input_signal_preview": "simple test",
+    "completed_at": "1779520314.0775096"
+  },
+  "trace-6974be0c591427d6": {
+    "status": "completed",
+    "created_at": "2026-05-23T07:27:19.151627+00:00",
+    "outcome": "success",
+    "input_signal_preview": "Audit cognitive_loop.py for state mutations outside canonical paths",
+    "completed_at": "1779521239.1521277"
+  },
+  "trace-8dd55cde2f62883b": {
+    "status": "blocked",
+    "created_at": "2026-05-23T07:27:19.156366+00:00",
+    "outcome": "governance_denied",
+    "input_signal_preview": "Create a new file at /tmp/test_organism.txt with content 'hello'"
+  },
+  "trace-674d8d713c5986a8": {
+    "status": "blocked",
+    "created_at": "2026-05-23T07:27:19.157493+00:00",
+    "outcome": "governance_denied",
+    "input_signal_preview": "Create a new file at /tmp/test_organism.txt with content 'hello'"
+  },
+  "trace-08bec953a5b8f3ed": {
+    "status": "completed",
+    "created_at": "2026-05-23T07:27:19.170290+00:00",
+    "outcome": "success",
+    "input_signal_preview": "echo hello",
+    "completed_at": "1779521239.1707935"
+  },
+  "trace-98eee13085c36829": {
+    "status": "completed",
+    "created_at": "2026-05-23T07:27:19.175925+00:00",
+    "outcome": "success",
+    "input_signal_preview": "echo test",
+    "completed_at": "1779521239.1762772"
+  },
+  "trace-50d7bde10e07d3f6": {
+    "status": "completed",
+    "created_at": "2026-05-23T07:27:19.182202+00:00",
+    "outcome": "success",
+    "input_signal_preview": "echo status",
+    "completed_at": "1779521239.1825933"
+  },
+  "trace-0e241b9f32a5811f": {
+    "status": "completed",
+    "created_at": "2026-05-23T07:27:19.457312+00:00",
+    "outcome": "success",
+    "input_signal_preview": "Audit the services/umh/organism/ directory for any missing __init__.py files",
+    "completed_at": "1779521239.4578974"
+  },
+  "trace-9f7bf65d59b7544a": {
+    "status": "completed",
+    "created_at": "2026-05-23T07:27:19.466992+00:00",
+    "outcome": "success",
+    "input_signal_preview": "Check for unused imports in app.py",
+    "completed_at": "1779521239.4674933"
+  },
+  "trace-7aa4cd2bdd04e6b5": {
+    "status": "completed",
+    "created_at": "2026-05-23T07:27:19.470538+00:00",
+    "outcome": "success",
+    "input_signal_preview": "Search for TODO comments in the codebase",
+    "completed_at": "1779521239.4708838"
+  },
+  "trace-2e4e4bfc5ae43d81": {
+    "status": "completed",
+    "created_at": "2026-05-23T07:27:19.477338+00:00",
+    "outcome": "success",
+    "input_signal_preview": "List all Python files in services/umh/",
+    "completed_at": "1779521239.4779117"
+  },
+  "trace-98b7eae6986b2475": {
+    "status": "completed",
+    "created_at": "2026-05-23T07:27:19.482700+00:00",
+    "outcome": "success",
+    "input_signal_preview": "Audit services/umh/organism/ for missing files",
+    "completed_at": "1779521239.4832008"
+  },
+  "trace-2be4d5e7d0bc83f4": {
+    "status": "completed",
+    "created_at": "2026-05-23T07:27:19.495462+00:00",
+    "outcome": "success",
+    "input_signal_preview": "Check for unused imports",
+    "completed_at": "1779521239.49602"
+  },
+  "trace-38d89d921287ef14": {
+    "status": "completed",
+    "created_at": "2026-05-23T07:27:19.502230+00:00",
+    "outcome": "success",
+    "input_signal_preview": "Search for TODO comments",
+    "completed_at": "1779521239.5059817"
+  },
+  "trace-3f04e92ea512c4a7": {
+    "status": "completed",
+    "created_at": "2026-05-23T07:27:19.511948+00:00",
+    "outcome": "success",
+    "input_signal_preview": "List files",
+    "completed_at": "1779521239.5122957"
+  },
+  "trace-3db6bbefd56b5f94": {
+    "status": "completed",
+    "created_at": "2026-05-23T07:27:19.532513+00:00",
+    "outcome": "success",
+    "input_signal_preview": "list python files in services/umh/organism/",
+    "completed_at": "1779521239.533348"
+  },
+  "trace-468c5343b386b321": {
+    "status": "failed",
+    "created_at": "2026-05-23T07:27:19.535249+00:00",
+    "outcome": "error",
+    "input_signal_preview": "test bad adapter",
+    "completed_at": "1779521239.5357428"
+  },
+  "trace-bdf03565a67ef654": {
+    "status": "completed",
+    "created_at": "2026-05-23T07:27:19.538503+00:00",
+    "outcome": "success",
+    "input_signal_preview": "simple test",
+    "completed_at": "1779521239.538947"
+  }
+}

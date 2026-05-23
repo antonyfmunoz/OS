@@ -11,8 +11,8 @@ import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 from core.execution_contract import run_task
-from state.storage.db import get_conn, ORG_ID
-from execution.transport.execution_trace import get_trace_history
+from substrate.state.storage.db import get_conn, ORG_ID
+from substrate.execution.transport.execution_trace import get_trace_history
 
 
 def main() -> None:

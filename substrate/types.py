@@ -166,6 +166,30 @@ class GovernanceVerdict(BaseModel):
         return self.decision == GovernanceDecision.APPROVE
 
 
+class PipelineGovernanceVerdict(BaseModel):
+    """Governance verdict used by the services/umh pipeline (request-scoped).
+
+    Distinct from GovernanceVerdict which is signal-scoped for the substrate spine.
+    """
+
+    id: UUID = Field(default_factory=uuid4)
+    request_id: UUID
+    decision: GovernanceDecision
+    risk_level: "RiskLevel"  # Forward ref resolved after RiskLevel defined below
+    rationale: str = Field(max_length=300)
+    conditions: list["GovernanceCondition"] = Field(default_factory=list)
+    expires_at: datetime | None = None
+    decided_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    decided_by: str = Field(default="substrate", max_length=80)
+
+    def is_executable(self) -> bool:
+        if self.decision == GovernanceDecision.APPROVE:
+            return True
+        if self.decision == GovernanceDecision.CONDITIONAL:
+            return all(c.verified for c in self.conditions)
+        return False
+
+
 # ─── Execution ───────────────────────────────────────────────────────────────
 
 
@@ -206,6 +230,7 @@ class ExecutionOutcome(str, Enum):
     FAILURE = "failure"
     TIMEOUT = "timeout"
     BLOCKED = "blocked"
+    REJECTED = "rejected"
 
 
 class ExecutionResult(BaseModel):
@@ -234,6 +259,25 @@ class ExecutionResult(BaseModel):
         )
 
 
+class PipelineExecutionResult(BaseModel):
+    """Execution result from the services/umh pipeline (work-packet-scoped)."""
+
+    id: UUID = Field(default_factory=uuid4)
+    work_packet_id: UUID
+    trace_id: UUID
+    outcome: ExecutionOutcome
+    output_data: dict[str, Any] = Field(default_factory=dict)
+    error: str | None = None
+    duration_ms: float = 0.0
+    resources_consumed: dict[str, float] = Field(default_factory=dict)
+    side_effects: list[str] = Field(default_factory=list)
+    completed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    def is_success(self) -> bool:
+        return self.outcome in (ExecutionOutcome.SUCCESS, ExecutionOutcome.PARTIAL_SUCCESS)
+
+
 # ─── Trace ───────────────────────────────────────────────────────────────────
 
 
@@ -242,13 +286,20 @@ class TraceEventType(str, Enum):
     IDENTITY_RESOLVED = "identity_resolved"
     CONTEXT_ASSEMBLED = "context_assembled"
     GOVERNANCE_DECIDED = "governance_decided"
+    GOVERNANCE_REQUESTED = "governance_requested"
     MEMORY_RECALLED = "memory_recalled"
     PLAN_COMPOSED = "plan_composed"
     ADAPTER_CALLED = "adapter_called"
     ADAPTER_RESPONDED = "adapter_responded"
+    EXECUTION_STARTED = "execution_started"
     EXECUTION_COMPLETED = "execution_completed"
     FEEDBACK_CAPTURED = "feedback_captured"
     MEMORY_WRITTEN = "memory_written"
+    MEMORY_WRITE = "memory_write"
+    INTERPRETATION_COMPLETE = "interpretation_complete"
+    DECOMPOSITION_COMPLETE = "decomposition_complete"
+    WORK_PACKET_CREATED = "work_packet_created"
+    CUSTOM = "custom"
     ERROR = "error"
 
 
@@ -257,6 +308,7 @@ class TraceEvent(BaseModel):
     trace_id: UUID
     event_type: TraceEventType
     description: str = Field(max_length=300)
+    entity_id: UUID | None = None
     data: dict[str, Any] = Field(default_factory=dict)
     parent_event_id: UUID | None = None
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -287,6 +339,11 @@ class TraceRecord(BaseModel):
         self.completed_at = datetime.now(timezone.utc)
         self.success = success
         self.duration_ms = (self.completed_at - self.started_at).total_seconds() * 1000
+
+
+# Alias: the protocol-layer Trace is identical to TraceRecord in structure
+# (both have signal_id, events, add_event). Pipeline code imports Trace.
+Trace = TraceRecord
 
 
 # ─── Feedback ────────────────────────────────────────────────────────────────
@@ -456,3 +513,479 @@ class AdapterRequest(BaseModel):
     payload: dict[str, Any] = Field(default_factory=dict)
     timeout_ms: int = Field(default=120_000, ge=1000)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+# ─── Capability ─────────────────────────────────────────────────────────────
+
+
+class CapabilityStatus(str, Enum):
+    """Current availability of a capability."""
+
+    AVAILABLE = "available"
+    DEGRADED = "degraded"
+    UNAVAILABLE = "unavailable"
+    RATE_LIMITED = "rate_limited"
+
+
+class CapabilityCategory(str, Enum):
+    """Broad category of capability."""
+
+    COMPUTE = "compute"
+    COMMUNICATE = "communicate"
+    STORE = "store"
+    RETRIEVE = "retrieve"
+    TRANSFORM = "transform"
+    OBSERVE = "observe"
+    DECIDE = "decide"
+
+
+class Capability(BaseModel):
+    """A registered capability the substrate can invoke."""
+
+    id: UUID = Field(default_factory=uuid4)
+    name: str = Field(max_length=120)
+    category: CapabilityCategory
+    status: CapabilityStatus = CapabilityStatus.AVAILABLE
+    adapter_id: UUID | None = None
+    input_schema: dict[str, Any] = Field(default_factory=dict)
+    output_schema: dict[str, Any] = Field(default_factory=dict)
+    cost_per_invocation: float = 0.0
+    rate_limit: int | None = None
+    registered_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    def is_usable(self) -> bool:
+        return self.status in (CapabilityStatus.AVAILABLE, CapabilityStatus.DEGRADED)
+
+
+class CapabilityInvocation(BaseModel):
+    """A request to use a specific capability."""
+
+    id: UUID = Field(default_factory=uuid4)
+    capability_id: UUID
+    governance_verdict_id: UUID
+    input_data: dict[str, Any] = Field(default_factory=dict)
+    requested_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    trace_id: UUID | None = None
+
+
+# ─── Environment ────────────────────────────────────────────────────────────
+
+
+class EnvironmentDomain(str, Enum):
+    """Which aspect of the environment is being tracked."""
+
+    COMPUTE = "compute"
+    NETWORK = "network"
+    STORAGE = "storage"
+    TIME = "time"
+    USER_CONTEXT = "user_context"
+    SYSTEM_STATE = "system_state"
+
+
+class ResourceStatus(str, Enum):
+    """Status of an environmental resource."""
+
+    NOMINAL = "nominal"
+    CONSTRAINED = "constrained"
+    CRITICAL = "critical"
+    UNAVAILABLE = "unavailable"
+
+
+class EnvironmentFact(BaseModel):
+    """A single observation about the current environment."""
+
+    domain: EnvironmentDomain
+    key: str = Field(max_length=120)
+    value: Any
+    status: ResourceStatus = ResourceStatus.NOMINAL
+    observed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class EnvironmentSnapshot(BaseModel):
+    """A point-in-time view of the operating environment."""
+
+    id: UUID = Field(default_factory=uuid4)
+    facts: list[EnvironmentFact] = Field(default_factory=list)
+    constraints_active: list[str] = Field(default_factory=list)
+    taken_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    def is_healthy(self) -> bool:
+        return all(
+            f.status in (ResourceStatus.NOMINAL, ResourceStatus.CONSTRAINED) for f in self.facts
+        )
+
+    def critical_resources(self) -> list[EnvironmentFact]:
+        return [f for f in self.facts if f.status == ResourceStatus.CRITICAL]
+
+
+# ─── Interpretation ─────────────────────────────────────────────────────────
+
+
+class InterpretationType(str, Enum):
+    """What kind of meaning was extracted."""
+
+    REQUEST = "request"
+    INFORMATION = "information"
+    FEEDBACK = "feedback"
+    QUESTION = "question"
+    COMMAND = "command"
+    NOTIFICATION = "notification"
+    CONSTRAINT = "constraint"
+
+
+class Intent(BaseModel):
+    """A recognized intent within the interpretation."""
+
+    action: str = Field(max_length=120)
+    target: str | None = Field(default=None, max_length=120)
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    confidence: float = Field(ge=0.0, le=1.0)
+
+
+class Interpretation(BaseModel):
+    """The structured meaning derived from a Signal."""
+
+    id: UUID = Field(default_factory=uuid4)
+    signal_id: UUID
+    interpretation_type: InterpretationType
+    summary: str = Field(max_length=300)
+    intents: list[Intent] = Field(default_factory=list)
+    entities_referenced: list[str] = Field(default_factory=list)
+    requires_action: bool = False
+    requires_response: bool = False
+    context_dependencies: list[UUID] = Field(default_factory=list)
+    interpreted_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    def primary_intent(self) -> Intent | None:
+        if not self.intents:
+            return None
+        return max(self.intents, key=lambda i: i.confidence)
+
+
+# ─── Memory Candidate ───────────────────────────────────────────────────────
+
+
+class MemoryCandidate(BaseModel):
+    """A proposed write to durable memory — must pass governance."""
+
+    id: UUID = Field(default_factory=uuid4)
+    memory_type: MemoryType
+    content: str = Field(max_length=1000)
+    source_signal_id: UUID | None = None
+    source_trace_id: UUID | None = None
+    governance_verdict_id: UUID | None = None
+    confidence: float = Field(ge=0.0, le=1.0, default=0.8)
+    tags: list[str] = Field(default_factory=list)
+    supersedes: list[UUID] = Field(default_factory=list)
+    proposed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class MemoryUpdate(BaseModel):
+    """A modification to an existing memory entry."""
+
+    id: UUID = Field(default_factory=uuid4)
+    target_memory_id: UUID
+    update_type: str = Field(max_length=60)
+    previous_value: Any = None
+    new_value: Any = None
+    reason: str = Field(max_length=300)
+    governance_verdict_id: UUID | None = None
+    applied_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class MemoryWriteResult(BaseModel):
+    """Confirmation that a memory candidate was persisted."""
+
+    candidate_id: UUID
+    memory_id: UUID
+    written_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    success: bool = True
+    error: str | None = None
+
+
+# ─── Outcome ────────────────────────────────────────────────────────────────
+
+
+class OutcomeType(str, Enum):
+    """Category of outcome."""
+
+    ACTION_COMPLETED = "action_completed"
+    INFORMATION_DELIVERED = "information_delivered"
+    STATE_CHANGED = "state_changed"
+    NO_ACTION_NEEDED = "no_action_needed"
+    ESCALATED = "escalated"
+    FAILED = "failed"
+
+
+class Outcome(BaseModel):
+    """The final result of processing a signal through the full pipeline."""
+
+    id: UUID = Field(default_factory=uuid4)
+    signal_id: UUID
+    trace_id: UUID
+    outcome_type: OutcomeType
+    summary: str = Field(max_length=300)
+    results: list[UUID] = Field(default_factory=list)
+    goals_affected: list[UUID] = Field(default_factory=list)
+    beliefs_updated: list[UUID] = Field(default_factory=list)
+    side_effects: list[str] = Field(default_factory=list)
+    confidence: float = Field(ge=0.0, le=1.0, default=1.0)
+    completed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    def is_successful(self) -> bool:
+        return self.outcome_type not in (OutcomeType.FAILED, OutcomeType.ESCALATED)
+
+
+# ─── Proof ──────────────────────────────────────────────────────────────────
+
+
+class ProofType(str, Enum):
+    """What is being proven."""
+
+    EXECUTION = "execution"
+    GOVERNANCE = "governance"
+    INVARIANT = "invariant"
+    STATE_TRANSITION = "state_transition"
+    CAPABILITY_USE = "capability_use"
+
+
+class ProofStatus(str, Enum):
+    """Verification status of the proof."""
+
+    VERIFIED = "verified"
+    PENDING = "pending"
+    FAILED = "failed"
+    EXPIRED = "expired"
+
+
+class Proof(BaseModel):
+    """Verifiable evidence that an operation occurred correctly."""
+
+    id: UUID = Field(default_factory=uuid4)
+    proof_type: ProofType
+    status: ProofStatus = ProofStatus.PENDING
+    claim: str = Field(max_length=300)
+    evidence: dict[str, Any] = Field(default_factory=dict)
+    trace_id: UUID | None = None
+    verified_by: str | None = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    verified_at: datetime | None = None
+    expires_at: datetime | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    def is_valid(self, now: datetime | None = None) -> bool:
+        now = now or datetime.now(timezone.utc)
+        if self.status != ProofStatus.VERIFIED:
+            return False
+        if self.expires_at and self.expires_at < now:
+            return False
+        return True
+
+
+# ─── Work Packet ────────────────────────────────────────────────────────────
+
+
+class WorkPacketStatus(str, Enum):
+    """Lifecycle of a work packet."""
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class WorkPacketPriority(str, Enum):
+    """Execution priority."""
+
+    CRITICAL = "critical"
+    HIGH = "high"
+    NORMAL = "normal"
+    LOW = "low"
+    BACKGROUND = "background"
+
+
+class WorkPacket(BaseModel):
+    """The fundamental unit of execution — carries governance approval and trace context."""
+
+    id: UUID = Field(default_factory=uuid4)
+    governance_verdict_id: UUID
+    capability_id: UUID
+    trace_id: UUID
+    description: str = Field(max_length=300)
+    status: WorkPacketStatus = WorkPacketStatus.PENDING
+    priority: WorkPacketPriority = WorkPacketPriority.NORMAL
+    input_data: dict[str, Any] = Field(default_factory=dict)
+    assigned_adapter_id: UUID | None = None
+    max_retries: int = 1
+    attempt: int = 0
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    def is_terminal(self) -> bool:
+        return self.status in (
+            WorkPacketStatus.COMPLETED,
+            WorkPacketStatus.FAILED,
+            WorkPacketStatus.CANCELLED,
+        )
+
+    def can_retry(self) -> bool:
+        return self.status == WorkPacketStatus.FAILED and self.attempt < self.max_retries
+
+
+# ─── Governance (extended) ──────────────────────────────────────────────────
+
+
+class RiskLevel(str, Enum):
+    """Assessed risk of a proposed action (finer-grained than RiskClass)."""
+
+    NEGLIGIBLE = "negligible"
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+class GovernanceCondition(BaseModel):
+    """A condition that must be met for conditional approval."""
+
+    condition: str = Field(max_length=200)
+    verified: bool = False
+    verified_at: datetime | None = None
+
+
+class GovernanceRequest(BaseModel):
+    """A request for governance decision on a proposed action."""
+
+    id: UUID = Field(default_factory=uuid4)
+    decomposition_id: UUID
+    component_id: UUID
+    proposed_action: str = Field(max_length=300)
+    risk_level: RiskLevel = RiskLevel.MEDIUM
+    reversible: bool = True
+    affects_external: bool = False
+    requires_resources: list[str] = Field(default_factory=list)
+    requested_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+# ─── Signal (protocol version) ─────────────────────────────────────────────
+
+
+class Signal(BaseModel):
+    """The universal intake type — all external input enters as a Signal."""
+
+    id: UUID = Field(default_factory=uuid4)
+    source: SignalSource
+    urgency: SignalUrgency = SignalUrgency.NORMAL
+    content_type: str = Field(max_length=80)
+    payload: dict[str, Any] = Field(default_factory=dict)
+    raw_content: str | None = None
+    source_identifier: str | None = Field(default=None, max_length=200)
+    correlation_id: UUID | None = None
+    received_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    def is_user_initiated(self) -> bool:
+        return self.source == SignalSource.USER
+
+
+# ─── Decomposition ──────────────────────────────────────────────────────────
+
+
+class DecompositionComponentType(str, Enum):
+    """Type of decomposed component (distinct from registry ComponentType)."""
+
+    TASK = "task"
+    QUERY = "query"
+    CONSTRAINT = "constraint"
+    DEPENDENCY = "dependency"
+    ASSUMPTION = "assumption"
+    RISK = "risk"
+
+
+class DecomposedComponent(BaseModel):
+    """A single atomic component from decomposition."""
+
+    id: UUID = Field(default_factory=uuid4)
+    component_type: DecompositionComponentType
+    description: str = Field(max_length=300)
+    ordering: int = 0
+    dependencies: list[UUID] = Field(default_factory=list)
+    capability_required: str | None = None
+    estimated_complexity: float = Field(default=0.5, ge=0.0, le=1.0)
+
+
+class Decomposition(BaseModel):
+    """The result of breaking an interpretation into actionable pieces."""
+
+    id: UUID = Field(default_factory=uuid4)
+    interpretation_id: UUID
+    components: list[DecomposedComponent] = Field(default_factory=list)
+    total_complexity: float = Field(default=0.0, ge=0.0)
+    parallelizable: bool = False
+    decomposed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    def tasks(self) -> list[DecomposedComponent]:
+        return [c for c in self.components if c.component_type == DecompositionComponentType.TASK]
+
+    def constraints(self) -> list[DecomposedComponent]:
+        return [
+            c for c in self.components if c.component_type == DecompositionComponentType.CONSTRAINT
+        ]
+
+    def critical_path(self) -> list[DecomposedComponent]:
+        """Components with no dependencies — they must execute first."""
+        return [c for c in self.components if not c.dependencies]
+
+
+# ─── Adapter (extended) ────────────────────────────────────────────────────
+
+
+class AdapterType(str, Enum):
+    """What kind of external system the adapter connects to."""
+
+    LLM = "llm"
+    DATABASE = "database"
+    API = "api"
+    FILESYSTEM = "filesystem"
+    MESSAGING = "messaging"
+    BROWSER = "browser"
+    TOOL = "tool"
+
+
+class AdapterStatus(str, Enum):
+    """Adapter health status."""
+
+    HEALTHY = "healthy"
+    DEGRADED = "degraded"
+    FAILING = "failing"
+    DISCONNECTED = "disconnected"
+
+
+class AdapterConfig(BaseModel):
+    """Configuration for an adapter instance."""
+
+    id: UUID = Field(default_factory=uuid4)
+    adapter_type: AdapterType
+    name: str = Field(max_length=120)
+    endpoint: str | None = None
+    status: AdapterStatus = AdapterStatus.DISCONNECTED
+    timeout_seconds: float = 30.0
+    retry_count: int = 3
+    auth_required: bool = False
+    registered_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+# ─── Deferred model resolution ──────────────────────────────────────────────
+# PipelineGovernanceVerdict references RiskLevel and GovernanceCondition which
+# are defined after it. Rebuild to resolve the forward references.
+PipelineGovernanceVerdict.model_rebuild()

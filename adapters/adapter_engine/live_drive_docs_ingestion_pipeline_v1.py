@@ -42,12 +42,12 @@ from .google_drive_adapter_v1 import (
     DriveOpenProof,
     GoogleDriveAdapterV1,
 )
-from execution.runtime.worker_supervisor_v1 import (
+from substrate.execution.runtime.worker_supervisor_v1 import (
     WorkerHealthStatus,
     WorkerSupervisor,
     WorkerType,
 )
-from state.transformation_state_ledger import (
+from substrate.state.transformation_state_ledger import (
     StateArtifactReference,
     StateLedgerRecord,
     TransformationStage,
@@ -390,7 +390,7 @@ class LiveDriveDocsIngestionPipeline:
             for wt_str, status in worker_statuses.items():
                 try:
                     wt = WorkerType(wt_str)
-                    from execution.runtime.worker_runtime_contracts import WorkerHeartbeat
+                    from substrate.execution.runtime.worker_runtime_contracts import WorkerHeartbeat
 
                     hb = WorkerHeartbeat(
                         worker_id=wt_str,

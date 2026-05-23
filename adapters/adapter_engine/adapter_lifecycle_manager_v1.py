@@ -19,7 +19,7 @@ from typing import Any
 
 from adapters.adapter_engine.adapter_manifest import AdapterManifest, AdapterMaturityLevel
 from adapters.adapter_engine.adapter_maturity import MaturityEvidence, compute_adapter_maturity
-from execution.runtime.execution_contracts_v1 import AdapterSelection, _now_iso, _new_id
+from substrate.execution.runtime.execution_contracts_v1 import AdapterSelection, _now_iso, _new_id
 
 
 class AdapterState(str, Enum):
