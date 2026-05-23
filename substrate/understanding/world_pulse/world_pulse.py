@@ -327,7 +327,7 @@ class WorldPulse:
         # Post compact report to Discord
         try:
             from datetime import datetime as _dt
-            from transports.discord.discord_utils import post_to_webhook
+            from substrate.sockets.notification import notify_webhook
             now = _dt.now().strftime('%Y-%m-%d %H:%M')
             market_lines = [
                 s for s in results_summary
@@ -345,7 +345,7 @@ class WorldPulse:
             if skills_needing_review:
                 report_lines += ['', f'📚 Skills to review: {", ".join(skills_needing_review[:3])}']
             report_lines.append('\n— DEX')
-            post_to_webhook(
+            notify_webhook(
                 '\n'.join(report_lines),
                 title='📊 DAILY MARKET SCAN',
                 username='World Pulse',
@@ -486,8 +486,8 @@ class WorldPulse:
                 skills_needing_review=skills_needing_review,
                 sources_scanned=results_summary,
             )
-            from transports.discord.discord_utils import post_to_webhook
-            post_to_webhook(
+            from substrate.sockets.notification import notify_webhook
+            notify_webhook(
                 report,
                 title='🌍 WORLD PULSE REPORT',
                 username='World Pulse',

@@ -45,10 +45,11 @@ POSTMORTEM_DIR = VAULT / "orchestrator" / "postmortems"
 def _notify(text: str) -> None:
     """Send notification via channel router."""
     try:
-        from transports.channels.channel import get_channel_router
+        from substrate.sockets.channel_port import get_channel_router
 
         router = get_channel_router()
-        router.notify(text)
+        if router:
+            router.notify(text)
     except Exception as e:
         print(f"[Orchestrator] Notify failed: {e}")
 
@@ -57,12 +58,12 @@ def _send_discord_webhook(
     env_var: str, content: str, title: str = "", username: str = "DEX"
 ) -> None:
     """Post to a Discord channel via incoming webhook URL stored in env."""
-    from transports.discord.discord_utils import post_to_webhook
+    from substrate.sockets.notification import notify_webhook
 
     webhook_url = os.getenv(env_var, "")
     if not webhook_url:
         return
-    post_to_webhook(content, title=title, username=username, webhook_url=webhook_url)
+    notify_webhook(content, title=title, username=username, webhook_url=webhook_url)
 
 
 # ─── CEO Agent ────────────────────────────────────────────────────────────────

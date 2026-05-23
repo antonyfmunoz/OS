@@ -33,10 +33,11 @@ def _utcnow() -> str:
 def _notify(text: str) -> None:
     """Send notification via channel router."""
     try:
-        from transports.channels.channel import get_channel_router
+        from substrate.sockets.channel_port import get_channel_router
 
         router = get_channel_router()
-        router.notify(text)
+        if router:
+            router.notify(text)
     except Exception:
         print(f"[Coordination] Notify failed: {text[:100]}")
 
