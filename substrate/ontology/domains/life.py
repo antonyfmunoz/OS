@@ -8,7 +8,7 @@ rituals, reflections, gamification, player profile, and archetypes.
 
 from __future__ import annotations
 
-from understanding.ontology.primitive_decomposition_v1 import PrimitiveObservation
+from substrate.ontology.primitives import PrimitiveObservation
 
 from .contract import DomainProjection, make_projection_id
 from .registry import default_registry
