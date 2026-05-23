@@ -6,10 +6,15 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
-from services.umh.protocols.execution_result import ExecutionOutcome, ExecutionResult
-from services.umh.protocols.governance import GovernanceVerdict
-from services.umh.protocols.proof import Proof, ProofStatus, ProofType
-from services.umh.protocols.work_packet import WorkPacket
+from substrate.types import (
+    ExecutionOutcome,
+    PipelineExecutionResult as ExecutionResult,
+    PipelineGovernanceVerdict as GovernanceVerdict,
+    Proof,
+    ProofStatus,
+    ProofType,
+    WorkPacket,
+)
 
 
 class ProofGenerator:
@@ -44,11 +49,7 @@ class ProofGenerator:
         if result.output_data:
             evidence["output_summary"] = _summarize_output(result.output_data)
 
-        status = (
-            ProofStatus.VERIFIED
-            if result.is_success()
-            else ProofStatus.FAILED
-        )
+        status = ProofStatus.VERIFIED if result.is_success() else ProofStatus.FAILED
 
         return Proof(
             proof_type=ProofType.EXECUTION,

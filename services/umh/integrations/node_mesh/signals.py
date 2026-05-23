@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from services.umh.governance.risk_classes import RiskClass
-from services.umh.protocols.signal import SignalUrgency
+from substrate.types import SignalUrgency
 from substrate.sockets.protocols import SignalDescriptor
 
 

@@ -13,10 +13,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from services.umh.governance.policy_engine import PolicyEngine
 from services.umh.governance.risk_classes import RiskClass
-from services.umh.protocols.governance import (
+from substrate.types import (
     GovernanceDecision,
     GovernanceRequest,
-    GovernanceVerdict,
+    PipelineGovernanceVerdict as GovernanceVerdict,
     RiskLevel,
 )
 

@@ -12,8 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
 from services.umh.governance.risk_classes import RiskClass
-from services.umh.protocols.capability import CapabilityCategory
-from services.umh.protocols.signal import SignalUrgency
+from substrate.types import CapabilityCategory, SignalUrgency
 from substrate.sockets.envelopes import (
     CapabilityRequest,
     CapabilityResponse,

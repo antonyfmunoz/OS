@@ -21,17 +21,25 @@ from services.umh.memory.candidate_generator import MemoryCandidateGenerator
 from services.umh.memory.promoter import MemoryPromoter
 from services.umh.observability.outcome_classifier import OutcomeClassifier
 from services.umh.observability.trace_store import TraceStore
-from services.umh.protocols.execution_result import ExecutionOutcome, ExecutionResult
-from services.umh.protocols.governance import (
+from substrate.types import (
+    ExecutionOutcome,
+    GovernanceCondition,
     GovernanceDecision,
     GovernanceRequest,
-    GovernanceVerdict,
+    PipelineExecutionResult as ExecutionResult,
+    PipelineGovernanceVerdict as GovernanceVerdict,
+    Proof,
+    ProofStatus,
+    ProofType,
     RiskLevel,
+    Signal,
+    SignalSource,
+    SignalUrgency,
+    Trace,
+    TraceEventType,
+    WorkPacket,
+    WorkPacketStatus,
 )
-from services.umh.protocols.proof import Proof, ProofStatus, ProofType
-from services.umh.protocols.signal import Signal, SignalSource, SignalUrgency
-from services.umh.protocols.trace import Trace, TraceEventType
-from services.umh.protocols.work_packet import WorkPacket, WorkPacketStatus
 from services.umh.workstation.state import (
     WorkstationProfile,
     WorkstationSessionState,
@@ -137,7 +145,8 @@ class ExecutionPipeline:
             component_id=uuid4(),
             proposed_action=content[:300],
             risk_level=risk_class.to_risk_level(),
-            reversible=risk_class not in (
+            reversible=risk_class
+            not in (
                 RiskClass.IRREVERSIBLE_WRITE,
                 RiskClass.FINANCIAL,
                 RiskClass.PHYSICAL_WORLD,
@@ -162,11 +171,14 @@ class ExecutionPipeline:
             f"Governance: {verdict.decision.value} — {verdict.rationale}",
             entity_id=verdict.id,
         )
-        self._emit("governance", {
-            "verdict_id": str(verdict.id),
-            "decision": verdict.decision.value,
-            "approved": approved,
-        })
+        self._emit(
+            "governance",
+            {
+                "verdict_id": str(verdict.id),
+                "decision": verdict.decision.value,
+                "approved": approved,
+            },
+        )
 
         executed = False
         success: bool | None = None
@@ -199,7 +211,11 @@ class ExecutionPipeline:
             )
 
             bundle = self._executor.execute(
-                packet, verdict, adapter_name, operation, params,
+                packet,
+                verdict,
+                adapter_name,
+                operation,
+                params,
             )
             result = bundle.result
             executed = True
@@ -210,12 +226,15 @@ class ExecutionPipeline:
                 f"Execution {result.outcome.value}: duration={result.duration_ms:.0f}ms",
                 entity_id=result.id,
             )
-            self._emit("execution", {
-                "result_id": str(result.id),
-                "outcome": result.outcome.value,
-                "success": success,
-                "duration_ms": result.duration_ms,
-            })
+            self._emit(
+                "execution",
+                {
+                    "result_id": str(result.id),
+                    "outcome": result.outcome.value,
+                    "success": success,
+                    "duration_ms": result.duration_ms,
+                },
+            )
 
             # --- 6. Proof ---
             proof = bundle.proof
@@ -238,11 +257,14 @@ class ExecutionPipeline:
 
             classification = self._classifier.classify(result_dict)
             outcome_type = classification.category
-            self._emit("outcome", {
-                "category": classification.category,
-                "detail": classification.detail,
-                "confidence": classification.confidence,
-            })
+            self._emit(
+                "outcome",
+                {
+                    "category": classification.category,
+                    "detail": classification.detail,
+                    "confidence": classification.confidence,
+                },
+            )
 
             # --- 8. JSONL Trace Store (observability projection) ---
             obs_trace = self._trace_store.create_trace(
@@ -275,10 +297,13 @@ class ExecutionPipeline:
                 if candidate:
                     candidate_id = candidate.candidate_id
                     self._session.candidate_count += 1
-                    self._emit("memory_candidate", {
-                        "candidate_id": candidate.candidate_id,
-                        "content": candidate.content[:120],
-                    })
+                    self._emit(
+                        "memory_candidate",
+                        {
+                            "candidate_id": candidate.candidate_id,
+                            "content": candidate.content[:120],
+                        },
+                    )
 
                     # --- 10. Memory promote ---
                     if self._promoter and candidate:

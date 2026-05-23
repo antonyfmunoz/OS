@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID, uuid4
 
-from services.umh.protocols.signal import SignalUrgency
+from substrate.types import SignalUrgency
 
 
 @dataclass(frozen=True)

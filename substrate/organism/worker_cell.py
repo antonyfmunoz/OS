@@ -9,7 +9,7 @@ from services.umh.control_plane.pipeline import ExecutionPipeline, PipelineResul
 from services.umh.execution.executor import build_default_executor
 from services.umh.governance.risk_classes import RiskClass
 from substrate.organism.protocols import WorkerSpec
-from services.umh.protocols.signal import SignalSource
+from substrate.types import SignalSource
 
 
 class WorkerCell:
