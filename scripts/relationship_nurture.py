@@ -20,7 +20,7 @@ GENERAL_CHANNEL_ID = 1486289444830056540
 
 
 async def check_relationships():
-    from state.context.context import load_context_from_env
+    from substrate.state.context.context import load_context_from_env
     ctx = load_context_from_env()
 
     import requests as _req

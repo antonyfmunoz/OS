@@ -47,7 +47,7 @@ class ConcreteContextAssembler:
             import sys
 
             sys.path.insert(0, "/opt/OS")
-            from state.memory.memory import ConversationMemory
+            from substrate.state.memory.memory import ConversationMemory
 
             cm = ConversationMemory()
             return cm.get_session(user_id=user_id, channel_id=channel_id, limit=limit)

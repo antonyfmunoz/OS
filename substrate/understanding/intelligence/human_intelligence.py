@@ -31,8 +31,8 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from execution.runtime.agent_runtime import AgentRuntime, TaskType
-from state.context.context import EntrepreneurOSContext, load_context_from_env
-from state.storage.db import get_conn, resolve_venture, ORG_ID, USER_ID
+from substrate.state.context.context import EntrepreneurOSContext, load_context_from_env
+from substrate.state.storage.db import get_conn, resolve_venture, ORG_ID, USER_ID
 
 LEADS_DIR      = Path(_REPO_ROOT) / "03_CRM" / "Leads"
 PROFILE_TTL_H  = 48  # hours before a profile is considered stale
@@ -162,7 +162,7 @@ class HumanIntelligenceEngine:
         if not venture_uuid:
             print(f"  [HumanIntel] Warning: venture slug '{venture_id_slug}' not found — skipping Neon write.")
             return
-        from state.stores.profile_store import ProfileStore
+        from substrate.state.stores.profile_store import ProfileStore
         ProfileStore().upsert_human_profile(
             org_id=self._ctx.org_id,
             username=username,

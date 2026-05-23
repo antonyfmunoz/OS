@@ -290,7 +290,7 @@ class BrowserAgent:
         from execution.runtime.agent_runtime import AgentRuntime, TaskType
 
         if not ctx:
-            from state.context.context import load_context_from_env
+            from substrate.state.context.context import load_context_from_env
             ctx = load_context_from_env()
 
         # Capture initial page state to give the planner real context

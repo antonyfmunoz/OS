@@ -31,8 +31,8 @@ def create_event(
     event_type: conference|offsite|client_dinner|team_event|speaking|podcast|media
     """
     try:
-        from state.context.context import load_context_from_env
-        from state.memory.memory import AgentMemory
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.memory.memory import AgentMemory
         from execution.runtime.model_router import get_router, TaskType
         ctx = ctx or load_context_from_env()
         router = get_router()
@@ -86,8 +86,8 @@ Return JSON only:
 def get_events(upcoming_only: bool = True, ctx=None) -> list:
     """Get managed events, ordered by date ascending."""
     try:
-        from state.context.context import load_context_from_env
-        from state.storage.db import get_conn
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -132,8 +132,8 @@ def log_speaking_engagement(
     status: inquired|confirmed|preparing|completed|declined
     """
     try:
-        from state.context.context import load_context_from_env
-        from state.memory.memory import AgentMemory
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
 
         AgentMemory().log_event(
@@ -166,7 +166,7 @@ def draft_talking_points(
 ) -> str:
     """Draft talking points for a speaking engagement."""
     try:
-        from state.context.context import load_context_from_env
+        from substrate.state.context.context import load_context_from_env
         from execution.runtime.model_router import get_router, TaskType
         ctx = ctx or load_context_from_env()
         router = get_router()
@@ -226,8 +226,8 @@ def log_pr_media_inquiry(
     inquiry_type: interview|quote|feature|podcast|press_release
     """
     try:
-        from state.context.context import load_context_from_env
-        from state.memory.memory import AgentMemory
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
 
         AgentMemory().log_event(

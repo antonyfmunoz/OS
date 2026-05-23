@@ -31,8 +31,8 @@ def create_meeting_record(
     Returns dict with neon_id, notion_id, success.
     """
     try:
-        from state.context.context import load_context_from_env
-        from state.storage.db import get_conn
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.storage.db import get_conn
         import requests
         from dotenv import load_dotenv
         load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
@@ -42,7 +42,7 @@ def create_meeting_record(
         # 1. Write to Neon
         neon_id = None
         try:
-            from state.memory.memory import AgentMemory
+            from substrate.state.memory.memory import AgentMemory
             neon_id = AgentMemory().log_event(
                 org_id=str(ctx.org_id),
                 event_type='meeting_scheduled',
@@ -173,8 +173,8 @@ def update_meeting_outcome(
             if status == 'Completed' and (outcomes or open_loops):
                 try:
                     from execution.runtime.model_router import get_router, TaskType
-                    from state.context.context import load_context_from_env
-                    from state.storage.db import get_conn
+                    from substrate.state.context.context import load_context_from_env
+                    from substrate.state.storage.db import get_conn
                     import json as _json
                     _ctx = ctx or load_context_from_env()
                     _router = get_router()
@@ -201,7 +201,7 @@ On behalf of Antony Munoz"""
 
                     _draft = _router.call(_model, _prompt).strip()
 
-                    from state.memory.memory import AgentMemory as _AgentMemory
+                    from substrate.state.memory.memory import AgentMemory as _AgentMemory
                     _AgentMemory().log_event(
                         org_id=str(_ctx.org_id),
                         event_type='email_draft_pending',
@@ -439,8 +439,8 @@ def queue_follow_up_tasks(
 ) -> bool:
     """Auto-queue follow-up tasks after a meeting."""
     try:
-        from state.context.context import load_context_from_env
-        from state.memory.memory import AgentMemory
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
 
         tasks = []
@@ -488,7 +488,7 @@ def build_prep_brief(
     Pulls intelligence profile + semantic memory + structures talking points.
     """
     try:
-        from state.context.context import load_context_from_env
+        from substrate.state.context.context import load_context_from_env
         from substrate.understanding.intelligence.person_recognition import (
             build_intelligence_profile,
             format_intelligence_profile,
@@ -516,7 +516,7 @@ def build_prep_brief(
 
         # Semantic memory hits
         try:
-            from state.memory.memory import AgentMemory
+            from substrate.state.memory.memory import AgentMemory
             mem = AgentMemory(ctx)
             query = f'{person} {company}'.strip()
             results = mem.semantic_search(query=query, limit=5, min_similarity=0.5)
@@ -594,7 +594,7 @@ def draft_meeting_agenda(
     Returns formatted agenda as string.
     """
     try:
-        from state.context.context import load_context_from_env
+        from substrate.state.context.context import load_context_from_env
         from execution.runtime.model_router import get_router, TaskType
         from substrate.understanding.intelligence.person_recognition import build_intelligence_profile
         ctx = ctx or load_context_from_env()
@@ -656,8 +656,8 @@ def draft_meeting_minutes(
     try:
         from execution.runtime.model_router import get_router, TaskType
         from adapters.google_workspace.gws_connector import GWSConnector
-        from state.context.context import load_context_from_env
-        from state.storage.db import get_conn
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.storage.db import get_conn
         from datetime import datetime
         from zoneinfo import ZoneInfo
         router = get_router()
@@ -707,7 +707,7 @@ Keep it professional and concise.""").strip()
 
         ctx = ctx or load_context_from_env()
         try:
-            from state.memory.memory import AgentMemory
+            from substrate.state.memory.memory import AgentMemory
             AgentMemory().log_event(
                 org_id=str(ctx.org_id),
                 event_type='meeting_minutes',

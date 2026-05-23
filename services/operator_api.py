@@ -54,7 +54,7 @@ _HAS_SPINE = False
 try:
     from execution.runtime.execution_spine import ExecutionSpine
     from control_plane.context.context_builder import ContextBuilder
-    from state.context.context import load_context_from_env
+    from substrate.state.context.context import load_context_from_env
 
     _spine = ExecutionSpine()
     _ctx_builder = ContextBuilder()

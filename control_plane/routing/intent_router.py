@@ -13,7 +13,7 @@ Usage:
 
 from enum import Enum
 
-from state.context.context import EntrepreneurOSContext
+from substrate.state.context.context import EntrepreneurOSContext
 
 
 class IntentDomain(Enum):

@@ -20,8 +20,8 @@ def log_delegation(
 ) -> bool:
     """Log a delegated task for follow-up tracking."""
     try:
-        from state.context.context import load_context_from_env
-        from state.memory.memory import AgentMemory
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
         now = datetime.now(PDT)
         due_at = (now + timedelta(hours=due_hours)).isoformat()
@@ -47,8 +47,8 @@ def log_delegation(
 def get_overdue_delegations(ctx=None) -> list[dict]:
     """Get delegated tasks that are overdue."""
     try:
-        from state.context.context import load_context_from_env
-        from state.storage.db import get_conn
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -79,8 +79,8 @@ def get_overdue_delegations(ctx=None) -> list[dict]:
 def mark_delegation_complete(event_id: str, ctx=None) -> bool:
     """Mark a delegation as completed."""
     try:
-        from state.context.context import load_context_from_env
-        from state.memory.memory import AgentMemory
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
 
         return AgentMemory().merge_event_payload(

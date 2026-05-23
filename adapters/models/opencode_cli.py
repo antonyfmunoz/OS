@@ -64,7 +64,7 @@ class OpenCodeResult:
 
 def _track_result(success: bool) -> None:
     try:
-        from state.providers.provider_state import get_system_state
+        from substrate.state.providers.provider_state import get_system_state
 
         state = get_system_state()
         if success:
@@ -109,7 +109,7 @@ def query_opencode_sync(
         return None
 
     try:
-        from state.providers.provider_state import get_system_state
+        from substrate.state.providers.provider_state import get_system_state
 
         if not get_system_state().allow_execution():
             logger.info("[opencode] blocked by backpressure gate")

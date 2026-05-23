@@ -114,8 +114,8 @@ def run_yield_audit(tasks: list[str], ctx=None) -> dict:
         results[quadrant].append({'task': task, **classification})
 
     try:
-        from state.context.context import load_context_from_env
-        from state.memory.memory import AgentMemory
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
         # Strip derived quadrant_info before persisting to Neon
         clean_results = {}

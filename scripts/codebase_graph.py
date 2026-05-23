@@ -433,7 +433,7 @@ def scan_codebase(target_module: str | None = None) -> CodebaseGraph:
             if mod in module_to_path:
                 resolved = module_to_path[mod]
             else:
-                # Try parent module (from state.storage.db import get_conn)
+                # Try parent module (from substrate.state.storage.db import get_conn)
                 for known_mod, known_path in module_to_path.items():
                     if mod.startswith(known_mod) or known_mod.startswith(mod):
                         resolved = known_path

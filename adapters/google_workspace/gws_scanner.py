@@ -11,7 +11,7 @@ Features:
   - Venture routing — maps each doc to the right company
 
 Usage:
-    from state.context.context import load_context_from_env
+    from substrate.state.context.context import load_context_from_env
     from adapters.google_workspace.gws_scanner import GWSDocumentScanner
 
     ctx = load_context_from_env()
@@ -30,7 +30,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-from state.context.context import EntrepreneurOSContext
+from substrate.state.context.context import EntrepreneurOSContext
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 
@@ -155,7 +155,7 @@ class GWSDocumentScanner:
         Queries the events table where KnowledgeIntegrator logs metadata.
         """
         try:
-            from state.storage.db import get_conn
+            from substrate.state.storage.db import get_conn
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
                     """

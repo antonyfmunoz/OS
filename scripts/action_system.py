@@ -1019,7 +1019,7 @@ class ActionSystem:
         if not self.env.is_production:
             return
         try:
-            from state.memory.memory import AgentMemory
+            from substrate.state.memory.memory import AgentMemory
         except Exception:
             return
         try:

@@ -49,7 +49,7 @@ def _get_todays_meetings() -> list[str]:
 def _get_todays_purchases() -> list[str]:
     """Pull receipts from expense tracker — processes new emails and returns monthly summary."""
     try:
-        from state.finance.expense_tracker import (
+        from substrate.state.finance.expense_tracker import (
             process_receipt_emails,
             get_monthly_summary,
         )
@@ -71,7 +71,7 @@ def _get_todays_purchases() -> list[str]:
 
 def _get_todays_project_updates(ctx) -> list[str]:
     try:
-        from state.storage.db import get_conn
+        from substrate.state.storage.db import get_conn
         since = (datetime.now(timezone.utc) - timedelta(hours=12)).isoformat()
         with get_conn(ctx.org_id) as cur:
             cur.execute('''
@@ -117,7 +117,7 @@ def _get_todays_project_updates(ctx) -> list[str]:
 def _get_todays_decisions(ctx) -> list[str]:
     """Decisions = dex_question events answered today."""
     try:
-        from state.storage.db import get_conn
+        from substrate.state.storage.db import get_conn
         since = (datetime.now(timezone.utc) - timedelta(hours=12)).isoformat()
         with get_conn(ctx.org_id) as cur:
             cur.execute('''
@@ -148,7 +148,7 @@ def _get_todays_decisions(ctx) -> list[str]:
 
 
 def build_eod_message() -> str:
-    from state.context.context import load_context_from_env
+    from substrate.state.context.context import load_context_from_env
     ctx = load_context_from_env()
 
     now = datetime.now(PDT)

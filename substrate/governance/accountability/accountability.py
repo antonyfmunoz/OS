@@ -94,7 +94,7 @@ class AccountabilityEngine:
 
     def _save_commitment(self, commitment: Commitment) -> None:
         try:
-            from state.memory.memory import AgentMemory
+            from substrate.state.memory.memory import AgentMemory
             AgentMemory().log_event(
                 org_id=self.ctx.org_id,
                 event_type='commitment',
@@ -116,7 +116,7 @@ class AccountabilityEngine:
         followed up yet.
         """
         try:
-            from state.storage.db import get_conn
+            from substrate.state.storage.db import get_conn
             now = datetime.now().isoformat()
             with get_conn(self.ctx.org_id) as cur:
                 cur.execute(
@@ -158,7 +158,7 @@ class AccountabilityEngine:
 
     def mark_follow_up_sent(self, event_id: str) -> None:
         try:
-            from state.memory.memory import AgentMemory
+            from substrate.state.memory.memory import AgentMemory
             AgentMemory().merge_event_payload(
                 org_id=str(self.ctx.org_id),
                 event_id=event_id,

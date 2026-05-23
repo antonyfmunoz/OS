@@ -261,7 +261,7 @@ class InputIntelligence:
         """
         try:
             from execution.runtime.agent_runtime import AgentRuntime, TaskType
-            from state.context.context import load_context_from_env
+            from substrate.state.context.context import load_context_from_env
 
             ctx = self.ctx or load_context_from_env()
             runtime = AgentRuntime(ctx)
@@ -314,7 +314,7 @@ Produce the enhanced execution prompt:"""
         """Build a compact venture context string for the enhancement prompt."""
         try:
             if venture_id:
-                from state.business.business_instance import BusinessInstanceManager
+                from substrate.state.business.business_instance import BusinessInstanceManager
                 bim = BusinessInstanceManager(self.ctx)
                 bis = bim.get_bis(venture_id)
                 if bis:

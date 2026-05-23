@@ -336,7 +336,7 @@ def run_team_task(
         interaction_id, cost_usd, duration_ms.
     """
     from execution.runtime.agent_runtime import AgentRuntime
-    from state.context.context import load_context_from_env
+    from substrate.state.context.context import load_context_from_env
 
     runtime = AgentRuntime(ctx or load_context_from_env())
     result = runtime.run_team_task(

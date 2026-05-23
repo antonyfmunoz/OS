@@ -33,11 +33,11 @@ from dotenv import load_dotenv
 # before any import that touches db.py (memory, human_intelligence, etc.)
 load_dotenv(Path(__file__).parent / ".env")
 
-from state.context.context import EntrepreneurOSContext, load_context_from_env
-from state.business.venture_knowledge import VentureKnowledgeBase
-from state.registries.skill_registry import SkillRegistry, get_skill_registry
+from substrate.state.context.context import EntrepreneurOSContext, load_context_from_env
+from substrate.state.business.venture_knowledge import VentureKnowledgeBase
+from substrate.state.registries.skill_registry import SkillRegistry, get_skill_registry
 from substrate.governance.policy.authority_engine import AuthorityEngine
-from state.preferences.model_preferences import ModelPreferences
+from substrate.state.preferences.model_preferences import ModelPreferences
 
 
 # ─── Models ──────────────────────────────────────────────────────────────────
@@ -182,7 +182,7 @@ class AgentRuntime:
         self._prefs = ModelPreferences(ctx or load_context_from_env())
 
         # Import here to avoid circular imports if memory imports runtime
-        from state.memory.memory import AgentMemory
+        from substrate.state.memory.memory import AgentMemory
 
         self._memory = AgentMemory()
 
@@ -284,7 +284,7 @@ class AgentRuntime:
         # Every user gets their own AI name and identity — loaded from BIS.
         if agent == "executive_assistant":
             try:
-                from state.business.business_instance import BusinessInstanceManager
+                from substrate.state.business.business_instance import BusinessInstanceManager
 
                 _bim = BusinessInstanceManager(ctx)
                 # Try primary venture — EA soul doc is stored on the first venture

@@ -493,8 +493,8 @@ def gate_outgoing_email(
     )
 
     try:
-        from state.context.context import load_context_from_env
-        from state.memory.memory import AgentMemory
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.memory.memory import AgentMemory
 
         ctx = ctx or load_context_from_env()
         AgentMemory().log_event(

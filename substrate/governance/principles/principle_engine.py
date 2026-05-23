@@ -7,7 +7,7 @@ Principles are injected universally so skills stay focused on execution logic on
 
 from __future__ import annotations
 
-from state.context.context import EntrepreneurOSContext
+from substrate.state.context.context import EntrepreneurOSContext
 import os
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 

@@ -833,8 +833,8 @@ class KnowledgeDomainRegistry:
     def _load_state(self) -> dict:
         """Load domain current_state from Neon skills table (domain_ prefix)."""
         try:
-            from state.storage.db import get_conn
-            from state.context.context import load_context_from_env
+            from substrate.state.storage.db import get_conn
+            from substrate.state.context.context import load_context_from_env
             ctx = load_context_from_env()
             state: dict = {}
             with get_conn(ctx.org_id) as cur:
@@ -868,7 +868,7 @@ class KnowledgeDomainRegistry:
             'domain_key': domain_key,
         }
         try:
-            from state.stores.skill_store import SkillStore
+            from substrate.state.stores.skill_store import SkillStore
             SkillStore().upsert_skill(
                 org_id=ctx.org_id,
                 name=f'domain_{domain_key}',

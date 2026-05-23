@@ -59,7 +59,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from state.storage.db import get_conn, ORG_ID
+from substrate.state.storage.db import get_conn, ORG_ID
 
 
 # ─── Goal states ─────────────────────────────────────────────────────────────
@@ -874,7 +874,7 @@ class GoalSelector:
     def _persist_goal(self, goal: Goal) -> None:
         """Upsert a single goal to Neon."""
         try:
-            from state.stores.goal_store import GoalStore
+            from substrate.state.stores.goal_store import GoalStore
             GoalStore().upsert_goal(
                 org_id=goal.org_id,
                 goal_id=goal.id,
@@ -901,7 +901,7 @@ class GoalSelector:
     def _persist_goals(self, goals: list[Goal]) -> None:
         """Batch persist — one transaction."""
         try:
-            from state.stores.goal_store import GoalStore
+            from substrate.state.stores.goal_store import GoalStore
             GoalStore().batch_update_rankings(
                 org_id=self.org_id,
                 goals=[
@@ -1054,7 +1054,7 @@ class GoalSelector:
     def _log_cycle(self, active: list[Goal], all_scored: list[Goal]) -> None:
         """Log selection cycle result to events table."""
         try:
-            from state.memory.memory import AgentMemory
+            from substrate.state.memory.memory import AgentMemory
             AgentMemory().log_event(
                 org_id=self.org_id,
                 event_type="goal_selection_cycle",
@@ -1111,7 +1111,7 @@ class OutcomeTracker:
 
         # 1. Persist outcome to goal_outcomes table
         try:
-            from state.stores.goal_store import GoalStore
+            from substrate.state.stores.goal_store import GoalStore
             GoalStore().insert_outcome(
                 org_id=self.org_id,
                 goal_id=goal_id,
@@ -1134,7 +1134,7 @@ class OutcomeTracker:
 
         # 4. Update goal's performance + horizons + decay columns
         try:
-            from state.stores.goal_store import GoalStore
+            from substrate.state.stores.goal_store import GoalStore
             GoalStore().update_performance(
                 org_id=self.org_id,
                 goal_id=goal_id,

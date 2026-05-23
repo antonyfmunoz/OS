@@ -102,7 +102,7 @@ class ExecutionSpine:
 
         # 1. Authority validation
         try:
-            from state.context.context import load_context_from_env
+            from substrate.state.context.context import load_context_from_env
             from substrate.governance.policy.authority_engine import AuthorityEngine
 
             ctx = load_context_from_env()
@@ -149,10 +149,10 @@ class ExecutionSpine:
         # 3a. ConversationMemory — messages table
         try:
             if ctx is None:
-                from state.context.context import load_context_from_env
+                from substrate.state.context.context import load_context_from_env
                 ctx = load_context_from_env()
 
-            from state.memory.memory import ConversationMemory
+            from substrate.state.memory.memory import ConversationMemory
             cm = ConversationMemory(ctx)
             cm.store(
                 session_id=session_id,
@@ -173,7 +173,7 @@ class ExecutionSpine:
 
         # 3b. AgentMemory — interactions table
         try:
-            from state.memory.memory import AgentMemory
+            from substrate.state.memory.memory import AgentMemory
             from execution.runtime.agent_runtime import AgentResult
 
             _agent_result = AgentResult(

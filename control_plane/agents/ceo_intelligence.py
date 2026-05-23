@@ -128,10 +128,10 @@ def get_funnel_metrics(
     Returns current outreach → close funnel state.
     """
     try:
-        from state.context.context import (
+        from substrate.state.context.context import (
             load_context_from_env,
         )
-        from state.storage.db import get_conn
+        from substrate.state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
         since = datetime.now(PDT) - timedelta(
             days=days
@@ -472,10 +472,10 @@ def get_offer_stage(
     Never advances without proof.
     """
     try:
-        from state.context.context import (
+        from substrate.state.context.context import (
             load_context_from_env,
         )
-        from state.storage.db import get_conn
+        from substrate.state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:
@@ -571,10 +571,10 @@ def get_agent_performance(
     Below 50% triggers STAR diagnosis flag.
     """
     try:
-        from state.context.context import (
+        from substrate.state.context.context import (
             load_context_from_env,
         )
-        from state.storage.db import get_conn
+        from substrate.state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
         since = datetime.now(PDT) - timedelta(
             days=days

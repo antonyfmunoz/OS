@@ -41,8 +41,8 @@ def log_competitor_signal(
 ) -> bool:
     """Log a competitor signal to Neon."""
     try:
-        from state.context.context import load_context_from_env
-        from state.memory.memory import AgentMemory
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.memory.memory import AgentMemory
         ctx = ctx or load_context_from_env()
 
         AgentMemory().log_event(
@@ -66,8 +66,8 @@ def log_competitor_signal(
 def get_recent_signals(venture: str = None, days: int = 7, ctx=None) -> list[dict]:
     """Get recent competitor signals."""
     try:
-        from state.context.context import load_context_from_env
-        from state.storage.db import get_conn
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.storage.db import get_conn
         ctx = ctx or load_context_from_env()
 
         with get_conn(ctx.org_id) as cur:

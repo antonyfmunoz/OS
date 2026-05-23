@@ -67,7 +67,7 @@ from .runtime_session_registry_v1 import (
     RuntimeSession,
     RuntimeSessionRegistry,
 )
-from state.transformation_state_ledger import (
+from substrate.state.transformation_state_ledger import (
     StateArtifactReference,
     StateLedgerRecord,
     TransformationStage,

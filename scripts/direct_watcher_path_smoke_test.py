@@ -228,7 +228,7 @@ _test_tokens = max(1, len(_test_reply) // 4)
 
 # Use get_ai_name for the footer
 try:
-    from state.business.business_instance import get_ai_name
+    from substrate.state.business.business_instance import get_ai_name
 
     ai_name = get_ai_name()
 except Exception:

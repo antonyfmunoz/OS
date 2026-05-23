@@ -378,8 +378,8 @@ def push_pending_tasks_to_notion(venture_id: str, ctx=None) -> int:
         return 0
 
     try:
-        from state.context.context import load_context_from_env
-        from state.storage.db import get_conn
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.storage.db import get_conn
 
         ctx = ctx or load_context_from_env()
 
@@ -442,7 +442,7 @@ def push_pending_tasks_to_notion(venture_id: str, ctx=None) -> int:
             )
 
             if notion_page_id:
-                from state.stores.task_store import TaskStore
+                from substrate.state.stores.task_store import TaskStore
                 TaskStore().set_notion_page_id(
                     org_id=str(ctx.org_id),
                     task_id=task_id,

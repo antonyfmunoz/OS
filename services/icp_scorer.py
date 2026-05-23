@@ -15,7 +15,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from execution.runtime.agent_runtime import AgentRuntime
-from state.memory.memory import AgentMemory
+from substrate.state.memory.memory import AgentMemory
 
 _mem = AgentMemory()
 

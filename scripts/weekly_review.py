@@ -21,8 +21,8 @@ GENERAL_CHANNEL_ID = 1486289444830056540
 
 
 async def run_weekly_review():
-    from state.context.context import load_context_from_env
-    from state.storage.db import get_conn
+    from substrate.state.context.context import load_context_from_env
+    from substrate.state.storage.db import get_conn
     from control_plane.strategy.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
     from execution.runtime.model_router import get_router, TaskType
     import json as _json
@@ -147,7 +147,7 @@ async def run_weekly_review():
     # Energy trend
     try:
         import json as _etjson
-        from state.storage.db import get_conn as _et_conn
+        from substrate.state.storage.db import get_conn as _et_conn
         with _et_conn(ctx.org_id) as cur:
             cur.execute('''
                 SELECT payload_json FROM events
@@ -182,7 +182,7 @@ async def run_weekly_review():
 
     # Pain Line — recurring delegate tasks
     try:
-        from state.metrics.founder_rate import detect_delegation_threshold
+        from substrate.state.metrics.founder_rate import detect_delegation_threshold
         _pain = detect_delegation_threshold(ctx)
         if _pain:
             sections.append('**⚠️ Pain Line — recurring tasks to delegate:**')

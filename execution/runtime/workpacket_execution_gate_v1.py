@@ -41,7 +41,7 @@ from substrate.governance.policy.execution_authority_engine_v1 import (
     EnvironmentAuthority,
     RiskClass,
 )
-from state.transformation_state_ledger import (
+from substrate.state.transformation_state_ledger import (
     StateArtifactReference,
     StateLedgerRecord,
     TransformationStage,

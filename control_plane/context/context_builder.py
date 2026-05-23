@@ -21,7 +21,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 _ROOT = Path(_REPO_ROOT)
 
-from state.context.context import EntrepreneurOSContext
+from substrate.state.context.context import EntrepreneurOSContext
 
 
 @dataclass
@@ -165,7 +165,7 @@ class ContextBuilder:
 
         # Layer 1d: BIS / TenantManager
         try:
-            from state.tenancy.tenant import TenantManager
+            from substrate.state.tenancy.tenant import TenantManager
             tm = TenantManager(ctx)
             bis_prompt = tm.format_for_prompt()
             if bis_prompt and bis_prompt.strip():
@@ -245,7 +245,7 @@ class ContextBuilder:
 
         # Layer 1e-vii: Decision log
         try:
-            from state.logs.decision_log import DecisionLog
+            from substrate.state.logs.decision_log import DecisionLog
             dl = DecisionLog(ctx)
             decisions = dl.get_recent_decisions(
                 venture_id=venture_id or "", limit=5,
@@ -257,7 +257,7 @@ class ContextBuilder:
 
         # Layer 1e-vii-b: DEX learnings
         try:
-            from state.storage.db import get_conn
+            from substrate.state.storage.db import get_conn
             with get_conn(ctx.org_id) as cur:
                 cur.execute(
                     """
@@ -319,7 +319,7 @@ class ContextBuilder:
 
         # Layer 1d (north star): BIS north star + stage
         try:
-            from state.business.business_instance import BusinessInstanceManager
+            from substrate.state.business.business_instance import BusinessInstanceManager
             bim = BusinessInstanceManager(ctx)
             bis = bim.get_bis(
                 venture_id or getattr(ctx, "active_venture_id", "") or ""
@@ -365,7 +365,7 @@ class ContextBuilder:
         # Human intelligence
         try:
             from substrate.understanding.intelligence.human_intelligence import HumanIntelligenceEngine
-            from state.storage.db import get_conn
+            from substrate.state.storage.db import get_conn
             hi = HumanIntelligenceEngine(ctx)
             text_lower = (message or "").lower()
             with get_conn(ctx.org_id) as hi_cur:
@@ -385,7 +385,7 @@ class ContextBuilder:
 
         # Semantic memory
         try:
-            from state.memory.memory import AgentMemory
+            from substrate.state.memory.memory import AgentMemory
             mem = AgentMemory()
             if message and len(message.split()) >= 3:
                 hits = mem.semantic_search(
@@ -467,7 +467,7 @@ class ContextBuilder:
 
         # No List enforcement
         try:
-            from state.metrics.founder_rate import check_against_no_list
+            from substrate.state.metrics.founder_rate import check_against_no_list
             violations = check_against_no_list(message)
             if violations:
                 uc.no_list = (
@@ -525,7 +525,7 @@ class ContextBuilder:
 
 
 if __name__ == "__main__":
-    from state.context.context import EntrepreneurOSContext
+    from substrate.state.context.context import EntrepreneurOSContext
     import os
 
     ctx = EntrepreneurOSContext(

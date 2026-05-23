@@ -106,7 +106,7 @@ class CapabilityResult:
 
 def _track(provider_id: str, success: bool) -> None:
     try:
-        from state.providers.provider_state import get_system_state
+        from substrate.state.providers.provider_state import get_system_state
         state = get_system_state()
         if success:
             state.record_provider_success(provider_id)

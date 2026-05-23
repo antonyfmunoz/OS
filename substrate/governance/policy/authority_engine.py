@@ -1,5 +1,5 @@
-from state.context.context import EntrepreneurOSContext
-from state.storage.db import get_conn
+from substrate.state.context.context import EntrepreneurOSContext
+from substrate.state.storage.db import get_conn
 import json, uuid
 from datetime import datetime, timezone
 
@@ -101,7 +101,7 @@ class AuthorityEngine:
         action_type: str,
         payload: dict,
         agent: str) -> str:
-        from state.stores.approval_store import ApprovalStore
+        from substrate.state.stores.approval_store import ApprovalStore
         return ApprovalStore().create_approval(
             org_id=self.ctx.org_id,
             request={
@@ -131,7 +131,7 @@ class AuthorityEngine:
             }
 
     def approve(self, approval_id: str) -> dict:
-        from state.stores.approval_store import ApprovalStore
+        from substrate.state.stores.approval_store import ApprovalStore
         result = ApprovalStore().approve(
             org_id=self.ctx.org_id,
             approval_id=approval_id,
@@ -190,7 +190,7 @@ class AuthorityEngine:
         print(f"[AuthorityEngine] Soul doc written → {soul_doc}")
 
     def reject(self, approval_id: str) -> dict:
-        from state.stores.approval_store import ApprovalStore
+        from substrate.state.stores.approval_store import ApprovalStore
         ApprovalStore().reject(
             org_id=self.ctx.org_id,
             approval_id=approval_id,

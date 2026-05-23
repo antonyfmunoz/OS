@@ -29,7 +29,7 @@ from flask import Flask, jsonify, request
 
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 sys.path.insert(0, _ROOT)
-from state.storage.db import get_conn  # noqa: E402
+from substrate.state.storage.db import get_conn  # noqa: E402
 
 MEDIA_ROOT = Path(_ROOT) / "media" / "higgsfield"
 MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
@@ -97,7 +97,7 @@ def handle_webhook(payload: dict) -> tuple[dict, int]:
         elif status in ("Failed", "NSFW", "Cancelled"):
             error = payload.get("error") or status
 
-        from state.stores.higgsfield_store import HiggsFieldStore
+        from substrate.state.stores.higgsfield_store import HiggsFieldStore
         HiggsFieldStore().update_status(
             request_id=rid,
             status=status,

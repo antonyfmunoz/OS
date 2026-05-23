@@ -38,8 +38,8 @@ from scripts._tme_common import (  # noqa: E402
     load_skill,
 )
 
-from state.context.context import load_context_from_env  # noqa: E402
-from state.stores.skill_store import SkillStore  # noqa: E402
+from substrate.state.context.context import load_context_from_env  # noqa: E402
+from substrate.state.stores.skill_store import SkillStore  # noqa: E402
 
 
 _store = SkillStore()

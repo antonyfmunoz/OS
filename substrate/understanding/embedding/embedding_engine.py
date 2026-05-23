@@ -218,7 +218,7 @@ class EmbeddingEngine:
 
         # DB write stage
         try:
-            from state.stores.embedding_store import EmbeddingStore
+            from substrate.state.stores.embedding_store import EmbeddingStore
             return EmbeddingStore().upsert_embedding(
                 org_id=org_id,
                 interaction_id=interaction_id,
@@ -256,7 +256,7 @@ class EmbeddingEngine:
         if not query_vector:
             return self._recent_fallback(org_id, limit, venture_id)
 
-        from state.storage.db import get_conn
+        from substrate.state.storage.db import get_conn
         import json
         try:
             with get_conn(org_id) as cur:
@@ -339,7 +339,7 @@ class EmbeddingEngine:
             }
 
         import time
-        from state.storage.db import get_conn
+        from substrate.state.storage.db import get_conn
 
         with get_conn(org_id) as cur:
             cur.execute(
@@ -395,6 +395,6 @@ class EmbeddingEngine:
         venture_id: str | None,
     ) -> list[dict]:
         """Recency-based fallback when all embedding tiers fail."""
-        from state.memory.memory import AgentMemory
+        from substrate.state.memory.memory import AgentMemory
         mem = AgentMemory()
         return mem.get_recent(venture_id=venture_id, limit=limit)

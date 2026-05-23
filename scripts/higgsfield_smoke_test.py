@@ -20,7 +20,7 @@ import time
 import os
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
-from state.storage.db import get_conn  # noqa: E402
+from substrate.state.storage.db import get_conn  # noqa: E402
 from adapters.higgsfield.higgsfield_client import generate, get_status  # noqa: E402
 
 VENTURE = "personal_brand"
