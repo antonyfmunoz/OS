@@ -443,7 +443,7 @@ class PrincipleEngine:
 
     def get_universal_standards(self) -> str:
         """
-        Return the full EOS operating framework:
+        Return the full UMH operating framework:
         root rule + universal principles + two execution mechanisms
         (best practices principle + operationalization principle).
         Injected into platform prompts and used by CLAUDE.md verification.

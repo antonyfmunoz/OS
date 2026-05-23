@@ -1,4 +1,4 @@
-# AgentOS — Architecture & Master Specification
+# UMH — Architecture & Master Specification
 
 > Every build decision gets checked against this document.
 > Last updated: 2026-03-23
@@ -14,7 +14,7 @@ of truth. Everything derives from it.
 
 ## 1. Vision
 
-AgentOS is a modular, AI-native, role-driven business operating system that formalizes how businesses are structured and run. It allows humans and AI agents to operate roles through shared dashboards and workflows, teaches and optimizes the founder and team, integrates with the full software stack, stays current through live intelligence, evolves the organization from startup through scale and exit, and gives any entrepreneur an elite business brain, operating team, and execution system inside one unified platform.
+UMH is a modular, AI-native, role-driven business operating system that formalizes how businesses are structured and run. It allows humans and AI agents to operate roles through shared dashboards and workflows, teaches and optimizes the founder and team, integrates with the full software stack, stays current through live intelligence, evolves the organization from startup through scale and exit, and gives any entrepreneur an elite business brain, operating team, and execution system inside one unified platform.
 
 The north star: the user just talks. No commands. No prompts to engineer. No skills to configure. The system already knows what they mean because it knows everything about their businesses, their life, their communication patterns, and their goals. The harness eventually disappears into the substrate.
 
@@ -426,7 +426,7 @@ Architectural decisions not yet made that will affect future builds.
 
 ## 13. Protocol Architecture
 
-EOS uses a four-layer protocol system.
+UMH uses a four-layer protocol system.
 See `PROTOCOLS.md` for full documentation.
 
 Quick reference:

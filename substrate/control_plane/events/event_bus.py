@@ -1,5 +1,5 @@
 """
-EventBus — reactive coordination layer for EOS agents.
+EventBus — reactive coordination layer for UMH agents.
 
 Decouples event producers (icp_scorer, dm_monitor, calendly_webhook) from
 consumers (agents, orchestrator, memory). Any component can publish a business
