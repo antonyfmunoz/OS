@@ -1534,356 +1534,358 @@ async def _listen_loop(
     print("[Voice] Loop ended")
 
 
-# ─── Message handler ──────────────────────────────────────────────────────────
+# ─── Message handler — extracted sub-handlers ───────────────────────────────
+#
+# Each handler below was extracted verbatim from on_message to keep the
+# dispatcher readable.  Return conventions:
+#   - handlers that terminate processing return True  (caller returns early)
+#   - handlers that mutate text return (True, new_text) or (False, text)
+#   - helpers prefixed with _ are not called directly from the dispatcher
 
 
-@bot.event
-async def on_message(message: discord.Message):
-    # Ignore self and other bots
-    if message.author == bot.user or message.author.bot:
-        return
+async def _memory_gateway(
+    text: str,
+    channel_name: str,
+    username: str,
+    message: discord.Message,
+    *,
+    prefix: str = "",
+) -> None:
+    """Write a message to gateway memory (memory_only=True).  Best-effort."""
+    _gid = str(message.guild.id) if message.guild else None
+    _cid = str(message.channel.id)
+    prompt = f"{prefix}{text}" if prefix else text
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(
+        None,
+        lambda: _run_gateway(
+            prompt,
+            channel_name,
+            username,
+            guild_id=_gid,
+            channel_id=_cid,
+            memory_only=True,
+        ),
+    )
 
-    # Wake idle system — a real user message is a work signal
-    try:
-        from substrate.state.work.work_state import record_signal, reset_idle_counter
 
-        record_signal()
-        reset_idle_counter()
-    except Exception as _ws_err:
-        _record_error("work_state_signal", _ws_err)
+# ── Attachment handlers ──────────────────────────────────────────────────────
 
-    # Handle audio file attachments → transcribe → route → speak back
-    if message.attachments:
-        for att in message.attachments:
-            ext = Path(att.filename).suffix.lower()
-            if ext in {".wav", ".mp3", ".ogg", ".m4a", ".flac", ".opus"}:
-                async with message.channel.typing():
-                    tmp = tempfile.mktemp(suffix=ext)
-                    await att.save(tmp)
-                    loop = asyncio.get_event_loop()
-                    transcribed = await loop.run_in_executor(None, _ve.transcribe, tmp)
-                    if transcribed:
-                        await message.add_reaction("🎙️")
-                        _att_gid = str(message.guild.id) if message.guild else None
-                        _att_cid = str(message.channel.id)
-                        response = await loop.run_in_executor(
-                            None,
-                            lambda: _run_gateway(
-                                transcribed,
-                                getattr(message.channel, "name", "dm"),
-                                str(message.author),
-                                guild_id=_att_gid,
-                                channel_id=_att_cid,
-                            ),
-                        )
-                        reply = f"🎙️ **You said:** {transcribed}\n**{AI_NAME}:** {response}"
-                        await _send_reply(message.channel, reply)
-                        # Speak in voice if connected
-                        if message.guild and message.guild.voice_client:
-                            vc = message.guild.voice_client
-                            if vc.is_connected() and not vc.is_playing():
-                                audio_out = await loop.run_in_executor(
-                                    None, _ve.speak, response[:300]
-                                )
-                                if audio_out and os.path.exists(audio_out):
-                                    vc.play(discord.FFmpegPCMAudio(audio_out))
-                    else:
-                        await message.reply("Could not transcribe that audio.")
-                    try:
-                        Path(tmp).unlink(missing_ok=True)
-                    except Exception as _tmp_err:
-                        _record_error("temp_audio_cleanup", _tmp_err)
-                return
 
-        # Handle image attachments → vision analysis
-        for att in message.attachments:
-            if att.content_type and att.content_type.startswith("image/"):
-                async with message.channel.typing():
-                    try:
-                        img_bytes = await att.read()
-                        mime = att.content_type or "image/jpeg"
-                        prompt = message.content.strip() or "Describe what you see in this image."
-                        loop = asyncio.get_event_loop()
-                        from substrate.execution.runtime.model_router import call_with_fallback as _vision_cwf
-
-                        result = await loop.run_in_executor(
-                            None,
-                            lambda: _vision_cwf(
-                                prompt=prompt,
-                                task_type="multimodal",
-                                images=[(img_bytes, mime)],
-                            ),
-                        )
-                        output = result.output if hasattr(result, "output") else str(result)
-                        if output:
-                            await message.reply(f"👁️ {output}")
-                        else:
-                            await message.reply("I couldn't analyze that image right now.")
-                    except Exception as e:
-                        _record_error("vision_analysis", e)
-                        logger.warning(f"Vision analysis failed: {e}")
-                        await message.reply("Vision analysis failed — try again.")
-                return
-
-    text = message.content.strip()
-    if not text:
-        await bot.process_commands(message)
-        return
-
-    channel_name = message.channel.name if hasattr(message.channel, "name") else "dm"
-    username = str(message.author)
-
-    # #wins is one-way announcement channel
-    if channel_name == "wins":
-        await bot.process_commands(message)
-        return
-
-    # ── Inbound multi-message buffering (/buffer + /done) ────────────────────
-    _ib = get_inbound_buffer() if get_inbound_buffer else None
-    _uid = str(message.author.id)
-    _cid_str = str(message.channel.id)
-
-    if text.strip().lower() == "/done" and _ib is not None:
-        group = _ib.finalize(_uid, _cid_str)
-        if group is None:
-            await _send_reply(message.channel, "No active buffer to finalize.")
-            await bot.process_commands(message)
-            return
-        # Emit INBOUND_FINALIZED spine event
-        try:
-            _ib_store = _frame_get_event_store()
-            _ib_event = _frame_create_event(
-                _FrameEventType.INBOUND_FINALIZED,
-                source="discord_inbound",
-                target="eos_gateway",
-                payload=group.serialize(),
-                correlation_id=group.group_id,
-            )
-            _ib_store.append(_ib_event)
-        except Exception as _ev_err:
-            _record_error("event_spine_finalized", _ev_err)
-        # Archive buffered inbound verbatim (logical message, not individual chunks)
-        try:
-            _archive_inbound(
-                group.combined_text,
-                interface=_ArchiveInterface.DISCORD.value,
-                correlation_id=group.group_id,
-                logical_message_id=group.group_id,
-                metadata={
-                    "type": "buffered",
-                    "message_count": group.message_count,
-                    "user_id": _uid,
-                    "channel_id": _cid_str,
-                },
-            )
-        except Exception as _ar_err:
-            _record_error("archive_buffered", _ar_err)
-        # Replace text with combined buffer and fall through to normal processing
-        text = group.combined_text
-        await _send_reply(
-            message.channel,
-            f"Buffer finalized — {group.message_count} message(s), "
-            f"{group.combined_text_length} chars. Processing...",
-        )
-        # Fall through to normal processing with the combined text
-
-    elif text.strip().lower() == "/buffer" and _ib is not None:
-        if _ib.has_active(_uid, _cid_str):
-            count = _ib.get_count(_uid, _cid_str)
-            await _send_reply(
-                message.channel,
-                f"Buffer already active — {count} message(s). "
-                "Send more messages, then /done when ready.",
-            )
-        else:
-            # Start an empty buffer — next messages will accumulate
-            _ib.add(_uid, _cid_str, "")
-            # Remove the empty placeholder — it was just to create the group
-            _ib_key = f"{_uid}:{_cid_str}"
-            with _ib._lock:
-                buf = _ib._buffers.get(_ib_key)
-                if buf and buf.messages == [""]:
-                    buf.messages.clear()
-            await _send_reply(
-                message.channel,
-                "Buffer started. Send your messages, then /done when ready.",
-            )
-        _bf_gid = str(message.guild.id) if message.guild else None
-        _bf_cid = str(message.channel.id)
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(
-            None,
-            lambda: _run_gateway(
-                text,
-                channel_name,
-                username,
-                guild_id=_bf_gid,
-                channel_id=_bf_cid,
-                memory_only=True,
-            ),
-        )
-        await bot.process_commands(message)
-        return
-
-    elif _ib is not None and _ib.has_active(_uid, _cid_str):
-        # Active buffer exists — accumulate instead of processing
-        group = _ib.add(_uid, _cid_str, text)
-        # Emit INBOUND_RECEIVED spine event
-        try:
-            _ib_store = _frame_get_event_store()
-            _ib_event = _frame_create_event(
-                _FrameEventType.INBOUND_RECEIVED,
-                source="discord_inbound",
-                target="buffer",
-                payload={
-                    "group_id": group.group_id,
-                    "user_id": _uid,
-                    "channel_id": _cid_str,
-                    "message_index": group.message_count,
-                    "text_length": len(text),
-                },
-                correlation_id=group.group_id,
-            )
-            _ib_store.append(_ib_event)
-        except Exception as _ev2_err:
-            _record_error("event_spine_received", _ev2_err)
-        count = group.message_count
-        await message.add_reaction("📝")
-        if count % 3 == 0:
-            await _send_reply(
-                message.channel,
-                f"Buffered {count} messages. Send /done when ready.",
-            )
-        _ba_gid = str(message.guild.id) if message.guild else None
-        _ba_cid = str(message.channel.id)
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(
-            None,
-            lambda: _run_gateway(
-                text,
-                channel_name,
-                username,
-                guild_id=_ba_gid,
-                channel_id=_ba_cid,
-                memory_only=True,
-            ),
-        )
-        await bot.process_commands(message)
-        return
-
-    # ── Day ritual intercept (before onboarding/CC injection/gateway) ────────
-    _day_cmd = _detect_day_command(text)
-    if _day_cmd:
-        async with message.channel.typing():
-            loop = asyncio.get_event_loop()
-            _day_result = await loop.run_in_executor(
-                None,
-                lambda cmd=_day_cmd: _run_day_command(
-                    cmd,
-                    discord_channel_id=str(message.channel.id),
-                ),
-            )
-            _day_text = _format_day_result(_day_result)
-            await _send_day_response(message.channel, _day_text)
-        _dr_gid = str(message.guild.id) if message.guild else None
-        _dr_cid = str(message.channel.id)
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(
-            None,
-            lambda: _run_gateway(
-                text,
-                channel_name,
-                username,
-                guild_id=_dr_gid,
-                channel_id=_dr_cid,
-                memory_only=True,
-            ),
-        )
-        return
-
-    # ── Active onboarding session — route before anything else ────────────────
-    if message.guild:
-        _ob_session = _onboarding.get_session(str(message.guild.id))
-        if _ob_session and not _ob_session.completed:
-            # Store answer to the last question asked
-            if _ob_session.pending_question:
-                _onboarding.store_answer(_ob_session, text)
-
-            next_q = _onboarding.get_next_question(_ob_session)
-
-            if next_q:
-                await _send_reply(message.channel, next_q)
-            else:
-                # All questions answered — provision
-                await _send_reply(message.channel, "⚙️ **Provisioning your EOS...**")
+async def _handle_audio_attachment(message: discord.Message) -> bool:
+    """Transcribe audio file attachments, route through gateway, speak back.
+    Returns True if an audio attachment was found and handled."""
+    for att in message.attachments:
+        ext = Path(att.filename).suffix.lower()
+        if ext in {".wav", ".mp3", ".ogg", ".m4a", ".flac", ".opus"}:
+            async with message.channel.typing():
+                tmp = tempfile.mktemp(suffix=ext)
+                await att.save(tmp)
+                loop = asyncio.get_event_loop()
+                transcribed = await loop.run_in_executor(None, _ve.transcribe, tmp)
+                if transcribed:
+                    await message.add_reaction("🎙️")
+                    _att_gid = str(message.guild.id) if message.guild else None
+                    _att_cid = str(message.channel.id)
+                    response = await loop.run_in_executor(
+                        None,
+                        lambda: _run_gateway(
+                            transcribed,
+                            getattr(message.channel, "name", "dm"),
+                            str(message.author),
+                            guild_id=_att_gid,
+                            channel_id=_att_cid,
+                        ),
+                    )
+                    reply = f"🎙️ **You said:** {transcribed}\n**{AI_NAME}:** {response}"
+                    await _send_reply(message.channel, reply)
+                    # Speak in voice if connected
+                    if message.guild and message.guild.voice_client:
+                        vc = message.guild.voice_client
+                        if vc.is_connected() and not vc.is_playing():
+                            audio_out = await loop.run_in_executor(
+                                None, _ve.speak, response[:300]
+                            )
+                            if audio_out and os.path.exists(audio_out):
+                                vc.play(discord.FFmpegPCMAudio(audio_out))
+                else:
+                    await message.reply("Could not transcribe that audio.")
                 try:
-                    provision_result = await _onboarding.analyze_and_provision(_ob_session)
+                    Path(tmp).unlink(missing_ok=True)
+                except Exception as _tmp_err:
+                    _record_error("temp_audio_cleanup", _tmp_err)
+            return True
+    return False
 
-                    # Discord structure (handled here — engine can't import bot)
-                    try:
-                        mgr = DiscordServerManager(message.guild)
-                        await mgr.setup_eos_structure()
-                        await mgr.align_structure()
-                        provision_result["results"]["discord"] = "provisioned"
-                        print("[Onboarding] Discord structure provisioned")
-                    except Exception as _de:
-                        _record_error("onboarding_discord_provision", _de)
-                        provision_result["results"]["discord"] = f"error: {_de}"
 
-                    completion = _onboarding.get_completion_message(
-                        provision_result["data"],
-                        provision_result["results"],
+async def _handle_image_attachment(message: discord.Message) -> bool:
+    """Run vision analysis on image attachments.
+    Returns True if an image attachment was found and handled."""
+    for att in message.attachments:
+        if att.content_type and att.content_type.startswith("image/"):
+            async with message.channel.typing():
+                try:
+                    img_bytes = await att.read()
+                    mime = att.content_type or "image/jpeg"
+                    prompt = message.content.strip() or "Describe what you see in this image."
+                    loop = asyncio.get_event_loop()
+                    from substrate.execution.runtime.model_router import call_with_fallback as _vision_cwf
+
+                    result = await loop.run_in_executor(
+                        None,
+                        lambda: _vision_cwf(
+                            prompt=prompt,
+                            task_type="multimodal",
+                            images=[(img_bytes, mime)],
+                        ),
                     )
-                    await _send_reply(message.channel, completion)
-                except Exception as _pe:
-                    _record_error("onboarding_provision", _pe)
-                    print(f"[Onboarding] Provisioning error: {_pe}")
-                    await _send_reply(
-                        message.channel,
-                        f"⚠️ Provisioning encountered an issue: {_pe}\n"
-                        "Run `!onboard` again to retry.",
-                    )
-            _ob_gid = str(message.guild.id) if message.guild else None
-            _ob_cid = str(message.channel.id)
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(
-                None,
-                lambda: _run_gateway(
-                    text,
-                    channel_name,
-                    username,
-                    guild_id=_ob_gid,
-                    channel_id=_ob_cid,
-                    memory_only=True,
-                ),
-            )
-            return
+                    output = result.output if hasattr(result, "output") else str(result)
+                    if output:
+                        await message.reply(f"👁️ {output}")
+                    else:
+                        await message.reply("I couldn't analyze that image right now.")
+                except Exception as e:
+                    _record_error("vision_analysis", e)
+                    logger.warning(f"Vision analysis failed: {e}")
+                    await message.reply("Vision analysis failed — try again.")
+            return True
+    return False
 
-    # ── Archive single inbound verbatim ──────────────────────────────────
+
+# ── Buffer handlers ──────────────────────────────────────────────────────────
+
+
+async def _handle_buffer_done(
+    message: discord.Message,
+    text: str,
+    channel_name: str,
+    username: str,
+    _ib,
+    _uid: str,
+    _cid_str: str,
+) -> tuple[bool, str]:
+    """Handle /done — finalize inbound buffer.
+    Returns (handled, text).  When handled=False the caller should fall
+    through to normal processing with the (possibly replaced) text."""
+    group = _ib.finalize(_uid, _cid_str)
+    if group is None:
+        await _send_reply(message.channel, "No active buffer to finalize.")
+        await bot.process_commands(message)
+        return (True, text)
+    # Emit INBOUND_FINALIZED spine event
+    try:
+        _ib_store = _frame_get_event_store()
+        _ib_event = _frame_create_event(
+            _FrameEventType.INBOUND_FINALIZED,
+            source="discord_inbound",
+            target="eos_gateway",
+            payload=group.serialize(),
+            correlation_id=group.group_id,
+        )
+        _ib_store.append(_ib_event)
+    except Exception as _ev_err:
+        _record_error("event_spine_finalized", _ev_err)
+    # Archive buffered inbound verbatim (logical message, not individual chunks)
     try:
         _archive_inbound(
-            text,
+            group.combined_text,
             interface=_ArchiveInterface.DISCORD.value,
+            correlation_id=group.group_id,
+            logical_message_id=group.group_id,
             metadata={
-                "type": "single",
+                "type": "buffered",
+                "message_count": group.message_count,
                 "user_id": _uid,
                 "channel_id": _cid_str,
-                "channel_name": channel_name,
             },
         )
-    except Exception as _ar2_err:
-        _record_error("archive_single", _ar2_err)
+    except Exception as _ar_err:
+        _record_error("archive_buffered", _ar_err)
+    # Replace text with combined buffer and fall through to normal processing
+    text = group.combined_text
+    await _send_reply(
+        message.channel,
+        f"Buffer finalized — {group.message_count} message(s), "
+        f"{group.combined_text_length} chars. Processing...",
+    )
+    return (False, text)
 
-    # ── Substrate commands (spine/router routed) ───────────────────────
-    if is_substrate_command(text):
-        await handle_substrate_command(message, text)
-        return
 
-    # ── Orchestration ingress (mode-gated) ──────────────────────────────
-    # When EOS_DISCORD_ORCHESTRATION_ENABLED=1, route through the substrate
-    # orchestration layer instead of CC injection / PseudoLive / Gateway.
-    # This is the single clean Discord text → orchestration boundary.
-    # When disabled (default), falls through to the existing CC/PseudoLive chain.
+async def _handle_buffer_start(
+    message: discord.Message,
+    text: str,
+    channel_name: str,
+    username: str,
+    _ib,
+    _uid: str,
+    _cid_str: str,
+) -> bool:
+    """Handle /buffer — start a new inbound buffer.  Always returns True (handled)."""
+    if _ib.has_active(_uid, _cid_str):
+        count = _ib.get_count(_uid, _cid_str)
+        await _send_reply(
+            message.channel,
+            f"Buffer already active — {count} message(s). "
+            "Send more messages, then /done when ready.",
+        )
+    else:
+        # Start an empty buffer — next messages will accumulate
+        _ib.add(_uid, _cid_str, "")
+        # Remove the empty placeholder — it was just to create the group
+        _ib_key = f"{_uid}:{_cid_str}"
+        with _ib._lock:
+            buf = _ib._buffers.get(_ib_key)
+            if buf and buf.messages == [""]:
+                buf.messages.clear()
+        await _send_reply(
+            message.channel,
+            "Buffer started. Send your messages, then /done when ready.",
+        )
+    await _memory_gateway(text, channel_name, username, message)
+    await bot.process_commands(message)
+    return True
+
+
+async def _handle_buffer_accumulate(
+    message: discord.Message,
+    text: str,
+    channel_name: str,
+    username: str,
+    _ib,
+    _uid: str,
+    _cid_str: str,
+) -> bool:
+    """Accumulate a message into an active inbound buffer.  Always returns True."""
+    group = _ib.add(_uid, _cid_str, text)
+    # Emit INBOUND_RECEIVED spine event
+    try:
+        _ib_store = _frame_get_event_store()
+        _ib_event = _frame_create_event(
+            _FrameEventType.INBOUND_RECEIVED,
+            source="discord_inbound",
+            target="buffer",
+            payload={
+                "group_id": group.group_id,
+                "user_id": _uid,
+                "channel_id": _cid_str,
+                "message_index": group.message_count,
+                "text_length": len(text),
+            },
+            correlation_id=group.group_id,
+        )
+        _ib_store.append(_ib_event)
+    except Exception as _ev2_err:
+        _record_error("event_spine_received", _ev2_err)
+    count = group.message_count
+    await message.add_reaction("📝")
+    if count % 3 == 0:
+        await _send_reply(
+            message.channel,
+            f"Buffered {count} messages. Send /done when ready.",
+        )
+    await _memory_gateway(text, channel_name, username, message)
+    await bot.process_commands(message)
+    return True
+
+
+# ── Day ritual handler ───────────────────────────────────────────────────────
+
+
+async def _handle_day_ritual(
+    message: discord.Message,
+    text: str,
+    channel_name: str,
+    username: str,
+    day_cmd: str,
+) -> bool:
+    """Execute a day open/close ritual.  Always returns True (handled)."""
+    async with message.channel.typing():
+        loop = asyncio.get_event_loop()
+        _day_result = await loop.run_in_executor(
+            None,
+            lambda cmd=day_cmd: _run_day_command(
+                cmd,
+                discord_channel_id=str(message.channel.id),
+            ),
+        )
+        _day_text = _format_day_result(_day_result)
+        await _send_day_response(message.channel, _day_text)
+    await _memory_gateway(text, channel_name, username, message)
+    return True
+
+
+# ── Onboarding handler ──────────────────────────────────────────────────────
+
+
+async def _handle_onboarding(
+    message: discord.Message,
+    text: str,
+    channel_name: str,
+    username: str,
+) -> bool:
+    """Route through active onboarding session.
+    Returns True if an active onboarding session consumed the message."""
+    if not message.guild:
+        return False
+    _ob_session = _onboarding.get_session(str(message.guild.id))
+    if not _ob_session or _ob_session.completed:
+        return False
+
+    # Store answer to the last question asked
+    if _ob_session.pending_question:
+        _onboarding.store_answer(_ob_session, text)
+
+    next_q = _onboarding.get_next_question(_ob_session)
+
+    if next_q:
+        await _send_reply(message.channel, next_q)
+    else:
+        # All questions answered — provision
+        await _send_reply(message.channel, "⚙️ **Provisioning your EOS...**")
+        try:
+            provision_result = await _onboarding.analyze_and_provision(_ob_session)
+
+            # Discord structure (handled here — engine can't import bot)
+            try:
+                mgr = DiscordServerManager(message.guild)
+                await mgr.setup_eos_structure()
+                await mgr.align_structure()
+                provision_result["results"]["discord"] = "provisioned"
+                print("[Onboarding] Discord structure provisioned")
+            except Exception as _de:
+                _record_error("onboarding_discord_provision", _de)
+                provision_result["results"]["discord"] = f"error: {_de}"
+
+            completion = _onboarding.get_completion_message(
+                provision_result["data"],
+                provision_result["results"],
+            )
+            await _send_reply(message.channel, completion)
+        except Exception as _pe:
+            _record_error("onboarding_provision", _pe)
+            print(f"[Onboarding] Provisioning error: {_pe}")
+            await _send_reply(
+                message.channel,
+                f"⚠️ Provisioning encountered an issue: {_pe}\n"
+                "Run `!onboard` again to retry.",
+            )
+    await _memory_gateway(text, channel_name, username, message)
+    return True
+
+
+# ── Orchestration ingress handler ────────────────────────────────────────────
+
+
+async def _handle_orchestration_ingress(
+    message: discord.Message,
+    text: str,
+    channel_name: str,
+    username: str,
+    _uid: str,
+    _cid_str: str,
+) -> bool:
+    """Route through substrate orchestration layer (mode-gated).
+    Returns True if orchestration accepted the message."""
     _orch_handled = False
     try:
         from substrate.execution.transport.discord_ingress_adapter import ingest_and_emit
@@ -1928,49 +1930,49 @@ async def on_message(message: discord.Message):
         print(f"[Orchestration] ingress error: {_orch_err}", flush=True)
 
     if _orch_handled:
-        _oh_gid = str(message.guild.id) if message.guild else None
-        _oh_cid = str(message.channel.id)
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(
-            None,
-            lambda: _run_gateway(
-                text,
-                channel_name,
-                username,
-                guild_id=_oh_gid,
-                channel_id=_oh_cid,
-                memory_only=True,
-            ),
-        )
+        await _memory_gateway(text, channel_name, username, message)
         await bot.process_commands(message)
-        return
+        return True
 
-    # ── Session-first CC injection ───────────────────────────────────────
-    # DORMANT: session_registry, session_router, surface_registry,
-    # live_loop, input_router modules do not exist yet.
-    # This block will activate when runtime/ is fully built.
+    return False
+
+
+# ── CC injection handler (dormant) ───────────────────────────────────────────
+
+
+async def _handle_cc_injection(
+    message: discord.Message,
+    text: str,
+    channel_name: str,
+    username: str,
+) -> bool:
+    """Session-first CC injection.
+    DORMANT: session_registry, session_router, surface_registry,
+    live_loop, input_router modules do not exist yet.
+    This block will activate when runtime/ is fully built.
+    Returns True if CC injection consumed the message."""
     _cc_injected = False
 
     if _cc_injected:
-        _ccm_gid = str(message.guild.id) if message.guild else None
-        _ccm_cid = str(message.channel.id)
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(
-            None,
-            lambda: _run_gateway(
-                f"[CC Session] {text}",
-                channel_name,
-                username,
-                guild_id=_ccm_gid,
-                channel_id=_ccm_cid,
-                memory_only=True,
-            ),
-        )
+        await _memory_gateway(text, channel_name, username, message, prefix="[CC Session] ")
         await bot.process_commands(message)
-        return
+        return True
 
-    # ── PseudoLive fallback — full pipeline via gateway/model_router ──────
-    # Fires only when CC injection failed (session missing, tmux down, etc).
+    return False
+
+
+# ── PseudoLive handler ───────────────────────────────────────────────────────
+
+
+async def _handle_pseudolive(
+    message: discord.Message,
+    text: str,
+    channel_name: str,
+    username: str,
+) -> bool:
+    """PseudoLive fallback — full pipeline via gateway/model_router.
+    Fires only when CC injection failed (session missing, tmux down, etc).
+    Returns True if PseudoLive handled the message (caller should return)."""
     try:
         _pl_result = _maybe_pseudo_live_text(
             text,
@@ -1983,137 +1985,136 @@ async def on_message(message: discord.Message):
         print(f"[PseudoLive] hook error: {_ple}")
         _pl_result = None
 
-    if _pl_result is not None:
-        _pl_ingress = _pl_result.get("ingress") or {}
-        _pl_env = _pl_result.get("envelope") or {}
-        _pl_status = _pl_ingress.get("status")
-        if _pl_status not in ("disabled", "gate_denied"):
-            # Transport was active — NEVER fall through to gateway/Gemini.
-            # If envelope is ok, send the reply. Otherwise return gracefully.
-            if _pl_env.get("status") == "ok":
-                _pl_plan = _pl_env.get("emit_plan") or [
-                    {
-                        "content": _pl_env.get("content", ""),
-                        "tts": False,
-                        "role": "combined",
-                    }
-                ]
-                _visible_content = ""
-                for _pl_entry in _pl_plan:
-                    _role = _pl_entry.get("role", "combined")
-                    if _role == "spoken":
-                        continue
-                    _entry_content = (_pl_entry.get("content") or "").strip()
-                    if _entry_content:
-                        _visible_content = _entry_content
-                        break
-                _pl_delivery_ok = False
-                if _visible_content:
-                    try:
-                        _pl_delivery_ok = await _send_reply(message.channel, _visible_content)
-                    except Exception as _se:  # noqa: BLE001
-                        _record_error("pseudolive_send", _se)
-                        print(f"[PseudoLive] send failed: {_se}")
+    if _pl_result is None:
+        return False
 
-                # ── Post-delivery finalization ───────────────────────
-                # Uses run_lifecycle proposal to prevent duplicate
-                # finalization when watcher/webhook also fire.
-                _pl_fin = _pl_result.get("finalization_ready") or {}
-                if _pl_fin.get("should_finalize"):
-                    # Hard guard: drop if lifecycle is sealed
-                    _pl_terminal = False
-                    try:
-                        from substrate.execution.transport.run_lifecycle import (
-                            is_run_terminally_finalized as _pl_term_check,
-                        )
+    _pl_ingress = _pl_result.get("ingress") or {}
+    _pl_env = _pl_result.get("envelope") or {}
+    _pl_status = _pl_ingress.get("status")
+    if _pl_status in ("disabled", "gate_denied"):
+        return False
 
-                        _pl_session_check = _pl_fin.get("source_session", "")
-                        if _pl_session_check and _pl_term_check(_pl_session_check):
-                            print(
-                                f"[PseudoLive] Late finalization dropped: "
-                                f"session={_pl_session_check} — terminally finalized"
-                            )
-                            _pl_terminal = True
-                    except Exception as _lc_err:
-                        _record_error("pseudolive_lifecycle_check", _lc_err)
+    # Transport was active — NEVER fall through to gateway/Gemini.
+    if _pl_env.get("status") == "ok":
+        _pl_plan = _pl_env.get("emit_plan") or [
+            {
+                "content": _pl_env.get("content", ""),
+                "tts": False,
+                "role": "combined",
+            }
+        ]
+        _visible_content = ""
+        for _pl_entry in _pl_plan:
+            _role = _pl_entry.get("role", "combined")
+            if _role == "spoken":
+                continue
+            _entry_content = (_pl_entry.get("content") or "").strip()
+            if _entry_content:
+                _visible_content = _entry_content
+                break
+        _pl_delivery_ok = False
+        if _visible_content:
+            try:
+                _pl_delivery_ok = await _send_reply(message.channel, _visible_content)
+            except Exception as _se:  # noqa: BLE001
+                _record_error("pseudolive_send", _se)
+                print(f"[PseudoLive] send failed: {_se}")
 
-                    if not _pl_terminal:
-                        try:
-                            _pl_session = _pl_fin.get("source_session", "")
-                            from substrate.execution.transport.run_lifecycle import (
-                                propose_run_completion as _pl_propose,
-                            )
-
-                            _pl_proposal = _pl_propose(
-                                _pl_session,
-                                "pseudolive",
-                                payload={
-                                    "delivery_ok": _pl_delivery_ok,
-                                    "correlation_id": _pl_fin.get("correlation_id", ""),
-                                },
-                            )
-                            if not _pl_proposal.accepted:
-                                print(f"[PseudoLive] Proposal rejected: {_pl_proposal.reason}")
-                            else:
-                                from substrate.execution.transport.task_finalization import (
-                                    finalize_completed_task as _pl_finalize,
-                                )
-
-                                _pl_fin_result = _pl_finalize(
-                                    delivery_success=_pl_delivery_ok,
-                                    delivery_mode="pseudolive",
-                                    source_session=_pl_session,
-                                    role=_pl_fin.get("role", ""),
-                                    interface="discord",
-                                    final_output=(_visible_content or "")[:2000],
-                                    clear_target=_pl_fin.get("clear_target", "vps"),
-                                    correlation_id=_pl_fin.get("correlation_id", ""),
-                                    auto_clear=_pl_fin.get("should_clear") or None,
-                                )
-                                if _pl_fin_result.clear_executed:
-                                    print("[PseudoLive] Auto-clear executed")
-                        except Exception as _fin_e:  # noqa: BLE001
-                            _record_error("pseudolive_finalization", _fin_e)
-                            print(f"[PseudoLive] finalization failed: {_fin_e}")
-
-                _deferred = _pl_result.get("deferred_tts") or {}
-                _tts_node = _deferred.get("node_id")
-                _tts_text = _deferred.get("spoken_text") or ""
-                _tts_role = _deferred.get("role_slug") or "ea_orchestrator"
-                if _tts_node and _tts_text:
-                    try:
-                        from substrate.execution.transport.station_helpers import propose_speak_text
-
-                        propose_speak_text(
-                            _tts_node,
-                            _tts_text,
-                            issued_by=f"discord_text:{_tts_role}",
-                        )
-                    except Exception as _te:  # noqa: BLE001
-                        _record_error("pseudolive_tts", _te)
-                        print(f"[PseudoLive] deferred TTS failed: {_te}")
-            else:
-                print(
-                    f"[PseudoLive] CC session failed: status={_pl_status} "
-                    f"detail={_pl_ingress.get('detail', '')}"
+        # ── Post-delivery finalization ───────────────────────
+        _pl_fin = _pl_result.get("finalization_ready") or {}
+        if _pl_fin.get("should_finalize"):
+            _pl_terminal = False
+            try:
+                from substrate.execution.transport.run_lifecycle import (
+                    is_run_terminally_finalized as _pl_term_check,
                 )
-            _plm_gid = str(message.guild.id) if message.guild else None
-            _plm_cid = str(message.channel.id)
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(
-                None,
-                lambda: _run_gateway(
-                    f"[CC Session] {text}",
-                    channel_name,
-                    username,
-                    guild_id=_plm_gid,
-                    channel_id=_plm_cid,
-                    memory_only=True,
-                ),
-            )
-            return
 
-    # Meeting mode triggers — natural language detection
+                _pl_session_check = _pl_fin.get("source_session", "")
+                if _pl_session_check and _pl_term_check(_pl_session_check):
+                    print(
+                        f"[PseudoLive] Late finalization dropped: "
+                        f"session={_pl_session_check} — terminally finalized"
+                    )
+                    _pl_terminal = True
+            except Exception as _lc_err:
+                _record_error("pseudolive_lifecycle_check", _lc_err)
+
+            if not _pl_terminal:
+                try:
+                    _pl_session = _pl_fin.get("source_session", "")
+                    from substrate.execution.transport.run_lifecycle import (
+                        propose_run_completion as _pl_propose,
+                    )
+
+                    _pl_proposal = _pl_propose(
+                        _pl_session,
+                        "pseudolive",
+                        payload={
+                            "delivery_ok": _pl_delivery_ok,
+                            "correlation_id": _pl_fin.get("correlation_id", ""),
+                        },
+                    )
+                    if not _pl_proposal.accepted:
+                        print(f"[PseudoLive] Proposal rejected: {_pl_proposal.reason}")
+                    else:
+                        from substrate.execution.transport.task_finalization import (
+                            finalize_completed_task as _pl_finalize,
+                        )
+
+                        _pl_fin_result = _pl_finalize(
+                            delivery_success=_pl_delivery_ok,
+                            delivery_mode="pseudolive",
+                            source_session=_pl_session,
+                            role=_pl_fin.get("role", ""),
+                            interface="discord",
+                            final_output=(_visible_content or "")[:2000],
+                            clear_target=_pl_fin.get("clear_target", "vps"),
+                            correlation_id=_pl_fin.get("correlation_id", ""),
+                            auto_clear=_pl_fin.get("should_clear") or None,
+                        )
+                        if _pl_fin_result.clear_executed:
+                            print("[PseudoLive] Auto-clear executed")
+                except Exception as _fin_e:  # noqa: BLE001
+                    _record_error("pseudolive_finalization", _fin_e)
+                    print(f"[PseudoLive] finalization failed: {_fin_e}")
+
+        _deferred = _pl_result.get("deferred_tts") or {}
+        _tts_node = _deferred.get("node_id")
+        _tts_text = _deferred.get("spoken_text") or ""
+        _tts_role = _deferred.get("role_slug") or "ea_orchestrator"
+        if _tts_node and _tts_text:
+            try:
+                from substrate.execution.transport.station_helpers import propose_speak_text
+
+                propose_speak_text(
+                    _tts_node,
+                    _tts_text,
+                    issued_by=f"discord_text:{_tts_role}",
+                )
+            except Exception as _te:  # noqa: BLE001
+                _record_error("pseudolive_tts", _te)
+                print(f"[PseudoLive] deferred TTS failed: {_te}")
+    else:
+        print(
+            f"[PseudoLive] CC session failed: status={_pl_status} "
+            f"detail={_pl_ingress.get('detail', '')}"
+        )
+    await _memory_gateway(text, channel_name, username, message, prefix="[CC Session] ")
+    return True
+
+
+# ── Meeting mode handler ─────────────────────────────────────────────────────
+
+
+async def _handle_meeting_trigger(
+    message: discord.Message,
+    text: str,
+    channel_name: str,
+    username: str,
+) -> bool:
+    """Detect meeting start/end triggers.
+    Returns True if a meeting trigger was matched."""
+    # Start meeting
     meeting_match = re.search(
         r"(?:start|begin|kick off|starting)\s+"
         r"(?:a\s+)?(?:meeting|call|session|review)"
@@ -2124,22 +2125,10 @@ async def on_message(message: discord.Message):
     if meeting_match:
         lead = meeting_match.group(1) or ""
         await start_meeting_mode("sales_call", lead, message.channel)
-        _ms_gid = str(message.guild.id) if message.guild else None
-        _ms_cid = str(message.channel.id)
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(
-            None,
-            lambda: _run_gateway(
-                text,
-                channel_name,
-                username,
-                guild_id=_ms_gid,
-                channel_id=_ms_cid,
-                memory_only=True,
-            ),
-        )
-        return
+        await _memory_gateway(text, channel_name, username, message)
+        return True
 
+    # End meeting
     if any(
         p in text.lower()
         for p in [
@@ -2152,83 +2141,79 @@ async def on_message(message: discord.Message):
         ]
     ):
         await end_active_meeting(message.channel)
-        _me_gid = str(message.guild.id) if message.guild else None
-        _me_cid = str(message.channel.id)
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(
-            None,
-            lambda: _run_gateway(
-                text,
-                channel_name,
-                username,
-                guild_id=_me_gid,
-                channel_id=_me_cid,
-                memory_only=True,
-            ),
-        )
-        return
+        await _memory_gateway(text, channel_name, username, message)
+        return True
 
-    # ── Pending capture resolution (1/2/3 venture reply) ────────────────────
+    return False
+
+
+# ── Pending capture resolution handler ───────────────────────────────────────
+
+
+async def _handle_pending_capture(
+    message: discord.Message,
+    text: str,
+    channel_name: str,
+    username: str,
+) -> bool:
+    """Handle venture selection (1/2/3) for a pending capture.
+    Returns True if a pending capture was resolved."""
     _channel_id = str(message.channel.id)
-    if _channel_id in _pending_captures and text.strip() in (
-        "1",
-        "2",
-        "3",
-        "1️⃣",
-        "2️⃣",
-        "3️⃣",
-    ):
-        _pending = _pending_captures.pop(_channel_id)
-        import json as _json
+    if _channel_id not in _pending_captures:
+        return False
+    if text.strip() not in ("1", "2", "3", "1️⃣", "2️⃣", "3️⃣"):
+        return False
 
-        _ventures_list = _json.loads(os.getenv("VENTURES_JSON", "[]"))
-        _venture_map = {str(i + 1): v["id"] for i, v in enumerate(_ventures_list)}
-        _venture_id = _venture_map.get(
-            text.strip().replace("\ufe0f\u20e3", ""), _DEFAULT_VENTURE_ID
-        )
-        try:
-            from substrate.understanding.signals.founder_capture import capture
+    _pending = _pending_captures.pop(_channel_id)
+    import json as _json
 
-            capture(_pending["text"], venture_id=_venture_id)
-            _icon = "💡" if _pending["type"] == "idea" else "✅"
-            await _send_reply(message.channel, f"{_icon} Added to your list.")
-        except Exception as _cap_err:
-            _record_error("founder_capture_resolve", _cap_err, {"venture_id": _venture_id})
-        _fc_gid = str(message.guild.id) if message.guild else None
-        _fc_cid = str(message.channel.id)
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(
-            None,
-            lambda: _run_gateway(
-                _pending["text"],
-                channel_name,
-                username,
-                guild_id=_fc_gid,
-                channel_id=_fc_cid,
-                memory_only=True,
-            ),
-        )
-        return
+    _ventures_list = _json.loads(os.getenv("VENTURES_JSON", "[]"))
+    _venture_map = {str(i + 1): v["id"] for i, v in enumerate(_ventures_list)}
+    _venture_id = _venture_map.get(
+        text.strip().replace("️⃣", ""), _DEFAULT_VENTURE_ID
+    )
+    try:
+        from substrate.understanding.signals.founder_capture import capture
 
-    # ── Pipeline update detection (delegated to handler) ────────────────────
+        capture(_pending["text"], venture_id=_venture_id)
+        _icon = "💡" if _pending["type"] == "idea" else "✅"
+        await _send_reply(message.channel, f"{_icon} Added to your list.")
+    except Exception as _cap_err:
+        _record_error("founder_capture_resolve", _cap_err, {"venture_id": _venture_id})
+    await _memory_gateway(_pending["text"], channel_name, username, message)
+    return True
+
+
+# ── Pipeline update handler ──────────────────────────────────────────────────
+
+
+async def _handle_pipeline_update_check(
+    message: discord.Message,
+    text: str,
+    channel_name: str,
+    username: str,
+) -> bool:
+    """Delegate to the pipeline_handler module.
+    Returns True if a pipeline update was detected and handled."""
     if await handle_pipeline_update(message, text):
-        _pl_gid = str(message.guild.id) if message.guild else None
-        _pl_cid = str(message.channel.id)
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(
-            None,
-            lambda: _run_gateway(
-                text,
-                channel_name,
-                username,
-                guild_id=_pl_gid,
-                channel_id=_pl_cid,
-                memory_only=True,
-            ),
-        )
-        return
+        await _memory_gateway(text, channel_name, username, message)
+        return True
+    return False
 
-    # ── Founder capture — detect tasks/ideas, write to Your list + Notion ────
+
+# ── Founder capture handler ──────────────────────────────────────────────────
+
+
+async def _handle_founder_capture(
+    message: discord.Message,
+    text: str,
+    channel_name: str,
+    username: str,
+) -> bool:
+    """Detect tasks/ideas and write to founder's list + Notion.
+    Returns True only when an ambiguous capture needs venture disambiguation
+    (early return required).  Non-ambiguous captures are silent side-effects
+    that do NOT prevent fall-through."""
     try:
         from substrate.understanding.signals.founder_capture import should_capture, capture
 
@@ -2281,21 +2266,8 @@ async def on_message(message: discord.Message):
                     f"{_choices}",
                 )
                 _pending_captures[_channel_id] = {"text": text, "type": _ctype}
-                _ac_gid = str(message.guild.id) if message.guild else None
-                _ac_cid = str(message.channel.id)
-                loop = asyncio.get_event_loop()
-                await loop.run_in_executor(
-                    None,
-                    lambda: _run_gateway(
-                        text,
-                        channel_name,
-                        username,
-                        guild_id=_ac_gid,
-                        channel_id=_ac_cid,
-                        memory_only=True,
-                    ),
-                )
-                return
+                await _memory_gateway(text, channel_name, username, message)
+                return True  # early return — waiting for venture selection
 
             _capture_result = capture(text, venture_id=_venture_id)
             if _capture_result.get("captured"):
@@ -2304,97 +2276,123 @@ async def on_message(message: discord.Message):
     except Exception as _cap2_err:
         _record_error("founder_capture", _cap2_err)
 
-    # ── Multi-part accumulation ───────────────────────────────────────────────
+    return False  # fall through — capture was a side-effect
+
+
+# ── Multi-part accumulation handler ──────────────────────────────────────────
+
+
+async def _handle_multipart(
+    message: discord.Message,
+    text: str,
+    channel_name: str,
+    username: str,
+) -> tuple[bool, str]:
+    """Handle Part N/M message accumulation.
+    Returns (handled, text).  When handled=True, caller should return.
+    When handled=False, text may have been replaced with assembled parts."""
     part_info = _detect_part(text)
-    if part_info:
-        part_num, total_parts = part_info
-        ch_key = channel_name
+    if not part_info:
+        return (False, text)
 
-        # Initialise or reset buffer if this is a new series
-        if (
-            ch_key not in _multipart_buffers
-            or _multipart_buffers[ch_key].get("total") != total_parts
-        ):
-            _multipart_buffers[ch_key] = {
-                "parts": {},
-                "total": total_parts,
-                "username": username,
-            }
+    part_num, total_parts = part_info
+    ch_key = channel_name
 
-        _multipart_buffers[ch_key]["parts"][part_num] = text
+    # Initialise or reset buffer if this is a new series
+    if (
+        ch_key not in _multipart_buffers
+        or _multipart_buffers[ch_key].get("total") != total_parts
+    ):
+        _multipart_buffers[ch_key] = {
+            "parts": {},
+            "total": total_parts,
+            "username": username,
+        }
 
-        # Cancel any existing timeout task for this channel
-        if ch_key in _multipart_flush_tasks:
-            _multipart_flush_tasks[ch_key].cancel()
-            _multipart_flush_tasks.pop(ch_key, None)
+    _multipart_buffers[ch_key]["parts"][part_num] = text
 
-        if part_num < total_parts:
-            # Not the last part — acknowledge and wait
-            await message.add_reaction("⏳")
+    # Cancel any existing timeout task for this channel
+    if ch_key in _multipart_flush_tasks:
+        _multipart_flush_tasks[ch_key].cancel()
+        _multipart_flush_tasks.pop(ch_key, None)
 
-            async def _flush_after_timeout(
-                chan_key: str,
-                chan: discord.abc.Messageable,
-                orig_message: discord.Message,
-                cname: str,
-                uname: str,
-            ) -> None:
-                await asyncio.sleep(30)
-                buf = _multipart_buffers.pop(chan_key, None)
-                if not buf:
-                    return
-                combined = _assemble_parts(buf)
-                _fl_gid = str(orig_message.guild.id) if orig_message.guild else None
-                _fl_cid = str(orig_message.channel.id)
-                async with chan.typing():
-                    ev_loop = asyncio.get_event_loop()
-                    out = await ev_loop.run_in_executor(
-                        None,
-                        lambda: _run_gateway(
-                            combined, cname, uname, guild_id=_fl_gid, channel_id=_fl_cid
-                        ),
-                    )
-                if out:
-                    await _send_response(orig_message, out)
+    if part_num < total_parts:
+        # Not the last part — acknowledge and wait
+        await message.add_reaction("⏳")
 
-            task = asyncio.create_task(
-                _flush_after_timeout(
-                    ch_key,
-                    message.channel,
-                    message,
-                    channel_name,
-                    username,
+        async def _flush_after_timeout(
+            chan_key: str,
+            chan: discord.abc.Messageable,
+            orig_message: discord.Message,
+            cname: str,
+            uname: str,
+        ) -> None:
+            await asyncio.sleep(30)
+            buf = _multipart_buffers.pop(chan_key, None)
+            if not buf:
+                return
+            combined = _assemble_parts(buf)
+            _fl_gid = str(orig_message.guild.id) if orig_message.guild else None
+            _fl_cid = str(orig_message.channel.id)
+            async with chan.typing():
+                ev_loop = asyncio.get_event_loop()
+                out = await ev_loop.run_in_executor(
+                    None,
+                    lambda: _run_gateway(
+                        combined, cname, uname, guild_id=_fl_gid, channel_id=_fl_cid
+                    ),
                 )
-            )
-            _multipart_flush_tasks[ch_key] = task
-            await bot.process_commands(message)
-            return
+            if out:
+                await _send_response(orig_message, out)
 
-        else:
-            # Final part — assemble and fall through to normal processing
-            buf = _multipart_buffers.pop(ch_key, None)
-            if buf:
-                text = _assemble_parts(buf)
-
-    # ── Inline commands (delegated to handler) ──────────────────────────────
-    if await try_inline_commands(message, text, _pending_events):
-        _ic_gid = str(message.guild.id) if message.guild else None
-        _ic_cid = str(message.channel.id)
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(
-            None,
-            lambda: _run_gateway(
-                text,
+        task = asyncio.create_task(
+            _flush_after_timeout(
+                ch_key,
+                message.channel,
+                message,
                 channel_name,
                 username,
-                guild_id=_ic_gid,
-                channel_id=_ic_cid,
-                memory_only=True,
-            ),
+            )
         )
-        return
+        _multipart_flush_tasks[ch_key] = task
+        await bot.process_commands(message)
+        return (True, text)
 
-    # All messages → full EOS gateway (execution_contract pipeline)
+    else:
+        # Final part — assemble and fall through to normal processing
+        buf = _multipart_buffers.pop(ch_key, None)
+        if buf:
+            text = _assemble_parts(buf)
+        return (False, text)
+
+
+# ── Inline command handler ───────────────────────────────────────────────────
+
+
+async def _handle_inline_commands(
+    message: discord.Message,
+    text: str,
+    channel_name: str,
+    username: str,
+) -> bool:
+    """Delegate to cc_command_handler.try_inline_commands.
+    Returns True if an inline command was handled."""
+    if await try_inline_commands(message, text, _pending_events):
+        await _memory_gateway(text, channel_name, username, message)
+        return True
+    return False
+
+
+# ── Gateway dispatch handler ─────────────────────────────────────────────────
+
+
+async def _handle_gateway_dispatch(
+    message: discord.Message,
+    text: str,
+    channel_name: str,
+    username: str,
+) -> None:
+    """Route through EOS gateway and send the response.  Terminal handler."""
     _gid = str(message.guild.id) if message.guild else None
     _cid = str(message.channel.id)
     async with message.channel.typing():
@@ -2454,10 +2452,150 @@ async def on_message(message: discord.Message):
     await bot.process_commands(message)
 
 
+# ─── Response formatter ──────────────────────────────────────────────────────
+
+
 async def _send_response(message: discord.Message, output: str) -> None:
     """Send response to Discord with full footer intact."""
     output = output.rstrip() + f"\n\n— {AI_NAME}"
     await _send_reply(message.channel, output)
+
+
+# ─── Message dispatcher ─────────────────────────────────────────────────────
+
+
+
+@bot.event
+async def on_message(message: discord.Message):
+    # ── Early returns ────────────────────────────────────────────────────
+    if message.author == bot.user or message.author.bot:
+        return
+
+    # Wake idle system — a real user message is a work signal
+    try:
+        from substrate.state.work.work_state import record_signal, reset_idle_counter
+
+        record_signal()
+        reset_idle_counter()
+    except Exception as _ws_err:
+        _record_error("work_state_signal", _ws_err)
+
+    # ── Attachment handling (audio / image) ──────────────────────────────
+    if message.attachments:
+        if await _handle_audio_attachment(message):
+            return
+        if await _handle_image_attachment(message):
+            return
+
+    # ── Extract text, early-exit on empty or #wins ──────────────────────
+    text = message.content.strip()
+    if not text:
+        await bot.process_commands(message)
+        return
+
+    channel_name = message.channel.name if hasattr(message.channel, "name") else "dm"
+    username = str(message.author)
+
+    if channel_name == "wins":
+        await bot.process_commands(message)
+        return
+
+    # ── Inbound buffer commands (/done, /buffer, accumulate) ────────────
+    _ib = get_inbound_buffer() if get_inbound_buffer else None
+    _uid = str(message.author.id)
+    _cid_str = str(message.channel.id)
+
+    if text.strip().lower() == "/done" and _ib is not None:
+        handled, text = await _handle_buffer_done(
+            message, text, channel_name, username, _ib, _uid, _cid_str,
+        )
+        if handled:
+            return
+        # Fall through to normal processing with combined text
+
+    elif text.strip().lower() == "/buffer" and _ib is not None:
+        await _handle_buffer_start(
+            message, text, channel_name, username, _ib, _uid, _cid_str,
+        )
+        return
+
+    elif _ib is not None and _ib.has_active(_uid, _cid_str):
+        await _handle_buffer_accumulate(
+            message, text, channel_name, username, _ib, _uid, _cid_str,
+        )
+        return
+
+    # ── Day ritual intercept ────────────────────────────────────────────
+    _day_cmd = _detect_day_command(text)
+    if _day_cmd:
+        await _handle_day_ritual(message, text, channel_name, username, _day_cmd)
+        return
+
+    # ── Active onboarding session ───────────────────────────────────────
+    if await _handle_onboarding(message, text, channel_name, username):
+        return
+
+    # ── Archive single inbound verbatim ─────────────────────────────────
+    try:
+        _archive_inbound(
+            text,
+            interface=_ArchiveInterface.DISCORD.value,
+            metadata={
+                "type": "single",
+                "user_id": _uid,
+                "channel_id": _cid_str,
+                "channel_name": channel_name,
+            },
+        )
+    except Exception as _ar2_err:
+        _record_error("archive_single", _ar2_err)
+
+    # ── Substrate commands ──────────────────────────────────────────────
+    if is_substrate_command(text):
+        await handle_substrate_command(message, text)
+        return
+
+    # ── Orchestration ingress ───────────────────────────────────────────
+    if await _handle_orchestration_ingress(
+        message, text, channel_name, username, _uid, _cid_str,
+    ):
+        return
+
+    # ── CC injection (dormant) ──────────────────────────────────────────
+    if await _handle_cc_injection(message, text, channel_name, username):
+        return
+
+    # ── PseudoLive fallback ─────────────────────────────────────────────
+    if await _handle_pseudolive(message, text, channel_name, username):
+        return
+
+    # ── Meeting mode triggers ───────────────────────────────────────────
+    if await _handle_meeting_trigger(message, text, channel_name, username):
+        return
+
+    # ── Pending capture resolution (1/2/3 venture reply) ────────────────
+    if await _handle_pending_capture(message, text, channel_name, username):
+        return
+
+    # ── Pipeline update detection ───────────────────────────────────────
+    if await _handle_pipeline_update_check(message, text, channel_name, username):
+        return
+
+    # ── Founder capture (tasks/ideas) ───────────────────────────────────
+    if await _handle_founder_capture(message, text, channel_name, username):
+        return
+
+    # ── Multi-part accumulation ─────────────────────────────────────────
+    handled, text = await _handle_multipart(message, text, channel_name, username)
+    if handled:
+        return
+
+    # ── Inline commands ─────────────────────────────────────────────────
+    if await _handle_inline_commands(message, text, channel_name, username):
+        return
+
+    # ── Full EOS gateway dispatch (terminal) ────────────────────────────
+    await _handle_gateway_dispatch(message, text, channel_name, username)
 
 
 # ─── Discord Server Manager ───────────────────────────────────────────────────
