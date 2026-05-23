@@ -38,7 +38,18 @@ AUTONOMY_THRESHOLDS: dict[RiskClass, int] = {
 }
 
 _CRITICAL_PATTERNS = re.compile(
-    r"\b(send\s+(?:email|message|dm)|execute\s+payment|delete\s+record|bulk\s+update|mass\s+outreach|publish)\b",
+    r"\b("
+    r"send\s+(?:email|message|dm)"
+    r"|execute\s+payment"
+    r"|delete\s+records?"
+    r"|bulk\s+update"
+    r"|mass\s+outreach"
+    r"|publish"
+    r"|robotic\s+arm"
+    r"|activate\s+(?:arm|motor|actuator)"
+    r"|iot\s+command"
+    r"|vehicle\s+control"
+    r")\b",
     re.IGNORECASE,
 )
 _HIGH_PATTERNS = re.compile(
