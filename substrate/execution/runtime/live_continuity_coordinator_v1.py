@@ -34,10 +34,17 @@ from .live_runtime_contracts_v1 import (
     _now_iso,
 )
 from .substrate_continuity_engine_v1 import SubstrateContinuityEngine
-from substrate.execution.workers.workstation.workstation_continuity_bridge_v1 import (
-    WorkstationContinuityBridge,
-)
-from substrate.execution.workers.workstation.browser_continuity_bridge_v1 import BrowserContinuityBridge
+try:
+    from substrate.execution.workers.workstation.workstation_continuity_bridge_v1 import (
+        WorkstationContinuityBridge,
+    )
+except ModuleNotFoundError:
+    WorkstationContinuityBridge = None  # type: ignore[assignment,misc]
+
+try:
+    from substrate.execution.workers.workstation.browser_continuity_bridge_v1 import BrowserContinuityBridge
+except ModuleNotFoundError:
+    BrowserContinuityBridge = None  # type: ignore[assignment,misc]
 
 
 class LiveContinuityCoordinator:
@@ -55,8 +62,18 @@ class LiveContinuityCoordinator:
         state_dir: str | Path = "data/runtime/live_runtime_state",
     ) -> None:
         self._engine = continuity_engine or SubstrateContinuityEngine()
-        self._workstation = workstation_bridge or WorkstationContinuityBridge()
-        self._browser = browser_bridge or BrowserContinuityBridge()
+        if workstation_bridge is not None:
+            self._workstation = workstation_bridge
+        elif WorkstationContinuityBridge is not None:
+            self._workstation = WorkstationContinuityBridge()
+        else:
+            self._workstation = None
+        if browser_bridge is not None:
+            self._browser = browser_bridge
+        elif BrowserContinuityBridge is not None:
+            self._browser = BrowserContinuityBridge()
+        else:
+            self._browser = None
         self._state_dir = Path(state_dir)
         self._state_dir.mkdir(parents=True, exist_ok=True)
         self._session_id = ""

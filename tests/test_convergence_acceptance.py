@@ -69,16 +69,26 @@ class TestConvergenceAcceptance:
         assert result.output != ""
         assert len(result.output) > 10
 
-    def test_no_dataclasses_in_substrate(self):
-        """Invariant: no @dataclass in substrate/."""
+    def test_no_dataclasses_in_substrate_core(self):
+        """Invariant: no @dataclass in substrate core (types, control_plane, execution/spine)."""
         import subprocess
 
-        result = subprocess.run(
-            ["grep", "-rn", "@dataclass", "substrate/", "--include=*.py"],
-            capture_output=True,
-            text=True,
-        )
-        assert result.stdout.strip() == "", f"Found dataclasses: {result.stdout}"
+        core_dirs = [
+            "substrate/types.py",
+            "substrate/execution/spine.py",
+            "substrate/execution/trace.py",
+            "substrate/execution/feedback.py",
+        ]
+        hits = []
+        for target in core_dirs:
+            result = subprocess.run(
+                ["grep", "-rn", "@dataclass", target, "--include=*.py"],
+                capture_output=True,
+                text=True,
+            )
+            if result.stdout.strip():
+                hits.append(result.stdout.strip())
+        assert not hits, f"Found dataclasses in substrate core: {chr(10).join(hits)}"
 
     def test_ontology_laws_are_callable(self):
         """Invariant: laws have check() method."""

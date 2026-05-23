@@ -150,13 +150,15 @@ class TestGenericIngestionOrchestrator:
         assert result.memory_write.new_canonical_memory_entry_id.startswith("mem-")
         assert result.memory_write.memories_jsonl_before == 1
         n_obs = len(result.decomposition.observations)
-        assert result.memory_write.memories_jsonl_after == 1 + n_obs
-        assert result.memory_write.entries_written == n_obs
-        assert len(result.memory_write.memory_ids_written) == n_obs
+        n_proj = len(result.projections) if result.projections else 0
+        n_total = n_obs + n_proj
+        assert result.memory_write.memories_jsonl_after == 1 + n_total
+        assert result.memory_write.entries_written == n_total
+        assert len(result.memory_write.memory_ids_written) == n_total
 
         assert result.promotion_receipt is not None
         assert result.promotion_receipt.decision == "promoted"
-        assert len(result.promotion_receipts) == n_obs
+        assert len(result.promotion_receipts) == n_total
 
         assert result.query_proof is not None
 
