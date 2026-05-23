@@ -174,8 +174,8 @@ class TestEnumCounts:
     def test_signal_source_has_8_values(self):
         assert len(SignalSource) == 8
 
-    def test_trace_event_type_has_12_values(self):
-        assert len(TraceEventType) == 12
+    def test_trace_event_type_has_19_values(self):
+        assert len(TraceEventType) == 19
 
 
 class TestMemoryQuery:

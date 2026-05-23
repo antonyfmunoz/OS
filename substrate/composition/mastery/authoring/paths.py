@@ -1,14 +1,11 @@
-"""Path resolution for the Tool Mastery Author Agent.
-
-Root resolution delegated to core.paths (UMH_ROOT → OS_ROOT → EOS_ROOT → /opt/OS).
-"""
+"""Path resolution for the Tool Mastery Author Agent."""
 
 from __future__ import annotations
 
 import os
 from pathlib import Path
 
-from core.paths import ROOT as EOS_ROOT
+EOS_ROOT = Path(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 
 SKILLS_TOOLS_DIR = EOS_ROOT / "skills" / "tools"
 RESEARCH_LOG_DIR = EOS_ROOT / "logs" / "tool_mastery_research"

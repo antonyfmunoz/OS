@@ -216,7 +216,7 @@ class TestOrchestratorWritesCatalog:
         assert catalog.adapter_id == "test-adapter-v1"
         assert catalog.vendor_docs_url == "https://example.com/docs"
         assert catalog.is_empty is True
-        assert catalog.discovery_version == "slice-a"
+        assert catalog.discovery_version == "slice-b"
         assert "checked tool_doc_registry.md" in catalog.source_plan_notes
         assert "test note" in catalog.source_plan_notes
 

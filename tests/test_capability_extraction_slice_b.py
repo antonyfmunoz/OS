@@ -220,7 +220,7 @@ class TestFullOrchestratorMocked:
                 return_value=mock_plan,
             ),
             patch(
-                "composition.mastery.research.agent.run",
+                "substrate.composition.mastery.research.agent.run",
                 return_value=mock_research_result,
             ),
             patch(

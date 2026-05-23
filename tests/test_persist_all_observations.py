@@ -121,13 +121,14 @@ class TestPersistAllObservations:
 
         assert result.verdict == "COMPLETE_CYCLE"
         assert result.memory_write is not None
-        assert result.memory_write.entries_written == 4
-        assert len(result.memory_write.memory_ids_written) == 4
+        assert result.memory_write.entries_written == 6
+        assert len(result.memory_write.memory_ids_written) == 6
 
         lines = [l for l in (memory_store / "memories.jsonl").read_text().strip().split("\n") if l]
-        assert len(lines) == 4
+        assert len(lines) == 6
 
-        types_written = {json.loads(l)["primitive_type"] for l in lines}
+        parsed = [json.loads(l) for l in lines]
+        types_written = {e["primitive_type"] for e in parsed if "primitive_type" in e}
         assert types_written == {"state", "constraint", "action", "resource"}
 
     def test_each_entry_tagged_with_source_and_decomposition_id(
@@ -161,7 +162,7 @@ class TestPersistAllObservations:
         ):
             result = orchestrator.ingest(source)
 
-        assert len(result.promotion_receipts) == 4
+        assert len(result.promotion_receipts) == 6
         for receipt in result.promotion_receipts:
             assert receipt.decision == "promoted"
             assert receipt.receipt_id.startswith("receipt-")
@@ -171,7 +172,7 @@ class TestPersistAllObservations:
             for l in (memory_store / "promotion_receipts.jsonl").read_text().strip().split("\n")
             if l
         ]
-        assert len(receipt_lines) == 4
+        assert len(receipt_lines) == 6
 
     def test_heuristic_fallback_also_persists_all(self, fixture_file: Path, memory_store: Path):
         source = LocalFileSource(fixture_file)
@@ -219,4 +220,4 @@ class TestPersistAllObservations:
         written_ids = set(result.memory_write.memory_ids_written)
         index_ids = set(index["entries"].keys())
         assert written_ids.issubset(index_ids)
-        assert len(written_ids) == 4
+        assert len(written_ids) == 6
