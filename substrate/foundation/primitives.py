@@ -1,4 +1,10 @@
-"""Layer 0 ontological primitives — the irreducible types of existence in the substrate."""
+"""Layer 0 ontological primitives — the irreducible types of existence in the substrate.
+
+OntologicalCategory and CausalRole are re-exported from substrate.types (canonical).
+TemporalMode is also in substrate.types (identical definition).
+Modality here is DISTINCT from substrate.types.Modality (signal modality: TEXT/VOICE/IMAGE).
+This Modality represents modal logic status (ACTUAL/POSSIBLE/NECESSARY/etc.).
+"""
 
 from __future__ import annotations
 
@@ -9,47 +15,26 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
 
+# Re-export canonical versions from substrate.types
+from substrate.types import (  # noqa: F401
+    CausalRole,
+    OntologicalCategory,
+    TemporalMode,
+)
 
-class OntologicalCategory(str, Enum):
-    """The fundamental categories of being in the substrate."""
-
-    ENTITY = "entity"
-    RELATION = "relation"
-    EVENT = "event"
-    PROPERTY = "property"
-    PROCESS = "process"
-    STATE = "state"
-    CONSTRAINT = "constraint"
-    BOUNDARY = "boundary"
-
-
-class TemporalMode(str, Enum):
-    """How a primitive relates to time."""
-
-    INSTANTANEOUS = "instantaneous"
-    DURATIVE = "durative"
-    ATEMPORAL = "atemporal"
-    PERIODIC = "periodic"
+# NOTE: substrate.types.Modality is signal modality (TEXT, VOICE, IMAGE, MULTIMODAL).
+# This Modality is ontological modal status — intentionally distinct.
+from substrate.types import Modality as SignalModality  # noqa: F401
 
 
 class Modality(str, Enum):
-    """Modal status of a proposition or state."""
+    """Modal status of a proposition or state (ontological, not signal modality)."""
 
     ACTUAL = "actual"
     POSSIBLE = "possible"
     NECESSARY = "necessary"
     IMPOSSIBLE = "impossible"
     CONTINGENT = "contingent"
-
-
-class CausalRole(str, Enum):
-    """Role in causal chains."""
-
-    CAUSE = "cause"
-    EFFECT = "effect"
-    CONDITION = "condition"
-    PREVENTION = "prevention"
-    MAINTENANCE = "maintenance"
 
 
 class OntologicalPrimitive(BaseModel):

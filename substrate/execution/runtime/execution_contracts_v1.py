@@ -76,11 +76,22 @@ class CapabilityDomain(str, Enum):
     DOCUMENT_INGESTION = "document_ingestion"
 
 
+# NOTE: The canonical GovernanceVerdict is a Pydantic model in substrate.types.
+# This is a runtime-scoped enum for the execution contracts pipeline.
+# Import the canonical version for cross-reference:
+from substrate.types import GovernanceVerdict as CanonicalGovernanceVerdict  # noqa: F401
+
+
 class GovernanceVerdict(str, Enum):
     APPROVED = "approved"
     DENIED = "denied"
     REQUIRES_APPROVAL = "requires_approval"
     STRUCTURALLY_FORBIDDEN = "structurally_forbidden"
+
+
+# NOTE: The canonical RiskClass is in substrate.types (Pydantic enum).
+# This is a runtime-scoped version with additional SAFE and FORBIDDEN values.
+from substrate.types import RiskClass as CanonicalRiskClass  # noqa: F401, E402
 
 
 class RiskClass(str, Enum):

@@ -36,6 +36,12 @@ if _REPO_ROOT not in sys.path:
 from substrate.control_plane.goals.goal_selector import Goal, GoalSelector, GoalState, OutcomeTracker
 
 
+# NOTE: The canonical ExecutionResult is a Pydantic model in substrate.types
+# (signal-scoped, with trace_id, outcome enum, provider, etc.).
+# This is a loop-scoped dataclass for goal execution outcomes.
+from substrate.types import ExecutionResult as CanonicalExecutionResult  # noqa: F401
+
+
 # ─── ExecutionResult ─────────────────────────────────────────────────────────
 
 

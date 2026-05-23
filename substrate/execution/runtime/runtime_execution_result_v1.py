@@ -19,6 +19,11 @@ from pathlib import Path
 from typing import Any
 
 
+# NOTE: The canonical ExecutionOutcome is in substrate.types (Pydantic enum).
+# This is a runtime-scoped version with CANCELLED and REQUIRES_APPROVAL values.
+from substrate.types import ExecutionOutcome as CanonicalExecutionOutcome  # noqa: F401
+
+
 class ExecutionOutcome(str, Enum):
     SUCCESS = "success"
     FAILURE = "failure"

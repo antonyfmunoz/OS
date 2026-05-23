@@ -1,31 +1,11 @@
-"""Bridge registry — plug-in system for domain bridges."""
+"""Bridge registry — re-exports from substrate.understanding.domains.registry.
 
-from __future__ import annotations
+The canonical implementation lives in substrate/understanding/domains/registry.py.
+"""
 
-from .contract import DomainBridge
+from substrate.understanding.domains.registry import (  # noqa: F401
+    BridgeRegistry,
+    default_registry,
+)
 
-
-class BridgeRegistry:
-    """Registry of domain bridges.
-
-    Bridges register themselves at module load time.
-    The orchestrator calls get_all() during the bridge stage.
-    """
-
-    _bridges: dict[str, DomainBridge]
-
-    def __init__(self) -> None:
-        self._bridges = {}
-
-    def register(self, bridge: DomainBridge) -> None:
-        self._bridges[bridge.domain_id] = bridge
-
-    def get_all(self) -> list[DomainBridge]:
-        return list(self._bridges.values())
-
-    def get_by_id(self, domain_id: str) -> DomainBridge | None:
-        return self._bridges.get(domain_id)
-
-
-# Global registry instance
-default_registry = BridgeRegistry()
+__all__ = ["BridgeRegistry", "default_registry"]

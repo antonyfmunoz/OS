@@ -1,5 +1,5 @@
 """
-ExecutionSpine — single execution path for all EOS operations.
+ExecutionSpine — single execution path for all EOS operations (legacy runtime).
 
 Every LLM call in the system should flow through here:
     spine = ExecutionSpine()
@@ -12,6 +12,10 @@ Guarantees on every execution:
     4. Mandatory memory writes (messages + interactions)
     5. Session persistence to SubstrateStorage
     6. Async embedding attempt
+
+NOTE: This is the legacy runtime ExecutionSpine (synchronous .run() method).
+The canonical ExecutionSpine Protocol (async .execute() method) lives in
+substrate/execution/spine.py. New code should use the canonical version.
 """
 
 import os
@@ -23,6 +27,9 @@ from datetime import datetime, timezone
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
+
+# Re-export the canonical Protocol for discoverability
+from substrate.execution.spine import ExecutionSpine as ExecutionSpineProtocol  # noqa: F401, E402
 
 
 # ─── Deterministic intent detection for fallback responses ───────────────────
