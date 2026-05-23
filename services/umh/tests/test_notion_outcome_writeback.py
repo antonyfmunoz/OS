@@ -12,8 +12,8 @@ from httpx import Headers
 from notion_client import APIResponseError
 
 from services.umh.integrations.notion.correlation import CorrelationMap, WritebackTarget
-from services.umh.sockets.envelopes import OutcomeEnvelope
-from services.umh.sockets.protocols import OutcomeReceiver
+from substrate.sockets.envelopes import OutcomeEnvelope
+from substrate.sockets.protocols import OutcomeReceiver
 
 
 class TestCorrelationMap:

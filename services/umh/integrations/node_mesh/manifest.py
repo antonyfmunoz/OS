@@ -6,7 +6,7 @@ from services.umh.integrations.node_mesh.handlers import NodeCapabilityHandler
 from services.umh.integrations.node_mesh.outcomes import NodeOutcomeReceiver
 from services.umh.integrations.node_mesh.signals import NodeSignalEmitter
 from services.umh.node_mesh.registry import ConnectedNode
-from services.umh.sockets.registry import IntegrationManifest
+from substrate.sockets.registry import IntegrationManifest
 
 
 def build_node_manifest(node: ConnectedNode) -> IntegrationManifest:

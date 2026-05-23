@@ -11,7 +11,7 @@ from typing import Any
 
 import psycopg2
 
-from services.umh.sockets.envelopes import OutcomeEnvelope
+from substrate.sockets.envelopes import OutcomeEnvelope
 
 from .correlation import LyfeOSCorrelationMap
 from .manifest import INTEGRATION_ID

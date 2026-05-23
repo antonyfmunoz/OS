@@ -10,7 +10,7 @@ import pytest
 from services.umh.governance.risk_classes import RiskClass
 from services.umh.protocols.capability import CapabilityCategory
 from services.umh.protocols.signal import SignalUrgency
-from services.umh.sockets.envelopes import (
+from substrate.sockets.envelopes import (
     CapabilityRequest,
     CapabilityResponse,
     OutcomeEnvelope,
@@ -18,7 +18,7 @@ from services.umh.sockets.envelopes import (
     SignalReceipt,
     ViewFrame,
 )
-from services.umh.sockets.protocols import (
+from substrate.sockets.protocols import (
     CapabilityDescriptor,
     CapabilityHandler,
     CapabilityHealth,

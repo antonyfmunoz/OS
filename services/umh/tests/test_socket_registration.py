@@ -9,27 +9,27 @@ import pytest
 
 from services.umh.governance.risk_classes import RiskClass
 from services.umh.protocols.capability import CapabilityCategory
-from services.umh.sockets.capability_socket import CapabilitySocket
-from services.umh.sockets.envelopes import (
+from substrate.sockets.capability_socket import CapabilitySocket
+from substrate.sockets.envelopes import (
     CapabilityRequest,
     CapabilityResponse,
     OutcomeEnvelope,
     SignalEnvelope,
     ViewFrame,
 )
-from services.umh.sockets.outcome_socket import OutcomeSocket
-from services.umh.sockets.protocols import (
+from substrate.sockets.outcome_socket import OutcomeSocket
+from substrate.sockets.protocols import (
     CapabilityDescriptor,
     CapabilityHealth,
     SignalDescriptor,
 )
-from services.umh.sockets.registry import (
+from substrate.sockets.registry import (
     IntegrationAdapter,
     IntegrationManifest,
     IntegrationRegistry,
 )
-from services.umh.sockets.signal_socket import SignalSocket
-from services.umh.sockets.view_socket import ViewSocket
+from substrate.sockets.signal_socket import SignalSocket
+from substrate.sockets.view_socket import ViewSocket
 
 
 class DummySignalEmitter:

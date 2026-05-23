@@ -1,6 +1,6 @@
 """UMH Socket Layer — typed boundary between substrate and integrations."""
 
-from services.umh.sockets.envelopes import (
+from substrate.sockets.envelopes import (
     CapabilityRequest,
     CapabilityResponse,
     OutcomeEnvelope,
@@ -8,7 +8,7 @@ from services.umh.sockets.envelopes import (
     SignalReceipt,
     ViewFrame,
 )
-from services.umh.sockets.protocols import (
+from substrate.sockets.protocols import (
     CapabilityDescriptor,
     CapabilityHandler,
     CapabilityHealth,
@@ -17,7 +17,7 @@ from services.umh.sockets.protocols import (
     SignalEmitter,
     ViewSubscriber,
 )
-from services.umh.sockets.registry import (
+from substrate.sockets.registry import (
     IntegrationAdapter,
     IntegrationManifest,
     IntegrationRegistry,

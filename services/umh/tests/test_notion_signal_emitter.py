@@ -48,7 +48,7 @@ def _make_config(
 
 class TestNotionSignalEmitter:
     def test_satisfies_protocol(self) -> None:
-        from services.umh.sockets.protocols import SignalEmitter
+        from substrate.sockets.protocols import SignalEmitter
 
         emitter = NotionSignalEmitter()
         assert isinstance(emitter, SignalEmitter)

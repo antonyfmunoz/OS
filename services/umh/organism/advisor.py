@@ -12,7 +12,7 @@ from services.umh.organism.agent_runtime import AgentRuntime
 from services.umh.organism.protocols import AgentMessage, Deliverable
 from services.umh.organism.store import OrganismStore
 from services.umh.organism.worker_cell import WorkerCell
-from services.umh.sockets.envelopes import ViewFrame
+from substrate.sockets.envelopes import ViewFrame
 
 logger = logging.getLogger(__name__)
 

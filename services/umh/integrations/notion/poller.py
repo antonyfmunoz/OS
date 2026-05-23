@@ -14,7 +14,7 @@ from services.umh.governance.risk_classes import RiskClass
 from services.umh.integrations.notion.correlation import CorrelationMap, WritebackTarget
 from services.umh.integrations.notion.signals import NotionSignalEmitter
 from services.umh.integrations.notion.watermarks import WatermarkStore
-from services.umh.sockets.envelopes import OutcomeEnvelope
+from substrate.sockets.envelopes import OutcomeEnvelope
 
 logger = logging.getLogger(__name__)
 

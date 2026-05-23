@@ -7,8 +7,8 @@ from typing import Any
 from uuid import uuid4
 
 from services.umh.protocols.signal import SignalUrgency
-from services.umh.sockets.envelopes import SignalEnvelope
-from services.umh.sockets.protocols import SignalDescriptor
+from substrate.sockets.envelopes import SignalEnvelope
+from substrate.sockets.protocols import SignalDescriptor
 
 from .correlation import LyfeOSWritebackTarget
 from .manifest import INTEGRATION_ID, SIGNAL_DESCRIPTORS

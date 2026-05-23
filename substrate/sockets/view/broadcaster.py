@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable
 from uuid import uuid4
 
-from services.umh.sockets.envelopes import ViewFrame
+from substrate.sockets.envelopes import ViewFrame
 
 logger = logging.getLogger(__name__)
 

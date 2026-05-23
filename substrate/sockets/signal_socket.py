@@ -7,8 +7,8 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
-from services.umh.sockets.envelopes import SignalEnvelope, SignalReceipt
-from services.umh.sockets.protocols import SignalDescriptor, SignalEmitter
+from substrate.sockets.envelopes import SignalEnvelope, SignalReceipt
+from substrate.sockets.protocols import SignalDescriptor, SignalEmitter
 
 logger = logging.getLogger(__name__)
 

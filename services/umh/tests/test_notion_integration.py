@@ -9,8 +9,8 @@ from uuid import uuid4
 
 import pytest
 
-from services.umh.sockets.envelopes import CapabilityRequest, CapabilityResponse
-from services.umh.sockets.protocols import (
+from substrate.sockets.envelopes import CapabilityRequest, CapabilityResponse
+from substrate.sockets.protocols import (
     CapabilityHandler,
     OutcomeReceiver,
     SignalEmitter,

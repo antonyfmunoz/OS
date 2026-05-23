@@ -8,7 +8,7 @@ from typing import Any
 
 from notion_client import APIResponseError, Client
 
-from services.umh.sockets.envelopes import OutcomeEnvelope
+from substrate.sockets.envelopes import OutcomeEnvelope
 
 from .correlation import CorrelationMap
 from .manifest import INTEGRATION_ID

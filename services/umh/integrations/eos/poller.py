@@ -12,7 +12,7 @@ import psycopg2
 
 from services.umh.governance.risk_classes import RiskClass
 from services.umh.integrations.notion.watermarks import WatermarkStore
-from services.umh.sockets.envelopes import OutcomeEnvelope
+from substrate.sockets.envelopes import OutcomeEnvelope
 
 from .correlation import EOSCorrelationMap, EOSWritebackTarget
 from .signals import EOSSignalEmitter

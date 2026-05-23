@@ -15,7 +15,7 @@ from services.umh.integrations.eos.tables import (
     SOURCE_ROW_UPDATE_TYPES,
     outcome_severity,
 )
-from services.umh.sockets.envelopes import OutcomeEnvelope
+from substrate.sockets.envelopes import OutcomeEnvelope
 
 
 def _make_envelope(

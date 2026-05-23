@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from services.umh.governance.risk_classes import RiskClass
 from services.umh.protocols.signal import SignalUrgency
-from services.umh.sockets.protocols import SignalDescriptor
+from substrate.sockets.protocols import SignalDescriptor
 
 
 class NodeSignalEmitter:

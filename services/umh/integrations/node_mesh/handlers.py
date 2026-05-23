@@ -12,8 +12,8 @@ from uuid import uuid4
 from services.umh.governance.risk_classes import RiskClass
 from services.umh.node_mesh.registry import ConnectedNode, NodeCapability
 from services.umh.protocols.capability import CapabilityCategory
-from services.umh.sockets.envelopes import CapabilityRequest, CapabilityResponse
-from services.umh.sockets.protocols import CapabilityDescriptor, CapabilityHealth
+from substrate.sockets.envelopes import CapabilityRequest, CapabilityResponse
+from substrate.sockets.protocols import CapabilityDescriptor, CapabilityHealth
 
 logger = logging.getLogger(__name__)
 

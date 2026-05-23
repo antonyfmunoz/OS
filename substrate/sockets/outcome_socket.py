@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import logging
 
-from services.umh.sockets.envelopes import OutcomeEnvelope
-from services.umh.sockets.protocols import OutcomeReceiver
+from substrate.sockets.envelopes import OutcomeEnvelope
+from substrate.sockets.protocols import OutcomeReceiver
 
 logger = logging.getLogger(__name__)
 

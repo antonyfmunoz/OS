@@ -21,12 +21,12 @@ from services.umh.execution.executor import WorkPacketExecutor
 from services.umh.node_mesh.config import MeshConfig
 from services.umh.node_mesh.metrics_buffer import MetricsBuffer, MetricsSnapshot
 from services.umh.node_mesh.registry import ConnectedNode, NodeCapability, NodeRegistry
-from services.umh.sockets.capability_socket import CapabilitySocket
-from services.umh.sockets.outcome_socket import OutcomeSocket
-from services.umh.sockets.registry import IntegrationManifest, IntegrationRegistry
-from services.umh.sockets.signal_socket import SignalSocket
-from services.umh.sockets.envelopes import ViewFrame
-from services.umh.sockets.view_socket import ViewSocket
+from substrate.sockets.capability_socket import CapabilitySocket
+from substrate.sockets.outcome_socket import OutcomeSocket
+from substrate.sockets.registry import IntegrationManifest, IntegrationRegistry
+from substrate.sockets.signal_socket import SignalSocket
+from substrate.sockets.envelopes import ViewFrame
+from substrate.sockets.view_socket import ViewSocket
 
 logger = logging.getLogger(__name__)
 
