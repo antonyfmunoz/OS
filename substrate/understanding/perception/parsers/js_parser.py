@@ -6,12 +6,13 @@ for graph-level relationships; opens the source file when precise ASTs matter.
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
 from .base import ParsedFile, ParsedImport, ParsedSymbol, Parser
 
-ROOT = Path("/opt/OS")
+ROOT = Path(os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or "/opt/OS")
 
 RE_IMPORT_FROM = re.compile(
     r"""import\s+(?:(?P<default>[\w$]+)\s*,?\s*)?(?:\{(?P<named>[^}]+)\}\s*)?(?:\*\s+as\s+(?P<star>[\w$]+)\s*)?from\s+['"](?P<mod>[^'"]+)['"]""",
