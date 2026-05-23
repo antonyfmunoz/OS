@@ -1,7 +1,7 @@
 ---
 type: palace-index
-generated: 2026-05-21T05:36:21.682447+00:00
-source_graph_generated: 2026-05-21T05:35:53.500373+00:00
+generated: 2026-05-23T04:31:20.976149+00:00
+source_graph_generated: 2026-05-23T04:31:18.738017+00:00
 graph_stale: False
 ---
 
@@ -11,12 +11,12 @@ graph_stale: False
 A navigable map of the codebase organized as rooms you already know.
 Use this BEFORE scanning the file tree — it tells you where to stand.
 
-**Loci promoted:** 42  
+**Loci promoted:** 30  
 **Rooms:** 7  
 **Wings:** 4  
-**Source graph generated:** 2026-05-21T05:35:53.500373+00:00  
-**Graph age:** 0.01 h  
-**Palace generated:** 2026-05-21T05:36:21.682463+00:00
+**Source graph generated:** 2026-05-23T04:31:18.738017+00:00  
+**Graph age:** 0.0 h  
+**Palace generated:** 2026-05-23T04:31:20.976171+00:00
 
 ## Usage
 

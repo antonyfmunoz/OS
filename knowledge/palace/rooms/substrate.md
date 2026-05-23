@@ -2,7 +2,7 @@
 type: palace-room
 room_id: substrate
 wing: runtime
-generated: 2026-05-21
+generated: 2026-05-23
 ---
 
 # Room — Substrate Layer

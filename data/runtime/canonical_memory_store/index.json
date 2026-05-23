@@ -448,6 +448,83 @@
       "label": "[business:sales] Qualification framing inverts sales dynamic",
       "source_document_id": "local-0c320243f7199d2f",
       "timestamp": "2026-05-13T19:44:43.972825+00:00"
+    },
+    "mem-0eb593b2306c4555": {
+      "memory_type": "canonical",
+      "primitive_type": "state",
+      "label": "Project identity as rest-express v1.0.0 ESM module",
+      "source_document_id": "local-7d24f85db76c6751",
+      "timestamp": "2026-05-22T03:13:13.363084+00:00"
+    },
+    "mem-8306573db55747ec": {
+      "memory_type": "canonical",
+      "primitive_type": "action",
+      "label": "Development server launch via tsx",
+      "source_document_id": "local-7d24f85db76c6751",
+      "timestamp": "2026-05-22T03:13:13.363084+00:00"
+    },
+    "mem-216334327fc644b6": {
+      "memory_type": "canonical",
+      "primitive_type": "action",
+      "label": "Production build via Vite frontend and esbuild server bundling",
+      "source_document_id": "local-7d24f85db76c6751",
+      "timestamp": "2026-05-22T03:13:13.363084+00:00"
+    },
+    "mem-98d23dc5439e4606": {
+      "memory_type": "canonical",
+      "primitive_type": "constraint",
+      "label": "Production runtime requires NODE_ENV=production",
+      "source_document_id": "local-7d24f85db76c6751",
+      "timestamp": "2026-05-22T03:13:13.363084+00:00"
+    },
+    "mem-8de27014df224425": {
+      "memory_type": "canonical",
+      "primitive_type": "resource",
+      "label": "Multi-provider AI SDK integration (Anthropic, Google, OpenAI)",
+      "source_document_id": "local-7d24f85db76c6751",
+      "timestamp": "2026-05-22T03:13:13.363084+00:00"
+    },
+    "mem-2e3f46f7c0e34af1": {
+      "memory_type": "canonical",
+      "primitive_type": "resource",
+      "label": "Comprehensive Radix UI primitive component library",
+      "source_document_id": "local-7d24f85db76c6751",
+      "timestamp": "2026-05-22T03:13:13.363084+00:00"
+    },
+    "mem-671a5b756f0e47e6": {
+      "memory_type": "canonical",
+      "primitive_type": "resource",
+      "label": "Neon serverless Postgres with Drizzle ORM data layer",
+      "source_document_id": "local-7d24f85db76c6751",
+      "timestamp": "2026-05-22T03:13:13.363084+00:00"
+    },
+    "mem-ad9b563dfc304616": {
+      "memory_type": "canonical",
+      "primitive_type": "state",
+      "label": "Firebase dual-mode integration (client and admin)",
+      "source_document_id": "local-7d24f85db76c6751",
+      "timestamp": "2026-05-22T03:13:13.363084+00:00"
+    },
+    "mem-84ce95a6fafa4363": {
+      "memory_type": "canonical",
+      "primitive_type": "resource",
+      "label": "Express server with Passport session authentication",
+      "source_document_id": "local-7d24f85db76c6751",
+      "timestamp": "2026-05-22T03:13:13.363084+00:00"
+    },
+    "mem-be208fcffca44e7e": {
+      "memory_type": "canonical",
+      "primitive_type": "action",
+      "label": "Schema push to database via Drizzle Kit",
+      "source_document_id": "local-7d24f85db76c6751",
+      "timestamp": "2026-05-22T03:13:13.363084+00:00"
+    },
+    "mem-c7ccb4699469443d": {
+      "memory_type": "canonical",
+      "primitive_type": "signal",
+      "label": "Document ingested: App.tsx",
+      "source_document_id": "local-7d151e0aa777a45c",
+      "timestamp": "2026-05-22T03:17:01.995039+00:00"
     }
   },
   "by_type": {
