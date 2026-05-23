@@ -1,9 +1,12 @@
 """
 Domain team registry for the OS agent system.
 
-Five teams: sales, research, content, marketing, operations.
+Six teams: sales, research, content, marketing, operations, customer_success.
 Each team maps named sub-agents to a SubAgentConfig (task type + skill + token budget).
 The module-level route() function is the single entry point used by AgentRuntime.run_team_task().
+
+Browser-wired orchestration functions (send_outreach_dm, research_prospect) combine
+text-generation sub-agents with browser execution via BrowserAgent/InstagramAgent.
 
 Usage:
     from substrate.control_plane.agents.agent_teams import route, run_team_task
@@ -11,6 +14,10 @@ Usage:
     # config.task_type, config.skill_name, config.max_tokens
 
     result = run_team_task("marketing", "hook_generator", prompt, "lyfe_institute", ctx)
+
+    # Browser-wired outreach (async)
+    from substrate.control_plane.agents.agent_teams import send_outreach_dm
+    result = await send_outreach_dm("target_username", "lyfe_institute", ctx)
 """
 
 from dataclasses import dataclass
@@ -43,8 +50,8 @@ _SALES_AGENTS: dict[str, SubAgentConfig] = {
         skill_name="generate_outreach_from_intel",
         max_tokens=600,
     ),
-    # Given a lead's reply, generates the optimal response for their specific objection.
-    "objection_handler": SubAgentConfig(
+    # Analyzes a lead's reply to understand their stated and real objections.
+    "conversation_analyzer": SubAgentConfig(
         task_type=TaskType.GENERATE,
         skill_name="analyze_conversation",
         max_tokens=900,
@@ -381,6 +388,132 @@ async def run_browser_action(
     from substrate.execution.agents.browser_agent import run_browser_task
     print(f"[AgentTeams] {team} → browser_action: {task[:60]} @ {url}")
     return await run_browser_task(url, task, ctx)
+
+
+async def send_outreach_dm(
+    username: str,
+    venture_id: str,
+    ctx=None,
+    message_override: str | None = None,
+) -> dict:
+    """
+    Two-step orchestration: generate personalized DM → send via Instagram browser.
+
+    Step 1: outreach_writer generates the DM text from the lead's profile.
+    Step 2: InstagramAgent logs in and sends the DM.
+
+    Authority engine gates the send_dm action — if autonomy level is too low,
+    the message is queued for approval instead of sent.
+
+    Args:
+        username:         Instagram handle (without @).
+        venture_id:       Venture context for outreach copy.
+        ctx:              EntrepreneurOSContext.
+        message_override: Skip generation and send this exact message.
+
+    Returns:
+        {status, message, browser_result | approval_id, dm_text}
+    """
+    from substrate.state.context.context import load_context_from_env
+    from substrate.governance.policy.authority_engine import AuthorityEngine
+
+    ctx = ctx or load_context_from_env()
+    authority = AuthorityEngine(ctx)
+
+    if message_override:
+        dm_text = message_override
+    else:
+        gen_result = run_team_task(
+            team="sales",
+            sub_agent="outreach_writer",
+            prompt=f"Write a DM opener for @{username}. Keep it under 300 chars.",
+            venture_id=venture_id,
+            ctx=ctx,
+            username=username,
+        )
+        dm_text = gen_result.get("output", "").strip()
+        if not dm_text:
+            return {"status": "failed", "message": "outreach_writer returned empty output"}
+
+    auth_check = authority.check_can_execute("send_dm")
+    if not auth_check["can_execute"] or auth_check["requires_approval"]:
+        approval_id = authority.queue_for_approval(
+            action_type="send_dm",
+            payload={"username": username, "dm_text": dm_text, "venture_id": venture_id},
+            agent="sales/outreach_writer",
+        )
+        print(f"[SalesTeam] DM to @{username} queued for approval: {approval_id}")
+        return {
+            "status": "pending_approval",
+            "approval_id": approval_id,
+            "dm_text": dm_text,
+            "message": f"send_dm is {auth_check['risk_class']} risk — queued for human approval",
+        }
+
+    from substrate.execution.agents.browser_agent import InstagramAgent
+    ig = InstagramAgent()
+    try:
+        await ig.start()
+        logged_in = await ig.login()
+        if not logged_in:
+            return {"status": "failed", "message": "Instagram login failed", "dm_text": dm_text}
+        browser_result = await ig.send_dm(username, dm_text)
+        return {
+            "status": "sent" if browser_result.get("success") else "browser_failed",
+            "dm_text": dm_text,
+            "browser_result": browser_result,
+            "message": f"DM to @{username}: {'sent' if browser_result.get('success') else 'failed'}",
+        }
+    finally:
+        await ig.stop()
+
+
+async def research_prospect(
+    username: str,
+    platform_url: str,
+    venture_id: str,
+    ctx=None,
+) -> dict:
+    """
+    Browser-powered prospect research: navigate to a profile, extract intel,
+    then run ICP qualification on the extracted data.
+
+    Step 1: BrowserAgent extracts page state from the prospect's profile.
+    Step 2: icp_qualifier scores the extracted intel against the venture's ICP.
+
+    Args:
+        username:      Prospect handle.
+        platform_url:  Full URL to their profile (Instagram, LinkedIn, etc.).
+        venture_id:    Venture context for ICP scoring.
+        ctx:           EntrepreneurOSContext.
+
+    Returns:
+        {profile_data, icp_score}
+    """
+    profile_data = await run_browser_action(
+        team="sales",
+        url=platform_url,
+        task=f"Extract all visible information about @{username}: bio, recent posts, follower count, engagement patterns.",
+        ctx=ctx,
+    )
+
+    findings = profile_data.get("findings", "")
+    if not findings:
+        return {"profile_data": profile_data, "icp_score": None}
+
+    icp_result = run_team_task(
+        team="sales",
+        sub_agent="icp_qualifier",
+        prompt=f"Score this prospect against the ICP:\n\nUsername: @{username}\n\n{findings}",
+        venture_id=venture_id,
+        ctx=ctx,
+        username=username,
+    )
+
+    return {
+        "profile_data": profile_data,
+        "icp_score": icp_result,
+    }
 
 
 def list_teams() -> dict[str, list[str]]:

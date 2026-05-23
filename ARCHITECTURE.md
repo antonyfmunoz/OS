@@ -109,8 +109,8 @@ Primary orchestrator. Generates org structure. Delegates to department agents. G
 | Product Agent | ✗ | not built |
 | Engineering Agent | ✗ | not built |
 
-**LEVEL 4: Execution Layer** `⚠️ BUILT, NOT WIRED`
-Browser and computer control agent. Can operate any software a human can — fill forms, navigate apps, extract data, take actions. Takes AI from advisor to operator. `browser_agent.py` is built using Playwright; not yet wired to department agents.
+**LEVEL 4: Execution Layer** `✅ WIRED`
+Browser and computer control agent. Can operate any software a human can — fill forms, navigate apps, extract data, take actions. Takes AI from advisor to operator. `browser_agent.py` built using Playwright. Wired to sales team via `send_outreach_dm()` and `research_prospect()` in `agent_teams.py`. Authority engine gates all browser actions.
 
 ### Autonomy Levels
 
@@ -198,7 +198,7 @@ All injected before execution. Never blocks execution on failure — all injecti
 | `event_bus.py` | Reactive coordination — decouples producers from consumers | ✅ |
 | `evolution_engine.py` | Weekly self-improvement — workflow evolution, agent proposals | ✅ |
 | `execution_engine.py` | Formal task lifecycle tracking — queued → completed → outcome | ⚠️ built, not wired |
-| `gateway.py` | Single entry point for all external requests (known: raw_prompt param) | ✅ |
+| `gateway.py` | Single entry point for all external requests | ✅ |
 | `gws_connector.py` | Google Workspace — Calendar, Gmail, Drive, Tasks OAuth | ✅ |
 | `human_intelligence.py` | Behavioral profiling of every person the system interacts with | ✅ |
 | `identity_engine.py` | System persona management across interface contexts | ✅ |
@@ -267,7 +267,7 @@ All injected before execution. Never blocks execution on failure — all injecti
 
 | Integration | Notes |
 |---|---|
-| Browser control (execution) | Playwright installed; `browser_agent.py` built; not wired to agents |
+| Browser control (execution) | Wired to sales team via `send_outreach_dm()` and `research_prospect()` |
 | Stripe | billing not started — required for public launch |
 | Firebase Auth | public auth not started — required for non-founder users |
 

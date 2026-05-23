@@ -21,7 +21,8 @@ RISK_CLASSES = {
     'LOW': [
         'analyze','research','score','classify',
         'summarize','read','query','report',
-        'draft_brief','generate_brief'
+        'draft_brief','generate_brief',
+        'research_prospect','extract_profile'
     ]
 }
 

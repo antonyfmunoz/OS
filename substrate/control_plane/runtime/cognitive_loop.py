@@ -14,7 +14,7 @@ Usage:
     ctx  = load_context_from_env()
     loop = CognitiveLoop(ctx)
     result = loop.run(
-        raw_prompt="Analyze this lead's signal",
+        input="Analyze this lead's signal",
         agent="sales_agent",
         task_type=TaskType.ANALYZE,
         venture_id="lyfe_institute",
