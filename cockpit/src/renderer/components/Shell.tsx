@@ -2,8 +2,13 @@ import { TitleBar } from './TitleBar'
 import { NavRail } from './NavRail'
 import { HudBar } from './HudBar'
 import { ChatDrawer } from './ChatDrawer'
+import { CommandPalette } from './CommandPalette'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { DashboardPanel } from '../panels/DashboardPanel'
+import { AgentsPanel } from '../panels/AgentsPanel'
+import { TasksPanel } from '../panels/TasksPanel'
+import { ApprovalsPanel } from '../panels/ApprovalsPanel'
+import { ActivityPanel } from '../panels/ActivityPanel'
 
 function PanelPlaceholder({ name }: { name: string }) {
   return (
@@ -27,11 +32,13 @@ function ActivePanel() {
     case 'dashboard':
       return <DashboardPanel />
     case 'agents':
-      return <PanelPlaceholder name="Fleet Command" />
+      return <AgentsPanel />
     case 'tasks':
-      return <PanelPlaceholder name="Operations Board" />
+      return <TasksPanel />
     case 'approvals':
-      return <PanelPlaceholder name="Governance Gate" />
+      return <ApprovalsPanel />
+    case 'activity':
+      return <ActivityPanel />
     case 'knowledge':
       return <PanelPlaceholder name="World Model Explorer" />
     case 'analytics':
@@ -40,8 +47,6 @@ function ActivePanel() {
       return <PanelPlaceholder name="IDE" />
     case 'settings':
       return <PanelPlaceholder name="System Configuration" />
-    case 'activity':
-      return <PanelPlaceholder name="Event Intelligence" />
     default:
       return <DashboardPanel />
   }
@@ -55,7 +60,6 @@ export function Shell() {
       <div className="flex flex-1 overflow-hidden">
         <NavRail />
 
-        {/* Main workspace */}
         <main
           className="flex-1 overflow-hidden"
           style={{ background: 'var(--surface-1)' }}
@@ -67,6 +71,7 @@ export function Shell() {
       </div>
 
       <HudBar />
+      <CommandPalette />
     </div>
   )
 }
