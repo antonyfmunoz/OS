@@ -30,6 +30,13 @@ def _build_parser() -> argparse.ArgumentParser:
     sub.add_parser("settings", help="View / edit preferences")
     sub.add_parser("permissions", help="View / manage permission grants")
     sub.add_parser("discover", help="Run environment discovery scan")
+    sub.add_parser("mesh", help="Show device mesh status")
+
+    daemon_parser = sub.add_parser("daemon", help="Manage background daemon")
+    daemon_sub = daemon_parser.add_subparsers(dest="daemon_action")
+    daemon_sub.add_parser("start", help="Start daemon in foreground")
+    daemon_sub.add_parser("status", help="Show daemon status")
+    daemon_sub.add_parser("stop", help="Stop running daemon")
 
     return parser
 
@@ -96,9 +103,30 @@ def main(argv: list[str] | None = None) -> int:
         scanner.display_result()
         return 0
 
+    if args.command == "mesh":
+        from umh.mesh import show_mesh_status
+
+        return show_mesh_status()
+
+    if args.command == "daemon":
+        action = getattr(args, "daemon_action", None)
+        if action == "status":
+            from umh.daemon import show_daemon_status
+
+            return show_daemon_status()
+        if action == "stop":
+            from umh.daemon import stop_daemon
+
+            return stop_daemon()
+        # "start" or no action — run daemon in foreground
+        from umh.daemon import run_daemon
+
+        return run_daemon()
+
     if args.daemon:
-        print("Daemon mode not yet implemented (Sprint 5)")
-        return 1
+        from umh.daemon import run_daemon
+
+        return run_daemon()
 
     from umh.boot import run_boot
 

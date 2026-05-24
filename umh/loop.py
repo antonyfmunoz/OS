@@ -127,7 +127,12 @@ def _handle_system_command(
         return "Perception not initialized"
 
     if cmd.command == "mesh_status":
-        return "mesh_status not yet implemented"
+        try:
+            from umh.mesh import format_mesh_status
+
+            return format_mesh_status()
+        except Exception as exc:
+            return f"Mesh status unavailable: {exc}"
 
     return f"Unknown command: {cmd.command}"
 
