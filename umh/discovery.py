@@ -117,6 +117,14 @@ class DiscoveryScanner:
         self._thread.start()
         return True
 
+    def run_synchronous(self) -> None:
+        """Run the discovery scan in the current thread (blocking)."""
+        if self._running:
+            return
+        self._running = True
+        self._result = None
+        self._run_scan()
+
     def _run_scan(self) -> None:
         """Execute the scan (runs in background thread)."""
         result = DiscoveryResult(
