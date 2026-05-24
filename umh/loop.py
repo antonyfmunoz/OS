@@ -687,41 +687,43 @@ def _text_only_loop(
     session_id: str = "",
     text_only: bool = False,
 ) -> int:
-    while True:
-        if inference_checker is not None:
-            suggestion = inference_checker.check(mode_state.primary_profile.value)
-            if suggestion:
-                print(f"  [inference] {suggestion}")
-                if continuity is not None:
-                    continuity.track_execution(
-                        command=f"inference: {suggestion[:80]}",
-                        outcome="info",
-                        adapter_used="inference",
-                    )
+    try:
+        while True:
+            if inference_checker is not None:
+                suggestion = inference_checker.check(mode_state.primary_profile.value)
+                if suggestion:
+                    print(f"  [inference] {suggestion}")
+                    if continuity is not None:
+                        continuity.track_execution(
+                            command=f"inference: {suggestion[:80]}",
+                            outcome="info",
+                            adapter_used="inference",
+                        )
 
-        try:
-            user_input = input(prompt).strip()
-        except (EOFError, KeyboardInterrupt):
-            print("\nExiting...")
-            break
+            try:
+                user_input = input(prompt).strip()
+            except (EOFError, KeyboardInterrupt):
+                print("\nExiting...")
+                break
 
-        if not _process_input(
-            user_input,
-            "manual",
-            mode_state,
-            voice,
-            node_id,
-            persona_name,
-            perception,
-            continuity,
-            scheduler=scheduler,
-            inference_checker=inference_checker,
-            session_id=session_id,
-            text_only=text_only,
-        ):
-            break
+            if not _process_input(
+                user_input,
+                "manual",
+                mode_state,
+                voice,
+                node_id,
+                persona_name,
+                perception,
+                continuity,
+                scheduler=scheduler,
+                inference_checker=inference_checker,
+                session_id=session_id,
+                text_only=text_only,
+            ):
+                break
+    finally:
+        _cleanup_session(node_id, mode_state, session_id, scheduler, continuity, perception)
 
-    _cleanup_session(node_id, mode_state, session_id, scheduler, continuity, perception)
     return 0
 
 
