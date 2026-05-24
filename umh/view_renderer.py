@@ -61,20 +61,18 @@ def get_recent_frames(limit: int = 10) -> list[dict[str, Any]]:
         return []
 
     frames = sub.recent_frames[-limit:]
-    result = []
-    for f in frames:
-        result.append(
-            {
-                "stage": _STAGE_NAMES.get(f.stage, f"stage_{f.stage}"),
-                "event_type": f.event_type,
-                "trace_id": str(f.trace_id)[:8] if f.trace_id else None,
-                "timestamp": f.timestamp.strftime("%H:%M:%S")
-                if hasattr(f.timestamp, "strftime")
-                else str(f.timestamp),
-                "data_keys": list(f.data.keys()) if f.data else [],
-            }
-        )
-    return result
+    return [
+        {
+            "stage": _STAGE_NAMES.get(f.stage, f"stage_{f.stage}"),
+            "event_type": f.event_type,
+            "trace_id": str(f.trace_id)[:8] if f.trace_id else None,
+            "timestamp": f.timestamp.strftime("%H:%M:%S")
+            if hasattr(f.timestamp, "strftime")
+            else str(f.timestamp),
+            "data_keys": list(f.data.keys()) if f.data else [],
+        }
+        for f in frames
+    ]
 
 
 def format_view(limit: int = 10) -> str:

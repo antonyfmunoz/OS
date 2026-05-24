@@ -64,7 +64,7 @@ def _extract_data_deterministic(answers: dict) -> dict[str, Any]:
     """Extract structured data from raw answers without LLM."""
     data: dict[str, Any] = {}
 
-    for _key, entry in answers.items():
+    for entry in answers.values():
         q = entry.get("question", "").lower()
         a = entry.get("answer", "").strip()
 

@@ -83,18 +83,16 @@ def get_recent_outcomes(receiver: Any = None, limit: int = 10) -> list[dict[str,
     if not source:
         return []
 
-    results: list[dict[str, Any]] = []
-    for envelope in source[-limit:]:
-        results.append(
-            {
-                "outcome_type": getattr(envelope, "outcome_type", "?"),
-                "summary": getattr(envelope, "summary", ""),
-                "governance_decision": getattr(envelope, "governance_decision", ""),
-                "confidence": getattr(envelope, "confidence", 1.0),
-                "duration_ms": getattr(envelope, "duration_ms", 0.0),
-            }
-        )
-    return results
+    return [
+        {
+            "outcome_type": getattr(envelope, "outcome_type", "?"),
+            "summary": getattr(envelope, "summary", ""),
+            "governance_decision": getattr(envelope, "governance_decision", ""),
+            "confidence": getattr(envelope, "confidence", 1.0),
+            "duration_ms": getattr(envelope, "duration_ms", 0.0),
+        }
+        for envelope in source[-limit:]
+    ]
 
 
 def show_outcomes(receiver: Any = None) -> int:

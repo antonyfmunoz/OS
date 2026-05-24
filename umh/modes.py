@@ -149,7 +149,7 @@ def parse_command(text: str, mode_state: ModeState) -> CommandResult:
         if text_clean == key:
             return CommandResult(handled=True, command=cmd)
 
-    if text_clean.startswith("approve ") or text_clean.startswith("reject "):
+    if text_clean.startswith(("approve ", "reject ")):
         parts = text_clean.split(maxsplit=1)
         return CommandResult(
             handled=True, command=parts[0], response=parts[1] if len(parts) > 1 else ""

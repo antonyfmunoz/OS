@@ -214,9 +214,7 @@ class DiscoveryScanner:
             os.path.join(home, "code"),
             os.environ.get("UMH_ROOT", "/opt/OS"),
         ]
-        for d in common_repo_dirs:
-            if os.path.isdir(d):
-                workspaces.append(d)
+        workspaces.extend(d for d in common_repo_dirs if os.path.isdir(d))
 
         # Check running processes for known platforms
         try:
@@ -231,9 +229,7 @@ class DiscoveryScanner:
                     "cursor",
                     "obsidian",
                 }
-                for name in process_names:
-                    if name in ps_out.stdout.lower():
-                        platforms.append(name)
+                platforms.extend(name for name in process_names if name in ps_out.stdout.lower())
         except Exception as exc:
             logger.debug("Process discovery failed: %s", exc)
 

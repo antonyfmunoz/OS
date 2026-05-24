@@ -299,9 +299,9 @@ class DiagnosticScanner:
                     timeout=10,
                 )
                 if result.returncode == 0:
-                    for line in result.stdout.strip().split("\n"):
-                        if line:
-                            repos.append(os.path.dirname(line))
+                    repos.extend(
+                        os.path.dirname(line) for line in result.stdout.strip().split("\n") if line
+                    )
             except Exception as exc:
                 logger.debug("Git repo discovery failed for %s: %s", base, exc)
 
