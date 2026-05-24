@@ -2,10 +2,13 @@
 
 Sprint 1: text-only stdin loop.
 Sprint 2: voice input via AmbientMic/PushToTalkMic racing against stdin.
+Sprint 4: perception integration (webcam, workspace, metrics).
 
 When voice is enabled, stdin runs in a background thread and the main loop
 polls both the mic transcript queue and the stdin queue. When voice is
 disabled, falls back to the simple blocking input() loop from Sprint 1.
+
+Perception router is polled each cycle to check auto-AWAY timeout.
 """
 
 from __future__ import annotations
@@ -73,7 +76,9 @@ def _update_audio_loop_status(node_id: str, status: str) -> None:
         logger.debug("Audio loop status update failed: %s", exc)
 
 
-def _handle_system_command(cmd: CommandResult, mode_state: ModeState, voice: VoiceOutput) -> str:
+def _handle_system_command(
+    cmd: CommandResult, mode_state: ModeState, voice: VoiceOutput, perception: Any = None
+) -> str:
     if cmd.command == "status":
         return mode_state.display()
 
@@ -109,10 +114,20 @@ def _handle_system_command(cmd: CommandResult, mode_state: ModeState, voice: Voi
         return "Voice mode: ambient (toggle with 'push to talk')"
 
     if cmd.command in ("pending", "approve", "reject"):
-        return "Approval system not yet wired (Sprint 3+)"
+        return "Approval system not yet wired"
 
-    if cmd.command in ("webcam_on", "webcam_off", "mesh_status"):
-        return f"{cmd.command} not yet implemented"
+    if cmd.command == "webcam_on":
+        if perception is not None:
+            return perception.enable_webcam()
+        return "Perception not initialized — restart with webcam support"
+
+    if cmd.command == "webcam_off":
+        if perception is not None:
+            return perception.disable_webcam()
+        return "Perception not initialized"
+
+    if cmd.command == "mesh_status":
+        return "mesh_status not yet implemented"
 
     return f"Unknown command: {cmd.command}"
 
@@ -132,6 +147,8 @@ def _help_text(mode_state: ModeState) -> str:
   emergency           — lock down (read-only)
   push to talk        — switch to push-to-talk voice mode
   always on           — switch to ambient voice mode
+  webcam on           — enable webcam perception
+  webcam off          — disable webcam perception
   exit / bye          — save state and exit"""
 
 
@@ -164,6 +181,7 @@ def _process_input(
     voice: VoiceOutput,
     node_id: str,
     persona_name: str,
+    perception: Any = None,
 ) -> bool:
     """Process a single input line. Returns True to continue, False to exit."""
     if not user_input:
@@ -174,9 +192,11 @@ def _process_input(
 
     cmd = parse_command(user_input, mode_state)
     if cmd.handled:
-        response = _handle_system_command(cmd, mode_state, voice)
+        response = _handle_system_command(cmd, mode_state, voice, perception=perception)
         if response == "__EXIT__":
             _update_audio_loop_status(node_id, "inactive")
+            if perception is not None:
+                perception.stop_all()
             voice.speak_and_print("State saved. Goodbye.")
             return False
         if response:
@@ -208,6 +228,7 @@ def run_interaction_loop(
     text_only: bool = False,
     node_id: str = "workstation_local",
     mic: Any = None,
+    perception: Any = None,
 ) -> int:
     """Main interaction loop — races voice and text input.
 
@@ -217,10 +238,19 @@ def run_interaction_loop(
 
     When mic is None (text-only):
       Simple blocking input() loop — same behavior as Sprint 1.
+
+    When perception is provided:
+      Auto-AWAY timeout is checked each poll cycle.
+      Welcome-back message is spoken when operator returns.
     """
     voice = VoiceOutput(text_only=text_only)
     persona_name = os.environ.get("UMH_PERSONA_NAME", "UMH")
     prompt = "you > "
+
+    if perception is not None:
+        perception.set_welcome_back_callback(
+            lambda: voice.speak_and_print(f"Welcome back. {mode_state.display()}")
+        )
 
     if mic is not None and mic.is_listening:
         print(f"[{persona_name}] Ready. Voice + text input active. Type 'help' for commands.\n")
@@ -228,9 +258,9 @@ def run_interaction_loop(
         print(f"[{persona_name}] Ready. Type 'help' for commands, 'exit' to quit.\n")
 
     if mic is None or not mic.is_listening:
-        return _text_only_loop(mode_state, voice, persona_name, prompt, node_id)
+        return _text_only_loop(mode_state, voice, persona_name, prompt, node_id, perception)
 
-    return _voice_text_loop(mode_state, voice, persona_name, prompt, node_id, mic)
+    return _voice_text_loop(mode_state, voice, persona_name, prompt, node_id, mic, perception)
 
 
 def _text_only_loop(
@@ -239,6 +269,7 @@ def _text_only_loop(
     persona_name: str,
     prompt: str,
     node_id: str,
+    perception: Any = None,
 ) -> int:
     while True:
         try:
@@ -247,9 +278,13 @@ def _text_only_loop(
             print("\nExiting...")
             break
 
-        if not _process_input(user_input, "manual", mode_state, voice, node_id, persona_name):
+        if not _process_input(
+            user_input, "manual", mode_state, voice, node_id, persona_name, perception
+        ):
             break
 
+    if perception is not None:
+        perception.stop_all()
     return 0
 
 
@@ -260,12 +295,15 @@ def _voice_text_loop(
     prompt: str,
     node_id: str,
     mic: Any,
+    perception: Any = None,
 ) -> int:
     """Concurrent voice + text loop.
 
     Stdin runs in a daemon thread. Main thread polls both stdin queue
     and mic transcript queue at ~50ms intervals. Voice input gets a
     "[voice]" prefix in the transcript for debugging.
+
+    Perception router is polled each cycle for auto-AWAY timeout.
     """
     text_queue: queue.Queue[str | None] = queue.Queue()
     stop_event = threading.Event()
@@ -275,6 +313,9 @@ def _voice_text_loop(
 
     try:
         while not stop_event.is_set():
+            if perception is not None:
+                perception.check_away_timeout()
+
             text_input: str | None = None
             try:
                 text_input = text_queue.get_nowait()
@@ -283,7 +324,7 @@ def _voice_text_loop(
 
             if text_input is not None:
                 if not _process_input(
-                    text_input, "manual", mode_state, voice, node_id, persona_name
+                    text_input, "manual", mode_state, voice, node_id, persona_name, perception
                 ):
                     break
                 sys.stdout.write(prompt)
@@ -297,7 +338,7 @@ def _voice_text_loop(
                     print("  [interrupted]")
                 print(f"  [voice] {voice_input}")
                 if not _process_input(
-                    voice_input, "voice", mode_state, voice, node_id, persona_name
+                    voice_input, "voice", mode_state, voice, node_id, persona_name, perception
                 ):
                     break
                 sys.stdout.write(prompt)
@@ -312,5 +353,7 @@ def _voice_text_loop(
         stop_event.set()
         _update_audio_loop_status(node_id, "inactive")
         mic.stop()
+        if perception is not None:
+            perception.stop_all()
 
     return 0
