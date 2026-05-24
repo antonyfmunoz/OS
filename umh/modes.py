@@ -57,9 +57,12 @@ class ModeState:
             return "Cannot unstack the last active mode"
         return f"{mode.value} mode not in stack"
 
+    @property
+    def profiles_display(self) -> str:
+        return " + ".join(p.value for p in self.profiles)
+
     def display(self) -> str:
-        profiles = " + ".join(p.value for p in self.profiles)
-        return f"System: {self.system.value} | Profiles: {profiles}"
+        return f"System: {self.system.value} | Profiles: {self.profiles_display}"
 
 
 _PROFILE_ALIASES: dict[str, ProfileMode] = {

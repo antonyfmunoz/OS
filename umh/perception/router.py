@@ -11,15 +11,11 @@ into PerceptionStore and manages OperatorMode transitions:
 from __future__ import annotations
 
 import logging
-import os
-import sys
 from typing import Any
 
 from umh.modes import ModeState, SystemMode
 
 logger = logging.getLogger(__name__)
-
-sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
 AUTO_AWAY_SECONDS_DEFAULT = 300  # 5 minutes
 

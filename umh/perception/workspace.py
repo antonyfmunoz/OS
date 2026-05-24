@@ -21,8 +21,6 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
-
 
 @dataclass
 class WindowEvent:

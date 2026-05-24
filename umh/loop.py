@@ -35,8 +35,6 @@ from umh.voice import VoiceOutput
 
 logger = logging.getLogger(__name__)
 
-sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
-
 
 def _try_gateway(text: str) -> str | None:
     try:
@@ -157,7 +155,7 @@ def _build_welcome_back(mode_state: ModeState, continuity: Any = None) -> str:
     except Exception as exc:
         logger.debug("Pending approvals count failed: %s", exc)
 
-    profiles = " + ".join(p.value for p in mode_state.profiles)
+    profiles = mode_state.profiles_display
     parts.append(f"Mode: {profiles}.")
 
     return " ".join(parts)
