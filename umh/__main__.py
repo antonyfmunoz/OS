@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
 
@@ -68,7 +69,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"umh {__version__}")
         return 0
 
-    sys.path.insert(0, "/opt/OS")
+    sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
     if args.command == "diag":
         from umh.diagnostics import run_diagnostics
@@ -83,7 +84,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "setup":
         from umh.boot import run_first_boot
 
-        return run_first_boot(voice_mode=args.voice_mode.replace("-", "_"))
+        return run_first_boot(
+            text_only=args.text_only, voice_mode=args.voice_mode.replace("-", "_")
+        )
 
     if args.command == "status":
         from umh.daily import show_status
@@ -112,11 +115,7 @@ def main(argv: list[str] | None = None) -> int:
 
         scanner = DiscoveryScanner()
         print("Running environment discovery scan...")
-        scanner.start_background_scan()
-        import time
-
-        while scanner.is_running:
-            time.sleep(0.5)
+        scanner.run_synchronous()
         scanner.display_result()
         return 0
 
