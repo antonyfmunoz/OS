@@ -1,29 +1,41 @@
-"""Voice wrapper — persona voice + cloned voice (XTTS v2) + TTS fallback chain."""
+"""Voice wrapper — persona voice + streaming TTS + interrupt support.
+
+Two voice profiles:
+  persona_voice — AI's own voice (Coqui TTS), used for operator conversation
+  cloned_voice  — operator's cloned voice (XTTS v2), used when AI speaks AS the operator
+
+Streaming TTS: splits response into sentences and speaks them one by one.
+Interrupt: if the mic detects speech during TTS playback, stop immediately.
+"""
 
 from __future__ import annotations
 
 import logging
 import os
+import re
+import subprocess
 import sys
+import threading
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
+
 
 class VoiceOutput:
-    """Wraps substrate VoiceEngine for the workstation surface.
-
-    Two voice profiles:
-      persona_voice — AI's own voice (Coqui TTS), used for operator conversation
-      cloned_voice  — operator's cloned voice (XTTS v2), used when AI speaks AS the operator
-    """
+    """Wraps substrate VoiceEngine for the workstation surface."""
 
     def __init__(self, text_only: bool = False) -> None:
         self._text_only = text_only
         self._engine: Any = None
         self._tts_available = False
+        self._speaking = False
+        self._interrupted = False
+        self._playback_process: subprocess.Popen[bytes] | None = None
+        self._lock = threading.Lock()
 
     def _ensure_engine(self) -> Any:
         if self._engine is not None:
@@ -40,22 +52,75 @@ class VoiceOutput:
             logger.debug("VoiceEngine not available — text-only mode")
             return None
 
+    @property
+    def is_speaking(self) -> bool:
+        return self._speaking
+
+    def interrupt(self) -> None:
+        """Stop any in-progress TTS playback immediately."""
+        with self._lock:
+            self._interrupted = True
+            if self._playback_process is not None:
+                try:
+                    self._playback_process.terminate()
+                except Exception:
+                    pass
+                self._playback_process = None
+
     def speak(self, text: str, voice_type: str = "persona") -> None:
-        if self._text_only:
+        if self._text_only or not text:
+            return
+        engine = self._ensure_engine()
+        if engine is None:
+            return
+        self._speaking = True
+        self._interrupted = False
+        try:
+            engine.speak(text)
+        except Exception as exc:
+            logger.debug("TTS failed: %s", exc)
+        finally:
+            self._speaking = False
+
+    def speak_streaming(self, text: str, voice_type: str = "persona") -> None:
+        """Speak text sentence-by-sentence, checking for interrupts between sentences."""
+        if self._text_only or not text:
             return
 
         engine = self._ensure_engine()
         if engine is None:
             return
 
+        sentences = _SENTENCE_SPLIT.split(text)
+        sentences = [s.strip() for s in sentences if s.strip()]
+
+        if not sentences:
+            return
+
+        self._speaking = True
+        self._interrupted = False
+
         try:
-            engine.speak(text)
-        except Exception as exc:
-            logger.debug("TTS failed, falling back to text: %s", exc)
+            for sentence in sentences:
+                if self._interrupted:
+                    logger.debug(
+                        "TTS interrupted after %d/%d sentences",
+                        sentences.index(sentence),
+                        len(sentences),
+                    )
+                    break
+                try:
+                    engine.speak(sentence)
+                except Exception as exc:
+                    logger.debug("TTS sentence failed: %s", exc)
+                    break
+        finally:
+            self._speaking = False
+            self._interrupted = False
 
     def speak_and_print(self, text: str) -> None:
         print(text)
-        self.speak(text)
+        self.speak_streaming(text)
 
     @property
     def tts_available(self) -> bool:
@@ -105,7 +170,7 @@ def _deterministic_response(text: str) -> str:
 def run_voice_setup() -> int:
     print()
     print("Voice Setup")
-    print("═" * 40)
+    print("=" * 40)
     print()
     print("Voice cloning (XTTS v2) is not yet implemented.")
     print("This will be available in Sprint 3.")
