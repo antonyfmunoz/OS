@@ -106,6 +106,12 @@ _SYSTEM_COMMANDS: dict[str, str] = {
     "governance": "governance",
     "review": "review",
     "profile inference": "profile_inference",
+    "awakening": "awakening",
+    "the awakening": "awakening",
+    "reality brief": "awakening",
+    "continuity": "continuity",
+    "transport": "transport",
+    "transport status": "transport",
 }
 
 

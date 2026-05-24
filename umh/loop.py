@@ -4,12 +4,14 @@ Sprint 1: text-only stdin loop.
 Sprint 2: voice input via AmbientMic/PushToTalkMic racing against stdin.
 Sprint 4: perception integration (webcam, workspace, metrics).
 Sprint 6: personality command, sensing adapter display.
+Sprint 8: continuity tracking, awakening command, transport status.
 
 When voice is enabled, stdin runs in a background thread and the main loop
 polls both the mic transcript queue and the stdin queue. When voice is
 disabled, falls back to the simple blocking input() loop from Sprint 1.
 
 Perception router is polled each cycle to check auto-AWAY timeout.
+Continuity bridge tracks every execution and mode transition.
 """
 
 from __future__ import annotations
@@ -159,7 +161,33 @@ def _handle_system_command(
         show_inference()
         return ""
 
+    if cmd.command == "awakening":
+        from umh.awakening import show_awakening
+
+        show_awakening()
+        return ""
+
+    if cmd.command == "continuity":
+        from umh.continuity import show_continuity
+
+        show_continuity()
+        return ""
+
+    if cmd.command == "transport":
+        return _show_transport_status()
+
     return f"Unknown command: {cmd.command}"
+
+
+def _show_transport_status() -> str:
+    """Show the workstation transport registration status."""
+    try:
+        from umh.transport import INTEGRATION_ID
+
+        lines = [f"Transport: {INTEGRATION_ID}", "Sockets: signal, capability, outcome, view"]
+        return "\n".join(lines)
+    except Exception as exc:
+        return f"Transport status unavailable: {exc}"
 
 
 def _help_text(mode_state: ModeState) -> str:
@@ -183,6 +211,9 @@ def _help_text(mode_state: ModeState) -> str:
   governance          — show governance configuration
   review              — full instance review dashboard
   profile inference   — show inferred profile modes
+  awakening           — run The Awakening reality brief
+  continuity          — show session continuity state
+  transport           — show transport registration status
   exit / bye          — save state and exit"""
 
 
@@ -216,6 +247,7 @@ def _process_input(
     node_id: str,
     persona_name: str,
     perception: Any = None,
+    continuity: Any = None,
 ) -> bool:
     """Process a single input line. Returns True to continue, False to exit."""
     if not user_input:
@@ -231,22 +263,43 @@ def _process_input(
             _update_audio_loop_status(node_id, "inactive")
             if perception is not None:
                 perception.stop_all()
+            if continuity is not None:
+                continuity.save_on_exit()
             voice.speak_and_print("State saved. Goodbye.")
             return False
         if response:
             _update_audio_loop_status(node_id, "responding")
             voice.speak_and_print(response)
             _update_audio_loop_status(node_id, "cooling_down")
+        if continuity is not None:
+            continuity.track_execution(
+                command=user_input,
+                outcome="success",
+                adapter_used="system_command",
+            )
         _record_transcript(node_id, response or "(no response)", source="system")
         return True
 
     _update_audio_loop_status(node_id, "responding")
 
+    t0 = time.time()
     response = _try_gateway(user_input)
+    adapter = "gateway"
     if response is None:
         response = _try_voice_route(user_input, voice)
+        adapter = "voice_route"
     if response is None:
         response = "No LLM provider available. Run `umh diag` to check."
+        adapter = "none"
+    elapsed_ms = (time.time() - t0) * 1000
+
+    if continuity is not None:
+        continuity.track_execution(
+            command=user_input,
+            outcome="success" if adapter != "none" else "failure",
+            adapter_used=adapter,
+            duration_ms=elapsed_ms,
+        )
 
     print(f"\n{persona_name} > {response}\n")
     voice.speak_streaming(response)
@@ -263,6 +316,7 @@ def run_interaction_loop(
     node_id: str = "workstation_local",
     mic: Any = None,
     perception: Any = None,
+    continuity: Any = None,
 ) -> int:
     """Main interaction loop — races voice and text input.
 
@@ -276,6 +330,9 @@ def run_interaction_loop(
     When perception is provided:
       Auto-AWAY timeout is checked each poll cycle.
       Welcome-back message is spoken when operator returns.
+
+    When continuity is provided:
+      Every execution and mode transition is tracked for session resume.
     """
     voice = VoiceOutput(text_only=text_only)
     persona_name = os.environ.get("UMH_PERSONA_NAME", "UMH")
@@ -292,9 +349,13 @@ def run_interaction_loop(
         print(f"[{persona_name}] Ready. Type 'help' for commands, 'exit' to quit.\n")
 
     if mic is None or not mic.is_listening:
-        return _text_only_loop(mode_state, voice, persona_name, prompt, node_id, perception)
+        return _text_only_loop(
+            mode_state, voice, persona_name, prompt, node_id, perception, continuity
+        )
 
-    return _voice_text_loop(mode_state, voice, persona_name, prompt, node_id, mic, perception)
+    return _voice_text_loop(
+        mode_state, voice, persona_name, prompt, node_id, mic, perception, continuity
+    )
 
 
 def _text_only_loop(
@@ -304,6 +365,7 @@ def _text_only_loop(
     prompt: str,
     node_id: str,
     perception: Any = None,
+    continuity: Any = None,
 ) -> int:
     while True:
         try:
@@ -313,10 +375,19 @@ def _text_only_loop(
             break
 
         if not _process_input(
-            user_input, "manual", mode_state, voice, node_id, persona_name, perception
+            user_input,
+            "manual",
+            mode_state,
+            voice,
+            node_id,
+            persona_name,
+            perception,
+            continuity,
         ):
             break
 
+    if continuity is not None:
+        continuity.save_on_exit()
     if perception is not None:
         perception.stop_all()
     return 0
@@ -330,6 +401,7 @@ def _voice_text_loop(
     node_id: str,
     mic: Any,
     perception: Any = None,
+    continuity: Any = None,
 ) -> int:
     """Concurrent voice + text loop.
 
@@ -338,6 +410,7 @@ def _voice_text_loop(
     "[voice]" prefix in the transcript for debugging.
 
     Perception router is polled each cycle for auto-AWAY timeout.
+    Continuity bridge tracks every execution for session resume.
     """
     text_queue: queue.Queue[str | None] = queue.Queue()
     stop_event = threading.Event()
@@ -358,7 +431,14 @@ def _voice_text_loop(
 
             if text_input is not None:
                 if not _process_input(
-                    text_input, "manual", mode_state, voice, node_id, persona_name, perception
+                    text_input,
+                    "manual",
+                    mode_state,
+                    voice,
+                    node_id,
+                    persona_name,
+                    perception,
+                    continuity,
                 ):
                     break
                 sys.stdout.write(prompt)
@@ -372,7 +452,14 @@ def _voice_text_loop(
                     print("  [interrupted]")
                 print(f"  [voice] {voice_input}")
                 if not _process_input(
-                    voice_input, "voice", mode_state, voice, node_id, persona_name, perception
+                    voice_input,
+                    "voice",
+                    mode_state,
+                    voice,
+                    node_id,
+                    persona_name,
+                    perception,
+                    continuity,
                 ):
                     break
                 sys.stdout.write(prompt)
@@ -387,6 +474,8 @@ def _voice_text_loop(
         stop_event.set()
         _update_audio_loop_status(node_id, "inactive")
         mic.stop()
+        if continuity is not None:
+            continuity.save_on_exit()
         if perception is not None:
             perception.stop_all()
 
