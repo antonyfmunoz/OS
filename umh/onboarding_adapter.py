@@ -145,7 +145,9 @@ def _build_result(data: dict, raw_answers: dict) -> OnboardingResult:
 
 def _save_result(result: OnboardingResult) -> None:
     """Persist onboarding result to disk and set env vars."""
-    data_dir = os.path.join(os.environ.get("UMH_ROOT", "/opt/OS"), "data", "onboarding")
+    from umh import UMH_ROOT
+
+    data_dir = os.path.join(UMH_ROOT, "data", "onboarding")
     os.makedirs(data_dir, exist_ok=True)
 
     path = os.path.join(data_dir, "onboarding_result.json")

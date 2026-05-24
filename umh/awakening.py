@@ -26,9 +26,9 @@ import os
 from pathlib import Path
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from umh import UMH_ROOT
 
-UMH_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
+logger = logging.getLogger(__name__)
 
 
 def _load_json(path: str | Path) -> dict[str, Any] | None:

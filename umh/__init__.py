@@ -3,6 +3,7 @@
 import os
 import sys
 
-sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
+UMH_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
+sys.path.insert(0, UMH_ROOT)
 
 __version__ = "0.1.0"
