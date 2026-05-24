@@ -147,6 +147,7 @@ class MetricsCollector:
         self._snapshot = MetricsSnapshot()
         self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
+        self._collect_lock = threading.Lock()
         self._running = False
 
     @property
@@ -194,7 +195,8 @@ class MetricsCollector:
             self._stop_event.wait(self._collect_interval_s)
 
     def _do_collect(self) -> MetricsSnapshot:
-        raw = _collect_raw()
+        with self._collect_lock:
+            raw = _collect_raw()
         now = time.monotonic()
 
         snap = MetricsSnapshot(

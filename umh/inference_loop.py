@@ -91,6 +91,14 @@ class InferenceChecker:
 
 def create_inference_checker(preferences: Any = None) -> InferenceChecker:
     """Create an InferenceChecker from workstation preferences."""
+    if preferences is None:
+        try:
+            from umh.profile import ProfileManager
+
+            preferences = ProfileManager().get_preferences()
+        except Exception:
+            pass
+
     interval = DEFAULT_INFERENCE_INTERVAL_S
     debounce = SUGGESTION_DEBOUNCE_S
     threshold = SUGGESTION_CONFIDENCE_THRESHOLD
