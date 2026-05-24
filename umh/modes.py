@@ -103,6 +103,9 @@ _SYSTEM_COMMANDS: dict[str, str] = {
     "mesh status": "mesh_status",
     "mode info": "mode_info",
     "personality": "personality",
+    "governance": "governance",
+    "review": "review",
+    "profile inference": "profile_inference",
 }
 
 

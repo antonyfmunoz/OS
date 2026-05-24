@@ -32,6 +32,10 @@ def _build_parser() -> argparse.ArgumentParser:
     sub.add_parser("discover", help="Run environment discovery scan")
     sub.add_parser("mesh", help="Show device mesh status")
     sub.add_parser("personality", help="Show personality configuration")
+    sub.add_parser("governance", help="Show governance configuration")
+    sub.add_parser("scan", help="Run deep diagnostic scan")
+    sub.add_parser("profile-inference", help="Show inferred profile modes")
+    sub.add_parser("review", help="Show full instance review dashboard")
 
     daemon_parser = sub.add_parser("daemon", help="Manage background daemon")
     daemon_sub = daemon_parser.add_subparsers(dest="daemon_action")
@@ -113,6 +117,30 @@ def main(argv: list[str] | None = None) -> int:
         from umh.personality import show_personality
 
         return show_personality()
+
+    if args.command == "governance":
+        from umh.governance_config import show_governance
+
+        return show_governance()
+
+    if args.command == "scan":
+        from umh.diagnostic_scan import DiagnosticScanner
+
+        scanner = DiagnosticScanner()
+        print("Running diagnostic scan (this may take a minute)...")
+        scanner.start_scan(background=False)
+        scanner.display_result()
+        return 0
+
+    if args.command == "profile-inference":
+        from umh.profile_inference import show_inference
+
+        return show_inference()
+
+    if args.command == "review":
+        from umh.review import show_review
+
+        return show_review()
 
     if args.command == "daemon":
         action = getattr(args, "daemon_action", None)
