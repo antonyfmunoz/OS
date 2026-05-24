@@ -144,7 +144,7 @@ class PerceptionRouter:
             payload={"transition": "away_to_active"},
         )
 
-        self._apply_operator_transition("webcam_face_detected", "active")
+        self._sync_operator_return()
 
         if self._welcome_back_callback is not None:
             try:
@@ -172,7 +172,7 @@ class PerceptionRouter:
                     payload={"transition": "active_to_away", "absent_seconds": absent_s},
                 )
 
-                self._apply_operator_transition("webcam_face_lost", "away")
+                self._sync_operator_away()
 
     def _on_workspace_change(self, event: Any) -> None:
         """Handle active window change."""
@@ -244,30 +244,23 @@ class PerceptionRouter:
         except (ImportError, Exception) as exc:
             logger.debug("Perception recording failed: %s", exc)
 
-    def _apply_operator_transition(self, trigger: str, target: str) -> None:
-        """Update OperatorState via substrate transition system."""
+    def _sync_operator_away(self) -> None:
+        """Delegate to operator_sync for AWAY transition."""
         try:
-            from substrate.execution.bridge.operator_state import (
-                OperatorMode,
-                get_operator_state_store,
-            )
-            from substrate.execution.bridge.operator_transitions import (
-                TransitionDecision,
-                _record_transition,
-            )
+            from umh.operator_sync import sync_away
 
-            store = get_operator_state_store()
-            state = store.get_or_create(self._node_id)
-            mode = OperatorMode.ACTIVE if target == "active" else OperatorMode.IDLE
+            sync_away(self._node_id)
+        except Exception as exc:
+            logger.debug("Operator away sync failed: %s", exc)
 
-            decision = TransitionDecision(
-                next_mode=mode,
-                reason=f"Webcam perception: {trigger}",
-            )
-            _record_transition(state, decision, trigger)
-            store.put(state)
-        except (ImportError, Exception) as exc:
-            logger.debug("Operator transition failed: %s", exc)
+    def _sync_operator_return(self) -> None:
+        """Delegate to operator_sync for ACTIVE transition."""
+        try:
+            from umh.operator_sync import sync_return
+
+            sync_return(self._node_id)
+        except Exception as exc:
+            logger.debug("Operator return sync failed: %s", exc)
 
     def check_away_timeout(self) -> None:
         """Poll-based check for auto-AWAY timeout.

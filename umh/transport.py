@@ -39,6 +39,26 @@ logger = logging.getLogger(__name__)
 
 INTEGRATION_ID = "workstation_local"
 
+_active_manifest: IntegrationManifest | None = None
+
+
+def set_active_manifest(manifest: IntegrationManifest) -> None:
+    """Store the registered manifest for runtime access to view subscriber etc."""
+    global _active_manifest
+    _active_manifest = manifest
+
+
+def get_active_manifest() -> IntegrationManifest | None:
+    """Return the manifest registered at boot, or None if not registered."""
+    return _active_manifest
+
+
+def get_view_subscriber() -> WorkstationViewSubscriber | None:
+    """Return the active view subscriber, or None if not registered."""
+    if _active_manifest is not None:
+        return _active_manifest.view_subscriber
+    return None
+
 
 # ---------------------------------------------------------------------------
 # SignalEmitter — declares signal types the workstation can emit

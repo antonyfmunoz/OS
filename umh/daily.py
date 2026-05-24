@@ -47,6 +47,29 @@ def _get_operator_mode(node_id: str = "workstation_local") -> str:
         return "unknown"
 
 
+def _get_continuity_summary() -> str:
+    try:
+        from umh.continuity import SessionContinuity
+
+        c = SessionContinuity()
+        return c.get_resume_summary()
+    except Exception:
+        return ""
+
+
+def _log_boot_health() -> None:
+    try:
+        from umh.health import run_health_check
+
+        results = run_health_check()
+        down = [r for r in results if r.status == "DOWN"]
+        if down:
+            names = ", ".join(r.name for r in down)
+            logger.info("Boot health: %d/%d subsystems DOWN: %s", len(down), len(results), names)
+    except Exception:
+        pass
+
+
 def _get_recent_trigger_count() -> int:
     try:
         from umh.triggers import get_trigger_history
@@ -134,6 +157,10 @@ def run_daily_boot(text_only: bool = False) -> tuple[ModeState, str]:
     next_actions = pm.next_actions
     next_action = next_actions[0] if next_actions else ""
 
+    continuity_summary = _get_continuity_summary()
+    if continuity_summary and continuity_summary != "No previous session to resume.":
+        resume_summary = continuity_summary
+
     trace_count = 0
     error_count = 0
     pending_count = 0
@@ -153,6 +180,8 @@ def run_daily_boot(text_only: bool = False) -> tuple[ModeState, str]:
         greeting += f" {live_approvals} pending approval{'s' if live_approvals != 1 else ''}."
     if next_action:
         greeting += f" {next_action}."
+
+    _log_boot_health()
 
     voice.speak_and_print(greeting)
 

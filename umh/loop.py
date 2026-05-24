@@ -8,6 +8,7 @@ Sprint 8: continuity tracking, awakening command, transport status.
 Sprint 9: approval queue, signal emission, scheduler, triggers.
 Sprint 10: outcome display, capability routing, operator state sync, inference suggestions.
 Sprint 11: mode transition signals, perception signal emission, health checks, rich status.
+Sprint 12: view frame display, status→rich display, operator sync consolidation, boot enrichment.
 
 When voice is enabled, stdin runs in a background thread and the main loop
 polls both the mic transcript queue and the stdin queue. When voice is
@@ -109,7 +110,7 @@ def _handle_system_command(
     cmd: CommandResult, mode_state: ModeState, voice: VoiceOutput, perception: Any = None
 ) -> str:
     if cmd.command == "status":
-        return mode_state.display()
+        return "__FULL_STATUS__"
 
     if cmd.command == "mode_switch":
         return cmd.response
@@ -262,6 +263,11 @@ def _handle_system_command(
     if cmd.command == "full_status":
         return "__FULL_STATUS__"
 
+    if cmd.command == "view":
+        from umh.view_renderer import format_view
+
+        return format_view()
+
     return f"Unknown command: {cmd.command}"
 
 
@@ -310,6 +316,7 @@ def _help_text(mode_state: ModeState) -> str:
   capabilities        — show local capabilities
   health              — subsystem health check
   dashboard           — full workstation status dashboard
+  view                — show pipeline view frames
   open <url>          — open URL in browser
   system info         — show system metrics
   run <command>       — execute shell command

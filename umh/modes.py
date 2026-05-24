@@ -129,6 +129,9 @@ _SYSTEM_COMMANDS: dict[str, str] = {
     "health check": "health",
     "full status": "full_status",
     "dashboard": "full_status",
+    "view": "view",
+    "pipeline": "view",
+    "view frames": "view",
 }
 
 
