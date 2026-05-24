@@ -64,6 +64,10 @@ def build_status(
         f"  Scheduler: {scheduler_str}",
     ]
 
+    pipeline_str = _get_pipeline_str()
+    if pipeline_str and pipeline_str != "no activity":
+        lines.append(f"  Pipeline:  {pipeline_str}")
+
     if approval_str:
         lines.append(f"  Approvals: {approval_str}")
     if outcome_str:
@@ -99,6 +103,15 @@ def _get_operator_str(node_id: str) -> str:
         return "unknown"
     except Exception:
         return "unknown"
+
+
+def _get_pipeline_str() -> str:
+    try:
+        from umh.view_renderer import format_view_summary
+
+        return format_view_summary()
+    except Exception:
+        return "no activity"
 
 
 def _get_approval_str() -> str:

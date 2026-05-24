@@ -4,6 +4,7 @@ Sprint 8: registers workstation as four-socket substrate transport,
 starts continuity tracking, wires resume state into daily greeting.
 Sprint 9: starts scheduler, wires signal socket, emits boot signal.
 Sprint 10: outcome callbacks, operator state sync, inference checker, capability routing.
+Sprint 12: retains transport manifest for view subscriber access at runtime.
 """
 
 from __future__ import annotations
@@ -78,9 +79,10 @@ def _start_discovery() -> Any:
 def _register_transport() -> Any:
     """Register the workstation as a four-socket substrate transport."""
     try:
-        from umh.transport import build_workstation_manifest
+        from umh.transport import build_workstation_manifest, set_active_manifest
 
         manifest = build_workstation_manifest()
+        set_active_manifest(manifest)
 
         try:
             from substrate.sockets.capability_socket import CapabilitySocket
