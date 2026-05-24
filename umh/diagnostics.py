@@ -120,6 +120,7 @@ def _check_ollama() -> CheckResult:
             capture_output=True,
             text=True,
             timeout=5,
+            check=False,
         )
         if result.returncode == 0:
             lines = result.stdout.strip().split("\n")
@@ -157,9 +158,9 @@ def _check_network() -> CheckResult:
 
 
 def _check_disk_space() -> CheckResult:
-    from umh import UMH_ROOT as _umh_root
+    from umh import UMH_ROOT
 
-    usage = shutil.disk_usage(_umh_root)
+    usage = shutil.disk_usage(UMH_ROOT)
     free_gb = usage.free / (1024**3)
     if free_gb >= 5.0:
         return CheckResult("Disk space", Status.OK, f"{free_gb:.1f} GB free")

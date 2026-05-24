@@ -94,7 +94,7 @@ class WorkstationDaemon:
 
         return 0
 
-    def _signal_handler(self, signum: int, frame: Any) -> None:
+    def _signal_handler(self, signum: int, _frame: Any) -> None:
         logger.info("Signal %d received, shutting down", signum)
         self._stop_event.set()
 

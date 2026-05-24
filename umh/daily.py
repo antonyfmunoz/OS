@@ -88,7 +88,7 @@ def _format_status(
     trace_count: int = 0,
     error_count: int = 0,
     pending_count: int = 0,
-    resume_summary: str = "",
+    resume_summary: str = "",  # noqa: ARG001
     next_action: str = "",
     perception_snapshot: dict | None = None,
 ) -> str:

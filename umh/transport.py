@@ -271,6 +271,7 @@ class WorkstationCapabilityHandler:
                 text=True,
                 timeout=timeout,
                 cwd=UMH_ROOT,
+                check=False,
             )
             return {
                 "exit_code": result.returncode,
@@ -292,13 +293,14 @@ class WorkstationCapabilityHandler:
         except Exception as exc:
             return {"opened": False, "reason": str(exc)}
 
-    def _handle_clipboard_read(self, params: dict[str, Any]) -> dict[str, Any]:
+    def _handle_clipboard_read(self, _params: dict[str, Any]) -> dict[str, Any]:
         try:
             result = subprocess.run(
                 ["xclip", "-selection", "clipboard", "-o"],
                 capture_output=True,
                 text=True,
                 timeout=5,
+                check=False,
             )
             return {"content": result.stdout[:4096]}
         except Exception as exc:
@@ -348,7 +350,7 @@ class WorkstationCapabilityHandler:
             "reason": "no screenshot tool found (install scrot or imagemagick)",
         }
 
-    def _handle_system_info(self, params: dict[str, Any]) -> dict[str, Any]:
+    def _handle_system_info(self, _params: dict[str, Any]) -> dict[str, Any]:
         try:
             import psutil
 

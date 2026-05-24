@@ -27,7 +27,8 @@ def _lazy_import(name: str):
         from umh.perception.metrics import MetricsCollector
 
         return MetricsCollector
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    msg = f"module {__name__!r} has no attribute {name!r}"
+    raise AttributeError(msg)
 
 
 def __getattr__(name: str):

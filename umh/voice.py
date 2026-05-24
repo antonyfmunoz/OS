@@ -63,7 +63,7 @@ class VoiceOutput:
                     logger.debug("Playback process terminate failed: %s", exc)
                 self._playback_process = None
 
-    def speak(self, text: str, voice_type: str = "persona") -> None:
+    def speak(self, text: str, _voice_type: str = "persona") -> None:
         if self._text_only or not text:
             return
         engine = self._ensure_engine()
@@ -79,7 +79,7 @@ class VoiceOutput:
         finally:
             self._speaking = False
 
-    def speak_streaming(self, text: str, voice_type: str = "persona") -> None:
+    def speak_streaming(self, text: str, _voice_type: str = "persona") -> None:
         """Speak text sentence-by-sentence, checking for interrupts between sentences."""
         if self._text_only or not text:
             return

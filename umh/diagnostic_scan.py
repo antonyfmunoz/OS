@@ -294,6 +294,7 @@ class DiagnosticScanner:
                     capture_output=True,
                     text=True,
                     timeout=10,
+                    check=False,
                 )
                 if result.returncode == 0:
                     repos.extend(
@@ -321,6 +322,7 @@ class DiagnosticScanner:
                         capture_output=True,
                         text=True,
                         timeout=5,
+                        check=False,
                     )
                     if result.returncode == 0 and result.stdout.strip():
                         languages.add(lang)
