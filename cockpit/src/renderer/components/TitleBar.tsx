@@ -14,6 +14,9 @@ declare global {
         onError: (cb: (msg: string) => void) => void
         onExit: (cb: (code: number | null) => void) => void
       }
+      readDir: (dirPath: string) => Promise<{ name: string; path: string; type: 'file' | 'directory' }[]>
+      readFile: (filePath: string) => Promise<string>
+      writeFile: (filePath: string, content: string) => Promise<boolean>
     }
   }
 }

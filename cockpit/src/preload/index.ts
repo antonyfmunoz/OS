@@ -19,5 +19,8 @@ contextBridge.exposeInMainWorld('cockpit', {
     onExit: (cb: (code: number | null) => void) => {
       ipcRenderer.on('voice-server-exit', (_e, code) => cb(code))
     }
-  }
+  },
+  readDir: (dirPath: string) => ipcRenderer.invoke('fs:readDir', dirPath),
+  readFile: (filePath: string) => ipcRenderer.invoke('fs:readFile', filePath),
+  writeFile: (filePath: string, content: string) => ipcRenderer.invoke('fs:writeFile', filePath, content)
 })
