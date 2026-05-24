@@ -46,6 +46,18 @@ def _format_status(
         webcam_str = "active (present)" if webcam_snap.get("face_detected") else "active (no face)"
     else:
         webcam_str = "disabled"
+    try:
+        from umh.mesh import get_node_count
+
+        mesh_nodes = get_node_count()
+        mesh_str = (
+            f"{mesh_nodes} node{'s' if mesh_nodes != 1 else ''} online"
+            if mesh_nodes
+            else "standalone"
+        )
+    except Exception:
+        mesh_str = "standalone"
+
     profiles = " + ".join(p.value for p in mode_state.profiles)
 
     lines = [
@@ -56,6 +68,7 @@ def _format_status(
         f"║  Mode:    {profiles:<13s} Session: {session_id[:8]:<4s} ║",
         f"║  Voice:   {voice_str:<31s}║",
         f"║  Webcam:  {webcam_str:<31s}║",
+        f"║  Mesh:    {mesh_str:<31s}║",
     ]
 
     if trace_count or error_count:
