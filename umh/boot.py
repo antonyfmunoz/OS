@@ -85,6 +85,49 @@ def _start_perception(mode_state: Any) -> Any:
         return None
 
 
+def _run_personality_selection() -> None:
+    """Phase 3: Quick personality preset selection during first boot."""
+    try:
+        from umh.personality import (
+            PRESET_TRAITS,
+            PersonalityConfig,
+            PersonalityPreset,
+            save_personality,
+        )
+
+        print()
+        print("Choose your AI personality:")
+        print()
+        for i, preset in enumerate(PersonalityPreset, 1):
+            traits = PRESET_TRAITS[preset]
+            print(
+                f"  {i}. {preset.value.capitalize():<12s} — {traits.tone}, {traits.style}, {traits.governance.value} autonomy"
+            )
+        print()
+
+        try:
+            choice = input("  Pick a number (default: 1 Operator): ").strip()
+        except (EOFError, KeyboardInterrupt):
+            choice = ""
+
+        presets = list(PersonalityPreset)
+        try:
+            idx = int(choice) - 1
+            if 0 <= idx < len(presets):
+                selected = presets[idx]
+            else:
+                selected = PersonalityPreset.OPERATOR
+        except (ValueError, IndexError):
+            selected = PersonalityPreset.OPERATOR
+
+        config = PersonalityConfig(preset=selected)
+        save_personality(config)
+        print(f"\n  Personality set: {selected.value.capitalize()}\n")
+
+    except Exception as exc:
+        logger.debug("Personality selection failed: %s", exc)
+
+
 def run_boot(text_only: bool = False, voice_mode: str = "ambient") -> int:
     logging.basicConfig(
         level=logging.WARNING,
@@ -144,6 +187,9 @@ def run_first_boot(text_only: bool = False, voice_mode: str = "ambient") -> int:
     if result is None:
         print("Onboarding cancelled. Run `umh setup` to try again.")
         return 1
+
+    # Phase 3: Personality selection
+    _run_personality_selection()
 
     # Start background discovery (Phase 6 beginning)
     _start_discovery()

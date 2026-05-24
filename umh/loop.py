@@ -141,6 +141,24 @@ def _handle_system_command(
         show_personality()
         return ""
 
+    if cmd.command == "governance":
+        from umh.governance_config import show_governance
+
+        show_governance()
+        return ""
+
+    if cmd.command == "review":
+        from umh.review import show_review
+
+        show_review()
+        return ""
+
+    if cmd.command == "profile_inference":
+        from umh.profile_inference import show_inference
+
+        show_inference()
+        return ""
+
     return f"Unknown command: {cmd.command}"
 
 
@@ -162,6 +180,9 @@ def _help_text(mode_state: ModeState) -> str:
   webcam on           — enable webcam perception
   webcam off          — disable webcam perception
   personality         — show personality configuration
+  governance          — show governance configuration
+  review              — full instance review dashboard
+  profile inference   — show inferred profile modes
   exit / bye          — save state and exit"""
 
 
