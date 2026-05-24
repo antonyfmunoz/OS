@@ -318,7 +318,7 @@ class WorkstationDaemon:
     def _write_pid(self) -> None:
         os.makedirs(os.path.dirname(PID_FILE), exist_ok=True)
         try:
-            with open(PID_FILE, "w") as f:
+            with open(PID_FILE, "w", encoding="utf-8") as f:
                 f.write(str(os.getpid()))
         except Exception as exc:
             logger.debug("Failed to write PID file: %s", exc)
@@ -417,7 +417,7 @@ def stop_daemon() -> int:
         print("No daemon PID file found.")
         return 1
     try:
-        with open(PID_FILE) as f:
+        with open(PID_FILE, encoding="utf-8") as f:
             pid = int(f.read().strip())
     except Exception as exc:
         logger.debug("Failed to read PID file: %s", exc)
