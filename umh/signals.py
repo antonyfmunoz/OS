@@ -37,6 +37,12 @@ def get_signal_socket() -> Any:
     return _signal_socket
 
 
+def clear_module_state() -> None:
+    """Reset module-level state between sessions in the same process."""
+    global _signal_socket
+    _signal_socket = None
+
+
 def _emit(envelope: Any) -> dict[str, Any]:
     """Emit a SignalEnvelope through the registered SignalSocket."""
     if _signal_socket is None:

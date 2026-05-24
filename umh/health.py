@@ -54,9 +54,9 @@ def check_transport() -> SubsystemHealth:
 
 
 def check_signal_socket() -> SubsystemHealth:
-    from umh.signals import _signal_socket
+    from umh.signals import get_signal_socket
 
-    if _signal_socket is not None:
+    if get_signal_socket() is not None:
         return SubsystemHealth("signal_socket", "UP")
     return SubsystemHealth("signal_socket", "DOWN", "not connected")
 
@@ -84,18 +84,19 @@ def check_voice() -> SubsystemHealth:
     try:
         from umh.voice import VoiceOutput
 
-        v = VoiceOutput(text_only=True)
-        if v is not None:
-            return SubsystemHealth("voice", "UP")
+        v = VoiceOutput(text_only=False)
+        if v.tts_available:
+            return SubsystemHealth("voice", "UP", "TTS ready")
+        return SubsystemHealth("voice", "DEGRADED", "TTS unavailable — text output only")
     except Exception as exc:
         return SubsystemHealth("voice", "DEGRADED", str(exc))
-    return SubsystemHealth("voice", "DOWN")
 
 
 def check_inference(inference_checker: Any = None) -> SubsystemHealth:
     if inference_checker is None:
         return SubsystemHealth("inference", "DOWN", "not initialized")
-    return SubsystemHealth("inference", "UP", f"{inference_checker._interval_s}s interval")
+    interval = getattr(inference_checker, "_interval_s", 0)
+    return SubsystemHealth("inference", "UP", f"{interval}s interval")
 
 
 def run_health_check(
