@@ -2,20 +2,24 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import sys
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
+UMH_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
+PREFERENCES_FILE = os.path.join(UMH_ROOT, "data", "sessions", "preferences.json")
+
 
 @dataclass
 class WorkstationPreferences:
-    voice_mode: str = "text-only"
+    voice_mode: str = "text_only"
     webcam_enabled: bool = False
     default_profile: str = "developer"
     notification_level: str = "normal"
@@ -30,7 +34,7 @@ class ProfileManager:
         self._manager: Any = None
         self._profile: Any = None
         self._snapshot: Any = None
-        self._preferences = WorkstationPreferences()
+        self._preferences: WorkstationPreferences | None = None
 
     def _ensure_manager(self) -> Any:
         if self._manager is None:
@@ -45,7 +49,9 @@ class ProfileManager:
     def has_snapshot(self) -> bool:
         mgr = self._ensure_manager()
         if mgr is None:
-            return False
+            # Check for onboarding result as fallback
+            onboarding_path = os.path.join(UMH_ROOT, "data", "onboarding", "onboarding_result.json")
+            return os.path.exists(onboarding_path)
         snapshot = mgr.load_snapshot()
         return snapshot is not None
 
@@ -76,9 +82,38 @@ class ProfileManager:
         except Exception as exc:
             logger.debug("Snapshot save failed: %s", exc)
 
+    def get_preferences(self) -> WorkstationPreferences:
+        """Load preferences from disk or return defaults."""
+        if self._preferences is not None:
+            return self._preferences
+
+        self._preferences = WorkstationPreferences()
+
+        if os.path.exists(PREFERENCES_FILE):
+            try:
+                with open(PREFERENCES_FILE) as f:
+                    data = json.load(f)
+                for key, value in data.items():
+                    if hasattr(self._preferences, key):
+                        setattr(self._preferences, key, value)
+            except Exception as exc:
+                logger.debug("Failed to load preferences: %s", exc)
+
+        return self._preferences
+
+    def save_preferences(self, prefs: WorkstationPreferences) -> None:
+        """Save preferences to disk."""
+        self._preferences = prefs
+        os.makedirs(os.path.dirname(PREFERENCES_FILE), exist_ok=True)
+        try:
+            with open(PREFERENCES_FILE, "w") as f:
+                json.dump(asdict(prefs), f, indent=2)
+        except Exception as exc:
+            logger.debug("Failed to save preferences: %s", exc)
+
     @property
     def preferences(self) -> WorkstationPreferences:
-        return self._preferences
+        return self.get_preferences()
 
     @property
     def resume_summary(self) -> str:
@@ -95,19 +130,19 @@ class ProfileManager:
 
 def show_settings() -> int:
     pm = ProfileManager()
-    prefs = pm.preferences
+    prefs = pm.get_preferences()
     print()
-    print("╔══════════════════════════════════════╗")
-    print("║  UMH Workstation Settings            ║")
-    print("╠══════════════════════════════════════╣")
-    print(f"║  Voice mode:     {prefs.voice_mode:<20s}║")
-    print(f"║  Webcam:         {'enabled' if prefs.webcam_enabled else 'disabled':<20s}║")
-    print(f"║  Default mode:   {prefs.default_profile:<20s}║")
-    print(f"║  Notifications:  {prefs.notification_level:<20s}║")
-    print(f"║  Overnight at:   {prefs.auto_overnight_hour:02d}:00{' ' * 15}║")
-    print(f"║  Morning at:     {prefs.auto_morning_hour:02d}:00{' ' * 15}║")
-    print(f"║  Wake phrase:    {prefs.wake_phrase or '(not set)':<20s}║")
-    print(f"║  Personality:    {prefs.personality_preset:<20s}║")
-    print("╚══════════════════════════════════════╝")
+    print("=" * 42)
+    print("  UMH Workstation Settings")
+    print("=" * 42)
+    print(f"  Voice mode:     {prefs.voice_mode.replace('_', '-')}")
+    print(f"  Webcam:         {'enabled' if prefs.webcam_enabled else 'disabled'}")
+    print(f"  Default mode:   {prefs.default_profile}")
+    print(f"  Notifications:  {prefs.notification_level}")
+    print(f"  Overnight at:   {prefs.auto_overnight_hour:02d}:00")
+    print(f"  Morning at:     {prefs.auto_morning_hour:02d}:00")
+    print(f"  Wake phrase:    {prefs.wake_phrase or '(not set)'}")
+    print(f"  Personality:    {prefs.personality_preset}")
+    print("=" * 42)
     print()
     return 0

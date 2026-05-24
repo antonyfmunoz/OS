@@ -23,10 +23,13 @@ def _build_parser() -> argparse.ArgumentParser:
 
     sub = parser.add_subparsers(dest="command")
     sub.add_parser("diag", help="Run system diagnostics")
+    sub.add_parser("install", help="Phase 0 — install dependencies + register transport")
     sub.add_parser("setup", help="First-boot setup / onboarding")
     sub.add_parser("status", help="Show workstation status")
     sub.add_parser("voice-setup", help="Configure voice cloning + wake command")
     sub.add_parser("settings", help="View / edit preferences")
+    sub.add_parser("permissions", help="View / manage permission grants")
+    sub.add_parser("discover", help="Run environment discovery scan")
 
     return parser
 
@@ -48,6 +51,11 @@ def main(argv: list[str] | None = None) -> int:
 
         return run_diagnostics()
 
+    if args.command == "install":
+        from umh.installer import run_install
+
+        return run_install()
+
     if args.command == "setup":
         from umh.boot import run_first_boot
 
@@ -59,14 +67,34 @@ def main(argv: list[str] | None = None) -> int:
         return show_status()
 
     if args.command == "voice-setup":
-        from umh.voice import run_voice_setup
+        from umh.voice_setup import run_voice_setup_flow
 
-        return run_voice_setup()
+        return run_voice_setup_flow()
 
     if args.command == "settings":
         from umh.profile import show_settings
 
         return show_settings()
+
+    if args.command == "permissions":
+        from umh.permissions import PermissionStore
+
+        store = PermissionStore()
+        store.display()
+        return 0
+
+    if args.command == "discover":
+        from umh.discovery import DiscoveryScanner
+
+        scanner = DiscoveryScanner()
+        print("Running environment discovery scan...")
+        scanner.start_background_scan()
+        import time
+
+        while scanner.is_running:
+            time.sleep(0.5)
+        scanner.display_result()
+        return 0
 
     if args.daemon:
         print("Daemon mode not yet implemented (Sprint 5)")

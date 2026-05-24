@@ -168,17 +168,7 @@ def _deterministic_response(text: str) -> str:
 
 
 def run_voice_setup() -> int:
-    print()
-    print("Voice Setup")
-    print("=" * 40)
-    print()
-    print("Voice cloning (XTTS v2) is not yet implemented.")
-    print("This will be available in Sprint 3.")
-    print()
-    print("Voice cloning creates a reference of YOUR voice")
-    print("for the AI to use when speaking to OTHER PEOPLE")
-    print("on your behalf (calls, meetings, outreach).")
-    print()
-    print("The AI uses its own persona voice when talking to you.")
-    print()
-    return 0
+    """Redirect to the full voice setup flow."""
+    from umh.voice_setup import run_voice_setup_flow
+
+    return run_voice_setup_flow()
