@@ -147,9 +147,9 @@ def _get_scheduler_str(scheduler: Any = None) -> str:
 
 
 def _get_signal_str() -> str:
-    from umh.signals import _signal_socket
+    from umh.signals import get_signal_socket
 
-    if _signal_socket is not None:
+    if get_signal_socket() is not None:
         return "connected"
     return "disconnected"
 

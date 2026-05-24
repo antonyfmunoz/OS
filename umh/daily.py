@@ -172,8 +172,12 @@ def run_daily_boot(text_only: bool = False) -> tuple[ModeState, str]:
     live_approvals = _get_approval_count()
 
     greeting = f"{persona_name} online."
-    if resume_summary and resume_summary != "No previous session":
-        greeting += f" {resume_summary}."
+    if resume_summary and resume_summary not in (
+        "No previous session",
+        "No previous session to resume.",
+        "Clean resume — no pending items.",
+    ):
+        greeting += f" {resume_summary.rstrip('.')}."
     if trace_count or error_count:
         greeting += f" {trace_count} traces, {error_count} errors."
     if live_approvals > 0:

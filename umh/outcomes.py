@@ -13,13 +13,14 @@ UMH workstation subsystem.
 from __future__ import annotations
 
 import logging
+from collections import deque
 from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
 
 _outcome_callback: Callable[[Any], None] | None = None
-_recent_buffer: list[Any] = []
 _BUFFER_MAX = 50
+_recent_buffer: deque[Any] = deque(maxlen=_BUFFER_MAX)
 
 
 def set_outcome_callback(callback: Callable[[Any], None]) -> None:
@@ -31,8 +32,6 @@ def set_outcome_callback(callback: Callable[[Any], None]) -> None:
 def on_outcome_received(envelope: Any) -> None:
     """Called by the WorkstationOutcomeReceiver — dispatches to callback."""
     _recent_buffer.append(envelope)
-    if len(_recent_buffer) > _BUFFER_MAX:
-        del _recent_buffer[: len(_recent_buffer) - _BUFFER_MAX]
 
     if _outcome_callback is not None:
         try:

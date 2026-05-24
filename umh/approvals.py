@@ -80,6 +80,9 @@ def approve_item(approval_id: str) -> str:
     full_id = _resolve_id(store, approval_id)
     if full_id is None:
         return f"No pending approval matching '{approval_id}'."
+    if full_id.startswith("__AMBIGUOUS__"):
+        count = full_id.split("__")[-1]
+        return f"Ambiguous — '{approval_id}' matches {count} items. Use a longer prefix."
 
     try:
         result = store.decide(full_id, "approved", decided_by="operator")
@@ -99,6 +102,9 @@ def reject_item(approval_id: str) -> str:
     full_id = _resolve_id(store, approval_id)
     if full_id is None:
         return f"No pending approval matching '{approval_id}'."
+    if full_id.startswith("__AMBIGUOUS__"):
+        count = full_id.split("__")[-1]
+        return f"Ambiguous — '{approval_id}' matches {count} items. Use a longer prefix."
 
     try:
         result = store.decide(full_id, "rejected", decided_by="operator")
@@ -110,18 +116,25 @@ def reject_item(approval_id: str) -> str:
 
 
 def _resolve_id(store: Any, partial: str) -> str | None:
-    """Resolve a partial ID to a full approval ID."""
+    """Resolve a partial ID to a full approval ID.
+
+    Returns None if no match or if the prefix is ambiguous (multiple matches).
+    """
     try:
         pending = store.list_approvals(status="pending")
     except Exception:
         return None
 
     partial = partial.strip().lower()
-    for item in pending:
-        full = item.get("id", "")
-        if full.lower().startswith(partial):
-            return full
+    matches = [
+        item.get("id", "") for item in pending if item.get("id", "").lower().startswith(partial)
+    ]
 
+    if len(matches) == 1:
+        return matches[0]
+    if len(matches) > 1:
+        logger.warning("Ambiguous approval ID prefix %r — matches %d items", partial, len(matches))
+        return f"__AMBIGUOUS__{len(matches)}"
     return None
 
 

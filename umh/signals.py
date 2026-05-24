@@ -32,6 +32,11 @@ def set_signal_socket(socket: Any) -> None:
     _signal_socket = socket
 
 
+def get_signal_socket() -> Any:
+    """Return the registered SignalSocket, or None."""
+    return _signal_socket
+
+
 def _emit(envelope: Any) -> dict[str, Any]:
     """Emit a SignalEnvelope through the registered SignalSocket."""
     if _signal_socket is None:
