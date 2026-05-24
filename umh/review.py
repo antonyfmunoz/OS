@@ -77,8 +77,7 @@ def _section_permissions() -> list[str]:
         active = store.list_active()
         if active:
             lines.append(f"    Active grants: {len(active)}")
-            for p in active[:8]:
-                lines.append(f"      [+] {p.scope.value}")
+            lines.extend(f"      [+] {p.scope.value}" for p in active[:8])
             if len(active) > 8:
                 lines.append(f"      ... and {len(active) - 8} more")
         else:
@@ -156,9 +155,9 @@ def _section_profile() -> list[str]:
             result = run_full_inference()
         lines.append(f"    Primary mode:  {result.primary_mode}")
         if result.suggestions:
-            top = result.suggestions[:3]
-            for s in top:
-                lines.append(f"      {s.mode}: {s.confidence:.0%} ({s.source})")
+            lines.extend(
+                f"      {s.mode}: {s.confidence:.0%} ({s.source})" for s in result.suggestions[:3]
+            )
         if result.event_count:
             lines.append(f"    Events:        {result.event_count}")
     except Exception as exc:

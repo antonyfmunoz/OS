@@ -28,20 +28,19 @@ def get_mesh_status() -> dict[str, Any]:
         registry = NodeRegistry()
         nodes = registry.all_nodes()
 
-        node_list = []
-        for node in nodes:
-            node_list.append(
-                {
-                    "node_id": node.node_id,
-                    "hostname": node.hostname,
-                    "os": node.os,
-                    "status": node.status,
-                    "capabilities": len(node.capabilities),
-                    "heartbeat_age_s": round(node.heartbeat_age_s(), 1),
-                    "tailscale_ip": node.tailscale_ip,
-                    "daemon_version": node.daemon_version,
-                }
-            )
+        node_list = [
+            {
+                "node_id": node.node_id,
+                "hostname": node.hostname,
+                "os": node.os,
+                "status": node.status,
+                "capabilities": len(node.capabilities),
+                "heartbeat_age_s": round(node.heartbeat_age_s(), 1),
+                "tailscale_ip": node.tailscale_ip,
+                "daemon_version": node.daemon_version,
+            }
+            for node in nodes
+        ]
 
         return {
             "online": True,
