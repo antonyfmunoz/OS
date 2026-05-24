@@ -20,6 +20,7 @@ from substrate.governance.policy_engine import PolicyEngine
 from substrate.governance.risk_classes import RiskClass
 from substrate.memory.candidate_generator import MemoryCandidateGenerator
 from substrate.memory.promoter import MemoryPromoter
+from substrate.memory.auto_reconciler import AutoReconciler
 from substrate.observability.outcome_classifier import OutcomeClassifier
 from substrate.observability.trace_store import TraceStore
 from substrate.types import (
@@ -89,7 +90,8 @@ class ExecutionPipeline:
         self._trace_store = trace_store or TraceStore()
         self._classifier = outcome_classifier or OutcomeClassifier()
         self._candidate_gen = candidate_generator or MemoryCandidateGenerator()
-        self._promoter = memory_promoter
+        self._promoter = memory_promoter or MemoryPromoter()
+        self._reconciler = AutoReconciler()
         self._state_manager = state_manager
         self._session = WorkstationSessionState()
         self._profile = WorkstationProfile.detect()
@@ -310,6 +312,15 @@ class ExecutionPipeline:
                         promotion = self._promoter.evaluate(candidate)
                         promoted = promotion.get("promoted", False)
                         self._emit("memory_promotion", promotion)
+
+                        if promoted:
+                            try:
+                                recon = self._reconciler.reconcile_promoted(
+                                    candidate, promotion
+                                )
+                                self._emit("memory_reconciliation", recon)
+                            except Exception:
+                                pass
 
             self._session.record_activity(obs_trace.trace_id, classification.category)
             if classification.category in ("failure", "error"):
