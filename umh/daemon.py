@@ -345,7 +345,7 @@ class WorkstationDaemon:
             "perception": self._perception.get_snapshot() if self._perception else {},
         }
         try:
-            with open(STATUS_FILE, "w") as f:
+            with open(STATUS_FILE, "w", encoding="utf-8") as f:
                 json.dump(status, f, indent=2)
         except Exception as exc:
             logger.debug("Failed to write status file: %s", exc)
@@ -355,7 +355,7 @@ class WorkstationDaemon:
         if not os.path.exists(STATUS_FILE):
             return {"state": "not_running"}
         try:
-            with open(STATUS_FILE) as f:
+            with open(STATUS_FILE, encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
             return {"state": "unknown"}
