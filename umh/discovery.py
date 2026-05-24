@@ -24,7 +24,7 @@ import os
 import sys
 import threading
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -128,9 +128,9 @@ class DiscoveryScanner:
     def _run_scan(self) -> None:
         """Execute the scan (runs in background thread)."""
         result = DiscoveryResult(
-            started_at=datetime.now(timezone.utc).isoformat(),
+            started_at=datetime.now(datetime.UTC).isoformat(),
         )
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(datetime.UTC)
 
         try:
             try:
@@ -139,7 +139,7 @@ class DiscoveryScanner:
                 logger.debug("Substrate scan failed, using basic scan: %s", exc)
                 result = self._scan_basic(result)
 
-            end_time = datetime.now(timezone.utc)
+            end_time = datetime.now(datetime.UTC)
             result.scan_duration_seconds = (end_time - start_time).total_seconds()
             result.completed_at = end_time.isoformat()
 
@@ -261,7 +261,7 @@ class DiscoveryScanner:
     def _save_result(self, result: DiscoveryResult) -> None:
         """Save scan result to disk."""
         os.makedirs(DISCOVERY_DIR, exist_ok=True)
-        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H%M%S")
+        timestamp = datetime.now(datetime.UTC).strftime("%Y-%m-%d_%H%M%S")
         path = os.path.join(DISCOVERY_DIR, f"scan_{timestamp}.json")
         try:
             with open(path, "w", encoding="utf-8") as f:

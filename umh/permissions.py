@@ -18,8 +18,8 @@ import logging
 import os
 import sys
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import datetime
+from enum import StrEnum
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ UMH_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 PERMISSIONS_FILE = os.path.join(UMH_ROOT, "data", "permissions", "grants.json")
 
 
-class PermissionScope(str, Enum):
+class PermissionScope(StrEnum):
     """What the permission covers."""
 
     CALENDAR_READ = "calendar_read"
@@ -56,7 +56,7 @@ class PermissionScope(str, Enum):
     NETWORK_REQUESTS = "network_requests"
 
 
-class PermissionStatus(str, Enum):
+class PermissionStatus(StrEnum):
     GRANTED = "granted"
     DENIED = "denied"
     REVOKED = "revoked"
@@ -78,7 +78,7 @@ class PermissionGrant:
 
     def __post_init__(self) -> None:
         if not self.granted_at:
-            self.granted_at = datetime.now(timezone.utc).isoformat()
+            self.granted_at = datetime.now(datetime.UTC).isoformat()
 
     @property
     def is_active(self) -> bool:
@@ -87,7 +87,7 @@ class PermissionGrant:
         if self.expires_at:
             try:
                 expiry = datetime.fromisoformat(self.expires_at)
-                if datetime.now(timezone.utc) > expiry:
+                if datetime.now(datetime.UTC) > expiry:
                     return False
             except ValueError:
                 pass
@@ -95,7 +95,7 @@ class PermissionGrant:
 
     def revoke(self) -> None:
         self.status = PermissionStatus.REVOKED
-        self.revoked_at = datetime.now(timezone.utc).isoformat()
+        self.revoked_at = datetime.now(datetime.UTC).isoformat()
 
     def as_dict(self) -> dict:
         d = asdict(self)
@@ -149,7 +149,7 @@ class PermissionStore:
         try:
             data = {
                 "grants": {k: v.as_dict() for k, v in self._grants.items()},
-                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(datetime.UTC).isoformat(),
             }
             with open(self._path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)

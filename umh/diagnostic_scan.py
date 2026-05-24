@@ -20,8 +20,8 @@ import os
 import sys
 import threading
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import datetime
+from enum import StrEnum
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ UMH_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 SCAN_DIR = os.path.join(UMH_ROOT, "data", "diagnostic_scans")
 
 
-class ScanDomain(str, Enum):
+class ScanDomain(StrEnum):
     """Domains that the diagnostic scan covers."""
 
     CALENDAR = "calendar"
@@ -42,7 +42,7 @@ class ScanDomain(str, Enum):
     PHYSICAL_ENVIRONMENT = "physical_environment"
 
 
-class DomainScanStatus(str, Enum):
+class DomainScanStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -170,9 +170,9 @@ class DiagnosticScanner:
 
     def _run_scan(self) -> None:
         result = DiagnosticScanResult(
-            started_at=datetime.now(timezone.utc).isoformat(),
+            started_at=datetime.now(datetime.UTC).isoformat(),
         )
-        start = datetime.now(timezone.utc)
+        start = datetime.now(datetime.UTC)
 
         try:
             # Run basic discovery first
@@ -203,7 +203,7 @@ class DiagnosticScanner:
 
                 self._progress[domain.value] = domain_result.status.value
 
-            end = datetime.now(timezone.utc)
+            end = datetime.now(datetime.UTC)
             result.duration_seconds = (end - start).total_seconds()
             result.completed_at = end.isoformat()
             result.maturity_level = self._calculate_maturity(result)
@@ -227,14 +227,14 @@ class DiagnosticScanner:
         """Scan a single domain, checking permissions first."""
         dr = DomainScanResult(
             domain=domain,
-            started_at=datetime.now(timezone.utc).isoformat(),
+            started_at=datetime.now(datetime.UTC).isoformat(),
         )
 
         if not self._has_permission(domain):
             dr.status = DomainScanStatus.NO_PERMISSION
             return dr
 
-        start = datetime.now(timezone.utc)
+        start = datetime.now(datetime.UTC)
 
         try:
             if domain == ScanDomain.CODE:
@@ -251,7 +251,7 @@ class DiagnosticScanner:
             dr.error = str(exc)
             logger.debug("Domain scan failed for %s: %s", domain.value, exc)
 
-        end = datetime.now(timezone.utc)
+        end = datetime.now(datetime.UTC)
         dr.duration_seconds = (end - start).total_seconds()
         dr.completed_at = end.isoformat()
         return dr
@@ -389,7 +389,7 @@ class DiagnosticScanner:
 
     def _save_result(self, result: DiagnosticScanResult) -> None:
         os.makedirs(SCAN_DIR, exist_ok=True)
-        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H%M%S")
+        timestamp = datetime.now(datetime.UTC).strftime("%Y-%m-%d_%H%M%S")
         path = os.path.join(SCAN_DIR, f"diagnostic_{timestamp}.json")
         try:
             with open(path, "w", encoding="utf-8") as f:
