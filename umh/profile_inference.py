@@ -138,7 +138,7 @@ def infer_from_onboarding(onboarding_path: str | None = None) -> list[ProfileSug
         return []
 
     try:
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
     except Exception:
         return []
@@ -205,7 +205,7 @@ def infer_from_discovery(discovery_path: str | None = None) -> list[ProfileSugge
         discovery_path = os.path.join(discovery_dir, files[0])
 
     try:
-        with open(discovery_path) as f:
+        with open(discovery_path, encoding="utf-8") as f:
             data = json.load(f)
     except Exception:
         return []
@@ -268,7 +268,7 @@ def run_full_inference() -> InferredProfile:
 def save_inference(result: InferredProfile) -> None:
     os.makedirs(os.path.dirname(INFERENCE_FILE), exist_ok=True)
     try:
-        with open(INFERENCE_FILE, "w") as f:
+        with open(INFERENCE_FILE, "w", encoding="utf-8") as f:
             json.dump(result.to_dict(), f, indent=2)
     except Exception as exc:
         logger.debug("Failed to save inference: %s", exc)
@@ -278,7 +278,7 @@ def load_inference() -> InferredProfile | None:
     if not os.path.exists(INFERENCE_FILE):
         return None
     try:
-        with open(INFERENCE_FILE) as f:
+        with open(INFERENCE_FILE, encoding="utf-8") as f:
             data = json.load(f)
         result = InferredProfile(
             primary_mode=data.get("primary_mode", "developer"),

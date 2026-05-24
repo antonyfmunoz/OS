@@ -157,7 +157,7 @@ def load_governance() -> GovernancePreferences:
     """Load governance preferences from disk, or return defaults."""
     if os.path.exists(GOVERNANCE_FILE):
         try:
-            with open(GOVERNANCE_FILE) as f:
+            with open(GOVERNANCE_FILE, encoding="utf-8") as f:
                 data = json.load(f)
             return GovernancePreferences.from_dict(data)
         except Exception as exc:
@@ -169,7 +169,7 @@ def save_governance(prefs: GovernancePreferences) -> None:
     """Save governance preferences to disk."""
     os.makedirs(os.path.dirname(GOVERNANCE_FILE), exist_ok=True)
     try:
-        with open(GOVERNANCE_FILE, "w") as f:
+        with open(GOVERNANCE_FILE, "w", encoding="utf-8") as f:
             json.dump(prefs.to_dict(), f, indent=2)
     except Exception as exc:
         logger.debug("Failed to save governance: %s", exc)
@@ -199,7 +199,7 @@ def show_governance() -> int:
         level = prefs.autonomy_for(domain)
         override = " *" if domain in prefs.domain_overrides else ""
         print(f"    {domain:<25s} {level.value}{override}")
-    if any(prefs.domain_overrides):
+    if prefs.domain_overrides:
         print()
         print("  (* = custom override, rest = defaults)")
     print("=" * 50)

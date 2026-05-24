@@ -151,7 +151,7 @@ def _save_result(result: OnboardingResult) -> None:
     os.makedirs(data_dir, exist_ok=True)
 
     path = os.path.join(data_dir, "onboarding_result.json")
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(result.as_dict(), f, indent=2)
     logger.info("Onboarding result saved to %s", path)
 

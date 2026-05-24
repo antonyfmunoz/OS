@@ -97,7 +97,7 @@ class ProfileManager:
 
         if os.path.exists(PREFERENCES_FILE):
             try:
-                with open(PREFERENCES_FILE) as f:
+                with open(PREFERENCES_FILE, encoding="utf-8") as f:
                     data = json.load(f)
                 for key, value in data.items():
                     if hasattr(self._preferences, key):
@@ -112,7 +112,7 @@ class ProfileManager:
         self._preferences = prefs
         os.makedirs(os.path.dirname(PREFERENCES_FILE), exist_ok=True)
         try:
-            with open(PREFERENCES_FILE, "w") as f:
+            with open(PREFERENCES_FILE, "w", encoding="utf-8") as f:
                 json.dump(asdict(prefs), f, indent=2)
         except Exception as exc:
             logger.debug("Failed to save preferences: %s", exc)

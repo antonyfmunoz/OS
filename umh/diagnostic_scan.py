@@ -270,8 +270,9 @@ class DiagnosticScanner:
                 except ValueError:
                     continue
             return False
-        except Exception:
-            return True
+        except Exception as exc:
+            logger.debug("Permission check failed for %s: %s", domain.value, exc)
+            return False
 
     def _scan_code(self, dr: DomainScanResult) -> DomainScanResult:
         """Scan code repositories — works without external adapters."""
@@ -393,7 +394,7 @@ class DiagnosticScanner:
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H%M%S")
         path = os.path.join(SCAN_DIR, f"diagnostic_{timestamp}.json")
         try:
-            with open(path, "w") as f:
+            with open(path, "w", encoding="utf-8") as f:
                 json.dump(result.to_dict(), f, indent=2)
         except Exception as exc:
             logger.debug("Failed to save diagnostic scan: %s", exc)
@@ -409,7 +410,7 @@ class DiagnosticScanner:
             return None
         try:
             path = os.path.join(SCAN_DIR, files[0])
-            with open(path) as f:
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
             result = DiagnosticScanResult(
                 domains_scanned=data.get("domains_scanned", 0),

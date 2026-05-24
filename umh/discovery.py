@@ -253,7 +253,7 @@ class DiscoveryScanner:
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H%M%S")
         path = os.path.join(DISCOVERY_DIR, f"scan_{timestamp}.json")
         try:
-            with open(path, "w") as f:
+            with open(path, "w", encoding="utf-8") as f:
                 json.dump(result.as_dict(), f, indent=2)
             result.proof_path = path
         except Exception as exc:
@@ -272,7 +272,7 @@ class DiscoveryScanner:
             return None
         try:
             path = os.path.join(DISCOVERY_DIR, files[0])
-            with open(path) as f:
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
             result = DiscoveryResult(**{k: v for k, v in data.items() if k != "errors"})
             result.errors = data.get("errors", [])
