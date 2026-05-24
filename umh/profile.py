@@ -27,6 +27,11 @@ class WorkstationPreferences:
     auto_morning_hour: int = 7
     wake_phrase: str = ""
     personality_preset: str = "operator"
+    auto_away_minutes: int = 5
+    maintenance_window_start: int = 3
+    maintenance_window_end: int = 4
+    mode_stacking_enabled: bool = True
+    custom_boot_sequence: list[str] | None = None
 
 
 class ProfileManager:
@@ -132,17 +137,54 @@ def show_settings() -> int:
     pm = ProfileManager()
     prefs = pm.get_preferences()
     print()
-    print("=" * 42)
+    print("=" * 48)
     print("  UMH Workstation Settings")
-    print("=" * 42)
-    print(f"  Voice mode:     {prefs.voice_mode.replace('_', '-')}")
-    print(f"  Webcam:         {'enabled' if prefs.webcam_enabled else 'disabled'}")
-    print(f"  Default mode:   {prefs.default_profile}")
-    print(f"  Notifications:  {prefs.notification_level}")
-    print(f"  Overnight at:   {prefs.auto_overnight_hour:02d}:00")
-    print(f"  Morning at:     {prefs.auto_morning_hour:02d}:00")
-    print(f"  Wake phrase:    {prefs.wake_phrase or '(not set)'}")
-    print(f"  Personality:    {prefs.personality_preset}")
-    print("=" * 42)
+    print("=" * 48)
+    print(f"  Voice mode:       {prefs.voice_mode.replace('_', '-')}")
+    print(f"  Webcam:           {'enabled' if prefs.webcam_enabled else 'disabled'}")
+    print(f"  Default mode:     {prefs.default_profile}")
+    print(f"  Notifications:    {prefs.notification_level}")
+    print(f"  Overnight at:     {prefs.auto_overnight_hour:02d}:00")
+    print(f"  Morning at:       {prefs.auto_morning_hour:02d}:00")
+    print(f"  Wake phrase:      {prefs.wake_phrase or '(not set)'}")
+    print(f"  Personality:      {prefs.personality_preset}")
+    print(f"  Auto-away:        {prefs.auto_away_minutes} min")
+    print(
+        f"  Maintenance:      {prefs.maintenance_window_start:02d}:00-{prefs.maintenance_window_end:02d}:00"
+    )
+    print(f"  Mode stacking:    {'enabled' if prefs.mode_stacking_enabled else 'disabled'}")
+    if prefs.custom_boot_sequence:
+        print(f"  Custom boot:      {', '.join(prefs.custom_boot_sequence)}")
+
+    try:
+        from umh.personality import load_personality
+
+        config = load_personality()
+        traits = config.traits
+        print()
+        print("  Personality Details:")
+        print(f"    Tone:           {traits.tone}")
+        print(f"    Style:          {traits.style}")
+        print(f"    Governance:     {traits.governance.value}")
+        print(f"    Proactivity:    {traits.proactivity.value}")
+        if config.is_multi_mode:
+            for mode, preset in config.mode_overrides.items():
+                print(f"    {mode}:  {preset}")
+    except Exception:
+        pass
+
+    try:
+        from substrate.sockets.sensing_port import sensing_summary
+
+        summary = sensing_summary()
+        if summary.get("total", 0) > 0:
+            print()
+            print(f"  Sensing adapters: {summary['total']} registered")
+            for family in summary.get("families", []):
+                print(f"    - {family}")
+    except Exception:
+        pass
+
+    print("=" * 48)
     print()
     return 0

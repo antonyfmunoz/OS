@@ -3,6 +3,7 @@
 Sprint 1: text-only stdin loop.
 Sprint 2: voice input via AmbientMic/PushToTalkMic racing against stdin.
 Sprint 4: perception integration (webcam, workspace, metrics).
+Sprint 6: personality command, sensing adapter display.
 
 When voice is enabled, stdin runs in a background thread and the main loop
 polls both the mic transcript queue and the stdin queue. When voice is
@@ -134,6 +135,12 @@ def _handle_system_command(
         except Exception as exc:
             return f"Mesh status unavailable: {exc}"
 
+    if cmd.command == "personality":
+        from umh.personality import show_personality
+
+        show_personality()
+        return ""
+
     return f"Unknown command: {cmd.command}"
 
 
@@ -154,6 +161,7 @@ def _help_text(mode_state: ModeState) -> str:
   always on           — switch to ambient voice mode
   webcam on           — enable webcam perception
   webcam off          — disable webcam perception
+  personality         — show personality configuration
   exit / bye          — save state and exit"""
 
 

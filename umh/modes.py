@@ -102,6 +102,7 @@ _SYSTEM_COMMANDS: dict[str, str] = {
     "settings": "settings",
     "mesh status": "mesh_status",
     "mode info": "mode_info",
+    "personality": "personality",
 }
 
 
