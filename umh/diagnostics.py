@@ -101,9 +101,8 @@ def _check_xtts_v2() -> CheckResult:
 
 
 def _check_audio_output() -> CheckResult:
-    if platform.system() == "Darwin":
-        if shutil.which("afplay"):
-            return CheckResult("Audio output", Status.OK, "afplay")
+    if platform.system() == "Darwin" and shutil.which("afplay"):
+        return CheckResult("Audio output", Status.OK, "afplay")
     if shutil.which("aplay"):
         return CheckResult("Audio output", Status.OK, "aplay")
     if shutil.which("paplay"):
