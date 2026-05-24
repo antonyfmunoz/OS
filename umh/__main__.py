@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import os
-import sys
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -68,8 +66,6 @@ def main(argv: list[str] | None = None) -> int:
 
         print(f"umh {__version__}")
         return 0
-
-    sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
     if args.command == "diag":
         from umh.diagnostics import run_diagnostics

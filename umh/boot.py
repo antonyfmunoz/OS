@@ -10,8 +10,6 @@ Sprint 12: retains transport manifest for view subscriber access at runtime.
 from __future__ import annotations
 
 import logging
-import os
-import sys
 from typing import Any
 
 from umh.daily import run_daily_boot
@@ -19,8 +17,6 @@ from umh.loop import run_interaction_loop
 from umh.profile import ProfileManager
 
 logger = logging.getLogger(__name__)
-
-sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
 
 def _start_mic(text_only: bool, voice_mode: str = "ambient") -> Any:

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
 import uuid
 
 from umh.audio import play_boot_clap
@@ -13,8 +12,6 @@ from umh.profile import ProfileManager
 from umh.voice import VoiceOutput
 
 logger = logging.getLogger(__name__)
-
-sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
 
 def _get_persona_name() -> str:
@@ -115,7 +112,7 @@ def _format_status(
         logger.debug("Failed to get mesh status: %s", exc)
         mesh_str = "standalone"
 
-    profiles = " + ".join(p.value for p in mode_state.profiles)
+    profiles = mode_state.profiles_display
     operator_str = _get_operator_mode()
     live_approvals = _get_approval_count()
     trigger_count = _get_recent_trigger_count()

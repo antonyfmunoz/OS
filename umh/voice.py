@@ -11,16 +11,12 @@ Interrupt: if the mic detects speech during TTS playback, stop immediately.
 from __future__ import annotations
 
 import logging
-import os
 import re
 import subprocess
-import sys
 import threading
 from typing import Any
 
 logger = logging.getLogger(__name__)
-
-sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
 

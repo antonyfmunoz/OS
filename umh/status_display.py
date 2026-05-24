@@ -8,14 +8,11 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
 from typing import Any
 
 from umh.modes import ModeState
 
 logger = logging.getLogger(__name__)
-
-sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
 
 def build_status(
@@ -30,7 +27,7 @@ def build_status(
 ) -> str:
     """Build the full workstation status string."""
     persona_name = os.environ.get("UMH_PERSONA_NAME", "UMH")
-    profiles = " + ".join(p.value for p in mode_state.profiles)
+    profiles = mode_state.profiles_display
     sid = session_id[:8] if session_id else "(none)"
     voice_str = "text-only" if text_only else "ambient"
 

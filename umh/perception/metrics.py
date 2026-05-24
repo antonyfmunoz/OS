@@ -8,8 +8,6 @@ Runs in a background thread at configurable intervals.
 from __future__ import annotations
 
 import logging
-import os
-import sys
 import threading
 import time
 from collections.abc import Callable
@@ -17,8 +15,6 @@ from dataclasses import dataclass, field
 from typing import Any
 
 logger = logging.getLogger(__name__)
-
-sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
 
 @dataclass

@@ -16,14 +16,11 @@ from __future__ import annotations
 import json
 import logging
 import os
-import sys
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import StrEnum
 
 logger = logging.getLogger(__name__)
-
-sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
 UMH_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 PERMISSIONS_FILE = os.path.join(UMH_ROOT, "data", "permissions", "grants.json")

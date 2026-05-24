@@ -9,11 +9,8 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
 
 logger = logging.getLogger(__name__)
-
-sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
 UMH_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 

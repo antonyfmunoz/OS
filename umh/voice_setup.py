@@ -16,12 +16,9 @@ from __future__ import annotations
 import importlib.util
 import logging
 import os
-import sys
 import wave
 
 logger = logging.getLogger(__name__)
-
-sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
 UMH_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 VOICE_DIR = os.path.join(UMH_ROOT, "data", "voice")
@@ -165,11 +162,13 @@ def _configure_voice_clone() -> bool:
 
 def _record_reference() -> bool:
     """Record a voice reference via microphone."""
+    if importlib.util.find_spec("numpy") is None or importlib.util.find_spec("sounddevice") is None:
+        print("  sounddevice/numpy not available.")
+        return False
     try:
-        import numpy  # noqa: F401 — required by sounddevice at runtime
         import sounddevice as sd
     except ImportError:
-        print("  sounddevice/numpy not available.")
+        print("  sounddevice failed to load.")
         return False
 
     duration = 10

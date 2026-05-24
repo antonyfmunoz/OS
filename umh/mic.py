@@ -27,15 +27,12 @@ import contextlib
 import logging
 import os
 import queue
-import sys
 import tempfile
 import threading
 import wave
 from typing import Any
 
 logger = logging.getLogger(__name__)
-
-sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
 SAMPLE_RATE = 16000
 CHANNELS = 1
