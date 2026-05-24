@@ -102,11 +102,11 @@ class VoiceOutput:
         self._interrupted = False
 
         try:
-            for sentence in sentences:
+            for i, sentence in enumerate(sentences):
                 if self._interrupted:
                     logger.debug(
                         "TTS interrupted after %d/%d sentences",
-                        sentences.index(sentence),
+                        i,
                         len(sentences),
                     )
                     break
