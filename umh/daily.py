@@ -37,9 +37,15 @@ def _format_status(
     pending_count: int = 0,
     resume_summary: str = "",
     next_action: str = "",
+    perception_snapshot: dict | None = None,
 ) -> str:
     voice_str = "text-only" if text_only else "ambient (persona)"
-    webcam_str = "disabled"
+
+    webcam_snap = (perception_snapshot or {}).get("webcam", {})
+    if webcam_snap.get("running"):
+        webcam_str = "active (present)" if webcam_snap.get("face_detected") else "active (no face)"
+    else:
+        webcam_str = "disabled"
     profiles = " + ".join(p.value for p in mode_state.profiles)
 
     lines = [

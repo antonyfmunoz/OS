@@ -1,4 +1,4 @@
-"""Boot orchestrator — routes to first-boot or daily-boot, starts mic + discovery."""
+"""Boot orchestrator — routes to first-boot or daily-boot, starts mic + discovery + perception."""
 
 from __future__ import annotations
 
@@ -69,6 +69,22 @@ def _start_discovery() -> Any:
         return None
 
 
+def _start_perception(mode_state: Any) -> Any:
+    """Start all perception sources (webcam, workspace, metrics)."""
+    try:
+        from umh.perception.router import PerceptionRouter
+
+        router = PerceptionRouter(mode_state=mode_state)
+        results = router.start_all()
+        started = [k for k, v in results.items() if v]
+        if started:
+            print(f"[perception] Active: {', '.join(started)}")
+        return router
+    except Exception as exc:
+        logger.debug("Perception start failed: %s", exc)
+        return None
+
+
 def run_boot(text_only: bool = False, voice_mode: str = "ambient") -> int:
     logging.basicConfig(
         level=logging.WARNING,
@@ -86,12 +102,14 @@ def run_boot(text_only: bool = False, voice_mode: str = "ambient") -> int:
     mode_state, session_id = run_daily_boot(text_only=text_only)
     mic = _start_mic(text_only, voice_mode)
     _start_discovery()
+    perception = _start_perception(mode_state)
 
     return run_interaction_loop(
         mode_state=mode_state,
         session_id=session_id,
         text_only=text_only,
         mic=mic,
+        perception=perception,
     )
 
 
@@ -133,10 +151,12 @@ def run_first_boot(text_only: bool = False, voice_mode: str = "ambient") -> int:
     # Continue to daily boot + interaction loop
     mode_state, session_id = run_daily_boot(text_only=text_only)
     mic = _start_mic(text_only, voice_mode)
+    perception = _start_perception(mode_state)
 
     return run_interaction_loop(
         mode_state=mode_state,
         session_id=session_id,
         text_only=text_only,
         mic=mic,
+        perception=perception,
     )
