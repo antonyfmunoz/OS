@@ -79,8 +79,8 @@ def get_node_count() -> int:
         from transports.node_mesh.registry import NodeRegistry
 
         return NodeRegistry().node_count()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Node count query failed: %s", exc)
 
     from umh.daemon import get_daemon_status
 

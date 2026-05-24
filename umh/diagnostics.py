@@ -167,8 +167,8 @@ def _check_network() -> CheckResult:
 
 def _check_disk_space() -> CheckResult:
     umh_root = os.environ.get("UMH_ROOT", "/opt/OS")
-    stat = os.statvfs(umh_root)
-    free_gb = (stat.f_bavail * stat.f_frsize) / (1024**3)
+    usage = shutil.disk_usage(umh_root)
+    free_gb = usage.free / (1024**3)
     if free_gb >= 5.0:
         return CheckResult("Disk space", Status.OK, f"{free_gb:.1f} GB free")
     if free_gb >= 2.0:

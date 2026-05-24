@@ -95,14 +95,27 @@ def invoke_capability(
         return f"Capability error: {exc}"
 
 
+_cached_handler: Any = None
+
+
 def _get_handler() -> Any:
-    """Lazy-load the WorkstationCapabilityHandler."""
+    """Lazy-load and cache the WorkstationCapabilityHandler."""
+    global _cached_handler
+    if _cached_handler is not None:
+        return _cached_handler
     try:
         from umh.transport import WorkstationCapabilityHandler
 
-        return WorkstationCapabilityHandler()
+        _cached_handler = WorkstationCapabilityHandler()
+        return _cached_handler
     except ImportError:
         return None
+
+
+def clear_module_state() -> None:
+    """Reset cached handler for session teardown."""
+    global _cached_handler
+    _cached_handler = None
 
 
 def _execute_fallback(capability_name: str, params: dict[str, Any]) -> str:
