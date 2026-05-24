@@ -310,7 +310,33 @@ class WorkstationCapabilityHandler:
             return {"written": False, "error": "clipboard write unavailable"}
 
     def _handle_screenshot(self, params: dict[str, Any]) -> dict[str, Any]:
-        return {"available": False, "reason": "screenshot not yet implemented"}
+        import shutil
+        import tempfile
+
+        output = params.get("output", "")
+        if not output:
+            fd, output = tempfile.mkstemp(suffix=".png", prefix="umh_screenshot_")
+            os.close(fd)
+
+        for tool in ("scrot", "import", "gnome-screenshot"):
+            if shutil.which(tool) is None:
+                continue
+            try:
+                if tool == "scrot":
+                    cmd = ["scrot", output]
+                elif tool == "import":
+                    cmd = ["import", "-window", "root", output]
+                else:
+                    cmd = ["gnome-screenshot", "-f", output]
+                subprocess.run(cmd, capture_output=True, timeout=10, check=True)
+                return {"path": output, "tool": tool}
+            except Exception:
+                continue
+
+        return {
+            "available": False,
+            "reason": "no screenshot tool found (install scrot or imagemagick)",
+        }
 
     def _handle_system_info(self, params: dict[str, Any]) -> dict[str, Any]:
         try:

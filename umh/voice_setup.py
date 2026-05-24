@@ -92,6 +92,15 @@ def _configure_wake_phrase() -> str:
 
 def _configure_voice_clone() -> bool:
     """Offer voice cloning reference capture."""
+    try:
+        from umh.profile import ProfileManager
+
+        prefs = ProfileManager().get_preferences()
+        if prefs.voice_clone_attempted:
+            return False
+    except Exception:
+        pass
+
     print("Voice Cloning")
     print("-" * 30)
     print()
@@ -114,6 +123,15 @@ def _configure_voice_clone() -> bool:
         print("  Install with: pip install TTS")
         print("  (Requires ~1.5GB for the model)")
         print()
+        try:
+            from umh.profile import ProfileManager
+
+            pm = ProfileManager()
+            prefs = pm.get_preferences()
+            prefs.voice_clone_attempted = True
+            pm.save_preferences(prefs)
+        except Exception:
+            pass
         return False
 
     # Check if mic is available
