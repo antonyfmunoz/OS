@@ -30,7 +30,8 @@ def _get_view_subscriber() -> Any:
         from umh.transport import get_view_subscriber
 
         return get_view_subscriber()
-    except Exception:
+    except Exception as exc:
+        logger.debug("View subscriber lookup failed: %s", exc)
         return None
 
 

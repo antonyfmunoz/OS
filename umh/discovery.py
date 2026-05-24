@@ -125,26 +125,29 @@ class DiscoveryScanner:
         start_time = datetime.now(timezone.utc)
 
         try:
-            result = self._scan_with_substrate(result)
+            try:
+                result = self._scan_with_substrate(result)
+            except Exception as exc:
+                logger.debug("Substrate scan failed, using basic scan: %s", exc)
+                result = self._scan_basic(result)
+
+            end_time = datetime.now(timezone.utc)
+            result.scan_duration_seconds = (end_time - start_time).total_seconds()
+            result.completed_at = end_time.isoformat()
+
+            self._save_result(result)
+            self._result = result
+            logger.info(
+                "Discovery scan complete: %d platforms, %d accounts, %d workspaces (%.1fs)",
+                result.platforms_found,
+                result.accounts_found,
+                result.workspaces_found,
+                result.scan_duration_seconds,
+            )
         except Exception as exc:
-            logger.debug("Substrate scan failed, using basic scan: %s", exc)
-            result = self._scan_basic(result)
-
-        end_time = datetime.now(timezone.utc)
-        result.scan_duration_seconds = (end_time - start_time).total_seconds()
-        result.completed_at = end_time.isoformat()
-
-        # Save result
-        self._save_result(result)
-        self._result = result
-        self._running = False
-        logger.info(
-            "Discovery scan complete: %d platforms, %d accounts, %d workspaces (%.1fs)",
-            result.platforms_found,
-            result.accounts_found,
-            result.workspaces_found,
-            result.scan_duration_seconds,
-        )
+            logger.debug("Discovery scan failed: %s", exc)
+        finally:
+            self._running = False
 
     def _scan_with_substrate(self, result: DiscoveryResult) -> DiscoveryResult:
         """Use the substrate's EnvironmentMapping engine."""
