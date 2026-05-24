@@ -14,14 +14,14 @@ import json
 import logging
 import os
 from dataclasses import asdict, dataclass, field
-from enum import Enum
+from enum import StrEnum
 
 logger = logging.getLogger(__name__)
 
 UMH_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 
 
-class PersonalityPreset(str, Enum):
+class PersonalityPreset(StrEnum):
     """Five canonical personality presets."""
 
     OPERATOR = "operator"
@@ -31,7 +31,7 @@ class PersonalityPreset(str, Enum):
     SENTINEL = "sentinel"
 
 
-class GovernanceLevel(str, Enum):
+class GovernanceLevel(StrEnum):
     """How much autonomy the AI takes."""
 
     MINIMAL = "minimal"
@@ -41,7 +41,7 @@ class GovernanceLevel(str, Enum):
     MAXIMUM = "maximum"
 
 
-class ProactivityLevel(str, Enum):
+class ProactivityLevel(StrEnum):
     """How proactively the AI surfaces information."""
 
     ASK_FIRST = "ask_first"

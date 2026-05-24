@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 import threading
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -104,7 +104,7 @@ class ScheduledTriggerProducer:
 
     def _check_triggers(self) -> None:
         """Check if any time boundary has been crossed."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(datetime.UTC)
         current_hour = now.hour
         current_day = now.timetuple().tm_yday
 

@@ -15,7 +15,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +79,7 @@ def infer_from_workspace(events: list[dict]) -> InferredProfile:
     umh/perception/workspace.py's _CATEGORY_PATTERNS).
     """
     result = InferredProfile(
-        inferred_at=datetime.now(timezone.utc).isoformat(),
+        inferred_at=datetime.now(datetime.UTC).isoformat(),
         event_count=len(events),
     )
 

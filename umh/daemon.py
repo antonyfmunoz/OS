@@ -332,14 +332,14 @@ class WorkstationDaemon:
 
     def _update_status(self, state: str) -> None:
         os.makedirs(os.path.dirname(STATUS_FILE), exist_ok=True)
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         status = {
             "state": state,
             "pid": os.getpid(),
             "node_id": self._node_id,
             "uptime_s": round(time.monotonic() - self._started_at, 1) if self._started_at else 0,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(datetime.UTC).isoformat(),
             "mesh_connected": self._mesh_client is not None
             and getattr(self._mesh_client, "connected", False),
             "perception": self._perception.get_snapshot() if self._perception else {},

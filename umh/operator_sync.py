@@ -62,7 +62,7 @@ def sync_boot(node_id: str = _NODE_ID) -> dict[str, Any]:
         state = store.get_or_create(node_id)
 
         if state.mode != OperatorMode.ACTIVE:
-            from datetime import datetime, timezone
+            from datetime import datetime
             from uuid import uuid4
 
             transition = OperatorTransition(
@@ -72,7 +72,7 @@ def sync_boot(node_id: str = _NODE_ID) -> dict[str, Any]:
                 to_mode=OperatorMode.ACTIVE.value,
                 trigger="workstation_boot",
                 reason="workstation booted — operator present",
-                occurred_at=datetime.now(timezone.utc).isoformat(),
+                occurred_at=datetime.now(datetime.UTC).isoformat(),
             )
             state.append_transition(transition)
             state.mode = OperatorMode.ACTIVE
@@ -103,7 +103,7 @@ def sync_away(node_id: str = _NODE_ID) -> dict[str, Any]:
         state = store.get_or_create(node_id)
 
         if state.mode in (OperatorMode.ACTIVE, OperatorMode.FOCUSED):
-            from datetime import datetime, timezone
+            from datetime import datetime
             from uuid import uuid4
 
             transition = OperatorTransition(
@@ -113,7 +113,7 @@ def sync_away(node_id: str = _NODE_ID) -> dict[str, Any]:
                 to_mode=OperatorMode.IDLE.value,
                 trigger="perception_away",
                 reason="operator left workstation (perception timeout)",
-                occurred_at=datetime.now(timezone.utc).isoformat(),
+                occurred_at=datetime.now(datetime.UTC).isoformat(),
             )
             state.append_transition(transition)
             state.mode = OperatorMode.IDLE
@@ -142,7 +142,7 @@ def sync_return(node_id: str = _NODE_ID) -> dict[str, Any]:
         state = store.get_or_create(node_id)
 
         if state.mode in (OperatorMode.IDLE, OperatorMode.UNAVAILABLE):
-            from datetime import datetime, timezone
+            from datetime import datetime
             from uuid import uuid4
 
             transition = OperatorTransition(
@@ -152,7 +152,7 @@ def sync_return(node_id: str = _NODE_ID) -> dict[str, Any]:
                 to_mode=OperatorMode.ACTIVE.value,
                 trigger="perception_return",
                 reason="operator returned to workstation",
-                occurred_at=datetime.now(timezone.utc).isoformat(),
+                occurred_at=datetime.now(datetime.UTC).isoformat(),
             )
             state.append_transition(transition)
             state.mode = OperatorMode.ACTIVE
@@ -169,7 +169,7 @@ def sync_return(node_id: str = _NODE_ID) -> dict[str, Any]:
 def sync_exit(node_id: str = _NODE_ID) -> dict[str, Any]:
     """Sync operator state on workstation exit — transition through CLOSING to IDLE."""
     try:
-        from datetime import datetime, timezone
+        from datetime import datetime
         from uuid import uuid4
 
         from substrate.execution.bridge.operator_state import (
@@ -181,7 +181,7 @@ def sync_exit(node_id: str = _NODE_ID) -> dict[str, Any]:
         store = get_operator_state_store()
         state = store.get_or_create(node_id)
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(datetime.UTC).isoformat()
 
         if state.mode != OperatorMode.IDLE:
             closing_transition = OperatorTransition(

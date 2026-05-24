@@ -17,7 +17,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ UMH_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 GOVERNANCE_FILE = os.path.join(UMH_ROOT, "data", "sessions", "governance.json")
 
 
-class AutonomyLevel(str, Enum):
+class AutonomyLevel(StrEnum):
     """How much the AI can do without asking."""
 
     NONE = "none"
@@ -35,7 +35,7 @@ class AutonomyLevel(str, Enum):
     ACT_FREELY = "act_freely"
 
 
-class NotificationFrequency(str, Enum):
+class NotificationFrequency(StrEnum):
     """How often the AI surfaces information."""
 
     SILENT = "silent"
@@ -44,7 +44,7 @@ class NotificationFrequency(str, Enum):
     VERBOSE = "verbose"
 
 
-class DataRetention(str, Enum):
+class DataRetention(StrEnum):
     """How long observed data is kept."""
 
     SESSION_ONLY = "session_only"
