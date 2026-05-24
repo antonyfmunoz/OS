@@ -34,7 +34,7 @@ RUN mkdir -p /root/.fluxbox && \
     echo "[end]" >> /root/.fluxbox/menu
 
 COPY start.sh /start.sh
-RUN chmod +x /start.sh
+RUN sed -i 's/\r$//' /start.sh && chmod +x /start.sh
 
 EXPOSE 6080
 
