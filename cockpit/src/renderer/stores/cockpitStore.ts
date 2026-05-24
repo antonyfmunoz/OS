@@ -30,6 +30,7 @@ interface CockpitState {
   setApiStatus: (status: ConnectionStatus) => void
   setWsStatus: (status: ConnectionStatus) => void
   setVoiceStatus: (status: ConnectionStatus) => void
+  setConnectionStatus: (channel: 'api' | 'ws' | 'voice', status: ConnectionStatus) => void
 }
 
 export const useCockpitStore = create<CockpitState>((set) => ({
@@ -49,4 +50,9 @@ export const useCockpitStore = create<CockpitState>((set) => ({
   setApiStatus: (status) => set({ apiStatus: status }),
   setWsStatus: (status) => set({ wsStatus: status }),
   setVoiceStatus: (status) => set({ voiceStatus: status }),
+  setConnectionStatus: (channel, status) => {
+    if (channel === 'api') set({ apiStatus: status })
+    else if (channel === 'ws') set({ wsStatus: status })
+    else if (channel === 'voice') set({ voiceStatus: status })
+  },
 }))

@@ -3,13 +3,13 @@ import { fetchApi } from '../api/client'
 
 interface PulseData {
   cpu_percent: number
-  memory_used_gb: number
-  memory_total_gb: number
-  disk_used_gb: number
-  disk_total_gb: number
-  uptime_seconds: number
+  memory_percent: number
+  disk_percent: number
+  uptime: number
   active_agents: number
   pending_tasks: number
+  pending_approvals: number
+  trace_rate: number
 }
 
 interface MeshNode {
@@ -28,6 +28,7 @@ interface SystemState {
 
   fetchPulse: () => Promise<void>
   fetchMeshNodes: () => Promise<void>
+  setPulse: (data: PulseData) => void
 }
 
 export const useSystemStore = create<SystemState>((set) => ({
@@ -36,9 +37,11 @@ export const useSystemStore = create<SystemState>((set) => ({
   loading: false,
   error: null,
 
+  setPulse: (data) => set({ pulse: data, error: null }),
+
   fetchPulse: async () => {
     try {
-      const data = await fetchApi<PulseData>('/api/umh/pulse')
+      const data = await fetchApi<PulseData>('/pulse')
       set({ pulse: data, error: null })
     } catch (e) {
       set({ error: e instanceof Error ? e.message : 'Failed to fetch pulse' })
@@ -47,7 +50,7 @@ export const useSystemStore = create<SystemState>((set) => ({
 
   fetchMeshNodes: async () => {
     try {
-      const data = await fetchApi<MeshNode[]>('/api/umh/mesh/nodes')
+      const data = await fetchApi<MeshNode[]>('/mesh/nodes')
       set({ meshNodes: data, error: null })
     } catch {
       set({ meshNodes: [] })

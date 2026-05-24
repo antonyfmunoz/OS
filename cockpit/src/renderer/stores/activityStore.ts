@@ -33,7 +33,7 @@ export const useActivityStore = create<ActivityState>((set) => ({
 
   fetchEvents: async () => {
     try {
-      const data = await fetchApi<ActivityEvent[]>('/api/umh/activity/stream?limit=200')
+      const data = await fetchApi<ActivityEvent[]>('/activity/stream?limit=200')
       set({ events: data })
     } catch {
       set({ events: [] })

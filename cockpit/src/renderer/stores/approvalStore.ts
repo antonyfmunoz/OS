@@ -25,7 +25,7 @@ export const useApprovalStore = create<ApprovalState>((set, get) => ({
 
   fetchApprovals: async () => {
     try {
-      const data = await fetchApi<Approval[]>('/api/umh/approvals')
+      const data = await fetchApi<Approval[]>('/approvals')
       set({ approvals: data })
     } catch {
       set({ approvals: [] })
@@ -33,14 +33,14 @@ export const useApprovalStore = create<ApprovalState>((set, get) => ({
   },
 
   approve: async (id) => {
-    await fetchApi(`/api/umh/approvals/${id}/approve`, {
+    await fetchApi(`/approvals/${id}/approve`, {
       method: 'POST',
     }).catch(() => {})
     get().fetchApprovals()
   },
 
   deny: async (id, note) => {
-    await fetchApi(`/api/umh/approvals/${id}/deny`, {
+    await fetchApi(`/approvals/${id}/deny`, {
       method: 'POST',
       body: JSON.stringify({ note }),
     }).catch(() => {})

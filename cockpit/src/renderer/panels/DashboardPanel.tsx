@@ -51,17 +51,17 @@ export function DashboardPanel() {
             }
           />
           <RingGauge
-            value={pulse?.memory_used_gb ?? 0}
-            max={pulse?.memory_total_gb ?? 8}
+            value={pulse?.memory_percent ?? 0}
+            max={100}
             label="RAM"
-            unit="G"
+            unit="%"
             color="var(--accent-cyan)"
           />
           <RingGauge
-            value={pulse?.disk_used_gb ?? 0}
-            max={pulse?.disk_total_gb ?? 100}
+            value={pulse?.disk_percent ?? 0}
+            max={100}
             label="DISK"
-            unit="G"
+            unit="%"
             color="var(--accent-green)"
           />
           <RingGauge
@@ -115,7 +115,7 @@ export function DashboardPanel() {
         <section>
           <h3 className="hud-text mb-2">Runtime</h3>
           <p className="font-mono text-sm" style={{ color: 'var(--accent-cyan)' }}>
-            {formatUptime(pulse.uptime_seconds)}
+            {formatUptime(pulse.uptime)}
           </p>
         </section>
       )}

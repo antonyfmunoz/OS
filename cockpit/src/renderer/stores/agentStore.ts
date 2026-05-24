@@ -47,8 +47,8 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   fetchAgents: async () => {
     try {
       const [basic, organism] = await Promise.all([
-        fetchApi<Agent[]>('/api/umh/agents').catch(() => []),
-        fetchApi<Agent[]>('/api/umh/organism/agents').catch(() => []),
+        fetchApi<Agent[]>('/agents').catch(() => []),
+        fetchApi<Agent[]>('/organism/agents').catch(() => []),
       ])
       const merged = basic.length > 0 ? basic : organism
       set({ agents: merged })
@@ -66,7 +66,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     set({ loading: true })
     try {
       const deliverables = await fetchApi<AgentDetail['deliverables']>(
-        `/api/umh/organism/deliverables?agent_id=${id}&limit=20`
+        `/organism/deliverables?agent_id=${id}&limit=20`
       ).catch(() => [])
       const agent = get().agents.find((a) => a.id === id)
       if (agent) {
@@ -81,7 +81,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   },
 
   sendSignal: async (id, signal) => {
-    await fetchApi(`/api/umh/agents/${id}/signal`, {
+    await fetchApi(`/agents/${id}/signal`, {
       method: 'POST',
       body: JSON.stringify({ signal }),
     }).catch(() => {})
@@ -89,7 +89,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   },
 
   controlAgent: async (action, agentId) => {
-    await fetchApi('/api/umh/organism/control', {
+    await fetchApi('/organism/control', {
       method: 'POST',
       body: JSON.stringify({ action, agent_id: agentId }),
     }).catch(() => {})

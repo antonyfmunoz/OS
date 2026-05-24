@@ -54,7 +54,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }))
 
     try {
-      const res = await fetchApi<DexResponse>('/api/umh/dex/converse', {
+      const res = await fetchApi<DexResponse>('/dex/converse', {
         method: 'POST',
         body: JSON.stringify({ content: content.trim() }),
       })
@@ -85,7 +85,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         content: string
         response: string | null
         timestamp: string
-      }>>('/api/umh/dex/history?limit=50')
+      }>>('/dex/history?limit=50')
 
       const messages: ChatMessage[] = []
       for (const exchange of history) {
