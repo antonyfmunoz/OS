@@ -23,6 +23,7 @@ Both classes expose the same interface:
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import queue
@@ -193,15 +194,11 @@ class _MicBase:
             return None
         finally:
             if fd is not None:
-                try:
+                with contextlib.suppress(OSError):
                     os.close(fd)
-                except OSError:
-                    pass
             if tmp_path is not None:
-                try:
+                with contextlib.suppress(OSError):
                     os.unlink(tmp_path)
-                except OSError:
-                    pass
 
     def get_transcript(self) -> str | None:
         try:

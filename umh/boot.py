@@ -236,10 +236,7 @@ def _run_personality_selection() -> None:
         presets = list(PersonalityPreset)
         try:
             idx = int(choice) - 1
-            if 0 <= idx < len(presets):
-                selected = presets[idx]
-            else:
-                selected = PersonalityPreset.OPERATOR
+            selected = presets[idx] if 0 <= idx < len(presets) else PersonalityPreset.OPERATOR
         except (ValueError, IndexError):
             selected = PersonalityPreset.OPERATOR
 

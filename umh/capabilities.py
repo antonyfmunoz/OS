@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from dataclasses import dataclass
 
 from umh.diagnostics import DiagnosticReport, Status
@@ -42,10 +43,8 @@ class WorkstationCapabilities:
 
         ollama_check = lookup.get("Ollama")
         if ollama_check and ollama_check.status == Status.OK and "models" in ollama_check.detail:
-            try:
+            with contextlib.suppress(ValueError, IndexError):
                 caps.ollama_models = int(ollama_check.detail.split()[0])
-            except (ValueError, IndexError):
-                pass
 
         return caps
 
