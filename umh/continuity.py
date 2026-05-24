@@ -48,6 +48,14 @@ class SessionContinuity:
         self._execution_count = 0
         self._mode_transitions = 0
 
+    @property
+    def execution_count(self) -> int:
+        return self._execution_count
+
+    @property
+    def mode_transitions(self) -> int:
+        return self._mode_transitions
+
     def start(self, session_id: str = "") -> str:
         """Start continuity tracking for this session."""
         if self._bridge is None:
@@ -116,11 +124,19 @@ class SessionContinuity:
 
             old_enum = OperationalMode.DEVELOPER
             new_enum = OperationalMode.DEVELOPER
+            old_matched = False
+            new_matched = False
             for member in OperationalMode:
                 if member.value == old_mode:
                     old_enum = member
+                    old_matched = True
                 if member.value == new_mode:
                     new_enum = member
+                    new_matched = True
+            if not old_matched:
+                logger.warning("Unknown operational mode: %r (defaulting to DEVELOPER)", old_mode)
+            if not new_matched:
+                logger.warning("Unknown operational mode: %r (defaulting to DEVELOPER)", new_mode)
 
             return self._bridge.bridge_mode_transition(old_enum, new_enum, reason)
         except Exception as exc:

@@ -18,6 +18,8 @@ from typing import Any, Callable
 logger = logging.getLogger(__name__)
 
 _outcome_callback: Callable[[Any], None] | None = None
+_recent_buffer: list[Any] = []
+_BUFFER_MAX = 50
 
 
 def set_outcome_callback(callback: Callable[[Any], None]) -> None:
@@ -28,6 +30,10 @@ def set_outcome_callback(callback: Callable[[Any], None]) -> None:
 
 def on_outcome_received(envelope: Any) -> None:
     """Called by the WorkstationOutcomeReceiver — dispatches to callback."""
+    _recent_buffer.append(envelope)
+    if len(_recent_buffer) > _BUFFER_MAX:
+        del _recent_buffer[: len(_recent_buffer) - _BUFFER_MAX]
+
     if _outcome_callback is not None:
         try:
             _outcome_callback(envelope)
@@ -56,18 +62,21 @@ def format_outcome(envelope: Any) -> str:
     return " ".join(parts)
 
 
-def get_recent_outcomes(receiver: Any = None) -> list[dict[str, Any]]:
-    """Get recent outcomes from the receiver buffer."""
-    if receiver is None:
-        return []
+def get_recent_outcomes(receiver: Any = None, limit: int = 10) -> list[dict[str, Any]]:
+    """Get recent outcomes from the module buffer or receiver."""
+    if receiver is not None:
+        try:
+            source = list(receiver.recent_outcomes)
+        except Exception:
+            source = []
+    else:
+        source = list(_recent_buffer)
 
-    try:
-        recent = receiver.recent_outcomes
-    except Exception:
+    if not source:
         return []
 
     results: list[dict[str, Any]] = []
-    for envelope in recent:
+    for envelope in source[-limit:]:
         results.append(
             {
                 "outcome_type": getattr(envelope, "outcome_type", "?"),

@@ -231,7 +231,11 @@ class PerceptionRouter:
                 PerceptionStore,
             )
 
-            source_enum = PerceptionSource.STATION_PRESENCE
+            _SOURCE_MAP = {
+                "webcam": PerceptionSource.OPERATOR_SESSION,
+                "metrics": PerceptionSource.LOCAL_NODE_STATUS,
+            }
+            source_enum = _SOURCE_MAP.get(source, PerceptionSource.STATION_PRESENCE)
             sev_enum = PerceptionSeverity(severity)
 
             record = PerceptionRecord.new(

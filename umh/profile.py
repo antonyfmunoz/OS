@@ -31,6 +31,7 @@ class WorkstationPreferences:
     maintenance_window_start: int = 3
     maintenance_window_end: int = 4
     mode_stacking_enabled: bool = True
+    voice_clone_attempted: bool = False
     custom_boot_sequence: list[str] | None = None
 
 
