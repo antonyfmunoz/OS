@@ -88,8 +88,8 @@ def _extract_data_deterministic(answers: dict) -> dict[str, Any]:
                 price_match = re.search(r"\$?(\d[\d,]*)", a)
                 if price_match:
                     data["offer_price"] = float(price_match.group(1).replace(",", ""))
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Price parse failed: %s", exc)
         elif "ideal customer" in q:
             data["icp_description"] = a
         elif "channel" in q and "customer" not in q:
@@ -106,7 +106,8 @@ def _extract_data_deterministic(answers: dict) -> dict[str, Any]:
                 rev_match = re.search(r"\$?(\d[\d,]*)", a)
                 if rev_match:
                     data["current_revenue"] = float(rev_match.group(1).replace(",", ""))
-            except Exception:
+            except Exception as exc:
+                logger.debug("Revenue parse failed: %s", exc)
                 data["current_revenue"] = 0
         elif "revenue goal" in q:
             data["north_star"] = a

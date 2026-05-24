@@ -24,7 +24,8 @@ def _load_onboarding() -> dict | None:
     try:
         with open(path, encoding="utf-8") as f:
             return json.load(f)
-    except Exception:
+    except Exception as exc:
+        logger.debug("Failed to load onboarding result: %s", exc)
         return None
 
 
@@ -61,7 +62,8 @@ def _section_personality() -> list[str]:
         if config.is_multi_mode:
             overrides = ", ".join(f"{m}={p}" for m, p in config.mode_overrides.items())
             lines.append(f"    Mode mapping: {overrides}")
-    except Exception:
+    except Exception as exc:
+        logger.debug("Personality load failed: %s", exc)
         lines.append("    (not configured)")
     return lines
 
@@ -85,7 +87,8 @@ def _section_permissions() -> list[str]:
         denied = [p for p in store.list_all() if p.status.value == "denied"]
         if denied:
             lines.append(f"    Denied: {len(denied)}")
-    except Exception:
+    except Exception as exc:
+        logger.debug("Permissions load failed: %s", exc)
         lines.append("    (not configured)")
     return lines
 
@@ -102,7 +105,8 @@ def _section_governance() -> list[str]:
         overrides = len(prefs.domain_overrides)
         if overrides:
             lines.append(f"    Custom domains: {overrides}")
-    except Exception:
+    except Exception as exc:
+        logger.debug("Governance load failed: %s", exc)
         lines.append("    (defaults active)")
     return lines
 
@@ -121,7 +125,8 @@ def _section_discovery() -> list[str]:
             lines.append(f"    Maturity:      {result.maturity_level}")
         else:
             lines.append("    (no scan results — run `umh discover`)")
-    except Exception:
+    except Exception as exc:
+        logger.debug("Discovery load failed: %s", exc)
         lines.append("    (discovery unavailable)")
 
     try:
@@ -135,8 +140,8 @@ def _section_discovery() -> list[str]:
             )
             lines.append(f"    Entities:      {result.total_entities}")
             lines.append(f"    Scan maturity: {result.maturity_level}")
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Diagnostic scan load failed: %s", exc)
 
     return lines
 
@@ -156,7 +161,8 @@ def _section_profile() -> list[str]:
                 lines.append(f"      {s.mode}: {s.confidence:.0%} ({s.source})")
         if result.event_count:
             lines.append(f"    Events:        {result.event_count}")
-    except Exception:
+    except Exception as exc:
+        logger.debug("Profile inference failed: %s", exc)
         lines.append("    (inference not yet run)")
     return lines
 
@@ -179,7 +185,8 @@ def _section_sensing() -> list[str]:
                 lines.append(f"    State:         {state_str}")
         else:
             lines.append("    No sensing adapters registered")
-    except Exception:
+    except Exception as exc:
+        logger.debug("Sensing summary failed: %s", exc)
         lines.append("    (sensing port not active)")
     return lines
 
@@ -198,7 +205,8 @@ def _section_workstation() -> list[str]:
         lines.append(
             f"    Mode stacking: {'enabled' if prefs.mode_stacking_enabled else 'disabled'}"
         )
-    except Exception:
+    except Exception as exc:
+        logger.debug("Workstation preferences load failed: %s", exc)
         lines.append("    (preferences unavailable)")
     return lines
 

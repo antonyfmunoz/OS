@@ -112,7 +112,8 @@ def get_active_window_cross_platform() -> dict[str, Any] | None:
             if win is None or not win.title.strip():
                 return None
             return {"title": win.title, "process": ""}
-        except Exception:
+        except Exception as exc:
+            logger.debug("pygetwindow failed: %s", exc)
             return None
 
     if sys.platform in ("linux", "linux2"):
@@ -141,10 +142,11 @@ def get_active_window_cross_platform() -> dict[str, Any] | None:
                         if os.path.exists(comm_path):
                             with open(comm_path, encoding="utf-8") as f:
                                 process = f.read().strip()
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug("Process name lookup failed: %s", exc)
                 return {"title": title, "process": process}
-        except Exception:
+        except Exception as exc:
+            logger.debug("xdotool window query failed: %s", exc)
             return None
 
     if sys.platform == "darwin":
@@ -161,7 +163,8 @@ def get_active_window_cross_platform() -> dict[str, Any] | None:
             )
             if result.returncode == 0 and result.stdout.strip():
                 return {"title": result.stdout.strip(), "process": result.stdout.strip()}
-        except Exception:
+        except Exception as exc:
+            logger.debug("osascript window query failed: %s", exc)
             return None
 
     return None

@@ -81,8 +81,8 @@ def _configure_wake_phrase() -> str:
             hint = resolve_role_hint(phrase)
             if hint:
                 print(f"  Role hint: {hint}")
-        except (ImportError, Exception):
-            pass
+        except (ImportError, Exception) as exc:
+            logger.debug("Role hint lookup failed: %s", exc)
     else:
         print("\n  No wake phrase configured. Use text input or push-to-talk.")
 
@@ -98,8 +98,8 @@ def _configure_voice_clone() -> bool:
         prefs = ProfileManager().get_preferences()
         if prefs.voice_clone_attempted:
             return False
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Voice clone preference check failed: %s", exc)
 
     print("Voice Cloning")
     print("-" * 30)
@@ -130,8 +130,8 @@ def _configure_voice_clone() -> bool:
             prefs = pm.get_preferences()
             prefs.voice_clone_attempted = True
             pm.save_preferences(prefs)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Failed to save voice clone preference: %s", exc)
         return False
 
     # Check if mic is available

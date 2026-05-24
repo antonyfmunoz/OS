@@ -223,8 +223,8 @@ class DiscoveryScanner:
                 for name in process_names:
                     if name in ps_out.stdout.lower():
                         platforms.append(name)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Process discovery failed: %s", exc)
 
         # Check for docker containers
         try:
@@ -237,8 +237,8 @@ class DiscoveryScanner:
             if docker_out.returncode == 0 and docker_out.stdout.strip():
                 containers = docker_out.stdout.strip().split("\n")
                 workspaces.extend(f"container:{c}" for c in containers)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Docker container discovery failed: %s", exc)
 
         result.domains_scanned = len(DISCOVERY_DOMAINS)
         result.platforms_found = len(set(platforms))

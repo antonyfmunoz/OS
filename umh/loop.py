@@ -152,8 +152,8 @@ def _build_welcome_back(mode_state: ModeState, continuity: Any = None) -> str:
         n = pending_count()
         if n > 0:
             parts.append(f"{n} pending approval{'s' if n != 1 else ''}.")
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Pending approvals count failed: %s", exc)
 
     profiles = " + ".join(p.value for p in mode_state.profiles)
     parts.append(f"Mode: {profiles}.")

@@ -178,8 +178,8 @@ class _MicBase:
             classification = "conversation"
             try:
                 classification = self._stt.classify_speech(text)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Speech classification failed: %s", exc)
 
             if classification in ("singing", "music_background", "silence"):
                 logger.debug("Filtered non-speech: %s (%s)", text[:40], classification)
@@ -214,8 +214,8 @@ class _MicBase:
             try:
                 self._stream.stop()
                 self._stream.close()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Stream stop/close failed: %s", exc)
             self._stream = None
         if self._transcription_thread is not None:
             self._transcription_thread.join(timeout=3.0)

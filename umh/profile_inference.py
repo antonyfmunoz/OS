@@ -238,8 +238,8 @@ def run_full_inference() -> InferredProfile:
             {"category": e.category, "title": e.title, "process": e.process_name}
             for e in tracker.state.history
         ]
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Workspace event collection failed: %s", exc)
 
     result = infer_from_workspace(workspace_events)
 

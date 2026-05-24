@@ -63,8 +63,8 @@ class VoiceOutput:
             if self._playback_process is not None:
                 try:
                     self._playback_process.terminate()
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Playback process terminate failed: %s", exc)
                 self._playback_process = None
 
     def speak(self, text: str, voice_type: str = "persona") -> None:
@@ -135,7 +135,8 @@ class VoiceOutput:
             return "conversation"
         try:
             return engine.intelligent.classify_speech(text)
-        except Exception:
+        except Exception as exc:
+            logger.debug("Speech classification failed: %s", exc)
             return "conversation"
 
     def should_respond(self, text: str) -> tuple[bool, str]:
@@ -144,7 +145,8 @@ class VoiceOutput:
             return True, "text_mode"
         try:
             return engine.should_respond(text)
-        except Exception:
+        except Exception as exc:
+            logger.debug("should_respond check failed: %s", exc)
             return True, "fallback"
 
     def route_query(self, text: str) -> str:
