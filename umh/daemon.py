@@ -357,7 +357,8 @@ class WorkstationDaemon:
         try:
             with open(STATUS_FILE, encoding="utf-8") as f:
                 return json.load(f)
-        except Exception:
+        except Exception as exc:
+            logger.debug("Failed to read daemon status file: %s", exc)
             return {"state": "unknown"}
 
 
@@ -418,7 +419,8 @@ def stop_daemon() -> int:
     try:
         with open(PID_FILE) as f:
             pid = int(f.read().strip())
-    except Exception:
+    except Exception as exc:
+        logger.debug("Failed to read PID file: %s", exc)
         print("Invalid PID file.")
         return 1
 

@@ -196,7 +196,8 @@ def create_scheduler_from_preferences() -> ScheduledTriggerProducer:
             maintenance_window_start=getattr(prefs, "maintenance_window_start", 3),
             maintenance_window_end=getattr(prefs, "maintenance_window_end", 4),
         )
-    except Exception:
+    except Exception as exc:
+        logger.debug("Failed to build scheduled triggers: %s", exc)
         return ScheduledTriggerProducer()
 
 
@@ -210,7 +211,8 @@ def show_scheduler_status() -> int:
         morning = getattr(prefs, "auto_morning_hour", 7)
         maint_start = getattr(prefs, "maintenance_window_start", 3)
         maint_end = getattr(prefs, "maintenance_window_end", 4)
-    except Exception:
+    except Exception as exc:
+        logger.debug("Failed to load scheduler preferences: %s", exc)
         overnight, morning, maint_start, maint_end = 23, 7, 3, 4
 
     print()

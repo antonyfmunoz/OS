@@ -437,7 +437,8 @@ def _start_stdin_thread(
             except (EOFError, KeyboardInterrupt):
                 text_queue.put(None)
                 return
-            except Exception:
+            except Exception as exc:
+                logger.debug("stdin reader failed: %s", exc)
                 text_queue.put(None)
                 return
 

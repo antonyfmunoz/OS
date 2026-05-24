@@ -32,7 +32,8 @@ def _get_approval_count() -> int:
         from umh.approvals import pending_count
 
         return pending_count()
-    except Exception:
+    except Exception as exc:
+        logger.debug("Failed to get approval count: %s", exc)
         return 0
 
 
@@ -43,7 +44,8 @@ def _get_operator_mode(node_id: str = "workstation_local") -> str:
         store = get_operator_state_store()
         state = store.get_or_create(node_id)
         return state.mode.value
-    except Exception:
+    except Exception as exc:
+        logger.debug("Failed to get operator mode: %s", exc)
         return "unknown"
 
 
@@ -53,7 +55,8 @@ def _get_continuity_summary() -> str:
 
         c = SessionContinuity()
         return c.get_resume_summary()
-    except Exception:
+    except Exception as exc:
+        logger.debug("Failed to get continuity summary: %s", exc)
         return ""
 
 
@@ -75,7 +78,8 @@ def _get_recent_trigger_count() -> int:
         from umh.triggers import get_trigger_history
 
         return len(get_trigger_history())
-    except Exception:
+    except Exception as exc:
+        logger.debug("Failed to get trigger count: %s", exc)
         return 0
 
 
@@ -107,7 +111,8 @@ def _format_status(
             if mesh_nodes
             else "standalone"
         )
-    except Exception:
+    except Exception as exc:
+        logger.debug("Failed to get mesh status: %s", exc)
         mesh_str = "standalone"
 
     profiles = " + ".join(p.value for p in mode_state.profiles)

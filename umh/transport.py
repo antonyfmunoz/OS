@@ -300,7 +300,8 @@ class WorkstationCapabilityHandler:
                 timeout=5,
             )
             return {"content": result.stdout[:4096]}
-        except Exception:
+        except Exception as exc:
+            logger.debug("Clipboard read failed: %s", exc)
             return {"content": "", "error": "clipboard read unavailable"}
 
     def _handle_clipboard_write(self, params: dict[str, Any]) -> dict[str, Any]:
@@ -312,7 +313,8 @@ class WorkstationCapabilityHandler:
             )
             proc.communicate(input=text.encode("utf-8"), timeout=5)
             return {"written": True}
-        except Exception:
+        except Exception as exc:
+            logger.debug("Clipboard write failed: %s", exc)
             return {"written": False, "error": "clipboard write unavailable"}
 
     def _handle_screenshot(self, params: dict[str, Any]) -> dict[str, Any]:
@@ -336,7 +338,8 @@ class WorkstationCapabilityHandler:
                     cmd = ["gnome-screenshot", "-f", output]
                 subprocess.run(cmd, capture_output=True, timeout=10, check=True)
                 return {"path": output, "tool": tool}
-            except Exception:
+            except Exception as exc:
+                logger.debug("Screenshot with %s failed: %s", tool, exc)
                 continue
 
         return {

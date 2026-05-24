@@ -33,7 +33,8 @@ def pending_count() -> int:
         return 0
     try:
         return store.pending_count()
-    except Exception:
+    except Exception as exc:
+        logger.debug("Failed to get pending approval count: %s", exc)
         return 0
 
 
@@ -122,7 +123,8 @@ def _resolve_id(store: Any, partial: str) -> str | None:
     """
     try:
         pending = store.list_approvals(status="pending")
-    except Exception:
+    except Exception as exc:
+        logger.debug("Failed to list approvals: %s", exc)
         return None
 
     partial = partial.strip().lower()
