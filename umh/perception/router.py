@@ -122,6 +122,13 @@ class PerceptionRouter:
             payload={"face_detected": state.face_detected, "face_count": state.face_count},
         )
 
+        try:
+            from umh.signals import emit_presence_change
+
+            emit_presence_change(present=state.face_detected, previous=not state.face_detected)
+        except Exception as exc:
+            logger.debug("Presence signal emission failed: %s", exc)
+
     def _handle_operator_returned(self) -> None:
         """Operator face detected after being absent."""
         if not self._away_triggered:
@@ -176,6 +183,17 @@ class PerceptionRouter:
             payload=event.as_dict(),
         )
 
+        try:
+            from umh.signals import emit_workspace_change
+
+            emit_workspace_change(
+                window_title=getattr(event, "title", ""),
+                app_name=getattr(event, "app_name", ""),
+                category=getattr(event, "category", ""),
+            )
+        except Exception as exc:
+            logger.debug("Workspace signal emission failed: %s", exc)
+
     def _on_metrics_alert(self, alert: Any) -> None:
         """Handle metrics threshold breach."""
         severity = "warning" if alert.severity == "warning" else "critical"
@@ -185,6 +203,17 @@ class PerceptionRouter:
             severity=severity,
             payload=alert.as_dict(),
         )
+
+        try:
+            from umh.signals import emit_system_metrics
+
+            emit_system_metrics(
+                cpu_percent=getattr(alert, "value", 0.0) if alert.metric == "cpu" else 0.0,
+                memory_percent=getattr(alert, "value", 0.0) if alert.metric == "memory" else 0.0,
+                disk_percent=getattr(alert, "value", 0.0) if alert.metric == "disk" else 0.0,
+            )
+        except Exception as exc:
+            logger.debug("Metrics signal emission failed: %s", exc)
 
     def _emit_perception(
         self,

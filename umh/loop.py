@@ -7,6 +7,7 @@ Sprint 6: personality command, sensing adapter display.
 Sprint 8: continuity tracking, awakening command, transport status.
 Sprint 9: approval queue, signal emission, scheduler, triggers.
 Sprint 10: outcome display, capability routing, operator state sync, inference suggestions.
+Sprint 11: mode transition signals, perception signal emission, health checks, rich status.
 
 When voice is enabled, stdin runs in a background thread and the main loop
 polls both the mic transcript queue and the stdin queue. When voice is
@@ -14,7 +15,7 @@ disabled, falls back to the simple blocking input() loop from Sprint 1.
 
 Perception router is polled each cycle to check auto-AWAY timeout.
 Continuity bridge tracks every execution and mode transition.
-Signal socket emits SignalEnvelopes for text/voice inputs.
+Signal socket emits SignalEnvelopes for text/voice inputs and mode transitions.
 """
 
 from __future__ import annotations
@@ -28,7 +29,7 @@ import time
 from typing import Any
 
 from umh.modes import CommandResult, ModeState, parse_command
-from umh.signals import emit_text_input, emit_voice_transcription
+from umh.signals import emit_mode_transition, emit_text_input, emit_voice_transcription
 from umh.voice import VoiceOutput
 
 logger = logging.getLogger(__name__)
@@ -255,6 +256,12 @@ def _handle_system_command(
         show_capabilities()
         return ""
 
+    if cmd.command == "health":
+        return "__HEALTH__"
+
+    if cmd.command == "full_status":
+        return "__FULL_STATUS__"
+
     return f"Unknown command: {cmd.command}"
 
 
@@ -301,6 +308,8 @@ def _help_text(mode_state: ModeState) -> str:
   outcomes            — show pipeline outcomes
   operator            — show operator state
   capabilities        — show local capabilities
+  health              — subsystem health check
+  dashboard           — full workstation status dashboard
   open <url>          — open URL in browser
   system info         — show system metrics
   run <command>       — execute shell command
@@ -338,6 +347,10 @@ def _process_input(
     persona_name: str,
     perception: Any = None,
     continuity: Any = None,
+    scheduler: Any = None,
+    inference_checker: Any = None,
+    session_id: str = "",
+    text_only: bool = False,
 ) -> bool:
     """Process a single input line. Returns True to continue, False to exit."""
     if not user_input:
@@ -348,8 +361,14 @@ def _process_input(
 
     _emit_input_signal(user_input, source)
 
+    old_profile = mode_state.primary_profile.value
     cmd = parse_command(user_input, mode_state)
     if cmd.handled:
+        if cmd.command == "mode_switch":
+            new_profile = mode_state.primary_profile.value
+            if new_profile != old_profile:
+                emit_mode_transition(old_profile, new_profile, reason=user_input)
+
         response = _handle_system_command(cmd, mode_state, voice, perception=perception)
         if response == "__EXIT__":
             _update_audio_loop_status(node_id, "inactive")
@@ -359,6 +378,37 @@ def _process_input(
                 continuity.save_on_exit()
             voice.speak_and_print("State saved. Goodbye.")
             return False
+
+        if response == "__HEALTH__":
+            from umh.health import format_health, run_health_check
+
+            results = run_health_check(
+                scheduler=scheduler,
+                perception=perception,
+                continuity=continuity,
+                inference_checker=inference_checker,
+                node_id=node_id,
+            )
+            voice.speak_and_print(format_health(results))
+            return True
+
+        if response == "__FULL_STATUS__":
+            from umh.status_display import build_status
+
+            voice.speak_and_print(
+                build_status(
+                    mode_state=mode_state,
+                    session_id=session_id,
+                    text_only=text_only,
+                    node_id=node_id,
+                    perception=perception,
+                    scheduler=scheduler,
+                    continuity=continuity,
+                    inference_checker=inference_checker,
+                )
+            )
+            return True
+
         if response:
             _update_audio_loop_status(node_id, "responding")
             voice.speak_and_print(response)
@@ -469,6 +519,8 @@ def run_interaction_loop(
             continuity,
             scheduler,
             inference_checker,
+            session_id=session_id,
+            text_only=text_only,
         )
 
     return _voice_text_loop(
@@ -482,6 +534,8 @@ def run_interaction_loop(
         continuity,
         scheduler,
         inference_checker,
+        session_id=session_id,
+        text_only=text_only,
     )
 
 
@@ -495,6 +549,8 @@ def _text_only_loop(
     continuity: Any = None,
     scheduler: Any = None,
     inference_checker: Any = None,
+    session_id: str = "",
+    text_only: bool = False,
 ) -> int:
     while True:
         if inference_checker is not None:
@@ -517,6 +573,10 @@ def _text_only_loop(
             persona_name,
             perception,
             continuity,
+            scheduler=scheduler,
+            inference_checker=inference_checker,
+            session_id=session_id,
+            text_only=text_only,
         ):
             break
 
@@ -541,6 +601,8 @@ def _voice_text_loop(
     continuity: Any = None,
     scheduler: Any = None,
     inference_checker: Any = None,
+    session_id: str = "",
+    text_only: bool = False,
 ) -> int:
     """Concurrent voice + text loop.
 
@@ -583,6 +645,10 @@ def _voice_text_loop(
                     persona_name,
                     perception,
                     continuity,
+                    scheduler=scheduler,
+                    inference_checker=inference_checker,
+                    session_id=session_id,
+                    text_only=text_only,
                 ):
                     break
                 sys.stdout.write(prompt)
@@ -604,6 +670,10 @@ def _voice_text_loop(
                     persona_name,
                     perception,
                     continuity,
+                    scheduler=scheduler,
+                    inference_checker=inference_checker,
+                    session_id=session_id,
+                    text_only=text_only,
                 ):
                     break
                 sys.stdout.write(prompt)

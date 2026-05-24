@@ -125,6 +125,10 @@ _SYSTEM_COMMANDS: dict[str, str] = {
     "capabilities": "local_capabilities",
     "local capabilities": "local_capabilities",
     "sysinfo": "local_capabilities",
+    "health": "health",
+    "health check": "health",
+    "full status": "full_status",
+    "dashboard": "full_status",
 }
 
 
