@@ -112,6 +112,12 @@ _SYSTEM_COMMANDS: dict[str, str] = {
     "continuity": "continuity",
     "transport": "transport",
     "transport status": "transport",
+    "triggers": "triggers",
+    "trigger history": "triggers",
+    "scheduler": "scheduler",
+    "scheduler status": "scheduler",
+    "approvals": "approvals",
+    "approval queue": "approvals",
 }
 
 

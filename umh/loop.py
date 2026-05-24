@@ -5,6 +5,7 @@ Sprint 2: voice input via AmbientMic/PushToTalkMic racing against stdin.
 Sprint 4: perception integration (webcam, workspace, metrics).
 Sprint 6: personality command, sensing adapter display.
 Sprint 8: continuity tracking, awakening command, transport status.
+Sprint 9: approval queue, signal emission, scheduler, triggers.
 
 When voice is enabled, stdin runs in a background thread and the main loop
 polls both the mic transcript queue and the stdin queue. When voice is
@@ -12,6 +13,7 @@ disabled, falls back to the simple blocking input() loop from Sprint 1.
 
 Perception router is polled each cycle to check auto-AWAY timeout.
 Continuity bridge tracks every execution and mode transition.
+Signal socket emits SignalEnvelopes for text/voice inputs.
 """
 
 from __future__ import annotations
@@ -25,6 +27,7 @@ import time
 from typing import Any
 
 from umh.modes import CommandResult, ModeState, parse_command
+from umh.signals import emit_text_input, emit_voice_transcription
 from umh.voice import VoiceOutput
 
 logger = logging.getLogger(__name__)
@@ -79,6 +82,17 @@ def _update_audio_loop_status(node_id: str, status: str) -> None:
         logger.debug("Audio loop status update failed: %s", exc)
 
 
+def _emit_input_signal(text: str, source: str) -> None:
+    """Emit a signal for text or voice input through the signal socket."""
+    try:
+        if source == "voice":
+            emit_voice_transcription(text)
+        else:
+            emit_text_input(text, source=source)
+    except Exception as exc:
+        logger.debug("Signal emission failed: %s", exc)
+
+
 def _handle_system_command(
     cmd: CommandResult, mode_state: ModeState, voice: VoiceOutput, perception: Any = None
 ) -> str:
@@ -116,8 +130,26 @@ def _handle_system_command(
     if cmd.command == "always_on":
         return "Voice mode: ambient (toggle with 'push to talk')"
 
-    if cmd.command in ("pending", "approve", "reject"):
-        return "Approval system not yet wired"
+    if cmd.command == "pending":
+        from umh.approvals import show_pending
+
+        return show_pending()
+
+    if cmd.command == "approve":
+        from umh.approvals import approve_item
+
+        item_id = cmd.response or ""
+        if not item_id:
+            return "Usage: approve <id>"
+        return approve_item(item_id)
+
+    if cmd.command == "reject":
+        from umh.approvals import reject_item
+
+        item_id = cmd.response or ""
+        if not item_id:
+            return "Usage: reject <id>"
+        return reject_item(item_id)
 
     if cmd.command == "webcam_on":
         if perception is not None:
@@ -176,6 +208,24 @@ def _handle_system_command(
     if cmd.command == "transport":
         return _show_transport_status()
 
+    if cmd.command == "triggers":
+        from umh.triggers import show_triggers
+
+        show_triggers()
+        return ""
+
+    if cmd.command == "scheduler":
+        from umh.scheduler import show_scheduler_status
+
+        show_scheduler_status()
+        return ""
+
+    if cmd.command == "approvals":
+        from umh.approvals import show_approvals
+
+        show_approvals()
+        return ""
+
     return f"Unknown command: {cmd.command}"
 
 
@@ -214,6 +264,11 @@ def _help_text(mode_state: ModeState) -> str:
   awakening           — run The Awakening reality brief
   continuity          — show session continuity state
   transport           — show transport registration status
+  show pending        — list pending approvals
+  approve <id>        — approve a pending item
+  reject <id>         — reject a pending item
+  triggers            — show trigger history
+  scheduler           — show scheduler status
   exit / bye          — save state and exit"""
 
 
@@ -255,6 +310,8 @@ def _process_input(
 
     _record_transcript(node_id, user_input, source=source)
     _update_audio_loop_status(node_id, "listening")
+
+    _emit_input_signal(user_input, source)
 
     cmd = parse_command(user_input, mode_state)
     if cmd.handled:
@@ -317,6 +374,7 @@ def run_interaction_loop(
     mic: Any = None,
     perception: Any = None,
     continuity: Any = None,
+    scheduler: Any = None,
 ) -> int:
     """Main interaction loop — races voice and text input.
 
@@ -350,11 +408,11 @@ def run_interaction_loop(
 
     if mic is None or not mic.is_listening:
         return _text_only_loop(
-            mode_state, voice, persona_name, prompt, node_id, perception, continuity
+            mode_state, voice, persona_name, prompt, node_id, perception, continuity, scheduler
         )
 
     return _voice_text_loop(
-        mode_state, voice, persona_name, prompt, node_id, mic, perception, continuity
+        mode_state, voice, persona_name, prompt, node_id, mic, perception, continuity, scheduler
     )
 
 
@@ -366,6 +424,7 @@ def _text_only_loop(
     node_id: str,
     perception: Any = None,
     continuity: Any = None,
+    scheduler: Any = None,
 ) -> int:
     while True:
         try:
@@ -386,6 +445,8 @@ def _text_only_loop(
         ):
             break
 
+    if scheduler is not None:
+        scheduler.stop()
     if continuity is not None:
         continuity.save_on_exit()
     if perception is not None:
@@ -402,6 +463,7 @@ def _voice_text_loop(
     mic: Any,
     perception: Any = None,
     continuity: Any = None,
+    scheduler: Any = None,
 ) -> int:
     """Concurrent voice + text loop.
 
@@ -474,6 +536,8 @@ def _voice_text_loop(
         stop_event.set()
         _update_audio_loop_status(node_id, "inactive")
         mic.stop()
+        if scheduler is not None:
+            scheduler.stop()
         if continuity is not None:
             continuity.save_on_exit()
         if perception is not None:
