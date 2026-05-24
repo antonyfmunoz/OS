@@ -28,6 +28,7 @@ from substrate.sockets.view_socket import ViewSocket
 from substrate.execution.executor import build_default_executor
 from substrate.integrations.notion.correlation import CorrelationMap, WritebackTarget
 from substrate.execution.pipeline import ExecutionPipeline
+from substrate.memory.watcher import start_memory_watcher
 from transports.api.runtime import SubstrateRuntime
 
 logger = logging.getLogger(__name__)
@@ -42,6 +43,7 @@ _correlation_map = CorrelationMap()
 _notion_outcome_receiver: Any = None
 _notion_poller: Any = None
 _notion_poller_thread: threading.Thread | None = None
+_memory_watcher = None
 _eos_poller: Any = None
 _eos_poller_thread: threading.Thread | None = None
 _mesh_server: Any = None
@@ -233,7 +235,15 @@ async def lifespan(app: FastAPI):
     _pipeline.on_event(make_pipeline_listener(_view_socket))
     logger.info("view socket broadcaster wired to WebSocket endpoint")
 
+    global _memory_watcher
+    _memory_watcher = start_memory_watcher()
+    logger.info("memory watcher started with %d watches", len(_memory_watcher.watches))
+
     yield
+
+    if _memory_watcher is not None:
+        _memory_watcher.stop()
+        logger.info("memory watcher stopped")
 
     if _organism is not None:
         _organism.stop()
