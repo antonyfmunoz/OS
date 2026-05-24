@@ -212,7 +212,7 @@ class DiscoveryScanner:
             os.path.join(home, "dev"),
             os.path.join(home, "projects"),
             os.path.join(home, "code"),
-            "/opt/OS",
+            os.environ.get("UMH_ROOT", "/opt/OS"),
         ]
         for d in common_repo_dirs:
             if os.path.isdir(d):

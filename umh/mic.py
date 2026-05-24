@@ -121,7 +121,8 @@ class _MicBase:
         if self._vad is not None:
             try:
                 confidence = self._vad.is_speech_frame(frame_bytes, SAMPLE_RATE)
-            except Exception:
+            except Exception as exc:
+                logger.debug("VAD frame check failed: %s", exc)
                 confidence = 0.5
 
         if confidence >= VAD_THRESHOLD:

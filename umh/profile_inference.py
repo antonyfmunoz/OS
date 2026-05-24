@@ -140,7 +140,8 @@ def infer_from_onboarding(onboarding_path: str | None = None) -> list[ProfileSug
     try:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
-    except Exception:
+    except Exception as exc:
+        logger.debug("Failed to load onboarding data: %s", exc)
         return []
 
     suggestions: list[ProfileSuggestion] = []
@@ -207,7 +208,8 @@ def infer_from_discovery(discovery_path: str | None = None) -> list[ProfileSugge
     try:
         with open(discovery_path, encoding="utf-8") as f:
             data = json.load(f)
-    except Exception:
+    except Exception as exc:
+        logger.debug("Failed to load discovery data: %s", exc)
         return []
 
     suggestions: list[ProfileSuggestion] = []

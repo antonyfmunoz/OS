@@ -73,7 +73,8 @@ def get_recent_outcomes(receiver: Any = None, limit: int = 10) -> list[dict[str,
     if receiver is not None:
         try:
             source = list(receiver.recent_outcomes)
-        except Exception:
+        except Exception as exc:
+            logger.debug("Failed to read recent outcomes: %s", exc)
             source = []
     else:
         source = list(_recent_buffer)

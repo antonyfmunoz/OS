@@ -49,7 +49,8 @@ def check_transport() -> SubsystemHealth:
         from umh.transport import INTEGRATION_ID
 
         return SubsystemHealth("transport", "UP", INTEGRATION_ID)
-    except Exception:
+    except Exception as exc:
+        logger.debug("Transport health check failed: %s", exc)
         return SubsystemHealth("transport", "DOWN", "not registered")
 
 
