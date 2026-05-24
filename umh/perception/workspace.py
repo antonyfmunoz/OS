@@ -124,6 +124,7 @@ def get_active_window_cross_platform() -> dict[str, Any] | None:
                 capture_output=True,
                 text=True,
                 timeout=2,
+                check=False,
             )
             if result.returncode == 0 and result.stdout.strip():
                 title = result.stdout.strip()
@@ -132,6 +133,7 @@ def get_active_window_cross_platform() -> dict[str, Any] | None:
                     capture_output=True,
                     text=True,
                     timeout=2,
+                    check=False,
                 )
                 process = ""
                 if pid_result.returncode == 0 and pid_result.stdout.strip():
@@ -159,6 +161,7 @@ def get_active_window_cross_platform() -> dict[str, Any] | None:
                 capture_output=True,
                 text=True,
                 timeout=2,
+                check=False,
             )
             if result.returncode == 0 and result.stdout.strip():
                 return {"title": result.stdout.strip(), "process": result.stdout.strip()}

@@ -215,7 +215,9 @@ class DiscoveryScanner:
 
         # Check running processes for known platforms
         try:
-            ps_out = subprocess.run(["ps", "aux"], capture_output=True, text=True, timeout=5)
+            ps_out = subprocess.run(
+                ["ps", "aux"], capture_output=True, text=True, timeout=5, check=False
+            )
             if ps_out.returncode == 0:
                 process_names = {
                     "chrome",
@@ -237,6 +239,7 @@ class DiscoveryScanner:
                 capture_output=True,
                 text=True,
                 timeout=5,
+                check=False,
             )
             if docker_out.returncode == 0 and docker_out.stdout.strip():
                 containers = docker_out.stdout.strip().split("\n")

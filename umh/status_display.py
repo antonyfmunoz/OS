@@ -23,7 +23,7 @@ def build_status(
     perception: Any = None,
     scheduler: Any = None,
     continuity: Any = None,
-    inference_checker: Any = None,
+    inference_checker: Any = None,  # noqa: ARG001
 ) -> str:
     """Build the full workstation status string."""
     persona_name = os.environ.get("UMH_PERSONA_NAME", "UMH")

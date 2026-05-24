@@ -206,7 +206,7 @@ def _emit_input_signal(text: str, source: str) -> None:
 
 
 def _handle_system_command(
-    cmd: CommandResult, mode_state: ModeState, voice: VoiceOutput, perception: Any = None
+    cmd: CommandResult, mode_state: ModeState, _voice: VoiceOutput, perception: Any = None
 ) -> str:
     if cmd.command == "status":
         return "__FULL_STATUS__"
@@ -381,7 +381,7 @@ def _show_transport_status() -> str:
         return f"Transport status unavailable: {exc}"
 
 
-def _help_text(mode_state: ModeState) -> str:
+def _help_text(_mode_state: ModeState) -> str:
     return """Available commands:
   status              — show workstation status
   help                — this help text

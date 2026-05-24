@@ -240,7 +240,7 @@ class AmbientMic(_MicBase):
         try:
             import sounddevice as sd
 
-            def _callback(indata: Any, frames: int, time_info: Any, status: Any) -> None:
+            def _callback(indata: Any, _frames: int, _time_info: Any, status: Any) -> None:
                 if status:
                     logger.debug("Sounddevice status: %s", status)
                 raw = bytes(indata)
@@ -288,7 +288,7 @@ class PushToTalkMic(_MicBase):
         try:
             import sounddevice as sd
 
-            def _callback(indata: Any, frames: int, time_info: Any, status: Any) -> None:
+            def _callback(indata: Any, _frames: int, _time_info: Any, _status: Any) -> None:
                 if not self._capturing:
                     return
                 raw = bytes(indata)

@@ -35,7 +35,7 @@ def play_sound(path: str) -> bool:
         return False
 
     try:
-        subprocess.run([player, path], capture_output=True, timeout=10)
+        subprocess.run([player, path], capture_output=True, timeout=10, check=False)
         return True
     except (subprocess.TimeoutExpired, OSError) as exc:
         logger.debug("Audio playback failed: %s", exc)

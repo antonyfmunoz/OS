@@ -188,7 +188,7 @@ def _apply_persona(result: OnboardingResult) -> None:
         os.environ["UMH_PERSONA_NAME"] = result.ai_name
 
 
-def run_onboarding_cli(text_only: bool = False) -> OnboardingResult | None:
+def run_onboarding_cli(text_only: bool = False) -> OnboardingResult | None:  # noqa: ARG001
     """Run the interactive onboarding flow via stdin.
 
     Returns OnboardingResult on success, None if cancelled.
