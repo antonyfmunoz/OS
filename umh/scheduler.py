@@ -60,6 +60,8 @@ class ScheduledTriggerProducer:
             return True
 
         self._stop_event.clear()
+        self._trigger_count = 0
+        self._fired_today.clear()
         self._thread = threading.Thread(
             target=self._run,
             daemon=True,
@@ -200,12 +202,23 @@ def create_scheduler_from_preferences() -> ScheduledTriggerProducer:
 
 def show_scheduler_status() -> int:
     """Display scheduler status for CLI."""
+    try:
+        from umh.profile import ProfileManager
+
+        prefs = ProfileManager().get_preferences()
+        overnight = getattr(prefs, "auto_overnight_hour", 23)
+        morning = getattr(prefs, "auto_morning_hour", 7)
+        maint_start = getattr(prefs, "maintenance_window_start", 3)
+        maint_end = getattr(prefs, "maintenance_window_end", 4)
+    except Exception:
+        overnight, morning, maint_start, maint_end = 23, 7, 3, 4
+
     print()
     print("Scheduled Triggers")
     print("=" * 40)
     print("  (Scheduler runs within the interaction loop)")
-    print("  Overnight:    23:00 UTC")
-    print("  Morning:      07:00 UTC")
-    print("  Maintenance:  03:00-04:00 UTC")
+    print(f"  Overnight:    {overnight:02d}:00 UTC")
+    print(f"  Morning:      {morning:02d}:00 UTC")
+    print(f"  Maintenance:  {maint_start:02d}:00-{maint_end:02d}:00 UTC")
     print()
     return 0

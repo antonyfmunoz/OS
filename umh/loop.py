@@ -109,6 +109,25 @@ def _save_profile_snapshot(mode_state: ModeState, session_id: str) -> None:
         logger.debug("Profile snapshot save failed: %s", exc)
 
 
+def _cleanup_session(
+    node_id: str,
+    mode_state: ModeState,
+    session_id: str,
+    scheduler: Any = None,
+    continuity: Any = None,
+    perception: Any = None,
+) -> None:
+    """Shared exit cleanup for both text-only and voice loops."""
+    _sync_operator_exit(node_id)
+    if scheduler is not None:
+        scheduler.stop()
+    if continuity is not None:
+        continuity.save_on_exit()
+    if perception is not None:
+        perception.stop_all()
+    _save_profile_snapshot(mode_state, session_id)
+
+
 def _build_welcome_back(mode_state: ModeState, continuity: Any = None) -> str:
     """Build a data-rich welcome-back message."""
     parts = ["Welcome back."]
@@ -652,6 +671,12 @@ def _text_only_loop(
             suggestion = inference_checker.check(mode_state.primary_profile.value)
             if suggestion:
                 print(f"  [inference] {suggestion}")
+                if continuity is not None:
+                    continuity.track_execution(
+                        command=f"inference: {suggestion[:80]}",
+                        outcome="info",
+                        adapter_used="inference",
+                    )
 
         try:
             user_input = input(prompt).strip()
@@ -675,14 +700,7 @@ def _text_only_loop(
         ):
             break
 
-    _sync_operator_exit(node_id)
-    if scheduler is not None:
-        scheduler.stop()
-    if continuity is not None:
-        continuity.save_on_exit()
-    if perception is not None:
-        perception.stop_all()
-    _save_profile_snapshot(mode_state, session_id)
+    _cleanup_session(node_id, mode_state, session_id, scheduler, continuity, perception)
     return 0
 
 
@@ -725,6 +743,12 @@ def _voice_text_loop(
                 suggestion = inference_checker.check(mode_state.primary_profile.value)
                 if suggestion:
                     print(f"  [inference] {suggestion}")
+                    if continuity is not None:
+                        continuity.track_execution(
+                            command=f"inference: {suggestion[:80]}",
+                            outcome="info",
+                            adapter_used="inference",
+                        )
 
             text_input: str | None = None
             try:
@@ -787,13 +811,6 @@ def _voice_text_loop(
         stop_event.set()
         _update_audio_loop_status(node_id, "inactive")
         mic_holder[0].stop()
-        _sync_operator_exit(node_id)
-        if scheduler is not None:
-            scheduler.stop()
-        if continuity is not None:
-            continuity.save_on_exit()
-        if perception is not None:
-            perception.stop_all()
-        _save_profile_snapshot(mode_state, session_id)
+        _cleanup_session(node_id, mode_state, session_id, scheduler, continuity, perception)
 
     return 0
