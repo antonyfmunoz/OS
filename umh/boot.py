@@ -2,6 +2,7 @@
 
 Sprint 8: registers workstation as four-socket substrate transport,
 starts continuity tracking, wires resume state into daily greeting.
+Sprint 9: starts scheduler, wires signal socket, emits boot signal.
 """
 
 from __future__ import annotations
@@ -87,13 +88,19 @@ def _register_transport() -> Any:
             from substrate.sockets.signal_socket import SignalSocket
             from substrate.sockets.view_socket import ViewSocket
 
+            signal_socket = SignalSocket()
             registry = IntegrationRegistry(
-                signal_socket=SignalSocket(),
+                signal_socket=signal_socket,
                 capability_socket=CapabilitySocket(),
                 outcome_socket=OutcomeSocket(),
                 view_socket=ViewSocket(),
             )
             registry.register(manifest)
+
+            from umh.signals import set_signal_socket
+
+            set_signal_socket(signal_socket)
+
             print(f"[transport] Registered: {manifest.integration_id} (4 sockets)")
             return registry
         except ImportError:
@@ -117,6 +124,31 @@ def _start_continuity(session_id: str) -> Any:
     except Exception as exc:
         logger.debug("Continuity start failed: %s", exc)
         return None
+
+
+def _start_scheduler() -> Any:
+    """Start the background scheduled trigger producer."""
+    try:
+        from umh.scheduler import create_scheduler_from_preferences
+
+        scheduler = create_scheduler_from_preferences()
+        if scheduler.start():
+            print("[scheduler] Background trigger producer active")
+            return scheduler
+        return None
+    except Exception as exc:
+        logger.debug("Scheduler start failed: %s", exc)
+        return None
+
+
+def _emit_boot_signal(session_id: str, boot_type: str = "daily") -> None:
+    """Emit a boot signal through the signal socket."""
+    try:
+        from umh.signals import emit_boot_event
+
+        emit_boot_event(boot_type=boot_type, session_id=session_id)
+    except Exception as exc:
+        logger.debug("Boot signal emission failed: %s", exc)
 
 
 def _start_perception(mode_state: Any) -> Any:
@@ -195,6 +227,8 @@ def run_boot(text_only: bool = False, voice_mode: str = "ambient") -> int:
     mode_state, session_id = run_daily_boot(text_only=text_only)
     _register_transport()
     continuity = _start_continuity(session_id)
+    scheduler = _start_scheduler()
+    _emit_boot_signal(session_id, boot_type="daily")
     mic = _start_mic(text_only, voice_mode)
     _start_discovery()
     perception = _start_perception(mode_state)
@@ -206,6 +240,7 @@ def run_boot(text_only: bool = False, voice_mode: str = "ambient") -> int:
         mic=mic,
         perception=perception,
         continuity=continuity,
+        scheduler=scheduler,
     )
 
 
@@ -251,6 +286,8 @@ def run_first_boot(text_only: bool = False, voice_mode: str = "ambient") -> int:
     mode_state, session_id = run_daily_boot(text_only=text_only)
     _register_transport()
     continuity = _start_continuity(session_id)
+    scheduler = _start_scheduler()
+    _emit_boot_signal(session_id, boot_type="first_boot")
     mic = _start_mic(text_only, voice_mode)
     perception = _start_perception(mode_state)
 
@@ -261,4 +298,5 @@ def run_first_boot(text_only: bool = False, voice_mode: str = "ambient") -> int:
         mic=mic,
         perception=perception,
         continuity=continuity,
+        scheduler=scheduler,
     )

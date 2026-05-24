@@ -39,6 +39,9 @@ def _build_parser() -> argparse.ArgumentParser:
     sub.add_parser("awakening", help="Run The Awakening reality brief")
     sub.add_parser("continuity", help="Show session continuity state")
     sub.add_parser("transport", help="Show transport registration status")
+    sub.add_parser("triggers", help="Show trigger history")
+    sub.add_parser("scheduler", help="Show scheduler status")
+    sub.add_parser("approvals", help="Show approval queue")
 
     daemon_parser = sub.add_parser("daemon", help="Manage background daemon")
     daemon_sub = daemon_parser.add_subparsers(dest="daemon_action")
@@ -154,6 +157,21 @@ def main(argv: list[str] | None = None) -> int:
         from umh.continuity import show_continuity
 
         return show_continuity()
+
+    if args.command == "triggers":
+        from umh.triggers import show_triggers
+
+        return show_triggers()
+
+    if args.command == "scheduler":
+        from umh.scheduler import show_scheduler_status
+
+        return show_scheduler_status()
+
+    if args.command == "approvals":
+        from umh.approvals import show_approvals
+
+        return show_approvals()
 
     if args.command == "transport":
         from umh.transport import build_workstation_manifest
