@@ -118,6 +118,13 @@ _SYSTEM_COMMANDS: dict[str, str] = {
     "scheduler status": "scheduler",
     "approvals": "approvals",
     "approval queue": "approvals",
+    "outcomes": "outcomes",
+    "pipeline outcomes": "outcomes",
+    "operator": "operator",
+    "operator state": "operator",
+    "capabilities": "local_capabilities",
+    "local capabilities": "local_capabilities",
+    "sysinfo": "local_capabilities",
 }
 
 

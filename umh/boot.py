@@ -3,6 +3,7 @@
 Sprint 8: registers workstation as four-socket substrate transport,
 starts continuity tracking, wires resume state into daily greeting.
 Sprint 9: starts scheduler, wires signal socket, emits boot signal.
+Sprint 10: outcome callbacks, operator state sync, inference checker, capability routing.
 """
 
 from __future__ import annotations
@@ -151,6 +152,44 @@ def _emit_boot_signal(session_id: str, boot_type: str = "daily") -> None:
         logger.debug("Boot signal emission failed: %s", exc)
 
 
+def _sync_operator_boot(node_id: str = "workstation_local") -> None:
+    """Sync operator state to ACTIVE on workstation boot."""
+    try:
+        from umh.operator_sync import sync_boot
+
+        result = sync_boot(node_id)
+        if result.get("status") == "synced":
+            print(f"[operator] State: {result.get('mode', '?')}")
+    except Exception as exc:
+        logger.debug("Operator boot sync failed: %s", exc)
+
+
+def _setup_outcome_callback() -> None:
+    """Register outcome callback to print/speak pipeline results."""
+    try:
+        from umh.outcomes import format_outcome, set_outcome_callback
+
+        def _on_outcome(envelope):
+            text = format_outcome(envelope)
+            if text:
+                print(f"  [outcome] {text}")
+
+        set_outcome_callback(_on_outcome)
+    except Exception as exc:
+        logger.debug("Outcome callback setup failed: %s", exc)
+
+
+def _create_inference_checker() -> Any:
+    """Create the runtime inference checker."""
+    try:
+        from umh.inference_loop import create_inference_checker
+
+        return create_inference_checker()
+    except Exception as exc:
+        logger.debug("Inference checker creation failed: %s", exc)
+        return None
+
+
 def _start_perception(mode_state: Any) -> Any:
     """Start all perception sources (webcam, workspace, metrics)."""
     try:
@@ -226,8 +265,11 @@ def run_boot(text_only: bool = False, voice_mode: str = "ambient") -> int:
 
     mode_state, session_id = run_daily_boot(text_only=text_only)
     _register_transport()
+    _setup_outcome_callback()
+    _sync_operator_boot()
     continuity = _start_continuity(session_id)
     scheduler = _start_scheduler()
+    inference_checker = _create_inference_checker()
     _emit_boot_signal(session_id, boot_type="daily")
     mic = _start_mic(text_only, voice_mode)
     _start_discovery()
@@ -241,6 +283,7 @@ def run_boot(text_only: bool = False, voice_mode: str = "ambient") -> int:
         perception=perception,
         continuity=continuity,
         scheduler=scheduler,
+        inference_checker=inference_checker,
     )
 
 
@@ -285,8 +328,11 @@ def run_first_boot(text_only: bool = False, voice_mode: str = "ambient") -> int:
     # Continue to daily boot + interaction loop
     mode_state, session_id = run_daily_boot(text_only=text_only)
     _register_transport()
+    _setup_outcome_callback()
+    _sync_operator_boot()
     continuity = _start_continuity(session_id)
     scheduler = _start_scheduler()
+    inference_checker = _create_inference_checker()
     _emit_boot_signal(session_id, boot_type="first_boot")
     mic = _start_mic(text_only, voice_mode)
     perception = _start_perception(mode_state)
@@ -299,4 +345,5 @@ def run_first_boot(text_only: bool = False, voice_mode: str = "ambient") -> int:
         perception=perception,
         continuity=continuity,
         scheduler=scheduler,
+        inference_checker=inference_checker,
     )
