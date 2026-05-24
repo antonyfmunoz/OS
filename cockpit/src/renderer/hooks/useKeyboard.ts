@@ -11,14 +11,22 @@ const PANEL_KEYS: Record<string, Panel> = {
   '7': 'editor',
   '8': 'settings',
   '9': 'activity',
+  '0': 'execution',
 }
 
 export function useKeyboard(): void {
   const setPanel = useCockpitStore((s) => s.setPanel)
   const toggleChat = useCockpitStore((s) => s.toggleChat)
+  const cycleWindowMode = useCockpitStore((s) => s.cycleWindowMode)
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent): void {
+      if (e.ctrlKey && e.shiftKey && e.key === 'M') {
+        e.preventDefault()
+        cycleWindowMode('shrink')
+        return
+      }
+
       if (e.ctrlKey && !e.shiftKey && !e.altKey) {
         const panel = PANEL_KEYS[e.key]
         if (panel) {
@@ -36,5 +44,5 @@ export function useKeyboard(): void {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [setPanel, toggleChat])
+  }, [setPanel, toggleChat, cycleWindowMode])
 }

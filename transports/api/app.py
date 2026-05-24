@@ -279,8 +279,10 @@ app.add_middleware(
 )
 
 from transports.api.cockpit import router as cockpit_router
+from transports.api.computer_use import router as execution_router
 
 app.include_router(cockpit_router)
+app.include_router(execution_router)
 app.add_api_websocket_route("/ws", ws_endpoint)
 
 

@@ -22,12 +22,17 @@ class BackendCapability(str, Enum):
     BROWSER_NAVIGATION = "browser_navigation"
     FOREGROUND_DETECTION = "foreground_detection"
     PROCESS_DETECTION = "process_detection"
+    CONTAINER_SPAWN = "container_spawn"
+    CONTAINER_EXEC = "container_exec"
+    VNC_STREAM = "vnc_stream"
 
 
 class BackendEnvironment(str, Enum):
     NATIVE_WINDOWS = "native_windows"
     WSL = "wsl"
     VPS_LINUX = "vps_linux"
+    CONTAINER = "container"
+    VM_HYPERV = "vm_hyperv"
 
 
 @dataclass(frozen=True)
@@ -197,6 +202,29 @@ REGISTERED_BACKENDS: tuple[ActuatorBackendEntry, ...] = (
         python_support=False,
         recommended_use="Not recommended for deterministic proof. Non-deterministic vision agent.",
         notes="Research-grade. No stable CLI. Non-deterministic actions.",
+    ),
+    ActuatorBackendEntry(
+        backend_id="docker_container_novnc",
+        display_name="Docker Container (noVNC + xdotool)",
+        technology="Docker exec + Xvfb + x11vnc + noVNC",
+        environments=frozenset({BackendEnvironment.CONTAINER}),
+        capabilities=frozenset(
+            {
+                BackendCapability.CONTAINER_SPAWN,
+                BackendCapability.CONTAINER_EXEC,
+                BackendCapability.SCREENSHOT_CAPTURE,
+                BackendCapability.BROWSER_NAVIGATION,
+                BackendCapability.VNC_STREAM,
+            }
+        ),
+        install_difficulty="low — docker pull + compose up",
+        integration_hours=4,
+        security_risk="low",
+        requires_display_session=False,
+        python_support=True,
+        recommended_use="Sandboxed computer-use execution. Disposable containers.",
+        notes="Each agent gets isolated container with Xvfb display. "
+        "noVNC streams to cockpit. xdotool/scrot for automation.",
     ),
 )
 

@@ -3,6 +3,9 @@ import { NavRail } from './NavRail'
 import { HudBar } from './HudBar'
 import { ChatDrawer } from './ChatDrawer'
 import { CommandPalette } from './CommandPalette'
+import { FabLarge } from './FabLarge'
+import { FabMedium } from './FabMedium'
+import { FabSmall } from './FabSmall'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { DashboardPanel } from '../panels/DashboardPanel'
 import { AgentsPanel } from '../panels/AgentsPanel'
@@ -13,6 +16,7 @@ import { KnowledgePanel } from '../panels/KnowledgePanel'
 import { AnalyticsPanel } from '../panels/AnalyticsPanel'
 import { SettingsPanel } from '../panels/SettingsPanel'
 import { EditorPanel } from '../panels/EditorPanel'
+import { ExecutionPanel } from '../panels/ExecutionPanel'
 
 function ActivePanel() {
   const activePanel = useCockpitStore((s) => s.activePanel)
@@ -36,12 +40,42 @@ function ActivePanel() {
       return <EditorPanel />
     case 'settings':
       return <SettingsPanel />
+    case 'execution':
+      return <ExecutionPanel />
     default:
       return <DashboardPanel />
   }
 }
 
 export function Shell() {
+  const windowMode = useCockpitStore((s) => s.windowMode)
+
+  if (windowMode === 'invisible') return null
+
+  if (windowMode === 'small-fab') {
+    return (
+      <div className="flex items-center justify-center h-screen" style={{ background: 'transparent' }}>
+        <FabSmall />
+      </div>
+    )
+  }
+
+  if (windowMode === 'medium-fab') {
+    return (
+      <div className="flex items-center justify-center h-screen" style={{ background: 'transparent' }}>
+        <FabMedium />
+      </div>
+    )
+  }
+
+  if (windowMode === 'large-fab') {
+    return (
+      <div className="flex items-center justify-center h-screen" style={{ background: 'transparent' }}>
+        <FabLarge />
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col h-screen" style={{ background: 'var(--bg)' }}>
       <TitleBar />

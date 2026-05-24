@@ -16,6 +16,8 @@ export function CommandPalette() {
   const toggleChat = useCockpitStore((s) => s.toggleChat)
   const setMode = useCockpitStore((s) => s.setMode)
 
+  const setWindowMode = useCockpitStore((s) => s.setWindowMode)
+
   const commands: Command[] = [
     { id: 'dashboard', label: 'Go to Dashboard', shortcut: 'Ctrl+1', action: () => setPanel('dashboard') },
     { id: 'agents', label: 'Go to Agents', shortcut: 'Ctrl+2', action: () => setPanel('agents') },
@@ -26,10 +28,16 @@ export function CommandPalette() {
     { id: 'editor', label: 'Go to IDE', shortcut: 'Ctrl+7', action: () => setPanel('editor') },
     { id: 'settings', label: 'Go to Settings', shortcut: 'Ctrl+8', action: () => setPanel('settings') },
     { id: 'activity', label: 'Go to Activity', shortcut: 'Ctrl+9', action: () => setPanel('activity') },
+    { id: 'execution', label: 'Go to Execution', shortcut: 'Ctrl+0', action: () => setPanel('execution') },
     { id: 'chat', label: 'Toggle DEX Chat', shortcut: 'Ctrl+/', action: toggleChat },
     { id: 'mode-execute', label: 'Switch to EXECUTE mode', action: () => setMode('EXECUTE') },
     { id: 'mode-plan', label: 'Switch to PLAN mode', action: () => setMode('PLAN') },
     { id: 'mode-review', label: 'Switch to REVIEW mode', action: () => setMode('REVIEW') },
+    { id: 'win-maximized', label: 'Window: Maximized', action: () => setWindowMode('maximized') },
+    { id: 'win-large-fab', label: 'Window: Large FAB', action: () => setWindowMode('large-fab') },
+    { id: 'win-medium-fab', label: 'Window: Medium FAB', action: () => setWindowMode('medium-fab') },
+    { id: 'win-small-fab', label: 'Window: Small FAB', action: () => setWindowMode('small-fab') },
+    { id: 'win-invisible', label: 'Window: Invisible', action: () => setWindowMode('invisible') },
   ]
 
   useEffect(() => {
