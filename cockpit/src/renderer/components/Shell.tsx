@@ -9,6 +9,9 @@ import { AgentsPanel } from '../panels/AgentsPanel'
 import { TasksPanel } from '../panels/TasksPanel'
 import { ApprovalsPanel } from '../panels/ApprovalsPanel'
 import { ActivityPanel } from '../panels/ActivityPanel'
+import { KnowledgePanel } from '../panels/KnowledgePanel'
+import { AnalyticsPanel } from '../panels/AnalyticsPanel'
+import { SettingsPanel } from '../panels/SettingsPanel'
 
 function PanelPlaceholder({ name }: { name: string }) {
   return (
@@ -40,13 +43,13 @@ function ActivePanel() {
     case 'activity':
       return <ActivityPanel />
     case 'knowledge':
-      return <PanelPlaceholder name="World Model Explorer" />
+      return <KnowledgePanel />
     case 'analytics':
-      return <PanelPlaceholder name="Intelligence Metrics" />
+      return <AnalyticsPanel />
     case 'editor':
       return <PanelPlaceholder name="IDE" />
     case 'settings':
-      return <PanelPlaceholder name="System Configuration" />
+      return <SettingsPanel />
     default:
       return <DashboardPanel />
   }
