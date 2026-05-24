@@ -29,11 +29,15 @@ voice = [
     "webrtcvad",
     "librosa",
     "silero-vad",
+    "sounddevice",
+]
+perception = [
+    "opencv-python-headless",
 ]
 telegram = ["python-telegram-bot"]
 scraping = ["playwright", "yt-dlp"]
 agents = ["claude-agent-sdk>=0.1.55"]
-all = ["universal-meta-harness[voice,telegram,scraping,agents]"]
+all = ["universal-meta-harness[voice,perception,telegram,scraping,agents]"]
 
 [project.scripts]
 umh = "umh.__main__:main"
