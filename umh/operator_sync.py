@@ -301,8 +301,8 @@ def show_operator_state(node_id: str = _NODE_ID) -> int:
             for t in state.transitions[-5:]:
                 at = t.occurred_at[:19] if len(t.occurred_at) > 19 else t.occurred_at
                 print(f"    [{t.trigger}] {t.from_mode} -> {t.to_mode} at {at}")
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Transition history display failed: %s", exc)
 
     print()
     return 0

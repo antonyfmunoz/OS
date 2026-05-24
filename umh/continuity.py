@@ -234,8 +234,8 @@ class SessionContinuity:
         if self._bridge is not None:
             try:
                 return self._bridge.get_stats()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Bridge get_stats failed: %s", exc)
 
         return {
             "session_id": self._session_id,

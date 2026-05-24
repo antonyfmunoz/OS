@@ -116,8 +116,8 @@ class WebcamMonitor:
         if self._capture is not None:
             try:
                 self._capture.release()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Webcam release failed: %s", exc)
             self._capture = None
 
     def _poll_loop(self) -> None:

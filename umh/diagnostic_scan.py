@@ -298,8 +298,8 @@ class DiagnosticScanner:
                     for line in result.stdout.strip().split("\n"):
                         if line:
                             repos.append(os.path.dirname(line))
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Git repo discovery failed for %s: %s", base, exc)
 
         dr.entities_found = len(repos)
         for repo in repos[:10]:
@@ -323,8 +323,8 @@ class DiagnosticScanner:
                     )
                     if result.returncode == 0 and result.stdout.strip():
                         languages.add(lang)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Language scan failed for %s in %s: %s", ext, repo, exc)
 
         if languages:
             dr.observations.append(f"languages: {', '.join(sorted(languages))}")
@@ -352,8 +352,8 @@ class DiagnosticScanner:
             observations.append(f"disk: {disk.total // (1024**3)} GB ({disk.percent}% used)")
             observations.append(f"cpu_cores: {psutil.cpu_count()}")
             dr.entities_found = 3
-        except ImportError:
-            pass
+        except ImportError as exc:
+            logger.debug("psutil not available: %s", exc)
 
         dr.observations = observations
         dr.status = DomainScanStatus.COMPLETED

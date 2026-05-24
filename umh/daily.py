@@ -66,8 +66,8 @@ def _log_boot_health() -> None:
         if down:
             names = ", ".join(r.name for r in down)
             logger.info("Boot health: %d/%d subsystems DOWN: %s", len(down), len(results), names)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Boot health check failed: %s", exc)
 
 
 def _get_recent_trigger_count() -> int:

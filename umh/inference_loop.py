@@ -96,8 +96,8 @@ def create_inference_checker(preferences: Any = None) -> InferenceChecker:
             from umh.profile import ProfileManager
 
             preferences = ProfileManager().get_preferences()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Preferences load failed: %s", exc)
 
     interval = DEFAULT_INFERENCE_INTERVAL_S
     debounce = SUGGESTION_DEBOUNCE_S

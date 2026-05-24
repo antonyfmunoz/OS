@@ -85,8 +85,8 @@ def _collect_raw() -> dict[str, Any]:
         from daemon.umh_node.metrics import collect_metrics
 
         return collect_metrics()
-    except ImportError:
-        pass
+    except ImportError as exc:
+        logger.debug("daemon metrics not available: %s", exc)
 
     try:
         import psutil
@@ -94,25 +94,25 @@ def _collect_raw() -> dict[str, Any]:
         metrics: dict[str, Any] = {}
         try:
             metrics["cpu"] = psutil.cpu_percent(interval=0.1)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("CPU metric failed: %s", exc)
         try:
             metrics["memory"] = psutil.virtual_memory().percent
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Memory metric failed: %s", exc)
         try:
             import platform
 
             disk_path = "/" if platform.system() != "Windows" else "C:\\"
             metrics["disk"] = psutil.disk_usage(disk_path).percent
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Disk metric failed: %s", exc)
         try:
             battery = psutil.sensors_battery()
             if battery is not None:
                 metrics["battery"] = battery.percent
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Battery metric failed: %s", exc)
         try:
             net = psutil.net_io_counters()
             if net:
@@ -120,8 +120,8 @@ def _collect_raw() -> dict[str, Any]:
                     "bytes_sent": net.bytes_sent,
                     "bytes_recv": net.bytes_recv,
                 }
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Network metric failed: %s", exc)
         return metrics
     except ImportError:
         logger.info("psutil not installed — metrics collection disabled")

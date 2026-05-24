@@ -243,8 +243,8 @@ def show_capabilities() -> int:
         try:
             health = handler.health()
             print(f"\n  Status: {health.status}")
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Capability handler health check failed: %s", exc)
 
     print()
     return 0

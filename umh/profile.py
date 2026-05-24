@@ -171,8 +171,8 @@ def show_settings() -> int:
         if config.is_multi_mode:
             for mode, preset in config.mode_overrides.items():
                 print(f"    {mode}:  {preset}")
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Personality display failed: %s", exc)
 
     try:
         from substrate.sockets.sensing_port import sensing_summary
@@ -183,8 +183,8 @@ def show_settings() -> int:
             print(f"  Sensing adapters: {summary['total']} registered")
             for family in summary.get("families", []):
                 print(f"    - {family}")
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Sensing summary failed: %s", exc)
 
     print("=" * 48)
     print()

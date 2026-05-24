@@ -242,8 +242,8 @@ class WorkstationDaemon:
         finally:
             try:
                 loop.close()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Event loop close failed: %s", exc)
 
     def _emit_heartbeat(self) -> None:
         """Emit relay heartbeat to substrate."""
@@ -280,20 +280,20 @@ class WorkstationDaemon:
         if self._perception is not None:
             try:
                 self._perception.stop_all()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Perception shutdown failed: %s", exc)
 
         if self._scheduler is not None:
             try:
                 self._scheduler.stop()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Scheduler shutdown failed: %s", exc)
 
         if self._continuity is not None:
             try:
                 self._continuity.save_on_exit()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Continuity save failed: %s", exc)
 
         if self._mesh_client is not None:
             try:
@@ -301,15 +301,15 @@ class WorkstationDaemon:
                 asyncio.set_event_loop(loop)
                 loop.run_until_complete(self._mesh_client.stop())
                 loop.close()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Mesh client shutdown failed: %s", exc)
 
         try:
             from umh.operator_sync import sync_exit
 
             sync_exit(self._node_id)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Operator sync exit failed: %s", exc)
 
         self._update_status("stopped")
         self._remove_pid()
@@ -327,8 +327,8 @@ class WorkstationDaemon:
         try:
             if os.path.exists(PID_FILE):
                 os.remove(PID_FILE)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Failed to remove PID file: %s", exc)
 
     def _update_status(self, state: str) -> None:
         os.makedirs(os.path.dirname(STATUS_FILE), exist_ok=True)
@@ -426,8 +426,8 @@ def stop_daemon() -> int:
         print(f"Daemon PID {pid} not running (stale PID file).")
         try:
             os.remove(PID_FILE)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Failed to remove stale PID file: %s", exc)
         return 1
 
     try:
