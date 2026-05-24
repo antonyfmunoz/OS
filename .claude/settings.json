@@ -71,6 +71,16 @@
             "command": "f=\"$CLAUDE_TOOL_INPUT_FILE_PATH\"; if [[ \"$f\" == *.py ]] && command -v ruff &>/dev/null; then ruff format \"$f\" --quiet 2>/dev/null && echo \"[Format] $f\" || true; fi"
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /opt/OS/scripts/memory_instant_sync.py",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "PreCompact": [
