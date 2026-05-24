@@ -137,7 +137,7 @@ class PermissionStore:
         if not os.path.exists(self._path):
             return
         try:
-            with open(self._path) as f:
+            with open(self._path, encoding="utf-8") as f:
                 data = json.load(f)
             for scope_val, grant_data in data.get("grants", {}).items():
                 self._grants[scope_val] = PermissionGrant.from_dict(grant_data)
@@ -151,7 +151,7 @@ class PermissionStore:
                 "grants": {k: v.as_dict() for k, v in self._grants.items()},
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }
-            with open(self._path, "w") as f:
+            with open(self._path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
         except Exception as exc:
             logger.debug("Failed to save permissions: %s", exc)

@@ -187,7 +187,7 @@ def load_personality() -> PersonalityConfig:
     """Load personality config from disk, or return default."""
     if os.path.exists(PERSONALITY_FILE):
         try:
-            with open(PERSONALITY_FILE) as f:
+            with open(PERSONALITY_FILE, encoding="utf-8") as f:
                 data = json.load(f)
             return PersonalityConfig(
                 preset=PersonalityPreset(data.get("preset", "operator")),
@@ -203,7 +203,7 @@ def save_personality(config: PersonalityConfig) -> None:
     """Save personality config to disk."""
     os.makedirs(os.path.dirname(PERSONALITY_FILE), exist_ok=True)
     try:
-        with open(PERSONALITY_FILE, "w") as f:
+        with open(PERSONALITY_FILE, "w", encoding="utf-8") as f:
             json.dump(asdict(config), f, indent=2)
     except Exception as exc:
         logger.debug("Failed to save personality: %s", exc)
