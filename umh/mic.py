@@ -220,6 +220,9 @@ class _MicBase:
         if self._transcription_thread is not None:
             self._transcription_thread.join(timeout=3.0)
             self._transcription_thread = None
+        self._speech_buffer.clear()
+        self._silence_count = 0
+        self._is_speech_active = False
 
 
 class AmbientMic(_MicBase):
@@ -330,6 +333,11 @@ class PushToTalkMic(_MicBase):
             self._audio_queue.put_nowait(audio_data)
         except queue.Full:
             logger.debug("Audio queue full, dropping PTT segment")
+
+    def stop(self) -> None:
+        self._capturing = False
+        self._capture_buffer.clear()
+        super().stop()
 
     def __enter__(self) -> PushToTalkMic:
         self.activate()
