@@ -44,7 +44,6 @@ class SessionContinuity:
     def __init__(self, session_id: str = "") -> None:
         self._bridge = _get_bridge()
         self._session_id = session_id
-        self._started = False
         self._execution_count = 0
         self._mode_transitions = 0
 
@@ -64,7 +63,8 @@ class SessionContinuity:
 
         sid = self._bridge.start_session(session_id)
         self._session_id = sid
-        self._started = True
+        self._execution_count = 0
+        self._mode_transitions = 0
         return sid
 
     def track_execution(

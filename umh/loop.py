@@ -127,6 +127,10 @@ def _cleanup_session(
         perception.stop_all()
     _save_profile_snapshot(mode_state, session_id)
 
+    from umh.outcomes import clear_module_state as _clear_outcomes
+
+    _clear_outcomes()
+
 
 def _build_welcome_back(mode_state: ModeState, continuity: Any = None) -> str:
     """Build a data-rich welcome-back message."""
@@ -473,10 +477,6 @@ def _process_input(
         response = _handle_system_command(cmd, mode_state, voice, perception=perception)
         if response == "__EXIT__":
             _update_audio_loop_status(node_id, "inactive")
-            if perception is not None:
-                perception.stop_all()
-            if continuity is not None:
-                continuity.save_on_exit()
             voice.speak_and_print("State saved. Goodbye.")
             return False
 
@@ -511,8 +511,22 @@ def _process_input(
             return True
 
         if response in ("__SWITCH_MIC_PTT__", "__SWITCH_MIC_AMBIENT__"):
+            old_mic = "ambient" if response == "__SWITCH_MIC_PTT__" else "push_to_talk"
+            new_mic = "push_to_talk" if response == "__SWITCH_MIC_PTT__" else "ambient"
             result = _switch_mic_mode(mic_holder or [], response)
             voice.speak_and_print(result)
+            if "failed" not in result.lower():
+                emit_mode_transition(
+                    old_mode=f"voice:{old_mic}",
+                    new_mode=f"voice:{new_mic}",
+                    reason="user_command",
+                )
+                if continuity is not None:
+                    continuity.track_execution(
+                        command=user_input,
+                        outcome="success",
+                        adapter_used="mic_switch",
+                    )
             return True
 
         if response:
