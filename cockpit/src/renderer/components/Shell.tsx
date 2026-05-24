@@ -12,21 +12,7 @@ import { ActivityPanel } from '../panels/ActivityPanel'
 import { KnowledgePanel } from '../panels/KnowledgePanel'
 import { AnalyticsPanel } from '../panels/AnalyticsPanel'
 import { SettingsPanel } from '../panels/SettingsPanel'
-
-function PanelPlaceholder({ name }: { name: string }) {
-  return (
-    <div className="flex items-center justify-center h-full">
-      <div className="text-center">
-        <p className="font-mono text-lg mb-1" style={{ color: 'var(--accent-cyan)' }}>
-          {name}
-        </p>
-        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-          panel coming next phase
-        </p>
-      </div>
-    </div>
-  )
-}
+import { EditorPanel } from '../panels/EditorPanel'
 
 function ActivePanel() {
   const activePanel = useCockpitStore((s) => s.activePanel)
@@ -47,7 +33,7 @@ function ActivePanel() {
     case 'analytics':
       return <AnalyticsPanel />
     case 'editor':
-      return <PanelPlaceholder name="IDE" />
+      return <EditorPanel />
     case 'settings':
       return <SettingsPanel />
     default:

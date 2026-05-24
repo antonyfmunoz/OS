@@ -1,5 +1,6 @@
 import { app, BrowserWindow, shell, ipcMain } from 'electron'
 import { join } from 'path'
+import { readdir, stat, readFile, writeFile } from 'fs/promises'
 import { is } from '@electron-toolkit/utils'
 import { spawn, ChildProcess } from 'child_process'
 
@@ -77,6 +78,32 @@ ipcMain.handle('voice:start', () => {
 ipcMain.handle('voice:stop', () => {
   voiceServer?.kill()
   voiceServer = null
+})
+
+ipcMain.handle('fs:readDir', async (_e, dirPath: string) => {
+  const entries = await readdir(dirPath, { withFileTypes: true })
+  const result = []
+  for (const entry of entries) {
+    if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === '__pycache__') continue
+    const fullPath = join(dirPath, entry.name)
+    const isDir = entry.isDirectory()
+    result.push({ name: entry.name, path: fullPath, type: isDir ? 'directory' : 'file' })
+  }
+  return result.sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'directory' ? -1 : 1
+    return a.name.localeCompare(b.name)
+  })
+})
+
+ipcMain.handle('fs:readFile', async (_e, filePath: string) => {
+  const info = await stat(filePath)
+  if (info.size > 2 * 1024 * 1024) return '[File too large to display]'
+  return readFile(filePath, 'utf-8')
+})
+
+ipcMain.handle('fs:writeFile', async (_e, filePath: string, content: string) => {
+  await writeFile(filePath, content, 'utf-8')
+  return true
 })
 
 app.whenReady().then(() => {
