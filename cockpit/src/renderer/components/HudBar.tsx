@@ -70,7 +70,7 @@ export function HudBar() {
 
       {/* RAM */}
       <span className="hud-text">
-        ram <span className="hud-value">{pulse?.memory_used_gb?.toFixed(1) ?? '—'}G</span>
+        ram <span className="hud-value">{pulse?.memory_percent?.toFixed(0) ?? '—'}%</span>
       </span>
 
       {/* Mode */}

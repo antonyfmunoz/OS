@@ -43,7 +43,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   fetchTasks: async () => {
     try {
-      const data = await fetchApi<Task[]>('/api/umh/tasks')
+      const data = await fetchApi<Task[]>('/tasks')
       set({ tasks: data })
     } catch {
       set({ tasks: [] })
@@ -52,7 +52,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   fetchWorkflows: async () => {
     try {
-      const data = await fetchApi<Workflow[]>('/api/umh/workflows')
+      const data = await fetchApi<Workflow[]>('/workflows')
       set({ workflows: data })
     } catch {
       set({ workflows: [] })
@@ -62,7 +62,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   setViewMode: (mode) => set({ viewMode: mode }),
 
   triggerWorkflow: async (id) => {
-    await fetchApi(`/api/umh/workflows/${id}/trigger`, {
+    await fetchApi(`/workflows/${id}/trigger`, {
       method: 'POST',
       body: JSON.stringify({}),
     }).catch(() => {})
