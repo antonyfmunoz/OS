@@ -25,9 +25,9 @@ import threading
 from dataclasses import dataclass, field
 from datetime import datetime
 
-logger = logging.getLogger(__name__)
+from umh import UMH_ROOT
 
-UMH_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
+logger = logging.getLogger(__name__)
 DISCOVERY_DIR = os.path.join(UMH_ROOT, "data", "environment_maps")
 
 DISCOVERY_DOMAINS = [
@@ -209,7 +209,7 @@ class DiscoveryScanner:
             os.path.join(home, "dev"),
             os.path.join(home, "projects"),
             os.path.join(home, "code"),
-            os.environ.get("UMH_ROOT", "/opt/OS"),
+            UMH_ROOT,
         ]
         workspaces.extend(d for d in common_repo_dirs if os.path.isdir(d))
 

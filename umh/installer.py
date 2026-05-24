@@ -10,9 +10,9 @@ from __future__ import annotations
 import logging
 import os
 
-logger = logging.getLogger(__name__)
+from umh import UMH_ROOT
 
-UMH_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
+logger = logging.getLogger(__name__)
 
 REQUIRED_DIRS = [
     os.path.join(UMH_ROOT, "data", "onboarding"),

@@ -22,9 +22,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
 
-logger = logging.getLogger(__name__)
+from umh import UMH_ROOT
 
-UMH_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
+logger = logging.getLogger(__name__)
 SCAN_DIR = os.path.join(UMH_ROOT, "data", "diagnostic_scans")
 
 

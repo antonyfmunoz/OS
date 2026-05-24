@@ -22,9 +22,9 @@ import threading
 import time
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from umh import UMH_ROOT
 
-UMH_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
+logger = logging.getLogger(__name__)
 PID_FILE = os.path.join(UMH_ROOT, "data", "sessions", "daemon.pid")
 STATUS_FILE = os.path.join(UMH_ROOT, "data", "sessions", "daemon_status.json")
 

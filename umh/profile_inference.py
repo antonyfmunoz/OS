@@ -17,9 +17,9 @@ import os
 from dataclasses import dataclass, field
 from datetime import datetime
 
-logger = logging.getLogger(__name__)
+from umh import UMH_ROOT
 
-UMH_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
+logger = logging.getLogger(__name__)
 INFERENCE_FILE = os.path.join(UMH_ROOT, "data", "sessions", "inferred_profiles.json")
 
 CATEGORY_TO_MODE: dict[str, str] = {

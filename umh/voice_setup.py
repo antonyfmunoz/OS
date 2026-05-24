@@ -18,9 +18,9 @@ import logging
 import os
 import wave
 
-logger = logging.getLogger(__name__)
+from umh import UMH_ROOT
 
-UMH_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
+logger = logging.getLogger(__name__)
 VOICE_DIR = os.path.join(UMH_ROOT, "data", "voice")
 REFERENCE_WAV = os.path.join(VOICE_DIR, "reference.wav")
 

@@ -8,9 +8,9 @@ import platform
 import shutil
 import subprocess
 
-logger = logging.getLogger(__name__)
+from umh import UMH_ROOT
 
-UMH_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
+logger = logging.getLogger(__name__)
 BOOT_CLAP_PATH = os.path.join(UMH_ROOT, "data", "audio", "boot_clap.wav")
 
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import importlib
-import os
 import platform
 import shutil
 import subprocess
@@ -158,8 +157,9 @@ def _check_network() -> CheckResult:
 
 
 def _check_disk_space() -> CheckResult:
-    umh_root = os.environ.get("UMH_ROOT", "/opt/OS")
-    usage = shutil.disk_usage(umh_root)
+    from umh import UMH_ROOT as _umh_root
+
+    usage = shutil.disk_usage(_umh_root)
     free_gb = usage.free / (1024**3)
     if free_gb >= 5.0:
         return CheckResult("Disk space", Status.OK, f"{free_gb:.1f} GB free")

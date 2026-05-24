@@ -34,6 +34,7 @@ from substrate.sockets.protocols import (
 )
 from substrate.sockets.registry import IntegrationManifest
 from substrate.types import CapabilityCategory, SignalUrgency
+from umh import UMH_ROOT
 
 logger = logging.getLogger(__name__)
 
@@ -269,7 +270,7 @@ class WorkstationCapabilityHandler:
                 capture_output=True,
                 text=True,
                 timeout=timeout,
-                cwd=os.environ.get("UMH_ROOT", "/opt/OS"),
+                cwd=UMH_ROOT,
             )
             return {
                 "exit_code": result.returncode,
