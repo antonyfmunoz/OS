@@ -31,6 +31,7 @@ def _build_parser() -> argparse.ArgumentParser:
     sub.add_parser("permissions", help="View / manage permission grants")
     sub.add_parser("discover", help="Run environment discovery scan")
     sub.add_parser("mesh", help="Show device mesh status")
+    sub.add_parser("personality", help="Show personality configuration")
 
     daemon_parser = sub.add_parser("daemon", help="Manage background daemon")
     daemon_sub = daemon_parser.add_subparsers(dest="daemon_action")
@@ -107,6 +108,11 @@ def main(argv: list[str] | None = None) -> int:
         from umh.mesh import show_mesh_status
 
         return show_mesh_status()
+
+    if args.command == "personality":
+        from umh.personality import show_personality
+
+        return show_personality()
 
     if args.command == "daemon":
         action = getattr(args, "daemon_action", None)
