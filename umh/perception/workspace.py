@@ -139,7 +139,7 @@ def get_active_window_cross_platform() -> dict[str, Any] | None:
                         pid = pid_result.stdout.strip()
                         comm_path = f"/proc/{pid}/comm"
                         if os.path.exists(comm_path):
-                            with open(comm_path) as f:
+                            with open(comm_path, encoding="utf-8") as f:
                                 process = f.read().strip()
                     except Exception:
                         pass

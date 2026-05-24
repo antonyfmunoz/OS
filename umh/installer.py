@@ -23,6 +23,9 @@ REQUIRED_DIRS = [
     os.path.join(UMH_ROOT, "data", "permissions"),
     os.path.join(UMH_ROOT, "data", "sessions"),
     os.path.join(UMH_ROOT, "data", "environment_maps"),
+    os.path.join(UMH_ROOT, "data", "audio"),
+    os.path.join(UMH_ROOT, "data", "diagnostic_scans"),
+    os.path.join(UMH_ROOT, "data", "runtime", "workstation_continuity"),
 ]
 
 FIX_INSTRUCTIONS: dict[str, str] = {
