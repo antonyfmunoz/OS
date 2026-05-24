@@ -13,6 +13,12 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--version", action="store_true", help="Show version and exit")
     parser.add_argument("--text-only", action="store_true", help="Text-only mode (no mic/speaker)")
+    parser.add_argument(
+        "--voice-mode",
+        choices=["ambient", "push-to-talk"],
+        default="ambient",
+        help="Voice input mode (default: ambient)",
+    )
     parser.add_argument("--daemon", action="store_true", help="Run as background daemon")
 
     sub = parser.add_subparsers(dest="command")
@@ -45,7 +51,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "setup":
         from umh.boot import run_first_boot
 
-        return run_first_boot()
+        return run_first_boot(voice_mode=args.voice_mode.replace("-", "_"))
 
     if args.command == "status":
         from umh.daily import show_status
@@ -68,7 +74,8 @@ def main(argv: list[str] | None = None) -> int:
 
     from umh.boot import run_boot
 
-    return run_boot(text_only=args.text_only)
+    voice_mode = args.voice_mode.replace("-", "_")
+    return run_boot(text_only=args.text_only, voice_mode=voice_mode)
 
 
 if __name__ == "__main__":
