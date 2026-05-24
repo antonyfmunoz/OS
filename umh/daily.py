@@ -27,6 +27,35 @@ def _get_persona_name() -> str:
         return os.environ.get("UMH_PERSONA_NAME", "UMH")
 
 
+def _get_approval_count() -> int:
+    try:
+        from umh.approvals import pending_count
+
+        return pending_count()
+    except Exception:
+        return 0
+
+
+def _get_operator_mode(node_id: str = "workstation_local") -> str:
+    try:
+        from substrate.execution.bridge.operator_state import get_operator_state_store
+
+        store = get_operator_state_store()
+        state = store.get_or_create(node_id)
+        return state.mode.value
+    except Exception:
+        return "unknown"
+
+
+def _get_recent_trigger_count() -> int:
+    try:
+        from umh.triggers import get_trigger_history
+
+        return len(get_trigger_history())
+    except Exception:
+        return 0
+
+
 def _format_status(
     persona_name: str,
     mode_state: ModeState,
@@ -59,33 +88,36 @@ def _format_status(
         mesh_str = "standalone"
 
     profiles = " + ".join(p.value for p in mode_state.profiles)
+    operator_str = _get_operator_mode()
+    live_approvals = _get_approval_count()
+    trigger_count = _get_recent_trigger_count()
 
+    w = 44
     lines = [
         "",
-        "╔══════════════════════════════════════════╗",
-        f"║  UMH Workstation — {persona_name:<22s}║",
-        "╠══════════════════════════════════════════╣",
-        f"║  Mode:    {profiles:<13s} Session: {session_id[:8]:<4s} ║",
-        f"║  Voice:   {voice_str:<31s}║",
-        f"║  Webcam:  {webcam_str:<31s}║",
-        f"║  Mesh:    {mesh_str:<31s}║",
+        "╔" + "═" * w + "╗",
+        f"║  UMH Workstation — {persona_name:<{w - 21}s}║",
+        "╠" + "═" * w + "╝",
+        f"  Mode:      {profiles}",
+        f"  Session:   {session_id[:8]}",
+        f"  Voice:     {voice_str}",
+        f"  Webcam:    {webcam_str}",
+        f"  Mesh:      {mesh_str}",
+        f"  Operator:  {operator_str}",
     ]
 
     if trace_count or error_count:
-        lines.append(
-            f"║  Status:  {trace_count} traces, {error_count} errors{' ' * (20 - len(str(trace_count)) - len(str(error_count)))}║"
-        )
-    if pending_count:
-        lines.append(
-            f"║  Pending: {pending_count} approval{'s' if pending_count != 1 else ''}{' ' * (20 - len(str(pending_count)))}║"
-        )
+        lines.append(f"  Status:    {trace_count} traces, {error_count} errors")
+    if live_approvals > 0:
+        lines.append(f"  Approvals: {live_approvals} pending")
+    elif pending_count > 0:
+        lines.append(f"  Approvals: {pending_count} pending")
+    if trigger_count > 0:
+        lines.append(f"  Triggers:  {trigger_count} recent")
     if next_action:
-        na = next_action[:28]
-        lines.append(f"║  Next:    {na:<31s}║")
+        lines.append(f"  Next:      {next_action[:40]}")
 
-    lines.append("╚══════════════════════════════════════════╝")
     lines.append("")
-
     return "\n".join(lines)
 
 
@@ -110,9 +142,15 @@ def run_daily_boot(text_only: bool = False) -> tuple[ModeState, str]:
         error_count = getattr(snapshot.session, "error_count", 0)
         pending_count = len(getattr(snapshot.session, "pending_approvals", []))
 
+    live_approvals = _get_approval_count()
+
     greeting = f"{persona_name} online."
     if resume_summary and resume_summary != "No previous session":
         greeting += f" {resume_summary}."
+    if trace_count or error_count:
+        greeting += f" {trace_count} traces, {error_count} errors."
+    if live_approvals > 0:
+        greeting += f" {live_approvals} pending approval{'s' if live_approvals != 1 else ''}."
     if next_action:
         greeting += f" {next_action}."
 

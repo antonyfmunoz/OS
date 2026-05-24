@@ -45,6 +45,8 @@ def _build_parser() -> argparse.ArgumentParser:
     sub.add_parser("outcomes", help="Show pipeline outcomes")
     sub.add_parser("operator", help="Show operator state")
     sub.add_parser("capabilities", help="Show local capabilities")
+    sub.add_parser("health", help="Run subsystem health check")
+    sub.add_parser("dashboard", help="Show full workstation status dashboard")
 
     daemon_parser = sub.add_parser("daemon", help="Manage background daemon")
     daemon_sub = daemon_parser.add_subparsers(dest="daemon_action")
@@ -190,6 +192,20 @@ def main(argv: list[str] | None = None) -> int:
         from umh.capability_router import show_capabilities
 
         return show_capabilities()
+
+    if args.command == "health":
+        from umh.health import format_health, run_health_check
+
+        results = run_health_check()
+        print(format_health(results))
+        return 0
+
+    if args.command == "dashboard":
+        from umh.modes import ModeState
+        from umh.status_display import show_status as show_full_status
+
+        show_full_status(mode_state=ModeState())
+        return 0
 
     if args.command == "transport":
         from umh.transport import build_workstation_manifest
