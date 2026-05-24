@@ -31,6 +31,8 @@ class EnvironmentType(str, Enum):
     LINUX_SERVER = "linux_server"
     MACOS_DESKTOP = "macos_desktop"
     WSL = "wsl"
+    DOCKER_CONTAINER = "docker_container"
+    VM_HYPERV = "vm_hyperv"
 
 
 class ExecutionSurfaceType(str, Enum):
@@ -39,6 +41,7 @@ class ExecutionSurfaceType(str, Enum):
     TMUX = "tmux"
     CMD = "cmd"
     BASH = "bash"
+    DOCKER_EXEC = "docker_exec"
 
 
 class ExecutionSurfaceRole(str, Enum):
@@ -116,13 +119,20 @@ class EnvironmentBinding:
     environment_id: str = ""
     environment_type: str = ""
     environment_authority: str = ""
+    container_image: str = ""
+    container_id: str = ""
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        d: dict[str, Any] = {
             "environment_id": self.environment_id,
             "environment_type": self.environment_type,
             "environment_authority": self.environment_authority,
         }
+        if self.container_image:
+            d["container_image"] = self.container_image
+        if self.container_id:
+            d["container_id"] = self.container_id
+        return d
 
 
 @dataclass

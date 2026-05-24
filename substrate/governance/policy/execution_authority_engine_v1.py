@@ -137,6 +137,15 @@ GUI_REQUIRING_ACTIONS = frozenset(
     }
 )
 
+CONTAINER_ACTIONS = frozenset(
+    {
+        "container_execution",
+        "container_spawn",
+        "container_browser_automation",
+        "container_shell_execution",
+    }
+)
+
 
 @dataclass
 class EnvironmentAuthority:
@@ -148,10 +157,14 @@ class EnvironmentAuthority:
     can_own_remote_orchestration: bool = False
     can_execute_browser: bool = False
     can_execute_filesystem: bool = False
+    can_own_container_orchestration: bool = False
     max_risk_class: RiskClass = RiskClass.LOW
 
     def permits_gui(self) -> bool:
         return self.can_own_gui and self.can_execute_browser
+
+    def permits_container(self) -> bool:
+        return self.can_own_container_orchestration
 
     def permits_action_risk(self, risk: RiskClass) -> bool:
         risk_rank = {
@@ -172,6 +185,7 @@ class EnvironmentAuthority:
             "can_own_remote_orchestration": self.can_own_remote_orchestration,
             "can_execute_browser": self.can_execute_browser,
             "can_execute_filesystem": self.can_execute_filesystem,
+            "can_own_container_orchestration": self.can_own_container_orchestration,
             "max_risk_class": self.max_risk_class.value,
         }
 
@@ -434,6 +448,14 @@ class ExecutionAuthorityEngine:
             denial_reasons.append("gui_action_requires_environment_specification")
             env_met = False
 
+        if request.action_type in CONTAINER_ACTIONS:
+            env_auth = self._env_authorities.get(request.required_environment_type, None)
+            if env_auth and not env_auth.permits_container():
+                denial_reasons.append(
+                    f"environment_lacks_container_authority: {request.required_environment_type}"
+                )
+                env_met = False
+
         # 4. Capability authority
         cap_met = True
         if request.required_adapter_id:
@@ -589,6 +611,9 @@ class ExecutionAuthorityEngine:
         if request.action_type in GUI_REQUIRING_ACTIONS:
             return RiskClass.MEDIUM
 
+        if request.action_type in CONTAINER_ACTIONS:
+            return RiskClass.LOW
+
         return RiskClass.LOW
 
     def _determine_authority_class(
@@ -613,6 +638,9 @@ class ExecutionAuthorityEngine:
 
         if request.action_type in GUI_REQUIRING_ACTIONS:
             return AuthorityClass.SUPERVISED_EXECUTE
+
+        if request.action_type in CONTAINER_ACTIONS:
+            return AuthorityClass.APPROVE_EXECUTE
 
         if risk_class == RiskClass.HIGH:
             return AuthorityClass.APPROVE_EXECUTE

@@ -10,14 +10,20 @@ export type Panel =
   | 'editor'
   | 'settings'
   | 'activity'
+  | 'execution'
+
+export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected'
+
+const WINDOW_MODE_ORDER: WindowMode[] = ['maximized', 'large-fab', 'medium-fab', 'small-fab', 'invisible']
 
 interface CockpitState {
   activePanel: Panel
   chatOpen: boolean
   splitPanel: Panel | null
   mode: 'EXECUTE' | 'PLAN' | 'REVIEW'
+  windowMode: WindowMode
   apiStatus: ConnectionStatus
   wsStatus: ConnectionStatus
   voiceStatus: ConnectionStatus
@@ -27,6 +33,8 @@ interface CockpitState {
   setChatOpen: (open: boolean) => void
   setSplitPanel: (panel: Panel | null) => void
   setMode: (mode: 'EXECUTE' | 'PLAN' | 'REVIEW') => void
+  setWindowMode: (mode: WindowMode) => void
+  cycleWindowMode: (direction: 'shrink' | 'expand') => void
   setApiStatus: (status: ConnectionStatus) => void
   setWsStatus: (status: ConnectionStatus) => void
   setVoiceStatus: (status: ConnectionStatus) => void
@@ -38,6 +46,7 @@ export const useCockpitStore = create<CockpitState>((set) => ({
   chatOpen: false,
   splitPanel: null,
   mode: 'EXECUTE',
+  windowMode: 'maximized',
   apiStatus: 'disconnected',
   wsStatus: 'disconnected',
   voiceStatus: 'disconnected',
@@ -47,6 +56,20 @@ export const useCockpitStore = create<CockpitState>((set) => ({
   setChatOpen: (open) => set({ chatOpen: open }),
   setSplitPanel: (panel) => set({ splitPanel: panel }),
   setMode: (mode) => set({ mode }),
+  setWindowMode: (windowMode) => {
+    set({ windowMode })
+    window.cockpit?.window?.setMode?.(windowMode)
+  },
+  cycleWindowMode: (direction) =>
+    set((s) => {
+      const idx = WINDOW_MODE_ORDER.indexOf(s.windowMode)
+      const next = direction === 'shrink'
+        ? Math.min(idx + 1, WINDOW_MODE_ORDER.length - 1)
+        : Math.max(idx - 1, 0)
+      const windowMode = WINDOW_MODE_ORDER[next]
+      window.cockpit?.window?.setMode?.(windowMode)
+      return { windowMode }
+    }),
   setApiStatus: (status) => set({ apiStatus: status }),
   setWsStatus: (status) => set({ wsStatus: status }),
   setVoiceStatus: (status) => set({ voiceStatus: status }),

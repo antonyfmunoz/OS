@@ -1,0 +1,38 @@
+version: "3.8"
+
+services:
+  cu-agent-0:
+    build: .
+    image: umh-computer-use:latest
+    container_name: umh-cu-agent-0
+    ports:
+      - "6080:6080"
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+    restart: unless-stopped
+
+  cu-agent-1:
+    build: .
+    image: umh-computer-use:latest
+    container_name: umh-cu-agent-1
+    ports:
+      - "6081:6080"
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+    restart: unless-stopped
+
+  cu-agent-2:
+    build: .
+    image: umh-computer-use:latest
+    container_name: umh-cu-agent-2
+    ports:
+      - "6082:6080"
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+    restart: unless-stopped

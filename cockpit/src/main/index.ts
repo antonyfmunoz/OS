@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain } from 'electron'
+import { app, BrowserWindow, shell, ipcMain, Tray, Menu, nativeImage, Notification } from 'electron'
 import { join } from 'path'
 import { readdir, stat, readFile, writeFile } from 'fs/promises'
 import { is } from '@electron-toolkit/utils'
@@ -6,6 +6,16 @@ import { spawn, ChildProcess } from 'child_process'
 
 let mainWindow: BrowserWindow | null = null
 let voiceServer: ChildProcess | null = null
+let tray: Tray | null = null
+let currentWindowMode = 'maximized'
+
+const WINDOW_MODES = ['maximized', 'large-fab', 'medium-fab', 'small-fab', 'invisible'] as const
+
+const FAB_SIZES: Record<string, { width: number; height: number }> = {
+  'large-fab': { width: 296, height: 200 },
+  'medium-fab': { width: 160, height: 64 },
+  'small-fab': { width: 64, height: 64 },
+}
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -106,15 +116,98 @@ ipcMain.handle('fs:writeFile', async (_e, filePath: string, content: string) => 
   return true
 })
 
+ipcMain.handle('window:setMode', (_e, mode: string) => {
+  if (!mainWindow) return
+  currentWindowMode = mode
+
+  if (mode === 'maximized') {
+    mainWindow.setAlwaysOnTop(false)
+    mainWindow.setResizable(true)
+    mainWindow.setMinimumSize(1024, 600)
+    mainWindow.setSize(1440, 900, true)
+    mainWindow.center()
+    mainWindow.show()
+  } else if (mode === 'invisible') {
+    mainWindow.hide()
+  } else {
+    const size = FAB_SIZES[mode] || { width: 280, height: 180 }
+    mainWindow.setAlwaysOnTop(true, 'floating')
+    mainWindow.setResizable(false)
+    mainWindow.setMinimumSize(size.width, size.height)
+    mainWindow.setSize(size.width, size.height, true)
+    mainWindow.show()
+  }
+
+  mainWindow.webContents.send('window:modeChanged', mode)
+  updateTrayMenu()
+})
+
+ipcMain.handle('notify:show', (_e, title: string, body: string) => {
+  if (Notification.isSupported()) {
+    const notification = new Notification({ title, body })
+    notification.on('click', () => {
+      if (mainWindow) {
+        mainWindow.show()
+        mainWindow.focus()
+      }
+    })
+    notification.show()
+  }
+})
+
+function createTray(): void {
+  const icon = nativeImage.createEmpty()
+  tray = new Tray(icon)
+  tray.setToolTip('UMH Cockpit')
+  tray.on('click', () => {
+    if (mainWindow) {
+      if (currentWindowMode === 'invisible') {
+        currentWindowMode = 'maximized'
+        mainWindow.setAlwaysOnTop(false)
+        mainWindow.setResizable(true)
+        mainWindow.setMinimumSize(1024, 600)
+        mainWindow.setSize(1440, 900, true)
+        mainWindow.center()
+        mainWindow.webContents.send('window:modeChanged', 'maximized')
+      }
+      mainWindow.show()
+      mainWindow.focus()
+    }
+  })
+  updateTrayMenu()
+}
+
+function updateTrayMenu(): void {
+  if (!tray) return
+  const menu = Menu.buildFromTemplate(
+    WINDOW_MODES.map((mode) => ({
+      label: mode === 'maximized' ? 'Maximized' :
+             mode === 'large-fab' ? 'Large FAB' :
+             mode === 'medium-fab' ? 'Medium FAB' :
+             mode === 'small-fab' ? 'Small FAB' : 'Invisible',
+      type: 'radio' as const,
+      checked: currentWindowMode === mode,
+      click: () => {
+        ipcMain.emit('window:setMode', null, mode)
+        mainWindow?.webContents.send('window:modeChanged', mode)
+      },
+    }))
+  )
+  tray.setContextMenu(menu)
+}
+
 app.whenReady().then(() => {
   createWindow()
+  createTray()
 })
 
 app.on('window-all-closed', () => {
   voiceServer?.kill()
+  tray?.destroy()
   app.quit()
 })
 
 app.on('before-quit', () => {
   voiceServer?.kill()
+  tray?.destroy()
 })
