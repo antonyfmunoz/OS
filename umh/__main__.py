@@ -42,6 +42,9 @@ def _build_parser() -> argparse.ArgumentParser:
     sub.add_parser("triggers", help="Show trigger history")
     sub.add_parser("scheduler", help="Show scheduler status")
     sub.add_parser("approvals", help="Show approval queue")
+    sub.add_parser("outcomes", help="Show pipeline outcomes")
+    sub.add_parser("operator", help="Show operator state")
+    sub.add_parser("capabilities", help="Show local capabilities")
 
     daemon_parser = sub.add_parser("daemon", help="Manage background daemon")
     daemon_sub = daemon_parser.add_subparsers(dest="daemon_action")
@@ -172,6 +175,21 @@ def main(argv: list[str] | None = None) -> int:
         from umh.approvals import show_approvals
 
         return show_approvals()
+
+    if args.command == "outcomes":
+        from umh.outcomes import show_outcomes
+
+        return show_outcomes()
+
+    if args.command == "operator":
+        from umh.operator_sync import show_operator_state
+
+        return show_operator_state()
+
+    if args.command == "capabilities":
+        from umh.capability_router import show_capabilities
+
+        return show_capabilities()
 
     if args.command == "transport":
         from umh.transport import build_workstation_manifest

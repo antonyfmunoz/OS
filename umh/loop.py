@@ -6,6 +6,7 @@ Sprint 4: perception integration (webcam, workspace, metrics).
 Sprint 6: personality command, sensing adapter display.
 Sprint 8: continuity tracking, awakening command, transport status.
 Sprint 9: approval queue, signal emission, scheduler, triggers.
+Sprint 10: outcome display, capability routing, operator state sync, inference suggestions.
 
 When voice is enabled, stdin runs in a background thread and the main loop
 polls both the mic transcript queue and the stdin queue. When voice is
@@ -80,6 +81,16 @@ def _update_audio_loop_status(node_id: str, status: str) -> None:
             fn(node_id)
     except (ImportError, Exception) as exc:
         logger.debug("Audio loop status update failed: %s", exc)
+
+
+def _sync_operator_exit(node_id: str) -> None:
+    """Sync operator state to IDLE on workstation exit."""
+    try:
+        from umh.operator_sync import sync_exit
+
+        sync_exit(node_id)
+    except Exception as exc:
+        logger.debug("Operator exit sync failed: %s", exc)
 
 
 def _emit_input_signal(text: str, source: str) -> None:
@@ -226,6 +237,24 @@ def _handle_system_command(
         show_approvals()
         return ""
 
+    if cmd.command == "outcomes":
+        from umh.outcomes import show_outcomes
+
+        show_outcomes()
+        return ""
+
+    if cmd.command == "operator":
+        from umh.operator_sync import show_operator_state
+
+        show_operator_state()
+        return ""
+
+    if cmd.command == "local_capabilities":
+        from umh.capability_router import show_capabilities
+
+        show_capabilities()
+        return ""
+
     return f"Unknown command: {cmd.command}"
 
 
@@ -269,6 +298,12 @@ def _help_text(mode_state: ModeState) -> str:
   reject <id>         — reject a pending item
   triggers            — show trigger history
   scheduler           — show scheduler status
+  outcomes            — show pipeline outcomes
+  operator            — show operator state
+  capabilities        — show local capabilities
+  open <url>          — open URL in browser
+  system info         — show system metrics
+  run <command>       — execute shell command
   exit / bye          — save state and exit"""
 
 
@@ -337,6 +372,22 @@ def _process_input(
         _record_transcript(node_id, response or "(no response)", source="system")
         return True
 
+    from umh.capability_router import invoke_capability
+
+    cap_response = invoke_capability(user_input)
+    if cap_response is not None:
+        _update_audio_loop_status(node_id, "responding")
+        voice.speak_and_print(cap_response)
+        _update_audio_loop_status(node_id, "cooling_down")
+        if continuity is not None:
+            continuity.track_execution(
+                command=user_input,
+                outcome="success",
+                adapter_used="capability",
+            )
+        _record_transcript(node_id, cap_response, source="system")
+        return True
+
     _update_audio_loop_status(node_id, "responding")
 
     t0 = time.time()
@@ -375,6 +426,7 @@ def run_interaction_loop(
     perception: Any = None,
     continuity: Any = None,
     scheduler: Any = None,
+    inference_checker: Any = None,
 ) -> int:
     """Main interaction loop — races voice and text input.
 
@@ -408,11 +460,28 @@ def run_interaction_loop(
 
     if mic is None or not mic.is_listening:
         return _text_only_loop(
-            mode_state, voice, persona_name, prompt, node_id, perception, continuity, scheduler
+            mode_state,
+            voice,
+            persona_name,
+            prompt,
+            node_id,
+            perception,
+            continuity,
+            scheduler,
+            inference_checker,
         )
 
     return _voice_text_loop(
-        mode_state, voice, persona_name, prompt, node_id, mic, perception, continuity, scheduler
+        mode_state,
+        voice,
+        persona_name,
+        prompt,
+        node_id,
+        mic,
+        perception,
+        continuity,
+        scheduler,
+        inference_checker,
     )
 
 
@@ -425,8 +494,14 @@ def _text_only_loop(
     perception: Any = None,
     continuity: Any = None,
     scheduler: Any = None,
+    inference_checker: Any = None,
 ) -> int:
     while True:
+        if inference_checker is not None:
+            suggestion = inference_checker.check(mode_state.primary_profile.value)
+            if suggestion:
+                print(f"  [inference] {suggestion}")
+
         try:
             user_input = input(prompt).strip()
         except (EOFError, KeyboardInterrupt):
@@ -445,6 +520,7 @@ def _text_only_loop(
         ):
             break
 
+    _sync_operator_exit(node_id)
     if scheduler is not None:
         scheduler.stop()
     if continuity is not None:
@@ -464,6 +540,7 @@ def _voice_text_loop(
     perception: Any = None,
     continuity: Any = None,
     scheduler: Any = None,
+    inference_checker: Any = None,
 ) -> int:
     """Concurrent voice + text loop.
 
@@ -484,6 +561,11 @@ def _voice_text_loop(
         while not stop_event.is_set():
             if perception is not None:
                 perception.check_away_timeout()
+
+            if inference_checker is not None:
+                suggestion = inference_checker.check(mode_state.primary_profile.value)
+                if suggestion:
+                    print(f"  [inference] {suggestion}")
 
             text_input: str | None = None
             try:
@@ -536,6 +618,7 @@ def _voice_text_loop(
         stop_event.set()
         _update_audio_loop_status(node_id, "inactive")
         mic.stop()
+        _sync_operator_exit(node_id)
         if scheduler is not None:
             scheduler.stop()
         if continuity is not None:
