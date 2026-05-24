@@ -79,12 +79,9 @@ def _check_faster_whisper() -> CheckResult:
 
 
 def _check_silero_vad() -> CheckResult:
-    try:
-        import torch  # noqa: F401
-
+    if importlib.util.find_spec("torch") is not None:
         return CheckResult("Silero VAD", Status.OK)
-    except ImportError:
-        return CheckResult("Silero VAD", Status.WARN, "torch not installed")
+    return CheckResult("Silero VAD", Status.WARN, "torch not installed")
 
 
 def _check_coqui_tts() -> CheckResult:
@@ -92,12 +89,9 @@ def _check_coqui_tts() -> CheckResult:
 
 
 def _check_xtts_v2() -> CheckResult:
-    try:
-        from TTS.api import TTS  # noqa: F401
-
+    if importlib.util.find_spec("TTS") is not None:
         return CheckResult("XTTS v2 (voice clone)", Status.OK)
-    except ImportError:
-        return CheckResult("XTTS v2 (voice clone)", Status.WARN, "TTS package not installed")
+    return CheckResult("XTTS v2 (voice clone)", Status.WARN, "TTS package not installed")
 
 
 def _check_audio_output() -> CheckResult:
@@ -111,12 +105,11 @@ def _check_audio_output() -> CheckResult:
 
 
 def _check_microphone() -> CheckResult:
-    try:
-        import sounddevice  # noqa: F401
-
-        return CheckResult("Microphone (sounddevice)", Status.OK)
-    except ImportError:
+    if importlib.util.find_spec("sounddevice") is None:
         return CheckResult("Microphone (sounddevice)", Status.WARN, "not installed")
+    try:
+        importlib.import_module("sounddevice")
+        return CheckResult("Microphone (sounddevice)", Status.OK)
     except Exception as exc:
         return CheckResult("Microphone (sounddevice)", Status.WARN, str(exc)[:60])
 

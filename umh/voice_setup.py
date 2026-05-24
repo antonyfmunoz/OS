@@ -13,6 +13,7 @@ Voice cloning requires:
 
 from __future__ import annotations
 
+import importlib.util
 import logging
 import os
 import sys
@@ -110,13 +111,7 @@ def _configure_voice_clone() -> bool:
     print()
 
     # Check if XTTS is available
-    xtts_available = False
-    try:
-        from TTS.api import TTS  # noqa: F401
-
-        xtts_available = True
-    except ImportError:
-        pass
+    xtts_available = importlib.util.find_spec("TTS") is not None
 
     if not xtts_available:
         print("  XTTS v2 not installed. Voice cloning unavailable.")
@@ -135,13 +130,7 @@ def _configure_voice_clone() -> bool:
         return False
 
     # Check if mic is available
-    mic_available = False
-    try:
-        import sounddevice  # noqa: F401
-
-        mic_available = True
-    except ImportError:
-        pass
+    mic_available = importlib.util.find_spec("sounddevice") is not None
 
     if not mic_available:
         print("  Microphone not available (sounddevice not installed).")
@@ -177,7 +166,7 @@ def _configure_voice_clone() -> bool:
 def _record_reference() -> bool:
     """Record a voice reference via microphone."""
     try:
-        import numpy  # noqa: F401 — required by sounddevice
+        import numpy  # noqa: F401 — required by sounddevice at runtime
         import sounddevice as sd
     except ImportError:
         print("  sounddevice/numpy not available.")

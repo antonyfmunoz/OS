@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 __all__ = [
+    "MetricsCollector",
     "PerceptionRouter",
     "WebcamMonitor",
     "WorkspaceTracker",
-    "MetricsCollector",
 ]
 
 
-def _lazy_import(name: str):  # noqa: ANN202
+def _lazy_import(name: str):
     if name == "PerceptionRouter":
         from umh.perception.router import PerceptionRouter
 
@@ -30,5 +30,5 @@ def _lazy_import(name: str):  # noqa: ANN202
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-def __getattr__(name: str):  # noqa: ANN202
+def __getattr__(name: str):
     return _lazy_import(name)
