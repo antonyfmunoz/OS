@@ -174,50 +174,54 @@ class DiagnosticScanner:
         )
         start = datetime.now(timezone.utc)
 
-        # Run basic discovery first
-        self._progress["basic_discovery"] = "running"
-        basic = self._run_basic_discovery()
-        if basic:
-            result.includes_basic_discovery = True
-            result.total_entities += basic.get("platforms_found", 0)
-        self._progress["basic_discovery"] = "completed"
+        try:
+            # Run basic discovery first
+            self._progress["basic_discovery"] = "running"
+            basic = self._run_basic_discovery()
+            if basic:
+                result.includes_basic_discovery = True
+                result.total_entities += basic.get("platforms_found", 0)
+            self._progress["basic_discovery"] = "completed"
 
-        # Scan each domain
-        for domain in ScanDomain:
-            self._progress[domain.value] = "checking_permissions"
-            domain_result = self._scan_domain(domain)
-            result.domain_results[domain.value] = domain_result
-            result.domains_scanned += 1
+            # Scan each domain
+            for domain in ScanDomain:
+                self._progress[domain.value] = "checking_permissions"
+                domain_result = self._scan_domain(domain)
+                result.domain_results[domain.value] = domain_result
+                result.domains_scanned += 1
 
-            if domain_result.status == DomainScanStatus.COMPLETED:
-                result.domains_completed += 1
-                result.total_entities += domain_result.entities_found
-                result.total_relationships += domain_result.relationships_found
-            elif domain_result.status in (
-                DomainScanStatus.SKIPPED,
-                DomainScanStatus.NO_PERMISSION,
-                DomainScanStatus.NO_ADAPTER,
-            ):
-                result.domains_skipped += 1
+                if domain_result.status == DomainScanStatus.COMPLETED:
+                    result.domains_completed += 1
+                    result.total_entities += domain_result.entities_found
+                    result.total_relationships += domain_result.relationships_found
+                elif domain_result.status in (
+                    DomainScanStatus.SKIPPED,
+                    DomainScanStatus.NO_PERMISSION,
+                    DomainScanStatus.NO_ADAPTER,
+                ):
+                    result.domains_skipped += 1
 
-            self._progress[domain.value] = domain_result.status.value
+                self._progress[domain.value] = domain_result.status.value
 
-        end = datetime.now(timezone.utc)
-        result.duration_seconds = (end - start).total_seconds()
-        result.completed_at = end.isoformat()
-        result.maturity_level = self._calculate_maturity(result)
+            end = datetime.now(timezone.utc)
+            result.duration_seconds = (end - start).total_seconds()
+            result.completed_at = end.isoformat()
+            result.maturity_level = self._calculate_maturity(result)
 
-        self._save_result(result)
-        self._result = result
-        self._running = False
+            self._save_result(result)
+            self._result = result
 
-        logger.info(
-            "Diagnostic scan complete: %d/%d domains, %d entities (%.1fs)",
-            result.domains_completed,
-            result.domains_scanned,
-            result.total_entities,
-            result.duration_seconds,
-        )
+            logger.info(
+                "Diagnostic scan complete: %d/%d domains, %d entities (%.1fs)",
+                result.domains_completed,
+                result.domains_scanned,
+                result.total_entities,
+                result.duration_seconds,
+            )
+        except Exception as exc:
+            logger.debug("Diagnostic scan failed: %s", exc)
+        finally:
+            self._running = False
 
     def _scan_domain(self, domain: ScanDomain) -> DomainScanResult:
         """Scan a single domain, checking permissions first."""

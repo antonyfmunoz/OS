@@ -53,6 +53,12 @@ def get_active_manifest() -> IntegrationManifest | None:
     return _active_manifest
 
 
+def clear_module_state() -> None:
+    """Reset transport state for session teardown."""
+    global _active_manifest
+    _active_manifest = None
+
+
 def get_view_subscriber() -> WorkstationViewSubscriber | None:
     """Return the active view subscriber, or None if not registered."""
     if _active_manifest is not None:

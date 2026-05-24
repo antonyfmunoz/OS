@@ -88,7 +88,8 @@ def _get_mesh_str() -> str:
 
         n = get_node_count()
         return f"{n} node{'s' if n != 1 else ''} online" if n else "standalone"
-    except Exception:
+    except Exception as exc:
+        logger.debug("Mesh status query failed: %s", exc)
         return "standalone"
 
 
@@ -101,7 +102,8 @@ def _get_operator_str(node_id: str) -> str:
         return state.mode.value
     except ImportError:
         return "unknown"
-    except Exception:
+    except Exception as exc:
+        logger.debug("Operator state query failed: %s", exc)
         return "unknown"
 
 
@@ -110,7 +112,8 @@ def _get_pipeline_str() -> str:
         from umh.view_renderer import format_view_summary
 
         return format_view_summary()
-    except Exception:
+    except Exception as exc:
+        logger.debug("Pipeline view query failed: %s", exc)
         return "no activity"
 
 
@@ -122,7 +125,8 @@ def _get_approval_str() -> str:
         if n > 0:
             return f"{n} pending"
         return ""
-    except Exception:
+    except Exception as exc:
+        logger.debug("Approval count query failed: %s", exc)
         return ""
 
 
@@ -134,7 +138,8 @@ def _get_outcome_str() -> str:
         if outcomes:
             return f"{len(outcomes)} recent"
         return ""
-    except Exception:
+    except Exception as exc:
+        logger.debug("Outcome query failed: %s", exc)
         return ""
 
 
@@ -160,7 +165,8 @@ def _get_continuity_str(continuity: Any) -> str:
         if count:
             return f" {count} executions tracked"
         return " active"
-    except Exception:
+    except Exception as exc:
+        logger.debug("Continuity status query failed: %s", exc)
         return ""
 
 

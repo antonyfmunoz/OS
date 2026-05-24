@@ -130,10 +130,12 @@ def _cleanup_session(
     from umh.capability_router import clear_module_state as _clear_capabilities
     from umh.outcomes import clear_module_state as _clear_outcomes
     from umh.signals import clear_module_state as _clear_signals
+    from umh.transport import clear_module_state as _clear_transport
 
     _clear_capabilities()
     _clear_outcomes()
     _clear_signals()
+    _clear_transport()
 
 
 def _build_welcome_back(mode_state: ModeState, continuity: Any = None) -> str:
