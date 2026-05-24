@@ -369,13 +369,7 @@ class DiagnosticScanner:
             from umh.discovery import DiscoveryScanner
 
             scanner = DiscoveryScanner()
-            scanner.start_background_scan()
-            import time
-
-            timeout = 30
-            while scanner.is_running and timeout > 0:
-                time.sleep(0.5)
-                timeout -= 0.5
+            scanner.run_synchronous()
 
             if scanner.result:
                 return scanner.result.as_dict()
