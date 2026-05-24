@@ -28,6 +28,8 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+UMH_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
+
 
 def _load_json(path: str | Path) -> dict[str, Any] | None:
     p = Path(path)
@@ -40,37 +42,39 @@ def _load_json(path: str | Path) -> dict[str, Any] | None:
 
 
 def _load_onboarding() -> dict[str, Any] | None:
-    return _load_json("data/sessions/onboarding_result.json")
+    return _load_json(os.path.join(UMH_ROOT, "data", "sessions", "onboarding_result.json"))
 
 
 def _load_personality() -> dict[str, Any] | None:
-    return _load_json("data/sessions/personality.json")
+    return _load_json(os.path.join(UMH_ROOT, "data", "sessions", "personality.json"))
 
 
 def _load_discovery() -> dict[str, Any] | None:
-    return _load_json("data/sessions/discovery_result.json")
+    return _load_json(os.path.join(UMH_ROOT, "data", "sessions", "discovery_result.json"))
 
 
 def _load_governance() -> dict[str, Any] | None:
-    return _load_json("data/sessions/governance.json")
+    return _load_json(os.path.join(UMH_ROOT, "data", "sessions", "governance.json"))
 
 
 def _load_profile_inference() -> dict[str, Any] | None:
-    return _load_json("data/sessions/profile_inference.json")
+    return _load_json(os.path.join(UMH_ROOT, "data", "sessions", "profile_inference.json"))
 
 
 def _load_diagnostic_scan() -> dict[str, Any] | None:
-    scan_dir = Path("data/diagnostic_scans")
+    scan_dir = Path(os.path.join(UMH_ROOT, "data", "diagnostic_scans"))
     if not scan_dir.exists():
         return None
-    scans = sorted(scan_dir.glob("scan_*.json"), reverse=True)
+    scans = sorted(scan_dir.glob("diagnostic_*.json"), reverse=True)
     if not scans:
         return None
     return _load_json(scans[0])
 
 
 def _load_continuity_resume() -> dict[str, Any] | None:
-    return _load_json("data/runtime/workstation_continuity/resume_state.json")
+    return _load_json(
+        os.path.join(UMH_ROOT, "data", "runtime", "workstation_continuity", "resume_state.json")
+    )
 
 
 def gather_reality_data() -> dict[str, Any]:

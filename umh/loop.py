@@ -128,8 +128,10 @@ def _cleanup_session(
     _save_profile_snapshot(mode_state, session_id)
 
     from umh.outcomes import clear_module_state as _clear_outcomes
+    from umh.signals import clear_module_state as _clear_signals
 
     _clear_outcomes()
+    _clear_signals()
 
 
 def _build_welcome_back(mode_state: ModeState, continuity: Any = None) -> str:
