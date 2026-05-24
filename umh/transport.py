@@ -386,6 +386,11 @@ class WorkstationOutcomeReceiver:
 
     def on_outcome(self, envelope: OutcomeEnvelope) -> None:
         self._recent.append(envelope)
+
+        from umh.outcomes import on_outcome_received
+
+        on_outcome_received(envelope)
+
         logger.info(
             "Outcome [%s]: %s — %s",
             envelope.outcome_type,

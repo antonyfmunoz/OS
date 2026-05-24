@@ -69,13 +69,14 @@ class PerceptionRouter:
         return results
 
     def stop_all(self) -> None:
-        """Stop all perception sources."""
+        """Stop all perception sources and reset state."""
         if self._webcam is not None:
             self._webcam.stop()
         if self._workspace is not None:
             self._workspace.stop()
         if self._metrics is not None:
             self._metrics.stop()
+        self._away_triggered = False
         logger.info("Perception stopped")
 
     def _start_webcam(self) -> bool:
