@@ -36,6 +36,9 @@ def _build_parser() -> argparse.ArgumentParser:
     sub.add_parser("scan", help="Run deep diagnostic scan")
     sub.add_parser("profile-inference", help="Show inferred profile modes")
     sub.add_parser("review", help="Show full instance review dashboard")
+    sub.add_parser("awakening", help="Run The Awakening reality brief")
+    sub.add_parser("continuity", help="Show session continuity state")
+    sub.add_parser("transport", help="Show transport registration status")
 
     daemon_parser = sub.add_parser("daemon", help="Manage background daemon")
     daemon_sub = daemon_parser.add_subparsers(dest="daemon_action")
@@ -141,6 +144,38 @@ def main(argv: list[str] | None = None) -> int:
         from umh.review import show_review
 
         return show_review()
+
+    if args.command == "awakening":
+        from umh.awakening import show_awakening
+
+        return show_awakening()
+
+    if args.command == "continuity":
+        from umh.continuity import show_continuity
+
+        return show_continuity()
+
+    if args.command == "transport":
+        from umh.transport import build_workstation_manifest
+
+        manifest = build_workstation_manifest()
+        print(f"Transport: {manifest.integration_id}")
+        print("Sockets: signal, capability, outcome, view")
+        sockets = []
+        if manifest.signal_emitter:
+            sockets.append(
+                f"  signal:     {len(manifest.signal_emitter.describe_signals())} signal types"
+            )
+        if manifest.capability_handler:
+            sockets.append(
+                f"  capability: {len(manifest.capability_handler.describe_capabilities())} capabilities"
+            )
+        if manifest.outcome_receiver:
+            sockets.append("  outcome:    active")
+        if manifest.view_subscriber:
+            sockets.append("  view:       subscribed")
+        print("\n".join(sockets))
+        return 0
 
     if args.command == "daemon":
         action = getattr(args, "daemon_action", None)

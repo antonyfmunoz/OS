@@ -1,4 +1,8 @@
-"""Boot orchestrator — routes to first-boot or daily-boot, starts mic + discovery + perception."""
+"""Boot orchestrator — routes to first-boot or daily-boot, starts mic + discovery + perception.
+
+Sprint 8: registers workstation as four-socket substrate transport,
+starts continuity tracking, wires resume state into daily greeting.
+"""
 
 from __future__ import annotations
 
@@ -66,6 +70,52 @@ def _start_discovery() -> Any:
         return None
     except Exception as exc:
         logger.debug("Discovery scan failed to start: %s", exc)
+        return None
+
+
+def _register_transport() -> Any:
+    """Register the workstation as a four-socket substrate transport."""
+    try:
+        from umh.transport import build_workstation_manifest
+
+        manifest = build_workstation_manifest()
+
+        try:
+            from substrate.sockets.capability_socket import CapabilitySocket
+            from substrate.sockets.outcome_socket import OutcomeSocket
+            from substrate.sockets.registry import IntegrationRegistry
+            from substrate.sockets.signal_socket import SignalSocket
+            from substrate.sockets.view_socket import ViewSocket
+
+            registry = IntegrationRegistry(
+                signal_socket=SignalSocket(),
+                capability_socket=CapabilitySocket(),
+                outcome_socket=OutcomeSocket(),
+                view_socket=ViewSocket(),
+            )
+            registry.register(manifest)
+            print(f"[transport] Registered: {manifest.integration_id} (4 sockets)")
+            return registry
+        except ImportError:
+            logger.info("Substrate sockets not available — transport registered locally only")
+            print(f"[transport] Manifest built: {manifest.integration_id} (offline)")
+            return manifest
+    except Exception as exc:
+        logger.debug("Transport registration failed: %s", exc)
+        return None
+
+
+def _start_continuity(session_id: str) -> Any:
+    """Start continuity tracking for this session."""
+    try:
+        from umh.continuity import SessionContinuity
+
+        continuity = SessionContinuity()
+        sid = continuity.start(session_id)
+        print(f"[continuity] Session: {sid[:16]}...")
+        return continuity
+    except Exception as exc:
+        logger.debug("Continuity start failed: %s", exc)
         return None
 
 
@@ -143,6 +193,8 @@ def run_boot(text_only: bool = False, voice_mode: str = "ambient") -> int:
         return run_first_boot(text_only=text_only, voice_mode=voice_mode)
 
     mode_state, session_id = run_daily_boot(text_only=text_only)
+    _register_transport()
+    continuity = _start_continuity(session_id)
     mic = _start_mic(text_only, voice_mode)
     _start_discovery()
     perception = _start_perception(mode_state)
@@ -153,6 +205,7 @@ def run_boot(text_only: bool = False, voice_mode: str = "ambient") -> int:
         text_only=text_only,
         mic=mic,
         perception=perception,
+        continuity=continuity,
     )
 
 
@@ -196,6 +249,8 @@ def run_first_boot(text_only: bool = False, voice_mode: str = "ambient") -> int:
 
     # Continue to daily boot + interaction loop
     mode_state, session_id = run_daily_boot(text_only=text_only)
+    _register_transport()
+    continuity = _start_continuity(session_id)
     mic = _start_mic(text_only, voice_mode)
     perception = _start_perception(mode_state)
 
@@ -205,4 +260,5 @@ def run_first_boot(text_only: bool = False, voice_mode: str = "ambient") -> int:
         text_only=text_only,
         mic=mic,
         perception=perception,
+        continuity=continuity,
     )
