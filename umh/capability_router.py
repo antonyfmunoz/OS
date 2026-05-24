@@ -25,14 +25,14 @@ from uuid import uuid4
 logger = logging.getLogger(__name__)
 
 _CAPABILITY_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
-    (re.compile(r"^open\s+(https?://\S+)$", re.I), "open_url", "url"),
-    (re.compile(r"^read\s+clipboard$", re.I), "clipboard_read", ""),
-    (re.compile(r"^clipboard$", re.I), "clipboard_read", ""),
-    (re.compile(r"^copy\s+(.+)$", re.I), "clipboard_write", "text"),
-    (re.compile(r"^system\s+info$", re.I), "system_info", ""),
-    (re.compile(r"^sysinfo$", re.I), "system_info", ""),
-    (re.compile(r"^say\s+(.+)$", re.I), "speak_text", "text"),
-    (re.compile(r"^run\s+(.+)$", re.I), "shell_execute", "command"),
+    (re.compile(r"^open\s+(https?://\S+)$", re.IGNORECASE), "open_url", "url"),
+    (re.compile(r"^read\s+clipboard$", re.IGNORECASE), "clipboard_read", ""),
+    (re.compile(r"^clipboard$", re.IGNORECASE), "clipboard_read", ""),
+    (re.compile(r"^copy\s+(.+)$", re.IGNORECASE), "clipboard_write", "text"),
+    (re.compile(r"^system\s+info$", re.IGNORECASE), "system_info", ""),
+    (re.compile(r"^sysinfo$", re.IGNORECASE), "system_info", ""),
+    (re.compile(r"^say\s+(.+)$", re.IGNORECASE), "speak_text", "text"),
+    (re.compile(r"^run\s+(.+)$", re.IGNORECASE), "shell_execute", "command"),
 ]
 
 
