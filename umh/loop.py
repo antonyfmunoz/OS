@@ -95,6 +95,78 @@ def _sync_operator_exit(node_id: str) -> None:
         logger.debug("Operator exit sync failed: %s", exc)
 
 
+def _save_profile_snapshot(mode_state: ModeState, session_id: str) -> None:
+    """Persist profile + session state on exit for next-boot resume."""
+    try:
+        from substrate.workstation.state import WorkstationProfile, WorkstationSessionState
+        from umh.profile import ProfileManager
+
+        profile = WorkstationProfile.detect(session_id=session_id)
+        profile.current_mode = mode_state.primary_profile.value
+        session = WorkstationSessionState()
+        ProfileManager().save_snapshot(profile, session)
+    except Exception as exc:
+        logger.debug("Profile snapshot save failed: %s", exc)
+
+
+def _build_welcome_back(mode_state: ModeState, continuity: Any = None) -> str:
+    """Build a data-rich welcome-back message."""
+    parts = ["Welcome back."]
+
+    if continuity is not None:
+        stats = continuity.get_stats()
+        execs = stats.get("executions", 0)
+        if execs > 0:
+            parts.append(f"{execs} executions while you were away.")
+
+    try:
+        from umh.approvals import pending_count
+
+        n = pending_count()
+        if n > 0:
+            parts.append(f"{n} pending approval{'s' if n != 1 else ''}.")
+    except Exception:
+        pass
+
+    profiles = " + ".join(p.value for p in mode_state.profiles)
+    parts.append(f"Mode: {profiles}.")
+
+    return " ".join(parts)
+
+
+def _switch_mic_mode(mic_holder: list[Any], sentinel: str) -> str:
+    """Switch between AmbientMic and PushToTalkMic at runtime.
+
+    mic_holder is a single-element list so the reference can be swapped.
+    """
+    mic = mic_holder[0] if mic_holder else None
+    if mic is None:
+        return "No mic available — running in text-only mode"
+
+    target = "push_to_talk" if sentinel == "__SWITCH_MIC_PTT__" else "ambient"
+
+    try:
+        mic.stop()
+
+        if target == "push_to_talk":
+            from umh.mic import PushToTalkMic
+
+            new_mic = PushToTalkMic()
+        else:
+            from umh.mic import AmbientMic
+
+            new_mic = AmbientMic()
+
+        if new_mic.start():
+            mic_holder[0] = new_mic
+            return f"Voice mode: {target.replace('_', '-')}"
+        mic.start()
+        return f"Failed to start {target.replace('_', '-')} mic — keeping current mode"
+    except Exception as exc:
+        logger.debug("Mic switch failed: %s", exc)
+        return f"Mic switch failed: {exc}"
+
+
 def _emit_input_signal(text: str, source: str) -> None:
     """Emit a signal for text or voice input through the signal socket."""
     try:
@@ -138,10 +210,10 @@ def _handle_system_command(
         return ""
 
     if cmd.command == "push_to_talk":
-        return "Voice mode: push-to-talk (toggle with 'always on')"
+        return "__SWITCH_MIC_PTT__"
 
     if cmd.command == "always_on":
-        return "Voice mode: ambient (toggle with 'push to talk')"
+        return "__SWITCH_MIC_AMBIENT__"
 
     if cmd.command == "pending":
         from umh.approvals import show_pending
@@ -358,6 +430,7 @@ def _process_input(
     inference_checker: Any = None,
     session_id: str = "",
     text_only: bool = False,
+    mic_holder: list[Any] | None = None,
 ) -> bool:
     """Process a single input line. Returns True to continue, False to exit."""
     if not user_input:
@@ -375,6 +448,8 @@ def _process_input(
             new_profile = mode_state.primary_profile.value
             if new_profile != old_profile:
                 emit_mode_transition(old_profile, new_profile, reason=user_input)
+                if continuity is not None:
+                    continuity.track_mode_transition(old_profile, new_profile, reason=user_input)
 
         response = _handle_system_command(cmd, mode_state, voice, perception=perception)
         if response == "__EXIT__":
@@ -416,6 +491,11 @@ def _process_input(
             )
             return True
 
+        if response in ("__SWITCH_MIC_PTT__", "__SWITCH_MIC_AMBIENT__"):
+            result = _switch_mic_mode(mic_holder or [], response)
+            voice.speak_and_print(result)
+            return True
+
         if response:
             _update_audio_loop_status(node_id, "responding")
             voice.speak_and_print(response)
@@ -437,9 +517,14 @@ def _process_input(
         voice.speak_and_print(cap_response)
         _update_audio_loop_status(node_id, "cooling_down")
         if continuity is not None:
+            _failed = (
+                "failed:" in cap_response.lower()
+                or cap_response.startswith("Capability error:")
+                or "not available" in cap_response.lower()
+            )
             continuity.track_execution(
                 command=user_input,
-                outcome="success",
+                outcome="failure" if _failed else "success",
                 adapter_used="capability",
             )
         _record_transcript(node_id, cap_response, source="system")
@@ -506,9 +591,12 @@ def run_interaction_loop(
     prompt = "you > "
 
     if perception is not None:
-        perception.set_welcome_back_callback(
-            lambda: voice.speak_and_print(f"Welcome back. {mode_state.display()}")
-        )
+
+        def _welcome_back() -> None:
+            summary = _build_welcome_back(mode_state, continuity)
+            voice.speak_and_print(summary)
+
+        perception.set_welcome_back_callback(_welcome_back)
 
     if mic is not None and mic.is_listening:
         print(f"[{persona_name}] Ready. Voice + text input active. Type 'help' for commands.\n")
@@ -594,6 +682,7 @@ def _text_only_loop(
         continuity.save_on_exit()
     if perception is not None:
         perception.stop_all()
+    _save_profile_snapshot(mode_state, session_id)
     return 0
 
 
@@ -620,6 +709,7 @@ def _voice_text_loop(
     Perception router is polled each cycle for auto-AWAY timeout.
     Continuity bridge tracks every execution for session resume.
     """
+    mic_holder = [mic]
     text_queue: queue.Queue[str | None] = queue.Queue()
     stop_event = threading.Event()
     _start_stdin_thread(text_queue, stop_event, prompt)
@@ -656,13 +746,14 @@ def _voice_text_loop(
                     inference_checker=inference_checker,
                     session_id=session_id,
                     text_only=text_only,
+                    mic_holder=mic_holder,
                 ):
                     break
                 sys.stdout.write(prompt)
                 sys.stdout.flush()
                 continue
 
-            voice_input = mic.get_transcript()
+            voice_input = mic_holder[0].get_transcript()
             if voice_input is not None:
                 if voice.is_speaking:
                     voice.interrupt()
@@ -681,6 +772,7 @@ def _voice_text_loop(
                     inference_checker=inference_checker,
                     session_id=session_id,
                     text_only=text_only,
+                    mic_holder=mic_holder,
                 ):
                     break
                 sys.stdout.write(prompt)
@@ -694,7 +786,7 @@ def _voice_text_loop(
     finally:
         stop_event.set()
         _update_audio_loop_status(node_id, "inactive")
-        mic.stop()
+        mic_holder[0].stop()
         _sync_operator_exit(node_id)
         if scheduler is not None:
             scheduler.stop()
@@ -702,5 +794,6 @@ def _voice_text_loop(
             continuity.save_on_exit()
         if perception is not None:
             perception.stop_all()
+        _save_profile_snapshot(mode_state, session_id)
 
     return 0
