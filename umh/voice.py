@@ -79,6 +79,7 @@ class VoiceOutput:
             engine.speak(text)
         except Exception as exc:
             logger.debug("TTS failed: %s", exc)
+            print(f"  [TTS unavailable: {exc}]")
         finally:
             self._speaking = False
 
@@ -113,6 +114,7 @@ class VoiceOutput:
                     engine.speak(sentence)
                 except Exception as exc:
                     logger.debug("TTS sentence failed: %s", exc)
+                    print(f"  [TTS unavailable: {exc}]")
                     break
         finally:
             self._speaking = False

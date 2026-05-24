@@ -29,6 +29,13 @@ def set_outcome_callback(callback: Callable[[Any], None]) -> None:
     _outcome_callback = callback
 
 
+def clear_module_state() -> None:
+    """Reset module-level state between sessions in the same process."""
+    global _outcome_callback
+    _outcome_callback = None
+    _recent_buffer.clear()
+
+
 def on_outcome_received(envelope: Any) -> None:
     """Called by the WorkstationOutcomeReceiver — dispatches to callback."""
     _recent_buffer.append(envelope)
