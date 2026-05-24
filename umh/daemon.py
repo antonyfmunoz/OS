@@ -43,6 +43,11 @@ class WorkstationDaemon:
         self._stop_event = threading.Event()
         self._perception: Any = None
         self._mesh_client: Any = None
+        self._continuity: Any = None
+        self._scheduler: Any = None
+        self._inference_checker: Any = None
+        self._mode_state: Any = None
+        self._session_id: str = ""
         self._started_at: float = 0.0
 
     @property
@@ -69,6 +74,14 @@ class WorkstationDaemon:
 
         logger.info("UMH daemon starting (node=%s, pid=%d)", self._node_id, os.getpid())
 
+        self._init_mode_state()
+        self._register_transport()
+        self._setup_outcome_callback()
+        self._sync_operator_boot()
+        self._start_continuity()
+        self._start_scheduler()
+        self._create_inference_checker()
+        self._emit_boot_signal()
         self._start_perception()
         self._connect_mesh()
         self._update_status("running")
@@ -97,16 +110,93 @@ class WorkstationDaemon:
             if self._perception is not None:
                 self._perception.check_away_timeout()
 
+            if self._inference_checker is not None and self._mode_state is not None:
+                suggestion = self._inference_checker.check(self._mode_state.primary_profile.value)
+                if suggestion:
+                    logger.info("Inference suggestion: %s", suggestion)
+
             self._stop_event.wait(HEARTBEAT_INTERVAL_S)
+
+    def _init_mode_state(self) -> None:
+        """Initialize mode state and session ID for daemon."""
+        try:
+            from umh.modes import ModeState
+
+            self._mode_state = ModeState()
+        except Exception as exc:
+            logger.debug("Mode state init failed: %s", exc)
+
+        from uuid import uuid4
+
+        self._session_id = f"daemon-{uuid4().hex[:12]}"
+
+    def _register_transport(self) -> None:
+        """Register workstation as a four-socket substrate transport."""
+        try:
+            from umh.boot import _register_transport
+
+            _register_transport()
+        except Exception as exc:
+            logger.debug("Transport registration failed: %s", exc)
+
+    def _setup_outcome_callback(self) -> None:
+        try:
+            from umh.boot import _setup_outcome_callback
+
+            _setup_outcome_callback()
+        except Exception as exc:
+            logger.debug("Outcome callback setup failed: %s", exc)
+
+    def _sync_operator_boot(self) -> None:
+        try:
+            from umh.boot import _sync_operator_boot
+
+            _sync_operator_boot(self._node_id)
+        except Exception as exc:
+            logger.debug("Operator boot sync failed: %s", exc)
+
+    def _start_continuity(self) -> None:
+        try:
+            from umh.boot import _start_continuity
+
+            self._continuity = _start_continuity(self._session_id)
+        except Exception as exc:
+            logger.debug("Continuity start failed: %s", exc)
+
+    def _start_scheduler(self) -> None:
+        try:
+            from umh.boot import _start_scheduler
+
+            self._scheduler = _start_scheduler()
+        except Exception as exc:
+            logger.debug("Scheduler start failed: %s", exc)
+
+    def _create_inference_checker(self) -> None:
+        try:
+            from umh.boot import _create_inference_checker
+
+            self._inference_checker = _create_inference_checker()
+        except Exception as exc:
+            logger.debug("Inference checker creation failed: %s", exc)
+
+    def _emit_boot_signal(self) -> None:
+        try:
+            from umh.boot import _emit_boot_signal
+
+            _emit_boot_signal(self._session_id, boot_type="daemon")
+        except Exception as exc:
+            logger.debug("Boot signal emission failed: %s", exc)
 
     def _start_perception(self) -> None:
         """Start perception sources in daemon mode."""
         try:
-            from umh.modes import ModeState
             from umh.perception.router import PerceptionRouter
 
-            mode_state = ModeState()
-            self._perception = PerceptionRouter(mode_state=mode_state, node_id=self._node_id)
+            if self._mode_state is None:
+                from umh.modes import ModeState
+
+                self._mode_state = ModeState()
+            self._perception = PerceptionRouter(mode_state=self._mode_state, node_id=self._node_id)
             results = self._perception.start_all()
             started = [k for k, v in results.items() if v]
             if started:
@@ -193,6 +283,18 @@ class WorkstationDaemon:
             except Exception:
                 pass
 
+        if self._scheduler is not None:
+            try:
+                self._scheduler.stop()
+            except Exception:
+                pass
+
+        if self._continuity is not None:
+            try:
+                self._continuity.save_on_exit()
+            except Exception:
+                pass
+
         if self._mesh_client is not None:
             try:
                 loop = asyncio.new_event_loop()
@@ -201,6 +303,13 @@ class WorkstationDaemon:
                 loop.close()
             except Exception:
                 pass
+
+        try:
+            from umh.operator_sync import sync_exit
+
+            sync_exit(self._node_id)
+        except Exception:
+            pass
 
         self._update_status("stopped")
         self._remove_pid()
