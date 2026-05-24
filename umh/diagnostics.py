@@ -8,9 +8,9 @@ import platform
 import shutil
 import subprocess
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Callable
 
 
 class Status(Enum):

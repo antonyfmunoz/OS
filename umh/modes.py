@@ -78,13 +78,13 @@ _PROFILE_ALIASES: dict[str, ProfileMode] = {
 }
 
 _MODE_SWITCH_PATTERNS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"^(?:switch to |go )?([\w\s]+?) mode$", re.I), "switch"),
-    (re.compile(r"^go ([\w\s]+)$", re.I), "switch"),
-    (re.compile(r"^([\w\s]+?) mode$", re.I), "switch"),
-    (re.compile(r"^stack ([\w\s]+)$", re.I), "stack"),
-    (re.compile(r"^unstack ([\w\s]+)$", re.I), "unstack"),
-    (re.compile(r"^lock it down$", re.I), "emergency"),
-    (re.compile(r"^good night$", re.I), "overnight"),
+    (re.compile(r"^(?:switch to |go )?([\w\s]+?) mode$", re.IGNORECASE), "switch"),
+    (re.compile(r"^go ([\w\s]+)$", re.IGNORECASE), "switch"),
+    (re.compile(r"^([\w\s]+?) mode$", re.IGNORECASE), "switch"),
+    (re.compile(r"^stack ([\w\s]+)$", re.IGNORECASE), "stack"),
+    (re.compile(r"^unstack ([\w\s]+)$", re.IGNORECASE), "unstack"),
+    (re.compile(r"^lock it down$", re.IGNORECASE), "emergency"),
+    (re.compile(r"^good night$", re.IGNORECASE), "overnight"),
 ]
 
 _SYSTEM_COMMANDS: dict[str, str] = {
