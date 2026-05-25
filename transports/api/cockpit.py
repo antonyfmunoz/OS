@@ -1353,6 +1353,109 @@ async def entity_roles():
         return {"error": str(e), "roles": []}
 
 
+# ── Companies CRUD ────────────────────────────────────────────────────────────
+
+
+@router.get("/entities/companies")
+async def entity_companies():
+    """List all companies for the current org."""
+    org_id = _get_org_id()
+    try:
+        from substrate.state.stores.entity_store import EntityStore
+
+        store = EntityStore(org_id)
+        persisted = store.list_companies()
+        if persisted:
+            return {"companies": persisted}
+
+        from projections.eos.entities import default_company
+
+        company = default_company(org_id)
+        return {
+            "companies": [
+                {
+                    "id": company.id,
+                    "name": company.name,
+                    "org_id": company.organization_id,
+                    "venture_id": company.venture_id,
+                    "stage": company.stage,
+                    "stage_name": company.stage_name,
+                    "departments": company.departments,
+                    "north_star": company.north_star,
+                }
+            ]
+        }
+    except Exception as e:
+        return {"error": str(e), "companies": []}
+
+
+@router.get("/entities/companies/{company_id}")
+async def entity_company_detail(company_id: str):
+    """Get a single company by ID."""
+    org_id = _get_org_id()
+    try:
+        from substrate.state.stores.entity_store import EntityStore
+
+        store = EntityStore(org_id)
+        company = store.get_company(company_id)
+        if company:
+            return {"company": company}
+
+        from projections.eos.entities import default_company
+
+        default = default_company(org_id)
+        if default.id == company_id:
+            return {
+                "company": {
+                    "id": default.id,
+                    "name": default.name,
+                    "org_id": default.organization_id,
+                    "venture_id": default.venture_id,
+                    "stage": default.stage,
+                    "stage_name": default.stage_name,
+                    "departments": default.departments,
+                    "north_star": default.north_star,
+                }
+            }
+        return {"error": f"company {company_id} not found"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.post("/entities/companies")
+async def upsert_company(payload: dict):
+    """Create or update a company."""
+    org_id = _get_org_id()
+    name = payload.get("name", "")
+    if not name:
+        return {"error": "name required"}
+    try:
+        from substrate.state.stores.entity_store import EntityStore
+
+        store = EntityStore(org_id)
+        company_id = payload.get("id", "")
+        if not company_id:
+            from uuid import uuid4
+
+            company_id = f"company-{uuid4().hex[:12]}"
+
+        store.save_company(
+            company_id,
+            name,
+            org_id=org_id,
+            venture_id=payload.get("venture_id", ""),
+            portfolio_id=payload.get("portfolio_id", ""),
+            stage=payload.get("stage", 1),
+            stage_name=payload.get("stage_name", "validation"),
+            departments=payload.get("departments", []),
+            north_star=payload.get("north_star", ""),
+            metadata=payload.get("metadata", {}),
+        )
+        return {"ok": True, "company_id": company_id}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 # ── Product connections (EOS / CreatorOS / LYFEOS) ───────────────────────────
 
 
