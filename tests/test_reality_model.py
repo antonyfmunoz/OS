@@ -11,8 +11,8 @@ from substrate.reality_model.instance import InstanceRealityModel, InstanceObser
 
 class TestCanonicalRealityModel:
     @pytest.fixture
-    def canonical(self):
-        return CanonicalRealityModel()
+    def canonical(self, tmp_path):
+        return CanonicalRealityModel(store_path=tmp_path / "canonical.json")
 
     def test_store_pattern(self, canonical):
         pattern = CanonicalPattern(

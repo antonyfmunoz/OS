@@ -90,6 +90,7 @@ from substrate.execution.runtime.agent_runtime import AgentRuntime, TaskType
 from substrate.state.memory.memory import AgentMemory
 from substrate.governance.policy.authority_engine import AuthorityEngine
 from substrate.state.business.venture_knowledge import VentureKnowledgeBase
+from substrate.intelligence.runtime import IntelligenceRuntime
 
 
 @dataclass
@@ -298,6 +299,7 @@ class CognitiveLoop:
         self.runtime = AgentRuntime()
         self.memory = AgentMemory()
         self.authority = AuthorityEngine(ctx)
+        self.intelligence = IntelligenceRuntime()
         # Session tracking for context compaction
         self.session_id: str = str(uuid.uuid4())
         self._messages: list[dict] = []
@@ -425,6 +427,49 @@ class CognitiveLoop:
                     "failed_sources": str(_unified.failed_sources)[:300],
                 },
             )
+
+        # 2a. UNDERSTAND — input intelligence + pattern matching
+        try:
+            from substrate.understanding.intelligence.input_intelligence import InputIntelligence
+
+            _input_intel = InputIntelligence(ctx=self.ctx, venture_id=venture_id)
+            _enhanced_input = _input_intel.process(text, venture_id=venture_id)
+            if _enhanced_input.was_enhanced:
+                text = _enhanced_input.enhanced
+        except Exception as _intel_err:
+            _record_error("understand_input_intelligence", _intel_err, {"prompt": text[:200]})
+
+        # 2b. UNDERSTAND — pattern intelligence enrichment
+        try:
+            _matched_patterns = self.intelligence.patterns.match_patterns(text)
+            if _matched_patterns:
+                _pattern_ctx = "\n".join(
+                    f"- {p.description[:100]} (confidence: {p.confidence:.0%})"
+                    for p in _matched_patterns[:3]
+                )
+                if _unified.pattern_context:
+                    _unified.pattern_context += (
+                        f"\n\nMatched intelligence patterns:\n{_pattern_ctx}"
+                    )
+                else:
+                    _unified.pattern_context = f"Matched intelligence patterns:\n{_pattern_ctx}"
+        except Exception as _pat_err:
+            _record_error("understand_pattern_match", _pat_err, {"prompt": text[:200]})
+
+        # 2c. UNDERSTAND — canonical memory query-back
+        try:
+            from substrate.memory.promoter import MemoryPromoter
+
+            _promoter = MemoryPromoter()
+            _canonical_memories = _promoter.query_canonical(text, limit=3)
+            if _canonical_memories:
+                _mem_ctx = "\n".join(f"- {m.get('content', '')[:120]}" for m in _canonical_memories)
+                if _unified.semantic_memory:
+                    _unified.semantic_memory += f"\n\nCanonical memories:\n{_mem_ctx}"
+                else:
+                    _unified.semantic_memory = f"Canonical memories:\n{_mem_ctx}"
+        except Exception as _mem_err:
+            _record_error("understand_memory_queryback", _mem_err, {"prompt": text[:200]})
 
         original_prompt = text
         _true_raw_input = raw_input if raw_input else text
@@ -656,15 +701,24 @@ class CognitiveLoop:
                 },
             )
 
-        # 7c. FEEDBACK — auto-check if user message closes pending recommendations
+        # 7c. INTELLIGENCE LEARNING — feed execution outcomes into proprietary intelligence
         try:
-            if text and modality == "text":
-                # learning/ removed in convergence — FeedbackLoop no longer exists
-                pass
-        except Exception as _fb_err:
+            _outcome_text = _output_str[:300] if _output_str else ""
+            _is_success = not _execute_failed and bool(_output_str)
+            if text and _outcome_text:
+                self.intelligence.learn_from_execution(
+                    content=text[:300],
+                    action=str(task_type) if task_type else "conversation",
+                    outcome=_outcome_text,
+                    success=_is_success,
+                    domain=self._map_task_to_domain(task_type, text) or "general"
+                    if task_type
+                    else "general",
+                )
+        except Exception as _intel_learn_err:
             _record_error(
-                "feedback_loop",
-                _fb_err,
+                "intelligence_learning",
+                _intel_learn_err,
                 {
                     "venture_id": venture_id or "",
                 },
