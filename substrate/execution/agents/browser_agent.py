@@ -496,10 +496,12 @@ class InstagramAgent(BrowserAgent):
             return False
 
         await self.navigate(self.INSTAGRAM_URL)
+        import asyncio as _aio
+        await _aio.sleep(2)
         ok = await self.fill_form(
             fields={
-                'input[name="username"]': username,
-                'input[name="password"]': password,
+                'input[name="username"], input[name="email"]': username,
+                'input[name="password"], input[name="pass"]': password,
             },
             submit_selector='button[type="submit"]',
         )
