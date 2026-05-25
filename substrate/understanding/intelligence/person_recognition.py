@@ -151,20 +151,13 @@ def recognize_person(
             except Exception as e:
                 logger.warning(f'[PersonRecognition] CRM search failed: {e}')
 
-        # 3. Meetings database (Notion)
+        # 3. Meetings database (Notion) — via SDK client
         if name or email:
             try:
-                import requests
-                from dotenv import load_dotenv
-                load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
-                token = os.getenv('NOTION_API_KEY')
+                from substrate.integrations.notion.auth import get_notion_client
                 db_id = os.getenv('NOTION_MEETINGS_ID')
-                if token and db_id:
-                    headers = {
-                        'Authorization': f'Bearer {token}',
-                        'Notion-Version': '2022-06-28',
-                        'Content-Type': 'application/json',
-                    }
+                if db_id:
+                    client = get_notion_client()
                     filter_clause: dict = {'or': []}
                     if name:
                         filter_clause['or'].append(
@@ -175,13 +168,13 @@ def recognize_person(
                             {'property': 'Email', 'email': {'equals': email}}
                         )
                     if filter_clause['or']:
-                        resp = requests.post(
-                            f'https://api.notion.com/v1/databases/{db_id}/query',
-                            headers=headers,
-                            json={'filter': filter_clause, 'page_size': 5},
-                            timeout=10,
+                        body = {'filter': filter_clause, 'page_size': 5}
+                        resp_data = client.request(
+                            path=f'databases/{db_id}/query',
+                            method='POST',
+                            body=body,
                         )
-                        meeting_results = resp.json().get('results', [])
+                        meeting_results = resp_data.get('results', [])
                         if meeting_results:
                             results['sources'].append('meetings')
                             for m in meeting_results[:2]:
@@ -347,19 +340,12 @@ def build_intelligence_profile(
         profile.last_contact = recognition.get('last_seen', '')
         raw_context = recognition.get('context', '')
 
-        # 2. Pull meeting history from Notion
+        # 2. Pull meeting history from Notion — via SDK client
         try:
-            import requests as _req
-            from dotenv import load_dotenv
-            load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
-            token = os.getenv('NOTION_API_KEY')
+            from substrate.integrations.notion.auth import get_notion_client
             db_id = os.getenv('NOTION_MEETINGS_ID')
-            if token and db_id:
-                headers = {
-                    'Authorization': f'Bearer {token}',
-                    'Notion-Version': '2022-06-28',
-                    'Content-Type': 'application/json',
-                }
+            if db_id:
+                client = get_notion_client()
                 filter_clause: dict = {'or': []}
                 if name:
                     filter_clause['or'].append(
@@ -370,13 +356,13 @@ def build_intelligence_profile(
                         {'property': 'Email', 'email': {'equals': email}}
                     )
                 if filter_clause['or']:
-                    resp = _req.post(
-                        f'https://api.notion.com/v1/databases/{db_id}/query',
-                        headers=headers,
-                        json={'filter': filter_clause, 'page_size': 10},
-                        timeout=10,
+                    body = {'filter': filter_clause, 'page_size': 10}
+                    resp_data = client.request(
+                        path=f'databases/{db_id}/query',
+                        method='POST',
+                        body=body,
                     )
-                    meetings = resp.json().get('results', [])
+                    meetings = resp_data.get('results', [])
                     history_parts = []
                     for m in meetings:
                         props = m.get('properties', {})
@@ -498,9 +484,6 @@ def score_relationship_health(
     Returns score 0-1 and status label.
     """
     try:
-        import requests as _req
-        from dotenv import load_dotenv
-        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
         from substrate.state.context.context import load_context_from_env
         ctx = ctx or load_context_from_env()
 
@@ -508,33 +491,32 @@ def score_relationship_health(
         score = 0.5
         factors = []
 
-        token = os.getenv('NOTION_API_KEY')
         db_id = os.getenv('NOTION_MEETINGS_ID')
         meetings = []
 
-        if token and db_id:
-            headers = {
-                'Authorization': f'Bearer {token}',
-                'Notion-Version': '2022-06-28',
-                'Content-Type': 'application/json',
-            }
-            filter_clause: dict = {'or': []}
-            if name:
-                filter_clause['or'].append(
-                    {'property': 'Person', 'rich_text': {'contains': name}}
-                )
-            if email:
-                filter_clause['or'].append(
-                    {'property': 'Email', 'email': {'equals': email}}
-                )
-            if filter_clause['or']:
-                resp = _req.post(
-                    f'https://api.notion.com/v1/databases/{db_id}/query',
-                    headers=headers,
-                    json={'filter': filter_clause, 'page_size': 10},
-                    timeout=10,
-                )
-                meetings = resp.json().get('results', [])
+        if db_id:
+            try:
+                from substrate.integrations.notion.auth import get_notion_client
+                client = get_notion_client()
+                filter_clause: dict = {'or': []}
+                if name:
+                    filter_clause['or'].append(
+                        {'property': 'Person', 'rich_text': {'contains': name}}
+                    )
+                if email:
+                    filter_clause['or'].append(
+                        {'property': 'Email', 'email': {'equals': email}}
+                    )
+                if filter_clause['or']:
+                    body = {'filter': filter_clause, 'page_size': 10}
+                    resp_data = client.request(
+                        path=f'databases/{db_id}/query',
+                        method='POST',
+                        body=body,
+                    )
+                    meetings = resp_data.get('results', [])
+            except Exception as e:
+                logger.warning(f'[PersonRecognition] Notion query in health score failed: {e}')
 
         total_meetings = len(meetings)
         completed = sum(

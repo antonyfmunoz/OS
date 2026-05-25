@@ -112,32 +112,30 @@ def capture_to_neon(text: str, capture_type: str, ctx=None) -> bool:
 
 
 def capture_to_notion(text: str, capture_type: str, venture_id: str = None) -> bool:
-    """Push a captured task/idea to the Notion dashboard."""
+    """Push a captured task/idea to the Notion dashboard via SDK client."""
     try:
         import os
-        import requests
         from datetime import date
-        from dotenv import load_dotenv
-        load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 
-        token = os.getenv('NOTION_API_KEY')
-        # Route to the right venture database
+        from substrate.integrations.notion.auth import get_notion_client
+
         if venture_id == 'empyrean_creative':
-            your_list_db  = os.getenv('NOTION_YOUR_LIST_EMPYREAN')
+            your_list_db = os.getenv('NOTION_YOUR_LIST_EMPYREAN')
             venture_label = 'Empyrean Creative'
         elif venture_id == 'personal_brand':
-            your_list_db  = os.getenv('NOTION_YOUR_LIST_BRAND')
+            your_list_db = os.getenv('NOTION_YOUR_LIST_BRAND')
             venture_label = 'Personal Brand'
         else:
-            your_list_db  = os.getenv('NOTION_YOUR_LIST_LYFE')
+            your_list_db = os.getenv('NOTION_YOUR_LIST_LYFE')
             venture_label = 'Lyfe Institute'
 
-        if not token or not your_list_db:
+        if not your_list_db:
             return False
 
-        payload = {
-            'parent': {'database_id': your_list_db},
-            'properties': {
+        client = get_notion_client()
+        client.pages.create(
+            parent={'database_id': your_list_db},
+            properties={
                 'Name': {
                     'title': [{'text': {'content': text[:200]}}]
                 },
@@ -159,20 +157,9 @@ def capture_to_notion(text: str, capture_type: str, venture_id: str = None) -> b
                 'Notes': {
                     'rich_text': [{'text': {'content': f'Captured from Discord — {date.today().isoformat()}'}}]
                 },
-            }
-        }
-
-        resp = requests.post(
-            'https://api.notion.com/v1/pages',
-            headers={
-                'Authorization': f'Bearer {token}',
-                'Notion-Version': '2022-06-28',
-                'Content-Type': 'application/json',
             },
-            json=payload,
-            timeout=10,
         )
-        return resp.status_code == 200
+        return True
 
     except Exception as e:
         logger.warning(f"[Capture] Notion write failed: {e}")

@@ -16,6 +16,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from substrate.governance.risk_classes import RiskClass
+from substrate.governance.security import (
+    get_audit_log,
+    get_rate_limiter,
+    validate_signal_content,
+)
 from substrate.types import Signal, SignalSource, SignalUrgency
 from substrate.sockets.capability_socket import CapabilitySocket
 from substrate.sockets.envelopes import OutcomeEnvelope
@@ -290,9 +295,15 @@ app.add_middleware(
 
 from transports.api.cockpit import router as cockpit_router
 from transports.api.computer_use import router as execution_router
+from transports.api.distribution import router as distribution_router, wire_pipeline
+from transports.api.workstation import router as workstation_router
 
 app.include_router(cockpit_router)
 app.include_router(execution_router)
+app.include_router(distribution_router)
+app.include_router(workstation_router)
+
+wire_pipeline(_pipeline.submit_signal)
 app.add_api_websocket_route("/ws", ws_endpoint)
 
 
@@ -318,8 +329,13 @@ class SignalResponse(BaseModel):
 
 @app.get("/api/umh/health")
 async def health():
-    """Health check endpoint."""
-    return _runtime.health()
+    """Health check endpoint with homeostasis."""
+    base = _runtime.health()
+    try:
+        base["homeostasis"] = _pipeline.health_check()
+    except Exception:
+        pass
+    return base
 
 
 @app.post("/api/umh/signal", response_model=SignalResponse)
@@ -392,6 +408,13 @@ async def pipeline_submit(req: SubmitRequest):
     if not _runtime.is_running:
         raise HTTPException(status_code=503, detail="Substrate runtime not started")
 
+    if not get_rate_limiter().allow("submit"):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded")
+
+    validation = validate_signal_content(req.content)
+    if not validation.valid:
+        raise HTTPException(status_code=400, detail=f"Validation failed: {', '.join(validation.violations)}")
+
     try:
         risk = RiskClass[req.risk_class]
     except KeyError:
@@ -435,6 +458,14 @@ async def pipeline_submit(req: SubmitRequest):
             _notion_outcome_receiver.on_outcome(envelope)
         except Exception as exc:
             logger.error("outcome writeback dispatch failed: %s", exc)
+
+    get_audit_log().record(
+        action="pipeline_submit",
+        target=req.adapter_name,
+        outcome="success" if result.success else "blocked",
+        detail=f"risk={req.risk_class} outcome={result.outcome_type}",
+        risk_level="high" if risk not in (RiskClass.READ_ONLY, RiskClass.REVERSIBLE_WRITE) else "low",
+    )
 
     return {
         "trace_id": str(result.trace_id),
