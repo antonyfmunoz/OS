@@ -77,6 +77,15 @@ class OrganismDaemon:
     def is_running(self) -> bool:
         return self._started
 
+    def handoff(self, **kwargs) -> dict[str, Any]:
+        return self._advisor.handoff(**kwargs)
+
+    def execute_parallel(self, tasks: list[dict[str, Any]]) -> dict[str, Any]:
+        return self._advisor.execute_parallel(tasks)
+
+    def check_delegations(self) -> list[dict[str, Any]]:
+        return self._advisor.check_delegations()
+
     def status(self) -> dict[str, Any]:
         return {
             "running": self._started,

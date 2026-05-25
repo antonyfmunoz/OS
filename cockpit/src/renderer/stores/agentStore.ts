@@ -36,6 +36,9 @@ interface AgentState {
   fetchDetail: (id: string) => Promise<void>
   sendSignal: (id: string, signal: string) => Promise<void>
   controlAgent: (action: string, agentId?: string) => Promise<void>
+  handoff: (source: string, target: string, task: string) => Promise<Record<string, unknown>>
+  executeParallel: (tasks: Array<{ content: string }>) => Promise<Record<string, unknown>>
+  checkDelegations: () => Promise<{ followups: unknown[] }>
 }
 
 export const useAgentStore = create<AgentState>((set, get) => ({
@@ -94,5 +97,29 @@ export const useAgentStore = create<AgentState>((set, get) => ({
       body: JSON.stringify({ action, agent_id: agentId }),
     }).catch(() => {})
     get().fetchAgents()
+  },
+
+  handoff: async (source: string, target: string, task: string) => {
+    const result = await fetchApi<Record<string, unknown>>('/organism/handoff', {
+      method: 'POST',
+      body: JSON.stringify({ source_agent: source, target_agent: target, task }),
+    }).catch(() => ({ error: 'handoff failed' }))
+    get().fetchAgents()
+    return result
+  },
+
+  executeParallel: async (tasks: Array<{ content: string }>) => {
+    const result = await fetchApi<Record<string, unknown>>('/organism/parallel', {
+      method: 'POST',
+      body: JSON.stringify({ tasks }),
+    }).catch(() => ({ error: 'parallel execution failed' }))
+    get().fetchAgents()
+    return result
+  },
+
+  checkDelegations: async () => {
+    return fetchApi<{ followups: unknown[] }>('/organism/delegations').catch(() => ({
+      followups: [],
+    }))
   },
 }))

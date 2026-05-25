@@ -120,6 +120,13 @@ class ConcreteExecutionSpine:
     If AI fails, the deterministic result is already available.
     """
 
+    _SIMULATION_RISK_CLASSES = frozenset(
+        {
+            RiskClass.HIGH,
+            RiskClass.CRITICAL,
+        }
+    )
+
     def __init__(
         self,
         memory: Any = None,
@@ -131,6 +138,17 @@ class ConcreteExecutionSpine:
         self._registry = registry
         self._trace = trace_recorder
         self._feedback = feedback_capture
+        self._simulation = None
+
+    def _get_simulation(self):
+        if self._simulation is None:
+            try:
+                from substrate.reality_model.simulation import SimulationReality
+
+                self._simulation = SimulationReality()
+            except Exception:
+                pass
+        return self._simulation
 
     async def execute(
         self,
@@ -169,6 +187,39 @@ class ConcreteExecutionSpine:
             )
 
         try:
+            # Stage 0b: Simulation dry-run for risky actions
+            if verdict.risk_class in self._SIMULATION_RISK_CLASSES:
+                sim = self._get_simulation()
+                if sim:
+                    try:
+                        sim_result = sim.simulate(signal.content)
+                        trace.add_event(
+                            TraceEventType.PLAN_COMPOSED,
+                            f"Simulation: safe={sim_result.safe_to_execute}, "
+                            f"confidence={sim_result.overall_confidence:.2f}, "
+                            f"risks={len(sim_result.diff.risk_factors)}",
+                        )
+                        if not sim_result.safe_to_execute:
+                            trace.complete(success=True)
+                            return ExecutionResult(
+                                signal_id=signal.id,
+                                trace_id=trace.id,
+                                outcome=ExecutionOutcome.BLOCKED,
+                                risk_class=verdict.risk_class,
+                                governance_decision=verdict.decision,
+                                output=(
+                                    f"Simulation blocked execution: "
+                                    f"{', '.join(sim_result.diff.risk_factors[:3])}"
+                                ),
+                                duration_ms=(time.monotonic() - start) * 1000,
+                            )
+                    except Exception as sim_err:
+                        _record_error(
+                            "spine.simulation",
+                            str(sim_err),
+                            {"signal_id": str(signal.id)},
+                        )
+
             # Stage 1: Interpret — deterministic intent classification
             intent = self._classify_intent(signal.content)
             trace.add_event(TraceEventType.SIGNAL_RECEIVED, f"Intent: {intent}")
@@ -279,7 +330,23 @@ class ConcreteExecutionSpine:
                 governance_decision=verdict.decision,
             )
 
-            # Stage 8: Feedback + trace persistence
+            # Stage 8a: Knowledge gap detection → composition trigger
+            try:
+                from substrate.composition.knowledge_gap_trigger import KnowledgeGapTrigger
+
+                _gap_trigger = KnowledgeGapTrigger()
+                _gap_trigger.check_execution_outcome(
+                    input_signal=signal.content,
+                    intent=intent,
+                    output=output,
+                    success=True,
+                    pattern_confidence=0.5,
+                    skill_matched=(provider != "deterministic"),
+                )
+            except Exception as gap_err:
+                _record_error("spine.gap_trigger", str(gap_err), {"signal_id": str(signal.id)})
+
+            # Stage 8b: Feedback + trace persistence
             # Only persist when spine owns the trace (direct call, not from router).
             # When called from the router, the router handles persistence.
             if owns_trace:

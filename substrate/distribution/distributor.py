@@ -29,9 +29,73 @@ class ChannelRouterProtocol(Protocol):
 
 class _NullRouter:
     """No-op router when no channel router is provided."""
-    def notify(self, message: str) -> None: pass
-    def request_approval(self, *, title: str, body: str, request_id: str) -> None: pass
-    def get_status(self) -> dict[str, bool]: return {}
+
+    def notify(self, message: str) -> None:
+        pass
+
+    def request_approval(self, *, title: str, body: str, request_id: str) -> None:
+        pass
+
+    def get_status(self) -> dict[str, bool]:
+        return {}
+
+
+class MultiChannelRouter:
+    """Routes messages across multiple registered channel handlers."""
+
+    def __init__(self) -> None:
+        self._channels: dict[str, ChannelRouterProtocol] = {}
+        self._priority_order: list[str] = []
+
+    def register(self, name: str, handler: ChannelRouterProtocol, priority: int = 0) -> None:
+        self._channels[name] = handler
+        self._priority_order.append(name)
+        self._priority_order.sort(key=lambda n: -priority)
+
+    def unregister(self, name: str) -> None:
+        self._channels.pop(name, None)
+        if name in self._priority_order:
+            self._priority_order.remove(name)
+
+    def notify(self, message: str) -> None:
+        for name in self._priority_order:
+            handler = self._channels.get(name)
+            if handler:
+                try:
+                    handler.notify(message)
+                except Exception as e:
+                    logger.warning("channel %s notify failed: %s", name, e)
+
+    def request_approval(self, *, title: str, body: str, request_id: str) -> None:
+        for name in self._priority_order:
+            handler = self._channels.get(name)
+            if handler:
+                try:
+                    handler.request_approval(title=title, body=body, request_id=request_id)
+                    return
+                except Exception as e:
+                    logger.warning("channel %s approval failed, trying next: %s", name, e)
+
+    def get_status(self) -> dict[str, bool]:
+        status: dict[str, bool] = {}
+        for name, handler in self._channels.items():
+            try:
+                ch_status = handler.get_status()
+                status[name] = bool(ch_status)
+            except Exception:
+                status[name] = False
+        return status
+
+    def route_to(self, channel: str, message: str) -> bool:
+        handler = self._channels.get(channel)
+        if not handler:
+            return False
+        try:
+            handler.notify(message)
+            return True
+        except Exception as e:
+            logger.warning("targeted route to %s failed: %s", channel, e)
+            return False
 
 
 @dataclass
@@ -86,11 +150,13 @@ class DistributionLayer:
     ) -> dict[str, Any]:
         """Accept a signal from any channel and route to pipeline."""
         self._stats.inbound_count += 1
-        self._event_log.append(DistributionEvent(
-            direction="inbound",
-            channel=source_channel,
-            content_preview=content[:100],
-        ))
+        self._event_log.append(
+            DistributionEvent(
+                direction="inbound",
+                channel=source_channel,
+                content_preview=content[:100],
+            )
+        )
 
         if self._submit is None:
             return {"error": "pipeline not configured", "queued": True}
@@ -104,7 +170,11 @@ class DistributionLayer:
         outcome_type = getattr(result, "outcome_type", None) or "unknown"
         success = getattr(result, "success", None)
 
-        if success and outcome_type not in ("governance_denied", "mastery_blocked", "council_rejected"):
+        if success and outcome_type not in (
+            "governance_denied",
+            "mastery_blocked",
+            "council_rejected",
+        ):
             self._deliver_outcome(
                 source_channel,
                 outcome_type,
@@ -129,12 +199,14 @@ class DistributionLayer:
     ) -> None:
         """Deliver outcome notification through channels."""
         self._stats.outbound_count += 1
-        self._event_log.append(DistributionEvent(
-            direction="outbound",
-            channel=channel,
-            content_preview=content_preview,
-            outcome=outcome_type,
-        ))
+        self._event_log.append(
+            DistributionEvent(
+                direction="outbound",
+                channel=channel,
+                content_preview=content_preview,
+                outcome=outcome_type,
+            )
+        )
 
         message = f"[{outcome_type}] {content_preview}"
         try:
@@ -203,6 +275,72 @@ class DistributionLayer:
             "pending_approvals": len(self._pending_approvals),
             "channels": self.channel_status(),
         }
+
+    def broadcast(self, message: str, exclude_channels: list[str] | None = None) -> dict[str, bool]:
+        """Broadcast a message to all channels."""
+        excluded = set(exclude_channels or [])
+        results: dict[str, bool] = {}
+
+        if isinstance(self._router, MultiChannelRouter):
+            for name in self._router._priority_order:
+                if name in excluded:
+                    results[name] = False
+                    continue
+                results[name] = self._router.route_to(name, message)
+        else:
+            try:
+                self._router.notify(message)
+                results["default"] = True
+            except Exception:
+                results["default"] = False
+
+        self._stats.outbound_count += 1
+        self._event_log.append(
+            DistributionEvent(
+                direction="broadcast",
+                channel="all",
+                content_preview=message[:100],
+            )
+        )
+
+        return results
+
+    def route_to_channel(self, channel: str, message: str) -> bool:
+        """Route a message to a specific channel."""
+        if isinstance(self._router, MultiChannelRouter):
+            success = self._router.route_to(channel, message)
+        else:
+            try:
+                self._router.notify(message)
+                success = True
+            except Exception:
+                success = False
+
+        self._event_log.append(
+            DistributionEvent(
+                direction="outbound",
+                channel=channel,
+                content_preview=message[:100],
+            )
+        )
+
+        if success:
+            self._stats.outbound_count += 1
+        else:
+            self._stats.delivery_failures += 1
+
+        return success
+
+    def register_channel(
+        self, name: str, handler: ChannelRouterProtocol, priority: int = 0
+    ) -> None:
+        """Register a new channel handler. Creates MultiChannelRouter if needed."""
+        if not isinstance(self._router, MultiChannelRouter):
+            old_router = self._router
+            self._router = MultiChannelRouter()
+            if not isinstance(old_router, _NullRouter):
+                self._router.register("legacy", old_router, priority=-1)
+        self._router.register(name, handler, priority)
 
     def recent_events(self, limit: int = 20) -> list[dict[str, str]]:
         return [

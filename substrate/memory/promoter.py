@@ -226,6 +226,23 @@ class MemoryPromoter:
                 )
         return decayed
 
+    def query_canonical(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
+        """Search promoted memories by keyword relevance + effective confidence."""
+        if not query or not self._memories:
+            return []
+        query_tokens = _tokenize(query)
+        scored: list[tuple[float, dict[str, Any]]] = []
+        for mem in self._memories:
+            mid = mem.get("memory_id", "")
+            mem_tokens = self._token_cache.get(mid, _tokenize(mem.get("content", "")))
+            similarity = _tfidf_cosine(query_tokens, mem_tokens)
+            if similarity > 0.1:
+                eff_conf = self.effective_confidence(mem)
+                score = similarity * eff_conf
+                scored.append((score, mem))
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [m for _, m in scored[:limit]]
+
     def list_memories(self, limit: int = 50) -> list[dict[str, Any]]:
         return self._memories[-limit:]
 

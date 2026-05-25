@@ -22,6 +22,16 @@ from substrate.types import (
     SubstrateStatus,
 )
 
+
+def get_conn(org_id: str | None = None):
+    """Database cursor via substrate storage layer."""
+    from substrate.state.storage.db import get_conn as _get_conn
+
+    if org_id is not None:
+        return _get_conn(org_id)
+    return _get_conn()
+
+
 from substrate.control_plane.identity import ConcreteIdentityResolver
 from substrate.control_plane.context import ConcreteContextAssembler
 from substrate.control_plane.governance import ConcreteGovernanceEngine
