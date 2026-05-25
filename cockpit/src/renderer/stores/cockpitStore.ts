@@ -2,6 +2,7 @@ import { create } from 'zustand'
 
 export type Panel =
   | 'dashboard'
+  | 'portfolio'
   | 'agents'
   | 'tasks'
   | 'approvals'

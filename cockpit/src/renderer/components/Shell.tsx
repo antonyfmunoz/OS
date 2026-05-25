@@ -17,6 +17,7 @@ import { AnalyticsPanel } from '../panels/AnalyticsPanel'
 import { SettingsPanel } from '../panels/SettingsPanel'
 import { EditorPanel } from '../panels/EditorPanel'
 import { ExecutionPanel } from '../panels/ExecutionPanel'
+import { PortfolioPanel } from '../panels/PortfolioPanel'
 
 function ActivePanel() {
   const activePanel = useCockpitStore((s) => s.activePanel)
@@ -42,6 +43,8 @@ function ActivePanel() {
       return <SettingsPanel />
     case 'execution':
       return <ExecutionPanel />
+    case 'portfolio':
+      return <PortfolioPanel />
     default:
       return <DashboardPanel />
   }
