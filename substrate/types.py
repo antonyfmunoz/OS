@@ -77,6 +77,7 @@ class Identity(BaseModel):
     ai_personality: str
     autonomy_level: int = Field(ge=0, le=4)
     business_stage: str
+    permission_tier: str = Field(default="execute", max_length=20)
 
 
 # ─── Memory ──────────────────────────────────────────────────────────────────
@@ -136,6 +137,118 @@ class ExecutionContext(BaseModel):
 # ─── Governance ──────────────────────────────────────────────────────────────
 
 
+class PermissionTier(str, Enum):
+    """4-tier permission model from ARCHITECTURE.md §4.
+
+    Tiers are cumulative — each higher tier includes all lower capabilities.
+    READ < DRAFT < EXECUTE < COMMIT.
+    """
+
+    READ = "read"
+    DRAFT = "draft"
+    EXECUTE = "execute"
+    COMMIT = "commit"
+
+    @property
+    def rank(self) -> int:
+        return _PERMISSION_TIER_RANK[self]
+
+    def permits(self, required: PermissionTier) -> bool:
+        return self.rank >= required.rank
+
+
+_PERMISSION_TIER_RANK: dict[PermissionTier, int] = {
+    PermissionTier.READ: 0,
+    PermissionTier.DRAFT: 1,
+    PermissionTier.EXECUTE: 2,
+    PermissionTier.COMMIT: 3,
+}
+
+TIER_ACTION_MAP: dict[PermissionTier, frozenset[str]] = {
+    PermissionTier.READ: frozenset(
+        {
+            "analyze",
+            "research",
+            "score",
+            "classify",
+            "summarize",
+            "read",
+            "query",
+            "report",
+            "draft_brief",
+            "generate_brief",
+            "research_prospect",
+            "extract_profile",
+            "read_only_query",
+            "metadata_read",
+            "status_check",
+            "health_check",
+            "inventory_read",
+            "configuration_read",
+            "browser_research",
+        }
+    ),
+    PermissionTier.DRAFT: frozenset(
+        {
+            "draft_message",
+            "draft_content",
+            "create_task",
+            "create_document",
+            "safe_doc_extraction",
+            "safe_doc_normalization",
+            "ingestion_candidate_creation",
+            "memory_candidate_creation",
+        }
+    ),
+    PermissionTier.EXECUTE: frozenset(
+        {
+            "send_dm",
+            "create_outreach",
+            "post_content",
+            "update_external_crm",
+            "book_call",
+            "send_message",
+            "send_email",
+            "publish_content",
+            "bulk_update",
+            "mass_outreach",
+            "browser_execution",
+            "browser_act",
+            "desktop_automation",
+            "container_execution",
+            "container_spawn",
+        }
+    ),
+    PermissionTier.COMMIT: frozenset(
+        {
+            "execute_payment",
+            "delete_records",
+            "financial_execution",
+            "wallet_execution",
+            "trade_placement",
+            "money_allocation",
+            "payment_processing",
+            "production_deployment",
+            "credential_access",
+            "permission_escalation",
+        }
+    ),
+}
+
+
+def required_tier_for_action(action_type: str) -> PermissionTier:
+    """Determine the minimum permission tier required for an action type."""
+    for tier in (
+        PermissionTier.COMMIT,
+        PermissionTier.EXECUTE,
+        PermissionTier.DRAFT,
+        PermissionTier.READ,
+    ):
+        if action_type in TIER_ACTION_MAP[tier]:
+            return tier
+    return PermissionTier.READ
+
+
 class RiskClass(str, Enum):
     CRITICAL = "critical"
     HIGH = "high"
@@ -158,6 +271,7 @@ class GovernanceVerdict(BaseModel):
     decision: GovernanceDecision
     rationale: str = Field(max_length=300)
     conditions: list[str] = Field(default_factory=list)
+    permission_tier: str = Field(default="execute", max_length=20)
     decided_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     decided_by: str = Field(default="substrate", max_length=80)
 
@@ -982,6 +1096,76 @@ class AdapterConfig(BaseModel):
     retry_count: int = 3
     auth_required: bool = False
     registered_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+# ─── Entity Model ─────────────────────────────────────────────────────────
+
+
+class OperatorType(str, Enum):
+    """Who operates a role."""
+
+    HUMAN = "human"
+    AI = "ai"
+    HYBRID = "hybrid"
+
+
+class Role(BaseModel):
+    """The atomic operating unit — ARCHITECTURE.md §3.
+
+    Everything in the system attaches to a role. A role can be operated by
+    human, AI, or both. The role is the unit of authority, delegation, and
+    performance measurement.
+    """
+
+    id: UUID = Field(default_factory=uuid4)
+    name: str = Field(max_length=120)
+    department: str = Field(max_length=80)
+    organization_id: str
+    venture_id: str | None = None
+    operator: OperatorType = OperatorType.HYBRID
+    agent_name: str | None = None
+    permission_tier: str = Field(default="execute", max_length=20)
+    responsibilities: list[str] = Field(default_factory=list)
+    workflows: list[str] = Field(default_factory=list)
+    metrics: list[str] = Field(default_factory=list)
+    tools: list[str] = Field(default_factory=list)
+    documents: list[str] = Field(default_factory=list)
+    autonomy_level: int = Field(ge=0, le=4, default=2)
+    active: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class Department(BaseModel):
+    """A department within a company — groups roles and has its own agent.
+
+    Departments are data entities, not just prompt context. Each has metrics,
+    approval queues, and an AI agent that coordinates the roles within it.
+    """
+
+    id: UUID = Field(default_factory=uuid4)
+    name: str = Field(max_length=80)
+    slug: str = Field(max_length=40)
+    organization_id: str
+    venture_id: str | None = None
+    agent_name: str | None = None
+    permission_tier: str = Field(default="execute", max_length=20)
+    roles: list[str] = Field(default_factory=list)
+    metrics: list[str] = Field(default_factory=list)
+    workflows: list[str] = Field(default_factory=list)
+    active: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class Portfolio(BaseModel):
+    """A founder's portfolio of companies."""
+
+    id: UUID = Field(default_factory=uuid4)
+    user_id: str
+    companies: list[str] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 

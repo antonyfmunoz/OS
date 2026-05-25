@@ -456,6 +456,27 @@ class CognitiveLoop:
         except Exception as _pat_err:
             _record_error("understand_pattern_match", _pat_err, {"prompt": text[:200]})
 
+        # 2b-ii. UNDERSTAND — behavioral knowledge layers (6-17)
+        try:
+            from substrate.understanding.knowledge.knowledge_layers import KnowledgeLayerEngine
+
+            _layer_engine = KnowledgeLayerEngine()
+            _dept = ""
+            if agent:
+                _dept_map = {
+                    "eos-ceo": "executive", "eos-sales": "sales",
+                    "eos-marketing": "marketing", "eos-finance": "finance",
+                    "eos-customer-success": "customer_success", "eos-hr": "hr",
+                    "eos-legal": "legal", "eos-operations": "operations",
+                    "eos-product": "product", "eos-engineering": "engineering",
+                }
+                _dept = _dept_map.get(agent, "")
+            _behavioral = _layer_engine.inject(text, department=_dept, top_n=2)
+            if _behavioral:
+                _unified.behavioral_layers = f"Behavioral context:\n{_behavioral}"
+        except Exception as _layer_err:
+            _record_error("understand_behavioral_layers", _layer_err, {"prompt": text[:200]})
+
         # 2c. UNDERSTAND — canonical memory query-back
         try:
             from substrate.memory.promoter import MemoryPromoter

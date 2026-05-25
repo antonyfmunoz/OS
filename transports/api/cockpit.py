@@ -940,6 +940,41 @@ async def update_governance(payload: dict):
     return {"ok": True, "applied": applied}
 
 
+@router.get("/governance/tiers")
+async def permission_tiers():
+    """Return the 4-tier permission model with action mappings."""
+    from substrate.types import PermissionTier, TIER_ACTION_MAP, _PERMISSION_TIER_RANK
+
+    tiers = []
+    for tier in PermissionTier:
+        tiers.append({
+            "tier": tier.value,
+            "rank": tier.rank,
+            "actions": sorted(TIER_ACTION_MAP[tier]),
+        })
+    return {"tiers": tiers}
+
+
+@router.get("/governance/tier-check")
+async def tier_check(action: str, tier: str = "execute"):
+    """Check if a permission tier allows a specific action."""
+    from substrate.types import PermissionTier, required_tier_for_action
+
+    try:
+        caller_tier = PermissionTier(tier)
+    except ValueError:
+        return {"error": f"invalid tier: {tier}", "valid_tiers": [t.value for t in PermissionTier]}
+
+    required = required_tier_for_action(action)
+    permitted = caller_tier.permits(required)
+    return {
+        "action": action,
+        "caller_tier": caller_tier.value,
+        "required_tier": required.value,
+        "permitted": permitted,
+    }
+
+
 # ── DEX Channel ──────────────────────────────────────────────────────
 
 

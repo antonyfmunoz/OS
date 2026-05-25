@@ -54,6 +54,9 @@ class UnifiedContext:
     # Layer 1h: Hierarchy
     hierarchy: str | None = None
 
+    # Layer 2: Behavioral distillation (layers 6-17)
+    behavioral_layers: str | None = None
+
     # Runtime context
     calendar: str | None = None
     human_intelligence: str | None = None

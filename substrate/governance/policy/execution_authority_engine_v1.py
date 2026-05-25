@@ -35,6 +35,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from substrate.types import PermissionTier, required_tier_for_action
+
 
 class AuthorityClass(str, Enum):
     DENY = "deny"
@@ -234,6 +236,7 @@ class ExecutionAuthorityRequest:
     recursive_autonomy_risk: float = 0.0
     confidence: float = 1.0
     proof_requirements: list[str] = field(default_factory=list)
+    caller_permission_tier: str = "execute"
     trace_id: str = ""
     timestamp: str = ""
 
@@ -262,6 +265,7 @@ class ExecutionAuthorityRequest:
             "recursive_autonomy_risk": self.recursive_autonomy_risk,
             "confidence": self.confidence,
             "proof_requirements": self.proof_requirements,
+            "caller_permission_tier": self.caller_permission_tier,
             "trace_id": self.trace_id,
             "timestamp": self.timestamp,
         }
@@ -420,6 +424,19 @@ class ExecutionAuthorityEngine:
                     [f"default_deny_action: {request.action_type}"],
                     RiskClass.CRITICAL,
                 )
+
+        # 1b. Permission tier gate
+        try:
+            caller_tier = PermissionTier(request.caller_permission_tier)
+        except ValueError:
+            caller_tier = PermissionTier.EXECUTE
+        required = required_tier_for_action(request.action_type)
+        if not caller_tier.permits(required):
+            return self._deny(
+                request,
+                [f"permission_tier_insufficient: {caller_tier.value} < {required.value}"],
+                RiskClass.HIGH,
+            )
 
         # 2. Risk classification
         risk_class = self._classify_risk(request)

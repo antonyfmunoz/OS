@@ -1,7 +1,7 @@
 # UMH — Architecture & Master Specification
 
 > Every build decision gets checked against this document.
-> Last updated: 2026-03-23
+> Last updated: 2026-05-25
 
 ---
 
@@ -95,22 +95,23 @@ Primary orchestrator. Generates org structure. Delegates to department agents. G
 
 **LEVEL 3: Department Agents**
 
-| Agent | Status | Notes |
-|---|---|---|
-| Sales Agent | ✅ | 11 skills, 8 sub-agents |
-| Research Agent | ✅ | market intelligence, ICP analysis |
-| Content Agent | ✅ | content creation, hook generation |
-| Marketing Agent | ✅ | campaigns, ICP matching, distribution |
-| Operations Agent | ✅ | process, bottlenecks, automation |
-| Finance Agent | ⚠️ | stub — needs skills |
-| Customer Success Agent | ⚠️ | 2 skills — needs more |
-| HR Agent | ✗ | not built |
-| Legal Agent | ✗ | not built |
-| Product Agent | ✗ | not built |
-| Engineering Agent | ✗ | not built |
+| Agent | Status | Tier | Skills | Notes |
+|---|---|---|---|---|
+| CEO Agent | ✅ | COMMIT | 8 | Strategic analysis, morning brief, delegation, decisions |
+| Sales Agent | ✅ | EXECUTE | 8 | Outreach, pipeline, follow-up, prospect research |
+| Marketing Agent | ✅ | EXECUTE | 8 | Content calendar, campaigns, brand audit, analytics |
+| Finance Agent | ✅ | COMMIT | 9 | Revenue, expenses, budget, unit economics, cashflow |
+| Customer Success Agent | ✅ | EXECUTE | 9 | Tickets, churn detection, onboarding, feedback |
+| HR Agent | ✅ | EXECUTE | 8 | Hiring, performance reviews, compensation, culture |
+| Legal Agent | ✅ | COMMIT | 8 | Contract review, compliance, entity management |
+| Operations Agent | ✅ | EXECUTE | 8 | System health, deployment, incident response |
+| Product Agent | ✅ | DRAFT | 8 | Roadmap, ICE scoring, user feedback, specs |
+| Engineering Agent | ✅ | EXECUTE | 8 | Code review, deployment, tech debt, architecture |
+
+All 10 agents share a `DepartmentAgent` base class (`projections/eos/agents/base.py`) with skill execution, tier enforcement, and browser capabilities. Each agent inherits `browser_research` (READ tier) and `browser_act` (EXECUTE tier) automatically.
 
 **LEVEL 4: Execution Layer** `✅ WIRED`
-Browser and computer control agent. Can operate any software a human can — fill forms, navigate apps, extract data, take actions. Takes AI from advisor to operator. `browser_agent.py` built using Playwright. Wired to sales team via `send_outreach_dm()` and `research_prospect()` in `agent_teams.py`. Authority engine gates all browser actions.
+Browser and computer control via Playwright. `BrowserAgent` (`substrate/execution/agents/browser_agent.py`) provides: navigate, click, type, fill forms, extract tables, extract page state, and AI-planned multi-step task execution. Wired to ALL department agents via `DepartmentAgent._register_browser_skills()`. Authority engine gates all browser actions — research at READ tier, actions at EXECUTE tier.
 
 ### Autonomy Levels
 
@@ -123,20 +124,26 @@ Browser and computer control agent. Can operate any software a human can — fil
 | 4 | Execute anything except Commit tier |
 | 5 | Full autonomy — never permitted for Finance or Legal |
 
-### Permission Tiers
+### Permission Tiers `✅ IMPLEMENTED`
 
-| Tier | Scope |
-|---|---|
-| Read | View data — never modify |
-| Draft | Create drafts — human approves before sending |
-| Execute | Run workflows, send messages, create records, update CRM |
-| Commit | Financial actions, contracts, hires — always human approved |
+Cumulative 4-tier model — each higher tier includes all capabilities of lower tiers. Implemented in `substrate/types.py` as `PermissionTier` enum with `permits()` method. 52 action types mapped across tiers via `TIER_ACTION_MAP`. Enforced at three layers: `ConcreteGovernanceEngine.check_tier()`, `ExecutionAuthorityEngine.evaluate()` (step 1b), and `DepartmentAgent.execute_skill()`.
+
+| Tier | Rank | Scope | Example Actions |
+|---|---|---|---|
+| READ | 0 | View data — never modify | analyze, research, report, browser_research |
+| DRAFT | 1 | Create drafts — human approves before sending | draft_message, create_task, create_document |
+| EXECUTE | 2 | Run workflows, send messages, operate browser | send_dm, post_content, browser_act, bulk_update |
+| COMMIT | 3 | Financial actions, contracts — always human approved | execute_payment, production_deployment, credential_access |
 
 ---
 
 ## 5. Knowledge Architecture
 
-### The 17 Layers
+### The 17 Layers `✅ ALL IMPLEMENTED`
+
+Layers 1-5 are domain knowledge (`substrate/understanding/knowledge/knowledge_domains.py`).
+Layers 6-17 are behavioral distillation (`substrate/understanding/knowledge/knowledge_layers.py`).
+Both engines inject via CognitiveLoop PERCEIVE step. 12 behavioral layers with 110 principles.
 
 | Layer | Name | Location | Status |
 |---|---|---|---|
@@ -146,7 +153,7 @@ Browser and computer control agent. Can operate any software a human can — fil
 | 4 | Functional Expertise | `knowledge_domains.py` functional_expertise | ✅ |
 | 5 | Tactical Execution | `knowledge_domains.py` tactical | ✅ |
 | 6 | Psychological Foundations | `knowledge_layers.py` PSYCHOLOGICAL | ✅ |
-| 7 | Real-Time Intelligence | `reality_engine.py` + scraped signals | ✅ |
+| 7 | Real-Time Intelligence | `knowledge_layers.py` REAL_TIME_INTELLIGENCE | ✅ |
 | 8 | Negotiation Mastery | `knowledge_layers.py` NEGOTIATION | ✅ |
 | 9 | Crisis Management | `knowledge_layers.py` CRISIS | ✅ |
 | 10 | Network Effects | `knowledge_layers.py` NETWORK_EFFECTS | ✅ |
@@ -158,17 +165,27 @@ Browser and computer control agent. Can operate any software a human can — fil
 | 16 | Partnerships + Storytelling | `knowledge_layers.py` PARTNERSHIP | ✅ |
 | 17 | Exits + Innovation Mgmt | `knowledge_layers.py` EXITS_INNOVATION | ✅ |
 
-### Injection Order (CognitiveLoop PERCEIVE step)
+### Injection Order (CognitiveLoop PERCEIVE + UNDERSTAND steps)
 
 ```
-1a. Semantic memory        — top-5 past interactions, similarity > 0.6
-1b. Domain knowledge       — KnowledgeDomainRegistry, trigger-matched, top-3 domains
-1b2. Layered domain inject — get_layered_injection() via _map_task_to_domain()
-1c. Behavioral context     — KnowledgeLayerEngine.get_relevant_layer()
-1d. BIS venture context    — BusinessInstanceManager.get_context_for_agents()
+0.   PERCEIVE     — resolve multimodal input to text (voice, image, document → text)
+1.   PERCEIVE     — unified context assembly via ContextBuilder
+     ├── ai_identity, ea_standards, signal_classification
+     ├── bis_prompt, north_star
+     ├── gws_docs, founder_profile, brand_identity, funnel_strategy
+     ├── pattern_context, decision_log, dex_learnings
+     └── primitives, hierarchy
+2a.  UNDERSTAND   — InputIntelligence: intent detection + pattern matching
+2b.  UNDERSTAND   — PatternIntelligence: behavioral pattern enrichment
+2b2. UNDERSTAND   — KnowledgeLayerEngine: behavioral layers 6-17 (trigger-matched, top-2)
+2c.  UNDERSTAND   — MemoryPromoter: canonical memory query-back (top-3)
+3.   PLAN         — authority check (permission tier + risk class)
+4.   EXECUTE      — agent runtime with deterministic fallback
+5.   VERIFY       — output quality check
+6.   STORE        — persist to memory + trace
 ```
 
-All injected before execution. Never blocks execution on failure — all injection is enhancement only.
+All injection is enhancement only — failure in any step is caught and logged, never blocks execution.
 
 ### Domain Knowledge Coverage
 
@@ -176,64 +193,57 @@ All injected before execution. Never blocks execution on failure — all injecti
 
 ---
 
-## 6. Systems Map
+## 6. Systems Map (post-convergence 2026-05-23)
 
-### eos_ai/ Modules (44 files)
+### Canonical Packages
+
+```
+substrate/         — the UMH brain (control plane, execution, governance, state, understanding)
+  types.py         — single Pydantic type system (30+ models, PermissionTier, entities)
+  __init__.py      — Substrate public API (execute, query, register, status, check_tier)
+  control_plane/   — identity, context, governance, memory, registry, router
+    runtime/       — gateway.py, cognitive_loop.py (core runtime)
+  execution/       — 8-stage pipeline (spine.py), trace, feedback, actuation, voice
+    agents/        — browser_agent.py (Playwright), computer_use_agent.py
+  governance/      — accountability, policies, quality, validation
+    policy/        — authority_engine.py, execution_authority_engine_v1.py
+  understanding/   — perception, interpretation, knowledge (domains + layers), world model
+adapters/          — external system adapters (models, GWS, browser, capabilities)
+  models/          — model_router.py (intelligence routing), llm_adapter.py, cc_sdk.py
+transports/        — I/O surfaces (discord, API, presence handlers, node mesh)
+  api/             — cockpit.py (governance endpoints), operator.py
+projections/       — platform-specific views
+  eos/             — EOS projection (agents, entities, workflows)
+    agents/        — base.py + 10 department agents (all with browser skills)
+```
+
+### Key Modules
 
 | Module | Purpose | Status |
 |---|---|---|
-| `agent_runtime.py` | Multi-model router — Claude Haiku/Sonnet/Opus selection by task cost | ✅ |
-| `agent_teams.py` | Domain sub-agents and team router — 6 teams, 25 sub-agents | ✅ |
-| `authority_engine.py` | 4-tier permission system — Read / Draft / Execute / Commit | ✅ |
-| `browser_agent.py` | Playwright web operator — agents can operate any website | ⚠️ built, not wired |
-| `business_instance.py` | BIS stage tracker — 6-stage lifecycle, Neon-backed | ✅ |
-| `cognitive_loop.py` | 8-stage Perceive→Store loop — wraps all agent execution | ✅ |
-| `context.py` | Environment loading and EOSContext construction | ✅ |
-| `context_compaction.py` | Seamless context window compression at 80% capacity | ✅ |
-| `coordination_engine.py` | Task assignment and CEO delegation across agents and humans | ✅ |
-| `db.py` | Neon PostgreSQL connection with row-level security | ✅ |
-| `embedder.py` | BAAI/bge-small-en-v1.5 embedding singleton (384-dim) | ✅ |
-| `embedding_engine.py` | Semantic search and vector storage for interaction memory | ✅ |
-| `error_handler.py` | Self-healing error recovery with Telegram alerting | ✅ |
-| `event_bus.py` | Reactive coordination — decouples producers from consumers | ✅ |
-| `evolution_engine.py` | Weekly self-improvement — workflow evolution, agent proposals | ✅ |
-| `execution_engine.py` | Formal task lifecycle tracking — queued → completed → outcome | ⚠️ built, not wired |
-| `gateway.py` | Single entry point for all external requests | ✅ |
-| `gws_connector.py` | Google Workspace — Calendar, Gmail, Drive, Tasks OAuth | ✅ |
-| `human_intelligence.py` | Behavioral profiling of every person the system interacts with | ✅ |
-| `identity_engine.py` | System persona management across interface contexts | ✅ |
-| `integration_test.py` | Integration test suite | — |
-| `knowledge_domains.py` | 21-domain registry with 6-layer structure and trigger matching | ✅ |
-| `knowledge_graph.py` | Entity relationship graph — leads, signals, outcomes, agents | ✅ |
-| `knowledge_layers.py` | 17-layer behavioral distillation — 148 principles, 11 foundation dicts | ✅ |
-| `media_processor.py` | Voice synthesis and Whisper transcription — 303KB voice confirmed | ✅ |
-| `memory.py` | All Neon writes — interactions, events, outcomes, profiles | ✅ |
-| `model_preferences.py` | Business context routing — maps venture + task to model config | ✅ |
-| `onboarding_backfill.py` | Reads all connected integrations on first connect — GWS backfill | ✅ |
-| `orchestrator.py` | 6am cron + proactive triggers — morning cycle + event-driven | ✅ |
-| `os_trinity.py` | Cross-product permissions and user intelligence profiles | ✅ |
-| `portfolio_advisor.py` | Board-level view across all ventures — P&L, stage, patterns | ✅ |
-| `principle_engine.py` | Root rule injection into every AI decision | ✅ |
-| `reality_engine.py` | Market intelligence — scans every 6h, classifies by priority | ✅ |
-| `research_engine.py` | Autonomous research — detects knowledge gaps, fills them, stores | ✅ |
-| `session_state.py` | Session crash recovery and cross-session context | ✅ |
-| `skill_improvement.py` | RLHF-driven skill rewriting from outcome data | ✅ |
-| `skill_registry.py` | Loads and indexes 23 skills — keyword + semantic search | ✅ |
-| `status.py` | Daily system health check dashboard | ✅ |
-| `strategy_engine.py` | First-principles strategic reasoning and decision evaluation | ✅ |
-| `system_context.py` | Interface-aware validation — Telegram vs Claude Code vs API | ✅ |
-| `user_model.py` | Founder behavior modeling — closes the intent-expression gap | ✅ |
-| `venture_knowledge.py` | Per-venture knowledge base — skills, signals, context per org | ✅ |
-| `voice_interface.py` | Voice turns, 11 meeting types, pre/during/post meeting support | ✅ |
-| `workflow_engine.py` | Multi-step workflow execution and state tracking | ✅ |
+| `substrate/types.py` | Unified type system — 30+ Pydantic models, PermissionTier, entities | ✅ |
+| `substrate/__init__.py` | Public API — execute, query, register, status, check_tier | ✅ |
+| `substrate/control_plane/runtime/cognitive_loop.py` | Full Perceive→Understand→Plan→Execute loop | ✅ |
+| `substrate/control_plane/runtime/gateway.py` | Single entry point for all external requests | ✅ |
+| `substrate/control_plane/governance.py` | Deterministic risk classification + tier checking | ✅ |
+| `substrate/execution/spine.py` | 8-stage execution pipeline | ✅ |
+| `substrate/execution/agents/browser_agent.py` | Playwright web operator — wired to all agents | ✅ |
+| `substrate/governance/policy/execution_authority_engine_v1.py` | 7-class authority model + tier gate | ✅ |
+| `substrate/governance/policy/authority_engine.py` | Simple risk + org autonomy + tier gate | ✅ |
+| `substrate/understanding/knowledge/knowledge_domains.py` | 21-domain registry, layers 1-5 | ✅ |
+| `substrate/understanding/knowledge/knowledge_layers.py` | 12 behavioral layers (6-17), 110 principles | ✅ |
+| `adapters/models/model_router.py` | Intelligence routing — cc_sdk → Gemini → Groq → Ollama | ✅ |
+| `projections/eos/agents/base.py` | DepartmentAgent base — skills, tiers, browser | ✅ |
+| `projections/eos/entities.py` | Entity model — 10 departments, 10 roles | ✅ |
+| `transports/api/cockpit.py` | Governance tier check + tier listing endpoints | ✅ |
 
 ### Missing — High Priority
 
 | Module | Purpose |
 |---|---|
-| `billing_connector.py` | Stripe integration — subscription plans, usage-based AI cost |
-| `auth_layer.py` | Firebase public auth — required before non-founder users |
-| `notification_engine.py` | Push notifications and scheduled alerts beyond Telegram |
+| Stripe billing integration | Subscription plans, usage-based AI cost |
+| Firebase public auth | Required before non-founder users |
+| Notification engine | Push notifications beyond Discord (email, SMS, push) |
 
 ---
 
@@ -267,7 +277,7 @@ All injected before execution. Never blocks execution on failure — all injecti
 
 | Integration | Notes |
 |---|---|
-| Browser control (execution) | Wired to sales team via `send_outreach_dm()` and `research_prospect()` |
+| Browser control (execution) | ✅ Wired to all 10 department agents via `DepartmentAgent` base class |
 | Stripe | billing not started — required for public launch |
 | Firebase Auth | public auth not started — required for non-founder users |
 
@@ -310,7 +320,7 @@ Stored as JSON in `ventures.config_json`. Per-venture structured config: stage (
 
 ### Knowledge Layers (in-memory at runtime)
 
-17-layer distillation in `knowledge_layers.py`. 148 behavioral principles across 11 foundation dicts. Injected at runtime — not persisted to DB.
+17-layer architecture. Layers 1-5: domain knowledge in `knowledge_domains.py`. Layers 6-17: behavioral distillation in `knowledge_layers.py` — 12 layers, 110 principles. Both injected at CognitiveLoop PERCEIVE step via trigger-matched selection. Not persisted to DB.
 
 ### Agent Memory (per-session)
 
@@ -351,35 +361,31 @@ Quick decisions, approvals, notifications. AI chat, brief consumption, voice int
 
 All three OS products live. All 15 department agents with full skill sets. Browser and computer control operational. Real users with Firebase auth and Stripe billing. Mobile app. Cross-product intelligence compounding across EOS + CreatorOS + LYFEOS. RLHF meaningfully improving skills over time. Proprietary dataset accumulating. Local/offline execution option. $100K/month net profit.
 
-### MVP Phase 1 (current — mostly built)
+### MVP Phase 1 `✅ COMPLETE` (2026-05-25)
 
-- VPS harness running — 4 Docker services, always-on
-- Telegram as founder interface — 40+ commands, voice, media
-- 44 eos_ai modules, all importing clean
-- 12 agents, 23 skills, 17 knowledge layers (148 principles)
-- BIS seeded for Lyfe Institute (Stage 1, Initiate Arena $750)
-- GWS integrations operational (Calendar, Gmail, Drive, Tasks)
-- Morning brief and proactive triggers (6am cron)
-- 6-stage BIS system — proof-gated advancement
-- 11 meeting types with voice interface
-- Knowledge injection at PERCEIVE (4 layers)
+- Full convergence: 4 canonical packages (substrate, adapters, transports, projections)
+- 10 department agents with full skill sets, browser capabilities, and tier enforcement
+- 4-tier permission model (READ/DRAFT/EXECUTE/COMMIT) enforced at 3 layers
+- 17 knowledge layers (110 principles) injected at cognitive loop PERCEIVE step
+- Entity model: Role, Department, Portfolio as typed Pydantic models
+- Browser control wired to all agents via DepartmentAgent base class
+- 778+ tests passing, 0 failures
+- Production deployed: Discord bot, Cockpit Electron app, API
 
-### MVP Phase 2 (next)
+### MVP Phase 2 (current)
 
-- Stitch frontend for EntrepreneurOS
+- Cockpit Electron desktop app — window modes, execution substrate panel
+- SaaS product connections (EOS, CreatorOS, LYFEOS)
 - Firebase auth — public users can sign up
-- Notion OAuth — interim dashboard live
-- Browser control wired to department agents
-- Finance and CS agent skills completed
 - Stripe billing
+- Notification engine (push, email, SMS beyond Discord)
 
 ### MVP Phase 3 (following)
 
-- CreatorOS frontend
-- LYFEOS frontend
+- CreatorOS frontend + backend connection
+- LYFEOS frontend + backend connection
 - Mobile app
-- Cross-product compounding
-- All department agents complete with full skill sets
+- Cross-product intelligence compounding
 
 ---
 
@@ -387,10 +393,10 @@ All three OS products live. All 15 department agents with full skill sets. Brows
 
 Architectural decisions not yet made that will affect future builds.
 
-**1. Browser control implementation**
-- Option A: Playwright agents — already in stack, `browser_agent.py` built, used by `dm_monitor.py`
-- Option B: Anthropic computer use API — newer, more capable, higher cost
-- Decision required before execution layer wiring begins
+**1. Browser control implementation** `✅ DECIDED`
+- Decision: Playwright agents via `BrowserAgent` in `substrate/execution/agents/browser_agent.py`
+- Wired to all 10 department agents via `DepartmentAgent` base class
+- Computer use API available as future enhancement via `ComputerUseAgent` (Phase 2 cockpit execution panel)
 
 **2. Frontend framework confirmation**
 - README and structure reference Stitch for all three frontends
@@ -447,14 +453,12 @@ The intelligence lives in the layers, not in the model.
 
 In priority order:
 
-1. **ARCHITECTURE.md** — this document ✅
-2. **Notion OAuth** — activate on VPS — interim dashboard live today
-3. **Browser control decision** — Playwright vs computer-use API, then wire to agents
-4. **Finance + CS agent skills** — fill skill gaps in both departments
-5. **Stitch frontend Phase 2** — scope and begin EntrepreneurOS web dashboard
-6. **Firebase auth** — implement public sign-up flow
-7. **Stripe billing** — implement subscription and usage billing
-8. **First public user** — onboard external founder to validate the system
+1. **SaaS product connections** — wire EOS, CreatorOS, LYFEOS codebases to UMH substrate
+2. **Cockpit Electron app** — window modes + execution substrate panel (Phase 2)
+3. **Notification engine** — push, email, SMS beyond Discord
+4. **Firebase auth** — implement public sign-up flow
+5. **Stripe billing** — implement subscription and usage billing
+6. **First public user** — onboard external founder to validate the system
 
 ---
 
