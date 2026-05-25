@@ -1,48 +1,49 @@
 from substrate.state.context.context import EntrepreneurOSContext
 from substrate.state.storage.db import get_conn
+from substrate.types import PermissionTier, required_tier_for_action
 import json, uuid
 from datetime import datetime, timezone
 
 RISK_CLASSES = {
-    'CRITICAL': [
-        'send_message','send_email',
-        'execute_payment','delete_records',
-        'bulk_update','mass_outreach','publish_content'
+    "CRITICAL": [
+        "send_message",
+        "send_email",
+        "execute_payment",
+        "delete_records",
+        "bulk_update",
+        "mass_outreach",
+        "publish_content",
     ],
-    'HIGH': [
-        'send_dm',
-        'create_outreach','post_content',
-        'update_external_crm','book_call'
+    "HIGH": ["send_dm", "create_outreach", "post_content", "update_external_crm", "book_call"],
+    "MEDIUM": ["draft_message", "draft_content", "create_task", "create_document"],
+    "LOW": [
+        "analyze",
+        "research",
+        "score",
+        "classify",
+        "summarize",
+        "read",
+        "query",
+        "report",
+        "draft_brief",
+        "generate_brief",
+        "research_prospect",
+        "extract_profile",
     ],
-    'MEDIUM': [
-        'draft_message','draft_content',
-        'create_task','create_document'
-    ],
-    'LOW': [
-        'analyze','research','score','classify',
-        'summarize','read','query','report',
-        'draft_brief','generate_brief',
-        'research_prospect','extract_profile'
-    ]
 }
 
-AUTONOMY_LEVEL_MAP = {
-    'manual': 1,
-    'hybrid': 3,
-    'autonomous': 4
-}
+AUTONOMY_LEVEL_MAP = {"manual": 1, "hybrid": 3, "autonomous": 4}
 
 # Minimum autonomy level required per risk class
 MIN_LEVEL_TO_EXECUTE = {
-    'LOW': 0,
-    'MEDIUM': 1,
-    'HIGH': 3,
-    'CRITICAL': 999  # never auto-execute
+    "LOW": 0,
+    "MEDIUM": 1,
+    "HIGH": 3,
+    "CRITICAL": 999,  # never auto-execute
 }
 
 
 class AuthorityEngine:
-
     def __init__(self, ctx: EntrepreneurOSContext):
         self.ctx = ctx
         self._org_autonomy = self._load_org_autonomy()
@@ -50,116 +51,132 @@ class AuthorityEngine:
     def _load_org_autonomy(self) -> int:
         with get_conn(self.ctx.org_id) as cur:
             cur.execute(
-                "SELECT autonomy_stage FROM organizations WHERE id = %s",
-                (self.ctx.org_id,)
+                "SELECT autonomy_stage FROM organizations WHERE id = %s", (self.ctx.org_id,)
             )
             row = cur.fetchone()
-            stage = row['autonomy_stage'] if row else 'manual'
+            stage = row["autonomy_stage"] if row else "manual"
             return AUTONOMY_LEVEL_MAP.get(stage, 1)
 
     def classify_action(self, action_type: str) -> str:
         for risk_class, actions in RISK_CLASSES.items():
             if action_type in actions:
                 return risk_class
-        return 'LOW'  # unknown actions default to LOW
+        return "LOW"  # unknown actions default to LOW
 
-    def get_autonomy_level(self,
-        workflow_id: str | None = None) -> int:
+    def get_autonomy_level(self, workflow_id: str | None = None) -> int:
         if workflow_id:
             try:
                 with get_conn(self.ctx.org_id) as cur:
                     cur.execute(
                         "SELECT autonomy_stage FROM workflows WHERE id = %s AND org_id = %s",
-                        (workflow_id, self.ctx.org_id)
+                        (workflow_id, self.ctx.org_id),
                     )
                     row = cur.fetchone()
                     if row:
-                        return AUTONOMY_LEVEL_MAP.get(row['autonomy_stage'], 1)
+                        return AUTONOMY_LEVEL_MAP.get(row["autonomy_stage"], 1)
             except Exception:
                 pass
         return self._org_autonomy
 
-    def check_can_execute(self,
+    def check_can_execute(
+        self,
         action_type: str,
-        workflow_id: str | None = None) -> dict:
+        workflow_id: str | None = None,
+        caller_permission_tier: str = "execute",
+    ) -> dict:
+        try:
+            caller_tier = PermissionTier(caller_permission_tier)
+        except ValueError:
+            caller_tier = PermissionTier.EXECUTE
+
+        required = required_tier_for_action(action_type)
+        if not caller_tier.permits(required):
+            return {
+                "can_execute": False,
+                "requires_approval": False,
+                "reason": f"Permission tier {caller_tier.value} cannot perform {action_type} (requires {required.value})",
+                "autonomy_level": self.get_autonomy_level(workflow_id),
+                "risk_class": self.classify_action(action_type),
+                "permission_tier": caller_tier.value,
+                "required_tier": required.value,
+            }
+
         risk_class = self.classify_action(action_type)
         autonomy_level = self.get_autonomy_level(workflow_id)
         min_level = MIN_LEVEL_TO_EXECUTE[risk_class]
-        requires_approval = risk_class in ('HIGH', 'CRITICAL')
-        can_execute = (
-            autonomy_level >= min_level
-            and risk_class not in ('CRITICAL',)
-        )
+        requires_approval = risk_class in ("HIGH", "CRITICAL")
+
+        if required == PermissionTier.COMMIT:
+            requires_approval = True
+
+        can_execute = autonomy_level >= min_level and risk_class not in ("CRITICAL",)
         return {
-            'can_execute': can_execute,
-            'requires_approval': requires_approval,
-            'reason': f'{risk_class} action requires autonomy level {min_level}+, current level {autonomy_level}',
-            'autonomy_level': autonomy_level,
-            'risk_class': risk_class
+            "can_execute": can_execute,
+            "requires_approval": requires_approval,
+            "reason": f"{risk_class} action requires autonomy level {min_level}+, current level {autonomy_level}",
+            "autonomy_level": autonomy_level,
+            "risk_class": risk_class,
+            "permission_tier": caller_tier.value,
+            "required_tier": required.value,
         }
 
-    def queue_for_approval(self,
-        action_type: str,
-        payload: dict,
-        agent: str) -> str:
+    def queue_for_approval(self, action_type: str, payload: dict, agent: str) -> str:
         from substrate.state.stores.approval_store import ApprovalStore
+
         return ApprovalStore().create_approval(
             org_id=self.ctx.org_id,
             request={
-                'action_type': action_type,
-                'payload': payload,
-                'agent': agent,
+                "action_type": action_type,
+                "payload": payload,
+                "agent": agent,
             },
         )
 
-    def execute_or_queue(self,
-        action_type: str,
-        payload: dict,
-        agent: str,
-        execute_fn) -> dict:
+    def execute_or_queue(self, action_type: str, payload: dict, agent: str, execute_fn) -> dict:
         check = self.check_can_execute(action_type)
-        if check['can_execute'] and not check['requires_approval']:
+        if check["can_execute"] and not check["requires_approval"]:
             result = execute_fn(payload)
-            return {'status': 'executed', 'result': result}
+            return {"status": "executed", "result": result}
         else:
-            approval_id = self.queue_for_approval(
-                action_type, payload, agent
-            )
+            approval_id = self.queue_for_approval(action_type, payload, agent)
             return {
-                'status': 'pending_approval',
-                'approval_id': approval_id,
-                'reason': check['reason']
+                "status": "pending_approval",
+                "approval_id": approval_id,
+                "reason": check["reason"],
             }
 
     def approve(self, approval_id: str) -> dict:
         from substrate.state.stores.approval_store import ApprovalStore
+
         result = ApprovalStore().approve(
             org_id=self.ctx.org_id,
             approval_id=approval_id,
             resolved_by=self.ctx.user_id,
         )
         if not result:
-            return {'error': 'approval not found'}
+            return {"error": "approval not found"}
 
-        request = result.get('request_json') or {}
+        request = result.get("request_json") or {}
         if isinstance(request, str):
             import json as _json
+
             try:
                 request = _json.loads(request)
             except Exception:
                 request = {}
-        if request.get('action_type') == 'new_agent_proposal':
+        if request.get("action_type") == "new_agent_proposal":
             try:
-                agent_spec = request.get('proposed_agent', {})
+                agent_spec = request.get("proposed_agent", {})
                 self._create_agent_soul_doc(agent_spec)
             except Exception as e:
                 print(f"[AuthorityEngine] Soul doc write failed: {e}")
 
-        return {'status': 'approved', 'request': result.get('request_json')}
+        return {"status": "approved", "request": result.get("request_json")}
 
     def _create_agent_soul_doc(self, agent_spec: dict) -> None:
         """Write a soul doc to agents/ when a new agent is approved."""
         from pathlib import Path
+
         agents_dir = Path(__file__).parent.parent / "agents"
         agents_dir.mkdir(parents=True, exist_ok=True)
 
@@ -192,35 +209,42 @@ class AuthorityEngine:
 
     def reject(self, approval_id: str) -> dict:
         from substrate.state.stores.approval_store import ApprovalStore
+
         ApprovalStore().reject(
             org_id=self.ctx.org_id,
             approval_id=approval_id,
             resolved_by=self.ctx.user_id,
         )
-        return {'status': 'rejected', 'approval_id': approval_id}
+        return {"status": "rejected", "approval_id": approval_id}
 
     def get_pending(self) -> list:
         with get_conn(self.ctx.org_id) as cur:
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT id, request_json, created_at
                 FROM approvals
                 WHERE org_id = %s AND status = 'pending'
                 ORDER BY created_at ASC
-            """, (self.ctx.org_id,))
+            """,
+                (self.ctx.org_id,),
+            )
             rows = cur.fetchall()
         result = []
         for r in rows:
-            rj = r['request_json'] or {}
+            rj = r["request_json"] or {}
             if isinstance(rj, str):
                 import json as _json
+
                 try:
                     rj = _json.loads(rj)
                 except Exception:
                     rj = {}
-            result.append({
-                'id':          str(r['id']),
-                'action_type': rj.get('action_type'),
-                'agent':       rj.get('agent'),
-                'created_at':  r['created_at'].isoformat(),
-            })
+            result.append(
+                {
+                    "id": str(r["id"]),
+                    "action_type": rj.get("action_type"),
+                    "agent": rj.get("agent"),
+                    "created_at": r["created_at"].isoformat(),
+                }
+            )
         return result

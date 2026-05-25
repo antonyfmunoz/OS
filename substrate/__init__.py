@@ -14,12 +14,18 @@ import time
 from substrate.types import (
     Component,
     ComponentType,
+    Department,
     ExecutionResult,
     MemoryEntry,
     MemoryQuery,
+    OperatorType,
+    PermissionTier,
+    Portfolio,
     RegistrationResult,
+    Role,
     SignalEnvelope,
     SubstrateStatus,
+    required_tier_for_action,
 )
 
 
@@ -30,6 +36,13 @@ def get_conn(org_id: str | None = None):
     if org_id is not None:
         return _get_conn(org_id)
     return _get_conn()
+
+
+async def run_browser_task(url: str, task: str, ctx: object | None = None) -> dict:
+    """Public API for browser task execution. Projections use this, not internal imports."""
+    from substrate.execution.agents.browser_agent import run_browser_task as _run
+
+    return await _run(url=url, task=task, ctx=ctx)
 
 
 from substrate.control_plane.identity import ConcreteIdentityResolver
@@ -121,6 +134,10 @@ class Substrate:
     async def register(self, component: Component) -> RegistrationResult:
         """Register a component in the registry."""
         return await self.registry.register(component)
+
+    def check_tier(self, action_type: str, caller_tier: str = "execute") -> dict:
+        """Check if a permission tier allows an action type."""
+        return self.governance.check_tier(action_type, caller_tier)
 
     def status(self) -> SubstrateStatus:
         """Return substrate health status."""
