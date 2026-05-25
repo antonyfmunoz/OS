@@ -12,6 +12,8 @@ const PANEL_KEYS: Record<string, Panel> = {
   '8': 'settings',
   '9': 'activity',
   '0': 'execution',
+  'p': 'portfolio',
+  'c': 'company',
 }
 
 export function useKeyboard(): void {

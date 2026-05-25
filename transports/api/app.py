@@ -244,6 +244,28 @@ async def lifespan(app: FastAPI):
     _memory_watcher = start_memory_watcher()
     logger.info("memory watcher started with %d watches", len(_memory_watcher.watches))
 
+    # Register cockpit WebSocket as a notification channel
+    from substrate.sockets.notification_engine import (
+        get_notification_engine,
+        NotificationChannel,
+    )
+
+    def _cockpit_notify_handler(title: str, body: str, **kwargs) -> bool:
+        try:
+            import json as _json
+            _view_socket.push(
+                "notification",
+                _json.dumps({"title": title, "body": body, **kwargs}),
+            )
+            return True
+        except Exception:
+            return False
+
+    get_notification_engine().register_channel(
+        NotificationChannel.COCKPIT, _cockpit_notify_handler
+    )
+    logger.info("cockpit notification channel registered")
+
     yield
 
     if _memory_watcher is not None:

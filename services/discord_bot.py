@@ -1907,6 +1907,17 @@ if __name__ == "__main__":
     register_chunker(chunk_message)
     register_channel_router(_get_channel_router)
 
+    # Register Discord with the multi-channel NotificationEngine
+    from substrate.sockets.notification_engine import (
+        get_notification_engine,
+        NotificationChannel,
+    )
+    def _discord_notify_handler(title: str, body: str, **kwargs) -> bool:
+        return post_to_webhook(body, title=title)
+    get_notification_engine().register_channel(
+        NotificationChannel.DISCORD, _discord_notify_handler
+    )
+
     token = os.getenv("DISCORD_BOT_TOKEN")
     if not token:
         print("[Discord] DISCORD_BOT_TOKEN not set in .env — exiting")

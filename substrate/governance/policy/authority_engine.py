@@ -32,14 +32,27 @@ RISK_CLASSES = {
     ],
 }
 
-AUTONOMY_LEVEL_MAP = {"manual": 1, "hybrid": 3, "autonomous": 4}
+AUTONOMY_LEVEL_MAP = {
+    "draft_only": 0,
+    "manual": 1,
+    "low_risk_auto": 1,
+    "medium_risk_log": 2,
+    "hybrid": 3,
+    "high_risk_delay": 3,
+    "all_except_commit": 4,
+    "autonomous": 4,
+    "full_autonomy": 5,
+}
 
-# Minimum autonomy level required per risk class
 MIN_LEVEL_TO_EXECUTE = {
     "LOW": 0,
-    "MEDIUM": 1,
+    "MEDIUM": 2,
     "HIGH": 3,
-    "CRITICAL": 999,  # never auto-execute
+    "CRITICAL": 999,
+}
+
+AUTONOMY_LEVEL_RESTRICTIONS = {
+    5: {"blocked_departments": ["finance", "legal"]},
 }
 
 

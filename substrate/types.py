@@ -1131,7 +1131,8 @@ class Role(BaseModel):
     metrics: list[str] = Field(default_factory=list)
     tools: list[str] = Field(default_factory=list)
     documents: list[str] = Field(default_factory=list)
-    autonomy_level: int = Field(ge=0, le=4, default=2)
+    dashboard_id: str | None = None
+    autonomy_level: int = Field(ge=0, le=5, default=2)
     active: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -1167,6 +1168,170 @@ class Portfolio(BaseModel):
     companies: list[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class User(BaseModel):
+    """A human user of the system — ARCHITECTURE.md §3 top of entity hierarchy."""
+
+    id: UUID = Field(default_factory=uuid4)
+    email: str = Field(max_length=255)
+    display_name: str = Field(max_length=120, default="")
+    auth_provider: str = Field(default="local", max_length=40)
+    auth_provider_id: str = ""
+    portfolio_id: str | None = None
+    preferences: dict[str, Any] = Field(default_factory=dict)
+    role_scope: str = Field(default="founder", max_length=40)
+    active: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    last_login: datetime | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class Company(BaseModel):
+    """A business instance within a portfolio — ARCHITECTURE.md §3.
+
+    Parent entity owning departments, BIS, knowledge graph, interactions.
+    Maps to a venture in the database.
+    """
+
+    id: UUID = Field(default_factory=uuid4)
+    name: str = Field(max_length=200)
+    organization_id: str
+    venture_id: str = ""
+    portfolio_id: str | None = None
+    stage: int = Field(ge=1, le=6, default=1)
+    stage_name: str = Field(default="validation", max_length=40)
+    bis_id: str | None = None
+    departments: list[str] = Field(default_factory=list)
+    north_star: str = ""
+    active: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class WorkflowStepType(str, Enum):
+    """Types of steps in a workflow."""
+
+    ACTION = "action"
+    DECISION = "decision"
+    APPROVAL_GATE = "approval_gate"
+    WAIT = "wait"
+    PARALLEL = "parallel"
+    NOTIFICATION = "notification"
+
+
+class WorkflowExecutionMode(str, Enum):
+    """How a workflow step is executed."""
+
+    HUMAN = "human"
+    AI = "ai"
+    AUTOMATED = "automated"
+    HYBRID = "hybrid"
+
+
+class WorkflowStep(BaseModel):
+    """A single step in a workflow."""
+
+    id: UUID = Field(default_factory=uuid4)
+    name: str = Field(max_length=120)
+    step_type: WorkflowStepType = WorkflowStepType.ACTION
+    execution_mode: WorkflowExecutionMode = WorkflowExecutionMode.HYBRID
+    description: str = ""
+    action_type: str = ""
+    next_step: str | None = None
+    branch_conditions: dict[str, str] = Field(default_factory=dict)
+    approval_required: bool = False
+    timeout_seconds: int = 0
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class WorkflowTriggerType(str, Enum):
+    """What initiates a workflow."""
+
+    MANUAL = "manual"
+    SCHEDULED = "scheduled"
+    EVENT = "event"
+    SIGNAL = "signal"
+    WEBHOOK = "webhook"
+    APPROVAL = "approval"
+
+
+class Workflow(BaseModel):
+    """A repeatable process — ARCHITECTURE.md §3.
+
+    Supports human, AI-assisted, or fully automated execution.
+    Has triggers, ordered steps, branching logic, approval gates, and output artifacts.
+    """
+
+    id: UUID = Field(default_factory=uuid4)
+    name: str = Field(max_length=200)
+    slug: str = Field(max_length=80)
+    department: str = Field(max_length=80, default="")
+    organization_id: str = ""
+    trigger_type: WorkflowTriggerType = WorkflowTriggerType.MANUAL
+    trigger_config: dict[str, Any] = Field(default_factory=dict)
+    steps: list[WorkflowStep] = Field(default_factory=list)
+    output_artifacts: list[str] = Field(default_factory=list)
+    permission_tier: str = Field(default="execute", max_length=20)
+    active: bool = True
+    version: int = 1
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class DashboardWidgetType(str, Enum):
+    """Types of widgets on a role dashboard."""
+
+    TASK_BOARD = "task_board"
+    METRIC_CARD = "metric_card"
+    WORKFLOW_LIST = "workflow_list"
+    DOCUMENT_LIST = "document_list"
+    CRM_TABLE = "crm_table"
+    APPROVAL_QUEUE = "approval_queue"
+    AI_CHAT = "ai_chat"
+    TOOL_PANEL = "tool_panel"
+    COMMUNICATION = "communication"
+    TIMELINE = "timeline"
+
+
+class DashboardWidget(BaseModel):
+    """A widget on a role's dashboard."""
+
+    id: UUID = Field(default_factory=uuid4)
+    widget_type: DashboardWidgetType
+    title: str = Field(max_length=120)
+    config: dict[str, Any] = Field(default_factory=dict)
+    position: int = 0
+    width: int = Field(ge=1, le=12, default=6)
+    visible: bool = True
+
+
+class Dashboard(BaseModel):
+    """The complete UI surface for a role — ARCHITECTURE.md §3.
+
+    Contains task board, tools, CRM records, documents, workflows,
+    metrics, communications, AI interaction panel, and approval queue.
+    """
+
+    id: UUID = Field(default_factory=uuid4)
+    role_id: str | None = None
+    department: str = Field(max_length=80, default="")
+    organization_id: str = ""
+    widgets: list[DashboardWidget] = Field(default_factory=list)
+    layout: str = Field(default="grid", max_length=20)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class AutonomyLevel(int, Enum):
+    """6 autonomy levels — ARCHITECTURE.md §4."""
+
+    DRAFT_ONLY = 0
+    LOW_RISK_AUTO = 1
+    MEDIUM_RISK_LOG = 2
+    HIGH_RISK_DELAY = 3
+    ALL_EXCEPT_COMMIT = 4
+    FULL_AUTONOMY = 5
 
 
 # ─── Deferred model resolution ──────────────────────────────────────────────

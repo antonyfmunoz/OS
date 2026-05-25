@@ -189,7 +189,7 @@ All injection is enhancement only — failure in any step is caught and logged, 
 
 ### Domain Knowledge Coverage
 
-21 domains across 6 categories: reality, human, civilization, business, technology, personal, systems, creative. 9 domains have full 6-layer structure (timeless → historical → functional → tactical → psychological → current). 12 domains have core principles only.
+21 domains across 8 categories: reality, human, civilization, business, technology, personal, systems, creative. 9 domains have full 6-layer structure (timeless → historical → functional → tactical → psychological → current). 12 domains have core principles only.
 
 ---
 
@@ -253,7 +253,7 @@ projections/       — platform-specific views
 
 | Integration | Purpose | Status |
 |---|---|---|
-| Telegram Bot API | Primary founder interface — NLP, 40+ commands, voice, media | ✅ |
+| Discord Bot API | Primary founder interface — NLP, 40+ commands, voice, media | ✅ |
 | Google Calendar | Meeting scheduling, event awareness, morning brief | ✅ |
 | Google Gmail | Email inbox, contact extraction, relationship tracking | ✅ |
 | Google Drive | Document access for onboarding backfill | ✅ |
@@ -330,9 +330,9 @@ Stored as JSON in `ventures.config_json`. Per-venture structured config: stage (
 
 ## 9. UX Surfaces
 
-### Telegram (current, operational)
+### Discord (current, operational)
 
-Single founder access. Full system control. NLP routing with 40+ commands. Handles: text, voice, images, documents. Morning brief, proactive alerts, approval queue. Always-on via Docker.
+Single founder access. Full system control. NLP routing with 40+ commands. Handles: text, voice, images, documents. Morning brief, proactive alerts, approval queue. Always-on via Docker (`os-discord` container). Telegram available as outbound notification channel only.
 
 ### Web Dashboard (Phase 2)
 
@@ -351,7 +351,7 @@ Quick decisions, approvals, notifications. AI chat, brief consumption, voice int
 
 ### Voice Interface (built, not primary)
 
-`VoiceInterface` in `eos_ai/` operational. 11 meeting types with pre-meeting brief, during-meeting real-time assist (10 shortcuts), and post-meeting action routing. Activated via `/meeting [type]` in Telegram.
+`VoiceOutput` in `umh/voice.py` with persona/cloned voice profiles and streaming TTS. `substrate/execution/bridge/voice_session.py` handles live sessions. 11 meeting types with pre-meeting brief, during-meeting assist, and post-meeting action routing. Activated via `/meeting [type]` in Discord.
 
 ---
 
