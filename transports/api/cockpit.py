@@ -1203,3 +1203,235 @@ def _get_org_id() -> str:
         return str(ctx.org_id)
     except Exception:
         return ""
+
+
+# ── Entity views (Portfolio / Company / Department / Role) ───────────────────
+
+
+@router.get("/entities/portfolio")
+async def entity_portfolio():
+    """Portfolio-level view — all companies, cross-venture summary."""
+    org_id = _get_org_id()
+    try:
+        from projections.eos.entities import default_departments, default_roles
+
+        departments = default_departments(org_id)
+        roles = default_roles(org_id)
+        return {
+            "org_id": org_id,
+            "department_count": len(departments),
+            "role_count": len(roles),
+            "departments": [
+                {
+                    "name": d.name,
+                    "slug": d.slug,
+                    "agent_name": d.agent_name,
+                    "permission_tier": d.permission_tier,
+                    "metrics": d.metrics,
+                }
+                for d in departments
+            ],
+        }
+    except Exception as e:
+        return {"error": str(e), "departments": []}
+
+
+@router.get("/entities/departments")
+async def entity_departments():
+    """All departments with agents, metrics, workflows."""
+    org_id = _get_org_id()
+    try:
+        from projections.eos.entities import default_departments
+        from projections.eos.agents import AGENT_CLASSES
+
+        departments = default_departments(org_id)
+        result = []
+        for dept in departments:
+            agent_cls = AGENT_CLASSES.get(dept.slug)
+            agent_info = None
+            if agent_cls:
+                agent = agent_cls(org_id=org_id)
+                agent_info = {
+                    "skill_count": len(agent.skills),
+                    "skills": list(agent.skills.keys()),
+                    "permission_tier": agent.PERMISSION_TIER.value,
+                    "browser_capable": agent.metadata().get("browser_capable", False),
+                }
+            result.append({
+                "name": dept.name,
+                "slug": dept.slug,
+                "agent_name": dept.agent_name,
+                "permission_tier": dept.permission_tier,
+                "roles": dept.roles,
+                "metrics": dept.metrics,
+                "workflows": dept.workflows,
+                "agent": agent_info,
+            })
+        return {"departments": result}
+    except Exception as e:
+        return {"error": str(e), "departments": []}
+
+
+@router.get("/entities/departments/{slug}")
+async def entity_department_detail(slug: str):
+    """Single department detail with full agent skills."""
+    org_id = _get_org_id()
+    try:
+        from projections.eos.entities import default_departments, default_roles
+        from projections.eos.agents import AGENT_CLASSES
+
+        departments = default_departments(org_id)
+        dept = next((d for d in departments if d.slug == slug), None)
+        if not dept:
+            return {"error": f"department {slug} not found"}
+
+        roles = [r for r in default_roles(org_id) if r.department == slug]
+        agent_cls = AGENT_CLASSES.get(slug)
+        agent_detail = None
+        if agent_cls:
+            agent = agent_cls(org_id=org_id)
+            agent_detail = {
+                "skills": agent.skills,
+                "permission_tier": agent.PERMISSION_TIER.value,
+                "metadata": agent.metadata(),
+            }
+
+        return {
+            "department": {
+                "name": dept.name,
+                "slug": dept.slug,
+                "agent_name": dept.agent_name,
+                "permission_tier": dept.permission_tier,
+                "roles": dept.roles,
+                "metrics": dept.metrics,
+                "workflows": dept.workflows,
+            },
+            "roles": [
+                {
+                    "name": r.name,
+                    "operator": r.operator.value,
+                    "permission_tier": r.permission_tier,
+                    "responsibilities": r.responsibilities,
+                    "workflows": r.workflows,
+                    "metrics": r.metrics,
+                }
+                for r in roles
+            ],
+            "agent": agent_detail,
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.get("/entities/roles")
+async def entity_roles():
+    """All roles across all departments."""
+    org_id = _get_org_id()
+    try:
+        from projections.eos.entities import default_roles
+
+        roles = default_roles(org_id)
+        return {
+            "roles": [
+                {
+                    "name": r.name,
+                    "department": r.department,
+                    "operator": r.operator.value,
+                    "permission_tier": r.permission_tier,
+                    "responsibilities": r.responsibilities,
+                    "workflows": r.workflows,
+                    "metrics": r.metrics,
+                }
+                for r in roles
+            ]
+        }
+    except Exception as e:
+        return {"error": str(e), "roles": []}
+
+
+# ── Product connections (EOS / CreatorOS / LYFEOS) ───────────────────────────
+
+
+@router.get("/products")
+async def product_connections():
+    """Status of all three SaaS product connections."""
+    try:
+        from substrate.integrations.product_connections import get_product_manager
+
+        mgr = get_product_manager()
+        return {
+            "connections": mgr.all_connections(),
+            "summary": mgr.cross_product_summary(),
+        }
+    except Exception as e:
+        return {"error": str(e), "connections": []}
+
+
+@router.post("/products/refresh")
+async def refresh_product_connections():
+    """Re-check all product connections."""
+    try:
+        from substrate.integrations.product_connections import get_product_manager
+
+        mgr = get_product_manager()
+        mgr.refresh()
+        return {"refreshed": True, "connections": mgr.all_connections()}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ── Notifications ────────────────────────────────────────────────────────────
+
+
+@router.get("/notifications")
+async def notification_history(limit: int = 50):
+    """Recent notification history."""
+    try:
+        from substrate.sockets.notification_engine import get_notification_engine
+
+        engine = get_notification_engine()
+        return {
+            "history": engine.recent_history(limit),
+            "stats": engine.stats,
+            "channels": engine.available_channels,
+        }
+    except Exception as e:
+        return {"error": str(e), "history": []}
+
+
+@router.post("/notifications/send")
+async def send_notification(payload: dict):
+    """Send a notification through the engine."""
+    try:
+        from substrate.sockets.notification_engine import (
+            get_notification_engine,
+            Notification,
+            NotificationPriority,
+            NotificationChannel,
+        )
+
+        engine = get_notification_engine()
+        channels = []
+        for ch in payload.get("channels", []):
+            try:
+                channels.append(NotificationChannel(ch))
+            except ValueError:
+                pass
+
+        notification = Notification(
+            title=payload.get("title", ""),
+            body=payload.get("body", ""),
+            priority=NotificationPriority(payload.get("priority", "normal")),
+            channel_preference=channels,
+            source=payload.get("source", "cockpit"),
+            target_user=payload.get("target_user", ""),
+        )
+        result = engine.send(notification)
+        return {
+            "sent": result.sent,
+            "channel": result.channel.value if result.channel else None,
+            "error": result.error,
+            "attempts": result.attempts,
+        }
+    except Exception as e:
+        return {"error": str(e), "sent": False}
