@@ -410,7 +410,6 @@ class VoiceEngine:
         self._whisper_model = None
         self._tts_model     = None
         self.ollama_model   = 'gemma3:4b'
-        self._ollama_url    = 'http://localhost:11434/api/generate'
         self.intelligent    = IntelligentVoiceProcessor(voice_engine=self)
         self.vad            = VADProcessor()
 
@@ -543,13 +542,11 @@ class VoiceEngine:
 
     def query_local(self, prompt: str, system: str | None = None) -> str:
         """
-        Query Qwen2.5:7b locally via Ollama.
+        Query local model via model_router (Ollama path).
 
         Free and fast — no Anthropic API cost. Use for simple/quick queries.
         Returns empty string if Ollama is not running.
         """
-        import requests
-
         system_msg = system or (
             'You are DEX. Executive Assistant to Antony F. Munoz, '
             'founder of Munoz Conglomerate. '
@@ -562,24 +559,17 @@ class VoiceEngine:
             'Example response to "hey": '
             '"Stage 1. First sale is the target. What do you need?"'
         )
-        payload = {
-            'model':  self.ollama_model,
-            'prompt': prompt,
-            'system': system_msg,
-            'stream': False,
-        }
         try:
-            resp = requests.post(self._ollama_url, json=payload, timeout=30)
-            if resp.status_code == 200:
-                response = resp.json().get('response', '')
-                print(f'[VoiceEngine] Ollama: {response[:80]!r}')
-                return response
-            else:
-                print(f'[VoiceEngine] Ollama HTTP {resp.status_code}')
-        except requests.exceptions.ConnectionError:
-            print('[VoiceEngine] Ollama not running — start with: ollama serve')
+            from substrate.execution.runtime.model_router import get_router, TaskType
+            router = get_router()
+            model = router.route(TaskType.FAST_RESPONSE)
+            full_prompt = f'{system_msg}\n\nUser: {prompt}'
+            response = router.call(model, full_prompt).strip()
+            if response:
+                print(f'[VoiceEngine] Local: {response[:80]!r}')
+            return response
         except Exception as e:
-            print(f'[VoiceEngine] Ollama error: {e}')
+            print(f'[VoiceEngine] Local query error: {e}')
         return ''
 
     # ─── Query classification ─────────────────────────────────────────────────
@@ -621,10 +611,9 @@ class VoiceEngine:
     # ─── Convenience ─────────────────────────────────────────────────────────
 
     def is_running(self) -> bool:
-        """Check if Ollama is reachable."""
-        import requests
+        """Check if local model backend is reachable."""
         try:
-            resp = requests.get('http://localhost:11434/api/tags', timeout=3)
-            return resp.status_code == 200
+            from adapters.models.model_router import _ollama_available
+            return _ollama_available()
         except Exception:
             return False

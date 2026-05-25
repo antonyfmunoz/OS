@@ -7,16 +7,12 @@ Each template defines typed slots that must be filled at instantiation.
 Migrates the 5 business templates from template_library.py into formal schema.
 """
 
-import os
-import sys
+from __future__ import annotations
+
 import uuid as _uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
-
-_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _REPO_ROOT not in sys.path:
-    sys.path.insert(0, _REPO_ROOT)
 
 
 # ─── Schema ──────────────────────────────────────────────────────────────────

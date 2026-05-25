@@ -1,7 +1,8 @@
 """ExecutionPipeline — the master success loop.
 
-Signal → Governance → WorkPacket → Adapter Execution → Proof
-→ Outcome → Trace → MemoryCandidate → MemoryPromote → ResumeState
+Signal → Understanding (interpret/decompose/domain/laws/reality)
+→ Mastery Gate → Governance → WorkPacket → Adapter Execution → Proof
+→ Outcome → Trace → MemoryCandidate → MemoryPromote → Reality Model Update
 
 Single entry point: submit_signal() processes a signal through every stage
 and returns a typed PipelineResult with all generated artifact IDs.
@@ -16,8 +17,14 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel, Field
 
 from substrate.execution.executor import WorkPacketExecutor
+from substrate.execution.mastery_gate import MasteryGate
+from substrate.execution.understanding_bridge import UnderstandingBridge
 from substrate.governance.policy_engine import PolicyEngine
 from substrate.governance.risk_classes import RiskClass
+from substrate.governance.validation.completeness_engine import CompletenessEngine
+from substrate.organism.homeostasis import HomeostasisEngine
+from substrate.understanding.deliberation.council import DeliberationCouncil, Verdict
+from substrate.intelligence.runtime import IntelligenceRuntime
 from substrate.memory.candidate_generator import MemoryCandidateGenerator
 from substrate.memory.promoter import MemoryPromoter
 from substrate.memory.auto_reconciler import AutoReconciler
@@ -62,6 +69,12 @@ class PipelineResult(BaseModel):
     outcome_type: str | None
     memory_candidate_id: str | None
     memory_promoted: bool
+    understanding_confidence: float = 0.0
+    law_violations: list[str] = Field(default_factory=list)
+    mastery_assured: bool = True
+    mastery_blocked_tools: list[str] = Field(default_factory=list)
+    deliberation_verdict: str | None = None
+    completeness_score: float | None = None
 
 
 EventListener = Callable[[str, dict[str, Any]], None]
@@ -92,10 +105,25 @@ class ExecutionPipeline:
         self._candidate_gen = candidate_generator or MemoryCandidateGenerator()
         self._promoter = memory_promoter or MemoryPromoter()
         self._reconciler = AutoReconciler()
+        self._mastery_gate = MasteryGate()
+        self._understanding = UnderstandingBridge()
+        self._homeostasis = HomeostasisEngine()
+        self._council = DeliberationCouncil()
+        self._completeness = CompletenessEngine()
+        self._intelligence = IntelligenceRuntime()
         self._state_manager = state_manager
         self._session = WorkstationSessionState()
         self._profile = WorkstationProfile.detect()
         self._listeners: list[EventListener] = []
+
+    def health_check(self) -> dict[str, Any]:
+        """Run homeostasis check and return system health report."""
+        report = self._homeostasis.check()
+        return report.to_dict()
+
+    def intelligence_health(self) -> dict[str, Any]:
+        """Return pattern + decision intelligence stats."""
+        return self._intelligence.health()
 
     def on_event(self, listener: EventListener) -> None:
         """Register a sync listener for pipeline stage events."""
@@ -141,7 +169,123 @@ class ExecutionPipeline:
             entity_id=signal.id,
         )
 
-        # --- 3. Governance ---
+        # --- 3-7. Understanding (interpret → decompose → domain → laws → reality) ---
+        understanding = self._understanding.process(
+            content=content,
+            signal_id=str(signal.id),
+            trace_id=str(trace.id),
+        )
+        trace.add_event(
+            TraceEventType.SIGNAL_RECEIVED,
+            (
+                f"Understanding: confidence={understanding.confidence:.2f}, "
+                f"projections={len(understanding.domain_projections)}, "
+                f"violations={len(understanding.law_violations)}"
+            ),
+            entity_id=signal.id,
+        )
+        self._emit("understanding", understanding.to_dict())
+
+        # --- 8. Mastery Gate (step 16) ---
+        mastery = self._mastery_gate.check(
+            content,
+            founder_waiver=pre_approved,
+            adapter_name=adapter_name,
+        )
+        if mastery.tools_detected:
+            trace.add_event(
+                TraceEventType.SIGNAL_RECEIVED,
+                (
+                    f"Mastery: {len(mastery.tools_assured)} assured, "
+                    f"{len(mastery.tools_blocked)} blocked"
+                ),
+                entity_id=signal.id,
+            )
+            self._emit("mastery", mastery.to_dict())
+
+        if not mastery.can_proceed:
+            blocked_str = ", ".join(mastery.tools_blocked)
+            trace.add_event(
+                TraceEventType.GOVERNANCE_DECIDED,
+                f"Mastery gate blocked: {blocked_str}",
+                entity_id=signal.id,
+            )
+            obs_trace = self._trace_store.create_trace(
+                input_signal=content,
+                governance_decision="mastery_blocked",
+                metadata=metadata,
+            )
+            self._trace_store.update_trace(
+                obs_trace.trace_id,
+                status="blocked",
+                outcome="mastery_blocked",
+                outcome_detail=f"tools without mastery: {blocked_str}",
+            )
+            self._session.record_activity(obs_trace.trace_id, "mastery_blocked")
+            trace.success = False
+            self._emit("trace", {"trace_id": str(trace.id), "success": False})
+            return PipelineResult(
+                trace_id=trace.id,
+                signal_id=signal.id,
+                governance_approved=False,
+                governance_rationale=f"mastery not assured: {blocked_str}",
+                executed=False,
+                success=None,
+                proof_id=None,
+                outcome_type="mastery_blocked",
+                memory_candidate_id=None,
+                memory_promoted=False,
+                understanding_confidence=understanding.confidence,
+                law_violations=understanding.law_violations,
+                mastery_assured=False,
+                mastery_blocked_tools=mastery.tools_blocked,
+            )
+
+        # --- 8b. Deliberation Council (high-risk signals only) ---
+        deliberation_verdict: str | None = None
+        if risk_class not in (RiskClass.READ_ONLY, RiskClass.REVERSIBLE_WRITE):
+            delib = self._council.deliberate(content, context={"domain": "execution"})
+            deliberation_verdict = delib.final_verdict.value
+            trace.add_event(
+                TraceEventType.GOVERNANCE_DECIDED,
+                f"Council: {delib.final_verdict.value} (confidence={delib.overall_confidence:.2f})",
+                entity_id=signal.id,
+            )
+            self._emit("deliberation", delib.to_dict())
+            if delib.final_verdict == Verdict.REJECT and not pre_approved:
+                obs_trace = self._trace_store.create_trace(
+                    input_signal=content,
+                    governance_decision="council_rejected",
+                    metadata=metadata,
+                )
+                self._trace_store.update_trace(
+                    obs_trace.trace_id,
+                    status="blocked",
+                    outcome="council_rejected",
+                    outcome_detail=f"dissenting: {', '.join(delib.dissenting_roles)}",
+                )
+                self._session.record_activity(obs_trace.trace_id, "council_rejected")
+                trace.success = False
+                self._emit("trace", {"trace_id": str(trace.id), "success": False})
+                return PipelineResult(
+                    trace_id=trace.id,
+                    signal_id=signal.id,
+                    governance_approved=False,
+                    governance_rationale=f"council rejected: {delib.synthesis.rationale if delib.synthesis else 'no synthesis'}",
+                    executed=False,
+                    success=None,
+                    proof_id=None,
+                    outcome_type="council_rejected",
+                    memory_candidate_id=None,
+                    memory_promoted=False,
+                    understanding_confidence=understanding.confidence,
+                    law_violations=understanding.law_violations,
+                    mastery_assured=mastery.can_proceed,
+                    mastery_blocked_tools=mastery.tools_blocked,
+                    deliberation_verdict=deliberation_verdict,
+                )
+
+        # --- 9. Governance ---
         governance_request = GovernanceRequest(
             decomposition_id=uuid4(),
             component_id=uuid4(),
@@ -268,6 +412,18 @@ class ExecutionPipeline:
                 },
             )
 
+            # --- Intelligence learning (pattern + decision from execution) ---
+            try:
+                self._intelligence.learn_from_execution(
+                    content=content,
+                    action=f"{adapter_name}:{operation}",
+                    outcome=classification.category,
+                    success=bool(success),
+                    domain=classification.detail or "general",
+                )
+            except Exception:
+                pass
+
             # --- 8. JSONL Trace Store (observability projection) ---
             obs_trace = self._trace_store.create_trace(
                 input_signal=content,
@@ -322,6 +478,14 @@ class ExecutionPipeline:
                             except Exception:
                                 pass
 
+            # --- 11. Reality Model update (step 27) ---
+            self._understanding.record_outcome(
+                content=content,
+                outcome_type=classification.category,
+                signal_id=str(signal.id),
+                trace_id=str(trace.id),
+            )
+
             self._session.record_activity(obs_trace.trace_id, classification.category)
             if classification.category in ("failure", "error"):
                 self._session.record_error()
@@ -340,6 +504,32 @@ class ExecutionPipeline:
             )
             self._session.record_activity(obs_trace.trace_id, "governance_denied")
 
+        # --- Homeostasis: record execution for health monitoring ---
+        self._homeostasis.record_execution(success=bool(success))
+
+        # --- Completeness check on pipeline result ---
+        completeness_score: float | None = None
+        try:
+            pipeline_dict = {
+                "signal_id": str(signal.id),
+                "executed": executed,
+                "outcome_type": outcome_type,
+                "memory_promoted": promoted,
+                "memory_candidate_id": candidate_id,
+                "governance_approved": approved,
+                "governance_rationale": verdict.rationale,
+                "proof_id": str(proof_id) if proof_id else None,
+                "trace_id": str(trace.id),
+                "mastery_assured": mastery.can_proceed,
+                "understanding_confidence": understanding.confidence,
+                "success": success,
+            }
+            comp_result = self._completeness.evaluate_pipeline_result(pipeline_dict)
+            completeness_score = comp_result.score
+            self._emit("completeness", comp_result.to_dict())
+        except Exception:
+            pass
+
         # --- Finalize protocol trace ---
         trace.success = success
         self._emit("trace", {"trace_id": str(trace.id), "success": success})
@@ -355,4 +545,10 @@ class ExecutionPipeline:
             outcome_type=outcome_type,
             memory_candidate_id=candidate_id,
             memory_promoted=promoted,
+            understanding_confidence=understanding.confidence,
+            law_violations=understanding.law_violations,
+            mastery_assured=mastery.can_proceed,
+            mastery_blocked_tools=mastery.tools_blocked,
+            deliberation_verdict=deliberation_verdict,
+            completeness_score=completeness_score,
         )
