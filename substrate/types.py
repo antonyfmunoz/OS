@@ -75,7 +75,7 @@ class Identity(BaseModel):
     venture_id: str | None = None
     ai_name: str
     ai_personality: str
-    autonomy_level: int = Field(ge=0, le=4)
+    autonomy_level: int = Field(ge=0, le=5)
     business_stage: str
     permission_tier: str = Field(default="execute", max_length=20)
 
