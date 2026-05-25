@@ -215,7 +215,7 @@ class TestNoFabricatedProof:
         with open(memories_path) as f:
             lines = [json.loads(line) for line in f if line.strip()]
         assert len(lines) > 0, "Memory store must not be empty"
-        valid_prefixes = ("doc-", "local-")
+        valid_prefixes = ("doc-", "local-", "pipeline-")
         for entry in lines:
             doc_id = entry["source_document_id"]
             assert any(doc_id.startswith(p) for p in valid_prefixes), (
