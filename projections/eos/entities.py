@@ -667,6 +667,94 @@ def default_workflows(org_id: str, venture_id: str = "") -> list[Workflow]:
     ]
 
 
+SKILL_ALLOCATION: dict[str, list[str]] = {
+    "executive": [
+        "meta/ceo_framework",
+        "meta/portfolio_framework",
+        "Ops/weekly_ceo_report",
+        "Ops/prepare_war_room_agenda",
+    ],
+    "sales": [
+        "Sales/analyze_conversation",
+        "Sales/analyze_dm_conversation",
+        "Sales/analyze_dm_conversation_titled",
+        "Sales/binding_constraint_diagnosis",
+        "Sales/call_booking_confirmation",
+        "Sales/call_to_close",
+        "Sales/crm_stage_update",
+        "Sales/extract_icp_insight",
+        "Sales/follow_up_sequence",
+        "Sales/generate_follow_up_message",
+        "Sales/generate_outreach_from_intel",
+        "Sales/lead_nurture",
+        "Sales/lead_personalization_from_profile",
+        "Sales/objection_handling",
+        "Sales/opener_batch_audit",
+        "Sales/pre_call_research_brief",
+        "Sales/proof_promise_plan_close",
+        "Sales/qualify_lead",
+        "Sales/stage_transition_assessment",
+        "Sales/summarize_sales_call",
+        "Outreach/dm_opener",
+        "Outreach/reply_handler",
+        "Research/analyze_icp_signal",
+        "Research/detect_icp_patterns",
+        "Research/generate_market_report",
+        "Research/icp_signal_detection",
+        "Research/person_recognition_lookup",
+        "Research/process_signal_queue",
+    ],
+    "marketing": [
+        "Marketing/Content/draft_arena_content_post",
+        "Marketing/Content/generate_content_from_intel",
+        "Marketing/campaign_diagnosis",
+        "Marketing/content_calendar",
+        "Content/content_video_brief",
+        "Content/hook_performance_analysis",
+        "content/analyze_content_performance",
+        "content/discover_content_angles",
+        "content/generate_content_script",
+    ],
+    "finance": [],
+    "customer_success": [
+        "CustomerSuccess/churn_prevention",
+        "CustomerSuccess/onboarding_sequence",
+    ],
+    "hr": [],
+    "legal": [],
+    "operations": [
+        "Ops/communication_templates",
+        "Ops/playbook_client_issue",
+        "Ops/playbook_deal_closed",
+        "Ops/playbook_investor_inquiry",
+        "Ops/playbook_job_inquiry",
+        "Ops/playbook_new_inbound_lead",
+        "Ops/playbook_no_show_recovery",
+        "Ops/playbook_partnership_proposal",
+        "Ops/playbook_speaking_podcast_request",
+        "Ops/playbook_vendor_contract",
+        "Ops/schedule_event",
+    ],
+    "product": [],
+    "engineering": [
+        "developer/adversarial_review",
+    ],
+}
+
+
+def get_skills_for_department(slug: str) -> list[str]:
+    """Return skill paths allocated to a department."""
+    return SKILL_ALLOCATION.get(slug, [])
+
+
+def get_department_for_skill(skill_path: str) -> str | None:
+    """Return which department owns a given skill path, or None."""
+    for dept, skills in SKILL_ALLOCATION.items():
+        if skill_path in skills:
+            return dept
+    return None
+
+
 def default_dashboards(org_id: str) -> list[Dashboard]:
     """Return default role dashboards — one per department with standard widgets."""
     dept_configs = [
