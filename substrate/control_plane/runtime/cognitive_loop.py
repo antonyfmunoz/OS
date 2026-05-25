@@ -492,6 +492,20 @@ class CognitiveLoop:
         except Exception as _mem_err:
             _record_error("understand_memory_queryback", _mem_err, {"prompt": text[:200]})
 
+        # 2d. UNDERSTAND — philosophy lens injection (values filter)
+        try:
+            from substrate.understanding.knowledge.philosophy_lenses import LensEngine
+
+            _lens_engine = LensEngine()
+            _lens_ctx = _lens_engine.inject(text, top_n=2)
+            if _lens_ctx:
+                if _unified.behavioral_layers:
+                    _unified.behavioral_layers += f"\n\n{_lens_ctx}"
+                else:
+                    _unified.behavioral_layers = _lens_ctx
+        except Exception as _lens_err:
+            _record_error("understand_philosophy_lenses", _lens_err, {"prompt": text[:200]})
+
         original_prompt = text
         _true_raw_input = raw_input if raw_input else text
         enhanced = self._enhance_prompt(text)

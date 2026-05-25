@@ -29,6 +29,8 @@ export function CommandPalette() {
     { id: 'settings', label: 'Go to Settings', shortcut: 'Ctrl+8', action: () => setPanel('settings') },
     { id: 'activity', label: 'Go to Activity', shortcut: 'Ctrl+9', action: () => setPanel('activity') },
     { id: 'execution', label: 'Go to Execution', shortcut: 'Ctrl+0', action: () => setPanel('execution') },
+    { id: 'portfolio', label: 'Go to Portfolio', shortcut: 'Ctrl+P', action: () => setPanel('portfolio') },
+    { id: 'company', label: 'Go to Company', shortcut: 'Ctrl+C', action: () => setPanel('company') },
     { id: 'chat', label: 'Toggle DEX Chat', shortcut: 'Ctrl+/', action: toggleChat },
     { id: 'mode-execute', label: 'Switch to EXECUTE mode', action: () => setMode('EXECUTE') },
     { id: 'mode-plan', label: 'Switch to PLAN mode', action: () => setMode('PLAN') },

@@ -14,17 +14,23 @@ Dimensions monitored:
   6. Budget consumption    — API cost tracking
   7. Stuck loop detection  — repeated identical failures
   8. Governance overrides  — founder bypasses accumulating
+
+Override tracking (PHILOSOPHY.md Section VIII):
+  When the founder overrides a system recommendation, the full context
+  is recorded — what was recommended, what the founder chose, and what
+  happened after. This feeds back into the system for learning.
 """
 
 from __future__ import annotations
 
 import logging
 import time
+import uuid
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +89,46 @@ class HomeostasisReport:
         }
 
 
+@dataclass
+class Override:
+    """A founder override of a system recommendation.
+
+    Tracks the full lifecycle: what was recommended, what the founder
+    chose instead, and what happened after. This is the substrate's
+    mechanism for learning from founder judgment.
+    """
+
+    id: str
+    timestamp: datetime
+    original_recommendation: str
+    founder_decision: str
+    agent: str
+    action_type: str
+    context: dict[str, Any] = field(default_factory=dict)
+    outcome: Optional[str] = None
+    outcome_recorded_at: Optional[datetime] = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize to dict for API responses and logging."""
+        return {
+            "id": self.id,
+            "timestamp": self.timestamp.isoformat(),
+            "original_recommendation": self.original_recommendation,
+            "founder_decision": self.founder_decision,
+            "agent": self.agent,
+            "action_type": self.action_type,
+            "context": self.context,
+            "outcome": self.outcome,
+            "outcome_recorded_at": (
+                self.outcome_recorded_at.isoformat() if self.outcome_recorded_at else None
+            ),
+        }
+
+
+# Max override records kept in memory (same pattern as notification_engine)
+_OVERRIDE_HISTORY_MAX = 500
+
+
 class HomeostasisEngine:
     """Self-regulation engine monitoring 8 health dimensions."""
 
@@ -108,6 +154,7 @@ class HomeostasisEngine:
         self._observation_count: int = 0
         self._budget_spent: float = 0.0
         self._override_count: int = 0
+        self._overrides: list[Override] = []
         self._mode: SystemMode = SystemMode.HEALTHY
         self._last_check: float = 0.0
 
@@ -119,8 +166,126 @@ class HomeostasisEngine:
     def record_budget(self, cost_usd: float) -> None:
         self._budget_spent += cost_usd
 
-    def record_override(self) -> None:
+    def record_override(
+        self,
+        original_recommendation: str = "",
+        founder_decision: str = "",
+        agent: str = "",
+        action_type: str = "",
+        context: dict[str, Any] | None = None,
+    ) -> str:
+        """Record a founder override with full context.
+
+        Returns the override ID for later outcome tracking.
+        Backwards-compatible: calling with no args still increments the counter.
+
+        Args:
+            original_recommendation: What the system recommended.
+            founder_decision: What the founder chose instead.
+            agent: Which agent's recommendation was overridden.
+            action_type: Category of the action (e.g. 'risk_classification',
+                'model_selection', 'task_priority').
+            context: Arbitrary context dict for additional metadata.
+
+        Returns:
+            The override ID (UUID string).
+        """
+        override_id = str(uuid.uuid4())
+        override = Override(
+            id=override_id,
+            timestamp=datetime.now(timezone.utc),
+            original_recommendation=original_recommendation,
+            founder_decision=founder_decision,
+            agent=agent,
+            action_type=action_type,
+            context=context or {},
+        )
+
+        self._overrides.append(override)
         self._override_count += 1
+
+        # Cap in-memory storage
+        if len(self._overrides) > _OVERRIDE_HISTORY_MAX:
+            self._overrides = self._overrides[-_OVERRIDE_HISTORY_MAX:]
+
+        logger.info(
+            "override recorded: id=%s agent=%s type=%s rec='%s' decision='%s'",
+            override_id,
+            agent,
+            action_type,
+            original_recommendation[:80],
+            founder_decision[:80],
+        )
+        return override_id
+
+    def record_override_outcome(self, override_id: str, outcome: str) -> bool:
+        """Record what happened after a founder override.
+
+        Args:
+            override_id: The ID returned by record_override().
+            outcome: Description of the result (e.g. 'positive — founder's
+                instinct was correct, deal closed', or 'negative — the
+                risk materialized as predicted').
+
+        Returns:
+            True if the override was found and updated, False otherwise.
+        """
+        for override in self._overrides:
+            if override.id == override_id:
+                override.outcome = outcome
+                override.outcome_recorded_at = datetime.now(timezone.utc)
+                logger.info(
+                    "override outcome recorded: id=%s outcome='%s'",
+                    override_id,
+                    outcome[:80],
+                )
+                return True
+
+        logger.warning("override outcome not recorded — id=%s not found", override_id)
+        return False
+
+    def override_history(self, limit: int = 50) -> list[dict[str, Any]]:
+        """Return recent overrides with outcomes, newest first.
+
+        Args:
+            limit: Maximum number of records to return. Default 50.
+
+        Returns:
+            List of override dicts, ordered newest-first.
+        """
+        return [o.to_dict() for o in reversed(self._overrides[-limit:])]
+
+    def override_stats(self) -> dict[str, Any]:
+        """Aggregate override statistics.
+
+        Returns dict with:
+            total_overrides: Total override count (including any pruned).
+            tracked_overrides: Number currently in memory.
+            overrides_with_outcomes: How many have outcome recorded.
+            positive_outcomes: Outcomes containing 'positive'.
+            negative_outcomes: Outcomes containing 'negative'.
+            neutral_outcomes: Outcomes that are neither positive nor negative.
+            override_success_rate: positive / total_with_outcomes (0.0 if none).
+        """
+        tracked = len(self._overrides)
+        with_outcomes = [o for o in self._overrides if o.outcome is not None]
+        with_outcomes_count = len(with_outcomes)
+
+        positive = sum(1 for o in with_outcomes if o.outcome and "positive" in o.outcome.lower())
+        negative = sum(1 for o in with_outcomes if o.outcome and "negative" in o.outcome.lower())
+        neutral = with_outcomes_count - positive - negative
+
+        success_rate = positive / with_outcomes_count if with_outcomes_count > 0 else 0.0
+
+        return {
+            "total_overrides": self._override_count,
+            "tracked_overrides": tracked,
+            "overrides_with_outcomes": with_outcomes_count,
+            "positive_outcomes": positive,
+            "negative_outcomes": negative,
+            "neutral_outcomes": neutral,
+            "override_success_rate": round(success_rate, 3),
+        }
 
     def set_queue_depth(self, depth: int) -> None:
         self._queue_depth = depth
@@ -235,7 +400,7 @@ class HomeostasisEngine:
                 detail="No stuck loop detected",
             )
 
-        recent = list(self._recent_errors)[-self._stuck_threshold:]
+        recent = list(self._recent_errors)[-self._stuck_threshold :]
         if len(set(recent)) == 1:
             return DimensionStatus(
                 dimension=HealthDimension.STUCK_LOOP,
