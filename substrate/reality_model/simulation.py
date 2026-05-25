@@ -11,7 +11,7 @@ Use cases:
 
 from __future__ import annotations
 
-import copy
+import json
 import logging
 import time
 from dataclasses import dataclass, field
@@ -43,6 +43,7 @@ class SimulationDiff:
     confidence_deltas: dict[str, float] = field(default_factory=dict)
     predicted_outcome: str = "unknown"
     risk_factors: list[str] = field(default_factory=list)
+    ai_risk_analysis: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -65,6 +66,7 @@ class SimulationResult:
             "safe_to_execute": self.safe_to_execute,
             "predicted_outcome": self.diff.predicted_outcome,
             "risk_factors": self.diff.risk_factors,
+            "ai_risk_analysis": self.diff.ai_risk_analysis,
             "new_observations": len(self.diff.new_observations),
             "matched_patterns": self.diff.matched_patterns,
         }
@@ -105,9 +107,7 @@ class SimulationReality:
         instance: InstanceRealityModel | None = None,
     ) -> None:
         self._canonical = canonical or CanonicalRealityModel()
-        self._instance = instance or InstanceRealityModel(
-            user_id="default", org_id="default"
-        )
+        self._instance = instance or InstanceRealityModel(user_id="default", org_id="default")
 
     def simulate(
         self,
@@ -150,6 +150,18 @@ class SimulationReality:
             result.overall_confidence = sum(confidences) / len(confidences)
 
         result.safe_to_execute = len(result.diff.risk_factors) == 0
+
+        if result.diff.risk_factors:
+            ai_analysis = self._ai_risk_analysis(hypothesis, result.diff.risk_factors, actions)
+            if ai_analysis:
+                result.diff.ai_risk_analysis = ai_analysis
+                ai_safe = ai_analysis.get("safe_to_execute", result.safe_to_execute)
+                if isinstance(ai_safe, bool):
+                    result.safe_to_execute = ai_safe
+                ai_conf = ai_analysis.get("confidence", 0.0)
+                if isinstance(ai_conf, (int, float)) and ai_conf > 0:
+                    result.overall_confidence = (result.overall_confidence + ai_conf) / 2
+
         result.duration_ms = (time.monotonic() - t0) * 1000
 
         return result
@@ -183,6 +195,50 @@ class SimulationReality:
             observations_added=1,
             patterns_matched=[p.name for p in matched],
         )
+
+    def _ai_risk_analysis(
+        self,
+        hypothesis: str,
+        risk_factors: list[str],
+        actions: list[str],
+    ) -> dict[str, Any] | None:
+        """Use LLM to reason about detected risk factors and suggest mitigations."""
+        try:
+            from adapters.models.model_router import call_with_fallback
+
+            result = call_with_fallback(
+                prompt=(
+                    f"Hypothesis: {hypothesis[:500]}\n"
+                    f"Actions: {', '.join(a[:100] for a in actions[:5])}\n"
+                    f"Detected risk factors: {', '.join(risk_factors[:10])}\n\n"
+                    "Analyze these risks and provide mitigations."
+                ),
+                system=(
+                    "You are UMH's simulation risk analyzer. Given a hypothesis and detected "
+                    "risk factors, provide a risk analysis.\n"
+                    'Return JSON: {"severity": "low|medium|high|critical", '
+                    '"safe_to_execute": true|false, "confidence": 0.0-1.0, '
+                    '"mitigations": ["..."], "reasoning": "..."}\n'
+                    "Return ONLY valid JSON."
+                ),
+                task_type="analysis",
+            )
+            if not result.output:
+                return None
+            text = result.output.strip()
+            if text.startswith("```"):
+                text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+            parsed = json.loads(text)
+            if isinstance(parsed, dict) and "severity" in parsed:
+                logger.info(
+                    "AI risk analysis: severity=%s, safe=%s",
+                    parsed.get("severity"),
+                    parsed.get("safe_to_execute"),
+                )
+                return parsed
+        except Exception as e:
+            logger.debug("AI risk analysis failed (keeping heuristic): %s", e)
+        return None
 
     def _predict_outcome(self, action_lower: str) -> str:
         """Predict the outcome category of an action."""
@@ -218,7 +274,8 @@ class SimulationReality:
             base = max(base, pattern_conf)
 
         similar = [
-            obs for obs in existing_obs
+            obs
+            for obs in existing_obs
             if any(word in obs.content.lower() for word in action_lower.split()[:3])
         ]
         if similar:
@@ -260,8 +317,7 @@ class SimulationReality:
 
         return SimulationDiff(
             new_observations=[
-                {"content": obs.content[:200], "confidence": obs.confidence}
-                for obs in new_obs
+                {"content": obs.content[:200], "confidence": obs.confidence} for obs in new_obs
             ],
             matched_patterns=all_matched,
             predicted_outcome=predicted,

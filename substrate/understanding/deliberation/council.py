@@ -19,6 +19,7 @@ Roles:
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from dataclasses import dataclass, field
@@ -89,23 +90,62 @@ class CouncilDeliberation:
         }
 
 
-_RISK_KEYWORDS = frozenset([
-    "delete", "drop", "truncate", "remove", "destroy", "kill",
-    "production", "deploy", "migrate", "force", "override",
-    "financial", "payment", "billing", "credential", "secret",
-    "external", "public", "publish", "broadcast",
-])
+_RISK_KEYWORDS = frozenset(
+    [
+        "delete",
+        "drop",
+        "truncate",
+        "remove",
+        "destroy",
+        "kill",
+        "production",
+        "deploy",
+        "migrate",
+        "force",
+        "override",
+        "financial",
+        "payment",
+        "billing",
+        "credential",
+        "secret",
+        "external",
+        "public",
+        "publish",
+        "broadcast",
+    ]
+)
 
-_STRATEGIC_KEYWORDS = frozenset([
-    "revenue", "customer", "growth", "brand", "market",
-    "acquisition", "retention", "conversion", "profit",
-    "competitive", "moat", "scale",
-])
+_STRATEGIC_KEYWORDS = frozenset(
+    [
+        "revenue",
+        "customer",
+        "growth",
+        "brand",
+        "market",
+        "acquisition",
+        "retention",
+        "conversion",
+        "profit",
+        "competitive",
+        "moat",
+        "scale",
+    ]
+)
 
-_TECHNICAL_DEBT_SIGNALS = frozenset([
-    "hack", "workaround", "temporary", "todo", "fixme",
-    "quick fix", "shortcut", "skip", "bypass", "ignore",
-])
+_TECHNICAL_DEBT_SIGNALS = frozenset(
+    [
+        "hack",
+        "workaround",
+        "temporary",
+        "todo",
+        "fixme",
+        "quick fix",
+        "shortcut",
+        "skip",
+        "bypass",
+        "ignore",
+    ]
+)
 
 
 class DeliberationCouncil:
@@ -143,8 +183,7 @@ class DeliberationCouncil:
         delib.final_verdict = delib.synthesis.verdict
         delib.overall_confidence = delib.synthesis.confidence
         delib.dissenting_roles = [
-            o.role.value for o in delib.opinions
-            if o.verdict != delib.final_verdict
+            o.role.value for o in delib.opinions if o.verdict != delib.final_verdict
         ]
         delib.duration_ms = (time.monotonic() - t0) * 1000
 
@@ -218,6 +257,7 @@ class DeliberationCouncil:
         if self._completeness is None:
             try:
                 from substrate.governance.validation.completeness_engine import CompletenessEngine
+
                 self._completeness = CompletenessEngine()
             except Exception:
                 return RoleOpinion(
@@ -267,7 +307,12 @@ class DeliberationCouncil:
                 rationale="No risk keywords detected — low risk",
             )
 
-        high_risk = [kw for kw in risk_hits if kw in {"production", "financial", "payment", "credential", "secret", "destroy", "force"}]
+        high_risk = [
+            kw
+            for kw in risk_hits
+            if kw
+            in {"production", "financial", "payment", "credential", "secret", "destroy", "force"}
+        ]
 
         if high_risk:
             return RoleOpinion(
@@ -348,7 +393,9 @@ class DeliberationCouncil:
                 confidence=0.6,
                 rationale=f"Feasible with {len(concerns)} concern(s)",
                 concerns=concerns,
-                conditions=["Decompose into smaller tasks" if word_count > 200 else "Address debt signals"],
+                conditions=[
+                    "Decompose into smaller tasks" if word_count > 200 else "Address debt signals"
+                ],
             )
 
         return RoleOpinion(
@@ -357,6 +404,67 @@ class DeliberationCouncil:
             confidence=0.7,
             rationale="Technically feasible — no implementation concerns",
         )
+
+    def _ai_synthesize(
+        self, opinions: list[RoleOpinion], proposal: str, heuristic_result: RoleOpinion
+    ) -> RoleOpinion | None:
+        """Escalate to LLM when the heuristic synthesis is low-confidence or split."""
+        if heuristic_result.confidence >= 0.65:
+            return None
+        try:
+            from adapters.models.model_router import call_with_fallback
+
+            opinions_text = "\n".join(
+                f"- {o.role.value}: {o.verdict.value} (confidence={o.confidence:.2f}) — {o.rationale}"
+                + (f" Concerns: {', '.join(o.concerns)}" if o.concerns else "")
+                for o in opinions
+            )
+            result = call_with_fallback(
+                prompt=(
+                    f"Proposal: {proposal[:500]}\n\n"
+                    f"Council opinions:\n{opinions_text}\n\n"
+                    f"Heuristic verdict: {heuristic_result.verdict.value} "
+                    f"(confidence={heuristic_result.confidence:.2f})\n\n"
+                    "Synthesize a final verdict. Weigh each role's expertise, "
+                    "resolve disagreements, and explain your reasoning."
+                ),
+                system=(
+                    "You are UMH's deliberation synthesis judge. Given council opinions on a proposal, "
+                    "produce a final verdict as JSON:\n"
+                    '{"verdict": "approve"|"approve_with_conditions"|"reject"|"defer", '
+                    '"confidence": 0.0-1.0, "rationale": "...", '
+                    '"conditions": ["..."], "concerns": ["..."]}\n'
+                    "Return ONLY valid JSON."
+                ),
+                task_type="analysis",
+            )
+            if not result.output:
+                return None
+            text = result.output.strip()
+            if text.startswith("```"):
+                text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+            parsed = json.loads(text)
+            verdict_str = parsed.get("verdict", "").lower()
+            verdict_map = {v.value: v for v in Verdict}
+            verdict = verdict_map.get(verdict_str, heuristic_result.verdict)
+            logger.info(
+                "AI synthesis: %s (confidence=%.2f) overriding heuristic %s (%.2f)",
+                verdict.value,
+                parsed.get("confidence", 0.0),
+                heuristic_result.verdict.value,
+                heuristic_result.confidence,
+            )
+            return RoleOpinion(
+                role=CouncilRole.SYNTHESIS_JUDGE,
+                verdict=verdict,
+                confidence=parsed.get("confidence", heuristic_result.confidence),
+                rationale=f"[AI synthesis] {parsed.get('rationale', '')}",
+                concerns=parsed.get("concerns", [])[:10],
+                conditions=parsed.get("conditions", [])[:10],
+            )
+        except Exception as e:
+            logger.debug("AI synthesis failed (keeping heuristic): %s", e)
+            return None
 
     def _synthesize(self, opinions: list[RoleOpinion], proposal: str) -> RoleOpinion:
         """Synthesis judge: weigh all perspectives and produce final verdict."""
@@ -374,16 +482,15 @@ class DeliberationCouncil:
         avg_confidence = sum(o.confidence for o in opinions) / len(opinions) if opinions else 0.5
 
         if reject_count >= 2:
-            return RoleOpinion(
+            heuristic = RoleOpinion(
                 role=CouncilRole.SYNTHESIS_JUDGE,
                 verdict=Verdict.REJECT,
                 confidence=avg_confidence,
                 rationale=f"Council rejected: {reject_count} roles voted reject",
                 concerns=all_concerns[:10],
             )
-
-        if reject_count == 1 and conditional_count >= 2:
-            return RoleOpinion(
+        elif reject_count == 1 and conditional_count >= 2:
+            heuristic = RoleOpinion(
                 role=CouncilRole.SYNTHESIS_JUDGE,
                 verdict=Verdict.APPROVE_WITH_CONDITIONS,
                 confidence=avg_confidence * 0.8,
@@ -391,28 +498,31 @@ class DeliberationCouncil:
                 concerns=all_concerns[:10],
                 conditions=list(set(all_conditions))[:10],
             )
-
-        if approve_count >= 4 and reject_count == 0:
+        elif approve_count >= 4 and reject_count == 0:
             if all_conditions:
-                return RoleOpinion(
+                heuristic = RoleOpinion(
                     role=CouncilRole.SYNTHESIS_JUDGE,
                     verdict=Verdict.APPROVE_WITH_CONDITIONS,
                     confidence=avg_confidence,
                     rationale=f"Strong approval ({approve_count} approve) with conditions",
                     conditions=list(set(all_conditions))[:5],
                 )
-            return RoleOpinion(
+            else:
+                heuristic = RoleOpinion(
+                    role=CouncilRole.SYNTHESIS_JUDGE,
+                    verdict=Verdict.APPROVE,
+                    confidence=avg_confidence,
+                    rationale=f"Council approved: {approve_count} roles approve",
+                )
+        else:
+            heuristic = RoleOpinion(
                 role=CouncilRole.SYNTHESIS_JUDGE,
-                verdict=Verdict.APPROVE,
+                verdict=Verdict.APPROVE_WITH_CONDITIONS,
                 confidence=avg_confidence,
-                rationale=f"Council approved: {approve_count} roles approve",
+                rationale=f"Mixed council: {approve_count} approve, {conditional_count} conditional, {reject_count} reject",
+                concerns=all_concerns[:10],
+                conditions=list(set(all_conditions))[:10],
             )
 
-        return RoleOpinion(
-            role=CouncilRole.SYNTHESIS_JUDGE,
-            verdict=Verdict.APPROVE_WITH_CONDITIONS,
-            confidence=avg_confidence,
-            rationale=f"Mixed council: {approve_count} approve, {conditional_count} conditional, {reject_count} reject",
-            concerns=all_concerns[:10],
-            conditions=list(set(all_conditions))[:10],
-        )
+        ai_result = self._ai_synthesize(opinions, proposal, heuristic)
+        return ai_result if ai_result is not None else heuristic

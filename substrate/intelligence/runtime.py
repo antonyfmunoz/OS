@@ -101,10 +101,9 @@ class PatternIntelligence:
             try:
                 data = json.loads(self._store_path.read_text())
                 for p in data.get("patterns", []):
-                    lp = LearnedPattern(**{
-                        k: v for k, v in p.items()
-                        if k in LearnedPattern.__dataclass_fields__
-                    })
+                    lp = LearnedPattern(
+                        **{k: v for k, v in p.items() if k in LearnedPattern.__dataclass_fields__}
+                    )
                     self._patterns[lp.pattern_id] = lp
             except (json.JSONDecodeError, KeyError):
                 pass
@@ -161,10 +160,7 @@ class PatternIntelligence:
             if pattern.confidence < min_confidence:
                 continue
 
-            hit_count = sum(
-                1 for trigger in pattern.trigger_conditions
-                if trigger in content_lower
-            )
+            hit_count = sum(1 for trigger in pattern.trigger_conditions if trigger in content_lower)
             if hit_count > 0:
                 score = (hit_count / len(pattern.trigger_conditions)) * pattern.confidence
                 matches.append((score, pattern))
@@ -200,10 +196,13 @@ class DecisionIntelligence:
                     line = line.strip()
                     if line:
                         data = json.loads(line)
-                        record = DecisionRecord(**{
-                            k: v for k, v in data.items()
-                            if k in DecisionRecord.__dataclass_fields__
-                        })
+                        record = DecisionRecord(
+                            **{
+                                k: v
+                                for k, v in data.items()
+                                if k in DecisionRecord.__dataclass_fields__
+                            }
+                        )
                         self._records.append(record)
                         self._outcome_counts[record.action_taken][
                             "success" if record.success else "failure"
@@ -234,15 +233,21 @@ class DecisionIntelligence:
 
         try:
             with open(self._store_path, "a") as f:
-                f.write(json.dumps({
-                    "decision_id": record.decision_id,
-                    "context_summary": record.context_summary,
-                    "action_taken": record.action_taken,
-                    "outcome": record.outcome,
-                    "success": record.success,
-                    "contributing_factors": record.contributing_factors,
-                    "timestamp": record.timestamp,
-                }, separators=(",", ":")) + "\n")
+                f.write(
+                    json.dumps(
+                        {
+                            "decision_id": record.decision_id,
+                            "context_summary": record.context_summary,
+                            "action_taken": record.action_taken,
+                            "outcome": record.outcome,
+                            "success": record.success,
+                            "contributing_factors": record.contributing_factors,
+                            "timestamp": record.timestamp,
+                        },
+                        separators=(",", ":"),
+                    )
+                    + "\n"
+                )
         except OSError as e:
             logger.warning("decision record write failed: %s", e)
 
@@ -266,12 +271,14 @@ class DecisionIntelligence:
             rate = counts["success"] / total
             relevance = sum(1 for w in action.lower().split() if w in context_lower)
             if relevance > 0:
-                scored.append({
-                    "action": action,
-                    "success_rate": round(rate, 3),
-                    "total_observations": total,
-                    "relevance_score": relevance,
-                })
+                scored.append(
+                    {
+                        "action": action,
+                        "success_rate": round(rate, 3),
+                        "total_observations": total,
+                        "relevance_score": relevance,
+                    }
+                )
 
         scored.sort(key=lambda x: x["success_rate"] * x["relevance_score"], reverse=True)
         return scored[:5]
@@ -288,8 +295,16 @@ class DecisionIntelligence:
         }
 
 
+NOVEL_SITUATION_THRESHOLD = 0.4
+
+
 class PredictiveIntelligence:
-    """Predicts outcomes based on pattern and decision intelligence."""
+    """Predicts outcomes based on pattern and decision intelligence.
+
+    When heuristic confidence is below NOVEL_SITUATION_THRESHOLD (no matching
+    patterns), escalates to LLM for reasoning about the novel situation.
+    The LLM prediction is recorded as a new learned pattern.
+    """
 
     def __init__(
         self,
@@ -299,6 +314,47 @@ class PredictiveIntelligence:
         self._patterns = pattern_engine or PatternIntelligence()
         self._decisions = decision_engine or DecisionIntelligence()
 
+    def _ai_predict(self, content: str, action: str) -> Prediction | None:
+        """Escalate to LLM for novel situation reasoning."""
+        try:
+            from adapters.models.model_router import call_with_fallback
+
+            action_ctx = f"\nPlanned action: {action}" if action else ""
+            result = call_with_fallback(
+                prompt=(
+                    f"Predict the outcome of this situation:\n\n"
+                    f"{content[:800]}{action_ctx}\n\n"
+                    "No historical patterns exist for this situation."
+                ),
+                system=(
+                    "You are UMH's predictive intelligence engine. Given a novel situation "
+                    "with no historical patterns, predict the likely outcome.\n"
+                    'Return JSON: {"prediction": "success|failure|partial|unknown", '
+                    '"confidence": 0.0-1.0, "reasoning": "..."}\n'
+                    "Return ONLY valid JSON."
+                ),
+                task_type="analysis",
+            )
+            if not result.output:
+                return None
+            text = result.output.strip()
+            if text.startswith("```"):
+                text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+            parsed = json.loads(text)
+            pred = parsed.get("prediction", "unknown")
+            conf = parsed.get("confidence", 0.5)
+            reasoning = parsed.get("reasoning", "")
+            logger.info("AI prediction for novel situation: %s (%.2f)", pred, conf)
+            return Prediction(
+                prediction=pred,
+                confidence=round(conf, 3),
+                basis=f"[AI reasoning] {reasoning[:200]}",
+                patterns_used=[],
+            )
+        except Exception as e:
+            logger.debug("AI prediction failed (keeping heuristic): %s", e)
+            return None
+
     def predict(self, content: str, action: str = "") -> Prediction:
         """Predict the outcome of a given action in a given context."""
         matched = self._patterns.match_patterns(content)
@@ -307,7 +363,9 @@ class PredictiveIntelligence:
             best = matched[0]
             confidence = best.confidence
             prediction = best.predicted_outcome
-            basis = f"Matched pattern: {best.description[:100]} ({best.observation_count} observations)"
+            basis = (
+                f"Matched pattern: {best.description[:100]} ({best.observation_count} observations)"
+            )
             pattern_ids = [p.pattern_id for p in matched[:3]]
         else:
             confidence = 0.3
@@ -320,6 +378,11 @@ class PredictiveIntelligence:
             if action_rate != 0.5:
                 confidence = (confidence + action_rate) / 2
                 basis += f" | Action '{action}' historical success rate: {action_rate:.1%}"
+
+        if confidence < NOVEL_SITUATION_THRESHOLD and len(content.strip()) > 20:
+            ai_pred = self._ai_predict(content, action)
+            if ai_pred and ai_pred.confidence > confidence:
+                return ai_pred
 
         return Prediction(
             prediction=prediction,

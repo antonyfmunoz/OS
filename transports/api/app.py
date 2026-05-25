@@ -296,14 +296,17 @@ app.add_middleware(
 from transports.api.cockpit import router as cockpit_router
 from transports.api.computer_use import router as execution_router
 from transports.api.distribution import router as distribution_router, wire_pipeline
+from transports.api.voice import router as voice_router, wire_pipeline as wire_voice_pipeline
 from transports.api.workstation import router as workstation_router
 
 app.include_router(cockpit_router)
 app.include_router(execution_router)
 app.include_router(distribution_router)
+app.include_router(voice_router)
 app.include_router(workstation_router)
 
 wire_pipeline(_pipeline.submit_signal)
+wire_voice_pipeline(_pipeline.submit_signal)
 app.add_api_websocket_route("/ws", ws_endpoint)
 
 
@@ -413,7 +416,9 @@ async def pipeline_submit(req: SubmitRequest):
 
     validation = validate_signal_content(req.content)
     if not validation.valid:
-        raise HTTPException(status_code=400, detail=f"Validation failed: {', '.join(validation.violations)}")
+        raise HTTPException(
+            status_code=400, detail=f"Validation failed: {', '.join(validation.violations)}"
+        )
 
     try:
         risk = RiskClass[req.risk_class]
@@ -464,7 +469,9 @@ async def pipeline_submit(req: SubmitRequest):
         target=req.adapter_name,
         outcome="success" if result.success else "blocked",
         detail=f"risk={req.risk_class} outcome={result.outcome_type}",
-        risk_level="high" if risk not in (RiskClass.READ_ONLY, RiskClass.REVERSIBLE_WRITE) else "low",
+        risk_level="high"
+        if risk not in (RiskClass.READ_ONLY, RiskClass.REVERSIBLE_WRITE)
+        else "low",
     )
 
     return {
