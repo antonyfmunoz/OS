@@ -438,8 +438,8 @@ See `PROTOCOLS.md` for full documentation.
 Quick reference:
 
 ```
-Layer 0 — AI identity     eos_ai/ai_identity.py
-Layer 1 — Platform        eos_ai/cognitive_loop.py
+Layer 0 — AI identity     substrate/control_plane/identity/ai_identity.py
+Layer 1 — Platform        substrate/control_plane/runtime/cognitive_loop.py
 Layer 2 — OS modules      per subscription
 Layer 3 — Instance        database at runtime
 ```
