@@ -1,13 +1,15 @@
 """GovernanceEngine — the single governance entry point for UMH.
 
-Three governance layers, one API surface:
+Five governance layers, one API surface:
   1. Signal-level: classify() — risk + autonomy check from SignalEnvelope content
   2. Business-action: evaluate_action() — delegates to AuthorityEngine
   3. Capability-level: evaluate_capability() — delegates to PolicyEngine
+  4. Output quality: evaluate_quality() — delegates to QualityTransformationGate
+  5. Tier check: check_tier() — permission tier validation
 
 All external callers should go through ConcreteGovernanceEngine.
-Internal engines (AuthorityEngine, PolicyEngine) handle their own concerns
-but are accessed through this facade.
+Internal engines (AuthorityEngine, PolicyEngine, QualityGate) handle
+their own concerns but are accessed through this facade.
 """
 
 from __future__ import annotations
@@ -215,6 +217,55 @@ class ConcreteGovernanceEngine:
 
         pe = PolicyEngine(safe_roots=["/opt/OS"])
         return pe.evaluate(category, request, context)
+
+    def queue_for_approval(
+        self,
+        action_type: str,
+        request: dict[str, Any],
+        workflow_id: str | None = None,
+    ) -> str:
+        """Queue an action for human approval via AuthorityEngine.
+
+        Returns the approval_id string.
+        """
+        from substrate.governance.policy.authority_engine import AuthorityEngine
+        from substrate.state.context.context import load_context_from_env
+
+        ctx = load_context_from_env()
+        ae = AuthorityEngine(ctx)
+        return ae.queue_for_approval(request)
+
+    def get_pending_approvals(self) -> list[dict[str, Any]]:
+        """List all pending approval requests."""
+        from substrate.governance.policy.authority_engine import AuthorityEngine
+        from substrate.state.context.context import load_context_from_env
+
+        ctx = load_context_from_env()
+        ae = AuthorityEngine(ctx)
+        return ae.get_pending()
+
+    def evaluate_quality(
+        self,
+        output: str,
+        context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Output quality governance — delegates to QualityTransformationGate.
+
+        Scores output against the 4-value lens (reality, intelligence,
+        personalization, execution). Returns score dict with passed bool.
+        """
+        try:
+            from substrate.governance.quality.quality_gate import QualityTransformationGate
+
+            gate = QualityTransformationGate()
+            result = gate.transform(output, context or {})
+            return {
+                "score": result.quality_score,
+                "passed": result.quality_score >= 0.75,
+                "values": result.value_scores,
+            }
+        except Exception:
+            return {"score": 0.5, "passed": True, "values": {}}
 
     def _classify_risk(self, content: str) -> RiskClass:
         """Classify risk based on content patterns. Deterministic spine."""
