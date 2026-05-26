@@ -425,7 +425,7 @@ def quality_check(
     issues (list[str]), suggestions (list[str]), revised_version (str).
     """
     try:
-        from substrate.execution.runtime.model_router import get_router, TaskType
+        from adapters.models.model_router import get_router, TaskType
 
         router = get_router()
         model = router.route(TaskType.FAST_RESPONSE)

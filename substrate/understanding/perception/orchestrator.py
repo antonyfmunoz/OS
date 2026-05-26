@@ -546,7 +546,7 @@ DOCUMENT SOURCE: {source_path}
 
         for attempt in range(2):
             try:
-                from substrate.execution.runtime.model_router import call_with_fallback, TaskType
+                from adapters.models.model_router import call_with_fallback, TaskType
 
                 result = call_with_fallback(
                     prompt=prompt,

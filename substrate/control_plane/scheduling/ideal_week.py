@@ -118,7 +118,7 @@ def create_process_capture(task_name: str, description: str, ctx=None) -> str:
     User describes how they do a task, DEX turns it into a reusable SOP.
     """
     try:
-        from substrate.execution.runtime.model_router import get_router, TaskType
+        from adapters.models.model_router import get_router, TaskType
         from substrate.state.context.context import load_context_from_env
         ctx = ctx or load_context_from_env()
 

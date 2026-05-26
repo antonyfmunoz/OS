@@ -25,7 +25,7 @@ async def architect_week():
     from adapters.google_workspace.gws_connector import GWSConnector
     from substrate.control_plane.strategy.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
     from substrate.state.context.context import load_context_from_env
-    from substrate.execution.runtime.model_router import get_router, TaskType
+    from adapters.models.model_router import get_router, TaskType
 
     ctx = load_context_from_env()
     gws = GWSConnector()

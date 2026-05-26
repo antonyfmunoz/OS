@@ -368,7 +368,7 @@ def calendly_webhook():
 
         # Cancellation recovery flow
         try:
-            from substrate.execution.runtime.model_router import get_router, TaskType
+            from adapters.models.model_router import get_router, TaskType
             import os as _os
             _router = get_router()
             _model = _router.route(TaskType.FAST_RESPONSE)

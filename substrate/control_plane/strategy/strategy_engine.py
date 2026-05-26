@@ -38,7 +38,7 @@ if _REPO_ROOT not in sys.path:
 
 from substrate.state.context.context import EntrepreneurOSContext, load_context_from_env
 from substrate.control_plane.runtime.cognitive_loop import CognitiveLoop
-from substrate.execution.runtime.agent_runtime import TaskType
+from adapters.models.agent_runtime import TaskType
 from substrate.state.storage.db import get_conn, resolve_venture
 from substrate.state.memory.memory import AgentMemory
 from substrate.state.business.venture_knowledge import VentureKnowledgeBase

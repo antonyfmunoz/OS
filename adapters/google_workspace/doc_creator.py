@@ -30,7 +30,7 @@ def create_briefing_doc(
     Returns dict with content, drive_file, title, type.
     """
     try:
-        from substrate.execution.runtime.model_router import get_router, TaskType
+        from adapters.models.model_router import get_router, TaskType
         from adapters.google_workspace.gws_connector import GWSConnector
         router = get_router()
 
@@ -202,7 +202,7 @@ def create_presentation_outline(
     Returns dict with slides (structured data) and drive_file.
     """
     try:
-        from substrate.execution.runtime.model_router import get_router, TaskType
+        from adapters.models.model_router import get_router, TaskType
         from adapters.google_workspace.gws_connector import GWSConnector
         import json as _json
         router = get_router()
@@ -270,7 +270,7 @@ def fact_check(claim: str, ctx=None) -> dict:
     Returns dict with verdict, explanation, confidence, verify.
     """
     try:
-        from substrate.execution.runtime.model_router import get_router, TaskType
+        from adapters.models.model_router import get_router, TaskType
         import json as _json
         router = get_router()
 
@@ -304,7 +304,7 @@ def draft_announcement(
     announcement_type: internal|team|public|press_release
     """
     try:
-        from substrate.execution.runtime.model_router import get_router, TaskType
+        from adapters.models.model_router import get_router, TaskType
         router = get_router()
 
         templates = {
@@ -338,7 +338,7 @@ def draft_crisis_communication(
 ) -> str:
     """Draft crisis communication following acknowledge-factual-action structure."""
     try:
-        from substrate.execution.runtime.model_router import get_router, TaskType
+        from adapters.models.model_router import get_router, TaskType
         router = get_router()
 
         return router.call_with_fallback(TaskType.FAST_RESPONSE, f"""Draft a crisis communication.

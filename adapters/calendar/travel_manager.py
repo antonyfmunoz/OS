@@ -48,7 +48,7 @@ def build_travel_brief(
 ) -> str:
     """Build a complete travel logistics brief."""
     try:
-        from substrate.execution.runtime.model_router import get_router, TaskType
+        from adapters.models.model_router import get_router, TaskType
         from substrate.state.context.context import load_context_from_env as _lctx
         router = get_router()
 
@@ -148,7 +148,7 @@ def research_flights(
 ) -> str:
     """Research flight options (informational — no booking)."""
     try:
-        from substrate.execution.runtime.model_router import get_router, TaskType
+        from adapters.models.model_router import get_router, TaskType
         router = get_router()
 
         return router.call_with_fallback(TaskType.FAST_RESPONSE, f"""Research flight options.
@@ -181,7 +181,7 @@ def research_hotels(
 ) -> str:
     """Research hotel options (informational — no booking)."""
     try:
-        from substrate.execution.runtime.model_router import get_router, TaskType
+        from adapters.models.model_router import get_router, TaskType
         router = get_router()
 
         return router.call_with_fallback(TaskType.FAST_RESPONSE, f"""Research hotel options.
@@ -212,7 +212,7 @@ def research_restaurants(
 ) -> str:
     """Research restaurant options for a city and occasion."""
     try:
-        from substrate.execution.runtime.model_router import get_router, TaskType
+        from adapters.models.model_router import get_router, TaskType
         router = get_router()
 
         return router.call_with_fallback(TaskType.FAST_RESPONSE, f"""Research restaurant options.
@@ -245,7 +245,7 @@ def generate_trip_itinerary(
 ) -> str:
     """Generate a day-by-day trip itinerary document and save to Drive."""
     try:
-        from substrate.execution.runtime.model_router import get_router, TaskType
+        from adapters.models.model_router import get_router, TaskType
         from adapters.google_workspace.gws_connector import GWSConnector
         router = get_router()
 

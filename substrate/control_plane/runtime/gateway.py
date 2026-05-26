@@ -449,7 +449,7 @@ class EntrepreneurOSGateway:
         try:
             from substrate.state.context.context import load_context_from_env
             from adapters.google_workspace.email_gps import EmailGPS
-            from substrate.execution.runtime.model_router import get_router, TaskType
+            from adapters.models.model_router import get_router, TaskType
 
             ctx_eos = load_context_from_env()
             gps = EmailGPS(ctx_eos)
@@ -887,7 +887,7 @@ class EntrepreneurOSGateway:
 
     def _web_search(self, query: str) -> str:
         try:
-            from substrate.execution.runtime.model_router import get_router, TaskType as RouterTaskType
+            from adapters.models.model_router import get_router, TaskType as RouterTaskType
 
             router = get_router()
             result = router.call_with_fallback(
@@ -983,7 +983,7 @@ class EntrepreneurOSGateway:
     # ─── Route: agent_task ────────────────────────────────────────────────────
 
     def _route_agent_task(self, request: dict, session_id: str = None, cm=None) -> dict:
-        from substrate.execution.runtime.agent_runtime import AgentRuntime, TaskType
+        from adapters.models.agent_runtime import AgentRuntime, TaskType
         from substrate.control_plane.runtime.cognitive_loop import CognitiveLoop
         from substrate.state.context.context import load_context_from_env
 
@@ -1835,7 +1835,7 @@ class EntrepreneurOSGateway:
         # No keyword match — try AI for ambiguous cases
         _VALID = set(self._INTENT_KEYWORDS.keys()) | {"UNKNOWN"}
         try:
-            from substrate.execution.runtime.model_router import call_with_fallback, TaskType
+            from adapters.models.model_router import call_with_fallback, TaskType
 
             _SYSTEM = (
                 "Classify this message into exactly one intent. "
@@ -1903,7 +1903,7 @@ def ingest_external_context(
     Returns the interaction_id (UUID).
     """
     from substrate.state.memory.memory import AgentMemory
-    from substrate.execution.runtime.agent_runtime import AgentResult
+    from adapters.models.agent_runtime import AgentResult
 
     result = AgentResult(
         output=content[:500],

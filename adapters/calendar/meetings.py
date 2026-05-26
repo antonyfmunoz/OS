@@ -172,7 +172,7 @@ def update_meeting_outcome(
             # Part 1 — Auto-draft follow-up email after meeting
             if status == 'Completed' and (outcomes or open_loops):
                 try:
-                    from substrate.execution.runtime.model_router import get_router, TaskType
+                    from adapters.models.model_router import get_router, TaskType
                     from substrate.state.context.context import load_context_from_env
                     from substrate.state.storage.db import get_conn
                     import json as _json
@@ -235,7 +235,7 @@ On behalf of Antony Munoz"""
             # Part 2 — Auto-update pipeline stage based on outcome
             if outcomes and status == 'Completed':
                 try:
-                    from substrate.execution.runtime.model_router import get_router, TaskType
+                    from adapters.models.model_router import get_router, TaskType
                     import json as _json
                     _router = get_router()
                     _model = _router.route(TaskType.FAST_RESPONSE)
@@ -595,7 +595,7 @@ def draft_meeting_agenda(
     """
     try:
         from substrate.state.context.context import load_context_from_env
-        from substrate.execution.runtime.model_router import get_router, TaskType
+        from adapters.models.model_router import get_router, TaskType
         from substrate.understanding.intelligence.person_recognition import build_intelligence_profile
         ctx = ctx or load_context_from_env()
         router = get_router()
@@ -654,7 +654,7 @@ def draft_meeting_minutes(
     """
     import json as _j
     try:
-        from substrate.execution.runtime.model_router import get_router, TaskType
+        from adapters.models.model_router import get_router, TaskType
         from adapters.google_workspace.gws_connector import GWSConnector
         from substrate.state.context.context import load_context_from_env
         from substrate.state.storage.db import get_conn
