@@ -53,6 +53,31 @@ _eos_poller: Any = None
 _eos_poller_thread: threading.Thread | None = None
 _mesh_server: Any = None
 _organism: Any = None
+_loop_registry: Any = None
+
+
+def _start_persistent_loops() -> None:
+    """Load loop definitions and start all enabled persistent loops."""
+    global _loop_registry
+    try:
+        from substrate.execution.loop.persistent_loop import get_registry
+
+        _loop_registry = get_registry()
+        loaded = _loop_registry.load_definitions()
+        started = _loop_registry.start_all()
+        logger.info(
+            "persistent loops: %d loaded, %d started — %s",
+            loaded, len(started), started,
+        )
+    except Exception as exc:
+        logger.warning("persistent loops not started: %s", exc)
+
+
+def _stop_persistent_loops() -> None:
+    """Stop all running persistent loops."""
+    if _loop_registry is not None:
+        stopped = _loop_registry.stop_all()
+        logger.info("persistent loops stopped: %s", stopped)
 
 
 def _register_notion_integration() -> None:
@@ -225,6 +250,7 @@ async def lifespan(app: FastAPI):
     _register_eos_integration()
     _register_node_mesh()
     _register_organism()
+    _start_persistent_loops()
 
     if _notion_poller is not None:
         _notion_poller_thread = _notion_poller.start()
@@ -267,6 +293,8 @@ async def lifespan(app: FastAPI):
     logger.info("cockpit notification channel registered")
 
     yield
+
+    _stop_persistent_loops()
 
     if _memory_watcher is not None:
         _memory_watcher.stop()
