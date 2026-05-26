@@ -1,6 +1,6 @@
-# EOS Protocol Architecture
+# UMH Protocol Architecture
 
-EOS has four distinct protocol layers.
+UMH has four distinct protocol layers.
 Each layer has a clear scope, owner,
 and contract. Changes to one layer
 do not require changes to another.
@@ -9,7 +9,7 @@ do not require changes to another.
 
 ## Layer 0 — AI Identity (Universal)
 
-**File:** `eos_ai/ai_identity.py`
+**File:** `substrate/control_plane/identity/ai_identity.py`
 **Scope:** Every response, everywhere, always
 **Owner:** The AI itself
 **Injected:** Step 0 in `cognitive_loop.py` — before everything else
@@ -43,8 +43,8 @@ Non-negotiable. Always first.
 
 ## Layer 1 — Platform Protocols (EOS)
 
-**Files:** `eos_ai/cognitive_loop.py`, `eos_ai/primitives.py`,
-           `eos_ai/agent_hierarchy.py`, `eos_ai/reality_context.py`
+**Files:** `substrate/control_plane/runtime/cognitive_loop.py`, `substrate/ontology/primitives.py`,
+           `substrate/control_plane/agents/agent_hierarchy.py`, `substrate/understanding/reality/reality_context.py`
 **Scope:** All EOS instances
 **Owner:** EOS platform
 **Injected:** Steps 1a–1h in `cognitive_loop.py`
@@ -76,7 +76,7 @@ All instance values loaded from database.
 
 ## Layer 2 — OS Module Protocols
 
-**Files:** `eos_ai/os_registry.py` (registry), `eos_ai/trinity.py` (cross-OS intelligence)
+**Files:** `substrate/state/registries/os_registry.py` (registry), `substrate/state/permissions/os_trinity.py` (cross-OS intelligence)
 **Scope:** Users subscribed to that OS
 **Owner:** Each OS module
 **Injected:** After Layer 1 step 1h, before Layer 3 (via TrinityEngine)
@@ -252,5 +252,5 @@ and their goals. The harness disappears into the substrate.
 
 ---
 
-*This document is the single source of truth for the EOS protocol architecture.
+*This document is the single source of truth for the UMH protocol architecture.
 Read before building. Update when the architecture changes.*
