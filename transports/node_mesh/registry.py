@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import threading
 import time
+from pathlib import Path
 from typing import Any
 
 from transports.node_mesh.integration.types import ConnectedNode, NodeCapability  # noqa: F401 — re-exported
+
+_SNAPSHOT_PATH = Path("/opt/OS/data/runtime/mesh_nodes.json")
 
 logger = logging.getLogger(__name__)
 
@@ -24,12 +28,14 @@ class NodeRegistry:
         with self._lock:
             self._nodes[node.node_id] = node
         logger.info("node registered: %s (%s %s)", node.node_id, node.os, node.hostname)
+        self._write_snapshot()
 
     def remove(self, node_id: str) -> ConnectedNode | None:
         with self._lock:
             node = self._nodes.pop(node_id, None)
         if node:
             logger.info("node removed: %s", node_id)
+            self._write_snapshot()
         return node
 
     def get(self, node_id: str) -> ConnectedNode | None:
@@ -46,6 +52,7 @@ class NodeRegistry:
             if node is None:
                 return False
             node.update_heartbeat(metrics)
+            self._write_snapshot()
             return True
 
     def stale_nodes(self) -> list[str]:
@@ -61,3 +68,12 @@ class NodeRegistry:
     def node_count(self) -> int:
         with self._lock:
             return len(self._nodes)
+
+    def _write_snapshot(self) -> None:
+        try:
+            with self._lock:
+                data = [n.to_api_dict() for n in self._nodes.values()]
+            _SNAPSHOT_PATH.parent.mkdir(parents=True, exist_ok=True)
+            _SNAPSHOT_PATH.write_text(json.dumps(data), encoding="utf-8")
+        except Exception:
+            pass
