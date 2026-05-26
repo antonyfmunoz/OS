@@ -1,6 +1,8 @@
 import { useSystemStore } from '../stores/systemStore'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { useVoiceStore } from '../stores/voiceStore'
+import { VoiceWaveform } from './VoiceWaveform'
+import { startVoice, stopVoice } from '../api/voice-controller'
 
 function StatusDot({ status }: { status: 'connected' | 'connecting' | 'disconnected' }) {
   const colors = {
@@ -107,11 +109,26 @@ export function HudBar() {
         voice <StatusDot status={voiceStatus} />
       </span>
 
-      {/* Mic status */}
-      <span className="hud-text flex items-center gap-1.5">
-        {micState === 'listening' ? '🎤' : '🎤'}
-        <AudioMeter level={audioLevel} />
-      </span>
+      {/* Voice toggle */}
+      <button
+        onClick={() => {
+          if (micState === 'idle') startVoice()
+          else stopVoice()
+        }}
+        className="flex items-center gap-1.5 px-2 py-0.5 rounded cursor-pointer transition-colors duration-150"
+        style={{
+          color: micState !== 'idle' ? 'var(--accent-cyan)' : 'var(--text-tertiary)',
+          background: micState !== 'idle' ? 'var(--glow-cyan)' : 'transparent',
+          border: micState !== 'idle' ? '1px solid var(--accent-cyan)' : '1px solid transparent',
+        }}
+        title={micState === 'idle' ? 'Start voice (V)' : 'Stop voice (V)'}
+      >
+        {micState !== 'idle' ? <VoiceWaveform /> : <span className="text-xs">🎤</span>}
+        <span className="hud-text">
+          {micState === 'idle' ? 'voice' : micState === 'listening' ? 'listening' : 'processing'}
+        </span>
+        {micState !== 'idle' && <AudioMeter level={audioLevel} />}
+      </button>
     </footer>
   )
 }

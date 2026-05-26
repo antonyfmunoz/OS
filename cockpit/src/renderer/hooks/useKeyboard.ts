@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
 import { useCockpitStore, type Panel } from '../stores/cockpitStore'
+import { useVoiceStore } from '../stores/voiceStore'
+import { startVoice, stopVoice } from '../api/voice-controller'
 
 const PANEL_KEYS: Record<string, Panel> = {
   '1': 'dashboard',
@@ -26,6 +28,14 @@ export function useKeyboard(): void {
       if (e.ctrlKey && e.shiftKey && e.key === 'M') {
         e.preventDefault()
         cycleWindowMode('shrink')
+        return
+      }
+
+      if (e.ctrlKey && e.shiftKey && e.key === 'V') {
+        e.preventDefault()
+        const mic = useVoiceStore.getState().micState
+        if (mic === 'idle') startVoice()
+        else stopVoice()
         return
       }
 
