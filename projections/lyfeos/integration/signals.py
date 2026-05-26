@@ -6,9 +6,7 @@ import logging
 from typing import Any
 from uuid import uuid4
 
-from substrate.types import SignalUrgency
-from substrate.sockets.envelopes import SignalEnvelope
-from substrate.sockets.protocols import SignalDescriptor
+from substrate.types import IntegrationSignalEnvelope as SignalEnvelope, SignalDescriptor, SignalUrgency
 
 from .correlation import LyfeOSWritebackTarget
 from .manifest import INTEGRATION_ID, SIGNAL_DESCRIPTORS

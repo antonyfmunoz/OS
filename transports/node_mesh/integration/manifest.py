@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from substrate.integrations.node_mesh.handlers import NodeCapabilityHandler
-from substrate.integrations.node_mesh.outcomes import NodeOutcomeReceiver
-from substrate.integrations.node_mesh.signals import NodeSignalEmitter
-from substrate.integrations.node_mesh.types import ConnectedNode
+from transports.node_mesh.integration.handlers import NodeCapabilityHandler
+from transports.node_mesh.integration.outcomes import NodeOutcomeReceiver
+from transports.node_mesh.integration.signals import NodeSignalEmitter
+from transports.node_mesh.integration.types import ConnectedNode
 from substrate.sockets.registry import IntegrationManifest
 
 

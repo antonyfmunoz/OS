@@ -5,9 +5,13 @@ from __future__ import annotations
 import logging
 import os
 
-from substrate.governance.risk_classes import RiskClass
-from substrate.types import CapabilityCategory, SignalUrgency
-from substrate.sockets.protocols import CapabilityDescriptor, SignalDescriptor
+from substrate.types import (
+    ActionRiskClass as RiskClass,
+    CapabilityCategory,
+    CapabilityDescriptor,
+    SignalDescriptor,
+    SignalUrgency,
+)
 
 logger = logging.getLogger(__name__)
 

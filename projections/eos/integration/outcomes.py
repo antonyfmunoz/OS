@@ -1,4 +1,4 @@
-"""LyfeOS outcome receiver — writes pipeline outcomes back to LyfeOS Postgres.
+"""EOS outcome receiver — writes pipeline outcomes back to EOS Postgres.
 
 Dual writeback (source row umh_status + umh_outcomes audit table).
 Satisfies OutcomeReceiver Protocol structurally.
@@ -11,9 +11,9 @@ from typing import Any
 
 import psycopg2
 
-from substrate.sockets.envelopes import OutcomeEnvelope
+from substrate.types import OutcomeEnvelope
 
-from .correlation import LyfeOSCorrelationMap
+from .correlation import EOSCorrelationMap
 from .manifest import INTEGRATION_ID
 from .tables import (
     SOURCE_ROW_UPDATE_TYPES,
@@ -33,17 +33,18 @@ _STATUS_MAP: dict[str, str] = {
 }
 
 
-class LyfeOSOutcomeReceiver:
-    """Receives pipeline outcomes and writes them back to LyfeOS Postgres.
+class EOSOutcomeReceiver:
+    """Receives pipeline outcomes and writes them back to EOS Postgres.
 
-    Dual writeback: source row umh_status + audit table insert.
-    Severity ladder: source row only advances to higher severity.
+    Dual writeback:
+    - Source row: UPDATE umh_status on crm_contacts/crm_deals/crm_activities/tasks/agent_actions
+    - Audit table: INSERT into umh_outcomes (all outcomes)
     """
 
     def __init__(
         self,
         database_url: str,
-        correlation_map: LyfeOSCorrelationMap,
+        correlation_map: EOSCorrelationMap,
     ) -> None:
         self._database_url = database_url
         self._correlation_map = correlation_map
@@ -55,20 +56,20 @@ class LyfeOSOutcomeReceiver:
 
     def on_outcome(self, envelope: OutcomeEnvelope) -> None:
         if envelope.correlation_id is None:
-            logger.debug("lyfeos outcome: no correlation_id, skipping writeback")
+            logger.debug("eos outcome: no correlation_id, skipping writeback")
             return
 
         target = self._correlation_map.lookup(envelope.correlation_id)
         if target is None:
             logger.debug(
-                "lyfeos outcome: correlation_id %s not in map",
+                "eos outcome: correlation_id %s not in map",
                 envelope.correlation_id,
             )
             return
 
-        if target.integration != "lyfeos":
+        if target.integration != "eos":
             logger.debug(
-                "lyfeos outcome: target integration is %s, not lyfeos",
+                "eos outcome: target integration is %s, not eos",
                 target.integration,
             )
             return
@@ -79,7 +80,7 @@ class LyfeOSOutcomeReceiver:
             self._correlation_map.remove(envelope.correlation_id)
         except psycopg2.Error as exc:
             logger.error(
-                "lyfeos writeback db error: %s for %s.%s",
+                "eos writeback db error: %s for %s.%s",
                 exc,
                 target.table_name,
                 target.row_id,
@@ -87,7 +88,7 @@ class LyfeOSOutcomeReceiver:
             self._conn = None
         except Exception as exc:
             logger.error(
-                "lyfeos writeback failed: %s: %s for %s.%s",
+                "eos writeback failed: %s: %s for %s.%s",
                 type(exc).__name__,
                 exc,
                 target.table_name,
@@ -124,14 +125,14 @@ class LyfeOSOutcomeReceiver:
                 )
                 if updated:
                     logger.info(
-                        "lyfeos writeback: %s.%s umh_status=%s",
+                        "eos writeback: %s.%s umh_status=%s",
                         target.table_name,
                         target.row_id,
                         mapped_status,
                     )
             except Exception as exc:
                 logger.error(
-                    "lyfeos writeback source row update failed: %s for %s.%s",
+                    "eos writeback source row update failed: %s for %s.%s",
                     exc,
                     target.table_name,
                     target.row_id,
@@ -150,20 +151,21 @@ class LyfeOSOutcomeReceiver:
                 payload=payload,
             )
             logger.info(
-                "lyfeos writeback: umh_outcomes id=%s type=%s trace=%s",
+                "eos writeback: umh_outcomes id=%s type=%s trace=%s",
                 audit_id,
                 mapped_status,
                 envelope.trace_id,
             )
         except Exception as exc:
             logger.error(
-                "lyfeos writeback audit insert failed: %s for trace %s",
+                "eos writeback audit insert failed: %s for trace %s",
                 exc,
                 envelope.trace_id,
             )
 
 
 def _build_audit_payload(envelope: OutcomeEnvelope) -> dict[str, Any]:
+    """Build the jsonb payload for the umh_outcomes audit row."""
     payload: dict[str, Any] = {
         "signal_id": str(envelope.signal_id),
         "outcome_type": envelope.outcome_type,
