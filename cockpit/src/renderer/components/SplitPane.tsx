@@ -67,7 +67,7 @@ export function SplitPane({
         style={{
           [isHorizontal ? 'width' : 'height']: 4,
           cursor: isHorizontal ? 'col-resize' : 'row-resize',
-          background: 'var(--border)',
+          background: 'var(--color-border)',
         }}
       />
 

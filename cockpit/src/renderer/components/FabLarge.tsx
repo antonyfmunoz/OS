@@ -7,9 +7,9 @@ import { useVoiceStore } from '../stores/voiceStore'
 import { startVoice, stopVoice } from '../api/voice-controller'
 
 const MODE_COLORS: Record<string, string> = {
-  EXECUTE: 'var(--accent-green)',
-  PLAN: 'var(--accent-amber)',
-  REVIEW: 'var(--accent-purple)',
+  EXECUTE: 'var(--color-ok)',
+  PLAN: 'var(--color-warn)',
+  REVIEW: 'var(--color-violet)',
 }
 
 export function FabLarge() {
@@ -43,8 +43,8 @@ export function FabLarge() {
       className="flex flex-col gap-2 p-3 rounded-lg select-none"
       style={{
         width: 280,
-        background: 'var(--bg)',
-        border: '1px solid var(--border)',
+        background: 'var(--color-canvas)',
+        border: '1px solid var(--color-border)',
         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
       }}
     >
@@ -54,7 +54,7 @@ export function FabLarge() {
             className="w-2 h-2 rounded-full"
             style={{ background: MODE_COLORS[mode] }}
           />
-          <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+          <span className="text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>
             {mode}
           </span>
         </div>
@@ -64,8 +64,8 @@ export function FabLarge() {
             onClick={() => activeAgents.length > 0 ? handleExecutionClick() : undefined}
             className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs"
             style={{
-              color: activeAgents.length > 0 ? 'var(--accent-cyan)' : 'var(--text-tertiary)',
-              background: activeAgents.length > 0 ? 'var(--glow-cyan)' : 'transparent',
+              color: activeAgents.length > 0 ? 'var(--color-cyan)' : 'var(--color-text-tertiary)',
+              background: activeAgents.length > 0 ? 'var(--color-cyan-glow)' : 'transparent',
             }}
             title="Agents active"
           >
@@ -80,8 +80,8 @@ export function FabLarge() {
             }}
             className="flex items-center justify-center w-6 h-6 rounded"
             style={{
-              color: micState !== 'idle' ? 'var(--accent-cyan)' : 'var(--text-tertiary)',
-              background: micState !== 'idle' ? 'var(--glow-cyan)' : 'transparent',
+              color: micState !== 'idle' ? 'var(--color-cyan)' : 'var(--color-text-tertiary)',
+              background: micState !== 'idle' ? 'var(--color-cyan-glow)' : 'transparent',
             }}
             title="Voice"
           >
@@ -97,8 +97,8 @@ export function FabLarge() {
           placeholder="Ask DEX..."
           className="flex-1 px-2 py-1 rounded text-xs bg-transparent outline-none"
           style={{
-            color: 'var(--text-primary)',
-            border: '1px solid var(--border)',
+            color: 'var(--color-text-primary)',
+            border: '1px solid var(--color-border)',
           }}
         />
         <button
@@ -106,7 +106,7 @@ export function FabLarge() {
           disabled={sending || !dexInput.trim()}
           className="px-2 py-1 rounded text-xs"
           style={{
-            color: 'var(--accent-cyan)',
+            color: 'var(--color-cyan)',
             opacity: sending || !dexInput.trim() ? 0.4 : 1,
           }}
         >
@@ -118,7 +118,7 @@ export function FabLarge() {
         <button
           onClick={() => cycleWindowMode('expand')}
           className="text-xs px-1.5 py-0.5 rounded"
-          style={{ color: 'var(--text-tertiary)' }}
+          style={{ color: 'var(--color-text-tertiary)' }}
           title="Expand"
         >
           ↑
@@ -126,7 +126,7 @@ export function FabLarge() {
         <button
           onClick={() => cycleWindowMode('shrink')}
           className="text-xs px-1.5 py-0.5 rounded"
-          style={{ color: 'var(--text-tertiary)' }}
+          style={{ color: 'var(--color-text-tertiary)' }}
           title="Shrink"
         >
           ↓

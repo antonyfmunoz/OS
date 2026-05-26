@@ -26,6 +26,7 @@ interface CockpitState {
   splitPanel: Panel | null
   mode: 'EXECUTE' | 'PLAN' | 'REVIEW'
   windowMode: WindowMode
+  railCollapsed: boolean
   apiStatus: ConnectionStatus
   wsStatus: ConnectionStatus
   voiceStatus: ConnectionStatus
@@ -37,6 +38,7 @@ interface CockpitState {
   setMode: (mode: 'EXECUTE' | 'PLAN' | 'REVIEW') => void
   setWindowMode: (mode: WindowMode) => void
   cycleWindowMode: (direction: 'shrink' | 'expand') => void
+  toggleRail: () => void
   setApiStatus: (status: ConnectionStatus) => void
   setWsStatus: (status: ConnectionStatus) => void
   setVoiceStatus: (status: ConnectionStatus) => void
@@ -49,6 +51,7 @@ export const useCockpitStore = create<CockpitState>((set) => ({
   splitPanel: null,
   mode: 'EXECUTE',
   windowMode: 'maximized',
+  railCollapsed: false,
   apiStatus: 'disconnected',
   wsStatus: 'disconnected',
   voiceStatus: 'disconnected',
@@ -62,6 +65,7 @@ export const useCockpitStore = create<CockpitState>((set) => ({
     set({ windowMode })
     window.cockpit?.window?.setMode?.(windowMode)
   },
+  toggleRail: () => set((s) => ({ railCollapsed: !s.railCollapsed })),
   cycleWindowMode: (direction) =>
     set((s) => {
       const idx = WINDOW_MODE_ORDER.indexOf(s.windowMode)

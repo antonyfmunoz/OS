@@ -21,9 +21,9 @@ export function OverlayToggle({ options, active, onToggle }: OverlayToggleProps)
             onClick={() => onToggle(opt.id)}
             className="px-2 py-1 rounded text-xs transition-colors"
             style={{
-              color: isActive ? (opt.color || 'var(--accent-cyan)') : 'var(--text-tertiary)',
-              background: isActive ? 'var(--glow-cyan)' : 'var(--surface-2)',
-              border: `1px solid ${isActive ? (opt.color || 'var(--accent-cyan)') : 'var(--border)'}`,
+              color: isActive ? (opt.color || 'var(--color-cyan)') : 'var(--color-text-tertiary)',
+              background: isActive ? 'var(--color-cyan-glow)' : 'var(--color-surface-raised)',
+              border: `1px solid ${isActive ? (opt.color || 'var(--color-cyan)') : 'var(--color-border)'}`,
             }}
           >
             {opt.label}

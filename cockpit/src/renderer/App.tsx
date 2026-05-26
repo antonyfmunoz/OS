@@ -33,20 +33,20 @@ function LoadingScreen() {
       alignItems: 'center',
       justifyContent: 'center',
       height: '100vh',
-      background: '#07080a',
+      background: '#0A0A0A',
     }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{
-          fontFamily: 'monospace',
+          fontFamily: '"JetBrains Mono", monospace',
           fontSize: 14,
           letterSpacing: '0.15em',
-          textTransform: 'uppercase',
-          color: '#00e5ff',
+          textTransform: 'uppercase' as const,
+          color: '#00E5FF',
         }}>UMH</div>
         <div style={{
-          fontFamily: 'monospace',
+          fontFamily: '"JetBrains Mono", monospace',
           fontSize: 11,
-          color: '#666',
+          color: '#555',
           marginTop: 8,
         }}>initializing...</div>
       </div>
@@ -61,7 +61,7 @@ function LoginScreen() {
       alignItems: 'center',
       justifyContent: 'center',
       height: '100vh',
-      background: '#07080a',
+      background: '#0A0A0A',
     }}>
       <SignIn appearance={{
         elements: {

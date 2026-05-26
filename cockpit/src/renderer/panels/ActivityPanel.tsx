@@ -3,9 +3,9 @@ import { useActivityStore } from '../stores/activityStore'
 import { usePolling } from '../hooks/usePolling'
 
 const SEVERITY_COLORS = {
-  info: 'var(--accent-cyan)',
-  warning: 'var(--accent-amber)',
-  error: 'var(--accent-red)',
+  info: 'var(--color-cyan)',
+  warning: 'var(--color-warn)',
+  error: 'var(--color-danger)',
 } as const
 
 export function ActivityPanel() {
@@ -38,12 +38,12 @@ export function ActivityPanel() {
       {/* Filter bar */}
       <div
         className="flex items-center gap-3 px-4 h-10 shrink-0"
-        style={{ borderBottom: '1px solid var(--border)' }}
+        style={{ borderBottom: '1px solid var(--color-border)' }}
       >
-        <span className="hud-text">Event Intelligence</span>
-        <span className="hud-text">·</span>
-        <span className="hud-text">
-          <span className="hud-value">{filtered.length}</span> events
+        <span className="wv-label">Event Intelligence</span>
+        <span className="wv-label">·</span>
+        <span className="wv-label">
+          <span className="text-cyan">{filtered.length}</span> events
         </span>
 
         <div className="flex-1" />
@@ -55,7 +55,7 @@ export function ActivityPanel() {
             useActivityStore.getState().setFilter('source', e.target.value || null)
           }
           className="text-xs px-2 py-1 rounded bg-transparent outline-none"
-          style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+          style={{ color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}
         >
           <option value="">All sources</option>
           {sources.map((s) => (
@@ -68,9 +68,9 @@ export function ActivityPanel() {
           onClick={() => setAutoScroll(!autoScroll)}
           className="text-xs px-2 py-1 rounded transition-colors"
           style={{
-            color: autoScroll ? 'var(--accent-cyan)' : 'var(--text-tertiary)',
-            background: autoScroll ? 'var(--glow-cyan)' : 'transparent',
-            border: '1px solid var(--border)',
+            color: autoScroll ? 'var(--color-cyan)' : 'var(--color-text-tertiary)',
+            background: autoScroll ? 'var(--color-cyan-glow)' : 'transparent',
+            border: '1px solid var(--color-border)',
           }}
         >
           {autoScroll ? '⏬ auto' : '⏸ paused'}
@@ -87,26 +87,26 @@ export function ActivityPanel() {
         {filtered.map((event) => (
           <div
             key={event.id}
-            className="flex items-start gap-2 px-4 py-1.5 hover:bg-[var(--surface-2)] transition-colors"
-            style={{ borderBottom: '1px solid var(--border)' }}
+            className="flex items-start gap-2 px-4 py-1.5 hover:bg-[var(--color-surface-raised)] transition-colors"
+            style={{ borderBottom: '1px solid var(--color-border)' }}
           >
-            <span className="w-14 shrink-0" style={{ color: 'var(--text-tertiary)' }}>
+            <span className="w-14 shrink-0" style={{ color: 'var(--color-text-tertiary)' }}>
               {new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </span>
             <span
               className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
               style={{ background: SEVERITY_COLORS[event.severity] || SEVERITY_COLORS.info }}
             />
-            <span className="w-16 shrink-0 truncate" style={{ color: 'var(--text-tertiary)' }}>
+            <span className="w-16 shrink-0 truncate" style={{ color: 'var(--color-text-tertiary)' }}>
               {event.source}
             </span>
-            <span className="flex-1" style={{ color: 'var(--text-secondary)' }}>
+            <span className="flex-1" style={{ color: 'var(--color-text-secondary)' }}>
               {event.summary}
             </span>
           </div>
         ))}
         {filtered.length === 0 && (
-          <p className="text-center py-8" style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-ui)' }}>
+          <p className="text-center py-8" style={{ color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-sans)' }}>
             No events to display
           </p>
         )}

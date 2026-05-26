@@ -25,17 +25,17 @@ export function DashboardPanel() {
     <div className="flex flex-col h-full overflow-y-auto p-4">
       {/* Panel header */}
       <div className="flex items-center mb-4">
-        <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+        <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
           Command Center
         </h2>
-        <span className="ml-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+        <span className="ml-2 text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
           system intelligence overview
         </span>
       </div>
 
       {/* System vitals */}
       <section className="mb-6">
-        <h3 className="hud-text mb-3">System Vitals</h3>
+        <h3 className="wv-label mb-3">System Vitals</h3>
         <div className="flex gap-6 flex-wrap">
           <RingGauge
             value={pulse?.cpu_percent ?? 0}
@@ -44,10 +44,10 @@ export function DashboardPanel() {
             unit="%"
             color={
               (pulse?.cpu_percent ?? 0) > 80
-                ? 'var(--accent-red)'
+                ? 'var(--color-danger)'
                 : (pulse?.cpu_percent ?? 0) > 50
-                  ? 'var(--accent-amber)'
-                  : 'var(--accent-cyan)'
+                  ? 'var(--color-warn)'
+                  : 'var(--color-cyan)'
             }
           />
           <RingGauge
@@ -55,54 +55,54 @@ export function DashboardPanel() {
             max={100}
             label="RAM"
             unit="%"
-            color="var(--accent-cyan)"
+            color="var(--color-cyan)"
           />
           <RingGauge
             value={pulse?.disk_percent ?? 0}
             max={100}
             label="DISK"
             unit="%"
-            color="var(--accent-green)"
+            color="var(--color-ok)"
           />
           <RingGauge
             value={pulse?.active_agents ?? 0}
             max={10}
             label="AGENTS"
-            color="var(--accent-purple)"
+            color="var(--color-violet)"
           />
           <RingGauge
             value={pulse?.pending_tasks ?? 0}
             max={20}
             label="PENDING"
-            color="var(--accent-amber)"
+            color="var(--color-warn)"
           />
         </div>
       </section>
 
       {/* Mesh nodes */}
       <section className="mb-6">
-        <h3 className="hud-text mb-3">Mesh Topology</h3>
+        <h3 className="wv-label mb-3">Mesh Topology</h3>
         {meshNodes.length === 0 ? (
-          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>No mesh nodes connected</p>
+          <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>No mesh nodes connected</p>
         ) : (
           <div className="grid grid-cols-2 gap-2">
             {meshNodes.map((node) => (
               <div
                 key={node.node_id}
                 className="flex items-center gap-2 px-3 py-2 rounded"
-                style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
+                style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}
               >
                 <span
                   className="w-2 h-2 rounded-full"
                   style={{
-                    background: node.status === 'online' ? 'var(--accent-green)' : 'var(--accent-red)',
+                    background: node.status === 'online' ? 'var(--color-ok)' : 'var(--color-danger)',
                   }}
                 />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm truncate" style={{ color: 'var(--text-primary)' }}>
+                  <p className="text-sm truncate" style={{ color: 'var(--color-text-primary)' }}>
                     {node.hostname}
                   </p>
-                  <p className="hud-text">{node.role}</p>
+                  <p className="wv-label">{node.role}</p>
                 </div>
               </div>
             ))}
@@ -113,8 +113,8 @@ export function DashboardPanel() {
       {/* Uptime */}
       {pulse && (
         <section>
-          <h3 className="hud-text mb-2">Runtime</h3>
-          <p className="font-mono text-sm" style={{ color: 'var(--accent-cyan)' }}>
+          <h3 className="wv-label mb-2">Runtime</h3>
+          <p className="font-mono text-sm" style={{ color: 'var(--color-cyan)' }}>
             {formatUptime(pulse.uptime)}
           </p>
         </section>

@@ -9,19 +9,19 @@ const LAYERS: Array<{ id: ExecutionLayer; icon: string; label: string; enabled: 
 ]
 
 const AUTHORITY_COLORS: Record<string, string> = {
-  autonomous_execute: 'var(--accent-green)',
-  supervised_execute: 'var(--accent-amber)',
-  approve_execute: 'var(--accent-cyan)',
-  notify_execute: 'var(--accent-blue, var(--accent-cyan))',
-  deny: 'var(--accent-red, #ef4444)',
+  autonomous_execute: 'var(--color-ok)',
+  supervised_execute: 'var(--color-warn)',
+  approve_execute: 'var(--color-cyan)',
+  notify_execute: 'var(--color-cyan)',
+  deny: 'var(--color-danger)',
 }
 
 const RISK_COLORS: Record<string, string> = {
-  negligible: 'var(--accent-green)',
-  low: 'var(--accent-cyan)',
-  medium: 'var(--accent-amber)',
-  high: 'var(--accent-red, #ef4444)',
-  critical: 'var(--accent-red, #ef4444)',
+  negligible: 'var(--color-ok)',
+  low: 'var(--color-cyan)',
+  medium: 'var(--color-warn)',
+  high: 'var(--color-danger)',
+  critical: 'var(--color-danger)',
 }
 
 export function ExecutionPanel() {
@@ -70,9 +70,9 @@ export function ExecutionPanel() {
       {/* Top bar */}
       <div
         className="flex items-center gap-3 px-4 py-2 flex-shrink-0"
-        style={{ borderBottom: '1px solid var(--border)' }}
+        style={{ borderBottom: '1px solid var(--color-border)' }}
       >
-        <h2 className="text-sm font-semibold mr-2" style={{ color: 'var(--text-primary)' }}>
+        <h2 className="text-sm font-semibold mr-2" style={{ color: 'var(--color-text-primary)' }}>
           Execution Substrate
         </h2>
 
@@ -87,9 +87,9 @@ export function ExecutionPanel() {
               }}
               className="px-2.5 py-1 rounded text-xs transition-colors"
               style={{
-                color: selectedLayer === layer.id ? 'var(--accent-cyan)' : 'var(--text-secondary)',
-                background: selectedLayer === layer.id ? 'var(--glow-cyan)' : 'transparent',
-                border: `1px solid ${selectedLayer === layer.id ? 'var(--accent-cyan)' : 'var(--border)'}`,
+                color: selectedLayer === layer.id ? 'var(--color-cyan)' : 'var(--color-text-secondary)',
+                background: selectedLayer === layer.id ? 'var(--color-cyan-glow)' : 'transparent',
+                border: `1px solid ${selectedLayer === layer.id ? 'var(--color-cyan)' : 'var(--color-border)'}`,
                 opacity: layer.enabled ? 1 : 0.3,
               }}
             >
@@ -108,8 +108,8 @@ export function ExecutionPanel() {
               onClick={() => selectSlot(s.slot)}
               className="px-2 py-0.5 rounded text-xs"
               style={{
-                color: selectedSlot === s.slot ? 'var(--text-primary)' : 'var(--text-tertiary)',
-                background: selectedSlot === s.slot ? 'var(--surface-2)' : 'transparent',
+                color: selectedSlot === s.slot ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)',
+                background: selectedSlot === s.slot ? 'var(--color-surface-raised)' : 'transparent',
               }}
             >
               Agent {s.slot + 1}
@@ -123,16 +123,16 @@ export function ExecutionPanel() {
         {/* Canvas area (70%) */}
         <div
           className="flex-1 flex items-center justify-center"
-          style={{ background: 'var(--surface-2)' }}
+          style={{ background: 'var(--color-surface-raised)' }}
         >
           {activeSlot && activeSlot.status === 'running' ? (
             selectedLayer === 'container' ? (
               <div className="w-full h-full flex items-center justify-center">
                 <div className="text-center">
-                  <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                  <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
                     noVNC Canvas
                   </p>
-                  <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
+                  <p className="text-xs mt-1" style={{ color: 'var(--color-text-tertiary)' }}>
                     Connect to ws://beast:608{selectedSlot}/websockify
                   </p>
                 </div>
@@ -140,10 +140,10 @@ export function ExecutionPanel() {
             ) : (
               <div className="w-full h-full flex items-center justify-center">
                 <div className="text-center">
-                  <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                  <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
                     Native Screenshot Stream
                   </p>
-                  <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
+                  <p className="text-xs mt-1" style={{ color: 'var(--color-text-tertiary)' }}>
                     Polling desktop.screenshot via node mesh
                   </p>
                 </div>
@@ -151,10 +151,10 @@ export function ExecutionPanel() {
             )
           ) : (
             <div className="text-center">
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
                 No active execution
               </p>
-              <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
+              <p className="text-xs mt-1" style={{ color: 'var(--color-text-tertiary)' }}>
                 Select a layer and assign a task to begin
               </p>
             </div>
@@ -166,27 +166,27 @@ export function ExecutionPanel() {
           className="flex flex-col gap-3 overflow-y-auto p-3"
           style={{
             width: 320,
-            borderLeft: '1px solid var(--border)',
-            background: 'var(--bg)',
+            borderLeft: '1px solid var(--color-border)',
+            background: 'var(--color-canvas)',
           }}
         >
           {/* Authority badge */}
           {authorityPreview && (
             <div
               className="flex items-center gap-2 px-3 py-2 rounded"
-              style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
+              style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}
             >
               <span
                 className="w-2 h-2 rounded-full"
-                style={{ background: AUTHORITY_COLORS[authorityPreview.authority_class] || 'var(--text-tertiary)' }}
+                style={{ background: AUTHORITY_COLORS[authorityPreview.authority_class] || 'var(--color-text-tertiary)' }}
               />
               <div className="flex-1">
-                <p className="text-xs font-mono" style={{ color: 'var(--text-primary)' }}>
+                <p className="text-xs font-mono" style={{ color: 'var(--color-text-primary)' }}>
                   {authorityPreview.authority_class.toUpperCase().replace(/_/g, ' ')}
                 </p>
-                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
                   Risk:{' '}
-                  <span style={{ color: RISK_COLORS[authorityPreview.risk_class] || 'var(--text-tertiary)' }}>
+                  <span style={{ color: RISK_COLORS[authorityPreview.risk_class] || 'var(--color-text-tertiary)' }}>
                     {authorityPreview.risk_class}
                   </span>
                   {' | '}
@@ -198,7 +198,7 @@ export function ExecutionPanel() {
 
           {/* Task input */}
           <div>
-            <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>
+            <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-secondary)' }}>
               Task
             </label>
             <textarea
@@ -208,8 +208,8 @@ export function ExecutionPanel() {
               rows={3}
               className="w-full px-2 py-1.5 rounded text-xs bg-transparent outline-none resize-none"
               style={{
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border)',
+                color: 'var(--color-text-primary)',
+                border: '1px solid var(--color-border)',
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && e.ctrlKey) {
@@ -224,7 +224,7 @@ export function ExecutionPanel() {
                 disabled={!taskInput.trim() || authorityPreview?.authority_class === 'deny'}
                 className="flex-1 px-2 py-1 rounded text-xs font-medium"
                 style={{
-                  background: 'var(--accent-cyan)',
+                  background: 'var(--color-cyan)',
                   color: '#000',
                   opacity: !taskInput.trim() || authorityPreview?.authority_class === 'deny' ? 0.3 : 1,
                 }}
@@ -236,14 +236,14 @@ export function ExecutionPanel() {
                   <button
                     onClick={() => pauseExecution(selectedSlot)}
                     className="px-2 py-1 rounded text-xs"
-                    style={{ color: 'var(--accent-amber)', border: '1px solid var(--accent-amber)' }}
+                    style={{ color: 'var(--color-warn)', border: '1px solid var(--color-warn)' }}
                   >
                     Pause
                   </button>
                   <button
                     onClick={() => stopExecution(selectedSlot)}
                     className="px-2 py-1 rounded text-xs"
-                    style={{ color: 'var(--accent-red, #ef4444)', border: '1px solid var(--accent-red, #ef4444)' }}
+                    style={{ color: 'var(--color-danger)', border: '1px solid var(--color-danger)' }}
                   >
                     Stop
                   </button>
@@ -253,7 +253,7 @@ export function ExecutionPanel() {
                 <button
                   onClick={() => resumeExecution(selectedSlot)}
                   className="px-2 py-1 rounded text-xs"
-                  style={{ color: 'var(--accent-green)', border: '1px solid var(--accent-green)' }}
+                  style={{ color: 'var(--color-ok)', border: '1px solid var(--color-ok)' }}
                 >
                   Resume
                 </button>
@@ -264,16 +264,16 @@ export function ExecutionPanel() {
           {/* Step counter */}
           {activeSlot && (
             <div className="flex items-center justify-between px-2">
-              <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
                 Steps: {activeSlot.stepCount} / 50
               </span>
               <span
                 className="text-xs font-mono px-1.5 py-0.5 rounded"
                 style={{
-                  color: activeSlot.status === 'running' ? 'var(--accent-green)' :
-                         activeSlot.status === 'paused' ? 'var(--accent-amber)' :
-                         'var(--text-tertiary)',
-                  background: 'var(--surface-2)',
+                  color: activeSlot.status === 'running' ? 'var(--color-ok)' :
+                         activeSlot.status === 'paused' ? 'var(--color-warn)' :
+                         'var(--color-text-tertiary)',
+                  background: 'var(--color-surface-raised)',
                 }}
               >
                 {activeSlot.status.toUpperCase()}
@@ -283,7 +283,7 @@ export function ExecutionPanel() {
 
           {/* Governance + Action log */}
           <div className="flex-1 overflow-y-auto">
-            <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+            <p className="text-xs font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>
               Execution Log
             </p>
             {activeSlot?.actionLog.length ? (
@@ -292,22 +292,22 @@ export function ExecutionPanel() {
                   <div
                     key={i}
                     className="px-2 py-1.5 rounded text-xs"
-                    style={{ background: 'var(--surface-2)' }}
+                    style={{ background: 'var(--color-surface-raised)' }}
                   >
                     <div className="flex items-center justify-between">
-                      <span style={{ color: 'var(--text-primary)' }}>
+                      <span style={{ color: 'var(--color-text-primary)' }}>
                         #{entry.step} {entry.action_type}
                       </span>
                       <span
                         className="text-xs"
                         style={{
-                          color: entry.approved ? 'var(--accent-green)' : 'var(--accent-red, #ef4444)',
+                          color: entry.approved ? 'var(--color-ok)' : 'var(--color-danger)',
                         }}
                       >
                         {entry.approved ? 'APPROVED' : 'DENIED'}
                       </span>
                     </div>
-                    <p className="mt-0.5 font-mono" style={{ color: 'var(--text-tertiary)', fontSize: 10 }}>
+                    <p className="mt-0.5 font-mono" style={{ color: 'var(--color-text-tertiary)', fontSize: 10 }}>
                       {entry.authority_class}
                     </p>
                   </div>
@@ -315,7 +315,7 @@ export function ExecutionPanel() {
                 <div ref={logEndRef} />
               </div>
             ) : (
-              <p className="text-xs px-2" style={{ color: 'var(--text-tertiary)' }}>
+              <p className="text-xs px-2" style={{ color: 'var(--color-text-tertiary)' }}>
                 No actions yet
               </p>
             )}

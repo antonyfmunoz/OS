@@ -1,74 +1,173 @@
 @import "tailwindcss";
 @import "./tokens.css";
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border-active) transparent;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html, body, #root {
+    height: 100%;
+    overflow: hidden;
+    background: var(--color-canvas);
+    color: var(--color-text-primary);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: var(--color-cyan-dim);
+    color: var(--color-text-primary);
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border-active);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-tertiary);
+  }
 }
 
-html, body, #root {
-  height: 100%;
-  overflow: hidden;
-  background: var(--bg);
-  color: var(--text-primary);
-  font-family: var(--font-ui);
-  font-size: var(--text-base);
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
+@layer components {
+  /* ── WorldView Component Classes ── */
+
+  .wv-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+  }
+
+  .wv-card-raised {
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+  }
+
+  .wv-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 2px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .wv-badge-ok {
+    background: color-mix(in srgb, var(--color-ok) 15%, transparent);
+    color: var(--color-ok);
+    border: 1px solid var(--color-ok-dim);
+  }
+
+  .wv-badge-warn {
+    background: color-mix(in srgb, var(--color-warn) 15%, transparent);
+    color: var(--color-warn);
+    border: 1px solid var(--color-warn-dim);
+  }
+
+  .wv-badge-danger {
+    background: color-mix(in srgb, var(--color-danger) 15%, transparent);
+    color: var(--color-danger);
+    border: 1px solid var(--color-danger-dim);
+  }
+
+  .wv-badge-cyan {
+    background: color-mix(in srgb, var(--color-cyan) 15%, transparent);
+    color: var(--color-cyan);
+    border: 1px solid var(--color-cyan-dim);
+  }
+
+  .wv-badge-violet {
+    background: color-mix(in srgb, var(--color-violet) 15%, transparent);
+    color: var(--color-violet);
+    border: 1px solid var(--color-violet-dim);
+  }
+
+  .wv-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-text-tertiary);
+    font-family: var(--font-mono);
+  }
+
+  .wv-metric {
+    font-size: 28px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  .wv-hairline {
+    border-color: var(--color-border);
+    border-width: 0;
+    border-bottom-width: 1px;
+  }
+
+  .wv-glow-cyan {
+    box-shadow: 0 0 12px var(--color-cyan-glow), 0 0 4px var(--color-cyan-glow);
+  }
+
+  .wv-pulse {
+    animation: wv-pulse 2s ease-in-out infinite;
+  }
+
+  .wv-scanline {
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 229, 255, 0.03) 2px,
+      rgba(0, 229, 255, 0.03) 4px
+    );
+    pointer-events: none;
+  }
+
+  /* ── Electron-specific ── */
+
+  .titlebar-drag {
+    -webkit-app-region: drag;
+  }
+
+  .titlebar-no-drag {
+    -webkit-app-region: no-drag;
+  }
+
+  /* ── Voice Animations ── */
+
+  @keyframes voice-ring {
+    0% { transform: scale(1); opacity: 0.3; }
+    100% { transform: scale(1.5); opacity: 0; }
+  }
+
+  @keyframes speaking-bar {
+    0%, 100% { height: 4px; }
+    50% { height: 14px; }
+  }
 }
 
-::selection {
-  background: var(--accent-cyan);
-  color: var(--bg);
-}
-
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--border-focus);
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--text-tertiary);
-}
-
-.font-mono {
-  font-family: var(--font-mono);
-}
-
-.hud-text {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-secondary);
-}
-
-.hud-value {
-  color: var(--accent-cyan);
-}
-
-.border-hairline {
-  border: 1px solid var(--border);
-}
-
-.glow-cyan {
-  box-shadow: 0 0 8px var(--glow-cyan);
-}
-
-.titlebar-drag {
-  -webkit-app-region: drag;
-}
-
-.titlebar-no-drag {
-  -webkit-app-region: no-drag;
+@keyframes wv-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }

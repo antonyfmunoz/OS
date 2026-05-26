@@ -23,7 +23,7 @@ function createWindow(): void {
     height: 900,
     minWidth: 1024,
     minHeight: 600,
-    backgroundColor: '#07080a',
+    backgroundColor: '#0A0A0A',
     titleBarStyle: 'hiddenInset',
     frame: false,
     show: false,

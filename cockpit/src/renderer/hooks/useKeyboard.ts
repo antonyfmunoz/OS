@@ -21,6 +21,7 @@ const PANEL_KEYS: Record<string, Panel> = {
 export function useKeyboard(): void {
   const setPanel = useCockpitStore((s) => s.setPanel)
   const toggleChat = useCockpitStore((s) => s.toggleChat)
+  const toggleRail = useCockpitStore((s) => s.toggleRail)
   const cycleWindowMode = useCockpitStore((s) => s.cycleWindowMode)
 
   useEffect(() => {
@@ -51,10 +52,15 @@ export function useKeyboard(): void {
           toggleChat()
           return
         }
+        if (e.key === '[') {
+          e.preventDefault()
+          toggleRail()
+          return
+        }
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [setPanel, toggleChat, cycleWindowMode])
+  }, [setPanel, toggleChat, toggleRail, cycleWindowMode])
 }

@@ -4,9 +4,9 @@ import { useVoiceStore } from '../stores/voiceStore'
 import { startVoice, stopVoice } from '../api/voice-controller'
 
 const MODE_COLORS: Record<string, string> = {
-  EXECUTE: 'var(--accent-green)',
-  PLAN: 'var(--accent-amber)',
-  REVIEW: 'var(--accent-purple)',
+  EXECUTE: 'var(--color-ok)',
+  PLAN: 'var(--color-warn)',
+  REVIEW: 'var(--color-violet)',
 }
 
 export function FabMedium() {
@@ -18,8 +18,8 @@ export function FabMedium() {
     <div
       className="flex items-center gap-2 px-3 py-2 rounded-full select-none"
       style={{
-        background: 'var(--bg)',
-        border: '1px solid var(--border)',
+        background: 'var(--color-canvas)',
+        border: '1px solid var(--color-border)',
         boxShadow: '0 4px 16px rgba(0, 0, 0, 0.4)',
       }}
     >
@@ -35,7 +35,7 @@ export function FabMedium() {
         }}
         className="flex items-center justify-center w-6 h-6 rounded"
         style={{
-          color: micState !== 'idle' ? 'var(--accent-cyan)' : 'var(--text-tertiary)',
+          color: micState !== 'idle' ? 'var(--color-cyan)' : 'var(--color-text-tertiary)',
         }}
       >
         {micState !== 'idle' ? <VoiceWaveform /> : <span className="text-xs">🎤</span>}
@@ -44,7 +44,7 @@ export function FabMedium() {
       <button
         onClick={() => cycleWindowMode('expand')}
         className="text-xs"
-        style={{ color: 'var(--text-tertiary)' }}
+        style={{ color: 'var(--color-text-tertiary)' }}
         title="Expand"
       >
         ↑
@@ -52,7 +52,7 @@ export function FabMedium() {
       <button
         onClick={() => cycleWindowMode('shrink')}
         className="text-xs"
-        style={{ color: 'var(--text-tertiary)' }}
+        style={{ color: 'var(--color-text-tertiary)' }}
         title="Shrink"
       >
         ↓
