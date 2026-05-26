@@ -1,6 +1,7 @@
 import { useCockpitStore } from '../stores/cockpitStore'
 import { VoiceWaveform } from './VoiceWaveform'
 import { useVoiceStore } from '../stores/voiceStore'
+import { startVoice, stopVoice } from '../api/voice-controller'
 
 const MODE_COLORS: Record<string, string> = {
   EXECUTE: 'var(--accent-green)',
@@ -29,8 +30,8 @@ export function FabMedium() {
 
       <button
         onClick={() => {
-          if (micState === 'idle') window.cockpit?.voice.start()
-          else window.cockpit?.voice.stop()
+          if (micState === 'idle') startVoice()
+          else stopVoice()
         }}
         className="flex items-center justify-center w-6 h-6 rounded"
         style={{
