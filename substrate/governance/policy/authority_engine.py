@@ -1,11 +1,12 @@
 from substrate.state.context.context import EntrepreneurOSContext
 from substrate.state.storage.db import get_conn
-from substrate.types import PermissionTier, required_tier_for_action
+from substrate.types import PermissionTier, RiskClass, required_tier_for_action
 import json, uuid
 from datetime import datetime, timezone
 
-RISK_CLASSES = {
-    "CRITICAL": [
+ACTION_RISK_MAP: dict[str, RiskClass] = {}
+_ACTION_RISK_TABLE: dict[RiskClass, list[str]] = {
+    RiskClass.CRITICAL: [
         "send_message",
         "send_email",
         "execute_payment",
@@ -14,9 +15,9 @@ RISK_CLASSES = {
         "mass_outreach",
         "publish_content",
     ],
-    "HIGH": ["send_dm", "create_outreach", "post_content", "update_external_crm", "book_call"],
-    "MEDIUM": ["draft_message", "draft_content", "create_task", "create_document"],
-    "LOW": [
+    RiskClass.HIGH: ["send_dm", "create_outreach", "post_content", "update_external_crm", "book_call"],
+    RiskClass.MEDIUM: ["draft_message", "draft_content", "create_task", "create_document"],
+    RiskClass.LOW: [
         "analyze",
         "research",
         "score",
@@ -31,6 +32,11 @@ RISK_CLASSES = {
         "extract_profile",
     ],
 }
+for _rc, _actions in _ACTION_RISK_TABLE.items():
+    for _a in _actions:
+        ACTION_RISK_MAP[_a] = _rc
+
+RISK_CLASSES = {rc.value.upper(): actions for rc, actions in _ACTION_RISK_TABLE.items()}
 
 AUTONOMY_LEVEL_MAP = {
     "draft_only": 0,
@@ -44,11 +50,11 @@ AUTONOMY_LEVEL_MAP = {
     "full_autonomy": 5,
 }
 
-MIN_LEVEL_TO_EXECUTE = {
-    "LOW": 0,
-    "MEDIUM": 2,
-    "HIGH": 3,
-    "CRITICAL": 999,
+MIN_LEVEL_TO_EXECUTE: dict[RiskClass, int] = {
+    RiskClass.LOW: 0,
+    RiskClass.MEDIUM: 2,
+    RiskClass.HIGH: 3,
+    RiskClass.CRITICAL: 999,
 }
 
 AUTONOMY_LEVEL_RESTRICTIONS = {
@@ -70,11 +76,8 @@ class AuthorityEngine:
             stage = row["autonomy_stage"] if row else "manual"
             return AUTONOMY_LEVEL_MAP.get(stage, 1)
 
-    def classify_action(self, action_type: str) -> str:
-        for risk_class, actions in RISK_CLASSES.items():
-            if action_type in actions:
-                return risk_class
-        return "LOW"  # unknown actions default to LOW
+    def classify_action(self, action_type: str) -> RiskClass:
+        return ACTION_RISK_MAP.get(action_type, RiskClass.LOW)
 
     def get_autonomy_level(self, workflow_id: str | None = None) -> int:
         if workflow_id:
@@ -109,26 +112,27 @@ class AuthorityEngine:
                 "requires_approval": False,
                 "reason": f"Permission tier {caller_tier.value} cannot perform {action_type} (requires {required.value})",
                 "autonomy_level": self.get_autonomy_level(workflow_id),
-                "risk_class": self.classify_action(action_type),
+                "risk_class": self.classify_action(action_type).value.upper(),
                 "permission_tier": caller_tier.value,
                 "required_tier": required.value,
             }
 
         risk_class = self.classify_action(action_type)
         autonomy_level = self.get_autonomy_level(workflow_id)
-        min_level = MIN_LEVEL_TO_EXECUTE[risk_class]
-        requires_approval = risk_class in ("HIGH", "CRITICAL")
+        min_level = MIN_LEVEL_TO_EXECUTE.get(risk_class, 0)
+        requires_approval = risk_class in (RiskClass.HIGH, RiskClass.CRITICAL)
 
         if required == PermissionTier.COMMIT:
             requires_approval = True
 
-        can_execute = autonomy_level >= min_level and risk_class not in ("CRITICAL",)
+        can_execute = autonomy_level >= min_level and risk_class != RiskClass.CRITICAL
+        risk_str = risk_class.value.upper()
         return {
             "can_execute": can_execute,
             "requires_approval": requires_approval,
-            "reason": f"{risk_class} action requires autonomy level {min_level}+, current level {autonomy_level}",
+            "reason": f"{risk_str} action requires autonomy level {min_level}+, current level {autonomy_level}",
             "autonomy_level": autonomy_level,
-            "risk_class": risk_class,
+            "risk_class": risk_str,
             "permission_tier": caller_tier.value,
             "required_tier": required.value,
         }

@@ -63,7 +63,7 @@ class RuntimeObservabilityPipeline:
                 if envelope.governance_evaluation
                 else envelope.intent.risk_class
                 if envelope.intent
-                else RiskClass.SAFE
+                else RiskClass.NEGLIGIBLE
             ),
             governance_verdict=(
                 envelope.governance_evaluation.verdict

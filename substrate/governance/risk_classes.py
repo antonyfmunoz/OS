@@ -1,17 +1,23 @@
-"""Risk classes — domain-specific action classifications that map to governance risk levels."""
+"""Action risk categories — semantic classification of side-effect types.
+
+Each category describes WHAT KIND of side-effect an action has
+(read-only, financial, external communication, etc.) and maps to
+a canonical RiskClass level for governance decisions.
+
+The canonical RiskClass enum lives in substrate/types.py.
+"""
 
 from __future__ import annotations
 
 from enum import Enum
 
-from substrate.types import RiskLevel
+from substrate.types import RiskClass
 
 
-class RiskClass(str, Enum):
-    """Domain-specific risk classification for actions.
+class ActionRiskCategory(str, Enum):
+    """Semantic classification of an action's side-effect type.
 
-    Each class maps to a protocol-level RiskLevel but carries
-    semantic meaning about what kind of side-effect the action has.
+    Maps to a canonical RiskClass (NEGLIGIBLE → CRITICAL) for governance.
     """
 
     READ_ONLY = "read_only"
@@ -23,32 +29,38 @@ class RiskClass(str, Enum):
     SECURITY_SENSITIVE = "security_sensitive"
     PHYSICAL_WORLD = "physical_world"
 
-    def to_risk_level(self) -> RiskLevel:
-        return _CLASS_TO_LEVEL[self]
+    def to_risk_class(self) -> RiskClass:
+        return _CATEGORY_TO_CLASS[self]
+
+    to_risk_level = to_risk_class
 
     @property
     def is_blocking(self) -> bool:
-        """Whether this class should block by default without explicit approval."""
-        return self in _BLOCKING_CLASSES
+        """Whether this category should block by default without explicit approval."""
+        return self in _BLOCKING_CATEGORIES
 
 
-_CLASS_TO_LEVEL: dict[RiskClass, RiskLevel] = {
-    RiskClass.READ_ONLY: RiskLevel.NEGLIGIBLE,
-    RiskClass.SAFE_WRITE: RiskLevel.LOW,
-    RiskClass.REVERSIBLE_WRITE: RiskLevel.MEDIUM,
-    RiskClass.IRREVERSIBLE_WRITE: RiskLevel.HIGH,
-    RiskClass.EXTERNAL_COMMUNICATION: RiskLevel.HIGH,
-    RiskClass.FINANCIAL: RiskLevel.CRITICAL,
-    RiskClass.SECURITY_SENSITIVE: RiskLevel.CRITICAL,
-    RiskClass.PHYSICAL_WORLD: RiskLevel.CRITICAL,
+_CATEGORY_TO_CLASS: dict[ActionRiskCategory, RiskClass] = {
+    ActionRiskCategory.READ_ONLY: RiskClass.NEGLIGIBLE,
+    ActionRiskCategory.SAFE_WRITE: RiskClass.LOW,
+    ActionRiskCategory.REVERSIBLE_WRITE: RiskClass.MEDIUM,
+    ActionRiskCategory.IRREVERSIBLE_WRITE: RiskClass.HIGH,
+    ActionRiskCategory.EXTERNAL_COMMUNICATION: RiskClass.HIGH,
+    ActionRiskCategory.FINANCIAL: RiskClass.CRITICAL,
+    ActionRiskCategory.SECURITY_SENSITIVE: RiskClass.CRITICAL,
+    ActionRiskCategory.PHYSICAL_WORLD: RiskClass.CRITICAL,
 }
 
-_BLOCKING_CLASSES: frozenset[RiskClass] = frozenset(
+_BLOCKING_CATEGORIES: frozenset[ActionRiskCategory] = frozenset(
     {
-        RiskClass.IRREVERSIBLE_WRITE,
-        RiskClass.EXTERNAL_COMMUNICATION,
-        RiskClass.FINANCIAL,
-        RiskClass.SECURITY_SENSITIVE,
-        RiskClass.PHYSICAL_WORLD,
+        ActionRiskCategory.IRREVERSIBLE_WRITE,
+        ActionRiskCategory.EXTERNAL_COMMUNICATION,
+        ActionRiskCategory.FINANCIAL,
+        ActionRiskCategory.SECURITY_SENSITIVE,
+        ActionRiskCategory.PHYSICAL_WORLD,
     }
 )
+
+# Backward compatibility — 31 files import RiskClass from here.
+# New code should use ActionRiskCategory directly.
+RiskClass = ActionRiskCategory  # type: ignore[assignment]

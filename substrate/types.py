@@ -254,6 +254,8 @@ class RiskClass(str, Enum):
     HIGH = "high"
     MEDIUM = "medium"
     LOW = "low"
+    NEGLIGIBLE = "negligible"
+    FORBIDDEN = "forbidden"
 
 
 class GovernanceDecision(str, Enum):
@@ -957,14 +959,7 @@ class WorkPacket(BaseModel):
 # ─── Governance (extended) ──────────────────────────────────────────────────
 
 
-class RiskLevel(str, Enum):
-    """Assessed risk of a proposed action (finer-grained than RiskClass)."""
-
-    NEGLIGIBLE = "negligible"
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    CRITICAL = "critical"
+RiskLevel = RiskClass
 
 
 class GovernanceCondition(BaseModel):

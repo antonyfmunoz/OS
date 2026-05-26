@@ -42,7 +42,7 @@ FORBIDDEN_ACTION_TYPES: frozenset[str] = frozenset(
     }
 )
 
-AUTO_APPROVE_RISK: frozenset[RiskClass] = frozenset({RiskClass.SAFE, RiskClass.LOW})
+AUTO_APPROVE_RISK: frozenset[RiskClass] = frozenset({RiskClass.NEGLIGIBLE, RiskClass.LOW})
 
 
 @dataclass
