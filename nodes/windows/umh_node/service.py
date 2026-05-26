@@ -19,8 +19,8 @@ _service_dir = Path(__file__).resolve().parent.parent.parent
 if str(_service_dir) not in sys.path:
     sys.path.insert(0, str(_service_dir))
 
-from daemon.umh_node.client import NodeClient
-from daemon.umh_node.config import DEFAULT_LOG_DIR, load_node_config
+from nodes.windows.umh_node.client import NodeClient
+from nodes.windows.umh_node.config import DEFAULT_LOG_DIR, load_node_config
 
 logger = logging.getLogger("umh_node")
 

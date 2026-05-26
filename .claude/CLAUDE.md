@@ -118,7 +118,7 @@ Focus: proving the system works before UI layer.
   services/        — legacy daemons (discord_bot.py, operator_api.py, higgsfield_webhook.py)
   state/           — persistence layer (business, memory, profiles, session, storage, tenancy)
   projections/     — application projections (EOS)
-  daemon/          — Windows node daemon (umh_node, umh_desktop)
+  nodes/           — distributed execution (windows daemon, environments, distribution)
   scripts/         — operator tooling (cron scripts, verification, graph rebuild)
   knowledge/       — wiki, memory palace, concept docs
   data/            — generated data, proofs, audits, graph files

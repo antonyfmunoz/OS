@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from daemon.umh_node.config import CapabilityConfig
+from nodes.windows.umh_node.config import CapabilityConfig
 
 logger = logging.getLogger(__name__)
 
