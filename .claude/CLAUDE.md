@@ -18,39 +18,19 @@ Every change is real. Every deploy affects a running service.
 At the start of EVERY Claude Code session run:
   python3 -c "
   import sys; sys.path.insert(0, '/opt/OS')
-  from runtime.session_state import SessionState
-  print(SessionState.get_resume_context())
-  "
-
-At the END of every significant build run:
-  python3 -c "
-  import sys; sys.path.insert(0, '/opt/OS')
-  from runtime.session_state import SessionState
-  SessionState.save(
-    phase='[current phase]',
-    last_completed='[what just finished]',
-    in_progress=None,
-    next_steps=['[next fix]', '[fix after]'],
-    files_modified=['[files changed]']
-  )
-  print('State saved')
+  from substrate.state.context.context import load_context_from_env
+  ctx = load_context_from_env()
+  print(f'Org: {ctx.org_id}')
+  print(f'Stage: {ctx.stage}')
+  print(f'Active venture: {ctx.active_venture_id}')
   "
 
 ## Before making any significant change
 
 1. Read the current state of the file you're modifying — never assume
 2. Check if the component is confirmed working in the session history
-3. For HIGH/CRITICAL changes, call the validator:
-   python3 -c "
-   import sys; sys.path.insert(0, '/opt/OS')
-   from runtime.context import load_context_from_env
-   from runtime.system_context import SystemContext
-   ctx = load_context_from_env()
-   sc = SystemContext(ctx, 'claude_code')
-   result = sc.validate_architectural_change(
-     '[describe the change here]')
-   print(result)
-   "
+3. For HIGH/CRITICAL changes, review the convergence roadmap:
+   data/audits/2026-05-25_exhaustive_codebase_audit.md (Section 22)
 
 ## Risk classes for code changes
 LOW:      Adding new files, new methods, new features

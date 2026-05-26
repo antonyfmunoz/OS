@@ -6,6 +6,7 @@ All endpoints are prefixed /api/umh/ and registered via include_router in app.py
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import time
 from datetime import datetime, timezone
@@ -13,9 +14,22 @@ from pathlib import Path
 from typing import Any
 
 import psutil
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException, Security
+from fastapi.security import APIKeyHeader
 
-router = APIRouter(prefix="/api/umh")
+_API_KEY = os.environ.get("UMH_OPERATOR_API_KEY", "dev-key-change-me")
+_api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+
+async def _require_api_key(key: str | None = Security(_api_key_header)) -> str:
+    if _API_KEY == "dev-key-change-me":
+        return "dev"
+    if not key or key != _API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+    return key
+
+
+router = APIRouter(prefix="/api/umh", dependencies=[Depends(_require_api_key)])
 
 MEMORY_STORE = Path("/opt/OS/data/runtime/canonical_memory_store/memories.jsonl")
 TRACE_STORE = Path("/opt/OS/data/umh/traces/traces.jsonl")
