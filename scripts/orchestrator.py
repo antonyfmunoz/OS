@@ -269,7 +269,7 @@ class ActivityLog:
     def persist_to_memory(self, job: Job, result: dict[str, Any]) -> None:
         """Best-effort — never raises, never blocks the scheduler."""
         try:
-            from substrate.execution.runtime.agent_runtime import AgentResult
+            from adapters.models.agent_runtime import AgentResult
             from substrate.state.memory.memory import AgentMemory
 
             summary = (

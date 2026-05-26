@@ -961,7 +961,7 @@ async def _warmup_cc_sdk():
             logger.info("[Startup] cc_sdk warmup skipped — pressure=%s", p.value)
             return
 
-        from adapters.model_adapters.cc_sdk import query_cc_sync
+        from adapters.models.cc_sdk import query_cc_sync
 
         result = query_cc_sync(
             prompt="Ready.",

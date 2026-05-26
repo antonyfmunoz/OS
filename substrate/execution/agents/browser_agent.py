@@ -287,7 +287,7 @@ class BrowserAgent:
             final_url:    str,
           }
         """
-        from substrate.execution.runtime.agent_runtime import AgentRuntime, TaskType
+        from adapters.models.agent_runtime import AgentRuntime, TaskType
 
         if not ctx:
             from substrate.state.context.context import load_context_from_env

@@ -31,7 +31,7 @@ async def handle_followup(message, text: str) -> bool:
 
     email_id = text[9:].strip()
     try:
-        from substrate.execution.runtime.model_router import get_router, TaskType
+        from adapters.models.model_router import get_router, TaskType
 
         router = get_router()
         model = router.route(TaskType.FAST_RESPONSE)
@@ -93,7 +93,7 @@ async def handle_nomeetings(message, text: str) -> bool:
         _gws = GWSConnector()
 
         if len(_parts) > 1:
-            from substrate.execution.runtime.model_router import get_router, TaskType
+            from adapters.models.model_router import get_router, TaskType
 
             _router = get_router()
             _model = _router.route(TaskType.FAST_RESPONSE)
@@ -455,7 +455,7 @@ async def handle_calendar_write(message, text: str, pending_events: dict) -> boo
         from adapters.google_workspace.gws_connector import GWSConnector
 
         _gws = GWSConnector()
-        from substrate.execution.runtime.model_router import call_with_fallback
+        from adapters.models.model_router import call_with_fallback
 
         _cal_prompt = (
             "Extract calendar event details from this message. "

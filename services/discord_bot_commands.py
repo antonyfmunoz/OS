@@ -714,7 +714,7 @@ def register_commands(
                 f"— Antony"
             )
             try:
-                from substrate.execution.runtime.model_router import get_router, TaskType
+                from adapters.models.model_router import get_router, TaskType
 
                 _router = get_router()
                 _model = _router.route(TaskType.FAST_RESPONSE)
