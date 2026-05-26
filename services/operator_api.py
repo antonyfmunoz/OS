@@ -554,10 +554,10 @@ except Exception as e:
     logger.warning(f"cockpit router not available: {e}")
 
 
-# ─── Static files (frontend dist) ─────────────────────────────────────────────
-frontend_dist = UMH_ROOT / "frontend" / "dist"
-if frontend_dist.exists():
-    app.mount("/", StaticFiles(directory=str(frontend_dist), html=True), name="frontend")
+# ─── Static files (cockpit build) ─────────────────────────────────────────────
+cockpit_dist = UMH_ROOT / "cockpit" / "dist-web"
+if cockpit_dist.exists():
+    app.mount("/", StaticFiles(directory=str(cockpit_dist), html=True), name="cockpit")
 
 # ─── Entry point ──────────────────────────────────────────────────────────────
 if __name__ == "__main__":

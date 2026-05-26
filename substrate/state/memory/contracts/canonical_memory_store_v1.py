@@ -259,6 +259,27 @@ class CanonicalMemoryStore:
                     results.append(entry)
         return results
 
+    def search(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
+        """Keyword search across canonical memory entries."""
+        if not query or not self.memories_path.exists():
+            return []
+        query_words = {w.lower() for w in query.split() if len(w) > 3}
+        if not query_words:
+            return []
+        scored: list[tuple[int, dict[str, Any]]] = []
+        with open(self.memories_path) as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                entry = json.loads(line)
+                content = (entry.get("content", "") + " " + entry.get("label", "")).lower()
+                hits = sum(1 for w in query_words if w in content)
+                if hits > 0:
+                    scored.append((hits, entry))
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [m for _, m in scored[:limit]]
+
     def get_stats(self) -> dict[str, Any]:
         """Return store statistics."""
         if self.index_path.exists():

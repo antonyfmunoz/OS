@@ -219,23 +219,27 @@ class WorldModel:
         """Build a world model context string for injection into the system prompt."""
         parts = []
 
-        # Canonical entries (high confidence, universal)
-        canonical = self.canonical.search(query, limit=3)
-        if canonical:
+        # Canonical entries — always include all (small set of universal truths)
+        all_canonical = self.canonical.get_entries()
+        if all_canonical:
             lines = ["## World Model (canonical)"]
-            for entry in canonical:
+            for entry in all_canonical:
                 lines.append(f"[{entry.entry_type}|{entry.confidence:.0%}] {entry.content[:200]}")
             parts.append("\n".join(lines))
 
-        # Instance entries (per-org observations)
+        # Instance entries — keyword match for relevance
         instance = self.instance.get_entries()
-        # Filter for recent and relevant
-        relevant = [e for e in instance if query.lower().split()[0] in e.content.lower()] if query.strip() else []
-        if relevant:
-            lines = ["## World Model (instance)"]
-            for entry in relevant[:3]:
-                lines.append(f"[{entry.entry_type}|{entry.confidence:.0%}] {entry.content[:200]}")
-            parts.append("\n".join(lines))
+        if instance and query.strip():
+            query_words = set(query.lower().split())
+            relevant = [
+                e for e in instance
+                if any(w in e.content.lower() for w in query_words if len(w) > 3)
+            ]
+            if relevant:
+                lines = ["## World Model (instance)"]
+                for entry in relevant[:5]:
+                    lines.append(f"[{entry.entry_type}|{entry.confidence:.0%}] {entry.content[:200]}")
+                parts.append("\n".join(lines))
 
         return "\n\n".join(parts) if parts else ""
 

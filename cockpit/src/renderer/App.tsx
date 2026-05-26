@@ -1,12 +1,21 @@
 import { useEffect } from 'react'
+import { SignedIn, SignedOut, SignIn, useAuth, ClerkLoaded, ClerkLoading } from '@clerk/clerk-react'
 import { Shell } from './components/Shell'
 import { useKeyboard } from './hooks/useKeyboard'
 import { useWebSocket } from './hooks/useWebSocket'
 import { useChatStore } from './stores/chatStore'
+import { setTokenGetter } from './api/client'
 
-export function App() {
+const hasClerk = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+
+function AuthenticatedApp() {
   useKeyboard()
   useWebSocket()
+
+  const { getToken } = useAuth()
+  useEffect(() => {
+    if (hasClerk) setTokenGetter(() => getToken())
+  }, [getToken])
 
   const loadHistory = useChatStore((s) => s.loadHistory)
 
@@ -15,4 +24,70 @@ export function App() {
   }, [loadHistory])
 
   return <Shell />
+}
+
+function LoadingScreen() {
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: '100vh',
+      background: '#07080a',
+    }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{
+          fontFamily: 'monospace',
+          fontSize: 14,
+          letterSpacing: '0.15em',
+          textTransform: 'uppercase',
+          color: '#00e5ff',
+        }}>UMH</div>
+        <div style={{
+          fontFamily: 'monospace',
+          fontSize: 11,
+          color: '#666',
+          marginTop: 8,
+        }}>initializing...</div>
+      </div>
+    </div>
+  )
+}
+
+function LoginScreen() {
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: '100vh',
+      background: '#07080a',
+    }}>
+      <SignIn appearance={{
+        elements: {
+          rootBox: { width: '100%', maxWidth: 420 },
+        },
+      }} />
+    </div>
+  )
+}
+
+export function App() {
+  if (!hasClerk) return <AuthenticatedApp />
+
+  return (
+    <>
+      <ClerkLoading>
+        <LoadingScreen />
+      </ClerkLoading>
+      <ClerkLoaded>
+        <SignedIn>
+          <AuthenticatedApp />
+        </SignedIn>
+        <SignedOut>
+          <LoginScreen />
+        </SignedOut>
+      </ClerkLoaded>
+    </>
+  )
 }
