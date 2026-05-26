@@ -105,19 +105,19 @@ SAFE_COMMANDS: frozenset[str] = frozenset(
 
 # Risk classification by command
 COMMAND_RISK_MAP: dict[str, RiskClass] = {
-    "runtime-status": RiskClass.SAFE,
-    "capabilities": RiskClass.SAFE,
-    "adapters": RiskClass.SAFE,
-    "execution-queue": RiskClass.SAFE,
-    "resume-runtime": RiskClass.SAFE,
-    "runtime-replay": RiskClass.SAFE,
-    "memory-query": RiskClass.SAFE,
-    "memory-lineage": RiskClass.SAFE,
-    "git-status": RiskClass.SAFE,
-    "git-log": RiskClass.SAFE,
-    "tmux-status": RiskClass.SAFE,
-    "ping": RiskClass.SAFE,
-    "relay-status": RiskClass.SAFE,
+    "runtime-status": RiskClass.NEGLIGIBLE,
+    "capabilities": RiskClass.NEGLIGIBLE,
+    "adapters": RiskClass.NEGLIGIBLE,
+    "execution-queue": RiskClass.NEGLIGIBLE,
+    "resume-runtime": RiskClass.NEGLIGIBLE,
+    "runtime-replay": RiskClass.NEGLIGIBLE,
+    "memory-query": RiskClass.NEGLIGIBLE,
+    "memory-lineage": RiskClass.NEGLIGIBLE,
+    "git-status": RiskClass.NEGLIGIBLE,
+    "git-log": RiskClass.NEGLIGIBLE,
+    "tmux-status": RiskClass.NEGLIGIBLE,
+    "ping": RiskClass.NEGLIGIBLE,
+    "relay-status": RiskClass.NEGLIGIBLE,
     "explore-environment": RiskClass.LOW,
     "constitution-report": RiskClass.LOW,
     "economics-report": RiskClass.LOW,
@@ -163,7 +163,7 @@ class CapabilityRoute:
 
     command_name: str
     capability: CapabilityDomain | None = None
-    risk_class: RiskClass = RiskClass.SAFE
+    risk_class: RiskClass = RiskClass.NEGLIGIBLE
     is_safe: bool = False
     is_forbidden: bool = False
     candidate_environments: list[EnvironmentDescriptor] = field(default_factory=list)
