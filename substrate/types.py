@@ -1338,3 +1338,21 @@ class AutonomyLevel(int, Enum):
 # PipelineGovernanceVerdict references RiskLevel and GovernanceCondition which
 # are defined after it. Rebuild to resolve the forward references.
 PipelineGovernanceVerdict.model_rebuild()
+
+
+# ─── Re-exports for projection boundary ─────────────────────────────────────
+# Projections MUST import from substrate.types, not substrate internals.
+from substrate.sockets.envelopes import (  # noqa: E402,F401
+    CapabilityRequest,
+    CapabilityResponse,
+    OutcomeEnvelope,
+    SignalEnvelope as IntegrationSignalEnvelope,
+)
+from substrate.sockets.protocols import (  # noqa: E402,F401
+    CapabilityDescriptor,
+    CapabilityHealth,
+    SignalDescriptor,
+)
+from substrate.governance.risk_classes import (  # noqa: E402,F401
+    RiskClass as ActionRiskClass,
+)

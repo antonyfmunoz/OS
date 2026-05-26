@@ -37,7 +37,7 @@ class TestActivityStream:
         try:
             import asyncio
 
-            events = asyncio.get_event_loop().run_until_complete(
+            events = asyncio.run(
                 cockpit_api.activity_stream(source="trace")
             )
             assert len(events) == 1
@@ -65,7 +65,7 @@ class TestActivityStream:
         try:
             import asyncio
 
-            events = asyncio.get_event_loop().run_until_complete(
+            events = asyncio.run(
                 cockpit_api.activity_stream(source="trace")
             )
             assert len(events) == 1
@@ -81,7 +81,7 @@ class TestGovernanceControls:
 
         from transports.api.cockpit import governance_policy
 
-        result = asyncio.get_event_loop().run_until_complete(governance_policy())
+        result = asyncio.run(governance_policy())
         if "error" in result:
             pytest.skip("policy engine not available in test env")
 
@@ -102,7 +102,7 @@ class TestGovernanceControls:
 
         original = _DEFAULT_POLICY[RiskClass.SAFE_WRITE]
         try:
-            result = asyncio.get_event_loop().run_until_complete(
+            result = asyncio.run(
                 update_governance({"policies": {"SAFE_WRITE": "APPROVE"}})
             )
             assert result["ok"] is True
@@ -116,7 +116,7 @@ class TestGovernanceControls:
 
         from transports.api.cockpit import update_governance
 
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             update_governance({"policies": {"NONEXISTENT": "APPROVE"}})
         )
         assert result["ok"] is True
@@ -141,7 +141,7 @@ class TestDexChannel:
 
         from transports.api.cockpit import dex_converse
 
-        result = asyncio.get_event_loop().run_until_complete(dex_converse({"content": ""}))
+        result = asyncio.run(dex_converse({"content": ""}))
         assert result.get("error") == "organism not running"
 
     def test_dex_converse_requires_organism(self):
@@ -149,5 +149,5 @@ class TestDexChannel:
 
         from transports.api.cockpit import dex_converse
 
-        result = asyncio.get_event_loop().run_until_complete(dex_converse({"content": "hello"}))
+        result = asyncio.run(dex_converse({"content": "hello"}))
         assert result.get("error") == "organism not running"

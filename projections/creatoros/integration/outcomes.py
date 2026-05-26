@@ -11,7 +11,7 @@ from typing import Any
 
 import psycopg2
 
-from substrate.sockets.envelopes import OutcomeEnvelope
+from substrate.types import OutcomeEnvelope
 
 from .correlation import CreatorOSCorrelationMap
 from .manifest import INTEGRATION_ID

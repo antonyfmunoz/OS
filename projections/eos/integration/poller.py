@@ -10,9 +10,9 @@ from uuid import uuid4
 
 import psycopg2
 
-from substrate.governance.risk_classes import RiskClass
-from substrate.integrations.notion.watermarks import WatermarkStore
-from substrate.sockets.envelopes import OutcomeEnvelope
+from substrate.types import ActionRiskClass as RiskClass, OutcomeEnvelope
+
+from adapters.notion.integration.watermarks import WatermarkStore
 
 from .correlation import EOSCorrelationMap, EOSWritebackTarget
 from .signals import EOSSignalEmitter

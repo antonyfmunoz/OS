@@ -10,7 +10,7 @@ from typing import Any
 from uuid import uuid4
 
 from substrate.governance.risk_classes import RiskClass
-from substrate.integrations.node_mesh.types import ConnectedNode, NodeCapability
+from transports.node_mesh.integration.types import ConnectedNode, NodeCapability
 from substrate.types import CapabilityCategory
 from substrate.sockets.envelopes import CapabilityRequest, CapabilityResponse
 from substrate.sockets.protocols import CapabilityDescriptor, CapabilityHealth
