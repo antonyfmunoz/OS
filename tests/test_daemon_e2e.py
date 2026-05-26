@@ -18,8 +18,8 @@ sys.path.insert(0, "/opt/OS/.claude/worktrees/layer3-phase2-slice-d-handoff")
 
 import websockets
 
-from daemon.umh_node.client import NodeClient
-from daemon.umh_node.config import CapabilityConfig, NodeConfig
+from nodes.windows.umh_node.client import NodeClient
+from nodes.windows.umh_node.config import CapabilityConfig, NodeConfig
 from substrate.execution.executor import WorkPacketExecutor
 from transports.node_mesh.config import MeshConfig
 from transports.node_mesh.server import NodeMeshServer

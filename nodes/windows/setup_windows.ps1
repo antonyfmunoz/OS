@@ -74,6 +74,6 @@ Write-Host "`nInstalling dependencies..." -ForegroundColor Yellow
 pip install -r requirements-windows.txt
 
 Write-Host "`n=== Setup Complete ===" -ForegroundColor Cyan
-Write-Host "To run the service:  python -m daemon.umh_node.service"
-Write-Host "To run the tray:     python -m daemon.umh_desktop.tray"
-Write-Host "To install as Windows Service: python -m daemon.umh_node.service install"
+Write-Host "To run the service:  python -m nodes.windows.umh_node.service"
+Write-Host "To run the tray:     python -m nodes.windows.umh_desktop.tray"
+Write-Host "To install as Windows Service: python -m nodes.windows.umh_node.service install"

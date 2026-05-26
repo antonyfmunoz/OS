@@ -252,7 +252,7 @@ class ContainerComputerAgent(ComputerUseAgent):
         self.container_name = container_name
 
     async def take_screenshot(self) -> bytes:
-        from daemon.umh_node.adapters.container import ContainerAdapter
+        from nodes.windows.umh_node.adapters.container import ContainerAdapter
 
         adapter = ContainerAdapter()
         result = adapter.handle(
@@ -264,7 +264,7 @@ class ContainerComputerAgent(ComputerUseAgent):
         return base64.b64decode(result["image_base64"])
 
     async def execute_action(self, action: dict[str, Any]) -> dict[str, Any]:
-        from daemon.umh_node.adapters.container import ContainerAdapter
+        from nodes.windows.umh_node.adapters.container import ContainerAdapter
 
         adapter = ContainerAdapter()
         action_type = action.get("type", "")
@@ -300,7 +300,7 @@ class NativeComputerAgent(ComputerUseAgent):
         super().__init__(slot, "native")
 
     async def take_screenshot(self) -> bytes:
-        from daemon.umh_node.adapters.desktop import DesktopAdapter
+        from nodes.windows.umh_node.adapters.desktop import DesktopAdapter
 
         adapter = DesktopAdapter()
         result = adapter.execute("desktop.screenshot", {})
@@ -309,7 +309,7 @@ class NativeComputerAgent(ComputerUseAgent):
         return base64.b64decode(result["image_base64"])
 
     async def execute_action(self, action: dict[str, Any]) -> dict[str, Any]:
-        from daemon.umh_node.adapters.desktop import DesktopAdapter
+        from nodes.windows.umh_node.adapters.desktop import DesktopAdapter
 
         adapter = DesktopAdapter()
         action_type = action.get("type", "")

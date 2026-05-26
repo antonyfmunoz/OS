@@ -7,8 +7,8 @@ from typing import Any
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
-from substrate.distribution.distributor import DistributionLayer
-from substrate.distribution.first_boot import check_first_boot, mark_first_boot_complete
+from nodes.distribution.distributor import DistributionLayer
+from nodes.distribution.first_boot import check_first_boot, mark_first_boot_complete
 
 router = APIRouter(prefix="/api/umh/distribution", tags=["distribution"])
 
