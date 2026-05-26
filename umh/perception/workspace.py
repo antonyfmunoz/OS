@@ -1,6 +1,6 @@
 """Workspace perception — active window tracking + context inference.
 
-Wraps daemon/umh_node/workspace.py WorkspaceMonitor and extends with
+Wraps nodes/windows/umh_node/workspace.py WorkspaceMonitor and extends with
 cross-platform support (xdotool on Linux, pygetwindow on Windows).
 Records active window changes as perception events and infers workspace
 context for mode suggestions.

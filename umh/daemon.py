@@ -204,14 +204,14 @@ class WorkstationDaemon:
     def _connect_mesh(self) -> None:
         """Connect to device mesh if configured."""
         try:
-            from daemon.umh_node.config import load_node_config
+            from nodes.windows.umh_node.config import load_node_config
 
             config = load_node_config()
             if not config or not config.vps_host:
                 logger.info("No mesh config — standalone mode")
                 return
 
-            from daemon.umh_node.client import NodeClient
+            from nodes.windows.umh_node.client import NodeClient
 
             self._mesh_client = NodeClient(config)
             mesh_thread = threading.Thread(

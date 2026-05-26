@@ -24,8 +24,8 @@ windows = [
 ]
 
 [project.scripts]
-umh-node-service = "daemon.umh_node.service:main"
-umh-desktop = "daemon.umh_desktop.tray:main"
+umh-node-service = "nodes.windows.umh_node.service:main"
+umh-desktop = "nodes.windows.umh_desktop.tray:main"
 
 [tool.ruff]
 line-length = 100

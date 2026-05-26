@@ -16,13 +16,13 @@ from typing import Any, Callable
 
 import websockets
 
-from daemon.umh_node.adapters.clipboard import ClipboardAdapter
-from daemon.umh_node.adapters.desktop import DesktopAdapter
-from daemon.umh_node.adapters.filesystem import FilesystemAdapter
-from daemon.umh_node.adapters.shell import ShellAdapter
-from daemon.umh_node.config import NodeConfig
-from daemon.umh_node.governance import validate_request
-from daemon.umh_node.metrics import collect_metrics
+from nodes.windows.umh_node.adapters.clipboard import ClipboardAdapter
+from nodes.windows.umh_node.adapters.desktop import DesktopAdapter
+from nodes.windows.umh_node.adapters.filesystem import FilesystemAdapter
+from nodes.windows.umh_node.adapters.shell import ShellAdapter
+from nodes.windows.umh_node.config import NodeConfig
+from nodes.windows.umh_node.governance import validate_request
+from nodes.windows.umh_node.metrics import collect_metrics
 
 logger = logging.getLogger(__name__)
 

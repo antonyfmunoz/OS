@@ -20,10 +20,10 @@ import threading
 import time
 from typing import Any
 
-from daemon.umh_node.adapters.clipboard import ClipboardAdapter
-from daemon.umh_node.adapters.desktop import DesktopAdapter
-from daemon.umh_node.config import DEFAULT_LOG_DIR, load_node_config
-from daemon.umh_node.workspace import WorkspaceMonitor, get_active_window
+from nodes.windows.umh_node.adapters.clipboard import ClipboardAdapter
+from nodes.windows.umh_node.adapters.desktop import DesktopAdapter
+from nodes.windows.umh_node.config import DEFAULT_LOG_DIR, load_node_config
+from nodes.windows.umh_node.workspace import WorkspaceMonitor, get_active_window
 
 logger = logging.getLogger("umh_desktop")
 

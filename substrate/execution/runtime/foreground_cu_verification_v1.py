@@ -26,7 +26,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from substrate.execution.environments.chrome_visible_launch import (
+from nodes.environments.chrome_visible_launch import (
     ChromeVisibleLaunchProof,
     ChromeVisibleLaunchStatus,
     visible_launch_proof_allows_next_gate,
