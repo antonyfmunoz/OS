@@ -146,8 +146,8 @@ class ConcreteExecutionSpine:
                 from substrate.reality_model.simulation import SimulationReality
 
                 self._simulation = SimulationReality()
-            except Exception:
-                pass
+            except Exception as e:
+                _record_error("spine.simulation_init", str(e), {})
         return self._simulation
 
     async def execute(
@@ -292,8 +292,8 @@ class ConcreteExecutionSpine:
                         TraceEventType.ADAPTER_CALLED,
                         f"Found {len(adapters)} adapters",
                     )
-                except Exception:
-                    pass
+                except Exception as e:
+                    _record_error("spine.lookup", str(e), {"signal_id": str(signal.id)})
 
             # Stage 4: Compose — build prompt with full context
             memory_context = "\n".join(m.content for m in memories[:3]) if memories else ""
