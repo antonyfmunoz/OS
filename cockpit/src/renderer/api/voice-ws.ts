@@ -19,11 +19,12 @@ export class VoiceWsClient {
   private audioContext: AudioContext | null = null
   private sourceNode: MediaStreamAudioSourceNode | null = null
   private processorNode: ScriptProcessorNode | null = null
-  private _expectingAudio = false
+  private _audioQueue: ArrayBuffer[] = []
+  private _playing = false
 
   constructor() {
     this.ws = new WsClient(VOICE_URL)
-    this.ws.onBinary((buf) => this._handleBinary(buf))
+    this.ws.onBinary((buf) => this._queueAudio(buf))
   }
 
   connect(): void {
@@ -86,12 +87,6 @@ export class VoiceWsClient {
   }
 
   on(type: string, handler: (data: Record<string, unknown>) => void): () => void {
-    if (type === 'voice_response') {
-      return this.ws.on(type, (data) => {
-        if (data.has_audio) this._expectingAudio = true
-        handler(data)
-      })
-    }
     return this.ws.on(type, handler)
   }
 
@@ -99,22 +94,27 @@ export class VoiceWsClient {
     return this.ws.connected
   }
 
-  private _handleBinary(buf: ArrayBuffer): void {
-    if (!this._expectingAudio) return
-    this._expectingAudio = false
-    this._playWav(buf)
+  private _queueAudio(buf: ArrayBuffer): void {
+    this._audioQueue.push(buf)
+    if (!this._playing) this._playNext()
   }
 
-  private _playWav(buf: ArrayBuffer): void {
+  private _playNext(): void {
+    const buf = this._audioQueue.shift()
+    if (!buf) {
+      this._playing = false
+      return
+    }
+    this._playing = true
     try {
       const blob = new Blob([buf], { type: 'audio/wav' })
       const url = URL.createObjectURL(blob)
       const audio = new Audio(url)
-      audio.onended = () => URL.revokeObjectURL(url)
-      audio.onerror = () => URL.revokeObjectURL(url)
-      audio.play().catch(err => console.error('[VoiceWS] Playback failed:', err))
-    } catch (err) {
-      console.error('[VoiceWS] WAV play error:', err)
+      audio.onended = () => { URL.revokeObjectURL(url); this._playNext() }
+      audio.onerror = () => { URL.revokeObjectURL(url); this._playNext() }
+      audio.play().catch(() => this._playNext())
+    } catch {
+      this._playNext()
     }
   }
 }
