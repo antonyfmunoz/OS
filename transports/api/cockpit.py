@@ -1705,14 +1705,32 @@ async def cockpit_ws(ws: WebSocket):
 # ─── Persistent Loops ────────────────────────────────────────────────────────
 
 
+def _get_loop_registry():
+    from substrate.execution.loop import get_registry
+    registry = get_registry()
+    if not registry.list_loops():
+        registry.load_definitions()
+    return registry
+
+
 @router.get("/loops")
 async def loop_status():
     """Status of all persistent loops."""
     try:
-        from substrate.execution.loop.persistent_loop import get_registry
-        registry = get_registry()
-        registry.register_defaults()
-        return registry.status()
+        return _get_loop_registry().status()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.get("/loops/stages")
+async def loop_stages():
+    """List available pipeline stages."""
+    try:
+        from substrate.execution.loop import STAGE_REGISTRY
+        return {
+            name: (func.__doc__ or "").strip().split("\n")[0]
+            for name, func in sorted(STAGE_REGISTRY.items())
+        }
     except Exception as e:
         return {"error": str(e)}
 
@@ -1721,10 +1739,7 @@ async def loop_status():
 async def loop_start(loop_name: str):
     """Start a persistent loop."""
     try:
-        from substrate.execution.loop.persistent_loop import get_registry
-        registry = get_registry()
-        registry.register_defaults()
-        ok = registry.start(loop_name)
+        ok = _get_loop_registry().start(loop_name)
         return {"started": ok, "loop": loop_name}
     except Exception as e:
         return {"error": str(e)}
@@ -1734,10 +1749,7 @@ async def loop_start(loop_name: str):
 async def loop_stop(loop_name: str):
     """Stop a persistent loop."""
     try:
-        from substrate.execution.loop.persistent_loop import get_registry
-        registry = get_registry()
-        registry.register_defaults()
-        ok = registry.stop(loop_name)
+        ok = _get_loop_registry().stop(loop_name)
         return {"stopped": ok, "loop": loop_name}
     except Exception as e:
         return {"error": str(e)}
@@ -1747,13 +1759,51 @@ async def loop_stop(loop_name: str):
 async def loop_run_once(loop_name: str):
     """Run a single cycle of a loop synchronously."""
     try:
-        from substrate.execution.loop.persistent_loop import get_registry
-        registry = get_registry()
-        registry.register_defaults()
+        registry = _get_loop_registry()
         loop = registry.get(loop_name)
         if not loop:
             return {"error": f"unknown loop: {loop_name}"}
         report = loop.run_once()
         return report.to_dict()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.post("/loops/create")
+async def loop_create(payload: dict):
+    """Create a new loop definition at runtime."""
+    try:
+        from substrate.execution.loop import STAGE_REGISTRY
+        from substrate.execution.loop.persistent_loop import LoopDefinition
+        registry = _get_loop_registry()
+
+        stages = payload.get("stages", [])
+        unknown = [s for s in stages if s not in STAGE_REGISTRY]
+        if unknown:
+            return {"error": f"unknown stages: {unknown}", "available": sorted(STAGE_REGISTRY.keys())}
+
+        defn = LoopDefinition(
+            name=payload["name"],
+            domain=payload.get("domain", "general"),
+            interval_seconds=payload.get("interval_seconds", 300),
+            stages=stages,
+            description=payload.get("description", ""),
+        )
+        registry.register_definition(defn)
+        registry.save_definitions()
+        return {"created": defn.name, "definition": defn.to_dict()}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.delete("/loops/{loop_name}")
+async def loop_delete(loop_name: str):
+    """Remove a loop definition."""
+    try:
+        registry = _get_loop_registry()
+        ok = registry.remove(loop_name)
+        if ok:
+            registry.save_definitions()
+        return {"removed": ok, "loop": loop_name}
     except Exception as e:
         return {"error": str(e)}
