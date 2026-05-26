@@ -368,7 +368,7 @@ async def _vision_analyze(
     vision_prompt = prompt or "Describe what you see in this image concisely."
 
     try:
-        from substrate.execution.runtime.model_router import call_with_fallback
+        from adapters.models.model_router import call_with_fallback
 
         result = await asyncio.to_thread(
             call_with_fallback,

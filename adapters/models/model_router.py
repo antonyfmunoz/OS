@@ -9,7 +9,7 @@ Used directly by WorldPulse and other modules that need a simple
 "give me the best model for this task" API.
 
 Usage:
-    from substrate.execution.runtime.model_router import get_router, TaskType
+    from adapters.models.model_router import get_router, TaskType
 
     router = get_router()
     print(router.get_status())

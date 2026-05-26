@@ -70,7 +70,7 @@ class ContextCompactor:
         Stores brief to Neon. Returns the brief dict.
         """
         from substrate.control_plane.runtime.cognitive_loop import CognitiveLoop
-        from substrate.execution.runtime.agent_runtime import TaskType
+        from adapters.models.agent_runtime import TaskType
 
         tokens_before = self.estimate_tokens(messages)
 
