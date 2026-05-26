@@ -23,7 +23,7 @@ services:
       - ${UMH_ROOT:-/opt/OS}/logs:${UMH_ROOT:-/opt/OS}/logs
     env_file:
       - services/.env
-      - runtime/.env
+      - infra/docker/umh.env
     shm_size: '512m'
     environment:
       - PYTHONPATH=/app
@@ -50,7 +50,7 @@ services:
       - ${UMH_ROOT:-/opt/OS}:/app
     env_file:
       - services/.env
-      - runtime/.env
+      - infra/docker/umh.env
     environment:
       - PYTHONPATH=/app
       - TZ=America/Los_Angeles
@@ -112,7 +112,7 @@ services:
       - /tmp/tmux-0:/tmp/tmux-0
     env_file:
       - services/.env
-      - runtime/.env
+      - infra/docker/umh.env
     environment:
       - PYTHONPATH=/app
       - TZ=America/Los_Angeles
@@ -157,7 +157,7 @@ services:
       - ${UMH_ROOT:-/opt/OS}:/app
     env_file:
       - services/.env
-      - runtime/.env
+      - infra/docker/umh.env
     environment:
       - PYTHONPATH=/app
       - UMH_ROOT=/app

@@ -52,10 +52,13 @@ INDEX_MD = WIKI_DIR / "index.md"
 
 # Directories to scan (relative to ROOT)
 SCAN_DIRS = [
-    "runtime",
+    "substrate",
+    "adapters",
+    "transports",
+    "projections",
     "services",
     "scripts",
-    "core",
+    "runtime",
 ]
 
 # Directories and patterns to skip
