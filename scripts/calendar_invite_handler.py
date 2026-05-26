@@ -133,7 +133,7 @@ def assess_invite(invite: dict) -> dict:
         return deterministic
 
     try:
-        from substrate.execution.runtime.model_router import ModelRouter, TaskType
+        from adapters.models.model_router import ModelRouter, TaskType
         from substrate.state.context.context import load_context_from_env
         ctx = load_context_from_env()
         router = ModelRouter(ctx)

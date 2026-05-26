@@ -560,7 +560,7 @@ class VoiceEngine:
             '"Stage 1. First sale is the target. What do you need?"'
         )
         try:
-            from substrate.execution.runtime.model_router import get_router, TaskType
+            from adapters.models.model_router import get_router, TaskType
             router = get_router()
             model = router.route(TaskType.FAST_RESPONSE)
             full_prompt = f'{system_msg}\n\nUser: {prompt}'

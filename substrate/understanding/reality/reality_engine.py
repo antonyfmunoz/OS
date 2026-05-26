@@ -40,7 +40,7 @@ load_dotenv(Path(_REPO_ROOT) / "services" / ".env")
 from substrate.state.context.context import EntrepreneurOSContext
 from substrate.control_plane.runtime.cognitive_loop import CognitiveLoop
 from substrate.control_plane.events.event_bus import EventBus
-from substrate.execution.runtime.agent_runtime import TaskType
+from adapters.models.agent_runtime import TaskType
 from substrate.state.business.venture_knowledge import VentureKnowledgeBase
 from substrate.control_plane.strategy.strategy_engine import StrategyEngine, _parse_labeled_sections
 from substrate.state.memory.memory import AgentMemory

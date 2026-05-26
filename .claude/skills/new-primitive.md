@@ -35,10 +35,11 @@ PRIMITIVE_PREREQUISITES['id'] = ['prereq_1']
 ### 3. Test
 python3 -c "
 import sys; sys.path.insert(0, '/opt/OS')
-from eos_ai.evolution_engine import EvolutionEngine
-from eos_ai.context import load_context_from_env
-ee = EvolutionEngine(load_context_from_env())
-print(ee.is_primitive_unlocked('primitive_id'))
+from substrate.state.context.context import load_context_from_env
+# NOTE: EvolutionEngine was removed during convergence.
+# Primitive validation now lives in substrate.ontology.primitives
+from substrate.understanding.ontology.primitives import PRIMITIVE_LIBRARY
+print('primitive_id' in PRIMITIVE_LIBRARY)
 "
 
 ## Validity matrix checklist

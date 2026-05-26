@@ -14,7 +14,7 @@ Any time you are reading from or writing to Notion via the API.
 ### Always check connection first
 ```python
 from dotenv import load_dotenv
-load_dotenv('/opt/OS/eos_ai/.env')
+load_dotenv('/opt/OS/services/.env')
 import os
 key = os.getenv('NOTION_API_KEY')
 if not key:
@@ -25,7 +25,7 @@ client = Client(auth=key)
 ```
 
 ### Page IDs
-All page IDs stored in `eos_ai/.env` as `NOTION_*_ID` variables.
+All page IDs stored in `services/.env` as `NOTION_*_ID` variables.
 Always load from env — never hardcode.
 
 ```python

@@ -1,11 +1,14 @@
 """Cockpit API endpoints — serves real data from UMH stores to the frontend.
 
-All endpoints are prefixed /api/umh/ and registered via include_router in app.py.
+All endpoints are prefixed /api/umh/ and registered via include_router
+in operator_api.py (production) and app.py (substrate runtime).
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 import os
 import subprocess
 import time
@@ -14,8 +17,10 @@ from pathlib import Path
 from typing import Any
 
 import psutil
-from fastapi import APIRouter, Depends, HTTPException, Security
+from fastapi import APIRouter, Depends, HTTPException, Security, WebSocket, WebSocketDisconnect
 from fastapi.security import APIKeyHeader
+
+logger = logging.getLogger(__name__)
 
 _API_KEY = os.environ.get("UMH_OPERATOR_API_KEY", "dev-key-change-me")
 _api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
@@ -31,10 +36,11 @@ async def _require_api_key(key: str | None = Security(_api_key_header)) -> str:
 
 router = APIRouter(prefix="/api/umh", dependencies=[Depends(_require_api_key)])
 
-MEMORY_STORE = Path("/opt/OS/data/runtime/canonical_memory_store/memories.jsonl")
-TRACE_STORE = Path("/opt/OS/data/umh/traces/traces.jsonl")
-SKILLS_DIR = Path("/opt/OS/skills")
-AGENTS_DIR = Path("/opt/OS/agents")
+_ROOT = Path(os.getenv("UMH_ROOT", "/opt/OS"))
+MEMORY_STORE = _ROOT / "data" / "runtime" / "canonical_memory_store" / "memories.jsonl"
+TRACE_STORE = _ROOT / "data" / "umh" / "traces" / "traces.jsonl"
+SKILLS_DIR = _ROOT / "skills"
+AGENTS_DIR = _ROOT / "agents"
 
 
 def _read_jsonl(path: Path, limit: int | None = None) -> list[dict[str, Any]]:
@@ -1638,3 +1644,179 @@ async def send_notification(payload: dict):
         }
     except Exception as e:
         return {"error": str(e), "sent": False}
+
+
+# ─── WebSocket: live cockpit data stream ──────────────────────────────────────
+
+_cockpit_clients: set[WebSocket] = set()
+
+
+@router.websocket("/ws")
+async def cockpit_ws(ws: WebSocket):
+    """Stream live system metrics to connected cockpit clients.
+
+    Sends a pulse snapshot every 2 seconds. Clients can send
+    JSON commands: {"type": "subscribe", "channels": ["pulse", "traces"]}.
+    """
+    await ws.accept()
+    _cockpit_clients.add(ws)
+    logger.info(f"cockpit ws connected ({len(_cockpit_clients)} clients)")
+    try:
+        while True:
+            cpu = psutil.cpu_percent(interval=0)
+            mem = psutil.virtual_memory()
+            disk = psutil.disk_usage("/")
+            traces = _read_jsonl(TRACE_STORE)
+            recent_traces = traces[-10:] if traces else []
+            containers = []
+            try:
+                result = subprocess.run(
+                    ["docker", "ps", "--format", "{{.Names}}\t{{.Status}}"],
+                    capture_output=True, text=True, timeout=3,
+                )
+                for line in result.stdout.strip().split("\n"):
+                    if "\t" in line:
+                        name, status = line.split("\t", 1)
+                        containers.append({"name": name, "status": status})
+            except Exception:
+                pass
+
+            snapshot = {
+                "type": "pulse",
+                "ts": datetime.now(timezone.utc).isoformat(),
+                "cpu_percent": cpu,
+                "memory_percent": mem.percent,
+                "disk_percent": disk.percent,
+                "containers": containers,
+                "recent_traces": [
+                    {
+                        "id": t.get("trace_id", ""),
+                        "status": t.get("status", ""),
+                        "input": str(t.get("input_signal", ""))[:80],
+                        "created": t.get("created_at", ""),
+                    }
+                    for t in recent_traces
+                    if not t.get("_type", "").startswith("trace_update")
+                ],
+            }
+            await ws.send_json(snapshot)
+
+            try:
+                msg = await asyncio.wait_for(ws.receive_text(), timeout=2.0)
+                data = json.loads(msg)
+                if data.get("type") == "ping":
+                    await ws.send_json({"type": "pong"})
+            except asyncio.TimeoutError:
+                pass
+            except (json.JSONDecodeError, WebSocketDisconnect):
+                break
+    except WebSocketDisconnect:
+        pass
+    finally:
+        _cockpit_clients.discard(ws)
+        logger.info(f"cockpit ws disconnected ({len(_cockpit_clients)} clients)")
+# ─── Persistent Loops ────────────────────────────────────────────────────────
+
+
+def _get_loop_registry():
+    from substrate.execution.loop import get_registry
+    registry = get_registry()
+    if not registry.list_loops():
+        registry.load_definitions()
+    return registry
+
+
+@router.get("/loops")
+async def loop_status():
+    """Status of all persistent loops."""
+    try:
+        return _get_loop_registry().status()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.get("/loops/stages")
+async def loop_stages():
+    """List available pipeline stages."""
+    try:
+        from substrate.execution.loop import STAGE_REGISTRY
+        return {
+            name: (func.__doc__ or "").strip().split("\n")[0]
+            for name, func in sorted(STAGE_REGISTRY.items())
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.post("/loops/{loop_name}/start")
+async def loop_start(loop_name: str):
+    """Start a persistent loop."""
+    try:
+        ok = _get_loop_registry().start(loop_name)
+        return {"started": ok, "loop": loop_name}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.post("/loops/{loop_name}/stop")
+async def loop_stop(loop_name: str):
+    """Stop a persistent loop."""
+    try:
+        ok = _get_loop_registry().stop(loop_name)
+        return {"stopped": ok, "loop": loop_name}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.post("/loops/{loop_name}/run-once")
+async def loop_run_once(loop_name: str):
+    """Run a single cycle of a loop synchronously."""
+    try:
+        registry = _get_loop_registry()
+        loop = registry.get(loop_name)
+        if not loop:
+            return {"error": f"unknown loop: {loop_name}"}
+        report = loop.run_once()
+        return report.to_dict()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.post("/loops/create")
+async def loop_create(payload: dict):
+    """Create a new loop definition at runtime."""
+    try:
+        from substrate.execution.loop import STAGE_REGISTRY
+        from substrate.execution.loop.persistent_loop import LoopDefinition
+        registry = _get_loop_registry()
+
+        stages = payload.get("stages", [])
+        unknown = [s for s in stages if s not in STAGE_REGISTRY]
+        if unknown:
+            return {"error": f"unknown stages: {unknown}", "available": sorted(STAGE_REGISTRY.keys())}
+
+        defn = LoopDefinition(
+            name=payload["name"],
+            domain=payload.get("domain", "general"),
+            interval_seconds=payload.get("interval_seconds", 300),
+            stages=stages,
+            description=payload.get("description", ""),
+        )
+        registry.register_definition(defn)
+        registry.save_definitions()
+        return {"created": defn.name, "definition": defn.to_dict()}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.delete("/loops/{loop_name}")
+async def loop_delete(loop_name: str):
+    """Remove a loop definition."""
+    try:
+        registry = _get_loop_registry()
+        ok = registry.remove(loop_name)
+        if ok:
+            registry.save_definitions()
+        return {"removed": ok, "loop": loop_name}
+    except Exception as e:
+        return {"error": str(e)}

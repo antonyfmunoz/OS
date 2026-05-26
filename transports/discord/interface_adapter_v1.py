@@ -42,7 +42,7 @@ from substrate.control_plane.router.router_contracts import (
     RouterStatus,
     WorkPacket,
 )
-from substrate.execution.environments.windows_desktop_request_builder import (
+from nodes.environments.windows_desktop_request_builder import (
     build_ping_request,
     build_w0_chrome_open_request,
     build_w0_chrome_proof_request,

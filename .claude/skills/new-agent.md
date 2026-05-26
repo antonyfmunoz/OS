@@ -30,8 +30,8 @@ Must have: Identity, Role, Tone,
 python3 -c "
 import sys, uuid
 sys.path.insert(0, '/opt/OS')
-from eos_ai.db import get_conn
-from eos_ai.context import load_context_from_env
+from substrate.state.storage.db import get_conn
+from substrate.state.context.context import load_context_from_env
 ctx = load_context_from_env()
 with get_conn(ctx.org_id) as cur:
   cur.execute('''
@@ -50,8 +50,8 @@ with get_conn(ctx.org_id) as cur:
 ### 4. Test
 python3 -c "
 import sys; sys.path.insert(0, '/opt/OS')
-from eos_ai.agent_runtime import AgentRuntime, TaskType
-from eos_ai.context import load_context_from_env
+from adapters.models.agent_runtime import AgentRuntime, TaskType
+from substrate.state.context.context import load_context_from_env
 rt = AgentRuntime(load_context_from_env())
 result = rt.run(TaskType.GENERATE, 'test',
   agent='agent_id', max_tokens=100)

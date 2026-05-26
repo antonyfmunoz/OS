@@ -775,7 +775,7 @@ async def handle_meeting_voice(
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
             None,
-            lambda: __import__("runtime.agent_teams", fromlist=["run_team_task"]).run_team_task(
+            lambda: __import__("substrate.control_plane.agents.agent_teams", fromlist=["run_team_task"]).run_team_task(
                 team="sales",
                 sub_agent="objection_handler",
                 prompt=f"Objection on call: {text}",
@@ -870,7 +870,7 @@ async def start_meeting_mode(
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(
         None,
-        lambda: __import__("runtime.agent_teams", fromlist=["run_team_task"]).run_team_task(
+        lambda: __import__("substrate.control_plane.agents.agent_teams", fromlist=["run_team_task"]).run_team_task(
             team="sales",
             sub_agent="closer",
             prompt=(
@@ -961,7 +961,7 @@ async def _warmup_cc_sdk():
             logger.info("[Startup] cc_sdk warmup skipped — pressure=%s", p.value)
             return
 
-        from adapters.model_adapters.cc_sdk import query_cc_sync
+        from adapters.models.cc_sdk import query_cc_sync
 
         result = query_cc_sync(
             prompt="Ready.",

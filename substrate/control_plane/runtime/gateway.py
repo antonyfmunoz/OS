@@ -449,7 +449,7 @@ class EntrepreneurOSGateway:
         try:
             from substrate.state.context.context import load_context_from_env
             from adapters.google_workspace.email_gps import EmailGPS
-            from substrate.execution.runtime.model_router import get_router, TaskType
+            from adapters.models.model_router import get_router, TaskType
 
             ctx_eos = load_context_from_env()
             gps = EmailGPS(ctx_eos)
@@ -810,11 +810,17 @@ class EntrepreneurOSGateway:
                 "type": rtype, "prompt": prompt[:200] if prompt else "",
             })
             self._log_gateway_event(request, "error", str(exc))
-            from substrate.execution.runtime.execution_spine import _deterministic_response
-            fallback_output = _deterministic_response(prompt) if prompt else (
-                "All intelligence providers are currently unavailable. "
-                "Your request has been logged and will be processed when service resumes."
-            )
+            try:
+                from substrate.execution.runtime.execution_spine import _deterministic_response
+                fallback_output = _deterministic_response(prompt) if prompt else (
+                    "All intelligence providers are currently unavailable. "
+                    "Your request has been logged and will be processed when service resumes."
+                )
+            except Exception:
+                fallback_output = (
+                    "Your request has been received but all systems are "
+                    "temporarily unavailable. Please try again shortly."
+                )
             return {"status": "ok", "output": fallback_output, "fallback": True}
 
         # 3b. Prepend stage transition message if one fired
@@ -881,7 +887,7 @@ class EntrepreneurOSGateway:
 
     def _web_search(self, query: str) -> str:
         try:
-            from substrate.execution.runtime.model_router import get_router, TaskType as RouterTaskType
+            from adapters.models.model_router import get_router, TaskType as RouterTaskType
 
             router = get_router()
             result = router.call_with_fallback(
@@ -977,7 +983,7 @@ class EntrepreneurOSGateway:
     # ─── Route: agent_task ────────────────────────────────────────────────────
 
     def _route_agent_task(self, request: dict, session_id: str = None, cm=None) -> dict:
-        from substrate.execution.runtime.agent_runtime import AgentRuntime, TaskType
+        from adapters.models.agent_runtime import AgentRuntime, TaskType
         from substrate.control_plane.runtime.cognitive_loop import CognitiveLoop
         from substrate.state.context.context import load_context_from_env
 
@@ -1000,90 +1006,10 @@ class EntrepreneurOSGateway:
                 prompt = f"REAL-TIME SEARCH RESULT:\n{_web_result}\n\n{prompt}"
                 print("[Gateway] Web search used")
 
-        # ── ExecutionSpine — new unified path ────────────────────────────────
-        # Attempts the new spine. On ANY failure, falls back to the existing
-        # CognitiveLoop branches below. This is the transition layer.
-        try:
-            from substrate.control_plane.context.context_builder import ContextBuilder
-            from substrate.execution.runtime.execution_spine import ExecutionSpine
-
-            _spine_agent = sub_agent or "executive_assistant"
-            if team and not sub_agent:
-                _spine_agent = {
-                    "dex": "executive_assistant",
-                    "lyfe_ceo": "lyfe_ceo",
-                    "brand_ceo": "brand_ceo",
-                    "portfolio_advisor": "portfolio_advisor",
-                }.get(team, "executive_assistant")
-            if not _spine_agent:
-                try:
-                    _spine_agent = self._route_to_agent(prompt)
-                except Exception:
-                    _spine_agent = "executive_assistant"
-
-            _spine_authority = "analyze"
-            task_type_str = request.get("task_type", "analyze").upper()
-            try:
-                _spine_task_type = TaskType[task_type_str]
-            except KeyError:
-                _spine_task_type = TaskType.ANALYZE
-
-            builder = ContextBuilder()
-            unified_ctx = builder.build(
-                ctx,
-                request.get("prompt", prompt),
-                session_id or "",
-                agent=_spine_agent,
-                venture_id=venture_id,
-                channel=request.get("channel", ""),
-                conversation_memory=cm,
-            )
-
-            spine = ExecutionSpine()
-            _spine_response = spine.run(
-                message=prompt,
-                unified_context=unified_ctx,
-                agent_type=_spine_agent,
-                authority_class=_spine_authority,
-                session_id=session_id,
-                channel_id=request.get("channel", ""),
-                org_id=str(ctx.org_id),
-                user_id=str(ctx.user_id),
-                task_type=_spine_task_type,
-                venture_id=venture_id,
-            )
-
-            print(
-                f"[Gateway] ExecutionSpine OK: agent={_spine_agent} "
-                f"tokens~{unified_ctx.estimated_tokens} "
-                f"failed_sources={len(unified_ctx.failed_sources)}"
-            )
-
-            return {
-                "status": "ok",
-                "interaction_id": None,
-                "model": "spine",
-                "skill": None,
-                "output": _spine_response,
-                "tokens": unified_ctx.estimated_tokens,
-                "iterations": 1,
-                "was_enhanced": False,
-                "quality_score": 0.5,
-                "quality_passed": True,
-                "original_prompt": _raw_user_input,
-                "enhanced_prompt": prompt if prompt != _raw_user_input else "",
-                "enhancement_reason": request.get("_enhancement_reason", ""),
-            }
-        except Exception as _spine_err:
-            import logging
-            logging.getLogger(__name__).error(
-                f"ExecutionSpine failed, falling back to CognitiveLoop: {_spine_err}"
-            )
-            _record_error("execution_spine", _spine_err, {
-                "agent": _spine_agent, "prompt": prompt[:200],
-            })
-
-        # ── CognitiveLoop fallback — existing code below unchanged ───────────
+        # ── CognitiveLoop — primary path (full intelligence layer) ────────
+        # CognitiveLoop has CEO standards, knowledge integration, accountability,
+        # quality gates, delegation logging. Substrate path is wired but waits
+        # for feature parity before becoming primary (later convergence phases).
         loop = CognitiveLoop(ctx)
 
         # Named agent teams — direct agent routing with context injection
@@ -1909,7 +1835,7 @@ class EntrepreneurOSGateway:
         # No keyword match — try AI for ambiguous cases
         _VALID = set(self._INTENT_KEYWORDS.keys()) | {"UNKNOWN"}
         try:
-            from substrate.execution.runtime.model_router import call_with_fallback, TaskType
+            from adapters.models.model_router import call_with_fallback, TaskType
 
             _SYSTEM = (
                 "Classify this message into exactly one intent. "
@@ -1977,7 +1903,7 @@ def ingest_external_context(
     Returns the interaction_id (UUID).
     """
     from substrate.state.memory.memory import AgentMemory
-    from substrate.execution.runtime.agent_runtime import AgentResult
+    from adapters.models.agent_runtime import AgentResult
 
     result = AgentResult(
         output=content[:500],

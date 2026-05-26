@@ -48,7 +48,7 @@ CLAUDE.md           — project-level soul doc (loaded every session)
 3. Understand which protocol layer is affected
 
 **Before declaring done:**
-1. Import check: `python3 -c "from eos_ai.[module] import [Class]"`
+1. Import check: `python3 -c "from substrate.[module] import [Class]"`
 2. Relevant test passes
 3. Deploy command provided to user
 
@@ -56,7 +56,7 @@ CLAUDE.md           — project-level soul doc (loaded every session)
 ```bash
 python3 -c "
 import sys; sys.path.insert(0, '/opt/OS')
-import eos_ai
+import substrate
 print('imports: clean')
 " 2>&1
 ```
@@ -96,8 +96,7 @@ requirements.txt changed:
 ```
 os-discord  → services/discord_bot.py
 os-bot      → services/telegram_control.py
-os-monitor  → services/dm_monitor.py
-os-webhook  → services/calendly_webhook.py
+os-webhook  → transports/api/webhooks/calendly_webhook.py
 ```
 
 ## Confirmed working — do not break

@@ -179,7 +179,7 @@ class CEOAgent:
             primitives = self.detect_primitives()
 
         try:
-            from substrate.execution.runtime.model_router import get_router, TaskType
+            from adapters.models.model_router import get_router, TaskType
 
             # Discover available agent templates from soul docs on disk
             template_dir = f'{_ROOT}/agents'
