@@ -376,7 +376,7 @@ Four canonical packages — all code lives here or imports from here:
 
 Support directories (not code):
   services/     — deployment entrypoints (discord_bot.py, APIs)
-  daemon/       — Windows node daemon
+  nodes/        — distributed execution (Windows daemon, environments, distribution)
   scripts/      — operational scripts
   tests/        — test suite
 

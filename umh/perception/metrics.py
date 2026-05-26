@@ -1,6 +1,6 @@
 """System metrics perception — CPU, memory, disk monitoring with alerting.
 
-Wraps daemon/umh_node/metrics.py and adds threshold-based alerting that
+Wraps nodes/windows/umh_node/metrics.py and adds threshold-based alerting that
 produces PerceptionRecords when resources exceed configured limits.
 Runs in a background thread at configurable intervals.
 """
@@ -79,7 +79,7 @@ class MetricsSnapshot:
 def _collect_raw() -> dict[str, Any]:
     """Collect raw system metrics. Falls back gracefully."""
     try:
-        from daemon.umh_node.metrics import collect_metrics
+        from nodes.windows.umh_node.metrics import collect_metrics
 
         return collect_metrics()
     except ImportError as exc:
