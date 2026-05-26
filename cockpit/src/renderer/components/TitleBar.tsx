@@ -1,44 +1,60 @@
+declare global {
+  interface Window {
+    cockpit: {
+      window: {
+        minimize: () => void
+        maximize: () => void
+        close: () => void
+        isMaximized: () => Promise<boolean>
+        setMode?: (mode: string) => void
+      }
+      voice: {
+        start: () => void
+        stop: () => void
+        onLog: (cb: (msg: string) => void) => void
+        onError: (cb: (msg: string) => void) => void
+        onExit: (cb: (code: number | null) => void) => void
+      }
+      readDir: (dirPath: string) => Promise<{ name: string; path: string; type: 'file' | 'directory' }[]>
+      readFile: (filePath: string) => Promise<string>
+      writeFile: (filePath: string, content: string) => Promise<boolean>
+    }
+  }
+}
+
 export function TitleBar() {
   return (
     <header
-      className="titlebar-drag flex items-center px-3 select-none"
-      style={{
-        height: 'var(--titlebar-height)',
-        background: 'var(--bg)',
-        borderBottom: '1px solid var(--border)',
-      }}
+      className="titlebar-drag relative flex items-center px-3 select-none bg-canvas border-b border-border"
+      style={{ height: 'var(--spacing-titlebar-height)' }}
     >
-      <span
-        className="font-mono text-xs tracking-widest uppercase"
-        style={{ color: 'var(--accent-cyan)' }}
-      >
+      <div className="wv-scanline absolute inset-0" />
+
+      <span className="relative font-mono text-xs tracking-widest uppercase text-cyan">
         UMH
       </span>
-      <span className="ml-1.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+      <span className="relative ml-1.5 text-xs text-text-tertiary">
         cockpit
       </span>
 
       <div className="flex-1" />
 
-      <div className="titlebar-no-drag flex items-center gap-1">
+      <div className="titlebar-no-drag relative flex items-center gap-1">
         <button
           onClick={() => window.cockpit?.window.minimize()}
-          className="w-8 h-6 flex items-center justify-center rounded text-xs hover:bg-[var(--surface-2)] transition-colors"
-          style={{ color: 'var(--text-secondary)' }}
+          className="w-8 h-6 flex items-center justify-center rounded text-xs text-text-secondary hover:bg-surface-raised transition-colors"
         >
           ─
         </button>
         <button
           onClick={() => window.cockpit?.window.maximize()}
-          className="w-8 h-6 flex items-center justify-center rounded text-xs hover:bg-[var(--surface-2)] transition-colors"
-          style={{ color: 'var(--text-secondary)' }}
+          className="w-8 h-6 flex items-center justify-center rounded text-xs text-text-secondary hover:bg-surface-raised transition-colors"
         >
           □
         </button>
         <button
           onClick={() => window.cockpit?.window.close()}
-          className="w-8 h-6 flex items-center justify-center rounded text-xs hover:bg-[var(--accent-red)] hover:text-white transition-colors"
-          style={{ color: 'var(--text-secondary)' }}
+          className="w-8 h-6 flex items-center justify-center rounded text-xs text-text-secondary hover:bg-danger hover:text-white transition-colors"
         >
           ✕
         </button>

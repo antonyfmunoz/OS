@@ -26,20 +26,20 @@ export function TasksPanel() {
       {/* Tab bar */}
       <div
         className="flex items-center gap-4 px-4 h-10 shrink-0"
-        style={{ borderBottom: '1px solid var(--border)' }}
+        style={{ borderBottom: '1px solid var(--color-border)' }}
       >
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setViewMode(tab.id)}
-            className="hud-text pb-2 transition-colors"
+            className="wv-label pb-2 transition-colors"
             style={{
-              color: viewMode === tab.id ? 'var(--accent-cyan)' : 'var(--text-secondary)',
-              borderBottom: viewMode === tab.id ? '2px solid var(--accent-cyan)' : '2px solid transparent',
+              color: viewMode === tab.id ? 'var(--color-cyan)' : 'var(--color-text-secondary)',
+              borderBottom: viewMode === tab.id ? '2px solid var(--color-cyan)' : '2px solid transparent',
             }}
           >
             {tab.label}
-            <span className="ml-1" style={{ color: 'var(--text-tertiary)' }}>
+            <span className="ml-1" style={{ color: 'var(--color-text-tertiary)' }}>
               {tab.count}
             </span>
           </button>
@@ -60,7 +60,7 @@ export function TasksPanel() {
               />
             ))}
             {tasks.length === 0 && (
-              <p className="text-center text-xs py-8" style={{ color: 'var(--text-tertiary)' }}>
+              <p className="text-center text-xs py-8" style={{ color: 'var(--color-text-tertiary)' }}>
                 No tasks recorded
               </p>
             )}
@@ -73,28 +73,28 @@ export function TasksPanel() {
               <div
                 key={wf.id}
                 className="flex items-center gap-3 px-3 py-2.5 rounded"
-                style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
+                style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}
               >
                 <span
                   className="w-2 h-2 rounded-full shrink-0"
                   style={{
                     background: wf.last_status === 'success'
-                      ? 'var(--accent-green)'
+                      ? 'var(--color-ok)'
                       : wf.last_status === 'failed'
-                        ? 'var(--accent-red)'
-                        : 'var(--accent-amber)',
+                        ? 'var(--color-danger)'
+                        : 'var(--color-warn)',
                   }}
                 />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm truncate">{wf.name}</p>
-                  <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                  <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
                     {wf.run_count} runs · avg {wf.avg_duration_ms}ms
                   </p>
                 </div>
                 <button
                   onClick={() => triggerWorkflow(wf.id)}
                   className="px-2 py-1 text-xs font-mono uppercase rounded transition-colors"
-                  style={{ color: 'var(--accent-cyan)', background: 'var(--glow-cyan)', border: '1px solid var(--border)' }}
+                  style={{ color: 'var(--color-cyan)', background: 'var(--color-cyan-glow)', border: '1px solid var(--color-border)' }}
                 >
                   run
                 </button>

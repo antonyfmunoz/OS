@@ -141,7 +141,7 @@ export function GraphView({ nodes, edges, onNodeClick, colorMap = {} }: GraphVie
     return () => cancelAnimationFrame(frame)
   }, [nodes, edges, colorMap])
 
-  const defaultColor = 'var(--accent-cyan)'
+  const defaultColor = 'var(--color-cyan)'
 
   return (
     <svg
@@ -153,7 +153,7 @@ export function GraphView({ nodes, edges, onNodeClick, colorMap = {} }: GraphVie
         <line
           key={`e-${i}`}
           data-edge-idx={i}
-          stroke="var(--border)"
+          stroke="var(--color-border)"
           strokeWidth={1}
           opacity={0.4}
         />
@@ -172,7 +172,7 @@ export function GraphView({ nodes, edges, onNodeClick, colorMap = {} }: GraphVie
             data-label-id={node.id}
             textAnchor="middle"
             fontSize={9}
-            fill="var(--text-tertiary)"
+            fill="var(--color-text-tertiary)"
           >
             {node.label.length > 20 ? node.label.slice(0, 20) + '...' : node.label}
           </text>

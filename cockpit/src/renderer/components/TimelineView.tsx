@@ -12,19 +12,19 @@ interface TimelineViewProps {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  completed: 'var(--accent-green)',
-  in_progress: 'var(--accent-cyan)',
-  pending: 'var(--text-tertiary)',
-  blocked: 'var(--accent-red, #ef4444)',
-  active: 'var(--accent-green)',
-  running: 'var(--accent-cyan)',
+  completed: 'var(--color-ok)',
+  in_progress: 'var(--color-cyan)',
+  pending: 'var(--color-text-tertiary)',
+  blocked: 'var(--color-danger)',
+  active: 'var(--color-ok)',
+  running: 'var(--color-cyan)',
 }
 
 export function TimelineView({ events, onEventClick }: TimelineViewProps) {
   if (events.length === 0) {
     return (
       <div className="flex items-center justify-center h-full">
-        <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+        <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
           No timeline events
         </span>
       </div>
@@ -61,7 +61,7 @@ export function TimelineView({ events, onEventClick }: TimelineViewProps) {
                 y1={y1}
                 x2={`${x2}%`}
                 y2={y2}
-                stroke="var(--border)"
+                stroke="var(--color-border)"
                 strokeWidth={1}
                 strokeDasharray="4 2"
                 opacity={0.5}
@@ -74,7 +74,7 @@ export function TimelineView({ events, onEventClick }: TimelineViewProps) {
         {sorted.map((event, i) => {
           const xPercent = ((new Date(event.timestamp).getTime() - earliest) / range) * 85 + 10
           const y = i * 32 + 28
-          const color = STATUS_COLORS[event.status || ''] || 'var(--text-tertiary)'
+          const color = STATUS_COLORS[event.status || ''] || 'var(--color-text-tertiary)'
 
           return (
             <g
@@ -93,7 +93,7 @@ export function TimelineView({ events, onEventClick }: TimelineViewProps) {
                 x={`${xPercent + 2}%`}
                 y={y + 4}
                 fontSize={10}
-                fill="var(--text-secondary)"
+                fill="var(--color-text-secondary)"
               >
                 {event.label.length > 30 ? event.label.slice(0, 30) + '...' : event.label}
               </text>

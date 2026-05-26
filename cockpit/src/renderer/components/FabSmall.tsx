@@ -19,8 +19,8 @@ export function FabSmall() {
       style={{
         width: 48,
         height: 48,
-        background: 'var(--bg)',
-        border: '1px solid var(--border)',
+        background: 'var(--color-canvas)',
+        border: '1px solid var(--color-border)',
         boxShadow: '0 4px 16px rgba(0, 0, 0, 0.4)',
       }}
       title="Expand"

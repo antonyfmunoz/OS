@@ -17,8 +17,8 @@ function MiniChart({ data }: { data: { date: string; count: number }[] }) {
     <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ height: 140 }}>
       <defs>
         <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--accent-cyan)" stopOpacity="0.3" />
-          <stop offset="100%" stopColor="var(--accent-cyan)" stopOpacity="0" />
+          <stop offset="0%" stopColor="var(--color-cyan)" stopOpacity="0.3" />
+          <stop offset="100%" stopColor="var(--color-cyan)" stopOpacity="0" />
         </linearGradient>
       </defs>
       <polygon
@@ -28,7 +28,7 @@ function MiniChart({ data }: { data: { date: string; count: number }[] }) {
       <polyline
         points={points.join(' ')}
         fill="none"
-        stroke="var(--accent-cyan)"
+        stroke="var(--color-cyan)"
         strokeWidth="2"
       />
       {data.map((d, i) => {
@@ -40,7 +40,7 @@ function MiniChart({ data }: { data: { date: string; count: number }[] }) {
             cx={x}
             cy={y}
             r="3"
-            fill="var(--accent-cyan)"
+            fill="var(--color-cyan)"
             opacity="0.6"
           >
             <title>{d.date}: {d.count} traces</title>
@@ -60,7 +60,7 @@ export function AnalyticsPanel() {
   if (!data) {
     return (
       <div className="flex items-center justify-center h-full">
-        <p className="hud-text">Loading analytics...</p>
+        <p className="wv-label">Loading analytics...</p>
       </div>
     )
   }
@@ -71,9 +71,9 @@ export function AnalyticsPanel() {
       <div className="grid grid-cols-4 gap-4">
         <div
           className="px-4 py-3 rounded"
-          style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
+          style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}
         >
-          <p className="hud-text mb-2">Error Rate</p>
+          <p className="wv-label mb-2">Error Rate</p>
           <RingGauge
             value={data.error_rate * 100}
             max={100}
@@ -83,29 +83,29 @@ export function AnalyticsPanel() {
         </div>
         <div
           className="px-4 py-3 rounded"
-          style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
+          style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}
         >
-          <p className="hud-text mb-2">Avg Latency</p>
-          <p className="text-2xl font-mono" style={{ color: 'var(--accent-cyan)' }}>
+          <p className="wv-label mb-2">Avg Latency</p>
+          <p className="text-2xl font-mono" style={{ color: 'var(--color-cyan)' }}>
             {data.avg_latency_ms}
-            <span className="text-xs ml-1" style={{ color: 'var(--text-tertiary)' }}>ms</span>
+            <span className="text-xs ml-1" style={{ color: 'var(--color-text-tertiary)' }}>ms</span>
           </p>
         </div>
         <div
           className="px-4 py-3 rounded"
-          style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
+          style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}
         >
-          <p className="hud-text mb-2">30d Cost</p>
-          <p className="text-2xl font-mono" style={{ color: 'var(--accent-green)' }}>
+          <p className="wv-label mb-2">30d Cost</p>
+          <p className="text-2xl font-mono" style={{ color: 'var(--color-ok)' }}>
             ${data.total_cost_30d.toFixed(2)}
           </p>
         </div>
         <div
           className="px-4 py-3 rounded"
-          style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
+          style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}
         >
-          <p className="hud-text mb-2">Daily Traces</p>
-          <p className="text-2xl font-mono" style={{ color: 'var(--accent-cyan)' }}>
+          <p className="wv-label mb-2">Daily Traces</p>
+          <p className="text-2xl font-mono" style={{ color: 'var(--color-cyan)' }}>
             {data.daily_traces.length > 0 ? data.daily_traces[data.daily_traces.length - 1].count : 0}
           </p>
         </div>
@@ -114,16 +114,16 @@ export function AnalyticsPanel() {
       {/* Throughput chart */}
       <div
         className="px-4 py-3 rounded"
-        style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
+        style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}
       >
-        <p className="hud-text mb-3">Execution Throughput (30d)</p>
+        <p className="wv-label mb-3">Execution Throughput (30d)</p>
         <MiniChart data={data.daily_traces} />
         {data.daily_traces.length > 0 && (
           <div className="flex justify-between mt-2">
-            <span className="text-xs font-mono" style={{ color: 'var(--text-tertiary)' }}>
+            <span className="text-xs font-mono" style={{ color: 'var(--color-text-tertiary)' }}>
               {data.daily_traces[0].date}
             </span>
-            <span className="text-xs font-mono" style={{ color: 'var(--text-tertiary)' }}>
+            <span className="text-xs font-mono" style={{ color: 'var(--color-text-tertiary)' }}>
               {data.daily_traces[data.daily_traces.length - 1].date}
             </span>
           </div>
@@ -133,24 +133,24 @@ export function AnalyticsPanel() {
       {/* Model usage */}
       <div
         className="px-4 py-3 rounded"
-        style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
+        style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}
       >
-        <p className="hud-text mb-3">Model Routing</p>
+        <p className="wv-label mb-3">Model Routing</p>
         <div className="space-y-2">
           {data.model_usage.map((m) => (
             <div
               key={m.model}
               className="flex items-center gap-3 px-3 py-2 rounded"
-              style={{ background: 'var(--surface-1)' }}
+              style={{ background: 'var(--color-surface)' }}
             >
               <span className="text-sm flex-1">{m.model}</span>
-              <span className="font-mono text-xs" style={{ color: 'var(--accent-cyan)' }}>
+              <span className="font-mono text-xs" style={{ color: 'var(--color-cyan)' }}>
                 {m.calls} calls
               </span>
-              <span className="font-mono text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              <span className="font-mono text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
                 {(m.tokens / 1000).toFixed(0)}k tokens
               </span>
-              <span className="font-mono text-xs" style={{ color: 'var(--accent-green)' }}>
+              <span className="font-mono text-xs" style={{ color: 'var(--color-ok)' }}>
                 ${m.cost.toFixed(2)}
               </span>
             </div>

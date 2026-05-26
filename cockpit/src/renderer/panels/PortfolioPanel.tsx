@@ -79,19 +79,19 @@ export function PortfolioPanel() {
 
   const tierColor = (tier: string) => {
     switch (tier) {
-      case 'commit': return 'var(--accent-red)'
-      case 'execute': return 'var(--accent-amber)'
-      case 'draft': return 'var(--accent-cyan)'
-      default: return 'var(--text-tertiary)'
+      case 'commit': return 'var(--color-danger)'
+      case 'execute': return 'var(--color-warn)'
+      case 'draft': return 'var(--color-cyan)'
+      default: return 'var(--color-text-tertiary)'
     }
   }
 
   const statusColor = (status: string) => {
     switch (status) {
       case 'connected':
-      case 'configured': return 'var(--accent-green)'
-      case 'error': return 'var(--accent-red)'
-      default: return 'var(--text-tertiary)'
+      case 'configured': return 'var(--color-ok)'
+      case 'error': return 'var(--color-danger)'
+      default: return 'var(--color-text-tertiary)'
     }
   }
 
@@ -99,7 +99,7 @@ export function PortfolioPanel() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full" style={{ color: 'var(--text-tertiary)' }}>
+      <div className="flex items-center justify-center h-full" style={{ color: 'var(--color-text-tertiary)' }}>
         Loading entity data...
       </div>
     )
@@ -110,10 +110,10 @@ export function PortfolioPanel() {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+          <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
             {view === 'portfolio' ? 'Portfolio' : view === 'department' ? `Department: ${selectedDept}` : 'All Roles'}
           </h2>
-          <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+          <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
             {departments.length} departments · {roles.length} roles
           </span>
         </div>
@@ -124,9 +124,9 @@ export function PortfolioPanel() {
               onClick={() => { setView(v); if (v === 'portfolio') setSelectedDept(null) }}
               className="px-2 py-1 text-xs rounded"
               style={{
-                background: view === v ? 'var(--surface-2)' : 'transparent',
-                color: view === v ? 'var(--text-primary)' : 'var(--text-secondary)',
-                border: '1px solid var(--border)',
+                background: view === v ? 'var(--color-surface-raised)' : 'transparent',
+                color: view === v ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+                border: '1px solid var(--color-border)',
               }}
             >
               {v.charAt(0).toUpperCase() + v.slice(1)}
@@ -138,27 +138,27 @@ export function PortfolioPanel() {
       {/* Product Connections */}
       {view === 'portfolio' && (
         <section className="mb-6">
-          <h3 className="hud-text mb-3">Product Connections</h3>
+          <h3 className="wv-label mb-3">Product Connections</h3>
           <div className="grid grid-cols-3 gap-3">
             {products.map(p => (
               <div
                 key={p.product}
                 className="p-3 rounded"
-                style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}
+                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
               >
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                  <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
                     {p.product.toUpperCase()}
                   </span>
                   <span className="text-xs px-1.5 py-0.5 rounded" style={{ color: statusColor(p.status), border: `1px solid ${statusColor(p.status)}` }}>
                     {p.status}
                   </span>
                 </div>
-                <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                <div className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
                   {p.capabilities.length} capabilities · {p.signal_types.length} signals
                 </div>
                 {p.error && (
-                  <div className="text-xs mt-1" style={{ color: 'var(--accent-red)' }}>
+                  <div className="text-xs mt-1" style={{ color: 'var(--color-danger)' }}>
                     {p.error}
                   </div>
                 )}
@@ -166,7 +166,7 @@ export function PortfolioPanel() {
             ))}
           </div>
           {productSummary && productSummary.compounding && (
-            <div className="mt-2 text-xs" style={{ color: 'var(--accent-green)' }}>
+            <div className="mt-2 text-xs" style={{ color: 'var(--color-ok)' }}>
               Cross-product intelligence compounding active ({productSummary.connected} products linked)
             </div>
           )}
@@ -176,20 +176,20 @@ export function PortfolioPanel() {
       {/* Department Grid */}
       {(view === 'portfolio' || view === 'department') && (
         <section className="mb-6">
-          <h3 className="hud-text mb-3">Departments</h3>
+          <h3 className="wv-label mb-3">Departments</h3>
           <div className="grid grid-cols-2 gap-3">
             {departments.map(dept => (
               <div
                 key={dept.slug}
                 className="p-3 rounded cursor-pointer transition-colors"
                 style={{
-                  background: selectedDept === dept.slug ? 'var(--surface-2)' : 'var(--surface-1)',
-                  border: `1px solid ${selectedDept === dept.slug ? 'var(--accent-cyan)' : 'var(--border)'}`,
+                  background: selectedDept === dept.slug ? 'var(--color-surface-raised)' : 'var(--color-surface)',
+                  border: `1px solid ${selectedDept === dept.slug ? 'var(--color-cyan)' : 'var(--color-border)'}`,
                 }}
                 onClick={() => { setSelectedDept(dept.slug); setView('department') }}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                  <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
                     {dept.name}
                   </span>
                   <span
@@ -199,18 +199,18 @@ export function PortfolioPanel() {
                     {dept.permission_tier}
                   </span>
                 </div>
-                <div className="text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>
+                <div className="text-xs mb-1" style={{ color: 'var(--color-text-secondary)' }}>
                   {dept.agent?.skill_count ?? 0} skills · {dept.roles.length} roles · {dept.metrics.length} KPIs
                 </div>
                 {dept.agent && (
                   <div className="flex flex-wrap gap-1 mt-2">
                     {dept.agent.skills.slice(0, 4).map(s => (
-                      <span key={s} className="text-xs px-1 py-0.5 rounded" style={{ background: 'var(--surface-2)', color: 'var(--text-tertiary)' }}>
+                      <span key={s} className="text-xs px-1 py-0.5 rounded" style={{ background: 'var(--color-surface-raised)', color: 'var(--color-text-tertiary)' }}>
                         {s}
                       </span>
                     ))}
                     {dept.agent.skills.length > 4 && (
-                      <span className="text-xs px-1 py-0.5" style={{ color: 'var(--text-tertiary)' }}>
+                      <span className="text-xs px-1 py-0.5" style={{ color: 'var(--color-text-tertiary)' }}>
                         +{dept.agent.skills.length - 4}
                       </span>
                     )}
@@ -225,7 +225,7 @@ export function PortfolioPanel() {
       {/* Roles Table */}
       {(view === 'role' || (view === 'department' && selectedDept)) && (
         <section>
-          <h3 className="hud-text mb-3">
+          <h3 className="wv-label mb-3">
             {selectedDept ? `Roles in ${selectedDept}` : 'All Roles'}
           </h3>
           <div className="space-y-2">
@@ -233,19 +233,19 @@ export function PortfolioPanel() {
               <div
                 key={`${role.department}-${role.name}`}
                 className="p-3 rounded"
-                style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}
+                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
               >
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
                       {role.name}
                     </span>
-                    <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                    <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
                       {role.department}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs px-1.5 py-0.5 rounded" style={{ color: 'var(--accent-cyan)', border: '1px solid var(--accent-cyan)' }}>
+                    <span className="text-xs px-1.5 py-0.5 rounded" style={{ color: 'var(--color-cyan)', border: '1px solid var(--color-cyan)' }}>
                       {role.operator}
                     </span>
                     <span
@@ -258,18 +258,18 @@ export function PortfolioPanel() {
                 </div>
                 <div className="flex flex-wrap gap-1 mt-1">
                   {role.responsibilities.map(r => (
-                    <span key={r} className="text-xs px-1 py-0.5 rounded" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+                    <span key={r} className="text-xs px-1 py-0.5 rounded" style={{ background: 'var(--color-surface-raised)', color: 'var(--color-text-secondary)' }}>
                       {r}
                     </span>
                   ))}
                 </div>
-                <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
+                <div className="text-xs mt-1" style={{ color: 'var(--color-text-tertiary)' }}>
                   KPIs: {role.metrics.join(', ')}
                 </div>
               </div>
             ))}
             {filteredRoles.length === 0 && (
-              <div className="text-xs p-4 text-center" style={{ color: 'var(--text-tertiary)' }}>
+              <div className="text-xs p-4 text-center" style={{ color: 'var(--color-text-tertiary)' }}>
                 No roles {selectedDept ? `in ${selectedDept}` : 'found'}
               </div>
             )}

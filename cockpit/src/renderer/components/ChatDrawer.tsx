@@ -32,10 +32,10 @@ export function ChatDrawer() {
     <aside
       className="flex flex-col overflow-hidden transition-all"
       style={{
-        width: chatOpen ? 'var(--chat-width)' : '0px',
-        minWidth: chatOpen ? 'var(--chat-width)' : '0px',
-        background: 'var(--surface-1)',
-        borderLeft: chatOpen ? '1px solid var(--border)' : 'none',
+        width: chatOpen ? 'var(--spacing-chat-width)' : '0px',
+        minWidth: chatOpen ? 'var(--spacing-chat-width)' : '0px',
+        background: 'var(--color-surface)',
+        borderLeft: chatOpen ? '1px solid var(--color-border)' : 'none',
         transitionDuration: 'var(--transition-normal)',
       }}
     >
@@ -44,12 +44,12 @@ export function ChatDrawer() {
           {/* Header */}
           <div
             className="flex items-center px-3 h-10 shrink-0"
-            style={{ borderBottom: '1px solid var(--border)' }}
+            style={{ borderBottom: '1px solid var(--color-border)' }}
           >
-            <span className="font-mono text-xs tracking-wider uppercase" style={{ color: 'var(--accent-purple)' }}>
+            <span className="font-mono text-xs tracking-wider uppercase" style={{ color: 'var(--color-violet)' }}>
               DEX
             </span>
-            <span className="ml-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+            <span className="ml-2 text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
               intelligence channel
             </span>
           </div>
@@ -57,7 +57,7 @@ export function ChatDrawer() {
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
             {messages.length === 0 && (
-              <p className="text-center text-xs mt-8" style={{ color: 'var(--text-tertiary)' }}>
+              <p className="text-center text-xs mt-8" style={{ color: 'var(--color-text-tertiary)' }}>
                 Start a conversation with DEX
               </p>
             )}
@@ -67,22 +67,22 @@ export function ChatDrawer() {
                   <span
                     className="font-mono text-xs uppercase"
                     style={{
-                      color: msg.sender === 'dex' ? 'var(--accent-purple)' : 'var(--text-secondary)',
+                      color: msg.sender === 'dex' ? 'var(--color-violet)' : 'var(--color-text-secondary)',
                     }}
                   >
                     {msg.sender === 'dex' ? 'DEX' : 'YOU'}
                   </span>
                   {msg.source === 'voice' && (
-                    <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>🎤</span>
+                    <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>🎤</span>
                   )}
-                  <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                  <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
                     {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
                 <p
                   className="leading-relaxed whitespace-pre-wrap"
                   style={{
-                    color: msg.sender === 'dex' ? 'var(--accent-purple)' : 'var(--text-primary)',
+                    color: msg.sender === 'dex' ? 'var(--color-violet)' : 'var(--color-text-primary)',
                   }}
                 >
                   {msg.content}
@@ -91,8 +91,8 @@ export function ChatDrawer() {
             ))}
             {sending && (
               <div className="flex items-center gap-2">
-                <span className="font-mono text-xs uppercase" style={{ color: 'var(--accent-purple)' }}>DEX</span>
-                <span className="text-xs animate-pulse" style={{ color: 'var(--text-tertiary)' }}>thinking...</span>
+                <span className="font-mono text-xs uppercase" style={{ color: 'var(--color-violet)' }}>DEX</span>
+                <span className="text-xs animate-pulse" style={{ color: 'var(--color-text-tertiary)' }}>thinking...</span>
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -100,7 +100,7 @@ export function ChatDrawer() {
 
           {/* Error */}
           {error && (
-            <div className="px-3 py-1.5 text-xs" style={{ color: 'var(--accent-red)', background: 'var(--surface-2)' }}>
+            <div className="px-3 py-1.5 text-xs" style={{ color: 'var(--color-danger)', background: 'var(--color-surface-raised)' }}>
               {error}
             </div>
           )}
@@ -109,7 +109,7 @@ export function ChatDrawer() {
           <form
             onSubmit={handleSubmit}
             className="flex items-center px-3 py-2 shrink-0"
-            style={{ borderTop: '1px solid var(--border)' }}
+            style={{ borderTop: '1px solid var(--color-border)' }}
           >
             <input
               ref={inputRef}
@@ -118,16 +118,16 @@ export function ChatDrawer() {
               onChange={(e) => setInput(e.target.value)}
               placeholder="Message DEX..."
               disabled={sending}
-              className="flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--text-tertiary)]"
-              style={{ color: 'var(--text-primary)' }}
+              className="flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--color-text-tertiary)]"
+              style={{ color: 'var(--color-text-primary)' }}
             />
             <button
               type="submit"
               disabled={!input.trim() || sending}
               className="ml-2 px-2 py-1 rounded text-xs font-mono uppercase tracking-wider transition-colors"
               style={{
-                color: input.trim() ? 'var(--accent-cyan)' : 'var(--text-tertiary)',
-                background: input.trim() ? 'var(--glow-cyan)' : 'transparent',
+                color: input.trim() ? 'var(--color-cyan)' : 'var(--color-text-tertiary)',
+                background: input.trim() ? 'var(--color-cyan-glow)' : 'transparent',
               }}
             >
               send

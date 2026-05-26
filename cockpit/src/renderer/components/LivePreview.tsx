@@ -39,12 +39,12 @@ export function LivePreview({ url, defaultUrl = 'http://localhost:5173' }: LiveP
     <div className="flex flex-col h-full">
       <div
         className="flex items-center gap-2 px-2 py-1.5 flex-shrink-0"
-        style={{ borderBottom: '1px solid var(--border)' }}
+        style={{ borderBottom: '1px solid var(--color-border)' }}
       >
         <button
           onClick={handleRefresh}
           className="text-xs px-1.5 py-0.5 rounded"
-          style={{ color: 'var(--text-secondary)' }}
+          style={{ color: 'var(--color-text-secondary)' }}
           title="Refresh"
         >
           ↻
@@ -55,8 +55,8 @@ export function LivePreview({ url, defaultUrl = 'http://localhost:5173' }: LiveP
             onChange={(e) => setInputUrl(e.target.value)}
             className="flex-1 px-2 py-0.5 rounded text-xs bg-transparent outline-none"
             style={{
-              color: 'var(--text-primary)',
-              border: '1px solid var(--border)',
+              color: 'var(--color-text-primary)',
+              border: '1px solid var(--color-border)',
             }}
           />
         </form>
@@ -66,9 +66,9 @@ export function LivePreview({ url, defaultUrl = 'http://localhost:5173' }: LiveP
         {loading && (
           <div
             className="absolute inset-0 flex items-center justify-center z-10"
-            style={{ background: 'var(--surface-2)' }}
+            style={{ background: 'var(--color-surface-raised)' }}
           >
-            <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+            <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
               Loading...
             </span>
           </div>

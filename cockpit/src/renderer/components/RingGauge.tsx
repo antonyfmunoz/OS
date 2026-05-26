@@ -7,7 +7,7 @@ interface RingGaugeProps {
   size?: number
 }
 
-export function RingGauge({ value, max, label, unit = '', color = 'var(--accent-cyan)', size = 80 }: RingGaugeProps) {
+export function RingGauge({ value, max, label, unit = '', color = 'var(--color-cyan)', size = 80 }: RingGaugeProps) {
   const pct = Math.min(value / Math.max(max, 1), 1)
   const radius = (size - 8) / 2
   const circumference = 2 * Math.PI * radius
@@ -22,7 +22,7 @@ export function RingGauge({ value, max, label, unit = '', color = 'var(--accent-
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="var(--border-focus)"
+          stroke="var(--color-border-active)"
           strokeWidth={3}
         />
         {/* Value ring */}
@@ -44,9 +44,9 @@ export function RingGauge({ value, max, label, unit = '', color = 'var(--accent-
         <span className="font-mono text-lg font-semibold" style={{ color }}>
           {typeof value === 'number' ? (value % 1 === 0 ? value : value.toFixed(1)) : value}
         </span>
-        {unit && <span className="text-xs ml-0.5" style={{ color: 'var(--text-tertiary)' }}>{unit}</span>}
+        {unit && <span className="text-xs ml-0.5" style={{ color: 'var(--color-text-tertiary)' }}>{unit}</span>}
       </div>
-      <span className="hud-text text-center">{label}</span>
+      <span className="wv-label text-center">{label}</span>
     </div>
   )
 }

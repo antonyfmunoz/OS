@@ -2,10 +2,10 @@ import { useApprovalStore } from '../stores/approvalStore'
 import { usePolling } from '../hooks/usePolling'
 
 const RISK_COLORS = {
-  LOW: 'var(--accent-green)',
-  MEDIUM: 'var(--accent-amber)',
-  HIGH: 'var(--accent-red)',
-  CRITICAL: 'var(--accent-red)',
+  LOW: 'var(--color-ok)',
+  MEDIUM: 'var(--color-warn)',
+  HIGH: 'var(--color-danger)',
+  CRITICAL: 'var(--color-danger)',
 } as const
 
 export function ApprovalsPanel() {
@@ -26,7 +26,7 @@ export function ApprovalsPanel() {
         {pending.length > 0 && (
           <span
             className="ml-2 px-2 py-0.5 text-xs font-mono rounded"
-            style={{ background: 'var(--glow-cyan)', color: 'var(--accent-cyan)' }}
+            style={{ background: 'var(--color-cyan-glow)', color: 'var(--color-cyan)' }}
           >
             {pending.length} pending
           </span>
@@ -36,13 +36,13 @@ export function ApprovalsPanel() {
       {/* Pending */}
       {pending.length > 0 && (
         <section className="mb-6">
-          <h3 className="hud-text mb-3">Pending Approval</h3>
+          <h3 className="wv-label mb-3">Pending Approval</h3>
           <div className="space-y-2">
             {pending.map((item) => (
               <div
                 key={item.id}
                 className="px-4 py-3 rounded"
-                style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
+                style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}
               >
                 <div className="flex items-center gap-2 mb-2">
                   <span
@@ -55,7 +55,7 @@ export function ApprovalsPanel() {
                   >
                     {item.risk_level}
                   </span>
-                  <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                  <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
                     from {item.agent}
                   </span>
                 </div>
@@ -64,14 +64,14 @@ export function ApprovalsPanel() {
                   <button
                     onClick={() => approve(item.id)}
                     className="px-3 py-1.5 text-xs font-mono uppercase rounded transition-colors"
-                    style={{ background: 'var(--accent-green)', color: 'var(--bg)' }}
+                    style={{ background: 'var(--color-ok)', color: 'var(--color-canvas)' }}
                   >
                     approve
                   </button>
                   <button
                     onClick={() => deny(item.id)}
                     className="px-3 py-1.5 text-xs font-mono uppercase rounded transition-colors"
-                    style={{ background: 'var(--surface-3)', color: 'var(--accent-red)', border: '1px solid var(--border)' }}
+                    style={{ background: 'var(--color-surface-overlay)', color: 'var(--color-danger)', border: '1px solid var(--color-border)' }}
                   >
                     deny
                   </button>
@@ -84,25 +84,25 @@ export function ApprovalsPanel() {
 
       {/* History */}
       <section>
-        <h3 className="hud-text mb-3">Decision History</h3>
+        <h3 className="wv-label mb-3">Decision History</h3>
         {history.length === 0 ? (
-          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>No decisions recorded</p>
+          <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>No decisions recorded</p>
         ) : (
           <div className="space-y-1.5">
             {history.map((item) => (
               <div
                 key={item.id}
                 className="flex items-center gap-2 px-3 py-2 rounded"
-                style={{ background: 'var(--surface-1)' }}
+                style={{ background: 'var(--color-surface)' }}
               >
                 <span
                   className="w-2 h-2 rounded-full shrink-0"
                   style={{
-                    background: item.status === 'approved' ? 'var(--accent-green)' : 'var(--accent-red)',
+                    background: item.status === 'approved' ? 'var(--color-ok)' : 'var(--color-danger)',
                   }}
                 />
                 <p className="text-sm flex-1 truncate">{item.description}</p>
-                <span className="hud-text">{item.status}</span>
+                <span className="wv-label">{item.status}</span>
               </div>
             ))}
           </div>

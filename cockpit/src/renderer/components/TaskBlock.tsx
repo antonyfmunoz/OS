@@ -8,10 +8,10 @@ interface TaskBlockProps {
 }
 
 const STATUS_COLORS = {
-  pending: 'var(--accent-amber)',
-  in_progress: 'var(--accent-cyan)',
-  completed: 'var(--accent-green)',
-  blocked: 'var(--accent-red)',
+  pending: 'var(--color-warn)',
+  in_progress: 'var(--color-cyan)',
+  completed: 'var(--color-ok)',
+  blocked: 'var(--color-danger)',
 } as const
 
 const STATUS_LABELS = {
@@ -29,9 +29,9 @@ export function TaskBlock({ title, status, agent, timestamp, onClick }: TaskBloc
       onClick={onClick}
       className="w-full text-left px-3 py-2.5 rounded transition-colors"
       style={{
-        background: 'var(--surface-2)',
+        background: 'var(--color-surface-raised)',
         borderLeft: `3px solid ${color}`,
-        border: '1px solid var(--border)',
+        border: '1px solid var(--color-border)',
         borderLeftColor: color,
         borderLeftWidth: '3px',
       }}
@@ -43,14 +43,14 @@ export function TaskBlock({ title, status, agent, timestamp, onClick }: TaskBloc
         >
           {STATUS_LABELS[status]}
         </span>
-        <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+        <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
           {agent}
         </span>
       </div>
-      <p className="text-sm truncate" style={{ color: 'var(--text-primary)' }}>
+      <p className="text-sm truncate" style={{ color: 'var(--color-text-primary)' }}>
         {title}
       </p>
-      <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
+      <p className="text-xs mt-1" style={{ color: 'var(--color-text-tertiary)' }}>
         {new Date(timestamp).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
       </p>
     </button>

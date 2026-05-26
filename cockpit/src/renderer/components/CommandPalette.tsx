@@ -82,17 +82,17 @@ export function CommandPalette() {
     >
       <div
         className="w-[500px] max-h-96 rounded-lg overflow-hidden"
-        style={{ background: 'var(--surface-1)', border: '1px solid var(--border-focus)' }}
+        style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border-active)' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+        <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--color-border)' }}>
           <input
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Type a command..."
             className="w-full bg-transparent text-sm outline-none"
-            style={{ color: 'var(--text-primary)' }}
+            style={{ color: 'var(--color-text-primary)' }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && filtered.length > 0) {
                 execute(filtered[0])
@@ -105,19 +105,19 @@ export function CommandPalette() {
             <button
               key={cmd.id}
               onClick={() => execute(cmd)}
-              className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-left hover:bg-[var(--surface-2)] transition-colors"
-              style={{ color: 'var(--text-primary)' }}
+              className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-left hover:bg-[var(--color-surface-raised)] transition-colors"
+              style={{ color: 'var(--color-text-primary)' }}
             >
               <span>{cmd.label}</span>
               {cmd.shortcut && (
-                <span className="font-mono text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                <span className="font-mono text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
                   {cmd.shortcut}
                 </span>
               )}
             </button>
           ))}
           {filtered.length === 0 && (
-            <p className="px-4 py-3 text-sm" style={{ color: 'var(--text-tertiary)' }}>
+            <p className="px-4 py-3 text-sm" style={{ color: 'var(--color-text-tertiary)' }}>
               No matching commands
             </p>
           )}

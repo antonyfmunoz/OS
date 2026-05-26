@@ -1,13 +1,13 @@
 import { TitleBar } from './TitleBar'
-import { NavRail } from './NavRail'
+import { LeftRail } from './LeftRail'
 import { HudBar } from './HudBar'
 import { ChatDrawer } from './ChatDrawer'
 import { CommandPalette } from './CommandPalette'
 import { FabLarge } from './FabLarge'
 import { FabMedium } from './FabMedium'
 import { FabSmall } from './FabSmall'
-import { VoiceCommandBar } from './VoiceCommandBar'
 import { useCockpitStore } from '../stores/cockpitStore'
+import { useVoiceDetection } from '../hooks/useVoiceDetection'
 import { DashboardPanel } from '../panels/DashboardPanel'
 import { AgentsPanel } from '../panels/AgentsPanel'
 import { TasksPanel } from '../panels/TasksPanel'
@@ -56,6 +56,7 @@ function ActivePanel() {
 
 export function Shell() {
   const windowMode = useCockpitStore((s) => s.windowMode)
+  useVoiceDetection()
 
   if (windowMode === 'invisible') return null
 
@@ -84,23 +85,19 @@ export function Shell() {
   }
 
   return (
-    <div className="relative flex flex-col h-screen" style={{ background: 'var(--bg)' }}>
+    <div className="flex flex-col h-screen bg-canvas">
       <TitleBar />
 
       <div className="flex flex-1 overflow-hidden">
-        <NavRail />
+        <LeftRail />
 
-        <main
-          className="flex-1 overflow-hidden"
-          style={{ background: 'var(--surface-1)' }}
-        >
+        <main className="flex-1 overflow-hidden bg-surface">
           <ActivePanel />
         </main>
 
         <ChatDrawer />
       </div>
 
-      <VoiceCommandBar />
       <HudBar />
       <CommandPalette />
     </div>

@@ -21,7 +21,7 @@ export function VoiceWaveform() {
           className="w-0.5 rounded-full transition-all duration-75"
           style={{
             height: `${Math.max(2, level * 12)}px`,
-            background: micState === 'listening' ? 'var(--accent-cyan)' : 'var(--accent-amber)',
+            background: micState === 'listening' ? 'var(--color-cyan)' : 'var(--color-warn)',
             opacity: 0.6 + level * 0.4,
           }}
         />
