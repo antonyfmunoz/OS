@@ -1,7 +1,13 @@
-"""GovernanceEngine — classifies signals by risk and decides execution authority.
+"""GovernanceEngine — the single governance entry point for UMH.
 
-Merges the production authority_engine.py risk classification with
-UMH governance protocol's GovernanceVerdict model.
+Three governance layers, one API surface:
+  1. Signal-level: classify() — risk + autonomy check from SignalEnvelope content
+  2. Business-action: evaluate_action() — delegates to AuthorityEngine
+  3. Capability-level: evaluate_capability() — delegates to PolicyEngine
+
+All external callers should go through ConcreteGovernanceEngine.
+Internal engines (AuthorityEngine, PolicyEngine) handle their own concerns
+but are accessed through this facade.
 """
 
 from __future__ import annotations
@@ -14,6 +20,8 @@ from substrate.types import (
     ExecutionPlan,
     GovernanceDecision,
     GovernanceVerdict,
+    GovernanceRequest,
+    PipelineGovernanceVerdict,
     PermissionTier,
     RiskClass,
     SignalEnvelope,
@@ -33,10 +41,12 @@ class GovernanceEngine(Protocol):
 
 
 AUTONOMY_THRESHOLDS: dict[RiskClass, int] = {
+    RiskClass.FORBIDDEN: 999,
     RiskClass.CRITICAL: 999,
     RiskClass.HIGH: 3,
     RiskClass.MEDIUM: 1,
     RiskClass.LOW: 0,
+    RiskClass.NEGLIGIBLE: 0,
 }
 
 _CRITICAL_PATTERNS = re.compile(
@@ -166,6 +176,45 @@ class ConcreteGovernanceEngine:
                 return "draft_message"
             return "create_task"
         return None
+
+    def evaluate_action(
+        self,
+        action_type: str,
+        workflow_id: str | None = None,
+        caller_permission_tier: str = "execute",
+    ) -> dict[str, Any]:
+        """Business-action governance — delegates to AuthorityEngine.
+
+        Use for explicit action types (send_dm, execute_payment, etc.).
+        Returns the same dict shape as AuthorityEngine.check_can_execute().
+        """
+        from substrate.governance.policy.authority_engine import AuthorityEngine
+        from substrate.state.context.context import load_context_from_env
+
+        ctx = load_context_from_env()
+        ae = AuthorityEngine(ctx)
+        return ae.check_can_execute(action_type, workflow_id, caller_permission_tier)
+
+    def evaluate_capability(
+        self,
+        risk_category: str,
+        request: GovernanceRequest,
+        context: dict[str, Any] | None = None,
+    ) -> PipelineGovernanceVerdict:
+        """Capability-level governance — delegates to PolicyEngine.
+
+        Use for side-effect classification (READ_ONLY, FINANCIAL, etc.).
+        """
+        from substrate.governance.policy_engine import PolicyEngine
+        from substrate.governance.risk_classes import ActionRiskCategory
+
+        try:
+            category = ActionRiskCategory(risk_category)
+        except ValueError:
+            category = ActionRiskCategory.READ_ONLY
+
+        pe = PolicyEngine(safe_roots=["/opt/OS"])
+        return pe.evaluate(category, request, context)
 
     def _classify_risk(self, content: str) -> RiskClass:
         """Classify risk based on content patterns. Deterministic spine."""
