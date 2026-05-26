@@ -51,7 +51,7 @@ YIELD_QUADRANTS = {
 def classify_task_yield(task: str, ctx=None) -> dict:
     """Classify a single task into a Task Yield Matrix quadrant using LLM."""
     try:
-        from substrate.execution.runtime.model_router import get_router, TaskType
+        from adapters.models.model_router import get_router, TaskType
         router = get_router()
         model = router.route(TaskType.FAST_RESPONSE)
 

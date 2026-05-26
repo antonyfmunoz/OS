@@ -137,7 +137,7 @@ class ExecutionSpine:
 
         response = ""
         try:
-            from substrate.execution.runtime.model_router import call_with_fallback
+            from adapters.models.model_router import call_with_fallback
 
             routing_result = call_with_fallback(
                 prompt=message,
@@ -181,7 +181,7 @@ class ExecutionSpine:
         # 3b. AgentMemory — interactions table
         try:
             from substrate.state.memory.memory import AgentMemory
-            from substrate.execution.runtime.agent_runtime import AgentResult
+            from adapters.models.agent_runtime import AgentResult
 
             _agent_result = AgentResult(
                 output=response[:2000],

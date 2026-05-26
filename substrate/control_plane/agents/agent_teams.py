@@ -22,7 +22,7 @@ Usage:
 
 from dataclasses import dataclass
 
-from substrate.execution.runtime.agent_runtime import TaskType
+from adapters.models.agent_runtime import TaskType
 
 
 # ─── Sub-agent config ─────────────────────────────────────────────────────────
@@ -342,7 +342,7 @@ def run_team_task(
         dict with keys: output, model_used, tokens_used, skill_used,
         interaction_id, cost_usd, duration_ms.
     """
-    from substrate.execution.runtime.agent_runtime import AgentRuntime
+    from adapters.models.agent_runtime import AgentRuntime
     from substrate.state.context.context import load_context_from_env
 
     runtime = AgentRuntime(ctx or load_context_from_env())

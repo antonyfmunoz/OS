@@ -36,7 +36,7 @@ def extract_expense_from_email(
 ) -> dict:
     """Extract expense details from a receipt email using LLM."""
     try:
-        from substrate.execution.runtime.model_router import get_router, TaskType
+        from adapters.models.model_router import get_router, TaskType
         router = get_router()
 
         prompt = f"""Extract expense details from this receipt email.
