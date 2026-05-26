@@ -129,6 +129,10 @@ def run_gateway(
     """
     Classify intent, build request, call gateway, return output text.
     Runs synchronously — called from asyncio executor to avoid blocking.
+
+    When EOS_SUBSTRATE_ROUTING=1, routes through SubstrateGateway
+    (SignalEnvelope → ExecutionResult) instead of the legacy dict path.
+    Same gateway internals — different interface boundary.
     """
     if channel_name not in channel_sessions:
         channel_sessions[channel_name] = str(_uuid_mod.uuid4())
@@ -180,6 +184,46 @@ def run_gateway(
                 "ki_integrate_memory_only", _ki_mo_err, {"channel": channel_name, "user": username}
             )
         return ""
+
+    # ── Substrate routing gate (P2 convergence) ─────────────────────────
+    # When enabled, routes through SubstrateGateway which wraps the same
+    # gateway internals but uses SignalEnvelope/ExecutionResult types.
+    if os.environ.get("EOS_SUBSTRATE_ROUTING") == "1":
+        try:
+            from substrate.control_plane.runtime.substrate_gateway import (
+                SubstrateGateway,
+                create_signal_from_discord,
+            )
+            from substrate.state.context.context import load_context_from_env as _load_sr_ctx
+
+            _sr_ctx = _load_sr_ctx()
+            signal = create_signal_from_discord(
+                text=text,
+                channel_name=channel_name,
+                username=username,
+                org_id=str(_sr_ctx.org_id),
+                venture_id=default_venture_id,
+                session_id=session_id,
+                guild_id=guild_id,
+                channel_id=channel_id,
+            )
+            sg = SubstrateGateway()
+            exec_result = sg.handle(signal)
+
+            output = exec_result.output or ""
+            try:
+                ki.integrate(
+                    content=f"Discord #{channel_name}\nUser: {text[:300]}\nSystem: {output[:300]}",
+                    source="discord_conversation",
+                    category="conversation",
+                    metadata={"channel": channel_name, "user": username, "substrate_routed": True},
+                )
+            except Exception:
+                pass
+            return output
+        except Exception as _sr_err:
+            _record_error("substrate_routing", _sr_err, {"channel": channel_name})
+            print(f"[IntentHandler] Substrate routing failed, falling through to legacy: {_sr_err}")
 
     # Use channel hint if intent is UNKNOWN
     if intent == "UNKNOWN":
