@@ -1334,6 +1334,53 @@ class AutonomyLevel(int, Enum):
     FULL_AUTONOMY = 5
 
 
+# ─── World Model ────────────────────────────────────────────────────────────
+
+
+class WorldModelUpdateType(str, Enum):
+    PATTERN_DISCOVERED = "pattern_discovered"
+    PATTERN_INVALIDATED = "pattern_invalidated"
+    RELATIONSHIP_CHANGED = "relationship_changed"
+    CONFIDENCE_ADJUSTED = "confidence_adjusted"
+    CONSTRAINT_ACTIVATED = "constraint_activated"
+    CONSTRAINT_LIFTED = "constraint_lifted"
+
+
+class WorldModelUpdate(BaseModel):
+    """A discrete change to the substrate's understanding of reality."""
+
+    id: UUID = Field(default_factory=uuid4)
+    update_type: WorldModelUpdateType
+    domain: str = Field(max_length=80)
+    subject: str = Field(max_length=120)
+    description: str = Field(max_length=300)
+    evidence_signal_id: UUID | None = None
+    evidence_trace_id: UUID | None = None
+    old_value: Any = None
+    new_value: Any = None
+    confidence: float = Field(ge=0.0, le=1.0, default=0.8)
+    recorded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+# ─── Projection ─────────────────────────────────────────────────────────────
+
+
+class ProjectionContract(BaseModel):
+    """Declaration a projection provides to register with the substrate.
+
+    Every application-layer projection (EOS, CreatorOS, LyfeOS) must
+    produce one of these to plug into the substrate runtime.
+    """
+
+    projection_id: str = Field(max_length=60)
+    name: str = Field(max_length=80)
+    version: str = Field(default="0.1.0", max_length=20)
+    domains: list[str] = Field(default_factory=list)
+    entity_types: list[str] = Field(default_factory=list)
+    required_adapters: list[str] = Field(default_factory=list)
+    registered_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 # ─── Deferred model resolution ──────────────────────────────────────────────
 # PipelineGovernanceVerdict references RiskLevel and GovernanceCondition which
 # are defined after it. Rebuild to resolve the forward references.
