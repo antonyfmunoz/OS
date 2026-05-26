@@ -2,7 +2,7 @@
 type: palace-room
 room_id: core_agents
 wing: core
-generated: 2026-05-23
+generated: 2026-05-26
 ---
 
 # Room — Core Agents
