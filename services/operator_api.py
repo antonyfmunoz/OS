@@ -14,6 +14,7 @@ import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from contextlib import asynccontextmanager
 from typing import Any
 
 from dotenv import load_dotenv
@@ -39,7 +40,29 @@ API_KEY = os.getenv("UMH_OPERATOR_API_KEY", "dev-key-change-me")
 logger = logging.getLogger("operator_api")
 logging.basicConfig(level=logging.INFO)
 
-app = FastAPI(title="UMH Operator API", version="1.0.0")
+_loop_registry = None
+
+
+@asynccontextmanager
+async def lifespan(application):
+    global _loop_registry
+    try:
+        from substrate.execution.loop.persistent_loop import get_registry
+        _loop_registry = get_registry()
+        loaded = _loop_registry.load_definitions()
+        started = _loop_registry.start_all()
+        logger.info("persistent loops: %d loaded, %d started — %s", loaded, len(started), started)
+    except Exception as exc:
+        logger.warning("persistent loops not started: %s", exc)
+
+    yield
+
+    if _loop_registry is not None:
+        stopped = _loop_registry.stop_all()
+        logger.info("persistent loops stopped: %s", stopped)
+
+
+app = FastAPI(title="UMH Operator API", version="1.0.0", lifespan=lifespan)
 
 # CORS for dev (Vite on 5173, cockpit on 5174)
 app.add_middleware(

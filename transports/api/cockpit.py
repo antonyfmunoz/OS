@@ -590,8 +590,13 @@ def _get_mesh_server():
     """Lazy import to avoid circular dependency at module load."""
     try:
         from transports.api.app import _mesh_server
-
-        return _mesh_server
+        if _mesh_server is not None:
+            return _mesh_server
+    except (ImportError, AttributeError):
+        pass
+    try:
+        from services.operator_api import _mesh_server_instance
+        return _mesh_server_instance
     except (ImportError, AttributeError):
         return None
 
