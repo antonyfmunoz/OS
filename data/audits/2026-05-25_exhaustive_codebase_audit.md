@@ -8,24 +8,27 @@
 
 ## Table of Contents
 1. [Executive Summary](#1-executive-summary)
-2. [What Is Actually Running](#2-what-is-actually-running)
-3. [The Three Execution Paths](#3-the-three-execution-paths)
-4. [Intelligence Routing](#4-intelligence-routing)
-5. [Governance Architecture](#5-governance-architecture)
-6. [Memory Architecture](#6-memory-architecture)
-7. [SaaS Layer (TypeScript)](#7-saas-layer-typescript)
-8. [Agent Definitions](#8-agent-definitions)
-9. [Skills / Tool Mastery Engine](#9-skills--tool-mastery-engine)
-10. [Knowledge / Documentation](#10-knowledge--documentation)
-11. [Data / Runtime State](#11-data--runtime-state)
-12. [Infrastructure / Deployment](#12-infrastructure--deployment)
-13. [Dependency Direction Violations](#13-dependency-direction-violations)
-14. [Dead Code Inventory](#14-dead-code-inventory)
-15. [Critical Bugs](#15-critical-bugs)
-16. [Documentation-Reality Gaps](#16-documentation-reality-gaps)
-17. [Security Findings](#17-security-findings)
-18. [Disk Pressure](#18-disk-pressure)
-19. [Prioritized Remediation](#19-prioritized-remediation)
+2. [Follow a Message: End-to-End Production Trace](#2-follow-a-message-end-to-end-production-trace)
+3. [Data Flow Map: What Reads and Writes Where](#3-data-flow-map-what-reads-and-writes-where)
+4. [Getting Started: How to Run This System](#4-getting-started-how-to-run-this-system)
+5. [What Is Actually Running](#5-what-is-actually-running)
+6. [The Three Execution Paths](#6-the-three-execution-paths)
+7. [Intelligence Routing](#7-intelligence-routing)
+8. [Governance Architecture](#8-governance-architecture)
+9. [Memory Architecture](#9-memory-architecture)
+10. [SaaS Layer (TypeScript)](#10-saas-layer-typescript)
+11. [Agent Definitions](#11-agent-definitions)
+12. [Skills / Tool Mastery Engine](#12-skills--tool-mastery-engine)
+13. [Knowledge / Documentation](#13-knowledge--documentation)
+14. [Data / Runtime State](#14-data--runtime-state)
+15. [Infrastructure / Deployment](#15-infrastructure--deployment)
+16. [Dependency Direction Violations](#16-dependency-direction-violations)
+17. [Dead Code Inventory](#17-dead-code-inventory)
+18. [Critical Bugs](#18-critical-bugs)
+19. [Documentation-Reality Gaps](#19-documentation-reality-gaps)
+20. [Security Findings](#20-security-findings)
+21. [Disk Pressure](#21-disk-pressure)
+22. [Prioritized Remediation](#22-prioritized-remediation)
 
 ---
 
@@ -41,7 +44,362 @@ UMH (Universal Mastery Hierarchy) is a 232K-line Python + 41K-line TypeScript AI
 
 ---
 
-## 2. What Is Actually Running
+## 2. Follow a Message: End-to-End Production Trace
+
+This traces a real user message through the entire system. The example: a founder types "what's my pipeline looking like for Lyfe Institute?" in the Discord `#general` channel.
+
+### Step 1: Discord receives the message
+**File:** `services/discord_bot.py:1517` — `on_message()`
+
+```
+User types in Discord
+  → py-cord fires on_message(message)
+  → Skip if author is bot or self
+  → Record work signal (substrate.state.work.work_state.record_signal)
+  → Check for attachments (audio/image) — none here
+  → Extract text, check channel name
+  → Fall through 12 handler checks (buffer, day ritual, onboarding,
+    substrate commands, orchestration, CC injection, pseudolive,
+    meeting, pending capture, pipeline update, founder capture, multipart)
+  → None match → terminal handler: _handle_gateway_dispatch()
+```
+
+### Step 2: Bridge to synchronous Python
+**File:** `services/discord_message_handlers.py:1017` — `_handle_gateway_dispatch()`
+
+```
+  → Shows typing indicator in Discord
+  → Runs _run_gw() in asyncio executor (blocks the thread, not the event loop)
+  → _run_gw is services/discord_bot.py:723, which delegates to:
+    transports/presence/handlers/intent_handler.py:117 — run_gateway()
+```
+
+### Step 3: Intent classification + request building
+**File:** `transports/presence/handlers/intent_handler.py:117` — `run_gateway()`
+
+```
+  → Creates/retrieves session_id for channel (stored in-memory dict + optional persistence)
+  → gateway.classify_intent(text) — regex-based, returns one of:
+    AGENT_TASK | EVENT | STATUS | BRIEF | UNKNOWN
+    "what's my pipeline" → classified as AGENT_TASK
+  → If UNKNOWN, uses CHANNEL_MAP: general→AGENT_TASK, morning-brief→BRIEF, etc.
+  → Person recognition: scans for "Firstname Lastname" patterns,
+    checks substrate.understanding.intelligence.person_recognition
+  → build_request(): creates dict with {type, prompt, venture_id, username, session_id, channel}
+  → gateway.handle(request) — enters the Gateway
+```
+
+### Step 4: Gateway validation + routing
+**File:** `substrate/control_plane/runtime/gateway.py:648` — `handle()`
+
+```
+  → Capability tagging (additive, observability only)
+  → Check automation rules — no match
+  → Validate request (type, prompt present)
+  → Approval gate: _requires_approval() — regex check on prompt, not required here
+  → Init ConversationMemory, store user message in Neon (interactions table)
+  → Check if this is a memory query ("remember", "what did I say") — no
+  → Stage transition detection — no stage keywords
+  → Route by type: "agent_task" → _route_agent_task()
+```
+
+### Step 5: Agent task routing + context injection
+**File:** `substrate/control_plane/runtime/gateway.py:985` — `_route_agent_task()`
+
+```
+  → Input Intelligence: InputIntelligence.process() tries to enhance the prompt
+    (adds context, corrects vague references) — uses model_router for LLM call
+  → If prompt contains web search signals ("current", "latest") → web search first
+  → Create CognitiveLoop(ctx) — ctx loaded from .env (org_id, venture_id, etc.)
+  → Determine agent: default "executive_assistant" (DEX) since no team specified
+  → _inject_agent_context(): adds EA operational standards from skill registry,
+    universal agent standards from PrincipleEngine, domain principles
+  → loop.run(input=enhanced_prompt, agent="executive_assistant", ...)
+```
+
+### Step 6: Cognitive Loop — the thinking engine
+**File:** `substrate/control_plane/runtime/cognitive_loop.py:312` — `run()`
+
+```
+  0. PERCEIVE — resolve multimodal input (text here, no processing needed)
+  1-2. UNDERSTAND — ContextBuilder.build() assembles 25 layers:
+       Layer 1:  AI identity (name, personality)
+       Layer 2:  Business context (ventures, stages, revenue)
+       Layer 3:  Agent context (soul doc, role, authority)
+       Layer 4:  Conversation history (last N messages from ConversationMemory)
+       Layer 5:  Venture knowledge base (products, clients, pipeline)
+       Layer 6:  Current goals and priorities
+       Layer 7:  Recent interactions (last 10 from Neon)
+       Layer 8:  Skill context (relevant skills for this agent)
+       Layer 9:  Founder profile (communication style, preferences)
+       Layer 10: Time context (day, date, timezone)
+       Layer 11: Stage context (pre_revenue, validation, etc.)
+       Layers 12-25: World model, patterns, philosophy, domain knowledge...
+       Each layer wrapped in try/except — failure of one doesn't block others
+  2a. Input intelligence enrichment
+  2b. Pattern matching (leverage killers, opportunity patterns)
+  2c. Canonical memory query-back (top 3 relevant memories)
+  2d. Philosophy lens injection (Reality/Intelligence/Personalization/Execution)
+  3. PLAN — authority check (can this agent execute this action type?)
+  4. EXECUTE — runtime.run() → calls AgentRuntime
+```
+
+### Step 7: Agent Runtime — LLM call
+**File:** `adapters/models/agent_runtime.py` — `run()`
+
+```
+  → Builds final prompt: system_extra (all 25 context layers) + enhanced user prompt
+  → Selects task_type: CONVERSATION (default for chat)
+  → Calls model_router.call_with_fallback(
+      task_type=CONVERSATION,
+      prompt=enhanced_prompt,
+      system_prompt=system_extra,
+      agent_type="executive_assistant"
+    )
+  → model_router tries providers in order:
+      1. CC SDK (Opus 4.6 via Max subscription) — primary
+      2. Gemini 2.5 Flash — if CC SDK fails
+      3. Groq llama-3.3-70b — if Gemini fails
+      4. (further fallbacks...)
+  → Returns AgentResult(output, model_used, tokens_used, cost_usd, duration_ms)
+```
+
+### Step 8: Quality verification + response
+**File:** `substrate/control_plane/runtime/cognitive_loop.py:585`
+
+```
+  5. VERIFY — quality loop (max 3 iterations for GENERATE tasks, skipped for CONVERSATION)
+  5b. Stage filter — if response suggests premature actions (hire, run ads)
+      for a Stage 1 company, prepend correction
+  6. REFLECT — store learnings, update patterns
+  7. Record execution trace to Neon (traces table)
+  8. Log interaction to Neon (interactions table)
+  → Return CognitiveResult(output, model_used, tokens, cost, ...)
+```
+
+### Step 9: Response flows back
+```
+  CognitiveResult
+    → gateway stores assistant response in ConversationMemory
+    → gateway logs event
+    → returns {"status": "ok", "output": "Here's your Lyfe Institute pipeline..."}
+    → intent_handler returns output string
+    → _handle_gateway_dispatch sends to Discord via message.reply()
+    → If founder is in voice channel: also TTS via VoiceEngine + FFmpeg
+```
+
+### Total call chain (one line):
+```
+Discord on_message → _handle_gateway_dispatch → run_gateway → classify_intent →
+build_request → Gateway.handle → _route_agent_task → InputIntelligence →
+CognitiveLoop.run → ContextBuilder.build (25 layers) → authority check →
+AgentRuntime.run → model_router.call_with_fallback → [CC SDK | Gemini | Groq] →
+quality verify → trace → response → Discord reply
+```
+
+### What gets written to the database during this request:
+
+| Table | When | What |
+|-------|------|------|
+| interactions | Gateway step 4 | User message (role=user) |
+| interactions | Cognitive step 8 | Assistant response (role=assistant, model, tokens, cost) |
+| traces | Cognitive step 7 | Full execution trace (prompt, response, duration, agent) |
+| events | If event-type request | Event payload (not for agent_task) |
+| outcomes | If user gives feedback later | Quality rating |
+
+### What does NOT get written:
+
+- **Canonical Memory Store** — not queried or written during normal chat (only during ingestion pipeline)
+- **World Model** — not updated by production path
+- **Knowledge Graph** — not consulted during production path (only used by knowledge system scripts)
+
+---
+
+## 3. Data Flow Map: What Reads and Writes Where
+
+### Production Path (Path 1) — Data Touchpoints
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        NEON POSTGRES                                │
+│                                                                     │
+│  ┌─────────────┐  ┌──────────────┐  ┌────────┐  ┌───────────────┐  │
+│  │ interactions │  │    traces    │  │ events │  │   outcomes    │  │
+│  │ (R+W)       │  │ (W)          │  │ (R+W)  │  │ (W)           │  │
+│  └──────┬──────┘  └──────┬───────┘  └───┬────┘  └───────┬───────┘  │
+│         │                │              │                │          │
+│  ┌──────┴──────┐  ┌──────┴───────┐  ┌───┴────┐  ┌───────┴───────┐  │
+│  │   skills    │  │   agents     │  │ventures│  │  approvals    │  │
+│  │ (R)         │  │ (R)          │  │ (R)    │  │ (R+W)         │  │
+│  └─────────────┘  └──────────────┘  └────────┘  └───────────────┘  │
+│                                                                     │
+│  ┌─────────────┐  ┌──────────────┐  ┌──────────────────────────┐   │
+│  │human_profiles│  │organizations │  │  model_preferences      │   │
+│  │ (R)         │  │ (R)          │  │  (R)                     │   │
+│  └─────────────┘  └──────────────┘  └──────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                      IN-MEMORY (volatile)                           │
+│                                                                     │
+│  ┌──────────────────┐  ┌─────────────────┐  ┌───────────────────┐  │
+│  │ConversationMemory│  │ channel_sessions │  │ inbound_buffer   │  │
+│  │ (R+W, dict)      │  │ (R+W, dict)     │  │ (R+W, dict)      │  │
+│  │ LOST ON RESTART  │  │ LOST ON RESTART  │  │ LOST ON RESTART  │  │
+│  └──────────────────┘  └─────────────────┘  └───────────────────┘  │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                       FILESYSTEM                                    │
+│                                                                     │
+│  ┌──────────────────┐  ┌─────────────────┐  ┌───────────────────┐  │
+│  │ approval queue   │  │ error_recorder  │  │ archive (inbound) │  │
+│  │ data/runtime/    │  │ JSONL append    │  │ JSONL append      │  │
+│  │ (R+W, JSON)      │  │ (W only)        │  │ (W only)          │  │
+│  └──────────────────┘  └─────────────────┘  └───────────────────┘  │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Neon Tables: Full Usage Map
+
+| Table | Read By | Written By | RLS | Notes |
+|-------|---------|------------|-----|-------|
+| interactions | CognitiveLoop (history), Cockpit API, SaaS API | Gateway, CognitiveLoop, ConversationMemory | Yes (org_id) | Primary audit trail |
+| traces | Cockpit API | CognitiveLoop, ExecutionSpine | Yes (org_id) | Execution traces |
+| events | Gateway (routing), intent_handler (cloning loop) | Gateway, EventBus | Yes (org_id) | Event log |
+| outcomes | Cockpit API, SaaS API | SaaS API, Cockpit API | Yes (org_id) | Quality feedback |
+| skills | Gateway (agent context), CognitiveLoop, SkillRegistry | SaaS API, skill sync scripts | Yes (org_id) | Skill documents |
+| agents | Gateway (agent routing), AgentRegistry | SaaS API, agent sync scripts | Yes (org_id) | Agent definitions |
+| ventures | Gateway (venture context), BIM | SaaS API | Yes (org_id) | Business units |
+| organizations | Gateway (org context) | SaaS API seed | Yes (on id) | Companies |
+| users | SaaS API | SaaS API seed | No | Global identity |
+| portfolios | SaaS API | SaaS API seed | No | Founder grouping |
+| org_members | SaaS API | SaaS API seed | Yes (org_id) | Membership |
+| human_profiles | CognitiveLoop (founder context) | ProfileStore | Yes (org_id) | User profiles |
+| approvals | Gateway (approval gate), Cockpit API | Gateway, Cockpit API | Yes (org_id) | Approval queue |
+| embeddings | Not used in production path | EmbeddingStore | Yes (org_id) | Vector search |
+| workflows | SaaS API | SaaS API seed | Yes (org_id) | Automation defs |
+| skill_versions | SaaS API | SkillStore (on update) | Yes (org_id) | Version history |
+| umh_outcomes | Cockpit API | ExecutionSpine | Yes (org_id) | UMH audit trail |
+| user_agent_sessions | SaaS API | SaaS API | Yes (org_id) | Active agent |
+| context_compactions | Not used | CompactionStore | Yes (org_id) | Context saves |
+| clients | Not used in production path | SaaS API | Text org_id | CRM contacts |
+| transactions | Not used in production path | SaaS API | Text org_id | Revenue |
+| fulfillment_events | Not used in production path | SaaS API | Text org_id | Delivery |
+| offers | Not used in production path | SaaS API | Text org_id | Offer ladder |
+| goals | Not used in production path | GoalStore | Yes (org_id) | Goal tracking |
+| goal_outcomes | Not used in production path | GoalStore | Yes (org_id) | Goal results |
+| model_preferences | model_router (preference loading) | PreferenceStore | Yes (org_id) | LLM prefs |
+| higgsfield_jobs | Webhook handler | HiggsFieldStore | Yes (org_id) | Video jobs |
+| cross_product_permissions | Not used | PermissionStore | Yes (org_id) | Multi-product |
+| user_intelligence_profiles | Not used | ProfileStore | Yes (org_id) | Behavioral |
+| product_connections | Not used | PermissionStore | Yes (org_id) | Product links |
+| tasks | Not used in production path | TaskStore | Yes (org_id) | Task tracking |
+| entity_links | Not used in production path | EntityLinkStore | Yes (org_id) | Entity graph |
+| email_folders | Not used in production path | EmailFolderStore | Yes (org_id) | Email config |
+
+### JSONL Files: What Accumulates
+
+| File | Written By | Read By | Size | Rotation |
+|------|-----------|---------|------|----------|
+| data/umh/mesh/metrics.jsonl | Node mesh daemon | Cockpit API | 205 MB | NONE |
+| data/umh/traces/traces.jsonl | ExecutionSpine | Cockpit API | 47 MB | NONE |
+| data/umh/memory_candidates/candidates.jsonl | Memory promoter | Promotion pipeline | 22 MB | NONE |
+| data/logs/pipeline_trace.jsonl | Ingestion pipeline | Debugging | 11 MB | NONE |
+| data/runtime/substrate_continuity/resume_packets.jsonl | Continuity engine | Session resume | 10 MB | NONE |
+| data/runtime/canonical_memory_store/memories.jsonl | Memory store | Memory queries | ~1 MB | NONE |
+| data/runtime/canonical_memory_store/promotion_receipts.jsonl | Promoter | Audit | ~0.5 MB | NONE |
+
+---
+
+## 4. Getting Started: How to Run This System
+
+### Prerequisites
+
+- Linux VPS (Ubuntu 22.04+) with Docker installed
+- Python 3.11+
+- Neon PostgreSQL account with a database provisioned
+- Discord bot token (from Discord Developer Portal)
+- At least one LLM provider key (Gemini, Groq, or Anthropic)
+
+### Step 1: Clone and configure
+
+```bash
+git clone https://github.com/antonyfmunoz/OS.git /opt/OS
+cd /opt/OS
+cp infra/docker/.env.example infra/docker/services.env
+```
+
+Edit `infra/docker/services.env` — fill in at minimum:
+- `DISCORD_BOT_TOKEN` — your Discord bot token
+- `NEON_CONNECTION_STRING` — your Neon database URL
+- `GEMINI_API_KEY` or `GROQ_API_KEY` — at least one LLM provider
+- `ORG_ID`, `VENTURE_ID` — UUIDs matching your Neon seed data
+
+### Step 2: Seed the database
+
+```bash
+cd /opt/OS/saas
+npm install
+cp ../.env.example .env  # configure DATABASE_URL
+npx drizzle-kit push     # push schema to Neon
+npx tsx seed.ts           # seed AFM's portfolio structure
+```
+
+### Step 3: Build and start services
+
+```bash
+cd /opt/OS
+docker build -t umh .
+docker run -d --name os-discord \
+  --env-file infra/docker/services.env \
+  -v /opt/OS:/opt/OS \
+  umh python3 services/discord_bot.py
+
+docker run -d --name os-operator \
+  --env-file infra/docker/services.env \
+  -v /opt/OS:/opt/OS \
+  -p 8091:8091 \
+  umh python3 -c "
+import sys; sys.path.insert(0, '/opt/OS')
+from transports.api.cockpit import app
+app.run(host='0.0.0.0', port=8091)
+"
+
+docker run -d --name os-webhook \
+  --env-file infra/docker/services.env \
+  -v /opt/OS:/opt/OS \
+  -p 8092:8092 \
+  umh python3 services/higgsfield_webhook.py
+```
+
+### Step 4: Verify
+
+```bash
+docker logs os-discord --tail 20     # Should show "[Discord] Ready as DEX#..."
+docker logs os-operator --tail 20    # Should show Flask starting on 8091
+curl http://localhost:8091/api/umh/status  # Should return JSON status
+```
+
+### Step 5: Test in Discord
+
+Send a message in any text channel where the bot is present. The bot should respond within 5-30 seconds depending on which LLM provider answers.
+
+### What docker-compose.yml SHOULD do (but doesn't work)
+
+`docker-compose.yml` references `runtime/.env` which does not exist. Until P0 fix #1 is applied, start containers individually as shown above.
+
+### Key operational commands
+
+```bash
+docker restart os-discord          # Restart bot (picks up code changes via bind mount)
+docker logs -f os-discord          # Stream bot logs
+docker exec os-discord python3 -c "import substrate; print('ok')"  # Verify imports
+```
+
+---
+
+## 5. What Is Actually Running
 
 ### Production Services (Docker)
 
@@ -69,7 +427,7 @@ UMH (Universal Mastery Hierarchy) is a 232K-line Python + 41K-line TypeScript AI
 
 ---
 
-## 3. The Three Execution Paths
+## 6. The Three Execution Paths
 
 This is the most important architectural finding. The codebase has three complete execution pipelines, each with their own governance, tracing, and memory handling. Only Path 1 is used in production.
 
@@ -154,7 +512,7 @@ The convergence added a bridge in Gateway (Stage 0c for DeliberationCouncil, Sta
 
 ---
 
-## 4. Intelligence Routing
+## 7. Intelligence Routing
 
 **File:** `adapters/models/model_router.py` (1,496 lines)
 
@@ -202,7 +560,7 @@ Each provider has a circuit breaker:
 
 ---
 
-## 5. Governance Architecture
+## 8. Governance Architecture
 
 Five layers of governance exist, not all active in production:
 
@@ -218,7 +576,7 @@ Five layers of governance exist, not all active in production:
 
 ---
 
-## 6. Memory Architecture
+## 9. Memory Architecture
 
 Five memory systems exist:
 
@@ -234,7 +592,7 @@ Five memory systems exist:
 
 ---
 
-## 7. SaaS Layer (TypeScript)
+## 10. SaaS Layer (TypeScript)
 
 **Directory:** `saas/` (31 files)
 **Stack:** Hono + Drizzle ORM + Neon serverless + Zod
@@ -262,7 +620,7 @@ CRM tables (text org_id, not UUID): clients, transactions, fulfillment_events, o
 
 ---
 
-## 8. Agent Definitions
+## 11. Agent Definitions
 
 ### Soul Documents (agents/) — 11 files
 
@@ -293,7 +651,7 @@ All 10 main agents follow identical 5-section structure (Identity, Judgment, Rol
 
 ---
 
-## 9. Skills / Tool Mastery Engine
+## 12. Skills / Tool Mastery Engine
 
 **Directory:** `skills/` (5,492 files, 467 excluding node_modules)
 **Tool mastery packs:** 96 tools with SKILL.md + references/
@@ -347,7 +705,7 @@ All 10 main agents follow identical 5-section structure (Identity, Judgment, Rol
 
 ---
 
-## 10. Knowledge / Documentation
+## 13. Knowledge / Documentation
 
 ### knowledge/ (236 .md files)
 
@@ -401,7 +759,7 @@ All 37 files are output from a batch wiki promotion on 2026-05-13 that wrote to 
 
 ---
 
-## 11. Data / Runtime State
+## 14. Data / Runtime State
 
 **Directory:** `data/` (~8,100 files, 400 MB)
 
@@ -445,7 +803,7 @@ All 37 files are output from a batch wiki promotion on 2026-05-13 that wrote to 
 
 ---
 
-## 12. Infrastructure / Deployment
+## 15. Infrastructure / Deployment
 
 ### Docker
 
@@ -475,7 +833,7 @@ All 37 files are output from a batch wiki promotion on 2026-05-13 that wrote to 
 
 ---
 
-## 13. Dependency Direction Violations
+## 16. Dependency Direction Violations
 
 **Architecture contract:** `projections → transports → adapters → substrate` (substrate is innermost, never reaches outward)
 
@@ -498,7 +856,7 @@ The correct pattern exists: `substrate/sockets/` defines abstract ports (notific
 
 ---
 
-## 14. Dead Code Inventory
+## 17. Dead Code Inventory
 
 ### Confirmed Dead (61K+ lines)
 
@@ -524,7 +882,7 @@ The correct pattern exists: `substrate/sockets/` defines abstract ports (notific
 
 ---
 
-## 15. Critical Bugs
+## 18. Critical Bugs
 
 ### P0 — System Broken
 
@@ -554,7 +912,7 @@ The correct pattern exists: `substrate/sockets/` defines abstract ports (notific
 
 ---
 
-## 16. Documentation-Reality Gaps
+## 19. Documentation-Reality Gaps
 
 | Document | Claims | Reality |
 |----------|--------|---------|
@@ -573,7 +931,7 @@ The correct pattern exists: `substrate/sockets/` defines abstract ports (notific
 
 ---
 
-## 17. Security Findings
+## 20. Security Findings
 
 ### Critical
 
@@ -597,7 +955,7 @@ The correct pattern exists: `substrate/sockets/` defines abstract ports (notific
 
 ---
 
-## 18. Disk Pressure
+## 21. Disk Pressure
 
 **VPS disk at 79% capacity** (from prior audit). Key consumers in /opt/OS:
 
@@ -616,7 +974,7 @@ The correct pattern exists: `substrate/sockets/` defines abstract ports (notific
 
 ---
 
-## 19. Prioritized Remediation
+## 22. Prioritized Remediation
 
 ### P0 — Do Now (System Broken)
 
