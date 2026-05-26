@@ -25,7 +25,10 @@ from substrate.execution.runtime.governance_execution_bridge_v1 import Governanc
 from substrate.execution.runtime.runtime_execution_queue_v1 import RuntimeExecutionQueue
 from substrate.execution.runtime.runtime_observability_pipeline_v1 import RuntimeObservabilityPipeline
 from substrate.execution.runtime.execution_orchestrator_v1 import ExecutionOrchestrator
-from substrate.execution.runtime.canonical_runtime_spine_v1 import CanonicalRuntimeSpine
+# CanonicalRuntimeSpine was deleted in coherence phase 3.
+# This script needs rework to use ConcreteExecutionSpine (substrate/execution/spine.py).
+# For now, stub out the spine setup so the script doesn't crash on import.
+CanonicalRuntimeSpine = None  # type: ignore
 from substrate.execution.runtime.runtime_replay_engine_v1 import RuntimeReplayEngine
 
 PROOF_DIR = Path("data/runtime/operationalization_proofs")

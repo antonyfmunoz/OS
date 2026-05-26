@@ -1000,14 +1000,15 @@ class EntrepreneurOSGateway:
                 prompt = f"REAL-TIME SEARCH RESULT:\n{_web_result}\n\n{prompt}"
                 print("[Gateway] Web search used")
 
-        # ── ExecutionSpine — new unified path ────────────────────────────────
-        # Attempts the new spine. On ANY failure, falls back to the existing
-        # CognitiveLoop branches below. This is the transition layer.
+        # ── Substrate.execute() — canonical path ────────────────────────────
+        # Routes through: identity → context → governance → ConcreteExecutionSpine
+        # → trace → feedback → memory writes. On failure, falls back to CognitiveLoop.
+        _spine_agent = sub_agent or "executive_assistant"
         try:
-            from substrate.control_plane.context.context_builder import ContextBuilder
-            from substrate.execution.runtime.execution_spine import ExecutionSpine
+            import asyncio
+            from substrate import Substrate
+            from substrate.types import SignalEnvelope, SignalSource
 
-            _spine_agent = sub_agent or "executive_assistant"
             if team and not sub_agent:
                 _spine_agent = {
                     "dex": "executive_assistant",
@@ -1021,65 +1022,51 @@ class EntrepreneurOSGateway:
                 except Exception:
                     _spine_agent = "executive_assistant"
 
-            _spine_authority = "analyze"
-            task_type_str = request.get("task_type", "analyze").upper()
-            try:
-                _spine_task_type = TaskType[task_type_str]
-            except KeyError:
-                _spine_task_type = TaskType.ANALYZE
-
-            builder = ContextBuilder()
-            unified_ctx = builder.build(
-                ctx,
-                request.get("prompt", prompt),
-                session_id or "",
-                agent=_spine_agent,
-                venture_id=venture_id,
-                channel=request.get("channel", ""),
-                conversation_memory=cm,
-            )
-
-            spine = ExecutionSpine()
-            _spine_response = spine.run(
-                message=prompt,
-                unified_context=unified_ctx,
-                agent_type=_spine_agent,
-                authority_class=_spine_authority,
-                session_id=session_id,
-                channel_id=request.get("channel", ""),
-                org_id=str(ctx.org_id),
+            signal = SignalEnvelope(
+                source=SignalSource.USER,
+                content=prompt,
+                raw_content=_raw_user_input,
                 user_id=str(ctx.user_id),
-                task_type=_spine_task_type,
+                organization_id=str(ctx.org_id),
                 venture_id=venture_id,
+                metadata={
+                    "agent": _spine_agent,
+                    "channel_id": request.get("channel", ""),
+                    "session_id": session_id or "",
+                    "team": team or "",
+                    "username": username or "",
+                },
             )
+
+            substrate = Substrate()
+            result = asyncio.run(substrate.execute(signal))
 
             print(
-                f"[Gateway] ExecutionSpine OK: agent={_spine_agent} "
-                f"tokens~{unified_ctx.estimated_tokens} "
-                f"failed_sources={len(unified_ctx.failed_sources)}"
+                f"[Gateway] Substrate.execute OK: agent={_spine_agent} "
+                f"outcome={result.outcome.value} provider={result.provider} "
+                f"model={result.model} duration={result.duration_ms:.0f}ms"
             )
 
             return {
                 "status": "ok",
                 "interaction_id": None,
-                "model": "spine",
+                "model": result.model or "spine",
                 "skill": None,
-                "output": _spine_response,
-                "tokens": unified_ctx.estimated_tokens,
+                "output": result.output,
+                "tokens": 0,
                 "iterations": 1,
-                "was_enhanced": False,
+                "was_enhanced": result.provider != "deterministic",
                 "quality_score": 0.5,
-                "quality_passed": True,
+                "quality_passed": result.is_success(),
                 "original_prompt": _raw_user_input,
                 "enhanced_prompt": prompt if prompt != _raw_user_input else "",
                 "enhancement_reason": request.get("_enhancement_reason", ""),
             }
-        except Exception as _spine_err:
-            import logging
+        except Exception as _substrate_err:
             logging.getLogger(__name__).error(
-                f"ExecutionSpine failed, falling back to CognitiveLoop: {_spine_err}"
+                f"Substrate.execute failed, falling back to CognitiveLoop: {_substrate_err}"
             )
-            _record_error("execution_spine", _spine_err, {
+            _record_error("substrate_execute", _substrate_err, {
                 "agent": _spine_agent, "prompt": prompt[:200],
             })
 
