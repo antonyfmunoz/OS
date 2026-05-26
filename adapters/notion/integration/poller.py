@@ -11,9 +11,9 @@ from uuid import uuid4
 from notion_client import APIResponseError, Client
 
 from substrate.governance.risk_classes import RiskClass
-from substrate.integrations.notion.correlation import CorrelationMap, WritebackTarget
-from substrate.integrations.notion.signals import NotionSignalEmitter
-from substrate.integrations.notion.watermarks import WatermarkStore
+from adapters.notion.integration.correlation import CorrelationMap, WritebackTarget
+from adapters.notion.integration.signals import NotionSignalEmitter
+from adapters.notion.integration.watermarks import WatermarkStore
 from substrate.sockets.envelopes import OutcomeEnvelope
 
 logger = logging.getLogger(__name__)
