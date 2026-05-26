@@ -6,6 +6,13 @@ in operator_api.py (production) and app.py (substrate runtime).
 
 from __future__ import annotations
 
+import os
+import sys
+
+_app_root = os.environ.get("UMH_ROOT", "/opt/OS")
+if _app_root not in sys.path:
+    sys.path.insert(0, _app_root)
+
 import asyncio
 import json
 import logging
@@ -87,22 +94,25 @@ async def pulse():
 
 @router.get("/models")
 async def models():
-    from adapters.models.routing.config import load_routing_config
+    try:
+        from adapters.models.routing.config import load_routing_config
 
-    config = load_routing_config()
-    desc = config.describe()
-    result = []
-    for cap_name, info in desc.items():
-        result.append(
-            {
-                "id": cap_name,
-                "name": cap_name.replace("_", " ").title(),
-                "provider": info.get("preferred_provider", "unknown"),
-                "status": "active" if info.get("local_first") else "active",
-                "latency_ms": 0,
-                "cost_per_m_token": info.get("max_cost_hint", 0),
-            }
-        )
+        config = load_routing_config()
+        desc = config.describe()
+        result = []
+        for cap_name, info in desc.items():
+            result.append(
+                {
+                    "id": cap_name,
+                    "name": cap_name.replace("_", " ").title(),
+                    "provider": info.get("preferred_provider", "unknown"),
+                    "status": "active" if info.get("local_first") else "active",
+                    "latency_ms": 0,
+                    "cost_per_m_token": info.get("max_cost_hint", 0),
+                }
+            )
+    except ImportError:
+        result = []
     return result
 
 

@@ -9,7 +9,7 @@ export function useWebSocket() {
   const setConnectionStatus = useCockpitStore((s) => s.setConnectionStatus)
 
   useEffect(() => {
-    const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8091/ws'
+    const wsUrl = import.meta.env.VITE_WS_URL || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`
     const client = new WsClient(wsUrl)
     clientRef.current = client
 
