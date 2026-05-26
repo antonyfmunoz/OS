@@ -220,6 +220,44 @@ class ConcreteExecutionSpine:
                             {"signal_id": str(signal.id)},
                         )
 
+            # Stage 0c: DeliberationCouncil for high-risk signals
+            if verdict.risk_class in self._SIMULATION_RISK_CLASSES:
+                try:
+                    from substrate.understanding.deliberation.council import (
+                        DeliberationCouncil,
+                        Verdict,
+                    )
+
+                    council = DeliberationCouncil()
+                    delib = council.deliberate(
+                        signal.content, context={"domain": "execution"}
+                    )
+                    trace.add_event(
+                        TraceEventType.GOVERNANCE_DECIDED,
+                        f"Council: {delib.final_verdict.value} "
+                        f"(confidence={delib.overall_confidence:.2f})",
+                    )
+                    if delib.final_verdict == Verdict.REJECT:
+                        trace.complete(success=True)
+                        return ExecutionResult(
+                            signal_id=signal.id,
+                            trace_id=trace.id,
+                            outcome=ExecutionOutcome.BLOCKED,
+                            risk_class=verdict.risk_class,
+                            governance_decision=verdict.decision,
+                            output=(
+                                f"Council rejected: "
+                                f"{delib.synthesis.rationale if delib.synthesis else 'no rationale'}"
+                            ),
+                            duration_ms=(time.monotonic() - start) * 1000,
+                        )
+                except Exception as council_err:
+                    _record_error(
+                        "spine.council",
+                        str(council_err),
+                        {"signal_id": str(signal.id)},
+                    )
+
             # Stage 1: Interpret — deterministic intent classification
             intent = self._classify_intent(signal.content)
             trace.add_event(TraceEventType.SIGNAL_RECEIVED, f"Intent: {intent}")
@@ -346,7 +384,54 @@ class ConcreteExecutionSpine:
             except Exception as gap_err:
                 _record_error("spine.gap_trigger", str(gap_err), {"signal_id": str(signal.id)})
 
-            # Stage 8b: Feedback + trace persistence
+            # Stage 8b: Mandatory memory writes (conversation + interaction)
+            try:
+                from substrate.state.context.context import load_context_from_env
+                from substrate.state.memory.memory import ConversationMemory, AgentMemory
+
+                _ctx = load_context_from_env()
+                _session_id = context.session_id or str(signal.id)
+
+                cm = ConversationMemory(_ctx)
+                cm.store(
+                    session_id=_session_id,
+                    role="user",
+                    content=signal.content[:10000],
+                    channel=signal.metadata.get("channel_id", "substrate"),
+                    agent=context.identity.ai_name,
+                )
+                cm.store(
+                    session_id=_session_id,
+                    role="assistant",
+                    content=output[:10000],
+                    channel=signal.metadata.get("channel_id", "substrate"),
+                    agent=context.identity.ai_name,
+                )
+
+                mem = AgentMemory()
+                from substrate.execution.runtime.agent_runtime import AgentResult
+
+                _agent_result = AgentResult(
+                    output=output[:2000],
+                    model_used=model,
+                    tokens_used={"input": 0, "output": 0, "total": 0},
+                    skill_used=None,
+                )
+                mem.log(
+                    agent_result=_agent_result,
+                    venture_id=signal.venture_id,
+                    input_summary=signal.content[:2000],
+                    agent=context.identity.ai_name,
+                    task_type=intent,
+                )
+            except Exception as mem_err:
+                _record_error(
+                    "spine.memory_write",
+                    str(mem_err),
+                    {"signal_id": str(signal.id)},
+                )
+
+            # Stage 8c: Feedback + trace persistence
             # Only persist when spine owns the trace (direct call, not from router).
             # When called from the router, the router handles persistence.
             if owns_trace:
