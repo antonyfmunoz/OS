@@ -1,26 +1,3 @@
-declare global {
-  interface Window {
-    cockpit: {
-      window: {
-        minimize: () => void
-        maximize: () => void
-        close: () => void
-        isMaximized: () => Promise<boolean>
-      }
-      voice: {
-        start: () => void
-        stop: () => void
-        onLog: (cb: (msg: string) => void) => void
-        onError: (cb: (msg: string) => void) => void
-        onExit: (cb: (code: number | null) => void) => void
-      }
-      readDir: (dirPath: string) => Promise<{ name: string; path: string; type: 'file' | 'directory' }[]>
-      readFile: (filePath: string) => Promise<string>
-      writeFile: (filePath: string, content: string) => Promise<boolean>
-    }
-  }
-}
-
 export function TitleBar() {
   return (
     <header

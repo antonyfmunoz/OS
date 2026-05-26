@@ -3,6 +3,7 @@ type WsHandler = (data: Record<string, unknown>) => void
 export class WsClient {
   private ws: WebSocket | null = null
   private handlers = new Map<string, WsHandler[]>()
+  private _binaryHandlers: ((data: ArrayBuffer) => void)[] = []
   private reconnectDelay = 1000
   private shouldReconnect = true
 
@@ -18,6 +19,16 @@ export class WsClient {
       }
 
       this.ws.onmessage = (event: MessageEvent) => {
+        if (event.data instanceof ArrayBuffer) {
+          for (const handler of this._binaryHandlers) handler(event.data)
+          return
+        }
+        if (event.data instanceof Blob) {
+          event.data.arrayBuffer().then(buf => {
+            for (const handler of this._binaryHandlers) handler(buf)
+          })
+          return
+        }
         try {
           const data = JSON.parse(event.data as string) as Record<string, unknown>
           const type = (data.type as string) || 'message'
@@ -48,6 +59,19 @@ export class WsClient {
   send(type: string, payload: Record<string, unknown> = {}): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ type, ...payload }))
+    }
+  }
+
+  sendBinary(data: ArrayBuffer | Blob): void {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(data)
+    }
+  }
+
+  onBinary(handler: (data: ArrayBuffer) => void): () => void {
+    this._binaryHandlers.push(handler)
+    return () => {
+      this._binaryHandlers = this._binaryHandlers.filter(h => h !== handler)
     }
   }
 

@@ -2,13 +2,14 @@ import { useEffect } from 'react'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { VoiceWaveform } from './VoiceWaveform'
 import { useVoiceStore } from '../stores/voiceStore'
+import { startVoice } from '../api/voice-controller'
 
 export function FabSmall() {
   const cycleWindowMode = useCockpitStore((s) => s.cycleWindowMode)
   const micState = useVoiceStore((s) => s.micState)
 
   useEffect(() => {
-    if (micState === 'idle') window.cockpit?.voice.start()
+    if (micState === 'idle') startVoice()
   }, [micState])
 
   return (
