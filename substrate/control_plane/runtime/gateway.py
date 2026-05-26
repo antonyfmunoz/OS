@@ -810,11 +810,17 @@ class EntrepreneurOSGateway:
                 "type": rtype, "prompt": prompt[:200] if prompt else "",
             })
             self._log_gateway_event(request, "error", str(exc))
-            from substrate.execution.runtime.execution_spine import _deterministic_response
-            fallback_output = _deterministic_response(prompt) if prompt else (
-                "All intelligence providers are currently unavailable. "
-                "Your request has been logged and will be processed when service resumes."
-            )
+            try:
+                from substrate.execution.runtime.execution_spine import _deterministic_response
+                fallback_output = _deterministic_response(prompt) if prompt else (
+                    "All intelligence providers are currently unavailable. "
+                    "Your request has been logged and will be processed when service resumes."
+                )
+            except Exception:
+                fallback_output = (
+                    "Your request has been received but all systems are "
+                    "temporarily unavailable. Please try again shortly."
+                )
             return {"status": "ok", "output": fallback_output, "fallback": True}
 
         # 3b. Prepend stage transition message if one fired
@@ -1000,77 +1006,10 @@ class EntrepreneurOSGateway:
                 prompt = f"REAL-TIME SEARCH RESULT:\n{_web_result}\n\n{prompt}"
                 print("[Gateway] Web search used")
 
-        # ── Substrate.execute() — canonical path ────────────────────────────
-        # Routes through: identity → context → governance → ConcreteExecutionSpine
-        # → trace → feedback → memory writes. On failure, falls back to CognitiveLoop.
-        _spine_agent = sub_agent or "executive_assistant"
-        try:
-            import asyncio
-            from substrate import Substrate
-            from substrate.types import SignalEnvelope, SignalSource
-
-            if team and not sub_agent:
-                _spine_agent = {
-                    "dex": "executive_assistant",
-                    "lyfe_ceo": "lyfe_ceo",
-                    "brand_ceo": "brand_ceo",
-                    "portfolio_advisor": "portfolio_advisor",
-                }.get(team, "executive_assistant")
-            if not _spine_agent:
-                try:
-                    _spine_agent = self._route_to_agent(prompt)
-                except Exception:
-                    _spine_agent = "executive_assistant"
-
-            signal = SignalEnvelope(
-                source=SignalSource.USER,
-                content=prompt,
-                raw_content=_raw_user_input,
-                user_id=str(ctx.user_id),
-                organization_id=str(ctx.org_id),
-                venture_id=venture_id,
-                metadata={
-                    "agent": _spine_agent,
-                    "channel_id": request.get("channel", ""),
-                    "session_id": session_id or "",
-                    "team": team or "",
-                    "username": username or "",
-                },
-            )
-
-            substrate = Substrate()
-            result = asyncio.run(substrate.execute(signal))
-
-            print(
-                f"[Gateway] Substrate.execute OK: agent={_spine_agent} "
-                f"outcome={result.outcome.value} provider={result.provider} "
-                f"model={result.model} duration={result.duration_ms:.0f}ms"
-            )
-
-            return {
-                "status": "ok",
-                "interaction_id": None,
-                "model": result.model or "spine",
-                "skill": None,
-                "output": result.output,
-                "tokens": 0,
-                "iterations": 1,
-                "was_enhanced": result.provider != "deterministic",
-                "quality_score": 0.5,
-                "quality_passed": result.is_success(),
-                "original_prompt": _raw_user_input,
-                "enhanced_prompt": prompt if prompt != _raw_user_input else "",
-                "enhancement_reason": request.get("_enhancement_reason", ""),
-            }
-        except Exception as _substrate_err:
-            logging.getLogger(__name__).error(
-                f"Substrate.execute failed, falling back to CognitiveLoop: {_substrate_err}"
-            )
-            _record_error("substrate_execute", _substrate_err, {
-                "agent": _spine_agent, "prompt": prompt[:200],
-            })
-
-        # ── CognitiveLoop fallback — existing code below unchanged ───────────
+        # ── CognitiveLoop — primary path (full intelligence layer) ────────
+        # CognitiveLoop has CEO standards, knowledge integration, accountability,
+        # quality gates, delegation logging. Substrate path is wired but waits
+        # for feature parity before becoming primary (later convergence phases).
         loop = CognitiveLoop(ctx)
 
         # Named agent teams — direct agent routing with context injection
