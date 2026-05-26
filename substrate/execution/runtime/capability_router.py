@@ -122,7 +122,7 @@ def _track(provider_id: str, success: bool) -> None:
 
 
 def _codex_review_provider() -> ProviderEntry:
-    from adapters.model_adapters.codex_cli import is_available, review_codex_sync
+    from adapters.models.codex_cli import is_available, review_codex_sync
     return ProviderEntry(
         provider_id="codex_review",
         is_available=is_available,
@@ -136,7 +136,7 @@ def _codex_review_provider() -> ProviderEntry:
 
 
 def _codex_exec_provider() -> ProviderEntry:
-    from adapters.model_adapters.codex_cli import is_available, query_codex_sync
+    from adapters.models.codex_cli import is_available, query_codex_sync
     return ProviderEntry(
         provider_id="codex_exec",
         is_available=is_available,
@@ -146,7 +146,7 @@ def _codex_exec_provider() -> ProviderEntry:
 
 
 def _cc_sdk_provider() -> ProviderEntry:
-    from adapters.model_adapters.cc_sdk import query_cc_sync
+    from adapters.models.cc_sdk import query_cc_sync
 
     def _available() -> bool:
         return query_cc_sync is not None
@@ -164,7 +164,7 @@ def _cc_sdk_provider() -> ProviderEntry:
 
 
 def _hermes_provider() -> ProviderEntry:
-    from adapters.model_adapters.hermes_cli import is_available, query_hermes_sync
+    from adapters.models.hermes_cli import is_available, query_hermes_sync
     return ProviderEntry(
         provider_id="hermes",
         is_available=is_available,
@@ -174,7 +174,7 @@ def _hermes_provider() -> ProviderEntry:
 
 
 def _opencode_provider() -> ProviderEntry:
-    from adapters.model_adapters.opencode_cli import is_available, query_opencode_sync
+    from adapters.models.opencode_cli import is_available, query_opencode_sync
     return ProviderEntry(
         provider_id="opencode",
         is_available=is_available,
@@ -190,7 +190,7 @@ def _perplexity_provider() -> ProviderEntry:
         return bool(os.environ.get("PERPLEXITY_API_KEY"))
 
     def _invoke(prompt: str, **kw: Any) -> CapabilityResult | None:
-        from substrate.execution.runtime.model_router import get_router, ModelProvider, MODEL_REGISTRY
+        from adapters.models.model_router import get_router, ModelProvider, MODEL_REGISTRY
         router = get_router()
         configs = [c for c in MODEL_REGISTRY.values() if c.provider == ModelProvider.PERPLEXITY and c.available]
         if not configs:
@@ -215,7 +215,7 @@ def _gemini_provider() -> ProviderEntry:
         return bool(os.environ.get("GEMINI_API_KEY"))
 
     def _invoke(prompt: str, **kw: Any) -> CapabilityResult | None:
-        from substrate.execution.runtime.model_router import get_router, ModelProvider, MODEL_REGISTRY
+        from adapters.models.model_router import get_router, ModelProvider, MODEL_REGISTRY
         router = get_router()
         configs = [c for c in MODEL_REGISTRY.values() if c.provider == ModelProvider.GEMINI and c.available]
         if not configs:

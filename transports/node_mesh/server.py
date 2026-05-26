@@ -413,7 +413,7 @@ class NodeMeshServer:
 
     def _register_integration(self, node: ConnectedNode) -> None:
         """Create and register a proxy IntegrationManifest for this node."""
-        from substrate.integrations.node_mesh.manifest import build_node_manifest
+        from transports.node_mesh.integration.manifest import build_node_manifest
 
         integration_id = f"node-{node.node_id}"
         manifest = build_node_manifest(node)

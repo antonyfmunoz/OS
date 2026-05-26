@@ -17,51 +17,51 @@ from substrate.sockets.protocols import (
 )
 
 # EOS imports
-from substrate.integrations.eos.correlation import (
+from projections.eos.integration.correlation import (
     EOSCorrelationMap,
     EOSWritebackTarget,
 )
-from substrate.integrations.eos.handlers import EOSCapabilityHandler
-from substrate.integrations.eos.manifest import (
+from projections.eos.integration.handlers import EOSCapabilityHandler
+from projections.eos.integration.manifest import (
     INTEGRATION_ID as EOS_ID,
     load_eos_config,
 )
-from substrate.integrations.eos.signals import EOSSignalEmitter
-from substrate.integrations.eos.tables import (
+from projections.eos.integration.signals import EOSSignalEmitter
+from projections.eos.integration.tables import (
     CrmActivityRow,
     CrmContactRow,
     CrmDealRow,
 )
 
 # LyfeOS imports
-from substrate.integrations.lyfeos.correlation import (
+from projections.lyfeos.integration.correlation import (
     LyfeOSCorrelationMap,
     LyfeOSWritebackTarget,
 )
-from substrate.integrations.lyfeos.handlers import LyfeOSCapabilityHandler
-from substrate.integrations.lyfeos.manifest import (
+from projections.lyfeos.integration.handlers import LyfeOSCapabilityHandler
+from projections.lyfeos.integration.manifest import (
     INTEGRATION_ID as LYFEOS_ID,
     load_lyfeos_config,
 )
-from substrate.integrations.lyfeos.signals import LyfeOSSignalEmitter
-from substrate.integrations.lyfeos.tables import (
+from projections.lyfeos.integration.signals import LyfeOSSignalEmitter
+from projections.lyfeos.integration.tables import (
     DailyLogRow,
     QuestRow,
     UserStatsRow,
 )
 
 # CreatorOS imports
-from substrate.integrations.creatoros.correlation import (
+from projections.creatoros.integration.correlation import (
     CreatorOSCorrelationMap,
     CreatorOSWritebackTarget,
 )
-from substrate.integrations.creatoros.handlers import CreatorOSCapabilityHandler
-from substrate.integrations.creatoros.manifest import (
+from projections.creatoros.integration.handlers import CreatorOSCapabilityHandler
+from projections.creatoros.integration.manifest import (
     INTEGRATION_ID as CREATOROS_ID,
     load_creatoros_config,
 )
-from substrate.integrations.creatoros.signals import CreatorOSSignalEmitter
-from substrate.integrations.creatoros.tables import (
+from projections.creatoros.integration.signals import CreatorOSSignalEmitter
+from projections.creatoros.integration.tables import (
     PostRow,
     ProductRow,
     RevenueRow,

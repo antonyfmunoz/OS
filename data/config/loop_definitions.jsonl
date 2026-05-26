@@ -1,0 +1,3 @@
+{"name": "business_ops", "domain": "operations", "interval_seconds": 300, "stages": ["signal_drain", "actionable_scan"], "enabled": true, "description": "Empire operations: signal drain + actionable item scan"}
+{"name": "self_build", "domain": "self_improvement", "interval_seconds": 1800, "stages": ["goal_execution", "feedback_collection", "health_check"], "enabled": true, "description": "System self-improvement: goal execution + feedback + health"}
+{"name": "research", "domain": "intelligence", "interval_seconds": 3600, "stages": ["research_topic_select", "research_execute", "world_model_store", "staleness_scan"], "enabled": true, "description": "Research: topic queue \u2192 cognitive loop \u2192 world model"}

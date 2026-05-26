@@ -154,7 +154,7 @@ async def start_container(
     mem_limit: str = "2g",
 ) -> dict[str, Any]:
     try:
-        from daemon.umh_node.adapters.container import ContainerAdapter
+        from nodes.windows.umh_node.adapters.container import ContainerAdapter
 
         adapter = ContainerAdapter()
         return adapter.handle(
@@ -168,7 +168,7 @@ async def start_container(
 @router.post("/container/stop")
 async def stop_container(container_name: str = "") -> dict[str, Any]:
     try:
-        from daemon.umh_node.adapters.container import ContainerAdapter
+        from nodes.windows.umh_node.adapters.container import ContainerAdapter
 
         adapter = ContainerAdapter()
         return adapter.handle("container.stop", {"container_name": container_name})
@@ -179,7 +179,7 @@ async def stop_container(container_name: str = "") -> dict[str, Any]:
 @router.get("/containers")
 async def list_containers() -> dict[str, Any]:
     try:
-        from daemon.umh_node.adapters.container import ContainerAdapter
+        from nodes.windows.umh_node.adapters.container import ContainerAdapter
 
         adapter = ContainerAdapter()
         return adapter.handle("container.list", {})

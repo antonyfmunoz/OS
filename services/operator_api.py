@@ -41,12 +41,18 @@ logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title="UMH Operator API", version="1.0.0")
 
-# CORS for dev (Vite on 5173)
+# CORS for dev (Vite on 5173, cockpit on 5174)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://100.77.233.50:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://100.77.233.50:5173",
+        "http://localhost:5174",
+        "http://100.77.233.50:5174",
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_credentials=True,
 )
 
 # ─── ExecutionSpine import (production path) ──────────────────────────────────
@@ -368,7 +374,7 @@ async def _vision_analyze(
     vision_prompt = prompt or "Describe what you see in this image concisely."
 
     try:
-        from substrate.execution.runtime.model_router import call_with_fallback
+        from adapters.models.model_router import call_with_fallback
 
         result = await asyncio.to_thread(
             call_with_fallback,
@@ -536,6 +542,16 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                 await ws.send_json({"type": "error", "text": f"Unknown message type: {msg_type}"})
     except WebSocketDisconnect:
         logger.info("WebSocket client disconnected")
+
+
+# ─── Cockpit API (substrate command center) ───────────────────────────────────
+try:
+    from transports.api.cockpit import router as cockpit_router
+
+    app.include_router(cockpit_router)
+    logger.info("cockpit router mounted at /api/umh/")
+except Exception as e:
+    logger.warning(f"cockpit router not available: {e}")
 
 
 # ─── Static files (frontend dist) ─────────────────────────────────────────────

@@ -7,14 +7,14 @@ allowed-tools: Bash, Read
 # Neon PostgreSQL — Best Practices
 
 ## When to use
-All database operations in EOS. Always use `get_conn()` from `eos_ai/db.py`.
+All database operations in UMH. Always use `get_conn()` from `substrate.state.storage.db`.
 
 ## Connection pattern
 ```python
 import sys
 sys.path.insert(0, '/opt/OS')
-from eos_ai.db import get_conn
-from eos_ai.context import load_context_from_env
+from substrate.state.storage.db import get_conn
+from substrate.state.context.context import load_context_from_env
 
 ctx = load_context_from_env()
 with get_conn(ctx.org_id) as cur:

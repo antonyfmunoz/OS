@@ -177,7 +177,7 @@ def _handle_new_lead(payload: dict) -> dict:
     Generates a personalized outreach strategy for the lead.
     Logs the result to memory.db via AgentRuntime.
     """
-    from substrate.execution.runtime.agent_runtime import AgentRuntime, TaskType
+    from adapters.models.agent_runtime import AgentRuntime, TaskType
 
     username = payload.get("username", "unknown")
     score = payload.get("score", 0)
@@ -215,7 +215,7 @@ def _handle_lead_replied(payload: dict) -> dict:
     lead_replied → run objection_handler skill.
     Analyzes the reply and returns the best next response.
     """
-    from substrate.execution.runtime.agent_runtime import AgentRuntime, TaskType
+    from adapters.models.agent_runtime import AgentRuntime, TaskType
 
     username = payload.get("username", "unknown")
     message = payload.get("message", "")
@@ -361,7 +361,7 @@ def _handle_signal_captured(payload: dict) -> dict:
     signal_captured → run research.signal_analyzer.
     Analyzes the signal for ICP relevance and recommended action.
     """
-    from substrate.execution.runtime.agent_runtime import AgentRuntime, TaskType
+    from adapters.models.agent_runtime import AgentRuntime, TaskType
 
     signal_text = payload.get("signal_text", "")
     source = payload.get("source", "unknown")
@@ -391,7 +391,7 @@ def _handle_content_needed(payload: dict) -> dict:
     content_needed → trigger content.hook_generator.
     Generates a hook and content angle for the given topic.
     """
-    from substrate.execution.runtime.agent_runtime import AgentRuntime, TaskType
+    from adapters.models.agent_runtime import AgentRuntime, TaskType
 
     topic = payload.get("topic", "")
     platform = payload.get("platform", "instagram")

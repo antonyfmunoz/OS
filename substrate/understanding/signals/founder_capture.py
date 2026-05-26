@@ -59,7 +59,7 @@ def should_capture(text: str) -> tuple[bool, str]:
 def _classify_venture(text: str) -> str:
     """Classify which venture a capture belongs to using the model router."""
     try:
-        from substrate.execution.runtime.model_router import get_router
+        from adapters.models.model_router import get_router
         router = get_router()
         prompt = f"""Classify which venture this task belongs to.
 
@@ -72,7 +72,7 @@ Task: "{text}"
 
 Reply with exactly one of: lyfe_institute | empyrean_creative | personal_brand"""
 
-        from substrate.execution.runtime.model_router import TaskType
+        from adapters.models.model_router import TaskType
         model = router.route(TaskType.FAST_RESPONSE)
         result = router.call(model, prompt).strip().lower()
         if result in ('lyfe_institute', 'empyrean_creative', 'personal_brand'):
@@ -117,7 +117,7 @@ def capture_to_notion(text: str, capture_type: str, venture_id: str = None) -> b
         import os
         from datetime import date
 
-        from substrate.integrations.notion.auth import get_notion_client
+        from adapters.notion.integration.auth import get_notion_client
 
         if venture_id == 'empyrean_creative':
             your_list_db = os.getenv('NOTION_YOUR_LIST_EMPYREAN')

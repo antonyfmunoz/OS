@@ -31,7 +31,7 @@ from substrate.sockets.view.broadcaster import ViewFrameBroadcaster, make_pipeli
 from substrate.sockets.view.websocket import broadcast_frame, ws_endpoint
 from substrate.sockets.view_socket import ViewSocket
 from substrate.execution.executor import build_default_executor
-from substrate.integrations.notion.correlation import CorrelationMap, WritebackTarget
+from adapters.notion.integration.correlation import CorrelationMap, WritebackTarget
 from substrate.execution.pipeline import ExecutionPipeline
 from substrate.memory.watcher import start_memory_watcher
 from transports.api.runtime import SubstrateRuntime
@@ -59,12 +59,12 @@ def _register_notion_integration() -> None:
     """Wire the Notion integration through IntegrationRegistry."""
     global _notion_outcome_receiver, _notion_poller
     try:
-        from substrate.integrations.notion.auth import get_notion_client
-        from substrate.integrations.notion.handlers import NotionCapabilityHandler
-        from substrate.integrations.notion.manifest import load_signal_sources
-        from substrate.integrations.notion.outcomes import NotionOutcomeReceiver
-        from substrate.integrations.notion.poller import NotionPoller
-        from substrate.integrations.notion.signals import NotionSignalEmitter
+        from adapters.notion.integration.auth import get_notion_client
+        from adapters.notion.integration.handlers import NotionCapabilityHandler
+        from adapters.notion.integration.manifest import load_signal_sources
+        from adapters.notion.integration.outcomes import NotionOutcomeReceiver
+        from adapters.notion.integration.poller import NotionPoller
+        from adapters.notion.integration.signals import NotionSignalEmitter
 
         client = get_notion_client()
         emitter = NotionSignalEmitter()
@@ -115,12 +115,12 @@ def _register_eos_integration() -> None:
     """Wire the EOS integration through IntegrationRegistry."""
     global _eos_poller
     try:
-        from substrate.integrations.eos.correlation import EOSCorrelationMap
-        from substrate.integrations.eos.handlers import EOSCapabilityHandler
-        from substrate.integrations.eos.manifest import load_eos_config
-        from substrate.integrations.eos.outcomes import EOSOutcomeReceiver
-        from substrate.integrations.eos.poller import EOSPoller
-        from substrate.integrations.eos.signals import EOSSignalEmitter
+        from projections.eos.integration.correlation import EOSCorrelationMap
+        from projections.eos.integration.handlers import EOSCapabilityHandler
+        from projections.eos.integration.manifest import load_eos_config
+        from projections.eos.integration.outcomes import EOSOutcomeReceiver
+        from projections.eos.integration.poller import EOSPoller
+        from projections.eos.integration.signals import EOSSignalEmitter
 
         config = load_eos_config()
         if not config:

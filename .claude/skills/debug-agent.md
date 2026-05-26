@@ -9,8 +9,8 @@ allowed-tools: Bash, Read, Grep
 ## Step 1 — Isolate
 python3 -c "
 import sys; sys.path.insert(0, '/opt/OS')
-from eos_ai.agent_runtime import AgentRuntime, TaskType
-from eos_ai.context import load_context_from_env
+from adapters.models.agent_runtime import AgentRuntime, TaskType
+from substrate.state.context.context import load_context_from_env
 rt = AgentRuntime(load_context_from_env())
 result = rt.run(TaskType.GENERATE, 'test',
   agent='AGENT_ID', max_tokens=100)
@@ -20,20 +20,20 @@ print('Output:', result.output)
 
 ## Step 2 — Check soul doc loading
 grep -n "soul_doc\|0a" \
-  /opt/OS/eos_ai/agent_runtime.py | head -10
+  /opt/OS/adapters/models/agent_runtime.py | head -10
 
 ## Step 3 — Check hierarchy
 python3 -c "
 import sys; sys.path.insert(0, '/opt/OS')
-from eos_ai.agent_hierarchy import AgentHierarchy
+from substrate.control_plane.agents.agent_hierarchy import AgentHierarchy
 print(AgentHierarchy().format_for_prompt('AGENT_ID'))
 "
 
 ## Step 4 — Check Neon registration
 python3 -c "
 import sys; sys.path.insert(0, '/opt/OS')
-from eos_ai.db import get_conn
-from eos_ai.context import load_context_from_env
+from substrate.state.storage.db import get_conn
+from substrate.state.context.context import load_context_from_env
 ctx = load_context_from_env()
 with get_conn(ctx.org_id) as cur:
   cur.execute('SELECT name,is_active FROM agents WHERE org_id=%s', (ctx.org_id,))

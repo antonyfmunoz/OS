@@ -109,7 +109,7 @@ def research_gift(
     Returns formatted list of 5 specific gift suggestions.
     """
     try:
-        from substrate.execution.runtime.model_router import get_router, TaskType
+        from adapters.models.model_router import get_router, TaskType
         from substrate.understanding.intelligence.person_recognition import build_intelligence_profile
         router = get_router()
         model = router.route(TaskType.FAST_RESPONSE)

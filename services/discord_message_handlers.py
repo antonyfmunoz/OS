@@ -239,7 +239,7 @@ async def _handle_image_attachment(message: discord.Message) -> bool:
                     mime = att.content_type or "image/jpeg"
                     prompt = message.content.strip() or "Describe what you see in this image."
                     loop = asyncio.get_event_loop()
-                    from substrate.execution.runtime.model_router import call_with_fallback as _vision_cwf
+                    from adapters.models.model_router import call_with_fallback as _vision_cwf
 
                     result = await loop.run_in_executor(
                         None,

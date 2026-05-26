@@ -168,7 +168,7 @@ def main():
         is_recurring = bool(event.get('recurrence') or event.get('recurringEventId'))
         if is_recurring:
             try:
-                from substrate.execution.runtime.model_router import get_router, TaskType as _CPTaskType
+                from adapters.models.model_router import get_router, TaskType as _CPTaskType
                 import json as _cpjson
 
                 _cp_router = get_router()

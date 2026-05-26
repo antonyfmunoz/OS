@@ -22,14 +22,14 @@ requirements.txt changed:
 ## Always run first
 python3 -c "
 import sys; sys.path.insert(0, '/opt/OS')
-import eos_ai
+import substrate
 print('imports: clean')
 " 2>&1
 
 ## Services → files
 os-discord  → services/discord_bot.py
 os-bot      → services/telegram_control.py
-os-monitor  → services/dm_monitor.py
+os-webhook  → transports/api/webhooks/calendly_webhook.py
 
 ## After deploy — verify
 docker logs [service] --tail 10

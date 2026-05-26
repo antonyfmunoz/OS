@@ -194,7 +194,7 @@ class DailySync:
         # ── Section 4b: Prioritize action items ─────────────────────────
         if len(agenda.action_items) > 1:
             try:
-                from substrate.execution.runtime.model_router import get_router, TaskType
+                from adapters.models.model_router import get_router, TaskType
                 from substrate.control_plane.strategy.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
                 import json as _pjson
                 router = get_router()
@@ -232,7 +232,7 @@ class DailySync:
 
         # ── Section 4c: Goal alignment — does today's top item move the needle?
         try:
-            from substrate.execution.runtime.model_router import get_router, TaskType
+            from adapters.models.model_router import get_router, TaskType
             from substrate.control_plane.strategy.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
             _router = get_router()
             _model = _router.route(TaskType.FAST_RESPONSE)
@@ -265,7 +265,7 @@ class DailySync:
 
         # ── 3-3-3 Priority Framework ──────────────────────────────────────────
         try:
-            from substrate.execution.runtime.model_router import get_router, TaskType
+            from adapters.models.model_router import get_router, TaskType
             import json as _pjson333
             _router333 = get_router()
             _model333 = _router333.route(TaskType.FAST_RESPONSE)
