@@ -35,7 +35,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from substrate.types import PermissionTier, required_tier_for_action
+from substrate.types import PermissionTier, RiskClass, required_tier_for_action
 
 
 class AuthorityClass(str, Enum):
@@ -57,15 +57,6 @@ AUTHORITY_CLASS_RANK: dict[AuthorityClass, int] = {
     AuthorityClass.SUPERVISED_EXECUTE: 5,
     AuthorityClass.AUTONOMOUS_EXECUTE: 6,
 }
-
-
-class RiskClass(str, Enum):
-    NEGLIGIBLE = "negligible"
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    CRITICAL = "critical"
-    FORBIDDEN = "forbidden"
 
 
 class ApprovalRequirement(str, Enum):

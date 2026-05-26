@@ -89,18 +89,7 @@ class GovernanceVerdict(str, Enum):
     STRUCTURALLY_FORBIDDEN = "structurally_forbidden"
 
 
-# NOTE: The canonical RiskClass is in substrate.types (Pydantic enum).
-# This is a runtime-scoped version with additional SAFE and FORBIDDEN values.
-from substrate.types import RiskClass as CanonicalRiskClass  # noqa: F401, E402
-
-
-class RiskClass(str, Enum):
-    SAFE = "safe"
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    CRITICAL = "critical"
-    FORBIDDEN = "forbidden"
+from substrate.types import RiskClass
 
 
 class SpineOutcome(str, Enum):
@@ -180,7 +169,7 @@ class InterpretedIntent:
     command_name: str = ""
     arguments: dict[str, Any] = field(default_factory=dict)
     required_capabilities: list[str] = field(default_factory=list)
-    risk_class: RiskClass = RiskClass.SAFE
+    risk_class: RiskClass = RiskClass.NEGLIGIBLE
     timestamp: str = ""
 
     def __post_init__(self) -> None:
@@ -337,7 +326,7 @@ class GovernanceEvaluation:
     evaluation_id: str = ""
     intent_id: str = ""
     command_name: str = ""
-    risk_class: RiskClass = RiskClass.SAFE
+    risk_class: RiskClass = RiskClass.NEGLIGIBLE
     verdict: GovernanceVerdict = GovernanceVerdict.APPROVED
     denial_reasons: list[str] = field(default_factory=list)
     governance_rules_applied: list[str] = field(default_factory=list)
@@ -454,7 +443,7 @@ class ObservabilityRecord:
     correlation_id: str = ""
     command_name: str = ""
     outcome: SpineOutcome = SpineOutcome.SUCCESS
-    risk_class: RiskClass = RiskClass.SAFE
+    risk_class: RiskClass = RiskClass.NEGLIGIBLE
     governance_verdict: GovernanceVerdict = GovernanceVerdict.APPROVED
     adapter_id: str = ""
     environment_id: str = ""
