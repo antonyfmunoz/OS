@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import subprocess
 import time
 from datetime import datetime, timezone
@@ -22,10 +23,11 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/umh")
 
-MEMORY_STORE = Path("/opt/OS/data/runtime/canonical_memory_store/memories.jsonl")
-TRACE_STORE = Path("/opt/OS/data/umh/traces/traces.jsonl")
-SKILLS_DIR = Path("/opt/OS/skills")
-AGENTS_DIR = Path("/opt/OS/agents")
+_ROOT = Path(os.getenv("UMH_ROOT", "/opt/OS"))
+MEMORY_STORE = _ROOT / "data" / "runtime" / "canonical_memory_store" / "memories.jsonl"
+TRACE_STORE = _ROOT / "data" / "umh" / "traces" / "traces.jsonl"
+SKILLS_DIR = _ROOT / "skills"
+AGENTS_DIR = _ROOT / "agents"
 
 
 def _read_jsonl(path: Path, limit: int | None = None) -> list[dict[str, Any]]:
