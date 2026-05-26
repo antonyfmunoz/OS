@@ -111,7 +111,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2G
+          memory: 1G
+          cpus: "1.0"
 
   os-operator:
     build: .
