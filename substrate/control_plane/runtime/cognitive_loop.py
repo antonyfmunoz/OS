@@ -477,7 +477,7 @@ class CognitiveLoop:
         except Exception as _layer_err:
             _record_error("understand_behavioral_layers", _layer_err, {"prompt": text[:200]})
 
-        # 2c. UNDERSTAND — canonical memory query-back
+        # 2c. UNDERSTAND — canonical memory query-back (promoted + canonical store)
         try:
             from substrate.memory.promoter import MemoryPromoter
 
@@ -486,11 +486,26 @@ class CognitiveLoop:
             if _canonical_memories:
                 _mem_ctx = "\n".join(f"- {m.get('content', '')[:120]}" for m in _canonical_memories)
                 if _unified.semantic_memory:
-                    _unified.semantic_memory += f"\n\nCanonical memories:\n{_mem_ctx}"
+                    _unified.semantic_memory += f"\n\nPromoted memories:\n{_mem_ctx}"
                 else:
-                    _unified.semantic_memory = f"Canonical memories:\n{_mem_ctx}"
+                    _unified.semantic_memory = f"Promoted memories:\n{_mem_ctx}"
         except Exception as _mem_err:
             _record_error("understand_memory_queryback", _mem_err, {"prompt": text[:200]})
+
+        # 2c-ii. UNDERSTAND — canonical memory store (ingestion-sourced long-term facts)
+        try:
+            from substrate.state.memory.contracts.canonical_memory_store_v1 import CanonicalMemoryStore
+
+            _cms = CanonicalMemoryStore()
+            _cms_results = _cms.search(text, limit=3)
+            if _cms_results:
+                _cms_ctx = "\n".join(f"- {m.get('content', '')[:150]}" for m in _cms_results)
+                if _unified.semantic_memory:
+                    _unified.semantic_memory += f"\n\nCanonical knowledge:\n{_cms_ctx}"
+                else:
+                    _unified.semantic_memory = f"Canonical knowledge:\n{_cms_ctx}"
+        except Exception as _cms_err:
+            _record_error("understand_canonical_store", _cms_err, {"prompt": text[:200]})
 
         # 2d. UNDERSTAND — philosophy lens injection (values filter)
         try:

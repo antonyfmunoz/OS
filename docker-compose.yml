@@ -23,6 +23,7 @@ services:
       - infra/docker/umh.env
     environment:
       - PYTHONPATH=/app
+      - UMH_ROOT=/app
       - TZ=America/Los_Angeles
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
@@ -43,6 +44,7 @@ services:
       - services/.env
     environment:
       - PYTHONPATH=/app
+      - UMH_ROOT=/app
       - TZ=America/Los_Angeles
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
@@ -85,6 +87,7 @@ services:
       - infra/docker/umh.env
     environment:
       - PYTHONPATH=/app
+      - UMH_ROOT=/app
       - TZ=America/Los_Angeles
       - PYTHONUNBUFFERED=1
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
@@ -111,7 +114,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2G
+          memory: 1G
+          cpus: "1.0"
 
   os-operator:
     build: .
