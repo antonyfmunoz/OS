@@ -1702,3 +1702,58 @@ async def cockpit_ws(ws: WebSocket):
     finally:
         _cockpit_clients.discard(ws)
         logger.info(f"cockpit ws disconnected ({len(_cockpit_clients)} clients)")
+# ─── Persistent Loops ────────────────────────────────────────────────────────
+
+
+@router.get("/loops")
+async def loop_status():
+    """Status of all persistent loops."""
+    try:
+        from substrate.execution.loop.persistent_loop import get_registry
+        registry = get_registry()
+        registry.register_defaults()
+        return registry.status()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.post("/loops/{loop_name}/start")
+async def loop_start(loop_name: str):
+    """Start a persistent loop."""
+    try:
+        from substrate.execution.loop.persistent_loop import get_registry
+        registry = get_registry()
+        registry.register_defaults()
+        ok = registry.start(loop_name)
+        return {"started": ok, "loop": loop_name}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.post("/loops/{loop_name}/stop")
+async def loop_stop(loop_name: str):
+    """Stop a persistent loop."""
+    try:
+        from substrate.execution.loop.persistent_loop import get_registry
+        registry = get_registry()
+        registry.register_defaults()
+        ok = registry.stop(loop_name)
+        return {"stopped": ok, "loop": loop_name}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.post("/loops/{loop_name}/run-once")
+async def loop_run_once(loop_name: str):
+    """Run a single cycle of a loop synchronously."""
+    try:
+        from substrate.execution.loop.persistent_loop import get_registry
+        registry = get_registry()
+        registry.register_defaults()
+        loop = registry.get(loop_name)
+        if not loop:
+            return {"error": f"unknown loop: {loop_name}"}
+        report = loop.run_once()
+        return report.to_dict()
+    except Exception as e:
+        return {"error": str(e)}
