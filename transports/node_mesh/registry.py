@@ -7,7 +7,7 @@ import threading
 import time
 from typing import Any
 
-from substrate.integrations.node_mesh.types import ConnectedNode, NodeCapability  # noqa: F401 — re-exported
+from transports.node_mesh.integration.types import ConnectedNode, NodeCapability  # noqa: F401 — re-exported
 
 logger = logging.getLogger(__name__)
 

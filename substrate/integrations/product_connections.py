@@ -62,7 +62,7 @@ class ProductConnectionManager:
 
     def _load_eos(self) -> ProductConnection:
         try:
-            from substrate.integrations.eos.manifest import (
+            from projections.eos.integration.manifest import (
                 INTEGRATION_ID,
                 SIGNAL_DESCRIPTORS,
                 CAPABILITY_DESCRIPTORS,
@@ -93,7 +93,7 @@ class ProductConnectionManager:
 
     def _load_creatoros(self) -> ProductConnection:
         try:
-            from substrate.integrations.creatoros.manifest import (
+            from projections.creatoros.integration.manifest import (
                 INTEGRATION_ID,
                 SIGNAL_DESCRIPTORS,
                 CAPABILITY_DESCRIPTORS,
@@ -124,7 +124,7 @@ class ProductConnectionManager:
 
     def _load_lyfeos(self) -> ProductConnection:
         try:
-            from substrate.integrations.lyfeos.manifest import (
+            from projections.lyfeos.integration.manifest import (
                 INTEGRATION_ID,
                 SIGNAL_DESCRIPTORS,
                 CAPABILITY_DESCRIPTORS,

@@ -1,4 +1,4 @@
-"""CreatorOS capability handler — implements CapabilityHandler Protocol."""
+"""LyfeOS capability handler — implements CapabilityHandler Protocol."""
 
 from __future__ import annotations
 
@@ -8,17 +8,21 @@ from typing import Any
 
 import psycopg2
 
-from substrate.sockets.envelopes import CapabilityRequest, CapabilityResponse
-from substrate.sockets.protocols import CapabilityDescriptor, CapabilityHealth
+from substrate.types import (
+    CapabilityDescriptor,
+    CapabilityHealth,
+    CapabilityRequest,
+    CapabilityResponse,
+)
 
 from .manifest import CAPABILITY_DESCRIPTORS, INTEGRATION_ID
-from .tables import insert_post, insert_product, insert_revenue
+from .tables import insert_daily_log, insert_quest, update_quest
 
 logger = logging.getLogger(__name__)
 
 
-class CreatorOSCapabilityHandler:
-    """Handles capability requests for the CreatorOS integration.
+class LyfeOSCapabilityHandler:
+    """Handles capability requests for the LyfeOS integration.
 
     Satisfies CapabilityHandler Protocol structurally.
     """
@@ -38,9 +42,9 @@ class CreatorOSCapabilityHandler:
         t0 = time.monotonic()
         handler_map: dict[str, Any] = {
             "noop": self._noop,
-            "create_post": self._create_post,
-            "create_product": self._create_product,
-            "record_revenue": self._record_revenue,
+            "create_quest": self._create_quest,
+            "complete_quest": self._complete_quest,
+            "log_daily_reflection": self._log_daily_reflection,
         }
 
         handler = handler_map.get(request.capability_name)
@@ -116,7 +120,7 @@ class CreatorOSCapabilityHandler:
                 self._conn = None
 
         if not self._database_url:
-            raise RuntimeError("no CREATOROS_DATABASE_URL configured for capability handler")
+            raise RuntimeError("no LYFEOS_DATABASE_URL configured for capability handler")
 
         self._conn = psycopg2.connect(self._database_url)
         self._conn.autocommit = False
@@ -130,17 +134,18 @@ class CreatorOSCapabilityHandler:
             "row_id": params.get("row_id", ""),
         }
 
-    def _create_post(self, params: dict[str, Any]) -> dict[str, Any]:
+    def _create_quest(self, params: dict[str, Any]) -> dict[str, Any]:
         conn = self._get_connection()
-        post_id = insert_post(conn, params)
-        return {"post_id": post_id}
+        quest_id = insert_quest(conn, params)
+        return {"quest_id": quest_id}
 
-    def _create_product(self, params: dict[str, Any]) -> dict[str, Any]:
+    def _complete_quest(self, params: dict[str, Any]) -> dict[str, Any]:
         conn = self._get_connection()
-        product_id = insert_product(conn, params)
-        return {"product_id": product_id}
+        if "completed" not in params:
+            params["completed"] = True
+        return update_quest(conn, params)
 
-    def _record_revenue(self, params: dict[str, Any]) -> dict[str, Any]:
+    def _log_daily_reflection(self, params: dict[str, Any]) -> dict[str, Any]:
         conn = self._get_connection()
-        revenue_id = insert_revenue(conn, params)
-        return {"revenue_id": revenue_id}
+        log_id = insert_daily_log(conn, params)
+        return {"log_id": log_id}

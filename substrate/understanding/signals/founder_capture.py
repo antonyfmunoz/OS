@@ -117,7 +117,7 @@ def capture_to_notion(text: str, capture_type: str, venture_id: str = None) -> b
         import os
         from datetime import date
 
-        from substrate.integrations.notion.auth import get_notion_client
+        from adapters.notion.integration.auth import get_notion_client
 
         if venture_id == 'empyrean_creative':
             your_list_db = os.getenv('NOTION_YOUR_LIST_EMPYREAN')

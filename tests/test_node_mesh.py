@@ -14,12 +14,9 @@ Tests:
 
 from __future__ import annotations
 
-import sys
 import time
 from datetime import datetime, timezone
 from uuid import uuid4
-
-sys.path.insert(0, "/opt/OS/.claude/worktrees/layer3-phase2-slice-d-handoff")
 
 
 def test_signal_socket_unregister():
@@ -296,7 +293,7 @@ def test_node_registry_stale_detection():
 
 
 def test_node_signal_emitter():
-    from substrate.integrations.node_mesh.signals import NodeSignalEmitter
+    from transports.node_mesh.integration.signals import NodeSignalEmitter
     from substrate.sockets.protocols import SignalEmitter
 
     emitter = NodeSignalEmitter("test-node")
@@ -311,7 +308,7 @@ def test_node_signal_emitter():
 
 
 def test_node_capability_handler_descriptors():
-    from substrate.integrations.node_mesh.handlers import NodeCapabilityHandler
+    from transports.node_mesh.integration.handlers import NodeCapabilityHandler
     from transports.node_mesh.registry import ConnectedNode, NodeCapability
     from substrate.sockets.protocols import CapabilityHandler
 
@@ -340,7 +337,7 @@ def test_node_capability_handler_descriptors():
 
 
 def test_node_outcome_receiver():
-    from substrate.integrations.node_mesh.outcomes import NodeOutcomeReceiver
+    from transports.node_mesh.integration.outcomes import NodeOutcomeReceiver
     from substrate.sockets.protocols import OutcomeReceiver
 
     receiver = NodeOutcomeReceiver("test-node", ws=None)
@@ -351,7 +348,7 @@ def test_node_outcome_receiver():
 
 
 def test_build_node_manifest():
-    from substrate.integrations.node_mesh.manifest import build_node_manifest
+    from transports.node_mesh.integration.manifest import build_node_manifest
     from transports.node_mesh.registry import ConnectedNode, NodeCapability
     from substrate.sockets.registry import IntegrationManifest
 
