@@ -6,6 +6,7 @@ import { CommandPalette } from './CommandPalette'
 import { FabLarge } from './FabLarge'
 import { FabMedium } from './FabMedium'
 import { FabSmall } from './FabSmall'
+import { VoiceCommandBar } from './VoiceCommandBar'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { DashboardPanel } from '../panels/DashboardPanel'
 import { AgentsPanel } from '../panels/AgentsPanel'
@@ -83,7 +84,7 @@ export function Shell() {
   }
 
   return (
-    <div className="flex flex-col h-screen" style={{ background: 'var(--bg)' }}>
+    <div className="relative flex flex-col h-screen" style={{ background: 'var(--bg)' }}>
       <TitleBar />
 
       <div className="flex flex-1 overflow-hidden">
@@ -99,6 +100,7 @@ export function Shell() {
         <ChatDrawer />
       </div>
 
+      <VoiceCommandBar />
       <HudBar />
       <CommandPalette />
     </div>
