@@ -124,7 +124,7 @@ When venture advances to Stage 3:
 Before ANY Discord post — run validation:
 
 ```python
-from eos_ai.output_validator import validate_before_discord
+from substrate.governance.validation.output_validator import validate_before_discord
 content = validate_before_discord(content)
 ```
 
@@ -149,7 +149,7 @@ NEVER write custom chunking logic in individual files.
 
 ALWAYS use `discord_utils.py` for all Discord posting:
 ```python
-from eos_ai.discord_utils import (
+from transports.discord.discord_utils import (
     chunk_message,    # split content at paragraph boundaries
     post_to_webhook,  # sync — for orchestrator, world_pulse, gws_scanner
     post_to_channel,  # sync wrapper for async channel.send — for non-bot contexts

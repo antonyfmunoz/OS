@@ -21,8 +21,8 @@ Improvement Opportunities
 python3 -c "
 import sys, uuid
 sys.path.insert(0, '/opt/OS')
-from eos_ai.db import get_conn
-from eos_ai.context import load_context_from_env
+from substrate.state.storage.db import get_conn
+from substrate.state.context.context import load_context_from_env
 from pathlib import Path
 ctx = load_context_from_env()
 path = '/opt/OS/skills/Dept/name.md'
@@ -44,7 +44,7 @@ Add skill to relevant sub-agent in department.
 ### 4. Verify
 python3 -c "
 import sys; sys.path.insert(0, '/opt/OS')
-from eos_ai.skill_registry import get_skill_registry
+from substrate.state.registries.skill_registry import get_skill_registry
 sr = get_skill_registry()
 print(f'Total: {len(sr._skills)}')
 "

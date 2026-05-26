@@ -34,7 +34,7 @@ Output format:
 🟢 OK: [what's good — brief]
 
 Gotchas:
-- EOS is Python 3.12 on Ubuntu 24.04
+- UMH is Python 3.11 on Ubuntu 24.04 (Docker containers run 3.11)
 - All DB calls go through Neon (psycopg2) with RLS
 - Never suggest changing the authority_engine approval flow without explicit justification
 - Always check: does this affect the fallback chain in model_router.py?
