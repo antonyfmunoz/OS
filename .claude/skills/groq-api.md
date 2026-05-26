@@ -57,7 +57,7 @@ text = response.choices[0].message.content.strip()
 ## Free tier limits
 - Generous free tier — check console.groq.com/usage
 - Rate limits: varies by model, typically 30 req/min
-- `GROQ_API_KEY` in `eos_ai/.env`
+- `GROQ_API_KEY` in `services/.env`
 
 ## EOS usage pattern
 `transcribe_with_groq()` in `discord_bot.py` — called by `SilenceDetectingSink` after silence detection fires.

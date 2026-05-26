@@ -16,7 +16,7 @@ Screenshots = 1000+ tokens each.
 Text extraction = fast and cheap.
 
 ```python
-from eos_ai.browser_agent import BrowserAgent, run_browser_task
+from substrate.execution.agents.browser_agent import BrowserAgent, run_browser_task
 import asyncio
 
 async def run_task(task: str, url: str = '') -> str:

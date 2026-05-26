@@ -6,36 +6,6 @@ networks:
     driver: bridge
 
 services:
-  os-monitor:
-    build: .
-    container_name: os-monitor
-    restart: unless-stopped
-    working_dir: /app
-    command: python3 -u services/dm_monitor.py
-    # network_mode: host was removed — Playwright does not require host networking.
-    # Bridge provides outbound internet access for Instagram/Apify calls.
-    networks:
-      - eos_network
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    volumes:
-      - ${UMH_ROOT:-/opt/OS}:/app
-      - ${UMH_ROOT:-/opt/OS}/logs:${UMH_ROOT:-/opt/OS}/logs
-    env_file:
-      - services/.env
-      - runtime/.env
-    shm_size: '512m'
-    environment:
-      - PYTHONPATH=/app
-      - TZ=America/Los_Angeles
-      - PYTHONUNBUFFERED=1
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - OLLAMA_BASE_URL=http://host.docker.internal:11434
-    deploy:
-      resources:
-        limits:
-          memory: 1536M
-
   os-scraper:
     build: .
     container_name: os-scraper
@@ -62,7 +32,7 @@ services:
     container_name: os-webhook
     restart: always
     working_dir: /app
-    command: python3 interface/api/webhooks/calendly_webhook.py
+    command: python3 transports/api/webhooks/calendly_webhook.py
     networks:
       - eos_network
     extra_hosts:
