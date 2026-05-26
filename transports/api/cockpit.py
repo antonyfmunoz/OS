@@ -1,11 +1,14 @@
 """Cockpit API endpoints — serves real data from UMH stores to the frontend.
 
-All endpoints are prefixed /api/umh/ and registered via include_router in app.py.
+All endpoints are prefixed /api/umh/ and registered via include_router
+in operator_api.py (production) and app.py (substrate runtime).
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 import subprocess
 import time
 from datetime import datetime, timezone
@@ -13,7 +16,9 @@ from pathlib import Path
 from typing import Any
 
 import psutil
-from fastapi import APIRouter
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/umh")
 
@@ -1624,3 +1629,74 @@ async def send_notification(payload: dict):
         }
     except Exception as e:
         return {"error": str(e), "sent": False}
+
+
+# ─── WebSocket: live cockpit data stream ──────────────────────────────────────
+
+_cockpit_clients: set[WebSocket] = set()
+
+
+@router.websocket("/ws")
+async def cockpit_ws(ws: WebSocket):
+    """Stream live system metrics to connected cockpit clients.
+
+    Sends a pulse snapshot every 2 seconds. Clients can send
+    JSON commands: {"type": "subscribe", "channels": ["pulse", "traces"]}.
+    """
+    await ws.accept()
+    _cockpit_clients.add(ws)
+    logger.info(f"cockpit ws connected ({len(_cockpit_clients)} clients)")
+    try:
+        while True:
+            cpu = psutil.cpu_percent(interval=0)
+            mem = psutil.virtual_memory()
+            disk = psutil.disk_usage("/")
+            traces = _read_jsonl(TRACE_STORE)
+            recent_traces = traces[-10:] if traces else []
+            containers = []
+            try:
+                result = subprocess.run(
+                    ["docker", "ps", "--format", "{{.Names}}\t{{.Status}}"],
+                    capture_output=True, text=True, timeout=3,
+                )
+                for line in result.stdout.strip().split("\n"):
+                    if "\t" in line:
+                        name, status = line.split("\t", 1)
+                        containers.append({"name": name, "status": status})
+            except Exception:
+                pass
+
+            snapshot = {
+                "type": "pulse",
+                "ts": datetime.now(timezone.utc).isoformat(),
+                "cpu_percent": cpu,
+                "memory_percent": mem.percent,
+                "disk_percent": disk.percent,
+                "containers": containers,
+                "recent_traces": [
+                    {
+                        "id": t.get("trace_id", ""),
+                        "status": t.get("status", ""),
+                        "input": str(t.get("input_signal", ""))[:80],
+                        "created": t.get("created_at", ""),
+                    }
+                    for t in recent_traces
+                    if not t.get("_type", "").startswith("trace_update")
+                ],
+            }
+            await ws.send_json(snapshot)
+
+            try:
+                msg = await asyncio.wait_for(ws.receive_text(), timeout=2.0)
+                data = json.loads(msg)
+                if data.get("type") == "ping":
+                    await ws.send_json({"type": "pong"})
+            except asyncio.TimeoutError:
+                pass
+            except (json.JSONDecodeError, WebSocketDisconnect):
+                break
+    except WebSocketDisconnect:
+        pass
+    finally:
+        _cockpit_clients.discard(ws)
+        logger.info(f"cockpit ws disconnected ({len(_cockpit_clients)} clients)")
