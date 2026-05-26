@@ -580,10 +580,19 @@ async def mesh_nodes():
     from transports.node_mesh.server import NodeMeshServer
 
     server: NodeMeshServer | None = _get_mesh_server()
-    if server is None:
-        return []
-    nodes = server.node_registry.all_nodes()
-    return [n.to_api_dict() for n in nodes]
+    if server is not None:
+        nodes = server.node_registry.all_nodes()
+        return [n.to_api_dict() for n in nodes]
+
+    import json as _json
+    from pathlib import Path as _Path
+    snapshot = _Path(os.environ.get("UMH_ROOT", "/opt/OS")) / "data" / "runtime" / "mesh_nodes.json"
+    if snapshot.exists():
+        try:
+            return _json.loads(snapshot.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return []
 
 
 def _get_mesh_server():
