@@ -4,7 +4,7 @@ import inspect
 import os
 import sys
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 from dotenv import load_dotenv
 load_dotenv(os.path.join("/opt/OS", "runtime", ".env"))
 load_dotenv(os.path.join("/opt/OS", "services", ".env"))

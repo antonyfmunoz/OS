@@ -13,12 +13,13 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sys
 import zipfile
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
 from adapters.data_source_adapters.conversation_source import (
     Conversation,

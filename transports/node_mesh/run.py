@@ -7,10 +7,11 @@ from __future__ import annotations
 
 import logging
 import signal
+import os
 import sys
 import threading
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
 from substrate.execution.executor import WorkPacketExecutor
 from transports.node_mesh.config import load_mesh_config

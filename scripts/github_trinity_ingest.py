@@ -19,7 +19,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
 from adapters.data_source_adapters.local_file_source import LocalFileSource
 from substrate.governance.policy.authority_tier import T3_REFERENCE
