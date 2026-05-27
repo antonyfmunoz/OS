@@ -12,6 +12,13 @@ import {
   Layers,
   Briefcase,
   Building2,
+  MessageSquare,
+  Workflow,
+  Target,
+  Wrench,
+  FlaskConical,
+  Server,
+  User,
 } from 'lucide-react'
 import type { Panel } from '../stores/cockpitStore'
 
@@ -27,14 +34,21 @@ export const ROUTES: RouteEntry[] = [
   { id: 'dashboard', label: 'Command Center', icon: LayoutDashboard, group: 'core', key: '1' },
   { id: 'agents', label: 'Agents', icon: Bot, group: 'core', key: '2' },
   { id: 'tasks', label: 'Tasks', icon: ListChecks, group: 'core', key: '3' },
+  { id: 'workflows', label: 'Workflows', icon: Workflow, group: 'core', key: 'w' },
   { id: 'activity', label: 'Activity', icon: Activity, group: 'core', key: '9' },
   { id: 'approvals', label: 'Approvals', icon: ShieldCheck, group: 'operations', key: '4' },
   { id: 'execution', label: 'Execution', icon: Layers, group: 'operations', key: '0' },
+  { id: 'tracking', label: 'Tracking', icon: Target, group: 'operations', key: 't' },
+  { id: 'infrastructure', label: 'Infrastructure', icon: Server, group: 'operations', key: 'i' },
   { id: 'portfolio', label: 'Portfolio', icon: Briefcase, group: 'operations', key: 'p' },
   { id: 'company', label: 'Company', icon: Building2, group: 'operations', key: 'c' },
   { id: 'knowledge', label: 'Knowledge', icon: BookOpen, group: 'intelligence', key: '5' },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, group: 'intelligence', key: '6' },
+  { id: 'skills', label: 'Skills', icon: Wrench, group: 'intelligence', key: 'k' },
   { id: 'editor', label: 'IDE', icon: Code2, group: 'intelligence', key: '7' },
+  { id: 'experiments', label: 'Experiments', icon: FlaskConical, group: 'intelligence', key: 'x' },
+  { id: 'comms', label: 'Messages', icon: MessageSquare, group: 'system', key: 'm' },
+  { id: 'profile', label: 'Profile', icon: User, group: 'system', key: 'u' },
   { id: 'settings', label: 'Settings', icon: Settings, group: 'system', key: '8' },
 ]
 
