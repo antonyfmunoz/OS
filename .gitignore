@@ -10,10 +10,15 @@ eos_ai/.env
 # IDE
 .vscode/
 
-# Obsidian internals
+# Obsidian internals and plugins (binary blobs, user-specific)
 .obsidian/workspace.json
 .obsidian/cache
 .obsidian/workspace.env
+.obsidian/plugins/
+
+# Node
+node_modules/
+saas/node_modules/
 
 # Python
 __pycache__/
@@ -76,8 +81,30 @@ CLAUDE.local.md
 data/action_log.jsonl
 data/action_snapshots/
 
-# Auto-generated codebase graph pages (derivable from data/codebase_graph.json)
+# Runtime JSONL logs (operational, not source code)
+data/orchestrator_log.jsonl
+data/control_plane_log.jsonl
+data/persistent_agents_log.jsonl
+data/workflow_log.jsonl
+data/harness_log.jsonl
+data/optimizer_proposals.jsonl
+data/advisor_log.jsonl
+data/improvement_log.jsonl
+
+# Runtime traces and memory candidates (grow unbounded)
+data/umh/traces/
+data/umh/memory_candidates/
+
+# All generated runtime proofs, examples, and state (dirs created on demand by writers)
+data/runtime/
+
+# Embedding vectors (large, derivable)
+data/semantic_space/
+
+# Auto-generated codebase graph pages and merged graphs (derivable from data/codebase_graph.json)
 data/codebase_pages/
+data/merged_graph.json
+data/codebase_graph_merged.json
 
 # Node mesh runtime (tokens, metrics logs)
 data/umh/mesh/

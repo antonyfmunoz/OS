@@ -15,6 +15,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from substrate.observability.jsonl_rotation import rotate_if_needed
+
 
 def _deterministic_id(namespace: str, content: str) -> str:
     h = hashlib.sha256(f"{namespace}:{content}".encode("utf-8")).hexdigest()[:16]
@@ -88,6 +90,7 @@ class TraceStore:
         self.index_path.write_text(json.dumps(idx, indent=2))
 
     def _append_jsonl(self, record: dict[str, Any]) -> None:
+        rotate_if_needed(self.traces_path)
         with open(self.traces_path, "a") as f:
             f.write(json.dumps(record, separators=(",", ":")) + "\n")
 
