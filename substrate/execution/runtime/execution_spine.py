@@ -181,7 +181,7 @@ class ExecutionSpine:
         # 3b. AgentMemory — interactions table
         try:
             from substrate.state.memory.memory import AgentMemory
-            from adapters.models.agent_runtime import AgentResult
+            from substrate.contracts.agent_types import AgentResult
 
             _agent_result = AgentResult(
                 output=response[:2000],

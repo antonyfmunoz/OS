@@ -72,7 +72,7 @@ Task: "{text}"
 
 Reply with exactly one of: lyfe_institute | empyrean_creative | personal_brand"""
 
-        from adapters.models.model_router import TaskType
+        from substrate.contracts.agent_types import TaskType
         model = router.route(TaskType.FAST_RESPONSE)
         result = router.call(model, prompt).strip().lower()
         if result in ('lyfe_institute', 'empyrean_creative', 'personal_brand'):

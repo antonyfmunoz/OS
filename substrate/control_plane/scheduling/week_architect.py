@@ -22,8 +22,8 @@ def architect_week(ctx=None) -> str:
     """
     try:
         from substrate.control_plane.scheduling.ideal_week import get_ideal_week
-        from adapters.models.model_router import get_router, TaskType
-
+        from substrate.contracts.agent_types import TaskType
+        from adapters.models.model_router import get_router
         ideal_week = get_ideal_week(ctx)
 
         # Format ideal week for LLM context (Mon-Fri only)

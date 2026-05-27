@@ -190,7 +190,8 @@ class OnboardingEngine:
         # ── Step 1: LLM extracts structured data ─────────────────────────────
         data: dict = {}
         try:
-            from adapters.models.agent_runtime import AgentRuntime, TaskType
+            from substrate.contracts.agent_types import TaskType
+            from adapters.models.agent_runtime import AgentRuntime
 
             rt     = AgentRuntime(self.ctx)
             loop   = asyncio.get_event_loop()

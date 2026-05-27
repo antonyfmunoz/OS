@@ -425,8 +425,8 @@ def quality_check(
     issues (list[str]), suggestions (list[str]), revised_version (str).
     """
     try:
-        from adapters.models.model_router import get_router, TaskType
-
+        from substrate.contracts.agent_types import TaskType
+        from adapters.models.model_router import get_router
         router = get_router()
         model = router.route(TaskType.FAST_RESPONSE)
 
