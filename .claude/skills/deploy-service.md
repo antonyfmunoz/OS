@@ -28,8 +28,8 @@ print('imports: clean')
 
 ## Services → files
 os-discord  → services/discord_bot.py
-os-bot      → services/telegram_control.py
-os-webhook  → transports/api/webhooks/calendly_webhook.py
+os-webhook  → services/higgsfield_webhook.py
+os-operator → transports/api/operator.py
 
 ## After deploy — verify
 docker logs [service] --tail 10

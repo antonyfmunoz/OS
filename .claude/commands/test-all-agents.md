@@ -2,9 +2,9 @@ Test all 4 EOS agents end-to-end.
 
 python3 -c "
 import sys; sys.path.insert(0, '/opt/OS')
-from eos_ai.agent_runtime import AgentRuntime, TaskType
-from eos_ai.agent_hierarchy import AgentHierarchy
-from eos_ai.context import load_context_from_env
+from adapters.models.agent_runtime import AgentRuntime; from substrate.contracts.agent_types import TaskType
+# agent_hierarchy: dormant — pending substrate migration
+from substrate.state.context.context import load_context_from_env
 ctx = load_context_from_env()
 rt = AgentRuntime(ctx)
 ah = AgentHierarchy()

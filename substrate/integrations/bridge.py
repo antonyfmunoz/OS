@@ -13,8 +13,11 @@ from typing import Any
 
 sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
-from adapters.models.routing.capabilities import CapabilityClass
-from adapters.models.routing.config import RoutingConfig, load_routing_config
+from substrate.contracts.routing_contracts import CapabilityClass
+
+def _load_routing():
+    from adapters.models.routing.config import RoutingConfig, load_routing_config
+    return RoutingConfig, load_routing_config
 
 
 class CapabilityBridge:
@@ -29,8 +32,11 @@ class CapabilityBridge:
         )
     """
 
-    def __init__(self, config: RoutingConfig | None = None) -> None:
-        self._config = config or load_routing_config()
+    def __init__(self, config: Any | None = None) -> None:
+        if config is None:
+            _, load_routing_config = _load_routing()
+            config = load_routing_config()
+        self._config = config
         self._model_router = None
 
     def _get_router(self) -> Any:

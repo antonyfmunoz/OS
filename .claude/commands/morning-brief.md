@@ -8,7 +8,7 @@ Pull current state:
 !`python3 -c "
 import sys; sys.path.insert(0,'/opt/OS')
 from dotenv import load_dotenv
-load_dotenv('/opt/OS/eos_ai/.env')
+load_dotenv('/opt/OS/services/.env')
 try:
     import psycopg2, os
     conn = psycopg2.connect(os.getenv('DATABASE_URL',''))
@@ -24,9 +24,9 @@ except:
 !`python3 -c "
 import sys; sys.path.insert(0,'/opt/OS')
 from dotenv import load_dotenv
-load_dotenv('/opt/OS/eos_ai/.env')
+load_dotenv('/opt/OS/services/.env')
 try:
-    from eos_ai.gws_connector import GWSConnector
+    from adapters.google_workspace.gws_connector import GWSConnector
     gws = GWSConnector()
     events = gws.get_today_events()
     for e in events[:5]:
@@ -43,7 +43,7 @@ except Exception as e:
 Based on the data above, build a brief dict and publish to Notion:
 
 ```python
-from eos_ai.notion_publisher import get_publisher
+# notion_publisher: dormant — no direct substrate equivalent yet
 publisher = get_publisher()
 url = publisher.publish_morning_brief(content={
     'binding_constraint': '[diagnosed constraint]',
@@ -59,7 +59,7 @@ Output format:
 
 Then post the URL to Discord:
 ```python
-from eos_ai.discord_utils import post_to_webhook
+from transports.discord.discord_utils import post_to_webhook
 import os
 webhook = os.getenv('DISCORD_BRIEF_WEBHOOK', '')
 if webhook and url:

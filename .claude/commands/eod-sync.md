@@ -8,7 +8,7 @@ Pull today's activity:
 !`python3 -c "
 import sys; sys.path.insert(0,'/opt/OS')
 from dotenv import load_dotenv
-load_dotenv('/opt/OS/eos_ai/.env')
+load_dotenv('/opt/OS/services/.env')
 try:
     import psycopg2, os
     conn = psycopg2.connect(os.getenv('DATABASE_URL',''))
@@ -34,7 +34,7 @@ except Exception as e:
 Based on the data and today's conversation context, build an EOD sync and publish to Notion:
 
 ```python
-from eos_ai.notion_publisher import get_publisher
+# notion_publisher: dormant — no direct substrate equivalent yet
 publisher = get_publisher()
 url = publisher.publish_eod_sync(content={
     'completed': '[what got done today]',
@@ -50,7 +50,7 @@ Output format:
 
 Then post the URL to Discord:
 ```python
-from eos_ai.discord_utils import post_to_webhook
+from transports.discord.discord_utils import post_to_webhook
 import os
 webhook = os.getenv('DISCORD_BRIEF_WEBHOOK', '')
 if webhook and url:

@@ -46,9 +46,8 @@ docker compose up -d
 
 | Service | What it does |
 |---|---|
-| `os-discord` | Your AI — primary interface in Discord |
-| `os-webhook` | Calendly booking integration |
-| `os-monitor` | Instagram DM monitor |
+| `os-discord` | UMH conversational layer — primary interface in Discord |
+| `os-webhook` | Higgsfield media generation webhook |
 | `os-operator` | Operator workstation API + cockpit |
 
 ## Intelligence layers

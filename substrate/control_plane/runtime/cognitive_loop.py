@@ -87,7 +87,7 @@ def _deterministic_cognitive_response(message: str) -> str:
 
 from substrate.state.context.context import EntrepreneurOSContext, load_context_from_env
 from substrate.contracts.agent_types import TaskType
-from adapters.models.agent_runtime import AgentRuntime
+from substrate.contracts.agent_runtime_contracts import get_agent_runtime
 from substrate.state.memory.memory import AgentMemory
 from substrate.governance.policy.authority_engine import AuthorityEngine
 from substrate.state.business.venture_knowledge import VentureKnowledgeBase
@@ -297,7 +297,7 @@ class CognitiveLoop:
 
     def __init__(self, ctx: EntrepreneurOSContext):
         self.ctx = ctx
-        self.runtime = AgentRuntime()
+        self.runtime = get_agent_runtime()
         self.memory = AgentMemory()
         self.authority = AuthorityEngine(ctx)
         self.intelligence = IntelligenceRuntime()

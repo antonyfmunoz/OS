@@ -1,7 +1,7 @@
 Run a browser task using Playwright.
 
 Usage:
-  python3 /opt/OS/eos_ai/browser_agent.py --url [url] --task "[task description]"
+  python3 -c "from substrate import run_browser_task" --url [url] --task "[task description]"
 
 The script will:
 1. Launch headless Chromium
@@ -16,7 +16,7 @@ Screenshots are taken only on exception or failure.
 Read the text output directly — no image files needed.
 
 Example:
-  python3 /opt/OS/eos_ai/browser_agent.py \
+  python3 -c "from substrate import run_browser_task" \
     --url https://news.ycombinator.com \
     --task "find the top 5 story titles"
 
@@ -31,6 +31,6 @@ Return shape (from run_browser_task()):
 
 Use from Python:
   import asyncio
-  from eos_ai.browser_agent import run_browser_task
+  from substrate import run_browser_task
   result = asyncio.run(run_browser_task(url="...", task="..."))
   print(result["findings"])

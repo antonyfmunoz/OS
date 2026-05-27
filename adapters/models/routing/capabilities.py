@@ -1,59 +1,14 @@
 """Symbolic capability classes for model routing.
 
-These labels describe what the system NEEDS, not which model to use.
-The routing config maps labels to providers. Callers never reference
-model names — they reference capabilities.
-
-Extends umh_mvp.router.symbolic with the full 12-label set required
-by the integration spec.
+Types are owned by substrate.contracts.routing_contracts — re-exported here
+for backwards compatibility within the adapters layer.
 """
 
-from __future__ import annotations
-
-from enum import StrEnum
-from typing import Any
-
-from pydantic import BaseModel, ConfigDict, Field
-
-
-class CapabilityClass(StrEnum):
-    """12 symbolic capability classes covering the full routing surface."""
-
-    BEST_CLOUD_REASONING = "best_cloud_reasoning"
-    FAST_CLOUD_REASONING = "fast_cloud_reasoning"
-    CHEAP_CLOUD_REASONING = "cheap_cloud_reasoning"
-    LOCAL_FAST_MODEL = "local_fast_model"
-    LOCAL_CODE_MODEL = "local_code_model"
-    LOCAL_EMBEDDING_MODEL = "local_embedding_model"
-    LOCAL_VISION_MODEL = "local_vision_model"
-    LOCAL_TRANSCRIPTION_MODEL = "local_transcription_model"
-    CLOUD_VISION_MODEL = "cloud_vision_model"
-    LOCAL_TTS_MODEL = "local_tts_model"
-    CLOUD_TTS_MODEL = "cloud_tts_model"
-    LOCAL_STT_MODEL = "local_stt_model"
-
-
-class PrivacyLevel(StrEnum):
-    """How sensitive the data being routed is."""
-
-    PUBLIC = "public"
-    INTERNAL = "internal"
-    CONFIDENTIAL = "confidential"
-    RESTRICTED = "restricted"
-
-
-class CapabilityEntry(BaseModel):
-    """Full routing entry for a capability class."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    capability_class: CapabilityClass
-    preferred_provider_symbol: str
-    fallback_provider_symbols: list[str] = Field(default_factory=list)
-    privacy_level: PrivacyLevel = PrivacyLevel.INTERNAL
-    max_cost_hint: str = "unlimited"
-    local_first: bool = False
-    notes: str = ""
+from substrate.contracts.routing_contracts import (  # noqa: F401
+    CapabilityClass,
+    CapabilityEntry,
+    PrivacyLevel,
+)
 
 
 CAPABILITY_REGISTRY: dict[CapabilityClass, CapabilityEntry] = {
