@@ -33,9 +33,6 @@ export function TitleBar() {
       <span className="relative font-mono text-xs tracking-widest uppercase text-cyan">
         UMH
       </span>
-      <span className="relative ml-1.5 text-xs text-text-tertiary">
-        cockpit
-      </span>
 
       <div className="flex-1" />
 

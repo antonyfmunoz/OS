@@ -28,7 +28,7 @@ export function LeftRail() {
           <div className="flex items-center gap-2">
             <div className={clsx('w-2 h-2 rounded-full', wsConnected ? 'bg-ok wv-pulse' : 'bg-danger')} />
             <span className="text-[11px] font-mono text-text-secondary tracking-wider uppercase">
-              UMH Cockpit
+              UMH
             </span>
           </div>
         )}
