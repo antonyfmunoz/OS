@@ -103,8 +103,15 @@ export const useSystemStore = create<SystemState>((set) => ({
 
   fetchMeshNodes: async () => {
     try {
-      const data = await fetchApi<MeshNode[]>('/mesh/nodes')
-      set({ meshNodes: data, error: null })
+      const raw = await fetchApi<Array<Record<string, unknown>>>('/mesh/nodes')
+      const nodes: MeshNode[] = raw.map((n) => ({
+        node_id: (n.node_id ?? n.id ?? '') as string,
+        hostname: (n.hostname ?? n.name ?? '') as string,
+        role: (n.role ?? n.os ?? 'node') as string,
+        status: String(n.status) === 'connected' || String(n.status) === 'online' ? 'online' : String(n.status),
+        last_seen: (n.last_seen ?? n.last_heartbeat ?? '') as string,
+      }))
+      set({ meshNodes: nodes, error: null })
     } catch {
       set({ meshNodes: [] })
     }

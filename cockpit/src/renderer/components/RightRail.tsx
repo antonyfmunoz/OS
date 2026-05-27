@@ -1,6 +1,6 @@
 import { clsx } from 'clsx'
 import { useState, useRef, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, MessageSquare, Activity, Terminal, Send } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MessageSquare, Activity, Terminal, Send, Pencil, Check } from 'lucide-react'
 import { useSystemStore } from '../stores/systemStore'
 import { useChatStore } from '../stores/chatStore'
 import { usePolling } from '../hooks/usePolling'
@@ -89,15 +89,51 @@ function ChatSection() {
   const sendMessage = useChatStore((s) => s.sendMessage)
   const loadHistory = useChatStore((s) => s.loadHistory)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const [assistantName, setAssistantName] = useState('DEX ASSISTANT')
+  const [editingName, setEditingName] = useState(false)
+  const [nameInput, setNameInput] = useState(assistantName)
+  const nameRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { loadHistory() }, [loadHistory])
   useEffect(() => { scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight) }, [messages])
+  useEffect(() => { if (editingName) nameRef.current?.focus() }, [editingName])
 
   const handleSend = () => { if (input.trim()) sendMessage(input) }
 
+  const commitName = () => {
+    const trimmed = nameInput.trim()
+    if (trimmed) setAssistantName(trimmed)
+    else setNameInput(assistantName)
+    setEditingName(false)
+  }
+
   return (
     <div className="flex flex-col h-full">
-      <div className="wv-label mb-2">DEX ASSISTANT</div>
+      <div className="flex items-center gap-1.5 mb-2">
+        {editingName ? (
+          <>
+            <input
+              ref={nameRef}
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') commitName(); if (e.key === 'Escape') { setNameInput(assistantName); setEditingName(false) } }}
+              onBlur={commitName}
+              className="wv-label bg-transparent border-b border-cyan outline-none flex-1 uppercase"
+              style={{ fontSize: 'inherit', lineHeight: 'inherit' }}
+            />
+            <button onClick={commitName} className="p-0.5 text-cyan hover:text-text-primary transition-colors">
+              <Check size={10} />
+            </button>
+          </>
+        ) : (
+          <>
+            <span className="wv-label">{assistantName}</span>
+            <button onClick={() => { setNameInput(assistantName); setEditingName(true) }} className="p-0.5 text-text-tertiary hover:text-cyan transition-colors">
+              <Pencil size={10} />
+            </button>
+          </>
+        )}
+      </div>
       <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-2 mb-2">
         {messages.map((m) => (
           <div key={m.id} className={clsx('px-2 py-1.5 rounded text-[11px]', m.sender === 'operator' ? 'bg-cyan-glow text-text-primary ml-4' : 'bg-surface-raised text-text-secondary mr-4')}>
