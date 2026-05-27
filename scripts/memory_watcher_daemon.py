@@ -14,10 +14,11 @@ frontmatter to a watched directory gets auto-synced.
 
 import logging
 import signal
+import os
 import sys
 import time
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
 from substrate.memory.watcher import start_memory_watcher
 

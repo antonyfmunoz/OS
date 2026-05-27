@@ -290,7 +290,7 @@ AI is a cognitive enhancement, not a dependency.
 
 ## Model Strategy
 - Default: opus (settings.json)
-- Extended thinking: always on (alwaysThinkingEnabled: true)
+- Extended thinking: off (alwaysThinkingEnabled: false in settings.json)
 - For long multi-step tasks: use opusplan
   (/model opusplan) — Opus reasons the plan,
   Sonnet executes. More cost-efficient.

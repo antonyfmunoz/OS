@@ -42,6 +42,7 @@ services:
       - ${UMH_ROOT:-/opt/OS}:/app
     env_file:
       - services/.env
+      - infra/docker/umh.env
     environment:
       - PYTHONPATH=/app
       - UMH_ROOT=/app

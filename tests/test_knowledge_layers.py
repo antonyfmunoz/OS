@@ -1,8 +1,9 @@
+import os
 """Tests for knowledge layers 6-17 behavioral distillation engine."""
 
 import sys
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
 from substrate.understanding.knowledge.knowledge_layers import (
     KnowledgeLayer,

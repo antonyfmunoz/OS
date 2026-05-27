@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sys
 from dataclasses import dataclass, field
 from typing import Any
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
 from substrate.governance.policy.authority_tier import T9_OLD_CHATS, validate_tier
 from substrate.understanding.perception.source import RawContent, Source

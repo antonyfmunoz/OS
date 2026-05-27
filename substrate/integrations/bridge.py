@@ -7,10 +7,11 @@ call_with_fallback() without modifying it.
 
 from __future__ import annotations
 
+import os
 import sys
 from typing import Any
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
 from adapters.models.routing.capabilities import CapabilityClass
 from adapters.models.routing.config import RoutingConfig, load_routing_config

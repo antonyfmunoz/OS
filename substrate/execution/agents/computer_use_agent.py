@@ -175,8 +175,9 @@ class ComputerUseAgent(ABC):
     ) -> dict[str, Any]:
         """Ask vision LLM what to do next given the screenshot and task."""
         try:
+            import os
             import sys
-            sys.path.insert(0, "/opt/OS")
+            sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
             from adapters.models.model_router import call_with_fallback
         except ImportError:
             return {"done": True, "reason": "model_router not available"}

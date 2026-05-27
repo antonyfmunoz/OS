@@ -13,12 +13,13 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
 from adapters.data_source_adapters.github_source import GitHubRepoWalker
 from substrate.understanding.perception.orchestrator import GenericIngestionOrchestrator
