@@ -162,8 +162,8 @@ Before any deploy:
 
 ## System
 VPS: 100.77.233.50 | Dir: /opt/OS
-Services: os-discord, os-bot, os-monitor, os-webhook
-LLM: Gemini 2.5 Flash (primary), Ollama gemma3:4b (fallback)
+Services: os-discord, os-operator, os-webhook, os-scraper
+LLM: cc_sdk/Opus 4.6 (primary), Gemini 2.5 Flash, Groq, Ollama (fallback chain)
 Stage: loaded from BIS at runtime
 
 ## Node Role Discipline (NON-NEGOTIABLE)
@@ -307,11 +307,11 @@ AI is a cognitive enhancement, not a dependency.
 - gemini-2.0-flash deprecated for new users → use gemini-2.5-flash
 - Codex exec requires stdin pipe and has reconnect issues → not in fallback chain
 - Business stage pre_revenue → economy mode → forces Haiku. Override: pass agent_type='ceo' to call_with_fallback
-- GROQ + PERPLEXITY keys in eos_ai/.env and services/.env — both in fallback chain
+- GROQ + PERPLEXITY keys in services/.env — both in fallback chain
 - gemini binary not installed — Gemini via Python SDK only
 - .claude/agents/ subagents require CC auth to run (blocked until Anthropic credits restored)
 - CC_MODEL_MAP exists in model_router.py — used when Anthropic comes back online
-- Ollama gemma3:4b needs ~3.3 GiB RAM — fits with os-bot stopped
+- Ollama gemma3:4b needs ~3.3 GiB RAM — fits within VPS memory
 - NOTION_MORNING_BRIEF_ID points to dead DB → publisher falls back to Documents DB
 - After Ollama model change: `docker restart` services to pick up new code (Python files are bind-mounted)
 - Never hardcode `anthropic.Anthropic()` in services — always use model_router.call_with_fallback
@@ -343,10 +343,13 @@ fallback. Output schema per observation:
 Proofs:
   data/runtime/canonical_memory_store/proofs/
 
-## Completion Standards (NON-NEGOTIABLE)
+## Completion Standards (NON-NEGOTIABLE — ENFORCED)
 These rules exist because every one was violated and caused real failures.
 
 - NEVER claim "done" without running a verification pass that tries to break your own work
+- NEVER claim a count is correct without comparing it to an independent measurement (find, wc, grep -c)
+- NEVER claim coverage is exhaustive without showing your total matches ground truth
+- NEVER patch incrementally and claim done — start from ground truth, close all gaps in one pass
 - NEVER answer "is it done?" from memory — audit the actual codebase state and answer from observation
 - The user should NEVER have to ask for the same thing twice. If they repeat themselves, you failed.
 - After code changes to services/, restart affected Docker containers and verify clean startup from logs
@@ -384,3 +387,30 @@ Dependency direction: projections → transports → adapters → substrate
   substrate is the innermost layer. It never reaches outward.
   If substrate needs transport functionality, create an abstract port
   in substrate/sockets/ and register the concrete implementation at startup.
+
+## Inventory & Audit Verification Protocol (NON-NEGOTIABLE)
+Added 2026-05-27. AFM asked 5 times for a complete audit. Each time
+the response claimed 100% and was wrong. Memory rules existed and were
+ignored. These are mechanical gates, not guidelines.
+
+When ANY output claims to be exhaustive, complete, or 100%:
+
+1. RUN `find /opt/OS -type f` (with standard excludes) and get the total
+2. SUM your table/list — every row must add to the total
+3. IF they disagree, your claim is wrong — find the gap before reporting
+4. NEVER say "100%" without showing the matching numbers
+5. NEVER estimate file counts — count them
+
+When auditing directories:
+- Count ALL file types, not just .py
+- Every top-level directory must appear in the output
+- Every subdirectory with >0 files must be described
+- "0 files" claims require actual verification (logs/ had 5,835 when claimed 0)
+
+Before saying "done" on any inventory/audit task:
+```bash
+find /opt/OS -type f -not -path '*/.git/*' -not -path '*/node_modules/*' \
+  -not -path '*/__pycache__/*' -not -path '*/.mypy_cache/*' \
+  -not -path '*/.ruff_cache/*' -not -path '*/.pytest_cache/*' | wc -l
+```
+This number must match your reported total. No exceptions.
