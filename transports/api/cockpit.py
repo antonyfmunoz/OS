@@ -599,7 +599,10 @@ async def mesh_nodes():
 
     def _map_ts_node(n: dict, is_self: bool = False) -> dict | None:
         hostname = n.get("HostName", "")
-        key = hostname.lower()
+        dns_name = n.get("DNSName", "").split(".")[0]  # e.g. "iphone-15-pro-max"
+        # Use DNSName when HostName is generic (iOS devices report "localhost")
+        display = dns_name if hostname.lower() in ("localhost", "") and dns_name else hostname
+        key = display.lower()
         if key.startswith("umh-cockpit"):
             return None
         if key in seen:
@@ -618,7 +621,7 @@ async def mesh_nodes():
 
         return {
             "node_id": key,
-            "hostname": _NAME_MAP.get(key, hostname),
+            "hostname": _NAME_MAP.get(key, display),
             "role": _ROLE_MAP.get(key, "mobile" if os_name == "iOS" else "node"),
             "status": "online" if online else "offline",
             "os": os_name,

@@ -69,28 +69,37 @@ router.get('/mesh/nodes', (c) => {
   }
   const nameMap: Record<string, string> = {
     'desktop-lvguiq9': 'Beast PC',
+    'ipad-pro-12-9-gen-5': 'iPad Pro',
+    'iphone-15-pro-max': 'iPhone 15 Pro Max',
   }
 
   interface TsNode {
     HostName: string
+    DNSName?: string
     OS: string
     Online: boolean
     TailscaleIPs?: string[]
     LastSeen?: string
   }
 
-  function mapNode(n: TsNode): object {
-    const key = n.HostName.toLowerCase()
+  function mapNode(n: TsNode): { key: string; node: object } | null {
+    const dns = n.DNSName?.split('.')[0] ?? ''
+    const display = (n.HostName.toLowerCase() === 'localhost' || !n.HostName) && dns ? dns : n.HostName
+    const key = display.toLowerCase()
+    if (key.startsWith('umh-cockpit')) return null
     return {
-      node_id: key,
-      hostname: nameMap[key] ?? n.HostName,
-      role: roleMap[key] ?? (n.OS === 'iOS' ? 'mobile' : 'node'),
-      status: n.Online ? 'online' : 'offline',
-      os: n.OS,
-      ip: n.TailscaleIPs?.[0] ?? '',
-      last_seen: n.LastSeen && n.LastSeen !== '0001-01-01T00:00:00Z'
-        ? n.LastSeen
-        : n.Online ? new Date().toISOString() : '',
+      key,
+      node: {
+        node_id: key,
+        hostname: nameMap[key] ?? display,
+        role: roleMap[key] ?? (n.OS === 'iOS' ? 'mobile' : 'node'),
+        status: n.Online ? 'online' : 'offline',
+        os: n.OS,
+        ip: n.TailscaleIPs?.[0] ?? '',
+        last_seen: n.LastSeen && n.LastSeen !== '0001-01-01T00:00:00Z'
+          ? n.LastSeen
+          : n.Online ? new Date().toISOString() : '',
+      },
     }
   }
 
@@ -98,17 +107,19 @@ router.get('/mesh/nodes', (c) => {
   const seen = new Set<string>()
 
   if (ts.Self) {
-    nodes.push(mapNode(ts.Self))
-    seen.add(ts.Self.HostName.toLowerCase())
+    const mapped = mapNode(ts.Self)
+    if (mapped && !seen.has(mapped.key)) {
+      nodes.push(mapped.node)
+      seen.add(mapped.key)
+    }
   }
 
   if (ts.Peer) {
     for (const p of Object.values(ts.Peer) as TsNode[]) {
-      const key = p.HostName.toLowerCase()
-      if (key.startsWith('umh-cockpit')) continue
-      if (seen.has(key)) continue
-      seen.add(key)
-      nodes.push(mapNode(p))
+      const mapped = mapNode(p)
+      if (!mapped || seen.has(mapped.key)) continue
+      seen.add(mapped.key)
+      nodes.push(mapped.node)
     }
   }
 
