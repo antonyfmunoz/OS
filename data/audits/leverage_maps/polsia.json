@@ -1,0 +1,46 @@
+{
+  "source": "Polsia",
+  "system_type": "agent_system",
+  "evidence_level": "CLAIMED",
+  "what_it_does": "AI that runs your company while you sleep. Autonomous business execution, overnight operations, multi-agent scaling.",
+  "operational_patterns": [
+    "Continuous background execution loop",
+    "Multi-agent task distribution",
+    "Overnight autonomous operation",
+    "Company operations loop covering planning, coding, marketing"
+  ],
+  "runtime_patterns": [
+    "Persistent daemon mode with continuous execution",
+    "Multi-agent scaling (claimed, not verified)",
+    "Background work queuing"
+  ],
+  "governance_patterns": [
+    "Unknown — no public documentation on governance or safety bounds"
+  ],
+  "ux_patterns": [
+    "Single user-facing interface",
+    "Results-on-wake paradigm (overnight execution, morning review)"
+  ],
+  "execution_loops": [
+    "Company operations loop: plan → execute → iterate → report",
+    "Product iteration: code → test → deploy",
+    "Marketing execution: content → publish → analyze",
+    "Continuous background work queue draining"
+  ],
+  "reusable_primitives": [
+    "Overnight execution paradigm (queue evening, report morning)",
+    "Results-on-wake UX pattern",
+    "Multi-domain task routing (coding, marketing, planning)"
+  ],
+  "redundancy_risk": "MEDIUM — UMH has OrganismDaemon with autonomous_tick, PersistentLoop, and signal queue. The 'overnight execution' pattern maps directly to daemon + cron scheduling.",
+  "adaptation_priority": "LOW for core — UMH already has daemon, tick, queue. MEDIUM for UX pattern — results-on-wake morning brief is partially implemented (morning_brief skill) but could be tighter.",
+  "umh_mapping": {
+    "continuous_execution": "substrate/organism/daemon.py — OrganismDaemon.run_forever()",
+    "signal_queue": "substrate/organism/advisor.py — Advisor.queue_signal() + _drain_signal_queue()",
+    "multi_agent": "substrate/organism/coordinator.py — OrganismCoordinator.execute_objective()",
+    "morning_review": "skills/morning-brief/SKILL.md + services/cron_scripts/"
+  },
+  "eos_relevance": "HIGH — EOS is the company-level projection. Polsia's 'runs your company' maps to EOS agent hierarchy (sales, ops, marketing agents).",
+  "trinity_relevance": "MEDIUM — each Trinity product could have overnight execution loops",
+  "expected_leverage_gain": "0.15 — primary gap is the results-on-wake UX tightening and formal 'company operations loop' definition at the EOS projection layer"
+}
