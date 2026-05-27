@@ -43,7 +43,7 @@ echo "[$(date -Iseconds)] close_day ritual_id=${RITUAL_ID:-none}" >> "$LOG_FILE"
 # Provider health gate — consolidation requires LLMs for summarization
 if ! python3 -c "
 import sys; import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS')
-from dotenv import load_dotenv; load_dotenv(os.path.join(os.environ.get('UMH_ROOT', '/opt/OS'), 'runtime/.env'))
+from dotenv import load_dotenv; load_dotenv(os.path.join(os.environ.get('UMH_ROOT', '/opt/OS'), 'services/.env'))
 from runtime.provider_health import check_all
 sys.exit(0 if check_all().any_healthy else 1)
 " 2>/dev/null; then

@@ -21,7 +21,7 @@ class NodeRegistry:
 
     def __init__(self, heartbeat_timeout_s: float = 90.0) -> None:
         self._nodes: dict[str, ConnectedNode] = {}
-        self._lock = threading.RLock()
+        self._lock = threading.Lock()
         self._heartbeat_timeout_s = heartbeat_timeout_s
 
     def add(self, node: ConnectedNode) -> None:
@@ -52,8 +52,8 @@ class NodeRegistry:
             if node is None:
                 return False
             node.update_heartbeat(metrics)
-            self._write_snapshot()
-            return True
+        self._write_snapshot()
+        return True
 
     def stale_nodes(self) -> list[str]:
         """Return node_ids that have exceeded the heartbeat timeout."""
@@ -74,6 +74,6 @@ class NodeRegistry:
             with self._lock:
                 data = [n.to_api_dict() for n in self._nodes.values()]
             _SNAPSHOT_PATH.parent.mkdir(parents=True, exist_ok=True)
-            _SNAPSHOT_PATH.write_text(json.dumps(data), encoding="utf-8")
+            _SNAPSHOT_PATH.write_text(json.dumps(data, default=str), encoding="utf-8")
         except Exception:
             logger.debug("snapshot write failed", exc_info=True)

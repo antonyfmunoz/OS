@@ -45,6 +45,7 @@ pythonpath = ["."]
 asyncio_mode = "auto"
 markers = [
     "integration: marks tests that hit real external services or data (deselect with '-m \"not integration\"')",
+    "smoke: fast import/health checks for production services (run with '-m smoke')",
 ]
 
 [tool.ruff]

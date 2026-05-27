@@ -9,7 +9,7 @@ SESSIONS_BASE="$HOME/.claude_sessions"
 SESSION_NAMES=("builder" "product" "adhoc")
 LOG_FILE="${UMH_ROOT:-/opt/OS}/logs/cc_auth_health.log"
 BACKUP_DIR="$HOME/.claude/.credentials_backups"
-DISCORD_WEBHOOK_ENV="${UMH_ROOT:-/opt/OS}/runtime/.env"
+DISCORD_WEBHOOK_ENV="${UMH_ROOT:-/opt/OS}/services/.env"
 
 mkdir -p "$BACKUP_DIR"
 

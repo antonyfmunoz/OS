@@ -83,11 +83,11 @@ _HAS_SPINE = False
 try:
     from substrate.execution.runtime.execution_spine import ExecutionSpine
     from substrate.control_plane.context.context_builder import ContextBuilder
-    from substrate.state.context.context import load_context_from_env
+    from substrate.state.context.context import try_load_context_from_env
 
     _spine = ExecutionSpine()
     _ctx_builder = ContextBuilder()
-    _ctx = load_context_from_env()
+    _ctx = try_load_context_from_env()
     _HAS_SPINE = True
     logger.info("ExecutionSpine loaded — chat via spine")
 except Exception as e:

@@ -16,7 +16,7 @@ echo "[$(date -Iseconds)] open_day ritual_id=${RITUAL_ID:-none}" >> "$LOG"
 # Provider health gate — skip if no LLM provider is reachable
 if ! python3 -c "
 import sys; import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS')
-from dotenv import load_dotenv; load_dotenv(os.path.join(os.environ.get('UMH_ROOT', '/opt/OS'), 'runtime/.env'))
+from dotenv import load_dotenv; load_dotenv(os.path.join(os.environ.get('UMH_ROOT', '/opt/OS'), 'services/.env'))
 from runtime.provider_health import check_all
 sys.exit(0 if check_all().any_healthy else 1)
 " 2>/dev/null; then
@@ -39,7 +39,7 @@ Step 2 — API key check:
   python3 -c \"
 import os; from pathlib import Path
 from dotenv import load_dotenv
-load_dotenv(os.path.join(os.environ.get('UMH_ROOT', '/opt/OS'), 'runtime/.env'))
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT', '/opt/OS'), 'services/.env'))
 key = os.getenv('ANTHROPIC_API_KEY','')
 print('Anthropic key:', 'set' if key else 'MISSING')
 \"

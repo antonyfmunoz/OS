@@ -13,7 +13,7 @@ cd ${UMH_ROOT:-/opt/OS}
 # Exits 0 (success) so cron doesn't email failure noise.
 if ! python3 -c "
 import sys; import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS')
-from dotenv import load_dotenv; load_dotenv(os.path.join(os.environ.get('UMH_ROOT', '/opt/OS'), 'runtime/.env'))
+from dotenv import load_dotenv; load_dotenv(os.path.join(os.environ.get('UMH_ROOT', '/opt/OS'), 'services/.env'))
 from observability.health.provider_health import check_all
 h = check_all()
 sys.exit(0 if h.any_healthy else 1)
@@ -94,7 +94,7 @@ from pathlib import Path
 
 import os; sys.path.insert(0, os.environ.get('UMH_ROOT') or '/opt/OS')
 from dotenv import load_dotenv
-load_dotenv(os.path.join(os.environ.get('UMH_ROOT', '/opt/OS'), 'runtime/.env'))
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT', '/opt/OS'), 'services/.env'))
 from control_plane.runtime.gateway import EOSGateway
 
 gateway = EOSGateway()

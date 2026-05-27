@@ -87,7 +87,7 @@ if str(_SCRIPT_DIR) not in sys.path:
 from dotenv import load_dotenv
 
 load_dotenv(_SCRIPT_DIR / ".env")
-load_dotenv(_REPO_ROOT / "runtime" / ".env")
+load_dotenv(_REPO_ROOT / "services" / ".env")
 
 # ─── EOS imports ──────────────────────────────────────────────────────────────
 
@@ -104,7 +104,7 @@ if _rt_spec and "runtime" not in sys.modules:
         _rt_spec.loader.exec_module(_rt_mod)
 
 from substrate.control_plane.runtime.gateway import EntrepreneurOSGateway
-from substrate.state.context.context import load_context_from_env
+from substrate.state.context.context import load_context_from_env, try_load_context_from_env
 from substrate.understanding.knowledge.knowledge_integrator import KnowledgeIntegrator
 from substrate.execution.voice.voice_engine import VoiceEngine
 from substrate.state.business.business_instance import get_ai_name
@@ -195,7 +195,9 @@ except ImportError:
 
 # ─── Initialise ───────────────────────────────────────────────────────────────
 
-_ctx_eos = load_context_from_env()
+_ctx_eos = try_load_context_from_env()
+if _ctx_eos is None:
+    raise SystemExit("FATAL: EOS_ORG_ID and EOS_USER_ID must be set in services/.env")
 _gateway = EntrepreneurOSGateway()  # singleton — no ctx arg
 _ki = KnowledgeIntegrator(_ctx_eos)
 _ve = VoiceEngine()
