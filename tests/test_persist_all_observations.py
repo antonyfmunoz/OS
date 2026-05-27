@@ -114,7 +114,7 @@ class TestPersistAllObservations:
         orchestrator = GenericIngestionOrchestrator(memory_store_path=memory_store)
 
         with patch(
-            "substrate.execution.runtime.model_router.call_with_fallback",
+            "adapters.models.model_router.call_with_fallback",
             return_value=_mock_call_with_fallback(MULTI_OBS_LLM_RESPONSE),
         ):
             result = orchestrator.ingest(source)
@@ -138,7 +138,7 @@ class TestPersistAllObservations:
         orchestrator = GenericIngestionOrchestrator(memory_store_path=memory_store)
 
         with patch(
-            "substrate.execution.runtime.model_router.call_with_fallback",
+            "adapters.models.model_router.call_with_fallback",
             return_value=_mock_call_with_fallback(MULTI_OBS_LLM_RESPONSE),
         ):
             result = orchestrator.ingest(source)
@@ -157,7 +157,7 @@ class TestPersistAllObservations:
         orchestrator = GenericIngestionOrchestrator(memory_store_path=memory_store)
 
         with patch(
-            "substrate.execution.runtime.model_router.call_with_fallback",
+            "adapters.models.model_router.call_with_fallback",
             return_value=_mock_call_with_fallback(MULTI_OBS_LLM_RESPONSE),
         ):
             result = orchestrator.ingest(source)
@@ -179,7 +179,7 @@ class TestPersistAllObservations:
         orchestrator = GenericIngestionOrchestrator(memory_store_path=memory_store)
 
         with patch(
-            "substrate.execution.runtime.model_router.call_with_fallback",
+            "adapters.models.model_router.call_with_fallback",
             side_effect=Exception("API down"),
         ):
             result = orchestrator.ingest(source)
@@ -198,7 +198,7 @@ class TestPersistAllObservations:
         orchestrator = GenericIngestionOrchestrator(memory_store_path=memory_store)
 
         with patch(
-            "substrate.execution.runtime.model_router.call_with_fallback",
+            "adapters.models.model_router.call_with_fallback",
             return_value=_mock_call_with_fallback(MULTI_OBS_LLM_RESPONSE),
         ):
             result = orchestrator.ingest(source)
@@ -211,7 +211,7 @@ class TestPersistAllObservations:
         orchestrator = GenericIngestionOrchestrator(memory_store_path=memory_store)
 
         with patch(
-            "substrate.execution.runtime.model_router.call_with_fallback",
+            "adapters.models.model_router.call_with_fallback",
             return_value=_mock_call_with_fallback(MULTI_OBS_LLM_RESPONSE),
         ):
             result = orchestrator.ingest(source)

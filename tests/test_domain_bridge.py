@@ -221,7 +221,7 @@ class TestProjectionBackReference:
         orchestrator = GenericIngestionOrchestrator(memory_store_path=memory_store)
 
         with patch(
-            "substrate.execution.runtime.model_router.call_with_fallback",
+            "adapters.models.model_router.call_with_fallback",
             return_value=_mock_call_with_fallback(BUSINESS_LLM_RESPONSE),
         ):
             result = orchestrator.ingest(source)
@@ -241,7 +241,7 @@ class TestPipelinePersistsBothLayers:
         orchestrator = GenericIngestionOrchestrator(memory_store_path=memory_store)
 
         with patch(
-            "substrate.execution.runtime.model_router.call_with_fallback",
+            "adapters.models.model_router.call_with_fallback",
             return_value=_mock_call_with_fallback(BUSINESS_LLM_RESPONSE),
         ):
             result = orchestrator.ingest(source)
@@ -268,7 +268,7 @@ class TestPipelinePersistsBothLayers:
         orchestrator = GenericIngestionOrchestrator(memory_store_path=memory_store)
 
         with patch(
-            "substrate.execution.runtime.model_router.call_with_fallback",
+            "adapters.models.model_router.call_with_fallback",
             return_value=_mock_call_with_fallback(BUSINESS_LLM_RESPONSE),
         ):
             result = orchestrator.ingest(source)
