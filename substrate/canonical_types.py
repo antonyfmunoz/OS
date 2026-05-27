@@ -115,6 +115,26 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "WorkcellRole": ["substrate.organism.workcell_protocol"],
     # ── substrate/organism/runtime_supervisor.py ────────────────────────
     "SupervisedHealth": ["substrate.organism.runtime_supervisor"],
+    # ── substrate/organism/mission.py ─────────────────────────────────
+    "MissionStatus": ["substrate.organism.mission"],
+    # ── substrate/organism/workcell_daemon.py ──────────────────────────
+    "DaemonStatus": ["substrate.organism.workcell_daemon"],
+    # ── substrate/governance/policy/execution_authority_engine_v1.py ─────
+    "AuthorityClass": ["substrate.governance.policy.execution_authority_engine_v1"],
+    "ApprovalRequirement": ["substrate.governance.policy.execution_authority_engine_v1"],
+    # ── substrate/organism/execution_economy.py ─────────────────────────
+    "ExecutionClass": ["substrate.organism.execution_economy"],
+    "VerificationResult": ["substrate.organism.execution_economy"],
+    # ── substrate/organism/recursion_governance.py ─────────────────────
+    "EscalationLevel": ["substrate.organism.recursion_governance"],
+    "RecursionApproval": ["substrate.organism.recursion_governance"],
+    # ── substrate/organism/advisor_hierarchy.py ────────────────────────
+    "AdvisorScope": ["substrate.organism.advisor_hierarchy"],
+    "AdvisorAuthority": ["substrate.organism.advisor_hierarchy"],
+    "AdvisorStatus": ["substrate.organism.advisor_hierarchy"],
+    # ── substrate/self_model.py ────────────────────────────────────────
+    "Layer": ["substrate.self_model"],
+    "ContextKind": ["substrate.self_model"],
 }
 
 

@@ -1,0 +1,56 @@
+{
+  "source": "Andrej Karpathy Claude.md / Claude Code Operational Practices",
+  "system_type": "pattern_library",
+  "evidence_level": "VERIFIED",
+  "what_it_does": "Claude Code configuration patterns for maximizing AI coding agent effectiveness. CLAUDE.md as the canonical instruction file, project rules, memory system, tool mastery.",
+  "operational_patterns": [
+    "CLAUDE.md as single source of truth for AI behavior",
+    "Project rules (.claude/rules/) for domain-specific constraints",
+    "Memory system for cross-session learning",
+    "Tool mastery engine — research official docs, create skill, reuse",
+    "Boris Cherny verification principle — always verify output"
+  ],
+  "runtime_patterns": [
+    "Claude Code as primary development runtime",
+    "Subscription-based (no per-call cost)",
+    "Subagent delegation for parallel work",
+    "Git worktree isolation for parallel execution"
+  ],
+  "governance_patterns": [
+    "Pre-commit hooks for structural enforcement",
+    "Type coherence gates (anti-divergence)",
+    "Instance context gates (no hardcoded values)",
+    "Completion standards as non-negotiable rules",
+    "Self-improvement loop (mistake → rule → prevent)"
+  ],
+  "ux_patterns": [
+    "Soul documents for agent identity",
+    "Trigger-based skill descriptions",
+    "Cognition stack bootstrap at session start"
+  ],
+  "execution_loops": [
+    "Read → Plan → Execute → Verify → Deploy",
+    "Mistake → Rule → Compound improvement",
+    "Tool encounter → Research → Skill creation → Reuse"
+  ],
+  "reusable_primitives": [
+    "CLAUDE.md instruction hierarchy pattern",
+    "Pre-commit enforcement gates",
+    "Self-improvement loop (already in UMH)",
+    "Cognition stack bootstrap (already in UMH)",
+    "Boris Cherny verification principle (already in UMH)"
+  ],
+  "redundancy_risk": "HIGH — UMH CLAUDE.md already implements all Karpathy-inspired patterns: rules, memory, verification, self-improvement loop, tool mastery engine.",
+  "adaptation_priority": "LOW — fully absorbed. UMH goes further with pre-commit gates, canonical type registry, instance context law.",
+  "umh_mapping": {
+    "claude_md": "CLAUDE.md — already the single instruction source",
+    "rules": ".claude/rules/ — type-coherence.md, instance-context.md, agents.md, skills.md",
+    "memory": "~/.claude/memory/ — auto-memory system",
+    "verification": "CLAUDE.md completion standards, Boris Cherny principles",
+    "self_improvement": "CLAUDE.md self-improvement loop section",
+    "tool_mastery": "skills/tools/ — Tool Mastery Engine"
+  },
+  "eos_relevance": "LOW — these are development patterns, not business execution",
+  "trinity_relevance": "LOW — development infrastructure, not product features",
+  "expected_leverage_gain": "0.0 — all patterns already absorbed and operational"
+}
