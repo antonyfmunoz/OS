@@ -597,58 +597,66 @@ async def mesh_nodes():
     nodes: list[dict] = []
     seen: set[str] = set()
 
+    def _map_ts_node(n: dict, is_self: bool = False) -> dict | None:
+        hostname = n.get("HostName", "")
+        key = hostname.lower()
+        if key.startswith("umh-cockpit"):
+            return None
+        if key in seen:
+            return None
+        seen.add(key)
+
+        ips = n.get("TailscaleIPs", [])
+        ip = ips[0] if ips else ""
+        online = n.get("Online", False) or is_self
+        os_name = n.get("OS", "")
+        last_seen = n.get("LastSeen", "")
+        if last_seen == "0001-01-01T00:00:00Z":
+            last_seen = ""
+
+        daemon = daemon_nodes.get(ip, {})
+
+        return {
+            "node_id": key,
+            "hostname": _NAME_MAP.get(key, hostname),
+            "role": _ROLE_MAP.get(key, "mobile" if os_name == "iOS" else "node"),
+            "status": "online" if online else "offline",
+            "os": os_name,
+            "ip": ip,
+            "last_seen": last_seen if not online else datetime.now(timezone.utc).isoformat(),
+            "daemon_version": daemon.get("daemon_version"),
+            "capabilities": daemon.get("capabilities", []),
+        }
+
+    def _parse_ts_data(ts: dict) -> None:
+        self_node = ts.get("Self")
+        if self_node:
+            mapped = _map_ts_node(self_node, is_self=True)
+            if mapped:
+                nodes.append(mapped)
+        for p in (ts.get("Peer") or {}).values():
+            mapped = _map_ts_node(p)
+            if mapped:
+                nodes.append(mapped)
+
+    # Try CLI first (works on host), then fall back to snapshot file (works in Docker)
     try:
         result = subprocess.run(
             ["tailscale", "status", "--json"],
             capture_output=True, text=True, timeout=5,
         )
         if result.returncode == 0:
-            ts = json.loads(result.stdout)
-
-            def _map_ts_node(n: dict, is_self: bool = False) -> dict | None:
-                hostname = n.get("HostName", "")
-                key = hostname.lower()
-                if key.startswith("umh-cockpit"):
-                    return None
-                if key in seen:
-                    return None
-                seen.add(key)
-
-                ips = n.get("TailscaleIPs", [])
-                ip = ips[0] if ips else ""
-                online = n.get("Online", False) or is_self
-                os_name = n.get("OS", "")
-                last_seen = n.get("LastSeen", "")
-                if last_seen == "0001-01-01T00:00:00Z":
-                    last_seen = ""
-
-                daemon = daemon_nodes.get(ip, {})
-
-                return {
-                    "node_id": key,
-                    "hostname": _NAME_MAP.get(key, hostname),
-                    "role": _ROLE_MAP.get(key, "mobile" if os_name == "iOS" else "node"),
-                    "status": "online" if online else "offline",
-                    "os": os_name,
-                    "ip": ip,
-                    "last_seen": last_seen if not online else datetime.now(timezone.utc).isoformat(),
-                    "daemon_version": daemon.get("daemon_version"),
-                    "capabilities": daemon.get("capabilities", []),
-                }
-
-            self_node = ts.get("Self")
-            if self_node:
-                mapped = _map_ts_node(self_node, is_self=True)
-                if mapped:
-                    nodes.append(mapped)
-
-            for p in (ts.get("Peer") or {}).values():
-                mapped = _map_ts_node(p)
-                if mapped:
-                    nodes.append(mapped)
-
+            _parse_ts_data(json.loads(result.stdout))
     except Exception:
         pass
+
+    if not nodes:
+        snapshot = _ROOT / "data" / "runtime" / "tailscale_status.json"
+        if snapshot.exists():
+            try:
+                _parse_ts_data(json.loads(snapshot.read_text(encoding="utf-8")))
+            except Exception:
+                pass
 
     if not nodes:
         nodes.append({
