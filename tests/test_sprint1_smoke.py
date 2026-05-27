@@ -1,7 +1,7 @@
 """Sprint 1 smoke tests — production stabilization.
 
 Validates the fixes for:
-1. NodeRegistry deadlock (Lock → RLock)
+1. NodeRegistry deadlock (snapshot moved outside lock, RLock → Lock)
 2. Missing runtime_execution_result_v1 module
 3. Missing runtime_presence_state_v1 module
 4. Ghost runtime/.env references (context.py crash)
@@ -18,13 +18,13 @@ os.environ.setdefault("EOS_USER_ID", "test-user-id")
 
 
 class TestNodeRegistryDeadlock:
-    """Verify NodeRegistry uses RLock to prevent deadlock on heartbeat update."""
+    """Verify NodeRegistry deadlock is fixed — snapshot outside lock, plain Lock."""
 
-    def test_lock_is_reentrant(self):
+    def test_lock_is_plain(self):
         from transports.node_mesh.registry import NodeRegistry
 
         reg = NodeRegistry()
-        assert isinstance(reg._lock, type(threading.RLock()))
+        assert isinstance(reg._lock, type(threading.Lock()))
 
     def test_update_heartbeat_does_not_deadlock(self):
         from transports.node_mesh.registry import NodeRegistry

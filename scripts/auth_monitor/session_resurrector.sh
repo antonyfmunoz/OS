@@ -4,7 +4,7 @@
 # Run: */5 * * * * bash ${UMH_ROOT:-/opt/OS}/scripts/auth_monitor/session_resurrector.sh
 
 LOG_FILE="${UMH_ROOT:-/opt/OS}/logs/cc_session_health.log"
-DISCORD_WEBHOOK_ENV="${UMH_ROOT:-/opt/OS}/runtime/.env"
+DISCORD_WEBHOOK_ENV="${UMH_ROOT:-/opt/OS}/services/.env"
 
 WATCHED_SESSIONS=("dex_builder_main" "dex_product_main")
 

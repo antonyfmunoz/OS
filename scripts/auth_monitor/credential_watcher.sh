@@ -5,7 +5,7 @@
 
 CRED_FILE="$HOME/.claude/.credentials.json"
 LOG_FILE="${UMH_ROOT:-/opt/OS}/logs/cc_credential_watch.log"
-DISCORD_WEBHOOK_ENV="${UMH_ROOT:-/opt/OS}/runtime/.env"
+DISCORD_WEBHOOK_ENV="${UMH_ROOT:-/opt/OS}/services/.env"
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
