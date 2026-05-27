@@ -16,7 +16,7 @@ Schedule the following loops:
   Run: python3 -c \"
 import sys; sys.path.insert(0,'/opt/OS')
 from dotenv import load_dotenv
-load_dotenv('/opt/OS/eos_ai/.env')
+load_dotenv('/opt/OS/services/.env')
 try:
     import psycopg2, os
     conn = psycopg2.connect(os.getenv('DATABASE_URL',''))

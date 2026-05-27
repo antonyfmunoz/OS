@@ -12,10 +12,10 @@ Protocol:
    python3 -c "
    import sys; sys.path.insert(0, '/opt/OS')
    modules = [
-     ('eos_ai.agent_runtime', 'AgentRuntime'),
-     ('eos_ai.cognitive_loop', 'CognitiveLoop'),
-     ('eos_ai.authority_engine', 'AuthorityEngine'),
-     ('eos_ai.memory', 'AgentMemory'),
+     ('adapters.models.agent_runtime', 'AgentRuntime'),
+     ('substrate.control_plane.runtime.cognitive_loop', 'CognitiveLoop'),
+     ('substrate.governance.policy.authority_engine', 'AuthorityEngine'),
+     ('substrate.state.memory.memory', 'AgentMemory'),
    ]
    for mod, cls in modules:
      try:

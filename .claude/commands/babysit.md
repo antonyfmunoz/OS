@@ -7,7 +7,7 @@ Running babysit check.
 !`python3 -c "
 import sys; sys.path.insert(0,'/opt/OS')
 from dotenv import load_dotenv
-load_dotenv('/opt/OS/eos_ai/.env')
+load_dotenv('/opt/OS/services/.env')
 results = []
 try:
     import psycopg2, os

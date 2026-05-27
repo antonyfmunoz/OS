@@ -6,7 +6,7 @@ Protocol — follow this exact order, no shortcuts:
 
 1. READ the broken file first — never assume what's in it
    ```bash
-   cat /opt/OS/eos_ai/$ARGUMENTS.py
+   cat /opt/OS/substrate/$ARGUMENTS.py
    ```
 
 2. DIAGNOSE by running the import and capturing the full traceback:
@@ -14,7 +14,7 @@ Protocol — follow this exact order, no shortcuts:
    import sys, traceback
    sys.path.insert(0, '/opt/OS')
    try:
-       import eos_ai.$ARGUMENTS
+       import substrate.$ARGUMENTS
    except Exception:
        traceback.print_exc()
    ```
@@ -29,7 +29,7 @@ Protocol — follow this exact order, no shortcuts:
 5. TEST — confirm the import is clean:
    ```python
    import sys; sys.path.insert(0, '/opt/OS')
-   from eos_ai.$ARGUMENTS import [ClassName]
+   from substrate.$ARGUMENTS import [ClassName]
    print('import ok')
    ```
 
@@ -43,8 +43,8 @@ Risk class reminder:
 For HIGH risk changes: run the validator before touching anything:
 ```python
 import sys; sys.path.insert(0, '/opt/OS')
-from eos_ai.context import load_context_from_env
-from eos_ai.system_context import SystemContext
+from substrate.state.context.context import load_context_from_env
+from substrate.state.context.context import EntrepreneurOSContext as SystemContext
 ctx = load_context_from_env()
 sc = SystemContext(ctx, 'claude_code')
 result = sc.validate_architectural_change('[describe change]')

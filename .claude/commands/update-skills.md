@@ -5,8 +5,8 @@ Reviews source documentation for changes and syncs to Neon.
 
 python3 -c "
 import sys; sys.path.insert(0, '/opt/OS')
-from eos_ai.claude_skill_registry import ClaudeSkillRegistryManager
-from eos_ai.context import load_context_from_env
+# claude_skill_registry: dormant — pending substrate migration
+from substrate.state.context.context import load_context_from_env
 
 ctx = load_context_from_env()
 csrm = ClaudeSkillRegistryManager()

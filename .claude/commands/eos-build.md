@@ -12,14 +12,14 @@ Protocol:
 2. READ the relevant existing modules before touching anything
 
 3. VALIDATE — does this feature fit the architecture?
-   - Does it belong in eos_ai/ (intelligence layer) or services/ (automation)?
+   - Does it belong in substrate/ (intelligence layer) or services/ (automation)?
    - Does it need a new module or does it extend an existing one?
    - What are the risk classes for any files being modified?
 
 4. CHECK session state — what phase are we in?
    ```python
    import sys; sys.path.insert(0, '/opt/OS')
-   from eos_ai.session_state import SessionState
+   from substrate.state.session.session_state import SessionState
    print(SessionState.get_resume_context())
    ```
 
@@ -28,20 +28,20 @@ Protocol:
    - Modifying existing: MEDIUM/HIGH — read first, change minimally
 
 6. WIRE — connect to gateway and Telegram if applicable:
-   - Gateway: check /opt/OS/eos_ai/gateway.py for routing pattern
+   - Gateway: check /opt/OS/substrate/control_plane/runtime/gateway.py for routing pattern
    - Telegram: check /opt/OS/services/telegram_control.py for command registration
 
 7. TEST — import check + functional test:
    ```python
    import sys; sys.path.insert(0, '/opt/OS')
-   from eos_ai.[module] import [Class]
+   from substrate.[module] import [Class]
    print('import ok')
    ```
 
 8. SAVE STATE:
    ```python
    import sys; sys.path.insert(0, '/opt/OS')
-   from eos_ai.session_state import SessionState
+   from substrate.state.session.session_state import SessionState
    SessionState.save(
        phase='[current phase]',
        last_completed='[what was just built]',

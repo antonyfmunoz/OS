@@ -2,7 +2,7 @@ Load full EOS context at start of session.
 
 1. python3 -c "
 import sys; sys.path.insert(0, '/opt/OS')
-from eos_ai.session_state import SessionState
+from substrate.state.session.session_state import SessionState
 print(SessionState.get_resume_context())
 "
 2. docker ps --format "{{.Names}}: {{.Status}}"

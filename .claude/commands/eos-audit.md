@@ -7,24 +7,24 @@ import sys, os
 sys.path.insert(0, '/opt/OS')
 
 modules = [
-    ('eos_ai.db',                 'get_conn'),
-    ('eos_ai.memory',             'AgentMemory'),
-    ('eos_ai.agent_runtime',      'AgentRuntime'),
-    ('eos_ai.cognitive_loop',     'CognitiveLoop'),
-    ('eos_ai.authority_engine',   'AuthorityEngine'),
-    ('eos_ai.portfolio_advisor',  'PortfolioAdvisor'),
-    ('eos_ai.orchestrator',       'EOSOrchestrator'),
-    ('eos_ai.model_preferences',  'ModelPreferences'),
-    ('eos_ai.media_processor',    'MediaProcessor'),
-    ('eos_ai.principle_engine',   'PrincipleEngine'),
-    ('eos_ai.identity_engine',    'IdentityEngine'),
-    ('eos_ai.workflow_engine',    'WorkflowEngine'),
-    ('eos_ai.strategy_engine',    'StrategyEngine'),
-    ('eos_ai.reality_engine',     'RealityIntelligenceEngine'),
-    ('eos_ai.knowledge_graph',    'KnowledgeGraph'),
-    ('eos_ai.coordination_engine','CoordinationEngine'),
-    ('eos_ai.skill_registry',     'SkillRegistry'),
-    ('eos_ai.gws_connector',      'GWSConnector'),
+    ('substrate.state.storage.db', 'get_conn'),
+    ('substrate.state.memory.memory', 'AgentMemory'),
+    ('adapters.models.agent_runtime', 'AgentRuntime'),
+    ('substrate.control_plane.runtime.cognitive_loop', 'CognitiveLoop'),
+    ('substrate.governance.policy.authority_engine', 'AuthorityEngine'),
+    ('substrate.control_plane.strategy.portfolio_advisor', 'PortfolioAdvisor'),
+    ('substrate.control_plane.orchestrator.orchestrator', 'EOSOrchestrator'),
+    ('substrate.state.preferences.model_preferences', 'ModelPreferences'),
+    ('substrate.execution.media.media_processor', 'MediaProcessor'),
+    ('substrate.governance.quality.principle_engine', 'PrincipleEngine'),
+    ('substrate.control_plane.identity.identity_engine', 'IdentityEngine'),
+    ('substrate.execution.workflows.workflow_engine', 'WorkflowEngine'),
+    ('substrate.control_plane.strategy.strategy_engine', 'StrategyEngine'),
+    ('substrate.understanding.intelligence.input_intelligence', 'InputIntelligence'),
+    ('substrate.understanding.knowledge.knowledge_integrator', 'KnowledgeIntegrator'),
+    ('substrate.control_plane.events.event_manager', 'EventManager'),
+    ('substrate.state.registries.skill_registry', 'SkillRegistry'),
+    ('adapters.google_workspace.gws_connector', 'GWSConnector'),
 ]
 
 results = {'pass': [], 'fail': []}
@@ -54,7 +54,7 @@ pgrep -f telegram_control && echo "Telegram: running" || echo "Telegram: stopped
 Then check skill registry:
 ```python
 import sys; sys.path.insert(0, '/opt/OS')
-from eos_ai.skill_registry import SkillRegistry
+from substrate.state.registries.skill_registry import SkillRegistry
 sr = SkillRegistry()
 print(f"Skills loaded: {len(sr._skills)}")
 for name in sorted(sr._skills.keys()):

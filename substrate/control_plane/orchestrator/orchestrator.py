@@ -29,7 +29,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from substrate.contracts.agent_types import TaskType
-from adapters.models.agent_runtime import AgentRuntime
+from substrate.contracts.agent_runtime_contracts import get_agent_runtime
 from substrate.state.context.context import EntrepreneurOSContext
 from substrate.state.storage.db import get_conn, resolve_venture
 from substrate.state.memory.memory import AgentMemory
@@ -1196,7 +1196,7 @@ def write_to_notion_dashboard(ctx: EntrepreneurOSContext, morning_data: dict) ->
 
 class EntrepreneurOSOrchestrator:
     def __init__(self) -> None:
-        self._runtime = AgentRuntime()
+        self._runtime = get_agent_runtime()
         self._memory = AgentMemory()
 
     # ─── Internal: 7-day stats ───────────────────────────────────────────────

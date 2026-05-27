@@ -59,7 +59,7 @@ print(result.output)
 "
 
 ### 5. Restart services
-docker compose restart os-discord os-bot
+docker restart os-discord
 
 ## Common mistakes
 - Forgetting Neon registration

@@ -95,8 +95,8 @@ requirements.txt changed:
 ## Services
 ```
 os-discord  → services/discord_bot.py
-os-bot      → services/telegram_control.py
-os-webhook  → transports/api/webhooks/calendly_webhook.py
+os-webhook  → services/higgsfield_webhook.py
+os-operator → transports/api/operator.py
 ```
 
 ## Confirmed working — do not break

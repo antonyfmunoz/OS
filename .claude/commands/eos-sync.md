@@ -5,7 +5,7 @@ Protocol:
 1. RELOAD skill registry:
    ```python
    import sys; sys.path.insert(0, '/opt/OS')
-   from eos_ai.skill_registry import SkillRegistry
+   from substrate.state.registries.skill_registry import SkillRegistry
    sr = SkillRegistry()
    sr.reload()
    print(f"Skills loaded: {len(sr._skills)}")
@@ -17,8 +17,8 @@ Protocol:
    ```python
    import sys; sys.path.insert(0, '/opt/OS')
    try:
-       from eos_ai.user_model import UserModel
-       from eos_ai.context import load_context_from_env
+       from substrate.state.profiles.user_model import UserModel
+       from substrate.state.context.context import load_context_from_env
        ctx = load_context_from_env()
        um = UserModel(ctx)
        profile = um.get_profile()
@@ -42,7 +42,7 @@ Protocol:
 5. VERIFY session state is current:
    ```python
    import sys; sys.path.insert(0, '/opt/OS')
-   from eos_ai.session_state import SessionState
+   from substrate.state.session.session_state import SessionState
    print(SessionState.get_resume_context())
    ```
 

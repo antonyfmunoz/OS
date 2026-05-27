@@ -7,10 +7,10 @@ Run a constraint check across all ventures.
 !`python3 -c "
 import sys; sys.path.insert(0,'/opt/OS')
 from dotenv import load_dotenv
-load_dotenv('/opt/OS/eos_ai/.env')
+load_dotenv('/opt/OS/services/.env')
 try:
-    from eos_ai.context import load_context_from_env
-    from eos_ai.ceo_intelligence import CEOIntelligence
+    from substrate.state.context.context import load_context_from_env
+    from substrate.understanding.intelligence.input_intelligence import InputIntelligence as CEOIntelligence
     ctx = load_context_from_env()
     intel = CEOIntelligence(ctx)
     diagnosis = intel.diagnose_constraint()
@@ -28,7 +28,7 @@ Based on the diagnosis above, answer:
 Then write the diagnosis to Notion:
 
 ```python
-from eos_ai.notion_publisher import get_publisher
+# notion_publisher: dormant — no direct substrate equivalent yet
 publisher = get_publisher()
 url = publisher.publish_constraint_diagnosis(
     venture_id='lyfe_institute',  # or whichever venture is constrained
@@ -45,7 +45,7 @@ Output: **Constraint diagnosis written to Notion: {url}**
 
 Post to Discord:
 ```python
-from eos_ai.discord_utils import post_to_webhook
+from transports.discord.discord_utils import post_to_webhook
 import os
 webhook = os.getenv('DISCORD_BRIEF_WEBHOOK', '')
 if webhook and url:
