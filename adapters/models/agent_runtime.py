@@ -22,9 +22,7 @@ import json
 import os
 import re
 import time
-from dataclasses import dataclass
 from datetime import datetime, timezone
-from enum import Enum
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -43,21 +41,11 @@ from substrate.state.preferences.model_preferences import ModelPreferences
 HAIKU = "claude-haiku-4-5-20251001"  # scoring, classification
 SONNET = "claude-sonnet-4-6"  # generation, analysis
 
-# ─── Cost table (USD per million tokens) ─────────────────────────────────────
-
-COST_PER_MILLION_TOKENS: dict[str, dict[str, float]] = {
-    "claude-haiku-4-5-20251001": {"input": 0.80, "output": 4.00},
-    "claude-sonnet-4-6": {"input": 3.00, "output": 15.00},
-    "claude-opus-4-6": {"input": 15.00, "output": 75.00},
-}
-
-
-def calculate_cost(model: str, tokens_used: dict[str, int]) -> float:
-    """Return USD cost for a completed API call."""
-    rates = COST_PER_MILLION_TOKENS.get(model, {"input": 3.00, "output": 15.00})
-    input_cost = tokens_used.get("input", 0) / 1_000_000 * rates["input"]
-    output_cost = tokens_used.get("output", 0) / 1_000_000 * rates["output"]
-    return round(input_cost + output_cost, 8)
+# Canonical types and cost functions — owned by substrate, re-exported here
+from substrate.contracts.agent_types import (  # noqa: E402
+    COST_PER_MILLION_TOKENS,
+    calculate_cost,
+)
 
 
 from substrate.observability.error_recorder import record_error as _record_error
@@ -73,13 +61,7 @@ _RUNTIME_INTENT_PATTERNS: list[tuple[re.Pattern, str]] = [
 ]
 
 
-class TaskType(Enum):
-    SCORE = "score"  # → Haiku: ICP scoring, lead qualification
-    CLASSIFY = "classify"  # → Haiku: archetype detection, intent classification
-    ANALYZE = "analyze"  # → Sonnet: deep signal analysis, conversation analysis
-    GENERATE = "generate"  # → Sonnet: outreach copy, content, market reports
-    SUMMARIZE = "summarize"  # → Haiku: quick summaries, call digests
-    FAST_RESPONSE = "fast_response"  # → Haiku: low-latency single-turn responses
+from substrate.contracts.agent_types import TaskType  # noqa: E402 — canonical location
 
 
 # ─── Rate limiter ─────────────────────────────────────────────────────────────
@@ -140,16 +122,7 @@ _BACKOFF_BASE = 2  # seconds — delays: 2 → 4 → 8 → 16
 # ─── Result ───────────────────────────────────────────────────────────────────
 
 
-@dataclass
-class AgentResult:
-    output: str
-    model_used: str
-    tokens_used: dict[str, int]  # {"input": N, "output": N, "total": N}
-    skill_used: str | None  # skill_id or None
-    interaction_id: int | None = None  # set by memory.log() after persistence
-    authority: dict | None = None  # set by AuthorityEngine.check_can_execute()
-    cost_usd: float = 0.0  # USD cost for this call
-    duration_ms: int = 0  # wall-clock time for API call in ms
+from substrate.contracts.agent_types import AgentResult  # noqa: E402,F811 — canonical location
 
 
 # ─── Runtime ─────────────────────────────────────────────────────────────────

@@ -9,7 +9,7 @@ AgentRuntime directly.
 
 Usage:
     from substrate.control_plane.runtime.cognitive_loop import CognitiveLoop, CognitiveResult
-    from adapters.models.agent_runtime import TaskType
+    from substrate.contracts.agent_types import TaskType
 
     ctx  = load_context_from_env()
     loop = CognitiveLoop(ctx)
@@ -86,7 +86,8 @@ def _deterministic_cognitive_response(message: str) -> str:
 
 
 from substrate.state.context.context import EntrepreneurOSContext, load_context_from_env
-from adapters.models.agent_runtime import AgentRuntime, TaskType
+from substrate.contracts.agent_types import TaskType
+from adapters.models.agent_runtime import AgentRuntime
 from substrate.state.memory.memory import AgentMemory
 from substrate.governance.policy.authority_engine import AuthorityEngine
 from substrate.state.business.venture_knowledge import VentureKnowledgeBase
@@ -140,7 +141,7 @@ def _get_neon_spend(org_id: str) -> dict:
         return _spend_cache
 
     from substrate.state.storage.db import get_conn
-    from adapters.models.agent_runtime import COST_PER_MILLION_TOKENS
+    from substrate.contracts.agent_types import COST_PER_MILLION_TOKENS
 
     fallback = {"today": 0.0, "month": 0.0, "all_time": 0.0}
     try:
@@ -211,7 +212,7 @@ def format_response_footer(
     Telegram or the gateway carries model, cost, latency, and (when
     the prompt was enhanced) the optimized version.
     """
-    from adapters.models.agent_runtime import calculate_cost
+    from substrate.contracts.agent_types import calculate_cost
 
     model = getattr(result, "model_used", None) or "unknown"
     cost = getattr(result, "cost_usd", 0.0) or calculate_cost(

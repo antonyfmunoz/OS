@@ -382,7 +382,8 @@ def build_intelligence_profile(
         # 3. LLM synthesis from all available context
         if raw_context or profile.relationship_history:
             try:
-                from adapters.models.model_router import get_router, TaskType
+                from substrate.contracts.agent_types import TaskType
+                from adapters.models.model_router import get_router
                 router = get_router()
                 model = router.route(TaskType.ANALYSIS)
 

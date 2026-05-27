@@ -22,9 +22,7 @@ Usage:
 
 from dataclasses import dataclass
 
-from adapters.models.agent_runtime import TaskType
-
-
+from substrate.contracts.agent_types import TaskType
 # ─── Sub-agent config ─────────────────────────────────────────────────────────
 
 @dataclass(frozen=True)

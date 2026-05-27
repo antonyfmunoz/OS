@@ -299,8 +299,7 @@ class CoordinationEngine:
         and assigns each one. Returns a delegation summary.
         """
         from substrate.control_plane.runtime.cognitive_loop import CognitiveLoop
-        from adapters.models.agent_runtime import TaskType
-
+        from substrate.contracts.agent_types import TaskType
         loop = CognitiveLoop(self.ctx)
         result = loop.run(
             input=(

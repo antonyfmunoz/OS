@@ -178,66 +178,12 @@ def _track_provider_result(provider_name: str, success: bool) -> None:
 # ─── RoutingResult ────────────────────────────────────────────────────────────
 
 
-@dataclass
-class RoutingResult:
-    """Return type for module-level call_with_fallback()."""
-
-    output: str
-    provider: str
-    model: str
-    task_type: str
-    tokens_used: int = 0
-    input_tokens: int = 0
-    output_tokens: int = 0
-    cost_usd: float = 0.0
-    latency_ms: int = 0
-
-
-# ─── Providers ────────────────────────────────────────────────────────────────
-
-
-class ModelProvider(Enum):
-    CLAUDE_CLI = "claude_cli"  # persistent tmux Claude Code session (substrate)
-    CC_SDK = "cc_sdk"
-    ANTHROPIC = "anthropic"
-    PERPLEXITY = "perplexity"
-    OPENAI = "openai"
-    GROQ = "groq"
-    OLLAMA = "ollama"
-    GEMINI = "gemini"
-    CODEX = "codex"
-    HERMES = "hermes"
-    OPENCODE = "opencode"
-    MANUS = "manus"
-    # Acquired by Meta Dec 2025 for $2B+
-    # Future API access via Meta ecosystem
-    # Monitor: developers.facebook.com and manus.im for API updates
-
-
-class TaskType(Enum):
-    # Original types
-    CONVERSATION = "conversation"
-    ANALYSIS = "analysis"
-    WEB_SEARCH = "web_search"
-    MARKET_INTEL = "market_intel"
-    FAST_RESPONSE = "fast_response"
-    LONG_CONTEXT = "long_context"
-    AUTONOMOUS = "autonomous"
-    MULTIMODAL = "multimodal"
-    BROWSER_CONTROL = "browser_control"
-    # Agent execution types (aligned with agent_runtime.TaskType)
-    SCORE = "score"
-    CLASSIFY = "classify"
-    ANALYZE = "analyze"
-    GENERATE = "generate"
-    SUMMARIZE = "summarize"
-    # Strategic / CEO types
-    STRATEGIC = "strategic"
-    CODE = "code"
-    RESEARCH = "research"
-    SELF_IMPROVE = "self_improve"
-    PLAN = "plan"
-    COORDINATE = "coordinate"
+# Canonical types — owned by substrate, re-exported here for backward compat
+from substrate.contracts.agent_types import (  # noqa: E402
+    ModelProvider,
+    RoutingResult,
+    TaskType,
+)
 
 
 # ─── CC model map ─────────────────────────────────────────────────────────────

@@ -39,7 +39,8 @@ load_dotenv(Path(__file__).parent / ".env")
 
 from substrate.state.context.context import EntrepreneurOSContext
 from substrate.control_plane.runtime.cognitive_loop import CognitiveLoop
-from adapters.models.agent_runtime import AgentRuntime, TaskType
+from substrate.contracts.agent_types import TaskType
+from adapters.models.agent_runtime import AgentRuntime
 from substrate.state.storage.db import get_conn
 
 

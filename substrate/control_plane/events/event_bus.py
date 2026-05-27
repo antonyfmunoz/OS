@@ -177,7 +177,8 @@ def _handle_new_lead(payload: dict) -> dict:
     Generates a personalized outreach strategy for the lead.
     Logs the result to memory.db via AgentRuntime.
     """
-    from adapters.models.agent_runtime import AgentRuntime, TaskType
+    from substrate.contracts.agent_types import TaskType
+    from adapters.models.agent_runtime import AgentRuntime
 
     username = payload.get("username", "unknown")
     score = payload.get("score", 0)
@@ -215,7 +216,8 @@ def _handle_lead_replied(payload: dict) -> dict:
     lead_replied → run objection_handler skill.
     Analyzes the reply and returns the best next response.
     """
-    from adapters.models.agent_runtime import AgentRuntime, TaskType
+    from substrate.contracts.agent_types import TaskType
+    from adapters.models.agent_runtime import AgentRuntime
 
     username = payload.get("username", "unknown")
     message = payload.get("message", "")
@@ -361,7 +363,8 @@ def _handle_signal_captured(payload: dict) -> dict:
     signal_captured → run research.signal_analyzer.
     Analyzes the signal for ICP relevance and recommended action.
     """
-    from adapters.models.agent_runtime import AgentRuntime, TaskType
+    from substrate.contracts.agent_types import TaskType
+    from adapters.models.agent_runtime import AgentRuntime
 
     signal_text = payload.get("signal_text", "")
     source = payload.get("source", "unknown")
@@ -391,7 +394,8 @@ def _handle_content_needed(payload: dict) -> dict:
     content_needed → trigger content.hook_generator.
     Generates a hook and content angle for the given topic.
     """
-    from adapters.models.agent_runtime import AgentRuntime, TaskType
+    from substrate.contracts.agent_types import TaskType
+    from adapters.models.agent_runtime import AgentRuntime
 
     topic = payload.get("topic", "")
     platform = payload.get("platform", "instagram")

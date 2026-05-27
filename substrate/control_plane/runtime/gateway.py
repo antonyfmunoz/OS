@@ -449,8 +449,8 @@ class EntrepreneurOSGateway:
         try:
             from substrate.state.context.context import load_context_from_env
             from adapters.google_workspace.email_gps import EmailGPS
-            from adapters.models.model_router import get_router, TaskType
-
+            from substrate.contracts.agent_types import TaskType
+            from adapters.models.model_router import get_router
             ctx_eos = load_context_from_env()
             gps = EmailGPS(ctx_eos)
             router = get_router(ctx_eos)
@@ -887,8 +887,8 @@ class EntrepreneurOSGateway:
 
     def _web_search(self, query: str) -> str:
         try:
-            from adapters.models.model_router import get_router, TaskType as RouterTaskType
-
+            from substrate.contracts.agent_types import TaskType as RouterTaskType
+            from adapters.models.model_router import get_router
             router = get_router()
             result = router.call_with_fallback(
                 RouterTaskType.WEB_SEARCH,
@@ -983,7 +983,8 @@ class EntrepreneurOSGateway:
     # ─── Route: agent_task ────────────────────────────────────────────────────
 
     def _route_agent_task(self, request: dict, session_id: str = None, cm=None) -> dict:
-        from adapters.models.agent_runtime import AgentRuntime, TaskType
+        from substrate.contracts.agent_types import TaskType
+        from adapters.models.agent_runtime import AgentRuntime
         from substrate.control_plane.runtime.cognitive_loop import CognitiveLoop
         from substrate.state.context.context import load_context_from_env
 
@@ -1835,8 +1836,8 @@ class EntrepreneurOSGateway:
         # No keyword match — try AI for ambiguous cases
         _VALID = set(self._INTENT_KEYWORDS.keys()) | {"UNKNOWN"}
         try:
-            from adapters.models.model_router import call_with_fallback, TaskType
-
+            from substrate.contracts.agent_types import TaskType
+            from adapters.models.model_router import call_with_fallback
             _SYSTEM = (
                 "Classify this message into exactly one intent. "
                 "Reply with ONLY the intent word.\n"
@@ -1903,7 +1904,7 @@ def ingest_external_context(
     Returns the interaction_id (UUID).
     """
     from substrate.state.memory.memory import AgentMemory
-    from adapters.models.agent_runtime import AgentResult
+    from substrate.contracts.agent_types import AgentResult
 
     result = AgentResult(
         output=content[:500],

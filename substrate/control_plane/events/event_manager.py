@@ -33,7 +33,8 @@ def create_event(
     try:
         from substrate.state.context.context import load_context_from_env
         from substrate.state.memory.memory import AgentMemory
-        from adapters.models.model_router import get_router, TaskType
+        from substrate.contracts.agent_types import TaskType
+        from adapters.models.model_router import get_router
         ctx = ctx or load_context_from_env()
         router = get_router()
 
@@ -167,7 +168,8 @@ def draft_talking_points(
     """Draft talking points for a speaking engagement."""
     try:
         from substrate.state.context.context import load_context_from_env
-        from adapters.models.model_router import get_router, TaskType
+        from substrate.contracts.agent_types import TaskType
+        from adapters.models.model_router import get_router
         ctx = ctx or load_context_from_env()
         router = get_router()
 

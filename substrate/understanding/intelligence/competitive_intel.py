@@ -110,7 +110,8 @@ def synthesize_competitive_landscape(venture: str, ctx=None) -> str:
     Pulls from signals + knowledge files.
     """
     try:
-        from adapters.models.model_router import get_router, TaskType
+        from substrate.contracts.agent_types import TaskType
+        from adapters.models.model_router import get_router
         router = get_router()
         model = router.route(TaskType.ANALYSIS) or router.route(TaskType.FAST_RESPONSE)
 

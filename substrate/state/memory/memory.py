@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from adapters.models.agent_runtime import AgentResult
+    from substrate.contracts.agent_types import AgentResult
 
 from substrate.state.storage.db import get_conn, resolve_venture, resolve_skill, ORG_ID, USER_ID
 
