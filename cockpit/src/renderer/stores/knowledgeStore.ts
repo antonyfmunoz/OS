@@ -92,7 +92,8 @@ export const useKnowledgeStore = create<KnowledgeState>((set) => ({
 
   fetchSkills: async () => {
     try {
-      const data = await fetchApi<Skill[]>('/skills')
+      const res = await fetchApi<{ skills: Skill[] } | Skill[]>('/skills')
+      const data = Array.isArray(res) ? res : res.skills ?? []
       set({ skills: data })
     } catch { /* store stays stale */ }
   },

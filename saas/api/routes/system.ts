@@ -1,0 +1,145 @@
+import { Hono } from 'hono'
+import { execFileSync } from 'child_process'
+import os from 'os'
+import type { Env } from '../types.js'
+
+const router = new Hono<Env>()
+
+function safeExecFile(cmd: string, args: string[], fallback = ''): string {
+  try {
+    return execFileSync(cmd, args, { timeout: 3000, encoding: 'utf-8' }).trim()
+  } catch {
+    return fallback
+  }
+}
+
+router.get('/pulse', (c) => {
+  const cpus = os.cpus()
+  const cpuIdle = cpus.reduce((sum, cpu) => sum + cpu.times.idle, 0)
+  const cpuTotal = cpus.reduce(
+    (sum, cpu) => sum + cpu.times.user + cpu.times.nice + cpu.times.sys + cpu.times.idle + cpu.times.irq,
+    0,
+  )
+  const cpuPercent = cpuTotal > 0 ? ((1 - cpuIdle / cpuTotal) * 100) : 0
+
+  const totalMem = os.totalmem()
+  const freeMem = os.freemem()
+  const memPercent = totalMem > 0 ? ((1 - freeMem / totalMem) * 100) : 0
+
+  const diskRaw = safeExecFile('df', ['/', '--output=pcent'])
+  const diskLine = diskRaw.split('\n').pop() ?? ''
+  const diskPercent = parseFloat(diskLine.replace('%', '').trim()) || 0
+
+  const uptime = os.uptime()
+
+  const dockerPs = safeExecFile('docker', ['ps', '--format', '{{.Names}}'])
+  const activeContainers = dockerPs ? dockerPs.split('\n').filter(Boolean).length : 0
+
+  return c.json({
+    cpu_percent: Math.round(cpuPercent * 10) / 10,
+    memory_percent: Math.round(memPercent * 10) / 10,
+    disk_percent: diskPercent,
+    uptime,
+    active_agents: activeContainers,
+    pending_tasks: 0,
+    pending_approvals: 0,
+    trace_rate: 0,
+  })
+})
+
+router.get('/mesh/nodes', (c) => {
+  const hostname = os.hostname()
+  const nodes = [
+    {
+      node_id: 'vps-primary',
+      hostname,
+      role: 'orchestrator',
+      status: 'online',
+      last_seen: new Date().toISOString(),
+    },
+  ]
+
+  const beastReachable = safeExecFile('ping', ['-c', '1', '-W', '1', '100.74.199.102'])
+  if (beastReachable.includes('1 received')) {
+    nodes.push({
+      node_id: 'beast-windows',
+      hostname: 'antonys beast pc',
+      role: 'gpu-workhorse',
+      status: 'online',
+      last_seen: new Date().toISOString(),
+    })
+  } else {
+    nodes.push({
+      node_id: 'beast-windows',
+      hostname: 'antonys beast pc',
+      role: 'gpu-workhorse',
+      status: 'offline',
+      last_seen: '',
+    })
+  }
+
+  return c.json(nodes)
+})
+
+router.get('/models', (c) => {
+  type ModelStatus = 'active' | 'fallback' | 'offline' | 'degraded'
+  const models: Array<{ id: string; name: string; provider: string; status: ModelStatus; latency_ms: number; cost_per_m_token: number }> = [
+    { id: 'cc-sdk', name: 'Claude Opus 4.6', provider: 'anthropic', status: 'active', latency_ms: 60000, cost_per_m_token: 0 },
+    { id: 'gemini-flash', name: 'Gemini 2.5 Flash', provider: 'google', status: 'active', latency_ms: 2000, cost_per_m_token: 0.15 },
+    { id: 'groq-llama', name: 'Groq Llama', provider: 'groq', status: 'fallback', latency_ms: 500, cost_per_m_token: 0 },
+  ]
+
+  const ollamaUp = safeExecFile('curl', ['-s', '--max-time', '1', 'http://localhost:11434/api/tags'])
+  if (ollamaUp) {
+    models.push({ id: 'ollama-local', name: 'Ollama (local)', provider: 'ollama', status: 'fallback', latency_ms: 1000, cost_per_m_token: 0 })
+  } else {
+    models.push({ id: 'ollama-local', name: 'Ollama (local)', provider: 'ollama', status: 'offline', latency_ms: 0, cost_per_m_token: 0 })
+  }
+
+  return c.json(models)
+})
+
+router.get('/infra', (c) => {
+  const services: Array<{
+    id: string
+    name: string
+    type: 'compute' | 'storage' | 'network' | 'service'
+    status: 'healthy' | 'degraded' | 'down'
+    metrics: Record<string, number>
+  }> = []
+
+  const dockerPs = safeExecFile('docker', ['ps', '-a', '--format', '{{.Names}}|{{.Status}}'])
+  if (dockerPs) {
+    for (const line of dockerPs.split('\n').filter(Boolean)) {
+      const [name, rawStatus] = line.split('|')
+      const isUp = rawStatus?.startsWith('Up') ?? false
+      services.push({
+        id: `docker-${name}`,
+        name,
+        type: 'service',
+        status: isUp ? 'healthy' : 'down',
+        metrics: {},
+      })
+    }
+  }
+
+  services.push({
+    id: 'neon-postgres',
+    name: 'Neon Postgres',
+    type: 'storage',
+    status: process.env.DATABASE_URL ? 'healthy' : 'down',
+    metrics: {},
+  })
+
+  services.push({
+    id: 'tailscale-mesh',
+    name: 'Tailscale',
+    type: 'network',
+    status: safeExecFile('tailscale', ['status', '--json']).startsWith('{') ? 'healthy' : 'degraded',
+    metrics: {},
+  })
+
+  return c.json(services)
+})
+
+export default router
