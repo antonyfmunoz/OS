@@ -231,6 +231,36 @@ When writing .md files in knowledge/ or vault/:
 - Never create new patterns when UMH has one
 - Never put instance context in platform files
 
+## Type Coherence Law (NON-NEGOTIABLE — ENFORCED BY PRE-COMMIT)
+UMH has ONE type system. Every Enum, BaseModel, and dataclass that
+defines a reusable domain concept has exactly one canonical location.
+Creating a parallel type that overlaps with an existing one is a defect.
+
+Before defining ANY new class that extends Enum, BaseModel, or uses @dataclass:
+1. Run: `python3 -c "from substrate.canonical_types import lookup; print(lookup('YourTypeName'))"`
+2. If it returns a module path → IMPORT from there. Do not redefine.
+3. If it returns None → define it in the correct canonical module, then
+   register it in `substrate/canonical_types.py`.
+4. If uncertain which module owns the concept → check `substrate/canonical_types.py`
+   for similar names. The registry has ~80 types across 7 canonical files.
+
+Canonical type locations:
+- General domain types → `substrate/types.py`
+- Task/model routing → `substrate/contracts/agent_types.py`
+- Job capabilities → `substrate/execution/runtime/capability_router.py`
+- Environment types → `substrate/execution/runtime/worker_runtime_contracts.py`
+- Work packet governance → `nodes/environments/work_packet.py`
+- Organism coordination → `substrate/organism/` modules
+
+The pre-commit hook (`scripts/check_type_divergence.py`) blocks commits that
+create shadow types. Full codebase scan: `python3 scripts/check_type_divergence.py --all`
+
+This law exists because type divergence caused three separate audit-and-reconverge
+cycles (2026-05 convergence sprint, coherence convergence, organism activation).
+Each time, parallel types were created that overlapped with existing ones,
+compounding drift until manual audit caught it. This gate makes divergence
+mechanically impossible.
+
 ## Protocol layers
 See PROTOCOLS.md for full 4-layer documentation (L0-L3).
 Git: commit directly to main (solo founder phase).
