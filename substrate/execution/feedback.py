@@ -55,9 +55,10 @@ class ConcreteFeedbackCapture:
     async def persist(self, feedback: FeedbackRecord) -> None:
         """Write feedback to Neon feedback table."""
         try:
+            import os
             import sys
 
-            sys.path.insert(0, "/opt/OS")
+            sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
             from dotenv import load_dotenv
 
             load_dotenv("/opt/OS/runtime/.env", override=True)

@@ -27,7 +27,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
 from dotenv import load_dotenv
 

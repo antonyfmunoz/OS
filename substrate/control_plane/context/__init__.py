@@ -6,6 +6,7 @@ active goals, and business context into a single ExecutionContext.
 
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from substrate.types import (
@@ -63,10 +64,13 @@ class ConcreteContextAssembler:
         try:
             import sys
 
-            sys.path.insert(0, "/opt/OS")
+            sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
             from substrate.state.memory.memory import ConversationMemory
 
-            cm = ConversationMemory()
+            from types import SimpleNamespace
+
+            ctx = SimpleNamespace(org_id=os.environ.get("EOS_ORG_ID", ""))
+            cm = ConversationMemory(ctx)
             return cm.get_session(user_id=user_id, channel_id=channel_id, limit=limit)
         except Exception:
             return []

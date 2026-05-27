@@ -14,10 +14,11 @@ Cron example (every 6 hours):
 
 import argparse
 import logging
+import os
 import sys
 from datetime import datetime, timezone
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
 from dotenv import load_dotenv
 

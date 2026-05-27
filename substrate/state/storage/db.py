@@ -26,9 +26,9 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / ".env")
 
-_DATABASE_URL = os.environ["DATABASE_URL"]
-ORG_ID = os.environ["EOS_ORG_ID"]
-USER_ID = os.environ["EOS_USER_ID"]
+_DATABASE_URL = os.environ.get("DATABASE_URL", "")
+ORG_ID = os.environ.get("EOS_ORG_ID", "")
+USER_ID = os.environ.get("EOS_USER_ID", "")
 
 # ─── ID resolution caches ─────────────────────────────────────────────────────
 # Maps Python string slugs → Postgres UUIDs. Loaded once per process.
@@ -74,6 +74,10 @@ def get_conn(org_id: str = ORG_ID) -> Generator:
             cur.execute("INSERT INTO interactions (...) VALUES (...) RETURNING id")
             row = cur.fetchone()
     """
+    if not _DATABASE_URL:
+        raise psycopg2.OperationalError(
+            "DATABASE_URL not set — cannot connect to Neon"
+        )
     try:
         conn = psycopg2.connect(_DATABASE_URL)
     except Exception as e:
