@@ -48,7 +48,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from dotenv import load_dotenv
 
 load_dotenv("/opt/OS/services/.env")
-load_dotenv("/opt/OS/runtime/.env", override=True)
+load_dotenv("/opt/OS/.env", override=True)
 
 try:
     import websockets

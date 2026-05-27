@@ -685,7 +685,7 @@ page_ids['activity'] = activity_id
 # SAVE ALL PAGE IDs TO .env
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-env_path = f'{_ROOT}/runtime/.env'
+env_path = f'{_ROOT}/.env'
 
 # Read existing to avoid duplicate keys
 with open(env_path, 'r') as f:

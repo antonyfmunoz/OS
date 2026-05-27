@@ -5,8 +5,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-load_dotenv(_REPO_ROOT / "runtime" / ".env")
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+load_dotenv(_REPO_ROOT / ".env")
 
 
 @dataclass
@@ -34,8 +34,8 @@ def load_ventures_from_env() -> list:
 
 def load_context_from_env() -> EntrepreneurOSContext:
     return EntrepreneurOSContext(
-        org_id=os.environ["EOS_ORG_ID"],
-        user_id=os.environ["EOS_USER_ID"],
+        org_id=os.environ.get("EOS_ORG_ID", ""),
+        user_id=os.environ.get("EOS_USER_ID", ""),
         portfolio_id=os.environ.get("EOS_PORTFOLIO_ID"),
         ventures=load_ventures_from_env(),
     )

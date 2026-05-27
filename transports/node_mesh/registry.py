@@ -21,7 +21,7 @@ class NodeRegistry:
 
     def __init__(self, heartbeat_timeout_s: float = 90.0) -> None:
         self._nodes: dict[str, ConnectedNode] = {}
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._heartbeat_timeout_s = heartbeat_timeout_s
 
     def add(self, node: ConnectedNode) -> None:
@@ -76,4 +76,4 @@ class NodeRegistry:
             _SNAPSHOT_PATH.parent.mkdir(parents=True, exist_ok=True)
             _SNAPSHOT_PATH.write_text(json.dumps(data), encoding="utf-8")
         except Exception:
-            pass
+            logger.debug("snapshot write failed", exc_info=True)
