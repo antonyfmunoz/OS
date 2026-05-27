@@ -29,9 +29,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Load runtime/.env so DATABASE_URL, EOS_ORG_ID, EOS_USER_ID are available
-# before any import that touches db.py (memory, human_intelligence, etc.)
-load_dotenv(Path(__file__).parent / ".env")
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 from substrate.state.context.context import EntrepreneurOSContext, load_context_from_env
 from substrate.state.business.venture_knowledge import VentureKnowledgeBase

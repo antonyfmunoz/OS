@@ -2,7 +2,7 @@
 
 Thin layer over the first-party `higgsfield-client` Python SDK that:
 
-- reads `HIGGSFIELD_API_KEY` + `HIGGSFIELD_API_KEY_SECRET` from /opt/OS/runtime/.env
+- reads `HIGGSFIELD_API_KEY` + `HIGGSFIELD_API_KEY_SECRET` from /opt/OS/.env
 - shims them to the env var names the SDK actually wants (`HF_API_KEY`,
   `HF_API_SECRET`) so the rest of EOS can use the verbose names
 - inserts a `higgsfield_jobs` row in Neon on every submit so the webhook

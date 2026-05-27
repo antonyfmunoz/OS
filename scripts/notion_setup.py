@@ -28,9 +28,9 @@ _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.ge
 
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
-load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
+load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', '.env'))
 
-ENV_FILE = f'{_ROOT}/runtime/.env'
+ENV_FILE = f'{_ROOT}/.env'
 NOTION_VERSION = '2022-06-28'
 TOKEN = os.getenv('NOTION_API_KEY', '')
 HEADERS = {

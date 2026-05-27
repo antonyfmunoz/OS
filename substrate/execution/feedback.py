@@ -61,7 +61,7 @@ class ConcreteFeedbackCapture:
             sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
             from dotenv import load_dotenv
 
-            load_dotenv("/opt/OS/runtime/.env", override=True)
+            load_dotenv("/opt/OS/.env", override=True)
             from substrate.state.storage.db import get_conn
 
             with get_conn() as cur:

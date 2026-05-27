@@ -20,10 +20,10 @@ from dotenv import load_dotenv
 
 # Load env vars from all known .env locations so GEMINI_API_KEY is available
 # regardless of which entry point started the process.
-# services/.env first (operational keys), runtime/.env second (AI keys, wins on conflict).
-_REPO_ROOT = Path(__file__).parent.parent
+# services/.env first (operational keys), .env second (AI keys, wins on conflict).
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 load_dotenv(_REPO_ROOT / 'services' / '.env')
-load_dotenv(_REPO_ROOT / 'runtime' / '.env', override=True)
+load_dotenv(_REPO_ROOT / '.env', override=True)
 
 
 class EmbeddingEngine:
