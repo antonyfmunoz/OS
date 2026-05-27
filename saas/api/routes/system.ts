@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { execFileSync } from 'child_process'
 import os from 'os'
 import type { Env } from '../types.js'
+import { callOrganism } from '../lib/python_bridge.js'
 
 const router = new Hono<Env>()
 
@@ -13,7 +14,7 @@ function safeExecFile(cmd: string, args: string[], fallback = ''): string {
   }
 }
 
-router.get('/pulse', (c) => {
+router.get('/pulse', async (c) => {
   const cpus = os.cpus()
   const cpuIdle = cpus.reduce((sum, cpu) => sum + cpu.times.idle, 0)
   const cpuTotal = cpus.reduce(
@@ -35,15 +36,38 @@ router.get('/pulse', (c) => {
   const dockerPs = safeExecFile('docker', ['ps', '--format', '{{.Names}}'])
   const activeContainers = dockerPs ? dockerPs.split('\n').filter(Boolean).length : 0
 
+  let pendingTasks = 0
+  let pendingApprovals = 0
+  let traceRate = 0
+  let systemMode = 'healthy'
+
+  const [snapResult, approvalResult] = await Promise.all([
+    callOrganism('organism.snapshot').catch(() => ({ success: false, data: null })),
+    callOrganism('organism.approvals.count').catch(() => ({ success: false, data: null })),
+  ])
+
+  if (snapResult.success && snapResult.data) {
+    const snap = snapResult.data as Record<string, unknown>
+    const workUnits = (snap.work_units ?? {}) as Record<string, number>
+    pendingTasks = (workUnits.pending ?? 0) + (workUnits.running ?? 0)
+    const daemon = (snap.daemon ?? {}) as Record<string, number>
+    traceRate = daemon.throughput_per_min ?? 0
+    systemMode = (snap.system_mode as string) ?? 'healthy'
+  }
+  if (approvalResult.success && approvalResult.data) {
+    pendingApprovals = (approvalResult.data as Record<string, number>).pending ?? 0
+  }
+
   return c.json({
     cpu_percent: Math.round(cpuPercent * 10) / 10,
     memory_percent: Math.round(memPercent * 10) / 10,
     disk_percent: diskPercent,
     uptime,
     active_agents: activeContainers,
-    pending_tasks: 0,
-    pending_approvals: 0,
-    trace_rate: 0,
+    pending_tasks: pendingTasks,
+    pending_approvals: pendingApprovals,
+    trace_rate: traceRate,
+    system_mode: systemMode,
   })
 })
 
@@ -185,6 +209,37 @@ router.get('/infra', (c) => {
   })
 
   return c.json(services)
+})
+
+router.get('/sessions', async (c) => {
+  const result = await callOrganism('organism.sessions')
+  return c.json(result.success ? result.data : [])
+})
+
+router.get('/docker', async (c) => {
+  const result = await callOrganism('organism.docker')
+  return c.json(result.success ? result.data : [])
+})
+
+router.get('/workspaces', async (c) => {
+  const result = await callOrganism('organism.workspaces')
+  return c.json(result.success ? result.data : [])
+})
+
+router.get('/files', async (c) => {
+  const path = c.req.query('path')
+  if (!path) return c.json({ error: 'path query parameter required' }, 400)
+  const result = await callOrganism('organism.files', { path })
+  if (!result.success) return c.json({ error: result.error }, 400)
+  return c.json(result.data)
+})
+
+router.get('/file', async (c) => {
+  const path = c.req.query('path')
+  if (!path) return c.json({ error: 'path query parameter required' }, 400)
+  const result = await callOrganism('organism.file.read', { path })
+  if (!result.success) return c.json({ error: result.error }, 400)
+  return c.json(result.data)
 })
 
 export default router

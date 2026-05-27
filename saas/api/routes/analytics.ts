@@ -3,6 +3,7 @@ import { eq, sql, desc } from 'drizzle-orm'
 import type { Env } from '../types.js'
 import { withOrg } from '../../db/client.js'
 import { interactions, clients, transactions } from '../../db/schema.js'
+import { callOrganism } from '../lib/python_bridge.js'
 
 const router = new Hono<Env>()
 
@@ -78,19 +79,41 @@ router.get('/pipeline', async (c) => {
   })
 })
 
-router.get('/accountability', (c) => {
+router.get('/accountability', async (c) => {
+  const result = await callOrganism('organism.economy')
+  if (!result.success) {
+    return c.json({ fulfillment_rate: 0, current_streak: 0, pending_follow_ups: 0, period_stats: {} })
+  }
+  const eco = result.data as Record<string, unknown>
   return c.json({
-    fulfillment_rate: 0,
-    current_streak: 0,
+    fulfillment_rate: eco.success_rate ?? 0,
+    current_streak: eco.total_executions ?? 0,
     pending_follow_ups: 0,
-    period_stats: {},
+    total_cost_usd: eco.total_cost_usd ?? 0,
+    time_saved_minutes: eco.total_time_saved_minutes ?? 0,
+    avg_leverage: eco.avg_leverage_score ?? 0,
+    period_stats: eco.runtime_profiles ?? {},
   })
 })
 
-router.get('/intelligence', (c) => {
+router.get('/intelligence', async (c) => {
+  const [healthResult, govResult] = await Promise.all([
+    callOrganism('organism.health').catch(() => ({ success: false, data: null })),
+    callOrganism('organism.governor').catch(() => ({ success: false, data: null })),
+  ])
+
+  const health = healthResult.success ? healthResult.data as Record<string, unknown> : {}
+  const gov = govResult.success ? govResult.data as Record<string, unknown> : {}
+
   return c.json({
-    pattern_stats: {},
-    decision_stats: {},
+    system_mode: health.mode ?? 'unknown',
+    dimensions: health.dimensions ?? [],
+    governance: {
+      kill_switch: gov.kill_switch ?? false,
+      escalation_count: gov.escalation_count ?? 0,
+      limits: gov.limits ?? {},
+      state: gov.state ?? {},
+    },
   })
 })
 
