@@ -74,9 +74,8 @@ Status taxonomy:
 - substrate/execution/feedback.py        — CONFIRMED_RUNTIME (quality scoring + learning loop)
 - adapters/models/model_router.py        — CONFIRMED_RUNTIME (intelligence routing, call_with_fallback)
 - adapters/models/llm_adapter.py         — CONFIRMED_RUNTIME (LLM adapter wrapping model_router)
-- transports/discord/bot.py              — CONFIRMED_RUNTIME (substrate-wired Discord bot)
 - transports/discord/signal_factory.py   — CONFIRMED_RUNTIME (message → SignalEnvelope)
-- services/discord_bot.py                — CONFIRMED_RUNTIME (legacy compatibility, os-discord container)
+- services/discord_bot.py                — CONFIRMED_RUNTIME (primary Discord bot, os-discord container)
 
 ## Current build phase
 Single-user validation phase — one org, multiple ventures.
@@ -91,7 +90,7 @@ Focus: proving the system works before UI layer.
   governance/      — accountability, policies, quality, validation
   understanding/   — perception, interpretation, domains, ontology, world model, signals
   composition/     — mastery registries
-  interface/       — channel surfaces (discord, presence)
+  sockets/         — abstract ports (signal, capability, outcome, view)
   adapters/        — external system adapters (models, GWS, browser, capabilities)
   transports/      — interface transport layer (discord, API, node mesh)
   integrations/    — domain-specific integrations (creatoros, lyfeos)

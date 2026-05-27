@@ -1,126 +1,106 @@
 # UMH Deployment Guide
 
 ## Requirements
-- Python 3.11+
-- Linux (tested on Ubuntu 22.04+)
-- ~100MB disk for runtime data
-- No external services required (SQLite-backed)
 
-## Quick Start
+- Python 3.11+ (Docker containers run 3.11)
+- Docker + Docker Compose
+- Neon PostgreSQL (external, connection via DATABASE_URL)
+- Tailscale (private network mesh)
+- Linux VPS (tested on Ubuntu 22.04+)
 
-### 1. Install dependencies
-```
-pip install fastapi uvicorn pydantic
-```
+## Architecture
 
-### 2. Set environment variables
-```
-export UMH_API_KEY="your-secret-api-key"
-export UMH_API_PORT=8000
-```
+UMH runs as Docker containers on a VPS orchestrated by docker-compose.
+Database is Neon PostgreSQL (managed, external). Local services run
+via systemd. The Windows Beast node connects over Tailscale.
 
-### 3. Start in production mode
-```
-./scripts/run_prod.sh
-```
+## Services
 
-### 4. Access
-- UI: http://localhost:8000/ui/
-- API: http://localhost:8000/
-- Health: http://localhost:8000/health
+| Container | Purpose | Port |
+|-----------|---------|------|
+| os-discord | Discord bot (DEX) | 8765 (WebSocket) |
+| os-operator | Operator API + cockpit backend | 8091 |
+| os-webhook | Calendly + Higgsfield webhooks | 8080 |
+| os-scraper | Overnight data scraping (runs on schedule) | — |
 
-## Environment Variables
+### Non-Docker Services
+| Service | Purpose | Port |
+|---------|---------|------|
+| umh-mesh | Node mesh WebSocket server (systemd) | 8094 |
+| Ollama | Local LLM inference | 11434 |
+| Caddy | HTTP reverse proxy | 80 |
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| UMH_API_PORT | 8000 | API server port |
-| UMH_API_HOST | 127.0.0.1 | API bind address |
-| UMH_API_KEY | (required) | API authentication key |
-| UMH_DB_PATH | data/runtime/tasks.sqlite | Task database path |
-| UMH_WORKER_AUTO_START | true | Auto-start background worker |
-| UMH_WORKER_INTERVAL | 2.0 | Worker poll interval (seconds) |
-| UMH_LEASE_TIMEOUT | 300.0 | Stuck task detection timeout |
-| UMH_LOG_DIR | data/logs | Log directory |
-| UMH_LOG_LEVEL | INFO | Logging level |
-| UMH_TASK_BACKEND | sqlite | Task backend (sqlite/memory) |
+## Environment Files
 
-## Running with tmux (recommended)
+Two env files (both gitignored):
 
-```
-tmux new -d -s umh ./scripts/run_prod.sh
-tmux attach -t umh  # to view
-Ctrl+B D             # to detach
-```
+- `services/.env` — Discord tokens, API keys, org/user IDs
+- `infra/docker/umh.env` — Database URLs, Notion keys, model API keys
 
-## Running with systemd
+**Required keys** (by name, never commit values):
+- DATABASE_URL — Neon PostgreSQL connection string
+- EOS_ORG_ID — organization UUID
+- EOS_USER_ID — user UUID
+- DISCORD_BOT_TOKEN — Discord bot token
 
-Create `/etc/systemd/system/umh.service`:
+## Deploy / Restart
 
-```ini
-[Unit]
-Description=UMH Control Plane
-After=network.target
+```bash
+# Restart a single service
+docker restart os-discord
 
-[Service]
-Type=simple
-User=root
-WorkingDirectory=/opt/OS
-Environment=UMH_API_KEY=your-secret-api-key
-Environment=UMH_WORKER_AUTO_START=true
-ExecStart=/opt/OS/scripts/run_prod.sh
-Restart=on-failure
-RestartSec=10
+# Restart all services
+docker compose up -d
 
-[Install]
-WantedBy=multi-user.target
+# Rebuild after Dockerfile changes
+docker compose build && docker compose up -d
+
+# Restart mesh server
+sudo systemctl restart umh-mesh
 ```
 
-Then enable and start:
+## Verification
 
+```bash
+# Check all containers
+docker ps
+
+# Check mesh
+systemctl status umh-mesh
+
+# Import smoke test
+python3 -c "import sys; sys.path.insert(0,'/opt/OS'); import substrate; print('ok')"
+
+# Check Discord bot logs
+docker logs os-discord --tail 20
 ```
-systemctl daemon-reload
-systemctl enable umh
-systemctl start umh
-```
+
+## Crontab
+
+30 cron jobs handle scheduled operations. See `crontab -l` for current state.
+Staggered to prevent CPU pile-up on 2-core VPS.
 
 ## Monitoring
 
-```
-./scripts/healthcheck.sh
-```
-
-## Logs
-
-```
-tail -f data/logs/umh_api.log     # all API activity
-tail -f data/logs/umh_worker.log  # worker activity
-tail -f data/logs/umh_errors.log  # errors only
-tail -f data/logs/umh_server.log  # uvicorn output
-```
-
-## Data
-
-SQLite databases in `data/runtime/`:
-- `tasks.sqlite` -- task state (survives restart)
-- `approvals.sqlite` -- approval state
-
-## Backup
-
-```
-cp data/runtime/*.sqlite /path/to/backup/
+```bash
+docker logs os-discord --tail 50 -f   # Discord bot
+docker logs os-webhook --tail 50 -f   # Webhook handler
+docker logs os-operator --tail 50 -f  # Operator API
+journalctl -u umh-mesh -f             # Mesh server
 ```
 
 ## Troubleshooting
 
-### API won't start
-- Check port not in use: `lsof -i :8000`
-- Check Python version: `python3 --version` (need 3.11+)
-- Check dependencies: `pip list | grep fastapi`
+### Container crash-looping
+```bash
+docker logs <container> --tail 30    # Check error
+docker compose config                # Validate compose
+```
 
-### Worker not running
-- Check: `curl http://localhost:8000/worker/health`
-- Check logs: `tail data/logs/umh_worker.log`
+### Missing env vars
+Containers need both `services/.env` and `infra/docker/umh.env`.
+Check docker-compose.yml `env_file:` section for each service.
 
-### Tasks stuck
-- Worker detects stuck tasks (>5min) automatically
-- Manual: check `GET /tasks` for RUNNING tasks with old timestamps
+### Mesh backlog
+Port 8094 may show high Recv-Q from internet port scanners.
+If Windows node can't connect, check Tailscale status and mesh token config.

@@ -1,11 +1,12 @@
 """End-to-end acceptance tests for the converged UMH substrate."""
 
+import os
 import sys
 from pathlib import Path
 
 _ROOT = str(Path(__file__).resolve().parents[1])
 # Insert at index 0 so the worktree's packages take priority over /opt/OS.
-# substrate/execution/spine.py does sys.path.insert(0, "/opt/OS") which would
+# substrate/execution/spine.py does sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS")) which would
 # otherwise shadow the worktree's projections/ package with the main repo's
 # (older) projections/ package. Pre-importing projections here caches the
 # worktree version in sys.modules before substrate is imported.

@@ -17,11 +17,12 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
 from adapters.data_source_adapters.conversation_source import ConversationSource
 from adapters.data_source_adapters.parsers.chatgpt_parser import parse_chatgpt_export

@@ -74,9 +74,10 @@ class ConcreteComponentRegistry:
         """Boot: load existing agents + skills from Neon into registry."""
         count = 0
         try:
+            import os
             import sys
 
-            sys.path.insert(0, "/opt/OS")
+            sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
             from substrate.state.storage.db import get_conn
 
             with get_conn("munoz-holdings") as cur:

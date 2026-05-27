@@ -21,7 +21,7 @@ if file_path.endswith("MEMORY.md"):
 if not file_path.endswith(".md"):
     sys.exit(0)
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
 import hashlib
 import json
