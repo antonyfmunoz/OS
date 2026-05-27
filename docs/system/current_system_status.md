@@ -3,26 +3,25 @@
 > System: Universal Mastery Hierarchy (UMH)
 > Applications: EntrepreneurOS (EOS) — primary projection
 > Repository: /opt/OS (pending rename to /opt/UMH)
-> Last updated: Phase 96.8CO — 2026-05-10
+> Last updated: Post-convergence — 2026-05-27
 > UPDATE THIS AFTER EVERY MAJOR PHASE
 
 ### System Identity
 UMH is the governed intelligence substrate. EOS (EntrepreneurOS)
 is one application projection that consumes UMH intelligence.
-The `eos_ai/` directory is the runtime layer (legacy name).
-The `core/` directory is the canonical substrate contracts layer.
+Post-convergence (2026-05-23), all code lives in four canonical packages.
 See `docs/system/canonical_terminology.md` for authoritative definitions.
 
-### Directory Architecture
+### Directory Architecture (post-convergence)
 | Directory | Role | Layer |
 |-----------|------|-------|
-| `core/` | Canonical substrate contracts + infrastructure | Substrate |
-| `eos_ai/` | Runtime intelligence (legacy name) | Runtime |
-| `eos_ai/transport/` | Canonical transport subsystem | Transport |
-| `eos_ai/substrate/` | Shim layer → transport | Compatibility |
-| `services/` | Live entrypoints (bots, webhooks) | Interface |
-| `scripts/` | Operations layer (cron, utilities) | Operations |
-| `saas/` | EOS application projection (TypeScript) | Application |
+| `substrate/` | UMH brain — types, control plane, execution, governance, memory | Substrate |
+| `adapters/` | External system adapters (LLM routing, GWS, browser) | Adapters |
+| `transports/` | I/O surfaces (Discord, API, node mesh) | Transport |
+| `projections/` | Application projections (EOS agents, workflows) | Application |
+| `services/` | Deployment entrypoints (bots, webhooks) | Interface |
+| `scripts/` | Operational tooling (cron, verification, graph) | Operations |
+| `saas/` | EOS application projection (TypeScript/React) | Application |
 
 ---
 

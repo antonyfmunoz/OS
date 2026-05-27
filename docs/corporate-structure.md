@@ -23,7 +23,7 @@
 - **Lyfe Spectrum** — tactical luxury fashion house. Has Shopify store, prior sales.
   Currently designing a full uniform/wardrobe set to wear in content.
   Working in 3D + learning to sew. Long-term standalone company under Lyfe Corp.
-- **LYFEOS / AgentOS / CreatorOS** — SaaS products in MVP stage.
+- **LYFEOS / CreatorOS** — SaaS products in MVP stage. Built on UMH substrate.
   Long-term standalone SaaS company. Will be used in own content as embedded
   advertising — product placement like a movie, not a pitch.
 
