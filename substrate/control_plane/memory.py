@@ -31,15 +31,15 @@ class ConcreteMemorySystem:
     def is_available(self) -> bool:
         return self._agent_memory is not None
 
-    def __init__(self) -> None:
-        import sys
-
-        sys.path.insert(0, "/opt/OS")
+    def __init__(self, ctx: object | None = None) -> None:
         try:
             from substrate.state.memory.memory import AgentMemory, ConversationMemory
 
             self._agent_memory = AgentMemory()
-            self._conversation_memory = ConversationMemory()
+            if ctx and hasattr(ctx, "org_id"):
+                self._conversation_memory = ConversationMemory(ctx)
+            else:
+                self._conversation_memory = None
         except Exception:
             self._agent_memory = None
             self._conversation_memory = None
@@ -65,10 +65,10 @@ class ConcreteMemorySystem:
     async def store(self, entry: MemoryEntry) -> UUID:
         if self._agent_memory:
             try:
-                self._agent_memory.embed_and_store(
-                    content=entry.content,
-                    memory_type=entry.memory_type.value,
-                    metadata=entry.metadata,
+                self._agent_memory.log_event(
+                    org_id=entry.metadata.get("org_id", "") if entry.metadata else "",
+                    event_type=entry.memory_type.value,
+                    payload={"content": entry.content, **(entry.metadata or {})},
                 )
             except Exception:
                 pass
@@ -79,11 +79,18 @@ class ConcreteMemorySystem:
     ) -> UUID:
         if self._agent_memory:
             try:
-                self._agent_memory.log(
-                    content=content,
-                    response=response,
+                from types import SimpleNamespace
+
+                agent_result = SimpleNamespace(
+                    content=response,
                     provider=provider,
-                    **kwargs,
+                    agent_type=kwargs.get("agent_type", "substrate"),
+                    task_type=kwargs.get("task_type", "chat"),
+                )
+                self._agent_memory.log(
+                    agent_result=agent_result,
+                    venture_id=kwargs.get("venture_id"),
+                    input_summary=content,
                 )
             except Exception:
                 pass

@@ -79,3 +79,23 @@ class PipelineView:
                 ]
         except Exception:
             return []
+
+
+def get_pipeline_data(org_id: str = "") -> dict[str, Any]:
+    """Public convenience wrapper around PipelineView.snapshot()."""
+    view = PipelineView(org_id=org_id)
+    snap = view.snapshot()
+    return {
+        "stages": [
+            {
+                "name": s.name,
+                "count": s.count,
+                "total_value": s.total_value,
+                "leads": s.leads,
+            }
+            for s in snap.stages
+        ],
+        "total_leads": snap.total_leads,
+        "total_value": snap.total_value,
+        "conversion_rate": snap.conversion_rate,
+    }
