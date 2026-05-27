@@ -24,10 +24,7 @@ export function ApprovalsPanel() {
       <div className="flex items-center mb-4">
         <h2 className="text-lg font-semibold">Governance Gate</h2>
         {pending.length > 0 && (
-          <span
-            className="ml-2 px-2 py-0.5 text-xs font-mono rounded"
-            style={{ background: 'var(--color-cyan-glow)', color: 'var(--color-cyan)' }}
-          >
+          <span className="ml-2 px-2 py-0.5 text-xs font-mono rounded bg-cyan-glow text-cyan">
             {pending.length} pending
           </span>
         )}
@@ -39,11 +36,7 @@ export function ApprovalsPanel() {
           <h3 className="wv-label mb-3">Pending Approval</h3>
           <div className="space-y-2">
             {pending.map((item) => (
-              <div
-                key={item.id}
-                className="px-4 py-3 rounded"
-                style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}
-              >
+              <div key={item.id} className="wv-card px-4 py-3">
                 <div className="flex items-center gap-2 mb-2">
                   <span
                     className="px-1.5 py-0.5 text-xs font-mono uppercase rounded"
@@ -55,23 +48,19 @@ export function ApprovalsPanel() {
                   >
                     {item.risk_level}
                   </span>
-                  <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
-                    from {item.agent}
-                  </span>
+                  <span className="text-xs text-text-tertiary">from {item.agent}</span>
                 </div>
                 <p className="text-sm mb-3">{item.description}</p>
                 <div className="flex gap-2">
                   <button
                     onClick={() => approve(item.id)}
-                    className="px-3 py-1.5 text-xs font-mono uppercase rounded transition-colors"
-                    style={{ background: 'var(--color-ok)', color: 'var(--color-canvas)' }}
+                    className="px-3 py-1.5 text-xs font-mono uppercase rounded bg-ok text-text-inverse transition-colors"
                   >
                     approve
                   </button>
                   <button
                     onClick={() => deny(item.id)}
-                    className="px-3 py-1.5 text-xs font-mono uppercase rounded transition-colors"
-                    style={{ background: 'var(--color-surface-overlay)', color: 'var(--color-danger)', border: '1px solid var(--color-border)' }}
+                    className="px-3 py-1.5 text-xs font-mono uppercase rounded bg-surface-overlay text-danger border border-border transition-colors"
                   >
                     deny
                   </button>
@@ -86,21 +75,12 @@ export function ApprovalsPanel() {
       <section>
         <h3 className="wv-label mb-3">Decision History</h3>
         {history.length === 0 ? (
-          <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>No decisions recorded</p>
+          <p className="text-xs text-text-tertiary">No decisions recorded</p>
         ) : (
           <div className="space-y-1.5">
             {history.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center gap-2 px-3 py-2 rounded"
-                style={{ background: 'var(--color-surface)' }}
-              >
-                <span
-                  className="w-2 h-2 rounded-full shrink-0"
-                  style={{
-                    background: item.status === 'approved' ? 'var(--color-ok)' : 'var(--color-danger)',
-                  }}
-                />
+              <div key={item.id} className="flex items-center gap-2 px-3 py-2 rounded bg-surface">
+                <span className={`w-2 h-2 rounded-full shrink-0 ${item.status === 'approved' ? 'bg-ok' : 'bg-danger'}`} />
                 <p className="text-sm flex-1 truncate">{item.description}</p>
                 <span className="wv-label">{item.status}</span>
               </div>

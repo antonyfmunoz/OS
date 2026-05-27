@@ -1,7 +1,8 @@
 import { TitleBar } from './TitleBar'
 import { LeftRail } from './LeftRail'
 import { HudBar } from './HudBar'
-import { ChatDrawer } from './ChatDrawer'
+import { ControlPanel } from './ControlPanel'
+import { RightRail } from './RightRail'
 import { CommandPalette } from './CommandPalette'
 import { FabLarge } from './FabLarge'
 import { FabMedium } from './FabMedium'
@@ -20,6 +21,13 @@ import { EditorPanel } from '../panels/EditorPanel'
 import { ExecutionPanel } from '../panels/ExecutionPanel'
 import { PortfolioPanel } from '../panels/PortfolioPanel'
 import { CompanyPanel } from '../panels/CompanyPanel'
+import { CommsPanel } from '../panels/CommsPanel'
+import { WorkflowsPanel } from '../panels/WorkflowsPanel'
+import { TrackingPanel } from '../panels/TrackingPanel'
+import { SkillsPanel } from '../panels/SkillsPanel'
+import { ExperimentsPanel } from '../panels/ExperimentsPanel'
+import { InfrastructurePanel } from '../panels/InfrastructurePanel'
+import { ProfilePanel } from '../panels/ProfilePanel'
 
 function ActivePanel() {
   const activePanel = useCockpitStore((s) => s.activePanel)
@@ -49,6 +57,20 @@ function ActivePanel() {
       return <PortfolioPanel />
     case 'company':
       return <CompanyPanel />
+    case 'comms':
+      return <CommsPanel />
+    case 'workflows':
+      return <WorkflowsPanel />
+    case 'tracking':
+      return <TrackingPanel />
+    case 'skills':
+      return <SkillsPanel />
+    case 'experiments':
+      return <ExperimentsPanel />
+    case 'infrastructure':
+      return <InfrastructurePanel />
+    case 'profile':
+      return <ProfilePanel />
     default:
       return <DashboardPanel />
   }
@@ -91,11 +113,14 @@ export function Shell() {
       <div className="flex flex-1 overflow-hidden">
         <LeftRail />
 
-        <main className="flex-1 overflow-hidden bg-surface">
-          <ActivePanel />
-        </main>
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <ControlPanel />
+          <main className="flex-1 overflow-hidden bg-surface">
+            <ActivePanel />
+          </main>
+        </div>
 
-        <ChatDrawer />
+        <RightRail />
       </div>
 
       <HudBar />

@@ -72,7 +72,7 @@ export function PortfolioPanel() {
       setProducts(prodRes.connections || [])
       setProductSummary(prodRes.summary || null)
     } catch {
-      // API not available — show empty state
+      // API not available
     }
     setLoading(false)
   }
@@ -99,9 +99,7 @@ export function PortfolioPanel() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full" style={{ color: 'var(--color-text-tertiary)' }}>
-        Loading entity data...
-      </div>
+      <div className="flex items-center justify-center h-full text-text-tertiary">Loading entity data...</div>
     )
   }
 
@@ -110,24 +108,19 @@ export function PortfolioPanel() {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+          <h2 className="text-lg font-semibold text-text-primary">
             {view === 'portfolio' ? 'Portfolio' : view === 'department' ? `Department: ${selectedDept}` : 'All Roles'}
           </h2>
-          <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
-            {departments.length} departments · {roles.length} roles
-          </span>
+          <span className="text-xs text-text-tertiary">{departments.length} departments · {roles.length} roles</span>
         </div>
         <div className="flex gap-2">
           {(['portfolio', 'department', 'role'] as View[]).map(v => (
             <button
               key={v}
               onClick={() => { setView(v); if (v === 'portfolio') setSelectedDept(null) }}
-              className="px-2 py-1 text-xs rounded"
-              style={{
-                background: view === v ? 'var(--color-surface-raised)' : 'transparent',
-                color: view === v ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                border: '1px solid var(--color-border)',
-              }}
+              className={`px-2 py-1 text-xs rounded border border-border ${
+                view === v ? 'bg-surface-raised text-text-primary' : 'text-text-secondary'
+              }`}
             >
               {v.charAt(0).toUpperCase() + v.slice(1)}
             </button>
@@ -141,32 +134,20 @@ export function PortfolioPanel() {
           <h3 className="wv-label mb-3">Product Connections</h3>
           <div className="grid grid-cols-3 gap-3">
             {products.map(p => (
-              <div
-                key={p.product}
-                className="p-3 rounded"
-                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-              >
+              <div key={p.product} className="wv-card p-3">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
-                    {p.product.toUpperCase()}
-                  </span>
+                  <span className="text-sm font-medium text-text-primary">{p.product.toUpperCase()}</span>
                   <span className="text-xs px-1.5 py-0.5 rounded" style={{ color: statusColor(p.status), border: `1px solid ${statusColor(p.status)}` }}>
                     {p.status}
                   </span>
                 </div>
-                <div className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
-                  {p.capabilities.length} capabilities · {p.signal_types.length} signals
-                </div>
-                {p.error && (
-                  <div className="text-xs mt-1" style={{ color: 'var(--color-danger)' }}>
-                    {p.error}
-                  </div>
-                )}
+                <div className="text-xs text-text-tertiary">{p.capabilities.length} capabilities · {p.signal_types.length} signals</div>
+                {p.error && <div className="text-xs mt-1 text-danger">{p.error}</div>}
               </div>
             ))}
           </div>
           {productSummary && productSummary.compounding && (
-            <div className="mt-2 text-xs" style={{ color: 'var(--color-ok)' }}>
+            <div className="mt-2 text-xs text-ok">
               Cross-product intelligence compounding active ({productSummary.connected} products linked)
             </div>
           )}
@@ -181,38 +162,29 @@ export function PortfolioPanel() {
             {departments.map(dept => (
               <div
                 key={dept.slug}
-                className="p-3 rounded cursor-pointer transition-colors"
+                className="p-3 rounded cursor-pointer transition-colors border"
                 style={{
                   background: selectedDept === dept.slug ? 'var(--color-surface-raised)' : 'var(--color-surface)',
-                  border: `1px solid ${selectedDept === dept.slug ? 'var(--color-cyan)' : 'var(--color-border)'}`,
+                  borderColor: selectedDept === dept.slug ? 'var(--color-cyan)' : 'var(--color-border)',
                 }}
                 onClick={() => { setSelectedDept(dept.slug); setView('department') }}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
-                    {dept.name}
-                  </span>
-                  <span
-                    className="text-xs px-1.5 py-0.5 rounded uppercase"
-                    style={{ color: tierColor(dept.permission_tier), border: `1px solid ${tierColor(dept.permission_tier)}` }}
-                  >
+                  <span className="text-sm font-medium text-text-primary">{dept.name}</span>
+                  <span className="text-xs px-1.5 py-0.5 rounded uppercase" style={{ color: tierColor(dept.permission_tier), border: `1px solid ${tierColor(dept.permission_tier)}` }}>
                     {dept.permission_tier}
                   </span>
                 </div>
-                <div className="text-xs mb-1" style={{ color: 'var(--color-text-secondary)' }}>
+                <div className="text-xs mb-1 text-text-secondary">
                   {dept.agent?.skill_count ?? 0} skills · {dept.roles.length} roles · {dept.metrics.length} KPIs
                 </div>
                 {dept.agent && (
                   <div className="flex flex-wrap gap-1 mt-2">
                     {dept.agent.skills.slice(0, 4).map(s => (
-                      <span key={s} className="text-xs px-1 py-0.5 rounded" style={{ background: 'var(--color-surface-raised)', color: 'var(--color-text-tertiary)' }}>
-                        {s}
-                      </span>
+                      <span key={s} className="text-xs px-1 py-0.5 rounded bg-surface-raised text-text-tertiary">{s}</span>
                     ))}
                     {dept.agent.skills.length > 4 && (
-                      <span className="text-xs px-1 py-0.5" style={{ color: 'var(--color-text-tertiary)' }}>
-                        +{dept.agent.skills.length - 4}
-                      </span>
+                      <span className="text-xs px-1 py-0.5 text-text-tertiary">+{dept.agent.skills.length - 4}</span>
                     )}
                   </div>
                 )}
@@ -225,53 +197,31 @@ export function PortfolioPanel() {
       {/* Roles Table */}
       {(view === 'role' || (view === 'department' && selectedDept)) && (
         <section>
-          <h3 className="wv-label mb-3">
-            {selectedDept ? `Roles in ${selectedDept}` : 'All Roles'}
-          </h3>
+          <h3 className="wv-label mb-3">{selectedDept ? `Roles in ${selectedDept}` : 'All Roles'}</h3>
           <div className="space-y-2">
             {filteredRoles.map(role => (
-              <div
-                key={`${role.department}-${role.name}`}
-                className="p-3 rounded"
-                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-              >
+              <div key={`${role.department}-${role.name}`} className="wv-card p-3">
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
-                      {role.name}
-                    </span>
-                    <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
-                      {role.department}
-                    </span>
+                    <span className="text-sm font-medium text-text-primary">{role.name}</span>
+                    <span className="text-xs text-text-tertiary">{role.department}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs px-1.5 py-0.5 rounded" style={{ color: 'var(--color-cyan)', border: '1px solid var(--color-cyan)' }}>
-                      {role.operator}
-                    </span>
-                    <span
-                      className="text-xs px-1.5 py-0.5 rounded uppercase"
-                      style={{ color: tierColor(role.permission_tier), border: `1px solid ${tierColor(role.permission_tier)}` }}
-                    >
+                    <span className="text-xs px-1.5 py-0.5 rounded text-cyan border border-cyan">{role.operator}</span>
+                    <span className="text-xs px-1.5 py-0.5 rounded uppercase" style={{ color: tierColor(role.permission_tier), border: `1px solid ${tierColor(role.permission_tier)}` }}>
                       {role.permission_tier}
                     </span>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1 mt-1">
                   {role.responsibilities.map(r => (
-                    <span key={r} className="text-xs px-1 py-0.5 rounded" style={{ background: 'var(--color-surface-raised)', color: 'var(--color-text-secondary)' }}>
-                      {r}
-                    </span>
+                    <span key={r} className="text-xs px-1 py-0.5 rounded bg-surface-raised text-text-secondary">{r}</span>
                   ))}
-                </div>
-                <div className="text-xs mt-1" style={{ color: 'var(--color-text-tertiary)' }}>
-                  KPIs: {role.metrics.join(', ')}
                 </div>
               </div>
             ))}
             {filteredRoles.length === 0 && (
-              <div className="text-xs p-4 text-center" style={{ color: 'var(--color-text-tertiary)' }}>
-                No roles {selectedDept ? `in ${selectedDept}` : 'found'}
-              </div>
+              <div className="text-xs p-4 text-center text-text-tertiary">No roles {selectedDept ? `in ${selectedDept}` : 'found'}</div>
             )}
           </div>
         </section>

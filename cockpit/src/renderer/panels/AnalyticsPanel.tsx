@@ -14,7 +14,7 @@ function MiniChart({ data }: { data: { date: string; count: number }[] }) {
   })
 
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ height: 140 }}>
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-[140px]">
       <defs>
         <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="var(--color-cyan)" stopOpacity="0.3" />
@@ -35,14 +35,7 @@ function MiniChart({ data }: { data: { date: string; count: number }[] }) {
         const x = (i / Math.max(data.length - 1, 1)) * w
         const y = h - (d.count / max) * (h - 10)
         return (
-          <circle
-            key={i}
-            cx={x}
-            cy={y}
-            r="3"
-            fill="var(--color-cyan)"
-            opacity="0.6"
-          >
+          <circle key={i} cx={x} cy={y} r="3" fill="var(--color-cyan)" opacity="0.6">
             <title>{d.date}: {d.count} traces</title>
           </circle>
         )
@@ -69,10 +62,7 @@ export function AnalyticsPanel() {
     <div className="h-full overflow-y-auto p-4 space-y-6">
       {/* KPI row */}
       <div className="grid grid-cols-4 gap-4">
-        <div
-          className="px-4 py-3 rounded"
-          style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}
-        >
+        <div className="wv-card px-4 py-3">
           <p className="wv-label mb-2">Error Rate</p>
           <RingGauge
             value={data.error_rate * 100}
@@ -81,78 +71,47 @@ export function AnalyticsPanel() {
             label={`${(data.error_rate * 100).toFixed(1)}%`}
           />
         </div>
-        <div
-          className="px-4 py-3 rounded"
-          style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}
-        >
+        <div className="wv-card px-4 py-3">
           <p className="wv-label mb-2">Avg Latency</p>
-          <p className="text-2xl font-mono" style={{ color: 'var(--color-cyan)' }}>
+          <p className="text-2xl font-mono text-cyan">
             {data.avg_latency_ms}
-            <span className="text-xs ml-1" style={{ color: 'var(--color-text-tertiary)' }}>ms</span>
+            <span className="text-xs ml-1 text-text-tertiary">ms</span>
           </p>
         </div>
-        <div
-          className="px-4 py-3 rounded"
-          style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}
-        >
+        <div className="wv-card px-4 py-3">
           <p className="wv-label mb-2">30d Cost</p>
-          <p className="text-2xl font-mono" style={{ color: 'var(--color-ok)' }}>
-            ${data.total_cost_30d.toFixed(2)}
-          </p>
+          <p className="text-2xl font-mono text-ok">${data.total_cost_30d.toFixed(2)}</p>
         </div>
-        <div
-          className="px-4 py-3 rounded"
-          style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}
-        >
+        <div className="wv-card px-4 py-3">
           <p className="wv-label mb-2">Daily Traces</p>
-          <p className="text-2xl font-mono" style={{ color: 'var(--color-cyan)' }}>
+          <p className="text-2xl font-mono text-cyan">
             {data.daily_traces.length > 0 ? data.daily_traces[data.daily_traces.length - 1].count : 0}
           </p>
         </div>
       </div>
 
       {/* Throughput chart */}
-      <div
-        className="px-4 py-3 rounded"
-        style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}
-      >
+      <div className="wv-card px-4 py-3">
         <p className="wv-label mb-3">Execution Throughput (30d)</p>
         <MiniChart data={data.daily_traces} />
         {data.daily_traces.length > 0 && (
           <div className="flex justify-between mt-2">
-            <span className="text-xs font-mono" style={{ color: 'var(--color-text-tertiary)' }}>
-              {data.daily_traces[0].date}
-            </span>
-            <span className="text-xs font-mono" style={{ color: 'var(--color-text-tertiary)' }}>
-              {data.daily_traces[data.daily_traces.length - 1].date}
-            </span>
+            <span className="text-xs font-mono text-text-tertiary">{data.daily_traces[0].date}</span>
+            <span className="text-xs font-mono text-text-tertiary">{data.daily_traces[data.daily_traces.length - 1].date}</span>
           </div>
         )}
       </div>
 
       {/* Model usage */}
-      <div
-        className="px-4 py-3 rounded"
-        style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}
-      >
+      <div className="wv-card px-4 py-3">
         <p className="wv-label mb-3">Model Routing</p>
         <div className="space-y-2">
           {data.model_usage.map((m) => (
-            <div
-              key={m.model}
-              className="flex items-center gap-3 px-3 py-2 rounded"
-              style={{ background: 'var(--color-surface)' }}
-            >
+            <div key={m.model} className="flex items-center gap-3 px-3 py-2 rounded bg-surface">
               <span className="text-sm flex-1">{m.model}</span>
-              <span className="font-mono text-xs" style={{ color: 'var(--color-cyan)' }}>
-                {m.calls} calls
-              </span>
-              <span className="font-mono text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
-                {(m.tokens / 1000).toFixed(0)}k tokens
-              </span>
-              <span className="font-mono text-xs" style={{ color: 'var(--color-ok)' }}>
-                ${m.cost.toFixed(2)}
-              </span>
+              <span className="font-mono text-xs text-cyan">{m.calls} calls</span>
+              <span className="font-mono text-xs text-text-tertiary">{(m.tokens / 1000).toFixed(0)}k tokens</span>
+              <span className="font-mono text-xs text-ok">${m.cost.toFixed(2)}</span>
             </div>
           ))}
         </div>

@@ -67,10 +67,7 @@ export function KnowledgePanel() {
       {/* Main list */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Tab bar + search */}
-        <div
-          className="flex items-center gap-3 px-4 h-10 shrink-0"
-          style={{ borderBottom: '1px solid var(--color-border)' }}
-        >
+        <div className="flex items-center gap-3 px-4 h-10 shrink-0 border-b border-border">
           {TABS.map((tab) => (
             <button
               key={tab.id}
@@ -91,8 +88,7 @@ export function KnowledgePanel() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search..."
-            className="text-xs px-2 py-1 rounded bg-transparent outline-none w-48"
-            style={{ color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}
+            className="text-xs px-2 py-1 rounded bg-transparent text-text-secondary border border-border outline-none w-48"
           />
         </div>
 
@@ -104,11 +100,9 @@ export function KnowledgePanel() {
                 <button
                   key={obs.id}
                   onClick={() => selectNode(obs)}
-                  className="w-full text-left px-3 py-2 rounded transition-colors hover:bg-[var(--color-surface-raised)]"
-                  style={{
-                    background: selectedNode?.id === obs.id ? 'var(--color-surface-raised)' : 'transparent',
-                    border: selectedNode?.id === obs.id ? '1px solid var(--color-border-active)' : '1px solid transparent',
-                  }}
+                  className={`w-full text-left px-3 py-2 rounded transition-colors hover:bg-surface-raised ${
+                    selectedNode?.id === obs.id ? 'bg-surface-raised border border-border-active' : 'border border-transparent'
+                  }`}
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <span
@@ -118,17 +112,13 @@ export function KnowledgePanel() {
                     <span className="font-mono text-xs uppercase" style={{ color: PRIMITIVE_COLORS[obs.primitive_type] || 'var(--color-text-tertiary)' }}>
                       {obs.primitive_type}
                     </span>
-                    <span className="text-xs truncate" style={{ color: 'var(--color-text-tertiary)' }}>
-                      {obs.source_document}
-                    </span>
+                    <span className="text-xs truncate text-text-tertiary">{obs.source_document}</span>
                   </div>
                   <p className="text-sm truncate">{obs.label}</p>
                 </button>
               ))}
               {filteredObs.length === 0 && (
-                <p className="text-center text-xs py-8" style={{ color: 'var(--color-text-tertiary)' }}>
-                  No observations found
-                </p>
+                <p className="text-center text-xs py-8 text-text-tertiary">No observations found</p>
               )}
             </div>
           )}
@@ -136,34 +126,18 @@ export function KnowledgePanel() {
           {viewMode === 'memory' && (
             <div className="space-y-1.5">
               {filteredMem.map((m) => (
-                <div
-                  key={m.id}
-                  className="px-3 py-2 rounded"
-                  style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}
-                >
+                <div key={m.id} className="wv-card px-3 py-2">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-mono text-xs" style={{ color: 'var(--color-cyan)' }}>
-                      {m.memory_type}
-                    </span>
-                    <span className="font-mono text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
-                      {m.primitive_type}
-                    </span>
-                    {m.domain_id && (
-                      <span className="font-mono text-xs" style={{ color: 'var(--color-violet)' }}>
-                        {m.domain_id}
-                      </span>
-                    )}
+                    <span className="font-mono text-xs text-cyan">{m.memory_type}</span>
+                    <span className="font-mono text-xs text-text-tertiary">{m.primitive_type}</span>
+                    {m.domain_id && <span className="font-mono text-xs text-violet">{m.domain_id}</span>}
                   </div>
                   <p className="text-sm">{m.label}</p>
-                  <p className="text-xs mt-1 line-clamp-2" style={{ color: 'var(--color-text-secondary)' }}>
-                    {m.description}
-                  </p>
+                  <p className="text-xs mt-1 line-clamp-2 text-text-secondary">{m.description}</p>
                 </div>
               ))}
               {filteredMem.length === 0 && (
-                <p className="text-center text-xs py-8" style={{ color: 'var(--color-text-tertiary)' }}>
-                  No memory entries found
-                </p>
+                <p className="text-center text-xs py-8 text-text-tertiary">No memory entries found</p>
               )}
             </div>
           )}
@@ -171,31 +145,17 @@ export function KnowledgePanel() {
           {viewMode === 'skills' && (
             <div className="space-y-1.5">
               {filteredSkills.map((skill) => (
-                <div
-                  key={skill.id}
-                  className="px-3 py-2 rounded"
-                  style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}
-                >
+                <div key={skill.id} className="wv-card px-3 py-2">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm font-medium" style={{ color: 'var(--color-cyan)' }}>
-                      {skill.name}
-                    </span>
-                    <span className="font-mono text-xs px-1 rounded" style={{ color: 'var(--color-text-tertiary)', background: 'var(--color-surface-overlay)' }}>
-                      {skill.trigger}
-                    </span>
-                    <span className="font-mono text-xs px-1 rounded" style={{ color: 'var(--color-text-tertiary)', background: 'var(--color-surface-overlay)' }}>
-                      {skill.effort}
-                    </span>
+                    <span className="text-sm font-medium text-cyan">{skill.name}</span>
+                    <span className="font-mono text-xs px-1 rounded text-text-tertiary bg-surface-overlay">{skill.trigger}</span>
+                    <span className="font-mono text-xs px-1 rounded text-text-tertiary bg-surface-overlay">{skill.effort}</span>
                   </div>
-                  <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                    {skill.description}
-                  </p>
+                  <p className="text-xs text-text-secondary">{skill.description}</p>
                 </div>
               ))}
               {filteredSkills.length === 0 && (
-                <p className="text-center text-xs py-8" style={{ color: 'var(--color-text-tertiary)' }}>
-                  No skills found
-                </p>
+                <p className="text-center text-xs py-8 text-text-tertiary">No skills found</p>
               )}
             </div>
           )}
@@ -203,27 +163,18 @@ export function KnowledgePanel() {
           {viewMode === 'tracking' && (
             <div className="space-y-1.5">
               {filteredTracking.map((t) => (
-                <div
-                  key={t.id}
-                  className="flex items-center gap-3 px-3 py-2 rounded"
-                  style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}
-                >
-                  <span
-                    className="w-2 h-2 rounded-full shrink-0"
-                    style={{ background: t.status === 'active' ? 'var(--color-ok)' : 'var(--color-text-tertiary)' }}
-                  />
+                <div key={t.id} className="wv-card flex items-center gap-3 px-3 py-2">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${t.status === 'active' ? 'bg-ok' : 'bg-text-tertiary'}`} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm truncate">{t.name}</p>
-                    <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
+                    <p className="text-xs text-text-tertiary">
                       {t.change_count} changes · last {new Date(t.last_changed).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
               ))}
               {filteredTracking.length === 0 && (
-                <p className="text-center text-xs py-8" style={{ color: 'var(--color-text-tertiary)' }}>
-                  No tracked documents
-                </p>
+                <p className="text-center text-xs py-8 text-text-tertiary">No tracked documents</p>
               )}
             </div>
           )}
@@ -232,16 +183,12 @@ export function KnowledgePanel() {
 
       {/* Node inspector sidebar */}
       {selectedNode && (
-        <div
-          className="w-80 shrink-0 overflow-y-auto p-4"
-          style={{ borderLeft: '1px solid var(--color-border)', background: 'var(--color-surface)' }}
-        >
+        <div className="w-80 shrink-0 overflow-y-auto p-4 border-l border-border bg-surface">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold">Node Inspector</h3>
             <button
               onClick={() => selectNode(null)}
-              className="text-xs px-2 py-1 rounded"
-              style={{ color: 'var(--color-text-tertiary)', border: '1px solid var(--color-border)' }}
+              className="text-xs px-2 py-1 rounded text-text-tertiary border border-border"
             >
               close
             </button>
@@ -266,31 +213,25 @@ export function KnowledgePanel() {
             </div>
             <div>
               <p className="wv-label mb-1">Description</p>
-              <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                {selectedNode.description || 'No description'}
-              </p>
+              <p className="text-xs text-text-secondary">{selectedNode.description || 'No description'}</p>
             </div>
             {selectedNode.evidence && (
               <div>
                 <p className="wv-label mb-1">Evidence</p>
-                <p className="text-xs font-mono p-2 rounded" style={{ color: 'var(--color-text-secondary)', background: 'var(--color-surface-raised)' }}>
-                  {selectedNode.evidence}
-                </p>
+                <p className="text-xs font-mono p-2 rounded text-text-secondary bg-surface-raised">{selectedNode.evidence}</p>
               </div>
             )}
             <div>
               <p className="wv-label mb-1">Source</p>
-              <p className="text-xs font-mono" style={{ color: 'var(--color-cyan)' }}>
-                {selectedNode.source_document || 'unknown'}
-              </p>
+              <p className="text-xs font-mono text-cyan">{selectedNode.source_document || 'unknown'}</p>
             </div>
             {selectedNode.relationships.length > 0 && (
               <div>
                 <p className="wv-label mb-1">Relationships</p>
                 <div className="space-y-1">
                   {selectedNode.relationships.map((r, i) => (
-                    <p key={i} className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                      <span style={{ color: 'var(--color-violet)' }}>{r.type}</span> → {r.target}
+                    <p key={i} className="text-xs text-text-secondary">
+                      <span className="text-violet">{r.type}</span> → {r.target}
                     </p>
                   ))}
                 </div>
@@ -298,7 +239,7 @@ export function KnowledgePanel() {
             )}
             <div>
               <p className="wv-label mb-1">Created</p>
-              <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
+              <p className="text-xs text-text-tertiary">
                 {selectedNode.created_at ? new Date(selectedNode.created_at).toLocaleString() : 'unknown'}
               </p>
             </div>

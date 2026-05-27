@@ -24,10 +24,7 @@ export function TasksPanel() {
   return (
     <div className="flex flex-col h-full">
       {/* Tab bar */}
-      <div
-        className="flex items-center gap-4 px-4 h-10 shrink-0"
-        style={{ borderBottom: '1px solid var(--color-border)' }}
-      >
+      <div className="flex items-center gap-4 px-4 h-10 shrink-0 border-b border-border">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -39,9 +36,7 @@ export function TasksPanel() {
             }}
           >
             {tab.label}
-            <span className="ml-1" style={{ color: 'var(--color-text-tertiary)' }}>
-              {tab.count}
-            </span>
+            <span className="ml-1 text-text-tertiary">{tab.count}</span>
           </button>
         ))}
       </div>
@@ -60,9 +55,7 @@ export function TasksPanel() {
               />
             ))}
             {tasks.length === 0 && (
-              <p className="text-center text-xs py-8" style={{ color: 'var(--color-text-tertiary)' }}>
-                No tasks recorded
-              </p>
+              <p className="text-center text-xs py-8 text-text-tertiary">No tasks recorded</p>
             )}
           </div>
         )}
@@ -70,11 +63,7 @@ export function TasksPanel() {
         {viewMode === 'workflows' && (
           <div className="space-y-2">
             {workflows.map((wf) => (
-              <div
-                key={wf.id}
-                className="flex items-center gap-3 px-3 py-2.5 rounded"
-                style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}
-              >
+              <div key={wf.id} className="wv-card flex items-center gap-3 px-3 py-2.5">
                 <span
                   className="w-2 h-2 rounded-full shrink-0"
                   style={{
@@ -87,14 +76,13 @@ export function TasksPanel() {
                 />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm truncate">{wf.name}</p>
-                  <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
+                  <p className="text-xs text-text-tertiary">
                     {wf.run_count} runs · avg {wf.avg_duration_ms}ms
                   </p>
                 </div>
                 <button
                   onClick={() => triggerWorkflow(wf.id)}
-                  className="px-2 py-1 text-xs font-mono uppercase rounded transition-colors"
-                  style={{ color: 'var(--color-cyan)', background: 'var(--color-cyan-glow)', border: '1px solid var(--color-border)' }}
+                  className="px-2 py-1 text-xs font-mono uppercase rounded text-cyan bg-cyan-glow border border-border transition-colors"
                 >
                   run
                 </button>

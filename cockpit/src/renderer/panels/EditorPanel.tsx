@@ -31,10 +31,12 @@ function FileTreeNode({ name, path, type, depth }: FileNodeProps) {
     <>
       <button
         onClick={handleClick}
-        className="w-full text-left flex items-center gap-1 py-0.5 hover:bg-[var(--color-surface-raised)] transition-colors text-xs"
-        style={{ paddingLeft: `${depth * 12 + 8}px`, color: type === 'directory' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)' }}
+        className={`w-full text-left flex items-center gap-1 py-0.5 hover:bg-surface-raised transition-colors text-xs ${
+          type === 'directory' ? 'text-text-primary' : 'text-text-secondary'
+        }`}
+        style={{ paddingLeft: `${depth * 12 + 8}px` }}
       >
-        <span style={{ color: 'var(--color-text-tertiary)', width: 14, textAlign: 'center' }}>
+        <span className="text-text-tertiary w-3.5 text-center">
           {type === 'directory' ? (expanded ? '▾' : '▸') : '·'}
         </span>
         <span className="truncate">{name}</span>
@@ -83,27 +85,16 @@ export function EditorPanel() {
   return (
     <div className="flex h-full" onKeyDown={handleKeyDown}>
       {/* File tree */}
-      <div
-        className="w-56 shrink-0 overflow-y-auto"
-        style={{ borderRight: '1px solid var(--color-border)', background: 'var(--color-canvas)' }}
-      >
-        <div className="px-3 py-2" style={{ borderBottom: '1px solid var(--color-border)' }}>
+      <div className="w-56 shrink-0 overflow-y-auto border-r border-border bg-canvas">
+        <div className="px-3 py-2 border-b border-border">
           <p className="wv-label">Explorer</p>
         </div>
         <div className="py-1">
           {fileTree.map((node) => (
-            <FileTreeNode
-              key={node.path}
-              name={node.name}
-              path={node.path}
-              type={node.type}
-              depth={0}
-            />
+            <FileTreeNode key={node.path} name={node.name} path={node.path} type={node.type} depth={0} />
           ))}
           {fileTree.length === 0 && (
-            <p className="text-xs px-3 py-4 text-center" style={{ color: 'var(--color-text-tertiary)' }}>
-              No file tree loaded
-            </p>
+            <p className="text-xs px-3 py-4 text-center text-text-tertiary">No file tree loaded</p>
           )}
         </div>
       </div>
@@ -111,27 +102,20 @@ export function EditorPanel() {
       {/* Editor area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Tab bar */}
-        <div
-          className="flex items-center h-8 shrink-0 overflow-x-auto"
-          style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-canvas)' }}
-        >
+        <div className="flex items-center h-8 shrink-0 overflow-x-auto border-b border-border bg-canvas">
           {openFiles.map((file) => (
             <button
               key={file.path}
               onClick={() => setActiveFile(file.path)}
-              className="flex items-center gap-1.5 px-3 h-full text-xs shrink-0 transition-colors"
-              style={{
-                color: activeFile === file.path ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)',
-                background: activeFile === file.path ? 'var(--color-surface)' : 'transparent',
-                borderRight: '1px solid var(--color-border)',
-              }}
+              className={`flex items-center gap-1.5 px-3 h-full text-xs shrink-0 border-r border-border transition-colors ${
+                activeFile === file.path ? 'text-text-primary bg-surface' : 'text-text-tertiary'
+              }`}
             >
               <span>{file.name}</span>
-              {file.dirty && <span style={{ color: 'var(--color-warn)' }}>●</span>}
+              {file.dirty && <span className="text-warn">●</span>}
               <span
                 onClick={(e) => { e.stopPropagation(); closeFile(file.path) }}
-                className="ml-1 hover:text-white"
-                style={{ color: 'var(--color-text-tertiary)' }}
+                className="ml-1 text-text-tertiary hover:text-white"
               >
                 ×
               </span>
@@ -142,16 +126,14 @@ export function EditorPanel() {
 
           <button
             onClick={togglePreview}
-            className="px-2 h-full text-xs transition-colors"
-            style={{ color: showPreview ? 'var(--color-cyan)' : 'var(--color-text-tertiary)' }}
+            className={`px-2 h-full text-xs transition-colors ${showPreview ? 'text-cyan' : 'text-text-tertiary'}`}
             title="Toggle Preview"
           >
             ⊞
           </button>
           <button
             onClick={toggleTerminal}
-            className="px-2 h-full text-xs transition-colors"
-            style={{ color: showTerminal ? 'var(--color-cyan)' : 'var(--color-text-tertiary)' }}
+            className={`px-2 h-full text-xs transition-colors ${showTerminal ? 'text-cyan' : 'text-text-tertiary'}`}
             title="Toggle Terminal"
           >
             ⌘
@@ -166,12 +148,9 @@ export function EditorPanel() {
               <div className="flex-1 relative overflow-hidden">
                 <div className="absolute inset-0 flex">
                   {/* Line numbers */}
-                  <div
-                    className="shrink-0 text-right pr-2 pt-2 font-mono text-xs select-none overflow-hidden"
-                    style={{ color: 'var(--color-text-tertiary)', width: 48, background: 'var(--color-canvas)' }}
-                  >
+                  <div className="shrink-0 text-right pr-2 pt-2 font-mono text-xs select-none overflow-hidden w-12 text-text-tertiary bg-canvas">
                     {activeContent.content.split('\n').map((_, i) => (
-                      <div key={i} style={{ height: '1.25rem' }}>{i + 1}</div>
+                      <div key={i} className="h-5">{i + 1}</div>
                     ))}
                   </div>
                   {/* Editor textarea */}
@@ -180,73 +159,46 @@ export function EditorPanel() {
                     value={activeContent.content}
                     onChange={(e) => updateContent(activeContent.path, e.target.value)}
                     spellCheck={false}
-                    className="flex-1 resize-none p-2 font-mono text-xs outline-none"
-                    style={{
-                      color: 'var(--color-text-primary)',
-                      background: 'var(--color-surface)',
-                      lineHeight: '1.25rem',
-                      tabSize: 2,
-                      caretColor: 'var(--color-cyan)',
-                    }}
+                    className="flex-1 resize-none p-2 font-mono text-xs text-text-primary bg-surface outline-none"
+                    style={{ lineHeight: '1.25rem', tabSize: 2, caretColor: 'var(--color-cyan)' }}
                   />
                 </div>
               </div>
             ) : (
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center">
-                  <p className="font-mono text-lg mb-2" style={{ color: 'var(--color-cyan)' }}>UMH IDE</p>
-                  <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
-                    Open a file from the explorer to begin editing
-                  </p>
-                  <p className="text-xs mt-1" style={{ color: 'var(--color-text-tertiary)' }}>
-                    Ctrl+S to save · Ctrl+K for command palette
-                  </p>
+                  <p className="font-mono text-lg mb-2 text-cyan">UMH IDE</p>
+                  <p className="text-xs text-text-tertiary">Open a file from the explorer to begin editing</p>
+                  <p className="text-xs mt-1 text-text-tertiary">Ctrl+S to save · Ctrl+K for command palette</p>
                 </div>
               </div>
             )}
 
             {/* Terminal */}
             {showTerminal && (
-              <div
-                className="h-48 shrink-0 overflow-y-auto p-3 font-mono text-xs"
-                style={{ borderTop: '1px solid var(--color-border)', background: 'var(--color-canvas)', color: 'var(--color-text-secondary)' }}
-              >
+              <div className="h-48 shrink-0 overflow-y-auto p-3 font-mono text-xs border-t border-border bg-canvas text-text-secondary">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="wv-label">Terminal</span>
-                  <span style={{ color: 'var(--color-text-tertiary)' }}>·</span>
-                  <span style={{ color: 'var(--color-ok)' }}>●</span>
-                  <span style={{ color: 'var(--color-text-tertiary)' }}>bash</span>
+                  <span className="text-text-tertiary">·</span>
+                  <span className="text-ok">●</span>
+                  <span className="text-text-tertiary">bash</span>
                 </div>
-                <p style={{ color: 'var(--color-text-tertiary)' }}>
-                  Terminal integration via xterm.js + node-pty coming in Phase 5.
-                </p>
-                <p style={{ color: 'var(--color-text-tertiary)' }}>
-                  $ <span style={{ color: 'var(--color-cyan)' }}>_</span>
-                </p>
+                <p className="text-text-tertiary">Terminal integration via xterm.js + node-pty coming in Phase 5.</p>
+                <p className="text-text-tertiary">$ <span className="text-cyan">_</span></p>
               </div>
             )}
           </div>
 
           {/* Live preview */}
           {showPreview && (
-            <div
-              className="w-1/2 shrink-0 flex flex-col"
-              style={{ borderLeft: '1px solid var(--color-border)' }}
-            >
-              <div
-                className="flex items-center h-8 px-3 shrink-0"
-                style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-canvas)' }}
-              >
+            <div className="w-1/2 shrink-0 flex flex-col border-l border-border">
+              <div className="flex items-center h-8 px-3 shrink-0 border-b border-border bg-canvas">
                 <p className="wv-label">Live Preview</p>
               </div>
-              <div className="flex-1 flex items-center justify-center" style={{ background: 'var(--color-surface-raised)' }}>
+              <div className="flex-1 flex items-center justify-center bg-surface-raised">
                 <div className="text-center">
-                  <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
-                    Live preview server integration coming in Phase 5.
-                  </p>
-                  <p className="text-xs mt-1" style={{ color: 'var(--color-text-tertiary)' }}>
-                    Will render running web apps with hot reload (Replit pattern).
-                  </p>
+                  <p className="text-xs text-text-tertiary">Live preview server integration coming in Phase 5.</p>
+                  <p className="text-xs mt-1 text-text-tertiary">Will render running web apps with hot reload (Replit pattern).</p>
                 </div>
               </div>
             </div>

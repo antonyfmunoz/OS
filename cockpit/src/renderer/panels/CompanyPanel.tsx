@@ -51,7 +51,7 @@ export function CompanyPanel() {
       setWorkflows(wfRes.workflows || [])
       if (comps.length > 0) setSelectedCompany(comps[0])
     } catch {
-      // API not available — show empty state
+      // API not available
     }
     setLoading(false)
   }
@@ -90,16 +90,12 @@ export function CompanyPanel() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full" style={{ color: 'var(--color-text-tertiary)' }}>
-        Loading company data...
-      </div>
-    )
+    return <div className="flex items-center justify-center h-full text-text-tertiary">Loading company data...</div>
   }
 
   if (companies.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-2" style={{ color: 'var(--color-text-tertiary)' }}>
+      <div className="flex flex-col items-center justify-center h-full gap-2 text-text-tertiary">
         <span className="text-2xl">◆</span>
         <span className="text-sm">No companies registered</span>
         <span className="text-xs">Register a company through the UMH API to see it here.</span>
@@ -116,17 +112,14 @@ export function CompanyPanel() {
             <select
               value={selectedCompany?.id || ''}
               onChange={(e) => setSelectedCompany(companies.find(c => c.id === e.target.value) || null)}
-              className="text-lg font-semibold bg-transparent outline-none cursor-pointer"
-              style={{ color: 'var(--color-text-primary)', border: 'none' }}
+              className="text-lg font-semibold bg-transparent text-text-primary border-none outline-none cursor-pointer"
             >
               {companies.map(c => (
-                <option key={c.id} value={c.id} style={{ background: 'var(--color-surface)' }}>{c.name}</option>
+                <option key={c.id} value={c.id} className="bg-surface">{c.name}</option>
               ))}
             </select>
           ) : (
-            <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-              {selectedCompany?.name}
-            </h2>
+            <h2 className="text-lg font-semibold text-text-primary">{selectedCompany?.name}</h2>
           )}
           {selectedCompany && (
             <span
@@ -142,12 +135,9 @@ export function CompanyPanel() {
             <button
               key={v}
               onClick={() => { setView(v); if (v === 'overview') setSelectedDept(null) }}
-              className="px-2 py-1 text-xs rounded"
-              style={{
-                background: view === v ? 'var(--color-surface-raised)' : 'transparent',
-                color: view === v ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                border: '1px solid var(--color-border)',
-              }}
+              className={`px-2 py-1 text-xs rounded border border-border ${
+                view === v ? 'bg-surface-raised text-text-primary' : 'text-text-secondary'
+              }`}
             >
               {v.charAt(0).toUpperCase() + v.slice(1)}
             </button>
@@ -157,16 +147,9 @@ export function CompanyPanel() {
 
       {/* North Star */}
       {selectedCompany?.north_star && view === 'overview' && (
-        <div
-          className="mb-4 p-3 rounded"
-          style={{ background: 'var(--color-surface)', border: '1px solid var(--color-ok)', borderLeft: '3px solid var(--color-ok)' }}
-        >
-          <div className="text-xs uppercase tracking-wider mb-1" style={{ color: 'var(--color-ok)' }}>
-            North Star
-          </div>
-          <div className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
-            {selectedCompany.north_star}
-          </div>
+        <div className="mb-4 p-3 rounded bg-surface border border-ok border-l-[3px]">
+          <div className="text-xs uppercase tracking-wider mb-1 text-ok">North Star</div>
+          <div className="text-sm text-text-primary">{selectedCompany.north_star}</div>
         </div>
       )}
 
@@ -178,48 +161,35 @@ export function CompanyPanel() {
             {departments.map(dept => (
               <div
                 key={dept.slug}
-                className="p-3 rounded cursor-pointer transition-colors"
+                className="p-3 rounded cursor-pointer transition-colors border"
                 style={{
                   background: selectedDept === dept.slug ? 'var(--color-surface-raised)' : 'var(--color-surface)',
-                  border: `1px solid ${selectedDept === dept.slug ? 'var(--color-cyan)' : 'var(--color-border)'}`,
+                  borderColor: selectedDept === dept.slug ? 'var(--color-cyan)' : 'var(--color-border)',
                 }}
                 onClick={() => { setSelectedDept(dept.slug); setView('departments') }}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
-                    {dept.name}
-                  </span>
-                  <span
-                    className="text-xs px-1.5 py-0.5 rounded uppercase"
-                    style={{ color: tierColor(dept.permission_tier), border: `1px solid ${tierColor(dept.permission_tier)}` }}
-                  >
+                  <span className="text-sm font-medium text-text-primary">{dept.name}</span>
+                  <span className="text-xs px-1.5 py-0.5 rounded uppercase" style={{ color: tierColor(dept.permission_tier), border: `1px solid ${tierColor(dept.permission_tier)}` }}>
                     {dept.permission_tier}
                   </span>
                 </div>
-                <div className="text-xs mb-1" style={{ color: 'var(--color-text-secondary)' }}>
+                <div className="text-xs mb-1 text-text-secondary">
                   {dept.agent_name} · {dept.roles.length} roles · {dept.workflows.length} workflows
                 </div>
                 {dept.metrics.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
                     {dept.metrics.slice(0, 3).map(m => (
-                      <span key={m} className="text-xs px-1 py-0.5 rounded" style={{ background: 'var(--color-surface-raised)', color: 'var(--color-text-tertiary)' }}>
-                        {m}
-                      </span>
+                      <span key={m} className="text-xs px-1 py-0.5 rounded bg-surface-raised text-text-tertiary">{m}</span>
                     ))}
-                    {dept.metrics.length > 3 && (
-                      <span className="text-xs px-1 py-0.5" style={{ color: 'var(--color-text-tertiary)' }}>
-                        +{dept.metrics.length - 3}
-                      </span>
-                    )}
+                    {dept.metrics.length > 3 && <span className="text-xs px-1 py-0.5 text-text-tertiary">+{dept.metrics.length - 3}</span>}
                   </div>
                 )}
               </div>
             ))}
           </div>
           {departments.length === 0 && (
-            <div className="text-xs p-4 text-center" style={{ color: 'var(--color-text-tertiary)' }}>
-              No departments configured
-            </div>
+            <div className="text-xs p-4 text-center text-text-tertiary">No departments configured</div>
           )}
         </section>
       )}
@@ -230,17 +200,11 @@ export function CompanyPanel() {
           <h3 className="wv-label mb-3">Roles in {selectedDept}</h3>
           <div className="space-y-2">
             {deptRoles(selectedDept).map(role => (
-              <div
-                key={`${role.department}-${role.name}`}
-                className="p-3 rounded"
-                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-              >
+              <div key={`${role.department}-${role.name}`} className="wv-card p-3">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>{role.name}</span>
+                  <span className="text-sm font-medium text-text-primary">{role.name}</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs px-1.5 py-0.5 rounded" style={{ color: 'var(--color-cyan)', border: '1px solid var(--color-cyan)' }}>
-                      {role.operator}
-                    </span>
+                    <span className="text-xs px-1.5 py-0.5 rounded text-cyan border border-cyan">{role.operator}</span>
                     <span className="text-xs px-1.5 py-0.5 rounded uppercase" style={{ color: tierColor(role.permission_tier), border: `1px solid ${tierColor(role.permission_tier)}` }}>
                       {role.permission_tier}
                     </span>
@@ -248,13 +212,13 @@ export function CompanyPanel() {
                 </div>
                 <div className="flex flex-wrap gap-1 mt-1">
                   {role.responsibilities.map(r => (
-                    <span key={r} className="text-xs px-1 py-0.5 rounded" style={{ background: 'var(--color-surface-raised)', color: 'var(--color-text-secondary)' }}>{r}</span>
+                    <span key={r} className="text-xs px-1 py-0.5 rounded bg-surface-raised text-text-secondary">{r}</span>
                   ))}
                 </div>
               </div>
             ))}
             {deptRoles(selectedDept).length === 0 && (
-              <div className="text-xs p-4 text-center" style={{ color: 'var(--color-text-tertiary)' }}>No roles in {selectedDept}</div>
+              <div className="text-xs p-4 text-center text-text-tertiary">No roles in {selectedDept}</div>
             )}
           </div>
         </section>
@@ -266,8 +230,8 @@ export function CompanyPanel() {
           <h3 className="wv-label mb-3">KPIs</h3>
           <div className="grid grid-cols-3 gap-2">
             {deptKpis(selectedDept).map(kpi => (
-              <div key={kpi} className="p-2 rounded text-center" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
-                <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{kpi}</span>
+              <div key={kpi} className="wv-card p-2 text-center">
+                <span className="text-xs text-text-secondary">{kpi}</span>
               </div>
             ))}
           </div>
@@ -277,39 +241,27 @@ export function CompanyPanel() {
       {/* Workflow List */}
       {(view === 'workflows' || (view === 'departments' && selectedDept)) && (
         <section>
-          <h3 className="wv-label mb-3">
-            {selectedDept ? `Workflows in ${selectedDept}` : 'All Workflows'}
-          </h3>
+          <h3 className="wv-label mb-3">{selectedDept ? `Workflows in ${selectedDept}` : 'All Workflows'}</h3>
           <div className="space-y-2">
             {deptWorkflows.map(wf => (
-              <div
-                key={`${wf.department}-${wf.name}`}
-                className="p-3 rounded"
-                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-              >
+              <div key={`${wf.department}-${wf.name}`} className="wv-card p-3">
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>{wf.name}</span>
-                    <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>{wf.department}</span>
+                    <span className="text-sm font-medium text-text-primary">{wf.name}</span>
+                    <span className="text-xs text-text-tertiary">{wf.department}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs px-1.5 py-0.5 rounded" style={{ color: 'var(--color-cyan)', border: '1px solid var(--color-cyan)' }}>
-                      {wf.trigger}
-                    </span>
+                    <span className="text-xs px-1.5 py-0.5 rounded text-cyan border border-cyan">{wf.trigger}</span>
                     <span className="text-xs px-1.5 py-0.5 rounded" style={{ color: statusColor(wf.status), border: `1px solid ${statusColor(wf.status)}` }}>
                       {wf.status}
                     </span>
                   </div>
                 </div>
-                <div className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
-                  {wf.steps.length} steps
-                </div>
+                <div className="text-xs text-text-tertiary">{wf.steps.length} steps</div>
               </div>
             ))}
             {deptWorkflows.length === 0 && (
-              <div className="text-xs p-4 text-center" style={{ color: 'var(--color-text-tertiary)' }}>
-                No workflows {selectedDept ? `in ${selectedDept}` : 'found'}
-              </div>
+              <div className="text-xs p-4 text-center text-text-tertiary">No workflows {selectedDept ? `in ${selectedDept}` : 'found'}</div>
             )}
           </div>
         </section>
@@ -321,14 +273,14 @@ export function CompanyPanel() {
           <h3 className="wv-label mb-3">KPI Summary</h3>
           <div className="grid grid-cols-4 gap-3">
             {[
-              { value: departments.length, label: 'Departments', color: 'var(--color-ok)' },
-              { value: roles.length, label: 'Roles', color: 'var(--color-cyan)' },
-              { value: workflows.length, label: 'Workflows', color: 'var(--color-warn)' },
-              { value: departments.reduce((s, d) => s + d.metrics.length, 0), label: 'KPIs', color: 'var(--color-text-primary)' },
+              { value: departments.length, label: 'Departments', cls: 'text-ok' },
+              { value: roles.length, label: 'Roles', cls: 'text-cyan' },
+              { value: workflows.length, label: 'Workflows', cls: 'text-warn' },
+              { value: departments.reduce((s, d) => s + d.metrics.length, 0), label: 'KPIs', cls: 'text-text-primary' },
             ].map(stat => (
-              <div key={stat.label} className="p-3 rounded text-center" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
-                <div className="text-xl font-semibold" style={{ color: stat.color }}>{stat.value}</div>
-                <div className="text-xs mt-1" style={{ color: 'var(--color-text-tertiary)' }}>{stat.label}</div>
+              <div key={stat.label} className="wv-card p-3 text-center">
+                <div className={`text-xl font-semibold ${stat.cls}`}>{stat.value}</div>
+                <div className="text-xs mt-1 text-text-tertiary">{stat.label}</div>
               </div>
             ))}
           </div>
