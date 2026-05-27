@@ -17,6 +17,8 @@ interface MeshNode {
   hostname: string
   role: string
   status: string
+  os: string
+  ip: string
   last_seen: string
 }
 
@@ -107,8 +109,10 @@ export const useSystemStore = create<SystemState>((set) => ({
       const nodes: MeshNode[] = raw.map((n) => ({
         node_id: (n.node_id ?? n.id ?? '') as string,
         hostname: (n.hostname ?? n.name ?? '') as string,
-        role: (n.role ?? n.os ?? 'node') as string,
+        role: (n.role ?? 'node') as string,
         status: String(n.status) === 'connected' || String(n.status) === 'online' ? 'online' : String(n.status),
+        os: (n.os ?? '') as string,
+        ip: (n.ip ?? '') as string,
         last_seen: (n.last_seen ?? n.last_heartbeat ?? '') as string,
       }))
       set({ meshNodes: nodes, error: null })

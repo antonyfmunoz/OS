@@ -22,11 +22,15 @@ export function InfrastructurePanel() {
         <h3 className="wv-label mb-3">Mesh Nodes</h3>
         <div className="grid grid-cols-2 gap-2">
           {meshNodes.map((node) => (
-            <div key={node.node_id} className="wv-card flex items-center gap-2 px-3 py-2">
-              <span className={`w-2 h-2 rounded-full ${node.status === 'online' ? 'bg-ok' : 'bg-danger'}`} />
+            <div key={node.node_id} className="wv-card flex items-center gap-3 px-3 py-2">
+              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${node.status === 'online' ? 'bg-ok' : 'bg-danger'}`} />
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-text-primary truncate">{node.hostname}</p>
-                <p className="wv-label">{node.role}</p>
+                <div className="flex items-center gap-2">
+                  <span className="wv-label">{node.role}</span>
+                  {node.os && <span className="text-[10px] text-text-tertiary">{node.os}</span>}
+                </div>
+                {node.ip && <p className="text-[10px] text-text-tertiary font-mono">{node.ip}</p>}
               </div>
             </div>
           ))}
