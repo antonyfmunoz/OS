@@ -48,34 +48,68 @@ router.get('/pulse', (c) => {
 })
 
 router.get('/mesh/nodes', (c) => {
-  const hostname = os.hostname()
-  const nodes = [
-    {
+  const raw = safeExecFile('tailscale', ['status', '--json'])
+  if (!raw.startsWith('{')) {
+    return c.json([{
       node_id: 'vps-primary',
-      hostname,
+      hostname: os.hostname(),
       role: 'orchestrator',
       status: 'online',
+      os: 'linux',
+      ip: '',
       last_seen: new Date().toISOString(),
-    },
-  ]
+    }])
+  }
 
-  const beastReachable = safeExecFile('ping', ['-c', '1', '-W', '1', '100.74.199.102'])
-  if (beastReachable.includes('1 received')) {
-    nodes.push({
-      node_id: 'beast-windows',
-      hostname: 'antonys beast pc',
-      role: 'gpu-workhorse',
-      status: 'online',
-      last_seen: new Date().toISOString(),
-    })
-  } else {
-    nodes.push({
-      node_id: 'beast-windows',
-      hostname: 'antonys beast pc',
-      role: 'gpu-workhorse',
-      status: 'offline',
-      last_seen: '',
-    })
+  const ts = JSON.parse(raw)
+
+  const roleMap: Record<string, string> = {
+    'srv1500858': 'orchestrator',
+    'desktop-lvguiq9': 'gpu-workhorse',
+  }
+  const nameMap: Record<string, string> = {
+    'desktop-lvguiq9': 'Beast PC',
+  }
+
+  interface TsNode {
+    HostName: string
+    OS: string
+    Online: boolean
+    TailscaleIPs?: string[]
+    LastSeen?: string
+  }
+
+  function mapNode(n: TsNode): object {
+    const key = n.HostName.toLowerCase()
+    return {
+      node_id: key,
+      hostname: nameMap[key] ?? n.HostName,
+      role: roleMap[key] ?? (n.OS === 'iOS' ? 'mobile' : 'node'),
+      status: n.Online ? 'online' : 'offline',
+      os: n.OS,
+      ip: n.TailscaleIPs?.[0] ?? '',
+      last_seen: n.LastSeen && n.LastSeen !== '0001-01-01T00:00:00Z'
+        ? n.LastSeen
+        : n.Online ? new Date().toISOString() : '',
+    }
+  }
+
+  const nodes: object[] = []
+  const seen = new Set<string>()
+
+  if (ts.Self) {
+    nodes.push(mapNode(ts.Self))
+    seen.add(ts.Self.HostName.toLowerCase())
+  }
+
+  if (ts.Peer) {
+    for (const p of Object.values(ts.Peer) as TsNode[]) {
+      const key = p.HostName.toLowerCase()
+      if (key.startsWith('umh-cockpit')) continue
+      if (seen.has(key)) continue
+      seen.add(key)
+      nodes.push(mapNode(p))
+    }
   }
 
   return c.json(nodes)
