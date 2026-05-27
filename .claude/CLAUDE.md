@@ -18,11 +18,13 @@ Every change is real. Every deploy affects a running service.
 At the start of EVERY Claude Code session run:
   python3 -c "
   import sys; sys.path.insert(0, '/opt/OS')
-  from substrate.state.context.context import load_context_from_env
-  ctx = load_context_from_env()
-  print(f'Org: {ctx.org_id}')
-  print(f'Stage: {ctx.stage}')
-  print(f'Active venture: {ctx.active_venture_id}')
+  from substrate.state.context.context import try_load_context_from_env
+  ctx = try_load_context_from_env()
+  if ctx:
+      print(f'Org: {ctx.org_id}')
+      print(f'Active venture: {ctx.active_venture_id}')
+  else:
+      print('Context: EOS_ORG_ID/EOS_USER_ID not set')
   "
 
 ## Before making any significant change

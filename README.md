@@ -29,15 +29,8 @@ the difference.
 ## Quick install
 
 ```bash
-# Install
-curl -fsSL https://raw.githubusercontent.com/[repo]/main/install.sh | bash
-
-# Configure
 cd /opt/OS
-nano eos_ai/.env        # add your API keys
-bash setup.sh           # interactive wizard
-
-# Start
+cp .env.example .env    # add your API keys
 docker compose up -d
 ```
 
@@ -107,16 +100,15 @@ Advice inappropriate for your current stage is blocked automatically.
 ## Structure
 
 ```
-core/            Canonical substrate contracts + infrastructure
-eos_ai/          Runtime intelligence layer (legacy name)
-  transport/     Canonical transport subsystem
-  substrate/     Shim layer → transport
-services/        Live entrypoints (bots, webhooks)
-scripts/         Operations layer (cron, utilities)
+substrate/       UMH brain — types, control plane, execution, governance, memory
+adapters/        External system adapters (LLM routing, GWS, browser)
+transports/      I/O surfaces (Discord, API, node mesh)
+projections/     Application projections (EOS agents, workflows)
+services/        Deployment entrypoints (discord_bot.py, APIs)
+scripts/         Operational tooling (cron, verification, graph)
 agents/          Agent soul documents
-skills/          Agent runtime skills
-saas/            EOS application projection (TypeScript)
-orchestrator/    Scheduled tasks
+skills/          Claude Code tool skills
+saas/            EOS application projection (TypeScript/React)
 ```
 
 ## License

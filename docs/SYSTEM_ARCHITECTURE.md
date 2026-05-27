@@ -144,7 +144,7 @@ own connection string, roles, and billing.
 from v1 to v2 deferred until v2 frontend exists (post-Phase 4).
 
 **Connection strings** live in `.env` files (never committed):
-- VPS: `/opt/OS/runtime/.env`, `/opt/OS/services/.env`, `/opt/OS/saas/.env`
+- VPS: `/opt/OS/.env`, `/opt/OS/services/.env`, `/opt/OS/saas/.env`
 - Windows: per-repo `.env` files (gitignored)
 
 ---
