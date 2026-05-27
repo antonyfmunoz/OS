@@ -1,7 +1,8 @@
 import { clsx } from 'clsx'
-import { useState } from 'react'
-import { ChevronLeft, ChevronRight, MessageSquare, Activity, Terminal } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { ChevronLeft, ChevronRight, MessageSquare, Activity, Terminal, Send } from 'lucide-react'
 import { useSystemStore } from '../stores/systemStore'
+import { useChatStore } from '../stores/chatStore'
 import { usePolling } from '../hooks/usePolling'
 import { relativeTime } from '../lib/time'
 
@@ -81,13 +82,45 @@ export function RightRail() {
 }
 
 function ChatSection() {
+  const messages = useChatStore((s) => s.messages)
+  const input = useChatStore((s) => s.input)
+  const sending = useChatStore((s) => s.sending)
+  const setInput = useChatStore((s) => s.setInput)
+  const sendMessage = useChatStore((s) => s.sendMessage)
+  const loadHistory = useChatStore((s) => s.loadHistory)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => { loadHistory() }, [loadHistory])
+  useEffect(() => { scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight) }, [messages])
+
+  const handleSend = () => { if (input.trim()) sendMessage(input) }
+
   return (
     <div className="flex flex-col h-full">
       <div className="wv-label mb-2">DEX ASSISTANT</div>
-      <div className="flex-1 flex items-center justify-center">
-        <p className="text-[11px] text-text-tertiary text-center">
-          AI chat interface<br />awaiting integration
-        </p>
+      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-2 mb-2">
+        {messages.map((m) => (
+          <div key={m.id} className={clsx('px-2 py-1.5 rounded text-[11px]', m.sender === 'operator' ? 'bg-cyan-glow text-text-primary ml-4' : 'bg-surface-raised text-text-secondary mr-4')}>
+            <div className="font-mono text-[9px] text-text-tertiary mb-0.5">{m.sender === 'operator' ? 'YOU' : 'DEX'}</div>
+            {m.content}
+          </div>
+        ))}
+        {messages.length === 0 && (
+          <p className="text-[11px] text-text-tertiary text-center py-4">Ask DEX anything</p>
+        )}
+      </div>
+      <div className="flex items-center gap-1 border-t border-border pt-2">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
+          placeholder="Message DEX..."
+          className="flex-1 text-[11px] px-2 py-1.5 rounded bg-surface-raised text-text-primary border border-border outline-none placeholder:text-text-tertiary"
+          disabled={sending}
+        />
+        <button onClick={handleSend} disabled={sending || !input.trim()} className="p-1.5 rounded text-cyan hover:bg-cyan-glow transition-colors disabled:opacity-30">
+          <Send size={12} />
+        </button>
       </div>
     </div>
   )
