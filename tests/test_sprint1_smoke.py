@@ -206,15 +206,27 @@ class TestContextEnvLoading:
             os.environ["EOS_ORG_ID"] = "test-org-id"
             os.environ["EOS_USER_ID"] = "test-user-id"
 
-    def test_load_context_missing_vars_no_crash(self):
+    def test_load_context_missing_vars_raises(self):
         saved_org = os.environ.pop("EOS_ORG_ID", None)
         saved_user = os.environ.pop("EOS_USER_ID", None)
         try:
             from substrate.state.context.context import load_context_from_env
 
-            ctx = load_context_from_env()
-            assert ctx.org_id == ""
-            assert ctx.user_id == ""
+            with pytest.raises(KeyError):
+                load_context_from_env()
+        finally:
+            if saved_org:
+                os.environ["EOS_ORG_ID"] = saved_org
+            if saved_user:
+                os.environ["EOS_USER_ID"] = saved_user
+
+    def test_try_load_context_missing_vars_returns_none(self):
+        saved_org = os.environ.pop("EOS_ORG_ID", None)
+        saved_user = os.environ.pop("EOS_USER_ID", None)
+        try:
+            from substrate.state.context.context import try_load_context_from_env
+
+            assert try_load_context_from_env() is None
         finally:
             if saved_org:
                 os.environ["EOS_ORG_ID"] = saved_org

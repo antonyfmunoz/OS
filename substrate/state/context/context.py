@@ -34,8 +34,22 @@ def load_ventures_from_env() -> list:
 
 def load_context_from_env() -> EntrepreneurOSContext:
     return EntrepreneurOSContext(
-        org_id=os.environ.get("EOS_ORG_ID", ""),
-        user_id=os.environ.get("EOS_USER_ID", ""),
+        org_id=os.environ["EOS_ORG_ID"],
+        user_id=os.environ["EOS_USER_ID"],
+        portfolio_id=os.environ.get("EOS_PORTFOLIO_ID"),
+        ventures=load_ventures_from_env(),
+    )
+
+
+def try_load_context_from_env() -> EntrepreneurOSContext | None:
+    """Non-fatal loader for tooling/tests — returns None if identity env is missing."""
+    org = os.environ.get("EOS_ORG_ID")
+    user = os.environ.get("EOS_USER_ID")
+    if not org or not user:
+        return None
+    return EntrepreneurOSContext(
+        org_id=org,
+        user_id=user,
         portfolio_id=os.environ.get("EOS_PORTFOLIO_ID"),
         ventures=load_ventures_from_env(),
     )
