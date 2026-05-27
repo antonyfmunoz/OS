@@ -11,8 +11,6 @@ export function LeftRail() {
   const wsStatus = useCockpitStore((s) => s.wsStatus)
   const setPanel = useCockpitStore((s) => s.setPanel)
   const toggleRail = useCockpitStore((s) => s.toggleRail)
-  const toggleChat = useCockpitStore((s) => s.toggleChat)
-  const chatOpen = useCockpitStore((s) => s.chatOpen)
   const micState = useVoiceStore((s) => s.micState)
 
   const wsConnected = wsStatus === 'connected'
@@ -106,24 +104,6 @@ export function LeftRail() {
         </button>
       </div>
 
-      {/* Chat toggle */}
-      <div className="px-3 py-2 border-t border-border">
-        <button
-          onClick={toggleChat}
-          className={clsx(
-            'flex items-center gap-2 w-full rounded px-2 py-1.5 transition-colors',
-            chatOpen
-              ? 'bg-violet/12 text-violet'
-              : 'text-text-tertiary hover:text-text-secondary',
-          )}
-          title="DEX Chat (Ctrl+/)"
-        >
-          <span className="text-lg shrink-0">&#9707;</span>
-          {!railCollapsed && (
-            <span className="text-[11px] font-mono uppercase tracking-wider">DEX Chat</span>
-          )}
-        </button>
-      </div>
 
       {/* Presence indicator */}
       <div className="px-3 py-2 border-t border-border">
