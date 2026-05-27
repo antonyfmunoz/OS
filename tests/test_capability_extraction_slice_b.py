@@ -151,7 +151,7 @@ class TestEmptyArtifactHandling:
         mock_result.output = _VALID_TWO_CAP_JSON
 
         with patch(
-            "substrate.execution.runtime.model_router.call_with_fallback",
+            "adapters.models.model_router.call_with_fallback",
             return_value=mock_result,
         ):
             caps, drops = orch._extract_capabilities(
@@ -170,7 +170,7 @@ class TestLlmFailureReturnsEmpty:
         orch = CapabilityDiscoveryOrchestrator()
 
         with patch(
-            "substrate.execution.runtime.model_router.call_with_fallback",
+            "adapters.models.model_router.call_with_fallback",
             side_effect=Exception("LLM unavailable"),
         ):
             caps, drops = orch._extract_capabilities(manifest, {}, "")
@@ -224,7 +224,7 @@ class TestFullOrchestratorMocked:
                 return_value=mock_research_result,
             ),
             patch(
-                "substrate.execution.runtime.model_router.call_with_fallback",
+                "adapters.models.model_router.call_with_fallback",
                 return_value=mock_llm_result,
             ),
         ):

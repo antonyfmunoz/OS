@@ -157,7 +157,7 @@ class TestTierFlowsToObservation:
         orchestrator = GenericIngestionOrchestrator(memory_store_path=memory_store)
 
         with patch(
-            "substrate.execution.runtime.model_router.call_with_fallback",
+            "adapters.models.model_router.call_with_fallback",
             return_value=_mock_call_with_fallback(TIERED_LLM_RESPONSE),
         ):
             result = orchestrator.ingest(source)
@@ -174,7 +174,7 @@ class TestTierFlowsToObservation:
         orchestrator = GenericIngestionOrchestrator(memory_store_path=memory_store)
 
         with patch(
-            "substrate.execution.runtime.model_router.call_with_fallback",
+            "adapters.models.model_router.call_with_fallback",
             return_value=_mock_call_with_fallback(TIERED_LLM_RESPONSE),
         ):
             result = orchestrator.ingest(source)
@@ -192,7 +192,7 @@ class TestTierFlowsToProjection:
         orchestrator = GenericIngestionOrchestrator(memory_store_path=memory_store)
 
         with patch(
-            "substrate.execution.runtime.model_router.call_with_fallback",
+            "adapters.models.model_router.call_with_fallback",
             return_value=_mock_call_with_fallback(TIERED_LLM_RESPONSE),
         ):
             result = orchestrator.ingest(source)
@@ -228,7 +228,7 @@ class TestTierPersistsInMemoryEntry:
         orchestrator = GenericIngestionOrchestrator(memory_store_path=memory_store)
 
         with patch(
-            "substrate.execution.runtime.model_router.call_with_fallback",
+            "adapters.models.model_router.call_with_fallback",
             return_value=_mock_call_with_fallback(TIERED_LLM_RESPONSE),
         ):
             result = orchestrator.ingest(source)
@@ -278,7 +278,7 @@ class TestLegacyEntriesDefaultToT5:
         orchestrator = GenericIngestionOrchestrator(memory_store_path=memory_store)
 
         with patch(
-            "substrate.execution.runtime.model_router.call_with_fallback",
+            "adapters.models.model_router.call_with_fallback",
             return_value=_mock_call_with_fallback(TIERED_LLM_RESPONSE),
         ):
             result = orchestrator.ingest(source)
