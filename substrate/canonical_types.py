@@ -105,6 +105,7 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     # ── substrate/organism/runtime_graph.py ─────────────────────────────
     "AvailabilityStatus": ["substrate.organism.runtime_graph"],
     "RuntimeClass": ["substrate.organism.runtime_graph"],
+    "RuntimeCapability": ["substrate.organism.runtime_graph"],
     # ── substrate/organism/coordinator.py ───────────────────────────────
     "WorkUnitStatus": ["substrate.organism.coordinator"],
     "ObjectiveStatus": ["substrate.organism.coordinator"],
@@ -112,6 +113,8 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     # ── substrate/organism/workcell_protocol.py ─────────────────────────
     "WorkcellStatus": ["substrate.organism.workcell_protocol"],
     "WorkcellRole": ["substrate.organism.workcell_protocol"],
+    # ── substrate/organism/runtime_supervisor.py ────────────────────────
+    "SupervisedHealth": ["substrate.organism.runtime_supervisor"],
 }
 
 
