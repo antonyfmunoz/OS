@@ -12,11 +12,12 @@ Usage:
 """
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
 from substrate.memory.promoter import MemoryPromoter
 from substrate.memory.auto_reconciler import AutoReconciler

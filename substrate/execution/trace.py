@@ -7,6 +7,7 @@ that captures each stage of processing.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from typing import Any, Protocol, runtime_checkable
 from uuid import UUID
@@ -81,7 +82,7 @@ class ConcreteTraceRecorder:
         """Write trace to Neon traces table."""
         self._traces[trace.id] = trace
         try:
-            sys.path.insert(0, "/opt/OS")
+            sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
             from dotenv import load_dotenv
 
             load_dotenv("/opt/OS/runtime/.env", override=True)

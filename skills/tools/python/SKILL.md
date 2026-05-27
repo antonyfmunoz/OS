@@ -3,10 +3,10 @@ name: python
 description: "Use when writing, modifying, or debugging Python code in the EOS codebase — covers async patterns, type hints, namespace packages, psycopg2 idioms, dotenv conventions, and error handling patterns specific to EOS."
 allowed-tools: "Read, Bash"
 version: 1.0
-source_url: "https://docs.python.org/3.12/"
-last_researched: "2026-04-06"
+source_url: "https://docs.python.org/3.11/"
+last_researched: "2026-05-27"
 instantiated_from: templates/tools/_template/
-api_version: "Python 3.12"
+api_version: "Python 3.11 (Docker containers run 3.11)"
 sdk_version: "psycopg2-binary, python-dotenv, asyncio"
 speed_category: stable
 trigger: both
