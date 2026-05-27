@@ -18,6 +18,8 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
+from substrate.observability.jsonl_rotation import rotate_if_needed
+
 _log = logging.getLogger(__name__)
 
 _ERROR_LOG_PATH = Path(
@@ -41,6 +43,7 @@ def record_error(
     """
     try:
         _ERROR_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        rotate_if_needed(_ERROR_LOG_PATH)
         entry = {
             "ts": datetime.now(timezone.utc).isoformat(),
             "component": component,

@@ -1,8 +1,0 @@
-{
-  "rollback_id": "ROLLBACK-1b3150e4",
-  "canonical_memory_id": "CMEM-14110dcf",
-  "rollback_trigger": "manual_or_governance_revocation",
-  "rollback_status": "available",
-  "rollback_timestamp": "2026-05-08T18:51:30.069245+00:00",
-  "restored_state_reference": "candidate_only"
-}
