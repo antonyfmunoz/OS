@@ -67,7 +67,9 @@ def _start_persistent_loops() -> None:
         started = _loop_registry.start_all()
         logger.info(
             "persistent loops: %d loaded, %d started — %s",
-            loaded, len(started), started,
+            loaded,
+            len(started),
+            started,
         )
     except Exception as exc:
         logger.warning("persistent loops not started: %s", exc)
@@ -231,8 +233,14 @@ def _register_organism() -> None:
     global _organism
     try:
         from substrate.organism.daemon import OrganismDaemon
+        from substrate.organism.runtime_adapters import build_default_graph
 
-        _organism = OrganismDaemon(pipeline=_pipeline, view_socket=_view_socket)
+        graph = build_default_graph()
+        graph.refresh_availability()
+        logger.info(
+            "runtime graph: %d runtimes, %d available", graph.node_count, graph.available_count
+        )
+        _organism = OrganismDaemon(pipeline=_pipeline, view_socket=_view_socket, graph=graph)
         _organism.start()
         logger.info("organism daemon started")
     except Exception as exc:
@@ -279,6 +287,7 @@ async def lifespan(app: FastAPI):
     def _cockpit_notify_handler(title: str, body: str, **kwargs) -> bool:
         try:
             import json as _json
+
             _view_socket.push(
                 "notification",
                 _json.dumps({"title": title, "body": body, **kwargs}),
@@ -287,9 +296,7 @@ async def lifespan(app: FastAPI):
         except Exception:
             return False
 
-    get_notification_engine().register_channel(
-        NotificationChannel.COCKPIT, _cockpit_notify_handler
-    )
+    get_notification_engine().register_channel(NotificationChannel.COCKPIT, _cockpit_notify_handler)
     logger.info("cockpit notification channel registered")
 
     yield
