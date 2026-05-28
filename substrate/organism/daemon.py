@@ -30,6 +30,8 @@ from substrate.organism.approval_store import ApprovalStore
 from substrate.organism.async_coordinator import AsyncCoordinator
 from substrate.organism.autonomous_tick import AutonomousTick, TickConfig
 from substrate.organism.coordinator import OrganismCoordinator
+from substrate.organism.environment_graph import EnvironmentGraph
+from substrate.organism.environment_reconciler import EnvironmentReconciler
 from substrate.organism.event_spine import EventDomain, EventSpine
 from substrate.organism.execution_economy import ExecutionEconomy
 from substrate.organism.homeostasis import HomeostasisEngine
@@ -40,6 +42,8 @@ from substrate.organism.recursion_governance import RecursionGovernor
 from substrate.organism.runtime_graph import RuntimeGraph
 from substrate.organism.runtime_supervisor import RuntimeSupervisor
 from substrate.organism.store import OrganismStore
+from substrate.organism.workcell_daemon import WorkcellDaemon as WorkcellDaemonV2
+from substrate.organism.workcell_protocol import Workcell, WorkcellRole
 from substrate.organism.worker_cell import WorkerCell
 from substrate.execution.pipeline import ExecutionPipeline
 
@@ -145,6 +149,21 @@ class OrganismDaemon:
             state_dir=str(self._state_dir / "leverage"),
         )
 
+        if self._graph is not None:
+            self._reconciler: EnvironmentReconciler | None = EnvironmentReconciler(
+                graph=self._graph,
+                spine=self._event_spine,
+            )
+        else:
+            self._reconciler = None
+
+        self._environment_graph = EnvironmentGraph()
+
+        self._workcell_daemon = WorkcellDaemonV2(
+            state_dir=str(self._state_dir / "workcell_daemon"),
+        )
+        self._setup_canonical_workcells()
+
         self._projection_port = OrganismStatePort(
             state_dir=str(self._state_dir / "projections"),
         )
@@ -161,45 +180,103 @@ class OrganismDaemon:
         self._last_state_persist = 0.0
         self._state_persist_interval_s = 60.0
 
+    def _setup_canonical_workcells(self) -> None:
+        """Create real workcells for each organism subsystem."""
+        base_dir = str(self._state_dir / "workcells")
+
+        advisor_cell = Workcell(
+            workcell_id="advisor",
+            role=WorkcellRole.COORDINATOR,
+            base_dir=base_dir,
+        )
+        self._workcell_daemon.register_workcell(advisor_cell)
+
+        executor_cell = Workcell(
+            workcell_id="executor",
+            role=WorkcellRole.EXECUTOR,
+            base_dir=base_dir,
+        )
+        self._workcell_daemon.register_workcell(executor_cell)
+
+        reviewer_cell = Workcell(
+            workcell_id="reviewer",
+            role=WorkcellRole.REVIEWER,
+            base_dir=base_dir,
+        )
+        self._workcell_daemon.register_workcell(reviewer_cell)
+
+        researcher_cell = Workcell(
+            workcell_id="researcher",
+            role=WorkcellRole.RESEARCHER,
+            base_dir=base_dir,
+        )
+        self._workcell_daemon.register_workcell(researcher_cell)
+
+        for wc in [advisor_cell, executor_cell, reviewer_cell, researcher_cell]:
+            wc.write_heartbeat()
+
+        logger.info(
+            "canonical workcells created: %d",
+            len(self._workcell_daemon._workcells),
+        )
+
     def _register_tick_stages(self) -> None:
         """Register all subsystems as autonomous tick stages."""
         self._autonomous_tick.register_stage(
-            "advisor", self._advisor.autonomous_tick,
+            "advisor",
+            self._advisor.autonomous_tick,
         )
         self._autonomous_tick.register_stage(
-            "homeostasis", self._homeostasis.check,
+            "homeostasis",
+            self._homeostasis.check,
         )
         if self._supervisor is not None:
             self._autonomous_tick.register_stage(
-                "supervisor_reconcile", self._supervisor.reconcile_graph,
+                "supervisor_reconcile",
+                self._supervisor.reconcile_graph,
             )
         if self._allocation_loop is not None:
             self._autonomous_tick.register_stage(
-                "allocation", self._allocation_loop.allocation_cycle,
+                "allocation",
+                self._allocation_loop.allocation_cycle,
             )
         if self._async_coordinator is not None:
             self._autonomous_tick.register_stage(
-                "async_objectives", self._async_coordinator.advance,
+                "async_objectives",
+                self._async_coordinator.advance,
             )
         self._autonomous_tick.register_stage(
-            "leverage_rebalance", self._leverage_assimilator.rebalance_cycle,
+            "leverage_rebalance",
+            self._leverage_assimilator.rebalance_cycle,
         )
+        if self._reconciler is not None:
+            self._autonomous_tick.register_stage(
+                "environment_reconcile",
+                self._reconciler.reconcile_tick,
+            )
         self._autonomous_tick.register_stage(
-            "projection_broadcast", self._broadcast_state,
+            "projection_broadcast",
+            self._broadcast_state,
         )
 
     def _broadcast_state(self) -> None:
-        """Push current state through the projection port."""
+        """Push current state through the projection port and capture topology."""
         if self._graph is not None:
             self._projection_port.broadcast(
-                StateSlice.RUNTIMES, self._graph.to_dict(),
+                StateSlice.RUNTIMES,
+                self._graph.to_dict(),
             )
         if self._supervisor is not None:
             self._projection_port.broadcast(
-                StateSlice.SUPERVISOR, self._supervisor.to_dict(),
+                StateSlice.SUPERVISOR,
+                self._supervisor.to_dict(),
             )
         self._projection_port.broadcast(
-            StateSlice.GOVERNANCE, self._governor.to_dict(),
+            StateSlice.GOVERNANCE,
+            self._governor.to_dict(),
+        )
+        self._environment_graph.capture(
+            graph=self._graph,
         )
 
     @property
@@ -253,6 +330,18 @@ class OrganismDaemon:
     @property
     def leverage_assimilator(self) -> LeverageAssimilator:
         return self._leverage_assimilator
+
+    @property
+    def reconciler(self) -> EnvironmentReconciler | None:
+        return self._reconciler
+
+    @property
+    def environment_graph(self) -> EnvironmentGraph:
+        return self._environment_graph
+
+    @property
+    def workcell_daemon(self) -> WorkcellDaemonV2:
+        return self._workcell_daemon
 
     @property
     def governor(self) -> RecursionGovernor:
@@ -369,7 +458,7 @@ class OrganismDaemon:
         tmp.rename(path)
 
     def status(self) -> dict[str, Any]:
-        return {
+        result = {
             "running": self._started,
             "tick_count": self._tick_count,
             "graph_available": self._graph is not None,
@@ -379,3 +468,8 @@ class OrganismDaemon:
             "governor": self._governor.to_dict(),
             **self._advisor.organism_status(),
         }
+        if self._graph is not None:
+            result["runtimes"] = self._graph.to_dict()
+        if self._reconciler is not None:
+            result["reconciler"] = self._reconciler.to_dict()
+        return result

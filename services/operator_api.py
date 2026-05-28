@@ -57,7 +57,8 @@ def _wire_spine_to_cockpit_ws(daemon) -> None:
             push_organism_event(event.to_dict())
 
         daemon.event_spine.subscribe(
-            "cockpit_ws_bridge", _on_organism_event,
+            "cockpit_ws_bridge",
+            _on_organism_event,
         )
         logger.info("organism EventSpine → cockpit WS bridge wired")
     except Exception as exc:
@@ -80,6 +81,7 @@ async def lifespan(application):
     global _loop_registry, _organism_daemon, _tick_task
     try:
         from substrate.execution.loop.persistent_loop import get_registry
+
         _loop_registry = get_registry()
         loaded = _loop_registry.load_definitions()
         started = _loop_registry.start_all()
@@ -89,8 +91,12 @@ async def lifespan(application):
 
     try:
         from substrate.organism.daemon import OrganismDaemon
-        from substrate.organism.runtime_graph import RuntimeGraph
-        graph = RuntimeGraph()
+        from substrate.organism.runtime_adapters import build_default_graph
+
+        graph = build_default_graph()
+        graph.refresh_availability()
+        avail = graph.available_count
+        logger.info("runtime graph built: %d runtimes, %d available", graph.node_count, avail)
         _organism_daemon = OrganismDaemon(graph=graph)
         _organism_daemon.start()
         _wire_spine_to_cockpit_ws(_organism_daemon)
@@ -98,6 +104,7 @@ async def lifespan(application):
         logger.info("organism daemon started with autonomous tick loop")
     except Exception as exc:
         import traceback
+
         logger.warning("organism daemon not started: %s\n%s", exc, traceback.format_exc())
 
     yield
