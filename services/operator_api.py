@@ -518,10 +518,16 @@ def _extract_ws_token(ws: WebSocket) -> str:
     return ws.query_params.get("token", "")
 
 
+_TRUSTED_PROXIES = {"127.0.0.1", "::1"}
+_docker_bridge = os.getenv("UMH_DOCKER_BRIDGE_IP", "172.20.0.1")
+if _docker_bridge:
+    _TRUSTED_PROXIES.add(_docker_bridge)
+
+
 def _real_ws_client_ip(ws: WebSocket) -> str:
     """Real client IP for WebSocket, accounting for trusted reverse proxies."""
     tcp_ip = ws.client.host if ws.client else ""
-    if _is_private_ip(tcp_ip):
+    if tcp_ip in _TRUSTED_PROXIES:
         forwarded = ws.headers.get("x-forwarded-for", "")
         if forwarded:
             return forwarded.split(",")[0].strip()
