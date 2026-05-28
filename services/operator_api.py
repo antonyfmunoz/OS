@@ -68,7 +68,7 @@ async def _tick_loop(daemon) -> None:
     """Background async loop that drives the organism metabolism."""
     while True:
         try:
-            daemon.tick()
+            await asyncio.to_thread(daemon.tick)
         except Exception as exc:
             logger.warning("organism tick failed: %s", exc)
         interval = daemon.autonomous_tick.current_interval
