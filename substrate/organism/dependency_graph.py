@@ -247,6 +247,24 @@ class DependencyGraph:
             "extracted_at": self.extracted_at,
         }
 
+    def to_safe_dict(self) -> dict[str, Any]:
+        """HTTP-safe serialization — strips internal wiring evidence."""
+        safe_edges = []
+        for e in self.edges:
+            safe_edges.append({
+                "source": e.source, "target": e.target,
+                "type": e.dep_type.value, "strength": e.strength.value,
+            })
+        return {
+            "summary": self.summary(),
+            "nodes": {nid: n.to_dict() for nid, n in self.nodes.items()},
+            "edges": safe_edges,
+            "orphaned": self.orphaned_nodes(),
+            "cycles": self.circular_dependencies(),
+            "critical_paths": [cp.to_dict() for cp in self.critical_paths()],
+            "extracted_at": self.extracted_at,
+        }
+
 
 # ---------------------------------------------------------------------------
 # Deterministic extraction from WorldModel
