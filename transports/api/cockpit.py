@@ -220,13 +220,16 @@ def _compute_build_info() -> dict[str, Any]:
             info["commit_time"] = ts.stdout.strip()
     except Exception:
         pass
-    dist = _ROOT / "cockpit" / "dist-web" / "assets"
-    if dist.is_dir():
-        for f in dist.iterdir():
-            if f.name.startswith("index-") and f.name.endswith(".js"):
-                info["js_hash"] = f.name
-            elif f.name.startswith("index-") and f.name.endswith(".css"):
-                info["css_hash"] = f.name
+    import re as _re
+    index_html = _ROOT / "cockpit" / "dist-web" / "index.html"
+    if index_html.is_file():
+        html = index_html.read_text()
+        js_match = _re.search(r'src="[./]*assets/(index-[^"]+\.js)"', html)
+        css_match = _re.search(r'href="[./]*assets/(index-[^"]+\.css)"', html)
+        if js_match:
+            info["js_hash"] = js_match.group(1)
+        if css_match:
+            info["css_hash"] = css_match.group(1)
     return info
 
 
