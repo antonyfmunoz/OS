@@ -37,26 +37,29 @@ _operator_token_header = APIKeyHeader(name="X-Operator-Token", auto_error=False)
 
 _DEV_BYPASS = os.environ.get("UMH_DEV_BYPASS", "").lower() in ("1", "true", "yes")
 
-_PRIVATE_PREFIXES = (
-    "127.", "10.", "192.168.", "172.16.", "172.17.", "172.18.", "172.19.",
-    "172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.",
-    "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31.",
-    "100.64.", "100.65.", "100.66.", "100.67.", "100.68.", "100.69.",
-    "100.7", "100.8", "100.9", "100.10", "100.11", "100.12", "100.13",
-    "::1", "fd",
-)
+import hmac as _hmac
+import ipaddress as _ipaddress
+
+_TAILSCALE_CGNAT = _ipaddress.ip_network("100.64.0.0/10")
 
 
 def _is_private_ip(ip: str) -> bool:
     if not ip:
         return False
-    for prefix in _PRIVATE_PREFIXES:
-        if ip.startswith(prefix):
-            return True
-    return False
+    try:
+        addr = _ipaddress.ip_address(ip)
+        return addr.is_private or addr.is_loopback or addr in _TAILSCALE_CGNAT
+    except ValueError:
+        return False
 
 
 def _dev_bypass_allowed(request: Request) -> bool:
+    """Allow token-free access from private IPs when UMH_DEV_BYPASS=true.
+
+    Safe because request.client.host is the TCP source (not X-Forwarded-For),
+    and we do NOT enable ProxyHeadersMiddleware, so this cannot be spoofed
+    through Caddy or any reverse proxy.
+    """
     if not _DEV_BYPASS:
         return False
     client_ip = request.client.host if request.client else ""
@@ -90,7 +93,7 @@ async def _require_api_key(
         if _dev_bypass_allowed(request):
             return "dev-bypass"
         raise HTTPException(status_code=503, detail="API key not configured — set UMH_OPERATOR_API_KEY")
-    if not key or key != _API_KEY:
+    if not key or not _hmac.compare_digest(key, _API_KEY):
         if _dev_bypass_allowed(request):
             return "dev-bypass"
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
@@ -111,7 +114,7 @@ async def _require_operator_role(
             return "operator-dev-bypass"
         raise HTTPException(status_code=503, detail="Operator token not configured — set UMH_OPERATOR_TOKEN")
 
-    if not operator_token or operator_token != _OPERATOR_TOKEN:
+    if not operator_token or not _hmac.compare_digest(operator_token, _OPERATOR_TOKEN):
         logger.warning(
             "Unauthorized operator access attempt: %s %s from %s",
             request.method, request.url.path, request.client.host if request.client else "unknown",
@@ -2259,13 +2262,26 @@ def push_organism_event(event_dict: dict) -> None:
         _pending_organism_events[:] = _pending_organism_events[-100:]
 
 
+def _extract_ws_token(ws: WebSocket) -> str:
+    """Extract auth token from Sec-WebSocket-Protocol header or query param.
+
+    Preferred: client sends subprotocol 'bearer.<token>' — avoids token in URL/logs.
+    Fallback: ?token= query param for clients that cannot set subprotocols.
+    """
+    for proto in (ws.headers.get("sec-websocket-protocol") or "").split(","):
+        proto = proto.strip()
+        if proto.startswith("bearer."):
+            return proto[7:]
+    return ws.query_params.get("token", "")
+
+
 def _validate_ws_token(ws: WebSocket) -> bool:
-    """Check ?token= query param against WS token or API key."""
+    """Validate WS connection auth."""
     if not _WS_TOKEN:
         client_ip = ws.client.host if ws.client else ""
         return _DEV_BYPASS and _is_private_ip(client_ip)
-    token = ws.query_params.get("token", "")
-    if token and token == _WS_TOKEN:
+    token = _extract_ws_token(ws)
+    if token and _hmac.compare_digest(token, _WS_TOKEN):
         return True
     client_ip = ws.client.host if ws.client else ""
     if _DEV_BYPASS and _is_private_ip(client_ip):
@@ -2277,14 +2293,16 @@ def _validate_ws_token(ws: WebSocket) -> bool:
 async def cockpit_ws(ws: WebSocket):
     """Stream live system metrics to connected cockpit clients.
 
-    Auth: query param ?token=<WS_TOKEN> or dev-bypass from private IP.
-    If neither, connection is rejected with 4001.
+    Auth: Sec-WebSocket-Protocol 'bearer.<TOKEN>', or ?token= fallback,
+    or dev-bypass from private IP. Rejected with 4001 otherwise.
     """
     if not _validate_ws_token(ws):
-        await ws.close(code=4001, reason="Authentication required — pass ?token=<WS_TOKEN>")
+        await ws.close(code=4001, reason="Authentication required")
         logger.warning("WS auth rejected from %s", ws.client.host if ws.client else "unknown")
         return
-    await ws.accept()
+    token = _extract_ws_token(ws)
+    subprotocol = f"bearer.{token}" if token else None
+    await ws.accept(subprotocol=subprotocol)
     _cockpit_clients.add(ws)
     event_cursor = len(_pending_organism_events)
     logger.info(f"cockpit ws connected ({len(_cockpit_clients)} clients)")
