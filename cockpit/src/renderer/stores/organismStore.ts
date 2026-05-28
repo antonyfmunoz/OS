@@ -179,8 +179,10 @@ interface MutationSpec {
 }
 
 interface MutationRegistryStatus {
-  total_registered: number
-  mutations: Record<string, MutationSpec>
+  total_registered?: number
+  total_specs?: number
+  mutations?: Record<string, MutationSpec>
+  specs?: Record<string, MutationSpec>
 }
 
 interface RuntimeNodeInfo {

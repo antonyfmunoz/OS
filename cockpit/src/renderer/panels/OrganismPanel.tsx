@@ -47,7 +47,7 @@ export function OrganismPanel() {
   const bottlenecks = bottleneckStatus?.active ?? []
   const leverageRatio = leverage?.dimensions?.composite ?? 0
   const timeSaved = (leverage?.totals?.operator_seconds_saved ?? 0) / 3600
-  const mutationList = mutations ? Object.values(mutations.mutations) : []
+  const mutationList = mutations?.specs ? Object.values(mutations.specs) as Array<{name: string; risk_level: string; blast_radius: string; requires_approval?: boolean}> : mutations?.mutations ? Object.values(mutations.mutations) as Array<{name: string; risk_level: string; blast_radius: string; requires_approval?: boolean}> : []
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
