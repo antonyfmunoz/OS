@@ -245,6 +245,28 @@ router.get('/trial-status', operatorGuard, async (c) => {
   return c.json(result.data)
 })
 
+// ── Report Dispatcher ────────────────────────────────────────
+router.post('/dispatch-report', operatorGuard, async (c) => {
+  const body = await c.req.json().catch(() => ({}))
+  const result = await callOrganism('organism.dispatch_report', body as Record<string, unknown>)
+  if (!result.success) return c.json({ error: result.error }, 400)
+  return c.json(result.data)
+})
+
+router.get('/reports', operatorGuard, async (c) => {
+  const limit = Number(c.req.query('limit') ?? 20)
+  const result = await callOrganism('organism.reports', { limit })
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/chat-history', async (c) => {
+  const limit = Number(c.req.query('limit') ?? 50)
+  const result = await callOrganism('organism.chat_history', { limit })
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
 // ── Governed mutations (operator-only) ─────────────────────────
 router.post('/approve/:id', operatorGuard, async (c) => {
   const result = await callOrganism('organism.approve', {

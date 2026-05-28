@@ -783,6 +783,59 @@ def _read_file(payload: dict) -> dict:
         return {"success": False, "error": str(e)}
 
 
+# ── Report Dispatcher ─────────────────────────────────────
+
+def _dispatch_report(payload: dict) -> dict:
+    """Send a report to Discord + cockpit chat."""
+    title = payload.get("title", "")
+    summary = payload.get("summary", "")
+    body = payload.get("body", "")
+    file_path = payload.get("file_path")
+    metadata = payload.get("metadata", {})
+
+    if not title or not summary:
+        return {"success": False, "error": "title and summary required"}
+
+    try:
+        from substrate.organism.report_dispatcher import ReportDispatcher, Report
+        dispatcher = ReportDispatcher()
+        report = Report(
+            title=title,
+            summary=summary,
+            body=body,
+            file_path=file_path,
+            metadata=metadata,
+        )
+        result = dispatcher.dispatch_report(report)
+        return {"success": True, "data": result.to_dict()}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def _list_reports(payload: dict) -> dict:
+    """List recent reports from organism store."""
+    limit = int(payload.get("limit", 20))
+    try:
+        from substrate.organism.report_dispatcher import ReportDispatcher
+        dispatcher = ReportDispatcher()
+        reports = dispatcher.list_reports(limit=limit)
+        return {"success": True, "data": reports}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def _chat_history(payload: dict) -> dict:
+    """Return chat history including system report messages."""
+    limit = int(payload.get("limit", 50))
+    try:
+        from substrate.organism.store import OrganismStore
+        store = OrganismStore()
+        messages = store.list_messages(limit=limit)
+        return {"success": True, "data": messages}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 # ── Action router ──────────────────────────────────────────
 
 _ACTIONS: dict = {
@@ -834,6 +887,9 @@ _ACTIONS: dict = {
     "organism.execute_plan.approve_step": _execute_plan_approve_step,
     "organism.execute_plan.pending": _execute_plan_pending,
     "organism.trial_status": _trial_status,
+    "organism.dispatch_report": _dispatch_report,
+    "organism.reports": _list_reports,
+    "organism.chat_history": _chat_history,
 }
 
 

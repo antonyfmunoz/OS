@@ -257,6 +257,7 @@ _INTENT_PATTERNS: dict[str, list[dict[str, Any]]] = {
 }
 
 _RISK_MAP = {"low": RiskClass.LOW, "medium": RiskClass.MEDIUM, "high": RiskClass.HIGH, "critical": RiskClass.CRITICAL}
+_RISK_SEVERITY = {RiskClass.LOW: 0, RiskClass.MEDIUM: 1, RiskClass.HIGH: 2, RiskClass.CRITICAL: 3}
 _GOV_MAP = {"autonomous": GovernanceMode.AUTONOMOUS, "assisted": GovernanceMode.ASSISTED, "operator_required": GovernanceMode.OPERATOR_REQUIRED}
 
 
@@ -332,7 +333,7 @@ class CompositionEngine:
             plan.steps.append(step)
             prev_id = step.id
 
-            if list(RiskClass).index(risk) > list(RiskClass).index(max_risk):
+            if _RISK_SEVERITY.get(risk, 1) > _RISK_SEVERITY.get(max_risk, 0):
                 max_risk = risk
             if list(GovernanceMode).index(gov) > list(GovernanceMode).index(max_gov):
                 max_gov = gov

@@ -3,7 +3,7 @@ import { fetchApi } from '../api/client'
 
 interface ChatMessage {
   id: string
-  sender: 'operator' | 'dex'
+  sender: 'operator' | 'dex' | 'system'
   content: string
   timestamp: string
   source?: 'text' | 'voice'
@@ -82,6 +82,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       const history = await fetchApi<Array<{
         id: string
+        sender?: string
         content: string
         response: string | null
         timestamp: string
@@ -89,6 +90,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       const messages: ChatMessage[] = []
       for (const exchange of history) {
+        if (exchange.sender === 'system') {
+          messages.push({
+            id: `h-sys-${exchange.id}`,
+            sender: 'system',
+            content: exchange.content,
+            timestamp: exchange.timestamp,
+          })
+          continue
+        }
         if (exchange.content) {
           messages.push({
             id: `h-op-${exchange.id}`,
