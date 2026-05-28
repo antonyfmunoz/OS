@@ -642,6 +642,64 @@ def _execute_plan_pending(payload: dict) -> dict:
     return {"success": True, "data": []}
 
 
+def _trial_status(_payload: dict) -> dict:
+    """Return the latest self-improvement trial results."""
+    import glob
+
+    umh_root = _os.environ.get("UMH_ROOT", "/opt/OS")
+    trials_dir = _os.path.join(umh_root, "data", "umh", "trials")
+
+    result: dict = {"has_trial": False}
+
+    results_path = _os.path.join(trials_dir, "phase9_2_trial_results.json")
+    if _os.path.isfile(results_path):
+        with open(results_path) as f:
+            result["trial_results"] = json.loads(f.read())
+        result["has_trial"] = True
+
+    plan_path = _os.path.join(trials_dir, "phase9_2_composition_plan.json")
+    if _os.path.isfile(plan_path):
+        with open(plan_path) as f:
+            result["composition_plan"] = json.loads(f.read())
+
+    graph_path = _os.path.join(trials_dir, "phase9_2_execution_graph.json")
+    if _os.path.isfile(graph_path):
+        with open(graph_path) as f:
+            result["execution_graph"] = json.loads(f.read())
+
+    outcomes_path = _os.path.join(trials_dir, "trial_outcomes.jsonl")
+    if _os.path.isfile(outcomes_path):
+        outcomes = []
+        with open(outcomes_path) as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    outcomes.append(json.loads(line))
+        result["outcomes"] = outcomes
+
+    memory_candidates_path = _os.path.join(trials_dir, "memory", "memory_candidates", "candidates.jsonl")
+    if _os.path.isfile(memory_candidates_path):
+        candidates = []
+        with open(memory_candidates_path) as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    candidates.append(json.loads(line))
+        result["memory_candidates"] = candidates
+
+    journal_path = _os.path.join(trials_dir, "trial_journal.jsonl")
+    if _os.path.isfile(journal_path):
+        journal_entries = []
+        with open(journal_path) as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    journal_entries.append(json.loads(line))
+        result["journal_entries"] = journal_entries[-50:]
+
+    return {"success": True, "data": result}
+
+
 def _list_workspaces(_payload: dict) -> dict:
     import subprocess
 
@@ -775,6 +833,7 @@ _ACTIONS: dict = {
     "organism.execution_graph.detail": _execution_graph_detail,
     "organism.execute_plan.approve_step": _execute_plan_approve_step,
     "organism.execute_plan.pending": _execute_plan_pending,
+    "organism.trial_status": _trial_status,
 }
 
 

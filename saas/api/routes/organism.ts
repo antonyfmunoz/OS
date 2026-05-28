@@ -238,6 +238,13 @@ router.get('/workcells', async (c) => {
   return c.json(result.data)
 })
 
+// ── Phase 9.2: Self-improvement trial surface ────────────────
+router.get('/trial-status', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.trial_status')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
 // ── Governed mutations (operator-only) ─────────────────────────
 router.post('/approve/:id', operatorGuard, async (c) => {
   const result = await callOrganism('organism.approve', {

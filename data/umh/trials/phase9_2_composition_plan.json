@@ -1,0 +1,120 @@
+{
+  "summary": {
+    "plan_id": "a3000810",
+    "intent": "Fix false-positive high-severity contradiction: governance_router path in world model references router.py but actual implementation is router/__init__.py package",
+    "total_steps": 4,
+    "step_status": {
+      "pending": 4
+    },
+    "overall_risk": "low",
+    "governance_required": "autonomous",
+    "missing_prerequisites": 0,
+    "risks": 1,
+    "created_at": 1780008567.6756968
+  },
+  "intent": {
+    "description": "Fix false-positive high-severity contradiction: governance_router path in world model references router.py but actual implementation is router/__init__.py package",
+    "category": "fix_contradictions",
+    "priority": "high",
+    "source": "self_improvement_trial"
+  },
+  "context": {
+    "readiness_score": 0.0,
+    "active_contradictions": 13,
+    "top_bottleneck": "",
+    "execution_mode": "observe"
+  },
+  "constraints": [
+    {
+      "name": "no_runtime_changes",
+      "description": "Only modify observation/extraction code",
+      "hard": true
+    },
+    {
+      "name": "single_file_edit",
+      "description": "Change must be in substrate/organism/world_model.py only",
+      "hard": true
+    },
+    {
+      "name": "fully_reversible",
+      "description": "Revertible with single string replacement",
+      "hard": true
+    },
+    {
+      "name": "no_security_impact",
+      "description": "No auth/credential/governance policy changes",
+      "hard": true
+    }
+  ],
+  "capabilities_matched": [],
+  "steps": [
+    {
+      "id": "41a49102",
+      "description": "Verify governance_router contradiction exists and path mismatch is confirmed",
+      "action": "verify_current_state",
+      "depends_on": [],
+      "status": "pending",
+      "risk_class": "low",
+      "governance_mode": "autonomous",
+      "requires_capability": "",
+      "verification": "Contradiction #13 exists with severity high and type capability_gap"
+    },
+    {
+      "id": "b1356c19",
+      "description": "Change governance_router path from router.py to router/__init__.py in world_model.py line 504",
+      "action": "fix_world_model_path",
+      "depends_on": [
+        "41a49102"
+      ],
+      "status": "pending",
+      "risk_class": "low",
+      "governance_mode": "autonomous",
+      "requires_capability": "",
+      "verification": "File substrate/organism/world_model.py contains router/__init__.py at governance_router entry"
+    },
+    {
+      "id": "cb726379",
+      "description": "Re-run contradiction engine and verify high-severity contradiction eliminated",
+      "action": "verify_contradiction_resolved",
+      "depends_on": [
+        "b1356c19"
+      ],
+      "status": "pending",
+      "risk_class": "low",
+      "governance_mode": "autonomous",
+      "requires_capability": "",
+      "verification": "Zero high-severity contradictions; total contradictions reduced from 13 to 12 or fewer"
+    },
+    {
+      "id": "02bdb425",
+      "description": "Run organism test suite to confirm no regressions",
+      "action": "verify_tests_pass",
+      "depends_on": [
+        "cb726379"
+      ],
+      "status": "pending",
+      "risk_class": "low",
+      "governance_mode": "autonomous",
+      "requires_capability": "",
+      "verification": "All 891+ organism tests pass"
+    }
+  ],
+  "risks": [
+    {
+      "description": "13 active contradictions may affect execution",
+      "risk_class": "medium",
+      "mitigation": "Resolve contradictions before proceeding"
+    }
+  ],
+  "missing_prerequisites": [],
+  "overall_risk": "low",
+  "governance_required": "autonomous",
+  "validation_strategy": "Re-run verification step after each action",
+  "rollback_plan": "Revert to pre-execution state if any step fails verification",
+  "evidence": [
+    "Composed from 81 entities",
+    "Dependency graph: 28 edges",
+    "Active contradictions: 13"
+  ],
+  "created_at": 1780008567.6756968
+}

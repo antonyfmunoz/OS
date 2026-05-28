@@ -1,0 +1,55 @@
+{
+  "trial_id": "phase9_2",
+  "timestamp": 1780008899.9059043,
+  "baseline": {
+    "entities": 81,
+    "contradictions": 13,
+    "high_contradictions": 1,
+    "gaps": 1
+  },
+  "after": {
+    "entities": 81,
+    "contradictions": 12,
+    "high_contradictions": 0,
+    "governance_router_status": "partial"
+  },
+  "execution": {
+    "plan_id": "c0cdc068",
+    "executable_id": "12ed5350",
+    "status": "completed",
+    "steps_total": 4,
+    "steps_succeeded": 4,
+    "steps_failed": 0,
+    "started_at": 1780008899.8471863,
+    "completed_at": 1780008899.9040399,
+    "duration_seconds": 0.056853532791137695
+  },
+  "validation_passed": true,
+  "learning": {
+    "total_outcomes": 4,
+    "total_signals": 4,
+    "reliability_scores": {
+      "verify_current_state": 1.0,
+      "fix_world_model_path": 1.0,
+      "verify_contradiction_resolved": 1.0,
+      "verify_tests_pass": 1.0
+    },
+    "outcome_counts": {
+      "verify_current_state": {
+        "success": 1
+      },
+      "fix_world_model_path": {
+        "success": 1
+      },
+      "verify_contradiction_resolved": {
+        "success": 1
+      },
+      "verify_tests_pass": {
+        "success": 1
+      }
+    },
+    "pending_adjustments": 4
+  },
+  "memory_candidates": 4,
+  "governance_dry_run": "passed"
+}
