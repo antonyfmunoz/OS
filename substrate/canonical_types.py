@@ -137,6 +137,10 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "EventPriority": ["substrate.organism.event_spine"],
     # ── substrate/organism/objective_queue.py ──────────────────────────
     "ObjectiveQueueStatus": ["substrate.organism.objective_queue"],
+    # ── substrate/organism/allocation_loop.py ──────────────────────────
+    "AllocationStrategy": ["substrate.organism.allocation_loop"],
+    # ── substrate/organism/async_coordinator.py ───────────────────────
+    "AsyncObjectiveStatus": ["substrate.organism.async_coordinator"],
     # ── substrate/self_model.py ────────────────────────────────────────
     "Layer": ["substrate.self_model"],
     "ContextKind": ["substrate.self_model"],
