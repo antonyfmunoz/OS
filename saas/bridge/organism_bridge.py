@@ -413,6 +413,68 @@ def _mesh_nodes(_payload: dict) -> dict:
 
 # ── Meta-IDE: workspace and filesystem ──────────────────────
 
+def _world_model(_payload: dict) -> dict:
+    from substrate.organism.world_model import extract_world_model
+    model = extract_world_model()
+    return {"success": True, "data": model.to_safe_dict()}
+
+
+def _dependency_graph(_payload: dict) -> dict:
+    from substrate.organism.dependency_graph import build_dependency_graph
+    graph = build_dependency_graph()
+    return {"success": True, "data": graph.to_safe_dict()}
+
+
+def _contradictions(_payload: dict) -> dict:
+    from substrate.organism.contradiction_engine import detect_contradictions
+    report = detect_contradictions()
+    return {"success": True, "data": report.to_safe_dict()}
+
+
+def _memory_promotion(_payload: dict) -> dict:
+    from substrate.organism.memory_promotion import MemoryPromotionPipeline
+    pipeline = MemoryPromotionPipeline()
+    return {"success": True, "data": pipeline.to_dict()}
+
+
+def _memory_promotion_approve(payload: dict) -> dict:
+    from substrate.organism.memory_promotion import MemoryPromotionPipeline
+    pipeline = MemoryPromotionPipeline()
+    cid = payload.get("id", "")
+    if not cid:
+        return {"success": False, "error": "id required"}
+    entry = pipeline.promote(cid, decided_by="cockpit")
+    if entry:
+        return {"success": True, "data": entry.to_dict()}
+    return {"success": False, "error": "Promotion failed or not eligible"}
+
+
+def _memory_promotion_reject(payload: dict) -> dict:
+    from substrate.organism.memory_promotion import MemoryPromotionPipeline
+    pipeline = MemoryPromotionPipeline()
+    cid = payload.get("id", "")
+    reason = payload.get("reason", "Operator rejected")
+    if not cid:
+        return {"success": False, "error": "id required"}
+    result = pipeline.reject(cid, reason=reason, decided_by="cockpit")
+    return {"success": result, "data": {"id": cid, "decision": "rejected"}}
+
+
+def _learning_loop(_payload: dict) -> dict:
+    from substrate.organism.outcome_learning import OutcomeLearningLoop
+    loop = OutcomeLearningLoop()
+    return {"success": True, "data": loop.to_safe_dict()}
+
+
+def _compose(payload: dict) -> dict:
+    from substrate.organism.composition_engine import compose_plan
+    intent = payload.get("intent", "")
+    if not intent:
+        return {"success": False, "error": "intent required"}
+    plan = compose_plan(intent)
+    return {"success": True, "data": plan.to_dict()}
+
+
 def _list_workspaces(_payload: dict) -> dict:
     import subprocess
     workspaces = []
@@ -517,6 +579,14 @@ _ACTIONS: dict = {
     "organism.sessions": _tmux_sessions,
     "organism.docker": _docker_containers,
     "organism.mesh": _mesh_nodes,
+    "organism.world_model": _world_model,
+    "organism.dependency_graph": _dependency_graph,
+    "organism.contradictions": _contradictions,
+    "organism.compose": _compose,
+    "organism.learning_loop": _learning_loop,
+    "organism.memory_promotion": _memory_promotion,
+    "organism.memory_promotion.approve": _memory_promotion_approve,
+    "organism.memory_promotion.reject": _memory_promotion_reject,
     "organism.workspaces": _list_workspaces,
     "organism.files": _list_files,
     "organism.file.read": _read_file,
