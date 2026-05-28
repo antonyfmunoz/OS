@@ -2818,3 +2818,143 @@ async def execution_pause(payload: dict):
 async def execution_resume(payload: dict):
     """Resume execution in a slot."""
     return {"ok": True}
+
+
+# ── Phase 6.1: GovernedExecutionSpine endpoints ─────────────────────────────
+
+
+@router.get("/organism/spine")
+async def organism_spine_status():
+    """GovernedExecutionSpine status: counters, success rate, queue depths."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return daemon.governed_spine.to_dict()
+
+
+@router.get("/organism/spine/pending")
+async def organism_spine_pending(limit: int = 50):
+    """Pending envelopes awaiting approval."""
+    daemon = _get_organism()
+    if daemon is None:
+        return []
+    return daemon.governed_spine.pending_envelopes(limit)
+
+
+@router.get("/organism/spine/active")
+async def organism_spine_active():
+    """Currently executing envelopes."""
+    daemon = _get_organism()
+    if daemon is None:
+        return []
+    return daemon.governed_spine.active_envelopes()
+
+
+@router.get("/organism/spine/completed")
+async def organism_spine_completed(limit: int = 50):
+    """Recently completed envelopes."""
+    daemon = _get_organism()
+    if daemon is None:
+        return []
+    return daemon.governed_spine.completed_envelopes(limit)
+
+
+@router.get("/organism/spine/lifecycle/{envelope_id}")
+async def organism_spine_lifecycle(envelope_id: str):
+    """Full journal lifecycle for a specific envelope."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return daemon.governed_spine.envelope_lifecycle(envelope_id)
+
+
+@router.post("/organism/spine/approve/{envelope_id}", dependencies=[Depends(_require_operator_role)])
+async def organism_spine_approve(envelope_id: str, request: Request):
+    """Approve a pending envelope for execution. Operator-auth required."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+
+    client_id = request.client.host if request.client else "unknown"
+    _check_rate_limit("approve", client_id)
+
+    envelope = daemon.governed_spine.approve(envelope_id, approved_by=client_id)
+    if envelope is None:
+        return {"error": f"envelope {envelope_id} not found in pending queue"}
+    logger.info("Spine envelope approved: %s by %s", envelope_id, client_id)
+    return envelope.to_dict()
+
+
+@router.post("/organism/spine/reject/{envelope_id}", dependencies=[Depends(_require_operator_role)])
+async def organism_spine_reject(envelope_id: str, payload: dict, request: Request):
+    """Reject a pending envelope. Operator-auth required."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+
+    client_id = request.client.host if request.client else "unknown"
+    _check_rate_limit("approve", client_id)
+
+    reason = str(payload.get("reason", "operator_rejected"))[:500]
+    envelope = daemon.governed_spine.reject(envelope_id, reason=reason)
+    if envelope is None:
+        return {"error": f"envelope {envelope_id} not found in pending queue"}
+    logger.info("Spine envelope rejected: %s by %s — %s", envelope_id, client_id, reason)
+    return envelope.to_dict()
+
+
+# ── Phase 6.1: Execution Journal endpoints ──────────────────────────────────
+
+
+@router.get("/organism/journal")
+async def organism_journal_status():
+    """Execution journal statistics and recent entries."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return daemon.execution_journal.to_dict()
+
+
+@router.get("/organism/journal/recent")
+async def organism_journal_recent(limit: int = 50):
+    """Recent journal entries."""
+    daemon = _get_organism()
+    if daemon is None:
+        return []
+    return [e.to_dict() for e in daemon.execution_journal.recent(limit)]
+
+
+@router.get("/organism/journal/lifecycle/{envelope_id}")
+async def organism_journal_lifecycle(envelope_id: str):
+    """Full journal lifecycle for a specific envelope."""
+    daemon = _get_organism()
+    if daemon is None:
+        return []
+    return daemon.execution_journal.execution_lifecycle(envelope_id)
+
+
+# ── Phase 6.1: Mutation Registry endpoints ──────────────────────────────────
+
+
+@router.get("/organism/mutations")
+async def organism_mutation_registry():
+    """All registered mutation specs with risk profiles."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return daemon.mutation_registry.to_dict()
+
+
+# ── Phase 6.1: Spine Guard endpoints ────────────────────────────────────────
+
+
+@router.get("/organism/spine-guard")
+async def organism_spine_guard():
+    """Spine guard status and recent violations."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return {
+        **daemon.spine_guard.to_dict(),
+        "recent_violations": daemon.spine_guard.recent_violations(),
+    }

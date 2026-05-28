@@ -32,6 +32,13 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from substrate.organism.action_envelope import (
+    ActionEnvelope,
+    ActionType,
+    BlastRadius,
+    ExecutionConstraints,
+    ReversibilityClass,
+)
 from substrate.organism.event_spine import EventDomain, EventPriority, EventSpine
 from substrate.organism.execution_modes import ExecutionDecision, ExecutionMode, ExecutionModeManager
 from substrate.organism.leverage_metrics import LeverageMetrics, TaskRecord
@@ -152,6 +159,50 @@ class WorkloadRunner:
         self._total_runs: int = 0
         self._total_successes: int = 0
         self._total_failures: int = 0
+        self._governed_spine: Any = None
+
+    def set_governed_spine(self, spine: Any) -> None:
+        self._governed_spine = spine
+
+    def create_envelope(self, workload_type: WorkloadType) -> ActionEnvelope:
+        """Create an ActionEnvelope for a workload — for spine-routed execution."""
+        risk = _WORKLOAD_RISK.get(workload_type, WorkloadRisk.LOW)
+        handler = _WORKLOAD_HANDLERS.get(workload_type)
+
+        risk_map = {
+            WorkloadRisk.LOW: "low",
+            WorkloadRisk.MEDIUM: "medium",
+            WorkloadRisk.HIGH: "high",
+        }
+        reversibility_map = {
+            WorkloadRisk.LOW: ReversibilityClass.FULLY_REVERSIBLE,
+            WorkloadRisk.MEDIUM: ReversibilityClass.PARTIALLY_REVERSIBLE,
+            WorkloadRisk.HIGH: ReversibilityClass.IRREVERSIBLE,
+        }
+
+        repo_root = self._repo_root
+
+        def _execute() -> tuple[str, bool]:
+            if handler is None:
+                return f"No handler for {workload_type.value}", False
+            outcome = handler(repo_root)
+            return "; ".join(outcome.findings[:5]), outcome.success
+
+        return ActionEnvelope(
+            intent=f"Run {workload_type.value} workload",
+            action_type=ActionType.STATE,
+            source="workload_runner",
+            execute_fn=_execute,
+            risk_level=risk_map.get(risk, "low"),
+            blast_radius=BlastRadius.LOCAL_RUNTIME,
+            reversibility=reversibility_map.get(risk, ReversibilityClass.FULLY_REVERSIBLE),
+            estimated_manual_seconds=_ESTIMATED_MANUAL_SECONDS.get(workload_type, 60.0),
+            constraints=ExecutionConstraints(
+                timeout_seconds=120.0,
+                require_approval=(risk != WorkloadRisk.LOW),
+            ),
+            metadata={"mutation_name": workload_type.value, "workload_type": workload_type.value},
+        )
 
     def run_workload(
         self,

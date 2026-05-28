@@ -54,6 +54,10 @@ from substrate.organism.workload_runner import WorkloadRunner
 from substrate.organism.automation_pipeline import AutomationPipeline
 from substrate.organism.maintenance_loop import MaintenanceLoop
 from substrate.organism.assisted_executor import AssistedExecutor
+from substrate.organism.execution_journal import ExecutionJournal
+from substrate.organism.governed_spine import GovernedExecutionSpine
+from substrate.organism.mutation_registry import MutationRegistry
+from substrate.organism.spine_guard import SpineGuard
 from substrate.organism.worker_cell import WorkerCell
 from substrate.execution.pipeline import ExecutionPipeline
 
@@ -208,6 +212,24 @@ class OrganismDaemon:
             event_spine=self._event_spine,
             leverage_metrics=self._leverage_metrics,
         )
+
+        self._mutation_registry = MutationRegistry()
+        self._execution_journal = ExecutionJournal(
+            persist_path=str(self._state_dir / "execution_journal.jsonl"),
+        )
+        self._governed_spine = GovernedExecutionSpine(
+            event_spine=self._event_spine,
+            execution_mode=self._execution_mode_manager,
+            mutation_registry=self._mutation_registry,
+            journal=self._execution_journal,
+            leverage_metrics=self._leverage_metrics,
+        )
+        self._spine_guard = SpineGuard(
+            event_spine=self._event_spine,
+        )
+
+        self._workload_runner.set_governed_spine(self._governed_spine)
+        self._assisted_executor.set_governed_spine(self._governed_spine)
 
         self._workcell_daemon = WorkcellDaemonV2(
             state_dir=str(self._state_dir / "workcell_daemon"),
@@ -497,6 +519,22 @@ class OrganismDaemon:
     def assisted_executor(self) -> AssistedExecutor:
         return self._assisted_executor
 
+    @property
+    def governed_spine(self) -> GovernedExecutionSpine:
+        return self._governed_spine
+
+    @property
+    def mutation_registry(self) -> MutationRegistry:
+        return self._mutation_registry
+
+    @property
+    def execution_journal(self) -> ExecutionJournal:
+        return self._execution_journal
+
+    @property
+    def spine_guard(self) -> SpineGuard:
+        return self._spine_guard
+
     def start(self) -> None:
         self._started = True
 
@@ -523,6 +561,7 @@ class OrganismDaemon:
         )
 
         self._event_spine.recover()
+        self._execution_journal.recover()
 
         logger.info(
             "organism daemon started: %d agents, graph=%s, supervisor=%s, "
@@ -626,6 +665,10 @@ class OrganismDaemon:
             "automation_pipeline": self._automation_pipeline.to_dict(),
             "maintenance_loop": self._maintenance_loop.to_dict(),
             "assisted_executor": self._assisted_executor.to_dict(),
+            "governed_spine": self._governed_spine.to_dict(),
+            "mutation_registry": self._mutation_registry.to_dict(),
+            "execution_journal": self._execution_journal.to_dict(),
+            "spine_guard": self._spine_guard.to_dict(),
             **self._advisor.organism_status(),
         }
         if self._graph is not None:
