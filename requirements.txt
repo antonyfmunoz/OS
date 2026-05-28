@@ -7,6 +7,7 @@ anthropic
 google-genai
 flask>=3.1,<4.0
 fastapi>=0.115,<1.0
+psutil
 psycopg2-binary
 openai-whisper
 yt-dlp

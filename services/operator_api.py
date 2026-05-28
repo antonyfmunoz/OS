@@ -627,9 +627,10 @@ async def websocket_endpoint(ws: WebSocket) -> None:
 
 # ─── Cockpit API (substrate command center) ───────────────────────────────────
 try:
-    from transports.api.cockpit import router as cockpit_router
+    from transports.api.cockpit import router as cockpit_router, ws_router as cockpit_ws_router
 
     app.include_router(cockpit_router)
+    app.include_router(cockpit_ws_router)
     logger.info("cockpit router mounted at /api/umh/")
 except Exception as e:
     logger.warning(f"cockpit router not available: {e}")
