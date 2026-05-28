@@ -416,7 +416,7 @@ def _mesh_nodes(_payload: dict) -> dict:
 def _world_model(_payload: dict) -> dict:
     from substrate.organism.world_model import extract_world_model
     model = extract_world_model()
-    return {"success": True, "data": model.to_dict()}
+    return {"success": True, "data": model.to_safe_dict()}
 
 
 def _dependency_graph(_payload: dict) -> dict:
