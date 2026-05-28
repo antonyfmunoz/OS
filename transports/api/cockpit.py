@@ -53,16 +53,21 @@ def _is_private_ip(ip: str) -> bool:
         return False
 
 
+_TRUSTED_PROXIES = {"127.0.0.1", "::1"}
+_docker_bridge = os.environ.get("UMH_DOCKER_BRIDGE_IP", "172.20.0.1")
+if _docker_bridge:
+    _TRUSTED_PROXIES.add(_docker_bridge)
+
+
 def _real_client_ip(request: Request) -> str:
     """Return the real client IP, accounting for trusted reverse proxies.
 
-    When Caddy forwards a request, request.client.host is the proxy's IP
-    (127.0.0.1 / Docker bridge).  Caddy sets X-Forwarded-For to the actual
-    client.  We trust X-Forwarded-For ONLY when the TCP source is itself a
-    private IP — public TCP sources cannot spoof the header.
+    Only reads X-Forwarded-For when the TCP source is an explicitly trusted
+    proxy (localhost or Docker bridge).  Tailscale CGNAT IPs are real clients
+    — not proxies — so their TCP source is used directly.
     """
     tcp_ip = request.client.host if request.client else ""
-    if _is_private_ip(tcp_ip):
+    if tcp_ip in _TRUSTED_PROXIES:
         forwarded = request.headers.get("x-forwarded-for", "")
         if forwarded:
             return forwarded.split(",")[0].strip()
@@ -2288,7 +2293,7 @@ def _extract_ws_token(ws: WebSocket) -> str:
 def _real_ws_client_ip(ws: WebSocket) -> str:
     """Real client IP for WebSocket, same trusted-proxy logic as HTTP."""
     tcp_ip = ws.client.host if ws.client else ""
-    if _is_private_ip(tcp_ip):
+    if tcp_ip in _TRUSTED_PROXIES:
         forwarded = ws.headers.get("x-forwarded-for", "")
         if forwarded:
             return forwarded.split(",")[0].strip()
