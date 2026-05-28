@@ -11,6 +11,7 @@ const NAV_ITEMS: Array<{ panel: Panel; icon: string; label: string; key: string 
   { panel: 'settings', icon: '⚙', label: 'Settings', key: '8' },
   { panel: 'activity', icon: '◌', label: 'Activity', key: '9' },
   { panel: 'execution', icon: '◲', label: 'Execution', key: '0' },
+  { panel: 'organism', icon: '⬣', label: 'Organism', key: 'o' },
   { panel: 'portfolio', icon: '⬢', label: 'Portfolio', key: 'p' },
   { panel: 'company', icon: '◆', label: 'Company', key: 'c' },
 ]

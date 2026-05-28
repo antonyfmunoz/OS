@@ -20,6 +20,7 @@ export type Panel =
   | 'experiments'
   | 'infrastructure'
   | 'profile'
+  | 'organism'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 
