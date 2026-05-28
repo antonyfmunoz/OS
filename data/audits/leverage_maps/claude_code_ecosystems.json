@@ -1,0 +1,56 @@
+{
+  "source": "Claude Code Best-Practice Ecosystems",
+  "system_type": "pattern_library",
+  "evidence_level": "VERIFIED",
+  "what_it_does": "Community and official best practices for Claude Code: superpowers plugins, GSD workflows, skill systems, hook-driven automation, agent SDK patterns.",
+  "operational_patterns": [
+    "Superpowers skill system — skill invocation before action",
+    "GSD workflow — milestone → phase → plan → execute → verify",
+    "Hook-driven automation (pre-commit, session-start, tool-call)",
+    "Plugin architecture for extending Claude Code",
+    "Brainstorming-before-planning skill",
+    "TDD skill for test-driven development"
+  ],
+  "runtime_patterns": [
+    "Git worktree isolation for parallel agents",
+    "Background agent execution with notification",
+    "Subagent delegation with typed agent roles",
+    "Model selection: Opus for strategy, Sonnet for execution",
+    "OpusPlan mode — Opus plans, Sonnet executes"
+  ],
+  "governance_patterns": [
+    "Plan mode with user approval",
+    "Code review agents (multi-agent review pipeline)",
+    "Verification-before-completion skill",
+    "Permission mode system (auto, default, plan, bypassPermissions)"
+  ],
+  "ux_patterns": [
+    "Slash commands for skill invocation",
+    "Status line for ambient awareness",
+    "Task tracking with TodoCreate/TodoUpdate"
+  ],
+  "execution_loops": [
+    "Plan → Execute → Review → Simplify → Ship",
+    "Brainstorm → Plan → Execute → Verify",
+    "Write → Test → Review → Merge"
+  ],
+  "reusable_primitives": [
+    "Skill-based modular workflow system",
+    "Git worktree isolation pattern",
+    "Multi-agent code review pipeline",
+    "Hook-driven lifecycle automation",
+    "Background agent with notification pattern"
+  ],
+  "redundancy_risk": "MEDIUM — UMH uses many of these patterns (skills, worktrees, hooks, plan mode). The GSD workflow and superpowers plugins are external extensions, not core CC.",
+  "adaptation_priority": "LOW — UMH already has its own skill system, verification loops, and agent delegation. The external plugin ecosystem adds convenience, not capability.",
+  "umh_mapping": {
+    "skills": "skills/ — UMH skill system",
+    "verification": "CLAUDE.md completion standards + eos-verifier subagent",
+    "worktrees": ".claude/worktrees/ — used for parallel execution",
+    "hooks": ".claude/settings.json — hook configuration",
+    "plan_mode": "superpowers:writing-plans skill"
+  },
+  "eos_relevance": "LOW — development infrastructure patterns",
+  "trinity_relevance": "NONE",
+  "expected_leverage_gain": "0.05 — minor UX improvements possible from plugin ecosystem study"
+}

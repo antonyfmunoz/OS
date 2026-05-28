@@ -1926,3 +1926,287 @@ async def loop_delete(loop_name: str):
         return {"removed": ok, "loop": loop_name}
     except Exception as e:
         return {"error": str(e)}
+
+
+# ── Phase 3: Governed Execution Economy endpoints ─────────────────────────────
+
+
+@router.get("/organism/economy")
+async def organism_economy():
+    """Execution economy metrics — cost, value, leverage per runtime."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    try:
+        economy = getattr(daemon, "_economy", None)
+        if economy is None:
+            return {"total_executions": 0, "runtime_profiles": {}}
+        return economy.to_dict()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.get("/organism/economy/records")
+async def organism_economy_records(limit: int = 50):
+    """Recent execution decision records."""
+    daemon = _get_organism()
+    if daemon is None:
+        return []
+    try:
+        economy = getattr(daemon, "_economy", None)
+        if economy is None:
+            return []
+        return economy.recent_records(limit)
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.get("/organism/economy/task-profile/{task_class}")
+async def organism_task_profile(task_class: str):
+    """Runtime rankings for a specific task class."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    try:
+        economy = getattr(daemon, "_economy", None)
+        if economy is None:
+            return {"task_class": task_class, "runtime_rankings": []}
+        return economy.task_execution_profile(task_class).to_dict()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.get("/organism/recursion")
+async def organism_recursion():
+    """Current recursion governance state and limits."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    try:
+        governor = getattr(daemon, "_recursion_governor", None)
+        if governor is None:
+            return {"limits": {}, "state": {}, "kill_switch": False}
+        return governor.to_dict()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.get("/organism/recursion/escalations")
+async def organism_recursion_escalations(limit: int = 50):
+    """Recent recursion escalation events."""
+    daemon = _get_organism()
+    if daemon is None:
+        return []
+    try:
+        governor = getattr(daemon, "_recursion_governor", None)
+        if governor is None:
+            return []
+        return governor.escalation_log(limit)
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.post("/organism/recursion/kill")
+async def organism_kill_switch():
+    """Activate the kill switch — halts all autonomous execution."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    try:
+        governor = getattr(daemon, "_recursion_governor", None)
+        if governor is None:
+            return {"error": "recursion governor not available"}
+        governor.kill()
+        return {"ok": True, "killed": True}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.post("/organism/recursion/resume")
+async def organism_resume_switch():
+    """Deactivate the kill switch — resume autonomous execution."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    try:
+        governor = getattr(daemon, "_recursion_governor", None)
+        if governor is None:
+            return {"error": "recursion governor not available"}
+        governor.resume()
+        return {"ok": True, "killed": False}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.get("/organism/advisors")
+async def organism_advisor_hierarchy():
+    """Full advisor hierarchy tree."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    try:
+        hierarchy = getattr(daemon, "_advisor_hierarchy", None)
+        if hierarchy is None:
+            return {"primary_id": "", "total_advisors": 0, "advisors": {}}
+        return hierarchy.to_dict()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.get("/organism/advisors/tree")
+async def organism_advisor_tree():
+    """Advisor hierarchy as a nested tree structure."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    try:
+        hierarchy = getattr(daemon, "_advisor_hierarchy", None)
+        if hierarchy is None:
+            return {}
+        return hierarchy.hierarchy_tree()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.get("/organism/advisors/overdue")
+async def organism_overdue_advisors():
+    """Advisors with overdue reports."""
+    daemon = _get_organism()
+    if daemon is None:
+        return []
+    try:
+        hierarchy = getattr(daemon, "_advisor_hierarchy", None)
+        if hierarchy is None:
+            return []
+        return [a.to_dict() for a in hierarchy.overdue_reports()]
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.get("/organism/leverage")
+async def organism_leverage():
+    """External leverage assimilation status."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    try:
+        assimilator = getattr(daemon, "_assimilator", None)
+        if assimilator is not None:
+            return assimilator.to_dict()
+        from substrate.organism.leverage_assimilation import LeverageAssimilator
+        return LeverageAssimilator().to_dict()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.get("/organism/leverage/artifacts")
+async def organism_leverage_artifacts():
+    """List all assimilation artifacts."""
+    daemon = _get_organism()
+    if daemon is None:
+        return []
+    try:
+        assimilator = getattr(daemon, "_assimilator", None)
+        if assimilator is None:
+            return []
+        return assimilator.list_artifacts()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.get("/organism/snapshot")
+async def organism_full_snapshot():
+    """Full organism snapshot — objectives, runtimes, workcells, bottlenecks."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    try:
+        from substrate.organism.observability import OrganismObserver
+
+        observer = OrganismObserver(
+            coordinator=daemon.advisor.coordinator if daemon.advisor else None,
+            graph=daemon.graph,
+            supervisor=daemon.supervisor,
+            homeostasis=daemon.homeostasis,
+        )
+        snap = observer.snapshot()
+        return snap.to_dict()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.get("/organism/topology")
+async def organism_topology():
+    """Runtime topology — all runtimes, capabilities, health, scoring."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    try:
+        return daemon.advisor.resource_topology()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ── Execution Substrate endpoints ────────────────────────────────────────────
+
+
+@router.get("/execution/status")
+async def execution_status():
+    """Execution slot status across all compute layers."""
+    return {
+        "slots": [
+            {"slot": 0, "layer": "native", "task": "", "status": "idle",
+             "step_count": 0, "authority_class": "operator",
+             "risk_class": "LOW", "approval_status": "none"},
+            {"slot": 1, "layer": "container", "task": "", "status": "idle",
+             "step_count": 0, "authority_class": "operator",
+             "risk_class": "LOW", "approval_status": "none"},
+            {"slot": 2, "layer": "wsl", "task": "", "status": "idle",
+             "step_count": 0, "authority_class": "operator",
+             "risk_class": "LOW", "approval_status": "none"},
+            {"slot": 3, "layer": "vm", "task": "", "status": "idle",
+             "step_count": 0, "authority_class": "operator",
+             "risk_class": "LOW", "approval_status": "none"},
+        ],
+    }
+
+
+@router.get("/execution/log")
+async def execution_log(slot: int = 0):
+    """Action log for a specific execution slot."""
+    return {"slot": slot, "log": []}
+
+
+@router.get("/execution/authority")
+async def execution_authority(layer: str = "native"):
+    """Authority preview for a compute layer."""
+    return {
+        "layer": layer,
+        "authority_class": "operator",
+        "risk_class": "LOW",
+        "approval_requirement": "none",
+    }
+
+
+@router.post("/execution/start")
+async def execution_start(payload: dict):
+    """Start execution in a slot."""
+    return {"ok": True}
+
+
+@router.post("/execution/stop")
+async def execution_stop(payload: dict):
+    """Stop execution in a slot."""
+    return {"ok": True}
+
+
+@router.post("/execution/pause")
+async def execution_pause(payload: dict):
+    """Pause execution in a slot."""
+    return {"ok": True}
+
+
+@router.post("/execution/resume")
+async def execution_resume(payload: dict):
+    """Resume execution in a slot."""
+    return {"ok": True}

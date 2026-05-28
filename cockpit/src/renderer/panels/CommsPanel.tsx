@@ -6,7 +6,10 @@ export function CommsPanel() {
         <span className="ml-2 text-xs text-text-tertiary">cross-channel communications</span>
       </div>
       <div className="flex-1 flex items-center justify-center">
-        <p className="text-xs text-text-tertiary">No messages yet</p>
+        <div className="text-center">
+          <p className="text-xs text-text-tertiary mb-1">Not wired</p>
+          <p className="text-xs text-text-tertiary opacity-60">Pending transport integration</p>
+        </div>
       </div>
     </div>
   )
