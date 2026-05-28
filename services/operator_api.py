@@ -42,11 +42,12 @@ logger = logging.getLogger("operator_api")
 logging.basicConfig(level=logging.INFO)
 
 _loop_registry = None
+_organism_daemon = None
 
 
 @asynccontextmanager
 async def lifespan(application):
-    global _loop_registry
+    global _loop_registry, _organism_daemon
     try:
         from substrate.execution.loop.persistent_loop import get_registry
         _loop_registry = get_registry()
@@ -56,7 +57,19 @@ async def lifespan(application):
     except Exception as exc:
         logger.warning("persistent loops not started: %s", exc)
 
+    try:
+        from substrate.organism.daemon import OrganismDaemon
+        _organism_daemon = OrganismDaemon()
+        _organism_daemon.start()
+        logger.info("organism daemon started")
+    except Exception as exc:
+        logger.warning("organism daemon not started: %s", exc)
+
     yield
+
+    if _organism_daemon is not None:
+        _organism_daemon.stop()
+        logger.info("organism daemon stopped")
 
     if _loop_registry is not None:
         stopped = _loop_registry.stop_all()

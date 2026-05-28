@@ -735,8 +735,13 @@ async def organism_signal(payload: dict):
 def _get_organism():
     try:
         from transports.api.app import _organism
-
-        return _organism
+        if _organism is not None:
+            return _organism
+    except (ImportError, AttributeError):
+        pass
+    try:
+        from services.operator_api import _organism_daemon
+        return _organism_daemon
     except (ImportError, AttributeError):
         return None
 
