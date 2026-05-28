@@ -85,6 +85,14 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/organism/autonomous-gateway/blocked", _autonomous_gateway_blocked, methods=["GET"])
     r.add_api_route("/organism/autonomous-gateway/pending", _autonomous_gateway_pending, methods=["GET"])
 
+    # ── Plan execution adapter endpoints ─────────────────────────────────
+
+    r.add_api_route("/organism/execution-graph", _execution_graph_status, methods=["GET"])
+    r.add_api_route("/organism/execution-graph/{plan_id}", _execution_graph_detail, methods=["GET"])
+    r.add_api_route("/organism/execute-plan", _execute_plan, methods=["POST"], dependencies=auth)
+    r.add_api_route("/organism/execute-plan/{plan_id}/approve/{step_id}", _execute_plan_approve_step, methods=["POST"], dependencies=auth)
+    r.add_api_route("/organism/execute-plan/{plan_id}/pending", _execute_plan_pending, methods=["GET"])
+
     return r
 
 
@@ -423,3 +431,88 @@ async def _autonomous_gateway_set_threshold(payload: dict, request: Request):
         "threshold": threshold,
         "changed_by": client_id,
     }
+
+
+# ── Plan Execution Adapter handlers ──────────────────────────────────────────
+
+
+async def _execution_graph_status():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return daemon.plan_execution_adapter.to_dict()
+
+
+async def _execution_graph_detail(plan_id: str):
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    plan = daemon.plan_execution_adapter.get_execution_graph(plan_id)
+    if plan is None:
+        return {"error": f"execution graph {plan_id} not found"}
+    return plan.to_dict()
+
+
+async def _execute_plan(payload: dict, request: Request):
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+
+    client_id = request.client.host if request.client else "unknown"
+    _check_rate_limit("execute", client_id)
+
+    intent = str(payload.get("intent", ""))
+    if not intent:
+        return {"error": "intent is required"}
+
+    from substrate.organism.composition_engine import compose_plan
+
+    composition_plan = compose_plan(intent)
+    adapter = daemon.plan_execution_adapter
+
+    executable = adapter.convert_plan(composition_plan)
+    result = adapter.execute_plan(executable)
+
+    logger.info(
+        "Plan executed via cockpit: %s → %s (%d steps) by %s",
+        result.id, result.status.value, len(result.steps), client_id,
+    )
+    return result.to_dict()
+
+
+async def _execute_plan_approve_step(plan_id: str, step_id: str, request: Request):
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+
+    client_id = request.client.host if request.client else "unknown"
+    _check_rate_limit("approve", client_id)
+
+    adapter = daemon.plan_execution_adapter
+    plan = adapter.get_execution_graph(plan_id)
+    if plan is None:
+        return {"error": f"execution graph {plan_id} not found"}
+
+    step = adapter.approve_step(plan, step_id, approved_by=client_id)
+    if step is None:
+        return {"error": f"step {step_id} not found or not awaiting approval"}
+
+    logger.info(
+        "Plan step approved: %s/%s by %s → %s",
+        plan_id, step_id, client_id, step.status.value,
+    )
+    return step.to_dict()
+
+
+async def _execute_plan_pending(plan_id: str):
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+
+    adapter = daemon.plan_execution_adapter
+    plan = adapter.get_execution_graph(plan_id)
+    if plan is None:
+        return {"error": f"execution graph {plan_id} not found"}
+
+    pending = adapter.check_pending_approvals(plan)
+    return [s.to_dict() for s in pending]

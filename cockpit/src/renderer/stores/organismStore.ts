@@ -212,6 +212,35 @@ interface OrganismStatus {
   total_learning_signals: number
 }
 
+interface ExecutionGraphStep {
+  id: string
+  composition_step_id: string
+  description: string
+  action: string
+  risk_level: string
+  governance_mode: string
+  requires_approval: boolean
+  status: string
+  envelope_id: string
+  result_output: string
+  result_success: boolean
+  error: string
+}
+
+interface ExecutionGraphPlan {
+  summary: {
+    id: string
+    source_plan_id: string
+    intent: string
+    status: string
+    total_steps: number
+    step_status: Record<string, number>
+    overall_risk: string
+    governance_required: string
+  }
+  steps: ExecutionGraphStep[]
+}
+
 interface OrganismState {
   spine: SpineStats | null
   pendingEnvelopes: EnvelopeRecord[]
@@ -230,6 +259,8 @@ interface OrganismState {
   mutations: MutationRegistryStatus | null
   runtimeGraph: RuntimeGraphStatus | null
   organismStatus: OrganismStatus | null
+  executionGraphPlan: ExecutionGraphPlan | null
+  executingPlan: boolean
   loading: boolean
   error: string | null
 
@@ -251,6 +282,7 @@ interface OrganismState {
   fetchAll: () => Promise<void>
   approveEnvelope: (id: string) => Promise<void>
   rejectEnvelope: (id: string, reason?: string) => Promise<void>
+  executePlan: (intent: string) => Promise<void>
 }
 
 export const useOrganismStore = create<OrganismState>((set, get) => ({
@@ -271,6 +303,8 @@ export const useOrganismStore = create<OrganismState>((set, get) => ({
   mutations: null,
   runtimeGraph: null,
   organismStatus: null,
+  executionGraphPlan: null,
+  executingPlan: false,
   loading: false,
   error: null,
 
@@ -420,5 +454,20 @@ export const useOrganismStore = create<OrganismState>((set, get) => ({
       get().fetchPending()
       get().fetchCompleted()
     } catch { /* noop */ }
+  },
+
+  executePlan: async (intent) => {
+    set({ executingPlan: true, executionGraphPlan: null })
+    try {
+      const data = await fetchApi<ExecutionGraphPlan>('/organism/execute-plan', {
+        method: 'POST',
+        body: JSON.stringify({ intent }),
+      })
+      set({ executionGraphPlan: data, executingPlan: false })
+      get().fetchSpine()
+      get().fetchCompleted()
+    } catch {
+      set({ executingPlan: false })
+    }
   },
 }))

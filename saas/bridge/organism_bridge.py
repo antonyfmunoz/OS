@@ -504,6 +504,76 @@ def _compose(payload: dict) -> dict:
     return {"success": True, "data": plan.to_dict()}
 
 
+def _execute_plan(payload: dict) -> dict:
+    from substrate.organism.composition_engine import compose_plan
+    from substrate.organism.plan_execution_adapter import PlanExecutionAdapter
+    from substrate.organism.governed_spine import GovernedExecutionSpine
+    from substrate.organism.execution_modes import ExecutionModeManager
+    from substrate.organism.mutation_registry import MutationRegistry
+    from substrate.organism.execution_journal import ExecutionJournal
+    from substrate.organism.event_spine import EventSpine
+    from substrate.organism.outcome_learning import OutcomeLearningLoop
+    from substrate.organism.memory_promotion import MemoryPromotionPipeline
+
+    intent = payload.get("intent", "")
+    if not intent:
+        return {"success": False, "error": "intent required"}
+
+    composition_plan = compose_plan(intent)
+
+    spine = GovernedExecutionSpine(
+        event_spine=EventSpine(),
+        execution_mode=ExecutionModeManager(),
+        mutation_registry=MutationRegistry(),
+        journal=ExecutionJournal(),
+    )
+    outcome_loop = OutcomeLearningLoop()
+    memory_pipeline = MemoryPromotionPipeline()
+
+    adapter = PlanExecutionAdapter(
+        governed_spine=spine,
+        outcome_loop=outcome_loop,
+        memory_pipeline=memory_pipeline,
+    )
+
+    executable = adapter.convert_plan(composition_plan)
+    result = adapter.execute_plan(executable)
+    return {"success": True, "data": result.to_dict()}
+
+
+def _execution_graph(_payload: dict) -> dict:
+    from substrate.organism.plan_execution_adapter import PlanExecutionAdapter
+    adapter = PlanExecutionAdapter()
+    return {"success": True, "data": adapter.to_dict()}
+
+
+def _execution_graph_detail(payload: dict) -> dict:
+    plan_id = payload.get("plan_id", "")
+    if not plan_id:
+        return {"success": False, "error": "plan_id required"}
+    from substrate.organism.plan_execution_adapter import PlanExecutionAdapter
+    adapter = PlanExecutionAdapter()
+    plan = adapter.get_execution_graph(plan_id)
+    if plan is None:
+        return {"success": False, "error": f"plan {plan_id} not found"}
+    return {"success": True, "data": plan.to_dict()}
+
+
+def _execute_plan_approve_step(payload: dict) -> dict:
+    plan_id = payload.get("plan_id", "")
+    step_id = payload.get("step_id", "")
+    if not plan_id or not step_id:
+        return {"success": False, "error": "plan_id and step_id required"}
+    return {"success": True, "data": {"note": "approval routed through daemon spine"}}
+
+
+def _execute_plan_pending(payload: dict) -> dict:
+    plan_id = payload.get("plan_id", "")
+    if not plan_id:
+        return {"success": False, "error": "plan_id required"}
+    return {"success": True, "data": []}
+
+
 def _list_workspaces(_payload: dict) -> dict:
     import subprocess
     workspaces = []
@@ -620,6 +690,11 @@ _ACTIONS: dict = {
     "organism.workspaces": _list_workspaces,
     "organism.files": _list_files,
     "organism.file.read": _read_file,
+    "organism.execute_plan": _execute_plan,
+    "organism.execution_graph": _execution_graph,
+    "organism.execution_graph.detail": _execution_graph_detail,
+    "organism.execute_plan.approve_step": _execute_plan_approve_step,
+    "organism.execute_plan.pending": _execute_plan_pending,
 }
 
 

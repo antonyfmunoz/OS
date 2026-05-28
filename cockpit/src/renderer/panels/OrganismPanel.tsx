@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useOrganismStore } from '../stores/organismStore'
 import { useRealtimeStore } from '../stores/realtimeStore'
 import { usePolling } from '../hooks/usePolling'
@@ -38,6 +39,9 @@ export function OrganismPanel() {
   const cpuPercent = useRealtimeStore((s) => s.cpuPercent)
   const memoryPercent = useRealtimeStore((s) => s.memoryPercent)
 
+  const executionGraphPlan = useOrganismStore((s) => s.executionGraphPlan)
+  const executingPlan = useOrganismStore((s) => s.executingPlan)
+  const executePlan = useOrganismStore((s) => s.executePlan)
   const fetchAll = useOrganismStore((s) => s.fetchAll)
   const fetchGatewayDecisions = useOrganismStore((s) => s.fetchGatewayDecisions)
 
@@ -109,6 +113,13 @@ export function OrganismPanel() {
               ))}
             </div>
           </div>
+
+          {/* Execute Plan */}
+          <ExecutePlanSection
+            executePlan={executePlan}
+            executingPlan={executingPlan}
+            executionGraphPlan={executionGraphPlan}
+          />
         </div>
 
         {/* Center: EventSpine Console */}
@@ -180,6 +191,115 @@ export function OrganismPanel() {
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+const STEP_STATUS_COLOR: Record<string, string> = {
+  pending: 'text-text-tertiary',
+  awaiting_approval: 'text-warn',
+  approved: 'text-cyan',
+  executing: 'text-cyan',
+  completed: 'text-ok',
+  failed: 'text-danger',
+  rolled_back: 'text-warn',
+  skipped: 'text-text-tertiary',
+  blocked_by_failure: 'text-danger',
+}
+
+const PLAN_STATUS_COLOR: Record<string, string> = {
+  pending: 'text-text-tertiary',
+  executing: 'text-cyan',
+  completed: 'text-ok',
+  failed: 'text-danger',
+  partially_completed: 'text-warn',
+  cancelled: 'text-text-tertiary',
+}
+
+function ExecutePlanSection({
+  executePlan,
+  executingPlan,
+  executionGraphPlan,
+}: {
+  executePlan: (intent: string) => Promise<void>
+  executingPlan: boolean
+  executionGraphPlan: { summary: { id: string; intent: string; status: string; total_steps: number; step_status: Record<string, number>; overall_risk: string }; steps: Array<{ id: string; composition_step_id: string; description: string; status: string; risk_level: string; error: string }> } | null
+}) {
+  const [planIntent, setPlanIntent] = useState('')
+
+  const handleExecute = () => {
+    if (!planIntent.trim() || executingPlan) return
+    executePlan(planIntent.trim())
+    setPlanIntent('')
+  }
+
+  return (
+    <div className="mt-4">
+      <h3 className="wv-label mb-2">Execute Plan</h3>
+      <div className="flex gap-1.5 mb-2">
+        <input
+          type="text"
+          value={planIntent}
+          onChange={(e) => setPlanIntent(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleExecute()}
+          placeholder="Describe intent..."
+          className="flex-1 bg-surface border border-border rounded px-2 py-1 text-[11px] text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-cyan"
+        />
+        <button
+          onClick={handleExecute}
+          disabled={executingPlan || !planIntent.trim()}
+          className="px-3 py-1 rounded text-[10px] font-mono bg-cyan/20 text-cyan hover:bg-cyan/30 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {executingPlan ? 'EXECUTING...' : 'EXECUTE'}
+        </button>
+      </div>
+
+      {executionGraphPlan && (
+        <div className="wv-card p-2 space-y-1.5">
+          <div className="flex items-center gap-2">
+            <span className={`text-[10px] font-mono ${PLAN_STATUS_COLOR[executionGraphPlan.summary.status] ?? 'text-text-tertiary'}`}>
+              {executionGraphPlan.summary.status.toUpperCase()}
+            </span>
+            <span className="text-[11px] text-text-primary truncate flex-1">
+              {executionGraphPlan.summary.intent}
+            </span>
+            <span className={`text-[10px] font-mono ${SEVERITY_COLORS[executionGraphPlan.summary.overall_risk] ?? 'text-text-tertiary'}`}>
+              {executionGraphPlan.summary.overall_risk}
+            </span>
+          </div>
+          <div className="space-y-0.5">
+            {executionGraphPlan.steps.map((step) => (
+              <div key={step.id} className="flex items-center gap-2 py-0.5">
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                  step.status === 'completed' ? 'bg-ok'
+                  : step.status === 'failed' || step.status === 'blocked_by_failure' ? 'bg-danger'
+                  : step.status === 'awaiting_approval' ? 'bg-warn'
+                  : step.status === 'executing' ? 'bg-cyan'
+                  : 'bg-surface-secondary'
+                }`} />
+                <span className={`text-[10px] font-mono w-20 ${STEP_STATUS_COLOR[step.status] ?? 'text-text-tertiary'}`}>
+                  {step.status.replace(/_/g, ' ')}
+                </span>
+                <span className="text-[11px] text-text-primary truncate flex-1">
+                  {step.description}
+                </span>
+                <span className={`text-[10px] font-mono ${SEVERITY_COLORS[step.risk_level] ?? 'text-text-tertiary'}`}>
+                  {step.risk_level}
+                </span>
+              </div>
+            ))}
+          </div>
+          {Object.keys(executionGraphPlan.summary.step_status).length > 0 && (
+            <div className="flex gap-2 pt-1 border-t border-border/50">
+              {Object.entries(executionGraphPlan.summary.step_status).map(([status, count]) => (
+                <span key={status} className={`text-[9px] font-mono ${STEP_STATUS_COLOR[status] ?? 'text-text-tertiary'}`}>
+                  {status}: {count}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
