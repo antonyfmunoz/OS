@@ -131,6 +131,58 @@ router.get('/leverage', async (c) => {
   return c.json(result.data)
 })
 
+router.get('/world-model', async (c) => {
+  const result = await callOrganism('organism.world_model')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/dependency-graph', async (c) => {
+  const result = await callOrganism('organism.dependency_graph')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/contradictions', async (c) => {
+  const result = await callOrganism('organism.contradictions')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/learning-loop', async (c) => {
+  const result = await callOrganism('organism.learning_loop')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/memory-promotion', async (c) => {
+  const result = await callOrganism('organism.memory_promotion')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.post('/memory-promotion/:id/approve', async (c) => {
+  const result = await callOrganism('organism.memory_promotion.approve', { id: c.req.param('id') })
+  if (!result.success) return c.json({ error: result.error }, 400)
+  return c.json(result.data)
+})
+
+router.post('/memory-promotion/:id/reject', async (c) => {
+  const body = await c.req.json().catch(() => ({}))
+  const reason = (body as Record<string, unknown>).reason as string
+  const result = await callOrganism('organism.memory_promotion.reject', { id: c.req.param('id'), reason })
+  if (!result.success) return c.json({ error: result.error }, 400)
+  return c.json(result.data)
+})
+
+router.post('/compose', async (c) => {
+  const body = await c.req.json().catch(() => ({}))
+  const intent = (body as Record<string, unknown>).intent as string
+  const result = await callOrganism('organism.compose', { intent })
+  if (!result.success) return c.json({ error: result.error }, 400)
+  return c.json(result.data)
+})
+
 router.get('/workcells', async (c) => {
   const result = await callOrganism('organism.workcells')
   if (!result.success) return c.json({ error: result.error }, 502)
