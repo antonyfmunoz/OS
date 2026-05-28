@@ -9,15 +9,18 @@ import { setTokenGetter } from './api/client'
 
 const hasClerk = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
+function ClerkTokenBridge() {
+  const { getToken } = useAuth()
+  useEffect(() => {
+    setTokenGetter(() => getToken())
+  }, [getToken])
+  return null
+}
+
 function AuthenticatedApp() {
   useKeyboard()
   useWebSocket()
   useOrganismRealtime()
-
-  const { getToken } = useAuth()
-  useEffect(() => {
-    if (hasClerk) setTokenGetter(() => getToken())
-  }, [getToken])
 
   const loadHistory = useChatStore((s) => s.loadHistory)
 
@@ -84,6 +87,7 @@ export function App() {
       </ClerkLoading>
       <ClerkLoaded>
         <SignedIn>
+          <ClerkTokenBridge />
           <AuthenticatedApp />
         </SignedIn>
         <SignedOut>

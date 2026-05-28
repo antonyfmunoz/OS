@@ -51,7 +51,9 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   fetchGovernance: async () => {
     try {
       const data = await fetchApi<GovernanceData>('/governance')
-      set({ governance: data })
+      if (data && Array.isArray(data.policies)) {
+        set({ governance: data })
+      }
     } catch { /* store stays stale */ }
   },
 

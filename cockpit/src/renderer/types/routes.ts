@@ -20,6 +20,7 @@ import {
   Server,
   User,
   Brain,
+  Lightbulb,
 } from 'lucide-react'
 import type { Panel } from '../stores/cockpitStore'
 
@@ -44,6 +45,7 @@ export const ROUTES: RouteEntry[] = [
   { id: 'infrastructure', label: 'Infrastructure', icon: Server, group: 'operations', key: 'i' },
   { id: 'portfolio', label: 'Portfolio', icon: Briefcase, group: 'operations', key: 'p' },
   { id: 'company', label: 'Company', icon: Building2, group: 'operations', key: 'c' },
+  { id: 'intelligence', label: 'Intelligence', icon: Lightbulb, group: 'intelligence', key: 'n' },
   { id: 'knowledge', label: 'Knowledge', icon: BookOpen, group: 'intelligence', key: '5' },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, group: 'intelligence', key: '6' },
   { id: 'skills', label: 'Skills', icon: Wrench, group: 'intelligence', key: 'k' },

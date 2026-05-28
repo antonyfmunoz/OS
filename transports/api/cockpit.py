@@ -220,13 +220,16 @@ def _compute_build_info() -> dict[str, Any]:
             info["commit_time"] = ts.stdout.strip()
     except Exception:
         pass
-    dist = _ROOT / "cockpit" / "dist-web" / "assets"
-    if dist.is_dir():
-        for f in dist.iterdir():
-            if f.name.startswith("index-") and f.name.endswith(".js"):
-                info["js_hash"] = f.name
-            elif f.name.startswith("index-") and f.name.endswith(".css"):
-                info["css_hash"] = f.name
+    import re as _re
+    index_html = _ROOT / "cockpit" / "dist-web" / "index.html"
+    if index_html.is_file():
+        html = index_html.read_text()
+        js_match = _re.search(r'src="[./]*assets/(index-[^"]+\.js)"', html)
+        css_match = _re.search(r'href="[./]*assets/(index-[^"]+\.css)"', html)
+        if js_match:
+            info["js_hash"] = js_match.group(1)
+        if css_match:
+            info["css_hash"] = css_match.group(1)
     return info
 
 
@@ -940,6 +943,44 @@ async def organism_bottlenecks():
     if daemon is None:
         return {"error": "organism not running"}
     return daemon.bottleneck_engine.to_dict()
+
+
+@router.get("/organism/intelligence")
+async def organism_intelligence():
+    """Unified operational intelligence — bottlenecks, leverage, actions, readiness."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return {
+        "bottlenecks": daemon.bottleneck_engine.to_dict(),
+        "leverage": daemon.leverage_engine.to_dict(),
+        "next_actions": daemon.next_action_engine.to_dict(),
+        "readiness": daemon.readiness_model.to_dict(),
+    }
+
+
+@router.get("/organism/intelligence/leverage")
+async def organism_intelligence_leverage():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return daemon.leverage_engine.to_dict()
+
+
+@router.get("/organism/intelligence/next-actions")
+async def organism_intelligence_next_actions():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return daemon.next_action_engine.to_dict()
+
+
+@router.get("/organism/intelligence/readiness")
+async def organism_intelligence_readiness():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return daemon.readiness_model.to_dict()
 
 
 @router.get("/organism/physics")

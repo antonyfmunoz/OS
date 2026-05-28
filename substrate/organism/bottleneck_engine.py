@@ -11,8 +11,12 @@ Detects what actually slows execution:
   - unused runtimes
   - repetitive operator interventions
   - failing reconciliations
+  - approval backlogs
+  - governance blocks
+  - deployment mismatches
 
-Emits bottleneck_detected events with severity and corrections.
+Emits bottleneck_detected / bottleneck_resolved events with severity,
+confidence, evidence trail, and actionable recommendations.
 Tracks recurrence to identify systemic issues vs transient spikes.
 
 UMH substrate subsystem. Instance-agnostic.
@@ -26,6 +30,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
+from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +55,23 @@ class BottleneckCategory(str, Enum):
     FAILING_RECONCILIATION = "failing_reconciliation"
     HIGH_LATENCY = "high_latency"
     HIGH_FAILURE_RATE = "high_failure_rate"
+    APPROVAL_BACKLOG = "approval_backlog"
+    GOVERNANCE_BLOCK = "governance_block"
+    DEPLOYMENT_MISMATCH = "deployment_mismatch"
+    MISSING_DEPENDENCY = "missing_dependency"
+
+
+@dataclass
+class BottleneckEvidence:
+    signal: str
+    observed: str
+    expected: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {"signal": self.signal, "observed": self.observed}
+        if self.expected:
+            d["expected"] = self.expected
+        return d
 
 
 @dataclass
@@ -58,21 +80,28 @@ class Bottleneck:
     severity: BottleneckSeverity
     source: str
     description: str
+    bottleneck_id: str = field(default_factory=lambda: f"bn-{uuid4().hex[:8]}")
+    confidence: float = 1.0
     metric_value: float = 0.0
     threshold: float = 0.0
+    evidence: list[BottleneckEvidence] = field(default_factory=list)
+    recommendation: str = ""
     suggested_correction: str = ""
     detected_at: float = field(default_factory=time.time)
     recurrence_count: int = 1
 
     def to_dict(self) -> dict[str, Any]:
         return {
+            "bottleneck_id": self.bottleneck_id,
             "category": self.category.value,
             "severity": self.severity.value,
+            "confidence": round(self.confidence, 3),
             "source": self.source,
             "description": self.description,
             "metric_value": round(self.metric_value, 4),
             "threshold": round(self.threshold, 4),
-            "suggested_correction": self.suggested_correction,
+            "evidence": [e.to_dict() for e in self.evidence],
+            "recommendation": self.recommendation or self.suggested_correction,
             "detected_at": self.detected_at,
             "recurrence_count": self.recurrence_count,
         }
@@ -121,78 +150,125 @@ class BottleneckEngine:
         tick_metrics: dict[str, Any] | None = None,
         queue_depth: int = 0,
         stalled_objectives: list[dict[str, Any]] | None = None,
+        pending_approvals: int = 0,
+        governance_state: dict[str, Any] | None = None,
+        deployment_state: dict[str, Any] | None = None,
     ) -> list[Bottleneck]:
+        previous_ids = {b.bottleneck_id for b in self._active_bottlenecks}
         detected: list[Bottleneck] = []
         t = self._thresholds
 
         if leverage_inputs:
-            if leverage_inputs.get("failure_rate", 0) > t.failure_rate_max:
+            fr = leverage_inputs.get("failure_rate", 0)
+            if fr > t.failure_rate_max:
+                overshoot = fr / t.failure_rate_max
                 detected.append(Bottleneck(
                     category=BottleneckCategory.HIGH_FAILURE_RATE,
                     severity=BottleneckSeverity.HIGH,
                     source="leverage_metrics",
                     description="Task failure rate exceeds threshold",
-                    metric_value=leverage_inputs["failure_rate"],
+                    confidence=min(1.0, 0.7 + 0.1 * overshoot),
+                    metric_value=fr,
                     threshold=t.failure_rate_max,
-                    suggested_correction="Investigate failing tasks; check runtime health",
+                    evidence=[BottleneckEvidence(
+                        signal="failure_rate",
+                        observed=f"{fr:.1%}",
+                        expected=f"<{t.failure_rate_max:.1%}",
+                    )],
+                    recommendation="Investigate failing tasks; check runtime health and error patterns",
                 ))
 
-            if leverage_inputs.get("retry_rate", 0) > t.retry_rate_max:
+            rr = leverage_inputs.get("retry_rate", 0)
+            if rr > t.retry_rate_max:
                 detected.append(Bottleneck(
                     category=BottleneckCategory.RETRY_STORM,
                     severity=BottleneckSeverity.MEDIUM,
                     source="leverage_metrics",
                     description="Excessive retries indicate unstable execution",
-                    metric_value=leverage_inputs["retry_rate"],
+                    confidence=min(1.0, 0.6 + 0.15 * (rr / t.retry_rate_max)),
+                    metric_value=rr,
                     threshold=t.retry_rate_max,
-                    suggested_correction="Check error patterns; consider circuit breaker",
+                    evidence=[BottleneckEvidence(
+                        signal="retry_rate",
+                        observed=f"{rr:.2f} retries/task",
+                        expected=f"<{t.retry_rate_max:.2f}",
+                    )],
+                    recommendation="Check error patterns; consider circuit breaker on failing runtimes",
                 ))
 
-            if leverage_inputs.get("intervention_rate", 0) > t.intervention_rate_max:
+            ir = leverage_inputs.get("intervention_rate", 0)
+            if ir > t.intervention_rate_max:
                 detected.append(Bottleneck(
                     category=BottleneckCategory.REPETITIVE_INTERVENTION,
                     severity=BottleneckSeverity.MEDIUM,
                     source="leverage_metrics",
                     description="High operator intervention rate — automation gap",
-                    metric_value=leverage_inputs["intervention_rate"],
+                    confidence=min(1.0, 0.65 + 0.1 * (ir / t.intervention_rate_max)),
+                    metric_value=ir,
                     threshold=t.intervention_rate_max,
-                    suggested_correction="Promote repeated interventions to automated policies",
+                    evidence=[BottleneckEvidence(
+                        signal="intervention_rate",
+                        observed=f"{ir:.1%}",
+                        expected=f"<{t.intervention_rate_max:.1%}",
+                    )],
+                    recommendation="Promote repeated interventions to automated policies",
                 ))
 
-            if leverage_inputs.get("escalation_rate", 0) > t.escalation_rate_max:
+            er = leverage_inputs.get("escalation_rate", 0)
+            if er > t.escalation_rate_max:
                 detected.append(Bottleneck(
                     category=BottleneckCategory.REPETITIVE_INTERVENTION,
                     severity=BottleneckSeverity.HIGH,
                     source="leverage_metrics",
                     description="High escalation rate — governance too restrictive or tasks misclassified",
-                    metric_value=leverage_inputs["escalation_rate"],
+                    confidence=min(1.0, 0.7 + 0.1 * (er / t.escalation_rate_max)),
+                    metric_value=er,
                     threshold=t.escalation_rate_max,
-                    suggested_correction="Review risk classification; tune governance thresholds",
+                    evidence=[BottleneckEvidence(
+                        signal="escalation_rate",
+                        observed=f"{er:.1%}",
+                        expected=f"<{t.escalation_rate_max:.1%}",
+                    )],
+                    recommendation="Review risk classification; tune governance thresholds",
                 ))
 
-            if leverage_inputs.get("avg_latency_seconds", 0) > t.latency_max_seconds:
+            al = leverage_inputs.get("avg_latency_seconds", 0)
+            if al > t.latency_max_seconds:
                 detected.append(Bottleneck(
                     category=BottleneckCategory.HIGH_LATENCY,
                     severity=BottleneckSeverity.MEDIUM,
                     source="leverage_metrics",
                     description="Average task latency too high",
-                    metric_value=leverage_inputs["avg_latency_seconds"],
+                    confidence=min(1.0, 0.6 + 0.1 * (al / t.latency_max_seconds)),
+                    metric_value=al,
                     threshold=t.latency_max_seconds,
-                    suggested_correction="Profile slow tasks; check runtime selection",
+                    evidence=[BottleneckEvidence(
+                        signal="avg_latency_seconds",
+                        observed=f"{al:.1f}s",
+                        expected=f"<{t.latency_max_seconds:.1f}s",
+                    )],
+                    recommendation="Profile slow tasks; check runtime selection and queue depth",
                 ))
 
         if runtime_stats:
             for rt in runtime_stats:
+                rid = rt.get("runtime_id", "unknown")
                 avg_latency = rt.get("avg_latency_ms", 0)
                 if avg_latency > t.slow_runtime_ms:
                     detected.append(Bottleneck(
                         category=BottleneckCategory.SLOW_RUNTIME,
                         severity=BottleneckSeverity.MEDIUM,
-                        source=f"runtime:{rt.get('runtime_id', 'unknown')}",
+                        source=f"runtime:{rid}",
                         description=f"Runtime avg latency {avg_latency:.0f}ms exceeds {t.slow_runtime_ms:.0f}ms",
+                        confidence=min(1.0, 0.7 + 0.05 * (avg_latency / t.slow_runtime_ms)),
                         metric_value=avg_latency,
                         threshold=t.slow_runtime_ms,
-                        suggested_correction="Deprioritize slow runtime in routing",
+                        evidence=[BottleneckEvidence(
+                            signal=f"runtime.{rid}.avg_latency_ms",
+                            observed=f"{avg_latency:.0f}ms",
+                            expected=f"<{t.slow_runtime_ms:.0f}ms",
+                        )],
+                        recommendation=f"Deprioritize {rid} in routing; investigate latency source",
                     ))
 
                 idle_cycles = rt.get("idle_cycles", 0)
@@ -200,11 +276,17 @@ class BottleneckEngine:
                     detected.append(Bottleneck(
                         category=BottleneckCategory.UNUSED_RUNTIME,
                         severity=BottleneckSeverity.LOW,
-                        source=f"runtime:{rt.get('runtime_id', 'unknown')}",
+                        source=f"runtime:{rid}",
                         description=f"Runtime idle for {idle_cycles} cycles",
+                        confidence=0.8,
                         metric_value=idle_cycles,
                         threshold=t.idle_runtime_cycles,
-                        suggested_correction="Consider removing or reconfiguring idle runtime",
+                        evidence=[BottleneckEvidence(
+                            signal=f"runtime.{rid}.idle_cycles",
+                            observed=str(idle_cycles),
+                            expected=f"<{t.idle_runtime_cycles}",
+                        )],
+                        recommendation=f"Consider removing or reconfiguring idle runtime {rid}",
                     ))
 
         if queue_depth > t.queue_depth_max:
@@ -213,9 +295,15 @@ class BottleneckEngine:
                 severity=BottleneckSeverity.HIGH,
                 source="objective_queue",
                 description=f"Queue depth {queue_depth} exceeds {t.queue_depth_max}",
+                confidence=1.0,
                 metric_value=queue_depth,
                 threshold=t.queue_depth_max,
-                suggested_correction="Scale execution capacity or prioritize queue",
+                evidence=[BottleneckEvidence(
+                    signal="objective_queue.depth",
+                    observed=str(queue_depth),
+                    expected=f"<{t.queue_depth_max}",
+                )],
+                recommendation="Scale execution capacity or prioritize queue",
             ))
 
         if stalled_objectives:
@@ -223,29 +311,97 @@ class BottleneckEngine:
             for obj in stalled_objectives:
                 stalled_seconds = now - obj.get("last_progress_at", now)
                 if stalled_seconds > t.stall_seconds:
+                    oid = obj.get("objective_id", "unknown")
                     detected.append(Bottleneck(
                         category=BottleneckCategory.STALLED_OBJECTIVE,
                         severity=BottleneckSeverity.HIGH,
-                        source=f"objective:{obj.get('objective_id', 'unknown')}",
+                        source=f"objective:{oid}",
                         description=f"Objective stalled for {stalled_seconds:.0f}s",
+                        confidence=min(1.0, 0.7 + 0.1 * (stalled_seconds / t.stall_seconds)),
                         metric_value=stalled_seconds,
                         threshold=t.stall_seconds,
-                        suggested_correction="Check blocked dependencies; reassign or decompose",
+                        evidence=[BottleneckEvidence(
+                            signal=f"objective.{oid}.stall_seconds",
+                            observed=f"{stalled_seconds:.0f}s",
+                            expected=f"<{t.stall_seconds:.0f}s",
+                        )],
+                        recommendation="Check blocked dependencies; reassign or decompose objective",
                     ))
 
         if tick_metrics:
-            fail_rate = tick_metrics.get("total_stages_failed", 0)
+            fail_count = tick_metrics.get("total_stages_failed", 0)
             total = tick_metrics.get("total_stages_executed", 0)
-            if total > 0 and fail_rate / total > 0.3:
+            if total > 0 and fail_count / total > 0.3:
+                rate = fail_count / total
                 detected.append(Bottleneck(
                     category=BottleneckCategory.FAILING_RECONCILIATION,
                     severity=BottleneckSeverity.HIGH,
                     source="tick_engine",
-                    description=f"Tick stage failure rate {fail_rate}/{total}",
-                    metric_value=fail_rate / total,
+                    description=f"Tick stage failure rate {fail_count}/{total}",
+                    confidence=min(1.0, 0.7 + 0.1 * (rate / 0.3)),
+                    metric_value=rate,
                     threshold=0.3,
-                    suggested_correction="Investigate failing tick stages",
+                    evidence=[BottleneckEvidence(
+                        signal="tick_engine.stage_failure_rate",
+                        observed=f"{rate:.1%} ({fail_count}/{total})",
+                        expected="<30%",
+                    )],
+                    recommendation="Investigate failing tick stages; check subsystem health",
                 ))
+
+        if pending_approvals > t.queue_depth_max // 2:
+            detected.append(Bottleneck(
+                category=BottleneckCategory.APPROVAL_BACKLOG,
+                severity=BottleneckSeverity.MEDIUM if pending_approvals < t.queue_depth_max else BottleneckSeverity.HIGH,
+                source="approval_store",
+                description=f"{pending_approvals} approvals pending operator review",
+                confidence=1.0,
+                metric_value=pending_approvals,
+                threshold=t.queue_depth_max // 2,
+                evidence=[BottleneckEvidence(
+                    signal="approval_store.pending_count",
+                    observed=str(pending_approvals),
+                    expected=f"<{t.queue_depth_max // 2}",
+                )],
+                recommendation="Review and process pending approvals; consider promoting safe actions to autonomous",
+            ))
+
+        if governance_state:
+            blocked = governance_state.get("total_blocked", 0)
+            submitted = governance_state.get("total_submitted", 0)
+            if submitted > 5 and blocked / submitted > 0.5:
+                detected.append(Bottleneck(
+                    category=BottleneckCategory.GOVERNANCE_BLOCK,
+                    severity=BottleneckSeverity.HIGH,
+                    source="governance",
+                    description=f"Governance blocking {blocked}/{submitted} submissions ({blocked/submitted:.0%})",
+                    confidence=min(1.0, 0.75 + 0.05 * (blocked / max(submitted, 1))),
+                    metric_value=blocked / submitted,
+                    threshold=0.5,
+                    evidence=[BottleneckEvidence(
+                        signal="governance.block_rate",
+                        observed=f"{blocked}/{submitted} blocked",
+                        expected="<50% block rate",
+                    )],
+                    recommendation="Review governance policies; tune risk classification for over-blocked action types",
+                ))
+
+        if deployment_state:
+            for check in deployment_state.get("checks", []):
+                if not check.get("pass", True):
+                    detected.append(Bottleneck(
+                        category=BottleneckCategory.DEPLOYMENT_MISMATCH,
+                        severity=BottleneckSeverity(check.get("severity", "medium")),
+                        source=f"deployment:{check.get('name', 'unknown')}",
+                        description=check.get("description", "Deployment check failed"),
+                        confidence=check.get("confidence", 0.9),
+                        evidence=[BottleneckEvidence(
+                            signal=check.get("signal", "deployment_check"),
+                            observed=check.get("observed", "failed"),
+                            expected=check.get("expected", "pass"),
+                        )],
+                        recommendation=check.get("recommendation", "Investigate deployment state"),
+                    ))
 
         for b in detected:
             key = f"{b.category.value}:{b.source}"
@@ -253,27 +409,37 @@ class BottleneckEngine:
             b.recurrence_count = self._recurrence_tracker[key]
             if b.recurrence_count > 5:
                 b.severity = BottleneckSeverity.CRITICAL
+                b.confidence = min(1.0, b.confidence + 0.1)
 
+        resolved_keys = previous_ids - {b.bottleneck_id for b in detected}
         self._active_bottlenecks = detected
         for b in detected:
             self._history.append(b)
 
-        if detected and self._event_spine is not None:
+        if self._event_spine is not None:
             from substrate.organism.event_spine import EventDomain, EventPriority
-            self._event_spine.emit(
-                EventDomain.OBSERVABILITY,
-                "bottleneck_detected",
-                "bottleneck_engine",
-                {
-                    "count": len(detected),
-                    "bottlenecks": [b.to_dict() for b in detected[:10]],
-                    "critical": sum(1 for b in detected if b.severity == BottleneckSeverity.CRITICAL),
-                },
-                priority=EventPriority.HIGH if any(
-                    b.severity in (BottleneckSeverity.HIGH, BottleneckSeverity.CRITICAL)
-                    for b in detected
-                ) else EventPriority.NORMAL,
-            )
+            if detected:
+                self._event_spine.emit(
+                    EventDomain.OBSERVABILITY,
+                    "bottleneck_detected",
+                    "bottleneck_engine",
+                    {
+                        "count": len(detected),
+                        "bottlenecks": [b.to_dict() for b in detected[:10]],
+                        "critical": sum(1 for b in detected if b.severity == BottleneckSeverity.CRITICAL),
+                    },
+                    priority=EventPriority.HIGH if any(
+                        b.severity in (BottleneckSeverity.HIGH, BottleneckSeverity.CRITICAL)
+                        for b in detected
+                    ) else EventPriority.NORMAL,
+                )
+            if resolved_keys:
+                self._event_spine.emit(
+                    EventDomain.OBSERVABILITY,
+                    "bottleneck_resolved",
+                    "bottleneck_engine",
+                    {"resolved_count": len(resolved_keys)},
+                )
 
         return detected
 
