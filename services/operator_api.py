@@ -88,7 +88,9 @@ async def lifespan(application):
 
     try:
         from substrate.organism.daemon import OrganismDaemon
-        _organism_daemon = OrganismDaemon()
+        from substrate.organism.runtime_graph import RuntimeGraph
+        graph = RuntimeGraph()
+        _organism_daemon = OrganismDaemon(graph=graph)
         _organism_daemon.start()
         _wire_spine_to_cockpit_ws(_organism_daemon)
         _tick_task = asyncio.create_task(_tick_loop(_organism_daemon))
@@ -117,15 +119,11 @@ async def lifespan(application):
 
 app = FastAPI(title="UMH Operator API", version="1.0.0", lifespan=lifespan)
 
-# CORS for dev (Vite on 5173, cockpit on 5174)
+from substrate.integrations.cors import cors_origins
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://100.77.233.50:5173",
-        "http://localhost:5174",
-        "http://100.77.233.50:5174",
-    ],
+    allow_origins=cors_origins(),
     allow_methods=["*"],
     allow_headers=["*"],
     allow_credentials=True,
