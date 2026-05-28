@@ -6,6 +6,7 @@ import sys
 
 sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
+import adapters  # noqa: E402 — lock correct resolution before execution_spine shadows it
 
 import asyncio
 import json

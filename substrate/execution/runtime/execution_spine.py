@@ -24,7 +24,7 @@ import sys
 import uuid
 from datetime import datetime, timezone
 
-_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
