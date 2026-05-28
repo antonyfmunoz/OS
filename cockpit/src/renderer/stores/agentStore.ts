@@ -86,7 +86,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   sendSignal: async (id, signal) => {
     await fetchApi(`/agents/${id}/signal`, {
       method: 'POST',
-      body: JSON.stringify({ signal }),
+      body: JSON.stringify({ content: signal }),
     }).catch(() => {})
     get().fetchAgents()
   },

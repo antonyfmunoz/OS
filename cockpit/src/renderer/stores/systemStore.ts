@@ -66,12 +66,21 @@ const TASK_STATUS_MAP: Record<string, TraceEvent['status']> = {
   pending: 'pending',
 }
 
+export interface BuildInfo {
+  commit_sha?: string
+  commit_time?: string
+  backend_start?: string
+  js_hash?: string
+  css_hash?: string
+}
+
 interface SystemState {
   pulse: PulseData | null
   meshNodes: MeshNode[]
   models: ModelBadge[]
   traces: TraceEvent[]
   infraNodes: InfraNode[]
+  buildInfo: BuildInfo | null
   loading: boolean
   error: string | null
 
@@ -80,6 +89,7 @@ interface SystemState {
   fetchModels: () => Promise<void>
   fetchTraces: () => Promise<void>
   fetchInfra: () => Promise<void>
+  fetchBuildInfo: () => Promise<void>
   setPulse: (data: PulseData) => void
 }
 
@@ -89,6 +99,7 @@ export const useSystemStore = create<SystemState>((set) => ({
   models: [],
   traces: [],
   infraNodes: [],
+  buildInfo: null,
   loading: false,
   error: null,
 
@@ -153,6 +164,15 @@ export const useSystemStore = create<SystemState>((set) => ({
       set({ infraNodes: data })
     } catch {
       set({ infraNodes: [] })
+    }
+  },
+
+  fetchBuildInfo: async () => {
+    try {
+      const data = await fetchApi<BuildInfo>('/build')
+      set({ buildInfo: data })
+    } catch {
+      // non-critical
     }
   },
 }))

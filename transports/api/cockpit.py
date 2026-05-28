@@ -99,6 +99,43 @@ SKILLS_DIR = _ROOT / "skills"
 AGENTS_DIR = _ROOT / "agents"
 
 
+_DOCKER_SOCK = "/var/run/docker.sock"
+
+
+def _get_docker_containers() -> list[dict]:
+    """Query Docker Engine API via unix socket for running containers."""
+    import socket as _socket
+    import http.client
+
+    try:
+        if not os.path.exists(_DOCKER_SOCK):
+            return []
+
+        class _DockerConn(http.client.HTTPConnection):
+            def connect(self):
+                self.sock = _socket.socket(_socket.AF_UNIX, _socket.SOCK_STREAM)
+                self.sock.settimeout(2)
+                self.sock.connect(_DOCKER_SOCK)
+
+        conn = _DockerConn("localhost")
+        conn.request("GET", "/containers/json")
+        resp = conn.getresponse()
+        if resp.status != 200:
+            return []
+        data = json.loads(resp.read())
+        conn.close()
+        result = []
+        for c in data:
+            names = c.get("Names", ["/unknown"])
+            name = names[0].lstrip("/") if names else "unknown"
+            status = c.get("Status", "unknown")
+            state = c.get("State", "unknown")
+            result.append({"name": name, "status": status, "state": state})
+        return result
+    except Exception:
+        return []
+
+
 def _read_jsonl(path: Path, limit: int | None = None) -> list[dict[str, Any]]:
     if not path.exists():
         return []
@@ -111,6 +148,44 @@ def _read_jsonl(path: Path, limit: int | None = None) -> list[dict[str, Any]]:
     if limit:
         return entries[-limit:]
     return entries
+
+
+def _compute_build_info() -> dict[str, Any]:
+    info: dict[str, Any] = {"backend_start": datetime.now(timezone.utc).isoformat()}
+    try:
+        sha = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            capture_output=True, text=True, timeout=5, cwd=str(_ROOT),
+        )
+        if sha.returncode == 0:
+            info["commit_sha"] = sha.stdout.strip()
+    except Exception:
+        pass
+    try:
+        ts = subprocess.run(
+            ["git", "log", "-1", "--format=%cI"],
+            capture_output=True, text=True, timeout=5, cwd=str(_ROOT),
+        )
+        if ts.returncode == 0:
+            info["commit_time"] = ts.stdout.strip()
+    except Exception:
+        pass
+    dist = _ROOT / "cockpit" / "dist-web" / "assets"
+    if dist.is_dir():
+        for f in dist.iterdir():
+            if f.name.startswith("index-") and f.name.endswith(".js"):
+                info["js_hash"] = f.name
+            elif f.name.startswith("index-") and f.name.endswith(".css"):
+                info["css_hash"] = f.name
+    return info
+
+
+_BUILD_INFO = _compute_build_info()
+
+
+@router.get("/build")
+async def build_info():
+    return _BUILD_INFO
 
 
 @router.get("/pulse")
@@ -256,31 +331,17 @@ async def infra():
     except Exception:
         pass
 
-    try:
-        out = subprocess.run(
-            ["docker", "ps", "--format", "{{.Names}}\t{{.Status}}"],
-            capture_output=True,
-            text=True,
-            timeout=5,
+    for c in _get_docker_containers():
+        is_up = c.get("state") == "running"
+        service_nodes.append(
+            {
+                "id": f"n-{c['name']}",
+                "name": c["name"],
+                "type": "service",
+                "status": "healthy" if is_up else "down",
+                "metrics": {},
+            }
         )
-        for line in out.stdout.strip().split("\n"):
-            if not line:
-                continue
-            parts = line.split("\t")
-            name = parts[0]
-            status_str = parts[1] if len(parts) > 1 else ""
-            is_up = "Up" in status_str
-            service_nodes.append(
-                {
-                    "id": f"n-{name}",
-                    "name": name,
-                    "type": "service",
-                    "status": "healthy" if is_up else "down",
-                    "metrics": {},
-                }
-            )
-    except Exception:
-        pass
 
     return compute_nodes + network_nodes + service_nodes
 
@@ -2154,42 +2215,6 @@ async def send_notification(payload: dict):
 
 
 # ─── WebSocket: live cockpit data stream ──────────────────────────────────────
-
-_DOCKER_SOCK = "/var/run/docker.sock"
-
-
-def _get_docker_containers() -> list[dict]:
-    """Query Docker Engine API via unix socket for running containers."""
-    import socket as _socket
-    import http.client
-
-    try:
-        if not os.path.exists(_DOCKER_SOCK):
-            return []
-
-        class DockerConnection(http.client.HTTPConnection):
-            def connect(self):
-                self.sock = _socket.socket(_socket.AF_UNIX, _socket.SOCK_STREAM)
-                self.sock.settimeout(2)
-                self.sock.connect(_DOCKER_SOCK)
-
-        conn = DockerConnection("localhost")
-        conn.request("GET", "/containers/json")
-        resp = conn.getresponse()
-        if resp.status != 200:
-            return []
-        data = json.loads(resp.read())
-        conn.close()
-        result = []
-        for c in data:
-            names = c.get("Names", ["/unknown"])
-            name = names[0].lstrip("/") if names else "unknown"
-            status = c.get("Status", "unknown")
-            result.append({"name": name, "status": status})
-        return result
-    except Exception:
-        return []
-
 
 _cockpit_clients: set[WebSocket] = set()
 _pending_organism_events: list[dict] = []

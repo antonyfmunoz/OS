@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useSystemStore } from '../stores/systemStore'
 import { useOrganismStore } from '../stores/organismStore'
 import { useRealtimeStore } from '../stores/realtimeStore'
@@ -10,12 +11,16 @@ export function InfrastructurePanel() {
   const meshNodes = useSystemStore((s) => s.meshNodes)
   const fetchInfra = useSystemStore((s) => s.fetchInfra)
   const fetchMeshNodes = useSystemStore((s) => s.fetchMeshNodes)
+  const buildInfo = useSystemStore((s) => s.buildInfo)
+  const fetchBuildInfo = useSystemStore((s) => s.fetchBuildInfo)
   const workloads = useOrganismStore((s) => s.workloads)
   const bottleneckStatus = useOrganismStore((s) => s.bottleneckStatus)
   const runtimeGraph = useOrganismStore((s) => s.runtimeGraph)
   const fetchWorkloads = useOrganismStore((s) => s.fetchWorkloads)
   const fetchBottlenecks = useOrganismStore((s) => s.fetchBottlenecks)
   const fetchOrganismStatus = useOrganismStore((s) => s.fetchOrganismStatus)
+
+  useEffect(() => { fetchBuildInfo() }, [fetchBuildInfo])
 
   const realtimeStatus = useRealtimeStore((s) => s.status)
   const cpuPercent = useRealtimeStore((s) => s.cpuPercent)
@@ -137,6 +142,16 @@ export function InfrastructurePanel() {
           )}
         </div>
       </div>
+
+      {buildInfo && (
+        <div className="flex items-center gap-4 px-4 py-2 border-t border-border text-[10px] text-text-tertiary font-mono flex-shrink-0">
+          {buildInfo.commit_sha && <span>SHA {buildInfo.commit_sha.slice(0, 8)}</span>}
+          {buildInfo.js_hash && <span>JS {buildInfo.js_hash.replace('index-', '').replace('.js', '')}</span>}
+          {buildInfo.css_hash && <span>CSS {buildInfo.css_hash.replace('index-', '').replace('.css', '')}</span>}
+          {buildInfo.commit_time && <span>{new Date(buildInfo.commit_time).toLocaleDateString()}</span>}
+          {buildInfo.backend_start && <span>up {new Date(buildInfo.backend_start).toLocaleTimeString()}</span>}
+        </div>
+      )}
     </div>
   )
 }
