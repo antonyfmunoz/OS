@@ -135,6 +135,8 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     # ── substrate/organism/event_spine.py ─────────────────────────────
     "EventDomain": ["substrate.organism.event_spine"],
     "EventPriority": ["substrate.organism.event_spine"],
+    # ── substrate/organism/objective_queue.py ──────────────────────────
+    "ObjectiveQueueStatus": ["substrate.organism.objective_queue"],
     # ── substrate/self_model.py ────────────────────────────────────────
     "Layer": ["substrate.self_model"],
     "ContextKind": ["substrate.self_model"],
