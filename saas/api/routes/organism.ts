@@ -157,6 +157,13 @@ router.get('/learning-loop', operatorGuard, async (c) => {
   return c.json(result.data)
 })
 
+router.post('/outcome', operatorGuard, async (c) => {
+  const body = await c.req.json().catch(() => ({}))
+  const result = await callOrganism('organism.outcome_capture', body as Record<string, unknown>)
+  if (!result.success) return c.json({ error: result.error }, 400)
+  return c.json(result.data)
+})
+
 router.get('/memory-promotion', operatorGuard, async (c) => {
   const result = await callOrganism('organism.memory_promotion')
   if (!result.success) return c.json({ error: result.error }, 502)
