@@ -37,7 +37,7 @@ load_dotenv("/opt/OS/services/.env")
 load_dotenv("/opt/OS/.env", override=True)
 
 UMH_ROOT = Path(os.getenv("UMH_ROOT", "/opt/OS"))
-API_KEY = os.getenv("UMH_OPERATOR_API_KEY", "dev-key-change-me")
+API_KEY = os.getenv("UMH_OPERATOR_API_KEY", "")
 
 logger = logging.getLogger("operator_api")
 logging.basicConfig(level=logging.INFO)
@@ -491,9 +491,37 @@ async def vision_analyze(request: Request) -> dict[str, Any]:
 
 
 # ─── WebSocket ─────────────────────────────────────────────────────────────────
+_WS_TOKEN = os.getenv("UMH_WS_TOKEN", "") or API_KEY
+_DEV_BYPASS = os.getenv("UMH_DEV_BYPASS", "").lower() in ("1", "true", "yes")
+_PRIVATE_PREFIXES = ("127.", "10.", "192.168.", "172.16.", "172.17.", "172.18.",
+                     "172.19.", "172.20.", "172.21.", "172.22.", "172.23.",
+                     "172.24.", "172.25.", "172.26.", "172.27.", "172.28.",
+                     "172.29.", "172.30.", "172.31.", "100.64.", "100.65.",
+                     "100.66.", "100.67.", "100.68.", "100.69.", "100.7",
+                     "100.8", "100.9", "100.10", "100.11", "100.12",
+                     "100.13", "::1", "fd")
+
+
+def _validate_ws_auth(ws: WebSocket) -> bool:
+    if not _WS_TOKEN:
+        client_ip = ws.client.host if ws.client else ""
+        return _DEV_BYPASS and any(client_ip.startswith(p) for p in _PRIVATE_PREFIXES)
+    token = ws.query_params.get("token", "")
+    if token and token == _WS_TOKEN:
+        return True
+    client_ip = ws.client.host if ws.client else ""
+    if _DEV_BYPASS and any(client_ip.startswith(p) for p in _PRIVATE_PREFIXES):
+        return True
+    return False
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket) -> None:
     """WebSocket for streaming chat, voice transcripts, and real-time events."""
+    if not _validate_ws_auth(ws):
+        await ws.close(code=4001, reason="Authentication required — pass ?token=<WS_TOKEN>")
+        logger.warning("Chat WS auth rejected from %s", ws.client.host if ws.client else "unknown")
+        return
     await ws.accept()
     try:
         while True:
