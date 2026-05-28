@@ -132,6 +132,9 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "AdvisorScope": ["substrate.organism.advisor_hierarchy"],
     "AdvisorAuthority": ["substrate.organism.advisor_hierarchy"],
     "AdvisorStatus": ["substrate.organism.advisor_hierarchy"],
+    # ── substrate/organism/event_spine.py ─────────────────────────────
+    "EventDomain": ["substrate.organism.event_spine"],
+    "EventPriority": ["substrate.organism.event_spine"],
     # ── substrate/self_model.py ────────────────────────────────────────
     "Layer": ["substrate.self_model"],
     "ContextKind": ["substrate.self_model"],
