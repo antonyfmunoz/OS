@@ -25,9 +25,16 @@ from pathlib import Path
 from typing import Any
 
 from substrate.organism.advisor import Advisor
+from substrate.organism.allocation_loop import AllocationLoop
 from substrate.organism.approval_store import ApprovalStore
+from substrate.organism.async_coordinator import AsyncCoordinator
 from substrate.organism.coordinator import OrganismCoordinator
+from substrate.organism.event_spine import EventSpine
+from substrate.organism.execution_economy import ExecutionEconomy
 from substrate.organism.homeostasis import HomeostasisEngine
+from substrate.organism.objective_queue import ObjectiveQueue
+from substrate.organism.projection_port import OrganismStatePort
+from substrate.organism.recursion_governance import RecursionGovernor
 from substrate.organism.runtime_graph import RuntimeGraph
 from substrate.organism.runtime_supervisor import RuntimeSupervisor
 from substrate.organism.store import OrganismStore
@@ -72,6 +79,8 @@ class OrganismDaemon:
         self._state_dir = Path(store_dir)
         self._state_dir.mkdir(parents=True, exist_ok=True)
 
+        self._event_spine = EventSpine()
+
         self._graph = graph
         self._homeostasis = homeostasis or HomeostasisEngine()
 
@@ -79,6 +88,7 @@ class OrganismDaemon:
             self._supervisor = RuntimeSupervisor(
                 self._graph,
                 state_dir=str(self._state_dir / "supervisor"),
+                event_spine=self._event_spine,
             )
         else:
             self._supervisor = supervisor
@@ -100,6 +110,30 @@ class OrganismDaemon:
             supervisor=self._supervisor,
             homeostasis=self._homeostasis,
         )
+
+        self._objective_queue = ObjectiveQueue(spine=self._event_spine)
+
+        if self._graph and self._supervisor:
+            self._allocation_loop: AllocationLoop | None = AllocationLoop(
+                spine=self._event_spine,
+                graph=self._graph,
+                supervisor=self._supervisor,
+                economy=ExecutionEconomy(),
+                governor=RecursionGovernor(),
+            )
+        else:
+            self._allocation_loop = None
+
+        if coordinator is not None:
+            self._async_coordinator: AsyncCoordinator | None = AsyncCoordinator(
+                coordinator=coordinator,
+                spine=self._event_spine,
+            )
+        else:
+            self._async_coordinator = None
+
+        self._projection_port = OrganismStatePort()
+
         self._view_socket = view_socket
         self._started = False
         self._tick_count = 0
@@ -129,6 +163,26 @@ class OrganismDaemon:
     @property
     def homeostasis(self) -> HomeostasisEngine:
         return self._homeostasis
+
+    @property
+    def event_spine(self) -> EventSpine:
+        return self._event_spine
+
+    @property
+    def objective_queue(self) -> ObjectiveQueue:
+        return self._objective_queue
+
+    @property
+    def allocation_loop(self) -> AllocationLoop | None:
+        return self._allocation_loop
+
+    @property
+    def async_coordinator(self) -> AsyncCoordinator | None:
+        return self._async_coordinator
+
+    @property
+    def projection_port(self) -> OrganismStatePort:
+        return self._projection_port
 
     def start(self) -> None:
         self._started = True
