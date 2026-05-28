@@ -34,12 +34,31 @@ _OPERATOR_TOKEN = os.environ.get("UMH_OPERATOR_TOKEN", "")
 _api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 _operator_token_header = APIKeyHeader(name="X-Operator-Token", auto_error=False)
 
-_PROMOTE_RATE_LIMIT: dict[str, float] = {}
-_PROMOTE_RATE_WINDOW = 60.0
+_ALLOW_INSECURE = os.environ.get("UMH_ALLOW_INSECURE", "").lower() in ("1", "true", "yes")
+
+_RATE_LIMITS: dict[str, dict[str, float]] = {}
+_RATE_WINDOWS: dict[str, float] = {
+    "promote": 60.0,
+    "execute": 30.0,
+    "approve": 30.0,
+}
+
+
+def _check_rate_limit(action: str, client_id: str) -> None:
+    window = _RATE_WINDOWS.get(action, 60.0)
+    bucket = _RATE_LIMITS.setdefault(action, {})
+    now = time.time()
+    last = bucket.get(client_id, 0.0)
+    if now - last < window:
+        remaining = int(window - (now - last))
+        raise HTTPException(status_code=429, detail=f"Rate limited — retry in {remaining}s")
+    bucket[client_id] = now
 
 
 async def _require_api_key(key: str | None = Security(_api_key_header)) -> str:
     if _API_KEY == "dev-key-change-me":
+        if not _ALLOW_INSECURE:
+            raise HTTPException(status_code=503, detail="API key not configured")
         return "dev"
     if not key or key != _API_KEY:
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
@@ -51,16 +70,14 @@ async def _require_operator_role(
     key: str | None = Security(_api_key_header),
     operator_token: str | None = Security(_operator_token_header),
 ) -> str:
-    """Validates operator-level credentials for privileged endpoints.
-
-    Requires both the standard API key AND a separate operator token.
-    Logs all attempts for audit correlation.
-    """
+    """Validates operator-level credentials for privileged endpoints."""
     await _require_api_key(key)
 
     if not _OPERATOR_TOKEN:
-        logger.warning("UMH_OPERATOR_TOKEN not configured — privileged endpoints unprotected")
-        return "operator-unprotected"
+        if not _ALLOW_INSECURE:
+            raise HTTPException(status_code=503, detail="Operator token not configured — privileged endpoints disabled")
+        logger.warning("UMH_OPERATOR_TOKEN not configured — running insecure (UMH_ALLOW_INSECURE=true)")
+        return "operator-insecure"
 
     if not operator_token or operator_token != _OPERATOR_TOKEN:
         logger.warning(
@@ -865,23 +882,13 @@ async def organism_execution_mode():
 
 @router.post("/organism/execution-mode/promote", dependencies=[Depends(_require_operator_role)])
 async def organism_promote_mode(payload: dict, request: Request):
-    """Promote execution mode to a higher autonomy level.
-
-    Requires operator token. Rate-limited to 1 call per 60s per client.
-    """
+    """Promote execution mode. Rate-limited, operator-auth required."""
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
 
     client_id = request.client.host if request.client else "unknown"
-    now = time.time()
-    last_call = _PROMOTE_RATE_LIMIT.get(client_id, 0.0)
-    if now - last_call < _PROMOTE_RATE_WINDOW:
-        remaining = int(_PROMOTE_RATE_WINDOW - (now - last_call))
-        raise HTTPException(
-            status_code=429,
-            detail=f"Rate limited — retry in {remaining}s",
-        )
+    _check_rate_limit("promote", client_id)
 
     target = payload.get("target_mode", "")
     justification = str(payload.get("justification", "operator promotion"))[:500]
@@ -893,7 +900,6 @@ async def organism_promote_mode(payload: dict, request: Request):
             reason=TransitionReason.OPERATOR_PROMOTION,
             justification=justification,
         )
-        _PROMOTE_RATE_LIMIT[client_id] = now
         logger.info("Execution mode promotion: %s → %s by %s", target, ok, client_id)
         return {"ok": ok, "current_mode": daemon.execution_mode_manager.current_mode.value}
     except (ValueError, KeyError) as e:
@@ -984,11 +990,12 @@ async def organism_automation_candidates():
 
 @router.post("/organism/automation-candidates/{proposal_id}/approve", dependencies=[Depends(_require_operator_role)])
 async def organism_approve_automation(proposal_id: str, request: Request):
-    """Approve an automation candidate. Requires operator token."""
+    """Approve an automation candidate. Rate-limited, operator-auth required."""
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
     client_id = request.client.host if request.client else "unknown"
+    _check_rate_limit("approve", client_id)
     logger.info("Automation approval: %s by %s", proposal_id, client_id)
     ok = daemon.automation_pipeline.approve(proposal_id)
     if not ok:
@@ -1058,15 +1065,15 @@ async def organism_assisted():
 
 @router.post("/organism/assisted/execute", dependencies=[Depends(_require_operator_role)])
 async def organism_assisted_execute(payload: dict, request: Request):
-    """Execute an approved maintenance action.
-
-    Requires operator token. All executions logged with client identity.
-    """
+    """Execute an approved maintenance action. Rate-limited, operator-auth required."""
     import asyncio
 
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
+
+    client_id = request.client.host if request.client else "unknown"
+    _check_rate_limit("execute", client_id)
 
     category = payload.get("category", "")
     description = str(payload.get("description", ""))[:500]
@@ -1081,7 +1088,6 @@ async def organism_assisted_execute(payload: dict, request: Request):
             "available": [c.value for c in __import__("substrate.organism.maintenance_loop", fromlist=["ActionCategory"]).ActionCategory],
         }
 
-    client_id = request.client.host if request.client else "unknown"
     action_id = f"assisted-{category}-{int(time.time())}"
     logger.info("Assisted execution requested: %s by %s", category, client_id)
 
