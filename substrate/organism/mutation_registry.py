@@ -209,6 +209,187 @@ RUNTIME_RECONCILIATION = MutationSpec(
     description="Reconcile runtime topology",
 )
 
+# ── Phase 6.2: Additional mutation specs for coverage ─────────────────────────
+
+DOCKER_EXEC = MutationSpec(
+    name="docker_exec",
+    action_type=ActionType.CONTAINER,
+    risk_level="high",
+    reversibility=ReversibilityClass.IRREVERSIBLE,
+    allowed_modes=(ExecutionMode.ASSISTED,),
+    required_capabilities=("docker",),
+    verification_required=True,
+    rollback_supported=False,
+    blast_radius=BlastRadius.SINGLE_SERVICE,
+    timeout_seconds=60.0,
+    require_approval=True,
+    description="Execute a command inside a Docker container",
+)
+
+TMUX_SEND = MutationSpec(
+    name="tmux_send",
+    action_type=ActionType.PROCESS,
+    risk_level="high",
+    reversibility=ReversibilityClass.IRREVERSIBLE,
+    allowed_modes=(ExecutionMode.ASSISTED,),
+    required_capabilities=("tmux",),
+    verification_required=False,
+    rollback_supported=False,
+    blast_radius=BlastRadius.SINGLE_SERVICE,
+    timeout_seconds=30.0,
+    require_approval=True,
+    description="Send command to a tmux session",
+)
+
+SHELL_EXECUTE = MutationSpec(
+    name="shell_execute",
+    action_type=ActionType.PROCESS,
+    risk_level="critical",
+    reversibility=ReversibilityClass.IRREVERSIBLE,
+    allowed_modes=(ExecutionMode.ASSISTED,),
+    required_capabilities=("shell",),
+    verification_required=True,
+    rollback_supported=False,
+    blast_radius=BlastRadius.CLUSTER_WIDE,
+    timeout_seconds=120.0,
+    require_approval=True,
+    description="Execute an arbitrary shell command",
+)
+
+PROCESS_KILL = MutationSpec(
+    name="process_kill",
+    action_type=ActionType.PROCESS,
+    risk_level="critical",
+    reversibility=ReversibilityClass.IRREVERSIBLE,
+    allowed_modes=(ExecutionMode.ASSISTED,),
+    required_capabilities=("shell",),
+    verification_required=False,
+    rollback_supported=False,
+    blast_radius=BlastRadius.SINGLE_SERVICE,
+    timeout_seconds=10.0,
+    require_approval=True,
+    description="Kill an operating system process",
+)
+
+GIT_MUTATE = MutationSpec(
+    name="git_mutate",
+    action_type=ActionType.STATE,
+    risk_level="high",
+    reversibility=ReversibilityClass.PARTIALLY_REVERSIBLE,
+    allowed_modes=(ExecutionMode.ASSISTED,),
+    required_capabilities=("git",),
+    verification_required=True,
+    rollback_supported=True,
+    blast_radius=BlastRadius.LOCAL_RUNTIME,
+    timeout_seconds=60.0,
+    require_approval=True,
+    description="Mutating git operation (push, reset, merge, rebase)",
+)
+
+REMOTE_NODE_EXEC = MutationSpec(
+    name="remote_node_exec",
+    action_type=ActionType.PROCESS,
+    risk_level="high",
+    reversibility=ReversibilityClass.IRREVERSIBLE,
+    allowed_modes=(ExecutionMode.ASSISTED,),
+    required_capabilities=("ssh",),
+    verification_required=True,
+    rollback_supported=False,
+    blast_radius=BlastRadius.EXTERNAL,
+    timeout_seconds=120.0,
+    require_approval=True,
+    description="Execute command on a remote node via SSH",
+)
+
+FILE_WRITE = MutationSpec(
+    name="file_write",
+    action_type=ActionType.FILESYSTEM,
+    risk_level="medium",
+    reversibility=ReversibilityClass.PARTIALLY_REVERSIBLE,
+    allowed_modes=(ExecutionMode.ASSISTED, ExecutionMode.AUTONOMOUS),
+    required_capabilities=("filesystem",),
+    verification_required=False,
+    rollback_supported=False,
+    blast_radius=BlastRadius.LOCAL_FILE,
+    timeout_seconds=30.0,
+    description="Write or modify a file on disk",
+)
+
+FILE_DELETE = MutationSpec(
+    name="file_delete",
+    action_type=ActionType.FILESYSTEM,
+    risk_level="medium",
+    reversibility=ReversibilityClass.IRREVERSIBLE,
+    allowed_modes=(ExecutionMode.ASSISTED,),
+    required_capabilities=("filesystem",),
+    verification_required=False,
+    rollback_supported=False,
+    blast_radius=BlastRadius.LOCAL_FILE,
+    timeout_seconds=30.0,
+    require_approval=True,
+    description="Delete a file or directory",
+)
+
+SOUL_DOC_WRITE = MutationSpec(
+    name="soul_doc_write",
+    action_type=ActionType.FILESYSTEM,
+    risk_level="high",
+    reversibility=ReversibilityClass.PARTIALLY_REVERSIBLE,
+    allowed_modes=(ExecutionMode.ASSISTED,),
+    required_capabilities=("filesystem",),
+    verification_required=True,
+    rollback_supported=True,
+    blast_radius=BlastRadius.LOCAL_RUNTIME,
+    timeout_seconds=30.0,
+    require_approval=True,
+    description="Create or modify an agent soul document",
+)
+
+SESSION_LAUNCH = MutationSpec(
+    name="session_launch",
+    action_type=ActionType.PROCESS,
+    risk_level="high",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=(ExecutionMode.ASSISTED,),
+    required_capabilities=("tmux",),
+    verification_required=True,
+    rollback_supported=True,
+    blast_radius=BlastRadius.SINGLE_SERVICE,
+    timeout_seconds=60.0,
+    require_approval=True,
+    description="Launch a new Claude or agent session",
+)
+
+DEPLOYMENT = MutationSpec(
+    name="deployment",
+    action_type=ActionType.DEPLOYMENT,
+    risk_level="critical",
+    reversibility=ReversibilityClass.PARTIALLY_REVERSIBLE,
+    allowed_modes=(ExecutionMode.ASSISTED,),
+    required_capabilities=("docker", "git"),
+    verification_required=True,
+    rollback_supported=True,
+    blast_radius=BlastRadius.MULTI_SERVICE,
+    timeout_seconds=300.0,
+    require_approval=True,
+    description="Deploy code or configuration to production",
+)
+
+CREDENTIAL_WRITE = MutationSpec(
+    name="credential_write",
+    action_type=ActionType.FILESYSTEM,
+    risk_level="critical",
+    reversibility=ReversibilityClass.PARTIALLY_REVERSIBLE,
+    allowed_modes=(ExecutionMode.ASSISTED,),
+    required_capabilities=("filesystem",),
+    verification_required=True,
+    rollback_supported=False,
+    blast_radius=BlastRadius.CLUSTER_WIDE,
+    timeout_seconds=30.0,
+    require_approval=True,
+    description="Write or modify credentials or secrets",
+)
+
 
 class MutationRegistry:
     """Registry of all executable mutation types.
@@ -233,6 +414,18 @@ class MutationRegistry:
             REPO_HEALTH_SCAN,
             DOCKER_HEALTH_SCAN,
             RUNTIME_RECONCILIATION,
+            DOCKER_EXEC,
+            TMUX_SEND,
+            SHELL_EXECUTE,
+            PROCESS_KILL,
+            GIT_MUTATE,
+            REMOTE_NODE_EXEC,
+            FILE_WRITE,
+            FILE_DELETE,
+            SOUL_DOC_WRITE,
+            SESSION_LAUNCH,
+            DEPLOYMENT,
+            CREDENTIAL_WRITE,
         ):
             self.register(spec)
 

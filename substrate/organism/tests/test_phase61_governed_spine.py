@@ -558,16 +558,16 @@ class TestSpineGuard:
     def test_mode_setting(self):
         guard = SpineGuard(mode=GuardMode.WARN)
         assert guard.mode == GuardMode.WARN
-        guard.set_mode(GuardMode.ENFORCE)
-        assert guard.mode == GuardMode.ENFORCE
+        guard.set_mode(GuardMode.ENFORCE_ALL)
+        assert guard.mode == GuardMode.ENFORCE_ALL
 
     def test_event_spine_emission(self):
         event_spine = EventSpine()
         guard = SpineGuard(event_spine=event_spine)
         guard.report_direct_mutation("test", "violation")
         events = event_spine.recent(10)
-        violation_events = [e for e in events if e.event_type == "spine_violation"]
-        assert len(violation_events) == 1
+        guard_events = [e for e in events if "spine_guard" in e.event_type]
+        assert len(guard_events) == 1
 
 
 # ── Integration tests ────────────────────────────────────────────────────────

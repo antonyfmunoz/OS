@@ -292,7 +292,7 @@ async def approvals():
     return daemon.approval_store.list_approvals()
 
 
-@router.post("/approvals/{approval_id}/approve")
+@router.post("/approvals/{approval_id}/approve", dependencies=[Depends(_require_operator_role)])
 async def approve_item(approval_id: str):
     daemon = _get_organism()
     if daemon is None:
@@ -303,7 +303,7 @@ async def approve_item(approval_id: str):
     return {"ok": True}
 
 
-@router.post("/approvals/{approval_id}/deny")
+@router.post("/approvals/{approval_id}/deny", dependencies=[Depends(_require_operator_role)])
 async def deny_item(approval_id: str, payload: dict | None = None):
     daemon = _get_organism()
     if daemon is None:
@@ -927,7 +927,7 @@ async def organism_workload_outcomes(limit: int = 20):
     return daemon.workload_runner.recent_outcomes(limit)
 
 
-@router.post("/organism/workloads/run")
+@router.post("/organism/workloads/run", dependencies=[Depends(_require_operator_role)])
 async def organism_run_workload(payload: dict):
     """Manually trigger a specific workload."""
     import asyncio
@@ -956,7 +956,7 @@ async def organism_run_workload(payload: dict):
     return outcome.to_dict()
 
 
-@router.post("/organism/workloads/run-all")
+@router.post("/organism/workloads/run-all", dependencies=[Depends(_require_operator_role)])
 async def organism_run_all_workloads():
     """Run all OBSERVE-safe workloads."""
     import asyncio
@@ -1003,7 +1003,7 @@ async def organism_approve_automation(proposal_id: str, request: Request):
     return {"ok": True, "proposal_id": proposal_id}
 
 
-@router.post("/organism/automation-candidates/{proposal_id}/deny")
+@router.post("/organism/automation-candidates/{proposal_id}/deny", dependencies=[Depends(_require_operator_role)])
 async def organism_deny_automation(proposal_id: str, payload: dict | None = None):
     """Deny an automation candidate."""
     daemon = _get_organism()
@@ -1034,7 +1034,7 @@ async def organism_maintenance():
     }
 
 
-@router.post("/organism/maintenance/run")
+@router.post("/organism/maintenance/run", dependencies=[Depends(_require_operator_role)])
 async def organism_run_maintenance():
     """Trigger a manual maintenance cycle."""
     import asyncio
@@ -1141,7 +1141,7 @@ def _get_organism():
         return None
 
 
-@router.post("/pipeline/submit")
+@router.post("/pipeline/submit", dependencies=[Depends(_require_operator_role)])
 async def pipeline_submit(payload: dict):
     """Submit a command through the full execution pipeline from cockpit."""
     import asyncio
@@ -1188,7 +1188,7 @@ async def pipeline_submit(payload: dict):
     }
 
 
-@router.post("/comms/send")
+@router.post("/comms/send", dependencies=[Depends(_require_operator_role)])
 async def comms_send(payload: dict):
     """Send a message to an organism agent."""
     daemon = _get_organism()
@@ -1212,7 +1212,7 @@ async def comms_send(payload: dict):
     return {"ok": True, "message_id": str(msg.id)}
 
 
-@router.post("/workflows/{workflow_id}/trigger")
+@router.post("/workflows/{workflow_id}/trigger", dependencies=[Depends(_require_operator_role)])
 async def workflow_trigger(workflow_id: str, payload: dict | None = None):
     """Trigger a workflow run through the pipeline."""
     import asyncio
@@ -1248,13 +1248,13 @@ async def workflow_trigger(workflow_id: str, payload: dict | None = None):
         return {"ok": False, "error": str(exc)}
 
 
-@router.patch("/settings")
+@router.patch("/settings", dependencies=[Depends(_require_operator_role)])
 async def update_settings(patch: dict):
     """Update cockpit settings (runtime-only, not persisted across restarts)."""
     return {"ok": True, "applied": list(patch.keys())}
 
 
-@router.post("/organism/control")
+@router.post("/organism/control", dependencies=[Depends(_require_operator_role)])
 async def organism_control(payload: dict):
     """Control organism lifecycle — start/stop."""
     daemon = _get_organism()
@@ -1440,7 +1440,7 @@ async def governance_policy():
     }
 
 
-@router.patch("/governance")
+@router.patch("/governance", dependencies=[Depends(_require_operator_role)])
 async def update_governance(payload: dict):
     """Update governance policy at runtime.
 
@@ -1690,7 +1690,7 @@ async def eos_intelligence():
         return {"error": str(e)}
 
 
-@router.post("/organism/handoff")
+@router.post("/organism/handoff", dependencies=[Depends(_require_operator_role)])
 async def organism_handoff(payload: dict):
     """Submit a task handoff between agents."""
     daemon = _get_organism()
@@ -1704,7 +1704,7 @@ async def organism_handoff(payload: dict):
     )
 
 
-@router.post("/organism/parallel")
+@router.post("/organism/parallel", dependencies=[Depends(_require_operator_role)])
 async def organism_parallel(payload: dict):
     """Execute multiple agent tasks in parallel."""
     daemon = _get_organism()
@@ -2114,7 +2114,7 @@ async def feedback_recommendations():
     return {"recommendations": loop.recommend_routing_adjustment()}
 
 
-@router.post("/notifications/send")
+@router.post("/notifications/send", dependencies=[Depends(_require_operator_role)])
 async def send_notification(payload: dict):
     """Send a notification through the engine."""
     try:
@@ -2274,7 +2274,7 @@ async def loop_stages():
         return {"error": str(e)}
 
 
-@router.post("/loops/{loop_name}/start")
+@router.post("/loops/{loop_name}/start", dependencies=[Depends(_require_operator_role)])
 async def loop_start(loop_name: str):
     """Start a persistent loop."""
     try:
@@ -2284,7 +2284,7 @@ async def loop_start(loop_name: str):
         return {"error": str(e)}
 
 
-@router.post("/loops/{loop_name}/stop")
+@router.post("/loops/{loop_name}/stop", dependencies=[Depends(_require_operator_role)])
 async def loop_stop(loop_name: str):
     """Stop a persistent loop."""
     try:
@@ -2294,7 +2294,7 @@ async def loop_stop(loop_name: str):
         return {"error": str(e)}
 
 
-@router.post("/loops/{loop_name}/run-once")
+@router.post("/loops/{loop_name}/run-once", dependencies=[Depends(_require_operator_role)])
 async def loop_run_once(loop_name: str):
     """Run a single cycle of a loop synchronously."""
     try:
@@ -2308,7 +2308,7 @@ async def loop_run_once(loop_name: str):
         return {"error": str(e)}
 
 
-@router.post("/loops/create")
+@router.post("/loops/create", dependencies=[Depends(_require_operator_role)])
 async def loop_create(payload: dict):
     """Create a new loop definition at runtime."""
     try:
@@ -2339,7 +2339,7 @@ async def loop_create(payload: dict):
         return {"error": str(e)}
 
 
-@router.delete("/loops/{loop_name}")
+@router.delete("/loops/{loop_name}", dependencies=[Depends(_require_operator_role)])
 async def loop_delete(loop_name: str):
     """Remove a loop definition."""
     try:
@@ -2430,7 +2430,7 @@ async def organism_recursion_escalations(limit: int = 50):
         return {"error": str(e)}
 
 
-@router.post("/organism/recursion/kill")
+@router.post("/organism/recursion/kill", dependencies=[Depends(_require_operator_role)])
 async def organism_kill_switch():
     """Activate the kill switch — halts all autonomous execution."""
     daemon = _get_organism()
@@ -2446,7 +2446,7 @@ async def organism_kill_switch():
         return {"error": str(e)}
 
 
-@router.post("/organism/recursion/resume")
+@router.post("/organism/recursion/resume", dependencies=[Depends(_require_operator_role)])
 async def organism_resume_switch():
     """Deactivate the kill switch — resume autonomous execution."""
     daemon = _get_organism()
@@ -2707,7 +2707,7 @@ async def organism_reconciliation():
         return {"error": str(e)}
 
 
-@router.post("/organism/reconcile")
+@router.post("/organism/reconcile", dependencies=[Depends(_require_operator_role)])
 async def organism_reconcile_now():
     """Force an immediate reconciliation cycle."""
     import asyncio
@@ -2796,165 +2796,36 @@ async def execution_authority(layer: str = "native"):
     }
 
 
-@router.post("/execution/start")
+@router.post("/execution/start", dependencies=[Depends(_require_operator_role)])
 async def execution_start(payload: dict):
     """Start execution in a slot."""
     return {"ok": True}
 
 
-@router.post("/execution/stop")
+@router.post("/execution/stop", dependencies=[Depends(_require_operator_role)])
 async def execution_stop(payload: dict):
     """Stop execution in a slot."""
     return {"ok": True}
 
 
-@router.post("/execution/pause")
+@router.post("/execution/pause", dependencies=[Depends(_require_operator_role)])
 async def execution_pause(payload: dict):
     """Pause execution in a slot."""
     return {"ok": True}
 
 
-@router.post("/execution/resume")
+@router.post("/execution/resume", dependencies=[Depends(_require_operator_role)])
 async def execution_resume(payload: dict):
     """Resume execution in a slot."""
     return {"ok": True}
 
 
-# ── Phase 6.1: GovernedExecutionSpine endpoints ─────────────────────────────
+# ── Phase 6.1→6.2: Spine routes extracted to cockpit_spine_router.py ─────────
 
 
-@router.get("/organism/spine")
-async def organism_spine_status():
-    """GovernedExecutionSpine status: counters, success rate, queue depths."""
-    daemon = _get_organism()
-    if daemon is None:
-        return {"error": "organism not running"}
-    return daemon.governed_spine.to_dict()
+def _mount_spine_router() -> None:
+    from transports.api.cockpit_spine_router import spine_router
+    router.include_router(spine_router)
 
 
-@router.get("/organism/spine/pending")
-async def organism_spine_pending(limit: int = 50):
-    """Pending envelopes awaiting approval."""
-    daemon = _get_organism()
-    if daemon is None:
-        return []
-    return daemon.governed_spine.pending_envelopes(limit)
-
-
-@router.get("/organism/spine/active")
-async def organism_spine_active():
-    """Currently executing envelopes."""
-    daemon = _get_organism()
-    if daemon is None:
-        return []
-    return daemon.governed_spine.active_envelopes()
-
-
-@router.get("/organism/spine/completed")
-async def organism_spine_completed(limit: int = 50):
-    """Recently completed envelopes."""
-    daemon = _get_organism()
-    if daemon is None:
-        return []
-    return daemon.governed_spine.completed_envelopes(limit)
-
-
-@router.get("/organism/spine/lifecycle/{envelope_id}")
-async def organism_spine_lifecycle(envelope_id: str):
-    """Full journal lifecycle for a specific envelope."""
-    daemon = _get_organism()
-    if daemon is None:
-        return {"error": "organism not running"}
-    return daemon.governed_spine.envelope_lifecycle(envelope_id)
-
-
-@router.post("/organism/spine/approve/{envelope_id}", dependencies=[Depends(_require_operator_role)])
-async def organism_spine_approve(envelope_id: str, request: Request):
-    """Approve a pending envelope for execution. Operator-auth required."""
-    daemon = _get_organism()
-    if daemon is None:
-        return {"error": "organism not running"}
-
-    client_id = request.client.host if request.client else "unknown"
-    _check_rate_limit("approve", client_id)
-
-    envelope = daemon.governed_spine.approve(envelope_id, approved_by=client_id)
-    if envelope is None:
-        return {"error": f"envelope {envelope_id} not found in pending queue"}
-    logger.info("Spine envelope approved: %s by %s", envelope_id, client_id)
-    return envelope.to_dict()
-
-
-@router.post("/organism/spine/reject/{envelope_id}", dependencies=[Depends(_require_operator_role)])
-async def organism_spine_reject(envelope_id: str, payload: dict, request: Request):
-    """Reject a pending envelope. Operator-auth required."""
-    daemon = _get_organism()
-    if daemon is None:
-        return {"error": "organism not running"}
-
-    client_id = request.client.host if request.client else "unknown"
-    _check_rate_limit("approve", client_id)
-
-    reason = str(payload.get("reason", "operator_rejected"))[:500]
-    envelope = daemon.governed_spine.reject(envelope_id, reason=reason)
-    if envelope is None:
-        return {"error": f"envelope {envelope_id} not found in pending queue"}
-    logger.info("Spine envelope rejected: %s by %s — %s", envelope_id, client_id, reason)
-    return envelope.to_dict()
-
-
-# ── Phase 6.1: Execution Journal endpoints ──────────────────────────────────
-
-
-@router.get("/organism/journal")
-async def organism_journal_status():
-    """Execution journal statistics and recent entries."""
-    daemon = _get_organism()
-    if daemon is None:
-        return {"error": "organism not running"}
-    return daemon.execution_journal.to_dict()
-
-
-@router.get("/organism/journal/recent")
-async def organism_journal_recent(limit: int = 50):
-    """Recent journal entries."""
-    daemon = _get_organism()
-    if daemon is None:
-        return []
-    return [e.to_dict() for e in daemon.execution_journal.recent(limit)]
-
-
-@router.get("/organism/journal/lifecycle/{envelope_id}")
-async def organism_journal_lifecycle(envelope_id: str):
-    """Full journal lifecycle for a specific envelope."""
-    daemon = _get_organism()
-    if daemon is None:
-        return []
-    return daemon.execution_journal.execution_lifecycle(envelope_id)
-
-
-# ── Phase 6.1: Mutation Registry endpoints ──────────────────────────────────
-
-
-@router.get("/organism/mutations")
-async def organism_mutation_registry():
-    """All registered mutation specs with risk profiles."""
-    daemon = _get_organism()
-    if daemon is None:
-        return {"error": "organism not running"}
-    return daemon.mutation_registry.to_dict()
-
-
-# ── Phase 6.1: Spine Guard endpoints ────────────────────────────────────────
-
-
-@router.get("/organism/spine-guard")
-async def organism_spine_guard():
-    """Spine guard status and recent violations."""
-    daemon = _get_organism()
-    if daemon is None:
-        return {"error": "organism not running"}
-    return {
-        **daemon.spine_guard.to_dict(),
-        "recent_violations": daemon.spine_guard.recent_violations(),
-    }
+_mount_spine_router()
