@@ -832,6 +832,226 @@ async def organism_execution_mode():
     }
 
 
+@router.post("/organism/execution-mode/promote")
+async def organism_promote_mode(payload: dict):
+    """Promote execution mode to a higher autonomy level."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    target = payload.get("target_mode", "")
+    justification = payload.get("justification", "operator promotion")
+    try:
+        from substrate.organism.execution_modes import ExecutionMode, TransitionReason
+        mode = ExecutionMode(target)
+        ok = daemon.execution_mode_manager.promote(
+            mode,
+            reason=TransitionReason.OPERATOR_PROMOTION,
+            justification=justification,
+        )
+        return {"ok": ok, "current_mode": daemon.execution_mode_manager.current_mode.value}
+    except (ValueError, KeyError) as e:
+        return {"error": str(e)}
+
+
+# ── Phase 5.9: Workload Runner endpoints ──────────────────────────────────
+
+
+@router.get("/organism/workloads")
+async def organism_workloads():
+    """Recent workload run outcomes."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return daemon.workload_runner.to_dict()
+
+
+@router.get("/organism/workloads/outcomes")
+async def organism_workload_outcomes(limit: int = 20):
+    """Detailed workload outcome history."""
+    daemon = _get_organism()
+    if daemon is None:
+        return []
+    return daemon.workload_runner.recent_outcomes(limit)
+
+
+@router.post("/organism/workloads/run")
+async def organism_run_workload(payload: dict):
+    """Manually trigger a specific workload."""
+    import asyncio
+
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+
+    workload_type = payload.get("workload_type", "")
+    force = payload.get("force", False)
+
+    try:
+        from substrate.organism.workload_runner import WorkloadType
+        wt = WorkloadType(workload_type)
+    except ValueError:
+        return {
+            "error": f"unknown workload_type: {workload_type}",
+            "available": [t.value for t in __import__("substrate.organism.workload_runner", fromlist=["WorkloadType"]).WorkloadType],
+        }
+
+    loop = asyncio.get_running_loop()
+    outcome = await loop.run_in_executor(
+        None,
+        lambda: daemon.workload_runner.run_workload(wt, force=force),
+    )
+    return outcome.to_dict()
+
+
+@router.post("/organism/workloads/run-all")
+async def organism_run_all_workloads():
+    """Run all OBSERVE-safe workloads."""
+    import asyncio
+
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+
+    loop = asyncio.get_running_loop()
+    outcomes = await loop.run_in_executor(
+        None,
+        daemon.workload_runner.run_all_observe,
+    )
+    return [o.to_dict() for o in outcomes]
+
+
+# ── Phase 5.9: Automation Pipeline endpoints ──────────────────────────────
+
+
+@router.get("/organism/automation-candidates")
+async def organism_automation_candidates():
+    """List all automation candidate proposals."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return {
+        **daemon.automation_pipeline.to_dict(),
+        "all_proposals": daemon.automation_pipeline.list_proposals(),
+    }
+
+
+@router.post("/organism/automation-candidates/{proposal_id}/approve")
+async def organism_approve_automation(proposal_id: str):
+    """Approve an automation candidate."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    ok = daemon.automation_pipeline.approve(proposal_id)
+    if not ok:
+        return {"ok": False, "error": "proposal not found or not in proposed state"}
+    return {"ok": True, "proposal_id": proposal_id}
+
+
+@router.post("/organism/automation-candidates/{proposal_id}/deny")
+async def organism_deny_automation(proposal_id: str, payload: dict | None = None):
+    """Deny an automation candidate."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    reason = (payload or {}).get("reason", "")
+    ok = daemon.automation_pipeline.deny(proposal_id, reason=reason)
+    if not ok:
+        return {"ok": False, "error": "proposal not found or not in proposed state"}
+    return {"ok": True, "proposal_id": proposal_id}
+
+
+# ── Phase 5.9: Maintenance Loop endpoints ─────────────────────────────────
+
+
+@router.get("/organism/maintenance")
+async def organism_maintenance():
+    """Maintenance loop status and recommendations."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return {
+        **daemon.maintenance_loop.to_dict(),
+        "pending_recommendations": [
+            r.to_dict() for r in daemon.maintenance_loop.pending_recommendations
+        ],
+        "recent_reports": daemon.maintenance_loop.recent_reports(5),
+    }
+
+
+@router.post("/organism/maintenance/run")
+async def organism_run_maintenance():
+    """Trigger a manual maintenance cycle."""
+    import asyncio
+
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+
+    loop = asyncio.get_running_loop()
+    report = await loop.run_in_executor(
+        None,
+        daemon.maintenance_loop.maintenance_tick,
+    )
+    return report
+
+
+# ── Phase 5.9: Assisted Executor endpoints ────────────────────────────────
+
+
+@router.get("/organism/assisted")
+async def organism_assisted():
+    """Assisted executor status and audit trail."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return daemon.assisted_executor.to_dict()
+
+
+@router.post("/organism/assisted/execute")
+async def organism_assisted_execute(payload: dict):
+    """Execute an approved maintenance action."""
+    import asyncio
+
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+
+    category = payload.get("category", "")
+    description = payload.get("description", "")
+    params = payload.get("params", {})
+
+    try:
+        from substrate.organism.maintenance_loop import ActionCategory
+        cat = ActionCategory(category)
+    except ValueError:
+        return {
+            "error": f"unknown category: {category}",
+            "available": [c.value for c in __import__("substrate.organism.maintenance_loop", fromlist=["ActionCategory"]).ActionCategory],
+        }
+
+    action_id = f"assisted-{category}-{int(time.time())}"
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(
+        None,
+        lambda: daemon.assisted_executor.execute_action(
+            action_id=action_id,
+            category=cat,
+            description=description or f"Assisted: {category}",
+            params=params,
+        ),
+    )
+    return result.to_dict()
+
+
+@router.get("/organism/assisted/audit")
+async def organism_assisted_audit(limit: int = 50):
+    """Full audit trail of assisted actions."""
+    daemon = _get_organism()
+    if daemon is None:
+        return []
+    return daemon.assisted_executor.audit_trail(limit)
+
+
 @router.post("/organism/signal")
 async def organism_signal(payload: dict):
     daemon = _get_organism()
@@ -2225,8 +2445,8 @@ async def organism_overdue_advisors():
         return {"error": str(e)}
 
 
-@router.get("/organism/leverage")
-async def organism_leverage():
+@router.get("/organism/assimilation")
+async def organism_assimilation():
     """External leverage assimilation status."""
     daemon = _get_organism()
     if daemon is None:
@@ -2242,7 +2462,7 @@ async def organism_leverage():
         return {"error": str(e)}
 
 
-@router.get("/organism/leverage/artifacts")
+@router.get("/organism/assimilation/artifacts")
 async def organism_leverage_artifacts():
     """List all assimilation artifacts."""
     daemon = _get_organism()

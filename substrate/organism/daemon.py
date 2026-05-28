@@ -50,6 +50,10 @@ from substrate.organism.store import OrganismStore
 from substrate.organism.workcell_daemon import WorkcellDaemon as WorkcellDaemonV2
 from substrate.organism.workcell_protocol import Workcell, WorkcellRole
 from substrate.organism.workload_probes import WorkloadProbes
+from substrate.organism.workload_runner import WorkloadRunner
+from substrate.organism.automation_pipeline import AutomationPipeline
+from substrate.organism.maintenance_loop import MaintenanceLoop
+from substrate.organism.assisted_executor import AssistedExecutor
 from substrate.organism.worker_cell import WorkerCell
 from substrate.execution.pipeline import ExecutionPipeline
 
@@ -184,6 +188,27 @@ class OrganismDaemon:
             event_spine=self._event_spine,
         )
 
+        self._workload_runner = WorkloadRunner(
+            event_spine=self._event_spine,
+            execution_mode=self._execution_mode_manager,
+            leverage_metrics=self._leverage_metrics,
+            operator_compression=self._operator_compression,
+        )
+        self._automation_pipeline = AutomationPipeline(
+            operator_compression=self._operator_compression,
+            event_spine=self._event_spine,
+        )
+        self._maintenance_loop = MaintenanceLoop(
+            workload_runner=self._workload_runner,
+            execution_mode=self._execution_mode_manager,
+            event_spine=self._event_spine,
+        )
+        self._assisted_executor = AssistedExecutor(
+            execution_mode=self._execution_mode_manager,
+            event_spine=self._event_spine,
+            leverage_metrics=self._leverage_metrics,
+        )
+
         self._workcell_daemon = WorkcellDaemonV2(
             state_dir=str(self._state_dir / "workcell_daemon"),
         )
@@ -298,6 +323,14 @@ class OrganismDaemon:
         self._autonomous_tick.register_stage(
             "workload_probes",
             self._workload_probes.full_probe,
+        )
+        self._autonomous_tick.register_stage(
+            "maintenance_cycle",
+            self._maintenance_loop.maintenance_tick,
+        )
+        self._autonomous_tick.register_stage(
+            "automation_scan",
+            self._automation_pipeline.pipeline_tick,
         )
         self._autonomous_tick.register_stage(
             "projection_broadcast",
@@ -448,6 +481,22 @@ class OrganismDaemon:
     def workload_probes(self) -> WorkloadProbes:
         return self._workload_probes
 
+    @property
+    def workload_runner(self) -> WorkloadRunner:
+        return self._workload_runner
+
+    @property
+    def automation_pipeline(self) -> AutomationPipeline:
+        return self._automation_pipeline
+
+    @property
+    def maintenance_loop(self) -> MaintenanceLoop:
+        return self._maintenance_loop
+
+    @property
+    def assisted_executor(self) -> AssistedExecutor:
+        return self._assisted_executor
+
     def start(self) -> None:
         self._started = True
 
@@ -573,6 +622,10 @@ class OrganismDaemon:
             "operator_compression": self._operator_compression.to_dict(),
             "execution_mode": self._execution_mode_manager.to_dict(),
             "workload_probes": self._workload_probes.to_dict(),
+            "workload_runner": self._workload_runner.to_dict(),
+            "automation_pipeline": self._automation_pipeline.to_dict(),
+            "maintenance_loop": self._maintenance_loop.to_dict(),
+            "assisted_executor": self._assisted_executor.to_dict(),
             **self._advisor.organism_status(),
         }
         if self._graph is not None:
