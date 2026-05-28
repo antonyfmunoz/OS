@@ -1,7 +1,7 @@
 """
 OnboardingEngine — conversational onboarding for new EOS founders.
 
-A new founder runs !onboard in Discord. DEX asks 15 questions across
+A new founder runs !onboard in Discord. The AI asks 15 questions across
 6 topic areas. When all questions are answered the engine:
   1. Uses the LLM to extract structured business data from free-form answers
   2. Creates the BusinessInstance (BIS) in Neon via create_from_wizard()
@@ -269,7 +269,7 @@ class OnboardingEngine:
                 'monthly_revenue': revenue,
                 'founder_name':    data.get('founder_name', ''),
                 'north_star':      data.get('north_star', ''),
-                'ai_name':         data.get('ai_name', 'DEX'),
+                'ai_name':         data.get('ai_name', ''),
             }
 
             loop = asyncio.get_event_loop()
@@ -286,7 +286,7 @@ class OnboardingEngine:
         try:
             from substrate.control_plane.onboarding.setup_wizard import generate_ea_soul_doc
 
-            ai_name = data.get('ai_name', 'DEX') or 'DEX'
+            ai_name = data.get('ai_name', '') or 'AI'
             soul_doc = generate_ea_soul_doc(
                 ai_name=ai_name,
                 founder_name=data.get('founder_name', 'Founder'),
@@ -316,7 +316,7 @@ class OnboardingEngine:
 
     def get_completion_message(self, data: dict, results: dict) -> str:
         name       = data.get('founder_name', 'Founder')
-        ai_name    = data.get('ai_name', 'DEX') or 'DEX'
+        ai_name    = data.get('ai_name', '') or 'AI'
         stage      = data.get('stage', 1)
         company    = data.get('company_name', '')
         offer      = data.get('offer_name', '')

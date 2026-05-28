@@ -9,6 +9,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 import os
 from dotenv import load_dotenv
+from substrate.self_model import get_handler_prefix as _ghp
 
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 logger = logging.getLogger(__name__)
@@ -41,7 +42,7 @@ def add_important_date(
                 'notes': notes,
                 'added_at': datetime.now(PDT).isoformat(),
             },
-            handled_by='dex_personal',
+            handled_by=f'{_ghp()}personal',
         )
         return True
     except Exception as e:

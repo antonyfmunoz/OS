@@ -22,10 +22,14 @@ To add a new scene: declare a new `_scene(...)` entry below. Keep them tiny.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from substrate.execution.bridge.actions import ActionKind
+
+_GITHUB_USER = os.environ.get("GITHUB_USER", "")
+_GITHUB_URL = f"https://github.com/{_GITHUB_USER}" if _GITHUB_USER else ""
 
 
 @dataclass(frozen=True)
@@ -89,7 +93,7 @@ SCENE_REGISTRY: dict[str, Scene] = dict(
             "operator_mode",
             "Lightweight ops dashboard — audible ack + EOS operator URL.",
             SceneStep(ActionKind.SPEAK_TEXT, {"text": "Operator mode engaged."}),
-            SceneStep(ActionKind.OPEN_URL, {"url": "https://github.com/antonyfmunoz"}),
+            SceneStep(ActionKind.OPEN_URL, {"url": _GITHUB_URL}),
             preferred_control_mode="assisted",
             preferred_workspace="product",
         ),
@@ -98,7 +102,7 @@ SCENE_REGISTRY: dict[str, Scene] = dict(
             "Developer loadout — editor plus code host.",
             SceneStep(ActionKind.SPEAK_TEXT, {"text": "Builder mode engaged."}),
             SceneStep(ActionKind.LAUNCH_APP, {"app_id": "vscode"}),
-            SceneStep(ActionKind.OPEN_URL, {"url": "https://github.com/antonyfmunoz"}),
+            SceneStep(ActionKind.OPEN_URL, {"url": _GITHUB_URL}),
             preferred_control_mode="assisted",
             preferred_workspace="builder",
         ),
@@ -107,7 +111,7 @@ SCENE_REGISTRY: dict[str, Scene] = dict(
             "Full workstation bring-up — ops dashboard and builder loadout.",
             SceneStep(ActionKind.SPEAK_TEXT, {"text": "Full station bring-up."}),
             SceneStep(ActionKind.LAUNCH_APP, {"app_id": "vscode"}),
-            SceneStep(ActionKind.OPEN_URL, {"url": "https://github.com/antonyfmunoz"}),
+            SceneStep(ActionKind.OPEN_URL, {"url": _GITHUB_URL}),
             SceneStep(ActionKind.OPEN_URL, {"url": "https://www.notion.so"}),
             preferred_control_mode="assisted",
             preferred_tts_enabled=True,

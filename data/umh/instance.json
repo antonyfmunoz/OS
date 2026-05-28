@@ -1,0 +1,19 @@
+{
+  "ai_name": "DEX",
+  "founder_name": "Antony",
+  "org_id": "",
+  "org_name": "Munoz Conglomerate",
+  "active_venture_id": "lyfe_institute",
+  "active_venture_name": "Lyfe Institute",
+  "business_stage": "pre_revenue",
+  "node_id": "",
+  "node_role": "",
+  "ventures": [
+    {"id": "lyfe_institute", "name": "Lyfe Institute"},
+    {"id": "empyrean_studio", "name": "Empyrean Studio"}
+  ],
+  "products": [
+    {"id": "initiate_arena", "name": "Initiate Arena", "venture": "lyfe_institute"}
+  ],
+  "nodes": []
+}

@@ -1,8 +1,8 @@
 """
 Portfolio Advisor — board-level intelligence across all companies in the portfolio.
 
-Reasons across Lyfe Institute, Empyrean Creative, and any future org under
-the portfolio. Advises on capital allocation, cross-company patterns, and
+Reasons across all ventures in the portfolio. Advises on capital allocation,
+cross-company patterns, and
 north star trajectory. Does not execute. Thinks in quarters, not days.
 
 Also absorbs single-user venture health scanning (formerly PortfolioAgent).
@@ -25,6 +25,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
+from substrate.self_model import get_handler_prefix as _ghp
 from substrate.state.context.context import EntrepreneurOSContext, load_context_from_env
 from substrate.state.storage.db import get_conn
 from substrate.contracts.agent_types import TaskType
@@ -48,10 +49,18 @@ class VentureHealth:
 
 # ─── Org slug → human-readable name ──────────────────────────────────────────
 
-_ORG_NAMES: dict[str, str] = {
-    "lyfe_institute":   "Lyfe Institute",
-    "empyrean_creative": "Empyrean Creative",
-}
+def _load_org_names() -> dict[str, str]:
+    """Load venture slug-to-name mapping from instance config."""
+    try:
+        from substrate.self_model import self_model as _sm
+        if not _sm.instance.loaded:
+            _sm.load_instance()
+        return {v.get("id", ""): v.get("name", v.get("id", "")) for v in _sm.instance.ventures if v.get("id")}
+    except Exception:
+        return {}
+
+
+_ORG_NAMES: dict[str, str] = _load_org_names()
 
 
 class PortfolioAdvisor:
@@ -59,7 +68,8 @@ class PortfolioAdvisor:
     def __init__(self, ctx: EntrepreneurOSContext) -> None:
         self.ctx     = ctx
         self._runtime = AgentRuntime()
-        self._portfolio_name: str = "Munoz Holdings Portfolio"
+        _org_name = os.environ.get("UMH_ORG_NAME", "") or "Portfolio"
+        self._portfolio_name: str = f"{_org_name} Portfolio" if _org_name != "Portfolio" else "Portfolio"
         self._north_star: str     = "$100K/month net profit across portfolio"
         self._orgs: list[dict]    = []   # [{id, name, slug, ventures: [...]}]
         self._load_portfolio()
@@ -382,12 +392,12 @@ trajectory of the next 90 days.]"""
             with _get_conn(self.ctx.org_id) as _cur:
                 _cur.execute(
                     """SELECT payload_json FROM events
-                       WHERE org_id = %s AND event_type = 'dex_task'
+                       WHERE org_id = %s AND event_type = %s
                        AND (payload_json->>'status' IS NULL
                             OR payload_json->>'status' = 'pending')
                        AND created_at >= NOW() - INTERVAL '7 days'
                        ORDER BY created_at DESC LIMIT 10""",
-                    (str(self.ctx.org_id),),
+                    (str(self.ctx.org_id), f"{_ghp()}task"),
                 )
                 _task_rows = _cur.fetchall()
             _tasks = []
@@ -405,7 +415,7 @@ trajectory of the next 90 days.]"""
                 _drip_lines = [
                     "**🔍 Task Yield Scan — this week's tasks:**",
                     f'• ⚡ Produce (genius zone): {_produce_count}',
-                    f'• 🤖 Delegate to DEX: {_delegate_count}',
+                    f'• 🤖 Delegate to {os.environ.get("AI_NAME", "AI")}: {_delegate_count}',
                 ]
                 if _delegate_count > 0:
                     _drip_lines.append(

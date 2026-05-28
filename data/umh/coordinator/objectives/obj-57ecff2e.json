@@ -1,0 +1,24 @@
+{
+  "id": "obj-57ecff2e",
+  "title": "test",
+  "status": "completed",
+  "completion_rate": 1.0,
+  "work_units": [
+    {
+      "id": "wu-5a96be85",
+      "objective_id": "obj-57ecff2e",
+      "title": "test",
+      "unit_type": "review",
+      "status": "completed",
+      "assigned_runtime": "fake",
+      "required_capability": "code_review",
+      "blocked_by": [],
+      "blocks": [],
+      "attempt_count": 1,
+      "generation": 1,
+      "result": "done",
+      "error": ""
+    }
+  ],
+  "generation": 1
+}

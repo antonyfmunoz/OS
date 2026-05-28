@@ -30,6 +30,7 @@ if _REPO_ROOT not in sys.path:
 
 import discord
 
+from substrate.execution.bridge.claude_session_bridge import make_session_name as _msn
 from substrate.execution.bridge.session_watcher import (
     SessionState,
     WatcherEvent,
@@ -47,8 +48,8 @@ _NOTIFY_CHANNEL_NAME = os.getenv("EOS_WATCHER_CHANNEL", "agent-activity")
 # Per-session channel routing (session_name → channel ID)
 _BUILDER_CHANNEL_ID = os.getenv("EOS_DISCORD_BUILDER_CHANNELS", "")
 _PRODUCT_CHANNEL_ID = os.getenv("EOS_DISCORD_PRODUCT_CHANNELS", "")
-_BUILDER_SESSION = os.getenv("EOS_DISCORD_BUILDER_SESSION", "dex_builder_main")
-_PRODUCT_SESSION = os.getenv("EOS_DISCORD_PRODUCT_SESSION", "dex_product_main")
+_BUILDER_SESSION = os.getenv("EOS_DISCORD_BUILDER_SESSION") or _msn("builder", "main")
+_PRODUCT_SESSION = os.getenv("EOS_DISCORD_PRODUCT_SESSION") or _msn("product", "main")
 
 # Max chars for plan/question text in Discord messages
 _MAX_DISPLAY_CHARS = 1500

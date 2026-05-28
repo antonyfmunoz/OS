@@ -721,6 +721,31 @@ async def organism_deliverables(agent_id: str | None = None, limit: int = 50):
     return daemon.store.list_deliverables(agent_id=agent_id, limit=limit)
 
 
+@router.get("/organism/events")
+async def organism_events(limit: int = 50, since: float | None = None):
+    daemon = _get_organism()
+    if daemon is None:
+        return {"events": [], "count": 0, "transport": "polling"}
+    spine = daemon.event_spine
+    if since is not None:
+        events = spine.replay(since=since)[-limit:]
+    else:
+        events = spine.recent(limit=limit)
+    return {
+        "events": [e.to_dict() for e in events],
+        "count": len(events),
+        "transport": "polling",
+    }
+
+
+@router.get("/organism/tick")
+async def organism_tick_status():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"running": False}
+    return daemon.autonomous_tick.to_dict()
+
+
 @router.post("/organism/signal")
 async def organism_signal(payload: dict):
     daemon = _get_organism()

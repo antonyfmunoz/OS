@@ -56,7 +56,7 @@ def _notify(text: str) -> None:
 
 
 def _send_discord_webhook(
-    env_var: str, content: str, title: str = "", username: str = "DEX"
+    env_var: str, content: str, title: str = "", username: str = ""
 ) -> None:
     """Post to a Discord channel via incoming webhook URL stored in env."""
     from substrate.sockets.notification import notify_webhook
@@ -448,7 +448,7 @@ def run_full_morning_cycle(ctx: EntrepreneurOSContext, return_content: bool = Fa
                 env_var="DISCORD_BRIEF_WEBHOOK",
                 content=_evo_changes["message"],
                 title="Stage Transition",
-                username="DEX",
+                username="",
             )
         print(
             f"[Orchestrator] CEO evolution check done. "
@@ -601,7 +601,7 @@ def run_full_morning_cycle(ctx: EntrepreneurOSContext, return_content: bool = Fa
             env_var="DISCORD_BRIEF_WEBHOOK",
             content=f"☀️ **Morning Brief ready**\n{notion_url}",
             title="Morning Brief",
-            username="DEX",
+            username="",
         )
     else:
         # Fallback: send summary if Notion failed
@@ -609,7 +609,7 @@ def run_full_morning_cycle(ctx: EntrepreneurOSContext, return_content: bool = Fa
             env_var="DISCORD_BRIEF_WEBHOOK",
             content=message[:1800],
             title="☀️ MORNING BRIEF",
-            username="DEX",
+            username="",
         )
 
     # 8b. Proactive intelligence — send unsolicited alerts if conditions are met
@@ -881,7 +881,7 @@ def run_ceo_morning_delegation(
                     env_var="DISCORD_BRIEF_WEBHOOK",
                     content=f"🏢 **CEO Delegation ready**\n{notion_url}",
                     title="CEO Delegation",
-                    username="DEX",
+                    username="",
                 )
             else:
                 # Fallback: send summary if Notion failed
@@ -895,7 +895,7 @@ def run_ceo_morning_delegation(
                     env_var="DISCORD_BRIEF_WEBHOOK",
                     content=msg[:1900],
                     title="CEO Delegation",
-                    username="DEX",
+                    username="",
                 )
         except Exception as e:
             print(f"[CEOMorning] Discord alert failed: {e}")
@@ -1164,15 +1164,15 @@ async def generate_morning_brief(ctx: EntrepreneurOSContext) -> str:
         )
         _insight_text = _insight_result.get("output", "")
         if _insight_text:
-            brief += f"\n━━━━━━━━━━━━━━━━━━━━━━\n💡 **DEX says:**\n{_insight_text}"
+            brief += f"\n━━━━━━━━━━━━━━━━━━━━━━\n💡 **{_ai_name} says:**\n{_insight_text}"
     except Exception:
         brief += (
             f"\n━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"💡 **DEX says:**\n"
+            f"💡 **{_ai_name} says:**\n"
             f"Send 20 DMs today. That is the only metric that matters."
         )
 
-    brief += f"\n\n— DEX"
+    brief += f"\n\n— {_ai_name}"
     return brief
 
 
@@ -1499,7 +1499,7 @@ class EntrepreneurOSOrchestrator:
         )
         print(f"[Orchestrator] North star:\n{ns_lines}")
 
-        # Email GPS — 6am inbox processing pass (DEX handles email before Antony)
+        # Email GPS — 6am inbox processing pass (AI handles email before founder)
         try:
             from adapters.google_workspace.email_gps import EmailGPS
             from substrate.state.context.context import load_context_from_env as _lcfe

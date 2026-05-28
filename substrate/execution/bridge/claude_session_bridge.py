@@ -74,20 +74,20 @@ _MAX_POLL_INTERVAL_S = 5.0
 # ─── Session → persona soul-doc mapping ──────────────────────────────────────
 # When claude is launched inside a session, an optional soul-doc path can be
 # appended to the default system prompt via --append-system-prompt. This is
-# how dex_product_main gets EA persona instead of the developer CLAUDE.md.
+# how {ai}_product_main gets EA persona instead of the developer CLAUDE.md.
 #
-# Builder sessions (dex_builder_main) deliberately have NO entry here — they
+# Builder sessions ({ai}_builder_main) deliberately have NO entry here — they
 # run bare `claude` and pick up /opt/OS/CLAUDE.md as the full developer
 # context. That is the correct behavior for the developer lane.
 #
-# Per-channel session names (dex_product_main_<channel_id>) are handled by
+# Per-channel session names ({ai}_product_main_<channel_id>) are handled by
 # _resolve_soul_doc() via prefix match, so the EOS_DISCORD_MODE_PER_CHANNEL
 # feature keeps working.
 #
 # Override at runtime with the env var:
 #   EOS_SESSION_SOUL_DOC__<session_name> = /absolute/path/to/doc.md
 _SESSION_SOUL_DOCS: dict[str, str] = {
-    "dex_product_main": f"{_ROOT}/agents/executive_assistant.md",
+    "product_main": f"{_ROOT}/agents/executive_assistant.md",
 }
 
 _SOUL_DOC_ENV_PREFIX = "EOS_SESSION_SOUL_DOC__"
@@ -210,19 +210,33 @@ def _sanitize_session_name(name: str) -> str:
         else:
             out.append(ch)
     cleaned = "".join(out).strip("_")
-    return cleaned or "dex_unnamed"
+    return cleaned or f"{_get_session_prefix()}unnamed"
+
+
+def _get_session_prefix() -> str:
+    """Derive session prefix from AI name at runtime."""
+    try:
+        from substrate.self_model import self_model
+        if self_model.instance.loaded and self_model.instance.ai_name:
+            return self_model.instance.ai_name.lower() + "_"
+    except Exception:
+        pass
+    import os
+    name = os.environ.get("AI_NAME", "")
+    if name:
+        return name.lower() + "_"
+    return "ai_"
 
 
 def make_session_name(kind: str, *parts: str) -> str:
     """Build a stable, tmux-safe session name.
 
-    Examples:
-      make_session_name("main")                  -> "dex_main"
-      make_session_name("discord", "123", "456") -> "dex_discord_123_456"
-      make_session_name("local", "main")         -> "dex_local_main"
+    Prefix is derived from AI name at runtime (e.g., "<ai>_main",
+    "aria_discord_123_456"). Falls back to "ai_" if no name set.
     """
+    prefix = _get_session_prefix()
     pieces = [str(kind)] + [str(p) for p in parts if p is not None and str(p) != ""]
-    raw = "dex_" + "_".join(pieces)
+    raw = prefix + "_".join(pieces)
     return _sanitize_session_name(raw)
 
 
@@ -273,7 +287,7 @@ def _resolve_soul_doc(session_name: str) -> str | None:
       1. Env override EOS_SESSION_SOUL_DOC__<session_name> (exact match)
       2. Exact match in _SESSION_SOUL_DOCS
       3. Prefix match against _SESSION_SOUL_DOCS keys (handles per-channel
-         suffixes like dex_product_main_1234567890)
+         suffixes like {ai}_product_main_1234567890)
 
     Returns an absolute path that is verified to exist, or None.
     Never raises.
@@ -286,14 +300,21 @@ def _resolve_soul_doc(session_name: str) -> str | None:
             return env_val
         return None
 
-    # 2. Exact match
-    if session_name in _SESSION_SOUL_DOCS:
-        path = _SESSION_SOUL_DOCS[session_name]
-        return path if os.path.isfile(path) else None
+    # 2. Strip AI name prefix for lookup (e.g., "<ai>_product_main" → "product_main")
+    prefix = _get_session_prefix()
+    stripped = session_name
+    if prefix and session_name.startswith(prefix):
+        stripped = session_name[len(prefix):]
 
-    # 3. Prefix match (per-channel variants: dex_product_main_<channel_id>)
+    # 3. Exact match (with or without prefix)
+    for candidate in (session_name, stripped):
+        if candidate in _SESSION_SOUL_DOCS:
+            path = _SESSION_SOUL_DOCS[candidate]
+            return path if os.path.isfile(path) else None
+
+    # 4. Prefix match (per-channel variants: <ai>_product_main_<channel_id>)
     for base_name, path in _SESSION_SOUL_DOCS.items():
-        if session_name.startswith(base_name + "_"):
+        if stripped.startswith(base_name + "_") or session_name.startswith(base_name + "_"):
             return path if os.path.isfile(path) else None
 
     return None
@@ -400,7 +421,7 @@ def list_sessions(target: str | None = None) -> dict[str, Any]:
     """List tmux sessions visible on this machine.
 
     If target is provided, the payload will include it as metadata and filter
-    to sessions whose names start with the dex_ prefix. All sessions are
+    to sessions whose names start with the AI name prefix. All sessions are
     still reported under "all_sessions" for observability.
     """
     tmux_env = detect_tmux_available()
@@ -416,12 +437,13 @@ def list_sessions(target: str | None = None) -> dict[str, Any]:
             "version": LAYER_VERSION,
         }
     all_sessions = _tmux_list_sessions()
-    dex_sessions = [s for s in all_sessions if s["session_name"].startswith("dex_")]
+    _prefix = _get_session_prefix()
+    ai_sessions = [s for s in all_sessions if s["session_name"].startswith(_prefix)]
     return {
         "ok": True,
         "target": target or default_session_target(),
         "available": True,
-        "sessions": dex_sessions,
+        "sessions": ai_sessions,
         "all_sessions": all_sessions,
         "node_id": _current_node_id(),
         "layer": LAYER_NAME,
@@ -553,7 +575,7 @@ def ensure_session(
         cli = detect_claude_cli_available()
         if cli.get("available"):
             # Build the launch command. For sessions with a persona mapping
-            # (e.g. dex_product_main → executive_assistant.md) this appends
+            # (e.g. {ai}_product_main → executive_assistant.md) this appends
             # the soul doc via --append-system-prompt. Builder sessions get
             # a bare `claude` and pick up /opt/OS/CLAUDE.md as usual.
             launch_cmd, soul_doc_used = _build_claude_launch_cmd(session_name)

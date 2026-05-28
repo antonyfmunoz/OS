@@ -31,6 +31,8 @@ Honest boundaries:
 
 from __future__ import annotations
 
+import os
+
 import json
 import socket
 import urllib.error
@@ -40,7 +42,7 @@ from urllib.parse import urlparse
 
 from .models import SourceRef, SourceTier
 
-USER_AGENT = "EOS-ToolMasteryResearchAgent/1.0 (+https://github.com/antonyfmunoz/OS)"
+USER_AGENT = f"UMH-ToolMasteryResearchAgent/1.0 (+https://github.com/{os.environ.get('GITHUB_USER', 'umh')}/OS)"
 TIMEOUT_SECONDS = 15
 
 # Cap expanded file count per repo. The fetcher's default budget is 20;

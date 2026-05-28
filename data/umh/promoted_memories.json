@@ -1,0 +1,162 @@
+[
+  {
+    "memory_id": "mem-p-1ce8c478ce76a095",
+    "candidate_id": "memcand-1ce8c478ce76a095",
+    "trace_id": "trace-585fb5c84b8bd8e5",
+    "content": "Signal: Audit cognitive_loop.py for state mutations outside canonical paths | Result: {'command': \"echo 'Researcher task: Audit cognitive_loop.py for state mutations outside canonical paths'\", 'returncode': 0, 'stdout': 'Researcher task: Audit cognitive_loop.py for state mutations outs | Output: {'command': \"echo 'Researcher task: Audit cognitive_loop.py for state mutations outside canonical paths'\", 'returncode': 0, 'stdout': 'Researcher task: Audit cognitive_loop.py for state mutations outs",
+    "confidence": 0.7,
+    "scope": "session",
+    "tags": [
+      "auto-generated",
+      "success"
+    ],
+    "content_hash": "90ebe351029a4c3c",
+    "promoted_at": 1779911448,
+    "last_confirmed": 1779911448,
+    "confirmation_count": 1
+  },
+  {
+    "memory_id": "mem-p-1b05685dacd08508",
+    "candidate_id": "memcand-1b05685dacd08508",
+    "trace_id": "trace-7f0f5053c6bdfdf2",
+    "content": "Signal: echo hello | Result: {'command': 'echo hello', 'returncode': 0, 'stdout': 'hello\\n', 'stderr': '', 'success': True} | Output: {'command': 'echo hello', 'returncode': 0, 'stdout': 'hello\\n', 'stderr': '', 'success': True}",
+    "confidence": 0.7,
+    "scope": "session",
+    "tags": [
+      "auto-generated",
+      "success"
+    ],
+    "content_hash": "a212bfe623469a19",
+    "promoted_at": 1779911448,
+    "last_confirmed": 1779911448,
+    "confirmation_count": 1
+  },
+  {
+    "memory_id": "mem-p-1dd38b34a089e9f7",
+    "candidate_id": "memcand-1dd38b34a089e9f7",
+    "trace_id": "trace-0a2751658798442b",
+    "content": "Signal: echo test | Result: {'command': 'echo test', 'returncode': 0, 'stdout': 'test\\n', 'stderr': '', 'success': True} | Output: {'command': 'echo test', 'returncode': 0, 'stdout': 'test\\n', 'stderr': '', 'success': True}",
+    "confidence": 0.7,
+    "scope": "session",
+    "tags": [
+      "auto-generated",
+      "success"
+    ],
+    "content_hash": "d3fe5a8f5f83bfbb",
+    "promoted_at": 1779911448,
+    "last_confirmed": 1779911448,
+    "confirmation_count": 1
+  },
+  {
+    "memory_id": "mem-p-6118489eed54f7e0",
+    "candidate_id": "memcand-6118489eed54f7e0",
+    "trace_id": "trace-0458c56b28631237",
+    "content": "Signal: echo status | Result: {'command': 'echo status', 'returncode': 0, 'stdout': 'status\\n', 'stderr': '', 'success': True} | Output: {'command': 'echo status', 'returncode': 0, 'stdout': 'status\\n', 'stderr': '', 'success': True}",
+    "confidence": 0.7,
+    "scope": "session",
+    "tags": [
+      "auto-generated",
+      "success"
+    ],
+    "content_hash": "6140ff3637cdf1d7",
+    "promoted_at": 1779911448,
+    "last_confirmed": 1779911448,
+    "confirmation_count": 1
+  },
+  {
+    "memory_id": "mem-p-0bc9eefe18fbf8b4",
+    "candidate_id": "memcand-0bc9eefe18fbf8b4",
+    "trace_id": "trace-ba5766a925de3a3a",
+    "content": "Signal: Audit the services/umh/organism/ directory for any missing __init__.py files | Result: {'command': \"echo 'Researcher task: Audit the services/umh/organism/ directory for any missing __init__.py files'\", 'returncode': 0, 'stdout': 'Researcher task: Audit the services/umh/organism/ direct | Output: {'command': \"echo 'Researcher task: Audit the services/umh/organism/ directory for any missing __init__.py files'\", 'returncode': 0, 'stdout': 'Researcher task: Audit the services/umh/organism/ direct",
+    "confidence": 0.7,
+    "scope": "session",
+    "tags": [
+      "auto-generated",
+      "success"
+    ],
+    "content_hash": "eefe75d6ad46314d",
+    "promoted_at": 1779911499,
+    "last_confirmed": 1779911499,
+    "confirmation_count": 1
+  },
+  {
+    "memory_id": "mem-p-703854003caa6024",
+    "candidate_id": "memcand-703854003caa6024",
+    "trace_id": "trace-692d21c8374a1e5f",
+    "content": "Signal: Check for unused imports in app.py | Result: {'command': \"echo 'Researcher task: Check for unused imports in app.py'\", 'returncode': 0, 'stdout': 'Researcher task: Check for unused imports in app.py\\n', 'stderr': '', 'success': True} | Output: {'command': \"echo 'Researcher task: Check for unused imports in app.py'\", 'returncode': 0, 'stdout': 'Researcher task: Check for unused imports in app.py\\n', 'stderr': '', 'success': True}",
+    "confidence": 0.7,
+    "scope": "session",
+    "tags": [
+      "auto-generated",
+      "success"
+    ],
+    "content_hash": "f4a662cca1d753a2",
+    "promoted_at": 1779911548,
+    "last_confirmed": 1779911548,
+    "confirmation_count": 1
+  },
+  {
+    "memory_id": "mem-p-5183163c1e414834",
+    "candidate_id": "memcand-5183163c1e414834",
+    "trace_id": "trace-417dd87899be2c29",
+    "content": "Signal: Search for TODO comments in the codebase | Result: {'command': \"echo 'Researcher task: Search for TODO comments in the codebase'\", 'returncode': 0, 'stdout': 'Researcher task: Search for TODO comments in the codebase\\n', 'stderr': '', 'success': True} | Output: {'command': \"echo 'Researcher task: Search for TODO comments in the codebase'\", 'returncode': 0, 'stdout': 'Researcher task: Search for TODO comments in the codebase\\n', 'stderr': '', 'success': True}",
+    "confidence": 0.7,
+    "scope": "session",
+    "tags": [
+      "auto-generated",
+      "success"
+    ],
+    "content_hash": "f283dda70bc20f3c",
+    "promoted_at": 1779911598,
+    "last_confirmed": 1779911598,
+    "confirmation_count": 1
+  },
+  {
+    "memory_id": "mem-p-d235fb827bbaeac9",
+    "candidate_id": "memcand-d235fb827bbaeac9",
+    "trace_id": "trace-16481b0d32fb1a08",
+    "content": "Signal: List all Python files in services/umh/ | Result: {'command': \"echo 'Researcher task: List all Python files in services/umh/'\", 'returncode': 0, 'stdout': 'Researcher task: List all Python files in services/umh/\\n', 'stderr': '', 'success': True} | Output: {'command': \"echo 'Researcher task: List all Python files in services/umh/'\", 'returncode': 0, 'stdout': 'Researcher task: List all Python files in services/umh/\\n', 'stderr': '', 'success': True}",
+    "confidence": 0.7,
+    "scope": "session",
+    "tags": [
+      "auto-generated",
+      "success"
+    ],
+    "content_hash": "a1866f78df3d9579",
+    "promoted_at": 1779911650,
+    "last_confirmed": 1779911650,
+    "confirmation_count": 1
+  },
+  {
+    "memory_id": "mem-p-0787e65ef6869bd4",
+    "candidate_id": "memcand-0787e65ef6869bd4",
+    "trace_id": "trace-c7e254e4cd99fce6",
+    "content": "Signal: List files | Result: {'command': \"echo 'Researcher task: List files'\", 'returncode': 0, 'stdout': 'Researcher task: List files\\n', 'stderr': '', 'success': True} | Output: {'command': \"echo 'Researcher task: List files'\", 'returncode': 0, 'stdout': 'Researcher task: List files\\n', 'stderr': '', 'success': True}",
+    "confidence": 0.7,
+    "scope": "session",
+    "tags": [
+      "auto-generated",
+      "success"
+    ],
+    "content_hash": "cb552e61000a9915",
+    "promoted_at": 1779911701,
+    "last_confirmed": 1779911701,
+    "confirmation_count": 1
+  },
+  {
+    "memory_id": "mem-p-f197828c2110d4cc",
+    "candidate_id": "memcand-f197828c2110d4cc",
+    "trace_id": "trace-4403c5b1c9f4f7af",
+    "content": "Signal: search for files | Result: {'command': \"echo 'Researcher task: search for files'\", 'returncode': 0, 'stdout': 'Researcher task: search for files\\n', 'stderr': '', 'success': True} | Output: {'command': \"echo 'Researcher task: search for files'\", 'returncode': 0, 'stdout': 'Researcher task: search for files\\n', 'stderr': '', 'success': True}",
+    "confidence": 0.7,
+    "scope": "session",
+    "tags": [
+      "auto-generated",
+      "success"
+    ],
+    "content_hash": "f1a06756633c4294",
+    "promoted_at": 1779920930,
+    "last_confirmed": 1779920930,
+    "confirmation_count": 1
+  }
+]

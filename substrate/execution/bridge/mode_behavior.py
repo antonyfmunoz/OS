@@ -25,6 +25,7 @@ Modes
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 from typing import Optional
@@ -58,8 +59,9 @@ _PRODUCT_STRIP_PATTERNS: list[re.Pattern[str]] = [
         r"\b(?:cognitive[_-]loop|agent[_-]runtime|gateway\.py)\b", re.IGNORECASE
     ),
     re.compile(
-        r"\b(?:dex[_-]\w+)\b", re.IGNORECASE
-    ),  # session names like dex_builder_main
+        r"\b(?:" + re.escape(os.environ.get("AI_NAME", "ai").lower()) + r"[_-]\w+)\b",
+        re.IGNORECASE,
+    ),
     # Infrastructure
     re.compile(r"\b(?:backend\s*#?\d*|responder[_-]backend)\b", re.IGNORECASE),
     re.compile(r"\b(?:tmux[_-]session|session[_-]bridge)\b", re.IGNORECASE),
@@ -107,7 +109,8 @@ def _mask_internal_refs(text: str) -> str:
     (not when it's part of actual code output the user asked for).
     """
     # Replace session name references
-    text = re.sub(r"\bdex_\w+\b", "session", text, flags=re.IGNORECASE)
+    _ai = re.escape(os.environ.get("AI_NAME", "ai").lower())
+    text = re.sub(rf"\b{_ai}_\w+\b", "session", text, flags=re.IGNORECASE)
     # Replace provider chain references
     text = re.sub(
         r"\b(?:provider[_-]chain|fallback[_-]chain)\b",

@@ -3,7 +3,7 @@ Person Recognition — central module for identifying known people
 across all channels: email, Discord, Calendly, Calendar.
 
 Recognition protocol: never auto-respond to a recognized person with
-a template. Route to ANTONY immediately. Flag it.
+a template. Route to the founder immediately. Flag it.
 """
 
 import os
@@ -54,7 +54,7 @@ def create_lead_file(
 - **status:** Active
 
 ## Notes
-{notes or 'Auto-created by DEX person recognition.'}
+{notes or 'Auto-created by AI person recognition.'}
 
 ## Interaction Log
 - {now.strftime('%Y-%m-%d')} — Lead created automatically via {source}
@@ -387,8 +387,10 @@ def build_intelligence_profile(
                 router = get_router()
                 model = router.route(TaskType.ANALYSIS)
 
+                _ai_name = os.environ.get("AI_NAME", "AI")
+                _founder_name = os.environ.get("UMH_FOUNDER_NAME", "the founder")
                 synthesis_prompt = (
-                    f'You are DEX, EA to Antony Munoz.\n'
+                    f'You are {_ai_name}, EA to {_founder_name}.\n'
                     f'Build a human intelligence profile for {name} based on all available context.\n\n'
                     f'Available context:\n{raw_context}\n\n'
                     f'Meeting history:\n{profile.relationship_history}\n\n'
@@ -400,7 +402,7 @@ def build_intelligence_profile(
                     f'  "concerns": ["list", "of", "likely", "concerns"],\n'
                     f'  "preferences": ["list", "of", "known", "preferences"],\n'
                     f'  "deal_stage": "current deal stage if applicable",\n'
-                    f'  "notes": "key insight for Antony in one sentence"\n'
+                    f'  "notes": "key insight for the founder in one sentence"\n'
                     f'}}'
                 )
 

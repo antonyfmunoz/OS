@@ -7,6 +7,7 @@ import json
 import logging
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
+from substrate.self_model import get_handler_prefix as _ghp
 
 logger = logging.getLogger(__name__)
 PDT = ZoneInfo('America/Los_Angeles')
@@ -71,7 +72,7 @@ def add_subscription(
                 'notes': notes,
                 'added_at': datetime.now(PDT).isoformat(),
             },
-            handled_by='dex_subscriptions',
+            handled_by=f'{_ghp()}subscriptions',
         )
         return True
     except Exception as e:

@@ -289,12 +289,12 @@ _CORE_SKILLS: list[SkillV2] = [
         name='Playbook: New Inbound Lead',
         domain=SkillDomain.OPERATIONS,
         purpose='Handle every new inbound lead from any channel with a consistent, world-class response that qualifies, captures, and advances the relationship.',
-        when_to_use='Any time a new person expresses interest in any Munoz Conglomerate venture for the first time.',
+        when_to_use='Any time a new person expresses interest in any portfolio venture for the first time.',
         inputs=['person_name', 'email', 'source', 'venture', 'message_content'],
         outputs=['lead_file_created', 'draft_response_queued', 'followup_task_created', 'notion_pipeline_updated'],
         process=(
             'Run person recognition. '
-            'If known → ANTONY folder, stop. '
+            'If known → FOUNDER folder, stop. '
             'If new → create lead file, research sender, classify intent, '
             'draft venture-appropriate response, queue for approval, '
             'create 48h follow-up task, log to Neon, update Notion pipeline.'
@@ -306,13 +306,13 @@ _CORE_SKILLS: list[SkillV2] = [
         id='playbook_investor_inquiry',
         name='Playbook: Investor Inquiry',
         domain=SkillDomain.EXECUTIVE,
-        purpose='Handle inbound investor interest or outreach with appropriate gravity — never auto-respond, always escalate to Antony.',
+        purpose='Handle inbound investor interest or outreach with appropriate gravity — never auto-respond, always escalate to the founder.',
         when_to_use='Any message signaling investor intent: fund, portfolio, term sheet, cap table, due diligence, interested in investing.',
         inputs=['sender_name', 'sender_company', 'message_content', 'source'],
-        outputs=['antony_folder_routed', 'discord_alert_sent', 'research_brief', 'holding_response_queued'],
+        outputs=['founder_folder_routed', 'discord_alert_sent', 'research_brief', 'holding_response_queued'],
         process=(
             'Run person recognition. '
-            'Route to ANTONY folder regardless of status. '
+            'Route to FOUNDER folder regardless of status. '
             'Alert Discord with full context. '
             'Research sender and fund. '
             'Draft holding response. '
@@ -337,7 +337,7 @@ _CORE_SKILLS: list[SkillV2] = [
             'Apply quick filter: ICP alignment, clear value exchange, sender credibility. '
             'If spam → NEWSLETTERS, no response. '
             'If relevant → draft qualifying response, queue, Discord flag. '
-            'If high-signal → ANTONY folder with research brief.'
+            'If high-signal → FOUNDER folder with research brief.'
         ),
         trust_level=TrustLevel.ASSIST,
         tools_required=['model_router', 'person_recognition', 'email_gps', 'discord_utils'],
@@ -346,18 +346,18 @@ _CORE_SKILLS: list[SkillV2] = [
         id='playbook_client_issue',
         name='Playbook: Client Issue or Complaint',
         domain=SkillDomain.OPERATIONS,
-        purpose='Handle client complaints or issues with urgency, empathy, and professionalism — protect the relationship while keeping Antony informed.',
+        purpose='Handle client complaints or issues with urgency, empathy, and professionalism — protect the relationship while keeping the founder informed.',
         when_to_use='Any message from an existing client expressing dissatisfaction, reporting a problem, requesting a refund, or threatening to leave.',
         inputs=['sender_name', 'client_status', 'issue_type', 'message_content'],
-        outputs=['antony_folder_routed', 'discord_urgent_alert', 'context_brief', 'response_drafted_on_instruction'],
+        outputs=['founder_folder_routed', 'discord_urgent_alert', 'context_brief', 'response_drafted_on_instruction'],
         process=(
             'Run person recognition. '
             'If not confirmed client → standard flow. '
-            'If confirmed client → ANTONY folder immediately, '
+            'If confirmed client → FOUNDER folder immediately, '
             'Discord urgent alert, do not draft yet, '
             'research purchase history and prior issues, '
             'prepare context brief. '
-            'Draft response only when Antony instructs.'
+            'Draft response only when the founder instructs.'
         ),
         trust_level=TrustLevel.OBSERVE,
         tools_required=['model_router', 'person_recognition', 'email_gps', 'discord_utils', 'neon_db'],
@@ -374,7 +374,7 @@ _CORE_SKILLS: list[SkillV2] = [
             'Research show/event and host. '
             'Estimate audience size and alignment. '
             'Apply qualification criteria: audience >10K, brand alignment, known host, or paid. '
-            'If qualified → flag to Antony with research brief, draft holding response. '
+            'If qualified → flag to the founder with research brief, draft holding response. '
             'If not → draft polite decline, queue for approval.'
         ),
         trust_level=TrustLevel.ASSIST,
@@ -394,7 +394,7 @@ _CORE_SKILLS: list[SkillV2] = [
             'Draft recovery email with reschedule link. '
             'Queue for approval. '
             'Create 48h follow-up task. '
-            'If second no-show → flag to Antony, do not auto-reschedule.'
+            'If second no-show → flag to the founder, do not auto-reschedule.'
         ),
         trust_level=TrustLevel.ASSIST,
         tools_required=['model_router', 'email_gps', 'meetings'],
@@ -404,7 +404,7 @@ _CORE_SKILLS: list[SkillV2] = [
         name='Playbook: Deal Closed',
         domain=SkillDomain.OPERATIONS,
         purpose='Execute the full deal-closed workflow — celebrate, onboard, document, and set the relationship up for success.',
-        when_to_use='When a lead confirms they are in, payment is received, or Antony marks a deal closed in Discord or Notion.',
+        when_to_use='When a lead confirms they are in, payment is received, or the founder marks a deal closed in Discord or Notion.',
         inputs=['client_name', 'client_email', 'venture', 'amount', 'payment_confirmed', 'onboarding_steps'],
         outputs=['notion_pipeline_updated', 'wins_discord_post', 'welcome_email_queued', 'onboarding_tasks_created', 'revenue_event_logged'],
         process=(
@@ -425,15 +425,15 @@ _CORE_SKILLS: list[SkillV2] = [
         name='Playbook: Job Inquiry',
         domain=SkillDomain.OPERATIONS,
         purpose='Handle inbound job applications or hiring inquiries appropriately — not dismissively, but efficiently.',
-        when_to_use='Any email or message about working for, joining, or collaborating with any Munoz Conglomerate venture.',
+        when_to_use='Any email or message about working for, joining, or collaborating with any portfolio venture.',
         inputs=['sender_name', 'sender_background', 'inquiry_type', 'message_content'],
         outputs=['routed_appropriately', 'discord_flag_if_interesting', 'holding_response_queued_if_relevant'],
         process=(
             'Classify: active candidate vs speculative inquiry. '
             'Research sender background quickly. '
             'If unqualified or spam → file, no response. '
-            'If potentially interesting → flag to Antony with sender brief, draft holding response. '
-            'If Antony proceeds → schedule intro call.'
+            'If potentially interesting → flag to the founder with sender brief, draft holding response. '
+            'If the founder proceeds → schedule intro call.'
         ),
         trust_level=TrustLevel.ASSIST,
         tools_required=['model_router', 'person_recognition', 'email_gps', 'discord_utils'],
@@ -445,10 +445,10 @@ _CORE_SKILLS: list[SkillV2] = [
         purpose='Handle inbound contracts, NDAs, service agreements, and vendor documents with appropriate caution.',
         when_to_use='Any email containing an attached contract, NDA, service agreement, invoice, or legal document.',
         inputs=['sender_name', 'sender_company', 'document_type', 'attachment', 'deadline'],
-        outputs=['antony_folder_routed', 'discord_alert_with_summary', 'attachment_saved_to_drive'],
+        outputs=['founder_folder_routed', 'discord_alert_with_summary', 'attachment_saved_to_drive'],
         process=(
             'Identify document type. '
-            'Route to ANTONY folder immediately. '
+            'Route to FOUNDER folder immediately. '
             'Alert Discord with document type, sender, key terms, and deadline. '
             'Save attachment to Drive: /Legal/Pending_Review/. '
             'Extract key terms: parties, obligations, financial terms, termination, deadlines. '
@@ -462,14 +462,14 @@ _CORE_SKILLS: list[SkillV2] = [
         name='Communication Templates Library',
         domain=SkillDomain.OPERATIONS,
         purpose='Pre-approved, voice-matched response templates for every common communication scenario.',
-        when_to_use='Any time DEX needs to draft a response and a standard scenario applies.',
+        when_to_use='Any time the AI needs to draft a response and a standard scenario applies.',
         inputs=['scenario', 'recipient_name', 'context_fields'],
         outputs=['personalized_draft_ready_for_approval'],
         process=(
             'Identify scenario from template library. '
             'Select matching template. '
             'Personalize all bracketed fields. '
-            'Review for Antony voice: direct, warm, no corporate speak, clear next step. '
+            'Review for the founder voice: direct, warm, no corporate speak, clear next step. '
             'Queue for approval.'
         ),
         trust_level=TrustLevel.ASSIST,
