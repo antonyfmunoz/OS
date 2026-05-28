@@ -53,17 +53,27 @@ def _is_private_ip(ip: str) -> bool:
         return False
 
 
-def _dev_bypass_allowed(request: Request) -> bool:
-    """Allow token-free access from private IPs when UMH_DEV_BYPASS=true.
+def _real_client_ip(request: Request) -> str:
+    """Return the real client IP, accounting for trusted reverse proxies.
 
-    Safe because request.client.host is the TCP source (not X-Forwarded-For),
-    and we do NOT enable ProxyHeadersMiddleware, so this cannot be spoofed
-    through Caddy or any reverse proxy.
+    When Caddy forwards a request, request.client.host is the proxy's IP
+    (127.0.0.1 / Docker bridge).  Caddy sets X-Forwarded-For to the actual
+    client.  We trust X-Forwarded-For ONLY when the TCP source is itself a
+    private IP — public TCP sources cannot spoof the header.
     """
+    tcp_ip = request.client.host if request.client else ""
+    if _is_private_ip(tcp_ip):
+        forwarded = request.headers.get("x-forwarded-for", "")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+    return tcp_ip
+
+
+def _dev_bypass_allowed(request: Request) -> bool:
+    """Allow token-free access from private IPs when UMH_DEV_BYPASS=true."""
     if not _DEV_BYPASS:
         return False
-    client_ip = request.client.host if request.client else ""
-    return _is_private_ip(client_ip)
+    return _is_private_ip(_real_client_ip(request))
 
 
 _RATE_LIMITS: dict[str, dict[str, float]] = {}
@@ -110,14 +120,14 @@ async def _require_operator_role(
 
     if not _OPERATOR_TOKEN:
         if _dev_bypass_allowed(request):
-            logger.info("Operator dev-bypass from private IP %s", request.client.host if request.client else "?")
+            logger.info("Operator dev-bypass from private IP %s", _real_client_ip(request))
             return "operator-dev-bypass"
         raise HTTPException(status_code=503, detail="Operator token not configured — set UMH_OPERATOR_TOKEN")
 
     if not operator_token or not _hmac.compare_digest(operator_token, _OPERATOR_TOKEN):
         logger.warning(
             "Unauthorized operator access attempt: %s %s from %s",
-            request.method, request.url.path, request.client.host if request.client else "unknown",
+            request.method, request.url.path, _real_client_ip(request),
         )
         raise HTTPException(status_code=403, detail="Operator token required for privileged actions")
 
@@ -2275,15 +2285,25 @@ def _extract_ws_token(ws: WebSocket) -> str:
     return ws.query_params.get("token", "")
 
 
+def _real_ws_client_ip(ws: WebSocket) -> str:
+    """Real client IP for WebSocket, same trusted-proxy logic as HTTP."""
+    tcp_ip = ws.client.host if ws.client else ""
+    if _is_private_ip(tcp_ip):
+        forwarded = ws.headers.get("x-forwarded-for", "")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+    return tcp_ip
+
+
 def _validate_ws_token(ws: WebSocket) -> bool:
     """Validate WS connection auth."""
     if not _WS_TOKEN:
-        client_ip = ws.client.host if ws.client else ""
+        client_ip = _real_ws_client_ip(ws)
         return _DEV_BYPASS and _is_private_ip(client_ip)
     token = _extract_ws_token(ws)
     if token and _hmac.compare_digest(token, _WS_TOKEN):
         return True
-    client_ip = ws.client.host if ws.client else ""
+    client_ip = _real_ws_client_ip(ws)
     if _DEV_BYPASS and _is_private_ip(client_ip):
         return True
     return False
