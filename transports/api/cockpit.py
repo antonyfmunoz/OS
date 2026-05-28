@@ -1760,6 +1760,14 @@ async def send_notification(payload: dict):
 # ─── WebSocket: live cockpit data stream ──────────────────────────────────────
 
 _cockpit_clients: set[WebSocket] = set()
+_pending_organism_events: list[dict] = []
+
+
+def push_organism_event(event_dict: dict) -> None:
+    """Called by the organism daemon to push events to WebSocket clients."""
+    _pending_organism_events.append(event_dict)
+    if len(_pending_organism_events) > 200:
+        _pending_organism_events[:] = _pending_organism_events[-100:]
 
 
 @router.websocket("/ws")
@@ -1768,9 +1776,11 @@ async def cockpit_ws(ws: WebSocket):
 
     Sends a pulse snapshot every 2 seconds. Clients can send
     JSON commands: {"type": "subscribe", "channels": ["pulse", "traces"]}.
+    Organism events are injected into the stream when available.
     """
     await ws.accept()
     _cockpit_clients.add(ws)
+    event_cursor = len(_pending_organism_events)
     logger.info(f"cockpit ws connected ({len(_cockpit_clients)} clients)")
     try:
         while True:
@@ -1792,6 +1802,9 @@ async def cockpit_ws(ws: WebSocket):
             except Exception:
                 pass
 
+            new_events = _pending_organism_events[event_cursor:]
+            event_cursor = len(_pending_organism_events)
+
             snapshot = {
                 "type": "pulse",
                 "ts": datetime.now(timezone.utc).isoformat(),
@@ -1809,6 +1822,7 @@ async def cockpit_ws(ws: WebSocket):
                     for t in recent_traces
                     if not t.get("_type", "").startswith("trace_update")
                 ],
+                "organism_events": new_events,
             }
             await ws.send_json(snapshot)
 
