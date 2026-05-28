@@ -24,13 +24,18 @@ from pathlib import Path
 from typing import Any
 
 import psutil
-from fastapi import APIRouter, Depends, HTTPException, Security, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, Request, Security, WebSocket, WebSocketDisconnect
 from fastapi.security import APIKeyHeader
 
 logger = logging.getLogger(__name__)
 
 _API_KEY = os.environ.get("UMH_OPERATOR_API_KEY", "dev-key-change-me")
+_OPERATOR_TOKEN = os.environ.get("UMH_OPERATOR_TOKEN", "")
 _api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+_operator_token_header = APIKeyHeader(name="X-Operator-Token", auto_error=False)
+
+_PROMOTE_RATE_LIMIT: dict[str, float] = {}
+_PROMOTE_RATE_WINDOW = 60.0
 
 
 async def _require_api_key(key: str | None = Security(_api_key_header)) -> str:
@@ -39,6 +44,32 @@ async def _require_api_key(key: str | None = Security(_api_key_header)) -> str:
     if not key or key != _API_KEY:
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
     return key
+
+
+async def _require_operator_role(
+    request: Request,
+    key: str | None = Security(_api_key_header),
+    operator_token: str | None = Security(_operator_token_header),
+) -> str:
+    """Validates operator-level credentials for privileged endpoints.
+
+    Requires both the standard API key AND a separate operator token.
+    Logs all attempts for audit correlation.
+    """
+    await _require_api_key(key)
+
+    if not _OPERATOR_TOKEN:
+        logger.warning("UMH_OPERATOR_TOKEN not configured — privileged endpoints unprotected")
+        return "operator-unprotected"
+
+    if not operator_token or operator_token != _OPERATOR_TOKEN:
+        logger.warning(
+            "Unauthorized operator access attempt: %s %s from %s",
+            request.method, request.url.path, request.client.host if request.client else "unknown",
+        )
+        raise HTTPException(status_code=403, detail="Operator token required for privileged actions")
+
+    return "operator"
 
 
 router = APIRouter(prefix="/api/umh", dependencies=[Depends(_require_api_key)])
@@ -646,7 +677,9 @@ async def mesh_nodes():
     try:
         result = subprocess.run(
             ["tailscale", "status", "--json"],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         if result.returncode == 0:
             _parse_ts_data(json.loads(result.stdout))
@@ -662,17 +695,19 @@ async def mesh_nodes():
                 pass
 
     if not nodes:
-        nodes.append({
-            "node_id": "vps-primary",
-            "hostname": os.uname().nodename,
-            "role": "orchestrator",
-            "status": "online",
-            "os": "linux",
-            "ip": "",
-            "last_seen": datetime.now(timezone.utc).isoformat(),
-            "daemon_version": None,
-            "capabilities": [],
-        })
+        nodes.append(
+            {
+                "node_id": "vps-primary",
+                "hostname": os.uname().nodename,
+                "role": "orchestrator",
+                "status": "online",
+                "os": "linux",
+                "ip": "",
+                "last_seen": datetime.now(timezone.utc).isoformat(),
+                "daemon_version": None,
+                "capabilities": [],
+            }
+        )
 
     return nodes
 
@@ -681,12 +716,14 @@ def _get_mesh_server():
     """Lazy import to avoid circular dependency at module load."""
     try:
         from transports.api.app import _mesh_server
+
         if _mesh_server is not None:
             return _mesh_server
     except (ImportError, AttributeError):
         pass
     try:
         from services.operator_api import _mesh_server_instance
+
         return _mesh_server_instance
     except (ImportError, AttributeError):
         return None
@@ -746,6 +783,331 @@ async def organism_tick_status():
     return daemon.autonomous_tick.to_dict()
 
 
+@router.get("/organism/leverage")
+async def organism_leverage():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return daemon.leverage_metrics.summary()
+
+
+@router.get("/organism/metrics")
+async def organism_metrics():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return {
+        "leverage": daemon.leverage_metrics.to_dict(),
+        "bottlenecks": daemon.bottleneck_engine.to_dict(),
+        "physics": daemon.objective_physics.to_dict(),
+        "compression": daemon.operator_compression.to_dict(),
+        "execution_mode": daemon.execution_mode_manager.to_dict(),
+    }
+
+
+@router.get("/organism/bottlenecks")
+async def organism_bottlenecks():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return daemon.bottleneck_engine.to_dict()
+
+
+@router.get("/organism/physics")
+async def organism_physics():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return {
+        **daemon.objective_physics.to_dict(),
+        "critical_paths": [
+            cp.to_dict() for cp in daemon.objective_physics.critical_paths()[:5]
+        ],
+        "top_gravity": daemon.objective_physics.what_matters_most(5),
+        "blockers": daemon.objective_physics.what_blocks_everything(),
+    }
+
+
+@router.get("/organism/compression")
+async def organism_compression():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return {
+        **daemon.operator_compression.to_dict(),
+        "candidates": [
+            c.to_dict() for c in daemon.operator_compression.automation_candidates()
+        ],
+    }
+
+
+@router.get("/organism/workload")
+async def organism_workload():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    cached = daemon.workload_probes.cached
+    if cached:
+        return cached
+    return daemon.workload_probes.full_probe()
+
+
+@router.get("/organism/execution-mode")
+async def organism_execution_mode():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return {
+        **daemon.execution_mode_manager.to_dict(),
+        "history": daemon.execution_mode_manager.transition_history(),
+    }
+
+
+@router.post("/organism/execution-mode/promote", dependencies=[Depends(_require_operator_role)])
+async def organism_promote_mode(payload: dict, request: Request):
+    """Promote execution mode to a higher autonomy level.
+
+    Requires operator token. Rate-limited to 1 call per 60s per client.
+    """
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+
+    client_id = request.client.host if request.client else "unknown"
+    now = time.time()
+    last_call = _PROMOTE_RATE_LIMIT.get(client_id, 0.0)
+    if now - last_call < _PROMOTE_RATE_WINDOW:
+        remaining = int(_PROMOTE_RATE_WINDOW - (now - last_call))
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limited — retry in {remaining}s",
+        )
+
+    target = payload.get("target_mode", "")
+    justification = str(payload.get("justification", "operator promotion"))[:500]
+    try:
+        from substrate.organism.execution_modes import ExecutionMode, TransitionReason
+        mode = ExecutionMode(target)
+        ok = daemon.execution_mode_manager.promote(
+            mode,
+            reason=TransitionReason.OPERATOR_PROMOTION,
+            justification=justification,
+        )
+        _PROMOTE_RATE_LIMIT[client_id] = now
+        logger.info("Execution mode promotion: %s → %s by %s", target, ok, client_id)
+        return {"ok": ok, "current_mode": daemon.execution_mode_manager.current_mode.value}
+    except (ValueError, KeyError) as e:
+        return {"error": str(e)}
+
+
+# ── Phase 5.9: Workload Runner endpoints ──────────────────────────────────
+
+
+@router.get("/organism/workloads")
+async def organism_workloads():
+    """Recent workload run outcomes."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return daemon.workload_runner.to_dict()
+
+
+@router.get("/organism/workloads/outcomes")
+async def organism_workload_outcomes(limit: int = 20):
+    """Detailed workload outcome history."""
+    daemon = _get_organism()
+    if daemon is None:
+        return []
+    return daemon.workload_runner.recent_outcomes(limit)
+
+
+@router.post("/organism/workloads/run")
+async def organism_run_workload(payload: dict):
+    """Manually trigger a specific workload."""
+    import asyncio
+
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+
+    workload_type = payload.get("workload_type", "")
+    force = payload.get("force", False)
+
+    try:
+        from substrate.organism.workload_runner import WorkloadType
+        wt = WorkloadType(workload_type)
+    except ValueError:
+        return {
+            "error": f"unknown workload_type: {workload_type}",
+            "available": [t.value for t in __import__("substrate.organism.workload_runner", fromlist=["WorkloadType"]).WorkloadType],
+        }
+
+    loop = asyncio.get_running_loop()
+    outcome = await loop.run_in_executor(
+        None,
+        lambda: daemon.workload_runner.run_workload(wt, force=force),
+    )
+    return outcome.to_dict()
+
+
+@router.post("/organism/workloads/run-all")
+async def organism_run_all_workloads():
+    """Run all OBSERVE-safe workloads."""
+    import asyncio
+
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+
+    loop = asyncio.get_running_loop()
+    outcomes = await loop.run_in_executor(
+        None,
+        daemon.workload_runner.run_all_observe,
+    )
+    return [o.to_dict() for o in outcomes]
+
+
+# ── Phase 5.9: Automation Pipeline endpoints ──────────────────────────────
+
+
+@router.get("/organism/automation-candidates")
+async def organism_automation_candidates():
+    """List all automation candidate proposals."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return {
+        **daemon.automation_pipeline.to_dict(),
+        "all_proposals": daemon.automation_pipeline.list_proposals(),
+    }
+
+
+@router.post("/organism/automation-candidates/{proposal_id}/approve", dependencies=[Depends(_require_operator_role)])
+async def organism_approve_automation(proposal_id: str, request: Request):
+    """Approve an automation candidate. Requires operator token."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    client_id = request.client.host if request.client else "unknown"
+    logger.info("Automation approval: %s by %s", proposal_id, client_id)
+    ok = daemon.automation_pipeline.approve(proposal_id)
+    if not ok:
+        return {"ok": False, "error": "proposal not found or not in proposed state"}
+    return {"ok": True, "proposal_id": proposal_id}
+
+
+@router.post("/organism/automation-candidates/{proposal_id}/deny")
+async def organism_deny_automation(proposal_id: str, payload: dict | None = None):
+    """Deny an automation candidate."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    reason = (payload or {}).get("reason", "")
+    ok = daemon.automation_pipeline.deny(proposal_id, reason=reason)
+    if not ok:
+        return {"ok": False, "error": "proposal not found or not in proposed state"}
+    return {"ok": True, "proposal_id": proposal_id}
+
+
+# ── Phase 5.9: Maintenance Loop endpoints ─────────────────────────────────
+
+
+@router.get("/organism/maintenance")
+async def organism_maintenance():
+    """Maintenance loop status and recommendations."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return {
+        **daemon.maintenance_loop.to_dict(),
+        "pending_recommendations": [
+            r.to_dict() for r in daemon.maintenance_loop.pending_recommendations
+        ],
+        "recent_reports": daemon.maintenance_loop.recent_reports(5),
+    }
+
+
+@router.post("/organism/maintenance/run")
+async def organism_run_maintenance():
+    """Trigger a manual maintenance cycle."""
+    import asyncio
+
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+
+    loop = asyncio.get_running_loop()
+    report = await loop.run_in_executor(
+        None,
+        daemon.maintenance_loop.maintenance_tick,
+    )
+    return report
+
+
+# ── Phase 5.9: Assisted Executor endpoints ────────────────────────────────
+
+
+@router.get("/organism/assisted")
+async def organism_assisted():
+    """Assisted executor status and audit trail."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return daemon.assisted_executor.to_dict()
+
+
+@router.post("/organism/assisted/execute", dependencies=[Depends(_require_operator_role)])
+async def organism_assisted_execute(payload: dict, request: Request):
+    """Execute an approved maintenance action.
+
+    Requires operator token. All executions logged with client identity.
+    """
+    import asyncio
+
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+
+    category = payload.get("category", "")
+    description = str(payload.get("description", ""))[:500]
+    params = payload.get("params", {})
+
+    try:
+        from substrate.organism.maintenance_loop import ActionCategory
+        cat = ActionCategory(category)
+    except ValueError:
+        return {
+            "error": f"unknown category: {category}",
+            "available": [c.value for c in __import__("substrate.organism.maintenance_loop", fromlist=["ActionCategory"]).ActionCategory],
+        }
+
+    client_id = request.client.host if request.client else "unknown"
+    action_id = f"assisted-{category}-{int(time.time())}"
+    logger.info("Assisted execution requested: %s by %s", category, client_id)
+
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(
+        None,
+        lambda: daemon.assisted_executor.execute_action(
+            action_id=action_id,
+            category=cat,
+            description=description or f"Assisted: {category}",
+            approved_by=f"operator:{client_id}",
+            params=params,
+        ),
+    )
+    return result.to_dict()
+
+
+@router.get("/organism/assisted/audit")
+async def organism_assisted_audit(limit: int = 50):
+    """Full audit trail of assisted actions."""
+    daemon = _get_organism()
+    if daemon is None:
+        return []
+    return daemon.assisted_executor.audit_trail(limit)
+
+
 @router.post("/organism/signal")
 async def organism_signal(payload: dict):
     daemon = _get_organism()
@@ -760,12 +1122,14 @@ async def organism_signal(payload: dict):
 def _get_organism():
     try:
         from transports.api.app import _organism
+
         if _organism is not None:
             return _organism
     except (ImportError, AttributeError):
         pass
     try:
         from services.operator_api import _organism_daemon
+
         return _organism_daemon
     except (ImportError, AttributeError):
         return None
@@ -1818,7 +2182,9 @@ async def cockpit_ws(ws: WebSocket):
             try:
                 result = subprocess.run(
                     ["docker", "ps", "--format", "{{.Names}}\t{{.Status}}"],
-                    capture_output=True, text=True, timeout=3,
+                    capture_output=True,
+                    text=True,
+                    timeout=3,
                 )
                 for line in result.stdout.strip().split("\n"):
                     if "\t" in line:
@@ -1865,11 +2231,14 @@ async def cockpit_ws(ws: WebSocket):
     finally:
         _cockpit_clients.discard(ws)
         logger.info(f"cockpit ws disconnected ({len(_cockpit_clients)} clients)")
+
+
 # ─── Persistent Loops ────────────────────────────────────────────────────────
 
 
 def _get_loop_registry():
     from substrate.execution.loop import get_registry
+
     registry = get_registry()
     if not registry.list_loops():
         registry.load_definitions()
@@ -1890,6 +2259,7 @@ async def loop_stages():
     """List available pipeline stages."""
     try:
         from substrate.execution.loop import STAGE_REGISTRY
+
         return {
             name: (func.__doc__ or "").strip().split("\n")[0]
             for name, func in sorted(STAGE_REGISTRY.items())
@@ -1938,12 +2308,16 @@ async def loop_create(payload: dict):
     try:
         from substrate.execution.loop import STAGE_REGISTRY
         from substrate.execution.loop.persistent_loop import LoopDefinition
+
         registry = _get_loop_registry()
 
         stages = payload.get("stages", [])
         unknown = [s for s in stages if s not in STAGE_REGISTRY]
         if unknown:
-            return {"error": f"unknown stages: {unknown}", "available": sorted(STAGE_REGISTRY.keys())}
+            return {
+                "error": f"unknown stages: {unknown}",
+                "available": sorted(STAGE_REGISTRY.keys()),
+            }
 
         defn = LoopDefinition(
             name=payload["name"],
@@ -2127,8 +2501,8 @@ async def organism_overdue_advisors():
         return {"error": str(e)}
 
 
-@router.get("/organism/leverage")
-async def organism_leverage():
+@router.get("/organism/assimilation")
+async def organism_assimilation():
     """External leverage assimilation status."""
     daemon = _get_organism()
     if daemon is None:
@@ -2138,12 +2512,13 @@ async def organism_leverage():
         if assimilator is not None:
             return assimilator.to_dict()
         from substrate.organism.leverage_assimilation import LeverageAssimilator
+
         return LeverageAssimilator().to_dict()
     except Exception as e:
         return {"error": str(e)}
 
 
-@router.get("/organism/leverage/artifacts")
+@router.get("/organism/assimilation/artifacts")
 async def organism_leverage_artifacts():
     """List all assimilation artifacts."""
     daemon = _get_organism()
@@ -2188,9 +2563,11 @@ async def organism_runtimes():
     if graph is None:
         return {"runtimes": [], "count": 0}
     data = graph.to_dict()
+    runtimes_dict = data.get("runtimes", {})
     return {
-        "runtimes": data.get("nodes", []),
-        "count": data.get("node_count", 0),
+        "runtimes": list(runtimes_dict.values()),
+        "count": data.get("total_runtimes", 0),
+        "available": data.get("available", 0),
     }
 
 
@@ -2211,7 +2588,6 @@ async def organism_workcells():
     if daemon is None:
         return {"workcells": [], "count": 0}
     try:
-        from substrate.organism.workcell import WorkcellDaemon
         wc = getattr(daemon, "_workcell_daemon", None)
         if wc is None:
             return {"workcells": [], "count": 0, "note": "workcell daemon not wired"}
@@ -2222,12 +2598,125 @@ async def organism_workcells():
 
 @router.get("/organism/topology")
 async def organism_topology():
-    """Runtime topology — all runtimes, capabilities, health, scoring."""
+    """Full operational topology — runtimes, workcells, system metrics."""
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
     try:
+        env_graph = getattr(daemon, "_environment_graph", None)
+        if env_graph is not None:
+            return env_graph.to_dict()
         return daemon.advisor.resource_topology()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.get("/organism/topology/live")
+async def organism_topology_live():
+    """Capture a fresh topology snapshot and return it with diff."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    try:
+        env_graph = getattr(daemon, "_environment_graph", None)
+        if env_graph is None:
+            return {"error": "environment graph not available"}
+
+        workcell_data = []
+        wcd = getattr(daemon, "_workcell_daemon", None)
+        if wcd is not None:
+            for wc in wcd._workcells.values():
+                workcell_data.append(wc.to_dict())
+
+        snapshot = env_graph.capture(
+            graph=daemon.graph,
+            workcells=workcell_data,
+        )
+        diff = env_graph.diff()
+        return {
+            "snapshot": snapshot.to_dict(),
+            "diff": diff.to_dict() if diff.has_changes else None,
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.get("/organism/throughput")
+async def organism_throughput():
+    """Event throughput, tick timing, and pressure metrics."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    try:
+        spine = daemon.event_spine
+        tick = daemon.autonomous_tick
+        snap = spine.snapshot()
+
+        tick_data = tick.to_dict()
+        metrics = tick_data.get("metrics", {})
+
+        result = {
+            "event_spine": {
+                "total_events": snap.get("total_events", 0),
+                "events_by_domain": snap.get("events_by_domain", {}),
+                "subscriber_count": snap.get("subscriber_count", 0),
+            },
+            "tick_engine": {
+                "cycle_count": tick_data.get("cycle_count", 0),
+                "current_interval": tick_data.get("current_interval", 0),
+                "is_paused": tick_data.get("is_paused", False),
+                "stages": tick_data.get("stages", []),
+                "avg_cycle_ms": metrics.get("avg_cycle_ms", 0),
+                "total_stages_executed": metrics.get("total_stages_executed", 0),
+                "total_stages_failed": metrics.get("total_stages_failed", 0),
+                "consecutive_idle": metrics.get("consecutive_idle", 0),
+            },
+            "runtimes": {
+                "total": daemon.graph.node_count if daemon.graph else 0,
+                "available": daemon.graph.available_count if daemon.graph else 0,
+            },
+        }
+
+        reconciler = getattr(daemon, "_reconciler", None)
+        if reconciler is not None:
+            result["reconciler"] = reconciler.to_dict()
+
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.get("/organism/reconciliation")
+async def organism_reconciliation():
+    """Last reconciliation report and history."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    try:
+        reconciler = getattr(daemon, "_reconciler", None)
+        if reconciler is None:
+            return {"error": "reconciler not available"}
+        return reconciler.to_dict()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.post("/organism/reconcile")
+async def organism_reconcile_now():
+    """Force an immediate reconciliation cycle."""
+    import asyncio
+
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    try:
+        reconciler = getattr(daemon, "_reconciler", None)
+        if reconciler is None:
+            return {"error": "reconciler not available"}
+
+        loop = asyncio.get_running_loop()
+        report = await loop.run_in_executor(None, reconciler.reconcile)
+        return report.to_dict()
     except Exception as e:
         return {"error": str(e)}
 
@@ -2240,18 +2729,46 @@ async def execution_status():
     """Execution slot status across all compute layers."""
     return {
         "slots": [
-            {"slot": 0, "layer": "native", "task": "", "status": "idle",
-             "step_count": 0, "authority_class": "operator",
-             "risk_class": "LOW", "approval_status": "none"},
-            {"slot": 1, "layer": "container", "task": "", "status": "idle",
-             "step_count": 0, "authority_class": "operator",
-             "risk_class": "LOW", "approval_status": "none"},
-            {"slot": 2, "layer": "wsl", "task": "", "status": "idle",
-             "step_count": 0, "authority_class": "operator",
-             "risk_class": "LOW", "approval_status": "none"},
-            {"slot": 3, "layer": "vm", "task": "", "status": "idle",
-             "step_count": 0, "authority_class": "operator",
-             "risk_class": "LOW", "approval_status": "none"},
+            {
+                "slot": 0,
+                "layer": "native",
+                "task": "",
+                "status": "idle",
+                "step_count": 0,
+                "authority_class": "operator",
+                "risk_class": "LOW",
+                "approval_status": "none",
+            },
+            {
+                "slot": 1,
+                "layer": "container",
+                "task": "",
+                "status": "idle",
+                "step_count": 0,
+                "authority_class": "operator",
+                "risk_class": "LOW",
+                "approval_status": "none",
+            },
+            {
+                "slot": 2,
+                "layer": "wsl",
+                "task": "",
+                "status": "idle",
+                "step_count": 0,
+                "authority_class": "operator",
+                "risk_class": "LOW",
+                "approval_status": "none",
+            },
+            {
+                "slot": 3,
+                "layer": "vm",
+                "task": "",
+                "status": "idle",
+                "step_count": 0,
+                "authority_class": "operator",
+                "risk_class": "LOW",
+                "approval_status": "none",
+            },
         ],
     }
 
