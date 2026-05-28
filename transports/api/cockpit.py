@@ -2824,8 +2824,13 @@ async def execution_resume(payload: dict):
 
 
 def _mount_spine_router() -> None:
-    from transports.api.cockpit_spine_router import spine_router
-    router.include_router(spine_router)
+    from transports.api import cockpit_spine_router
+    cockpit_spine_router.configure(
+        get_organism_fn=_get_organism,
+        check_rate_limit_fn=_check_rate_limit,
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(cockpit_spine_router.spine_router)
 
 
 _mount_spine_router()

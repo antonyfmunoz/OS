@@ -725,9 +725,18 @@ class TestCockpitSpineRouter:
         from transports.api.cockpit_spine_router import spine_router
         assert spine_router is not None
 
-    def test_spine_router_has_routes(self):
-        from transports.api.cockpit_spine_router import spine_router
-        route_paths = [r.path for r in spine_router.routes]
+    def test_spine_router_has_routes_after_configure(self):
+        from transports.api import cockpit_spine_router
+
+        async def _mock_operator(request):
+            pass
+
+        cockpit_spine_router.configure(
+            get_organism_fn=lambda: None,
+            check_rate_limit_fn=lambda a, c: None,
+            require_operator_dep=_mock_operator,
+        )
+        route_paths = [r.path for r in cockpit_spine_router.spine_router.routes]
         expected = [
             "/organism/spine",
             "/organism/spine/pending",
@@ -751,6 +760,28 @@ class TestCockpitSpineRouter:
         ]
         for path in expected:
             assert path in route_paths, f"missing route: {path}"
+
+    def test_privileged_routes_have_auth_dependency(self):
+        """Verify that approve/reject/retry/mode routes carry auth dependencies."""
+        from transports.api import cockpit_spine_router
+
+        async def _mock_operator(request):
+            pass
+
+        cockpit_spine_router.configure(
+            get_organism_fn=lambda: None,
+            check_rate_limit_fn=lambda a, c: None,
+            require_operator_dep=_mock_operator,
+        )
+        privileged_paths = {
+            "/organism/spine/approve/{envelope_id}",
+            "/organism/spine/reject/{envelope_id}",
+            "/organism/spine/retry/{envelope_id}",
+            "/organism/spine-guard/mode",
+        }
+        for route in cockpit_spine_router.spine_router.routes:
+            if hasattr(route, "path") and route.path in privileged_paths:
+                assert route.dependencies, f"route {route.path} missing auth dependency"
 
     def test_configure_function_exists(self):
         from transports.api.cockpit_spine_router import configure

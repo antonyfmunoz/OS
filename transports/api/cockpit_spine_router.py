@@ -4,24 +4,27 @@ SpineGuard endpoints.
 Extracted from cockpit.py (Phase 6.2) to keep the main cockpit under 3000 lines.
 All routes are mounted under /api/umh/ via include_router in cockpit.py.
 
+Auth model: configure() must be called before include_router(). It receives
+the real operator-auth dependency from cockpit.py and wires it into every
+privileged route. Calling any route before configure() returns 503.
+
 UMH transport layer. Instance-agnostic.
 """
 
 from __future__ import annotations
 
 import logging
-import time
 from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 logger = logging.getLogger(__name__)
 
-spine_router = APIRouter()
+spine_router: APIRouter = APIRouter()
 
 _get_organism: Callable[[], Any] = lambda: None
 _check_rate_limit: Callable[[str, str], None] = lambda action, client_id: None
-_require_operator_dep: Any = None
+_configured: bool = False
 
 
 def configure(
@@ -29,70 +32,92 @@ def configure(
     check_rate_limit_fn: Callable[[str, str], None],
     require_operator_dep: Any,
 ) -> None:
-    """Wire shared cockpit utilities into the spine router. Called once at mount time."""
-    global _get_organism, _check_rate_limit, _require_operator_dep
+    """Wire shared cockpit utilities and operator auth into the spine router.
+
+    Must be called once from cockpit.py before include_router(). Rebuilds
+    the router so privileged routes carry the real auth dependency.
+    """
+    global _get_organism, _check_rate_limit, _configured, spine_router
+
     _get_organism = get_organism_fn
     _check_rate_limit = check_rate_limit_fn
-    _require_operator_dep = require_operator_dep
+    _configured = True
+
+    spine_router = _build_router(require_operator_dep)
 
 
-def _operator_dep() -> list:
-    if _require_operator_dep is not None:
-        return [Depends(_require_operator_dep)]
-    return []
+def _build_router(require_operator_dep: Any) -> APIRouter:
+    """Construct the spine router with operator auth on privileged routes."""
+    r = APIRouter()
+    auth = [Depends(require_operator_dep)]
+
+    # ── Read-only endpoints (no auth required) ─────────────────────────────
+
+    r.add_api_route("/organism/spine", _spine_status, methods=["GET"])
+    r.add_api_route("/organism/spine/pending", _spine_pending, methods=["GET"])
+    r.add_api_route("/organism/spine/active", _spine_active, methods=["GET"])
+    r.add_api_route("/organism/spine/completed", _spine_completed, methods=["GET"])
+    r.add_api_route("/organism/spine/lifecycle/{envelope_id}", _spine_lifecycle, methods=["GET"])
+    r.add_api_route("/organism/journal", _journal_status, methods=["GET"])
+    r.add_api_route("/organism/journal/recent", _journal_recent, methods=["GET"])
+    r.add_api_route("/organism/journal/lifecycle/{envelope_id}", _journal_lifecycle, methods=["GET"])
+    r.add_api_route("/organism/journal/statistics", _journal_statistics, methods=["GET"])
+    r.add_api_route("/organism/mutations", _mutation_registry, methods=["GET"])
+    r.add_api_route("/organism/mutations/{mutation_name}", _mutation_detail, methods=["GET"])
+    r.add_api_route("/organism/spine-guard", _spine_guard_status, methods=["GET"])
+    r.add_api_route("/organism/spine-guard/blocked", _spine_guard_blocked, methods=["GET"])
+    r.add_api_route("/organism/execution-doctrine", _execution_doctrine, methods=["GET"])
+    r.add_api_route("/organism/reliability", _reliability_metrics, methods=["GET"])
+
+    # ── Privileged endpoints (operator auth required) ──────────────────────
+
+    r.add_api_route("/organism/spine/approve/{envelope_id}", _spine_approve, methods=["POST"], dependencies=auth)
+    r.add_api_route("/organism/spine/reject/{envelope_id}", _spine_reject, methods=["POST"], dependencies=auth)
+    r.add_api_route("/organism/spine/retry/{envelope_id}", _spine_retry, methods=["POST"], dependencies=auth)
+    r.add_api_route("/organism/spine-guard/mode", _spine_guard_set_mode, methods=["POST"], dependencies=auth)
+
+    return r
 
 
-# ── GovernedExecutionSpine endpoints ──────────────────────────────────────────
+# ── GovernedExecutionSpine handlers ────────────────────────────────────────────
 
 
-@spine_router.get("/organism/spine")
-async def organism_spine_status():
-    """GovernedExecutionSpine status: counters, success rate, queue depths."""
+async def _spine_status():
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
     return daemon.governed_spine.to_dict()
 
 
-@spine_router.get("/organism/spine/pending")
-async def organism_spine_pending(limit: int = 50):
-    """Pending envelopes awaiting approval."""
+async def _spine_pending(limit: int = 50):
     daemon = _get_organism()
     if daemon is None:
         return []
     return daemon.governed_spine.pending_envelopes(limit)
 
 
-@spine_router.get("/organism/spine/active")
-async def organism_spine_active():
-    """Currently executing envelopes."""
+async def _spine_active():
     daemon = _get_organism()
     if daemon is None:
         return []
     return daemon.governed_spine.active_envelopes()
 
 
-@spine_router.get("/organism/spine/completed")
-async def organism_spine_completed(limit: int = 50):
-    """Recently completed envelopes."""
+async def _spine_completed(limit: int = 50):
     daemon = _get_organism()
     if daemon is None:
         return []
     return daemon.governed_spine.completed_envelopes(limit)
 
 
-@spine_router.get("/organism/spine/lifecycle/{envelope_id}")
-async def organism_spine_lifecycle(envelope_id: str):
-    """Full journal lifecycle for a specific envelope."""
+async def _spine_lifecycle(envelope_id: str):
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
     return daemon.governed_spine.envelope_lifecycle(envelope_id)
 
 
-@spine_router.post("/organism/spine/approve/{envelope_id}")
-async def organism_spine_approve(envelope_id: str, request: Request):
-    """Approve a pending envelope for execution. Operator-auth required."""
+async def _spine_approve(envelope_id: str, request: Request):
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
@@ -107,9 +132,7 @@ async def organism_spine_approve(envelope_id: str, request: Request):
     return envelope.to_dict()
 
 
-@spine_router.post("/organism/spine/reject/{envelope_id}")
-async def organism_spine_reject(envelope_id: str, payload: dict, request: Request):
-    """Reject a pending envelope. Operator-auth required."""
+async def _spine_reject(envelope_id: str, payload: dict, request: Request):
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
@@ -125,9 +148,7 @@ async def organism_spine_reject(envelope_id: str, payload: dict, request: Reques
     return envelope.to_dict()
 
 
-@spine_router.post("/organism/spine/retry/{envelope_id}")
-async def organism_spine_retry(envelope_id: str, request: Request):
-    """Re-submit a failed envelope for execution. Operator-auth required."""
+async def _spine_retry(envelope_id: str, request: Request):
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
@@ -152,60 +173,48 @@ async def organism_spine_retry(envelope_id: str, request: Request):
     return {"acknowledged": True, "envelope_id": envelope_id, "note": "re-submit a new envelope for this action"}
 
 
-# ── Execution Journal endpoints ───────────────────────────────────────────────
+# ── Execution Journal handlers ─────────────────────────────────────────────────
 
 
-@spine_router.get("/organism/journal")
-async def organism_journal_status():
-    """Execution journal statistics and recent entries."""
+async def _journal_status():
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
     return daemon.execution_journal.to_dict()
 
 
-@spine_router.get("/organism/journal/recent")
-async def organism_journal_recent(limit: int = 50):
-    """Recent journal entries."""
+async def _journal_recent(limit: int = 50):
     daemon = _get_organism()
     if daemon is None:
         return []
     return [e.to_dict() for e in daemon.execution_journal.recent(limit)]
 
 
-@spine_router.get("/organism/journal/lifecycle/{envelope_id}")
-async def organism_journal_lifecycle(envelope_id: str):
-    """Full journal lifecycle for a specific envelope."""
+async def _journal_lifecycle(envelope_id: str):
     daemon = _get_organism()
     if daemon is None:
         return []
     return daemon.execution_journal.execution_lifecycle(envelope_id)
 
 
-@spine_router.get("/organism/journal/statistics")
-async def organism_journal_statistics():
-    """Journal statistics: counts by phase, success rate, rollback/retry totals."""
+async def _journal_statistics():
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
     return daemon.execution_journal.statistics()
 
 
-# ── Mutation Registry endpoints ───────────────────────────────────────────────
+# ── Mutation Registry handlers ─────────────────────────────────────────────────
 
 
-@spine_router.get("/organism/mutations")
-async def organism_mutation_registry():
-    """All registered mutation specs with risk profiles."""
+async def _mutation_registry():
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
     return daemon.mutation_registry.to_dict()
 
 
-@spine_router.get("/organism/mutations/{mutation_name}")
-async def organism_mutation_detail(mutation_name: str):
-    """Detail for a specific mutation spec."""
+async def _mutation_detail(mutation_name: str):
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
@@ -215,12 +224,10 @@ async def organism_mutation_detail(mutation_name: str):
     return spec.to_dict()
 
 
-# ── SpineGuard endpoints ─────────────────────────────────────────────────────
+# ── SpineGuard handlers ───────────────────────────────────────────────────────
 
 
-@spine_router.get("/organism/spine-guard")
-async def organism_spine_guard():
-    """Spine guard status, mode, counters, and recent violations."""
+async def _spine_guard_status():
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
@@ -230,21 +237,14 @@ async def organism_spine_guard():
     }
 
 
-@spine_router.get("/organism/spine-guard/blocked")
-async def organism_spine_guard_blocked(limit: int = 20):
-    """Recently blocked violations only."""
+async def _spine_guard_blocked(limit: int = 20):
     daemon = _get_organism()
     if daemon is None:
         return []
     return daemon.spine_guard.blocked_violations(limit)
 
 
-@spine_router.post("/organism/spine-guard/mode")
-async def organism_spine_guard_set_mode(payload: dict, request: Request):
-    """Set SpineGuard enforcement mode. Operator-auth required.
-
-    Valid modes: off, warn, block_high_risk, enforce_all
-    """
+async def _spine_guard_set_mode(payload: dict, request: Request):
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
@@ -276,12 +276,10 @@ async def organism_spine_guard_set_mode(payload: dict, request: Request):
     }
 
 
-# ── Execution Doctrine (unified control surface) ─────────────────────────────
+# ── Unified views ──────────────────────────────────────────────────────────────
 
 
-@spine_router.get("/organism/execution-doctrine")
-async def organism_execution_doctrine():
-    """Unified view: execution mode + spine guard mode + spine stats + reliability."""
+async def _execution_doctrine():
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
@@ -301,12 +299,7 @@ async def organism_execution_doctrine():
     }
 
 
-# ── Reliability metrics ──────────────────────────────────────────────────────
-
-
-@spine_router.get("/organism/reliability")
-async def organism_reliability_metrics():
-    """Reliability metrics: success rate, verification rate, rollback stats."""
+async def _reliability_metrics():
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
