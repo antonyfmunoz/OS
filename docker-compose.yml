@@ -139,7 +139,6 @@ services:
       - UMH_ROOT=/app
       - TZ=America/Los_Angeles
       - PYTHONUNBUFFERED=1
-      - UMH_OPERATOR_API_KEY=${UMH_OPERATOR_API_KEY:-dev-key-change-me}
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
     ports:
       - "8091:8091"
