@@ -466,6 +466,35 @@ def _learning_loop(_payload: dict) -> dict:
     return {"success": True, "data": loop.to_safe_dict()}
 
 
+def _outcome_capture(payload: dict) -> dict:
+    from substrate.organism.outcome_learning import OutcomeLearningLoop, OutcomeRecord, OutcomeStatus
+    action_type = payload.get("action_type", "")
+    status_str = payload.get("status", "success")
+    description = payload.get("description", "")
+    plan_id = payload.get("plan_id", "")
+    step_id = payload.get("step_id", "")
+    actual_result = payload.get("actual_result", "")
+    duration = float(payload.get("duration_seconds", 0))
+    error = payload.get("error", "")
+    if not action_type:
+        return {"success": False, "error": "action_type required"}
+    status_map = {s.value: s for s in OutcomeStatus}
+    status = status_map.get(status_str, OutcomeStatus.SUCCESS)
+    record = OutcomeRecord(
+        action_type=action_type,
+        plan_id=plan_id,
+        step_id=step_id,
+        description=description,
+        status=status,
+        actual_result=actual_result,
+        duration_seconds=duration,
+        error=error,
+    )
+    loop = OutcomeLearningLoop()
+    evaluation = loop.record_outcome(record)
+    return {"success": True, "data": {"outcome_id": record.id, "evaluation": evaluation.to_dict()}}
+
+
 def _compose(payload: dict) -> dict:
     from substrate.organism.composition_engine import compose_plan
     intent = payload.get("intent", "")
@@ -584,6 +613,7 @@ _ACTIONS: dict = {
     "organism.contradictions": _contradictions,
     "organism.compose": _compose,
     "organism.learning_loop": _learning_loop,
+    "organism.outcome_capture": _outcome_capture,
     "organism.memory_promotion": _memory_promotion,
     "organism.memory_promotion.approve": _memory_promotion_approve,
     "organism.memory_promotion.reject": _memory_promotion_reject,
