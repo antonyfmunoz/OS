@@ -752,6 +752,86 @@ async def organism_tick_status():
     return daemon.autonomous_tick.to_dict()
 
 
+@router.get("/organism/leverage")
+async def organism_leverage():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return daemon.leverage_metrics.summary()
+
+
+@router.get("/organism/metrics")
+async def organism_metrics():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return {
+        "leverage": daemon.leverage_metrics.to_dict(),
+        "bottlenecks": daemon.bottleneck_engine.to_dict(),
+        "physics": daemon.objective_physics.to_dict(),
+        "compression": daemon.operator_compression.to_dict(),
+        "execution_mode": daemon.execution_mode_manager.to_dict(),
+    }
+
+
+@router.get("/organism/bottlenecks")
+async def organism_bottlenecks():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return daemon.bottleneck_engine.to_dict()
+
+
+@router.get("/organism/physics")
+async def organism_physics():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return {
+        **daemon.objective_physics.to_dict(),
+        "critical_paths": [
+            cp.to_dict() for cp in daemon.objective_physics.critical_paths()[:5]
+        ],
+        "top_gravity": daemon.objective_physics.what_matters_most(5),
+        "blockers": daemon.objective_physics.what_blocks_everything(),
+    }
+
+
+@router.get("/organism/compression")
+async def organism_compression():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return {
+        **daemon.operator_compression.to_dict(),
+        "candidates": [
+            c.to_dict() for c in daemon.operator_compression.automation_candidates()
+        ],
+    }
+
+
+@router.get("/organism/workload")
+async def organism_workload():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    cached = daemon.workload_probes.cached
+    if cached:
+        return cached
+    return daemon.workload_probes.full_probe()
+
+
+@router.get("/organism/execution-mode")
+async def organism_execution_mode():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return {
+        **daemon.execution_mode_manager.to_dict(),
+        "history": daemon.execution_mode_manager.transition_history(),
+    }
+
+
 @router.post("/organism/signal")
 async def organism_signal(payload: dict):
     daemon = _get_organism()

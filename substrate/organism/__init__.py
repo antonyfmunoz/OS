@@ -20,4 +20,18 @@ Core subsystems:
   - LeverageAssimilator: external framework ingestion and scoring
   - OrganismStatePort: projection-agnostic state interface
   - Orchestration loop: PersistentLoop integration for daemon mode
+
+Phase 5.8 — Operational Leverage Engine:
+  - LeverageMetrics: measures actual organism value (time saved,
+    throughput, autonomy, reliability, economic efficiency)
+  - BottleneckEngine: detects operational bottlenecks with recurrence
+    tracking and correction suggestions
+  - ObjectivePhysics: models causal execution dynamics (dependencies,
+    gravity, critical paths, leverage propagation)
+  - OperatorCompression: tracks operator burden and identifies
+    automation candidates from repeated intervention patterns
+  - ExecutionModeManager: governed transition from observation to
+    autonomous action (observe → recommend → assisted → autonomous)
+  - WorkloadProbes: real-time infrastructure state (Docker, disk,
+    memory, repo, processes)
 """

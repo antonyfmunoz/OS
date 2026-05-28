@@ -12,9 +12,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 23,
+      "observation_count": 26,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T02:28:43.033647+00:00",
+      "last_seen": "2026-05-28T03:45:21.273929+00:00",
       "domain": "{'command': \"echo 'Researcher task: Audit cognitive_loop.py for state mutations outside canonical paths'\", 'returncode': 0, 'stdout': 'Researcher task: Audit cognitive_loop.py for state mutations outs"
     },
     {
@@ -26,9 +26,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 22,
+      "observation_count": 25,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T02:28:43.413801+00:00",
+      "last_seen": "2026-05-28T03:45:21.654748+00:00",
       "domain": "{'command': 'echo hello', 'returncode': 0, 'stdout': 'hello\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -40,9 +40,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 22,
+      "observation_count": 25,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T02:28:43.447915+00:00",
+      "last_seen": "2026-05-28T03:45:21.678770+00:00",
       "domain": "{'command': 'echo test', 'returncode': 0, 'stdout': 'test\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -54,9 +54,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 22,
+      "observation_count": 25,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T02:28:43.476295+00:00",
+      "last_seen": "2026-05-28T03:45:21.708208+00:00",
       "domain": "{'command': 'echo status', 'returncode': 0, 'stdout': 'status\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -71,9 +71,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 23,
-      "success_rate": 1.0,
-      "last_seen": "2026-05-28T02:29:39.786058+00:00",
+      "observation_count": 27,
+      "success_rate": 0.5,
+      "last_seen": "2026-05-28T03:48:31.608553+00:00",
       "domain": "{'command': \"echo 'Researcher task: Audit the services/umh/organism/ directory for any missing __init__.py files'\", 'returncode': 0, 'stdout': 'Researcher task: Audit the services/umh/organism/ direct"
     },
     {
@@ -88,9 +88,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 18,
+      "observation_count": 23,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T02:26:55.922461+00:00",
+      "last_seen": "2026-05-28T03:49:21.480689+00:00",
       "domain": "{'command': \"echo 'Researcher task: Check for unused imports in app.py'\", 'returncode': 0, 'stdout': 'Researcher task: Check for unused imports in app.py\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -105,9 +105,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 15,
+      "observation_count": 18,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T02:27:44.583016+00:00",
+      "last_seen": "2026-05-28T03:50:12.242384+00:00",
       "domain": "{'command': \"echo 'Researcher task: Search for TODO comments in the codebase'\", 'returncode': 0, 'stdout': 'Researcher task: Search for TODO comments in the codebase\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -122,9 +122,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 12,
-      "success_rate": 0.5,
-      "last_seen": "2026-05-28T02:21:12.132513+00:00",
+      "observation_count": 15,
+      "success_rate": 1.0,
+      "last_seen": "2026-05-28T03:51:00.812682+00:00",
       "domain": "{'command': \"echo 'Researcher task: List all Python files in services/umh/'\", 'returncode': 0, 'stdout': 'Researcher task: List all Python files in services/umh/\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -139,9 +139,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 10,
+      "observation_count": 12,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T02:22:01.974150+00:00",
+      "last_seen": "2026-05-28T03:19:41.135648+00:00",
       "domain": "{'command': \"echo 'Researcher task: Audit services/umh/organism/ for missing files'\", 'returncode': 0, 'stdout': 'Researcher task: Audit services/umh/organism/ for missing files\\n', 'stderr': '', 'suc"
     },
     {
@@ -155,9 +155,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 10,
+      "observation_count": 12,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T02:22:02.064887+00:00",
+      "last_seen": "2026-05-28T03:19:41.166867+00:00",
       "domain": "{'command': \"echo 'Researcher task: Check for unused imports'\", 'returncode': 0, 'stdout': 'Researcher task: Check for unused imports\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -171,9 +171,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 18,
+      "observation_count": 22,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T02:22:02.127820+00:00",
+      "last_seen": "2026-05-28T03:19:41.195716+00:00",
       "domain": "{'command': \"echo 'Researcher task: Search for TODO comments'\", 'returncode': 0, 'stdout': 'Researcher task: Search for TODO comments\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -185,9 +185,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 10,
+      "observation_count": 12,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T02:22:02.165617+00:00",
+      "last_seen": "2026-05-28T03:19:41.227813+00:00",
       "domain": "{'command': \"echo 'Researcher task: List files'\", 'returncode': 0, 'stdout': 'Researcher task: List files\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -200,9 +200,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 10,
+      "observation_count": 12,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T02:22:02.441575+00:00",
+      "last_seen": "2026-05-28T03:19:41.532860+00:00",
       "domain": "{'command': 'query', 'returncode': 127, 'stdout': '', 'stderr': '/bin/sh: 1: query: not found\\n', 'success': False}"
     },
     {
@@ -214,9 +214,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 10,
+      "observation_count": 12,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T02:22:02.591443+00:00",
+      "last_seen": "2026-05-28T03:19:41.556139+00:00",
       "domain": "{'command': 'query', 'returncode': 127, 'stdout': '', 'stderr': '/bin/sh: 1: query: not found\\n', 'success': False}"
     },
     {
@@ -229,9 +229,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 26,
+      "observation_count": 31,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T02:28:43.292701+00:00",
+      "last_seen": "2026-05-28T03:45:21.491782+00:00",
       "domain": "{'command': \"echo 'Researcher task: search for files'\", 'returncode': 0, 'stdout': 'Researcher task: search for files\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -244,9 +244,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 8,
+      "observation_count": 10,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T02:21:12.530080+00:00",
+      "last_seen": "2026-05-28T03:18:49.955451+00:00",
       "domain": "{'command': \"echo 'Researcher task: search for patterns'\", 'returncode': 0, 'stdout': 'Researcher task: search for patterns\\n', 'stderr': '', 'success': True}"
     }
   ]
