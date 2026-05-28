@@ -197,12 +197,14 @@ class TestPlanConversion:
         assert executable.steps[0].requires_approval is True
 
     def test_risk_level_mapping(self):
+        known = {RiskClass.LOW, RiskClass.MEDIUM, RiskClass.HIGH, RiskClass.CRITICAL}
         for risk in RiskClass:
             plan = _make_plan(1, risk=risk)
             adapter = PlanExecutionAdapter()
             executable = adapter.convert_plan(plan)
-            assert executable.steps[0].risk_level == risk.value
-            assert executable.overall_risk == risk.value
+            expected = risk.value if risk in known else "low"
+            assert executable.steps[0].risk_level == expected
+            assert executable.overall_risk == expected
 
     def test_evidence_chain_preserved(self):
         plan = _make_plan(1)

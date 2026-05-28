@@ -29,8 +29,22 @@ router.post('/converse', async (c) => {
   })
 })
 
-router.get('/history', (c) => {
-  return c.json([])
+router.get('/history', async (c) => {
+  const result = await callBridge({
+    action: 'organism.chat_history',
+    payload: { limit: 50 },
+  })
+  if (!result.success) return c.json([])
+  const messages = (result.data as Array<Record<string, unknown>>) ?? []
+  return c.json(messages.map((m) => ({
+    id: m.id,
+    sender: m.sender,
+    content: m.intent === 'report'
+      ? `**${(m.payload as Record<string, unknown>)?.title ?? 'Report'}**\n${(m.payload as Record<string, unknown>)?.summary ?? ''}`
+      : (m.payload as Record<string, unknown>)?.content ?? m.intent ?? '',
+    response: m.sender === 'system' ? null : undefined,
+    timestamp: m.created_at,
+  })))
 })
 
 export default router
