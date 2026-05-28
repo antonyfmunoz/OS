@@ -518,14 +518,24 @@ def _extract_ws_token(ws: WebSocket) -> str:
     return ws.query_params.get("token", "")
 
 
+def _real_ws_client_ip(ws: WebSocket) -> str:
+    """Real client IP for WebSocket, accounting for trusted reverse proxies."""
+    tcp_ip = ws.client.host if ws.client else ""
+    if _is_private_ip(tcp_ip):
+        forwarded = ws.headers.get("x-forwarded-for", "")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+    return tcp_ip
+
+
 def _validate_ws_auth(ws: WebSocket) -> bool:
     if not _WS_TOKEN:
-        client_ip = ws.client.host if ws.client else ""
+        client_ip = _real_ws_client_ip(ws)
         return _DEV_BYPASS and _is_private_ip(client_ip)
     token = _extract_ws_token(ws)
     if token and _hmac.compare_digest(token, _WS_TOKEN):
         return True
-    client_ip = ws.client.host if ws.client else ""
+    client_ip = _real_ws_client_ip(ws)
     if _DEV_BYPASS and _is_private_ip(client_ip):
         return True
     return False
