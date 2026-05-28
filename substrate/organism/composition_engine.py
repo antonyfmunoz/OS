@@ -24,12 +24,7 @@ logger = logging.getLogger(__name__)
 
 _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 
-
-class RiskClass(str, Enum):
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    CRITICAL = "critical"
+from substrate.types import RiskClass
 
 
 class GovernanceMode(str, Enum):
@@ -297,12 +292,17 @@ class CompositionEngine:
             from substrate.organism.contradiction_engine import detect_contradictions
             self._contradictions = detect_contradictions(self._world_model, self._dep_graph)
 
-    def compose(self, intent: CompositionIntent, constraints: list[CompositionConstraint] | None = None) -> CompositionPlan:
+    def compose(
+        self,
+        intent: CompositionIntent,
+        constraints: list[CompositionConstraint] | None = None,
+        custom_steps: list[dict[str, Any]] | None = None,
+    ) -> CompositionPlan:
         self._ensure_models()
 
         category = _classify_intent(intent.description)
         intent.category = category
-        pattern = _INTENT_PATTERNS.get(category, _INTENT_PATTERNS["general"])
+        pattern = custom_steps or _INTENT_PATTERNS.get(category, _INTENT_PATTERNS["general"])
 
         context = CompositionContext(
             active_contradictions=len(self._contradictions.contradictions),

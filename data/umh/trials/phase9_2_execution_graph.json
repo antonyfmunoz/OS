@@ -1,0 +1,148 @@
+{
+  "summary": {
+    "id": "12ed5350",
+    "source_plan_id": "c0cdc068",
+    "intent": "Fix false-positive high-severity contradiction: governance_router path references router.py but is actually router/__init__.py",
+    "status": "pending",
+    "total_steps": 4,
+    "step_status": {
+      "pending": 4
+    },
+    "overall_risk": "low",
+    "governance_required": "autonomous",
+    "created_at": 1780008899.8463476,
+    "started_at": 0.0,
+    "completed_at": 0.0
+  },
+  "steps": [
+    {
+      "id": "5c29068b",
+      "plan_id": "12ed5350",
+      "composition_step_id": "7e8c340d",
+      "description": "Verify governance_router contradiction exists",
+      "action": "verify_current_state",
+      "risk_level": "low",
+      "governance_mode": "autonomous",
+      "requires_approval": false,
+      "depends_on": [],
+      "status": "pending",
+      "envelope_id": "",
+      "verification": "High-severity contradiction present",
+      "rollback_plan": "",
+      "evidence_chain": [
+        "Composed from 81 entities",
+        "Dependency graph: 28 edges",
+        "Active contradictions: 13"
+      ],
+      "result_output": "",
+      "result_success": false,
+      "started_at": 0.0,
+      "completed_at": 0.0,
+      "error": ""
+    },
+    {
+      "id": "6ffd161e",
+      "plan_id": "12ed5350",
+      "composition_step_id": "0f5cc6ed",
+      "description": "Change governance_router path from router.py to router/__init__.py",
+      "action": "fix_world_model_path",
+      "risk_level": "low",
+      "governance_mode": "autonomous",
+      "requires_approval": false,
+      "depends_on": [
+        "7e8c340d"
+      ],
+      "status": "pending",
+      "envelope_id": "",
+      "verification": "File contains corrected path",
+      "rollback_plan": "",
+      "evidence_chain": [
+        "Composed from 81 entities",
+        "Dependency graph: 28 edges",
+        "Active contradictions: 13"
+      ],
+      "result_output": "",
+      "result_success": false,
+      "started_at": 0.0,
+      "completed_at": 0.0,
+      "error": ""
+    },
+    {
+      "id": "feb580eb",
+      "plan_id": "12ed5350",
+      "composition_step_id": "27970b8c",
+      "description": "Re-run contradiction engine to confirm fix",
+      "action": "verify_contradiction_resolved",
+      "risk_level": "low",
+      "governance_mode": "autonomous",
+      "requires_approval": false,
+      "depends_on": [
+        "0f5cc6ed"
+      ],
+      "status": "pending",
+      "envelope_id": "",
+      "verification": "Zero high-severity contradictions",
+      "rollback_plan": "",
+      "evidence_chain": [
+        "Composed from 81 entities",
+        "Dependency graph: 28 edges",
+        "Active contradictions: 13"
+      ],
+      "result_output": "",
+      "result_success": false,
+      "started_at": 0.0,
+      "completed_at": 0.0,
+      "error": ""
+    },
+    {
+      "id": "d44a1f7c",
+      "plan_id": "12ed5350",
+      "composition_step_id": "10f4ac4f",
+      "description": "Run py_compile on changed file",
+      "action": "verify_tests_pass",
+      "risk_level": "low",
+      "governance_mode": "autonomous",
+      "requires_approval": false,
+      "depends_on": [
+        "27970b8c"
+      ],
+      "status": "pending",
+      "envelope_id": "",
+      "verification": "py_compile succeeds",
+      "rollback_plan": "",
+      "evidence_chain": [
+        "Composed from 81 entities",
+        "Dependency graph: 28 edges",
+        "Active contradictions: 13"
+      ],
+      "result_output": "",
+      "result_success": false,
+      "started_at": 0.0,
+      "completed_at": 0.0,
+      "error": ""
+    }
+  ],
+  "dependencies": [
+    {
+      "source": "7e8c340d",
+      "target": "0f5cc6ed",
+      "type": "sequential"
+    },
+    {
+      "source": "0f5cc6ed",
+      "target": "27970b8c",
+      "type": "sequential"
+    },
+    {
+      "source": "27970b8c",
+      "target": "10f4ac4f",
+      "type": "sequential"
+    }
+  ],
+  "rollback_plan": "Revert to pre-execution state if any step fails verification",
+  "evidence": [
+    "Composed from 81 entities",
+    "Dependency graph: 28 edges",
+    "Active contradictions: 13"
+  ]
+}
