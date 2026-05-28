@@ -37,7 +37,7 @@ load_dotenv("/opt/OS/services/.env")
 load_dotenv("/opt/OS/.env", override=True)
 
 UMH_ROOT = Path(os.getenv("UMH_ROOT", "/opt/OS"))
-API_KEY = os.getenv("UMH_OPERATOR_API_KEY", "dev-key-change-me")
+API_KEY = os.getenv("UMH_OPERATOR_API_KEY", "")
 
 logger = logging.getLogger("operator_api")
 logging.basicConfig(level=logging.INFO)
@@ -491,10 +491,56 @@ async def vision_analyze(request: Request) -> dict[str, Any]:
 
 
 # ─── WebSocket ─────────────────────────────────────────────────────────────────
+_WS_TOKEN = os.getenv("UMH_WS_TOKEN", "") or API_KEY
+_DEV_BYPASS = os.getenv("UMH_DEV_BYPASS", "").lower() in ("1", "true", "yes")
+
+import hmac as _hmac
+import ipaddress as _ipaddress
+
+_TAILSCALE_CGNAT = _ipaddress.ip_network("100.64.0.0/10")
+
+
+def _is_private_ip(ip: str) -> bool:
+    if not ip:
+        return False
+    try:
+        addr = _ipaddress.ip_address(ip)
+        return addr.is_private or addr.is_loopback or addr in _TAILSCALE_CGNAT
+    except ValueError:
+        return False
+
+
+def _extract_ws_token(ws: WebSocket) -> str:
+    for proto in (ws.headers.get("sec-websocket-protocol") or "").split(","):
+        proto = proto.strip()
+        if proto.startswith("bearer."):
+            return proto[7:]
+    return ws.query_params.get("token", "")
+
+
+def _validate_ws_auth(ws: WebSocket) -> bool:
+    if not _WS_TOKEN:
+        client_ip = ws.client.host if ws.client else ""
+        return _DEV_BYPASS and _is_private_ip(client_ip)
+    token = _extract_ws_token(ws)
+    if token and _hmac.compare_digest(token, _WS_TOKEN):
+        return True
+    client_ip = ws.client.host if ws.client else ""
+    if _DEV_BYPASS and _is_private_ip(client_ip):
+        return True
+    return False
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket) -> None:
     """WebSocket for streaming chat, voice transcripts, and real-time events."""
-    await ws.accept()
+    if not _validate_ws_auth(ws):
+        await ws.close(code=4001, reason="Authentication required")
+        logger.warning("Chat WS auth rejected from %s", ws.client.host if ws.client else "unknown")
+        return
+    token = _extract_ws_token(ws)
+    subprotocol = f"bearer.{token}" if token else None
+    await ws.accept(subprotocol=subprotocol)
     try:
         while True:
             data = await ws.receive_text()

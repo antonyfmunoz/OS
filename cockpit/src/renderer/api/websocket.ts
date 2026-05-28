@@ -7,11 +7,13 @@ export class WsClient {
   private reconnectDelay = 1000
   private shouldReconnect = true
 
-  constructor(private url: string) {}
+  constructor(private url: string, private protocols?: string[]) {}
 
   connect(): void {
     try {
-      this.ws = new WebSocket(this.url)
+      this.ws = this.protocols
+        ? new WebSocket(this.url, this.protocols)
+        : new WebSocket(this.url)
 
       this.ws.onopen = () => {
         this.reconnectDelay = 1000

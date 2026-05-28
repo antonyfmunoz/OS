@@ -3,6 +3,7 @@ import { WsClient } from '../api/websocket'
 import { useSystemStore } from '../stores/systemStore'
 import { useActivityStore } from '../stores/activityStore'
 import { useCockpitStore } from '../stores/cockpitStore'
+import { getWsToken } from '../api/client'
 
 export function useWebSocket() {
   const clientRef = useRef<WsClient | null>(null)
@@ -10,7 +11,9 @@ export function useWebSocket() {
 
   useEffect(() => {
     const wsUrl = import.meta.env.VITE_WS_URL || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`
-    const client = new WsClient(wsUrl)
+    const token = getWsToken()
+    const protocols = token ? [`bearer.${token}`] : undefined
+    const client = new WsClient(wsUrl, protocols)
     clientRef.current = client
 
     const cleanups: (() => void)[] = []
