@@ -141,6 +141,8 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "AllocationStrategy": ["substrate.organism.allocation_loop"],
     # ── substrate/organism/async_coordinator.py ───────────────────────
     "AsyncObjectiveStatus": ["substrate.organism.async_coordinator"],
+    # ── substrate/organism/projection_port.py ────────────────────────
+    "StateSlice": ["substrate.organism.projection_port"],
     # ── substrate/self_model.py ────────────────────────────────────────
     "Layer": ["substrate.self_model"],
     "ContextKind": ["substrate.self_model"],
