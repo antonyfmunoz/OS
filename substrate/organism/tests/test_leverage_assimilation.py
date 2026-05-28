@@ -13,7 +13,7 @@ from substrate.organism.leverage_assimilation import (
     ExtractedPrimitive,
     LeverageAssimilator,
     LeverageScore,
-    PrimitiveType,
+    LeveragePrimitiveType,
 )
 
 
@@ -47,7 +47,7 @@ class TestExtractedPrimitive:
     def test_to_dict(self):
         prim = ExtractedPrimitive(
             name="test_pattern",
-            primitive_type=PrimitiveType.PATTERN,
+            primitive_type=LeveragePrimitiveType.PATTERN,
             description="A test pattern",
             source_artifact="art-123",
         )
@@ -145,7 +145,7 @@ class TestAssimilatorExtract:
         result = assimilator.extract_primitives(art.id, primitives=primitives)
         assert len(result) == 2
         assert result[0].name == "lifecycle_mgmt"
-        assert result[0].primitive_type == PrimitiveType.PROTOCOL
+        assert result[0].primitive_type == LeveragePrimitiveType.PROTOCOL
 
     def test_extract_heuristic_agent_system(self, tmp_path):
         assimilator = LeverageAssimilator(state_dir=tmp_path / "assim")

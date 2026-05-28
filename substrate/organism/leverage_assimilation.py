@@ -56,7 +56,7 @@ class ArtifactType(str, Enum):
     UNKNOWN = "unknown"
 
 
-class PrimitiveType(str, Enum):
+class LeveragePrimitiveType(str, Enum):
     PATTERN = "pattern"
     CONFIG = "config"
     ABSTRACTION = "abstraction"
@@ -132,7 +132,7 @@ class LeverageScore:
 class ExtractedPrimitive:
     id: str = ""
     name: str = ""
-    primitive_type: PrimitiveType = PrimitiveType.PATTERN
+    primitive_type: LeveragePrimitiveType = LeveragePrimitiveType.PATTERN
     description: str = ""
     source_artifact: str = ""
     source_location: str = ""
@@ -329,7 +329,7 @@ class LeverageAssimilator:
             for p in primitives:
                 prim = ExtractedPrimitive(
                     name=p.get("name", ""),
-                    primitive_type=PrimitiveType(p.get("type", "pattern")),
+                    primitive_type=LeveragePrimitiveType(p.get("type", "pattern")),
                     description=p.get("description", ""),
                     source_artifact=artifact_id,
                     source_location=p.get("source_location", ""),
@@ -383,7 +383,7 @@ class LeverageAssimilator:
         return [
             ExtractedPrimitive(
                 name=f"{artifact.name}_{t['name']}",
-                primitive_type=PrimitiveType(t["type"]),
+                primitive_type=LeveragePrimitiveType(t["type"]),
                 description=t["desc"],
                 source_artifact=artifact.id,
             )
@@ -461,27 +461,27 @@ class LeverageAssimilator:
 
     def _score_applicability(self, prim: ExtractedPrimitive) -> float:
         """How broadly useful is this primitive across UMH?"""
-        broad_types = {PrimitiveType.PROTOCOL, PrimitiveType.ABSTRACTION, PrimitiveType.PATTERN}
+        broad_types = {LeveragePrimitiveType.PROTOCOL, LeveragePrimitiveType.ABSTRACTION, LeveragePrimitiveType.PATTERN}
         if prim.primitive_type in broad_types:
             return 0.8
-        if prim.primitive_type == PrimitiveType.WORKFLOW:
+        if prim.primitive_type == LeveragePrimitiveType.WORKFLOW:
             return 0.6
         return 0.4
 
     def _score_implementation_cost(self, prim: ExtractedPrimitive) -> float:
         """How much work to integrate? Higher = more expensive."""
-        high_cost_types = {PrimitiveType.ABSTRACTION, PrimitiveType.PROTOCOL}
+        high_cost_types = {LeveragePrimitiveType.ABSTRACTION, LeveragePrimitiveType.PROTOCOL}
         if prim.primitive_type in high_cost_types:
             return 0.7
-        if prim.primitive_type == PrimitiveType.ADAPTER:
+        if prim.primitive_type == LeveragePrimitiveType.ADAPTER:
             return 0.5
         return 0.3
 
     def _score_risk(self, prim: ExtractedPrimitive) -> float:
         """Integration risk to existing system. Higher = riskier."""
-        if prim.primitive_type == PrimitiveType.PROTOCOL:
+        if prim.primitive_type == LeveragePrimitiveType.PROTOCOL:
             return 0.6
-        if prim.primitive_type == PrimitiveType.ABSTRACTION:
+        if prim.primitive_type == LeveragePrimitiveType.ABSTRACTION:
             return 0.5
         return 0.2
 
@@ -492,14 +492,14 @@ class LeverageAssimilator:
             return {}
 
         mapping: dict[str, str] = {}
-        integration_points: dict[PrimitiveType, str] = {
-            PrimitiveType.PATTERN: "substrate/organism/",
-            PrimitiveType.CONFIG: "data/config/",
-            PrimitiveType.ABSTRACTION: "substrate/",
-            PrimitiveType.TECHNIQUE: "substrate/organism/",
-            PrimitiveType.PROTOCOL: "substrate/organism/protocols.py",
-            PrimitiveType.ADAPTER: "substrate/organism/runtime_adapters.py",
-            PrimitiveType.WORKFLOW: "substrate/execution/loop/",
+        integration_points: dict[LeveragePrimitiveType, str] = {
+            LeveragePrimitiveType.PATTERN: "substrate/organism/",
+            LeveragePrimitiveType.CONFIG: "data/config/",
+            LeveragePrimitiveType.ABSTRACTION: "substrate/",
+            LeveragePrimitiveType.TECHNIQUE: "substrate/organism/",
+            LeveragePrimitiveType.PROTOCOL: "substrate/organism/protocols.py",
+            LeveragePrimitiveType.ADAPTER: "substrate/organism/runtime_adapters.py",
+            LeveragePrimitiveType.WORKFLOW: "substrate/execution/loop/",
         }
 
         for prim in artifact.primitives:
