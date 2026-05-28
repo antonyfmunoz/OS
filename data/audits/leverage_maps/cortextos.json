@@ -1,0 +1,36 @@
+{
+  "source": "cortextOS",
+  "system_type": "agent_system",
+  "evidence_level": "PARTIAL",
+  "what_it_does": "Multi-agent OS-level orchestration. Lifecycle generation counters, pre-fire crash-safe idempotent execution, DAG dependency tracking with blocked_by/blocks.",
+  "operational_patterns": [
+    "Lifecycle generation counter — prevents restart race conditions",
+    "Pre-fire attempt timestamp — crash-safe idempotent execution",
+    "DAG dependency tracking with blocked_by/blocks relationships",
+    "Hierarchical task decomposition with runtime assignment"
+  ],
+  "runtime_patterns": [
+    "Multi-runtime execution graph",
+    "Fallback chain with scored routing",
+    "Heartbeat-based availability monitoring"
+  ],
+  "governance_patterns": [
+    "Generation-based consistency",
+    "Crash recovery via pre-fire markers"
+  ],
+  "ux_patterns": [],
+  "execution_loops": [
+    "Decompose → assign → execute → aggregate lifecycle"
+  ],
+  "reusable_primitives": [
+    "Generation counter for restart safety",
+    "Pre-fire marker for idempotent execution",
+    "DAG dependency resolution with blocked_by/blocks"
+  ],
+  "redundancy_risk": "HIGH — UMH OrganismCoordinator already absorbed generation counter, pre-fire markers, and DAG tracking from cortextOS in Phase 2",
+  "adaptation_priority": "LOW — already absorbed",
+  "umh_mapping": "substrate/organism/coordinator.py — all three patterns already implemented",
+  "eos_relevance": "Indirect — coordinator powers EOS agent execution",
+  "trinity_relevance": "None — substrate-level only",
+  "expected_leverage_gain": "0.0 — fully absorbed in Phase 2"
+}

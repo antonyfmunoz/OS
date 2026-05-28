@@ -1,12 +1,35 @@
-"""Organism daemon — manages agent lifecycle within the control plane."""
+"""Organism daemon — manages agent lifecycle within the control plane.
+
+Integrates all subsystems into a single daemon that can be run
+as a persistent process. The daemon is:
+  - tmux-safe: survives terminal detach
+  - restart-safe: persists state, recovers on restart
+  - crash-safe: supervisor detects and recovers runtime failures
+  - supervisor-managed: RuntimeSupervisor handles restart decisions
+
+The daemon owns the full subsystem graph:
+  RuntimeGraph → RuntimeSupervisor → OrganismCoordinator → Advisor
+  HomeostasisEngine feeds into Advisor for self-regulation.
+  WorkcellDaemon handles persistent inbox processing.
+  OrganismObserver produces cockpit snapshots.
+
+UMH substrate subsystem. Instance-agnostic.
+"""
 
 from __future__ import annotations
 
+import json
 import logging
+import time
+from pathlib import Path
 from typing import Any
 
 from substrate.organism.advisor import Advisor
 from substrate.organism.approval_store import ApprovalStore
+from substrate.organism.coordinator import OrganismCoordinator
+from substrate.organism.homeostasis import HomeostasisEngine
+from substrate.organism.runtime_graph import RuntimeGraph
+from substrate.organism.runtime_supervisor import RuntimeSupervisor
 from substrate.organism.store import OrganismStore
 from substrate.organism.worker_cell import WorkerCell
 from substrate.execution.pipeline import ExecutionPipeline
@@ -26,19 +49,62 @@ def _map_risk_level(data: dict[str, Any]) -> str:
 
 
 class OrganismDaemon:
+    """Integrated organism daemon with full subsystem wiring.
+
+    Can be run as:
+      1. Embedded (in-process): call start(), interact via methods
+      2. Persistent (daemon): call run_forever() in a tmux/systemd session
+      3. Single-tick: call tick() for one cycle of autonomous operation
+    """
+
     def __init__(
         self,
         pipeline: ExecutionPipeline | None = None,
         store_dir: str = "data/umh/organism",
         view_socket: Any = None,
+        graph: RuntimeGraph | None = None,
+        supervisor: RuntimeSupervisor | None = None,
+        homeostasis: HomeostasisEngine | None = None,
     ) -> None:
         self._store = OrganismStore(store_dir=store_dir)
         self._approval_store = ApprovalStore(store_dir=store_dir)
         self._pipeline = pipeline
+        self._state_dir = Path(store_dir)
+        self._state_dir.mkdir(parents=True, exist_ok=True)
+
+        self._graph = graph
+        self._homeostasis = homeostasis or HomeostasisEngine()
+
+        if self._graph is not None and supervisor is None:
+            self._supervisor = RuntimeSupervisor(
+                self._graph,
+                state_dir=str(self._state_dir / "supervisor"),
+            )
+        else:
+            self._supervisor = supervisor
+
+        coordinator: OrganismCoordinator | None = None
+        if self._graph is not None:
+            coordinator = OrganismCoordinator(
+                self._graph,
+                state_dir=str(self._state_dir / "coordinator"),
+            )
+
         worker = WorkerCell(pipeline=pipeline) if pipeline else WorkerCell()
-        self._advisor = Advisor(store=self._store, worker=worker, view_socket=view_socket)
+        self._advisor = Advisor(
+            store=self._store,
+            worker=worker,
+            view_socket=view_socket,
+            graph=self._graph,
+            coordinator=coordinator,
+            supervisor=self._supervisor,
+            homeostasis=self._homeostasis,
+        )
         self._view_socket = view_socket
         self._started = False
+        self._tick_count = 0
+        self._last_state_persist = 0.0
+        self._state_persist_interval_s = 60.0
 
     @property
     def advisor(self) -> Advisor:
@@ -52,11 +118,35 @@ class OrganismDaemon:
     def approval_store(self) -> ApprovalStore:
         return self._approval_store
 
+    @property
+    def graph(self) -> RuntimeGraph | None:
+        return self._graph
+
+    @property
+    def supervisor(self) -> RuntimeSupervisor | None:
+        return self._supervisor
+
+    @property
+    def homeostasis(self) -> HomeostasisEngine:
+        return self._homeostasis
+
     def start(self) -> None:
         self._started = True
+
+        if self._supervisor is not None and self._graph is not None:
+            for node in self._graph.all_nodes():
+                self._supervisor.supervise(node.runtime_id)
+            self._supervisor.reconcile_graph()
+
         if self._pipeline is not None:
             self._pipeline.on_event(self._on_pipeline_event)
-        logger.info("organism daemon started: %d agents", len(self._advisor.list_agents()))
+
+        logger.info(
+            "organism daemon started: %d agents, graph=%s, supervisor=%s",
+            len(self._advisor.list_agents()),
+            self._graph is not None,
+            self._supervisor is not None,
+        )
 
     def _on_pipeline_event(self, event_type: str, data: dict[str, Any]) -> None:
         if event_type == "governance" and not data.get("approved", True):
@@ -69,15 +159,37 @@ class OrganismDaemon:
                 governance_rationale=data.get("rationale", ""),
             )
 
+    def tick(self) -> dict[str, Any]:
+        """Execute one autonomous tick of the organism.
+
+        This is the core method for daemon operation. Each tick:
+        1. Runs the advisor's autonomous_tick (drains signals, executes
+           work units, checks health, runs homeostasis, recovers runtimes)
+        2. Periodically persists state
+        """
+        if not self._started:
+            self.start()
+
+        self._tick_count += 1
+        result = self._advisor.autonomous_tick()
+
+        now = time.time()
+        if now - self._last_state_persist > self._state_persist_interval_s:
+            self._persist_state()
+            self._last_state_persist = now
+
+        return result
+
     def stop(self) -> None:
+        self._persist_state()
         self._started = False
-        logger.info("organism daemon stopped")
+        logger.info("organism daemon stopped (tick_count=%d)", self._tick_count)
 
     @property
     def is_running(self) -> bool:
         return self._started
 
-    def handoff(self, **kwargs) -> dict[str, Any]:
+    def handoff(self, **kwargs: Any) -> dict[str, Any]:
         return self._advisor.handoff(**kwargs)
 
     def execute_parallel(self, tasks: list[dict[str, Any]]) -> dict[str, Any]:
@@ -86,8 +198,26 @@ class OrganismDaemon:
     def check_delegations(self) -> list[dict[str, Any]]:
         return self._advisor.check_delegations()
 
+    def _persist_state(self) -> None:
+        """Persist daemon state for crash recovery."""
+        if self._supervisor is not None:
+            self._supervisor.persist_state()
+
+        state = {
+            "started": self._started,
+            "tick_count": self._tick_count,
+            "timestamp": time.time(),
+        }
+        path = self._state_dir / "daemon_state.json"
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(state, indent=2))
+        tmp.rename(path)
+
     def status(self) -> dict[str, Any]:
         return {
             "running": self._started,
+            "tick_count": self._tick_count,
+            "graph_available": self._graph is not None,
+            "supervisor_available": self._supervisor is not None,
             **self._advisor.organism_status(),
         }

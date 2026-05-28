@@ -3,7 +3,8 @@ import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const BRIDGE   = resolve(__dirname, '../../bridge/agent_bridge.py')
+const AGENT_BRIDGE    = resolve(__dirname, '../../bridge/agent_bridge.py')
+const ORGANISM_BRIDGE = resolve(__dirname, '../../bridge/organism_bridge.py')
 
 export interface BridgeResult {
   success: boolean
@@ -11,11 +12,11 @@ export interface BridgeResult {
   error?:  string
 }
 
-export async function callBridge(payload: Record<string, unknown>): Promise<BridgeResult> {
+function _callPython(bridgePath: string, payload: Record<string, unknown>): Promise<BridgeResult> {
   return new Promise((res) => {
-    const proc = spawn('python3', [BRIDGE], {
+    const proc = spawn('python3', [bridgePath], {
       env: { ...process.env },
-      cwd: '/opt/OS',
+      cwd: process.env.UMH_ROOT ?? '/opt/OS',
     })
 
     let out = ''
@@ -30,7 +31,8 @@ export async function callBridge(payload: Record<string, unknown>): Promise<Brid
         return
       }
       try {
-        res({ success: true, data: JSON.parse(out) })
+        const parsed = JSON.parse(out)
+        res({ success: parsed.success ?? true, data: parsed.data ?? parsed, error: parsed.error })
       } catch {
         res({ success: false, error: `invalid JSON from bridge: ${out.slice(0, 200)}` })
       }
@@ -41,4 +43,12 @@ export async function callBridge(payload: Record<string, unknown>): Promise<Brid
     proc.stdin.write(JSON.stringify(payload))
     proc.stdin.end()
   })
+}
+
+export async function callBridge(payload: Record<string, unknown>): Promise<BridgeResult> {
+  return _callPython(AGENT_BRIDGE, payload)
+}
+
+export async function callOrganism(action: string, payload: Record<string, unknown> = {}): Promise<BridgeResult> {
+  return _callPython(ORGANISM_BRIDGE, { action, payload })
 }

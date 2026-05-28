@@ -1,0 +1,52 @@
+{
+  "source": "Codex / OpenCode / Hermes Runtime Patterns",
+  "system_type": "runtime_system",
+  "evidence_level": "PARTIAL",
+  "what_it_does": "Alternative AI coding runtimes. Codex (OpenAI) is a cloud sandbox runtime. OpenCode is an open-source terminal AI assistant. Hermes is a tool-use focused model/runtime.",
+  "operational_patterns": [
+    "Codex: cloud-sandboxed execution with git integration",
+    "Codex: async task submission and polling for results",
+    "OpenCode: terminal-native with provider-agnostic model routing",
+    "Hermes: tool-use optimized execution with structured outputs"
+  ],
+  "runtime_patterns": [
+    "Codex: sandboxed container per task, no local filesystem access",
+    "Codex: async execution — submit task, poll for completion",
+    "OpenCode: local execution with streaming output",
+    "OpenCode: provider abstraction (OpenAI, Anthropic, local models)",
+    "Hermes: structured tool calling with validation"
+  ],
+  "governance_patterns": [
+    "Codex: sandbox isolation prevents destructive actions",
+    "Codex: approval-based deployment (human reviews before merge)",
+    "OpenCode: permission-based tool access",
+    "Hermes: schema-validated tool calls"
+  ],
+  "ux_patterns": [
+    "Codex: submit-and-forget async pattern",
+    "OpenCode: terminal UI with real-time streaming",
+    "Hermes: structured JSON output for tool results"
+  ],
+  "execution_loops": [
+    "Codex: submit → sandbox execute → review → merge",
+    "OpenCode: prompt → execute → stream → iterate",
+    "Hermes: plan → tool-call → validate → respond"
+  ],
+  "reusable_primitives": [
+    "Async task submission with polling (Codex pattern)",
+    "Provider-agnostic model routing (OpenCode pattern)",
+    "Sandbox isolation for untrusted execution",
+    "Schema-validated tool calling"
+  ],
+  "redundancy_risk": "MEDIUM — UMH model_router already does provider-agnostic routing. RuntimeGraph does capability-based selection. Sandbox isolation is a genuine gap for Beast node execution.",
+  "adaptation_priority": "MEDIUM — async submission pattern and sandbox isolation are useful for the distributed organism. Provider-agnostic routing is already solved.",
+  "umh_mapping": {
+    "model_routing": "adapters/models/model_router.py — call_with_fallback() already provider-agnostic",
+    "runtime_selection": "substrate/organism/runtime_graph.py — RuntimeGraph.select()",
+    "async_execution": "substrate/organism/coordinator.py — execute_objective() is synchronous; async pattern is a gap",
+    "sandbox_isolation": "nodes/environments/ — work_packet.py has EnvironmentType but no sandbox enforcement yet"
+  },
+  "eos_relevance": "LOW — EOS agents don't need sandbox isolation",
+  "trinity_relevance": "LOW — products run in their own containers",
+  "expected_leverage_gain": "0.20 — async task submission and sandbox isolation are genuine capability gaps for distributed execution"
+}

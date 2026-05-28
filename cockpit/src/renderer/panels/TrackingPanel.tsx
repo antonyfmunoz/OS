@@ -6,7 +6,10 @@ export function TrackingPanel() {
         <span className="ml-2 text-xs text-text-tertiary">goal progress & KPIs</span>
       </div>
       <div className="flex-1 flex items-center justify-center">
-        <p className="text-xs text-text-tertiary">No tracking data available</p>
+        <div className="text-center">
+          <p className="text-xs text-text-tertiary mb-1">Not wired</p>
+          <p className="text-xs text-text-tertiary opacity-60">See Knowledge panel for execution economy tracking</p>
+        </div>
       </div>
     </div>
   )
