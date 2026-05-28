@@ -27,7 +27,7 @@ def register_chunker(fn: Callable) -> None:
 def notify_webhook(
     content: str,
     title: str = '',
-    username: str = 'DEX',
+    username: str = '',
     webhook_url: str = '',
     **kwargs,
 ) -> bool:

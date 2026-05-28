@@ -261,6 +261,40 @@ Each time, parallel types were created that overlapped with existing ones,
 compounding drift until manual audit caught it. This gate makes divergence
 mechanically impossible.
 
+## Instance Context Law (NON-NEGOTIABLE — ENFORCED BY PRE-COMMIT)
+UMH is a universal platform. The substrate must work for ANY user, ANY org,
+ANY AI name, ANY company. Instance-specific values in substrate code are defects.
+
+The dual model:
+  - **Canonical** (substrate/) = mechanisms, protocols, engines. Universal.
+  - **Instance** = identity, names, IPs, companies, products. Loaded at runtime.
+
+Instance context categories — NEVER hardcode in substrate/:
+  1. AI persona name (e.g., "DEX") → use `get_ai_name()` from BIS
+  2. Founder/user name (e.g., "Antony") → use BIS founder profile
+  3. Company/venture names (e.g., "Lyfe Institute") → use BIS venture registry
+  4. Product names (e.g., "Initiate Arena") → use BIS product registry
+  5. Infrastructure IPs (e.g., 100.77.233.50) → use env vars
+  6. Account IDs (e.g., GitHub usernames) → use env vars
+  7. Node identifiers (e.g., "antony-workstation") → use BIS node registry
+  8. Session prefixes derived from AI name → derive from `get_ai_name()` at runtime
+
+Before writing ANY string literal in substrate/ code, ask:
+"Would this string be different for a different UMH user?"
+If yes → it MUST come from BIS, env var, or runtime config.
+
+The pre-commit hook (`scripts/check_instance_leak.py`) blocks commits that
+introduce new instance values. Full codebase scan:
+`python3 scripts/check_instance_leak.py --all`
+
+72 legacy files are grandfathered in `LEGACY_INSTANCE_LEAKS` — each is tech
+debt to migrate. New entries require explicit justification.
+
+This law exists because instance context leaked across 70+ substrate files
+during the initial build when canonical and instance were developed together.
+The organism activation sprint (2026-05-27) discovered the pattern and
+installed this gate to make the leak mechanically impossible going forward.
+
 ## Protocol layers
 See PROTOCOLS.md for full 4-layer documentation (L0-L3).
 Git: commit directly to main (solo founder phase).

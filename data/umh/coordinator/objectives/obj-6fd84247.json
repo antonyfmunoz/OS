@@ -1,0 +1,39 @@
+{
+  "id": "obj-6fd84247",
+  "title": "DAG task",
+  "status": "executing",
+  "completion_rate": 0.0,
+  "work_units": [
+    {
+      "id": "wu-d067a77e",
+      "objective_id": "obj-6fd84247",
+      "title": "Step 1",
+      "unit_type": "execute",
+      "status": "pending",
+      "assigned_runtime": "",
+      "required_capability": "shell",
+      "blocked_by": [],
+      "blocks": [],
+      "attempt_count": 0,
+      "generation": 1,
+      "result": "",
+      "error": ""
+    },
+    {
+      "id": "wu-a679fb0e",
+      "objective_id": "obj-6fd84247",
+      "title": "Step 2",
+      "unit_type": "execute",
+      "status": "pending",
+      "assigned_runtime": "",
+      "required_capability": "shell",
+      "blocked_by": [],
+      "blocks": [],
+      "attempt_count": 0,
+      "generation": 1,
+      "result": "",
+      "error": ""
+    }
+  ],
+  "generation": 1
+}

@@ -27,7 +27,7 @@ Usage:
 
     # Add a goal
     goal = selector.add_goal(
-        title="Close first Initiate Arena sale",
+        title="Close first product sale",
         expected_impact=0.9,
         estimated_cost=0.3,
         priority=10,

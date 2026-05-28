@@ -10,6 +10,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 import os
 from dotenv import load_dotenv
+from substrate.self_model import get_handler_prefix as _ghp
 
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 logger = logging.getLogger(__name__)
@@ -23,8 +24,8 @@ PDT = ZoneInfo('America/Los_Angeles')
 YIELD_QUADRANTS = {
     'delegate': {
         'label': 'DELEGATE',
-        'description': 'Low energy drain, low financial value. Give to DEX immediately.',
-        'action': 'DEX handles this. Remove from your plate today.',
+        'description': 'Low energy drain, low financial value. Delegate to the AI immediately.',
+        'action': 'The AI handles this. Remove from your plate today.',
         'emoji': '🤖',
     },
     'replace': {
@@ -60,9 +61,9 @@ def classify_task_yield(task: str, ctx=None) -> dict:
 
 Task: {task}
 
-Context: Antony Munoz is a founder running 3 ventures.
-His genius zone: strategy, sales, product vision, content creation.
-His drain zone: admin, repetitive operations, low-level coordination.
+Context: The founder runs multiple ventures.
+Their genius zone: strategy, sales, product vision, content creation.
+Their drain zone: admin, repetitive operations, low-level coordination.
 
 Rate the task:
 - energy_score: -2 (major drain) to +2 (major energy gain)
@@ -136,7 +137,7 @@ def run_yield_audit(tasks: list[str], ctx=None) -> dict:
                 'task_count': len(tasks),
                 'audited_at': datetime.now(PDT).isoformat(),
             },
-            handled_by='dex_yield',
+            handled_by=f'{_ghp()}yield',
         )
     except Exception as e:
         logger.warning(f'[TaskYield] audit persist failed: {e}')
@@ -152,7 +153,7 @@ def format_yield_report(results: dict) -> str:
         ('produce', '⚡', 'PRODUCE — Your genius zone'),
         ('invest', '📈', 'INVEST — Energizing but low value'),
         ('replace', '👥', 'REPLACE — Hire a specialist'),
-        ('delegate', '🤖', 'DELEGATE — DEX handles this'),
+        ('delegate', '🤖', 'DELEGATE — the AI handles this'),
     ]:
         items = results.get(quadrant, [])
         if items:
@@ -164,8 +165,9 @@ def format_yield_report(results: dict) -> str:
 
     delegate_count = len(results.get('delegate', []))
     if delegate_count > 0:
+        _ai_fmt = os.environ.get("AI_NAME", "the AI")
         lines.append(
-            f'💡 **{delegate_count} tasks can be given to DEX immediately.**\n'
+            f'💡 **{delegate_count} tasks can be given to {_ai_fmt} immediately.**\n'
             f'Reply `!delegate_all` to move them all.'
         )
 

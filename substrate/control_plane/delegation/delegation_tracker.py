@@ -7,6 +7,7 @@ import json
 import logging
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
+from substrate.self_model import get_handler_prefix as _ghp
 
 logger = logging.getLogger(__name__)
 PDT = ZoneInfo('America/Los_Angeles')
@@ -36,7 +37,7 @@ def log_delegation(
                 'delegated_at': now.isoformat(),
                 'due_at': due_at,
             },
-            handled_by='dex_delegation',
+            handled_by=f'{_ghp()}delegation',
         )
         return True
     except Exception as e:

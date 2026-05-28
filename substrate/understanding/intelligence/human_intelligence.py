@@ -135,7 +135,7 @@ class HumanIntelligenceEngine:
 
         return {
             "username":       fm.get("name", Path(filepath).stem),
-            "venture_id":     "lyfe_institute",   # all current leads are for LI
+            "venture_id":     os.environ.get("UMH_ACTIVE_VENTURE", ""),
             "platform":       fm.get("platform", "instagram"),
             "status":         fm.get("status", "new"),
             "kanban_stage":   fm.get("kanban_stage", "New"),
@@ -158,7 +158,7 @@ class HumanIntelligenceEngine:
     # ─── Internal: profile DB ops ─────────────────────────────────────────────
 
     def _store_profile(self, username: str, venture_id_slug: str, profile: dict) -> None:
-        """Upsert profile into Neon human_profiles. venture_id_slug is a string like 'lyfe_institute'."""
+        """Upsert profile into Neon human_profiles. venture_id_slug is a string like 'my_venture'."""
         venture_uuid = resolve_venture(venture_id_slug)
         if not venture_uuid:
             print(f"  [HumanIntel] Warning: venture slug '{venture_id_slug}' not found — skipping Neon write.")
@@ -171,7 +171,7 @@ class HumanIntelligenceEngine:
             profile=profile,
         )
 
-    def _fetch_profile_row(self, username: str, venture_id: str = "lyfe_institute") -> dict | None:
+    def _fetch_profile_row(self, username: str, venture_id: str = "") -> dict | None:
         with get_conn(self._ctx.org_id) as cur:
             cur.execute(
                 """
@@ -205,8 +205,7 @@ class HumanIntelligenceEngine:
         convo_block = lead["conversation"] or "(no conversation recorded yet)"
 
         return (
-            f"You are profiling a sales lead for Initiate Arena — a 90-day discipline and "
-            f"execution program for ambitious men 18–25.\n\n"
+            f"You are profiling a sales lead for the active product.\n\n"
             f"LEAD DATA:\n"
             f"  Username     : @{lead['username']}\n"
             f"  Platform     : {lead['platform']}\n"
@@ -313,7 +312,7 @@ class HumanIntelligenceEngine:
 
     # ─── Public: get_profile ────────────────────────────────────────────────
 
-    def get_profile(self, username: str, venture_id: str = "lyfe_institute") -> dict | None:
+    def get_profile(self, username: str, venture_id: str = "") -> dict | None:
         """Return stored profile dict, or None if not yet built."""
         row = self._fetch_profile_row(username, venture_id)
         if not row:
@@ -353,7 +352,7 @@ class HumanIntelligenceEngine:
         result = self._runtime.run(
             task_type=TaskType.GENERATE,
             prompt=prompt,
-            venture_id=profile.get("venture_id", "lyfe_institute"),
+            venture_id=profile.get("venture_id", os.environ.get("UMH_ACTIVE_VENTURE", "")),
             max_tokens=300,
             agent="human_intelligence",
         )
@@ -583,7 +582,7 @@ class HumanIntelligenceEngine:
 
         Returns adapted message string, or original if profile not found.
         """
-        venture_id = "lyfe_institute" if human_type in ("lead", "prospect") else "team"
+        venture_id = os.environ.get("UMH_ACTIVE_VENTURE", "") if human_type in ("lead", "prospect") else "team"
         profile    = self.get_profile(target_human, venture_id)
 
         # Fall back: just use human_type context if no profile
@@ -652,7 +651,7 @@ class HumanIntelligenceEngine:
         Checks both lead profiles and team profiles.
         """
         # Check lead profile first
-        profile = self.get_profile(username, "lyfe_institute")
+        profile = self.get_profile(username, os.environ.get("UMH_ACTIVE_VENTURE", ""))
         if profile:
             human_type = profile.get("human_type", "lead")
             last = profile.get("last_contact", "unknown")

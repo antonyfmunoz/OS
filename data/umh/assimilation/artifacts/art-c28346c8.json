@@ -1,0 +1,15 @@
+{
+  "id": "art-c28346c8",
+  "name": "test",
+  "source_url": "",
+  "artifact_type": "unknown",
+  "status": "extracted",
+  "primitives_count": 1,
+  "leverage_summary": {
+    "count": 1,
+    "avg_score": 0.35,
+    "max_score": 0.35
+  },
+  "redundancy_report": {},
+  "created_at": 1779934766.118416
+}

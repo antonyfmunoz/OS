@@ -45,6 +45,7 @@ async def run_browser_task(url: str, task: str, ctx: object | None = None) -> di
     return await _run(url=url, task=task, ctx=ctx)
 
 
+from substrate.self_model import self_model
 from substrate.control_plane.identity import ConcreteIdentityResolver
 from substrate.control_plane.context import ConcreteContextAssembler
 from substrate.control_plane.governance import ConcreteGovernanceEngine
@@ -63,6 +64,7 @@ class Substrate:
 
     def __init__(self) -> None:
         self._started_at = time.monotonic()
+        self.self_model = self_model
         self.identity = ConcreteIdentityResolver()
         self.governance = ConcreteGovernanceEngine()
         self.memory = ConcreteMemorySystem()
@@ -85,6 +87,11 @@ class Substrate:
             execution_spine=self.spine,
             trace_recorder=self.trace,
             feedback_capture=self.feedback,
+        )
+        self.self_model.register_subsystems(
+            registry=self.registry,
+            trace_recorder=self.trace,
+            governance=self.governance,
         )
         self._register_boot_adapters()
 
@@ -142,6 +149,7 @@ class Substrate:
     def status(self) -> SubstrateStatus:
         """Return substrate health status."""
         subsystems = {
+            "self_model": "ok" if self.self_model.instance.loaded else "unloaded",
             "identity": "ok",
             "context": "ok",
             "governance": "ok",
@@ -151,7 +159,7 @@ class Substrate:
             "feedback": "ok",
             "spine": "ok",
         }
-        healthy = all(v in ("ok", "degraded") for v in subsystems.values())
+        healthy = all(v in ("ok", "degraded", "unloaded") for v in subsystems.values())
         return SubstrateStatus(
             healthy=healthy,
             subsystems=subsystems,

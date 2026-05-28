@@ -494,8 +494,8 @@ class TmuxAdapter:
 class BeastNodeAdapter:
     """Beast GPU node — remote execution via Tailscale SSH."""
 
-    def __init__(self, host: str = "100.74.199.102") -> None:
-        self._host = host
+    def __init__(self, host: str = "") -> None:
+        self._host = host or os.environ.get("EOS_LOCAL_BRIDGE_IP", "")
 
     @property
     def runtime_id(self) -> str:
@@ -528,7 +528,7 @@ class BeastNodeAdapter:
                     "ConnectTimeout=3",
                     "-o",
                     "BatchMode=yes",
-                    f"antonys beast pc@{self._host}",
+                    f"{os.environ.get('UMH_BEAST_SSH_USER', 'user')}@{self._host}",
                     "echo ok",
                 ],
                 capture_output=True,
@@ -547,7 +547,7 @@ class BeastNodeAdapter:
         start_ms = time.monotonic_ns() // 1_000_000
         try:
             result = subprocess.run(
-                ["ssh", "-o", "ConnectTimeout=5", f"antonys beast pc@{self._host}", cmd],
+                ["ssh", "-o", "ConnectTimeout=5", f"{os.environ.get('UMH_BEAST_SSH_USER', 'user')}@{self._host}", cmd],
                 capture_output=True,
                 text=True,
                 timeout=kwargs.get("timeout", 120),

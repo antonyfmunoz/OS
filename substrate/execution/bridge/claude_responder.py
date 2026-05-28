@@ -9,7 +9,7 @@ Provides a single, simple entry point that Discord (and later meeting /
 operator) surfaces can call to get a conversational reply WITHOUT using any
 provider API, token budget, or second cognition pipeline.
 
-    respond_via_claude_session(text, target="vps", session_name="dex_main")
+    respond_via_claude_session(text, target="vps", session_name="<ai>_main")
         -> {"ok": bool, "reply": str, "source": "claude_session",
             "session": str, ...}
 
@@ -38,11 +38,8 @@ _DEFAULT_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.en
 LAYER_NAME = "claude_responder"
 LAYER_VERSION = "v1"
 
-DEFAULT_SESSION_NAME = "dex_main"
+DEFAULT_SESSION_NAME = csb.make_session_name("main")
 DEFAULT_TARGET = "vps"
-
-# Session mapping bounds
-_DISCORD_CHANNEL_SESSION_PREFIX = "dex_discord_"
 
 
 def session_name_for_discord_channel(channel_id: Any) -> str:

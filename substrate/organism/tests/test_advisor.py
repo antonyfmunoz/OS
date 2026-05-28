@@ -1,4 +1,4 @@
-"""tests for DEX advisor — interpret, decompose, delegate, synthesize."""
+"""Tests for advisor — interpret, decompose, delegate, synthesize."""
 
 import pytest
 from substrate.organism.advisor import Advisor

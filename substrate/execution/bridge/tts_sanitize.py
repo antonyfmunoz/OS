@@ -10,7 +10,7 @@ metadata that is useful in a chat transcript but WRONG to speak aloud:
   - token / cost stats                 ("Tokens: 1.2k  Cost: $0.003")
   - skill footer blocks                ("★ Insight ─── ... ────")
   - separator bars                     ("───────────────")
-  - signature tails                    ("— DEX", "— EOS")
+  - signature tails                    ("— AI", "— EOS")
 
 `sanitize_tts_reply` returns ONLY the spoken body. It is:
 
@@ -26,6 +26,7 @@ shown in chat as `display_text`, but TTS speaks ONLY the sanitized body.
 
 from __future__ import annotations
 
+import os
 import re
 
 # Max spoken body length — TTS should be short; Discord's soft cap is 2000
@@ -58,8 +59,13 @@ _LINE_DROP_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"^\s*using\s+skill\b", re.IGNORECASE),
     # Debug / trace breadcrumbs
     re.compile(r"^\s*\[(debug|trace|router|model_router|gateway)\]", re.IGNORECASE),
-    # Signature tails ("— DEX", "-- EOS")
-    re.compile(r"^\s*[—\-–]{1,2}\s*(dex|eos|claude|assistant)\s*$", re.IGNORECASE),
+    # Signature tails ("— the AI", "-- EOS") — matches common AI names dynamically
+    re.compile(
+        r"^\s*[—\-–]{1,2}\s*("
+        + (os.environ.get("AI_NAME", "AI").lower() + "|" if os.environ.get("AI_NAME") else "")
+        + r"eos|claude|assistant)\s*$",
+        re.IGNORECASE,
+    ),
     # EOS cognitive loop footer lines (⚙ model, 🪙 cost ⏱ time 📊 tokens)
     re.compile(r".*⚙", re.IGNORECASE),
     re.compile(r".*⏱", re.IGNORECASE),

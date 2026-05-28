@@ -415,7 +415,7 @@ class EntrepreneurOSGateway:
         return any(s in t for s in EMAIL_INSTRUCTION_SIGNALS)
 
     _EMAIL_FOLDERS = (
-        "antony", "to respond", "review", "responded",
+        "founder", "to respond", "review", "responded",
         "waiting on", "receipts-financials", "newsletters",
     )
 
@@ -461,8 +461,7 @@ class EntrepreneurOSGateway:
                     f"Extract the email folder instruction "
                     f"from this message.\n\n"
                     f"Message: {text}\n\n"
-                    f"Available folders: Antony, To Respond, Review, "
-                    f"Responded, Waiting On, Receipts-Financials, Newsletters\n\n"
+                    f"Available folders: {os.environ.get('EMAIL_FOLDERS', 'Inbox, To Respond, Review, Responded, Waiting On, Receipts-Financials, Newsletters')}\n\n"
                     f"Return JSON only:\n"
                     f'{{"folder_name": "exact folder name", '
                     f'"instruction": "what should change"}}'
@@ -1014,9 +1013,10 @@ class EntrepreneurOSGateway:
         loop = CognitiveLoop(ctx)
 
         # Named agent teams — direct agent routing with context injection
+        _ai_team = os.environ.get("AI_NAME", "").lower() or "ai"
         _NAMED_AGENT_TEAMS = frozenset(
             {
-                "dex",
+                _ai_team,
                 "lyfe_ceo",
                 "brand_ceo",
                 "portfolio_advisor",
@@ -1261,14 +1261,14 @@ class EntrepreneurOSGateway:
 
         if team and team in _NAMED_AGENT_TEAMS:
             agent_id = {
-                "dex": "executive_assistant",
+                _ai_team: "executive_assistant",
                 "lyfe_ceo": "lyfe_ceo",
                 "brand_ceo": "brand_ceo",
                 "portfolio_advisor": "portfolio_advisor",
             }[team]
 
             if agent_id == "executive_assistant":
-                # DEX — inject EA operational standards + leverage detection
+                # AI EA — inject EA operational standards + leverage detection
                 try:
                     from substrate.understanding.patterns.leverage_patterns import detect_leverage_killer
 
@@ -1297,8 +1297,8 @@ class EntrepreneurOSGateway:
                             f"OPERATIONAL STANDARDS:\n{ea_standards}\n\n---\n\n{prompt}"
                         )
                         print("[Gateway] EA standards from Python")
-                    except Exception as _dex_err:
-                        print(f"[Gateway] DEX context inject: {_dex_err}")
+                    except Exception as _ea_err:
+                        print(f"[Gateway] EA context inject: {_ea_err}")
 
             elif agent_id == "portfolio_advisor":
                 # Portfolio Advisor — inject live portfolio data

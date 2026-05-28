@@ -574,7 +574,7 @@ if __name__ == "__main__":
     instance = registry.instantiate(
         "coaching_program",
         {
-            "offer_name": "Initiate Arena",
+            "offer_name": "Example Product",
             "icp_description": "Men 18-25 who want discipline",
             "primary_channel": "Instagram DMs",
             "price_point": 750,

@@ -28,12 +28,14 @@ from substrate.organism.advisor import Advisor
 from substrate.organism.allocation_loop import AllocationLoop
 from substrate.organism.approval_store import ApprovalStore
 from substrate.organism.async_coordinator import AsyncCoordinator
+from substrate.organism.autonomous_tick import AutonomousTick, TickConfig
 from substrate.organism.coordinator import OrganismCoordinator
-from substrate.organism.event_spine import EventSpine
+from substrate.organism.event_spine import EventDomain, EventSpine
 from substrate.organism.execution_economy import ExecutionEconomy
 from substrate.organism.homeostasis import HomeostasisEngine
+from substrate.organism.leverage_assimilation import LeverageAssimilator
 from substrate.organism.objective_queue import ObjectiveQueue
-from substrate.organism.projection_port import OrganismStatePort
+from substrate.organism.projection_port import OrganismStatePort, StateSlice
 from substrate.organism.recursion_governance import RecursionGovernor
 from substrate.organism.runtime_graph import RuntimeGraph
 from substrate.organism.runtime_supervisor import RuntimeSupervisor
@@ -72,6 +74,7 @@ class OrganismDaemon:
         graph: RuntimeGraph | None = None,
         supervisor: RuntimeSupervisor | None = None,
         homeostasis: HomeostasisEngine | None = None,
+        tick_config: TickConfig | None = None,
     ) -> None:
         self._store = OrganismStore(store_dir=store_dir)
         self._approval_store = ApprovalStore(store_dir=store_dir)
@@ -79,7 +82,9 @@ class OrganismDaemon:
         self._state_dir = Path(store_dir)
         self._state_dir.mkdir(parents=True, exist_ok=True)
 
-        self._event_spine = EventSpine()
+        self._event_spine = EventSpine(
+            persist_path=str(self._state_dir / "events.jsonl"),
+        )
 
         self._graph = graph
         self._homeostasis = homeostasis or HomeostasisEngine()
@@ -92,6 +97,9 @@ class OrganismDaemon:
             )
         else:
             self._supervisor = supervisor
+
+        self._governor = RecursionGovernor()
+        self._economy = ExecutionEconomy()
 
         coordinator: OrganismCoordinator | None = None
         if self._graph is not None:
@@ -118,8 +126,8 @@ class OrganismDaemon:
                 spine=self._event_spine,
                 graph=self._graph,
                 supervisor=self._supervisor,
-                economy=ExecutionEconomy(),
-                governor=RecursionGovernor(),
+                economy=self._economy,
+                governor=self._governor,
             )
         else:
             self._allocation_loop = None
@@ -132,13 +140,67 @@ class OrganismDaemon:
         else:
             self._async_coordinator = None
 
-        self._projection_port = OrganismStatePort()
+        self._leverage_assimilator = LeverageAssimilator(
+            event_spine=self._event_spine,
+            state_dir=str(self._state_dir / "leverage"),
+        )
+
+        self._projection_port = OrganismStatePort(
+            state_dir=str(self._state_dir / "projections"),
+        )
+
+        self._autonomous_tick = AutonomousTick(
+            spine=self._event_spine,
+            config=tick_config or TickConfig(),
+        )
+        self._register_tick_stages()
 
         self._view_socket = view_socket
         self._started = False
         self._tick_count = 0
         self._last_state_persist = 0.0
         self._state_persist_interval_s = 60.0
+
+    def _register_tick_stages(self) -> None:
+        """Register all subsystems as autonomous tick stages."""
+        self._autonomous_tick.register_stage(
+            "advisor", self._advisor.autonomous_tick,
+        )
+        self._autonomous_tick.register_stage(
+            "homeostasis", self._homeostasis.check,
+        )
+        if self._supervisor is not None:
+            self._autonomous_tick.register_stage(
+                "supervisor_reconcile", self._supervisor.reconcile_graph,
+            )
+        if self._allocation_loop is not None:
+            self._autonomous_tick.register_stage(
+                "allocation", self._allocation_loop.allocation_cycle,
+            )
+        if self._async_coordinator is not None:
+            self._autonomous_tick.register_stage(
+                "async_objectives", self._async_coordinator.advance,
+            )
+        self._autonomous_tick.register_stage(
+            "leverage_rebalance", self._leverage_assimilator.rebalance_cycle,
+        )
+        self._autonomous_tick.register_stage(
+            "projection_broadcast", self._broadcast_state,
+        )
+
+    def _broadcast_state(self) -> None:
+        """Push current state through the projection port."""
+        if self._graph is not None:
+            self._projection_port.broadcast(
+                StateSlice.RUNTIMES, self._graph.to_dict(),
+            )
+        if self._supervisor is not None:
+            self._projection_port.broadcast(
+                StateSlice.SUPERVISOR, self._supervisor.to_dict(),
+            )
+        self._projection_port.broadcast(
+            StateSlice.GOVERNANCE, self._governor.to_dict(),
+        )
 
     @property
     def advisor(self) -> Advisor:
@@ -184,6 +246,18 @@ class OrganismDaemon:
     def projection_port(self) -> OrganismStatePort:
         return self._projection_port
 
+    @property
+    def autonomous_tick(self) -> AutonomousTick:
+        return self._autonomous_tick
+
+    @property
+    def leverage_assimilator(self) -> LeverageAssimilator:
+        return self._leverage_assimilator
+
+    @property
+    def governor(self) -> RecursionGovernor:
+        return self._governor
+
     def start(self) -> None:
         self._started = True
 
@@ -195,11 +269,30 @@ class OrganismDaemon:
         if self._pipeline is not None:
             self._pipeline.on_event(self._on_pipeline_event)
 
+        self._projection_port.bridge_from_spine(
+            self._event_spine,
+            {
+                EventDomain.RUNTIME: StateSlice.RUNTIMES,
+                EventDomain.SUPERVISOR: StateSlice.SUPERVISOR,
+                EventDomain.GOVERNANCE: StateSlice.GOVERNANCE,
+                EventDomain.LEVERAGE: StateSlice.LEVERAGE,
+                EventDomain.OBJECTIVE: StateSlice.OBJECTIVES,
+                EventDomain.EXECUTION: StateSlice.ECONOMY,
+                EventDomain.WORKCELL: StateSlice.WORKCELLS,
+                EventDomain.OBSERVABILITY: StateSlice.OBSERVABILITY,
+            },
+        )
+
+        self._event_spine.recover()
+
         logger.info(
-            "organism daemon started: %d agents, graph=%s, supervisor=%s",
+            "organism daemon started: %d agents, graph=%s, supervisor=%s, "
+            "tick_stages=%d, events_recovered=%d",
             len(self._advisor.list_agents()),
             self._graph is not None,
             self._supervisor is not None,
+            len(self._autonomous_tick.stages),
+            len(self._event_spine.recent(limit=1000)),
         )
 
     def _on_pipeline_event(self, event_type: str, data: dict[str, Any]) -> None:
@@ -216,26 +309,34 @@ class OrganismDaemon:
     def tick(self) -> dict[str, Any]:
         """Execute one autonomous tick of the organism.
 
-        This is the core method for daemon operation. Each tick:
-        1. Runs the advisor's autonomous_tick (drains signals, executes
-           work units, checks health, runs homeostasis, recovers runtimes)
-        2. Periodically persists state
+        Runs all registered stages through the AutonomousTick engine:
+          advisor, homeostasis, supervisor reconcile, allocation,
+          async objectives, leverage rebalance, projection broadcast.
+        Periodically persists daemon state.
         """
         if not self._started:
             self.start()
 
         self._tick_count += 1
-        result = self._advisor.autonomous_tick()
+        report = self._autonomous_tick.execute_cycle()
 
         now = time.time()
         if now - self._last_state_persist > self._state_persist_interval_s:
             self._persist_state()
             self._last_state_persist = now
 
-        return result
+        return {
+            "cycle": report.cycle_number,
+            "stages_executed": report.stages_executed,
+            "stages_failed": report.stages_failed,
+            "elapsed_ms": round(report.elapsed_ms, 2),
+            "had_work": report.had_work,
+            "stage_details": report.stage_details,
+        }
 
     def stop(self) -> None:
         self._persist_state()
+        self._event_spine.flush()
         self._started = False
         logger.info("organism daemon stopped (tick_count=%d)", self._tick_count)
 
@@ -273,5 +374,8 @@ class OrganismDaemon:
             "tick_count": self._tick_count,
             "graph_available": self._graph is not None,
             "supervisor_available": self._supervisor is not None,
+            "tick_engine": self._autonomous_tick.to_dict(),
+            "event_spine": self._event_spine.snapshot(),
+            "governor": self._governor.to_dict(),
             **self._advisor.organism_status(),
         }

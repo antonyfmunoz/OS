@@ -1,6 +1,20 @@
 import os
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
+
+def _venture_name(venture_id: str) -> str:
+    """Resolve a venture display name from instance config. Falls back to title-cased slug."""
+    try:
+        from substrate.self_model import SelfModel
+        sm = SelfModel()
+        for v in sm.instance.ventures:
+            if v.get('id') == venture_id:
+                return v.get('name', venture_id.replace('_', ' ').title())
+    except Exception:
+        pass
+    return venture_id.replace('_', ' ').title()
+
+
 """
 Agent hierarchy for EntrepreneurOS.
 
@@ -20,9 +34,9 @@ Usage:
 
 # ─── CORRECTED HIERARCHY AND COMMUNICATION FLOW ───────────────────────────────
 #
-# Antony (Founder)
+# Founder
 #   ↕ communicates via EA
-# EA (DEX) — communication bridge only
+# EA — communication bridge only
 #   EA routes to CEOs on founder's behalf
 #   EA does NOT manage technical execution
 #   ↕ routes to
@@ -51,7 +65,7 @@ HIERARCHY: dict[str, dict] = {
     'executive_assistant': {
         'level': 2,
         'title': 'Executive Assistant',
-        'identity': 'DEX',
+        'identity': '',
         'reports_to': None,
         'manages': [
             'portfolio_advisor',
@@ -118,7 +132,7 @@ HIERARCHY: dict[str, dict] = {
 
     'lyfe_institute_ceo': {
         'level': 3,
-        'title': 'Lyfe Institute CEO',
+        'title': f'{_venture_name("lyfe_institute")} CEO',
         'reports_to': 'executive_assistant',
         'manages': [
             'lyfe_developer_agent',
@@ -155,7 +169,7 @@ HIERARCHY: dict[str, dict] = {
 
     'empyrean_ceo': {
         'level': 3,
-        'title': 'Empyrean Creative CEO',
+        'title': f'{_venture_name("empyrean_creative")} CEO',
         'reports_to': 'executive_assistant',
         'manages': [
             'empyrean_developer_agent',
@@ -185,7 +199,7 @@ HIERARCHY: dict[str, dict] = {
 
     'lyfe_developer_agent': {
         'level': 4,
-        'title': 'Lyfe Institute Developer Agent',
+        'title': f'{_venture_name("lyfe_institute")} Developer Agent',
         'identity': 'Claude Code',
         'reports_to': 'lyfe_institute_ceo',
         'manages': [],
@@ -238,7 +252,7 @@ HIERARCHY: dict[str, dict] = {
 
     'empyrean_developer_agent': {
         'level': 4,
-        'title': 'Empyrean Developer Agent',
+        'title': f'{_venture_name("empyrean_creative")} Developer Agent',
         'identity': 'Claude Code',
         'reports_to': 'empyrean_ceo',
         'manages': [],
@@ -317,31 +331,46 @@ class AgentHierarchy:
         """
         text_lower = text.lower()
 
-        # Portfolio-level → Portfolio Advisor
-        portfolio_words = (
-            'portfolio', 'all companies', 'munoz holdings',
+        # Build portfolio keywords dynamically from org name
+        _org = os.environ.get("UMH_ORG_NAME", "").lower()
+        portfolio_words = [
+            'portfolio', 'all companies',
             'capital allocation', 'allocate', 'across companies',
             'both ventures', 'both companies',
-        )
+        ]
+        if _org:
+            portfolio_words.append(_org)
         if any(w in text_lower for w in portfolio_words):
             return 'portfolio_advisor'
 
-        # Lyfe Institute specific → Lyfe Institute CEO
-        lyfe_words = (
-            'lyfe institute', 'initiate arena',
-            'the program', 'the course', 'cohort',
-            'initiate', 'arena',
-        )
-        if any(w in text_lower for w in lyfe_words):
-            return 'lyfe_institute_ceo'
+        # Route to venture CEOs by matching venture/product names from config
+        try:
+            from substrate.self_model import SelfModel
+            sm = SelfModel()
+            for v in sm.instance.ventures:
+                v_name = v.get('name', '').lower()
+                v_id = v.get('id', '')
+                if v_name and v_name in text_lower:
+                    # Find the CEO agent for this venture
+                    for agent_id, cfg in self.agents.items():
+                        if cfg.get('venture_id') == v_id and cfg.get('ceo_intelligence'):
+                            return agent_id
+            for p in sm.instance.products:
+                p_name = p.get('name', '').lower()
+                p_venture = p.get('venture', '')
+                if p_name and p_name in text_lower:
+                    for agent_id, cfg in self.agents.items():
+                        if cfg.get('venture_id') == p_venture and cfg.get('ceo_intelligence'):
+                            return agent_id
+        except Exception:
+            pass
 
-        # Empyrean specific → Empyrean CEO
-        empyrean_words = (
-            'empyrean', 'creative agency',
-            'client project', 'studio',
-        )
-        if any(w in text_lower for w in empyrean_words):
-            return 'empyrean_ceo'
+        # Generic program/course keywords → default to first venture CEO
+        generic_words = ('the program', 'the course', 'cohort')
+        if any(w in text_lower for w in generic_words):
+            for agent_id, cfg in self.agents.items():
+                if cfg.get('ceo_intelligence'):
+                    return agent_id
 
         # Everything else → EA handles directly
         return 'executive_assistant'

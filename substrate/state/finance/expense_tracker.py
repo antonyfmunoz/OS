@@ -9,6 +9,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 import os
 from dotenv import load_dotenv
+from substrate.self_model import get_handler_prefix as _ghp
 
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 logger = logging.getLogger(__name__)
@@ -83,7 +84,7 @@ def store_expense(expense: dict, ctx=None) -> bool:
             org_id=str(ctx.org_id),
             event_type='expense',
             payload=expense,
-            handled_by='dex_expense_tracker',
+            handled_by=f'{_ghp()}expense_tracker',
         )
         return True
     except Exception as e:
@@ -230,7 +231,7 @@ def create_invoice(
             org_id=str(ctx.org_id),
             event_type='invoice',
             payload=invoice,
-            handled_by='dex_invoices',
+            handled_by=f'{_ghp()}invoices',
         )
 
         return invoice

@@ -1,24 +1,27 @@
 """
 DailySync — structured daily briefing format.
 
-DEX drives the meeting. Antony just responds.
+The AI drives the meeting. The founder responds.
 Posted at 6am in #morning-brief via Discord.
 
 7-section agenda (soul doc exact order):
-  1. Your list      — Antony's ideas/requests for DEX captured from Discord
+  1. Your list      — founder's ideas/requests captured from Discord
   2. Calendar       — 6 weeks on Mondays, 2 weeks other days.
   3. Past meetings  — open loops from Notion Meetings DB
-  4. Action items   — dex_task events, deduplicated
+  4. Action items   — task events, deduplicated
   5. Projects       — active work + blockers
   6. Emails         — TO_RESPOND + REVIEW from GPS
-  7. Questions      — unanswered dex_question events (omitted if none)
+  7. Questions      — unanswered question events (omitted if none)
 
-The cloning goal: every question answered trains DEX not to ask it again.
-DEX responds without asking. This is the goal: DEX = Antony's clone.
+The cloning goal: every question answered trains the AI not to ask it again.
+The AI responds without asking. This is the goal: AI = founder's clone.
 """
 
+import os as _os_mod
 from dataclasses import dataclass, field
 from datetime import date, datetime
+
+from substrate.self_model import get_handler_prefix as _ghp
 
 
 @dataclass
@@ -35,10 +38,10 @@ class SyncAgenda:
     top_item_reason: str             = ''                            # S4 priority reason
     goal_alignment: str              = ''                            # goal-to-action check
     subscription_alerts: list        = field(default_factory=list)  # renewal warnings
-    first_3: list = field(default_factory=list)   # DEX handles in first hour
-    last_3: list = field(default_factory=list)    # Antony must complete today
-    recurring_3: list = field(default_factory=list)  # DEX owns daily
-    dex_items: list = field(default_factory=list)        # S4 tasks below BBR
+    first_3: list = field(default_factory=list)   # AI handles in first hour
+    last_3: list = field(default_factory=list)    # founder must complete today
+    recurring_3: list = field(default_factory=list)  # AI owns daily
+    ai_delegate_items: list = field(default_factory=list)  # S4 tasks below BBR
     quarterly_rocks: list = field(default_factory=list)  # from preloaded year
     important_dates: list = field(default_factory=list)  # upcoming personal dates
 
@@ -64,9 +67,9 @@ class DailySync:
             is_monday=is_monday,
         )
 
-        # ── Section 1: Your list (Antony's requests for DEX) ─────────────
-        # Items Antony dropped in Discord for DEX to handle.
-        # dex_task events only — questions go to S7.
+        # ── Section 1: Your list (founder's requests for the AI) ────────
+        # Items the founder dropped in Discord for the AI to handle.
+        # task events only — questions go to S7.
         try:
             import json
             from substrate.state.storage.db import get_conn
@@ -75,14 +78,14 @@ class DailySync:
                     SELECT payload_json
                     FROM events
                     WHERE org_id = %s
-                      AND event_type = 'dex_task'
+                      AND event_type = %s
                       AND (
                         payload_json->>'status' IS NULL
                         OR payload_json->>'completed' = 'false'
                       )
                     ORDER BY created_at DESC
                     LIMIT 5
-                ''', (self.ctx.org_id,))
+                ''', (self.ctx.org_id, f"{_ghp()}task"))
                 for row in cur.fetchall():
                     data = row[0]
                     if isinstance(data, str):
@@ -152,7 +155,7 @@ class DailySync:
             print(f'[DailySync] Past meetings: {e}')
 
         # ── Section 4: Action items (deduplicated) ───────────────────────
-        # dex_task events from the last 7 days, not completed.
+        # task events from the last 7 days, not completed.
         # Normalized dedup: strip "TASK:" prefix, case-insensitive.
         try:
             import json
@@ -161,13 +164,13 @@ class DailySync:
                 cur.execute('''
                     SELECT payload_json FROM events
                     WHERE org_id = %s
-                    AND event_type = 'dex_task'
+                    AND event_type = %s
                     AND (payload_json->>\'status\' IS NULL
                          OR payload_json->>\'status\' != \'completed\')
                     AND created_at >= NOW() - INTERVAL \'7 days\'
                     ORDER BY created_at DESC
                     LIMIT 20
-                ''', (str(self.ctx.org_id),))
+                ''', (str(self.ctx.org_id), f"{_ghp()}task"))
                 rows = cur.fetchall()
 
             seen_normalized: set[str] = set()
@@ -210,8 +213,10 @@ class DailySync:
                     f'{i+1}. {item}'
                     for i, item in enumerate(agenda.action_items)
                 )
+                _ai = _os_mod.environ.get("AI_NAME", "AI")
+                _founder = _os_mod.environ.get("UMH_FOUNDER_NAME", "the founder")
                 prompt = (
-                    'You are DEX, EA to Antony Munoz.\n'
+                    f'You are {_ai}, EA to {_founder}.\n'
                     f'Portfolio binding constraint: {constraint}\n\n'
                     'Rank these action items by priority (highest leverage first).\n'
                     'Consider: revenue impact, binding constraint alignment, '
@@ -242,12 +247,14 @@ class DailySync:
             _pa = PortfolioAgent(self.ctx)
             _ventures = _pa.scan_all_ventures()
             _binding = _pa.identify_binding_constraint(_ventures)
-            _constraint = _binding.recommendation if _binding else 'Close the first Initiate Arena client'
+            _constraint = _binding.recommendation if _binding else 'Close the first client'
 
             _top_item = agenda.action_items[0] if agenda.action_items else ''
             if _top_item and _top_item != 'No open action items.':
+                _ai2 = _os_mod.environ.get("AI_NAME", "AI")
+                _founder2 = _os_mod.environ.get("UMH_FOUNDER_NAME", "the founder")
                 _align_prompt = (
-                    'You are DEX, EA to Antony Munoz.\n\n'
+                    f'You are {_ai2}, EA to {_founder2}.\n\n'
                     f'Binding constraint: {_constraint}\n'
                     f'Top action item today: {_top_item}\n\n'
                     'In one sentence: does this action item move the needle on the binding '
@@ -277,7 +284,9 @@ class DailySync:
             _tasks_ctx = '\n'.join(agenda.action_items[:5]) if agenda.action_items else 'None'
             _cal_ctx = '\n'.join(agenda.calendar_review[:3]) if agenda.calendar_review else 'None'
 
-            _333_prompt = f"""You are DEX, EA to Antony Munoz.
+            _ai3 = _os_mod.environ.get("AI_NAME", "AI")
+            _founder3 = _os_mod.environ.get("UMH_FOUNDER_NAME", "the founder")
+            _333_prompt = f"""You are {_ai3}, EA to {_founder3}.
 Apply the 3-3-3 priority framework to today.
 
 Emails to handle: {_emails_ctx}
@@ -287,9 +296,9 @@ Binding constraint: focus on first sale
 
 Return JSON only:
 {{
-  "first_3": ["Thing DEX handles in first hour so Antony doesn't have to", "Thing 2", "Thing 3"],
-  "last_3": ["Most important thing Antony must personally complete today", "Thing 2", "Thing 3"],
-  "recurring_3": ["Task DEX owns completely every day", "Task 2", "Task 3"]
+  "first_3": ["Thing the AI handles in first hour so the founder doesn't have to", "Thing 2", "Thing 3"],
+  "last_3": ["Most important thing the founder must personally complete today", "Thing 2", "Thing 3"],
+  "recurring_3": ["Task the AI owns completely every day", "Task 2", "Task 3"]
 }}"""
 
             _333_result = _router333.call(_model333, _333_prompt).strip()
@@ -302,22 +311,22 @@ Return JSON only:
         except Exception as _e333:
             print(f'[DailySync] 3-3-3 generation failed: {_e333}')
 
-        # ── DRIP split — filter delegate tasks to dex_items ─────────────
+        # ── DRIP split — filter delegate tasks to ai_delegate_items ─────
         try:
             from substrate.control_plane.strategy.task_yield_matrix import classify_task_yield
-            antony_items = []
-            dex_items = []
+            founder_items = []
+            ai_items = []
             for item in agenda.action_items[:10]:
                 drip = classify_task_yield(item)
                 if drip.get('quadrant') in ('produce', 'invest'):
-                    antony_items.append(item)
+                    founder_items.append(item)
                 else:
-                    dex_items.append(item)
-            if antony_items or dex_items:
-                agenda.action_items = antony_items
-                agenda.dex_items = dex_items
+                    ai_items.append(item)
+            if founder_items or ai_items:
+                agenda.action_items = founder_items
+                agenda.ai_delegate_items = ai_items
         except Exception:
-            agenda.dex_items = []
+            agenda.ai_delegate_items = []
 
         # ── Section 5: Projects ──────────────────────────────────────────
         # In-progress items from all three Notion Tasks databases.
@@ -330,10 +339,19 @@ Return JSON only:
                 'Notion-Version': '2022-06-28',
                 'Content-Type': 'application/json',
             }
+            # Venture names loaded from instance config
+            _inst_ventures = []
+            try:
+                from substrate.self_model import self_model as _sm
+                if _sm.instance.loaded:
+                    _inst_ventures = _sm.instance.ventures
+            except Exception:
+                pass
+            _venture_labels = {v.get("id", ""): v.get("name", v.get("id", "")) for v in _inst_ventures}
             _dbs = {
-                'Lyfe Institute':    _os.getenv('NOTION_YOUR_LIST_LYFE'),
-                'Empyrean Creative': _os.getenv('NOTION_YOUR_LIST_EMPYREAN'),
-                'Personal Brand':    _os.getenv('NOTION_YOUR_LIST_BRAND'),
+                _venture_labels.get('lyfe_institute', 'Venture 1'): _os.getenv('NOTION_YOUR_LIST_LYFE'),
+                _venture_labels.get('empyrean_creative', 'Venture 2'): _os.getenv('NOTION_YOUR_LIST_EMPYREAN'),
+                'Personal Brand': _os.getenv('NOTION_YOUR_LIST_BRAND'),
             }
             agenda.project_updates = []
             for _venture, _db_id in _dbs.items():
@@ -409,8 +427,8 @@ Return JSON only:
         except Exception as e:
             agenda.emails = [f'Email unavailable: {e}']
 
-        # ── Section 7: Questions (unanswered dex_question events) ────────
-        # Only populated if there are real questions DEX cannot resolve alone.
+        # ── Section 7: Questions (unanswered question events) ────────────
+        # Only populated if there are real questions the AI cannot resolve alone.
         try:
             import json as _json
             from substrate.state.storage.db import get_conn
@@ -418,13 +436,13 @@ Return JSON only:
                 cur.execute('''
                     SELECT payload_json FROM events
                     WHERE org_id = %s
-                    AND event_type = 'dex_question'
+                    AND event_type = %s
                     AND (payload_json->>\'answered\' IS NULL
                          OR payload_json->>\'answered\' != \'true\')
                     AND created_at >= NOW() - INTERVAL \'48 hours\'
                     ORDER BY created_at DESC
                     LIMIT 5
-                ''', (str(self.ctx.org_id),))
+                ''', (str(self.ctx.org_id), f"{_ghp()}question"))
                 rows = cur.fetchall()
             for r in rows:
                 payload = r['payload_json'] if isinstance(r['payload_json'], dict) else _json.loads(r['payload_json'])
@@ -475,10 +493,10 @@ Return JSON only:
                 return binding.binding_constraint
         except Exception:
             pass
-        return 'Close the first Initiate Arena client.'
+        return 'Close the first client.'
 
     def format_sync_message(self, agenda: SyncAgenda, closing_line: str = '') -> str:
-        """Format agenda into Discord-ready message. DEX drives."""
+        """Format agenda into Discord-ready message. The AI drives."""
         lines = [
             '━━━━━━━━━━━━━━━━━━━━━━━━',
             f'📋 **DAILY SYNC — {agenda.date}**',
@@ -525,8 +543,9 @@ Return JSON only:
         # 3-3-3 block
         if agenda.first_3 or agenda.last_3:
             lines.append('**⚡ 3-3-3 Today:**')
+            _ai_label = _os_mod.environ.get("AI_NAME", "AI")
             if agenda.first_3:
-                lines.append('_DEX handles (first hour):_')
+                lines.append(f'_{_ai_label} handles (first hour):_')
                 for item in agenda.first_3:
                     lines.append(f'  • {item}')
             if agenda.last_3:
@@ -534,7 +553,7 @@ Return JSON only:
                 for item in agenda.last_3:
                     lines.append(f'  • {item}')
             if agenda.recurring_3:
-                lines.append('_DEX owns daily:_')
+                lines.append(f'_{_ai_label} owns daily:_')
                 for item in agenda.recurring_3:
                     lines.append(f'  • {item}')
             lines.append('')
@@ -588,13 +607,14 @@ Return JSON only:
             lines.append(
                 f'_🪨 {_q} Rocks: {" | ".join(agenda.quarterly_rocks[:3])}_'
             )
-        if agenda.dex_items:
+        _ai_sign = _os_mod.environ.get("AI_NAME", "AI")
+        if agenda.ai_delegate_items:
             lines.append(
-                f'_🤖 DEX handling ({len(agenda.dex_items)} below BBR):_'
+                f'_🤖 {_ai_sign} handling ({len(agenda.ai_delegate_items)} below BBR):_'
             )
-            for item in agenda.dex_items[:3]:
+            for item in agenda.ai_delegate_items[:3]:
                 lines.append(f'  • {item[:60]}')
-        lines.extend(['', '— DEX'])
+        lines.extend(['', f'— {_ai_sign}'])
 
         return '\n'.join(lines)
 

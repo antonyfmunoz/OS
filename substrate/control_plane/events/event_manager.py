@@ -10,6 +10,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from pathlib import Path
 from dotenv import load_dotenv
+from substrate.self_model import get_handler_prefix as _ghp
 
 load_dotenv(Path(__file__).parent / '.env')
 logger = logging.getLogger(__name__)
@@ -48,7 +49,7 @@ Attendees: {len(attendees or [])}
 Budget: ${budget:,.0f}
 
 Return JSON only:
-{{"checklist": [{{"item": "task description", "owner": "DEX or Founder", "due": "X days before", "done": false}}]}}""").strip()
+{{"checklist": [{{"item": "task description", "owner": "the AI or Founder", "due": "X days before", "done": false}}]}}""").strip()
 
         checklist_data = []
         try:
@@ -75,7 +76,7 @@ Return JSON only:
             org_id=str(ctx.org_id),
             event_type='managed_event',
             payload=event,
-            handled_by='dex_events',
+            handled_by=f'{_ghp()}events',
         )
 
         return event
@@ -150,7 +151,7 @@ def log_speaking_engagement(
                 'status': status,
                 'logged_at': datetime.now(PDT).isoformat(),
             },
-            handled_by='dex_speaking',
+            handled_by=f'{_ghp()}speaking',
         )
         return True
     except Exception as e:
@@ -245,7 +246,7 @@ def log_pr_media_inquiry(
                 'status': 'received',
                 'logged_at': datetime.now(PDT).isoformat(),
             },
-            handled_by='dex_pr',
+            handled_by=f'{_ghp()}pr',
         )
         return True
     except Exception as e:

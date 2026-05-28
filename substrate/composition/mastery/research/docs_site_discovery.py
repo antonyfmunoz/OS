@@ -33,6 +33,8 @@ Honest boundaries:
 
 from __future__ import annotations
 
+import os
+
 import re
 import socket
 import urllib.error
@@ -43,7 +45,7 @@ from urllib.parse import urljoin, urlparse
 
 from .models import SourceRef, SourceTier
 
-USER_AGENT = "EOS-ToolMasteryResearchAgent/1.0 (+https://github.com/antonyfmunoz/OS)"
+USER_AGENT = f"UMH-ToolMasteryResearchAgent/1.0 (+https://github.com/{os.environ.get('GITHUB_USER', 'umh')}/OS)"
 TIMEOUT_SECONDS = 15
 MAX_BYTES = 2_000_000  # cap per discovery file
 

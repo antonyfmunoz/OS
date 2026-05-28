@@ -101,7 +101,7 @@ class Event:
         parent_event_id: ID of the parent event (for chunk→reply linkage).
         correlation_id: Workflow-level ID threading all related events.
         source: Originating subsystem (discord, tmux_session, pipeline, etc).
-        source_session: Specific session name (dex_product, dex_builder, etc).
+        source_session: Specific session name (<ai>_product, <ai>_builder, etc).
         target: Destination subsystem (discord, local_node, vps, etc).
         event_type: Canonical event type.
         payload: Arbitrary structured data.

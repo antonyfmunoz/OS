@@ -97,7 +97,7 @@ def run_setup() -> None:
 
     # Collect inputs
     founder_name   = _ask('Your name')
-    ai_name        = _ask('Name for your AI', 'DEX')
+    ai_name        = _ask('Name for your AI')
     north_star     = _ask('North star (revenue goal)', '$10K/month')
     venture_name   = _ask('Company name')
     industry       = _ask('Industry', 'coaching')

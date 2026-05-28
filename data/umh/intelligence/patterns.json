@@ -1,0 +1,253 @@
+{
+  "patterns": [
+    {
+      "pattern_id": "p_audit_cognitive_loop.py_for_mutations_st",
+      "description": "Pattern from: Audit cognitive_loop.py for state mutations outside canonical paths",
+      "trigger_conditions": [
+        "audit",
+        "cognitive_loop.py",
+        "for",
+        "state",
+        "mutations"
+      ],
+      "predicted_outcome": "success",
+      "confidence": 1.0,
+      "observation_count": 23,
+      "success_rate": 0.5,
+      "last_seen": "2026-05-28T02:28:43.033647+00:00",
+      "domain": "{'command': \"echo 'Researcher task: Audit cognitive_loop.py for state mutations outside canonical paths'\", 'returncode': 0, 'stdout': 'Researcher task: Audit cognitive_loop.py for state mutations outs"
+    },
+    {
+      "pattern_id": "p_echo_hello",
+      "description": "Pattern from: echo hello",
+      "trigger_conditions": [
+        "echo",
+        "hello"
+      ],
+      "predicted_outcome": "success",
+      "confidence": 1.0,
+      "observation_count": 22,
+      "success_rate": 0.5,
+      "last_seen": "2026-05-28T02:28:43.413801+00:00",
+      "domain": "{'command': 'echo hello', 'returncode': 0, 'stdout': 'hello\\n', 'stderr': '', 'success': True}"
+    },
+    {
+      "pattern_id": "p_echo_test",
+      "description": "Pattern from: echo test",
+      "trigger_conditions": [
+        "echo",
+        "test"
+      ],
+      "predicted_outcome": "success",
+      "confidence": 1.0,
+      "observation_count": 22,
+      "success_rate": 0.5,
+      "last_seen": "2026-05-28T02:28:43.447915+00:00",
+      "domain": "{'command': 'echo test', 'returncode': 0, 'stdout': 'test\\n', 'stderr': '', 'success': True}"
+    },
+    {
+      "pattern_id": "p_echo_status",
+      "description": "Pattern from: echo status",
+      "trigger_conditions": [
+        "echo",
+        "status"
+      ],
+      "predicted_outcome": "success",
+      "confidence": 1.0,
+      "observation_count": 22,
+      "success_rate": 0.5,
+      "last_seen": "2026-05-28T02:28:43.476295+00:00",
+      "domain": "{'command': 'echo status', 'returncode': 0, 'stdout': 'status\\n', 'stderr': '', 'success': True}"
+    },
+    {
+      "pattern_id": "p_audit_directory_for_services/umh/organis",
+      "description": "Pattern from: Audit the services/umh/organism/ directory for any missing __init__.py files",
+      "trigger_conditions": [
+        "audit",
+        "the",
+        "services/umh/organism/",
+        "directory",
+        "for"
+      ],
+      "predicted_outcome": "success",
+      "confidence": 1.0,
+      "observation_count": 23,
+      "success_rate": 1.0,
+      "last_seen": "2026-05-28T02:29:39.786058+00:00",
+      "domain": "{'command': \"echo 'Researcher task: Audit the services/umh/organism/ directory for any missing __init__.py files'\", 'returncode': 0, 'stdout': 'Researcher task: Audit the services/umh/organism/ direct"
+    },
+    {
+      "pattern_id": "p_check_for_imports_in_unused",
+      "description": "Pattern from: Check for unused imports in app.py",
+      "trigger_conditions": [
+        "check",
+        "for",
+        "unused",
+        "imports",
+        "in"
+      ],
+      "predicted_outcome": "success",
+      "confidence": 1.0,
+      "observation_count": 18,
+      "success_rate": 0.5,
+      "last_seen": "2026-05-28T02:26:55.922461+00:00",
+      "domain": "{'command': \"echo 'Researcher task: Check for unused imports in app.py'\", 'returncode': 0, 'stdout': 'Researcher task: Check for unused imports in app.py\\n', 'stderr': '', 'success': True}"
+    },
+    {
+      "pattern_id": "p_comments_for_in_search_todo",
+      "description": "Pattern from: Search for TODO comments in the codebase",
+      "trigger_conditions": [
+        "search",
+        "for",
+        "todo",
+        "comments",
+        "in"
+      ],
+      "predicted_outcome": "success",
+      "confidence": 1.0,
+      "observation_count": 15,
+      "success_rate": 0.5,
+      "last_seen": "2026-05-28T02:27:44.583016+00:00",
+      "domain": "{'command': \"echo 'Researcher task: Search for TODO comments in the codebase'\", 'returncode': 0, 'stdout': 'Researcher task: Search for TODO comments in the codebase\\n', 'stderr': '', 'success': True}"
+    },
+    {
+      "pattern_id": "p_all_files_in_list_python",
+      "description": "Pattern from: List all Python files in services/umh/",
+      "trigger_conditions": [
+        "list",
+        "all",
+        "python",
+        "files",
+        "in"
+      ],
+      "predicted_outcome": "success",
+      "confidence": 1.0,
+      "observation_count": 12,
+      "success_rate": 0.5,
+      "last_seen": "2026-05-28T02:21:12.132513+00:00",
+      "domain": "{'command': \"echo 'Researcher task: List all Python files in services/umh/'\", 'returncode': 0, 'stdout': 'Researcher task: List all Python files in services/umh/\\n', 'stderr': '', 'success': True}"
+    },
+    {
+      "pattern_id": "p_audit_files_for_missing_services/umh/org",
+      "description": "Pattern from: Audit services/umh/organism/ for missing files",
+      "trigger_conditions": [
+        "audit",
+        "services/umh/organism/",
+        "for",
+        "missing",
+        "files"
+      ],
+      "predicted_outcome": "success",
+      "confidence": 1.0,
+      "observation_count": 10,
+      "success_rate": 0.5,
+      "last_seen": "2026-05-28T02:22:01.974150+00:00",
+      "domain": "{'command': \"echo 'Researcher task: Audit services/umh/organism/ for missing files'\", 'returncode': 0, 'stdout': 'Researcher task: Audit services/umh/organism/ for missing files\\n', 'stderr': '', 'suc"
+    },
+    {
+      "pattern_id": "p_check_for_imports_unused",
+      "description": "Pattern from: Check for unused imports",
+      "trigger_conditions": [
+        "check",
+        "for",
+        "unused",
+        "imports"
+      ],
+      "predicted_outcome": "success",
+      "confidence": 1.0,
+      "observation_count": 10,
+      "success_rate": 0.5,
+      "last_seen": "2026-05-28T02:22:02.064887+00:00",
+      "domain": "{'command': \"echo 'Researcher task: Check for unused imports'\", 'returncode': 0, 'stdout': 'Researcher task: Check for unused imports\\n', 'stderr': '', 'success': True}"
+    },
+    {
+      "pattern_id": "p_comments_for_search_todo",
+      "description": "Pattern from: Search for TODO comments",
+      "trigger_conditions": [
+        "search",
+        "for",
+        "todo",
+        "comments"
+      ],
+      "predicted_outcome": "success",
+      "confidence": 1.0,
+      "observation_count": 18,
+      "success_rate": 0.5,
+      "last_seen": "2026-05-28T02:22:02.127820+00:00",
+      "domain": "{'command': \"echo 'Researcher task: Search for TODO comments'\", 'returncode': 0, 'stdout': 'Researcher task: Search for TODO comments\\n', 'stderr': '', 'success': True}"
+    },
+    {
+      "pattern_id": "p_files_list",
+      "description": "Pattern from: List files",
+      "trigger_conditions": [
+        "list",
+        "files"
+      ],
+      "predicted_outcome": "success",
+      "confidence": 1.0,
+      "observation_count": 10,
+      "success_rate": 0.5,
+      "last_seen": "2026-05-28T02:22:02.165617+00:00",
+      "domain": "{'command': \"echo 'Researcher task: List files'\", 'returncode': 0, 'stdout': 'Researcher task: List files\\n', 'stderr': '', 'success': True}"
+    },
+    {
+      "pattern_id": "p_files_list_python",
+      "description": "Pattern from: list python files",
+      "trigger_conditions": [
+        "list",
+        "python",
+        "files"
+      ],
+      "predicted_outcome": "success",
+      "confidence": 1.0,
+      "observation_count": 10,
+      "success_rate": 0.5,
+      "last_seen": "2026-05-28T02:22:02.441575+00:00",
+      "domain": "{'command': 'query', 'returncode': 127, 'stdout': '', 'stderr': '/bin/sh: 1: query: not found\\n', 'success': False}"
+    },
+    {
+      "pattern_id": "p_simple_test",
+      "description": "Pattern from: simple test",
+      "trigger_conditions": [
+        "simple",
+        "test"
+      ],
+      "predicted_outcome": "success",
+      "confidence": 1.0,
+      "observation_count": 10,
+      "success_rate": 0.5,
+      "last_seen": "2026-05-28T02:22:02.591443+00:00",
+      "domain": "{'command': 'query', 'returncode': 127, 'stdout': '', 'stderr': '/bin/sh: 1: query: not found\\n', 'success': False}"
+    },
+    {
+      "pattern_id": "p_files_for_search",
+      "description": "Pattern from: search for files",
+      "trigger_conditions": [
+        "search",
+        "for",
+        "files"
+      ],
+      "predicted_outcome": "success",
+      "confidence": 1.0,
+      "observation_count": 26,
+      "success_rate": 0.5,
+      "last_seen": "2026-05-28T02:28:43.292701+00:00",
+      "domain": "{'command': \"echo 'Researcher task: search for files'\", 'returncode': 0, 'stdout': 'Researcher task: search for files\\n', 'stderr': '', 'success': True}"
+    },
+    {
+      "pattern_id": "p_for_patterns_search",
+      "description": "Pattern from: search for patterns",
+      "trigger_conditions": [
+        "search",
+        "for",
+        "patterns"
+      ],
+      "predicted_outcome": "success",
+      "confidence": 1.0,
+      "observation_count": 8,
+      "success_rate": 0.5,
+      "last_seen": "2026-05-28T02:21:12.530080+00:00",
+      "domain": "{'command': \"echo 'Researcher task: search for patterns'\", 'returncode': 0, 'stdout': 'Researcher task: search for patterns\\n', 'stderr': '', 'success': True}"
+    }
+  ]
+}

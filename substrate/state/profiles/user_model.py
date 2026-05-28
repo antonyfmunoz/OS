@@ -324,7 +324,7 @@ class UserModel:
         prompts into their full intent. Routes through Haiku (fast, cheap).
 
         e.g. "do outreach" → "Run the daily Instagram DM outreach sequence for
-        Initiate Arena ICP segment using the warm opener template. Focus on
+        the active product ICP segment using the warm opener template. Focus on
         leads in the Contacted stage."
 
         Returns original prompt if:

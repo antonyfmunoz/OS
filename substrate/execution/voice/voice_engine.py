@@ -321,7 +321,7 @@ class IntelligentVoiceProcessor:
         for item in recent:
             lines.append(f"You: {item['utterance'][:100]}")
             if item['response']:
-                lines.append(f"DEX: {item['response'][:100]}")
+                lines.append(f"{os.environ.get("AI_NAME", "AI")}: {item['response'][:100]}")
         return '\n'.join(lines)
 
 
@@ -547,18 +547,27 @@ class VoiceEngine:
         Free and fast — no Anthropic API cost. Use for simple/quick queries.
         Returns empty string if Ollama is not running.
         """
-        system_msg = system or (
-            'You are DEX. Executive Assistant to Antony F. Munoz, '
-            'founder of Munoz Conglomerate. '
-            'You talk like a sharp always-on operator — not corporate, not formal. '
-            'Current stage: Stage 1. Focus: get first sale, $750 Initiate Arena. '
-            'ICP: men 18-25, Instagram. North star: $10K/month net. '
-            'Never say "Hello, I\'m DEX, your AI business assistant." '
-            'Never say "Let\'s schedule a call to discuss." '
-            'When greeted, say what matters right now. Short. Direct. '
-            'Example response to "hey": '
-            '"Stage 1. First sale is the target. What do you need?"'
-        )
+        if not system:
+            from substrate.self_model import self_model as _sm
+            if not _sm.instance.loaded:
+                _sm.load_instance()
+            _inst = _sm.instance
+            _parts = []
+            if _inst.ai_name:
+                _parts.append(f'You are {_inst.ai_name}.')
+            if _inst.founder_name:
+                _parts.append(f'Executive Assistant to {_inst.founder_name}.')
+            if _inst.org_name:
+                _parts.append(f'Founder of {_inst.org_name}.')
+            _parts.append(
+                'You talk like a sharp always-on operator — not corporate, not formal. '
+                'When greeted, say what matters right now. Short. Direct.'
+            )
+            if _inst.business_stage:
+                _parts.append(f'Current stage: {_inst.business_stage}.')
+            system_msg = ' '.join(_parts)
+        else:
+            system_msg = system
         try:
             from substrate.contracts.agent_types import TaskType
             from adapters.models.model_router import get_router

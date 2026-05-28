@@ -184,7 +184,7 @@ class BusinessInstance:
     success_definition: str = ''
 
     # AI persona (user-configurable)
-    ai_name: str = 'DEX'
+    ai_name: str = ''
     ai_personality: str = (
         'Direct, intelligent, always on. '
         'Challenges bad thinking. '
@@ -453,7 +453,7 @@ class BusinessInstanceManager:
 def get_ai_name(ctx, venture_id: str = 'lyfe_institute') -> str:
     """
     Resolve AI name for this user.
-    Priority: BIS.ai_name → AI_NAME env var → default 'DEX'.
+    Priority: BIS.ai_name → AI_NAME env var → empty string.
     """
     try:
         bim = BusinessInstanceManager(ctx)
@@ -469,4 +469,4 @@ def get_ai_name(ctx, venture_id: str = 'lyfe_institute') -> str:
             return name
     except Exception:
         pass
-    return 'DEX'
+    return ''
