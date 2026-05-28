@@ -164,8 +164,17 @@ class ReportDispatcher:
 
             files_dict: dict[str, Any] = {}
             if report.file_path and os.path.exists(report.file_path):
-                filename = os.path.basename(report.file_path)
-                files_dict["files[0]"] = (filename, open(report.file_path, "rb"), "text/markdown")
+                resolved = os.path.realpath(report.file_path)
+                allowed_roots = [
+                    os.path.realpath(os.path.join(_REPO_ROOT, "docs")),
+                    os.path.realpath(os.path.join(_REPO_ROOT, "data")),
+                ]
+                if not any(resolved.startswith(root + os.sep) for root in allowed_roots):
+                    return False, f"file_path outside allowed directories: {resolved}"
+                if os.path.islink(report.file_path):
+                    return False, "symlinks not allowed for report files"
+                filename = os.path.basename(resolved)
+                files_dict["files[0]"] = (filename, open(resolved, "rb"), "text/markdown")
             elif report.body:
                 safe_title = report.title.replace(" ", "_").replace("/", "_")[:50]
                 filename = f"{safe_title}.md"
