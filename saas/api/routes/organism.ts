@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import type { Env } from '../types.js'
 import { callOrganism } from '../lib/python_bridge.js'
+import { operatorGuard } from '../middleware/operator.js'
 
 const router = new Hono<Env>()
 
@@ -131,43 +132,44 @@ router.get('/leverage', async (c) => {
   return c.json(result.data)
 })
 
-router.get('/world-model', async (c) => {
+// ── Phase 8: substrate-level intelligence (operator-only) ──────
+router.get('/world-model', operatorGuard, async (c) => {
   const result = await callOrganism('organism.world_model')
   if (!result.success) return c.json({ error: result.error }, 502)
   return c.json(result.data)
 })
 
-router.get('/dependency-graph', async (c) => {
+router.get('/dependency-graph', operatorGuard, async (c) => {
   const result = await callOrganism('organism.dependency_graph')
   if (!result.success) return c.json({ error: result.error }, 502)
   return c.json(result.data)
 })
 
-router.get('/contradictions', async (c) => {
+router.get('/contradictions', operatorGuard, async (c) => {
   const result = await callOrganism('organism.contradictions')
   if (!result.success) return c.json({ error: result.error }, 502)
   return c.json(result.data)
 })
 
-router.get('/learning-loop', async (c) => {
+router.get('/learning-loop', operatorGuard, async (c) => {
   const result = await callOrganism('organism.learning_loop')
   if (!result.success) return c.json({ error: result.error }, 502)
   return c.json(result.data)
 })
 
-router.get('/memory-promotion', async (c) => {
+router.get('/memory-promotion', operatorGuard, async (c) => {
   const result = await callOrganism('organism.memory_promotion')
   if (!result.success) return c.json({ error: result.error }, 502)
   return c.json(result.data)
 })
 
-router.post('/memory-promotion/:id/approve', async (c) => {
+router.post('/memory-promotion/:id/approve', operatorGuard, async (c) => {
   const result = await callOrganism('organism.memory_promotion.approve', { id: c.req.param('id') })
   if (!result.success) return c.json({ error: result.error }, 400)
   return c.json(result.data)
 })
 
-router.post('/memory-promotion/:id/reject', async (c) => {
+router.post('/memory-promotion/:id/reject', operatorGuard, async (c) => {
   const body = await c.req.json().catch(() => ({}))
   const reason = (body as Record<string, unknown>).reason as string
   const result = await callOrganism('organism.memory_promotion.reject', { id: c.req.param('id'), reason })
@@ -175,7 +177,7 @@ router.post('/memory-promotion/:id/reject', async (c) => {
   return c.json(result.data)
 })
 
-router.post('/compose', async (c) => {
+router.post('/compose', operatorGuard, async (c) => {
   const body = await c.req.json().catch(() => ({}))
   const intent = (body as Record<string, unknown>).intent as string
   const result = await callOrganism('organism.compose', { intent })
@@ -189,7 +191,8 @@ router.get('/workcells', async (c) => {
   return c.json(result.data)
 })
 
-router.post('/approve/:id', async (c) => {
+// ── Governed mutations (operator-only) ─────────────────────────
+router.post('/approve/:id', operatorGuard, async (c) => {
   const result = await callOrganism('organism.approve', {
     approval_id: c.req.param('id'),
     decided_by: 'cockpit',
@@ -198,7 +201,7 @@ router.post('/approve/:id', async (c) => {
   return c.json(result.data)
 })
 
-router.post('/deny/:id', async (c) => {
+router.post('/deny/:id', operatorGuard, async (c) => {
   const result = await callOrganism('organism.deny', {
     approval_id: c.req.param('id'),
     decided_by: 'cockpit',
@@ -207,19 +210,19 @@ router.post('/deny/:id', async (c) => {
   return c.json(result.data)
 })
 
-router.post('/kill', async (c) => {
+router.post('/kill', operatorGuard, async (c) => {
   const result = await callOrganism('organism.kill')
   if (!result.success) return c.json({ error: result.error }, 500)
   return c.json(result.data)
 })
 
-router.post('/resume', async (c) => {
+router.post('/resume', operatorGuard, async (c) => {
   const result = await callOrganism('organism.resume')
   if (!result.success) return c.json({ error: result.error }, 500)
   return c.json(result.data)
 })
 
-router.post('/governor/reset', async (c) => {
+router.post('/governor/reset', operatorGuard, async (c) => {
   const result = await callOrganism('organism.governor.reset')
   if (!result.success) return c.json({ error: result.error }, 500)
   return c.json(result.data)

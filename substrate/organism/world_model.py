@@ -224,6 +224,34 @@ class WorldModel:
             "extracted_at": self.extracted_at,
         }
 
+    def to_safe_dict(self) -> dict[str, Any]:
+        """HTTP-safe serialization that omits filesystem paths."""
+        safe_entities = {}
+        for eid, e in self.entities.items():
+            d = e.to_dict()
+            d.pop("module_path", None)
+            d["evidence"] = [
+                {k: v for k, v in ev.items() if k != "source"}
+                for ev in d.get("evidence", [])
+            ]
+            safe_entities[eid] = d
+        safe_gaps = []
+        for g in self.gaps:
+            d = g.to_dict()
+            d.pop("recommendation", None)
+            d["evidence"] = [
+                {k: v for k, v in ev.items() if k != "source"}
+                for ev in d.get("evidence", [])
+            ]
+            safe_gaps.append(d)
+        return {
+            "summary": self.summary(),
+            "entities": safe_entities,
+            "gaps": safe_gaps,
+            "uncertainties": [u.to_dict() for u in self.uncertainties],
+            "extracted_at": self.extracted_at,
+        }
+
 
 # ---------------------------------------------------------------------------
 # Deterministic extractors — each examines a slice of observed reality
